@@ -33,15 +33,44 @@
 # by the process that made it, so `request` waits and prints the whole outcome), `executable` is where `hecks project_cli` writes this bluebook's launcher (the
 # gem's `exe/hecks`), `streams` lists the questions `--stream` may tail (`Follow`), `memory_commands` names
 # the commands that launcher runs on the Memory environment unless `HECKS_ENVIRONMENT` is set (so
-# `hecks console` needs no database), and `legacy` names the commands it hands to `Hecks::CLI` in the
-# positional forms ADR 0066 shipped. `maintainer` names the aggregates only someone working on a hecks
+# `hecks console` needs no database), and the retired positional forms (ADR 0066) are refused by name, so no `legacy` list remains. `maintainer` names the aggregates only someone working on a hecks
 # checkout runs (Codebase, and releasing hecks itself): the help leaves them out anywhere else and
 # `--maintainer` lists them; `bluebooks` names the attached bluebooks the help points at, one line each
 # (`hecks deploy`), and `maintainer_bluebooks` the language's own, added inside a checkout.
 # `newcomer` names the only commands the help lists in a folder holding no bluebook yet
 # (`hecks --all` lists the rest), so a first run shows how to start and nothing else.
+# `everyday` names the commands and queries the help lists first, under its own heading, each
+# spelled as the call to type, for anyone the aggregate is not hidden from (ADR 0163).
+#
+# **test_scope** `suite_runs_in` names where the full suite runs ("ci": a local run of it is refused by name) and
+# `spec_files_limit` is the most spec files one local `run_spec_files!` or `run_impacted_specs!` call runs.
+#
+# **event_log** `path` is the append-only file the runtime writes events and policy deliveries to (one JSON line each,
+# names and outcomes, never payloads) and `max_bytes` the size at which it moves to `<path>.1`; absent, nothing is written.
+#
+# **landing** `stale_minutes` is how long a landing's ticket may go without a heartbeat before the next one treats
+# it as abandoned and removes it (30 when absent); `wait_minutes` is how long a landing waits for its turn in the
+# line before it gives up (40 when absent); `shell_lock` names a lock directory an older brief makes by hand,
+# which a landing honours as the holder while it exists. Landings run one at a time, first come first served.
 Hecks.world "Hecks" do
   realm "Hecks"
+  # The tables the renamed aggregates keep: Workspace was Checkout, Revision was Commit, SendTrain was
+  # PushTrain and ReviewRequest was PullRequest, and their rows stay where they were written.
+  # A boot that found them empty beside the old tables' rows would refuse by name.
+  stored_as Workspace: "checkout", Revision: "commit", SendTrain: "push_train", ReviewRequest: "pull_request"
+  # The command whose own record an unminted boot is let write: a mint cannot start from a boot whose
+  # shape no era holds yet. This domain's PostgresEra binding lives in uncommitted local files, so the
+  # name is said here, where every copy reads it.
+  minting commands: ["Era.MintHeld"]
+  landing "Queue", stale_minutes: 30, wait_minutes: 40
+  # Owner decision: the full spec suite runs only in CI (the Vocabulary `rspec` check is `runs_in: "ci"`).
+  # Locally `test_suite_run.run_suite!` is refused, and `run_spec_files!` and `run_impacted_specs!` run at
+  # most `spec_files_limit` files per call; CI is detected by the environment (`CI`, `GITHUB_ACTIONS`).
+  test_scope "Local", suite_runs_in: "ci", spec_files_limit: 25
+  # The runtime appends one JSON line per event and per policy delivery here, so a reader such as the
+  # PipelineBoard sees the domains that persist nothing (the push train runs in Memory). A client's
+  # world declares no `event_log`, so a client writes no file. The file rotates at `max_bytes`.
+  event_log "EventTap", path: "~/.claude/hecks-dev/events.jsonl", max_bytes: 5_000_000
   launcher "Launcher", run_keys: true,
                        settled: %w[package.vendor package.revendor package.release
                                   operation.bootstrap_admin smoke_run.run
@@ -49,22 +78,27 @@ Hecks.world "Hecks" do
                                   data_copy.verify bluebook_diff.run preview_run.name
                                   preview_run.url preview_run.list preview_run.deploy
                                   preview_run.destroy preview_run.login companion_roll.run
-                                  handover.clear rehearsal_run.request push_train.board
-                                  landing.land landing.retire agent_run.dispatch agent_run.check],
+                                  handover.clear rehearsal_run.request send_train.board
+                                  landing.land landing.train landing.retire landing.discard agent_run.dispatch agent_run.check],
                        unknown_runs: %w[rehearsal_run.rehearsal_outcome],
-                       names: { "config" => "checkout.settings", "mcp" => "launch.serve_mcp", "console" => "operation.open_console", "init" => "launch.init",
+                       renamed: { "push_train.push" => "send_train.send", "pull_request.merge" => "review_request.take", "checkout.log" => "workspace.history" },
+                       names: { "config" => "workspace.settings", "doctor" => "workspace.doctor", "mcp" => "server.serve_mcp", "console" => "operation.open_console", "init" => "launch.init",
                                 "interview" => "launch.interview", "package.check" => "registry.check",
+                                "agent_run.check_all" => "session_sweep.check_all",
                                 "package.digest" => "registry.digest",
                                 "package.release" => "registry.release" },
                        streams: %w[Follow],
                        executable: "exe/hecks",
                        maintainer: %w[LanguageRun KernelRun ConformanceRun RegenerationRun GateRun StyleRun InspectionRun
-                                      CodemodRun TestSuiteRun CorpusRun PublishingRun PromotionRun Release ScriptRun
+                                      CodemodRun TestSuiteRun CorpusRun Server PublishingRun PromotionRun Release ScriptRun
                                       SyntaxBootCache],
                        newcomer: %w[launch.init launch.interview operation.open_console],
+                       everyday: %w[operation.run operation.open_console gate_run.gate
+                                    test_suite_run.run_changed test_suite_run.run_spec_example
+                                    test_suite_run.run_spec_files test_suite_run.run_impacted_specs
+                                    build.build_host shipment.ship landing.land send_train.board
+                                    workspace.status codebase.search],
                        bluebooks: %w[Deploy Governance Tenancy Site Tickets Composer QualityControl],
                        maintainer_bluebooks: %w[Bluebook Hecksagon World Adapter Port Translation Expression],
-                       memory_commands: %w[console init interview],
-                       legacy: %w[run docs narrate ir stores model_check smoke_test
-                                  project_diagrams project_cli mcp]
+                       memory_commands: %w[console init interview]
 end

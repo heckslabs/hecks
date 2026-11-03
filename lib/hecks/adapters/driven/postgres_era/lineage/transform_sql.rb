@@ -3,6 +3,10 @@ module Hecks
     class PostgresEra
       class Lineage
         # The six shared `hecks_tr_*` jsonb functions that compiled translation SQL calls.
+        #
+        # A function that calls another `hecks_tr_*` function keeps the search path it was
+        # installed under (`SET search_path FROM CURRENT`), so it finds its sibling when the
+        # caller's path is empty, as in a `pg_restore` refreshing the views built on them.
         module TransformSql
           # Splits a path out of a state, answering what remains, the value and whether it was
           # there.
@@ -69,7 +73,7 @@ module Hecks
           # Moves the value at one path to another.
           TR_MOVE_SQL = <<~SQL.freeze
             CREATE OR REPLACE FUNCTION hecks_tr_move(state jsonb, from_path text[], to_path text[], rule_label text) RETURNS jsonb
-            LANGUAGE plpgsql IMMUTABLE AS $fn$
+            LANGUAGE plpgsql IMMUTABLE SET search_path FROM CURRENT AS $fn$
             DECLARE extracted record;
             BEGIN
               SELECT * INTO extracted FROM hecks_tr_extract(state, from_path);
@@ -81,7 +85,7 @@ module Hecks
           # Moves a value to another path, mapping it through a lookup table.
           TR_CONVERT_SQL = <<~SQL.freeze
             CREATE OR REPLACE FUNCTION hecks_tr_convert(state jsonb, from_path text[], to_path text[], pairs jsonb, from_label text, rule_label text) RETURNS jsonb
-            LANGUAGE plpgsql IMMUTABLE AS $fn$
+            LANGUAGE plpgsql IMMUTABLE SET search_path FROM CURRENT AS $fn$
             DECLARE extracted record; pair jsonb;
             BEGIN
               SELECT * INTO extracted FROM hecks_tr_extract(state, from_path);
@@ -99,7 +103,7 @@ module Hecks
           # Removes the value at a path.
           TR_DROP_SQL = <<~SQL.freeze
             CREATE OR REPLACE FUNCTION hecks_tr_drop(state jsonb, path text[]) RETURNS jsonb
-            LANGUAGE plpgsql IMMUTABLE AS $fn$
+            LANGUAGE plpgsql IMMUTABLE SET search_path FROM CURRENT AS $fn$
             DECLARE extracted record;
             BEGIN
               SELECT * INTO extracted FROM hecks_tr_extract(state, path);

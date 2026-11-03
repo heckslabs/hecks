@@ -3,9 +3,15 @@ require_relative "cli_projector/claims"
 require_relative "cli_projector/command_specs"
 require_relative "cli_projector/query_specs"
 require_relative "cli_projector/option_specs"
+require_relative "cli_projector/renames"
 require_relative "cli_projector/usage"
 require_relative "cli_projector/listing"
+require_relative "cli_projector/everyday"
 require_relative "cli_projector/command_help"
+require_relative "cli_projector/modules"
+require_relative "cli_projector/search"
+require_relative "cli_projector/completion"
+require_relative "cli_projector/json_listing"
 
 module Hecks
   module Projector
@@ -16,6 +22,17 @@ module Hecks
     # string: `sequence.value=99` must become 99, and a version "99" must stay a String.
     module CliProjector
       module_function
+
+      # The alias tables: each command and query under its short name and its old spellings, and
+      # the renamed table's old names routed to the namespace of their targets.
+      #
+      # @return [Hash{Symbol => Object}] `:command` and `:question` alias tables, and `:renamed`
+      #   (the old spellings and their argument renames)
+      def launcher_names(commands, questions, renamed)
+        table = renamed_aliases(commands, questions, renamed)
+        { command: aliases(commands).merge(table[:command]), question: aliases(questions).merge(table[:question]),
+          renamed: { spellings: Hash(renamed).keys.map(&:to_s), arguments: renamed_arguments(renamed) } }
+      end
 
       # Projects the command and question tables and the usage text. Commands and queries are
       # separate namespaces (a bluebook may declare both under one name); ask a query with `ask`.
@@ -41,17 +58,23 @@ module Hecks
         display_names([commands, questions], options[:names])
 
         { commands: commands, questions: questions,
-          names: { command: aliases(commands), question: aliases(questions) },
+          names: launcher_names(commands, questions, options[:renamed]),
           usage: usage(bluebook, commands, questions, options) }
       end
 
       extend Claims
+      extend Renames
       extend CommandSpecs
       extend QuerySpecs
       extend OptionSpecs
       extend Usage
       extend Listing
+      extend Everyday
       extend CommandHelp
+      extend Modules
+      extend Search
+      extend Completion
+      extend JsonListing
     end
   end
 end

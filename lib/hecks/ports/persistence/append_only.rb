@@ -12,7 +12,11 @@ module Hecks
       # (set by `append` on a live write, or by `entries`/`entries_since` on
       # a replayed one); nil for an adapter that assigns none. It rides
       # along so `project` can advance a checkpoint without a second lookup.
-      Entry = Struct.new(:operation, :id, :state, :mirrors, :sequence, keyword_init: true) do
+      #
+      # `mints_era` is the one-write allowance a command declared with `mints_era true` holds:
+      # only this entry, the command's own record, may be journaled through a boot whose shape no
+      # era holds yet. Nothing about it is persisted.
+      Entry = Struct.new(:operation, :id, :state, :mirrors, :sequence, :mints_era, keyword_init: true) do
         # Tells a projecting adapter that this entry writes a record.
         #
         # @return [Boolean] true when `operation` is the String `"save"`
@@ -22,6 +26,9 @@ module Hecks
         #
         # @return [Boolean] true when `operation` is the String `"delete"`
         def delete? = operation == "delete"
+
+        # @return [Boolean] true when the command that wrote this entry declared `mints_era true`
+        def mints_era? = mints_era == true
       end
 
       # Makes append-before-projection a port invariant: adapters keep their own durable
@@ -48,6 +55,14 @@ module Hecks
           raise Runtime::WiringError,
                 "#{adapter.class} does not implement append-only persistence: #{missing.join(", ")}"
         end
+
+        # Whether the adapter's binding names this command as one whose own record an unminted
+        # boot may write (`mints_era` in the world); an adapter with no such binding says no.
+        #
+        # @param agg [String] the aggregate the command belongs to
+        # @param name [String] the command
+        # @return [Boolean]
+        def mints_era_declared?(agg, name) = adapter.respond_to?(:mints_era_declared?) && adapter.mints_era_declared?(agg, name)
 
         # Reads one record's current projected state from the adapter.
         #
@@ -183,15 +198,16 @@ module Hecks
         # Returns an Outcome, not a bare Instance, so callers can check `:saved` vs `:stale`;
         # `expected_version:` only triggers CAS on an adapter declaring `:optimistic_concurrency`.
         #
-        # @param instance [Runtime::Instance] the record to persist; its `state` is shallow
-        #   copied into the entry
+        # @param instance [Runtime::Instance] the record to persist; its `state` is shallow copied
         # @param expected_version [Integer, nil] the version the instance was read at, or nil
         #   for an unconditional write
+        # @param mints_era [Boolean] true when the writing command declares `mints_era true`
         # @return [Persistence::Outcome] status `:saved` or `:stale`; `instance` is the
         #   adapter's projected result on `:saved`, else the instance passed in
         # @raise [Runtime::WiringError] when the adapter's `append` or `project` refuses
-        def save(instance, expected_version: nil)
-          entry = Entry.new(operation: "save", id: instance.id.to_s, state: instance.state.dup)
+        def save(instance, expected_version: nil, mints_era: false)
+          entry = Entry.new(operation: "save", id: instance.id.to_s, state: instance.state.dup,
+                            mints_era: mints_era)
           append(entry)
           if expected_version && capabilities.include?(:optimistic_concurrency)
             saved = @adapter.project(entry, expected_version: expected_version)
@@ -208,19 +224,21 @@ module Hecks
         #
         # @param instance [Runtime::Instance] the record to persist
         # @param insert_only [Boolean] true to refuse replacing a record that already exists
+        # @param mints_era [Boolean] true when the writing command declares `mints_era true`
         # @return [Persistence::Outcome] status `:inserted`, `:replaced`, or `:conflicted` when
         #   `insert_only` met an existing record and nothing was written; `instance` is always
         #   the instance passed in
         # @raise [Runtime::WiringError] if the adapter does not both advertise `:atomic_put`
         #   and implement it
         # @raise [ArgumentError] if the adapter answers a status outside `Outcome::STATUSES`
-        def atomic_put(instance, insert_only: false)
+        def atomic_put(instance, insert_only: false, mints_era: false)
           unless capabilities.include?(:atomic_put) && @adapter.respond_to?(:atomic_put)
             raise Runtime::WiringError,
                   "#{@adapter.class} advertises no atomic_put persistence capability"
           end
 
-          entry = Entry.new(operation: "save", id: instance.id.to_s, state: instance.state.dup)
+          entry = Entry.new(operation: "save", id: instance.id.to_s, state: instance.state.dup,
+                            mints_era: mints_era)
           status = @adapter.atomic_put(entry, insert_only: insert_only)
           Outcome.new(status: status, instance: instance)
         end

@@ -60,7 +60,7 @@ module Hecks
           # `build_rust_for` answers nil only for an undeclared feature; a declared one that fails
           # raises, so its cargo stderr is printed here.
           reason = @rust_build_failure ? @rust_build_failure.message : "rust/Cargo.toml declares no #{@feature} feature"
-          puts "note: no #{@feature} Rust binary — degrading this sweep to ruby_only. Run `hecks project_rust` for it " \
+          puts "note: no #{@feature} Rust binary — degrading this sweep to ruby_only. Run `hecks build.project_rust!` for it " \
                "and re-sweep.\n#{reason}"
           @active_modes = (@active_modes - %i[differential properties_in_differential structural_skip_report]) |
                           [:ruby_only]

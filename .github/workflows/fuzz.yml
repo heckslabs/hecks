@@ -54,7 +54,7 @@ jobs:
         with:
           database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
 
-      # No generated-rust step: `hecks build_wasm` regenerates the banking domain in a scratch copy
+      # No generated-rust step: `hecks Build.build_wasm!` regenerates the banking domain in a scratch copy
       # of rust/, so it needs nothing the checkout holds beyond the committed mod.rs and pizzas.
 
       - uses: ./.github/actions/wasm-toolchain
@@ -62,7 +62,7 @@ jobs:
           install-wasmtime: "false"
 
       - name: Build the banking wasm module
-        run: bundle exec exe/hecks build.build_wasm domain=examples/banking profile=dev --wait
+        run: bundle exec exe/hecks build.build_wasm! domain=examples/banking profile=dev --wait
 
       - uses: actions/upload-artifact@v4
         with:
@@ -74,8 +74,9 @@ jobs:
   fuzz:
     needs: build_wasm
     runs-on: ubuntu-latest
-    # Backstop for the whole leg. The mutation loop has its own, tighter bound below.
-    timeout-minutes: 30
+    # Backstop for the whole leg: a cold build (25) plus the mutation loop (12) plus setup. A warm
+    # leg restores the build and takes a fraction of this.
+    timeout-minutes: 45
 
     strategy:
       # A crash on one leg must not hide what the other finds.
@@ -125,6 +126,7 @@ jobs:
 
       - name: Install cargo-fuzz
         if: steps.cargo-fuzz.outputs.cache-hit != 'true'
+        timeout-minutes: 10
         run: cargo install cargo-fuzz --locked --version "$CARGO_FUZZ_VERSION"
 
       # The corpus the last run left, so each night starts from the coverage the one before reached.
@@ -146,12 +148,23 @@ jobs:
         if: matrix.postgres == 'on'
         run: psql -h localhost -U postgres -c 'CREATE DATABASE hecks_fuzz'
 
+      # The instrumented build, apart from the run: the 10 minute limit that used to cover both ran out
+      # while a cold cargo cache was still compiling (the host and wasmtime under a sanitizer), so
+      # nothing was ever fuzzed. It has its own limit, and its target dir is what cargo-cache saves
+      # at the end of a green job, so the next night's build is incremental.
+      - name: Build the fuzz target
+        timeout-minutes: 25
+        working-directory: rust/host
+        run: cargo +nightly fuzz build postgres_equivalence --sanitizer ${{ matrix.sanitizer }}
+
       # libFuzzer exits non-zero on a crash, an AddressSanitizer report, a leak, an out-of-memory
       # and a timeout alike, which fails this step and the leg. The step's own limit ends a loop that
       # never returns. The host logs one JSON line to stdout per command, which is thousands a
       # second here, so stdout is dropped; libFuzzer reports on stderr.
+      # Only the mutation loop is left here, bounded by -max_total_time (FUZZ_SECONDS, at most 540)
+      # plus the corpus load, so 12 minutes is the hard stop for a loop that never returns.
       - name: Fuzz
-        timeout-minutes: 10
+        timeout-minutes: 12
         working-directory: rust/host
         env:
           HECKS_FUZZ_PG: ${{ matrix.postgres == 'on' && 'host=localhost user=postgres password=postgres dbname=hecks_fuzz' || '' }}

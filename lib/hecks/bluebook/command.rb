@@ -52,6 +52,8 @@ module Hecks
         role:       :role,
         # Every role that may run the command, when more than one may; `role` is then the first.
         roles:      -> { roles.size > 1 ? roles : Hecks::IR::OMIT },
+        # Who a launcher lists the command for; absent when the command declares none.
+        audience:   -> { audience.empty? ? Hecks::IR::OMIT : audience },
         goal:       :goal,
         references: :references,
         attributes: many(:attributes),
@@ -64,29 +66,39 @@ module Hecks
         from:       -> { from },
         provenance: :provenance,
         # Safe to deliver twice; the saga redrive reads it for a dispatch left unsettled.
-        idempotent: -> { idempotent? }
+        idempotent: -> { idempotent? },
+        # Lets this command's own record through a boot whose shape no era holds yet.
+        mints_era:  -> { mints_era? }
       )
 
       # Every optional declared field and what it holds when the declaration omits it.
       FIELD_DEFAULTS = {
-        role: nil, roles: [], goal: nil, attributes: [], givens: [], ensures: [], needs: [],
-        mutations: [], emits: [], references: nil, from: nil, provenance: nil, idempotent: false
+        role: nil, roles: [], audience: [], goal: nil, attributes: [], givens: [], ensures: [], needs: [],
+        mutations: [], emits: [], references: nil, from: nil, provenance: nil, idempotent: false,
+        mints_era: false
       }.freeze
 
       class << self
         attr_reader :role, :goal, :attributes, :givens, :ensures, :needs, :mutations, :emits, :references,
-                    :from, :provenance, :idempotent
+                    :from, :provenance, :idempotent, :mints_era
 
         # @return [Boolean] whether a second delivery leaves the state a first one did
         def idempotent? = @idempotent ? true : false
 
+        # @return [Boolean] whether this command's own record may be written through an unminted
+        #   boot
+        def mints_era? = @mints_era ? true : false
+
         # @return [Array<String>] every role that may run it when more than one may, else empty
         def roles = @roles || []
+
+        # @return [Array<String>] who a launcher lists it for, else empty (a person and an agent)
+        def audience = @audience || []
 
         # Mints one command as its own anonymous subclass of the class `declare` is called on.
         #
         # @param name [String, Symbol] the command's declared name
-        # @param role [String, nil] the declared role; `roles` all of them when several may run it
+        # @param role [String, nil] the declared role; `roles` all of them, `audience` who it is for
         # @param attributes [Array<Bluebook::Attribute>] the declared arguments
         # @param givens [Array<Bluebook::Given>] the declared preconditions
         # @param ensures [Array<Bluebook::Given>] the postconditions; `needs` the facts it supplies

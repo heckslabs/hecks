@@ -3,14 +3,14 @@ require "hecks/doc/reference"
 
 # The reference pages must equal what the language declares: tables are projected from the
 # Syntax bluebook, prose is hand-written between markers, and every live word needs prose.
-# Regenerate deliberately with `hecks language_run.project_reference` (or GOLDEN=rewrite).
+# Regenerate deliberately with `hecks language_run.project_reference!` (or GOLDEN=rewrite).
 RSpec.describe "the DSL reference" do
   REFERENCE_DIR = File.join(InMemoryDomain::ROOT, "docs/implemented/reference").freeze
 
   README_PATH = File.join(InMemoryDomain::ROOT, "README.md").freeze
 
   README_DRIFT = "README.md's generated regions (guides/reference/corpus/tools/diagrams) disagree with what's on " \
-                 "disk — run hecks language_run.project_reference and review the diff".freeze
+                 "disk — run hecks language_run.project_reference! and review the diff".freeze
 
   # What is wrong with the committed page `name`, as a list of messages: empty when it equals
   # `content`.
@@ -18,12 +18,12 @@ RSpec.describe "the DSL reference" do
     path = File.join(REFERENCE_DIR, name)
     unless File.exist?(path)
       return ["no #{name} — the language declares a context the reference does not carry; " \
-              "run hecks language_run.project_reference"]
+              "run hecks language_run.project_reference!"]
     end
     return [] if File.read(path) == content
 
     ["the language and docs/implemented/reference/#{name} disagree — " \
-     "run hecks language_run.project_reference and review the diff"]
+     "run hecks language_run.project_reference! and review the diff"]
   end
 
   it "matches what the language declares, page for page" do

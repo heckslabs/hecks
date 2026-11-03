@@ -36,22 +36,26 @@ module Hecks
       # @param only [Array(Bluebook::Policy, String), nil] one `[policy, home_domain]`
       #   pair to run exactly (the outbox relay's consumer), instead of scanning every
       #   loaded bluebook for candidates
-      # @param event_uid [String, nil] the outbox uid every consumer of this event shares, when the
-      #   event was rebuilt from an outbox row; otherwise the event object itself is the identity
-      # @return [void]
+      # @param event_uid [String, nil] the outbox uid every consumer of this event shares; the
+      #   reaction identity only when the event has no id
+      # @return [Array<Hash>] the reactions recorded, one per delivery attempted
       def react(event, domain, only: nil, event_uid: nil)
         selected = only ? [only] : policies_for(event, domain)
-        selected.each do |policy, home_domain|
+        selected.flat_map do |policy, home_domain|
           result = deliver(policy, event, home_domain)
-          next if result.nil?
-
-          # A for_each policy answers an array; Array(...) would explode a record Hash.
-          identity = event_uid || event.object_id
-          (result.is_a?(Array) ? result : [result]).each { |record| @registry.log_reaction(record, event: identity) }
+          # A for_each policy answers an array; Array(...) would explode a record Hash. The identity
+          # is the event's own id: a later run recognises the reaction, whichever path ran it.
+          records = result.is_a?(Array) ? result : [result].compact
+          records.each { |record| @registry.log_reaction(record, event: reaction_identity(event, event_uid)) }
         end
       end
 
       private
+
+      # The identity a reaction is logged under: the event's own id, so a later run can recognise
+      # the reaction whichever path delivered the event; the outbox uid or the object when the event
+      # has no id.
+      def reaction_identity(event, event_uid) = event.id || event_uid || event.object_id
 
       # Scans every loaded bluebook, since a policy commonly lives in a different
       # domain than the event it reacts to. Returns [policy, home_domain] pairs: the
@@ -68,6 +72,10 @@ module Hecks
           matching.map { |policy| [policy, bluebook.name] }
         end
       end
+
+      # Answers the policies `event` triggers in `domain`, as `[policy, home_domain]` pairs, in
+      # the order a delivery tries them. The event pump reads this, then runs one of them at a time.
+      public :policies_for
 
       # Evaluated against the event payload alone (a policy has no aggregate state).
       # Not rescued here: an EvaluationError must reach `deliver`'s defect rescue, not

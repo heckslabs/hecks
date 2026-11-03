@@ -1,15 +1,15 @@
 require "socket"
 require "json"
 require "tmpdir"
-require "hecks/cli/expected_era"
-require "hecks/cli/check_era"
+require "hecks/tools/expected_era"
+require "hecks/tools/check_era"
 
-# The era check (Hecks::CLI::CheckEra) and the library under it, against a stub host that serves
+# The era check (Hecks::Tools::CheckEra) and the library under it, against a stub host that serves
 # `GET /version` the way rust/host's `version_router` does. The stub is a
 # bare TCPServer on an ephemeral port: it answers one canned response per
 # connection and records what was requested.
 RSpec.describe "the era check", :io do
-  def era_check = Hecks::CLI::ExpectedEra
+  def era_check = Hecks::Tools::ExpectedEra
 
   # A stub host answering every request with `status` and `body`.
   class CheckEraStubHost
@@ -62,11 +62,11 @@ RSpec.describe "the era check", :io do
     end
   end
 
-  def assess(url, list, timeout: 2) = Hecks::CLI::CheckEra.assess(url, list, timeout: timeout)
+  def assess(url, list, timeout: 2) = Hecks::Tools::CheckEra.assess(url, list, timeout: timeout)
 
-  def unreachable = Hecks::CLI::ExpectedEra::Unreachable
+  def unreachable = Hecks::Tools::ExpectedEra::Unreachable
 
-  def bad_response = Hecks::CLI::ExpectedEra::BadResponse
+  def bad_response = Hecks::Tools::ExpectedEra::BadResponse
 
   # Assesses a host reporting `reported_era` against an allow-list file holding `list_text`.
   def assessed(list_text, reported_era = "199b08")

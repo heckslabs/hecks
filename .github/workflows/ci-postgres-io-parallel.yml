@@ -48,7 +48,7 @@ jobs:
       - uses: ./.github/actions/hecks-environment
       - id: diff
         name: 'does this change touch anything rspec_postgres_io_parallel covers?'
-        run: bundle exec exe/hecks regeneration_run.decide_ci_gate gate=postgres_io_relevant_changed --wait
+        run: bundle exec exe/hecks regeneration_run.decide_ci_gate! gate=postgres_io_relevant_changed --wait
   # END GENERATED ci_gate postgres_io_relevant_changed
 
   # Same detector-plus-gated-job shape as ci-rspec.yml's own ci_attestation_rspec — see
@@ -87,13 +87,73 @@ jobs:
           database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
 
       - name: .github/postgres_io_spec_files.txt matches a real --tag io dry run
-        run: bundle exec exe/hecks query test_suite_run.list_io_parallel_specs exclude="$IO_PARALLEL_EXCLUDE_PATTERN" check=.github/postgres_io_spec_files.txt
+        run: bundle exec exe/hecks test_suite_run.list_io_parallel_specs exclude="$IO_PARALLEL_EXCLUDE_PATTERN" check=.github/postgres_io_spec_files.txt
+
+  # Splits the committed io file list among the shard legs once, so every leg reads the same plan:
+  # the CiSpeed bluebook's ShardPlan balances them by the seconds the newest successful main run
+  # recorded for each file, and by file size when that run cannot be read. Its events, and the
+  # policy that reacted to each, are in the job summary and the shard-plan-trace-postgres-io
+  # artifact. A plan that cannot be made leaves the legs to split by file size on their own.
+  postgres_io_shard_plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    needs: [postgres_io_relevant_changed, ci_attestation_postgres_io_parallel]
+    if: >-
+      always() && (github.event_name == 'push' || needs.postgres_io_relevant_changed.outputs.touched == 'true') &&
+      (needs.ci_attestation_postgres_io_parallel.result != 'success' || needs.ci_attestation_postgres_io_parallel.outputs.attested != 'true')
+
+    env:
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-ruby
+        with:
+          # The plan boots the CiSpeed bluebook and splits files; it builds no Rust.
+          rust-toolchain: "false"
+      - uses: ./.github/actions/hecks-environment
+
+      # `shards` is the matrix's group count in rspec_postgres_io_parallel_shard.
+      - name: "Plan the shards: ShardPlan.Request, from the last main run's timings or file size"
+        run: |
+          mkdir -p tmp/shard-plan-trace
+          cat > tmp/shard-plan-steps.json <<'JSON'
+          {"steps":[{"verb":"CiSpeed::ShardPlan.Request","args":{"name":{"value":"postgres_io"},"shards":{"value":20},"items_from":{"value":"list:.github/postgres_io_spec_files.txt"},"timings_from":{"value":"main"},"out_dir":{"value":"tmp/plan"}}}]}
+          JSON
+          bundle exec exe/hecks Operation.run! subject.value=lib/hecks/ci_speed script.value=tmp/shard-plan-steps.json --wait \
+            > tmp/shard-plan-trace/run.json \
+            || echo "::warning::the shard plan failed; every leg splits by file size"
+
+      - name: Publish the plan's events and the policies that reacted
+        if: always()
+        run: |
+          jq -r -f .github/shard-plan-trace.jq tmp/shard-plan-trace/run.json \
+            | tee tmp/shard-plan-trace/trace.md >> "$GITHUB_STEP_SUMMARY" \
+            || echo "::warning::no shard plan trace to publish"
+
+      - name: Upload the plan every leg reads
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shard-plan-postgres-io
+          path: tmp/plan
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: Upload the plan's event trace
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shard-plan-trace-postgres-io
+          path: tmp/shard-plan-trace
+          retention-days: 14
+          if-no-files-found: ignore
 
   # Matrix of one-process legs; ci.yml's `rspec_postgres_io_parallel` aggregator owns the
   # required check name, since matrix legs report as `<job id> (<value>)`.
   #
-  # Every leg computes the identical split (`-n 20`, same committed baseline) and
-  # `--only-group` selects its own slice, so balancing stays parallel_tests' own.
+  # Every leg reads the one plan above (`-n 20`) and runs its own group of it.
   #
   # One process per leg is load-bearing: hecks quality_control sweep.create_ledger_role creates the cluster-global
   # role `hecks_qa` check-then-create, and two qa_sweep_all specs provisioning at once
@@ -105,7 +165,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
 
-    needs: [postgres_io_relevant_changed, ci_attestation_postgres_io_parallel]
+    needs: [postgres_io_relevant_changed, ci_attestation_postgres_io_parallel, postgres_io_shard_plan]
 
     # Same skip gate as the detector, plus attestation: skip when the path gate says nothing
     # relevant changed, OR the tree was already proven. A push always runs: the detector skips
@@ -127,6 +187,7 @@ jobs:
       PGHOST: localhost
       PGUSER: postgres
       PGPASSWORD: postgres
+      GH_TOKEN: ${{ github.token }}
 
     steps:
       - uses: actions/checkout@v4
@@ -149,23 +210,33 @@ jobs:
       - name: Create the pizzas example's database
         run: createdb -h localhost -U postgres hecks_pizzas
 
-      # The committed baseline is the only grouping input: every leg must compute the split
-      # from byte-identical inputs or it is not a partition (a restored per-run cache differed
-      # across legs). Built by `hecks refresh_runtime_baseline from_run= <run-id>`.
-      # The file list is committed too; `postgres_io_file_list` proves it matches a dry run.
-      - name: "rspec: postgres + deploy/tenant I/O (this shard's own group only — see job header comment on --only-group)"
+      # Every leg reads the one plan postgres_io_shard_plan made, so the legs agree on the split.
+      # The file list it splits is committed; `postgres_io_file_list` proves it matches a dry run.
+      # A plan that cannot be read is no reason to fail: the leg then takes every twentieth file of
+      # the committed list, which is still a partition of it.
+      - name: Read the plan
         run: |
-          mkdir -p tmp
+          mkdir -p tmp/plan
+          gh run download ${{ github.run_id }} --name shard-plan-postgres-io --dir tmp/plan \
+            || echo "::warning::no shard plan to read; this leg takes every twentieth file"
+          if [ ! -s "tmp/plan/group-${{ matrix.group }}.txt" ]; then
+            awk -v group=${{ matrix.group }} 'NR % 20 == group % 20' .github/postgres_io_spec_files.txt \
+              > "tmp/plan/group-${{ matrix.group }}.txt"
+          fi
+
+      # One process per leg, over the plan's files for this group.
+      - name: "rspec: postgres + deploy/tenant I/O (this shard's own group only)"
+        run: |
           IO_FILES=()
-          while IFS= read -r line; do IO_FILES+=("$line"); done < .github/postgres_io_spec_files.txt
-          bundle exec parallel_rspec "${IO_FILES[@]}" \
-            -n 20 --group-by runtime --allowed-missing 100 --only-group ${{ matrix.group }} \
-            --runtime-log .github/postgres_io_runtime_baseline.log \
+          while IFS= read -r line; do IO_FILES+=("$line"); done < "tmp/plan/group-${{ matrix.group }}.txt"
+          # No files for the group must not become "run everything".
+          [ "${#IO_FILES[@]}" -gt 0 ] || { echo "group ${{ matrix.group }} has no files"; exit 0; }
+          bundle exec parallel_rspec "${IO_FILES[@]}" -n 1 \
             -o "--tag io --tag ~fuzzing --tag ~rust_host --format documentation --profile 15 --format ParallelTests::RSpec::RuntimeLogger --out tmp/parallel_runtime_rspec.group${{ matrix.group }}.log"
 
-      # Uploaded, never restored: hecks refresh_runtime_baseline from_run= needs all sixteen
-      # legs' logs from one run. Grouping never reads it.
-      - name: Upload this group's runtime log (for hecks refresh_runtime_baseline from_run=)
+      # Uploaded, never restored by this run: the next run's postgres_io_shard_plan downloads the
+      # artifacts of the newest successful run on main and balances the legs by these seconds.
+      - name: Upload this group's runtime log (the next run's plan reads it)
         if: always()
         uses: actions/upload-artifact@v4
         with:

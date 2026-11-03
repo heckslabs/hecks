@@ -10,7 +10,7 @@ RSpec.describe "hecks init" do
   # itself.
   def init(dir, *words)
     env = { "HECKS_ENVIRONMENT" => nil, "PGHOST" => "/nonexistent-postgres-socket-dir", "PGPORT" => "1" }
-    InProcessLauncher.capture3(env, "init", *words, chdir: dir)
+    InProcessLauncher.capture3(env, "init!", *words, chdir: dir)
   end
 
   def written(dir) = Dir.glob("**/*", File::FNM_DOTMATCH, base: dir).select { |path| File.file?(File.join(dir, path)) }.sort

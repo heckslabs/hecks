@@ -257,6 +257,9 @@ RSpec.describe "persistence adapter contract (state codec round trip)" do
     end
 
     describe Hecks::Adapters::PostgresEra do
+      # A boot never holds era 1 (ADR 0168): hold it on the freshly scrubbed database first.
+      before { fixture.hold_postgres_era!(databases[:postgres_era]) }
+
       def build_adapter(aggregate)
         Hecks::Adapters::PostgresEra.new(aggregate: aggregate, settings: { database: databases[:postgres_era] })
       end
@@ -283,7 +286,8 @@ RSpec.describe "persistence adapter contract (state codec round trip)" do
 
     let(:registry) do
       adapter_class = forgetful_class
-      instance_double(Hecks::Runtime::Registry, root: nil, resolved_eras: {}, superseded_eras: {}).tap do |double|
+      instance_double(Hecks::Runtime::Registry, root: nil, resolved_eras: {}, superseded_eras: {},
+                       unminted_eras: {}).tap do |double|
         allow(double).to receive_messages(check_verb: nil, binding_settings: {}, check_settings: nil,
                                           adapter_class: adapter_class)
         allow(double).to receive(:with_adapter_defaults) { |_adapter, _aggregate, settings| settings }
@@ -341,7 +345,8 @@ RSpec.describe "persistence adapter contract (state codec round trip)" do
     let(:seeded_entry) { Hecks::Ports::Persistence::Entry.new(operation: "save", id: "A", state: canonical("Account")) }
 
     def boot(adapter_class)
-      registry = instance_double(Hecks::Runtime::Registry, root: nil, resolved_eras: {}, superseded_eras: {}).tap do |double|
+      registry = instance_double(Hecks::Runtime::Registry, root: nil, resolved_eras: {}, superseded_eras: {},
+                       unminted_eras: {}).tap do |double|
         allow(double).to receive_messages(check_verb: nil, binding_settings: {}, check_settings: nil,
                                           adapter_class: adapter_class)
         allow(double).to receive(:with_adapter_defaults) { |_adapter, _aggregate, settings| settings }

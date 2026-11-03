@@ -13,6 +13,10 @@ module Hecks
     # means no overlay, whatever the variable holds.
     FROM_ENV = :from_env
 
+    # The variable that moves the Hecks world's event tap for a process no hecks command runs: a
+    # spec run sets it for itself and every child it starts.
+    EVENT_TAP_VARIABLE = "HECKS_EVENT_TAP".freeze
+
     module_function
 
     # The overlay a boot loads: the caller's own choice (nil meaning none), else the
@@ -28,6 +32,13 @@ module Hecks
       named.empty? ? nil : named
     end
 
+    # The event tap override a boot hands the runtime: `HECKS_EVENT_TAP` when it is set (a path
+    # moves the Hecks world's tap, an empty value switches it off), else nil, which leaves the
+    # world's tap where it is. A world that declares no tap ignores it.
+    #
+    # @return [String, nil] the override
+    def event_tap_override = ENV.fetch(EVENT_TAP_VARIABLE, nil)
+
     # Boots a domain directory. See `Runtime::Loader.boot`.
     #
     # @param path [String] path to a domain directory, or a file inside one
@@ -36,7 +47,8 @@ module Hecks
     # @param environment [String, nil, Symbol] the overlay, or `FROM_ENV` for `HECKS_ENVIRONMENT`
     # @return [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the booted dispatcher
     def boot(path, shared: nil, install_driving: true, environment: FROM_ENV)
-      drive(Runtime::Loader.boot(path, shared: shared, environment: selected_environment(environment)),
+      drive(Runtime::Loader.boot(path, shared: shared, environment: selected_environment(environment),
+                                       event_tap: event_tap_override),
             install_driving)
     end
 
@@ -57,7 +69,7 @@ module Hecks
     # @param install_driving [Boolean] install the `Widget::Item.Add`-style facade
     # @return [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the booted dispatcher
     def boot_described(described, install_driving: true)
-      drive(Runtime::Loader.boot_described(described), install_driving)
+      drive(Runtime::Loader.boot_described(described, event_tap: event_tap_override), install_driving)
     end
 
     # Boots exactly the named files. See `Runtime::Loader.boot_files`.
@@ -66,9 +78,11 @@ module Hecks
     # @param shared [String, nil] a shared-root override
     # @param install_driving [Boolean] install the `Widget::Item.Add`-style facade
     # @param environment [String, nil, Symbol] the overlay, or `FROM_ENV` for `HECKS_ENVIRONMENT`
+    # @param adapters [Array<String>, nil] exactly the `.adapter` files to load; see the loader
     # @return [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the booted dispatcher
-    def boot_files(paths, shared: nil, install_driving: true, environment: FROM_ENV)
-      drive(Runtime::Loader.boot_files(paths, shared: shared, environment: selected_environment(environment)),
+    def boot_files(paths, shared: nil, install_driving: true, environment: FROM_ENV, adapters: nil)
+      drive(Runtime::Loader.boot_files(paths, shared: shared, environment: selected_environment(environment),
+                                              adapters: adapters, event_tap: event_tap_override),
             install_driving)
     end
 

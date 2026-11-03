@@ -1,6 +1,9 @@
-require "fileutils"
 require "json"
 require "hecks"
+require_relative "ports/persistence/plugins/era/era_check"
+require_relative "shape_ledger/scope"
+require_relative "shape_ledger/status"
+require_relative "shape_ledger/edge_hygiene"
 
 module Hecks
   # The committed record of each bluebook's storage shape, held against the shapes the bluebooks
@@ -10,17 +13,24 @@ module Hecks
   # that at a boot only runs against a real database, which specs and gates do not use, so this one
   # reads nothing but the loaded bluebooks and the committed edges: it needs no database.
   #
+  # It holds only a bluebook whose committed persistence is an era adapter, or a framework member
+  # that clients persist (see `Scope`); tooling is Memory and needs no entry.
+  #
   # @example
-  #   ShapeLedger.check("lib/hecks/hecks")  # => "15 bluebook shapes, each the one the ledger holds"
+  #   ShapeLedger.check("lib/hecks/hecks")  # => "1 bluebook shapes, each ..."
   module ShapeLedger
     # The ledger file, beside the bluebooks it records.
     FILE = "shapes.json".freeze
+
+    # The record beside the ledger of each implicit move: a shape change that carried no edge file
+    # and was settled with `--confirm --additive`. Each bluebook maps to its `{from, to}` moves.
+    IMPLICIT_FILE = "implicit_moves.json".freeze
 
     # The length of the label a translation edge names a shape by.
     LABEL = 6
 
     # What a problem line tells the reader to do.
-    REWRITE = "rewrite the ledger with `hecks conformance_run.check_shape_ledger --confirm --wait`".freeze
+    REWRITE = "rewrite the ledger with `hecks conformance_run.check_shape_ledger! --confirm --wait`".freeze
 
     # Raised with every problem found, or when the ledger cannot be rewritten.
     class Failure < StandardError; end
@@ -31,17 +41,22 @@ module Hecks
     #
     # @param directory [String] the domain directory whose bluebooks the ledger records
     # @param confirm [Boolean] rewrite the ledger when every moved shape has an edge
-    # @param additive [Boolean] with `confirm`, write the empty edge for each shape that moved with
-    #   none, on the operator's word that the change only adds; the mint audits every edge against
-    #   the records it migrates and refuses one that would lose data
+    # @param additive [Boolean] with `confirm`, move the ledger for each shape that moved with no
+    #   edge, on the operator's word that the change only adds. No edge file is written: the boot
+    #   and the mint treat such a move as an implicit empty edge, and the mint refuses any change
+    #   the scaffold does not find to be additive
     # @return [String] the clean verdict, or what was written
     # @raise [Failure] with each problem
     def check(directory, confirm: false, additive: false)
-      registry = Hecks.describe(directory).registry
-      shapes = shapes_of(registry)
-      edges = edges_of(registry)
+      registry = Scope.committed_registry(directory)
       path = File.join(directory, FILE)
-      confirm ? rewrite(path, shapes, edges, directory, additive) : verdict(path, shapes, edges)
+      shapes, ledger, skipped = Scope.view(registry, path)
+      moves = implicit_moves(implicit_path(path))
+      edges = with_implicit(edges_of(registry), moves)
+      return rewrite(path, ledger, shapes, edges, additive) if confirm
+
+      verdict(ledger, shapes, edges) + Scope.note(skipped) +
+        EdgeHygiene.report(directory, ledger: ledger, shapes: shapes, moves: moves)
     end
 
     # @param registry [Runtime::Registry] the loaded bluebooks
@@ -57,6 +72,18 @@ module Hecks
     end
 
     def pairs(edges) = edges.map { |edge| [edge.from, edge.to] }
+
+    # @return [Hash{String => Array<Array(String, String)>}] `edges` with each recorded implicit
+    #   move added as an edge: the boot and the mint read a recorded move as an empty edge
+    def with_implicit(edges, record)
+      record.each_with_object(edges.dup) do |(name, moves), merged|
+        merged[name] = merged.fetch(name, []) + pairs_of(moves)
+      end
+    end
+
+    # @param moves [Array<Hash>] recorded `{"from" => ..., "to" => ...}` moves
+    # @return [Array<Array(String, String)>] the moves as `[from, to]`
+    def pairs_of(moves) = moves.map { |move| [move["from"], move["to"]] }
 
     def label(hash) = hash.to_s[0, LABEL]
 
@@ -74,8 +101,8 @@ module Hecks
       fresh
     end
 
-    def verdict(path, shapes, edges)
-      problems = problems(read(path), shapes, edges)
+    def verdict(ledger, shapes, edges)
+      problems = problems(ledger, shapes, edges)
       raise Failure, problems.join("\n") unless problems.empty?
 
       "#{shapes.size} bluebook shapes, each the one the ledger holds"
@@ -100,25 +127,49 @@ module Hecks
     # What to commit: the empty edge covers a change that only adds, and a change that renames or
     # reshapes data needs the rules the scaffold writes from the database that holds the eras.
     def edge_advice(name, from, now)
-      edge = %(Hecks.data_translation "#{name}", from: "#{from}", to: "#{now}" do end)
-      "for a change that only adds, commit this edge under translations/ (as 2-#{now}.bluebook): #{edge}. " \
-        "Data that is renamed or reshaped needs rules: `hecks query era.scaffold_translation " \
-        "domain.value=<directory>` writes them, reading the eras from the database the domain's " \
-        "own world names. A change that only adds is settled in one step " \
-        "by `hecks conformance_run.check_shape_ledger --confirm --additive --wait`"
+      "#{name} moved with no edge. A change that only adds needs no edge file: settle it in one step " \
+        "with `hecks conformance_run.check_shape_ledger! --confirm --additive --wait`, which the boot and " \
+        "the mint treat as an implicit empty edge from #{from} to #{now}. Data that is renamed or reshaped " \
+        "needs rules: `hecks era.scaffold_translation domain.value=<directory>` writes them, reading " \
+        "the eras from the database the domain's own world names."
     end
 
-    def rewrite(path, shapes, edges, directory, additive)
-      ledger = read(path)
-      written = additive ? write_edges(directory, uncovered_moves(ledger, shapes, edges)) : []
+    def rewrite(path, ledger, shapes, edges, additive)
+      implicit = additive ? uncovered_moves(ledger, shapes, edges) : []
       uncovered = additive ? [] : problems(ledger, shapes, edges).reject { |line| line.include?(REWRITE) }
       raise Failure, uncovered.join("\n") unless uncovered.empty?
 
       File.write(path, "#{JSON.pretty_generate(shapes.sort.to_h)}\n")
-      "wrote #{shapes.size} bluebook shapes to #{path}#{edges_note(written)}"
+      record_implicit(implicit_path(path), implicit)
+      "wrote #{shapes.size} bluebook shapes to #{path}#{implicit_note(implicit)}"
     end
 
-    def edges_note(written) = written.empty? ? "" : " and #{written.size} empty edge(s): #{written.join(", ")}"
+    # Appends each implicit move to the record, once: a move the record already holds is skipped.
+    #
+    # @param path [String] the record file beside the ledger
+    # @param moves [Array<Array(String, String, String)>] `[bluebook, from, to]` for each move
+    # @return [void]
+    def record_implicit(path, moves)
+      return if moves.empty?
+
+      record = implicit_moves(path)
+      moves.each { |name, from, now| append_move(record, name, { "from" => from, "to" => now }) }
+      File.write(path, "#{JSON.pretty_generate(record.sort.to_h)}\n")
+    end
+
+    def append_move(record, name, move)
+      entries = record.fetch(name, [])
+      record[name] = entries.include?(move) ? entries : entries + [move]
+    end
+
+    def implicit_path(path) = File.join(File.dirname(path), IMPLICIT_FILE)
+
+    def implicit_note(moves)
+      return "" if moves.empty?
+
+      named = moves.map { |name, from, now| "#{name} #{from} -> #{now}" }
+      " and #{moves.size} implicit move(s), no edge file: #{named.join(", ")}"
+    end
 
     # @return [Array<Array(String, String, String)>] `[bluebook, from, to]` for each shape that
     #   moved
@@ -133,17 +184,11 @@ module Hecks
       end
     end
 
-    # @return [Array<String>] the paths of the empty edges written
-    def write_edges(directory, moves)
-      FileUtils.mkdir_p(File.join(directory, "translations"))
-      moves.map do |name, from, now|
-        path = File.join(directory, "translations", "2-#{now}.bluebook")
-        File.write(path, %(Hecks.data_translation "#{name}", from: "#{from}", to: "#{now}" do\nend\n))
-        path
-      end
-    end
-
     # @return [Hash{String => String}] the ledger, empty when there is none yet
     def read(path) = File.exist?(path) ? JSON.parse(File.read(path)) : {}
+
+    # @param path [String] the implicit-move record
+    # @return [Hash{String => Array<Hash>}] each bluebook's recorded moves, empty when there is none
+    def implicit_moves(path) = File.exist?(path) ? JSON.parse(File.read(path)) : {}
   end
 end

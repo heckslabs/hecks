@@ -1,6 +1,6 @@
 name: Release
 
-# Cuts the release a merged release PR describes, so nobody runs `hecks publishing_run.publish
+# Cuts the release a merged release PR describes, so nobody runs `hecks publishing_run.publish!
 # --confirm` from a laptop. It runs after the Promote workflow, on `stable`: the commit it
 # releases is the newest one on `stable` that set Hecks::VERSION, so a version bump on `main`
 # releases nothing until every required check has passed on it and `stable` has reached it. It

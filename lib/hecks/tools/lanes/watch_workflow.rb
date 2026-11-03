@@ -5,8 +5,8 @@ module Hecks
     module Lanes
       # The workflow that watches each lane with an alert threshold: every hour it asks
       # `PromotionRun` whether the lane has stood behind the lane it follows for longer than its
-      # `Lane` row allows. A late lane faults the run, and the fault files a finding, one a day: the
-      # alert key carries the date, and the journal in Postgres lets the next hour see it.
+      # `Lane` row allows. A late lane faults the run, and GitHub's failed-run status
+      # and email say so.
       module WatchWorkflow
         HEADER = <<~YAML.chomp
           name: Watch lanes
@@ -15,7 +15,7 @@ module Hecks
           #
           # Every hour, asks `PromotionRun` whether a lane has stood behind the lane it follows for
           # longer than its Lane row allows (`alert_after`, in hours). The rule is decided there, not
-          # here. A late lane fails the run, files a finding (one a day) and asks Promote to try
+          # here. A late lane fails the run and asks Promote to try
           # again: a promotion that was dropped is picked up within the hour, and one that still
           # cannot go says why in its own run.
           on:
@@ -31,7 +31,6 @@ module Hecks
           permissions:
             contents: read
             checks: read
-            issues: write
             actions: write
 
           jobs:
@@ -71,10 +70,9 @@ module Hecks
 
         def watch_step(name)
           ["      - name: Watch #{name}", "        env:", "          GH_TOKEN: ${{ github.token }}",
-           "          HECKS_FINDINGS_REPO: ${{ github.repository }}", "        run: >-",
-           "          bundle exec exe/hecks promotion_run.watch lane=#{name}",
-           "          run=watch-#{name}-${{ github.run_id }}-${{ github.run_attempt }}",
-           "          alert_key=#{name}-lag-$(date -u +%Y-%m-%d) --wait"]
+           "        run: >-",
+           "          bundle exec exe/hecks promotion_run.watch! lane=#{name}",
+           "          run=watch-#{name}-${{ github.run_id }}-${{ github.run_attempt }} --wait"]
         end
       end
     end

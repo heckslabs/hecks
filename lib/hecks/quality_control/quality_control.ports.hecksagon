@@ -25,6 +25,28 @@ Hecks.hecksagon "QualityControl" do
     end
   end
 
+  # Bound by adapters/run_reader. It reads a CI run of main for its failing spec files, reports each
+  # to RedSpec, and answers the commit and whether the run settled.
+  QualityControl::MainRun.port "Reader" do
+    asks "Read", to: MainRun do
+      attribute :run,  MainRunId
+      attribute :repo, HeadRepo
+      answers "MainRunRead"
+      refuses "MainRunReadRefused"
+    end
+  end
+
+  # Bound by adapters/push_due_reader. It asks the rehearsal port's `Due` whether a push of local main
+  # is due, applies the world's `push_nudge` thresholds, and answers the flags and numbers the
+  # bluebook's policies file the push-due Work row from.
+  QualityControl::PushNudge.port "PushDue" do
+    asks "Read", to: PushNudge do
+      attribute :nudge, NudgeKey
+      answers "PushDueRead"
+      refuses "PushDueReadRefused"
+    end
+  end
+
   # Queries answered from outside the domain. The bluebook declares each question and the value
   # object its answer takes and never says who answers it; each `answers_query` binds it to the
   # `*Tools` port's adapter, which runs the script's own command and answers what it printed.
@@ -35,6 +57,15 @@ Hecks.hecksagon "QualityControl" do
     answers_query "Mutate"
     answers_query "JudgeNovelty"
     answers_query "DiscoverExternalDomains"
+  end
+
+  # Answers a requested pump run by running the `qa_event_pump` script, as the tick does.
+  QualityControl::EventPump.port "PumpTools" do
+    asks "Execute", to: EventPump do
+      attribute :run, PumpRun
+      answers "PumpAnswered"
+      refuses "PumpRefused"
+    end
   end
 
   QualityControl::Sweep.port "SweepTools" do
@@ -51,5 +82,115 @@ Hecks.hecksagon "QualityControl" do
 
   QualityControl::Clearance.port "ClearanceTools" do
     answers_query "CheckPullRequests"
+  end
+
+  # Remote CI's verdict on one commit of a repository's main, answered by `adapters/ci_head`, which
+  # reads the
+  # runs GitHub reports for the commit. A run still going is a refusal: no verdict until every job
+  # settled.
+  QualityControl::Head.port "CiHead" do
+    asks "Check", to: Head do
+      attribute :branch, HeadBranch
+      attribute :repo,   HeadRepo
+      answers "HeadChecked"
+      refuses "HeadRefused"
+    end
+  end
+
+  # Answered by `adapters/image_roll`: the classifier reads remote CI's green commit's change set,
+  # and the roll runs the console image's deploy; an infra roll also needs the quick gate on record
+  # green. A refusal ends the chain.
+  QualityControl::ImageRoll.port "ImageRoll" do
+    asks "Classify", to: ImageRoll do
+      attribute :branch, RollBranch
+      attribute :repo,   RollRepo
+      answers "ImageClassified"
+      refuses "ClassifyRefused"
+    end
+
+    asks "Roll", to: ImageRoll do
+      attribute :app, AppName
+      answers "RollAnswered"
+      refuses "RollRefused"
+    end
+  end
+
+  # Answered by `adapters/main_maintenance`: the quick gate on main, the reconcile, and the push through the
+  # train. Each answers the event its policy waits for, or refuses with a named event and stops the run.
+  QualityControl::Maintenance.port "MainMaintenance" do
+    asks "Gate", to: Maintenance do
+      answers "GateVerdict"
+      refuses "GateRefused"
+    end
+
+    asks "Reconcile", to: Maintenance do
+      answers "ReconcileDone"
+      refuses "ReconcileRefused"
+    end
+
+    asks "Push", to: Maintenance do
+      answers "Pushed"
+      refuses "PushRefused"
+    end
+
+    # The mint answers `Minted`; a refusal (no would_mint, a stranded landing, the era check's refusal) is
+    # `MintRefused`. The landing answers `Landed`, and a landing that fails leaves the ledger ahead of main:
+    # that refusal is `MintStranded`, which stops every later mint until the owner resolves it.
+    # The mint's facts: the domain, the era and branch it lands, the rehearsal's verdict and the watermark it
+    # read, and whether the mint was confirmed. They are not attributes of Maintenance, so each is declared here.
+    # A mint with no `confirm` runs only when the auto-mint rule holds; a held mint is refused as
+    # "needs owner approval", and `AskOwnerApprovalOnHeldMint` asks for the approval.
+    asks "Mint", to: Maintenance do
+      attribute :domain,            String
+      attribute :era,               Integer
+      attribute :sha,               MaintenanceSha
+      attribute :branch,            String
+      attribute :watermark,         Integer
+      attribute :rehearsal_verdict, MintVerdict
+      attribute :refusal_total,     Integer, optional: true
+      attribute :ledger_dir,        String, optional: true
+      attribute :confirm,           Confirmation, optional: true
+      answers "Minted"
+      refuses "MintRefused"
+    end
+
+    # Answered by the mint entry point's approval step: a mint the auto-mint rule does not cover waits
+    # for the owner's confirm. The answer is `MintNeedsApproval`, and nothing follows it.
+    asks "Approval", to: Maintenance do
+      attribute :domain, String
+      attribute :era,    Integer
+      attribute :reason, MintRefusal
+      answers "MintNeedsApproval"
+      refuses "MintApprovalRefused"
+    end
+
+    # The landing runs in the repository that holds the minted ledger: the Hecks checkout when
+    # `ledger_dir` is empty, else the git checkout around that directory.
+    asks "Land", to: Maintenance do
+      attribute :era,        MintedEra
+      attribute :sha,        MaintenanceSha
+      attribute :branch,     String
+      attribute :ledger_dir, String
+      answers "Landed"
+      refuses "MintStranded"
+    end
+  end
+
+  # Answered by the `gh` adapter for the release PR: opening the PR for a version bump, and writing the
+  # release trailer on its merge once the owner has approved it. A refusal names the failure and stops the run.
+  QualityControl::ReleasePR.port "ReleaseGh" do
+    asks "OpenPullRequest", to: ReleasePR do
+      attribute :branch, ReleaseBranch
+      attribute :sha,    MaintenanceSha
+      answers "ReleaseOpened"
+      refuses "ReleaseOpenRefused"
+    end
+
+    asks "WriteTrailer", to: ReleasePR do
+      attribute :approver, ReleaseApprover
+      attribute :trailer,  ReleaseTrailer
+      answers "TrailerWritten"
+      refuses "TrailerRefused"
+    end
   end
 end

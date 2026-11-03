@@ -4,11 +4,13 @@ require_relative "../../support/postgres_probe"
 require_relative "../../support/scratch_postgres"
 require_relative "../../support/persistence_adapter_examples"
 require_relative "../../support/era_registry_loading"
+require_relative "../../support/first_era_hold"
 
 # Runs only when a Postgres server is reachable (`support/postgres_probe.rb`); manages its own
 # scratch database.
 RSpec.describe Hecks::Adapters::PostgresEra, :io do
   include EraRegistryLoading
+  include FirstEraHold
 
   include_context "with the Pizzas Order adapter helpers"
 
@@ -25,15 +27,23 @@ RSpec.describe Hecks::Adapters::PostgresEra, :io do
     boot_in_memory.registry.bluebook("Pizzas").aggregate("Order")
   end
 
-  let(:adapter) do
-    described_class.new(aggregate: aggregate, settings: { database: SPEC_DB })
+  let(:adapter) { boot(aggregate) }
+
+  # A boot never holds an era, so each domain this spec boots has its first era held first, once
+  # per example (the scratch database is scrubbed between examples).
+  def held(domain, source = File.read(InMemoryDomain::PIZZAS_BLUEBOOK), schema: nil)
+    @held ||= {}
+    @held[[domain, schema]] ||= hold_first_era!(url: SPEC_DB, domain: domain, source: source, schema: schema) || true
   end
 
-  def reopened_adapter = described_class.new(aggregate: aggregate, settings: { database: SPEC_DB })
-
-  def other_domain_adapter
-    described_class.new(aggregate: aggregate, settings: { database: SPEC_DB, domain: "OtherDomain" })
+  def boot(aggregate, domain: "Pizzas", source: File.read(InMemoryDomain::PIZZAS_BLUEBOOK), **settings)
+    held(domain, source, schema: settings[:schema])
+    described_class.new(aggregate: aggregate, settings: { database: SPEC_DB, domain: domain, **settings })
   end
+
+  def reopened_adapter = boot(aggregate)
+
+  def other_domain_adapter = boot(aggregate, domain: "OtherDomain")
 
   def with_db(&)
     db = PG.connect(dbname: SPEC_DB)
@@ -72,7 +82,7 @@ RSpec.describe Hecks::Adapters::PostgresEra, :io do
   # fall back to `@lineage.current_era`, or a fresh domain's first boot mints at era 0.
   it "resolves era 1 (not nil, not 0) when settings carry an explicit era: nil, the RepositoryFactory#build shape",
      :aggregate_failures do
-    described_class.new(aggregate: aggregate, settings: { database: SPEC_DB, era: nil })
+    boot(aggregate, era: nil)
 
     tables = public_tables
 
@@ -82,7 +92,7 @@ RSpec.describe Hecks::Adapters::PostgresEra, :io do
   end
 
   def boot_capturing(errors)
-    described_class.new(aggregate: aggregate, settings: { database: SPEC_DB })
+    boot(aggregate)
   rescue StandardError => e
     errors << e
   end
@@ -98,7 +108,7 @@ RSpec.describe Hecks::Adapters::PostgresEra, :io do
   # raise `tuple concurrently updated`. Uses real threads, each on its own connection.
   it "boots the same already-provisioned domain from many concurrent connections without a catalog race" do
     # establishes the base once
-    described_class.new(aggregate: aggregate, settings: { database: SPEC_DB })
+    boot(aggregate)
 
     errors = concurrent_boot_errors
 
@@ -120,11 +130,11 @@ RSpec.describe Hecks::Adapters::PostgresEra, :io do
     end
 
     let(:adapter_a) do
-      described_class.new(aggregate: aggregate, settings: { database: SPEC_DB, schema: "storehouse_a" })
+      boot(aggregate, schema: "storehouse_a")
     end
 
     let(:adapter_b) do
-      described_class.new(aggregate: aggregate, settings: { database: SPEC_DB, schema: "storehouse_b" })
+      boot(aggregate, schema: "storehouse_b")
     end
 
     def tables_in(schema)
@@ -219,7 +229,7 @@ RSpec.describe Hecks::Adapters::PostgresEra, :io do
 
       let(:numeric_registry) { load_registry(NUMERIC_PUSHDOWN_SOURCE) }
       let(:widget)          { numeric_registry.bluebooks.values.first.aggregate("Widget") }
-      let(:numeric_adapter) { described_class.new(aggregate: widget, settings: { database: SPEC_DB, domain: "NumericPushdown" }) }
+      let(:numeric_adapter) { boot(widget, domain: "NumericPushdown", source: NUMERIC_PUSHDOWN_SOURCE) }
 
       def widget_instance(id, cents:)
         Hecks::Runtime::Instance.new(aggregate: widget, id: id,
@@ -286,7 +296,7 @@ RSpec.describe Hecks::Adapters::PostgresEra, :io do
 
     let(:refs_registry) { load_registry(REFS_SOURCE) }
     let(:ticket) { refs_registry.bluebooks.values.first.aggregate("Ticket") }
-    let(:refs_adapter) { described_class.new(aggregate: ticket, settings: { database: SPEC_DB, domain: "Refs" }) }
+    let(:refs_adapter) { boot(ticket, domain: "Refs", source: REFS_SOURCE) }
 
     def save_ticket(id, **references)
       state = { number: { "value" => id }, **references }

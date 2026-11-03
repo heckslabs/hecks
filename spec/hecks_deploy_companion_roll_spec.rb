@@ -52,7 +52,7 @@ RSpec.describe "the Deploy bluebook's CompanionRoll", :io do
     saved = ENV.to_h.slice(*settings.keys)
     ENV.update(settings)
     out, status = Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, program: "hecks",
-                                                           argv: ["deploy", "companion_roll.run", File.join(dir, "project"),
+                                                           argv: ["deploy", "companion_roll.run!", File.join(dir, "project"),
                                                                   *argv, "--wait"])
     [JSON.parse(out), status]
   ensure

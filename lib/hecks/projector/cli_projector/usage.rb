@@ -1,4 +1,5 @@
 require_relative "../../naming"
+require_relative "../../adapters/driving/exit_status"
 
 module Hecks
   module Projector
@@ -24,7 +25,7 @@ module Hecks
           return unless only
 
           spec = help_spec(only, commands, questions, options[:ask])
-          command_help(program, verb_form(spec, spec[:short]), spec, ask: options[:ask]) if spec
+          command_help(program, verb_form(spec, spec[:short]), spec, ask: options[:ask], qualified: options[:query_word]) if spec
         end
 
         # `ask` picks the namespace when both hold the name; without it a
@@ -35,10 +36,13 @@ module Hecks
           pool[key] || questions[key]
         end
 
-        # The whole help: the two tables, the bluebooks, then the hints.
+        # The whole help: the everyday lines, the two tables, the bluebooks, then the hints.
         def full_usage(bluebook, commands, questions, options, program)
-          shown = [commands, questions].map { |specs| CliAudience.audience_specs(specs, options) }
-          [usage_header(bluebook, program),
+          shown = [commands, questions].map do |specs|
+            in_module(bluebook, CliAudience.audience_specs(specs, options), options[:module])
+          end
+          [header_for(bluebook, program, options[:module]),
+           everyday_lines(*shown, options),
            tables(*shown, all: options[:all], notes: aggregate_notes(bluebook)),
            CliAudience.bluebook_lines(program, options[:declarations]),
            usage_footer(program, shown, options, left_out(commands, questions, shown))].flatten(1).join("\n")
@@ -49,11 +53,17 @@ module Hecks
           commands.size + questions.size - shown.sum(&:size)
         end
 
-        # The bluebook's vision and the two ways to call it.
+        # The heading of the help: the bluebook's, or the module's when one is asked for.
+        def header_for(bluebook, program, module_name)
+          module_name ? module_header(bluebook, module_name, program) : usage_header(bluebook, program)
+        end
+
+        # The bluebook's vision, the release of the gem this launcher runs, and the two ways to call
+        # it.
         def usage_header(bluebook, program)
-          ["#{bluebook.name} — #{bluebook.vision}", "",
+          ["#{bluebook.name} — #{bluebook.vision}", "  hecks #{Hecks::VERSION}", "",
            "  #{program} <command>! [name=value …]       do something",
-           "  #{program} query <query> [name=value …]    read something", ""]
+           "  #{program} <query> [name=value …]          read something, written bare", ""]
         end
 
         # The pointers after the tables: `--help`, `--all`, `--maintainer` and an example call.
@@ -66,7 +76,15 @@ module Hecks
 
           out.concat(all_hint(program, *shown)) unless options[:all]
           out.concat(CliAudience.maintainer_hint(program, hidden_count))
-          out << "  a command is called with its aggregate — #{example_qualified(shown.first)}"
+          out.concat(closing_lines(shown, options))
+        end
+
+        # The example call and, for a launcher that opted in, the line naming the three exit
+        # statuses. A launcher that did not opt in keeps the text every earlier generator wrote,
+        # which exits 1 for every line it could not read, so it claims nothing.
+        def closing_lines(shown, options)
+          lines = ["  a command is called with its aggregate — #{example_qualified(shown.first)}"]
+          options[:opted] ? lines << "  #{Adapters::Driving::ExitStatus::HELP_LINE}" : lines
         end
 
         # The commands table then the queries table.

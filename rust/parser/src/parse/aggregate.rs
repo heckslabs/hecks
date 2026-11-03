@@ -194,6 +194,15 @@ pub fn parse_body(
                     1,
                 )?);
             }
+            "created_by" => {
+                aggregate.created_by = Some(super::positional_text(
+                    file,
+                    line,
+                    "created_by",
+                    &gated.args,
+                    1,
+                )?);
+            }
             // Origin, not identity: captured raw, like a literal Hash default.
             "provenance" => {
                 let raw = super::named_raw(&gated.args, "from")

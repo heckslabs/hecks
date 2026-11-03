@@ -221,7 +221,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Ship",
@@ -248,7 +249,8 @@
           ],
           "from": "requested",
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Cancel",
@@ -275,7 +277,8 @@
           ],
           "from": "requested",
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         }
       ],
       "invariants": [
@@ -337,6 +340,8 @@
 
       ],
       "provenance": null,
+      "formerly_known_as": null,
+      "created_by": null,
       "acknowledgements": [
 
       ]
@@ -525,7 +530,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "AddSlot",
@@ -568,7 +574,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         }
       ],
       "invariants": [
@@ -653,7 +660,8 @@
               ],
               "from": null,
               "provenance": null,
-              "idempotent": false
+              "idempotent": false,
+              "mints_era": false
             },
             {
               "name": "Clear",
@@ -697,7 +705,8 @@
               ],
               "from": null,
               "provenance": null,
-              "idempotent": false
+              "idempotent": false,
+              "mints_era": false
             }
           ],
           "queries": [
@@ -722,6 +731,8 @@
 
       ],
       "provenance": null,
+      "formerly_known_as": null,
+      "created_by": null,
       "acknowledgements": [
 
       ]
@@ -741,6 +752,9 @@
       "ends_on": "ConsignmentShipped",
       "endings": [
         "ConsignmentShipped"
+      ],
+      "resumes": [
+
       ],
       "states": [
         "packing",

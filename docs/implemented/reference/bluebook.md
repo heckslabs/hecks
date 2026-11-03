@@ -1,11 +1,11 @@
 # Bluebook
 
 <!-- generated:begin id=page -->
-Words available inside `bluebook do ... end`.
+Words available inside `bluebook do ... end` / `domain_module do ... end`.
 
 *The tables on this page are generated from the language's own
 aggregate-local syntax tables (`lib/hecks/language/**/*.bluebook`)
-by `hecks language_run.project_reference` — do not edit inside the markers. The prose
+by `hecks language_run.project_reference!` — do not edit inside the markers. The prose
 between them is hand-written and survives regeneration.*
 <!-- generated:end -->
 
@@ -107,6 +107,8 @@ runtime.registry.bluebook("Pizzas").vision  # => "Put toppings on a pizza and se
 <!-- generated:end -->
 
 A domain's own declared identity can change. Naming what it used to be lets the storage layer recognize its own history under the old name instead of minting a brand-new lineage from nothing — a rename, once applied, bridges the journal, the sequence, every era partition, and the domain-keyed rows in `hecks_eras`/`hecks_era_texts`/`hecks_approvals`/`hecks_attestations` onto the new name, in one transaction, the first time the domain boots under it. Optional, but not empty if given — the same value-object invariant fires here as on any string field. Stored on the bluebook and readable back after boot as `Bluebook.formerly_known_as`; safe to leave declared permanently, since every later boot after the bridge falls through to the ordinary already-held path.
+
+It is deprecated: say it in the world, as `formerly "Bookkeeping"` inside the `persisted_by("PostgresEra")` block (see the World reference). The world's value wins, a bluebook that names a different one refuses the boot, and the word still works alone.
 
 The bluebook answers to its current name and remembers the old one — the
 old name is a fact about this bluebook, not a second bluebook:
@@ -311,14 +313,17 @@ runtime.registry.bluebook("BluebookReference").classification  # => "generic"
 ## aggregate
 
 <!-- generated:begin word=aggregate -->
-`aggregate name do ... end` — opens a `Aggregate` body
+`aggregate name, kind: do ... end` — opens a `Aggregate` body
 
 | argument | kind | required | fills |
 |---|---|---|---|
 | positional 1 | text | true | name |
+| `kind:` | text | false | kind |
 <!-- generated:end -->
 
 Opens the thing with identity in this domain — `identified_by`, its `attribute`s, `command`s, and lifecycle. See the Aggregate reference page for the full vocabulary inside.
+
+`kind:` names a kind, a text in `lib/hecks/language/kinds/` written in these same words. The aggregate's body is evaluated inside it, so the aggregate states what is its own and takes the rest from the kind. `aggregate "GateRun", kind: "Run"` takes the run lifecycle, its `Accept`, `Complete` and `Fault` commands, the two queries that read how requests ended and the policies that carry a request through, all named for the stem `Gate`.
 
 Every aggregate a bluebook opens becomes an entry point of its own, named after
 the bluebook:
@@ -384,5 +389,23 @@ Opens a stateful saga spanning several events and commands — `correlates_by`, 
 
 ```ruby
 runtime.registry.bluebook("Banking").process_managers.map(&:name)  # => ["Onboarding", "Settlement", "ExternalSettlement"]
+```
+
+## domain_module
+
+<!-- generated:begin word=domain_module -->
+`domain_module name do ... end` — opens a `Bluebook` body
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | text | true | name |
+<!-- generated:end -->
+
+Groups aggregates in a module named for the task a person comes to do (ADR 0163). The block takes the words a bluebook body takes, so its aggregates are declared exactly as they are outside it; `vision` inside it describes the module. Policies, read models and process managers written inside the block stay the bluebook's own. A module changes no aggregate, its name, its stored shape or the context map, it names where the aggregate belongs. A second file may reopen a module of the same name and add aggregates to it. The words that describe the whole bluebook (`namespace`, `formerly_known_as`, `attaches_to`, `provides`, `core`, `supporting`, `generic`) refuse inside a module, modules do not nest, and a module that holds no aggregate refuses.
+
+The bluebook reads its modules back in declaration order:
+
+```ruby
+Hecks::Bluebook::Declaration.new(name: "Workbench", modules: [{ name: "Deliver", vision: "Take finished work into the shared line.", aggregates: ["Landing"] }]).modules.map(&:name)  # => ["Deliver"]
 ```
 

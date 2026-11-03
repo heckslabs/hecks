@@ -41,6 +41,21 @@ module Hecks
           { capable: true, held: domain.reading { |lineage| domain.held_eras(lineage).size } }
         end
 
+        # The facts of a rename: `held` is the eras under the former name that would move, and 0
+        # unless the domain declares a former name, the current name holds none, and the former
+        # name holds some.
+        def examine_rename_domain(held)
+          domain = HeldDomain.open(plain(held[:domain]), mode: :bare)
+          return {} unless domain.capable?
+
+          { capable: true, held: domain.renaming { |lineage| lineage.rename_pending? ? former_eras(lineage) : 0 } }
+        end
+
+        def former_eras(lineage)
+          lineage.db.exec_params("SELECT count(*)::int AS n FROM hecks_eras WHERE domain = $1",
+                                 [lineage.formerly_known_as])[0]["n"].to_i
+        end
+
         def examine_merge_tail(held)
           domain = HeldDomain.open(plain(held[:domain]))
           return {} unless domain.capable?
@@ -102,7 +117,8 @@ module Hecks
         # Records both worlds wrote since the cut that no winner was named for.
         def unresolved_conflicts(domain, lineage, eras, named)
           latest = eras.last
-          chain = PostgresEra::LineageManager.edge_chain(domain.registry, domain.bluebook, eras[0..-2], latest[:label])
+          chain = PostgresEra::LineageManager.edge_chain(domain.registry, domain.bluebook, eras[0..-2],
+                                                         latest[:label], target: latest)
           conflicts = domain.aggregates.flat_map do |aggregate|
             lineage.conflict_ids(aggregate, chain, latest[:ordinal], latest[:watermark].to_i)
           end

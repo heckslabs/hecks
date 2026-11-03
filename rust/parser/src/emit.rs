@@ -59,7 +59,7 @@ fn canonical_form_table() -> JsonValue {
 
 /// `IR::Bluebook#to_h`; field order is pinned there.
 pub fn bluebook_json(bb: &ir::Bluebook) -> JsonValue {
-    JsonValue::Object(vec![
+    let mut fields = vec![
         (
             "ir_version".to_string(),
             JsonValue::Number(bb.ir_version.to_string()),
@@ -126,7 +126,31 @@ pub fn bluebook_json(bb: &ir::Bluebook) -> JsonValue {
             ),
         ),
         ("canonical_form".to_string(), canonical_form_table()),
-    ])
+    ];
+    // Left out when the bluebook declares no module, as `IR::Bluebook#to_h` leaves it out.
+    if !bb.modules.is_empty() {
+        let at = fields.len() - 1;
+        fields.insert(at, ("modules".to_string(), modules_json(&bb.modules)));
+    }
+    JsonValue::Object(fields)
+}
+
+/// `IR::Bluebook::ModuleRow#to_h`, one row per aggregate a module groups.
+fn modules_json(rows: &[ir::ModuleRow]) -> JsonValue {
+    JsonValue::Array(
+        rows.iter()
+            .map(|row| {
+                JsonValue::Object(vec![
+                    ("name".to_string(), JsonValue::str(row.name.clone())),
+                    ("vision".to_string(), JsonValue::str(row.vision.clone())),
+                    (
+                        "aggregate".to_string(),
+                        JsonValue::str(row.aggregate.clone()),
+                    ),
+                ])
+            })
+            .collect(),
+    )
 }
 
 /// `IR::Aggregate#to_h` (lib/hecks/bluebook/ir/aggregate.rb).
@@ -191,6 +215,12 @@ fn aggregate_json(a: &ir::Aggregate) -> JsonValue {
             a.provenance
                 .as_ref()
                 .map_or(JsonValue::Null, ruby_value_json),
+        ),
+        // `formerly_known_as` is admitted but the parser does not build it yet, so it is null.
+        ("formerly_known_as".to_string(), JsonValue::Null),
+        (
+            "created_by".to_string(),
+            JsonValue::opt_str(a.created_by.as_ref()),
         ),
         (
             "acknowledgements".to_string(),
@@ -284,7 +314,10 @@ fn given_json(g: &ir::Given) -> JsonValue {
 fn acknowledgement_json(a: &ir::Acknowledgement) -> JsonValue {
     JsonValue::Object(vec![
         ("finding".to_string(), JsonValue::str(a.finding.clone())),
-        ("subject".to_string(), JsonValue::opt_str(a.subject.as_ref())),
+        (
+            "subject".to_string(),
+            JsonValue::opt_str(a.subject.as_ref()),
+        ),
         ("reason".to_string(), JsonValue::str(a.reason.clone())),
     ])
 }
@@ -310,6 +343,10 @@ fn command_json(c: &ir::Command) -> JsonValue {
     // Only a command run by several roles says so, so every other command emits as it always did.
     if c.roles.len() > 1 {
         fields.push(("roles".to_string(), JsonValue::strings(&c.roles)));
+    }
+    // Only a command that names an audience says so, so every other command emits as it always did.
+    if !c.audience.is_empty() {
+        fields.push(("audience".to_string(), JsonValue::strings(&c.audience)));
     }
     fields.extend(command_json_rest(c));
     JsonValue::Object(fields)
@@ -359,6 +396,7 @@ fn command_json_rest(c: &ir::Command) -> Vec<(String, JsonValue)> {
                 .map_or(JsonValue::Null, ruby_value_json),
         ),
         ("idempotent".to_string(), JsonValue::Bool(c.idempotent)),
+        ("mints_era".to_string(), JsonValue::Bool(c.mints_era)),
     ]
 }
 
@@ -789,6 +827,7 @@ fn process_manager_json(pm: &ir::ProcessManager) -> JsonValue {
             JsonValue::opt_str(pm.ends_on.as_ref()),
         ),
         ("endings".to_string(), JsonValue::strings(&pm.endings)),
+        ("resumes".to_string(), JsonValue::strings(&pm.resumes)),
         ("states".to_string(), JsonValue::strings(&pm.states)),
         (
             "handlers".to_string(),
@@ -931,6 +970,10 @@ fn port_operation_json(op: &ir::PortOperation) -> JsonValue {
             JsonValue::Array(op.attributes.iter().map(attribute_json).collect()),
         ),
         ("emits".to_string(), JsonValue::strings(&op.emits)),
+        (
+            "handles".to_string(),
+            JsonValue::Array(op.handles.iter().map(command_value_json).collect()),
+        ),
     ];
     // An `asks` names its direction and both endings, as `PortOperation#to_h` merges them.
     if op.outbound {
@@ -946,6 +989,14 @@ fn port_operation_json(op: &ir::PortOperation) -> JsonValue {
         fields.push(("to".to_string(), JsonValue::str(to.clone())));
     }
     JsonValue::Object(fields)
+}
+
+/// One `handles` entry as the Ruby IR writes it: the command and the value it takes.
+fn command_value_json(held: &ir::CommandValue) -> JsonValue {
+    JsonValue::Object(vec![
+        ("command".to_string(), JsonValue::str(held.command.clone())),
+        ("value".to_string(), JsonValue::str(held.value.clone())),
+    ])
 }
 
 /// A string, or `null` when absent.
@@ -979,7 +1030,8 @@ fn ruby_value_json(value: &ruby_value::Value) -> JsonValue {
 }
 
 /// One declared adapter, keys in the order the Ruby side prints them; an adapter that provides
-/// capabilities adds `provides`, and a plugin adds `answers` and `runs` after them.
+/// capabilities adds `provides`, one that stays inside adds `stays_inside`, and a plugin adds
+/// `answers` and `runs` after them.
 pub fn adapter_json(adapter: &ir::Adapter) -> JsonValue {
     let JsonValue::Object(mut keys) = declared_adapter_json(adapter) else {
         unreachable!("an adapter is a JSON object")
@@ -989,6 +1041,9 @@ pub fn adapter_json(adapter: &ir::Adapter) -> JsonValue {
             "provides".to_string(),
             JsonValue::strings(&adapter.provides),
         ));
+    }
+    if adapter.stays_inside {
+        keys.push(("stays_inside".to_string(), JsonValue::Bool(true)));
     }
     if let Some(runs) = &adapter.runs {
         keys.push(("answers".to_string(), JsonValue::strings(&adapter.answers)));

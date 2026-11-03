@@ -20,7 +20,6 @@ module Hecks
         ALWAYS = [
           { what: "the mint itself",
             why:  "no era was written: the edge, its approval and the audit were evaluated, nothing minted" },
-          { what: "an edge's coverage of every change in the shape", why: "the mint checks it; the rehearsal does not yet" },
           { what: "commands, policies and requests", why: "no traffic was run: only the stored data and the shape were read" },
           { what: "data written after the copy was made", why: "a copy is a moment; the mint sees the data of its own" }
         ].freeze
@@ -41,8 +40,9 @@ module Hecks
         # @return [Hash] the edge facts, every refused row and its total, what was read, the parity
         #   of the two engines, and what was not checked
         def examine
-          edge = minting == "next" ? @subject.edge_from(before) : nil
+          edge = decided_edge
           refusals, after = edge ? @store.audit(@subject, edge) : [[], {}]
+          refusals = coverage_refusals(edge) + refusals
           rust = RustAudit.call(@subject, after)
           report = AuditReport.new(minting: minting, edge: edge, states: after, ruby: refusals, rust: rust)
           answer(edge, report, (refusals + rust.violations).uniq, limits(rust, report))
@@ -51,6 +51,27 @@ module Hecks
         private
 
         def plain(value) = { value: value }
+
+        # The edge a mint would use, as the shared decision names it; nil unless it would mint.
+        def decided_edge
+          return unless minting == "next" && latest[:held_text]
+
+          verdict = resolution.verdict
+          verdict&.verdict == "would_mint" ? verdict.edge : nil
+        end
+
+        # What the mint's coverage check would refuse of the decided edge, in the same words: a
+        # change in the shape that no rule of the edge explains. The mint raises it before it
+        # writes an era.
+        def coverage_refusals(edge)
+          return [] unless edge
+
+          held = PostgresEra::LineageManager.held_bluebook(latest)
+          PostgresEra::LineageManager.check_coverage!(@subject.registry, @subject.bluebook, held, edge)
+          []
+        rescue Runtime::WiringError => e
+          [e.message]
+        end
 
         def shape
           { booted: flag(true), host_version: plain(Rehearsal.host_version), store: plain(@subject.store_kind),
@@ -61,7 +82,12 @@ module Hecks
         def answer(edge, report, refused, unchecked)
           rows, total = Rows.from(refused)
           edge_facts(edge).merge(refused_rows: rows, refusal_total: plain(total), parity: report.parity,
-                                 unchecked: unchecked).merge(report.facts)
+                                 unchecked: unchecked).merge(report.facts).merge(record_facts)
+        end
+
+        # The domain and the ledger watermark the copy held: what a mint's record of this rehearsal names.
+        def record_facts
+          { rehearsed_domain: @subject.bluebook_name, watermark: @store.watermark(@subject) }
         end
 
         def flag(value) = plain(value)
@@ -91,10 +117,16 @@ module Hecks
 
         def before = latest ? latest[:label] : "none"
 
+        # Which held era the shape resolves to, by the resolution a boot records; the latest era is
+        # named as it would be minted.
+        def resolution
+          @resolution ||= @subject.resolve([*eras[0...-1], latest]) { @store.watermark(@subject) }
+        end
+
         def minting
           return "first" unless latest
 
-          before == @subject.label ? "none" : "next"
+          resolution.status == "current" ? "none" : "next"
         end
 
         def limits(rust, report)

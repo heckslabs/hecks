@@ -5,3 +5,7 @@ Hecks.hecksagon "Governance" do
   Governance::RoleAssignment.persisted_by("PostgresEra")
   Governance::RoleTransition.persisted_by("PostgresEra")
 end
+
+# QualityControl is not attached here: quality_control.hecksagon loads its bluebook and attaches
+# Coder, so QualityControl is the first bluebook loaded and the root the era commands read. Hecksagons
+# load in filename order, and quality_control.translations.hecksagon loads after both.

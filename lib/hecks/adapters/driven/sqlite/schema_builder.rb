@@ -15,8 +15,28 @@ module Hecks
           @db.execute(
             "CREATE TABLE IF NOT EXISTS #{quoted_table} (id TEXT PRIMARY KEY#{", " unless columns.empty?}#{columns.join(", ")})"
           )
+          ensure_aggregate_columns!
           # Called here so D1, which reuses this module, gets automatic indexing too.
           ensure_indexes!
+        end
+
+        # CREATE TABLE IF NOT EXISTS never adds a column to an existing table, so an attribute the
+        # aggregate gained after its table was made gets its column here: nullable, since every row
+        # written before it holds no value. It only adds; a column the aggregate dropped is kept.
+        # SQLite column names are case-insensitive, so presence is compared that way too.
+        def ensure_aggregate_columns!
+          present = @db.execute("PRAGMA table_info(#{quoted_table})").map { |row| row["name"].to_s.downcase }
+          persisted_fields.reject { |field| present.include?(field[:name].to_s.downcase) }.each do |field|
+            add_column_once!(field)
+          end
+        end
+
+        # Another process or isolate may add the same column between the read and this ALTER;
+        # that duplicate is the outcome wanted, so only that error is let through.
+        def add_column_once!(field)
+          @db.execute("ALTER TABLE #{quoted_table} ADD COLUMN #{quote_ident(field[:name])} #{field[:sql_type]}")
+        rescue StandardError => e
+          raise unless e.message.include?("duplicate column name")
         end
 
         def create_event_table!

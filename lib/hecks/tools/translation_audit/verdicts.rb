@@ -50,7 +50,7 @@ module Hecks
         end
 
         def records_before(lineage, aggregate, era, chain)
-          return lineage.translated_latest(aggregate, era, chain[0..-2]) if chain.size > 1
+          return lineage.received_latest(aggregate, era, chain) if chain.size > 1
 
           lineage.ancestor_latest(aggregate, era, chain)
         end

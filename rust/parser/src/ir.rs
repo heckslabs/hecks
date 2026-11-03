@@ -107,6 +107,9 @@ pub struct Command {
     /// Every role that may run the command, when more than one may; `role` is then the first.
     /// Empty otherwise, and then absent from the IR.
     pub roles: Vec<String>,
+    /// Who a launcher lists the command for (`audience :record`); empty when the command names
+    /// none, and then absent from the IR.
+    pub audience: Vec<String>,
     pub goal: Option<String>,
     pub references: Option<String>,
     pub attributes: Vec<Attribute>,
@@ -123,6 +126,9 @@ pub struct Command {
     // `idempotent`: delivering the command twice leaves the state delivering it once does, so a saga
     // redrive may run it again after a crash left its outcome unknown. Emitted as a boolean.
     pub idempotent: bool,
+    // `mints_era true`: the command's own record may be written through a boot whose shape no era
+    // holds yet. Emitted as a boolean.
+    pub mints_era: bool,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -248,6 +254,9 @@ pub struct Aggregate {
     // Same raw-captured-Hash shape as `Command.provenance`.
     pub provenance: Literal,
     pub acknowledgements: Vec<Acknowledgement>,
+    // The command that creates this aggregate's records, which a missing-record refusal names; null
+    // when the bluebook declares none.
+    pub created_by: Option<String>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -344,6 +353,7 @@ pub struct ProcessManager {
     pub starts_on: Option<String>,
     pub ends_on: Option<String>,
     pub endings: Vec<String>,
+    pub resumes: Vec<String>,
     pub states: Vec<String>,
     pub handlers: Vec<ProcessManagerHandler>,
 }
@@ -360,6 +370,15 @@ pub struct PortOperation {
     pub refuses: Option<String>,
     /// The receiving aggregate as routing metadata (`to: Payment`), not an attribute.
     pub to: Option<String>,
+    /// Which value of which command this operation handles (`handles "Build.build!", value: "wasm"`).
+    pub handles: Vec<CommandValue>,
+}
+
+/// One `handles` line: a command and the value of it this operation takes.
+#[derive(Debug, Clone, Default)]
+pub struct CommandValue {
+    pub command: String,
+    pub value: String,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -389,6 +408,8 @@ pub struct Bluebook {
     pub attaches_to: Vec<String>,
     // `provides "authorization", grant: "..."`: one row per key, in source order.
     pub provides: Vec<Provision>,
+    // `domain_module "Name" do … end`: one row per aggregate a module groups, in source order.
+    pub modules: Vec<ModuleRow>,
 }
 
 impl Default for Bluebook {
@@ -407,8 +428,18 @@ impl Default for Bluebook {
             process_managers: Vec::new(),
             attaches_to: Vec::new(),
             provides: Vec::new(),
+            modules: Vec::new(),
         }
     }
+}
+
+/// One aggregate's place in a module, emitted as `{"name", "vision", "aggregate"}`; the
+/// vision is empty when the module names none.
+#[derive(Debug, Clone, Default)]
+pub struct ModuleRow {
+    pub name: String,
+    pub vision: String,
+    pub aggregate: String,
 }
 
 /// One row of a declared capability, emitted as `{"capability", "key", "verb"}`.
@@ -455,4 +486,6 @@ pub struct Adapter {
     pub runs: Option<String>,
     // The capabilities the adapter provides beyond its port's contract, in declaration order.
     pub provides: Vec<String>,
+    // `stays_inside`: the adapter reaches nothing outside the process and the checkout (ADR 0171).
+    pub stays_inside: bool,
 }

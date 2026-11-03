@@ -14,7 +14,7 @@ RSpec.describe "hecks interview" do
   # Memory itself.
   def interview(dir, keys, *words)
     env = { "HECKS_ENVIRONMENT" => nil, "PGHOST" => "/nonexistent-postgres-socket-dir", "PGPORT" => "1" }
-    InProcessLauncher.capture3(env, "interview", "Lending", "--no-ai", "--expert=Maria", "--adapter=Memory", *words,
+    InProcessLauncher.capture3(env, "interview!", "Lending", "--no-ai", "--expert=Maria", "--adapter=Memory", *words,
                                stdin_data: "#{keys.join("\n")}\n", chdir: dir)
   end
 

@@ -4,6 +4,8 @@ require_relative "../../../support/postgres_probe"
 require_relative "../../../support/scratch_postgres"
 require_relative "../../../support/fenced_owner"
 require_relative "../../../support/era_registry_loading"
+require_relative "../../../support/mint_request_support"
+require_relative "../../../support/first_era_hold"
 
 # A data-loss regression in PostgresEra's migration path (H3 below),
 # pinned against a real Postgres so a fix that regresses fails loudly.
@@ -11,7 +13,9 @@ require_relative "../../../support/era_registry_loading"
 # Listed in .github/postgres_io_spec_files.txt — moving this file must also
 # update that list, or a Postgres-provisioning CI leg stops running it.
 RSpec.describe "PostgresEra migration data safety", :io do
+  include MintRequestSupport
   include EraRegistryLoading
+  include FirstEraHold
 
   DATA_SAFETY_DB = "hecks_era_data_safety_spec".freeze
 
@@ -23,7 +27,9 @@ RSpec.describe "PostgresEra migration data safety", :io do
     registry = load_registry(source, translation_source: translation_source)
     lineage_manager.check!(
       registry: registry, bluebook: registry.bluebooks.values.first,
-      current_text: source, settings: { database: FencedOwner.url(DATA_SAFETY_DB), mint_eras: true }
+      current_text: source,
+      settings: with_mint_request({ database: FencedOwner.url(DATA_SAFETY_DB), mint_eras: true },
+                                  domain: registry.bluebooks.values.first.name)
     )
     registry
   end
@@ -98,6 +104,7 @@ RSpec.describe "PostgresEra migration data safety", :io do
     end
 
     def seed_era_one!
+      hold_first_era!(url: FencedOwner.url(DATA_SAFETY_DB), domain: "Ledger", source: first_era)
       registry = check!(first_era)
       head = head_for(registry, "Acct", "Ledger")
       %w[keep gone].each do |id|

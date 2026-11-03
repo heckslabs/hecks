@@ -1,10 +1,10 @@
 require "spec_helper"
 require "json"
-require "hecks/cli/shape"
-require "hecks/cli/history"
-require "hecks/cli/follow"
-require "hecks/cli/deploy_template_diff"
-require "hecks/cli/refresh_projections"
+require "hecks/tools/shape"
+require "hecks/tools/history"
+require "hecks/tools/follow"
+require "hecks/tools/deploy_template_diff"
+require "hecks/tools/refresh_projections"
 
 # The library bodies of scripts whose `bin/` file only starts them: each `bin/` file runs one of
 # these, and so do the Custodian adapters.
@@ -23,7 +23,7 @@ RSpec.describe "the script bodies in lib/hecks/cli" do
     $stdout = real
   end
 
-  describe Hecks::CLI::Shape do
+  describe Hecks::Tools::Shape do
     it "prints a bluebook's storage shape as JSON" do
       expect(JSON.parse(described_class.render(pizzas))).to be_a(Hash)
     end
@@ -42,7 +42,7 @@ RSpec.describe "the script bodies in lib/hecks/cli" do
     end
   end
 
-  describe Hecks::CLI::History do
+  describe Hecks::Tools::History do
     it "answers no entries for a repository that is not append-only" do
       expect(described_class.entries(Object.new)).to eq([])
     end
@@ -52,7 +52,7 @@ RSpec.describe "the script bodies in lib/hecks/cli" do
     end
   end
 
-  describe Hecks::CLI::Follow do
+  describe Hecks::Tools::Follow do
     let(:event) { Struct.new(:aggregate).new("Banking::Account") }
 
     it "matches every event without a filter, and by bare name, case-insensitively or exactly", :aggregate_failures do
@@ -69,7 +69,7 @@ RSpec.describe "the script bodies in lib/hecks/cli" do
     end
   end
 
-  describe Hecks::CLI::DeployTemplateDiff do
+  describe Hecks::Tools::DeployTemplateDiff do
     it "answers 0 for the same template, 1 for a difference and 2 for a missing file", :aggregate_failures do
       base   = File.join(fixtures, "base.yaml")
       edited = File.join(fixtures, "edited.yaml")
@@ -84,7 +84,7 @@ RSpec.describe "the script bodies in lib/hecks/cli" do
     end
   end
 
-  describe Hecks::CLI::RefreshProjections do
+  describe Hecks::Tools::RefreshProjections do
     it "aborts with usage when given no domain", :aggregate_failures do
       expect { expect { described_class.run([]) }.to raise_error(SystemExit) }.to output(/usage/).to_stderr
     end

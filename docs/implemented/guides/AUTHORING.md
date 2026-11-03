@@ -79,7 +79,7 @@ Rules that keep the suite honest:
   cover guide content that used to be fictional) — rather than
   reaching for a fictional stand-in. The one exception: content that is
   deliberately *invalid* (a malformed declaration proving a build-time
-  refusal, an unreachable lifecycle state proving a `hecks model_check`
+  refusal, an unreachable lifecycle state proving a `hecks ModelCheckRun.model_check!`
   finding, or a controlled multi-version diff that would mean minting a
   fake historical era onto real, settled data) cannot be expressed in a
   domain that must stay valid and golden — that stays a small,
@@ -96,11 +96,11 @@ Rules that keep the suite honest:
 ## The reference
 
 `docs/implemented/reference/` is generated from the language's own Syntax bluebook by
-`hecks language_run.project_reference`, and it carries examples under the same harness the
+`hecks language_run.project_reference!`, and it carries examples under the same harness the
 guides do — with two rules the guides do not have.
 
 - **Every live word carries a running example, in its own `## <word>`
-  section.** `hecks conformance_run.measure_doc_coverage` refuses a tree where one does not, and
+  section.** `hecks conformance_run.measure_doc_coverage!` refuses a tree where one does not, and
   the pre-push hook runs it. A word that cannot be exemplified is a
   finding, not an exception: implement it, refuse it at build (and
   document that refusal with a `# ~>` marker, the way `cursor` does), or
@@ -129,7 +129,7 @@ guides do — with two rules the guides do not have.
   first rather than wrapping a call across lines.
 - Run the reference before believing it:
   `bundle exec rspec spec/reference_doctest_spec.rb`, then
-  `hecks conformance_run.measure_doc_coverage`.
+  `hecks conformance_run.measure_doc_coverage!`.
 
 ## The voice
 
@@ -144,7 +144,7 @@ Cut any sentence that exists for tone rather than information.
 Some words are talked about but do not exist in this language:
 `Hecks.family` and `driving on cron` (inbound scheduling is unbuilt).
 **A word that does not exist may not appear in these guides**; check
-`hecks query language_run.word_status` before documenting one.
+`hecks language_run.word_status` before documenting one.
 Here the words are: `Hecks.port` (with `verb`), `Hecks.adapter` (with
 `port`/`field`/`secret`), `persisted_by`, `.world` blocks, driving
 ports declared in the hecksagon (`port`/`operation`), and the

@@ -2,8 +2,8 @@
 
 require "stringio"
 require_relative "console_capture"
-require "hecks/cli/smoke_http"
-require "hecks/cli/check_era"
+require "hecks/tools/smoke_http"
+require "hecks/tools/check_era"
 
 module Hecks
   module Adapters
@@ -29,7 +29,7 @@ module Hecks
       # @raise [ConsoleCapture::Failure] when any check failed
       def probe(**held)
         out = StringIO.new
-        status = CLI::SmokeHttp.new(CLI::SmokeHttp.resolve(probe_options(held).compact, ENV), out: out).run
+        status = Tools::SmokeHttp.new(Tools::SmokeHttp.resolve(probe_options(held).compact, ENV), out: out).run
         raise ConsoleCapture::Failure, out.string.strip unless status.zero?
 
         { output: { value: out.string } }
@@ -44,12 +44,12 @@ module Hecks
       #   `mismatch`) and `report:` (the sentence `hecks check_era` prints)
       # @raise [ArgumentError] if no allow-list file or timeout was given
       # @raise [Errno::ENOENT] if the allow-list file cannot be read
-      # @raise [CLI::ExpectedEra::Unreachable] if the host cannot be reached
-      # @raise [CLI::ExpectedEra::BadResponse] if it answers no era
+      # @raise [Tools::ExpectedEra::Unreachable] if the host cannot be reached
+      # @raise [Tools::ExpectedEra::BadResponse] if it answers no era
       def fetch(**held)
         file = required(held[:expected], "no allow-list file to compare the era with")
         timeout = required(held[:timeout], "no timeout to wait for the host with")
-        finding = CLI::CheckEra.assess(plain(held[:host]), file, timeout: timeout.to_f)
+        finding = Tools::CheckEra.assess(plain(held[:host]), file, timeout: timeout.to_f)
         verdict = finding.verdict
 
         { era: { value: verdict.era }, version: { value: finding.version },

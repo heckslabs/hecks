@@ -1,9 +1,9 @@
 require "spec_helper"
-require "hecks/cli/stores"
+require "hecks/tools/stores"
 
 # `stores` reads one record without dumping the rest: the document narrows to an aggregate's dump,
 # or to that aggregate's one record as its plain fields.
-RSpec.describe Hecks::CLI::Stores, ".narrow" do
+RSpec.describe Hecks::Tools::Stores, ".narrow" do
   let(:document) do
     { "book"  => { "authoritative" => [{ "id" => "dune", "title" => "Dune" }, { "id" => "emma", "title" => "Emma" }] },
       "shelf" => { "authoritative" => [] } }

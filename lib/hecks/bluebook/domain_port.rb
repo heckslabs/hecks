@@ -10,9 +10,12 @@ module Hecks
       include Hecks::IR
       include Behaviour::PortOperation
 
-      emits_ir(name: :hecks_name, attributes: many(:attributes), emits: :emits)
+      emits_ir(
+        name: :hecks_name, attributes: many(:attributes), emits: :emits,
+        handles: -> { handles.map { |held| { command: held[:command], value: held[:value] } } }
+      )
 
-      attr_reader :hecks_name, :attributes, :emits, :direction, :answers, :refuses, :to
+      attr_reader :hecks_name, :attributes, :emits, :direction, :answers, :refuses, :to, :handles
 
       # Marks this operation as the one the hecksagon picks (`ask_via`) when its ask name is
       # declared on more than one port of the aggregate.
@@ -29,7 +32,8 @@ module Hecks
       #
       # Every optional keyword and what it holds when the declaration omits it.
       FIELD_DEFAULTS = {
-        attributes: [], emits: [], direction: :inbound, answers: nil, refuses: nil, to: nil, chosen: false
+        attributes: [], emits: [], direction: :inbound, answers: nil, refuses: nil, to: nil, chosen: false,
+        handles: []
       }.freeze
 
       # @param name [String, Symbol] the operation's declared name

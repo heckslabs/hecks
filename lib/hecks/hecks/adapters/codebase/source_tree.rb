@@ -14,6 +14,7 @@ require_relative "corpus_queries"
 require_relative "generated_keys"
 require_relative "codemods"
 require_relative "test_suite"
+require_relative "test_scope"
 require_relative "corpus_tasks"
 require_relative "composing"
 require_relative "previewing"
@@ -24,6 +25,29 @@ require_relative "../git"
 
 module Hecks
   module Adapters
+    # The lookup and working tree a perform runs against, kept out of the class body.
+    module Performing
+      # @param operation [String] the operation the request names
+      # @return [Module] the family that carries it out
+      # @raise [ConsoleCapture::Failure] when no family carries the operation out
+      def family_for(operation)
+        SourceTree::FAMILIES.find { |candidate| candidate::OPERATIONS.include?(operation) } ||
+          raise(ConsoleCapture::Failure, "no task carries out #{operation.inspect}")
+      end
+
+      # @param operation [String] the operation the request names
+      # @param held [Hash] the record, whose folder argument a folder operation reads
+      # @return [Object] the tree the operation runs against
+      def working_tree(operation, held)
+        Codebase::TestSuite::FOLDER_OPERATIONS.include?(operation) ? folder_tree(held) : checkout_tree
+      end
+
+      # @return [Object] the shell the family runs commands through
+      def shell
+        self.class.shell || Shell.new
+      end
+    end
+
     # The `SourceTree` port's adapter: everything Codebase does to the working tree of this
     # repository.
     #
@@ -35,6 +59,7 @@ module Hecks
     # file and does the work with the existing generators, linters and tools.
     class SourceTree
       include CorpusQueries
+      include Performing
 
       class << self
         # @return [#capture, nil] starts each child process; a `Shell` when nil. A spec replaces it
@@ -47,7 +72,10 @@ module Hecks
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] unused
       # @param root [String, nil] unused
-      def initialize(aggregate: nil, settings: {}, root: nil); end
+      # @param registry [Runtime::Registry, nil] whose Hecks world declares the `test_scope` limit
+      def initialize(aggregate: nil, settings: {}, root: nil, registry: nil)
+        @registry = registry
+      end
 
       # Reports whether the working tree is a hecks checkout. For a release it also reports the
       # facts the Git adapter surveys, since a release's rules are judged with the checkout rule.
@@ -76,12 +104,12 @@ module Hecks
       # @raise [ConsoleCapture::Failure] when no family carries the operation out, or it refuses
       def perform(**held)
         operation = plain(held[:operation])
-        family = FAMILIES.find { |candidate| candidate::OPERATIONS.include?(operation) }
-        raise ConsoleCapture::Failure, "no task carries out #{operation.inspect}" unless family
+        return handed_off(operation) if HANDED_OFF.include?(operation)
 
-        working = Codebase::TestSuite::FOLDER_OPERATIONS.include?(operation) ? folder_tree(held) : checkout_tree
-        args = held.except(:operation)
-        done = family.call(operation, args, working, shell: self.class.shell || Shell.new)
+        family = family_for(operation)
+        folder = working_tree(operation, held)
+        allowed = Codebase::TestScope.new(@registry).admit(operation, held.except(:operation), folder)
+        done = family.call(operation, allowed, folder, shell: shell)
         done.is_a?(Hash) ? done : { report: { value: done } }
       end
 
@@ -167,6 +195,17 @@ module Hecks
         { text: Codebase::GeneratedKeys.report(args.transform_values { |value| plain(value) }, tree) }
       end
 
+      # Operations the Terminal adapter carries out itself: the run records that the server was
+      # started and answers when the process hands back, so nothing here runs them.
+      HANDED_OFF = %w[serve_mcp].freeze
+      private_constant :HANDED_OFF
+
+      # The task families, each carrying out the operations it lists.
+      FAMILIES = [Codebase::Language, Codebase::KernelTables, Codebase::Conformance, Codebase::Regeneration,
+                  Codebase::Gate, Codebase::Style, Codebase::Inspection, Codebase::Codemods, Codebase::TestSuite,
+                  Codebase::CorpusTasks, Codebase::Composing, Codebase::Previewing,
+                  Codebase::Publishing, Codebase::Promotion, Codebase::Scripting].freeze
+
       private
 
       def test_suite(operation, args)
@@ -192,17 +231,16 @@ module Hecks
         Codebase::Style.report(operation, plain_args, tree, shell: self.class.shell)
       end
 
-      # The task families, each carrying out the operations it lists.
-      FAMILIES = [Codebase::Language, Codebase::KernelTables, Codebase::Conformance, Codebase::Regeneration,
-                  Codebase::Gate, Codebase::Style, Codebase::Inspection, Codebase::Codemods, Codebase::TestSuite,
-                  Codebase::CorpusTasks, Codebase::Composing, Codebase::Previewing,
-                  Codebase::Publishing, Codebase::Promotion, Codebase::Scripting].freeze
-      private_constant :FAMILIES
-
       # The facts of a promotion or a watch, naming the operation so policies can tell them apart.
       def promotion_facts(held)
         facts = tree.checkout? ? Codebase::Promotion.facts(held, tree) : Codebase::Promotion.no_facts
-        { operation: held[:operation], alert_key: held[:alert_key] }.compact.merge(facts)
+        { operation: held[:operation] }.compact.merge(facts)
+      end
+
+      # @return [Hash{Symbol => Hash}] `report:` the note that the terminal carries the operation
+      def handed_off(operation)
+        note = { value: "#{operation} handed to the terminal" }
+        { report: note, output: note }
       end
 
       def tree = Codebase::Tree.new

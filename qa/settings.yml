@@ -61,6 +61,29 @@ generated_domains_per_tick: 2
 generated_domains_rust: true
 generated_domain_seeds: 5
 
+# The quick gate on local main, the tick's last finding step: each red check becomes a bug, and a
+# self-contained one is fixed, gated, landed and pushed.
+red_main_check: true
+
+# The event pump, the tick's last step: each attached domain's policies react to the events past their
+# cursors. `hecks quality_control event_pump.pump!` runs it by hand whatever this says.
+event_pump: true
+
+# The push check, once per tick: a push of local main that is due beyond the QualityControl world's
+# `push_nudge` thresholds is one `push-due` Work row, revised while due and finished when not. It reads
+# refs git already holds and pushes nothing.
+push_nudge: true
+
+# A quiet tick for a mint window: true makes every step print `quiesced: skipped <step>` and the tick exit 0.
+# A running tick also stops at the marker `hecks qa_quiesce.hold!` writes (a stale one is ignored), so prefer that
+# for a window; this dial is for a standing pause.
+quiesced: false
+
+# The main-maintenance chain after the red-main step: the quick gate on main, the reconcile plan, and the push
+# through the train when origin is behind. `maintenance_confirm` lets the reconcile write; false keeps it a dry run.
+main_maintenance: true
+maintenance_confirm: false
+
 # The Rust kernel's mutation test, run by each tick after the generated domains (about 8 minutes).
 # The two equivalents compare positions where `<` and `<=` cannot differ.
 mutation_files:

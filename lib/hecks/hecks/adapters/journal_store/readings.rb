@@ -7,6 +7,12 @@ require_relative "edge_audit"
 require_relative "compaction"
 require_relative "readings/scaffolding"
 require_relative "readings/attestation"
+require_relative "readings/composition"
+require_relative "readings/boot_status"
+require_relative "readings/sqlite_status"
+require_relative "readings/event_trace"
+require_relative "readings/projection_audit"
+require_relative "readings/mint_plan"
 
 module Hecks
   module Adapters
@@ -22,6 +28,12 @@ module Hecks
 
         include Scaffolding
         include Attestation
+        include Composition
+        include BootStatus
+        include SqliteStatus
+        include EventTrace
+        include ProjectionAudit
+        include MintPlan
 
         # Words the answer for a domain that holds no era.
         #
@@ -29,7 +41,7 @@ module Hecks
         # @param path [String] the domain path, as the operator typed it
         # @return [String] the sentence
         def self.no_era(name, path)
-          "#{name} holds no era yet. `hecks hold_first #{path} --confirm` holds the first."
+          "#{name} holds no era yet. `hecks era.hold_first! #{path} --confirm` holds the first."
         end
 
         # The edge file that would lead the latest held era to the current shape, as its text.

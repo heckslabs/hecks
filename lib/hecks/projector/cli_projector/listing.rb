@@ -58,7 +58,7 @@ module Hecks
         end
 
         # A launcher name in the bluebook's verb form: the aggregate as the bluebook spells it, then
-        # the rest of the name (`push_train.board` as `PushTrain.board`). A name that does not start
+        # the rest of the name (`send_train.board` as `SendTrain.board`). A name that does not start
         # with its aggregate, such as a short name a bluebook gave a command, is left as it is.
         def verb_form(spec, name)
           group = spec[:group]

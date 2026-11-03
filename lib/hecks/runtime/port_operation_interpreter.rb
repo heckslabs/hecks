@@ -86,9 +86,11 @@ module Hecks
         ctx.result = step(:emit) { ctx.operation.outbound? ? ask(ctx) : emit(ctx) }
       end
 
-      # The domain calling out. Any failure, however wide (timeout, bad credential, missing
-      # adapter), becomes the `refuses` event rather than a raise, so a policy can react to it.
-      # The adapter is found by port name across the adapters this boot loaded.
+      # The domain calling out. A failure of the outside world (timeout, bad credential, missing
+      # adapter, the adapter's own refusal) becomes the `refuses` event rather than a raise, so a
+      # policy can react to it. A defect in the code (`Runtime::PROGRAMMING_ERRORS`) is raised:
+      # read as a refusal, it hides its cause behind a domain event. The adapter is found by port
+      # name across the adapters this boot loaded.
       #
       # Unlike an inbound operation, an ask is handed the record's held state: the adapter
       # needs data that lives on the record, and an event payload carries only arguments.
@@ -96,9 +98,20 @@ module Hecks
       def ask(ctx)
         operation = ctx.operation
         announce(ctx, operation.answers, ctx.args.merge(spread(adapter_answer(ctx))))
+      rescue Interrupt
+        refuse_ask(ctx, operation, interrupted(ctx))
       rescue StandardError => e
-        announce(ctx, operation.refuses, ctx.args.merge(refusal: { value: "#{e.class}: #{e.message}" }))
+        raise if Runtime.programming_error?(e)
+
+        refuse_ask(ctx, operation, Runtime.failure_reason(e))
       end
+
+      # Announces an ask's refusal with the text it failed with.
+      def refuse_ask(ctx, operation, text) = announce(ctx, operation.refuses, ctx.args.merge(refusal: { value: text }))
+
+      # The refusal an interrupted ask records: the operation it was in and that it was not
+      # finished, so the run ends faulted with the stage it reached, not open with no record.
+      def interrupted(ctx) = "interrupted during #{ctx.operation_hecks_name}: the run stopped before it finished"
 
       def adapter_answer(ctx)
         payload = held_state(ctx).merge(materialise(ctx.args))
@@ -117,11 +130,12 @@ module Hecks
       end
 
       # The record, if there is one. A missing record is not an error here: the ask still
-      # goes with only its arguments, since `resolve_references` already checked existence.
+      # goes with only its arguments, since `resolve_references` already checked existence. A
+      # defect in reading the state is raised, as an adapter's is.
       def held_state(ctx)
         ctx.instance ? Value.materialize(ctx.state) : {}
-      rescue StandardError
-        {}
+      rescue StandardError => e
+        Runtime.programming_error?(e) ? raise : {}
       end
 
       # The port this operation belongs to, found through the aggregate rather than

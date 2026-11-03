@@ -15,7 +15,7 @@ module Hecks
       # @return [Hash] :ok and :rows (each JSON-safe); or the refused shape
       # @raise [ArgumentError] for any other keyword
       def query(runtime:, question:, summary:, args: {}, **options)
-        check_options!(options, %i[source role actor_id])
+        check_options!(options, %i[source role actor_id surface])
         request = Request.new(runtime: runtime, name: question, summary: summary, args: args, **options)
         request.bluebook, request.name = bluebook_and_name(runtime, question)
         audited(request, "query") { perform_query(request) }
@@ -24,7 +24,7 @@ module Hecks
       # :nodoc:
       def perform_query(request)
         validate_caller_fields!(request)
-        spec = resolve!(cli_for(request.bluebook), request.name, asking: true)
+        spec = resolve!(cli_for(request.runtime, request.bluebook), request.name, asking: true)
         rows = with_caller(request.role, request.actor_id) { answer(request, spec) }
 
         ok(summary: request.summary, rows: rows.map do |row|
@@ -46,16 +46,16 @@ module Hecks
       # @param id [String, Object, nil] one record's identity, or nil for every record
       # @param source [String, Symbol, nil] a SOURCE_TAGS tag naming who is calling
       # @return [Hash] :ok and, with id:, :record; without it, :count/:records; or refused
-      def state(runtime:, aggregate:, summary:, id: nil, source: nil)
+      def state(runtime:, aggregate:, summary:, id: nil, **tags)
         bluebook = bluebook_for(runtime)
         outcome  = perform_state(runtime, bluebook, aggregate, summary, id)
 
-        record!(bluebook.name, tool: "state", summary: summary, source: source, outcome: outcome)
-        outcome
+        record!(bluebook.name, tool: "state", summary: summary, **tags.slice(:source, :surface), outcome: outcome)
+        outcome.merge(ids: { id: id }.compact)
       rescue *refusal_classes => e
         outcome = refused(e, summary: summary)
-        record!(bluebook&.name, tool: "state", summary: summary, source: source, outcome: outcome)
-        outcome
+        record!(bluebook&.name, tool: "state", summary: summary, **tags.slice(:source, :surface), outcome: outcome)
+        outcome.merge(ids: { id: id }.compact)
       end
 
       # :nodoc:

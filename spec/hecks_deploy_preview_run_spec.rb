@@ -87,7 +87,7 @@ RSpec.describe "the Deploy bluebook's PreviewRun", :io do
 
   def preview(verb, *argv, env: {})
     settings = { "PATH" => "#{File.join(dir, "bin")}:#{ENV.fetch("PATH")}", "STUB_DIR" => dir }.merge(env)
-    out, status = with_env(settings) { deploy_call("preview_run.#{verb}", *argv) }
+    out, status = with_env(settings) { deploy_call("preview_run.#{verb}!", *argv) }
     [JSON.parse(out), status]
   end
 
@@ -193,7 +193,7 @@ RSpec.describe "the Deploy bluebook's PreviewRun", :io do
 
     it "is refused before anything runs: the branch is a given", :aggregate_failures do
       %w[main master].each do |branch|
-        out, status = deploy_call("preview_run.deploy", "branch=#{branch}", "confirm=true")
+        out, status = deploy_call("preview_run.deploy!", "branch=#{branch}", "confirm=true")
 
         expect([status, calls]).to eq([1, []])
         expect(out).to include("a preview is never of main or master")

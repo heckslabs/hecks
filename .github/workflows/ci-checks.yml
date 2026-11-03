@@ -4,7 +4,7 @@ name: CI checks (reusable)
 # "checks" required-status-check name, callable only from this repo's ci.yml.
 #
 # What each step runs lives in the `ci` stage of the Vocabulary gate rows: a step is
-# `hecks gate_run.gate stage=ci only=<ids> --wait`. The jobs and steps stay separate, so each
+# `hecks gate_run.gate! stage=ci only=<ids> --wait`. The jobs and steps stay separate, so each
 # keeps its own log, its own attestation `if:` and its own runner; spec/gate_ci_stage_spec.rb
 # holds this file to the stage, so a step names a check that exists and no check goes unrun.
 
@@ -77,7 +77,7 @@ jobs:
       # No generated-rust step: the sweep reads bluebooks and never the generated Rust, so a cache
       # miss costs this job nothing.
       - name: hecks fuzz (shard ${{ matrix.shard }} of 3)
-        run: bundle exec exe/hecks gate_run.gate stage=ci only=fuzz_${{ matrix.shard }}_of_3 --wait
+        run: bundle exec exe/hecks gate_run.gate! stage=ci only=fuzz_${{ matrix.shard }}_of_3 --wait
 
   # Runs the same corpus sweep through a real on-disk SQLite database instead
   # of the Memory adapter's hand-written Hash, so SqlQueryBuilder's
@@ -106,7 +106,7 @@ jobs:
 
       # No generated-rust step, as in `checks_fuzz`.
       - name: hecks fuzz adapter=sqlite (shard ${{ matrix.shard }} of 3)
-        run: bundle exec exe/hecks gate_run.gate stage=ci only=fuzz_sqlite_${{ matrix.shard }}_of_3 --wait
+        run: bundle exec exe/hecks gate_run.gate! stage=ci only=fuzz_sqlite_${{ matrix.shard }}_of_3 --wait
 
   # Runs the same sweep against real Postgres, reduced to 3 seeds of 20 steps
   # since every dispatch is a real round trip. Single worker only: every
@@ -143,7 +143,7 @@ jobs:
       - uses: ./.github/actions/postgres
 
       - name: hecks fuzz adapter=postgres (shard ${{ matrix.shard }} of 2)
-        run: bundle exec exe/hecks gate_run.gate stage=ci only=fuzz_postgres_${{ matrix.shard }}_of_2 --wait
+        run: bundle exec exe/hecks gate_run.gate! stage=ci only=fuzz_postgres_${{ matrix.shard }}_of_2 --wait
 
   checks_static:
     runs-on: ubuntu-latest
@@ -179,11 +179,11 @@ jobs:
       # transitions, saga states no handler chain reaches. Boots every corpus
       # member plus the language's own meta bluebooks.
       #
-      # `hecks model_check` sweeps the corpus from the checkout it runs in when it is given no
+      # `hecks ModelCheckRun.model_check!` sweeps the corpus from the checkout it runs in when it is given no
       # domain, and exits 1 on any finding, so `--wait` only says so.
       - name: model check
         if: steps.attest.outputs.attested != 'true'
-        run: bundle exec exe/hecks gate_run.gate stage=ci only=model_check --wait
+        run: bundle exec exe/hecks gate_run.gate! stage=ci only=model_check --wait
 
       # For every comparator the grammar declares, checks both that
       # `QuerySpecification::Common::Comparison` has a shared `when` case for
@@ -192,41 +192,43 @@ jobs:
       # `rspec` or the cargo-heavy `checks_codegen_drift`.
       - name: engine agreement (query comparators)
         if: steps.attest.outputs.attested != 'true'
-        run: bundle exec exe/hecks gate_run.gate stage=ci only=engine_agreement --wait
+        run: bundle exec exe/hecks gate_run.gate! stage=ci only=engine_agreement --wait
 
       # Compares each bluebook's storage shape with the committed ledger, and a shape that moved
       # with the translation edges that lead to it. Reads the loaded bluebooks, never a database,
       # and no attestation names it, so it runs whether or not the push was attested.
       - name: shape ledger
-        run: bundle exec exe/hecks gate_run.gate stage=ci only=shape_ledger --wait
+        run: bundle exec exe/hecks gate_run.gate! stage=ci only=shape_ledger --wait
 
       # Lints a generated deploy Makefile's text for a command whose exit
       # status isn't checked, or real AWS/DB work with no echo/validation
       # telling the human running it what's about to happen. Generates 3
       # representative fixture domains itself; no real AWS or Postgres
       # touched, so this belongs here rather than in `rspec`.
+      # `command_names` and `workflow_pagination` also run here, not in the push: they read the tree
+      # for launcher names and list calls, and a red one files a Work row, not a blocked push.
       - name: lint generated deploy recipes
-        run: bundle exec exe/hecks gate_run.gate stage=ci only=lint_deploy_recipes --wait
+        run: bundle exec exe/hecks gate_run.gate! stage=ci only=lint_deploy_recipes,command_names,workflow_pagination --wait
 
       # The fuzz sweeps run as shards in checks_fuzz and checks_fuzz_sqlite. This lists the split
       # and refuses one that leaves a domain out or sweeps one twice, so a leg that is missing or
       # repeated is not read as a whole sweep. Reads the corpus only, never a database.
       - name: fuzz shards
-        run: bundle exec exe/hecks gate_run.gate stage=ci only=fuzz_shards --wait
+        run: bundle exec exe/hecks gate_run.gate! stage=ci only=fuzz_shards --wait
 
       # The comment linter as a gate (ADR 0069, widened by ADR 0075 ticket 01): checks every
       # comment under lib/hecks against docs/COMMENT_STYLE_GUIDE.md; the block-length cap
       # (long_block, now 12 lines) also runs over spec/ and examples/ — the same scope
       # .githooks/pre-push checks locally before a push.
       - name: comment style
-        run: bundle exec exe/hecks gate_run.gate stage=ci only=comment_style,comment_blocks --wait
+        run: bundle exec exe/hecks gate_run.gate! stage=ci only=comment_style,comment_blocks --wait
 
       # Also here, not only in .githooks/pre-push: the hook is opt-in per
       # clone and bypassable with `git push --no-verify`, so a branch that
       # never installed it can reach GitHub with this never having run.
       - name: doc coverage
         if: steps.attest.outputs.attested != 'true'
-        run: bundle exec exe/hecks gate_run.gate stage=ci only=doc_coverage --wait
+        run: bundle exec exe/hecks gate_run.gate! stage=ci only=doc_coverage --wait
 
   # RuboCop on its own runner: it is 50s of what was one 126s chain of static checks.
   checks_rubocop:
@@ -254,7 +256,7 @@ jobs:
       # that skipped it could otherwise reach GitHub with no cop having run.
       - name: rubocop
         if: steps.attest.outputs.attested != 'true'
-        run: bundle exec exe/hecks gate_run.gate stage=ci only=rubocop --wait
+        run: bundle exec exe/hecks gate_run.gate! stage=ci only=rubocop --wait
 
   checks_codegen_drift:
     runs-on: ubuntu-latest
@@ -270,7 +272,7 @@ jobs:
         with:
           database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
 
-      # `hecks project_rust` runs the hecks-codegen binary (ADR 0086), so a regeneration on a
+      # `hecks Build.project_rust!` runs the hecks-codegen binary (ADR 0086), so a regeneration on a
       # cache miss below builds it; cached like every other job that builds that crate.
       - uses: ./.github/actions/cargo-cache
         with:
@@ -287,13 +289,13 @@ jobs:
       # a bluebook or the generator with no matching regeneration is caught on the push that caused
       # it. The step above regenerated, so this compares instead of regenerating a second time.
       - name: "rust codegen: fail on drift between the committed and the regenerated tree"
-        run: bundle exec exe/hecks gate_run.gate stage=ci only=codegen_drift --wait
+        run: bundle exec exe/hecks gate_run.gate! stage=ci only=codegen_drift --wait
 
       # The rspec shards hold only the domains they read, so the examples that read the whole
       # generated tree (tagged `generated_all`) run here, where every domain is held: the action
       # above names no domains.
       - name: "rust codegen: specs that read the whole generated tree"
-        run: bundle exec exe/hecks gate_run.gate stage=ci only=generated_tree --wait
+        run: bundle exec exe/hecks gate_run.gate! stage=ci only=generated_tree --wait
 
   # rustfmt and clippy over the seven Rust crates, each its own workspace. The main crate's
   # generated modules are not committed, so they are restored or regenerated first; the checks
@@ -354,10 +356,10 @@ jobs:
           crate-root: rust/build
 
       - name: rustfmt
-        run: bundle exec exe/hecks gate_run.gate stage=ci only=rust_fmt --wait
+        run: bundle exec exe/hecks gate_run.gate! stage=ci only=rust_fmt --wait
 
       - name: clippy
-        run: bundle exec exe/hecks gate_run.gate stage=ci only=rust_clippy --wait
+        run: bundle exec exe/hecks gate_run.gate! stage=ci only=rust_clippy --wait
 
   # The remaining drift checks of the old checks_codegen_drift job: tables, gates and coverage,
   # short next to the corpus regeneration, so they run beside it instead of after it.
@@ -385,31 +387,31 @@ jobs:
       # rust/build/src/reserved_names.rs. Regenerate all three and refuse a
       # diff, so no generator can escape or refuse different words.
       - name: "vocabulary: regenerate reserved-name tables, fail on drift"
-        run: bundle exec exe/hecks gate_run.gate stage=ci only=vocabulary_drift --wait
+        run: bundle exec exe/hecks gate_run.gate! stage=ci only=vocabulary_drift --wait
 
       # The path gates (the CiGate rows in vocabulary.bluebook) are written into marked regions of
       # ci.yml and ci-postgres-io-parallel.yml. Without --confirm the verb only compares, so a row
       # edited with no matching projection, or a region edited by hand, fails here.
       - name: "ci gates: project the CiGate rows into the workflows, fail on drift"
-        run: bundle exec exe/hecks gate_run.gate stage=ci only=ci_gates --wait
+        run: bundle exec exe/hecks gate_run.gate! stage=ci only=ci_gates --wait
 
       # The workflow files whose rows the CiWorkflows bluebook declares (ci-rspec.yml so far) are
       # written whole from those rows. Without --confirm the verb only compares, so a row edited
       # with no matching projection, or a projected file edited by hand, fails here.
       - name: "ci pipeline: project the workflow rows into their files, fail on drift"
-        run: bundle exec exe/hecks gate_run.gate stage=ci only=ci_pipeline --wait
+        run: bundle exec exe/hecks gate_run.gate! stage=ci only=ci_pipeline --wait
 
       # The launcher forms of docs/tools.md are written from the RetiredScript rows in
       # vocabulary.bluebook and each command's own arguments. Without --confirm the verb only
       # compares, so a command whose arguments changed with no regenerated doc fails here.
       - name: "tools doc: project the RetiredScript rows into docs/tools.md, fail on drift"
-        run: bundle exec exe/hecks gate_run.gate stage=ci only=tools_doc --wait
+        run: bundle exec exe/hecks gate_run.gate! stage=ci only=tools_doc --wait
 
       # Checks whether hecks project_rust generated something for every
       # construct each domain's own IR declares, from the already-committed
       # manifest.json + ir.json — no build needed first (see
       # hecks ask rust_coverage's own header for how this differs from equivalence
-      # checking). `hecks ask corpus_rust_coverage` walks every
+      # checking). `hecks CorpusRun.corpus_rust_coverage` walks every
       # rust/src/generated/ module; an entry on
       # `Hecks::Corpus::RUST_COVERAGE_PENDING` must still fail, so a fixed
       # gap breaks the build until its entry is deleted.
@@ -417,7 +419,7 @@ jobs:
       # `--wait` on a question makes it fail the job: a refused check exits 1, and so does a
       # report that names a gap.
       - name: "rust coverage: every generated module"
-        run: bundle exec exe/hecks gate_run.gate stage=ci only=rust_coverage --wait
+        run: bundle exec exe/hecks gate_run.gate! stage=ci only=rust_coverage --wait
 
       # The same check against hecks-codegen's own manifest (ADR 0054a):
       # `--codegen=rust` regenerates each domain's manifest.json with
@@ -429,20 +431,20 @@ jobs:
           crate-root: rust/codegen
 
       - name: "rust coverage (hecks-codegen): pizzas, governance, identity, banking, meta"
-        run: bundle exec exe/hecks gate_run.gate stage=ci only=rust_coverage_codegen --wait
+        run: bundle exec exe/hecks gate_run.gate! stage=ci only=rust_coverage_codegen --wait
 
       # The other half of the kernel's own generated-code guarantee: a
       # capability whose enum variant compiles clean but has no
       # rust/src/kernel/<category>/<name>.rs file behind it at all — see
       # hecks measure_kernel_coverage's own header.
       - name: rust kernel coverage
-        run: bundle exec exe/hecks gate_run.gate stage=ci only=kernel_coverage --wait
+        run: bundle exec exe/hecks gate_run.gate! stage=ci only=kernel_coverage --wait
 
       # rust/src/kernel/vocab/*.rs (RefusalSite, QueryComparator, FieldHint,
       # AggregateStep, EntityStep) regenerated from vocabulary.bluebook.
       # Fails on any diff, and on any untracked file the projection emits.
       - name: "rust vocabulary: regenerate kernel vocab tables, fail on drift"
-        run: bundle exec exe/hecks gate_run.gate stage=ci only=rust_vocabulary_drift --wait
+        run: bundle exec exe/hecks gate_run.gate! stage=ci only=rust_vocabulary_drift --wait
 
       # doc coverage runs in checks_static and rubocop in checks_rubocop, above — once per run,
       # not once per job.

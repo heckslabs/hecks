@@ -1,4 +1,6 @@
 require "json"
+require_relative "run_reference"
+require_relative "read_context"
 
 module Hecks
   module Adapters
@@ -9,41 +11,67 @@ module Hecks
         module Answers
           # What a dispatch needs beyond the spec: the parsed arguments, whether `--wait` was given,
           # and the bluebook and launcher setting the command belongs to.
-          Invocation = Struct.new(:args, :wait, :bluebook, :launcher, :text)
+          Invocation = Struct.new(:args, :wait, :bluebook, :launcher, :text, :plan)
 
           # The flag that asks for a command's recorded output as plain text and nothing else.
           TEXT = "--text".freeze
 
+          # The flag that asks what a command would write and announce, writing nothing.
+          PLAN = "--plan".freeze
+
           # Parses one resolved command's arguments, runs it as a query or command, and turns the
-          # outcome, or the domain's refusal, into `[json_or_message, status]`. With `--wait`, a
-          # question whose report names a gap (`LauncherOptions.gap_reported?`) answers status 1.
+          # outcome, or the domain's refusal, into `[json_or_message, status]`. A word the command
+          # does not take, a value its type cannot hold or a flag it lacks is a line that could
+          # not be read (`ExitStatus::USAGE`); everything the domain says no to, a missing record
+          # included, is `REFUSED`. With `--wait`, a question whose report names a gap
+          # (`LauncherOptions.gap_reported?`) is refused too.
           #
           # @param bluebook [Bluebook::Declaration] the bluebook the command belongs to
           # @param launcher [Hash, nil] the bluebook's `launcher` world setting; nil when not opted
           #   in
           def dispatch(runtime, spec, name, rest, program, asking, bluebook: nil, launcher: nil)
-            args, wait, text = command_line(spec, rest, launcher)
-            return answer_query(runtime, spec, args, wait, launcher) if spec[:kind] == :query
-
-            run_command(runtime, spec, Invocation.new(args, wait, bluebook, launcher, text))
+            plan = rest.include?(PLAN)
+            args, wait, text = command_line(spec, plan ? rest - [PLAN] : rest, launcher)
+            run(runtime, spec, Invocation.new(args, wait, bluebook, launcher, text, plan), name, program, asking)
           rescue Runtime::NotFound, Runtime::TypeMismatch => e
-            # A bad argument and a missing record both need the same next step: read the help.
-            ["#{e.message}\n\n  #{program} #{"query " if asking}#{name} --help", 1]
+            [help_pointer(e, name, program, asking), ExitStatus::USAGE]
+          end
+
+          # Runs a parsed line as a query or a command, and shapes the domain's refusal.
+          # @api private
+          def run(runtime, spec, invocation, name, program, asking)
+            return plan_or_refuse(runtime, spec, invocation, name) if invocation.plan
+            return answer_query(runtime, spec, invocation.args, invocation.wait, invocation.launcher) if spec[:kind] == :query
+
+            run_command(runtime, spec, invocation)
+          rescue Runtime::NotFound, Runtime::TypeMismatch => e
+            # A missing record needs the same next step as a bad argument: read the help.
+            [help_pointer(e, name, program, asking), ExitStatus::REFUSED]
           rescue *Runtime::DOMAIN_REFUSALS => e
             # The refusal is the bluebook's own sentence, verbatim.
-            [e.message, 1]
+            [coded(e), ExitStatus::REFUSED]
           rescue StandardError => e
             # So is a wrapped tool's, when a question's adapter refuses to answer.
             raise unless tool_refusal?(e)
 
-            [e.message, 1]
+            [e.message, ExitStatus::REFUSED]
+          end
+
+          # A refusal's text, led by its stable code so a script can branch on it.
+          # @api private
+          def coded(error) = "[#{error.code}] #{error.message}"
+
+          # An error's message, then the line that prints the command's help.
+          # @api private
+          def help_pointer(error, name, program, asking)
+            "#{coded(error)}\n\n  #{program} #{"query " if asking}#{name} --help"
           end
 
           # The parsed arguments of a command line, whether to wait for the reactions, and whether
           # `--text` asked for the recorded output alone (which waits).
           def command_line(spec, rest, launcher)
             text = launcher ? rest.include?(TEXT) : false
-            rest, wait = LauncherOptions.take_wait(spec, rest - [TEXT]) if launcher
+            rest, wait = LauncherOptions.take_wait(spec, launcher ? rest - [TEXT] : rest)
             [Cli.arguments(spec, rest), text || wait || LauncherOptions.settled?(launcher, spec), text]
           end
 
@@ -55,16 +83,43 @@ module Hecks
             ancestor_names.include?(CliRunner::TOOL_REFUSAL)
           end
 
+          # Answers `--plan`: a command's plan, or usage for a query, which writes nothing to plan.
+          # @api private
+          def plan_or_refuse(runtime, spec, invocation, name)
+            return plan_refused_for_query(name) if spec[:kind] == :query
+
+            plan_answer(runtime, spec, invocation)
+          end
+
+          # Lists what a command would write and announce, writing nothing. A refusal the real run
+          # would give is answered as that refusal.
+          # @api private
+          def plan_answer(runtime, spec, invocation)
+            lines = runtime.plan_flat(spec[:command], **normalized_request(spec, invocation.args))
+            [lines.empty? ? "would not write or announce anything" : lines.join("\n"), ExitStatus::ANSWERED]
+          rescue *Runtime::DOMAIN_REFUSALS, Runtime::NotFound, Runtime::TypeMismatch => e
+            [coded(e), ExitStatus::REFUSED]
+          end
+
+          # A query has nothing to write, so `--plan` on one is a usage mistake.
+          # @api private
+          def plan_refused_for_query(name)
+            ["hecks: #{name} is a query and writes nothing, so --plan has nothing to show", ExitStatus::USAGE]
+          end
+
           # Runs a command and answers its outcome, settled when `--wait` asks for it.
           def run_command(runtime, spec, invocation)
-            args, minted = LauncherOptions.run_key(runtime, spec, invocation.args, invocation.launcher)
+            args, minted = RunReference.prepare(runtime, spec, invocation.args, invocation.launcher)
+            replayed = RunReplay.answer(runtime, spec, args)
+            return replayed if replayed
+
             handle = runtime.dispatch_flat(spec[:command], normalized_request(spec, args))
-            extra  = refusals_and_run(handle, minted)
+            extra  = refusals_and_run(handle, minted, args)
             if invocation.wait
               return settled(runtime, spec, handle, invocation.bluebook, invocation.launcher, extra, text: invocation.text)
             end
 
-            [JSON.pretty_generate(outcome(handle, extra)), 0]
+            [JSON.pretty_generate(outcome(handle, extra)), ExitStatus::ANSWERED]
           end
 
           # The request a command takes from its parsed arguments.
@@ -73,8 +128,8 @@ module Hecks
           end
 
           # The refused reactions of the dispatch, led by the minted run key when one was.
-          def refusals_and_run(handle, minted)
-            extra = refused_answer(handle)
+          def refusals_and_run(handle, minted, args = {})
+            extra = refused_answer(handle).merge(ids: RunReference.ids(args, handle.id))
             minted ? { run: minted }.merge(extra) : extra
           end
 
@@ -92,12 +147,12 @@ module Hecks
           #   questions that refuse a run they do not hold
           # @return [Array(String, Integer)] the answer and the status
           def answer_query(runtime, spec, args, wait, launcher = nil)
-            rows = runtime.query(spec[:command], **args)
-            return [unknown_run(args), 1] if rows.empty? && LauncherOptions.unknown_run?(launcher, spec)
+            rows = runtime.query(spec[:command], **ReadContext.fill(spec, args))
+            return [unknown_run(args), ExitStatus::REFUSED] if rows.empty? && LauncherOptions.unknown_run?(launcher, spec)
 
             text = text_answer(spec, rows)
             [text || JSON.pretty_generate(rows.map { |row| Json.materialize(row) }),
-             wait && LauncherOptions.gap_reported?(text) ? 1 : 0]
+             wait && LauncherOptions.gap_reported?(text) ? ExitStatus::REFUSED : ExitStatus::ANSWERED]
           end
 
           # What a question about one run answers when the process holds no such run, for a
@@ -151,8 +206,8 @@ module Hecks
 
           # Shapes a port operation's outcome, which has no state: each event with its full payload.
           #
-          # The answer lives only in the payloads, so names alone would drop it. Exit status stays 0
-          # for refusal events too, since a healthy no is an answer, not a misuse.
+          # The answer lives only in the payloads, so names alone would drop it. The status stays
+          # `ANSWERED` for refusal events too, since a healthy no is an answer, not a misuse.
           def answered(handle)
             # A port operation hydrates no instance, so the handle's `id` is nil by design.
             { id:     handle.id || handle.events.first&.id,

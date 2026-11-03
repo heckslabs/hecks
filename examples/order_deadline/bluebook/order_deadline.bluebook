@@ -1,0 +1,141 @@
+# Example: a deadline reaches a saga as an ordinary command (ADR 0169). The order holds the
+# instant it falls due; `Expire` reads the clock through `needs :now` and refuses until then; the
+# process manager reacts to `OrderExpired` like any event and dispatches the undoing itself.
+Hecks.bluebook "OrderDeadline" do
+  vision "An order holds stock while it waits to be paid, and gives the stock back once it is overdue: time reaches the saga as a command an inbound clock may dispatch early, twice or late without changing the answer."
+
+  core
+
+  aggregate "Order" do
+    description "An order placed against held stock, paid within its window or expired after it."
+
+    identified_by :reference
+
+    attribute :reference, OrderReference
+    attribute :due_at,    Instant, default: { value: 0 }
+    reference_to Stock
+
+    value_object "OrderReference" do
+      attribute :value, String, matches: :present
+    end
+
+    # The clock as data: whole epoch seconds.
+    value_object "Instant" do
+      attribute :value, Integer, default: 0
+      invariant("a clock reading is not before the epoch") { !value.negative? }
+    end
+
+    lifecycle :status, default: "placed" do
+      transition "Pay"    => "paid",    from: "placed"
+      transition "Expire" => "expired", from: "placed"
+      mark :terminal, "paid", "expired"
+    end
+
+    command "Place" do
+      goal "Place an order that holds its stock for three days while it waits to be paid"
+
+      attribute :reference, OrderReference
+      attribute :now,       Instant
+      needs :now
+
+      sets :reference
+      sets :stock
+      # Three days, in seconds.
+      sets :due_at, to: now + 259200
+
+      emits "OrderPlaced"
+    end
+
+    command "Pay", from: "placed" do
+      goal "Pay an order inside its window"
+
+      reference_to Order
+
+      emits "OrderPaid"
+    end
+
+    # The rule lives on the aggregate: a clock that fires early is refused here, one that fires
+    # twice is refused the second time because the order is no longer placed.
+    command "Expire", from: "placed" do
+      goal "Expire an order nobody paid in time"
+
+      reference_to Order
+      attribute :now, Instant
+      needs :now
+
+      given("the order is overdue") { now.value >= due_at.value }
+
+      emits "OrderExpired"
+    end
+  end
+
+  aggregate "Stock" do
+    description "Units of one item, some of them held by orders that are not yet paid."
+
+    identified_by :sku
+
+    attribute :sku,  Sku
+    attribute :held, HeldCount, default: { value: 0 }
+
+    value_object "Sku" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "HeldCount" do
+      attribute :value, Integer, default: 0
+      invariant("stock is never held below nothing") { !value.negative? }
+    end
+
+    command "Stock" do
+      goal "Start keeping an item"
+
+      attribute :sku, Sku
+
+      sets :sku
+
+      emits "Stocked"
+    end
+
+    command "Hold" do
+      goal "Hold one unit for an order"
+
+      reference_to Stock
+
+      sets :held, to: held + 1
+
+      emits "StockHeld"
+    end
+
+    command "Free" do
+      goal "Give back one unit an order no longer holds"
+
+      reference_to Stock
+
+      given("a unit is held") { held.value > 0 }
+
+      sets :held, to: held - 1
+
+      emits "StockFreed"
+    end
+  end
+
+  # The saga learns about time only through `OrderExpired`; its checkpoint holds no clock.
+  process_manager "Fulfilment" do
+    correlates_by :"reference.value"
+    starts_on Order::OrderPlaced
+    ends_on   Order::OrderPaid
+    ends_on   Order::OrderExpired
+
+    transition Order::OrderPlaced => "holding", from: "holding" do
+      dispatch Stock::Hold, with: { stock: :stock }
+    end
+
+    transition Order::OrderPaid => "paid", from: "holding"
+
+    # An expiry is not a refusal, so `compensates` does not fire on it: the handler gives the
+    # stock back itself.
+    transition Order::OrderExpired => "expired", from: "holding" do
+      dispatch Stock::Free, with: { stock: :stock }
+    end
+  end
+end

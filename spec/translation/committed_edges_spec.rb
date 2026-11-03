@@ -6,12 +6,15 @@ require_relative "../support/memory_ports"
 # era to era, and the newest lands on the shape the bluebook declares today.
 # Nothing else reads them: Fuzzing::IsolatedBoot strips translations/ before every sweep.
 RSpec.describe "the committed translation edges" do
-  # The QA ledger's bluebook ships in lib/, so its directory holds no bluebook of its own to be
-  # swept; its edges stay beside the wiring and the world that name its database.
   def self.domains_with_edges
-    ledgers = Hecks::Corpus::ROTATION_LEDGER.values.map { |path| File.join(InMemoryDomain::ROOT, File.dirname(path)) }
-    (Hecks::Corpus.sweepable_domains | ledgers)
-      .select { |domain| File.directory?(File.join(domain, "bluebook", "translations")) }
+    Hecks::Corpus.sweepable_domains
+                 .select { |domain| File.directory?(File.join(domain, "bluebook", "translations")) }
+  end
+
+  # The moves the ledger settled on the operator's word, as `[from, to]` pairs for one bluebook.
+  def implicit_pairs(name)
+    file = File.join(InMemoryDomain::ROOT, "lib/hecks/hecks", Hecks::ShapeLedger::IMPLICIT_FILE)
+    Hecks::ShapeLedger.pairs_of(Hecks::ShapeLedger.implicit_moves(file).fetch(name, []))
   end
 
   def bluebook_in(bluebook_dir)
@@ -41,7 +44,7 @@ RSpec.describe "the committed translation edges" do
     edges = files.map { |file| edge_in(file) }
     files.zip(edges).each { |file, edge| expect_edge(declaration, file, edge) }
     files.zip(edges).each_cons(2) { |(_, before), (file, after)| expect_link(file, before, after) }
-    expect_newest_current(declaration, edges.last)
+    expect_newest_current(declaration, edges.last, implicit_pairs(declaration.name))
   end
 
   def expect_edge(declaration, file, edge)
@@ -53,16 +56,19 @@ RSpec.describe "the committed translation edges" do
     expect(after.from).to eq(before.to), "#{File.basename(file)} starts at #{after.from}, not #{before.to}"
   end
 
-  def expect_newest_current(declaration, newest)
+  # The QA chain and the Hecks-family edge chain diverge at 541955: the QA chain's newest edge lands
+  # on e6b119, and no edge file leads from e6b119 to 541955. The newest edge may lag the current
+  # label only when implicit_moves.json records a chain from its `to` to that label.
+  def expect_newest_current(declaration, newest, implicit)
     label = Hecks::Runtime::StorageShape.mint_label(declaration)
-    expect(newest.to).to eq(label),
-                         "the newest edge lands on #{newest.to}, but #{declaration.name}'s bluebook now declares " \
-                         "#{label} — commit the translation edge for that change"
+    lagging = "the newest edge lands on #{newest.to}, but #{declaration.name}'s bluebook now declares " \
+              "#{label} — commit the translation edge for that change"
+    expect(Hecks::ShapeLedger.reachable?(newest.to, label, implicit)).to be(true), lagging
   end
 
   it "finds the committed edges (the discovery itself is not silently empty)" do
     expect(self.class.domains_with_edges.map { |domain| domain.delete_prefix("#{InMemoryDomain::ROOT}/") })
-      .to include("examples/pizzas", "qa", "examples/directory")
+      .to include("examples/pizzas", "examples/directory")
   end
 
   domains_with_edges.each do |domain|

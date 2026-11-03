@@ -5,7 +5,7 @@ Words available inside `hecksagon do ... end`.
 
 *The tables on this page are generated from the language's own
 aggregate-local syntax tables (`lib/hecks/language/**/*.bluebook`)
-by `hecks language_run.project_reference` — do not edit inside the markers. The prose
+by `hecks language_run.project_reference!` — do not edit inside the markers. The prose
 between them is hand-written and survives regeneration.*
 <!-- generated:end -->
 
@@ -119,10 +119,10 @@ why this needs no new keyword at all.
 
 Attaches a bluebook to this domain by name, from one of two places. It marks the bluebook a bounded context, so the attaching hecksagon also declares a `Hecks.hecksagon` block for that bluebook, and persistence is bound there as for any other bluebook. It records the name and its source on the hecksagon that asked for it. Persistence is never part of what it loads: a bluebook's aggregates need their own `Hecks.hecksagon "Governance" do ... end` block, declared by whoever attaches it, the same as any other binding decision.
 
-Without `from:`, the name is a bluebook the gem carries, found in one table: a `lib/hecks/framework/bluebook/` member such as `Governance` or `Identity`, or a bluebook of the language itself (`Bluebook`, `Hecksagon`, `World`, `Adapter`, `Port`, `Translation`, `Paging`, `Sentence`, `ContextMap`), `Expression`, `Tenancy`, `Deploy`, `Site`, `Tickets`, `Composer`, `QualityControl`, `CiPipeline` or `Bulk`. A gem bluebook loads from its real location, never a copy, so it keeps working when the domain is copied somewhere else first (a fuzz run's isolated tmp boot, for instance); one that spans several files loads whole. A bluebook that ships `<declaration_name>.ports.hecksagon` (the ports it declares, a `Hecks.hecksagon` block that merges into the attaching one) and `adapters/*.adapter` (the adapters that bind them) brings those too. A name the gem does not carry refuses with a `WiringError` that lists the names it does and says how to attach a vendored package:
+Without `from:`, the name is a bluebook the gem carries, found in one table: a `lib/hecks/framework/bluebook/` member such as `Governance` or `Identity`, or a bluebook of the language itself (`Bluebook`, `Hecksagon`, `World`, `Adapter`, `Port`, `Translation`, `Paging`, `Sentence`, `ContextMap`), `Expression`, `Tenancy`, `Deploy`, `Site`, `Tickets`, `Composer`, `Coder`, `Fixer`, `QualityControl`, `CiPipeline`, `Bulk`, `PipelineBoard` or `Pipeline`. A gem bluebook loads from its real location, never a copy, so it keeps working when the domain is copied somewhere else first (a fuzz run's isolated tmp boot, for instance); one that spans several files loads whole. A bluebook that ships `<declaration_name>.ports.hecksagon` (the ports it declares, a `Hecks.hecksagon` block that merges into the attaching one) and `adapters/*.adapter` (the adapters that bind them) brings those too. A name the gem does not carry refuses with a `WiringError` that lists the names it does and says how to attach a vendored package:
 
 ```ruby
-Hecks::FrameworkBluebooks.table.keys.sort  # => ["Adapter", "Bluebook", "Bulk", "Change", "CiPipeline", "Compliance", "Composer", "ConsoleSettings", "ContextMap", "Deploy", "Expression", "Governance", "Hecksagon", "Identity", "Paging", "Port", "Privacy", "QualityControl", "RailsApp", "Sentence", "Site", "Tenancy", "Tickets", "Translation", "World"]
+Hecks::FrameworkBluebooks.table.keys.sort  # => ["Adapter", "Bluebook", "Bulk", "Change", "CiPipeline", "Coder", "Compliance", "Composer", "ConsoleSettings", "ContextMap", "Deploy", "Expression", "Fixer", "Governance", "Hecksagon", "Identity", "Paging", "Pipeline", "PipelineBoard", "Port", "Privacy", "QualityControl", "RailsApp", "Sentence", "Site", "Tenancy", "Tickets", "Translation", "World"]
 ```
 
 With `from: :vendor`, the name is a separate, independently-versioned package (`embryonaut_bluebooks`) vendored into the *consuming project's own checkout*: `<registry.root>/vendor/embryonaut_bluebooks/<name>/bluebook/`, resolved from the real registry's own root rather than a fixed constant, since there is no fixed answer until a real project (and its root) exists. It loads every `.bluebook` file the package declares, sorted, so a package spanning several files that reopen the same bluebook loads in a stable order. `from: :vendor` is never a fallback: a vendored name written without it is not found among the bluebooks the gem carries and refuses, so a typo cannot silently pick a vendored package over a gem bluebook.
@@ -149,7 +149,7 @@ The Hecks domain (ADR 0080) is the main user of the gem form, attaching the lang
 
 ### Vendoring a package
 
-One command puts a package in that directory, pinned to a release or a commit of the registry repository (`embryonaut_bluebooks`), which the command reads from a local checkout. In this repository it is `hecks package.vendor`; the gem ships `lib/` only, so a consuming project runs the same command through its own bundle:
+One command puts a package in that directory, pinned to a release or a commit of the registry repository (`embryonaut_bluebooks`), which the command reads from a local checkout. In this repository it is `hecks package.vendor!`; the gem ships `lib/` only, so a consuming project runs the same command through its own bundle:
 
 ```sh
 bundle exec ruby -rhecks -e 'exit Hecks::EmbryonautBluebook::VendorCli.run(ARGV)' payments@1.2.0 --from ../embryonaut_bluebooks
@@ -210,7 +210,7 @@ Run in the registry repository itself (packages at `<name>/bluebook.yml`, `<name
 
 A package with no release tag yet is a `note`, not a failure. A passing check ends with `versions ok`.
 
-`hecks package.release <package>` tags the version in `bluebook.yml` as `<package>-vX.Y.Z`, with the package's changelog section as the tag message, in the local repository. It never pushes: the report ends in the command that does. It refuses, with exit status 1 and the reason, when the version is not `X.Y.Z`, the tag exists, the version is not newer than the latest release, the changelog has no entry, the package has uncommitted changes, or its bluebook files are identical to the latest release's. The run is kept as a record (`registry.releasing`, `registry.refused`); the report is the `state.report.value` of the answer.
+`hecks package.release! <package>` tags the version in `bluebook.yml` as `<package>-vX.Y.Z`, with the package's changelog section as the tag message, in the local repository. It never pushes: the report ends in the command that does. It refuses, with exit status 1 and the reason, when the version is not `X.Y.Z`, the tag exists, the version is not newer than the latest release, the changelog has no entry, the package has uncommitted changes, or its bluebook files are identical to the latest release's. The run is kept as a record (`registry.releasing`, `registry.refused`); the report is the `state.report.value` of the answer.
 
 `hecks package.digest <package> [root=<dir>]` prints the content digest a consumer records in its lock file, and the package's shape label, without a Ruby one-liner:
 
@@ -221,7 +221,7 @@ shape: Payments d33c23
 
 The digest is `Lock.digest_of` over the package's `bluebook/*.bluebook` files only, sorted by name: `bluebook.yml`, `CHANGELOG.md` and any other file in the package do not count, so a changelog edit leaves it unchanged. `root` is the registry, read at `<root>/<package>/bluebook`, or a project that vendors the package, read at `<root>/vendor/embryonaut_bluebooks/<package>/bluebook`; it defaults to the current directory. It is a read of the files and keeps no record. It refuses, with exit status 1, naming both places it looked, when the package is in neither.
 
-Both verbs are spelled `registry.check` and `registry.release` too, after the `Registry` aggregate that answers them, as is `package.digest` (`registry.digest`).
+Both verbs are spelled `registry.check` and `registry.release!` too, after the `Registry` aggregate that answers them, as is `package.digest` (`registry.digest`).
 
 ## driven_by
 
@@ -233,7 +233,7 @@ Both verbs are spelled `registry.check` and `registry.release` too, after the `R
 | positional 1 | text | true | driving |
 <!-- generated:end -->
 
-Admits one driving adapter to reach this domain: `Ruby` (the module surface a boot installs), `Cli` (the launcher and `hecks run`), `Json` (the forms and storehouse reader) or `Mcp` (`hecks mcp`). A domain that declares none is open to every adapter. Once it declares any, it is reached through those and each adapter it left out refuses it: `Hecks.boot` refuses to install the Ruby module surface, the launcher answers the sentence with status 1, and the MCP server answers the call with an error. Boot refuses a name no adapter answers to.
+Admits one driving adapter to reach this domain: `Ruby` (the module surface a boot installs), `Cli` (the launcher and `hecks Operation.run!`), `Json` (the forms and storehouse reader) or `Mcp` (`hecks mcp!`). A domain that declares none is open to every adapter. Once it declares any, it is reached through those and each adapter it left out refuses it: `Hecks.boot` refuses to install the Ruby module surface, the launcher answers the sentence with status 1, and the MCP server answers the call with an error. Boot refuses a name no adapter answers to.
 
 ```ruby excerpt
 Hecks.hecksagon "Lending" do

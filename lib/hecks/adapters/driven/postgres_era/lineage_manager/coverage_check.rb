@@ -111,9 +111,11 @@ module Hecks
 
           # The aggregate's head as the chain's last step receives it.
           def translated_before(lineage, aggregate, ordinal, chain)
+            split = lineage.split_latest(aggregate, chain)
+            return split if split
             return lineage.ancestor_latest(aggregate, ordinal, chain) unless chain.size > 1
 
-            lineage.translated_latest(aggregate, ordinal, chain[0..-2])
+            lineage.received_latest(aggregate, ordinal, chain)
           end
         end
       end

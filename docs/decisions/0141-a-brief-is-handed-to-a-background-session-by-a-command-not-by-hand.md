@@ -88,3 +88,31 @@ Not expressed: a batch form. `Tidyable` lists the candidates, but a command that
 query's rows has no DSL form, and a policy-free one-call "tidy all" is not possible; tidy each run
 named by `tidyable`. `Tidyable` lists every finished run because a query `where` here matches a
 status, not the inner value of the `condition` value object; `Tidy` itself keeps the non-`done` ones.
+
+## Addendum: a session's lifecycle and a push's outcome are events (2026-11-02)
+
+A coordinator watching the journal of `agent_run.db` learns when a session works, waits, ends or
+fails, and when the train pushed, without polling `~/.claude/jobs` or `git ls-remote`.
+
+- **Session lifecycle.** `AgentRun.Check` reads the job's own state (`~/.claude/jobs/<session>/state.json`)
+  through the `Agents` port's `ReadJob`, which replaces `Examine`. The answer, `JobRead`, carries the
+  job's `state` and `detail` beside the run's held `condition` as `previous`; policies record a change
+  as one of four events, each carrying `condition`, `detail` and the run's directory with its trailing
+  slash (`checkout`): `SessionWorking` (`Work`), `SessionBlocked` (`Block`, with the question it waits
+  on), `SessionFinished` (`Finish`, done or stopped) and `SessionFailed` (`Fail`, which also moves the
+  run to `finished`). A state equal to `previous` records nothing.
+- **Dispatch.** `Locate` also says whether the directory's `claude` lists the named agent (the adapter
+  reads the list `claude` prints when asked for an agent it lacks); `listed == false` declines the run
+  before any session starts, and with no agent named the session runs the default. After `Begin`,
+  `AwaitJob` reads the job once the session has had a few seconds to fail, so a session that died at
+  once is recorded `SessionFailed`, never left `started`. Locate answers both facts in one ask so the
+  reactions after a start stay within the reaction depth limit.
+- **Sweep.** `SessionSweep.CheckAll` (`agent_run.check_all!`) checks every `Running` run through a
+  `for_each` policy, for a driver to call.
+- **Pushes.** The train runs in Memory in its own checkout, so its `SendTrain` events stay there. On
+  `BranchPushed`, `CarriedByEarlierPush` and `PushFaulted` the `PushRecords` port runs the boarded
+  checkout's own launcher with `PushOutcome.record!`, and that checkout's overlay decides the store.
+  `PushRecorded` carries the run, `checkout`, `branch`, `outcome`, `pushed`, `commits` and `report`; it
+  is its own aggregate so recording a push fires none of a push's reactions. A recording that fails is
+  refused and leaves the push as it ended. A checkout records it in `agent_run.db` once its local
+  overlay persists `Hecks::PushOutcome` with `SqlitePersistence`.

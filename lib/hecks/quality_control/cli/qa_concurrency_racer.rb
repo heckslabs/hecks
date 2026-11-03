@@ -10,7 +10,7 @@ module Hecks
     # The command behind `hecks quality_control sweep.race`: one racer of
     # `Hecks::Fuzzing::ConcurrentDispatch`, run as its own OS process.
     #
-    # It is spawned, not forked: the caller (`hecks quality_control query sweep.run`) holds live
+    # It is spawned, not forked: the caller (`hecks quality_control sweep.run`) holds live
     # `PostgresEra` connections, and fork duplicates their file descriptors and SSL state,
     # corrupting them when a child exits.
     #

@@ -3,6 +3,7 @@ require "hecks/ports/persistence/plugins/era"
 require "tmpdir"
 require_relative "../support/postgres_probe"
 require_relative "../support/sibling_value_object_domain"
+require_relative "../support/first_era_hold"
 # `pg` is required explicitly, as query_agreement_spec.rb does — the adapters
 # only require it lazily, when they connect.
 require "pg"
@@ -13,6 +14,8 @@ require "pg"
 # Memory answers correctly. Expectations are hand-computed so engines sharing one bug cannot
 # agree their way to green.
 RSpec.describe "a query over a value object a sibling aggregate declares", :io do
+  include FirstEraHold
+
   SIBLING_VO_DB       = "hecks_sibling_vo_spec".freeze
   SIBLING_VO_PLAIN_DB = "hecks_sibling_vo_spec_plain".freeze
 
@@ -71,6 +74,7 @@ RSpec.describe "a query over a value object a sibling aggregate declares", :io d
         scrub.exec("CREATE SCHEMA public")
         scrub.close
       end
+      hold_first_era!(url: SIBLING_VO_DB, domain: "SiblingValueObject", source: SiblingValueObjectDomain::SOURCE)
     end
 
     { "b1" => ["s1", 9, %w[red]], "b2" => ["s2", 10, %w[blue]], "b3" => ["s3", 100, %w[red blue]] }

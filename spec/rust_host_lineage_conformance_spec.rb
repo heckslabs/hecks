@@ -3,12 +3,16 @@ require "open3"
 require "securerandom"
 require "hecks/ports/persistence/plugins/era"
 require_relative "support/postgres_probe"
+require_relative "support/first_era_hold"
 
 # Differential test of rust/host's generic lineage read/write path against eras Ruby minted,
 # run through a compiled lineage_harness as the RLS-fenced app role (ADR 0029).
 RSpec.describe "Rust/Ruby lineage parity (rust/host)", :io do
+  include FirstEraHold
+
   RUST_HOST_DIR = File.join(InMemoryDomain::ROOT, "rust", "host")
   SEED_SCRIPT = File.join(RUST_HOST_DIR, "tests", "fixtures", "mint_and_seed_lineage.rb")
+  PROJECTION_SCRIPT = File.join(RUST_HOST_DIR, "tests", "fixtures", "rust_mint_projection_matches_ruby.rb")
   MINT_VIA_RUST_SCRIPT = File.join(RUST_HOST_DIR, "tests", "fixtures", "mint_via_rust_matches_ruby.rb")
 
   # The throwaway database and the two roles an example works against.
@@ -156,11 +160,13 @@ RSpec.describe "Rust/Ruby lineage parity (rust/host)", :io do
     grant.close
   end
 
-  # boot_in_memory supplies only the aggregate's declared shape; check! establishes lineage
-  # capability and grants the app role.
+  # boot_in_memory supplies only the aggregate's declared shape; the first-era hold establishes
+  # lineage capability and grants the app role.
   def lineage_checked_order
     registry = boot_in_memory.registry
     bluebook = registry.bluebook("Pizzas")
+    source = File.read(InMemoryDomain::PIZZAS_BLUEBOOK)
+    hold_first_era!(url: owner_url, domain: "Pizzas", source: source, role: @scratch.app_role)
     Hecks::Adapters::PostgresEra::LineageManager.check!(
       registry: registry, bluebook: bluebook, current_text: File.read(InMemoryDomain::PIZZAS_BLUEBOOK),
       settings: { database: owner_url, role: @scratch.app_role }
@@ -261,5 +267,21 @@ RSpec.describe "Rust/Ruby lineage parity (rust/host)", :io do
     with_minted_databases do |result|
       expect(result.fetch("rust_rows")).to eq(result.fetch("ruby_rows"))
     end
+  end
+
+  def rust_minted_projection
+    stdout, stderr, status = Open3.capture3("ruby", PROJECTION_SCRIPT, self.class.mint_harness_binary)
+    raise "#{File.basename(PROJECTION_SCRIPT)} failed:\nstdout:\n#{stdout}\nstderr:\n#{stderr}" unless status.success?
+
+    JSON.parse(stdout)
+  end
+
+  # Rust holds the first era with the shape Ruby projects, so Ruby reads it without the text.
+  it "holds a Rust-minted era with the projection Ruby computes, read back without the held text",
+     :aggregate_failures do
+    result = rust_minted_projection
+
+    expect(result.fetch("stored_projection")).to eq(result.fetch("ruby_projection"))
+    expect(result.fetch("stored_hash")).to eq(result.fetch("ruby_hash"))
   end
 end

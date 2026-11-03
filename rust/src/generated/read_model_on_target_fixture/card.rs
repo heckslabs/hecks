@@ -588,14 +588,23 @@ impl PinArgs {
         let board = {
             let x = v.get("board").ok_or_else(|| {
                 crate::kernel::Refusal::TypeMismatch(
-                    "Card.board expects String, got nil".to_string(),
+                    "Pin.board expects String, got nil".to_string(),
                 )
             })?;
             x.as_str().map(ToString::to_string).ok_or_else(|| {
-                crate::kernel::Refusal::TypeMismatch(format!(
-                    "Card.board expects String, got {}",
-                    x.describe()
-                ))
+                crate::kernel::Refusal::TypeMismatch(
+                    crate::kernel::refusal_wording::TypeMismatchReferenceWrongShapeArgs {
+                        command: "Pin",
+                        attribute: "board",
+                        offered: &(if matches!(x, crate::kernel::Json::Object(_)) {
+                            "an object".to_string()
+                        } else {
+                            x.describe()
+                        }),
+                        known_by: " (Board is known by reference)",
+                    }
+                    .render_args(),
+                )
             })?
         };
         Ok(Self {

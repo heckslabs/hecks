@@ -1,0 +1,7 @@
+# Binds the `Planner` port to `ShardPartitioner`, which splits a family's files and writes the plan.
+# Required by name, not relative, so a copy of this directory shares the one implementation loaded.
+require "hecks/ci_speed/adapters/shard_partitioner"
+
+Hecks.adapter "ShardPartitioner" do
+  port "Planner"
+end

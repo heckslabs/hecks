@@ -41,8 +41,17 @@ RSpec.describe "AgentRun.Tidy through the Agents port" do
     File.chmod(0o755, path)
   end
 
+  before do
+    allow(Hecks::Adapters::ClaudeAgents).to(receive(:new).and_wrap_original do |original, **context|
+      original.call(**context, settings: { jobs: File.join(scratch, "jobs"), settle: 0 })
+    end)
+  end
+
+  # The session as `claude agents` lists it, and its job's state, both in `state`.
   def sessions(state)
     File.write(File.join(scratch, "sessions.json"), JSON.generate([{ id: "stand-in-session", sessionId: FULL_ID, state: state }]))
+    FileUtils.mkdir_p(File.join(scratch, "jobs", "stand-in-session"))
+    File.write(File.join(scratch, "jobs", "stand-in-session", "state.json"), JSON.generate(state: state))
   end
 
   def transcript(*entries)

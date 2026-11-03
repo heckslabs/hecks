@@ -1,0 +1,387 @@
+# Coder: the coder side of the QA loop. It works the bugs QualityControl logs, and when a fix is
+# not ready it records a Stub, a named temporary workaround that lets the QA rotation keep moving
+# while the bug stays open.
+# Cross-domain wiring to QualityControl's Bug events is deliberately NOT in this first cut.
+
+Hecks.bluebook "Coder" do
+  vision "Every bug QA logs is worked by one coder at a time, and a bug that cannot be fixed yet is still never hidden: it is stubbed, named, and retired once the fix lands."
+
+  core
+
+  # One assignment per QA bug, keyed by the bug's reference. A claim is a lifecycle edge, so two
+  # coders racing for the same bug see one win and one refusal.
+  aggregate "Assignment" do
+    description "One QA bug, the coder working it, and how far the fix got."
+
+    identified_by :bug
+
+    attribute :bug,        BugReference
+    attribute :held_by,    Holder
+    # A number, not a timestamp type: the predicate sublanguage compares only numbers.
+    attribute :claimed_at, Instant
+    attribute :window,     StaleAfter
+
+    value_object "BugReference" do
+      attribute :value, String, matches: :present
+      invariant("an assignment names the bug it works") { !value.to_s.empty? }
+    end
+
+    # `nobody` when unclaimed, as QualityControl's `Engineer` is.
+    value_object "Holder" do
+      attribute :value, String, default: "nobody"
+    end
+
+    value_object "Instant" do
+      attribute :value, Integer, default: 0
+      invariant("an instant is not before the epoch") { !value.negative? }
+    end
+
+    # Mirrors `QualityControl::Target::StaleAfter`: a claim older than this may be taken over.
+    value_object "StaleAfter" do
+      attribute :value, Integer, default: 900
+      invariant("a staleness window is positive") { value.positive? }
+    end
+
+    # `stubbed` is a bug held by a coder with a Stub in place. Both held states can be taken over
+    # once stale, so a coder who goes quiet does not strand the bug.
+    lifecycle :status, default: "waiting" do
+      transition "Claim"   => "claimed",  from: ["waiting", "released", "claimed", "stubbed"]
+      transition "Stub"    => "stubbed",  from: "claimed"
+      transition "Fix"     => "fixed",    from: ["claimed", "stubbed"]
+      transition "Release" => "released", from: ["claimed", "stubbed"]
+      mark :terminal, "fixed"
+    end
+
+    # Creates the assignment in `waiting` when QualityControl logs a bug. Nothing is held yet, so
+    # the holder and claim time keep their defaults. Without this, no assignment could ever exist
+    # for `Claim` to take.
+    command "Offer" do
+      role "Coder"
+      goal "Put a newly logged QA bug on the queue"
+
+      attribute :bug, BugReference
+
+      emits "AssignmentOffered"
+    end
+
+    # `from` includes the held states on purpose: without them the staleness rule below could never
+    # apply, because a claim that went quiet sits in `claimed` and no edge would leave it.
+    # Same arithmetic as QualityControl's `Bug.Claim`: `+` stands for `now - claimed_at >= window`.
+    command "Claim" do
+      role "Coder"
+      goal "Take a bug off the queue, or one whose holder has gone quiet"
+
+      reference_to Assignment
+      attribute :held_by, Holder, sets: true
+      attribute :now,     Instant
+      needs :now
+
+      given("a live claim is not taken from the coder holding it") do
+        held_by.value == "nobody" || claimed_at.value + window.value <= now.value
+      end
+
+      sets :claimed_at, to: :now
+
+      emits "AssignmentClaimed"
+    end
+
+    # The Stub is recorded by its own command; this only moves the assignment into `stubbed`.
+    command "Stub" do
+      role "Coder"
+      goal "Record that the bug is held open behind a temporary workaround"
+
+      reference_to Assignment
+
+      emits "AssignmentStubbed"
+    end
+
+    # `bug` is restated so `AssignmentFixed` carries it: an event holds only its dispatched arguments,
+    # and `RetireStubOnFix` needs the bug to find the Stub it retires.
+    command "Fix" do
+      role "Coder"
+      goal "Record that the bug no longer happens"
+
+      reference_to Assignment
+      attribute :bug, BugReference
+
+      emits "AssignmentFixed"
+    end
+
+    # Dropping a claim hands the bug back to the queue; the caller passes `nobody` as the holder.
+    command "Release" do
+      role "Coder"
+      goal "Put a bug back on the queue without finishing it"
+
+      reference_to Assignment
+      attribute :held_by, Holder, sets: true
+
+      emits "AssignmentReleased"
+    end
+  end
+
+  # The workaround that lets the QA rotation keep moving while the bug stays open. One Stub per bug,
+  # so its reference is the bug's reference, and `RetireStubOnFix` can name it from the fix alone.
+  aggregate "Stub" do
+    description "A named temporary workaround for a bug whose fix is not ready, with the QA target it keeps moving."
+
+    identified_by :reference
+
+    attribute :reference, StubReference
+    attribute :bug,       StubBug
+    attribute :target,    StubTarget
+    attribute :reason,    StubReason
+
+    value_object "StubReference" do
+      attribute :value, String, matches: :present
+      invariant("a stub is referenced") { !value.to_s.empty? }
+    end
+
+    value_object "StubBug" do
+      attribute :value, String, matches: :present
+      invariant("a stub says which bug it stands in for") { !value.to_s.empty? }
+    end
+
+    # The QA target name, such as `ledger_ordering`, that this stub lets keep moving.
+    value_object "StubTarget" do
+      attribute :value, String, matches: :present
+      invariant("a stub says which target it keeps moving") { !value.to_s.empty? }
+    end
+
+    # Required: a workaround that does not say why it exists is a silent failure.
+    value_object "StubReason" do
+      attribute :value, String, matches: :present
+      invariant("a stub says why it exists") { !value.to_s.empty? }
+    end
+
+    lifecycle :status, default: "active" do
+      transition "Retire" => "retired", from: "active"
+      mark :terminal, "retired"
+    end
+
+    command "Record" do
+      role "Coder"
+      goal "Stand a named workaround in for a bug whose fix is not ready"
+
+      attribute :reference, StubReference
+      attribute :bug,       StubBug
+      attribute :target,    StubTarget
+      attribute :reason,    StubReason
+
+      emits "StubRecorded"
+    end
+
+    # Retire has no `given` on the bug's state: a Stub cannot read Assignment. The only path to
+    # this command is `RetireStubOnFix`, which fires on `AssignmentFixed`, so the bug is fixed by
+    # construction.
+    command "Retire" do
+      role "Coder"
+      goal "Take a workaround out once the bug it stood in for is fixed"
+
+      reference_to Stub
+
+      emits "StubRetired"
+    end
+  end
+
+  # The coder side only submits. `Submit` records that a branch at a commit is ready for QA and
+  # maintenance to take from here; it lands nothing and pushes nothing. The event
+  # `WorkSubmitted(branch, sha)` is the contract those policies read.
+  aggregate "Submission" do
+    description "One branch at one commit, handed to QA and maintenance to land."
+
+    identified_by :branch
+
+    attribute :branch, SubmissionBranch
+    attribute :sha,    SubmissionSha
+
+    value_object "SubmissionBranch" do
+      attribute :value, String, matches: :present
+      invariant("a submission names its branch") { !value.to_s.empty? }
+    end
+
+    # 7 to 40 hex, as Patch's CommitRef is: a submission of a commit that is not a sha is refused.
+    value_object "SubmissionSha" do
+      attribute :value, String, matches: :git_sha
+    end
+
+    command "Submit" do
+      role "Coder"
+      goal "Hand a branch at a commit to QA and maintenance, and land nothing from here"
+
+      attribute :branch, SubmissionBranch
+      attribute :sha,    SubmissionSha
+
+      emits "WorkSubmitted"
+    end
+  end
+
+  # A Patch is one pull request opened for a bug's fix, recorded so its CI status is a lookup.
+  # Named `Patch`, as QualityControl names its own; `identified_by :number` keeps it a lookup.
+  aggregate "Patch" do
+    description "One pull request opened for a bug's fix: number, branch, and the commit it was opened at."
+
+    identified_by :number
+
+    attribute :number, PatchNumber
+    attribute :bug,    PatchBug
+    attribute :branch, PatchBranch
+    attribute :commit, CommitRef
+
+    value_object "PatchNumber" do
+      attribute :value, Integer
+      invariant("a patch is numbered") { value.positive? }
+    end
+
+    value_object "PatchBug" do
+      attribute :value, String, matches: :present
+      invariant("a patch says which bug it fixes") { !value.to_s.empty? }
+    end
+
+    value_object "PatchBranch" do
+      attribute :value, String, matches: :present
+      invariant("a patch says which branch it is on") { !value.to_s.empty? }
+    end
+
+    # 7 to 40 hex: a fix that lives only in a working tree is not a fix.
+    value_object "CommitRef" do
+      attribute :value, String, matches: :git_sha
+    end
+
+    # Both endings are terminal, as QualityControl's Patch has them.
+    lifecycle :status, default: "opened" do
+      transition "Merge" => "merged", from: "opened"
+      transition "Close" => "closed", from: "opened"
+      mark :terminal, "closed", "merged"
+    end
+
+    command "Open" do
+      role "Coder"
+      goal "Record that a fix has been opened as a pull request"
+
+      attribute :number, PatchNumber
+      attribute :bug,    PatchBug
+      attribute :branch, PatchBranch
+      attribute :commit, CommitRef
+
+      emits "PatchOpened"
+    end
+
+    # `bug` and `commit` are restated so `PatchMerged` carries them: an event holds only its
+    # dispatched arguments, and QualityControl's `Bug.Fix` needs the commit that made the fix.
+    command "Merge" do
+      role "Coder"
+      goal "Record that GitHub merged it"
+
+      reference_to Patch
+      attribute :bug,    PatchBug
+      attribute :commit, CommitRef
+
+      emits "PatchMerged"
+    end
+
+    command "Close" do
+      role "Coder"
+      goal "Record that GitHub closed it without merging"
+
+      reference_to Patch
+
+      emits "PatchClosed"
+    end
+  end
+
+  # The brief a coder session reads for one Work row: the outcome it asks for, the area it may edit,
+  # and the standing rules every brief carries. The rules are set here, once, so no agent prompt
+  # restates them. `area` is optional: a row that names none gets a brief with no area section.
+  aggregate "Brief" do
+    description "What one coder session is told: the outcome, the area it may edit, and the standing rules."
+    created_by "Brief.compose!"
+
+    attribute :work,         BriefWork
+    attribute :outcome,      BriefOutcome
+    attribute :detail,       BriefDetail, optional: true
+    attribute :area,         list_of(AreaWord), optional: true
+    attribute :rules,        BriefRules
+    attribute :review,       BriefRules, optional: true
+    attribute :verification, BriefVerification
+    attribute :workflow,     BriefRules, optional: true
+    attribute :landing,      BriefRules, optional: true
+    attribute :restraints,   BriefRules, optional: true
+    attribute :report,       BriefRules, optional: true
+    attribute :coordination, BriefRules, optional: true
+    attribute :freeze,       BriefRules, optional: true
+    identified_by :work
+
+    value_object "BriefWork" do
+      attribute :value, String, matches: :present
+      invariant("a brief names the work it briefs") { !value.to_s.empty? }
+    end
+
+    # The Work row's title: the outcome the session is to reach, not the steps to take.
+    value_object "BriefOutcome" do
+      attribute :value, String, matches: :present
+      invariant("a brief states an outcome") { !value.to_s.empty? }
+    end
+
+    value_object "BriefDetail" do
+      attribute :value, String
+    end
+
+    # One path or module name the session may edit.
+    value_object "AreaWord" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "BriefRules" do
+      attribute :value, String
+    end
+
+    value_object "BriefVerification" do
+      attribute :value, String
+    end
+
+    # The brief a coder session reads for the next planned row: the Brief keyed by that row.
+    query "For" do
+      description "The brief composed for one Work row, by the row's key."
+      attribute :row, BriefWork
+      where(work: :row)
+    end
+
+    command "Compose" do
+      role "Coder"
+      goal "Build the brief for a Work row from its outcome and area, with the standing rules"
+
+      attribute :work,    BriefWork, sets: true
+      attribute :outcome, BriefOutcome, sets: true
+      attribute :detail,  BriefDetail, optional: true, sets: true
+      attribute :area,    list_of(AreaWord), optional: true, sets: true
+
+      sets :rules, to: "Map the whole picture before acting. Act on everything within the area. Stop only for (a) a risk of losing data, (b) an action the owner alone may take: a push, a mint, a release, deleting something that is not yours, or (c) a change outside the area. When stopped, report what was stuck first, then finish everything that does not depend on the stuck part."
+      sets :review, to: "Before you edit anything, have your plan reviewed. Write the plan: what you will build, which aggregates, commands, policies, ports, adapters and files it touches, and how it will be checked. Give it to the architect agent (the Agent tool, subagent type architect) and act on its verdict. Sound: build it. Sound with changes: revise the plan as its findings say, then build it. Rethink: edit nothing, hand the row back with exe/hecks tickets Work.yield! to={work} reason.value=\"architect: rethink. <its verdict and first finding>\" --wait, and end. Quote the verdict and each finding you acted on or set aside, with your reason, in your report."
+      sets :verification, to: "Run named specs only through the launcher: exe/hecks test_suite_run.run_spec_example! file.value=<spec> \"example.value= \" --wait. Do not run the full suite: it runs only in CI. Run at most {limit} spec files per call locally (test_suite_run.run_spec_files!), never a whole family. Never use git stash. Keep the quick gate green (exe/hecks gate_run.gate! stage=quick --wait) and RuboCop strict (methods at most 10 lines). Run the quick gate, specs and builds each as ONE blocking command with an explicit Bash timeout of up to 600000 ms; never as a background command with a monitor or poll loop. Run exe/hecks style_run.check_comments! paths=<one file> --wait for each Ruby file you touch."
+      sets :workflow, to: "Pull main first, always: fetch origin, bring local main up to date, then cut the branch. Work in your own worktree named for the row: step 1 is exe/hecks LinkedTree.add! branch.value={work} --wait, which pulls main (a fast-forward, or a rebase of local main's unpushed commits when both moved; it refuses by name when the checkout is dirty) and cuts the branch from it. A session the harness started in a worktree (EnterWorktree cuts from origin/main, not local main) checks git merge-base --is-ancestor origin/main HEAD and rebases onto local main if not, after exe/hecks LinkedTree.pull_main! --wait. Rebase onto local main before landing: local main can hold work that is not pushed, and landing refuses a branch whose base is behind origin/main. Put no Claude attribution trailer in a commit message: no Co-Authored-By line and no Claude-Session line. A worktree that holds ignored files is kept after landing and reported: remove it by hand."
+      sets :landing, to: "Regenerate only if a bluebook, hecksagon, Vocabulary row or generator changed: exe/hecks regeneration_run.regenerate_corpus! --confirm --wait, then --check. Run exe/hecks conformance_run.check_shape_ledger! --wait; a purely additive move uses --confirm --additive, any other move: stop and report it. Land with exe/hecks landing.finish! --confirm: one step that rebases onto local main, runs the quick gate, lands through the queue and removes the worktree and branch. It refuses by name at the first failure (unsaved work, conflict, gate red, queue busy): fix that and run it again. If landing refuses because a landing is in flight, run it again once; it queues. Never poll or sleep on a lock, and never run a lock file by hand."
+      sets :restraints, to: "Do not push. Never set HECKS_OWNER_PUSH and never use --no-verify: main is pushed only by boarding the push train. Do not mint an era. A red main raises a red flag (the RedFlagRaised event; exe/hecks RedFlag.status says whether one stands, and `exe/hecks Operation.follow domain.value=Hecks aggregate.value=RedFlag from_now=true wait=600` is the one line that listens, and it returns when RedFlagRaised or RedFlagCleared is recorded). On RedFlagRaised stop feature work and check in with exe/hecks RedFlag.check_in! session.value=<you> taking.value=<a red-* Work row or a cause> (exe/hecks tickets Work.undone lists the rows); Landing and the push train then refuse everything except the fix of a red-* row, by name (main is red: flag <id>), and a red-* row's fix goes out through the push train. Resume on RedFlagCleared, when CI on main is green again. Do not run the full spec suite locally; it runs in CI. Do not write to a live database (tickets.db, agent_run.db or any other under ~/.claude): use Memory or a temp file in specs. Never touch a local database that may hold client data."
+      sets :report, to: "End with a report: what changed, each with file:line; the spec counts (examples and failures); the shape-ledger action you took; and the sha you landed, or why nothing landed."
+      sets :coordination, to: "COORDINATION: other sessions are working in these areas. Do not edit them:"
+      sets :freeze, to: "FREEZE: the persisted shape of these may not move. If your change moves one, commit and hold, do not land, and report 'ready, held for the freeze':"
+
+      emits "BriefComposed"
+    end
+  end
+
+  # A planned Work row is briefed when it is planned: the title is the outcome, and the detail and the
+  # area come with it. A session reads the brief of `Work.next_planned` with `Brief.for`.
+  policy "ComposeBriefWhenPlanned" do
+    on      "Work.WorkPlanned"
+    trigger Brief::Compose, with: { work: :work, outcome: :title, detail: :detail, area: :area }
+  end
+
+  # The one automatic reaction. A fix retires the workaround standing in for it: the stub is only
+  # needed while the bug is open, so it is retired by policy rather than inline in `Fix`, which
+  # would couple two aggregates in one command. `Assignment.Fix` emits `AssignmentFixed`, and the
+  # bug is the Stub's reference, so `stub: :bug` names the right one.
+  policy "RetireStubOnFix" do
+    on      "Assignment.AssignmentFixed"
+    trigger Stub::Retire, with: { stub: :bug }
+  end
+end

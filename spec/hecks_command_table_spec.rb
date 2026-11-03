@@ -12,7 +12,7 @@ require "securerandom"
 RSpec.describe "the Hecks command table through the launcher" do
   # Introspection's queries and the verbs of ModelCheckRun and Operation, as the launcher spells
   # them.
-  COMMAND_LAUNCHER_NAMES = { "operation.open_console" => "console", "launch.serve_mcp" => "mcp" }.freeze
+  COMMAND_LAUNCHER_NAMES = { "operation.open_console" => "console", "server.serve_mcp" => "mcp" }.freeze
 
   # Settled verbs of the attached Deploy bluebook; hecks_deploy_smoke_run_spec.rb and
   # hecks_deploy_roll_spec.rb and the data copy, diff, preview and companion specs run them.
@@ -28,13 +28,13 @@ RSpec.describe "the Hecks command table through the launcher" do
     operation.run operation.refresh_projections operation.run_behaviors operation.open_console
     operation.smoke_test operation.smoke_http operation.outcome operation.failed
     operation.follow host.check_era host.recheck host.standing
-    host.drifted push_train.board push_train.outcome landing.land landing.retire landing.outcome
-    landing.unlanded checkout.status checkout.changes checkout.log era.hold_first era.merge_tail era.reattest
+    host.drifted send_train.board send_train.outcome landing.land landing.train landing.retire landing.discard landing.outcome
+    landing.unlanded workspace.status workspace.changes workspace.history era.hold_first era.merge_tail era.reattest
     era.backfill_projections era.compact era.compact_heki
     era.settlement era.abandoned era.scaffold_translation era.audit_translation
     era.attestation era.compaction package.vendor package.revendor
     package.pinning package.unpinned package.verify package.digest package.check package.release
-    operation.bootstrap_admin launch.project_cli launch.serve_mcp
+    operation.bootstrap_admin launch.project_cli server.serve_mcp
     launch.ended launch.stopped build.project_rust build.build_wasm
     build.build_host build.build_browser_wasm build.check_conformance build.fuzz_conformance build.check_coverage_allowlist
     build.rust_coverage build.result build.faulted fuzz_run.fuzz
@@ -156,13 +156,13 @@ RSpec.describe "the Hecks command table through the launcher" do
     end
   end
 
-  # `push_train.board` as a command's help prints it: the aggregate as the bluebook spells it, then
+  # `send_train.board` as a command's help prints it: the aggregate as the bluebook spells it, then
   # the command. A query's help keeps the snake-case name.
   def verb_form(verb) = verb.sub(/\A[^.]+/) { |aggregate| aggregate.split("_").map(&:capitalize).join }
 
   describe "model_check" do
     it "keeps a clean verdict beside the request", :aggregate_failures do
-      out, status = run_verb("model_check_run.model_check", "run=clean-1", "domains=#{File.join(@dir, "clean")}")
+      out, status = run_verb("model_check_run.model_check!", "run=clean-1", "domains=#{File.join(@dir, "clean")}")
 
       expect([status, JSON.parse(out).fetch("events")]).to eq([0, ["ModelCheckRequested"]])
       row = verdict_of("clean-1")
@@ -171,7 +171,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     end
 
     it "flags a domain whose model has a finding, and keeps what was found", :aggregate_failures do
-      run_verb("model_check_run.model_check", "run=shelf-1", "domains=#{@shelf}")
+      run_verb("model_check_run.model_check!", "run=shelf-1", "domains=#{@shelf}")
 
       row = verdict_of("shelf-1")
       expect(row.fetch("status")).to eq("flagged")
@@ -180,13 +180,13 @@ RSpec.describe "the Hecks command table through the launcher" do
     end
 
     it "flags a domain that does not exist instead of calling it clean" do
-      run_verb("model_check_run.model_check", "run=none-1", "domains=#{File.join(@dir, "nowhere")}")
+      run_verb("model_check_run.model_check!", "run=none-1", "domains=#{File.join(@dir, "nowhere")}")
 
       expect(verdict_of("none-1").fetch("status")).to eq("flagged")
     end
 
     it "refuses a profile it does not know, before anything is recorded", :aggregate_failures do
-      out, status = run_verb("model_check_run.model_check", "run=bad-1", "profile=strictest")
+      out, status = run_verb("model_check_run.model_check!", "run=bad-1", "profile=strictest")
 
       expect(status).to eq(1)
       expect(out).to include("must match")
@@ -200,7 +200,7 @@ RSpec.describe "the Hecks command table through the launcher" do
       launched = []
       Hecks::Adapters::Terminal.launcher = -> { launched << :irb }
       begin
-        capture_stdout { run_verb("operation.open_console", "run=#{run}", "subject=#{@shelf}") }
+        capture_stdout { run_verb("operation.open_console!", "run=#{run}", "subject=#{@shelf}") }
       ensure
         Hecks::Adapters::Terminal.launcher = nil
       end
@@ -208,7 +208,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     end
 
     it "refresh_projections catches up and keeps how many", :aggregate_failures do
-      run_verb("operation.refresh_projections", "run=refresh-1", "subject=#{@shelf}")
+      run_verb("operation.refresh_projections!", "run=refresh-1", "subject=#{@shelf}")
 
       row = outcome_of("refresh-1")
       expect(row.fetch("status")).to eq("succeeded")
@@ -216,7 +216,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     end
 
     it "run_behaviors keeps the per-test report", :aggregate_failures do
-      run_verb("operation.run_behaviors", "run=behave-1", "subject=#{File.join(@shelf, "bluebook/shelf.behaviors")}")
+      run_verb("operation.run_behaviors!", "run=behave-1", "subject=#{File.join(@shelf, "bluebook/shelf.behaviors")}")
 
       row = outcome_of("behave-1")
       expect(row.fetch("status")).to eq("succeeded")
@@ -224,7 +224,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     end
 
     it "run dispatches a verb against the domain", :aggregate_failures do
-      run_verb("operation.run", "run=verb-1", "subject=#{@shelf}", "verb=book.shelve", "arguments=title.value=Dune")
+      run_verb("operation.run!", "run=verb-1", "subject=#{@shelf}", "verb=book.shelve", "arguments=title.value=Dune")
 
       row = outcome_of("verb-1")
       expect(row.fetch("status")).to eq("succeeded")
@@ -232,7 +232,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     end
 
     it "run keeps a refusal as a failed operation, with the domain's own sentence", :aggregate_failures do
-      run_verb("operation.run", "run=verb-2", "subject=#{@shelf}", "verb=book.shelve")
+      run_verb("operation.run!", "run=verb-2", "subject=#{@shelf}", "verb=book.shelve")
 
       row = outcome_of("verb-2")
       expect(row.fetch("status")).to eq("failed")
@@ -241,7 +241,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     end
 
     it "run refuses a request that names neither a script nor a verb, and records nothing", :aggregate_failures do
-      out, status = run_verb("operation.run", "run=neither-1", "subject=#{@shelf}")
+      out, status = run_verb("operation.run!", "run=neither-1", "subject=#{@shelf}")
 
       expect(status).to eq(1)
       expect(out).to include("exactly one of a script and a verb is named")
@@ -249,7 +249,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     end
 
     it "run refuses a request that names both a script and a verb, and records nothing", :aggregate_failures do
-      out, status = run_verb("operation.run", "run=both-1", "subject=#{@shelf}", "script=steps.json", "verb=book.shelve")
+      out, status = run_verb("operation.run!", "run=both-1", "subject=#{@shelf}", "script=steps.json", "verb=book.shelve")
 
       expect(status).to eq(1)
       expect(out).to include("exactly one of a script and a verb is named")
@@ -257,7 +257,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     end
 
     it "run accepts a script alone, and keeps its failure as the operation's", :aggregate_failures do
-      run_verb("operation.run", "run=script-1", "subject=#{@shelf}", "script=#{File.join(@dir, "no-such-steps.json")}")
+      run_verb("operation.run!", "run=script-1", "subject=#{@shelf}", "script=#{File.join(@dir, "no-such-steps.json")}")
 
       row = outcome_of("script-1")
       expect(row.fetch("status")).to eq("failed")
@@ -265,7 +265,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     end
 
     it "smoke_test dispatches one call per command", :aggregate_failures do
-      run_verb("operation.smoke_test", "run=smoke-1", "subject=#{File.join(@dir, "clean")}")
+      run_verb("operation.smoke_test!", "run=smoke-1", "subject=#{File.join(@dir, "clean")}")
 
       row = outcome_of("smoke-1")
       expect(row.fetch("status")).to eq("succeeded")
@@ -273,12 +273,12 @@ RSpec.describe "the Hecks command table through the launcher" do
     end
 
     it "smoke_http fails without a signing secret in the environment, and never takes one as an argument", :aggregate_failures do
-      run_verb("operation.smoke_http", "run=hook-1", "path=/webhooks/events")
+      run_verb("operation.smoke_http!", "run=hook-1", "path=/webhooks/events")
 
       row = outcome_of("hook-1")
       expect(row.fetch("status")).to eq("failed")
       expect(row["refusal"]).to include("SMOKE_WEBHOOK_SECRET")
-      expect(run_verb("operation.smoke_http", "--help").first).not_to include("secret")
+      expect(run_verb("operation.smoke_http!", "--help").first).not_to include("secret")
     end
 
     it "open_console launches its session through the Terminal adapter and keeps that it ended", :aggregate_failures do
@@ -365,7 +365,7 @@ RSpec.describe "the Hecks command table through the launcher" do
 
   describe "the Host verbs" do
     it "check_era keeps a host that cannot be reached as unreachable, with the reason", :aggregate_failures do
-      run_verb("host.check_era", "http://127.0.0.1:1", "expected=#{File.join(@dir, "eras.txt")}")
+      run_verb("host.check_era!", "http://127.0.0.1:1", "expected=#{File.join(@dir, "eras.txt")}")
 
       row = standing_of("http://127.0.0.1:1")
       expect(row.fetch("status")).to eq("unreachable")
@@ -402,18 +402,18 @@ RSpec.describe "the Hecks command table through the launcher" do
       end
 
       it "keeps the era a host reports, flags a drift, and rechecks the same host", :aggregate_failures do
-        row = era_check("host.check_era", "eras-ok.txt", "abc123")
+        row = era_check("host.check_era!", "eras-ok.txt", "abc123")
         expect([row.fetch("status"), row["era"], row["version"]]).to eq(%w[observed abc123 3.0.0])
 
-        drifted = era_check("host.recheck", "eras-old.txt", "def456")
+        drifted = era_check("host.recheck!", "eras-old.txt", "def456")
         expect(drifted.fetch("status")).to eq("drifted")
         expect(listed("host.drifted", "host")).to include(url)
       end
     end
 
     it "refuses a second check of a host that is already recorded", :aggregate_failures do
-      run_verb("host.check_era", "http://127.0.0.1:2", "expected=#{File.join(@dir, "eras.txt")}")
-      out, status = run_verb("host.check_era", "http://127.0.0.1:2", "expected=#{File.join(@dir, "eras.txt")}")
+      run_verb("host.check_era!", "http://127.0.0.1:2", "expected=#{File.join(@dir, "eras.txt")}")
+      out, status = run_verb("host.check_era!", "http://127.0.0.1:2", "expected=#{File.join(@dir, "eras.txt")}")
 
       expect(status).to eq(1)
       expect(out).to include("already exists")
@@ -470,9 +470,9 @@ RSpec.describe "the Hecks command table through the launcher" do
 
     it "refuses every change that changes something until it is confirmed, and records nothing", :aggregate_failures do
       %w[era.hold_first era.merge_tail era.compact era.compact_heki].each do |verb|
-        expect(unconfirmed_attempt(verb)).to include(status: 1, out: include("is confirmed"), recorded: false)
+        expect(unconfirmed_attempt("#{verb}!")).to include(status: 1, out: include("is confirmed"), recorded: false)
       end
-      expect(run_verb("era.reattest", @shelf, "era=1", "run=unconfirmed-reattest").last).to eq(1)
+      expect(run_verb("era.reattest!", @shelf, "era=1", "run=unconfirmed-reattest").last).to eq(1)
     end
 
     describe "reattest, once the journal store has examined the era's text" do
@@ -495,7 +495,7 @@ RSpec.describe "the Hecks command table through the launcher" do
       end
 
       def reattest(run)
-        out, = run_verb("era.reattest", @shelf, "era=1", "run=#{run}", "--confirm")
+        out, = run_verb("era.reattest!", @shelf, "era=1", "run=#{run}", "--confirm")
         JSON.parse(out).fetch("refused_reactions", []).map { |reaction| reaction.fetch("reason") }
       end
 
@@ -539,7 +539,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     end
 
     it "compacts once confirmed, and keeps what was done", :aggregate_failures do
-      out, status = run_verb("era.compact_heki", seeded_heki("heki-compact"), "run=compact-1", "--confirm")
+      out, status = run_verb("era.compact_heki!", seeded_heki("heki-compact"), "run=compact-1", "--confirm")
 
       expect([status, JSON.parse(out).fetch("events")]).to eq([0, ["HekiCompactionRequested"]])
       row = settlement_of("compact-1")
@@ -548,7 +548,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     end
 
     it "does not compact a journal a projection reads, and says why beside the request", :aggregate_failures do
-      out, status = run_verb("era.compact_heki", banking_copy, "run=compact-2", "--confirm")
+      out, status = run_verb("era.compact_heki!", banking_copy, "run=compact-2", "--confirm")
 
       expect(status).to eq(0)
       expect(JSON.parse(out).fetch("refused_reactions").first).to include(UNREAD_JOURNAL_REFUSAL)
@@ -565,7 +565,7 @@ RSpec.describe "the Hecks command table through the launcher" do
         allow(Hecks::Adapters::JournalStore).to receive(:new).and_wrap_original do |original, *args, **kwargs|
           original.call(*args, **kwargs).tap { |store| allow(store).to receive(:examine).and_return(found) }
         end
-        run_verb("era.compact_heki", seeded_heki("heki-apply-#{SecureRandom.hex(3)}"), "run=apply-1", "--confirm")
+        run_verb("era.compact_heki!", seeded_heki("heki-apply-#{SecureRandom.hex(3)}"), "run=apply-1", "--confirm")
         @size = File.size(journal)
       end
 
@@ -574,7 +574,7 @@ RSpec.describe "the Hecks command table through the launcher" do
       end
 
       it "does not make the change anyway", :aggregate_failures do
-        run_verb("era.apply", "to=apply-1", "run=apply-1")
+        run_verb("era.apply!", "to=apply-1", "run=apply-1")
 
         expect(@size).to be_positive
         expect(File.size(journal)).to eq(@size)
@@ -583,7 +583,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     end
 
     it "keeps a domain that is not there as a refused change, with the reason", :aggregate_failures do
-      run_verb("era.compact", File.join(@dir, "nowhere"), "run=compact-3", "--confirm")
+      run_verb("era.compact!", File.join(@dir, "nowhere"), "run=compact-3", "--confirm")
 
       row = settlement_of("compact-3")
       expect(row.fetch("status")).to eq("refused")
@@ -599,7 +599,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     end
 
     it "takes winners as id:old,id:new and refuses a malformed list", :aggregate_failures do
-      out, status = run_verb("era.merge_tail", @shelf, "run=merge-1", "winners=a1", "--confirm")
+      out, status = run_verb("era.merge_tail!", @shelf, "run=merge-1", "winners=a1", "--confirm")
 
       expect(status).to eq(1)
       expect(out).to include("must match")
@@ -613,30 +613,30 @@ RSpec.describe "the Hecks command table through the launcher" do
     let(:crew) { CrewDomain.write(File.join(@dir, "crew-#{id}"), sqlite: File.join(@dir, "crew-#{id}.sqlite3")) }
 
     it "admits and grants the first administrator", :aggregate_failures do
-      out, status = run_verb("operation.bootstrap_admin", crew, "email=ada@example.com", "name=Ada")
+      out, status = run_verb("operation.bootstrap_admin!", crew, "email=ada@example.com", "name=Ada")
 
       expect(status).to eq(0)
       expect(JSON.parse(out).dig("state", "output")).to eq("Granted Admin access to ada@example.com (admitted first)")
     end
 
     it "exits 1 for a second", :aggregate_failures do
-      run_verb("operation.bootstrap_admin", crew, "email=ada@example.com", "name=Ada")
+      run_verb("operation.bootstrap_admin!", crew, "email=ada@example.com", "name=Ada")
 
-      _out, status, reason = run_verb("operation.bootstrap_admin", crew, "email=grace@example.com")
+      _out, status, reason = run_verb("operation.bootstrap_admin!", crew, "email=grace@example.com")
 
       expect(status).to eq(1)
       expect(reason).to include("an administrator already exists (ada@example.com)")
     end
 
     it "exits 1 for a domain that provides no membership", :aggregate_failures do
-      _out, status, reason = run_verb("operation.bootstrap_admin", File.join(@dir, "clean"), "email=ada@example.com")
+      _out, status, reason = run_verb("operation.bootstrap_admin!", File.join(@dir, "clean"), "email=ada@example.com")
 
       expect(status).to eq(1)
       expect(reason).to include("provides \"membership\"")
     end
 
     it "exits 1 for an email that is not one, before booting anything", :aggregate_failures do
-      out, status = run_verb("operation.bootstrap_admin", crew, "email=ada")
+      out, status = run_verb("operation.bootstrap_admin!", crew, "email=ada")
 
       expect(status).to eq(1)
       expect(out).to include("must match")
@@ -652,7 +652,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     end
 
     it "vendor keeps a source that is not there as a refused pinning, and unpinned lists it", :aggregate_failures do
-      run_verb("package.vendor", "payments@1.2.0", "from=#{File.join(@dir, "nowhere")}", "root=#{@dir}")
+      run_verb("package.vendor!", "payments@1.2.0", "from=#{File.join(@dir, "nowhere")}", "root=#{@dir}")
 
       row = pinning_of("payments@1.2.0")
       expect(row.fetch("status")).to eq("refused")
@@ -676,11 +676,11 @@ RSpec.describe "the Hecks command table through the launcher" do
     end
 
     it "vendors a release from a registry, and revendors the same spelling", :aggregate_failures, :io do
-      vendor_widgets("package.vendor")
+      vendor_widgets("package.vendor!")
       expect(status_and(pinning_of("widgets"), "report")).to match(["vendored", a_string_including("widgets 1.0.0")])
       expect(File.exist?(File.join(project, "vendor/embryonaut_bluebooks/widgets/bluebook.lock"))).to be(true)
 
-      vendor_widgets("package.revendor")
+      vendor_widgets("package.revendor!")
       expect(pinning_of("widgets").fetch("status")).to eq("vendored")
     end
 
@@ -766,7 +766,7 @@ RSpec.describe "the Hecks command table through the launcher" do
       it "release tags the version locally, keeps the record, and exits 0", :aggregate_failures do
         publish("1.0.0")
 
-        out, status = run_verb("package.release", "widgets", "root=#{registry.path}")
+        out, status = run_verb("package.release!", "widgets", "root=#{registry.path}")
 
         expect(status).to eq(0)
         expect(JSON.parse(out).dig("state", "report")).to include("git push origin widgets-v1.0.0")
@@ -776,7 +776,7 @@ RSpec.describe "the Hecks command table through the launcher" do
       it "release exits 1 with the reason when a rule is broken, and makes no tag", :aggregate_failures do
         publish_tagged("1.0.0")
 
-        _out, status, reason = run_verb("package.release", "widgets", "root=#{registry.path}")
+        _out, status, reason = run_verb("package.release!", "widgets", "root=#{registry.path}")
 
         expect(status).to eq(1)
         expect(reason).to include("widgets-v1.0.0 already exists")
@@ -786,7 +786,7 @@ RSpec.describe "the Hecks command table through the launcher" do
       it "release lists the refused run among registry.refused" do
         publish("1.0.0")
         registry.tag("widgets-v1.0.0")
-        run_verb("package.release", "widgets", "root=#{registry.path}", "run=refused-#{rand(1_000_000)}")
+        run_verb("package.release!", "widgets", "root=#{registry.path}", "run=refused-#{rand(1_000_000)}")
 
         expect(JSON.parse(run_verb("registry.refused").first)).not_to be_empty
       end
@@ -858,11 +858,11 @@ RSpec.describe "the Hecks command table through the launcher" do
       end
 
       def vendor(package, *flags)
-        run_verb("package.vendor", package, "from=#{registry.path}", "root=#{project}", *flags)
+        run_verb("package.vendor!", package, "from=#{registry.path}", "root=#{project}", *flags)
       end
 
       def revendor(package, *flags)
-        run_verb("package.revendor", package, "from=#{registry.path}", "root=#{project}", *flags)
+        run_verb("package.revendor!", package, "from=#{registry.path}", "root=#{project}", *flags)
       end
 
       it "is 0 when the package was pinned" do
@@ -946,12 +946,12 @@ RSpec.describe "the Hecks command table through the launcher" do
       Dir.chdir(@dir) { example.run }
     end
 
-    # The argv the Terminal adapter was handed while `launch.serve_mcp` ran.
+    # The argv the Terminal adapter was handed while `server.serve_mcp` ran.
     def served_by_mcp(run)
       served = []
       Hecks::Adapters::Terminal.server = ->(argv) { served << argv }
       begin
-        run_verb("launch.serve_mcp", "run=#{run}", "--stdio")
+        run_verb("server.serve_mcp!", "run=#{run}", "--stdio")
       ensure
         Hecks::Adapters::Terminal.server = nil
       end
@@ -959,7 +959,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     end
 
     it "project_cli writes a launcher beside each domain of the current directory and keeps what it wrote", :aggregate_failures do
-      out, status = run_verb("launch.project_cli", "run=launchers-1")
+      out, status = run_verb("launch.project_cli!", "run=launchers-1")
 
       expect([status, JSON.parse(out).fetch("events")]).to eq([0, ["LaunchersRequested"]])
       row = ended_of("launchers-1")
@@ -968,18 +968,19 @@ RSpec.describe "the Hecks command table through the launcher" do
     end
 
     it "project_cli keeps a domain it cannot boot as a stopped entry point", :aggregate_failures do
-      run_verb("launch.project_cli", "run=launchers-2", "domains=nowhere")
+      run_verb("launch.project_cli!", "run=launchers-2", "domains=nowhere")
 
       expect(ended_of("launchers-2").fetch("status")).to eq("stopped")
       expect(listed("launch.stopped", "run")).to include("launchers-2")
     end
 
-    it "serve_mcp hands the process to the entry point through the Terminal adapter and keeps that it closed",
+    it "serve_mcp hands the process to the entry point through the Terminal adapter and records the handoff",
        :aggregate_failures do
       served = served_by_mcp("mcp-1")
 
       expect(served).to eq([["--stdio"]])
-      expect(ended_of("mcp-1")["output"]).to eq("mcp server closed")
+      outcome = JSON.parse(run_verb("server.server_outcome", "run=mcp-1").first).first
+      expect(outcome["report"]).to eq("serve_mcp handed to the terminal")
     end
   end
 
@@ -1013,16 +1014,16 @@ RSpec.describe "the Hecks command table through the launcher" do
     after { Hecks::Adapters::RustToolchain.runner = nil }
 
     def run_script_verbs
-      run_verb("build.build_browser_wasm", @shelf, "run=browser-1")
-      run_verb("build.check_conformance", @shelf, "script=#{steps}", "run=conform-1", "artifact=native")
-      run_verb("build.fuzz_conformance", @shelf, "artifact=native", "run=fuzz-1", "seeds=3")
-      run_verb("build.check_coverage_allowlist", "run=allow-1")
+      run_verb("build.build_browser_wasm!", @shelf, "run=browser-1")
+      run_verb("build.check_conformance!", @shelf, "script=#{steps}", "run=conform-1", "artifact=native")
+      run_verb("build.fuzz_conformance!", @shelf, "artifact=native", "run=fuzz-1", "seeds=3")
+      run_verb("build.check_coverage_allowlist!", "run=allow-1")
     end
 
     it "project_rust asks the toolchain to generate the domain and keeps what it reported", :aggregate_failures do
       toolchain_says(out: "wrote rust/src/generated/shelf/mod.rs\n")
 
-      out, status = run_verb("build.project_rust", @shelf, "run=rust-1")
+      out, status = run_verb("build.project_rust!", @shelf, "run=rust-1")
 
       expect([status, JSON.parse(out).fetch("events")]).to eq([0, ["RustProjectionRequested"]])
       expect(asked).to eq([["project_rust", @shelf]])
@@ -1032,7 +1033,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     it "keeps a build the toolchain refused as faulted, with its reason, and faulted lists it", :aggregate_failures do
       toolchain_says(err: "wasm32-wasip1 isn't installed for this toolchain\n", passed: false)
 
-      run_verb("build.build_wasm", @shelf, "run=wasm-1")
+      run_verb("build.build_wasm!", @shelf, "run=wasm-1")
 
       row = result_of("wasm-1")
       expect(status_and(row, "refusal")).to match(["faulted", a_string_including("wasm32-wasip1 isn't installed")])
@@ -1042,8 +1043,8 @@ RSpec.describe "the Hecks command table through the launcher" do
     it "build_host asks project_host with its target and stage, and refuses a target that is no triple", :aggregate_failures do
       toolchain_says
 
-      run_verb("build.build_host", @shelf, "run=host-1", "target=aarch64-unknown-linux-gnu", "stage_dir=#{stage}")
-      _out, status = run_verb("build.build_host", @shelf, "run=host-2", "target=arm64")
+      run_verb("build.build_host!", @shelf, "run=host-1", "target=aarch64-unknown-linux-gnu", "stage_dir=#{stage}")
+      _out, status = run_verb("build.build_host!", @shelf, "run=host-2", "target=arm64")
 
       expect(asked).to eq([["project_host", @shelf, "--target=aarch64-unknown-linux-gnu", "--stage=#{stage}"]])
       expect(status).not_to eq(0)
@@ -1070,7 +1071,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     it "refuses a domain whose name cannot be a Rust module before anything is asked", :aggregate_failures do
       toolchain_says
 
-      out, status = run_verb("build.project_rust", "Shelf", "run=rust-2")
+      out, status = run_verb("build.project_rust!", "Shelf", "run=rust-2")
 
       expect(status).to eq(1)
       expect(out).to include("must match")
@@ -1130,7 +1131,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     it "fuzz asks the pool for a sweep and keeps what it printed", :aggregate_failures do
       pool_says("CLEAN — no generated sequence broke a property or the interpreter.\n")
 
-      out, status = run_verb("fuzz_run.fuzz", @shelf, "run=sweep-1", "seeds=4", "steps=6", "adapter=memory")
+      out, status = run_verb("fuzz_run.fuzz!", @shelf, "run=sweep-1", "seeds=4", "steps=6", "adapter=memory")
 
       expect([status, JSON.parse(out).fetch("events")]).to eq([0, ["FuzzRequested"]])
       expect(started).to eq([["fuzz", @shelf, "--seeds", "4", "--steps", "6", "--adapter", "memory"]])
@@ -1140,7 +1141,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     it "keeps a sweep that found something as halted, and halted lists it", :aggregate_failures do
       pool_says("FUZZ FOUND SOMETHING.\n", passed: false)
 
-      run_verb("fuzz_run.fuzz", @shelf, "run=sweep-2")
+      run_verb("fuzz_run.fuzz!", @shelf, "run=sweep-2")
 
       expect(conclusion_of("sweep-2").fetch("status")).to eq("halted")
       expect(listed("fuzz_run.halted", "run")).to include("sweep-2")
@@ -1149,7 +1150,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     it "refuses a sweep of zero seeds before anything is asked", :aggregate_failures do
       pool_says("CLEAN\n")
 
-      out, status = run_verb("fuzz_run.fuzz", @shelf, "run=sweep-3", "seeds=0")
+      out, status = run_verb("fuzz_run.fuzz!", @shelf, "run=sweep-3", "seeds=0")
 
       expect(status).to eq(1)
       expect(out).to include("a count is positive")
@@ -1159,7 +1160,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     it "bench asks the toolchain to measure with the flags it was given, and keeps the report", :aggregate_failures do
       pool_says("| target | ops/s |\n")
 
-      run_verb("fuzz_run.bench", "run=bench-1", "domains=pizzas", "iterations=10", "warmup=0", "runs=1", "format=json")
+      run_verb("fuzz_run.bench!", "run=bench-1", "domains=pizzas", "iterations=10", "warmup=0", "runs=1", "format=json")
 
       expect(started).to eq([["bench", "--domain", "pizzas", "--iterations", "10", "--warmup", "0", "--runs", "1",
                               "--format", "json"]])

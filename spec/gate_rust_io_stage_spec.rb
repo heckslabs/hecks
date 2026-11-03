@@ -17,8 +17,8 @@ RSpec.describe "the rust_io gate stage" do
   end
 
   it "materializes the generated Rust, then builds the banking crate, before any spec, as the job does" do
-    steps = ["regeneration_run.regenerate_corpus --confirm --wait",
-             "exe/hecks build.project_rust domain=examples/banking --wait", "rspec"]
+    steps = ["regeneration_run.regenerate_corpus! --confirm --wait",
+             "exe/hecks build.project_rust! domain=examples/banking --wait", "rspec"]
 
     expect(steps.map { |step| script.index(step) }).to eq(steps.map { |step| script.index(step) }.sort)
   end

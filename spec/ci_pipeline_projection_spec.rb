@@ -7,9 +7,9 @@ require "hecks/tools"
 require "hecks/tools/ci_workflows"
 
 # The CiPipeline bluebook projects GitHub Actions workflows: the CiWorkflows bluebook declares
-# ci-rspec.yml as flat rows, `hecks regeneration_run.project_ci_pipeline` writes the file from them,
-# and a check compares the file with the rows. This spec holds the projection to the workflow it
-# replaced: spec/fixtures/ci_pipeline/ci-rspec.original.yml is that workflow as it was committed
+# ci-rspec.yml as flat rows, `hecks regeneration_run.project_ci_pipeline!` writes the file from
+# them, and a check compares the file with the rows. This spec holds the projection to the workflow
+# it replaced: spec/fixtures/ci_pipeline/ci-rspec.original.yml is that workflow as it was committed
 # by hand, and the projection must parse to the same document, but for the changes made on purpose
 # since (`deliberately_changed`). Comments and key order may differ.
 RSpec.describe "the CiPipeline projection of ci-rspec.yml" do
@@ -30,15 +30,46 @@ RSpec.describe "the CiPipeline projection of ci-rspec.yml" do
 
   # The hand-written workflow with what was changed on purpose since: each shard names the domains
   # it reads, leaves out the specs tagged `generated_all`, which read the whole tree and run in
-  # the drift job, and the suite is split across more shards.
+  # the drift job, the suite is split across more shards, and each shard installs zsh.
   def deliberately_changed(document)
     job = document.dig("jobs", "rspec_shard")
     job.dig("strategy", "matrix")["group"] = (1..shard_total).to_a
     steps = job.fetch("steps")
     steps.find { |step| step["uses"] == "./.github/actions/generated-rust" }["with"] = { "domains" => shard_domains }
-    change_run(steps, "rspec: parallel", "--tag ~fuzzing", "--tag ~fuzzing --tag ~generated_all")
-    change_run(steps, "Determine", "groups=4", "groups=#{shard_total}")
+    install_zsh(steps)
+    planned(document)
+  end
+
+  # The split read a committed runtime baseline; now a `shard_plan` job makes it once from the last
+  # main run's timings and each leg reads it. The plan job and the steps that read the plan are
+  # taken from the projection, and the examples under "the plan" hold what they say.
+  def planned(document)
+    jobs = document.fetch("jobs")
+    jobs.delete("rspec_shard").then do |shard|
+      shard["needs"] = %w[ci_attestation_rspec shard_plan]
+      shard["env"] = job(projected, "rspec_shard").fetch("env")
+      replace_split_steps(shard.fetch("steps"))
+      document["jobs"] = jobs.merge("shard_plan" => job(projected, "shard_plan"), "rspec_shard" => shard)
+    end
     document
+  end
+
+  # Swaps the baseline-reading steps for the projection's, and adds the step that reads the plan.
+  def replace_split_steps(steps)
+    ["Determine", "rspec: parallel", "Upload this shard"].each { |name| steps[step_index(steps, name)] = projected_step(name) }
+    steps.insert(step_index(steps, "Determine"), projected_step("Read the plan"))
+  end
+
+  def step_index(steps, name) = steps.index { |step| step["name"].to_s.start_with?(name) }
+
+  def projected_step(name)
+    job(projected, "rspec_shard").fetch("steps").find { |step| step["name"].to_s.start_with?(name) }
+  end
+
+  # The zsh completion example runs `zsh -n`, and the runner has no zsh.
+  def install_zsh(steps)
+    steps.insert(2, { "name" => "Install zsh",
+                      "run"  => "sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends zsh\n" })
   end
 
   # Rewrites part of the command of the step whose name starts with `name`.
@@ -125,14 +156,38 @@ RSpec.describe "the CiPipeline projection of ci-rspec.yml" do
     end
   end
 
+  describe "the plan" do
+    def plan_steps = job(projected, "shard_plan").fetch("steps")
+
+    def plan_run = plan_steps.find { |step| step["name"].to_s.start_with?("Plan the shards") }.fetch("run")
+
+    def artifact_names = plan_steps.filter_map { |step| step.dig("with", "name") }
+
+    it "is made by the bluebook's ShardPlan, once, for as many shards as the matrix has", :aggregate_failures do
+      expect(plan_run).to include("CiSpeed::ShardPlan.Request", "lib/hecks/ci_speed", "\"shards\":{\"value\":#{shard_total}}")
+      expect(plan_run).to include("::warning::")
+    end
+
+    it "uploads the plan the legs read and the trace of its events" do
+      expect(artifact_names).to eq(%w[shard-plan-rspec shard-plan-trace-rspec])
+    end
+
+    it "is read by every leg, which splits by file size on its own when there is none", :aggregate_failures do
+      read = projected_step("Read the plan").fetch("run")
+
+      expect(read).to include("--name shard-plan-rspec", "::warning::")
+      expect(projected_step("Determine").fetch("run")).to include("tmp/plan/group-${{ matrix.group }}.txt", "shard_specs")
+    end
+  end
+
   describe "the text" do
     it "starts with a banner naming the verb that writes it" do
-      expect(projected_text).to start_with("# Generated by hecks regeneration_run.project_ci_pipeline.")
+      expect(projected_text).to start_with("# Generated by hecks regeneration_run.project_ci_pipeline!.")
     end
 
     it "keeps the hand-written comments as modeled note text", :aggregate_failures do
       expect(projected_text).to include("# Separate job because a job-level `if:` cannot read a step output")
-      expect(projected_text).to include("# Artifact only, never restored:")
+      expect(projected_text).to include("# Artifact only, never restored by this run:")
     end
 
     it "folds a long condition with >-, which reads back as the one line" do
@@ -151,7 +206,7 @@ RSpec.describe "the CiPipeline projection of ci-rspec.yml" do
     it "holds exactly what the rows project" do
       expect(File.read(workflow_path)).to eq(projected_text),
                                           ".github/workflows/ci-rspec.yml has drifted from the rows - " \
-                                          "run hecks regeneration_run.project_ci_pipeline --confirm"
+                                          "run hecks regeneration_run.project_ci_pipeline! --confirm"
     end
   end
 

@@ -26,6 +26,24 @@ module Hecks
         @root = root || File.expand_path("../../../..", __dir__)
       end
 
+      # Reads remote CI's verdict on one commit of a repository's main. Every run GitHub reports
+      # for the commit on main must have settled, and every job of each must have passed or been
+      # skipped.
+      #
+      # @param commit [Hash, String] the full commit hash
+      # @param repo [Hash, String] `owner/name`
+      # @return [Hash] `text:` a JSON document: `color` (`green` or `red`) and `failing_jobs`, the
+      #   failing job names joined by commas, empty when green
+      # @raise [Runtime::GivenNotMet] when no run exists for the commit or a run has not settled
+      def head(commit:, repo:)
+        sha = named(commit)
+        slug = named(repo)
+        runs = head_runs(sha, slug)
+        settled!(runs, sha)
+        failing = runs.flat_map { |run| failing_jobs(run, slug) }
+        { text: JSON.generate(commit: sha, color: failing.empty? ? "green" : "red", failing_jobs: failing.join(",")) }
+      end
+
       # @param run_id [Hash, String, Integer] the GitHub run to read
       # @return [Hash] `text:` a JSON document: the run's commit, wall seconds, conclusion, cache
       #   state, longest pole and each job's seconds
@@ -36,6 +54,51 @@ module Hecks
       end
 
       private
+
+      # Refuses a commit with no run on main, and one with a run still going.
+      def settled!(runs, sha)
+        raise Runtime::GivenNotMet, "no CI run for #{sha[0, 7]} on main" if runs.empty?
+
+        still = runs.reject { |run| run["status"] == "completed" }
+        raise Runtime::GivenNotMet, "CI for #{sha[0, 7]} is still running" if still.any?
+      end
+
+      def named(value) = value.is_a?(Hash) ? value.values.first.to_s : value.to_s
+
+      def head_runs(sha, slug)
+        out, err, status = Open3.capture3("gh", "run", "list", "--repo", slug, "--commit", sha,
+                                          "--branch", "main", "--limit", "100",
+                                          "--json", "databaseId,status,conclusion,workflowName", chdir: @root)
+        raise Runtime::GivenNotMet, "gh could not list runs for #{sha[0, 7]}: #{first_line(err)}" unless status.success?
+
+        JSON.parse(out)
+      end
+
+      PASSING_JOB_CONCLUSIONS = %w[success skipped].freeze
+      private_constant :PASSING_JOB_CONCLUSIONS
+
+      # Everything up to the first line break.
+      FIRST_LINE = /[^\n]*/
+      private_constant :FIRST_LINE
+
+      # The failing jobs of one run; the workflow's name stands in when no job is named failed.
+      def failing_jobs(run, slug)
+        return [] if run["conclusion"] == "success"
+
+        failed = jobs_of(run, slug).reject { |job| PASSING_JOB_CONCLUSIONS.include?(job["conclusion"]) }
+        failed.empty? ? [run.fetch("workflowName")] : failed.map { |job| job.fetch("name") }
+      end
+
+      def jobs_of(run, slug)
+        id = run.fetch("databaseId").to_s
+        out, err, status = Open3.capture3("gh", "run", "view", id, "--repo", slug, "--json", "jobs", chdir: @root)
+        raise Runtime::GivenNotMet, "gh could not read run #{id}: #{first_line(err)}" unless status.success?
+
+        JSON.parse(out).fetch("jobs")
+      end
+
+      # The first line of a command's error output, or the empty string.
+      def first_line(text) = text.to_s[FIRST_LINE].to_s
 
       def view(id)
         out, err, status = Open3.capture3("gh", "run", "view", id, "--json",

@@ -5,7 +5,7 @@ Words available in the Lifecycle body.
 
 *The tables on this page are generated from the language's own
 aggregate-local syntax tables (`lib/hecks/language/**/*.bluebook`)
-by `hecks language_run.project_reference` — do not edit inside the markers. The prose
+by `hecks language_run.project_reference!` — do not edit inside the markers. The prose
 between them is hand-written and survives regeneration.*
 <!-- generated:end -->
 
@@ -49,7 +49,7 @@ account = Banking::Account.open!(customer: "lc-1", number: "lc-a1",
 One legal move: `"Command" => "state", from: "state"` — the command may
 fire only when the field is at `from:` (or, given an array, at one of
 several), and lands at the target state after. See lifecycles.md for
-enforcement, the refusal it produces, and what `hecks model_check` flags
+enforcement, the refusal it produces, and what `hecks ModelCheckRun.model_check!` flags
 when a transition can never fire.
 
 `Account`'s own lifecycle declares `transition "FreezeAccount" => "frozen",

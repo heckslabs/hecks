@@ -1,0 +1,1071 @@
+Hecks.bluebook "Hecks" do
+  domain_module "Migrate" do
+    vision "Move a store between shapes."
+
+    aggregate "Era" do
+      description "One change to a domain's journal of eras, and how it ended: a store's upkeep."
+
+      acknowledges :key_by_value, "the domain's path, and Introspection declares queries only, so it holds no records and a reference would be refused on every write",
+                   of: :domain
+
+      attribute :run,                 RunKey
+      attribute :domain,              DomainPath
+      attribute :operation,           OperationName, optional: true
+      attribute :winners,             WinnerList,    optional: true
+      attribute :era,                 Ordinal,       optional: true
+      attribute :aggregates,          AggregateList, optional: true
+      attribute :confirm,             Switch,        optional: true
+      attribute :capable,             Switch,        optional: true
+      attribute :held,                Count,         optional: true
+      attribute :forks,               Count,         optional: true
+      attribute :contested,           Count,         optional: true
+      attribute :bound,               Count,         optional: true
+      attribute :candidates,          Count,         optional: true
+      attribute :drifted,             Switch,        optional: true
+      attribute :loadable,            Switch,        optional: true
+      attribute :shape_kept,          Switch,        optional: true
+      attribute :report,              Report,        optional: true
+      attribute :refusal,             Report,        optional: true
+      identified_by :run
+
+      value_object "RunKey" do
+        attribute :value, String, matches: :present
+
+        invariant("a change is named") { !value.to_s.empty? }
+      end
+
+      # The domain whose journal is changed: its directory.
+      value_object "DomainPath" do
+        attribute :value, String, matches: :not_empty
+      end
+
+      value_object "OperationName" do
+        attribute :value, String,
+                  pattern: '^(hold_first|rename_domain|merge_tail|reattest|backfill_projections|compact|compact_heki|write_translation|reconcile)$'
+      end
+
+      # `id:old,id:new`: which world's record wins for each id both worlds touched since the cut.
+      value_object "WinnerList" do
+        attribute :value, String, pattern: '^[^ \t\n\r,]+:(old|new)(,[^ \t\n\r,]+:(old|new))*$'
+      end
+
+      value_object "Ordinal" do
+        attribute :value, Integer
+
+        invariant("an era is counted from one") { value > 0 }
+      end
+
+      # Aggregate names, comma separated; every aggregate that keeps a journal when absent.
+      value_object "AggregateList" do
+        attribute :value, String, matches: :not_empty
+      end
+
+      value_object "Switch" do
+        attribute :value, Boolean
+      end
+
+      value_object "Count" do
+        attribute :value, Integer
+      end
+
+      # The rehearsal verdict a mint was asked with: the one the caller read, compared with the decision.
+      value_object "MintVerdict" do
+        attribute :value, String, one_of: ["would_mint", "no_change", "would_refuse", "needs_edge",
+                                           "cannot_boot", "empty_copy"]
+      end
+
+      # The ledger watermark a mint was asked at: the newest held era's ordinal.
+      value_object "Watermark" do
+        attribute :value, Integer
+      end
+
+      value_object "Report" do
+        attribute :value, String
+      end
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "refused"
+        transition "Permit"   => "admitted", from: "requested"
+        transition "Settle"   => "settled",  from: "admitted"
+        transition "Abandon"  => "refused",  from: %w[requested admitted]
+        mark :terminal, "refused", "settled"
+      end
+
+      # The seven requests. Each records what was asked and names its operation; the journal store
+      # then examines the domain and reports facts (`EraExamined`), `Permit` holds the rules that need
+      # those facts, and only an admitted change is made (`EraChanged`). A change that changes
+      # something needs an explicit `--confirm`.
+      command "HoldFirst" do
+        role "Operator"
+        goal "Hold the first era of a domain that holds none, as its first boot would"
+
+        attribute :domain,  DomainPath, sets: true
+        attribute :run,     RunKey, sets: true
+        attribute :confirm, Switch, optional: true, sets: true
+
+        given("holding the first era is confirmed") { confirm.value == true }
+
+        sets :operation, to: "hold_first"
+
+        emits FirstEraRequested
+      end
+
+      # Moves the history a domain held under its `formerly_known_as` name to its current name, in one
+      # transaction: the eras, their texts and attestations, the journal with its sequence and
+      # partitions. Nothing is copied, so the old name holds nothing after it. A boot under the new
+      # name before this refuses by name; it never starts a fresh history beside the old.
+      command "RenameDomain" do
+        role "Operator"
+        goal "Move a renamed domain's held eras and journal from its former name to its current name"
+
+        attribute :domain,  DomainPath, sets: true
+        attribute :run,     RunKey, sets: true
+        attribute :confirm, Switch, optional: true, sets: true
+
+        given("the rename is confirmed") { confirm.value == true }
+
+        sets :operation, to: "rename_domain"
+
+        emits DomainRenameRequested
+      end
+
+      command "MergeTail" do
+        role "Operator"
+        goal "Interleave the old world's writes since the cut into the live head, by their ordinals"
+
+        attribute :domain,  DomainPath, sets: true
+        attribute :run,     RunKey, sets: true
+        attribute :winners, WinnerList, optional: true, sets: true
+        attribute :confirm, Switch,     optional: true, sets: true
+
+        given("the merge is confirmed") { confirm.value == true }
+
+        sets :operation, to: "merge_tail"
+
+        emits TailMergeRequested
+      end
+
+      command "Reattest" do
+        role "Operator"
+        goal "Freeze an era's held text as it now stands, after a person has read it"
+
+        attribute :domain,  DomainPath, sets: true
+        attribute :era,     Ordinal, sets: true
+        attribute :run,     RunKey, sets: true
+        attribute :confirm, Switch, optional: true, sets: true
+
+        given("the text is accepted as the era's own") { confirm.value == true }
+
+        sets :operation, to: "reattest"
+
+        emits ReattestRequested
+      end
+
+      command "BackfillProjections" do
+        role "Operator"
+        goal "Store the shape every held era froze with, for the eras that predate it"
+
+        attribute :domain, DomainPath, sets: true
+        attribute :run,    RunKey, sets: true
+
+        sets :operation, to: "backfill_projections"
+
+        emits BackfillRequested
+      end
+
+      command "Compact" do
+        role "Operator"
+        goal "Delete the journal entries a Postgres or Sqlite aggregate has already projected"
+
+        attribute :domain,     DomainPath, sets: true
+        attribute :aggregates, AggregateList, optional: true, sets: true
+        attribute :run,        RunKey, sets: true
+        attribute :confirm,    Switch, optional: true, sets: true
+
+        given("the compaction is confirmed") { confirm.value == true }
+
+        sets :operation, to: "compact"
+
+        emits CompactionRequested
+      end
+
+      command "CompactHeki" do
+        role "Operator"
+        goal "Empty a Heki aggregate's journal, keeping the snapshot"
+
+        attribute :domain,     DomainPath, sets: true
+        attribute :aggregates, AggregateList, optional: true, sets: true
+        attribute :run,        RunKey, sets: true
+        attribute :confirm,    Switch, optional: true, sets: true
+
+        given("the compaction is confirmed") { confirm.value == true }
+
+        sets :operation, to: "compact_heki"
+
+        emits HekiCompactionRequested
+      end
+
+      # Writes the one edge that leads the latest held era to the current shape, composed from the
+      # chain of edges between them, and deletes the intermediate edges only that chain used. An
+      # audit that refuses the written edge puts the translations directory back as it was.
+      command "WriteTranslation" do
+        role "Operator"
+        goal "Write the one translation edge that leads the latest held era to the current shape"
+
+        attribute :domain,  DomainPath, sets: true
+        attribute :run,     RunKey, sets: true
+        attribute :confirm, Switch, optional: true, sets: true
+
+        given("the edge is confirmed") { confirm.value == true }
+
+        sets :operation, to: "write_translation"
+
+        emits TranslationRequested
+      end
+
+      # Writes, for every domain of the project, the one edge that leads its latest held era to its
+      # current shape, deletes the edges that edge supersedes, and audits what it wrote. Any refused
+      # domain writes nothing. The dry run is `ReconcilePlan`: this command refuses without confirm.
+      command "Reconcile" do
+        role "Operator"
+        goal "Write the translation edges that lead every domain's latest held era to its current shape"
+
+        attribute :domain,  DomainPath, optional: true, sets: true
+        attribute :run,     RunKey, sets: true
+        attribute :confirm, Switch, optional: true, sets: true
+
+        given("the reconciliation is confirmed") { confirm.value == true }
+
+        sets :operation, to: "reconcile"
+
+        emits ReconcileRequested
+      end
+
+      # Mints the Hecks domain's next era when its shape moved, through the mint transaction the
+      # QualityControl mint uses. The journal store decides again at the live watermark: only a
+      # `would_mint` decision mints, and a shape that did not move answers `no_change` and mints nothing.
+      # The rehearsal verdict and watermark are optional, since the push train asks with neither.
+      command "MintHeld" do
+        role "Operator"
+        goal "Mint the Hecks domain's next era when its shape moved, before the push train writes"
+        attribute :run,               RunKey, sets: true
+        attribute :rehearsal_verdict, MintVerdict, optional: true
+        attribute :watermark,         Watermark, optional: true
+        attribute :confirm,           Switch, optional: true, sets: true
+
+        given("minting the era is confirmed") { confirm.value == true }
+
+        emits HeldMintRequested
+      end
+
+      # The facts the journal store reported, held against the change that was asked for.
+      command "Permit" do
+        role "System"
+        goal "Let a change through only when what was found in the journal allows it"
+
+        reference_to Era
+        attribute :capable,            Switch, sets: true
+        attribute :held,               Count, sets: true
+        attribute :forks,              Count, sets: true
+        attribute :contested,          Count, sets: true
+        attribute :bound,              Count, sets: true
+        attribute :candidates,         Count, sets: true
+        attribute :drifted,            Switch, sets: true
+        attribute :loadable,           Switch, sets: true
+        attribute :shape_kept,         Switch, sets: true
+        attribute :operation,          OperationName, sets: true
+
+        given("the store keeps eras") do
+          capable.value || operation.value == "compact" || operation.value == "compact_heki"
+        end
+        given("no era is held yet") { operation.value != "hold_first" || held.value == 0 }
+        given("the former name holds eras to move, and the current name holds none") do
+          operation.value != "rename_domain" || held.value > 0
+        end
+        given("an era beyond the first stands before a tail is merged") do
+          operation.value != "merge_tail" || held.value > 1
+        end
+        given("exactly one edge leaves each era") { operation.value != "merge_tail" || forks.value == 0 }
+        given("every record both worlds touched has a named winner") do
+          operation.value != "merge_tail" || contested.value == 0
+        end
+        given("an aggregate matches") do
+          (operation.value != "compact" && operation.value != "compact_heki") || candidates.value > 0
+        end
+        given("no projection reads the journal that would be emptied") do
+          (operation.value != "compact" && operation.value != "compact_heki") || bound.value == 0
+        end
+        given("the held text no longer matches its digest: there is nothing to re-attest") do
+          operation.value != "reattest" || drifted.value
+        end
+        given("the domain holds an era to lead from") { operation.value != "write_translation" || held.value > 0 }
+        given("the edited text loads as a bluebook: restore a loadable text") do
+          operation.value != "reattest" || loadable.value
+        end
+        given("the edit kept the era's shape, not just its text: restore a text with the original shape") do
+          operation.value != "reattest" || shape_kept.value
+        end
+
+
+        emits EraPermitted
+      end
+
+      command "Settle" do
+        role "System"
+        goal "Record that the admitted change was made, and what it did"
+
+        reference_to Era
+        attribute :report, Report, sets: true
+
+
+        emits EraSettled
+      end
+
+      command "Abandon" do
+        role "System"
+        goal "Record that the change was refused, or could not be made, and why"
+
+        reference_to Era
+        attribute :refusal, Report, sets: true
+
+
+        emits EraAbandoned
+      end
+
+      query "Settlement" do
+        description "What one change did: its status, and the report or the reason it was refused."
+        attribute :run, RunKey
+        where(run: :run)
+        order_by :run
+      end
+
+      query "Abandoned" do
+        description "Every change that was refused or could not be made."
+        where(status: "refused")
+        order_by :run
+      end
+
+      # An answer that is one document of text, exactly as the tool that produced it wrote it.
+      value_object "Document" do
+        attribute :text, String
+      end
+
+      # The reads that used to write. None holds an era or names one: a domain that holds no era
+      # answers "no era held yet", and `hold_first` is the only thing that holds the first.
+      query "ScaffoldTranslation" do
+        description "The edge file that would lead the latest held era to the current shape."
+        attribute :domain, DomainPath
+        returns Document
+      end
+
+      query "AuditTranslation" do
+        description "The audit of the edge that leads the latest held era to the current shape."
+        attribute :domain, DomainPath
+        returns Document
+      end
+
+      # The edge `write_translation` would write and the edges it would delete, written nowhere.
+      query "ComposeTranslation" do
+        description "The one edge write_translation would write, and the stale edges it would delete."
+        attribute :domain, DomainPath
+        returns Document
+      end
+
+      # The dry run of `Reconcile`: each domain's held era, current shape, edge it would write, edges it
+      # would delete, and the verdict, written nowhere.
+      query "ReconcilePlan" do
+        description "The dry run of Era.Reconcile: per domain, the held era, the current shape, the edge " \
+                    "it would write, the edges it would delete, and the verdict."
+        attribute :domain, DomainPath, optional: true
+        returns Document
+      end
+
+      query "Attestation" do
+        description "An era's held text as it now stands, and whether it still matches its digest."
+        attribute :domain, DomainPath
+        attribute :era,    Ordinal
+        returns Document
+      end
+
+      query "Compaction" do
+        description "What compacting the domain's journals would delete, without deleting it."
+        attribute :domain,     DomainPath
+        attribute :aggregates, AggregateList, optional: true
+        returns Document
+      end
+
+      # The boot status of each bluebook under a domain directory, resolved as its boot resolves it:
+      # from the database its own world declares, or, for a bluebook bound to a store that holds no
+      # eras, from the committed ledger and its edges. Each row names its source. Nothing is minted
+      # or written.
+      query "BootStatus" do
+        description "The boot status of each bluebook under a domain directory: current, behind by a recorded " \
+                    "implicit move, superseded, or unminted, with the held and current labels and the reason; " \
+                    "read from its own database when it declares one, else from the committed ledger."
+        attribute :domain, DomainPath
+        returns Document
+      end
+
+      # What a boot would resolve for each bluebook under a domain directory, read from the database
+      # its own world declares by the resolution the boot records, over a connection that only reads.
+      query "BootResolution" do
+        description "What a boot would resolve for each bluebook under a domain directory, from its own " \
+                    "database: status, held label, current label, ordinal and reason. Writes nothing."
+        attribute :domain, DomainPath
+        returns Document
+      end
+
+      # How each SQLite database a domain's worlds name stands against the aggregates that map onto
+      # it, opened read-only so the adapter's own healing never runs.
+      query "SqliteStatus" do
+        description "The SQLite databases a domain's worlds name, read-only: per aggregate table the columns " \
+                    "the aggregate declares and the table lacks (added on the next open), the columns it keeps " \
+                    "that the aggregate no longer declares, and the tables no aggregate maps to."
+        attribute :domain, DomainPath
+        returns Document
+      end
+
+      # Whether the events a domain's store recorded were seen and answered: per event, each policy
+      # that listens to it (resolved from the bluebooks) and the outcome the store's outbox holds for
+      # the pair. Opens each store read-only and never boots the domain.
+      query "EventTrace" do
+        description "Per recorded event: the policies that listen to it and what became of each delivery " \
+                    "(delivered, refused with its reason, pending, claimed, failed, or no record), the events " \
+                    "nobody listens to, and the policies whose event never occurred. Reads only; Memory keeps no log."
+        attribute :domain,   DomainPath
+        attribute :event,    String,  optional: true
+        attribute :run,      String,  optional: true
+        attribute :last,     Integer, optional: true
+        attribute :database, String,  optional: true
+        returns Document
+      end
+
+      # Whether each era's stored hash is the hash of its stored projection.
+      query "ProjectionAudit" do
+        description "Every era of each bluebook under a domain directory whose stored hash is not the hash of " \
+                    "its stored projection: domain, ordinal, stored hash and recomputed hash. Writes nothing."
+        attribute :domain, DomainPath
+        returns Document
+      end
+
+      # The preflight of a mint: every guard the mint runs, answered from the live store without copying it.
+      # Opens the store read-only and never boots the domain; the full rehearsal still runs once before the mint.
+      query "MintPlan" do
+        description "Runs every guard a mint runs against the live store, read-only and in seconds: the era resolution and decision, " \
+                    "the edge checks, the coverage check, the translation audit (Ruby only; parity needs the full rehearsal), " \
+                    "the watermark rule, the world's flags and markers, and the freshness of a rehearsal ref when one is passed. " \
+                    "Names one bluebook of the directory, the first by default. Answers each guard's status, whether the mint would go ahead, and the exact mint command to run."
+        attribute :domain,              DomainPath
+        attribute :bluebook,            String,  optional: true
+        attribute :rehearsal_ref,       String,  optional: true
+        attribute :rehearsal_watermark, Integer, optional: true
+        attribute :rehearsal_verdict,   String,  optional: true
+        returns Document
+      end
+    end
+
+    policy "ExamineWhenFirstEraRequested" do
+      on      "Era.FirstEraRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "ExamineWhenDomainRenameRequested" do
+      on      "Era.DomainRenameRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "ExamineWhenTailMergeRequested" do
+      on      "Era.TailMergeRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "ExamineWhenReattestRequested" do
+      on      "Era.ReattestRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "ExamineWhenBackfillRequested" do
+      on      "Era.BackfillRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "ExamineWhenCompactionRequested" do
+      on      "Era.CompactionRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "ExamineWhenHekiCompactionRequested" do
+      on      "Era.HekiCompactionRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "ExamineWhenTranslationRequested" do
+      on      "Era.TranslationRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "ExamineWhenReconcileRequested" do
+      on      "Era.ReconcileRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    # The held mint is answered by the journal store: `Minted` when the shape moved and the mint ran, or
+    # when it did not move (`no_change`); `MintRefused` otherwise, with the reason named.
+    policy "MintWhenHeldRequested" do
+      on      "Era.HeldMintRequested"
+      ask     :mint, with: { run: :run }
+    end
+
+    policy "PermitWhenExamined" do
+      on      "Era.EraExamined"
+      trigger Era::Permit, with: {
+        capable: :capable, held: :held, forks: :forks, contested: :contested,
+        bound: :bound, candidates: :candidates,
+        drifted: :drifted, loadable: :loadable, shape_kept: :shape_kept, operation: :operation
+      }
+    end
+
+    # `Permit` refuses when a rule is unmet and emits nothing, so this reaction is its complement:
+    # it holds the same rules negated, so an examined change that is not let through is abandoned
+    # rather than left `requested`.
+    policy "AbandonWhenNotPermitted" do
+      on      "Era.EraExamined"
+      where do
+        (!capable.value && operation.value != "compact" && operation.value != "compact_heki") ||
+          (operation.value == "hold_first" && held.value != 0) ||
+          (operation.value == "rename_domain" && held.value == 0) ||
+          (operation.value == "merge_tail" && (held.value <= 1 || forks.value != 0 || contested.value != 0)) ||
+          ((operation.value == "compact" || operation.value == "compact_heki") &&
+            (candidates.value <= 0 || bound.value != 0)) ||
+          (operation.value == "reattest" && (!drifted.value || !loadable.value || !shape_kept.value)) ||
+          (operation.value == "write_translation" && held.value == 0)
+      end
+      trigger Era::Abandon, with: { refusal: "the journal's facts do not admit this change" }
+    end
+
+    # A compaction waits for its seal (ledger.bluebook); every other change is applied at once.
+    policy "ChangeWhenPermitted" do
+      on      "Era.EraPermitted"
+      where do
+        operation.value != "compact" && operation.value != "compact_heki"
+      end
+      ask     :apply, with: { run: :run }
+    end
+
+    policy "RecordTheChange" do
+      on      "Era.EraChanged"
+      trigger Era::Settle, with: { report: :report }
+    end
+
+    policy "RecordTheRefusedChange" do
+      on      "Era.EraRefused"
+      trigger Era::Abandon, with: { refusal: :refusal }
+    end
+
+    # Ledger: a journal that proves it was not rewritten. A seal records the head a journal chain has,
+    # kept beside the journal itself; an Audit recomputes the chain from the seals and compares. Compaction
+    # is the one sanctioned way rows leave a journal, so it seals first: the capture is one ask on the Era
+    # being changed (the reaction depth is bounded, so the seal cannot be a chain of its own), and a
+    # compaction whose head cannot be captured is abandoned, not applied.
+
+    aggregate "Seal" do
+      description "The head a domain's journal chain had when the rows before it were compacted away."
+
+      attribute :run,      SealKey
+      attribute :domain,   Domain
+      attribute :through,  Ordinal
+      attribute :head,     ChainDigest
+      attribute :previous, ChainDigest
+      identified_by :run
+
+      value_object "SealKey" do
+        attribute :value, String, matches: :present
+
+        invariant("a seal is named") { !value.to_s.empty? }
+      end
+
+      # The domain whose journal is sealed: its directory.
+      value_object "Domain" do
+        attribute :value, String, matches: :not_empty
+      end
+
+      # The last journal ordinal the seal covers.
+      value_object "Ordinal" do
+        attribute :value, Integer
+
+        invariant("a seal covers at least one row") { value > 0 }
+      end
+
+      # A SHA-256 digest, lowercase hexadecimal.
+      value_object "ChainDigest" do
+        attribute :value, String, pattern: '^[0-9a-f]{64}$'
+      end
+
+      # `previous` is the head of the seal before this one, so seals chain too; the first seal
+      # of a domain carries the genesis digest, sixty-four zeros.
+      command "Record" do
+        role "System"
+        goal "Keep the head the chain had, and the seal it followed"
+
+        attribute :domain,   Domain, sets: true
+        attribute :run,      SealKey, sets: true
+        attribute :through,  Ordinal, sets: true
+        attribute :head,     ChainDigest, sets: true
+        attribute :previous, ChainDigest, sets: true
+
+
+        emits SealRecorded
+      end
+
+      query "Latest" do
+        description "The newest seal a domain holds."
+        attribute :domain, Domain
+        where(domain: :domain)
+        order_by :through
+      end
+
+    end
+
+    # Rehearsal: operating a domain, in the Operations module (ADR 0096). Whether a domain at a pin
+    # would mint its next era against a copy of its real data, and what the mint would refuse.
+    #
+    # A rehearsal is a run like the Codebase `*Run`s: it is requested, the outside is asked, and the
+    # facts it brought back are judged by the givens and reactions below. It differs from them in
+    # two ways. It acts on a client's domain, not on this checkout, so it needs no hecks checkout
+    # and sits with Custodian, not Codebase. And it keeps nothing: the aggregate is bound to Memory
+    # in hecks.hecksagon, and what it found is its report, returned to the caller.
+    #
+    # Where the data it reads comes from is the subject's own `.world` (`rehearsed_by`), never an
+    # argument. The RehearsalStore port prepares that copy, loads the domain against it, runs the
+    # mint's audit over it without writing an era, and drops it, so the copy never outlives the run
+    # whichever way the chain of reactions ends.
+
+    aggregate "RehearsalRun" do
+      description "One rehearsal of a domain's next era against a copy of its data: what a mint would do, and what it would refuse."
+
+      acknowledges :key_by_value, "the domain's path, and Introspection declares queries only, so it holds no records and a reference would be refused on every write",
+                   of: :domain
+
+      attribute :run,            RunKey
+      attribute :domain,         DomainPath
+      attribute :pin,            Pin,         optional: true
+      attribute :host_version,   HostVersion, optional: true
+      attribute :store,          StoreKind,   optional: true
+      attribute :mode,           StoreMode,   optional: true
+      attribute :environment_loaded, EnvironmentLoaded, optional: true
+      attribute :schema_used,    SchemaRead,  optional: true
+      attribute :eras_held,      Count,       optional: true
+      attribute :journal_entries, Count,      optional: true
+      attribute :head_rows,      Count,       optional: true
+      attribute :census,         list_of(HeldCount), optional: true
+      attribute :copy_empty,     Switch,      optional: true
+      attribute :copy_note,      Report,      optional: true
+      attribute :booted,         Switch,      optional: true
+      attribute :before,         ShapeLabel,  optional: true
+      attribute :after,          ShapeLabel,  optional: true
+      attribute :minting,        Minting,     optional: true
+      attribute :edge_present,   Switch,      optional: true
+      attribute :refused_rows,   list_of(RefusedRow), optional: true
+      attribute :refusal_total,  Count,       optional: true
+      attribute :audited,        Switch,      optional: true
+      attribute :rows_examined,  Count,       optional: true
+      attribute :rust_rows_examined, Count,   optional: true
+      attribute :aggregates_examined, Count,  optional: true
+      attribute :reason,         Report,      optional: true
+      attribute :parity,         Parity,      optional: true
+      attribute :unchecked,      list_of(Limit), optional: true
+      attribute :verdict,        Verdict,     optional: true
+      attribute :released,       Switch,      optional: true
+      attribute :kept,           Report,      optional: true
+      attribute :boot_error,     Report,      optional: true
+      attribute :refusal,        Report,      optional: true
+      identified_by :run
+
+      value_object "RunKey" do
+        attribute :value, String, matches: :present
+
+        invariant("a rehearsal is named") { !value.to_s.empty? }
+      end
+
+      # The domain's directory: where its bluebooks and its `.world` stand.
+      value_object "DomainPath" do
+        attribute :value, String, matches: :not_empty
+      end
+
+      # The Hecks the rehearsal must run on: a release (`3.9.0`) or a commit, whole or a prefix.
+      value_object "Pin" do
+        attribute :value, String, pattern: '^[0-9a-f]{7,40}$|^[0-9]+[.][0-9]+[.][0-9]+'
+      end
+
+      value_object "HostVersion" do
+        attribute :value, String, matches: :present
+      end
+
+      # Which strategy the subject's world named for the copy of its data.
+      value_object "StoreKind" do
+        attribute :value, String, one_of: ["memory", "postgres"]
+
+        invariant("a store is one the language names") { ["memory", "postgres"].include?(value) }
+      end
+
+      # What the copy holds: nothing, a restored dump, or a copy somebody else made, read as it is.
+      value_object "StoreMode" do
+        attribute :value, String, one_of: ["empty", "dump", "readonly_copy"]
+
+        invariant("a mode is empty, dump or readonly_copy") { ["empty", "dump", "readonly_copy"].include?(value) }
+      end
+
+      # The environment overlay the subject was loaded under and where that was decided: `world`
+      # (its `rehearsed_by` named one), `HECKS_PROJECT_ENVIRONMENT`, `default` (production, because
+      # its overlay exists, as the host build does) or `none`. A domain's binds are usually declared
+      # in that overlay, so a rehearsal that loaded another one rehearsed another domain.
+      value_object "EnvironmentLoaded" do
+        attribute :name,   String
+        attribute :source, String, pattern: '^(world|HECKS_PROJECT_ENVIRONMENT|default|none)$'
+        attribute :file,   String
+      end
+
+      # The Postgres schema the copy was read in, where that was decided (`world`, `HECKS_SCHEMA`,
+      # `derived` from the domain's name, `default` public, or `memory` for a document) and whether
+      # the copy has it.
+      value_object "SchemaRead" do
+        attribute :name,    String
+        attribute :source,  String, pattern: '^(world|HECKS_SCHEMA|derived|default|memory)$'
+        attribute :present, Boolean
+      end
+
+      # One aggregate's rows in the copy: what its head table holds and the records its journal's
+      # latest entries hold. The audit reads the journal, so a difference is shown, not refused.
+      value_object "HeldCount" do
+        attribute :aggregate, String
+        attribute :head,      Integer
+        attribute :journal,   Integer
+      end
+
+      value_object "Switch" do
+        attribute :value, Boolean
+      end
+
+      value_object "Count" do
+        attribute :value, Integer
+
+        invariant("a count is not negative") { value >= 0 }
+      end
+
+      # The first six hex digits of a storage shape's digest, or `none` when no era is held.
+      value_object "ShapeLabel" do
+        attribute :value, String, pattern: '^[0-9a-f]{6}$|^none$'
+      end
+
+      # Which era a mint would hold: none (the shape stands), the first, or the next.
+      value_object "Minting" do
+        attribute :value, String, one_of: ["none", "first", "next"]
+
+        invariant("a mint is none, first or next") { ["none", "first", "next"].include?(value) }
+      end
+
+      # One stored record the mint's audit would refuse, named `Aggregate#id`, with the rule that
+      # refused it (a value the new types or invariants refuse, a state the lifecycle never reaches,
+      # a reference the edge cannot carry) and the audit's own wording.
+      value_object "RefusedRow" do
+        attribute :aggregate, String
+        attribute :id,        String
+        attribute :rule,      String, pattern: '^(value|lifecycle|reference)$'
+        attribute :wording,   String
+      end
+
+      # How the other engine's audit stood: not run, in agreement with this one, or not.
+      value_object "Parity" do
+        attribute :engine, String
+        attribute :status, String, pattern: '^(not_run|agree|differ)$'
+        attribute :note,   String
+      end
+
+      # One thing a rehearsal did not check, and why. A rehearsal states its limits.
+      value_object "Limit" do
+        attribute :what, String
+        attribute :why,  String
+      end
+
+      # The five things a rehearsal can conclude. A would_mint of `minting: none` says the shape
+      # stands and nothing would be minted at all. `empty_copy` says the copy held no row of the
+      # domain, so nothing was rehearsed and no answer about the data is given.
+      value_object "Verdict" do
+        attribute :value, String, one_of: ["would_mint", "would_refuse", "needs_edge", "cannot_boot", "empty_copy"]
+
+        invariant("a verdict is one the rehearsal names") do
+          ["would_mint", "would_refuse", "needs_edge", "cannot_boot", "empty_copy"].include?(value)
+        end
+      end
+
+      value_object "Report" do
+        attribute :value, String
+      end
+
+      # Only the first rows are held, so a domain with a million stale rows is a report, not a
+      # flood; the total says how many there were.
+      invariant("no more than fifty refused rows are held") { refused_rows.unset? || refused_rows.size <= 50 }
+      invariant("the total counts at least the rows held") do
+        refused_rows.unset? || refusal_total.unset? || refusal_total.value >= refused_rows.size
+      end
+      invariant("a rehearsal that would mint holds no refused row") do
+        verdict.unset? || verdict.value != "would_mint" || refusal_total.unset? || refusal_total.value == 0
+      end
+      invariant("only a domain that booted would mint") do
+        verdict.unset? || verdict.value != "would_mint" || booted.unset? || booted.value
+      end
+      invariant("a copy that holds nothing is never judged to mint") do
+        verdict.unset? || verdict.value != "would_mint" || copy_empty.unset? || !copy_empty.value
+      end
+      invariant("an empty_copy verdict is given for a copy that holds nothing") do
+        verdict.unset? || verdict.value != "empty_copy" || (!copy_empty.unset? && copy_empty.value)
+      end
+      invariant("only a mint of the next era audits stored rows") do
+        audited.unset? || !audited.value || minting.unset? || minting.value == "next"
+      end
+      invariant("a mint of the next era that would go through states how many rows were examined") do
+        verdict.unset? || verdict.value != "would_mint" || minting.unset? || minting.value != "next" || !rows_examined.unset?
+      end
+      invariant("a clean verdict that examined no row says so in what it did not check") do
+        verdict.unset? || verdict.value != "would_mint" || audited.unset? || audited.value ||
+          (!unchecked.unset? && unchecked.any? { |limit| limit.what == "the stored rows" })
+      end
+
+      # `requested` is the rehearsal and its store being prepared; `booted` the domain loaded and
+      # its shape read; `audited` the mint's audit run over the data. `judged` is a rehearsal whose
+      # answer is that the mint would go through, `withheld` one whose answer is that it would not
+      # (the verdict says which way), `refused` one that was never run because the request or the
+      # store was not admitted, and `failed` one that broke after it began.
+      lifecycle :status, default: "requested" do
+        mark :failure, "withheld", "refused", "failed"
+        transition "Boot"     => "booted",   from: "requested"
+        transition "Audit"    => "audited",  from: "booted"
+        transition "Judge"    => "judged",   from: "audited"
+        transition "Withhold" => "withheld", from: %w[requested booted audited]
+        transition "Refuse"   => "refused",  from: "requested"
+        transition "Fail"     => "failed",   from: %w[requested booted audited]
+        mark :terminal, "failed", "judged", "refused", "withheld"
+      end
+
+      command "Request" do
+        role "Operator"
+        goal "Rehearse a domain's next era against the copy of its data its world names, say whether a mint would go through, and print the whole outcome"
+
+        attribute :run,    RunKey, sets: true
+        attribute :domain, DomainPath, sets: true
+        attribute :pin,    Pin, optional: true, sets: true
+
+
+        emits RehearsalRequested
+      end
+
+      # What the subject reported once it was loaded against the prepared copy.
+      command "Boot" do
+        role "System"
+        goal "Record that the domain loaded, the shape it stands at and the era a mint would hold"
+
+        reference_to RehearsalRun
+        attribute :booted,       Switch, sets: true
+        attribute :host_version, HostVersion, sets: true
+        attribute :store,        StoreKind, sets: true
+        attribute :mode,         StoreMode, sets: true
+        attribute :before,       ShapeLabel, sets: true
+        attribute :after,        ShapeLabel, sets: true
+        attribute :minting,      Minting, sets: true
+        attribute :environment_loaded, EnvironmentLoaded, sets: true
+        attribute :schema_used,  SchemaRead, sets: true
+        attribute :eras_held,    Count, sets: true
+        attribute :journal_entries, Count, sets: true
+        attribute :head_rows,    Count, sets: true
+        attribute :census,       list_of(HeldCount), sets: true
+        attribute :copy_empty,   Switch, sets: true
+        attribute :copy_note,    Report, sets: true
+        attribute :released,     Switch, optional: true, sets: true
+        attribute :kept,         Report, optional: true, sets: true
+
+        given("the domain loaded") { booted.value }
+
+
+        emits RehearsalBooted
+      end
+
+      # The mint's own three layers and its edge and coverage rules, run over the copy.
+      command "Audit" do
+        role "System"
+        goal "Record whether an edge leads to the shape, and every row the mint's audit would refuse"
+
+        reference_to RehearsalRun
+        attribute :minting,       Minting, sets: true
+        attribute :edge_present,  Switch, sets: true
+        attribute :refused_rows,  list_of(RefusedRow), optional: true, sets: true
+        attribute :refusal_total, Count, sets: true
+        attribute :audited,       Switch, sets: true
+        attribute :rows_examined, Count, sets: true
+        attribute :rust_rows_examined, Count, sets: true
+        attribute :aggregates_examined, Count, sets: true
+        attribute :reason,        Report, sets: true
+        attribute :parity,        Parity, sets: true
+        attribute :unchecked,     list_of(Limit), sets: true
+        attribute :released,      Switch, sets: true
+        attribute :kept,          Report, optional: true, sets: true
+        # Carried, not kept: the rehearsed bluebook's name and the ledger watermark the copy held, plain, as
+        # Maintenance.RecordRehearsalVerdict takes them.
+        attribute :rehearsed_domain, String
+        attribute :watermark,     Integer
+
+
+        emits RehearsalAudited
+      end
+
+      command "Judge" do
+        role "System"
+        goal "Record that the mint would go through: the domain booted, an edge leads on where one is needed, and nothing is refused"
+
+        reference_to RehearsalRun
+        attribute :verdict,       Verdict, sets: true
+        attribute :refusal_total, Count
+        attribute :edge_present,  Switch
+
+        given("a rehearsal that finds a refused row would not mint") { refusal_total.value == 0 }
+        given("a rehearsal judged to mint names that verdict") { verdict.value == "would_mint" }
+
+
+        emits RehearsalJudged
+      end
+
+      command "Withhold" do
+        role "System"
+        goal "Record that the mint would not go through, which of the three ways, and what it would say"
+
+        reference_to RehearsalRun
+        attribute :verdict, Verdict, sets: true
+        attribute :refusal, Report, sets: true
+
+        given("a withheld rehearsal names how the mint would stop") { verdict.value != "would_mint" }
+
+
+        emits RehearsalWithheld
+      end
+
+      command "Refuse" do
+        role "System"
+        goal "Record that the rehearsal was not run: the subject, the pin or the store was not admitted, and why"
+
+        reference_to RehearsalRun
+        attribute :refusal, Report, sets: true
+
+
+        emits RehearsalRefused
+      end
+
+      command "Fail" do
+        role "System"
+        goal "Record that the rehearsal broke after it began, and why"
+
+        reference_to RehearsalRun
+        attribute :refusal, Report, sets: true
+
+
+        emits RehearsalFailed
+      end
+
+      query "RehearsalOutcome" do
+        description "How one rehearsal ended: its status and verdict, and every fact it brought back. A run is kept by the process that made it, so a run this process does not hold is refused as unknown; `request` waits for its reactions and prints the whole outcome."
+        attribute :run, RunKey
+        where(run: :run)
+        order_by :run
+      end
+
+      query "Withheld" do
+        description "Every rehearsal of this process whose answer was that the mint would not go through."
+        where(status: "withheld")
+        order_by :run
+      end
+    end
+
+    policy "SurveyWhenRehearsalRequested" do
+      on      "RehearsalRun.RehearsalRequested"
+      ask     :survey, with: { run: :run }
+    end
+
+    policy "RefuseWhenStoreNotAdmitted" do
+      on      "RehearsalRun.StoreRefused"
+      trigger RehearsalRun::Refuse, with: { refusal: :refusal }
+    end
+
+    policy "RecordBootWhenStoreSurveyed" do
+      on      "RehearsalRun.StoreSurveyed"
+      where   { booted.value }
+      trigger RehearsalRun::Boot, with: { booted: :booted, host_version: :host_version, store: :store, mode: :mode,
+                                           before: :before, after: :after, minting: :minting,
+                                           environment_loaded: :environment_loaded, schema_used: :schema_used,
+                                           eras_held: :eras_held, journal_entries: :journal_entries,
+                                           head_rows: :head_rows, census: :census, copy_empty: :copy_empty,
+                                           copy_note: :copy_note, released: :released, kept: :kept }
+    end
+
+    # A copy that holds none of the domain's rows is not rehearsed: there is nothing to audit, and a
+    # clean answer over it would be a confident wrong one. The survey has already dropped it.
+    policy "WithholdWhenTheCopyHoldsNothing" do
+      on      "RehearsalRun.RehearsalBooted"
+      where   { copy_empty.value }
+      trigger RehearsalRun::Withhold, with: { verdict: "empty_copy", refusal: :copy_note }
+    end
+
+    # A domain that does not load is an answer, not a breakdown: it is what the mint would be
+    # stopped by, so it is judged, not failed.
+    policy "WithholdWhenSubjectDoesNotBoot" do
+      on      "RehearsalRun.StoreSurveyed"
+      where   { !booted.value }
+      trigger RehearsalRun::Withhold, with: { verdict: "cannot_boot", refusal: :boot_error }
+    end
+
+    policy "FailWhenExaminationRefused" do
+      on      "RehearsalRun.ExamineRefused"
+      trigger RehearsalRun::Fail, with: { refusal: :refusal }
+    end
+
+    policy "ExamineWhenBooted" do
+      on      "RehearsalRun.RehearsalBooted"
+      where   { !copy_empty.value }
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "RecordAuditWhenStoreExamined" do
+      on      "RehearsalRun.StoreExamined"
+      trigger RehearsalRun::Audit, with: { minting: :minting, edge_present: :edge_present,
+                                            refused_rows: :refused_rows, refusal_total: :refusal_total,
+                                            audited: :audited, rows_examined: :rows_examined,
+                                            rust_rows_examined: :rust_rows_examined,
+                                            aggregates_examined: :aggregates_examined, reason: :reason,
+                                            parity: :parity, unchecked: :unchecked,
+                                            released: :released, kept: :kept,
+                                            rehearsed_domain: :rehearsed_domain, watermark: :watermark }
+    end
+
+    policy "JudgeWhenNothingWouldStopTheMint" do
+      on      "RehearsalRun.RehearsalAudited"
+      where do
+        (minting.value != "next" || edge_present.value) && refusal_total.value == 0
+      end
+      trigger RehearsalRun::Judge, with: { verdict: "would_mint", refusal_total: :refusal_total,
+                                            edge_present: :edge_present }
+    end
+
+    policy "WithholdWhenNoEdgeLeadsOn" do
+      on      "RehearsalRun.RehearsalAudited"
+      where   { minting.value == "next" && !edge_present.value }
+      trigger RehearsalRun::Withhold, with: { verdict: "needs_edge",
+                                               refusal: "no translation edge leads the held era to this shape" }
+    end
+
+    policy "WithholdWhenTheMintWouldRefuse" do
+      on      "RehearsalRun.RehearsalAudited"
+      where do
+        (minting.value != "next" || edge_present.value) && refusal_total.value > 0
+      end
+      trigger RehearsalRun::Withhold, with: { verdict: "would_refuse",
+                                               refusal: "the mint would refuse: see the refused rows" }
+    end
+  end
+end

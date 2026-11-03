@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../../tools"
+require_relative "../shard_planner"
 
 module Hecks
   module Tools
@@ -44,23 +45,8 @@ module Hecks
         # @param costs [Hash{String => Float}] each domain directory's cost, perhaps lacking some
         # @return [Array<Array<String>>] the domains of each shard, each in the order `domains` has
         def partition(domains, shards, costs = {})
-          price = prices(domains, costs)
-          order = domains.each_index.sort_by { |index| [-price[index], domains[index]] }
-          deal(order, price, shards).map { |indexes| indexes.sort.map { |index| domains[index] } }
-        end
-
-        # @param order [Array<Integer>] the domain positions, in the order to deal them
-        # @param price [Array<Float>] each position's cost
-        # @param shards [Integer] how many shards to deal into
-        # @return [Array<Array<Integer>>] the positions each shard took, each to the lightest shard
-        #   so far, the lowest numbered when they tie
-        def deal(order, price, shards)
-          loads = Array.new(shards, 0.0)
-          order.each_with_object(Array.new(shards) { [] }) do |index, taken|
-            lightest = loads.each_index.min_by { |shard| [loads[shard], shard] }
-            loads[lightest] += price[index]
-            taken[lightest] << index
-          end
+          dealt = ShardPlanner.partition(domains, shards, price_table(domains, costs))
+          dealt.map { |members| domains.select { |domain| members.include?(domain) } }
         end
 
         # @param domains [Array<String>] the domain directories
@@ -84,7 +70,7 @@ module Hecks
           split = partition(domains, shards, costs)
           raise NotAPartition, "the shards are not a partition of the domains" unless split.flatten.sort == domains.sort
 
-          price = domains.zip(prices(domains, costs)).to_h
+          price = price_table(domains, costs)
           split.each_with_index.flat_map do |members, index|
             members.map { |domain| row("#{index + 1}/#{shards}", price[domain], domain.delete_prefix("#{root}/")) }
           end
@@ -112,7 +98,7 @@ module Hecks
         # @param costs [Hash{String => Float}] each domain directory's cost
         # @return [Array<String>] the same domains, dearest first, ties in path order
         def dearest_first(domains, costs)
-          price = domains.zip(prices(domains, costs)).to_h
+          price = price_table(domains, costs)
           domains.sort_by { |domain| [-price[domain], domain] }
         end
 
@@ -137,18 +123,11 @@ module Hecks
               .to_h { |line| line.split(":", 2).then { |dir, seconds| [File.join(root, dir), Float(seconds)] } }
         end
 
-        # @return [Array<Float>] each domain's cost, a missing one at the table's median
-        def prices(domains, costs)
-          fallback = median(costs.values) || FLAT_COST
-          domains.map { |domain| costs.fetch(domain, fallback) }
-        end
+        # @return [Hash{String => Float}] each domain's cost, a missing one at the table's median
+        def price_table(domains, costs) = ShardPlanner.prices(domains, costs, ->(_domain) { FLAT_COST })
 
-        def median(values)
-          return nil if values.empty?
-
-          ranked = values.sort
-          (ranked[(ranked.size - 1) / 2] + ranked[ranked.size / 2]) / 2.0
-        end
+        # @return [Array<Float>] each domain's cost, in the order of `domains`
+        def prices(domains, costs) = price_table(domains, costs).values_at(*domains)
       end
     end
   end

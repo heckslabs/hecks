@@ -2,6 +2,7 @@ require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "../../support/postgres_probe"
 require_relative "../../support/scratch_postgres"
+require_relative "../../support/first_era_hold"
 require_relative "../../support/concurrency_gap_domain"
 
 # Two forked processes dispatching against one PostgresEra aggregate are serialized by its
@@ -17,7 +18,18 @@ RSpec.describe "concurrent dispatch against one PostgresEra-backed aggregate", :
     def self.open = new(*Array.new(4) { IO.pipe }.flatten)
   end
 
+  include FirstEraHold
+
   scratch_postgres ERA_CONCURRENCY_DATABASE
+
+  before do
+    registry = Hecks::Runtime::Registry.new
+    Hecks.with_registry(registry) do
+      load_ports
+      ConcurrencyGapDomain.declare("EraConcurrencyGap", vision: ERA_GAP_VISION)
+    end
+    hold_declared_era!(registry.bluebook("EraConcurrencyGap"), url: ERA_CONCURRENCY_DATABASE)
+  end
 
   # Same Account fixture as postgres_concurrent_dispatch_spec.rb, bound to PostgresEra.
   def boot

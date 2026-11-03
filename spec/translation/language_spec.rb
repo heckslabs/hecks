@@ -155,7 +155,7 @@ RSpec.describe "the translation language" do
     it "refuses a rule admitted elsewhere in the grammar, naming the legal words" do
       expect(refusal_for { aggregate("Account") { identified_by :cost } })
         .to eq("'identified_by' is not a word TranslationAggregate admits — legal words here: backfill, " \
-               "convert, derive, drop, move, rekey_to, rename, retype, unresolved")
+               "convert, derive, drop, move, rekey_to, rename, retype, split, unresolved")
     end
 
     # A word admitted nowhere in the grammar is left to Ruby's NoMethodError, which `refusal_for`

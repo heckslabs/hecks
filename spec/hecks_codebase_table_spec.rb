@@ -12,7 +12,7 @@ RSpec.describe "the Codebase rows of the ADR command table" do
   # `args` are the words a run of the verb needs beyond its run key; `query` marks a pure read.
   CodebaseRow = Struct.new(:script, :aggregate, :name, :verb, :args, :query, :renamed, keyword_init: true) do
     # The launcher's name for the row: its aggregate, snake-cased, then its verb.
-    def qualified = "#{aggregate.gsub(/([a-z])([A-Z])/, '\1_\2').downcase}.#{verb}"
+    def qualified = "#{aggregate.gsub(/([a-z])([A-Z])/, '\1_\2').downcase}.#{verb}#{"!" unless query}"
     def help_name = "#{aggregate}.#{verb}"
   end
 
@@ -67,7 +67,7 @@ RSpec.describe "the Codebase rows of the ADR command table" do
      { renamed: "no bin script: the branch rulesets and the promotion workflow were hand-written; without " \
                 "--confirm the verb only compares, and only --live --confirm changes GitHub" }],
     ["watch", "PromotionRun", "Watch", "watch",
-     { args:    %w[lane=stable alert_key=stable-lag-outside],
+     { args:    %w[lane=stable],
        renamed: "no bin script: nothing watched a lane; the verb faults a lane that has stood behind the " \
                 "lane it follows for longer than its Lane row allows" }],
     ["promote", "PromotionRun", "Promote", "promote",
@@ -94,6 +94,7 @@ RSpec.describe "the Codebase rows of the ADR command table" do
     ["canonicalise", "StyleRun", "Canonicalise", "canonicalise", { args: %w[doc.json] }],
     ["codemod_hoist_local_givens", "CodemodRun", "HoistLocalGivens", "hoist_local_givens"],
     ["codemod_implicit_append_fields", "CodemodRun", "DropImplicitAppendFields", "drop_implicit_append_fields"],
+    ["codemod_move_former_name", "CodemodRun", "MoveFormerName", "move_former_name"],
     ["rspec_shard_files", "TestSuiteRun", "ShardSpecs", "shard_specs", { args: %w[group=1 groups=2], query: true }],
     ["rspec_io_parallel_files", "TestSuiteRun", "ListIoParallelSpecs", "list_io_parallel_specs",
      { args: %w[exclude=x], query: true }],
@@ -101,7 +102,6 @@ RSpec.describe "the Codebase rows of the ADR command table" do
      { args:    %w[exclude=x write=list.txt],
        renamed: "the table folds write= into the listing query; a query never writes, so writing the " \
                 "committed list is its own confirmed command" }],
-    ["refresh_rspec_runtime_baseline", "TestSuiteRun", "RefreshRuntimeBaseline", "refresh_runtime_baseline"],
     ["spec_example", "TestSuiteRun", "RunSpecExample", "run_spec_example",
      { args: %w[file=spec/a_spec.rb example=hello] }],
     ["stress_concurrency_specs", "TestSuiteRun", "StressConcurrency", "stress_concurrency"],
@@ -123,8 +123,8 @@ RSpec.describe "the Codebase rows of the ADR command table" do
     ["query_ir", "CorpusRun", "IrConstructs", "ir_constructs", { query: true }],
     ["query_ir", "CorpusRun", "IrDuplicates", "ir_duplicates", { query: true }],
     ["query_ir", "CorpusRun", "IrImpact", "ir_impact", { args: %w[name=Entity field=given], query: true }],
-    ["hecks_query_ir_mcp", "CorpusRun", "ServeQueryIrMcp", "serve_query_ir_mcp"],
-    ["present", "CorpusRun", "Present", "present"],
+    ["hecks_query_ir_mcp", "Server", "ServeQueryIrMcp", "serve_query_ir_mcp"],
+    ["present", "Server", "Present", "present"],
     ["release", "PublishingRun", "Publish", "publish"],
     ["release_gem", "PublishingRun", "PublishGem", "publish_gem"]
   ].map do |script, aggregate, name, verb, extra|
@@ -133,7 +133,7 @@ RSpec.describe "the Codebase rows of the ADR command table" do
 
   # The aggregates this spec covers so far, each of which must hold at least one row.
   CODEBASE_AGGREGATES = %w[LanguageRun KernelRun ConformanceRun RegenerationRun GateRun StyleRun CodemodRun
-                           TestSuiteRun CorpusRun PublishingRun PromotionRun].freeze
+                           TestSuiteRun CorpusRun Server PublishingRun PromotionRun].freeze
 
   before(:all) do
     @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
@@ -191,7 +191,7 @@ RSpec.describe "the Codebase rows of the ADR command table" do
 
   it "leaves a run the checkout rule refused as a faulted record that the aggregate's query lists",
      :aggregate_failures, :outside_checkout do
-    out, status = launch(["language_run.project_vocabulary", "run=refused-1", "--wait"])
+    out, status = launch(["language_run.project_vocabulary!", "run=refused-1", "--wait"])
     row = JSON.parse(out).fetch("state")
 
     expect([status, row.fetch("status")]).to eq([1, "faulted"])
@@ -202,7 +202,7 @@ RSpec.describe "the Codebase rows of the ADR command table" do
   %w[publish publish_gem].each do |verb|
     it "leaves `hecks #{verb}` outside a checkout as a faulted run that publishing_faulted lists",
        :aggregate_failures, :outside_checkout do
-      out, status = launch(["publishing_run.#{verb}", "run=refused-#{verb}", "--wait"])
+      out, status = launch(["publishing_run.#{verb}!", "run=refused-#{verb}", "--wait"])
 
       expect([status, JSON.parse(out).dig("state", "status")]).to eq([1, "faulted"])
       expect(runs_listed("publishing_run.publishing_faulted")).to include("refused-#{verb}")
@@ -217,8 +217,20 @@ RSpec.describe "the Codebase rows of the ADR command table" do
     expect(CODEBASE_ROWS.map(&:aggregate) - CODEBASE_AGGREGATES).to be_empty
   end
 
+  # CorpusRun answers questions only: it declares queries and acknowledges :no_command_surface, so
+  # it has no command, no Accept, and nothing for the checkout rule to guard.
+  QUERY_ONLY_AGGREGATES = %w[CorpusRun].freeze
+
+  def command_aggregates = CODEBASE_AGGREGATES - QUERY_ONLY_AGGREGATES
+
+  it "names the aggregates that declare no command" do
+    commandless = CODEBASE_AGGREGATES.select { |name| @bluebook.aggregate(name).commands.empty? }
+
+    expect(commandless).to eq(QUERY_ONLY_AGGREGATES)
+  end
+
   it "guards every command of every Codebase aggregate with the one checkout rule", :aggregate_failures do
-    CODEBASE_AGGREGATES.each do |name|
+    command_aggregates.each do |name|
       accept = accept_of(name)
 
       expect(accept).not_to be_nil, "#{name} has no Accept"

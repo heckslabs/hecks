@@ -49,7 +49,7 @@ module Hecks
           puts "promoted: qa/stress_domains/#{name}"
           puts "next:"
           puts "  hecks quality_control judge_novelty qa/stress_domains/#{name}"
-          puts "  hecks project_rust qa/stress_domains/#{name}  # when the finding needs the Rust comparison"
+          puts "  hecks build.project_rust! qa/stress_domains/#{name}  # when the finding needs the Rust comparison"
           # `hecks quality_control target.seed` derives targets from
           # `Hecks::Corpus.rotation_targets`, so a hand-typed `target.identify` line is not printed:
           # nobody ran it and the domain never
@@ -67,7 +67,7 @@ module Hecks
           <<~NOTES
             # #{name}
 
-            Promoted from a `hecks quality_control check_generated_domains` finding — #{origin_phrase(recorded)}, not
+            Promoted from a `hecks quality_control target.check_generated_domains` finding — #{origin_phrase(recorded)}, not
             hand-written. The bluebook is the minimal form of the domain that
             surprised; `QaGenerated` was renamed to `#{camelize(name)}` and nothing
             else changed.
@@ -102,7 +102,7 @@ module Hecks
         end
 
         def origin_phrase(recorded)
-          recorded&.key?("source") ? "written by `hecks quality_control mine_combinations`' agent" : "generated"
+          recorded&.key?("source") ? "written by `hecks quality_control target.mine_combinations`' agent" : "generated"
         end
       end
     end

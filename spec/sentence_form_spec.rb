@@ -12,7 +12,7 @@ RSpec.describe "a bluebook written as sentences", :io do
   include_context "with the hecks-parse binary"
 
   PAIRS_ROOT = File.expand_path("fixtures/sentence", __dir__)
-  PAIRS = Dir.glob(File.join(PAIRS_ROOT, "*", "sentence_form.bluebook")).freeze
+  SENTENCE_PAIRS = Dir.glob(File.join(PAIRS_ROOT, "*", "sentence_form.bluebook")).freeze
 
   let(:scratch) { Dir.mktmpdir }
 
@@ -61,7 +61,7 @@ RSpec.describe "a bluebook written as sentences", :io do
   end
 
   it "has at least one pair to compare" do
-    expect(PAIRS).not_to be_empty
+    expect(SENTENCE_PAIRS).not_to be_empty
   end
 
   describe "a file's first line" do
@@ -88,7 +88,7 @@ RSpec.describe "a bluebook written as sentences", :io do
       .to raise_error(Hecks::SentenceForm::Refused, /orders\.bluebook:5:3: this is not a sentence I know in an aggregate/)
   end
 
-  PAIRS.each do |sentence_file|
+  SENTENCE_PAIRS.each do |sentence_file|
     describe File.basename(File.dirname(sentence_file)) do
       it "reads the bluebook name off its Domain line" do
         expect(bluebook_of(sentence_file)).to eq(bluebook_of(twin_of(sentence_file)))

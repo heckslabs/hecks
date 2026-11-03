@@ -309,7 +309,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Suspend",
@@ -353,7 +354,8 @@
           ],
           "from": "active",
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Reinstate",
@@ -390,7 +392,8 @@
           ],
           "from": "suspended",
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Close",
@@ -420,7 +423,8 @@
             "suspended"
           ],
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         }
       ],
       "invariants": [
@@ -536,6 +540,8 @@
 
       ],
       "provenance": null,
+      "formerly_known_as": null,
+      "created_by": null,
       "acknowledgements": [
 
       ]
@@ -1121,7 +1127,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Credit",
@@ -1210,7 +1217,8 @@
           ],
           "from": "open",
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Debit",
@@ -1421,7 +1429,8 @@
           ],
           "from": "open",
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "FreezeAccount",
@@ -1469,7 +1478,8 @@
           ],
           "from": "open",
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Unfreeze",
@@ -1517,7 +1527,8 @@
           ],
           "from": "frozen",
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "CloseAccount",
@@ -1587,7 +1598,8 @@
             "frozen"
           ],
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "ApplyFee",
@@ -1697,7 +1709,8 @@
           ],
           "from": "open",
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "CorrectFee",
@@ -1807,7 +1820,8 @@
           ],
           "from": "open",
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "AccrueInterest",
@@ -1881,7 +1895,8 @@
           ],
           "from": "open",
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "CorrectInterest",
@@ -2007,7 +2022,8 @@
           ],
           "from": "open",
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         }
       ],
       "invariants": [
@@ -2330,7 +2346,8 @@
               ],
               "from": null,
               "provenance": null,
-              "idempotent": false
+              "idempotent": false,
+              "mints_era": false
             },
             {
               "name": "Reverse",
@@ -2441,7 +2458,8 @@
               ],
               "from": null,
               "provenance": null,
-              "idempotent": false
+              "idempotent": false,
+              "mints_era": false
             }
           ],
           "queries": [
@@ -2804,6 +2822,8 @@
         "source_id": "aggregate:account",
         "source_version": "1.0"
       },
+      "formerly_known_as": null,
+      "created_by": null,
       "acknowledgements": [
 
       ]
@@ -3074,7 +3094,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Lift",
@@ -3104,7 +3125,8 @@
             "escalated"
           ],
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "EscalateAccountHold",
@@ -3153,7 +3175,8 @@
           ],
           "from": "placed",
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "EscalateCardHold",
@@ -3202,7 +3225,8 @@
           ],
           "from": "placed",
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         }
       ],
       "invariants": [
@@ -3255,6 +3279,8 @@
 
       ],
       "provenance": null,
+      "formerly_known_as": null,
+      "created_by": null,
       "acknowledgements": [
 
       ]
@@ -3482,7 +3508,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Clear",
@@ -3530,7 +3557,8 @@
           ],
           "from": "screening",
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Decline",
@@ -3578,7 +3606,8 @@
           ],
           "from": "screening",
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         }
       ],
       "invariants": [
@@ -3687,6 +3716,8 @@
 
       ],
       "provenance": null,
+      "formerly_known_as": null,
+      "created_by": null,
       "acknowledgements": [
 
       ]
@@ -4101,7 +4132,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Rename",
@@ -4169,7 +4201,8 @@
             "active"
           ],
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Withdraw",
@@ -4266,7 +4299,8 @@
           ],
           "from": "active",
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Activate",
@@ -4314,7 +4348,8 @@
           ],
           "from": "issued",
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Retire",
@@ -4365,7 +4400,8 @@
             "active"
           ],
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         }
       ],
       "invariants": [
@@ -4648,7 +4684,8 @@
               ],
               "from": "taken",
               "provenance": null,
-              "idempotent": false
+              "idempotent": false,
+              "mints_era": false
             },
             {
               "name": "Reimburse",
@@ -4675,7 +4712,8 @@
               ],
               "from": "disputed",
               "provenance": null,
-              "idempotent": false
+              "idempotent": false,
+              "mints_era": false
             },
             {
               "name": "RejectDispute",
@@ -4702,7 +4740,8 @@
               ],
               "from": "disputed",
               "provenance": null,
-              "idempotent": false
+              "idempotent": false,
+              "mints_era": false
             }
           ],
           "queries": [
@@ -4847,6 +4886,8 @@
 
       ],
       "provenance": null,
+      "formerly_known_as": null,
+      "created_by": null,
       "acknowledgements": [
 
       ]
@@ -5227,7 +5268,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Capture",
@@ -5297,7 +5339,8 @@
           ],
           "from": "authorized",
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Void",
@@ -5367,7 +5410,8 @@
           ],
           "from": "authorized",
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Refund",
@@ -5437,7 +5481,8 @@
           ],
           "from": "captured",
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Reverse",
@@ -5507,7 +5552,8 @@
           ],
           "from": "captured",
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Dispute",
@@ -5598,7 +5644,8 @@
             "refunded"
           ],
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Chargeback",
@@ -5668,7 +5715,8 @@
           ],
           "from": "disputed",
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "RejectDispute",
@@ -5738,7 +5786,8 @@
           ],
           "from": "disputed",
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         }
       ],
       "invariants": [
@@ -5978,6 +6027,8 @@
 
       ],
       "provenance": null,
+      "formerly_known_as": null,
+      "created_by": null,
       "acknowledgements": [
 
       ]
@@ -6436,7 +6487,8 @@
           ],
           "from": "vacant",
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Surrender",
@@ -6485,7 +6537,8 @@
           ],
           "from": "rented",
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "LogVisit",
@@ -6571,7 +6624,8 @@
           ],
           "from": "rented",
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "IssueKey",
@@ -6635,7 +6689,8 @@
           ],
           "from": "rented",
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         }
       ],
       "invariants": [
@@ -6816,7 +6871,8 @@
               ],
               "from": "logged",
               "provenance": null,
-              "idempotent": false
+              "idempotent": false,
+              "mints_era": false
             }
           ],
           "queries": [
@@ -7034,7 +7090,8 @@
               ],
               "from": null,
               "provenance": null,
-              "idempotent": false
+              "idempotent": false,
+              "mints_era": false
             }
           ],
           "queries": [
@@ -7096,6 +7153,8 @@
 
       ],
       "provenance": null,
+      "formerly_known_as": null,
+      "created_by": null,
       "acknowledgements": [
 
       ]
@@ -7540,7 +7599,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         }
       ],
       "invariants": [
@@ -7563,6 +7623,8 @@
 
       ],
       "provenance": null,
+      "formerly_known_as": null,
+      "created_by": null,
       "acknowledgements": [
 
       ]
@@ -7967,7 +8029,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Debited",
@@ -8037,7 +8100,8 @@
           ],
           "from": "requested",
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Settle",
@@ -8107,7 +8171,8 @@
           ],
           "from": "credited",
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Credited",
@@ -8177,7 +8242,8 @@
           ],
           "from": "debited",
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Reverse",
@@ -8247,7 +8313,8 @@
           ],
           "from": "debited",
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Reject",
@@ -8317,7 +8384,8 @@
           ],
           "from": "requested",
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         }
       ],
       "invariants": [
@@ -8545,6 +8613,8 @@
 
       ],
       "provenance": null,
+      "formerly_known_as": null,
+      "created_by": null,
       "acknowledgements": [
 
       ]
@@ -8897,7 +8967,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "SendTransfer",
@@ -8967,7 +9038,8 @@
           ],
           "from": "requested",
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Recall",
@@ -9037,7 +9109,8 @@
           ],
           "from": "sent",
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Return",
@@ -9107,7 +9180,8 @@
           ],
           "from": "sent",
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         }
       ],
       "invariants": [
@@ -9267,6 +9341,8 @@
 
       ],
       "provenance": null,
+      "formerly_known_as": null,
+      "created_by": null,
       "acknowledgements": [
 
       ]
@@ -9738,7 +9814,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Execute",
@@ -9808,7 +9885,8 @@
           ],
           "from": "scheduled",
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Cancel",
@@ -9878,7 +9956,8 @@
           ],
           "from": "scheduled",
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Fail",
@@ -9948,7 +10027,8 @@
           ],
           "from": "scheduled",
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Retry",
@@ -10087,7 +10167,8 @@
           ],
           "from": "failed",
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Abandon",
@@ -10183,7 +10264,8 @@
           ],
           "from": "failed",
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         }
       ],
       "invariants": [
@@ -10357,6 +10439,8 @@
 
       ],
       "provenance": null,
+      "formerly_known_as": null,
+      "created_by": null,
       "acknowledgements": [
 
       ]
@@ -10905,6 +10989,9 @@
       "endings": [
         "AccountOpened"
       ],
+      "resumes": [
+
+      ],
       "states": [
         "screening",
         "cleared",
@@ -10957,6 +11044,9 @@
       "ends_on": "TransferSettled",
       "endings": [
         "TransferSettled"
+      ],
+      "resumes": [
+
       ],
       "states": [
         "requested",
@@ -11110,6 +11200,9 @@
       "ends_on": "ExternalTransferSent",
       "endings": [
         "ExternalTransferSent"
+      ],
+      "resumes": [
+
       ],
       "states": [
         "requested",

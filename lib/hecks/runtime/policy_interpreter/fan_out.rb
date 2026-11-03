@@ -7,6 +7,9 @@ module Hecks
       # A `for_each` policy: asks a query which rows the event concerns, and fires the trigger
       # once per row through the {RowSweep} a bulk run shares. Mixed into {PolicyInterpreter}.
       module FanOut
+        # The bare scalar types a `for_each` query may declare as an argument.
+        SCALAR_ARGUMENT_TYPES = %w[String Integer Float].freeze
+
         private
 
         # Runs the `for_each` query against the event payload and fires the trigger once
@@ -45,9 +48,22 @@ module Hecks
         def for_each_query_args(query, event)
           args = event.payload.transform_keys(&:to_sym)
           construct = query && emitting_construct(event)
-          return args unless construct
+          lent_attributes(query, construct, args).each { |attribute| args[attribute.name] = event.id } if construct
+          unwrap_scalar_arguments(query, args)
+        end
 
-          lent_attributes(query, construct, args).each { |attribute| args[attribute.name] = event.id }
+        # A bare-scalar query argument takes the one value its single-field value object carries:
+        # the payload hands over the object, but the query declares the scalar, and a query's
+        # argument is shape-checked against its declared type.
+        def unwrap_scalar_arguments(query, args)
+          return args unless query
+
+          query.attributes.each do |attribute|
+            value = args[attribute.name]
+            next unless value.is_a?(Hash) && value.size == 1 && SCALAR_ARGUMENT_TYPES.include?(attribute.type.to_s)
+
+            args[attribute.name] = value.values.first
+          end
           args
         end
 

@@ -1,10 +1,10 @@
 require "spec_helper"
-require "hecks/cli/run"
+require "hecks/tools/run"
 
 # A verb run boots without the Ruby facade, so it binds it for a domain that declares ports (or an
 # adapter behind a port is refused with `uninitialized constant`, and the run records that as the
 # domain's own failure).
-RSpec.describe Hecks::CLI::Run, ".cli_form" do
+RSpec.describe Hecks::Tools::Run, ".cli_form" do
   let(:runtime) { instance_double(Hecks::Runtime::Dispatcher) }
 
   before do

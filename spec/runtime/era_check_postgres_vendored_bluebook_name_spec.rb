@@ -4,11 +4,14 @@ require "tmpdir"
 require_relative "../support/postgres_probe"
 require_relative "../support/scratch_postgres"
 require_relative "../support/fenced_owner"
+require_relative "../support/first_era_hold"
 
 # Pins a fix: a vendored package whose bluebook is not the Pascal-cased package name (package
 # `note` declaring `Notes`) had no source found for its era-1 mint, so the single-file fallback
 # stamped the host domain's own text under the bluebook's name and the next boot refused.
 RSpec.describe "PostgresEra era-1 minting for a vendored bluebook named unlike its package", :io do
+  include FirstEraHold
+
   BLUEBOOK_NAME_DB = "hecks_era_vendored_bluebook_name_spec".freeze
 
   BLUEBOOK_NAME_TARGET = <<~BLUEBOOK.freeze
@@ -77,6 +80,12 @@ RSpec.describe "PostgresEra era-1 minting for a vendored bluebook named unlike i
     end.join("\n")
   end
 
+  # Holds era 1 for each bluebook the way the mint entry point does, then boots the directory.
+  def boot_held(directory)
+    hold_domain_eras!(directory: directory, url: owner_url)
+    Hecks.boot(directory, install_driving: false)
+  end
+
   def write(path, content)
     FileUtils.mkdir_p(File.dirname(path))
     File.write(path, content)
@@ -101,7 +110,7 @@ RSpec.describe "PostgresEra era-1 minting for a vendored bluebook named unlike i
 
   it "holds the bluebook's own source, not the domain's" do
     Dir.mktmpdir do |dir|
-      Hecks.boot(write_domain(dir), install_driving: false)
+      boot_held(write_domain(dir))
 
       expect(held_text_for("Notes")).to include('Hecks.bluebook "Notes"')
     end
@@ -110,7 +119,7 @@ RSpec.describe "PostgresEra era-1 minting for a vendored bluebook named unlike i
   it "boots a second time without refusing" do
     Dir.mktmpdir do |dir|
       domain_dir = write_domain(dir)
-      Hecks.boot(domain_dir, install_driving: false)
+      boot_held(domain_dir)
 
       expect { Hecks.boot(domain_dir, install_driving: false) }.not_to raise_error
     end

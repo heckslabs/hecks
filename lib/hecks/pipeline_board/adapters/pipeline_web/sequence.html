@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pipeline Sequence</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7; --border: rgba(11,11,11,.10);
+  --series1: #2a78d6; --good: #0ca30c; --warning: #fab219; --critical: #d03b3b;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,.10); --series1: #3987e5;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink2: #c3c2b7; --muted: #898781;
+  --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,.10); --series1: #3987e5;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 1280px; margin: 0 auto; padding: 16px; }
+header { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
+h1 { font-size: 20px; margin: 0; font-weight: 600; }
+a { color: var(--series1); }
+.meta { color: var(--ink2); font-size: 13px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+button, input, select { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--axis); border-radius: 6px; padding: 4px 10px; }
+button { cursor: pointer; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--series1); outline-offset: 2px; }
+section { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 16px; }
+.legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--ink2); margin-bottom: 8px; }
+.scroller { overflow: auto; max-height: 76vh; border: 1px solid var(--grid); border-radius: 8px; background: var(--page); position: relative; }
+.lanes { position: sticky; top: 0; z-index: 2; display: flex; background: var(--surface); border-bottom: 1px solid var(--axis); min-width: max-content; }
+.lane { width: 150px; flex: 0 0 150px; padding: 6px 6px 4px; text-align: center; font-size: 12px; border-right: 1px solid var(--grid); overflow-wrap: anywhere; }
+.lane b { display: block; font-weight: 600; color: var(--ink); }
+.lane span { color: var(--ink2); font-size: 11px; }
+.lane i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: middle; margin-right: 4px; }
+canvas { display: block; }
+.unknown-note { color: var(--ink2); font-style: italic; padding: 8px; }
+@media (max-width: 700px) { .lane { width: 110px; flex-basis: 110px; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Pipeline Sequence</h1>
+    <div class="meta">
+      <a href="/">Board</a><a href="/wiring">Wiring</a>
+      <span id="count">loading</span>
+      <span id="live">stream: connecting</span>
+      <label>domain <select id="domain"><option value="">all</option></select></label>
+      <button id="follow" type="button" aria-pressed="true">Following</button>
+      <button id="clear" type="button">Clear</button>
+    </div>
+  </header>
+  <section aria-labelledby="h-seq">
+    <h2 id="h-seq" style="font-size:13px;margin:0 0 8px;color:var(--ink2);text-transform:uppercase;letter-spacing:.04em">One lifeline per aggregate; every event, the policy that heard it and the command it sent, in order</h2>
+    <div class="legend">
+      <span><b style="color:var(--good)">&#10003;</b> delivered</span>
+      <span><b style="color:var(--warning)">&#9650;</b> waiting</span>
+      <span><b style="color:var(--critical)">&#10005;</b> refused</span>
+      <span>a tick on a lifeline is an event nobody reacted to; an arrow back to the same line is a policy on its own aggregate</span>
+    </div>
+    <div class="scroller" id="scroller">
+      <div class="lanes" id="lanes"></div>
+      <canvas id="seq" role="img" aria-label="Sequence diagram of pipeline events and the policies and commands that answered them"></canvas>
+    </div>
+  </section>
+</main>
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const SLOTS = { light: ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"],
+                dark: ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300", "#9085e9", "#e66767"] };
+const dark = () => matchMedia("(prefers-color-scheme: dark)").matches && document.documentElement.dataset.theme !== "light" || document.documentElement.dataset.theme === "dark";
+const LANE = matchMedia("(max-width: 700px)").matches ? 110 : 150, ROW = 30, TOP = 10;
+const OUTCOME = { ok: ["--good", "✓"], wait: ["--warning", "▲"], bad: ["--critical", "✕"] };
+const canvas = $("seq"), ctx = canvas.getContext("2d");
+let graph = { nodes: [], edges: [] }, byId = new Map(), domainSlot = new Map();
+const lanes = [], laneOf = new Map(), rows = [], seen = new Set();
+let follow = true, filter = "";
+
+function h(tag, attrs, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) el.setAttribute(k, v);
+  for (const kid of kids.flat()) if (kid !== null && kid !== undefined) el.append(kid.nodeType ? kid : String(kid));
+  return el;
+}
+function clock(iso) { const d = new Date(iso); return isNaN(d) ? "" : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }); }
+function colourOf(domain) { const i = domainSlot.get(domain); return i === undefined || i > 7 ? css("--muted") : SLOTS[dark() ? "dark" : "light"][i]; }
+function contextOf(id) { const n = byId.get(id); return n ? (n.context ? n.domain + " / " + n.context : n.domain) : id.split("::")[0]; }
+
+/* ---- lifelines appear the first time an aggregate speaks or is spoken to ---- */
+function lane(id) {
+  if (laneOf.has(id)) return laneOf.get(id);
+  const domain = id.split("::")[0], label = id.split("::").pop();
+  const entry = { id, domain, label, context: contextOf(id), x: TOP + lanes.length * LANE + LANE / 2 };
+  lanes.push(entry); laneOf.set(id, entry);
+  $("lanes").append(h("div", { class: "lane" }, h("b", {}, h("i", { style: "background:" + colourOf(domain) }), label), h("span", {}, entry.context)));
+  return entry;
+}
+function outcomeKind(text) { return /deliver/.test(text) ? "ok" : /refus|fail/.test(text) ? "bad" : "wait"; }
+function targetOf(policy) {
+  const bare = String(policy).split("::").pop(), e = graph.edges.find((x) => x.label === bare);
+  return e ? e.to : null;
+}
+function take(ev) {
+  const reactions = ev.reactions || [];
+  if (!reactions.length) { const key = ev.key + "|"; if (seen.has(key)) return; seen.add(key); rows.push({ at: ev.at, from: ev.aggregate, to: null, event: ev.name, fresh: performance.now() }); return; }
+  for (const r of reactions) {
+    const kind = outcomeKind(r.outcome || ""), key = ev.key + "|" + r.policy + "|" + kind;
+    if (seen.has(key)) continue; seen.add(key);
+    rows.push({ at: ev.at, from: ev.aggregate, to: targetOf(r.policy) || ev.aggregate, event: ev.name, policy: String(r.policy).split("::").pop(),
+                command: r.command, kind, fresh: performance.now() });
+  }
+}
+function shown(row) { return !filter || row.from.startsWith(filter + "::") || (row.to || "").startsWith(filter + "::"); }
+
+/* ---- drawing ---- */
+function render() {
+  const visible = rows.filter(shown);
+  for (const row of visible) { lane(row.from); if (row.to) lane(row.to); }
+  const dpr = devicePixelRatio || 1, width = Math.max(TOP * 2 + lanes.length * LANE, $("scroller").clientWidth), height = TOP + visible.length * ROW + 20;
+  canvas.style.width = width + "px"; canvas.style.height = height + "px"; canvas.width = width * dpr; canvas.height = height * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, width, height);
+  for (const l of lanes) { ctx.strokeStyle = colourOf(l.domain); ctx.globalAlpha = 0.45; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.moveTo(l.x, 0); ctx.lineTo(l.x, height); ctx.stroke(); }
+  ctx.setLineDash([]); ctx.globalAlpha = 1;
+  const now = performance.now();
+  visible.forEach((row, i) => drawRow(row, TOP + i * ROW + ROW / 2, now));
+  $("count").textContent = lanes.length + " lifelines, " + visible.length + " messages";
+  if (follow) $("scroller").scrollTop = $("scroller").scrollHeight;
+}
+function drawRow(row, y, now) {
+  const a = laneOf.get(row.from), b = row.to ? laneOf.get(row.to) : null, fresh = Math.max(0, 1 - (now - row.fresh) / 2400);
+  ctx.font = "11px system-ui, sans-serif"; ctx.fillStyle = css("--muted"); ctx.textAlign = "left"; ctx.fillText(clock(row.at), 4, y + 4);
+  if (!b) {
+    ctx.fillStyle = css("--ink2"); ctx.fillRect(a.x - 4, y - 4, 8, 8);
+    ctx.fillStyle = css("--ink2"); ctx.fillText(row.event, a.x + 10, y + 4); return;
+  }
+  const [token, mark] = OUTCOME[row.kind], colour = css(token);
+  ctx.strokeStyle = colour; ctx.fillStyle = colour; ctx.lineWidth = 1.5 + fresh * 1.5; ctx.globalAlpha = 0.7 + 0.3 * fresh;
+  if (a === b) {
+    ctx.beginPath(); ctx.moveTo(a.x, y - 8); ctx.lineTo(a.x + 22, y - 8); ctx.lineTo(a.x + 22, y + 6); ctx.lineTo(a.x + 2, y + 6); ctx.stroke(); head(a.x + 2, y + 6, -1);
+  } else {
+    const dir = b.x > a.x ? 1 : -1; ctx.beginPath(); ctx.moveTo(a.x, y + 6); ctx.lineTo(b.x - dir * 4, y + 6); ctx.stroke(); head(b.x - dir * 4, y + 6, dir);
+  }
+  ctx.globalAlpha = 1; ctx.lineWidth = 1;
+  const text = mark + " " + row.event + " → " + row.policy + (row.command ? " → " + row.command.split("::").pop() : "");
+  const left = Math.min(a.x, b.x) + 8, maxW = Math.max(Math.abs(b.x - a.x) - 16, 150);
+  ctx.font = "11px system-ui, sans-serif"; ctx.fillStyle = css("--ink"); ctx.textAlign = "left";
+  ctx.fillText(fit(text, maxW), left, y - 2);
+}
+function head(x, y, dir) { ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - dir * 7, y - 4); ctx.lineTo(x - dir * 7, y + 4); ctx.closePath(); ctx.fill(); }
+function fit(text, maxW) { while (text.length > 8 && ctx.measureText(text).width > maxW) text = text.slice(0, -2); return text.length < 8 ? text : text; }
+
+/* ---- stream ---- */
+let backlog = [], liveStarted = false, dirty = false;
+function listen() {
+  const es = new EventSource("/api/events");
+  es.onopen = () => { $("live").textContent = "stream: live"; };
+  es.onerror = () => { $("live").textContent = "stream: reconnecting"; };
+  es.addEventListener("board", (m) => {
+    const ev = JSON.parse(m.data); if (!ev.key) return;
+    if (!liveStarted) { backlog.push(ev); clearTimeout(listen.t); listen.t = setTimeout(startLive, 600); } else { take(ev); dirty = true; }
+  });
+}
+function startLive() { liveStarted = true; backlog.sort((a, b) => String(a.at).localeCompare(String(b.at))).forEach(take); dirty = true; }
+function loop() { if (dirty || rows.some((r) => performance.now() - r.fresh < 2600)) { dirty = false; render(); } requestAnimationFrame(loop); }
+$("follow").addEventListener("click", () => { follow = !follow; $("follow").setAttribute("aria-pressed", String(follow)); $("follow").textContent = follow ? "Following" : "Paused"; });
+$("scroller").addEventListener("scroll", () => { const s = $("scroller"); if (s.scrollTop + s.clientHeight < s.scrollHeight - 40 && follow) { follow = false; $("follow").setAttribute("aria-pressed", "false"); $("follow").textContent = "Paused"; } });
+$("clear").addEventListener("click", () => { rows.length = 0; dirty = true; });
+$("domain").addEventListener("change", (e) => { filter = e.target.value; dirty = true; });
+
+fetch("/api/wiring", { cache: "no-store" }).then((r) => r.json()).then((g) => {
+  if (g.unknown) { $("count").textContent = "unknown: " + g.unknown; }
+  else { graph = g; byId = new Map(g.nodes.map((n) => [n.id, n]));
+    const count = new Map(); for (const n of g.nodes) if (n.kind === "aggregate") count.set(n.domain, (count.get(n.domain) || 0) + 1);
+    [...count.keys()].sort((a, b) => count.get(b) - count.get(a)).forEach((d, i) => { domainSlot.set(d, i); $("domain").append(h("option", { value: d }, d)); }); }
+  requestAnimationFrame(loop); listen();
+}).catch((e) => { $("count").textContent = "unknown: " + e.message; requestAnimationFrame(loop); listen(); });
+</script>
+</body>
+</html>

@@ -12,11 +12,11 @@ module Hecks
       # working tree is never written.
       module Scratch
         # The refusal when a check finds nothing generated to compare.
-        NOT_MATERIALIZED = "hecks regenerate_corpus --check: rust/src/generated has no generated output to " \
+        NOT_MATERIALIZED = "hecks regeneration_run.regenerate_corpus! --check: rust/src/generated has no generated output to " \
                            "compare. It is committed: restore it from git, or run " \
-                           "`hecks regenerate_corpus --confirm`, then the check."
+                           "`hecks regeneration_run.regenerate_corpus! --confirm`, then the check."
 
-        # A scratch crate: copies of the generated tree and Cargo.toml, all `hecks project_rust`
+        # A scratch crate: copies of the generated tree and Cargo.toml, all `hecks build.project_rust!`
         # writes.
         #
         # @param root [String] the checkout
@@ -32,7 +32,8 @@ module Hecks
         end
 
         # Puts back, in the scratch crate, every module the named domains do not own, as the tree
-        # has it: a run of some domains rewrites the shared bluebooks and the grammar as its own last
+        # has it: a run of some domains rewrites the shared bluebooks and the grammar as its own
+        # last
         # writer would, which is not what the whole corpus's last writer left in the tree.
         #
         # @param scratch [String] the scratch crate

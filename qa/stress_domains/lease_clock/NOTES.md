@@ -5,9 +5,13 @@
 out-of-band `bin/rust_conformance_fuzz` run) generates ONE sequence and
 replays it through both Ruby and a compiled Rust binary, then diffs the
 two — which only means anything if both engines are deterministic
-FUNCTIONS of that sequence. Neither runtime reads a wall clock at
-dispatch time at all (grepped: no `Time.now`/`Clock`/`SystemTime`
-anywhere under `lib/hecks/runtime` or `rust/src/kernel`); the corpus's
+FUNCTIONS of that sequence. A `needs :now` argument the caller leaves
+out is answered by the clock port on both engines: Ruby's `Ports::Clock`
+(`SystemClock`), and the Rust kernel's clock (`rust/src/kernel/needs.rs`,
+the step's `occurred_at` or else the system time). A script that supplies
+`now` gives both engines the same value, and the conformance replay compares
+values, not times. A `now` left to the clock is read separately by each
+engine, so the time it records can differ between them. the corpus's
 own established idiom for "now" is `lib/hecks/quality_control/quality_control.
 bluebook`'s `Instant` value object plus `Target.Claim`'s own comment,
 quoted in the bluebook's header: "`now` ARRIVES AS AN ARGUMENT, from the

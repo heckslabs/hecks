@@ -1,0 +1,67 @@
+build — Compile and regenerate.
+
+  hecks <Aggregate.command>! [name=value …]    do something
+  hecks <Aggregate.query> [name=value …]       read something
+
+everyday:
+  Build.build_host!  Build the Rust host for a domain, with its wasm and IR, ready to copy…
+
+commands:
+  Build:
+    One build of a domain for the Rust host, or a check of that build against Ruby.
+    project_rust!                 Generate a domain's Rust source for the Rust host
+    build_wasm!                   Compile a domain to a WASI module a runtime such as wasmtime can run
+    build_parser!                 Build the hecks-parse binary the bluebook parser specs run, from rust/parser
+    build_host!                   Build the Rust host for a domain, with its wasm and IR, ready to copy into an image
+    build_browser_wasm!           Compile a domain to an ES module a browser can import
+    check_conformance!            Replay a script through Ruby and a Rust build of the domain and compare what each did
+    fuzz_conformance!             Replay generated sequences through Ruby and a Rust build of the domain and compare them
+    check_coverage_allowlist!     Check that every rule excusing a Rust coverage gap still excuses a real one
+  RegenerationRun:
+    One regeneration of every corpus domain's committed Rust output, or the check that it is current.
+    regenerate_corpus!            Regenerate the Rust output of every corpus domain or the ones named, or with check only compare it
+    project_ci_gates!             Project the CiGate rows into the workflows' marked detector jobs, or with check only compare them
+    project_ci_pipeline!          Project the CiWorkflows rows into their workflow files, or with check only compare them
+    project_lanes!                Project the Lane rows into the rulesets and the promotion workflow, or with live compare GitHub's rulesets
+    project_tools_doc!            Write the launcher forms of docs/tools.md from the RetiredScript rows, or with check only compare them
+    decide_ci_gate!               Say whether this run's change touches what a CiGate row guards, as the gated job's detector
+  KernelRun:
+    One projection of the Rust kernel's capability enums, or one measure of their coverage.
+    project_kernel_capabilities!  Project the capability enums the hand-written Rust kernel is matched against
+    measure_kernel_coverage!      Check that every capability the grammar admits has its hand-written kernel file
+
+queries (nothing here changes anything):
+  Build:
+    One build of a domain for the Rust host, or a check of that build against Ruby.
+    rust_coverage         Whether each construct of a generated module has a routed Rust implementation.
+  CorpusRun:
+    One look at the corpus and the language's IR, or one server opened on them.
+    rust_domains          The feature and directory of every domain with a Rust feature.
+    regen_order           The directories regeneration walks, in the order it walks them.
+    corpus_rust_coverage  Whether every generated Rust module is routed by its domain.
+    generated_key         The content hash of what regenerating the named domains reads: the generator and each domain's own sources.
+    ir_constructs         The structural diff of each IR construct from its meta-domain.
+    ir_duplicates         The rules declared more than once across the corpus.
+    ir_impact             Which propagation touchpoints of a construct's field already show it.
+
+bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
+  deploy           Generate, check and compare deploy recipes, project OIDC manifests and provision tenants.
+  governance       Organizational authority is explicit, reviewable, and historically explainable.
+  tenancy          Which tenants exist, which realm and storage each one owns, and whether each is currently…
+  site             Declare a site's routes once and project them into the TypeScript its pages, navigation and CMS…
+  tickets          Track what Hecks needs, decide it, ship it, and drive GitHub from the record.
+  composer         Write a bluebook in an editor and watch the domain draw itself, with an agent that can change…
+  quality_control  A user should never be made to feel stupid by something that took what they said and quietly…
+  bluebook         The bluebook language, declared in itself.
+  hecksagon
+  world
+  adapter          The .adapter language, declared in itself.
+  port             The .port language, declared in itself.
+  translation
+  expression       The subset of regular Ruby a predicate is allowed to be — small enough that every target can…
+
+  hecks <command> --help       what one command wants, and every way it refuses
+  hecks --all                  also list the 26 internal commands and queries
+  hecks --maintainer           also list the 433 commands and queries for working on hecks itself
+  a command is called with its aggregate — Build.project_rust!
+  exit status: 0 answered, 1 refused or failed, 2 a line it could not read

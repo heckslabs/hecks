@@ -43,7 +43,7 @@ module Hecks
         # @param bind [Bluebook::Bind] the bind naming the adapter
         # @param settings_verb [String] the verb whose settings configure the adapter
         # @return [Hash] the declared settings, under the adapter's own declared defaults, plus
-        #   the domain, resolved era and superseding era
+        #   the domain, resolved era, superseding era and whether the shape is unminted
         def adapter_settings(registry, domain, aggregate, bind, settings_verb)
           registry.check_verb(bind)
           settings = registry.binding_settings(domain, settings_verb, bind.adapter)
@@ -52,8 +52,17 @@ module Hecks
           settings = registry.with_adapter_defaults(bind.adapter, aggregate, settings)
           # domain, resolved era and superseding era ride along outside the declared
           # settings: a lineage adapter needs them to journal per domain, per-era.
-          settings.merge(domain: domain.to_s, era: registry.resolved_eras[domain.to_s],
-                         superseded_by: registry.superseded_eras[domain.to_s])
+          settings.merge(boot_marks(registry, domain))
+        end
+
+        # The per-domain marks the boot gate left on the registry, merged into an adapter's
+        # settings.
+        #
+        # @return [Hash] the domain, resolved era, superseding era and whether the shape is unminted
+        def boot_marks(registry, domain)
+          name = domain.to_s
+          { domain: name, era: registry.resolved_eras[name], superseded_by: registry.superseded_eras[name],
+            unminted: registry.unminted_eras.key?(name) }
         end
       end
     end

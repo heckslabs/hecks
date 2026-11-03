@@ -134,7 +134,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Settle",
@@ -178,7 +179,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Abandon",
@@ -222,7 +224,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         }
       ],
       "invariants": [
@@ -262,6 +265,7 @@
           "operations": [
             {
               "name": "Run",
+              "handles": [],
               "attributes": [
                 {
                   "name": "ref",
@@ -284,6 +288,7 @@
             },
             {
               "name": "Audit",
+              "handles": [],
               "attributes": [
                 {
                   "name": "ref",
@@ -311,6 +316,7 @@
           "operations": [
             {
               "name": "Audit",
+              "handles": [],
               "attributes": [
                 {
                   "name": "ref",
@@ -336,6 +342,8 @@
         }
       ],
       "provenance": null,
+      "formerly_known_as": null,
+      "created_by": null,
       "acknowledgements": [
 
       ]

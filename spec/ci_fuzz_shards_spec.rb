@@ -8,8 +8,10 @@ require "hecks/tools"
 # a red spec: a sweep with a leg short would pass over the domains that leg sweeps.
 RSpec.describe "the sharded fuzz jobs of ci-checks.yml", :aggregate_failures do
   # The job that sweeps each adapter, and the adapter its shard checks name (none for Memory).
-  FUZZ_JOBS = { "checks_fuzz" => nil, "checks_fuzz_sqlite" => "sqlite" }.freeze
-  SHARD_COMMAND = %r{fuzz_run\.fuzz(?: adapter=(?<adapter>\w+))?.* shard=(?<number>\d+)/(?<count>\d+) --wait}
+  FUZZ_JOBS = { "checks_fuzz" => nil, "checks_fuzz_sqlite" => "sqlite", "checks_fuzz_postgres" => "postgres" }.freeze
+  # Memory and SQLite sweep the same split; Postgres shares one database per leg, so it has its own.
+  SAME_SPLIT = %w[checks_fuzz checks_fuzz_sqlite].freeze
+  SHARD_COMMAND = %r{fuzz_run\.fuzz!(?: adapter=(?<adapter>\w+))?(?: \w+=\d+)* shard=(?<number>\d+)/(?<count>\d+) --wait}
 
   def workflow(name) = YAML.load_file(File.join(File.expand_path("..", __dir__), ".github/workflows/#{name}"))
 
@@ -71,12 +73,12 @@ RSpec.describe "the sharded fuzz jobs of ci-checks.yml", :aggregate_failures do
   end
 
   it "sweeps both adapters in the same number of shards, and lists that split in the static job" do
-    counts = FUZZ_JOBS.values.map { |adapter| shard_checks(adapter).first.last }
+    counts = FUZZ_JOBS.slice(*SAME_SPLIT).values.map { |adapter| shard_checks(adapter).first.last }
     listing = ci_checks.find { |check| check["id"] == "fuzz_shards" }.fetch("run").join(" ")
 
     expect(counts.uniq.size).to eq(1)
-    expect(listing).to include("fuzz_run.fuzz list_shards=#{counts.first} ")
-    expect(static_runs).to include("bundle exec exe/hecks gate_run.gate stage=ci only=fuzz_shards --wait")
+    expect(listing).to include("fuzz_run.fuzz! list_shards=#{counts.first} ")
+    expect(static_runs).to include("bundle exec exe/hecks gate_run.gate! stage=ci only=fuzz_shards --wait")
   end
 
   # The names an attestation note vouches for: a leg's own name would let one passing shard vouch

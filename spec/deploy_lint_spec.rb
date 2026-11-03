@@ -234,7 +234,7 @@ RSpec.describe "hecks deploy lint", :io do
         @no_args_report = stdout + stderr
       end
 
-      it "generates its own fixture domains and lints them (real `hecks deploy project` output)", :aggregate_failures do
+      it "generates its own fixture domains and lints them (real `hecks deploy Recipe.project!` output)", :aggregate_failures do
         # A clean run is expected; a violation here is a regression in
         # the generated recipes of `hecks deploy project`.
         expect(@no_args_status.success?).to be(true), @no_args_report

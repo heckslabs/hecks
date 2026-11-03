@@ -1,5 +1,6 @@
 # Stress domain: a lease whose clock arrives as an Integer argument, fuzzed against Rust.
-# Neither runtime reads a wall clock at dispatch, so "now" has to be data.
+# A `needs :now` argument the caller leaves out is answered by the clock port on both engines.
+# When a script supplies `now`, the conformance replay compares the values, not the times.
 Hecks.bluebook "LeaseClock" do
   vision "One lease slot, acquired, renewed, and reclaimed against a clock value that always arrives as a plain Integer argument — never read off the wall clock — so the same generated sequence produces the same answer whether it runs against Ruby or a compiled Rust binary with no clock of its own."
 
@@ -24,7 +25,8 @@ Hecks.bluebook "LeaseClock" do
       invariant("a holder is named") { !value.to_s.empty? }
     end
 
-    # The clock as data: every `now` and expiry is this Integer, never a clock read.
+    # The clock as data: every `now` and expiry is this Integer. An omitted `now` takes the clock
+    # port's answer.
     value_object "LeaseInstant" do
       attribute :value, Integer, default: 0
       invariant("a clock reading is not before the epoch") { !value.negative? }

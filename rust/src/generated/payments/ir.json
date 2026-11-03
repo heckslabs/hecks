@@ -464,7 +464,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Succeed",
@@ -565,7 +566,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Fail",
@@ -666,7 +668,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         }
       ],
       "invariants": [
@@ -736,6 +739,9 @@
               ],
               "emits": [
                 "PaymentConfirmedByProcessor"
+              ],
+              "handles": [
+
               ]
             },
             {
@@ -764,12 +770,17 @@
               ],
               "emits": [
                 "PaymentDeclinedByProcessor"
+              ],
+              "handles": [
+
               ]
             }
           ]
         }
       ],
       "provenance": null,
+      "formerly_known_as": null,
+      "created_by": null,
       "acknowledgements": [
 
       ]

@@ -108,12 +108,23 @@ module Hecks
 
         # Maps every accepted spelling (full name, `:short` and a renamed command's old name)
         # to the full name.
+        LEAD_SEGMENT = /\A[^.]+/
+
         def aliases(specs)
           specs.each_with_object({}) do |(name, spec), map|
             map[name]         = name
             map[spec[:short]] = name
             map[spec[:short_was]] = name if spec[:short_was]
+            map[former_key(name, spec)] ||= name if spec[:formerly]
           end
+        end
+
+        # The spelling a command had while its aggregate carried its former name, such as
+        # `old_name.board` for `new_name.board`; it resolves to the command, with a note.
+        #
+        # @return [String] the command's name with its aggregate's first segment replaced
+        def former_key(name, spec)
+          name.sub(LEAD_SEGMENT, Naming.snake(spec[:formerly]))
         end
 
         # Stores `spec` under `name`, refusing a second claim rather than silently

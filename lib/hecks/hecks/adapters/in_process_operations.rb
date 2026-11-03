@@ -4,11 +4,11 @@ require "json"
 require "time"
 require_relative "console_capture"
 require_relative "in_process_operations/tailing"
-require "hecks/cli/run"
-require "hecks/cli/model_check"
-require "hecks/cli/smoke_test"
-require "hecks/cli/behaviors"
-require "hecks/cli/refresh_projections"
+require "hecks/tools/run"
+require "hecks/tools/model_check"
+require "hecks/tools/smoke_test"
+require "hecks/tools/behaviors"
+require "hecks/tools/refresh_projections"
 
 module Hecks
   module Adapters
@@ -16,7 +16,8 @@ module Hecks
     # the asks of `ModelCheckRun` and `Operation`, plus the `Follow` query.
     #
     # An ask is handed the whole record it was made on (its `held_state`), so each method reads the
-    # record's fields, runs the existing `Hecks::CLI::*` entry point captured, and answers the text
+    # record's fields, runs the existing `Hecks::Tools::*` entry point captured, and answers the
+    # text
     # it printed. An answer records a success; a raise records a refusal, so a check that finds
     # something, or a run that fails, is refused with the report as its reason.
     module InProcessOperations
@@ -43,7 +44,7 @@ module Hecks
         argv = check_argv(held)
 
         text = ConsoleCapture.answer do
-          CLI::ModelCheck.call(argv, program: "hecks model_check", root: checkout_root)
+          Tools::ModelCheck.call(argv, program: "hecks model_check", root: checkout_root)
         end
         { report: { value: text }, checked: { value: text.scan(REPORT_HEADER).size } }
       end
@@ -59,7 +60,7 @@ module Hecks
         script = plain(held[:script])
         argv += script ? [script] : [plain(held[:verb]), *words(held[:arguments])].compact
 
-        output(ConsoleCapture.answer_apart { CLI::Run.call(argv, program: "hecks run") })
+        output(ConsoleCapture.answer_apart { Tools::Run.call(argv, program: "hecks run") })
       end
 
       # Forces every read-model projection the domain declares to catch up.
@@ -68,7 +69,7 @@ module Hecks
       # @return [Hash{Symbol => Hash}] `output:` how many projections were refreshed
       # @raise [Runtime::NotFound] if the domain cannot be found
       def refresh(**held)
-        count = CLI::RefreshProjections.call(boot(held[:subject]))
+        count = Tools::RefreshProjections.call(boot(held[:subject]))
         output("refreshed #{count} projection(s)")
       end
 
@@ -105,7 +106,7 @@ module Hecks
       # @raise [ConsoleCapture::Failure] when any test failed, errored or did not parse
       def verify(**held)
         argv = [plain(held[:subject])].compact
-        output(ConsoleCapture.answer { CLI::Behaviors.call(argv, program: "hecks run_behaviors") })
+        output(ConsoleCapture.answer { Tools::Behaviors.call(argv, program: "hecks run_behaviors") })
       end
 
       # Boots a wired domain and dispatches one synthesized call per command and report.
@@ -118,7 +119,7 @@ module Hecks
         domain = plain(held[:subject]) || (checkout_root ? nil : Folder.new.domain_root)
         argv = [domain].compact
 
-        output(ConsoleCapture.answer { CLI::SmokeTest.call(argv, root: checkout_root || Dir.pwd) })
+        output(ConsoleCapture.answer { Tools::SmokeTest.call(argv, root: checkout_root || Dir.pwd) })
       end
 
       # A domain's event log past a cursor, answered once: what the stream yielded before it

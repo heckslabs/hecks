@@ -4,6 +4,8 @@ require_relative "../../../../ports/persistence/plugins/era/translation/audit"
 require_relative "../../../../ports/persistence/plugins/era/translation/scaffold"
 require_relative "context"
 require_relative "refusals"
+require_relative "mint_decision"
+require_relative "era_resolution"
 
 module Hecks
   module Adapters
@@ -19,25 +21,30 @@ module Hecks
           # @param context [Context] the era check so far; `latest` is the latest held era, named
           #   here if it has no name yet
           # @return [Integer] the ordinal of the era minted
-          # @raise [Runtime::WiringError] if the edge, its coverage or its audit refuses
+          # @raise [Runtime::WiringError] if a held era already holds the shape, or the edge, its
+          #   coverage or its audit refuses
           def mint!(context)
+            refuse_held_shape!(context)
+            refuse_unrehearsed_mint!(context)
             ensure_named!(context.lineage, context.latest)
             context = context.with(latest: context.held_eras.last)
+            decided_at = context.watermark
             edge = verified_edge!(context)
             refuse_unpermitted_mint!(context) unless context.mint_permitted
             chain = audited_chain!(context, edge)
-            commit_era!(context, chain)
+            refuse_moved_watermark!(context, decided_at)
+            commit_era!(context, chain, edge)
           end
 
-          # Finds the one translation edge leaving the held era and targeting the current
-          # shape's label; a second edge from the same source is a wiring mistake, not a
-          # merge to resolve automatically.
+          # The edge a mint leaves the held era by, as `MintDecision` decides it. A refusal the
+          # decision names is raised by name; a change that needs a rule refuses toward the
+          # scaffold.
           def resolve_edge!(context)
-            edges = edges_leaving(context)
-            refuse_toward_the_scaffold!(context) if edges.empty?
-            refuse_forked_eras!(context, edges) if edges.size > 1
-            refuse_stale_edge!(context, edges.first)
-            edges.first
+            verdict = decide!(context)
+            return verdict.edge if verdict.verdict == "would_mint"
+            return refuse_toward_the_scaffold!(context) if verdict.verdict == "needs_edge"
+
+            refuse_refused_verdict!(context, verdict)
           end
 
           # Diffs the held era against the current shape and writes the edge file —
@@ -46,7 +53,7 @@ module Hecks
             ensure_named!(lineage, latest)
             latest = lineage.eras.last
             label = Runtime::StorageShape.mint_hash(bluebook)[0, Runtime::StorageShape::LABEL_LENGTH]
-            diffed = Translation::Scaffold.diff(shadow(latest[:held_text]), bluebook)
+            diffed = Translation::Scaffold.diff(held_bluebook(latest), bluebook)
             edge = Translation::Scaffold::Edge.new(
               domain: bluebook.name, from: latest[:label], to: label, ordinal: latest[:ordinal] + 1,
               label: label, aggregates: diffed[:aggregates], retired: diffed[:retired]
@@ -60,23 +67,40 @@ module Hecks
           def ensure_named!(lineage, era)
             return if era[:hash]
 
-            held_bluebook = shadow(era[:held_text])
-            hash = Runtime::StorageShape.mint_hash(held_bluebook)
+            hash = held_hash(era)
             lineage.mint_name!(era[:ordinal], hash, hash[0, Runtime::StorageShape::LABEL_LENGTH])
           end
 
           private
 
-          def edges_leaving(context)
-            registry = context.registry
-            registry.translations.select do |t|
-              t.domain == context.domain_name && t.from == context.latest[:label]
-            end
+          # Refuses a mint of a shape a held era already holds, by the match the boot resolves with.
+          def refuse_held_shape!(context)
+            held = EraResolution.matching_era(context.held_eras, context.bluebook) or return
+
+            raise Runtime::WiringError,
+                  "cannot mint #{context.domain_name}: era #{held[:ordinal]} already holds the current shape"
           end
+
+          # The verdict `MintDecision` reaches for the held era the mint leaves, read at the
+          # watermark the context holds now.
+          def decide!(context)
+            MintDecision.decide(held: [MintDecision.held_for_decision(context.latest)], bluebook: context.bluebook,
+                                edge_source: edge_source_of(context), watermark: context.watermark, rows: [])
+          end
+
+          def edge_source_of(context)
+            registry = context.registry
+            { translations: registry.translations,
+              recorded:     MintDecision.recorded_moves(context.domain_name, context.directory) }
+          end
+
+          # The refusal a decided edge stands for: two files declaring the one translation.
+          def refuse_refused_verdict!(context, verdict) = refuse_duplicate_edges!(context, verdict.edges)
 
           # The edge chain to the current shape, after its audit passes.
           def audited_chain!(context, edge)
-            chain = edge_chain(context.registry, context.bluebook, context.held_eras, context.label)
+            chain = edge_chain(context.registry, context.bluebook, context.held_eras, context.label,
+                               target: minted_record(edge))
             audit!(context.bluebook, context.lineage, chain, context.ordinal, edge)
             chain
           end
@@ -84,17 +108,31 @@ module Hecks
           # The edge leaving the held era, once resolved and found to cover the diff.
           def verified_edge!(context)
             edge = resolve_edge!(context)
-            check_coverage!(context.registry, context.bluebook, shadow(context.latest[:held_text]), edge)
+            check_coverage!(context.registry, context.bluebook, held_bluebook(context.latest), edge)
             edge
           end
 
-          def commit_era!(context, chain)
+          # The journal record of the era a mint reaches, when the edge is implicit; nil when a
+          # written edge file leads there.
+          #
+          # @return [Hash, nil] the era record `edge_chain` reads as its last step
+          def minted_record(edge)
+            edge.is_a?(Translation::ImplicitEdge) ? edge.record : nil
+          end
+
+          # @return [Hash, nil] the `edge` column of the minted era: the implicit marker, or nil
+          def implicit_record(edge)
+            edge.is_a?(Translation::ImplicitEdge) ? Translation::ImplicitEdge::RECORD : nil
+          end
+
+          def commit_era!(context, chain, edge)
             hash = context.shape_hash
             bluebook = context.bluebook
             context.lineage.mint_era!(
               ordinal: context.ordinal, hash: hash, label: hash[0, Runtime::StorageShape::LABEL_LENGTH],
               held_text: context.current_text, aggregates: bluebook.aggregates, edges: chain,
-              role: context.role, projection: Runtime::StorageShape.project(context.bluebook)
+              role: context.role, projection: Runtime::StorageShape.project(context.bluebook),
+              edge: implicit_record(edge)
             )
             context.ordinal
           end

@@ -51,16 +51,18 @@ module Hecks
         # `:postgres_era` is the only mode that exercises era/lineage-bound SQL; plain
         # `:postgres` never touches that machinery. Unlike `:postgres`, there's no shared
         # scratch constant here — `database:`/`schema:` are required keyword args because
-        # the caller (`hecks quality_control query sweep.run --persistence-parity`) owns that
+        # the caller (`hecks quality_control sweep.run --persistence-parity`) owns that
         # database's lifecycle.
-        def rebind_to_postgres_era!(copy, database:, schema:)
+        def rebind_to_postgres_era!(copy, database:, schema:, disposable: true)
           require "pg"
           require_owned_scratch!(database, schema)
 
           rewrite_bindings!(copy, "PostgresEra")
           ensure_postgres_era_schema!(database: database, schema: schema)
 
-          write_worlds!(copy, "hecks_fuzz_postgres_era.world") { |name| postgres_era_world(name, database, schema) }
+          write_worlds!(copy, "hecks_fuzz_postgres_era.world") do |name|
+            postgres_era_world(name, database, schema, disposable: disposable)
+          end
           write_unbound_bluebook_worlds!(copy)
         end
 
@@ -73,18 +75,14 @@ module Hecks
                 "There is no shared default, unlike :postgres, so the caller cannot forget to own the lifecycle."
         end
 
-        # The world text for one bluebook on `PostgresEra`.
+        # The world text for one bluebook on `PostgresEra`, in a throwaway schema the caller owns.
         #
-        # `schema:` isolates one ephemeral boot from the next, the same job
-        # `ScratchSchema#scratch_schema` does for `:postgres` (`connect_for` idempotently
-        # creates it; `ensure_postgres_era_schema!` only needs to drop it first).
+        # `allow_superuser true` is deliberate: the era write-fence is row-level security, which a
+        # superuser bypasses, and the fence is not under test here.
         #
-        # `allow_superuser true` is deliberate: PostgresEra normally refuses to boot as
-        # a superuser (its era write-fence is row-level security, which a superuser
-        # bypasses), to protect a real ledger from stale writes. This is a throwaway
-        # schema the caller creates and drops, comparing Memory against PostgresEra's
-        # SQL — the era fence isn't under test, so opting in here is safe.
-        def postgres_era_world(name, database, schema)
+        # The ledger is disposable unless the caller holds the first era itself and wants the
+        # era guard (`disposable: false`).
+        def postgres_era_world(name, database, schema, disposable: true)
           <<~WORLD
             Hecks.world "#{name}" do
               default_adapter "PostgresEra"
@@ -92,6 +90,7 @@ module Hecks
                 database "#{database}"
                 schema "#{schema}"
                 allow_superuser true
+                #{"disposable_ledger true" if disposable}
               end
             end
           WORLD

@@ -72,7 +72,7 @@ RSpec.describe "the Deploy bluebook's BluebookDiff", :io do
     saved = ENV.to_h.slice(*settings.keys)
     ENV.update(settings)
     out, status = Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, program: "hecks",
-                                                           argv: ["deploy", "bluebook_diff.run", dir, *argv, "--wait"])
+                                                           argv: ["deploy", "bluebook_diff.run!", dir, *argv, "--wait"])
     [JSON.parse(out), status]
   ensure
     settings.each_key { |key| saved.key?(key) ? ENV[key] = saved[key] : ENV.delete(key) }

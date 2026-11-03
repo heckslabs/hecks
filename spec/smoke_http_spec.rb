@@ -5,15 +5,15 @@ require "openssl"
 require "socket"
 require "json"
 
-# `hecks smoke_http` (Hecks::CLI::SmokeHttp) against a fake receiver on a local port. The fake
+# `hecks smoke_http` (Hecks::Tools::SmokeHttp) against a fake receiver on a local port. The fake
 # verifies signatures the way a real receiver does, so the check is proven both to pass a
 # correct receiver and to catch one that verifies badly.
 RSpec.describe "hecks smoke_http", :io do
   # The child's whole program: the library entry point, refusing as the launcher does.
   SMOKE_HTTP_CHILD = <<~RUBY.freeze
-    $LOAD_PATH.unshift(File.join(Dir.pwd, "lib")); require "hecks/cli/smoke_http"
+    $LOAD_PATH.unshift(File.join(Dir.pwd, "lib")); require "hecks/tools/smoke_http"
     begin
-      exit Hecks::CLI::SmokeHttp.new(Hecks::CLI::SmokeHttp.settings(ARGV, ENV)).run
+      exit Hecks::Tools::SmokeHttp.new(Hecks::Tools::SmokeHttp.settings(ARGV, ENV)).run
     rescue ArgumentError, OptionParser::ParseError, Errno::ENOENT => e
       abort "smoke_http: \#{e.message}"
     end

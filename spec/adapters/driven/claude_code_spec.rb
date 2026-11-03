@@ -31,6 +31,16 @@ RSpec.describe Hecks::Adapters::ClaudeCode do
         .to raise_error(Hecks::Ports::Agent::ValidationError, /no "result"/)
     end
 
+    it "refuses an envelope that is not an object" do
+      expect { described_class.unwrap(JSON.generate(["result"])) }
+        .to raise_error(Hecks::Ports::Agent::ValidationError, /no "result"/)
+    end
+
+    it "refuses a result that is not text" do
+      expect { described_class.unwrap(JSON.generate({ "result" => { "questions" => [] } })) }
+        .to raise_error(Hecks::Ports::Agent::ValidationError, /no "result"/)
+    end
+
     it "refuses a result that is not JSON" do
       expect { described_class.unwrap(JSON.generate({ "result" => "sure, sounds good" })) }
         .to raise_error(Hecks::Ports::Agent::ValidationError, /not JSON/)

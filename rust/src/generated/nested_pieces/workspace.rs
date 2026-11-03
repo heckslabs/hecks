@@ -734,21 +734,15 @@ impl Card {
 
 impl Card {
     pub fn extract_id_lenient(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
-        let by_identity = (|| -> Option<String> {
+        (|| -> Option<String> {
             let c0 = v.dig("sequence.value")?.to_id_component_lenient().ok()?;
             Some(c0)
-        })();
-        let by_id_key = v.get("id").and_then(|j| j.to_id_component_lenient().ok());
-        let by_reference_key = v.get("card").and_then(|j| j.to_id_component_lenient().ok());
-
-        by_identity
-            .or(by_id_key)
-            .or(by_reference_key)
-            .ok_or_else(|| {
-                crate::kernel::Refusal::TypeMismatch(
-                    "Card: no identity found (tried sequence.value, id, card)".to_string(),
-                )
-            })
+        })()
+        .ok_or_else(|| {
+            crate::kernel::Refusal::TypeMismatch(
+                "Card: no identity found (tried sequence.value)".to_string(),
+            )
+        })
     }
 }
 
@@ -1034,33 +1028,12 @@ impl CardRemarkNestedEntityArgs {
                 .render_args(),
             ));
         }
-        let required: &[&str] = &["note"];
-        let absent: Vec<&str> = required
-            .iter()
-            .copied()
-            .filter(|key| v.get(key).is_none())
-            .collect();
-        if !absent.is_empty() {
-            return Err(crate::kernel::Refusal::AbsentArgument(
-                crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
-                    command: "Remark",
-                    absent: &absent,
-                    declared: &["note"],
-                }
-                .render_args(),
-            ));
-        }
-        let note = CardNote::from_json(
-            &(match v.get("note").ok_or_else(|| {
-                crate::kernel::Refusal::TypeMismatch(
-                    "CardRemarkNestedEntityArgs.note expects CardNote, got nil".to_string(),
-                )
-            })? {
-                crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()),
-                other => other.clone(),
-            })
-            .coerce_single_field("text"),
-        )?;
+        let note = match v.get("note") {
+            None => CardNote {
+                text: "none".to_string(),
+            },
+            Some(x) => CardNote::from_json(&x.coerce_single_field("text"))?,
+        };
         note.check_invariants()?;
         Ok(Self { note })
     }
@@ -1095,25 +1068,7 @@ impl CardRemarkNestedEntityArgs {
         Ok(())
     }
 
-    pub fn refuse_absent_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
-        let required: &[&str] = &["note"];
-        let absent: Vec<&str> = required
-            .iter()
-            .copied()
-            .filter(|key| v.get(key).is_none())
-            .collect();
-        if !absent.is_empty() {
-            crate::kernel::collecting::refuse_each(&absent, |names| {
-                crate::kernel::Refusal::AbsentArgument(
-                    crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
-                        command: "Remark",
-                        absent: names,
-                        declared: &["note"],
-                    }
-                    .render_args(),
-                )
-            })?;
-        }
+    pub fn refuse_absent_arguments(_v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
         Ok(())
     }
 }
@@ -1210,23 +1165,15 @@ impl Board {
 
 impl Board {
     pub fn extract_id_lenient(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
-        let by_identity = (|| -> Option<String> {
+        (|| -> Option<String> {
             let c0 = v.dig("number.value")?.to_id_component_lenient().ok()?;
             Some(c0)
-        })();
-        let by_id_key = v.get("id").and_then(|j| j.to_id_component_lenient().ok());
-        let by_reference_key = v
-            .get("board")
-            .and_then(|j| j.to_id_component_lenient().ok());
-
-        by_identity
-            .or(by_id_key)
-            .or(by_reference_key)
-            .ok_or_else(|| {
-                crate::kernel::Refusal::TypeMismatch(
-                    "Board: no identity found (tried number.value, id, board)".to_string(),
-                )
-            })
+        })()
+        .ok_or_else(|| {
+            crate::kernel::Refusal::TypeMismatch(
+                "Board: no identity found (tried number.value)".to_string(),
+            )
+        })
     }
 }
 
@@ -1706,33 +1653,12 @@ impl BoardRetitleEntityArgs {
                 .render_args(),
             ));
         }
-        let required: &[&str] = &["label"];
-        let absent: Vec<&str> = required
-            .iter()
-            .copied()
-            .filter(|key| v.get(key).is_none())
-            .collect();
-        if !absent.is_empty() {
-            return Err(crate::kernel::Refusal::AbsentArgument(
-                crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
-                    command: "Retitle",
-                    absent: &absent,
-                    declared: &["label"],
-                }
-                .render_args(),
-            ));
-        }
-        let label = BoardLabel::from_json(
-            &(match v.get("label").ok_or_else(|| {
-                crate::kernel::Refusal::TypeMismatch(
-                    "BoardRetitleEntityArgs.label expects BoardLabel, got nil".to_string(),
-                )
-            })? {
-                crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()),
-                other => other.clone(),
-            })
-            .coerce_single_field("value"),
-        )?;
+        let label = match v.get("label") {
+            None => BoardLabel {
+                value: "untitled".to_string(),
+            },
+            Some(x) => BoardLabel::from_json(&x.coerce_single_field("value"))?,
+        };
         label.check_invariants()?;
         Ok(Self { label })
     }
@@ -1767,25 +1693,7 @@ impl BoardRetitleEntityArgs {
         Ok(())
     }
 
-    pub fn refuse_absent_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
-        let required: &[&str] = &["label"];
-        let absent: Vec<&str> = required
-            .iter()
-            .copied()
-            .filter(|key| v.get(key).is_none())
-            .collect();
-        if !absent.is_empty() {
-            crate::kernel::collecting::refuse_each(&absent, |names| {
-                crate::kernel::Refusal::AbsentArgument(
-                    crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
-                        command: "Retitle",
-                        absent: names,
-                        declared: &["label"],
-                    }
-                    .render_args(),
-                )
-            })?;
-        }
+    pub fn refuse_absent_arguments(_v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
         Ok(())
     }
 }

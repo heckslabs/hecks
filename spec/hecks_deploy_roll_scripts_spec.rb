@@ -38,7 +38,7 @@ RSpec.describe "the box roll's log capture and the generated Makefile", :io do
 
     def roll_once(**env)
       settled
-      command("box_roll.run", ROLL_TAGS, "skip_smoke=true", env: env)
+      command("box_roll.run!", ROLL_TAGS, "skip_smoke=true", env: env)
     end
 
     # The environment that points the captured script's paths at the scratch directory.
@@ -153,7 +153,7 @@ RSpec.describe "the box roll's log capture and the generated Makefile", :io do
     # The report of a settled roll that skips the smoke check.
     def rolled_report
       settled
-      json, = command("box_roll.run", ROLL_TAGS, "skip_smoke=true")
+      json, = command("box_roll.run!", ROLL_TAGS, "skip_smoke=true")
       state_of(json, "report").fetch("report")
     end
 
@@ -167,7 +167,7 @@ RSpec.describe "the box roll's log capture and the generated Makefile", :io do
 
     it "refuses to roll when the backups are kept fewer days than MIN_BACKUP_RETENTION_DAYS", :aggregate_failures do
       settled
-      json, = command("box_roll.run", ROLL_TAGS, "skip_smoke=true", env: { "STUB_BACKUP_DAYS" => "1" })
+      json, = command("box_roll.run!", ROLL_TAGS, "skip_smoke=true", env: { "STUB_BACKUP_DAYS" => "1" })
 
       expect(state_of(json, "status")).to eq("status" => "flagged")
       expect(refusal_of(json)).to match(/no restore anchor|43/)
@@ -176,7 +176,7 @@ RSpec.describe "the box roll's log capture and the generated Makefile", :io do
 
     it "is skipped with SKIP_RESTORE_ANCHOR=1", :aggregate_failures do
       settled
-      json, = command("box_roll.run", ROLL_TAGS, "skip_smoke=true",
+      json, = command("box_roll.run!", ROLL_TAGS, "skip_smoke=true",
                       env: { "STUB_BACKUP_DAYS" => "0", "SKIP_RESTORE_ANCHOR" => "1" })
 
       expect(state_of(json, "status")).to eq("status" => "rolled")
@@ -226,7 +226,7 @@ RSpec.describe "the box roll's log capture and the generated Makefile", :io do
       err, status = make("deploy", "TASKDEF=widget-platform:5")
 
       expect(status).to eq(0), err
-      deploy_line = %r{\Ahecks deploy box_roll.run project=.+/scripts run=deploy-\d+ taskdef=widget-platform:5}
+      deploy_line = %r{\Ahecks deploy box_roll.run! project=.+/scripts run=deploy-\d+ taskdef=widget-platform:5}
       expect(runner.calls.first).to match(deploy_line)
       expect(runner.calls.grep(/\Ahecks /).size).to eq(1)
     end
@@ -241,7 +241,7 @@ RSpec.describe "the box roll's log capture and the generated Makefile", :io do
       _out, err, status = Open3.capture3(stub_env, "make", "-C", plain_project, "deploy", "TAGS=web=1")
 
       expect(status.exitstatus).to eq(0), err
-      expect(runner.calls.first).to match(%r{\Ahecks deploy box_roll.run project=.+/plain run=deploy-\d+ tags=web=1})
+      expect(runner.calls.first).to match(%r{\Ahecks deploy box_roll.run! project=.+/plain run=deploy-\d+ tags=web=1})
     end
 
     it "deploy passes SKIP_POST_DEPLOY_SMOKE on as skip_smoke", :aggregate_failures do
@@ -264,7 +264,7 @@ RSpec.describe "the box roll's log capture and the generated Makefile", :io do
       err, status = make("deploy-service", "SERVICE=cms", "EXISTING_TAG=cms-keep")
 
       expect(status).to eq(0), err
-      expect(runner.calls.first).to match(/service_roll.run project=.+ run=deploy-\d+ service=cms existing_tag=cms-keep/)
+      expect(runner.calls.first).to match(/service_roll.run! project=.+ run=deploy-\d+ service=cms existing_tag=cms-keep/)
     end
 
     it "deploy-service runs the script itself without the database and exits non-zero", :aggregate_failures do
@@ -290,7 +290,7 @@ RSpec.describe "the box roll's log capture and the generated Makefile", :io do
     end
 
     it "names the missing script when there is none beside the Makefile", :aggregate_failures do
-      out, status = deploy_call("box_roll.run", dir)
+      out, status = deploy_call("box_roll.run!", dir)
 
       expect(status).to eq(1)
       expect(JSON.parse(out).dig("state", "refusal")).to include("no deploy-box.sh under")
@@ -298,14 +298,14 @@ RSpec.describe "the box roll's log capture and the generated Makefile", :io do
 
     it "names script= when two scripts are found", :aggregate_failures do
       two_scripts
-      out, = deploy_call("box_roll.run", dir, "skip_smoke=true")
+      out, = deploy_call("box_roll.run!", dir, "skip_smoke=true")
 
       expect(JSON.parse(out).dig("state", "refusal")).to include("2 deploy-box.sh files", "script=<path>")
     end
 
     it "runs the script that script= names", :aggregate_failures do
       two_scripts
-      out, status = deploy_call("box_roll.run", dir, "script=#{File.join(dir, "b", "deploy-box.sh")}", "skip_smoke=true")
+      out, status = deploy_call("box_roll.run!", dir, "script=#{File.join(dir, "b", "deploy-box.sh")}", "skip_smoke=true")
 
       expect(status).to eq(0)
       expect(JSON.parse(out).dig("state", "report")).to eq("b")

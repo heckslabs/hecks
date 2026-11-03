@@ -13,6 +13,8 @@ Hecks.bluebook "Bluebook" do
     attribute :ends_on,       ProcessManagerText
     # Every event that ends an instance, in declaration order; empty when only `ends_on` is declared.
     attribute :endings,       list_of(ProcessManagerText), optional: true
+    # The command that resumes each stage, one `stage=command` entry per stage; empty when none is declared.
+    attribute :resumes,       list_of(ProcessManagerText), optional: true
     attribute :states,    list_of(SagaState)
     # Handler is a nested entity (below); list_of forward-references it.
     attribute :handlers,  list_of(Handler)
@@ -76,6 +78,7 @@ Hecks.bluebook "Bluebook" do
       # A procedure need not declare an ending; ProcessManagerBuilder defaults @ends_on to nil.
       attribute :ends_on,       ProcessManagerText, optional: true
       attribute :endings,       list_of(ProcessManagerText), optional: true
+      attribute :resumes,       list_of(ProcessManagerText), optional: true
 
       attribute :position, Position, optional: true
       sets :bluebook
@@ -84,6 +87,7 @@ Hecks.bluebook "Bluebook" do
       sets :starts_on
       sets :ends_on
       sets :endings
+      sets :resumes
       sets :position
       emits SagaDeclared
     end
@@ -211,11 +215,13 @@ Hecks.bluebook "Bluebook" do
       attribute :resolves_via,  String, default: "", admits: "Syntax::ResolutionScope"
       attribute :disambiguator, String, default: "", admits: "Syntax::Disambiguator"
 
-      member word: "correlates_by",   context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: "correlates_by"
+      # correlates_by takes a dotted path or a bare aggregate name, so it routes through a hand-written impl.
+      member word: "correlates_by",   context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: "", calls: "correlates_by_impl"
       # starts_on and ends_on accept a bare constant or text; they route through hand-written impls
       # because COERCE_BY_KIND has no "constant" entry and Naming.event_ref must resolve it.
       member word: "starts_on",       context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: "", calls: "starts_on_impl"
       member word: "ends_on",         context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: "", calls: "ends_on_impl"
+      member word: "resumes",         context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: "", calls: "resumes_impl"
       member word: "transition",      context: "ProcessManager", body: "keywords", inner: "Handler", opens: "Handler", fills: "", calls: "transition_impl"
       member word: "transition",      context: "ProcessManager", body: "none",     inner: "",        opens: "",        fills: "", calls: "transition_impl"
       # Two rows per dispatch: one with a block (opening `compensates`), one without.
@@ -243,10 +249,13 @@ Hecks.bluebook "Bluebook" do
       attribute :blank_message,    String
 
       member keyword: "correlates_by",   context: "ProcessManager", at: "1", named: "",           kind: "symbol", required: "true", fills: "correlates_by"
+      # A bare aggregate name (`correlates_by Message`), which the bluebook resolves to its identity.
+      member keyword: "correlates_by",   context: "ProcessManager", at: "1", named: "",           kind: "constant", required: "true", fills: "correlates_by"
       member keyword: "starts_on",       context: "ProcessManager", at: "1", named: "",           kind: "constant", required: "true", fills: "starts_on"
       member keyword: "starts_on",       context: "ProcessManager", at: "1", named: "",           kind: "text",   required: "true", fills: "starts_on"
       member keyword: "ends_on",         context: "ProcessManager", at: "1", named: "",           kind: "constant", required: "true", fills: "ends_on"
       member keyword: "ends_on",         context: "ProcessManager", at: "1", named: "",           kind: "text",   required: "true", fills: "ends_on"
+      member keyword: "resumes",         context: "ProcessManager", at: "1", named: "",           kind: "text",   required: "true", fills: "resumes"
       member keyword: "transition",      context: "ProcessManager", at: "1", named: "",           kind: "pairs",  required: "true", fills: "", pair_key_fills: "event_type", pair_value_fills: "to_state", pairs_shape: "fields"
       member keyword: "transition",      context: "ProcessManager", at: "",  named: "from",       kind: "text",   required: "true",  fills: "from_state"
       member keyword: "transition",      context: "ProcessManager", at: "",  named: "from",       kind: "list",   required: "false", fills: "from_state"

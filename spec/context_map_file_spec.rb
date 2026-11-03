@@ -1,6 +1,6 @@
 require "spec_helper"
 require "hecks/fuzzing/isolated_boot"
-require "hecks/cli/model_check"
+require "hecks/tools/model_check"
 
 # The `.contextmap` file kind (ADR 0135): its top-level word builds a ContextMap, a boot registers
 # it, and `model_check` holds it to the wiring it covers.
@@ -57,7 +57,7 @@ RSpec.describe "a .contextmap file" do
       Hecks::Fuzzing::IsolatedBoot.call("examples/banking") { |copy| return Hecks.boot(copy).registry }
     end
 
-    let(:checker) { Object.new.extend(Hecks::CLI::ModelCheck::Examination) }
+    let(:checker) { Object.new.extend(Hecks::Tools::ModelCheck::Examination) }
 
     def findings = checker.send(:context_map_findings, [["banking", registry]], {})
 

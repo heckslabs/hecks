@@ -3,6 +3,9 @@
 require_relative "journal_store/examination"
 require_relative "journal_store/changes"
 require_relative "journal_store/readings"
+require_relative "journal_store/translation_write"
+require_relative "journal_store/reconciliation"
+require_relative "journal_store/held_mint"
 
 module Hecks
   module Adapters
@@ -19,6 +22,8 @@ module Hecks
       include Examination
       include Changes
       include Readings
+      include TranslationWrite
+      include Reconciliation
 
       # Accepts the arguments every driven adapter is built with and keeps none of them.
       #
@@ -26,6 +31,17 @@ module Hecks
       # @param settings [Hash] unused
       # @param root [String, nil] unused
       def initialize(aggregate: nil, settings: {}, root: nil); end
+
+      # Answers the held mint of the Hecks domain: see `HeldMint#answer`.
+      #
+      # @param held [Hash] the `MintHeld` record: `run`, and optionally `rehearsal_verdict`,
+      #   `watermark` and `confirm`
+      # @return [Hash{Symbol => Hash}] `run`, `outcome` and `label`
+      # @raise [Runtime::WiringError] naming why the mint was refused
+      def mint(**held)
+        HeldMint.new.answer(run: plain(held[:run]), confirm: plain(held[:confirm]),
+                            rehearsal_verdict: plain(held[:rehearsal_verdict]), watermark: plain(held[:watermark]))
+      end
 
       private
 

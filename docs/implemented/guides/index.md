@@ -22,7 +22,7 @@ you're not.
 5. **[Queries and read models](queries-and-read-models.md)** — what the
    build-time seal catches for you, and the one open question it doesn't.
 6. **[Lifecycles](lifecycles.md)** — states, transitions, and what
-   `hecks model_check` flags before you ship one wrong.
+   `hecks ModelCheckRun.model_check!` flags before you ship one wrong.
 7. **[Entities](entities.md)** — identity and behavior that lives inside
    an aggregate, never addressed alone.
 8. **[Policies and process managers](policies-and-process-managers.md)**
@@ -46,11 +46,11 @@ you're not.
     the expression grammar `given`/`ensures`/`invariant` compile down
     to.
 15. **[Behaviors](behaviors.md)** — hand-curated examples of how a domain
-    is used, in its own vocabulary, run as tests: `hecks operation.run_behaviors`, the
+    is used, in its own vocabulary, run as tests: `hecks operation.run_behaviors!`, the
     rspec shim, and what `emits:` sees through a real policy cascade.
 16. **[Language versioning](language-versioning.md)** — how the bluebook
     surface itself carries `proposed`/`admitted`/`deprecated`/`retired`,
-    and what `hecks language_run.rename` does with a rename.
+    and what `hecks language_run.rename!` does with a rename.
 17. **[Projections: Rust and WebAssembly](projections.md)** — the
     bluebook as the one definition, projected to generated Rust and WASM,
     and how that output is held equal to Ruby's.
@@ -68,6 +68,10 @@ you're not.
   and `rust/` directory layout, and the dependency direction the split
   follows.
 - **[The commands](../../tools.md)** — every `hecks <verb>`, with the `bin/` script it replaces.
+- **[What a hecks release promises](../../compatibility.md)** — what counts as a
+  break on the command line, how long an old name lives, and how a removal is
+  announced; **[what makes the command line better](../../cli-measures.md)** —
+  the measures each step of its plan is judged by.
 - **[Running a rules service](../../running-a-rules-service.md)** — from a
   bluebook to a deployed API, with the auth caveats.
 - **Resolution rules** — the exact algorithm behind every piece of DSL
@@ -86,3 +90,8 @@ you're not.
   — the full aspirational architecture in one document. Treat this as a
   roadmap, not a status report; [Project status](project-status.md) is
   the status report.
+
+## The command line
+
+The command line is documented by task, one page per module, starting at
+[the overview](cli/README.md).

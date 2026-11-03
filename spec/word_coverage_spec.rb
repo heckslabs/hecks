@@ -9,6 +9,8 @@ RSpec.describe "every live DSL word, used somewhere real" do
   # `.bluebook` file could). Uses `InMemoryDomain::ROOT` directly, not
   # aliased to a local `ROOT` — a bare one collides with
   # another spec's own (see load_hygiene_spec.rb).
+  MEMBER_DIRS = %w[bulk ci_pipeline coder composer deploy fixer quality_control rails_app site tenancy tickets].freeze
+
   CORPUS_GLOBS = [
     File.join(InMemoryDomain::ROOT, "examples", "*", "**", "*.bluebook"),
     File.join(InMemoryDomain::ROOT, "examples", "*", "**", "*.hecksagon"),
@@ -19,6 +21,11 @@ RSpec.describe "every live DSL word, used somewhere real" do
     File.join(InMemoryDomain::ROOT, "lib/hecks/framework/bluebook", "*.hecksagon"),
     # The Hecks domain (ADR 0080): the first real users of `namespace` and `attaches`.
     File.join(InMemoryDomain::ROOT, "lib/hecks/hecks", "*.bluebook"),
+    # The Hecks domain's own bounded contexts, one folder each (Deliver, Migrate, Test, ...).
+    File.join(InMemoryDomain::ROOT, "lib/hecks/hecks", "*", "*.bluebook"),
+    # The framework members that ship beside the Hecks domain (Tickets, Coder, QualityControl, ...).
+    # `lib/hecks/language` is the language describing itself and stays out, as below.
+    File.join(InMemoryDomain::ROOT, "lib/hecks", "{#{MEMBER_DIRS.join(",")}}", "**", "*.bluebook"),
     File.join(InMemoryDomain::ROOT, "lib/hecks/hecks", "*.hecksagon"),
     File.join(InMemoryDomain::ROOT, "lib/hecks/hecks", "**", "*.world"),
     # Stress domains: real domains the QA rotation sweeps, not invented
@@ -74,13 +81,12 @@ RSpec.describe "every live DSL word, used somewhere real" do
     line[0...index].count('"').odd?
   end
 
-  # Shared reasoning for 6 of the remaining Translation-family entries below.
+  # Shared reasoning for the remaining Translation-family entries below.
   TRANSLATION_RULE_GAP =
     "no real translation edge in this corpus exercises this rule kind — " \
     "examples/pizzas/bluebook/translations/2-77625c.bluebook and " \
-    "examples/directory/bluebook/translations/2-632545.bluebook (the two real " \
-    "translations this repository has) only exercise `aggregate ... was:`, " \
-    "`move ... to:`, `derive ... as:`, `rekey_to`, and `drop`. `corpus_uses?`'s " \
+    "examples/directory/bluebook/translations/2-632545.bluebook (the real translations this repository has) only " \
+    "exercise `aggregate ... was:`, `move ... to:`, `derive ... as:`, `rekey_to` and `drop`. `corpus_uses?`'s " \
     "naive whole-token scan reports a false positive for this word regardless " \
     "(see the comment on the first entry in this group), so this exemption " \
     "also stands in for that scanner gap.".freeze
@@ -117,6 +123,15 @@ RSpec.describe "every live DSL word, used somewhere real" do
                                            "corpus use under a different spelling would mean inventing a second inbound " \
                                            "integration this codebase does not otherwise need, for a word that changes " \
                                            "nothing about what the runtime does once declared.",
+    "formerly_known_as (Aggregate)"     =>
+                                           "deprecated for `stored_as` in the world (the physical name of a stored thing is " \
+                                           "a storage fact), kept as a fallback for one major release, and the repository's " \
+                                           "own aggregates have moved to the world, so no real declaration remains. " \
+                                           "spec/dsl_spec.rb and spec/runtime/registry/world_names_spec.rb run it.",
+    "formerly_known_as (Bluebook)"      =>
+                                           "deprecated for `formerly` in the world's PostgresEra block, kept as a fallback " \
+                                           "for one major release; no bluebook in this repository renames its domain. " \
+                                           "spec/dsl_spec.rb and spec/runtime/registry/world_names_spec.rb run it.",
     "attaches_to (Bluebook)"            =>
                                            "genuinely, load-bearingly used for real — lib/hecks/language/bluebook/" \
                                            "attaches/paging.bluebook declares `attaches_to \"Query\", \"ReadModel\"`, read " \
@@ -127,14 +142,6 @@ RSpec.describe "every live DSL word, used somewhere real" do
                                            "itself). A sub-language bluebook is caught by the same exclusion its own words " \
                                            "are, even though — unlike formerly_known_as below — it is not a synthetic gap; " \
                                            "it is a real declaration the scanner is not pointed at.",
-    "formerly_known_as (Bluebook)"      =>
-                                           "no bluebook in THIS repository's own corpus renames itself — real, external " \
-                                           "use is what this word is for: a downstream client project's bluebook (a separate " \
-                                           "repository, outside this one) declares `formerly_known_as` with its previous " \
-                                           "domain name for real, bridging real production journal/era/approval rows the " \
-                                           "day it deployed under the new name. Written up in " \
-                                           "docs/implemented/reference/bluebook.md's own section, describing " \
-                                           "the external consumer, per principle 4's own wording.",
     "bounded (Hecksagon)"               =>
                                            "a consumer-owned mark; framework and vendored packages get it automatically " \
                                            "from attaches and never write the word. No " \
@@ -171,10 +178,30 @@ RSpec.describe "every live DSL word, used somewhere real" do
     # exercise aggregate/move/derive/rekey_to/drop, which is why those need
     # no exemption while the remaining rule kinds still lack a real edge.
     "retired (Translation)"             => TRANSLATION_RULE_GAP,
-    "rename (TranslationAggregate)"     => TRANSLATION_RULE_GAP,
     "convert (TranslationAggregate)"    => TRANSLATION_RULE_GAP,
+    "rename (TranslationAggregate)"     => TRANSLATION_RULE_GAP,
     "retype (TranslationAggregate)"     => TRANSLATION_RULE_GAP,
+    "split (TranslationAggregate)"      =>
+                                           "no real translation edge splits one aggregate into another; the one that " \
+                                           "does is the invented fixture on docs/implemented/reference/" \
+                                           "translation_aggregate.md, and a real split would be a claim about a real " \
+                                           "aggregate's data this corpus does not make.",
+    "handles (PortOperation)"           =>
+                                           "binds one operation to one value of a command, so one command can be answered " \
+                                           "by several operations. No port in this corpus answers a single command by value; " \
+                                           "a real declaration would invent a second operation for a command that needs " \
+                                           "none. The word is exercised by docs/implemented/reference/port_operation.md.",
     "backfill (TranslationAggregate)"   => TRANSLATION_RULE_GAP,
+    # ADR 0171's addendum: an adapter saying `stays_inside` opts its whole project into the
+    # behaviors adapter selection, and this repository's own suites boot through more than a
+    # hundred adapters no one has judged yet, so none of lib/hecks/adapters/driven may say it
+    # until that migration is made. The word's corpus use is Miette's adapters, under ADR 0025
+    # item 4's exemption for a named external consumer; spec/fixtures/sequential_identity.adapter
+    # and the reference page's `reference_counter` exercise it here.
+    "stays_inside (Adapter)"            =>
+                                           "a driven adapter saying it opts this repository's behaviors suites into " \
+                                           "ADR 0171's selection before their adapters are judged; the real use is " \
+                                           "Miette's adapters, a named external consumer (ADR 0025 item 4).",
     "unresolved (TranslationAggregate)" =>
                                            "same finding as the rest of this group, plus a second, independent reason: " \
                                            "`unresolved` is a deliberate failure marker (TranslationAggregateBuilder#" \

@@ -28,7 +28,7 @@ require_relative "qa_sweep/conclusion"
 
 module Hecks
   module QualityControlCli
-    # The command behind `hecks quality_control query sweep.run`: runs one claim, sweep, conclude
+    # The command behind `hecks quality_control sweep.run`: runs one claim, sweep, conclude
     # and release cycle against a `QualityControl` target (`USAGE` lists the forms, from a bare
     # sweep of the least recently swept target to `--all` and `--release`). It stops with a report
     # and exit 2 on the first surprised check, and never logs a `Bug` itself.

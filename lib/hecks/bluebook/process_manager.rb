@@ -55,15 +55,17 @@ module Hecks
         starts_on:     :starts_on,
         ends_on:       :ends_on,
         endings:       :endings,
+        resumes:       :resumes,
         states:        :states,
         handlers:      many(:handlers)
       )
 
-      attr_reader :name, :correlates_by, :starts_on, :ends_on, :endings, :states, :handlers
+      attr_reader :name, :correlates_by, :starts_on, :ends_on, :endings, :resumes, :states, :handlers
 
       # Every optional keyword and what it holds when the declaration omits it.
       FIELD_DEFAULTS = {
-        correlates_by: nil, starts_on: nil, ends_on: nil, endings: [], states: [], handlers: []
+        correlates_by: nil, starts_on: nil, ends_on: nil, endings: [], resumes: [],
+        states: [], handlers: []
       }.freeze
 
       # @param correlates_by [Symbol, nil] the payload field that correlates a triggering
@@ -82,6 +84,12 @@ module Hecks
       #
       # @return [Array<String>] the ending events, never empty when `ends_on` is set
       def ending_events = endings.empty? ? [ends_on].compact : endings
+
+      # Replaces a bare aggregate name with the dotted path the bluebook resolved it to.
+      #
+      # @param key [String] the `"<Aggregate>.<identity>"` path
+      # @return [String] the path now held
+      def correlate_by!(key) = @correlates_by = key
     end
   end
 end

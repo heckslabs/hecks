@@ -1,0 +1,7 @@
+# Binds the `Wiring` port to `PipelineWiring`, which answers `Wiring` from the booted registry.
+# Required by name, not relative, so a copy of this directory shares the one implementation loaded.
+require "hecks/pipeline_board/adapters/pipeline_wiring"
+
+Hecks.adapter "PipelineWiring" do
+  port "Wiring"
+end

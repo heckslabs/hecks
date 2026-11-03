@@ -1,13 +1,13 @@
 require "open3"
 require "rbconfig"
 
-# `hecks publish` is `Hecks::CLI::Release` over Hecks::Release::Runner (spec/release/
+# `hecks publish` is `Hecks::Tools::Release` over Hecks::Release::Runner (spec/release/
 # runner_spec.rb covers the release itself), so this runs the library entry point as a real
 # subprocess only for the flag handling, which starts no git, gem or npm.
-RSpec.describe "Hecks::CLI::Release flags" do
+RSpec.describe "Hecks::Tools::Release flags" do
   # The child's whole program: the library entry point, given the checkout root.
-  RELEASE_CHILD = '$LOAD_PATH.unshift("lib"); require "hecks/cli/release"; ' \
-                  "exit(Hecks::CLI::Release.call(ARGV, root: Dir.pwd))".freeze
+  RELEASE_CHILD = '$LOAD_PATH.unshift("lib"); require "hecks/tools/release"; ' \
+                  "exit(Hecks::Tools::Release.call(ARGV, root: Dir.pwd))".freeze
 
   def run_release(*args)
     Open3.capture3(RbConfig.ruby, "-e", RELEASE_CHILD, "--", *args, chdir: InMemoryDomain::ROOT)

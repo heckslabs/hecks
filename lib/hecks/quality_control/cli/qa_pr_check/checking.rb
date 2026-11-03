@@ -99,12 +99,11 @@ module Hecks
           "checks still running" if checks.any? { |c| c[:bucket] == "pending" }
         end
 
-        # Starts a Clearance and asks the CI port for a verdict. ClearOnPass/RefuseOnFail settle
+        # Checks a commit: the CI port gives a verdict. ClearOnPass/RefuseOnFail settle
         # the record synchronously, so `find` sees it straight away; a red one is appended to
         # `@newly_red`.
         def ask_the_ledger(pull)
-          ::QualityControl::Clearance.start!(commit: { value: pull.sha })
-          @runtime.dispatch_flat("QualityControl::Clearance.CI.Run", { commit: pull.sha })
+          ::QualityControl::Clearance.check!(commit: { value: pull.sha })
           cleared = ::QualityControl::Clearance.find(pull.sha)
           summary = cleared.summary.to_h[:value]
           return puts("#{pull.tag}: CLEARED — #{summary}") if cleared.status == "green"

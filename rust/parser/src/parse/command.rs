@@ -270,6 +270,20 @@ pub fn parse_body(
                 super::needs::declare(file, line, &command.name, &gated.args, &mut command.needs)?;
             }
             "idempotent" => command.idempotent = true,
+            "mints_era" => {
+                command.mints_era =
+                    super::positional_literal_text(file, line, "mints_era", &gated.args, 1)?
+                        == "true";
+            }
+            "audience" => {
+                super::audience::declare(
+                    file,
+                    line,
+                    &command.name,
+                    &gated.args,
+                    &mut command.audience,
+                )?;
+            }
             "provenance" => {
                 let raw = super::named_raw(&gated.args, "from")
                     .ok_or_else(|| Diagnostic::new(file, line, "'provenance' requires a from:"))?;

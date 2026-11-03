@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "console_capture"
-require "hecks/cli/console"
+require "hecks/tools/console"
 
 module Hecks
   module Adapters
@@ -17,7 +17,7 @@ module Hecks
         attr_accessor :launcher
 
         # @return [#call, nil] serves MCP over stdio, given the arguments after the command;
-        #   `Hecks::CLI::Mcp.call` when nil
+        #   `Hecks::Tools::Mcp.call` when nil
         attr_accessor :server
       end
 
@@ -38,7 +38,7 @@ module Hecks
         subject = held[:subject]
         domain  = subject.is_a?(Hash) ? subject[:value] : subject
         launcher = self.class.launcher
-        launcher ? CLI::Console.call(domain, launcher: launcher) : CLI::Console.call(domain)
+        launcher ? Tools::Console.call(domain, launcher: launcher) : Tools::Console.call(domain)
 
         { output: { value: "console session ended (#{domain || "pizzas"})" } }
       end
@@ -49,13 +49,15 @@ module Hecks
       # only once the client is gone.
       #
       # @param held [Hash] the `Launch` record: `stdio` (whether `--stdio` was given)
-      # @return [Hash{Symbol => Hash}] `output:` a one-line note that the server closed
+      # @return [Hash{Symbol => Hash}] `report:` a one-line note that the server closed, which the
+      #   run records as its outcome; `output:` carries the same note for the launcher's answer
       # @raise [ConsoleCapture::Failure] when the process is not set up for stdio: the server
       #   refused to start, and said why on stderr
       def serve(**held)
         run_server(plain(held[:stdio]) ? ["--stdio"] : [])
 
-        { output: { value: "mcp server closed" } }
+        note = { value: "mcp server closed" }
+        { report: note, output: note }
       rescue SystemExit => e
         raise ConsoleCapture::Failure, "the mcp server refused to start (status #{e.status}); see stderr"
       end
@@ -68,9 +70,9 @@ module Hecks
       # @return [Hash{Symbol => Hash}] `output:` what the interview wrote, or that it wrote nothing
       # @raise [ConsoleCapture::Failure] when the name or adapter is refused, or a file is there
       def converse(**held)
-        require "hecks/cli/interview_run"
-        report = CLI::InterviewRun.call(name: plain(held[:name]), adapter: plain(held[:adapter]), dir: plain(held[:dir]),
-                                        expert: plain(held[:expert]), use_ai: !plain(held[:no_ai]))
+        require "hecks/tools/interview_run"
+        report = Tools::InterviewRun.call(name: plain(held[:name]), adapter: plain(held[:adapter]), dir: plain(held[:dir]),
+                                          expert: plain(held[:expert]), use_ai: !plain(held[:no_ai]))
         { output: { value: report.empty? ? "no interview was written" : report } }
       rescue ArgumentError => e
         raise ConsoleCapture::Failure, e.message
@@ -84,8 +86,8 @@ module Hecks
         if server
           server.call(argv)
         else
-          require "hecks/cli/mcp"
-          CLI::Mcp.call(argv)
+          require "hecks/tools/mcp"
+          Tools::Mcp.call(argv)
         end
       end
 

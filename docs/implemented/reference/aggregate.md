@@ -5,7 +5,7 @@ Words available inside `aggregate do ... end`.
 
 *The tables on this page are generated from the language's own
 aggregate-local syntax tables (`lib/hecks/language/**/*.bluebook`)
-by `hecks language_run.project_reference` — do not edit inside the markers. The prose
+by `hecks language_run.project_reference!` — do not edit inside the markers. The prose
 between them is hand-written and survives regeneration.*
 <!-- generated:end -->
 
@@ -32,6 +32,9 @@ Hecks.bluebook "AggregateReference" do
   vision "A film financed by one studio, and possibly distributed by another — as: is what tells the two references apart."
 
   aggregate "Studio" do
+    formerly_known_as "Producer"
+    created_by "Studio.found!"
+
     attribute :name, Name
 
     identified_by :name
@@ -156,6 +159,49 @@ Raw and unread — nothing coerces the Hash, so nothing refuses it either:
 
 ```ruby
 Banking::Account.ir.provenance[:source_id]  # => "aggregate:account"
+```
+
+## formerly_known_as
+
+<!-- generated:begin word=formerly_known_as -->
+`formerly_known_as formerly_known_as` — fills `formerly_known_as`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | text | true | formerly_known_as |
+<!-- generated:end -->
+
+The aggregate's previous name, kept when it is renamed. It is a marker for the parser and for
+lookups of the old name, which still find the aggregate; it changes no behaviour of its own. Say
+it once, on the renamed aggregate, and drop it when nothing refers to the old name any more.
+
+It is deprecated: the physical name rows are stored under is a storage fact, so it belongs to the
+world as `stored_as Studio: "producer"` (see the World reference). The word still works as a fallback,
+warns once per boot naming that line, and `exe/hecks codemod_run.move_former_name!` moves it.
+
+`Studio` was once called `Producer`:
+
+```ruby
+AggregateReference::Studio.ir.formerly_known_as.value  # => "Producer"
+```
+
+## created_by
+
+<!-- generated:begin word=created_by -->
+`created_by created_by` — fills `created_by`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | text | true | created_by |
+<!-- generated:end -->
+
+Names the command that creates this aggregate's records, as `Aggregate.verb!`. Nothing runs it.
+The refusal wording reads it: a command aimed at a record that does not exist answers with
+"run <creator> first", so the person is told where records come from. Say it on any aggregate
+whose records are not made by its first-listed command.
+
+```ruby
+AggregateReference::Studio.ir.created_by.value  # => "Studio.found!"
 ```
 
 ## identified_by

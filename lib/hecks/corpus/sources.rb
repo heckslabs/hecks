@@ -1,3 +1,4 @@
+require_relative "../module_folders"
 module Hecks
   module Corpus
     # How a domain's hecksagon names a bluebook the gem carries and loads by name, as the QA
@@ -15,7 +16,7 @@ module Hecks
       # @return [Array<String>, nil] `.bluebook` file paths found, or nil when none
       def bluebook_files(domain_path)
         [File.join(domain_path, "bluebook"), domain_path].each do |dir|
-          files = Dir[File.join(dir, "*.bluebook")]
+          files = ModuleFolders.all(dir)
           return files unless files.empty?
         end
         attached_bluebook_files(domain_path)

@@ -84,6 +84,78 @@ pub fn scalar_json_accessor(scalar_type: &str) -> &'static str {
     }
 }
 
+/// The refusal for a reference argument offered as anything but an id string, worded as Ruby's
+/// `Value.refuse_object_reference` (`reference_wrong_shape`): an object is "an object", any other
+/// value is described as it arrived. `known_by` is the target's `" (X is known by heads)"` tail.
+/// `" (Target is known by heads)"` for a single reference attribute whose target aggregate is
+/// known, `""` for one whose target lives in another domain (Ruby words that refusal too, with
+/// no tail), or `None` when `attr` is no reference or no aggregates were given.
+fn reference_known_by(
+    attr: &Json,
+    aggregates_by_name: Option<&HashMap<String, &Json>>,
+) -> Option<String> {
+    let target_name = naming::reference_target(crate::attr::type_name(attr))?;
+    let Some(target) = aggregates_by_name?.get(target_name) else {
+        return Some(String::new());
+    };
+    let mut heads: Vec<String> = Vec::new();
+    for path in target.get("identified_by").map_or_default(Json::each) {
+        let head = path.to_s().split('.').next().unwrap_or("").to_string();
+        if !heads.contains(&head) {
+            heads.push(head);
+        }
+    }
+    let known = if heads.is_empty() {
+        String::new()
+    } else {
+        format!(" ({target_name} is known by {})", heads.join(", "))
+    };
+    Some(known)
+}
+
+pub fn reference_shape_error(command: &str, key: &str, known_by: &str, value_var: &str) -> String {
+    format!(
+        "crate::kernel::Refusal::TypeMismatch(crate::kernel::refusal_wording::TypeMismatchReferenceWrongShapeArgs {{ command: {}, attribute: {}, offered: &(if matches!({value_var}, crate::kernel::Json::Object(_)) {{ \"an object\".to_string() }} else {{ {value_var}.describe() }}), known_by: {} }}.render_args())",
+        naming::ruby_inspect_string(command),
+        naming::ruby_inspect_string(key),
+        naming::ruby_inspect_string(known_by),
+    )
+}
+
+/// A required reference argument read as its id string; see `reference_shape_error`.
+pub fn reference_from_json_expr(
+    command: &str,
+    key: &str,
+    known_by: &str,
+    default: Option<&Json>,
+) -> String {
+    let error = reference_shape_error(command, key, known_by, "x");
+    if let Some(default) = default {
+        let default_rhs = naming::literal_rhs(default);
+        return format!(
+            "match v.get({}) {{ Some(x) => x.as_str().map(ToString::to_string).ok_or_else(|| {error})?, None => {default_rhs} }}",
+            naming::ruby_inspect_string(key),
+        );
+    }
+    format!(
+        "{{ let x = {}; x.as_str().map(ToString::to_string).ok_or_else(|| {error})? }}",
+        required_field_expr(command, key, "String"),
+    )
+}
+
+/// An already-fetched optional reference argument read as its id string.
+pub fn reference_from_json_value_expr(
+    command: &str,
+    key: &str,
+    known_by: &str,
+    value_expr: &str,
+) -> String {
+    format!(
+        "{value_expr}.as_str().map(ToString::to_string).ok_or_else(|| {})?",
+        reference_shape_error(command, key, known_by, value_expr)
+    )
+}
+
 pub fn scalar_from_json_expr(
     struct_name: &str,
     key: &str,
@@ -302,7 +374,8 @@ pub fn command_argument_allowlist(
 }
 
 /// `ArgumentGate#refuse_absent_arguments`, generated: every declared non-optional name the JSON
-/// omits, sorted, refuses as `AbsentArgument` before any field is built.
+/// omits, sorted, refuses as `AbsentArgument` before any field is built. An argument with a
+/// `default:` is not required: Ruby fills the default for an omitted one (`fill_defaults`).
 ///
 /// Goes through the site's `<Variant>Args` struct, so leaving an argument out does not compile.
 ///
@@ -312,7 +385,7 @@ pub fn command_argument_allowlist(
 fn emit_absent_argument_check(command_name: &str, attributes: &[Json], collect: bool) -> String {
     let mut required: Vec<String> = attributes
         .iter()
-        .filter(|a| !crate::attr::optional(a))
+        .filter(|a| !crate::attr::optional(a) && crate::attr::default(a).is_none())
         .map(|a| naming::rust_field(crate::attr::name(a)))
         .collect();
     required.sort();
@@ -492,7 +565,14 @@ pub fn emit_from_json_flat(
             let list = crate::attr::list(attr);
             let optional = crate::attr::optional(attr);
 
-            let rhs = if list && optional {
+            let known_by = reference_known_by(attr, aggregates_by_name);
+            let rhs = if let (false, Some(known_by)) = (list, known_by.as_deref()) {
+                if optional {
+                    format!("match v.get({}) {{ Some(crate::kernel::Json::Null) | None => None, Some(x) => Some({}) }}", naming::ruby_inspect_string(&key), reference_from_json_value_expr(command_name, &key, known_by, "x"))
+                } else {
+                    reference_from_json_expr(command_name, &key, known_by, crate::attr::default(attr))
+                }
+            } else if list && optional {
                 let mapper = list_element_from_json_mapper(error_name, &key, attr, value_objects_by_name);
                 let array_error = json_type_error(error_name, &key, "an array");
                 format!(
@@ -515,6 +595,11 @@ pub fn emit_from_json_flat(
                 format!("match v.get({}) {{ Some(crate::kernel::Json::Null) | None => None, Some(x) => Some({}) }}", naming::ruby_inspect_string(&key), composite_from_json_expr(attr, value_objects_by_name, "x"))
             } else if let Some(scalar) = scalar {
                 scalar_from_json_expr(scalar_error_name, &key, scalar, crate::attr::default(attr))
+            } else if let Some(default_rhs) = crate::attr::default(attr).and_then(|_| crate::bridging::creation_default_rhs(attr, value_objects_by_name)) {
+                // A composite argument the caller leaves out takes its declared default, as Ruby's
+                // `fill_defaults` gives it. A null the caller sends is a value, not an omission:
+                // it builds the composite from its own fields, as a required composite does.
+                format!("match v.get({}) {{ None => {default_rhs}, Some(x) => {} }}", naming::ruby_inspect_string(&key), composite_from_json_expr(attr, value_objects_by_name, "x"))
             } else if absent_argument_check {
                 // The argument entry point only; see `required_composite_argument_expr`.
                 required_composite_argument_expr(error_name, &key, attr, value_objects_by_name)
@@ -1052,17 +1137,19 @@ pub fn extract_id_supported(aggregate: &Json) -> bool {
 }
 
 pub fn emit_extract_id(exemplar: &Exemplar, aggregate: &Json) -> String {
-    emit_extract_id_shaped(exemplar, aggregate, "extract_id", "to_id_component")
+    emit_extract_id_shaped(exemplar, aggregate, "extract_id", "to_id_component", true)
 }
 
 /// `extract_id` minted as `extract_id_lenient` on `to_id_component_lenient`; entity addressing
-/// only, never a root aggregate's hydrate.
+/// only, never a root aggregate's hydrate. It reads the entity's declared identity alone, as
+/// Ruby's `EntityElement` does: no `id` or reference-key fallback.
 pub fn emit_extract_id_lenient(exemplar: &Exemplar, entity: &Json) -> String {
     emit_extract_id_shaped(
         exemplar,
         entity,
         "extract_id_lenient",
         "to_id_component_lenient",
+        false,
     )
 }
 
@@ -1071,6 +1158,7 @@ fn emit_extract_id_shaped(
     aggregate: &Json,
     method_name: &str,
     coercion: &str,
+    routing_fallbacks: bool,
 ) -> String {
     let name = naming::rust_ident(aggregate.get("name").and_then(Json::as_str).unwrap_or(""));
     let identified_by: Vec<String> = aggregate
@@ -1109,27 +1197,43 @@ fn emit_extract_id_shaped(
     };
 
     let mut tried = identified_by.clone();
-    tried.push("id".to_string());
-    tried.push(reference_key.clone());
+    if routing_fallbacks {
+        tried.push("id".to_string());
+        tried.push(reference_key.clone());
+    }
     let tried = tried.join(", ");
+    let template = if routing_fallbacks {
+        "extract_id"
+    } else {
+        "extract_id_exact"
+    };
 
+    // The exact shape has no reference-key slot, and its type is its own struct.
+    let type_marker = if routing_fallbacks {
+        "TmplExtractIdType"
+    } else {
+        "TmplExtractExactType"
+    };
+    let mut subs: Vec<(&str, String)> = vec![
+        (type_marker, name.clone()),
+        ("tmpl_extract_id_name", method_name.to_string()),
+    ];
+    if routing_fallbacks {
+        subs.push(("tmpl_id_coercion", coercion.to_string()));
+        subs.push((
+            "\"tmpl_reference_key\"",
+            naming::ruby_inspect_string(&reference_key),
+        ));
+    }
+    subs.push(("tmpl_tier1_join_placeholder()", tier1_join));
+    subs.push((
+        "\"tmpl_error_text\"",
+        naming::ruby_inspect_string(&format!("{name}: no identity found (tried {tried})")),
+    ));
     exemplar.compose(
-        "extract_id",
-        &[
-            ("TmplExtractIdType", name.clone()),
-            ("tmpl_extract_id_name", method_name.to_string()),
-            ("tmpl_id_coercion", coercion.to_string()),
-            (
-                "\"tmpl_reference_key\"",
-                naming::ruby_inspect_string(&reference_key),
-            ),
-            ("tmpl_tier1_join_placeholder()", tier1_join),
-            (
-                "\"tmpl_error_text\"",
-                naming::ruby_inspect_string(&format!("{name}: no identity found (tried {tried})")),
-            ),
-        ],
-        "extract_id:TIER1_LINE",
+        template,
+        &subs,
+        &format!("{template}:TIER1_LINE"),
         &tier1_subs,
         "\n",
     )
@@ -1210,4 +1314,59 @@ pub fn emit_self_identity(exemplar: &Exemplar, entity: &Json) -> String {
             ("tmpl_identity_body_placeholder()", body),
         ],
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn argument(name: &str, default: Json) -> Json {
+        Json::Object(vec![
+            ("name".to_string(), Json::String(name.to_string())),
+            ("type".to_string(), Json::String("Integer".to_string())),
+            ("optional".to_string(), Json::Bool(false)),
+            ("default".to_string(), default),
+        ])
+    }
+
+    #[test]
+    fn absent_gate_requires_each_argument_without_a_default_and_no_defaulted_one() {
+        let attributes = vec![
+            argument("key", Json::Null),
+            argument("grace", Json::Number("0".to_string())),
+        ];
+        let gate = emit_absent_argument_check("Reap", &attributes, false);
+        assert!(
+            gate.contains("let required: &[&str] = &[\"key\"];"),
+            "{gate}"
+        );
+    }
+
+    #[test]
+    fn a_reference_to_another_domain_is_worded_as_a_reference_with_no_tail() {
+        let attr = Json::Object(vec![
+            ("name".to_string(), Json::String("parcel".to_string())),
+            (
+                "type".to_string(),
+                Json::String("Reference<Parcel>".to_string()),
+            ),
+        ]);
+        let in_this_domain = HashMap::new();
+        assert_eq!(
+            reference_known_by(&attr, Some(&in_this_domain)),
+            Some(String::new())
+        );
+        assert_eq!(reference_known_by(&attr, None), None);
+    }
+
+    #[test]
+    fn a_reference_argument_refuses_in_the_reference_wrong_shape_wording() {
+        let error = reference_shape_error("Open", "parcel", " (Parcel is known by code)", "x");
+        assert!(
+            error.contains("TypeMismatchReferenceWrongShapeArgs"),
+            "{error}"
+        );
+        assert!(error.contains("\"an object\""), "{error}");
+        assert!(error.contains("\" (Parcel is known by code)\""), "{error}");
+    }
 }

@@ -4,7 +4,7 @@ require "rack/mock"
 require "hecks/hecks/adapters/codebase/previewing"
 require "hecks/hecks/adapters/codebase/tree"
 
-# `corpus_run.preview`: serves one directory of static files on the loopback address only.
+# `server.preview`: serves one directory of static files on the loopback address only.
 RSpec.describe Hecks::Adapters::Codebase::Previewing do
   let(:tree) { Hecks::Adapters::Codebase::Tree.new }
   let(:site) { Dir.mktmpdir("preview_site") }

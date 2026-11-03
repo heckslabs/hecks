@@ -59,7 +59,7 @@ module Hecks
         # @param program [String] how the caller was invoked
         # @return [Hash{Symbol => Object}] the options `Projector::CliProjector` reads
         def projection(settings, program)
-          { program: program, names: settings && settings[:names], mint_run_keys: settings && settings[:run_keys] }
+          { program:, opted: !settings.nil?, **settings.to_h.slice(:names, :renamed), mint_run_keys: settings&.dig(:run_keys) }
         end
 
         # Whether the person is working on a hecks checkout: `dir` or a directory above it holds
@@ -79,17 +79,19 @@ module Hecks
 
         # The help options one audience gets: the aggregates left out of the lists (`maintainer`,
         # shown only in a hecks checkout or to `--maintainer`) and the bluebooks pointed at
-        # (`bluebooks`, plus `maintainer_bluebooks` in a checkout). A bluebook that did not opt in
-        # gets neither.
+        # (`bluebooks`, plus `maintainer_bluebooks` in a checkout), and the commands listed first
+        # (`everyday`). A bluebook that did not opt in gets none of them.
         #
         # @param settings [Hash, nil] the bluebook's `launcher` setting
         # @param maintainer [Boolean] whether the help is for someone working on a hecks checkout
-        # @return [Hash{Symbol => Object}] `:hide` and `:bluebooks`, to merge into the projection
+        # @return [Hash{Symbol => Object}] `:hide`, `:bluebooks` and `:everyday` (empty when the
+        #   setting names none), to merge into the projection
         def audience(settings, maintainer)
           return {} unless settings
 
           named = Array(settings[:bluebooks]) + (maintainer ? Array(settings[:maintainer_bluebooks]) : [])
-          { hide: maintainer ? [] : Array(settings[:maintainer]).map(&:to_s), declarations: named.map(&:to_s) }
+          { hide: maintainer ? [] : Array(settings[:maintainer]).map(&:to_s), declarations: named.map(&:to_s),
+            everyday: Array(settings[:everyday]).map(&:to_s) }
         end
 
         # Runs the block with standard error held back, so the wiring notes hecks prints about its

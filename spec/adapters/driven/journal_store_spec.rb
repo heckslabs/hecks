@@ -8,11 +8,15 @@ require_relative "../../support/postgres_probe"
 require_relative "../../support/fenced_owner"
 require_relative "../../support/era_registry_loading"
 require_relative "../../../lib/hecks/hecks/adapters/journal_store"
+require_relative "../../support/mint_request_support"
+require_relative "../../support/first_era_hold"
 
 # The JournalStore port's adapter against a real Postgres: the facts an examination reports, the
 # changes an admitted request makes, and the reads that never write. Needs a reachable Postgres.
 RSpec.describe Hecks::Adapters::JournalStore, :io do
+  include MintRequestSupport
   include EraRegistryLoading
+  include FirstEraHold
 
   JS_DB = "hecks_journal_store_spec".freeze
 
@@ -150,7 +154,8 @@ RSpec.describe Hecks::Adapters::JournalStore, :io do
 
   def check_lineage!(registry, bluebook, text, **extra)
     Hecks::Adapters::PostgresEra::LineageManager.check!(
-      registry: registry, bluebook: bluebook, current_text: text, settings: { database: url, mint_eras: true }, **extra
+      registry: registry, bluebook: bluebook, current_text: text,
+      settings: with_mint_request({ database: url, mint_eras: true }, domain: bluebook.name), **extra
     )
   end
 
@@ -164,8 +169,9 @@ RSpec.describe Hecks::Adapters::JournalStore, :io do
     adapter.save(Hecks::Runtime::Instance.new(aggregate: aggregate, id: "a1", state: v1_record_state))
   end
 
-  # Holds era 1 from `JS_V1`, as a first boot of the old checkout does, and saves one record.
+  # Holds era 1 from `JS_V1` through the mint entry point's hold, boots it, and saves one record.
   def hold_v1_with_a_record
+    hold_first_era!(url: url, domain: "Ledger", source: JS_V1)
     registry = load_registry(JS_V1)
     bluebook = registry.bluebooks.values.first
     check_lineage!(registry, bluebook, JS_V1)
@@ -213,7 +219,7 @@ RSpec.describe Hecks::Adapters::JournalStore, :io do
 
     it "answers that no era is held and changes nothing, however often it is asked", :aggregate_failures do
       expect(store.scaffold_translation(domain: { value: @domain }).fetch(:text)).to include("holds no era yet")
-      expect(store.audit_translation(domain: { value: @domain }).fetch(:text)).to include("hecks hold_first")
+      expect(store.audit_translation(domain: { value: @domain }).fetch(:text)).to include("era.hold_first!")
       expect(sql("SELECT to_regclass('hecks_eras') AS present").first["present"]).to be_nil
     end
 
@@ -373,8 +379,11 @@ RSpec.describe Hecks::Adapters::JournalStore, :io do
 
     before do
       write_domain
-      hold_v1_with_a_record
-      sql("UPDATE hecks_eras SET held_projection = NULL WHERE ordinal = 1")
+      registry = hold_v1_with_a_record
+      # The hold leaves era 1 unnamed; an era that predates its projection was named at its mint,
+      # and the backfill fills a projection only for a text that hashes to that name.
+      name = Hecks::Runtime::StorageShape.mint_hash(registry.bluebooks.values.first)
+      sql("UPDATE hecks_eras SET held_projection = NULL, hash = $1, label = $2 WHERE ordinal = 1", name, name[0, 6])
     end
 
     it "stores the shape for the eras that predate it" do
@@ -476,23 +485,23 @@ RSpec.describe Hecks::Adapters::JournalStore, :io do
       before { write_domain(edge: JS_EDGE) }
 
       it "holds the first era when confirmed" do
-        run_verb("era.hold_first", @domain, "run=first-1", "--confirm")
+        run_verb("era.hold_first!", @domain, "run=first-1", "--confirm")
         row = settlement_row("first-1")
 
         expect([row.fetch("status"), row["report"]]).to eq(["settled", "Ledger holds era 1 now."])
       end
 
       it "refuses a merge before a second era exists" do
-        run_verb("era.hold_first", @domain, "run=first-1", "--confirm")
-        out, = run_verb("era.merge_tail", @domain, "run=merge-1", "--confirm")
+        run_verb("era.hold_first!", @domain, "run=first-1", "--confirm")
+        out, = run_verb("era.merge_tail!", @domain, "run=merge-1", "--confirm")
 
         expect(refusal_reason(out)).to eq("Permit refused — an era beyond the first stands before a tail is merged")
       end
 
       it "refuses holding the first era again, saying none is held yet" do
-        run_verb("era.hold_first", @domain, "run=first-1", "--confirm")
-        run_verb("era.merge_tail", @domain, "run=merge-1", "--confirm")
-        again, = run_verb("era.hold_first", @domain, "run=first-2", "--confirm")
+        run_verb("era.hold_first!", @domain, "run=first-1", "--confirm")
+        run_verb("era.merge_tail!", @domain, "run=merge-1", "--confirm")
+        again, = run_verb("era.hold_first!", @domain, "run=first-2", "--confirm")
 
         expect(refusal_reason(again)).to eq("Permit refused — no era is held yet")
       end
@@ -506,7 +515,7 @@ RSpec.describe Hecks::Adapters::JournalStore, :io do
 
       # The reasons the givens refuse a re-attestation of era 1 for, as run `run`.
       def reattest_reasons(run)
-        out, = run_verb("era.reattest", @domain, "era=1", "run=#{run}", "--confirm")
+        out, = run_verb("era.reattest!", @domain, "era=1", "run=#{run}", "--confirm")
         JSON.parse(out).fetch("refused_reactions", []).map { |reaction| reaction.fetch("reason") }
       end
 
@@ -534,7 +543,7 @@ RSpec.describe Hecks::Adapters::JournalStore, :io do
     it "words the store-keeps-eras rule for a domain on Memory" do
       make_memory_domain
 
-      out, = run_verb("era.backfill_projections", @domain, "run=backfill-1")
+      out, = run_verb("era.backfill_projections!", @domain, "run=backfill-1")
 
       expect(refusal_reason(out)).to eq("Permit refused — the store keeps eras")
     end

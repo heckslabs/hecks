@@ -2,6 +2,7 @@ require "hecks"
 require "hecks/persistence_legacy_fixture"
 require "json"
 require "fileutils"
+require_relative "first_era_hold"
 
 # Adapter builders shared by `spec/ports/persistence_legacy_decode_spec.rb` and its neighbours,
 # over the fixtures `Hecks::PersistenceLegacyFixture` seeds and writes
@@ -68,7 +69,10 @@ module PersistenceLegacyFixture
     adapter
   end
 
+  def hold_postgres_era!(database) = Object.new.extend(FirstEraHold).hold_declared_era!(bluebook, url: database)
+
   def postgres_era_adapter(aggregate, database)
+    hold_postgres_era!(database)
     adapter = Hecks::Adapters::PostgresEra.new(aggregate: aggregate, settings: { database: database })
     connection = adapter.instance_variable_get(:@db)
     lineage = adapter.instance_variable_get(:@lineage)

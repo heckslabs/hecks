@@ -1,0 +1,966 @@
+Hecks.bluebook "Hecks" do
+  domain_module "Check" do
+    vision "Is it right? Gate, model check, style, inspection and audit."
+
+    # Gate: the checks a stage holds a change against before it is let through. The checks are data
+    # (the Vocabulary gate rows), run together, and a red one faults the run, so `--wait` fails the
+    # push or the build that asked, and the journal keeps when the gate went red.
+    #
+    # Reuse rule (enforced by Tools::GateMemo): a check is skipped only when its inputs hash the
+    # same as the inputs of its last green run, and the skip is reported as "skipped", never as
+    # passed. The inputs are the files the check reads (GateMemo::INPUTS, by content hash), its
+    # command and its environment. A red result is never reused, and an unreadable or unwritable
+    # memo runs every check in full and says so. RuboCop reuses per file: the run is skipped only
+    # when the Ruby files and their hashes match the last green run; otherwise it lints the
+    # changed files and the files that require them, and runs in full when that set cannot be
+    # worked out (GateMemo::RubyFiles).
+    #
+    # The memo is kept outside the checkout, in the file `HECKS_GATE_MEMO` names, or else in
+    # gate_memo.json under the hecks-dev directory of the user's Claude directory.
+    aggregate "GateRun" do
+      description "One run of a stage's checks: every check of the stage, or the ones named."
+
+      attribute :run,       RunKey
+      attribute :operation, Operation, optional: true
+      attribute :stage,     Stage
+      attribute :only,      CheckList, optional: true
+      attribute :checkout,  Switch, optional: true
+      attribute :report,    Report, optional: true
+      attribute :refusal,   Report, optional: true
+      identified_by :run
+
+      value_object "RunKey" do
+        attribute :value, String, matches: :present
+
+        invariant("a run is named") { !value.to_s.empty? }
+      end
+
+      value_object "Operation" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Stage" do
+        attribute :value, String, matches: :snake_name
+
+        invariant("a stage is named") { !value.to_s.empty? }
+      end
+
+      value_object "CheckList" do
+        attribute :value, String, pattern: '^[a-z][a-z0-9_]*(,[a-z][a-z0-9_]*)*$'
+      end
+
+      value_object "Switch" do
+        attribute :value, Boolean
+      end
+
+      value_object "Report" do
+        attribute :value, String
+      end
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "faulted"
+        transition "Accept"   => "accepted",  from: "requested"
+        transition "Complete" => "completed", from: "accepted"
+        transition "Fault"    => "faulted",   from: %w[requested accepted]
+        mark :terminal, "completed", "faulted"
+      end
+
+      command "Gate" do
+        role "Maintainer"
+        goal "Run every check of a stage, or the ones named, and keep whether the gate is green"
+
+        attribute :stage, Stage, sets: true
+        attribute :only,  CheckList, optional: true, sets: true
+        attribute :run,   RunKey, sets: true
+
+        sets :operation, to: "gate"
+
+        emits GateRequested
+      end
+
+      command "Accept" do
+        role "System"
+        goal "Let a request through only when the working tree is a hecks checkout"
+
+        reference_to GateRun
+        attribute :checkout, Switch, sets: true
+
+        given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
+
+
+        emits GateAccepted
+      end
+
+      command "Complete" do
+        role "System"
+        goal "Record that every check passed, and which"
+
+        reference_to GateRun
+        attribute :report, Report, sets: true
+
+
+        emits GateCompleted
+      end
+
+      command "Fault" do
+        role "System"
+        goal "Record that a check was red or the run could not be made, and why"
+
+        reference_to GateRun
+        attribute :refusal, Report, sets: true
+
+
+        emits GateFaulted
+      end
+
+      query "GateOutcome" do
+        description "How one run ended: its status, and what it reported or why it failed."
+        attribute :run, RunKey
+        where(run: :run)
+        order_by :run
+      end
+
+      query "GateFaulted" do
+        description "Every run that went red or could not be made."
+        where(status: "faulted")
+        order_by :run
+      end
+    end
+
+    policy "ExamineWhenGateRequested" do
+      on      "GateRun.GateRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "AcceptGateWhenExamined" do
+      on      "GateRun.GateExamined"
+      trigger GateRun::Accept, with: { checkout: :checkout }
+    end
+
+    policy "FaultGateWhenNotAccepted" do
+      on      "GateRun.GateExamined"
+      where   { !checkout.value }
+      trigger GateRun::Fault, with: { refusal: "needs a hecks checkout: hecks.gemspec stands beside lib/" }
+    end
+
+    policy "PerformGateWhenAccepted" do
+      on      "GateRun.GateAccepted"
+      ask     :perform, with: { run: :run }
+    end
+
+    policy "RecordGateOutcome" do
+      on      "GateRun.GateAnswered"
+      trigger GateRun::Complete, with: { report: :report }
+    end
+
+    policy "RecordGateFault" do
+      on      "GateRun.GateRefused"
+      trigger GateRun::Fault, with: { refusal: :refusal }
+    end
+
+    # A journaled command whose work happens outside the runtime (ADR 0080, section 11). Every
+    # command below that runs something follows this one shape, so later aggregates copy it:
+    #
+    #   1. A creating command records the request as a record in state "requested" and emits.
+    #   2. A policy on that event asks for the work by name (`ask :check`); the hecksagon says which
+    #      port answers. The runtime hands the port's adapter the whole record, so the adapter does
+    #      all the IO, and only there.
+    #   3. The adapter answers (a hash named like a command's arguments) or raises (its message
+    #      is the refusal). One policy per outcome re-enters the record with a command that stores it.
+    #
+    # The ports are declared in hecks.hecksagon; each adapter is in adapters/.
+
+    aggregate "ModelCheckRun" do
+      description "One static analysis over domains' models, and what it found: a check's history."
+
+      attribute :run,     RunKey
+      attribute :domains, DomainList,  optional: true
+      attribute :profile, ProfileName, optional: true
+      attribute :strict,  Switch,      optional: true
+      attribute :report,  Report,      optional: true
+      attribute :checked, Checked,     optional: true
+      attribute :refusal, Report,      optional: true
+      identified_by :run
+
+      value_object "RunKey" do
+        attribute :value, String, matches: :present
+
+        invariant("a run is named") { !value.to_s.empty? }
+      end
+
+      value_object "DomainList" do
+        attribute :value, String, matches: :not_empty
+      end
+
+      value_object "ProfileName" do
+        attribute :value, String, pattern: '^client$'
+      end
+
+      value_object "Switch" do
+        attribute :value, Boolean
+      end
+
+      value_object "Report" do
+        attribute :value, String
+      end
+
+      # How many domains the report examined, counted from its headers so a reader need not.
+      value_object "Checked" do
+        attribute :value, Integer
+
+        invariant("a count is not negative") { value >= 0 }
+      end
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "flagged"
+        transition "Pass" => "clean",   from: "requested"
+        transition "Flag" => "flagged", from: "requested"
+        mark :terminal, "clean", "flagged"
+      end
+
+      command "ModelCheck" do
+        role "Operator"
+        goal "Check domains for dead states and unreachable steps, and keep the verdict"
+
+        attribute :run,     RunKey, sets: true
+        attribute :domains, DomainList,  optional: true, sets: true
+        attribute :profile, ProfileName, optional: true, sets: true
+        attribute :strict,  Switch,      optional: true, sets: true
+
+
+        emits ModelCheckRequested
+      end
+
+      command "Pass" do
+        role "System"
+        goal "Record that the analysis left no error"
+
+        reference_to ModelCheckRun
+        attribute :report,  Report, sets: true
+        attribute :checked, Checked, sets: true
+
+
+        emits ModelCheckPassed
+      end
+
+      command "Flag" do
+        role "System"
+        goal "Record that the analysis found something, or could not run, and what it said"
+
+        reference_to ModelCheckRun
+        attribute :refusal, Report, sets: true
+
+
+        emits ModelCheckFlagged
+      end
+
+      # `hecks model_check` answers once the request is recorded, so the verdict is read here.
+      query "Verdict" do
+        description "What one check found: its status, and the report or the reason it could not run."
+        attribute :run, RunKey
+        where(run: :run)
+        order_by :run
+      end
+
+      query "Flagged" do
+        description "Every check that left a finding or could not run."
+        where(status: "flagged")
+        order_by :run
+      end
+    end
+
+    policy "AnalyseWhenRequested" do
+      on      "ModelCheckRun.ModelCheckRequested"
+      ask     :check, with: { run: :run }
+    end
+
+    policy "RecordTheClean" do
+      on      "ModelCheckRun.ModelCheckAnswered"
+      trigger ModelCheckRun::Pass, with: { report: :report, checked: :checked }
+    end
+
+    policy "RecordTheFlag" do
+      on      "ModelCheckRun.ModelCheckRefused"
+      trigger ModelCheckRun::Flag, with: { refusal: :refusal }
+    end
+
+    # Conformance: the checks on the language itself. Each finds every disagreement and refuses with
+    # them all, so a check that fails is recorded as faulted with what it found. The argument-gate
+    # matrix rewrites a committed matrix and its fixtures, so it only reports unless it is confirmed.
+    aggregate "ConformanceRun", kind: "Run" do
+      description "One check that the engines, the reference docs and the argument gates agree with the language."
+
+      attribute :confirm,   Switch, optional: true
+      attribute :additive,  Switch, optional: true
+
+      command "CheckEngineAgreement" do
+        role "Maintainer"
+        goal "Check that the query engines route every comparator through the one shared implementation"
+
+        attribute :run, RunKey, sets: true
+
+        sets :operation, to: "check_engine_agreement"
+
+        emits CheckEngineAgreementRequested
+      end
+
+      command "MeasureDocCoverage" do
+        role "Maintainer"
+        goal "Check that every live word of the language has prose and a running example in the reference"
+
+        attribute :run, RunKey, sets: true
+
+        sets :operation, to: "measure_doc_coverage"
+
+        emits MeasureDocCoverageRequested
+      end
+
+      command "CheckShapeLedger" do
+        role "Maintainer"
+        goal "Check that no bluebook's storage shape moved without a translation edge, and rewrite the ledger when confirmed"
+
+        attribute :run,      RunKey, sets: true
+        attribute :confirm,  Switch, optional: true, sets: true
+        # With `confirm`: write the empty edge for a shape that moved with none, for a change that only adds.
+        attribute :additive, Switch, optional: true, sets: true
+
+        sets :operation, to: "check_shape_ledger"
+
+        emits CheckShapeLedgerRequested
+      end
+
+      command "CheckCommandNames" do
+        role "Maintainer"
+        goal "Check that every launcher name a workflow, hook, gate row, spec or guide invokes is one the launcher accepts"
+
+        attribute :run, RunKey, sets: true
+
+        sets :operation, to: "check_command_names"
+
+        emits CheckCommandNamesRequested
+      end
+
+      command "CheckWorkflowPagination" do
+        role "Maintainer"
+        goal "Check that no workflow counts or waits on the items of a GitHub list call that returns only its first page"
+
+        attribute :run, RunKey, sets: true
+
+        sets :operation, to: "check_workflow_pagination"
+
+        emits CheckWorkflowPaginationRequested
+      end
+
+      command "ArgumentGateMatrix" do
+        role "Maintainer"
+        goal "Generate the argument-gate ordering matrix; rewrite it and its fixtures only when confirmed"
+
+        attribute :run,     RunKey, sets: true
+        attribute :confirm, Switch, optional: true, sets: true
+
+        sets :operation, to: "argument_gate_matrix"
+
+        emits ArgumentGateMatrixRequested
+      end
+    end
+
+    policy "ExamineWhenCheckEngineAgreementRequested" do
+      on      "ConformanceRun.CheckEngineAgreementRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "ExamineWhenMeasureDocCoverageRequested" do
+      on      "ConformanceRun.MeasureDocCoverageRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "ExamineWhenCheckShapeLedgerRequested" do
+      on      "ConformanceRun.CheckShapeLedgerRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "ExamineWhenCheckCommandNamesRequested" do
+      on      "ConformanceRun.CheckCommandNamesRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "ExamineWhenCheckWorkflowPaginationRequested" do
+      on      "ConformanceRun.CheckWorkflowPaginationRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "ExamineWhenArgumentGateMatrixRequested" do
+      on      "ConformanceRun.ArgumentGateMatrixRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    # Style: the comment style guides (Ruby and Rust) and the canonical form of a JSON document. A
+    # check finds every violation; a fix rewrites files, so it lists what it would rewrite unless
+    # it is confirmed. The baseline of tolerated long blocks is written only when confirmed.
+    aggregate "StyleRun" do
+      description "One check or fix of comment style, or one document written with its keys in order."
+
+      attribute :run,       RunKey
+      attribute :operation, Operation, optional: true
+      attribute :confirm,   Switch, optional: true
+      attribute :paths,     PathList, optional: true
+      attribute :only,      CategoryList, optional: true
+      attribute :json,      Switch, optional: true
+      attribute :top,       Top, optional: true
+      attribute :ref,       Ref, optional: true
+      attribute :file,      FilePath, optional: true
+      attribute :checkout,  Switch, optional: true
+      attribute :report,    Report, optional: true
+      attribute :refusal,   Report, optional: true
+      identified_by :run
+
+      value_object "RunKey" do
+        attribute :value, String, matches: :present
+
+        invariant("a run is named") { !value.to_s.empty? }
+      end
+
+      value_object "Operation" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Switch" do
+        attribute :value, Boolean
+      end
+
+      value_object "Report" do
+        attribute :value, String
+      end
+
+      # Files or directories, comma separated.
+      value_object "PathList" do
+        attribute :value, String, matches: :csv_list
+      end
+
+      # Violation categories, comma separated.
+      value_object "CategoryList" do
+        attribute :value, String, pattern: '^[a-z_]+(,[a-z_]+)*$'
+      end
+
+      # How many rows a report lists.
+      value_object "Top" do
+        attribute :value, Integer
+
+        invariant("a count is positive") { value > 0 }
+      end
+
+      # A revision a code comparison is made against.
+      value_object "Ref" do
+        attribute :value, String, matches: :no_whitespace
+      end
+
+      # A JSON file.
+      value_object "FilePath" do
+        attribute :value, String, matches: :not_empty
+
+        invariant("a file is named") { !value.to_s.empty? }
+      end
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "faulted"
+        transition "Accept"   => "accepted",  from: "requested"
+        transition "Complete" => "completed", from: "accepted"
+        transition "Fault"    => "faulted",   from: %w[requested accepted]
+        mark :terminal, "completed", "faulted"
+      end
+
+      command "CheckComments" do
+        role "Maintainer"
+        goal "List every comment that breaks the Ruby style guide"
+
+        attribute :paths, PathList, sets: true
+        attribute :only,  CategoryList, optional: true, sets: true
+        attribute :run,   RunKey, sets: true
+
+        sets :operation, to: "check_comments"
+
+        emits CheckCommentsRequested
+      end
+
+      command "FixComments" do
+        role "Maintainer"
+        goal "Rewrite the mechanical Ruby comment violations"
+
+        attribute :paths,   PathList, sets: true
+        attribute :only,    CategoryList, optional: true, sets: true
+        attribute :run,     RunKey, sets: true
+        attribute :confirm, Switch, optional: true, sets: true
+
+        sets :operation, to: "fix_comments"
+
+        emits FixCommentsRequested
+      end
+
+      command "WriteCommentBaseline" do
+        role "Maintainer"
+        goal "Record every long comment block as tolerated, for lib/hecks unless paths are named"
+
+        attribute :paths,   PathList, optional: true, sets: true
+        attribute :run,     RunKey, sets: true
+        attribute :confirm, Switch, optional: true, sets: true
+
+        sets :operation, to: "write_comment_baseline"
+
+        emits WriteCommentBaselineRequested
+      end
+
+      command "CheckCommentsUnchanged" do
+        role "Maintainer"
+        goal "Prove an edit was comment-only: no file's code differs from the ref"
+
+        attribute :ref,   Ref, sets: true
+        attribute :paths, PathList, optional: true, sets: true
+        attribute :run,   RunKey, sets: true
+
+        sets :operation, to: "check_comments_unchanged"
+
+        emits CheckCommentsUnchangedRequested
+      end
+
+      command "CheckRustComments" do
+        role "Maintainer"
+        goal "List every comment that breaks the Rust style guide"
+
+        attribute :paths, PathList, sets: true
+        attribute :only,  CategoryList, optional: true, sets: true
+        attribute :run,   RunKey, sets: true
+
+        sets :operation, to: "check_rust_comments"
+
+        emits CheckRustCommentsRequested
+      end
+
+      command "FixRustComments" do
+        role "Maintainer"
+        goal "Rewrite the mechanical Rust comment violations"
+
+        attribute :paths,   PathList, sets: true
+        attribute :only,    CategoryList, optional: true, sets: true
+        attribute :run,     RunKey, sets: true
+        attribute :confirm, Switch, optional: true, sets: true
+
+        sets :operation, to: "fix_rust_comments"
+
+        emits FixRustCommentsRequested
+      end
+
+      command "Canonicalise" do
+        role "Maintainer"
+        goal "Write a JSON document with every object's keys sorted"
+
+        attribute :file, FilePath, sets: true
+        attribute :run,  RunKey, sets: true
+
+        sets :operation, to: "canonicalise"
+
+        emits CanonicaliseRequested
+      end
+
+      # What the tree reported about itself, held against every request: nothing here runs
+      # outside a hecks checkout (hecks.gemspec beside lib/).
+      command "Accept" do
+        role "System"
+        goal "Let a request through only when the working tree is a hecks checkout"
+
+        reference_to StyleRun
+        attribute :checkout, Switch, sets: true
+
+        given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
+
+
+        emits StyleAccepted
+      end
+
+      command "Complete" do
+        role "System"
+        goal "Record that the request was carried out, and what it reported"
+
+        reference_to StyleRun
+        attribute :run,    RunKey
+        attribute :report, Report, sets: true
+
+
+        emits StyleCompleted
+      end
+
+      command "Fault" do
+        role "System"
+        goal "Record that the request was refused or could not be carried out, and why"
+
+        reference_to StyleRun
+        attribute :refusal, Report, sets: true
+
+
+        emits StyleFaulted
+      end
+
+      query "StyleOutcome" do
+        description "How one request ended: its status, and what it reported or why it failed."
+        attribute :run, RunKey
+        where(run: :run)
+        order_by :run
+      end
+
+      query "StyleFaulted" do
+        description "Every request that was refused or could not be carried out."
+        where(status: "faulted")
+        order_by :run
+      end
+
+      # An answer that is one document of text, exactly as the tool that produced it wrote it.
+      value_object "Document" do
+        attribute :text, String
+      end
+
+      query "ReportComments" do
+        description "The Ruby comment violations, as summary tables, a list or JSON."
+        attribute :paths, PathList
+        attribute :only, CategoryList, optional: true
+        attribute :json, Switch, optional: true
+        attribute :top, Top, optional: true
+        returns Document
+      end
+
+      query "ReportRustComments" do
+        description "The Rust comment violations, as summary tables, a list or JSON."
+        attribute :paths, PathList
+        attribute :only, CategoryList, optional: true
+        attribute :json, Switch, optional: true
+        attribute :top, Top, optional: true
+        returns Document
+      end
+    end
+
+    # Inspection: ranking the Ruby by complexity, finding copied code, listing design smells and
+    # writing the combined report. A read of the tree: nothing is rewritten. The files the style
+    # config excludes (generated output, vendored code) are left out of every tool.
+    aggregate "InspectionRun" do
+      description "One inspection of the Ruby by flog, flay, reek or rubycritic."
+
+      attribute :run,       RunKey
+      attribute :operation, Operation, optional: true
+      attribute :paths,     PathList, optional: true
+      attribute :top,       Top, optional: true
+      attribute :checkout,  Switch, optional: true
+      attribute :report,    Report, optional: true
+      attribute :refusal,   Report, optional: true
+      identified_by :run
+
+      value_object "RunKey" do
+        attribute :value, String, matches: :present
+
+        invariant("a run is named") { !value.to_s.empty? }
+      end
+
+      value_object "Operation" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Switch" do
+        attribute :value, Boolean
+      end
+
+      value_object "Report" do
+        attribute :value, String
+      end
+
+      # Files or directories, comma separated; lib when none is named.
+      value_object "PathList" do
+        attribute :value, String, matches: :csv_list
+      end
+
+      # How many lines of the report are kept.
+      value_object "Top" do
+        attribute :value, Integer
+
+        invariant("a count is positive") { value > 0 }
+      end
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "faulted"
+        transition "Accept"   => "accepted",  from: "requested"
+        transition "Complete" => "completed", from: "accepted"
+        transition "Fault"    => "faulted",   from: %w[requested accepted]
+        mark :terminal, "completed", "faulted"
+      end
+
+      command "Flog" do
+        role "Maintainer"
+        goal "Rank the Ruby methods by complexity, worst first"
+
+        attribute :paths, PathList, optional: true, sets: true
+        attribute :top,   Top, optional: true, sets: true
+        attribute :run,   RunKey, sets: true
+
+        sets :operation, to: "flog"
+
+        emits FlogRequested
+      end
+
+      command "Flay" do
+        role "Maintainer"
+        goal "Find Ruby code that is copied or nearly copied"
+
+        attribute :paths, PathList, optional: true, sets: true
+        attribute :top,   Top, optional: true, sets: true
+        attribute :run,   RunKey, sets: true
+
+        sets :operation, to: "flay"
+
+        emits FlayRequested
+      end
+
+      command "Reek" do
+        role "Maintainer"
+        goal "List the design smells in the Ruby"
+
+        attribute :paths, PathList, optional: true, sets: true
+        attribute :top,   Top, optional: true, sets: true
+        attribute :run,   RunKey, sets: true
+
+        sets :operation, to: "reek"
+
+        emits ReekRequested
+      end
+
+      command "Rubycritic" do
+        role "Maintainer"
+        goal "Write the combined quality report, with git churn"
+
+        attribute :paths, PathList, optional: true, sets: true
+        attribute :top,   Top, optional: true, sets: true
+        attribute :run,   RunKey, sets: true
+
+        sets :operation, to: "rubycritic"
+
+        emits RubycriticRequested
+      end
+
+      # What the tree reported about itself, held against every request: nothing here runs
+      # outside a hecks checkout (hecks.gemspec beside lib/).
+      command "Accept" do
+        role "System"
+        goal "Let a request through only when the working tree is a hecks checkout"
+
+        reference_to InspectionRun
+        attribute :checkout, Switch, sets: true
+
+        given("needs a hecks checkout: hecks.gemspec stands beside lib/") { checkout.value }
+
+
+        emits InspectionAccepted
+      end
+
+      command "Complete" do
+        role "System"
+        goal "Record that the inspection was carried out, and what it reported"
+
+        reference_to InspectionRun
+        attribute :report, Report, sets: true
+
+
+        emits InspectionCompleted
+      end
+
+      command "Fault" do
+        role "System"
+        goal "Record that the inspection was refused or could not be carried out, and why"
+
+        reference_to InspectionRun
+        attribute :refusal, Report, sets: true
+
+
+        emits InspectionFaulted
+      end
+
+      query "InspectionOutcome" do
+        description "How one inspection ended: its status, and what it reported or why it failed."
+        attribute :run, RunKey
+        where(run: :run)
+        order_by :run
+      end
+
+      query "InspectionsFaulted" do
+        description "Every inspection that was refused or could not be carried out."
+        where(status: "faulted")
+        order_by :run
+      end
+    end
+
+    policy "ExamineWhenFlogRequested" do
+      on      "InspectionRun.FlogRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "ExamineWhenFlayRequested" do
+      on      "InspectionRun.FlayRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "ExamineWhenReekRequested" do
+      on      "InspectionRun.ReekRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "ExamineWhenRubycriticRequested" do
+      on      "InspectionRun.RubycriticRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "AcceptInspectionWhenExamined" do
+      on      "InspectionRun.InspectionExamined"
+      trigger InspectionRun::Accept, with: { checkout: :checkout }
+    end
+
+    policy "FaultInspectionWhenNotAccepted" do
+      on      "InspectionRun.InspectionExamined"
+      where   { !checkout.value }
+      trigger InspectionRun::Fault, with: { refusal: "needs a hecks checkout: hecks.gemspec stands beside lib/" }
+    end
+
+    policy "PerformInspectionWhenAccepted" do
+      on      "InspectionRun.InspectionAccepted"
+      ask     :perform, with: { run: :run }
+    end
+
+    policy "RecordInspectionOutcome" do
+      on      "InspectionRun.InspectionAnswered"
+      trigger InspectionRun::Complete, with: { report: :report }
+    end
+
+    policy "RecordInspectionFault" do
+      on      "InspectionRun.InspectionRefused"
+      trigger InspectionRun::Fault, with: { refusal: :refusal }
+    end
+
+    aggregate "Audit" do
+      description "One walk of a domain's journal chain from its latest seal, and whether every digest held."
+
+      attribute :run,       AuditKey
+      attribute :domain,    AuditedDomain
+      attribute :checked,   Count,   optional: true
+      attribute :report,    Finding, optional: true
+      identified_by :run
+
+      value_object "AuditKey" do
+        attribute :value, String, matches: :present
+
+        invariant("an audit is named") { !value.to_s.empty? }
+      end
+
+      value_object "AuditedDomain" do
+        attribute :value, String, matches: :not_empty
+      end
+
+      value_object "Count" do
+        attribute :value, Integer
+      end
+
+      value_object "Finding" do
+        attribute :value, String
+      end
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "unproven"
+        transition "Confirm" => "verified", from: "requested"
+        transition "Fail"    => "unproven", from: "requested"
+        mark :terminal, "unproven", "verified"
+      end
+
+      command "Verify" do
+        role "Auditor"
+        goal "Walk a domain's journal chain from its latest seal and say whether it was altered"
+
+        attribute :domain, AuditedDomain, sets: true
+        attribute :run,    AuditKey, sets: true
+
+
+        emits VerificationRequested
+      end
+
+      command "Confirm" do
+        role "System"
+        goal "Record that every row's digest held, and how many were checked"
+
+        reference_to Audit
+        attribute :checked, Count, sets: true
+        attribute :report,  Finding, sets: true
+
+        given("the walk checked a row") { checked.value > 0 }
+
+
+        emits ChainConfirmed
+      end
+
+      # A chain that cannot be shown intact is unproven, whether a digest failed or the walk could not
+      # run; the report names the row or the reason.
+      command "Fail" do
+        role "System"
+        goal "Record that the chain could not be shown intact, and why"
+
+        reference_to Audit
+        attribute :report, Finding, sets: true
+
+
+        emits ChainUnproven
+      end
+
+      query "Verdict" do
+        description "What one audit found."
+        attribute :run, AuditKey
+        where(run: :run)
+        order_by :run
+      end
+
+      query "Unproven" do
+        description "Every audit that could not show the chain intact."
+        where(status: "unproven")
+        order_by :run
+      end
+    end
+
+    # A compaction is applied only once the head it would erase is sealed.
+    policy "CaptureWhenCompactionPermitted" do
+      on      "Era.EraPermitted"
+      where do
+        operation.value == "compact" || operation.value == "compact_heki"
+      end
+      ask     :capture, with: { run: :run }
+    end
+
+    policy "RecordTheSeal" do
+      on      "Era.HeadCaptured"
+      trigger Seal::Record, with: { run: :run, domain: :domain, through: :through, head: :head, previous: :previous }
+    end
+
+    policy "CompactWhenSealed" do
+      on      "Era.HeadCaptured"
+      ask     :apply, with: { run: :run }
+    end
+
+    policy "AbandonWhenNotSealed" do
+      on      "Era.CaptureRefused"
+      trigger Era::Abandon, with: { refusal: :refusal }
+    end
+
+    policy "WalkWhenVerificationRequested" do
+      on      "Audit.VerificationRequested"
+      ask     :walk, with: { run: :run }
+    end
+
+    policy "ConfirmWhenChainWalked" do
+      on      "Audit.ChainWalked"
+      trigger Audit::Confirm, with: { checked: :checked, report: :report }
+    end
+
+    policy "FailWhenWalkRefused" do
+      on      "Audit.WalkRefused"
+      trigger Audit::Fail, with: { report: :refusal }
+    end
+  end
+end

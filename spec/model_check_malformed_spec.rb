@@ -1,10 +1,10 @@
 require "spec_helper"
 require "hecks"
-require "hecks/cli/model_check"
+require "hecks/tools/model_check"
 require "tmpdir"
 
 # `hecks model_check` names a malformed bluebook and exits 1; it never prints a stack trace.
-RSpec.describe Hecks::CLI::ModelCheck do
+RSpec.describe Hecks::Tools::ModelCheck do
   MALFORMED_BLUEBOOK = <<~RUBY.freeze
     Hecks.bluebook "Bad" do
       aggregate "Thing" do

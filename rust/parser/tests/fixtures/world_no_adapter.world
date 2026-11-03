@@ -1,0 +1,5 @@
+Hecks.world "Named" do
+  stored_as Revision: "commit", Workspace: "checkout"
+  minting commands: ["Era.MintHeld"]
+  test_scope "Local", suite_runs_in: "ci", spec_files_limit: 25
+end

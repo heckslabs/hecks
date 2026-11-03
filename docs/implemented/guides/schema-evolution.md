@@ -9,7 +9,7 @@ thing or not at all.
 No Postgres installed? `examples/directory/docker-compose.yml` starts a
 throwaway one in Docker and shows how to boot the directory example against
 it (`docker compose -f examples/directory/docker-compose.yml up -d --wait`,
-then `PGUSER=hecks bundle exec hecks console subject=examples/directory`).
+then `PGUSER=hecks bundle exec hecks console! subject=examples/directory`).
 That path is checked for the directory example only; this guide's own live
 examples have not been run against the container.
 
@@ -433,7 +433,7 @@ The journal row itself never changes — `aggregate_id` stays whatever it
 was minted under, forever, the same immutability every other rule here
 already holds itself to. What changes is what the *next* era's
 compiled view resolves that row as, and what a fresh dispatch mints for
-a brand-new record going forward. One known gap: `hecks era.merge_tail`'s own
+a brand-new record going forward. One known gap: `hecks era.merge_tail!`'s own
 conflict detection (`merge_writes.rb#conflict_ids`) does not yet
 recognize a pre-rekey and post-rekey row as the same entity — merging a
 domain whose history includes a rekey may leave both surviving as
@@ -470,7 +470,7 @@ BYPASSRLS connection, naming the role and the two ways out:
   database still provisions and mints (owner-only DDL), and is held to
   the fence like everyone else. This is the real fix, and what a
   deployment does; `qa/bluebook/quality_control.world` in this
-  repository is the worked example, with `hecks quality_control query sweep.create_ledger_role database.value=<database>` as its
+  repository is the worked example, with `hecks quality_control sweep.create_ledger_role database.value=<database>` as its
   one-time operator step.
 - **`allow_superuser true`**, in the same `persisted_by` block — boots
   anyway, on the record, and says so on stderr on every boot. The

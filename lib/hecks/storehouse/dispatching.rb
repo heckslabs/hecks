@@ -24,7 +24,7 @@ module Hecks
       # :nodoc:
       def perform_dispatch(request)
         validate_caller_fields!(request)
-        spec = resolve!(cli_for(request.bluebook), request.name, asking: false)
+        spec = resolve!(cli_for(request.runtime, request.bluebook), request.name, asking: false)
         require_caller_for_role_gated!(spec, request.role)
         envelope = command_envelope(request.args, spec)
 
@@ -95,12 +95,23 @@ module Hecks
       # @param names [Array<String>] short or qualified command names
       # @return [Array<String>] one line per name that resolves, in order
       def command_guide(runtime, names)
-        cli = cli_for(bluebook_for(runtime))
+        cli = cli_for(runtime, bluebook_for(runtime))
         names.filter_map do |name|
           guide_line(name, resolve!(cli, name.to_s, asking: false))
         rescue Runtime::NotFound
           nil
         end
+      end
+
+      # The commands an agent may dispatch: those that explicitly declare `:agent` in their
+      # `audience`. A command that declares no audience is not an agent tool, so the default
+      # never grants agent access.
+      #
+      # @param runtime [Runtime::Dispatcher] the booted domain
+      # @return [Array<String>] the command names as the launcher lists them, in order
+      def agent_commands(runtime)
+        cli = cli_for(runtime, bluebook_for(runtime))
+        cli[:commands].filter_map { |name, spec| name.to_s if Array(spec[:audience]).include?("agent") }
       end
 
       # :nodoc:
@@ -131,7 +142,7 @@ module Hecks
       # @return [Hash] :ok (true only if every step's own :ok was true), :results
       # @raise [ArgumentError] for any other keyword
       def dispatch_batch(runtime:, steps:, summary:, **options)
-        check_options!(options, %i[source role actor_id])
+        check_options!(options, %i[source role actor_id surface])
         run_batch(runtime, steps, summary, options)
       end
 

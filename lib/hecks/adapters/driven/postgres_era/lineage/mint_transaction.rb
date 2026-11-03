@@ -10,8 +10,9 @@ module Hecks
         module MintTransaction
           # The era a mint writes: its name, frozen text, the aggregates to recompile and the
           # edge chain that derives their heads.
-          Mint = Data.define(:ordinal, :shape_hash, :label, :held_text, :aggregates, :edges, :role, :projection) do
-            def initialize(role: nil, projection: nil, **rest) = super
+          Mint = Data.define(:ordinal, :shape_hash, :label, :held_text, :aggregates, :edges, :role, :projection,
+                             :edge) do
+            def initialize(role: nil, projection: nil, edge: nil, **rest) = super
           end
 
           # Makes a new era real in one locked transaction, or reports a concurrent minter won.
@@ -53,7 +54,7 @@ module Hecks
           # @return [void]
           # @raise [PG::Error] if Postgres refuses a grant
           def grant_role!(role, aggregates: [], era: nil)
-            return unless provisioner?
+            return if role.to_s.empty? || !provisioner?
 
             quoted_role = quote(role)
             @db.exec("GRANT INSERT, SELECT ON #{quoted_journal} TO #{quoted_role}")
@@ -112,11 +113,11 @@ module Hecks
           def insert_era!(mint)
             @db.exec_params(
               "INSERT INTO hecks_eras (domain, ordinal, hash, label, held_text, watermark, held_digest, " \
-              "held_projection, canon_form) " \
-              "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+              "held_projection, canon_form, edge) " \
+              "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
               [@domain, mint.ordinal, mint.shape_hash, mint.label, mint.held_text, last_ordinal,
                Digest::SHA256.hexdigest(mint.held_text), mint.projection && JSON.generate(mint.projection),
-               Runtime::StorageShape::FORM_VERSION]
+               Runtime::StorageShape::FORM_VERSION, mint.edge && JSON.generate(mint.edge)]
             )
           end
 
@@ -136,7 +137,10 @@ module Hecks
           # grant_role! must follow compile_head!, which creates the per-era snapshot
           # tables that it grants on.
           def compile_and_grant!(mint)
-            mint.aggregates.each { |aggregate| compile_head!(aggregate, mint.ordinal, mint.label, mint.edges) }
+            mint.aggregates.each do |aggregate|
+              compile_head!(aggregate, mint.ordinal, mint.label, mint.edges)
+              provision_read_side!(aggregate, mint.ordinal)
+            end
             grant_role!(mint.role, aggregates: mint.aggregates, era: mint.ordinal) if mint.role
           end
 

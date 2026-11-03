@@ -48,7 +48,9 @@ module Hecks
         def ask_target(row)
           kind, fqn = row.consumer.split(":", 2)
           home, name = fqn.split("::", 2)
-          policy = kind == "policy" && @registry.bluebook(home)&.policies&.find { |candidate| candidate.name == name }
+          return nil unless kind == "policy"
+
+          policy = @registry.bluebook(home)&.policies&.find { |candidate| candidate.name == name }
           return nil unless policy&.asks?
 
           aggregate_and_port, operation = policy.trigger_command.split(".", 2)

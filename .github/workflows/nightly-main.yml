@@ -1,0 +1,99 @@
+name: Nightly main
+
+# Runs the whole of ci.yml against `main` once a day with attestation turned off, so a green
+# here means every suite ran. A normal push run skips a heavy job when the pushed tree carries a
+# valid CI attestation note (.githooks/pre-push writes it; .github/actions/check-attestation reads
+# it), which is how the 2026-10-29 run went green in about two minutes with the heavy legs
+# skipped and main then sat red for days. The only skip this run turns off is that one:
+# check-attestation answers "not attested" whenever the caller is this workflow (`github.workflow`
+# is the caller's name inside a reusable workflow, so the name below is load-bearing). The
+# path gates (CiGate rows) already run their job when a run has no base commit to diff, which a
+# scheduled run never has.
+#
+# It checks and reports and nothing else. ci.yml is called as is, so the job set cannot drift from
+# a push run and the cargo cache keys are the ones a push run uses (this runs on refs/heads/main,
+# the same cache scope). ci.yml's two jobs that push an attestation note are guarded off for this
+# workflow; nothing here publishes, promotes, releases or pushes. The caller must still grant the
+# permissions the called jobs ask for (contents: write for those two guarded jobs, packages: write
+# for the feature-binaries cache in ghcr), because GitHub checks the grant before the run starts.
+#
+# When it is red, `report` opens one issue for the day (or comments on it if a rerun is also red)
+# that names the failed jobs. To feed the QA tick's CI watch, run
+# `exe/hecks quality_control main_run.request! run=<this run's id>` (Hecks::QualityControl
+# MainRun / RedSpec read it with lib/hecks/quality_control/adapters/run_reader.rb). The run id is
+# in the issue.
+#
+# Try it once by hand: gh workflow run nightly-main.yml, then watch it with gh run watch. Look for
+# the log line "[check-attestation] Nightly main runs every check" in each attestation step and for
+# no job reporting "skipped" other than ci_attest_write, inherit_certification and the path-gated
+# ones that say so.
+on:
+  schedule:
+    # 09:23 UTC, about 02:23 Pacific: after the day's pushes, before anyone is awake. Off the hour
+    # because the top of the hour is when scheduled runs queue longest (lane-watch runs at :17).
+    - cron: "23 9 * * *"
+  workflow_dispatch: {}
+
+# One nightly at a time; a manual run does not cancel a scheduled one. Not named like ci.yml's
+# group, which a called workflow derives from this workflow's name.
+concurrency:
+  group: nightly-main
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    # A scheduled run uses the default branch; a manual run is pinned to main as well, so a
+    # dispatch from a feature branch cannot report on something else under this name.
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/ci.yml
+    secrets: inherit
+    permissions:
+      contents: write
+      packages: write
+      actions: read
+      checks: read
+
+  report:
+    needs: ci
+    if: always() && needs.ci.result != 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+      issues: write
+    steps:
+      - name: Open or update today's issue naming the failed jobs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+          CI_RESULT: ${{ needs.ci.result }}
+          SERVER: ${{ github.server_url }}
+        run: |
+          day=$(date -u +%Y-%m-%d)
+          title="Nightly main is red ($day)"
+          url="$SERVER/$GH_REPO/actions/runs/$RUN_ID"
+          failed=$(gh run view "$RUN_ID" --json jobs \
+            --jq '[.jobs[] | select(.conclusion == "failure") | .name] | sort | map("- " + .) | join("\n")')
+          [ -n "$failed" ] || failed="- (no job reported a failure; ci finished $CI_RESULT)"
+          # shellcheck disable=SC2016 # the backticks in the body are Markdown, not substitutions
+          body=$(printf 'Run: %s\nCommit: %s\nci result: %s\n\nFailed jobs:\n%s\n\nA green here means every suite ran for real (attestation is ignored). Ask the CI watch about it: `exe/hecks quality_control main_run.request! run=%s`.' \
+            "$url" "$GITHUB_SHA" "$CI_RESULT" "$failed" "$RUN_ID")
+          # The kind: and severity: labels a Finding issue carries (what lane-watch files), plus this workflow's own.
+          for label in kind:ci severity:high nightly-main; do
+            gh label create "$label" --force >/dev/null 2>&1 || true
+          done
+          # One issue a day: an open one with today's title gets a comment instead of a twin.
+          existing=$(gh issue list --state open --search "\"$title\" in:title" --json number,title \
+            --jq "[.[] | select(.title == \"$title\")][0].number // empty")
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+          else
+            gh issue create --title "$title" --body "$body" \
+              --label kind:ci --label severity:high --label nightly-main
+          fi
+          exit 1

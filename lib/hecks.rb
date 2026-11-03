@@ -4,6 +4,7 @@ require_relative "hecks/version"
 # them are read while a bluebook is still being parsed.
 require_relative "hecks/vocabulary"
 require_relative "hecks/rendering"
+require_relative "hecks/secrets"
 require_relative "hecks/naming"
 require_relative "hecks/text"
 require_relative "hecks/fqn"
@@ -31,6 +32,7 @@ require_relative "hecks/projections"
 # After `Projector`, which dispatches against the `:cli` projection.
 require_relative "hecks/adapters/driving/cli"
 require_relative "hecks/adapters/driving/usage_cache"
+require_relative "hecks/adapters/driving/usage_log"
 require_relative "hecks/adapters/driving/cli_runner"
 require_relative "hecks/storehouse"
 require_relative "hecks/mcp_stdio_guard"
@@ -96,9 +98,12 @@ module Hecks
     # @param shared [String, nil] a shared-root override; see `Runtime::Loader.boot_files`
     # @param install_driving [Boolean] install the `Widget::Item.Add`-style facade
     # @param environment [String, nil] environment name passed to the selected-file loader
+    # @param adapters [Array<String>, nil] exactly the `.adapter` files to load, leaving the
+    #   project's own unloaded; nil keeps the loader's own choice
     # @return [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the domain's dispatcher
-    def boot_files(paths, shared: nil, install_driving: true, environment: Assembly::FROM_ENV)
-      Assembly.boot_files(paths, shared: shared, install_driving: install_driving, environment: environment)
+    def boot_files(paths, shared: nil, install_driving: true, environment: Assembly::FROM_ENV, adapters: nil)
+      Assembly.boot_files(paths, shared: shared, install_driving: install_driving, environment: environment,
+                                 adapters: adapters)
     end
 
     # Installs the Ruby driving adapter (`Widget::Item.Add(...)`) over a dispatcher built by hand.

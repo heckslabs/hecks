@@ -391,6 +391,8 @@ pub fn dispatch_by_name(
 args.name.check_invariants()?;
 if let Some(v) = &args.description { v.check_invariants()?; }
 if let Some(v) = &args.provenance { v.check_invariants()?; }
+if let Some(v) = &args.formerly_known_as { v.check_invariants()?; }
+if let Some(v) = &args.created_by { v.check_invariants()?; }
 if let Some(v) = &args.position { v.check_invariants()?; }
 Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Language"), "Declare", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|args: &crate::generated::meta::aggregate::DeclareArgs| { crate::kernel::check_reference(&store.bluebook, &args.bluebook, "Bluebook", "name")?; Ok(()) } })?;
                 if let Some(route) = route {
@@ -405,6 +407,8 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
 args.name.check_invariants()?;
 if let Some(v) = &args.description { v.check_invariants()?; }
 if let Some(v) = &args.provenance { v.check_invariants()?; }
+if let Some(v) = &args.formerly_known_as { v.check_invariants()?; }
+if let Some(v) = &args.created_by { v.check_invariants()?; }
 if let Some(v) = &args.position { v.check_invariants()?; }
 Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Language"), "Declare", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|args: &crate::generated::meta::aggregate::DeclareArgs| { crate::kernel::check_reference(&store.bluebook, &args.bluebook, "Bluebook", "name")?; Ok(()) } })?
             };
@@ -1746,6 +1750,114 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
             )
             .map(|(_, events)| stamp_payload(events, &payload))
         }
+        "Bluebook::Bluebook.Group" => {
+            let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+            let route = invocation.route();
+            let facts_json = invocation.facts();
+            let args = if invocation.explicit_with() {
+                let args = crate::kernel::decode_aggregate_arguments(
+                    facts_json,
+                    &crate::kernel::ArgumentGates {
+                        decode_arguments:
+                            &crate::generated::meta::bluebook::GroupArgs::decode_arguments,
+                        refuse_unknown_arguments:
+                            &crate::generated::meta::bluebook::GroupArgs::refuse_unknown_arguments,
+                        refuse_absent_arguments:
+                            &crate::generated::meta::bluebook::GroupArgs::refuse_absent_arguments,
+                        normalize_args: &|v: &crate::kernel::Json| {
+                            let args = crate::generated::meta::bluebook::GroupArgs::from_json(v)?;
+                            args.name.check_invariants()?;
+                            args.vision.check_invariants()?;
+                            args.aggregate.check_invariants()?;
+                            Ok(args)
+                        },
+                        refuse_role_mismatch: &|| {
+                            crate::kernel::check_role_via(
+                                Some("Language"),
+                                "Group",
+                                caller_role,
+                                caller_actor_id,
+                                &*store,
+                                QUERIES,
+                                AUTHORIZATION_ASSIGNMENTS,
+                            )?;
+                            Ok(())
+                        },
+                        resolve_references:
+                            &|_args: &crate::generated::meta::bluebook::GroupArgs| Ok(()),
+                    },
+                )?;
+                if let Some(route) = route {
+                    route.require_depth(0)?;
+                }
+                args
+            } else {
+                if let Some(route) = route {
+                    route.require_depth(0)?;
+                }
+                crate::kernel::decode_aggregate_arguments(
+                    facts_json,
+                    &crate::kernel::ArgumentGates {
+                        decode_arguments:
+                            &crate::generated::meta::bluebook::GroupArgs::decode_arguments,
+                        refuse_unknown_arguments:
+                            &crate::generated::meta::bluebook::GroupArgs::refuse_unknown_arguments,
+                        refuse_absent_arguments:
+                            &crate::generated::meta::bluebook::GroupArgs::refuse_absent_arguments,
+                        normalize_args: &|v: &crate::kernel::Json| {
+                            let args = crate::generated::meta::bluebook::GroupArgs::from_json(v)?;
+                            args.name.check_invariants()?;
+                            args.vision.check_invariants()?;
+                            args.aggregate.check_invariants()?;
+                            Ok(args)
+                        },
+                        refuse_role_mismatch: &|| {
+                            crate::kernel::check_role_via(
+                                Some("Language"),
+                                "Group",
+                                caller_role,
+                                caller_actor_id,
+                                &*store,
+                                QUERIES,
+                                AUTHORIZATION_ASSIGNMENTS,
+                            )?;
+                            Ok(())
+                        },
+                        resolve_references:
+                            &|_args: &crate::generated::meta::bluebook::GroupArgs| Ok(()),
+                    },
+                )?
+            };
+            let id = match route {
+                Some(route) => route.aggregate().to_string(),
+                None => crate::generated::meta::bluebook::Bluebook::extract_id(facts_json)
+                    .map_err(|_| {
+                        crate::kernel::Refusal::NotFound(
+                            crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs {
+                                command: "Group",
+                                aggregate: "Bluebook",
+                                identity: "name.value",
+                            }
+                            .render_args(),
+                        )
+                    })?,
+            };
+            let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+            let owner_deref =
+                crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::Bluebook", &id);
+            let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+            let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+            crate::generated::meta::bluebook::dispatch_group(
+                &mut store.bluebook,
+                &id,
+                args,
+                mutations,
+                owner_deref,
+                command_deref,
+                tenant_boundary_check,
+            )
+            .map(|(_, events)| stamp_payload(events, &payload))
+        }
         "Bluebook::Bluebook.Normalise" => {
             let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
             let route = invocation.route();
@@ -1833,6 +1945,9 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
                             if let Some(v) = &args.idempotent {
                                 v.check_invariants()?;
                             }
+                            if let Some(v) = &args.mints_era {
+                                v.check_invariants()?;
+                            }
                             if let Some(v) = &args.from {
                                 v.check_invariants()?;
                             }
@@ -1903,6 +2018,9 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
                                 v.check_invariants()?;
                             }
                             if let Some(v) = &args.idempotent {
+                                v.check_invariants()?;
+                            }
+                            if let Some(v) = &args.mints_era {
                                 v.check_invariants()?;
                             }
                             if let Some(v) = &args.from {
@@ -2869,6 +2987,111 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
             let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
             let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
             crate::generated::meta::command::dispatch_allow(
+                &mut store.command,
+                &id,
+                args,
+                mutations,
+                owner_deref,
+                command_deref,
+                tenant_boundary_check,
+            )
+            .map(|(_, events)| stamp_payload(events, &payload))
+        }
+        "Bluebook::Command.Address" => {
+            let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
+            let route = invocation.route();
+            let facts_json = invocation.facts();
+            let args = if invocation.explicit_with() {
+                let args = crate::kernel::decode_aggregate_arguments(
+                    facts_json,
+                    &crate::kernel::ArgumentGates {
+                        decode_arguments:
+                            &crate::generated::meta::command::AddressArgs::decode_arguments,
+                        refuse_unknown_arguments:
+                            &crate::generated::meta::command::AddressArgs::refuse_unknown_arguments,
+                        refuse_absent_arguments:
+                            &crate::generated::meta::command::AddressArgs::refuse_absent_arguments,
+                        normalize_args: &|v: &crate::kernel::Json| {
+                            let args = crate::generated::meta::command::AddressArgs::from_json(v)?;
+                            args.addressed.check_invariants()?;
+                            Ok(args)
+                        },
+                        refuse_role_mismatch: &|| {
+                            crate::kernel::check_role_via(
+                                Some("Language"),
+                                "Address",
+                                caller_role,
+                                caller_actor_id,
+                                &*store,
+                                QUERIES,
+                                AUTHORIZATION_ASSIGNMENTS,
+                            )?;
+                            Ok(())
+                        },
+                        resolve_references:
+                            &|_args: &crate::generated::meta::command::AddressArgs| Ok(()),
+                    },
+                )?;
+                if let Some(route) = route {
+                    route.require_depth(0)?;
+                }
+                args
+            } else {
+                if let Some(route) = route {
+                    route.require_depth(0)?;
+                }
+                crate::kernel::decode_aggregate_arguments(
+                    facts_json,
+                    &crate::kernel::ArgumentGates {
+                        decode_arguments:
+                            &crate::generated::meta::command::AddressArgs::decode_arguments,
+                        refuse_unknown_arguments:
+                            &crate::generated::meta::command::AddressArgs::refuse_unknown_arguments,
+                        refuse_absent_arguments:
+                            &crate::generated::meta::command::AddressArgs::refuse_absent_arguments,
+                        normalize_args: &|v: &crate::kernel::Json| {
+                            let args = crate::generated::meta::command::AddressArgs::from_json(v)?;
+                            args.addressed.check_invariants()?;
+                            Ok(args)
+                        },
+                        refuse_role_mismatch: &|| {
+                            crate::kernel::check_role_via(
+                                Some("Language"),
+                                "Address",
+                                caller_role,
+                                caller_actor_id,
+                                &*store,
+                                QUERIES,
+                                AUTHORIZATION_ASSIGNMENTS,
+                            )?;
+                            Ok(())
+                        },
+                        resolve_references:
+                            &|_args: &crate::generated::meta::command::AddressArgs| Ok(()),
+                    },
+                )?
+            };
+            let id = match route {
+                Some(route) => route.aggregate().to_string(),
+                None => crate::generated::meta::command::Command::extract_id(facts_json).map_err(
+                    |_| {
+                        crate::kernel::Refusal::NotFound(
+                            crate::kernel::refusal_wording::NotFoundActingNoIdentityArgs {
+                                command: "Address",
+                                aggregate: "Command",
+                                identity: "owner_id, name.value",
+                            }
+                            .render_args(),
+                        )
+                    },
+                )?,
+            };
+            let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+            let owner_deref =
+                crate::kernel::owner_deref(&*store, REFERENCE_TABLE, "Bluebook::Command", &id);
+            let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
+            let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
+            crate::generated::meta::command::dispatch_address(
                 &mut store.command,
                 &id,
                 args,
@@ -4532,6 +4755,7 @@ args.correlates_by.check_invariants()?;
 args.starts_on.check_invariants()?;
 if let Some(v) = &args.ends_on { v.check_invariants()?; }
 if let Some(items) = &args.endings { for item in items { item.check_invariants()?; } }
+if let Some(items) = &args.resumes { for item in items { item.check_invariants()?; } }
 if let Some(v) = &args.position { v.check_invariants()?; }
 Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Language"), "Declare", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|args: &crate::generated::meta::processmanager::DeclareArgs| { crate::kernel::check_reference(&store.bluebook, &args.bluebook, "Bluebook", "name")?; Ok(()) } })?;
                 if let Some(route) = route {
@@ -4548,6 +4772,7 @@ args.correlates_by.check_invariants()?;
 args.starts_on.check_invariants()?;
 if let Some(v) = &args.ends_on { v.check_invariants()?; }
 if let Some(items) = &args.endings { for item in items { item.check_invariants()?; } }
+if let Some(items) = &args.resumes { for item in items { item.check_invariants()?; } }
 if let Some(v) = &args.position { v.check_invariants()?; }
 Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Language"), "Declare", caller_role, caller_actor_id, &*store, QUERIES, AUTHORIZATION_ASSIGNMENTS)?; Ok(()) }, resolve_references: &|args: &crate::generated::meta::processmanager::DeclareArgs| { crate::kernel::check_reference(&store.bluebook, &args.bluebook, "Bluebook", "name")?; Ok(()) } })?
             };
@@ -6919,15 +7144,7 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
                             Ok(())
                         },
                         resolve_references:
-                            &|args: &crate::generated::meta::syntax::DeclareArgs| {
-                                crate::kernel::check_reference(
-                                    &store.bluebook,
-                                    &args.bluebook.value,
-                                    "Bluebook",
-                                    "name",
-                                )?;
-                                Ok(())
-                            },
+                            &|_args: &crate::generated::meta::syntax::DeclareArgs| Ok(()),
                     },
                 )?;
                 if let Some(route) = route {
@@ -6966,19 +7183,20 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
                             Ok(())
                         },
                         resolve_references:
-                            &|args: &crate::generated::meta::syntax::DeclareArgs| {
-                                crate::kernel::check_reference(
-                                    &store.bluebook,
-                                    &args.bluebook.value,
-                                    "Bluebook",
-                                    "name",
-                                )?;
-                                Ok(())
-                            },
+                            &|_args: &crate::generated::meta::syntax::DeclareArgs| Ok(()),
                     },
                 )?
             };
-            let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
+            let tenant_boundary_check: Result<(), crate::kernel::Refusal> =
+                (|| -> Result<(), crate::kernel::Refusal> {
+                    crate::kernel::check_reference(
+                        &store.bluebook,
+                        &args.bluebook.value,
+                        "Bluebook",
+                        "name",
+                    )?;
+                    Ok(())
+                })();
             let owner_deref = Vec::new();
             let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
             let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
@@ -7501,7 +7719,7 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
                 }
                 None => {
                     let parent_id = crate::generated::meta::processmanager::ProcessManager::extract_id(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Dispatch acts on a ProcessManager's Handler — pass bluebook, name.value:".to_string()))?;
-                    let element_id = crate::generated::meta::processmanager::Handler::extract_id_lenient(facts_json).map_err(|_| crate::kernel::Refusal::NotFound("Dispatch acts on one Handler — pass event_type.value, from_state.value:".to_string()))?;
+                    let element_id = crate::generated::meta::processmanager::Handler::extract_id_lenient(facts_json).map_err(|_| { if store.processmanager.find(&parent_id).is_none() { crate::kernel::Refusal::NotFound(crate::kernel::refusal_wording::NotFoundRecordMissingArgs { aggregate: "ProcessManager", identity: "bluebook, name.value", offered: &format!("{parent_id:?}") }.render_args()) } else { crate::kernel::Refusal::NotFound("Dispatch acts on one Handler — pass event_type.value, from_state.value:".to_string()) } })?;
                     let element_wants =
                         crate::generated::meta::processmanager::Handler::extract_wants(facts_json);
                     (parent_id, element_id, element_wants)
@@ -7568,9 +7786,21 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
                     let element_id =
                         crate::generated::meta::valueobject::Member::extract_id_lenient(facts_json)
                             .map_err(|_| {
-                                crate::kernel::Refusal::NotFound(
-                                    "Pair acts on one Member — pass position.value:".to_string(),
-                                )
+                                if store.valueobject.find(&parent_id).is_none() {
+                                    crate::kernel::Refusal::NotFound(
+                                        crate::kernel::refusal_wording::NotFoundRecordMissingArgs {
+                                            aggregate: "ValueObject",
+                                            identity: "aggregate, name.value",
+                                            offered: &format!("{parent_id:?}"),
+                                        }
+                                        .render_args(),
+                                    )
+                                } else {
+                                    crate::kernel::Refusal::NotFound(
+                                        "Pair acts on one Member — pass position.value:"
+                                            .to_string(),
+                                    )
+                                }
                             })?;
                     let element_wants =
                         crate::generated::meta::valueobject::Member::extract_wants(facts_json);
@@ -7635,10 +7865,21 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
                     let element_id =
                         crate::generated::meta::syntax::Keyword::extract_id_lenient(facts_json)
                             .map_err(|_| {
-                                crate::kernel::Refusal::NotFound(
-                                    "Deprecate acts on one Keyword — pass position.value:"
-                                        .to_string(),
-                                )
+                                if store.syntax.find(&parent_id).is_none() {
+                                    crate::kernel::Refusal::NotFound(
+                                        crate::kernel::refusal_wording::NotFoundRecordMissingArgs {
+                                            aggregate: "Syntax",
+                                            identity: "name.value",
+                                            offered: &format!("{parent_id:?}"),
+                                        }
+                                        .render_args(),
+                                    )
+                                } else {
+                                    crate::kernel::Refusal::NotFound(
+                                        "Deprecate acts on one Keyword — pass position.value:"
+                                            .to_string(),
+                                    )
+                                }
                             })?;
                     let element_wants =
                         crate::generated::meta::syntax::Keyword::extract_wants(facts_json);
@@ -7702,9 +7943,21 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
                     let element_id =
                         crate::generated::meta::syntax::Keyword::extract_id_lenient(facts_json)
                             .map_err(|_| {
-                                crate::kernel::Refusal::NotFound(
-                                    "Retire acts on one Keyword — pass position.value:".to_string(),
-                                )
+                                if store.syntax.find(&parent_id).is_none() {
+                                    crate::kernel::Refusal::NotFound(
+                                        crate::kernel::refusal_wording::NotFoundRecordMissingArgs {
+                                            aggregate: "Syntax",
+                                            identity: "name.value",
+                                            offered: &format!("{parent_id:?}"),
+                                        }
+                                        .render_args(),
+                                    )
+                                } else {
+                                    crate::kernel::Refusal::NotFound(
+                                        "Retire acts on one Keyword — pass position.value:"
+                                            .to_string(),
+                                    )
+                                }
                             })?;
                     let element_wants =
                         crate::generated::meta::syntax::Keyword::extract_wants(facts_json);
@@ -7769,10 +8022,21 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
                     let element_id =
                         crate::generated::meta::syntax::Argument::extract_id_lenient(facts_json)
                             .map_err(|_| {
-                                crate::kernel::Refusal::NotFound(
-                                    "Deprecate acts on one Argument — pass position.value:"
-                                        .to_string(),
-                                )
+                                if store.syntax.find(&parent_id).is_none() {
+                                    crate::kernel::Refusal::NotFound(
+                                        crate::kernel::refusal_wording::NotFoundRecordMissingArgs {
+                                            aggregate: "Syntax",
+                                            identity: "name.value",
+                                            offered: &format!("{parent_id:?}"),
+                                        }
+                                        .render_args(),
+                                    )
+                                } else {
+                                    crate::kernel::Refusal::NotFound(
+                                        "Deprecate acts on one Argument — pass position.value:"
+                                            .to_string(),
+                                    )
+                                }
                             })?;
                     let element_wants =
                         crate::generated::meta::syntax::Argument::extract_wants(facts_json);
@@ -7836,10 +8100,21 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
                     let element_id =
                         crate::generated::meta::syntax::Argument::extract_id_lenient(facts_json)
                             .map_err(|_| {
-                                crate::kernel::Refusal::NotFound(
-                                    "Retire acts on one Argument — pass position.value:"
-                                        .to_string(),
-                                )
+                                if store.syntax.find(&parent_id).is_none() {
+                                    crate::kernel::Refusal::NotFound(
+                                        crate::kernel::refusal_wording::NotFoundRecordMissingArgs {
+                                            aggregate: "Syntax",
+                                            identity: "name.value",
+                                            offered: &format!("{parent_id:?}"),
+                                        }
+                                        .render_args(),
+                                    )
+                                } else {
+                                    crate::kernel::Refusal::NotFound(
+                                        "Retire acts on one Argument — pass position.value:"
+                                            .to_string(),
+                                    )
+                                }
                             })?;
                     let element_wants =
                         crate::generated::meta::syntax::Argument::extract_wants(facts_json);
@@ -8269,6 +8544,7 @@ pub fn command_creates(verb: &str) -> bool {
         "Bluebook::Bluebook.Declare" => true,
         "Bluebook::Bluebook.Attach" => false,
         "Bluebook::Bluebook.Provide" => false,
+        "Bluebook::Bluebook.Group" => false,
         "Bluebook::Bluebook.Normalise" => false,
         "Bluebook::Command.Declare" => true,
         "Bluebook::Command.Argument" => false,
@@ -8279,6 +8555,7 @@ pub fn command_creates(verb: &str) -> bool {
         "Bluebook::Command.ActsOn" => false,
         "Bluebook::Command.Announce" => false,
         "Bluebook::Command.Allow" => false,
+        "Bluebook::Command.Address" => false,
         "Bluebook::Command.Need" => false,
         "Bluebook::Entity.Declare" => true,
         "Bluebook::Entity.Identify" => false,
@@ -8352,9 +8629,15 @@ pub fn entity_identity_head_for_path(qualified_path: &str) -> Option<&'static st
 
 pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
     match verb {
-        "Bluebook::Aggregate.Declare" => {
-            &["bluebook", "name", "description", "provenance", "position"]
-        }
+        "Bluebook::Aggregate.Declare" => &[
+            "bluebook",
+            "name",
+            "description",
+            "provenance",
+            "formerly_known_as",
+            "created_by",
+            "position",
+        ],
         "Bluebook::Aggregate.Identify" => &["path"],
         "Bluebook::Aggregate.Attribute" => &[
             "type",
@@ -8405,6 +8688,7 @@ pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
         ],
         "Bluebook::Bluebook.Attach" => &["context"],
         "Bluebook::Bluebook.Provide" => &["capability", "key", "verb"],
+        "Bluebook::Bluebook.Group" => &["name", "vision", "aggregate"],
         "Bluebook::Bluebook.Normalise" => &[
             "strategy",
             "source_token",
@@ -8420,6 +8704,7 @@ pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
             "goal",
             "provenance",
             "idempotent",
+            "mints_era",
             "from",
             "position",
         ],
@@ -8449,6 +8734,7 @@ pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
         "Bluebook::Command.ActsOn" => &["root"],
         "Bluebook::Command.Announce" => &["announces"],
         "Bluebook::Command.Allow" => &["allowed"],
+        "Bluebook::Command.Address" => &["addressed"],
         "Bluebook::Command.Need" => &["fact"],
         "Bluebook::Entity.Declare" => &["aggregate", "owner", "name", "description", "position"],
         "Bluebook::Entity.Identify" => &["path"],
@@ -8509,6 +8795,7 @@ pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
             "starts_on",
             "ends_on",
             "endings",
+            "resumes",
             "position",
         ],
         "Bluebook::ProcessManager.State" => &["name"],

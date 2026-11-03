@@ -1,0 +1,253 @@
+# Pipeline: one change's passage from a planned Work row to a release, declared as its own
+# aggregate instead of read off six other domains. A Passage is keyed by the Work row's key, which
+# is also the branch a landing finishes, so the events the other domains already emit can find it.
+# Every stage is advanced by a policy reacting to one of those events; nothing here asks the
+# outside anything.
+#
+#   Tickets   Work.WorkPlanned        -> Plan      (planned)
+#   Tickets   Work.WorkStarted        -> Dispatch  (dispatched), again for a row started again
+#   Hecks     Landing.LandedWorkFound -> Land      (landed)
+#   Hecks     Integration.MainPushed  -> Push      (pushed), every landed passage at once
+#   Hecks     RedFlag.RedFlagRaised   -> Hold      (held), every pushed passage
+#   Hecks     RedFlag.RedFlagCleared  -> Verify    (verified), every pushed or held passage
+#   Hecks     PromotionRun.PromotionCompleted, promoted -> Promote (promoted), every verified passage
+#   Hecks     Release.Published       -> Release   (released), every promoted passage
+#
+# A push, a green run, a promotion and a release each cover every passage waiting at the stage
+# before, because main moves as one line: a commit pushed, verified or promoted carries everything
+# landed before it. Stalling is a mark, not a stage: a passage that sat too long where it is keeps
+# its stage and gains the reason, so the board can show it in place.
+
+Hecks.bluebook "Pipeline" do
+  vision "Every change is one passage, from the Work row that planned it to the release that shipped it, and where each one stands is a fact the pipeline itself holds."
+
+  supporting
+
+  aggregate "Passage" do
+    description "One change's journey through the pipeline: the stage it is at, what carried it there, and whether it has stalled."
+    created_by "Passage.plan!"
+
+    identified_by :change
+
+    attribute :change,  ChangeKey
+    attribute :title,   Title,    optional: true
+    attribute :session, Word,     optional: true
+    attribute :landed,  Word,     optional: true
+    attribute :pushed,  Word,     optional: true
+    attribute :flag,    Word,     optional: true
+    attribute :stalled, Reason,   optional: true
+
+    # The Work row's key, which the branch that lands it is named after.
+    value_object "ChangeKey" do
+      attribute :value, String, matches: :present
+      invariant("a passage is named by its change") { !value.to_s.empty? }
+    end
+
+    value_object "Title" do
+      attribute :value, String
+    end
+
+    # A session id, a commit, or a red flag's id.
+    value_object "Word" do
+      attribute :value, String, matches: :present
+    end
+
+    # Why a passage stalled; empty once it moved on.
+    value_object "Reason" do
+      attribute :value, String, default: ""
+    end
+
+    lifecycle :stage, default: "planned" do
+      mark :terminal, "released"
+      transition "Dispatch" => "dispatched", from: %w[planned dispatched]
+      transition "Land"     => "landed",     from: %w[planned dispatched]
+      transition "Push"     => "pushed",     from: "landed"
+      transition "Hold"     => "held",       from: "pushed"
+      transition "Verify"   => "verified",   from: %w[pushed held]
+      transition "Promote"  => "promoted",   from: "verified"
+      transition "Release"  => "released",   from: "promoted"
+    end
+
+    command "Plan" do
+      role "System"
+      goal "Open a passage for a Work row the moment it is planned"
+
+      attribute :change, ChangeKey, sets: true
+      attribute :title,  Title, optional: true, sets: true
+
+      emits PassagePlanned
+    end
+
+    # A Work row yielded or released goes back to the plan and starts again under another
+    # session, so a dispatched passage takes the newer session rather than refusing it.
+    command "Dispatch" do
+      role "System"
+      goal "Record the session a planned change was handed to, or the one it was handed to again"
+
+      reference_to Passage
+      attribute :session, Word, sets: true
+      sets :stalled, to: { value: "" }
+
+      emits PassageDispatched
+    end
+
+    command "Land" do
+      role "System"
+      goal "Record that the change's branch landed on local main"
+
+      reference_to Passage
+      sets :stalled, to: { value: "" }
+
+      emits PassageLanded
+    end
+
+    command "Push" do
+      role "System"
+      goal "Record the main commit that carried the landed change to the remote"
+
+      reference_to Passage
+      attribute :pushed, Word, sets: true
+      sets :stalled, to: { value: "" }
+
+      emits PassagePushed
+    end
+
+    command "Hold" do
+      role "System"
+      goal "Record that main went red while this change waits for a green run"
+
+      reference_to Passage
+      attribute :flag, Word, sets: true
+
+      emits PassageHeld
+    end
+
+    command "Verify" do
+      role "System"
+      goal "Record that a green run of main covers the pushed change"
+
+      reference_to Passage
+      sets :stalled, to: { value: "" }
+
+      emits PassageVerified
+    end
+
+    command "Promote" do
+      role "System"
+      goal "Record that stable moved past the verified change"
+
+      reference_to Passage
+      sets :stalled, to: { value: "" }
+
+      emits PassagePromoted
+    end
+
+    command "Release" do
+      role "System"
+      goal "Record that a published release carries the change"
+
+      reference_to Passage
+
+      emits PassageReleased
+    end
+
+    command "Stall" do
+      role "Maintainer"
+      goal "Mark a passage that has sat too long at its stage, with the reason, without moving it"
+
+      reference_to Passage
+      attribute :stalled, Reason, sets: true
+
+      emits PassageStalled
+    end
+
+    query "InFlight" do
+      description "Every passage that has not been released, oldest change first."
+      where(stage: { in: "planned,dispatched,landed,pushed,held,verified,promoted" })
+      order_by :change
+    end
+
+    query "AtStage" do
+      description "The passages standing at one stage."
+      attribute :stage, String
+      where(stage: :stage)
+      order_by :change
+    end
+
+    query "Landed" do
+      description "The passages on local main that no push has carried yet."
+      where(stage: "landed")
+      order_by :change
+    end
+
+    query "Pushed" do
+      description "The passages on the remote waiting for a green run of main, held by a red flag or not."
+      where(stage: { in: "pushed,held" })
+      order_by :change
+    end
+
+    query "Verified" do
+      description "The passages a green run covers that stable has not moved past."
+      where(stage: "verified")
+      order_by :change
+    end
+
+    query "Promoted" do
+      description "The passages on stable that no release has shipped."
+      where(stage: "promoted")
+      order_by :change
+    end
+
+    query "Stalled" do
+      description "Every passage marked as stalled, with the reason."
+      where(stalled: { ne: "" })
+      order_by :change
+    end
+  end
+
+  policy "PlanWhenWorkPlanned" do
+    on      "Work.WorkPlanned"
+    trigger Passage::Plan, with: { change: :work, title: :title }
+  end
+
+  policy "DispatchWhenWorkStarted" do
+    on      "Work.WorkStarted"
+    trigger Passage::Dispatch, with: { change: :work, session: :claimed_by }
+  end
+
+  policy "LandWhenWorkLanded" do
+    on      "Landing.LandedWorkFound"
+    trigger Passage::Land, with: { change: :branch }
+  end
+
+  policy "PushEveryLandedWhenMainPushed" do
+    on       "Integration.MainPushed"
+    for_each "Passage.Landed"
+    trigger  Passage::Push, with: { change: :change, pushed: :pushed }
+  end
+
+  policy "HoldEveryPushedWhenMainRed" do
+    on       "RedFlag.RedFlagRaised"
+    for_each "Passage.Pushed"
+    trigger  Passage::Hold, with: { change: :change, flag: :flag }
+  end
+
+  policy "VerifyEveryPushedWhenMainGreen" do
+    on       "RedFlag.RedFlagCleared"
+    for_each "Passage.Pushed"
+    trigger  Passage::Verify, with: { change: :change }
+  end
+
+  policy "PromoteEveryVerifiedWhenStableMoves" do
+    on       "PromotionRun.PromotionCompleted"
+    where    { promoted.value == true }
+    for_each "Passage.Verified"
+    trigger  Passage::Promote, with: { change: :change }
+  end
+
+  policy "ReleaseEveryPromotedWhenPublished" do
+    on       "Release.Published"
+    for_each "Passage.Promoted"
+    trigger  Passage::Release, with: { change: :change }
+  end
+end

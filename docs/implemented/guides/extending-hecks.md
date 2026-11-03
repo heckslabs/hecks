@@ -41,7 +41,7 @@ Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook").aggregates.
 like any other, judged the same way. It owns the live `Keyword` and
 `Argument` records and their lifecycle; their static source rows remain
 with the aggregates whose language they describe. The combined rows are what
-`hecks language_run.project_reference` projects into `docs/implemented/reference/*.md` — the prose you
+`hecks language_run.project_reference!` projects into `docs/implemented/reference/*.md` — the prose you
 read when you look up what `given` takes came out of exactly this
 table, which is one more reason the row has to be right before
 anything else follows from it.
@@ -64,7 +64,7 @@ means live. `deprecated` means still read, on its way out. `retired`
 means gone — the row stays, as history, but no builder may answer it
 any more. There's one more thing a row can say, in its own column
 rather than its own status: `was:`, the rename column. `read_model` carries
-`was: "report"` (`hecks query language_run.word_status` lists it) — the corpus, still able to boot the old
+`was: "report"` (`hecks language_run.word_status` lists it) — the corpus, still able to boot the old
 `report` spelling, is the proof that a rename never stops the old spelling
 from booting.
 
@@ -87,7 +87,7 @@ flag / literal / constant / pairs / list), whether it's required, and
 which field it lands on. One row per `(word, context, form)` — a word
 admitting two shapes gets two rows, not one row with a maybe.
 
-## `hecks language_run.propose` and its siblings: the stations
+## `hecks language_run.propose!` and its siblings: the stations
 
 Adding a word by hand — editing the row, teaching the builder, moving
 the golden IR, remembering which specs gate the change — is a many-file
@@ -97,16 +97,16 @@ is what it actually does, station by station:
 
 ```ruby skip
 hecks language_run.word_status
-hecks language_run.propose <word> context=Aggregate [body=...] [inner=...] [opens=...] [fills=...]
-hecks language_run.admit <word> context=Aggregate
-hecks language_run.deprecate <word> context=Aggregate
-hecks language_run.retire <word> context=Aggregate
-hecks language_run.rename <word> context=Aggregate to=<new-word>
+hecks language_run.propose! <word> context=Aggregate [body=...] [inner=...] [opens=...] [fills=...]
+hecks language_run.admit! <word> context=Aggregate
+hecks language_run.deprecate! <word> context=Aggregate
+hecks language_run.retire! <word> context=Aggregate
+hecks language_run.rename! <word> context=Aggregate to=<new-word>
 
-hecks language_run.propose_argument <keyword> context=X kind=K [at=N] [named=NAME] [required=true|false] [fills=F]
-hecks language_run.admit_argument <keyword> context=X [at=N] [named=NAME]
-hecks language_run.deprecate_argument <keyword> context=X [at=N] [named=NAME]
-hecks language_run.retire_argument <keyword> context=X [at=N] [named=NAME]
+hecks language_run.propose_argument! <keyword> context=X kind=K [at=N] [named=NAME] [required=true|false] [fills=F]
+hecks language_run.admit_argument! <keyword> context=X [at=N] [named=NAME]
+hecks language_run.deprecate_argument! <keyword> context=X [at=N] [named=NAME]
+hecks language_run.retire_argument! <keyword> context=X [at=N] [named=NAME]
 ```
 
 `word_status` prints where every word stands: how many rows are not simply
@@ -215,7 +215,7 @@ in that file do, in order:
 
 ```ruby
 rows = Hecks::Bluebook::MetaValidator::SyntaxBoot.call[:keywords]
-rows.select { |row| row[:context] == "TranslationAggregate" && row[:status] != "retired" }.map { |row| row[:word] }.sort   # => ["backfill", "convert", "derive", "drop", "move", "rekey_to", "rename", "retype", "unresolved"]
+rows.select { |row| row[:context] == "TranslationAggregate" && row[:status] != "retired" }.map { |row| row[:word] }.sort   # => ["backfill", "convert", "derive", "drop", "move", "rekey_to", "rename", "retype", "split", "unresolved"]
 ```
 
 That's the recipe if you ever have to write another gate: find the two
@@ -233,7 +233,7 @@ decoration wearing the shape of a rule.
 
 ## The golden IR discipline
 
-`hecks language_run.admit` regenerates `spec/golden/ir/Bluebook.json` for you as part
+`hecks language_run.admit!` regenerates `spec/golden/ir/Bluebook.json` for you as part
 of every mutating command, but it's worth knowing what that file is and
 when touching it by hand is legitimate. `Bluebook#to_h` is the wire
 format two production mechanisms stand on directly — era projection
@@ -261,7 +261,7 @@ same reflex: review the diff before you believe it.)
 ## Teaching the model checker a new finding
 
 Sometimes the thing you're adding to the language isn't a new word but
-a new *check* — a way for `hecks model_check` to catch something a
+a new *check* — a way for `hecks ModelCheckRun.model_check!` to catch something a
 lifecycle or a process manager could declare and get wrong. This is
 static analysis over the IR (no bluebook boots twice, nothing here
 touches a runtime), so it lives in
@@ -300,7 +300,7 @@ a domain's allowance belongs on its own declaration (ADR 0025). `spec/model_chec
 enforces this table in **both directions** over the whole corpus: an
 error the checker reports that the table doesn't name is a regression
 you have to fix or explicitly allow; an entry in the table the checker
-no longer reports is stale and must be deleted. `hecks model_check`
+no longer reports is stale and must be deleted. `hecks ModelCheckRun.model_check!`
 reads the exact same `ALLOWED_FINDINGS` constant the spec does — one
 table, never a copy — so the tool a human runs and the gate CI runs
 can't drift apart the way the syntax table and the old hand-written
@@ -315,7 +315,7 @@ new section if it's none of those), have it return `Finding.new(kind:
 that already covers its construct (or into `call` directly, for
 something new), add a fixture under `spec/fixtures/model_check/` that
 deliberately trips it, assert the new kind in `spec/model_check_spec.rb`,
-then run `hecks model_check` over the real corpus — anything it newly
+then run `hecks ModelCheckRun.model_check!` over the real corpus — anything it newly
 flags there has to be fixed in the example domain or allowed on that
 domain's own declaration, naming exactly what's real and what's a bookkeeping gap.
 
@@ -329,7 +329,7 @@ nobody wrote a sentence about it.
 `lib/hecks/doc/reference.rb` projects the combined live
 `Syntax::Keyword` and `Syntax::Argument` records into one Markdown page per context —
 `docs/implemented/reference/aggregate.md`, `docs/implemented/reference/command.md`, and so on —
-regenerated by `hecks language_run.project_reference`. The generated part (signature, argument
+regenerated by `hecks language_run.project_reference!`. The generated part (signature, argument
 table, `opens`/`fills`/status facts) lives between
 `<!-- generated:begin word=... -->` / `<!-- generated:end -->` markers
 and is rebuilt fresh every run; the prose after each marker is
@@ -339,7 +339,7 @@ your writing survives regeneration. A brand-new word is seeded with a
 
 `spec/reference_golden_spec.rb` checks two things. First, the same
 frozen-file discipline the golden IR uses: every reference page must
-equal what `hecks language_run.project_reference` would generate right now — a tree where the
+equal what `hecks language_run.project_reference!` would generate right now — a tree where the
 declaration and the docs disagree refuses rather than drifting quietly,
 same as the golden IR. Second, and this is the one that actually gates
 a new word: `Reference.undocumented` walks every *live* (admitted or
@@ -348,8 +348,8 @@ page still carries the TODO sentinel or no section at all. You may not
 ship a word nobody can read about — that's the whole rule, enforced,
 not aspirational.
 
-So the last station in the checklist, after `hecks language_run.admit` goes
-green, is: run `hecks language_run.project_reference`, open the page for your word's context,
+So the last station in the checklist, after `hecks language_run.admit!` goes
+green, is: run `hecks language_run.project_reference!`, open the page for your word's context,
 and replace the TODO with real prose. Nothing about the evolve commands
 reminds you of this step directly — it's a separate gate, checked by a
 separate spec, over a separate file — which is exactly why it belongs

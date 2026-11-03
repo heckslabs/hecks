@@ -1,11 +1,11 @@
 require "spec_helper"
-require "hecks/cli/project_cli"
+require "hecks/tools/project_cli"
 require "tmpdir"
 require "fileutils"
 
 # `hecks project_cli` checks and writes the launchers; a domain it cannot read must fail the
 # check, and nothing a domain or its world names may end a string literal in the launcher.
-RSpec.describe Hecks::CLI::ProjectCli do
+RSpec.describe Hecks::Tools::ProjectCli do
   let(:root) { Dir.mktmpdir("project_cli") }
 
   after { FileUtils.rm_rf(root) }
@@ -58,6 +58,11 @@ RSpec.describe Hecks::CLI::ProjectCli do
   describe ".launcher" do
     def source(path = "shelf", name = "Shelf", **options) = described_class.launcher(path, name, "hecks project_cli", **options)
 
+    it "writes a launcher that never hands a name to Hecks::CLI", :aggregate_failures do
+      expect(source("shelf", "Shelf", executable: "bin/x")).not_to include("Hecks::CLI")
+      expect(source("shelf", "Shelf")).not_to include("Hecks::CLI")
+    end
+
     it "writes the boot path, program and name as Ruby literals", :aggregate_failures do
       text = source("a/b", "Shelf")
 
@@ -65,12 +70,10 @@ RSpec.describe Hecks::CLI::ProjectCli do
       expect(RubyVM::InstructionSequence.compile(text)).to be_a(RubyVM::InstructionSequence)
     end
 
-    it "refuses a name, path, executable or legacy command that could end its string", :aggregate_failures do
+    it "refuses a name, path or executable that could end its string", :aggregate_failures do
       expect { source('x"; system("id"); "', "Shelf") }.to raise_error(ArgumentError, /domain path/)
       expect { source("shelf", "Sh\"elf") }.to raise_error(ArgumentError, /bluebook name/)
       expect { source("shelf", "Shelf", executable: "../out") }.to raise_error(ArgumentError, /launcher executable/)
-      expect { source("shelf", "Shelf", executable: "bin/x", legacy: ["run]; exit"]) }
-        .to raise_error(ArgumentError, /legacy command/)
     end
 
     it "climbs one directory out of lib for an executable at the top of the root", :aggregate_failures do

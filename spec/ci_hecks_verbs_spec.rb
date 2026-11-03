@@ -3,7 +3,7 @@ require "spec_helper"
 # ADR 0080, step 10: the workflows and the pre-push hook call `hecks <verb>`, not `bin/`. Every
 # verb they name must resolve through the launcher, and none of them starts a `bin/` script.
 RSpec.describe "CI and hook calls of the hecks launcher" do
-  # Words exe/hecks hands to Hecks::CLI before the launcher; they are not qualified names.
+  # Words the launcher took unqualified before it retired them; they are not qualified names.
   LEGACY_WORDS = %w[run docs narrate ir stores model_check smoke_test project_diagrams project_cli mcp].freeze
 
   CI_VERBS_ROOT = File.expand_path("..", __dir__)
@@ -26,7 +26,7 @@ RSpec.describe "CI and hook calls of the hecks launcher" do
   # The [kind, verb] of every `exe/hecks` call in the files, bar the legacy words.
   def verb_calls
     found = code_lines.flat_map do |_, line|
-      line.scan(%r{exe/hecks ((?:ask |query |deploy )?)([a-z_.]+)!?}).map { |kind, verb| [kind.strip, verb] }
+      line.scan(%r{exe/hecks ((?:ask |query |deploy |quality_control )?)([a-z_.]+)!?}).map { |kind, verb| [kind.strip, verb] }
     end
     found.uniq.reject { |_, verb| LEGACY_WORDS.include?(verb) }
   end

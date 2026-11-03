@@ -23,4 +23,21 @@ Hecks.hecksagon "Tickets" do
       end
     end
   end
+  Tickets::Work.port "WorkAreas" do
+    asks "CheckArea", to: Work do
+      attribute :work, WorkKey
+      answers "AreaCleared"
+      refuses "AreaRefused"
+    end
+  end
+
+  # The cap on started rows, which reads the other rows, as a bluebook rule cannot. The cap is the
+  # world's `work_limit` setting.
+  Tickets::Work.port "WorkLimits" do
+    asks "CheckCap", to: Work do
+      attribute :work, WorkKey
+      answers "CapCleared"
+      refuses "CapRefused"
+    end
+  end
 end

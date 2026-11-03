@@ -21,7 +21,7 @@ RSpec.describe "the generated sentence table" do
     let(:rows) { Hecks::Projections::PhraseTable.rows(declaration) }
     let(:contexts) do
       %w[File Domain Aggregate Has ValueObject Lifecycle Command Query Condition Policy ExamplesFile Examples Background
-         Example Table Step Outcome Vision Fields Provides Report Process Handler]
+         Example Table Step Outcome Vision Fields Provides Report Process Handler Goal]
     end
 
     it "declare each phrase once" do

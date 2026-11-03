@@ -1,13 +1,12 @@
 require_relative "commands"
 require_relative "clean_tree"
 require_relative "git"
-require_relative "../../cli/release_gem"
 require "hecks/hecks/adapters/codebase/gem_registry"
 
 module Hecks
   module Release
     class Runner
-      # The gem step: hands the push to `Hecks::CLI::ReleaseGem`, which builds and pushes
+      # The gem step: hands the push to `Hecks::Tools::ReleaseGem`, which builds and pushes
       # it with the key 1Password holds; a dry run only builds it, then deletes it.
       class GemPublisher
         # @param root [String] the repository root
@@ -32,9 +31,10 @@ module Hecks
 
           CleanTree.new(git: Git.new(root: @root, commands: @commands)).check!
 
+          require_relative "../../tools/release_gem"
           @console.say("Publishing hecks #{version} to rubygems.org...")
-          status = Hecks::CLI::ReleaseGem.call(root: @root, commands: @commands, out: @console.out,
-                                               err: @console.err, version: version)
+          status = Hecks::Tools::ReleaseGem.call(root: @root, commands: @commands, out: @console.out,
+                                                 err: @console.err, version: version)
           raise CommandFailed, "the gem push was refused" unless status.zero?
         end
 

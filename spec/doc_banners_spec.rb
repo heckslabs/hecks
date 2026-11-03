@@ -19,10 +19,12 @@ module DocBanners
   # kept current in place, so a snapshot banner would be false.
   LIVING_REFERENCE = %w[
     architecture-map.md
+    ARCHITECTURE_REVIEW.md
     benchmarks.md
     COMMENT_STYLE_GUIDE.md
     COMMENT_STYLE_GUIDE_RUST.md
     migrating-2-to-3.md
+    migrating-6-to-7.md
     rubocop-custom-cops.md
     site-routes.md
     tools.md

@@ -8,6 +8,58 @@ module Hecks
           module CorrelationKeys
             private
 
+            # A bare name (`correlates_by Message`) naming an aggregate of this bluebook means
+            # that aggregate's identity, `"Message.id"`. Any other bare name is refused here,
+            # with the message the builder used to give. Runs before the other correlation
+            # checks, so they only ever see the dotted form.
+            def resolve_bare_correlation_keys!(bluebook)
+              bluebook.process_managers.each do |process_manager|
+                key = process_manager.correlates_by.to_s
+                next if bare_correlation_key?(key)
+
+                resolve_bare_correlation_key!(bluebook, process_manager, key)
+              end
+            end
+
+            def bare_correlation_key?(key)
+              key.empty? || key.include?(".")
+            end
+
+            def resolve_bare_correlation_key!(bluebook, process_manager, key)
+              aggregate = find_correlated_aggregate(bluebook, key)
+              unless aggregate
+                raise ProcessManagerBuilder::InvalidProcessManager,
+                      bare_correlation_message(process_manager.name, key)
+              end
+
+              path = identity_path(process_manager, aggregate)
+              process_manager.correlate_by!("#{aggregate.name}.#{path}")
+            end
+
+            # The refusal for a bare name that does not name an aggregate of the bluebook.
+            def bare_correlation_message(name, key)
+              "#{name} correlates_by #{key}, which names a whole field rather than one of its scalars " \
+                "— say which one, e.g. #{key}.value (or name an aggregate of this bluebook, " \
+                "which correlates by its identity)"
+            end
+
+            def find_correlated_aggregate(bluebook, key)
+              bluebook.aggregates.find { |candidate| candidate.name.to_s == Naming.demodulise(key) }
+            end
+
+            # The one field an aggregate is correlated by: its identity, or `id` when it declares
+            # none.
+            # A value-object identity drops its trailing `.value`, so `Thing` reads as `Thing.id`.
+            def identity_path(process_manager, aggregate)
+              paths = aggregate.identity_paths.map(&:to_s)
+              return "id" if paths.empty?
+              return paths.first.delete_suffix(".value") if paths.one?
+
+              raise ProcessManagerBuilder::InvalidProcessManager,
+                    "#{process_manager.name} correlates_by #{aggregate.name}, but #{aggregate.name} has a " \
+                    "composite identity — name the one field, e.g. #{aggregate.name}.#{paths.first}"
+            end
+
             # `correlates_by` must land on a scalar: the dotted path is walked against each
             # command that emits an event the process manager reacts to. A command lacking the
             # first segment is skipped, since correlation has fallback tiers

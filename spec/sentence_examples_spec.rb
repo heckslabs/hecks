@@ -40,6 +40,60 @@ RSpec.describe "examples written as sentences", :io do
 
   def failures(result) = result.runs.map(&:message).compact.inspect
 
+  # A goal over the Page examples (ADR 0173): the first example is the main scenario, the rest its
+  # extensions. `extension` is the second example's step under test.
+  def goal_text(goal: "Dana publishes a page", main_when: "Dana publishes it with published on 1700000000",
+                main_then: "the page is published", extension: "Dana tries to publish it with published on 1700000001",
+                extension_then: "it is refused because only a draft can be published")
+    <<~EXAMPLES
+      Examples for: Cms
+
+      Background:
+        Dana is an Editor
+
+      Goal: #{goal}
+        Example: A drafted page can be published
+          Given Dana drafts a page with slug "about" and title "About us"
+          When #{main_when}
+          Then #{main_then}
+
+        Example: A published page cannot be published again
+          Given Dana drafts a page with slug "about" and title "About us"
+          And Dana publishes it with published on 1700000000
+          When #{extension}
+          Then #{extension_then}
+    EXAMPLES
+  end
+
+  def run_goal(**)
+    FileUtils.cp(File.join(FIXTURE_DIR, "sentence_form.bluebook"), File.join(scratch, "page.bluebook"))
+    File.write(File.join(scratch, "page.examples"), goal_text(**))
+    Hecks::Behaviors.run(File.join(scratch, "page.examples"))
+  end
+
+  describe "a goal over the Page examples" do
+    it "runs its main scenario and its extension as examples", :aggregate_failures do
+      result = run_goal
+      expect(result.parse_error).to be_nil
+      expect(result.runs.map(&:status)).to eq(%i[pass pass]), failures(result)
+    end
+
+    it "refuses a main scenario that ends in a refusal" do
+      refused = run_goal(main_when: "Dana tries to publish it with published on 1700000000",
+                         main_then: "it is refused because only a draft can be published")
+      expect(refused.parse_error.to_s).to include("goal_without_success")
+    end
+
+    it "refuses an extension whose step the main scenario never takes" do
+      off_path = run_goal(extension: "Dana withdraws it", extension_then: "the page is withdrawn")
+      expect(off_path.parse_error.to_s).to include("extension_off_path")
+    end
+
+    it "refuses a goal that names no Background person" do
+      expect(run_goal(goal: "Someone publishes a page").parse_error.to_s).to include("names the person who pursues it")
+    end
+  end
+
   describe "the Page examples" do
     let(:page) { Hecks::Behaviors.run(PAGE_EXAMPLES) }
 

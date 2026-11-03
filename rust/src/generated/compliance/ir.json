@@ -180,7 +180,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Clear",
@@ -207,7 +208,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Escalate",
@@ -234,7 +236,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         }
       ],
       "invariants": [
@@ -278,6 +281,8 @@
 
       ],
       "provenance": null,
+      "formerly_known_as": null,
+      "created_by": null,
       "acknowledgements": [
 
       ]
@@ -360,8 +365,11 @@
         "database",
         "role",
         "schema",
+        "formerly",
         "allow_superuser",
-        "mint_eras"
+        "mint_eras",
+        "disposable_ledger",
+        "mints_era"
       ],
       "secrets": [
 

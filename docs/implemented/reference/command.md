@@ -5,14 +5,14 @@ Words available inside `command do ... end`.
 
 *The tables on this page are generated from the language's own
 aggregate-local syntax tables (`lib/hecks/language/**/*.bluebook`)
-by `hecks language_run.project_reference` — do not edit inside the markers. The prose
+by `hecks language_run.project_reference!` — do not edit inside the markers. The prose
 between them is hand-written and survives regeneration.*
 <!-- generated:end -->
 
 Most of these run against `examples/banking`, whose `Account` commands
 carry roles, goals, givens, ensures, multi-fact `emits`, and `sets`
 for real. A command-level `provenance` is written nowhere in the
-corpus, and so is `idempotent`, so they get a bluebook of their own:
+corpus, and so are `idempotent` and `audience`, so they get a bluebook of their own:
 
 ```ruby boot
 Hecks::Adapters::Folder.new.load_bluebooks(File.join(InMemoryDomain::ROOT, "examples/banking/bluebook"))
@@ -54,6 +54,8 @@ Hecks.bluebook "CommandReference" do
     command "Advance" do
       # A COMMAND'S OWN PROVENANCE, one level below the aggregate's.
       provenance from: { source: "HecksCanonical", source_id: "command:meter-advance", source_version: "1.0" }
+      # LISTED for an agent and a CI step, not for a person at a keyboard.
+      audience :agent, :ci
 
       reference_to Meter
       attribute :units, Reading
@@ -61,6 +63,12 @@ Hecks.bluebook "CommandReference" do
       sets :reading, increment: :units
       sets :marks,   append: { note: :note }
       emits "MeterAdvanced"
+    end
+
+    command "Calibrate" do
+      mints_era true
+      sets :serial
+      emits "MeterCalibrated"
     end
   end
 
@@ -193,6 +201,38 @@ freeze.goal  # => "Stop an account moving while something is investigated"
 freeze.role  # => "Compliance officer"
 ```
 
+## audience
+
+<!-- generated:begin word=audience -->
+`audience audience` — fills `audience`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | symbol | true | audience |
+<!-- generated:end -->
+
+Names who a launcher lists the command for: `:person` (someone at a keyboard), `:agent`
+(through the MCP door), `:ci` (a step of a pipeline) and `:record` (a run's own bookkeeping,
+which a person never types). Name one or several. A command that names none is listed for a
+person and an agent, and a launcher also leaves out a `System`-role command, as it always did.
+
+```ruby
+advance = runtime.registry.bluebook("CommandReference").aggregate("Meter").commands.find { |c| c.hecks_name == "Advance" }
+advance.audience  # => ["agent", "ci"]
+```
+
+A command that does not say it names no audience:
+
+```ruby
+install = runtime.registry.bluebook("CommandReference").aggregate("Meter").commands.find { |c| c.hecks_name == "Install" }
+install.audience  # => []
+```
+
+The audience decides what a launcher lists, never who may run the command: `role` still does
+that. Bare `hecks` lists the commands whose audience includes `:person`, and `hecks --all` adds
+the rest. Naming an audience the language does not know, naming none, or naming one twice is
+refused. It is carried on the IR as a list of names, and absent from a command that names none.
+
 ## provenance
 
 <!-- generated:begin word=provenance -->
@@ -244,6 +284,41 @@ advance.idempotent?  # => false
 
 Say it only for a command whose second delivery is a no-op: setting a field to a value, not
 adding to one. It is carried on the IR as a boolean.
+
+## mints_era
+
+<!-- generated:begin word=mints_era -->
+`mints_era` — fills `mints_era`
+<!-- generated:end -->
+
+Declares that this command's own record may be written through a boot whose shape no era holds
+yet. A boot like that refuses every write by name, so the command that mints the Hecks domain's
+held era could not persist its request without this. `Era.MintHeld` says `mints_era true`; the
+journal lets that one record through and refuses every other write from the same boot, and a
+superseded boot refuses the record too. It is carried on the IR as a boolean, `false` when not
+declared.
+
+```ruby
+meter = runtime.registry.bluebook("CommandReference").aggregate("Meter")
+meter.commands.find { |c| c.hecks_name == "Calibrate" }.mints_era  # => true
+```
+
+This is a storage concern, so it is moving out of the bluebook to the world that binds the
+persistence. A world's `persisted_by("PostgresEra")` block names the commands instead:
+
+```text
+Hecks.world "QualityControl" do
+  persisted_by("PostgresEra") do
+    database "postgres://hecks_qa@localhost/hecks_quality_control"
+    mints_era "Maintenance.MintEra"   # one `Aggregate.Command` name, or a list
+  end
+end
+```
+
+The adapter reads the world's names at boot. Until the word is retired from the grammar, a command
+that still says `mints_era true` keeps its allowance, and the two must agree: a world that names a
+command the domain does not declare, or that leaves out a command still saying `mints_era true`,
+refuses the boot by name. A world with no `mints_era` leaves the bluebook word alone.
 
 ## reference_to
 

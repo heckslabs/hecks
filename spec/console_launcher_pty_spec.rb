@@ -6,7 +6,7 @@ require "timeout"
 
 # `hecks console` through the generated launcher, typed into at a real terminal. IRB reads the
 # process's own arguments for a script to run; the launcher's hold `console`, which IRB would
-# open as a file and then quit with no prompt. Calling `Hecks::CLI::Console` directly (as
+# open as a file and then quit with no prompt. Calling `Hecks::Tools::Console` directly (as
 # console_spec.rb does) never sees those arguments, so only this path catches it.
 RSpec.describe "hecks console through the launcher, at a terminal" do
   PTY_PROMPT = /irb\(main\)/
@@ -54,7 +54,7 @@ RSpec.describe "hecks console through the launcher, at a terminal" do
   # Spawns `hecks console` at a pseudo-terminal and yields its reader, writer and pid.
   def with_console
     Dir.mktmpdir do |dir|
-      PTY.spawn(console_env(dir), RbConfig.ruby, "exe/hecks", "console", chdir: InMemoryDomain::ROOT) do |*terminal|
+      PTY.spawn(console_env(dir), RbConfig.ruby, "exe/hecks", "console!", chdir: InMemoryDomain::ROOT) do |*terminal|
         yield(*terminal)
       end
     end

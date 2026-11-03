@@ -48,6 +48,26 @@
         {
           "admits": null,
           "default": null,
+          "list": false,
+          "name": "formerly_known_as",
+          "optional": true,
+          "pattern": null,
+          "relationship": null,
+          "type": "AggregateFormerlyKnownAs"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "created_by",
+          "optional": true,
+          "pattern": null,
+          "relationship": null,
+          "type": "AggregateCreatedBy"
+        },
+        {
+          "admits": null,
+          "default": null,
           "list": true,
           "name": "identified_by",
           "optional": false,
@@ -213,6 +233,26 @@
               "admits": null,
               "default": null,
               "list": false,
+              "name": "formerly_known_as",
+              "optional": true,
+              "pattern": null,
+              "relationship": null,
+              "type": "AggregateFormerlyKnownAs"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "created_by",
+              "optional": true,
+              "pattern": null,
+              "relationship": null,
+              "type": "AggregateCreatedBy"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
               "name": "position",
               "optional": true,
               "pattern": null,
@@ -232,6 +272,7 @@
           ],
           "goal": "Open an aggregate inside a bluebook",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -268,6 +309,24 @@
                 "name": "provenance"
               },
               "target": "provenance"
+            },
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "formerly_known_as"
+              },
+              "target": "formerly_known_as"
+            },
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "created_by"
+              },
+              "target": "created_by"
             },
             {
               "op": "set",
@@ -331,6 +390,7 @@
           ],
           "goal": "Attach one part of the aggregate's identity",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -444,6 +504,7 @@
           ],
           "goal": "Attach one attribute to the aggregate",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -564,6 +625,7 @@
           ],
           "goal": "Attach an attribute that points at another aggregate's head",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -684,6 +746,7 @@
           ],
           "goal": "Attach an attribute whose type is a piece of this aggregate",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -744,6 +807,7 @@
           ],
           "goal": "Name the field this aggregate's state machine runs on",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -817,6 +881,7 @@
           ],
           "goal": "Attach one transition to the state machine",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -872,6 +937,7 @@
           ],
           "goal": "Attach one state to a named meaning of the state machine",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -922,6 +988,7 @@
           ],
           "goal": "Close an aggregate — the checks that need every declaration present",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
 
           ],
@@ -958,6 +1025,7 @@
           ],
           "goal": "Declare a value object belonging to this aggregate",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -1050,6 +1118,7 @@
           ],
           "goal": "Attach one invariant to the aggregate",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -1143,6 +1212,7 @@
           ],
           "goal": "Declare one precondition commands can reference by name",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -1226,6 +1296,7 @@
           ],
           "goal": "Allow a finding on the aggregate that means what it says",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -1350,6 +1421,7 @@
           ],
           "goal": "Declare a field read locally through a reference",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -1371,10 +1443,12 @@
           "role": "Language"
         }
       ],
+      "created_by": null,
       "description": "One aggregate inside a bluebook — the head a domain's declarations attach to.",
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "bluebook",
         "name.value"
@@ -1504,6 +1578,86 @@
 
           ],
           "name": "Description"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
+              "canonical": "!value.to_s.empty?",
+              "description": "an aggregate's formerly_known_as says something"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "AggregateFormerlyKnownAs"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
+              "canonical": "!value.to_s.empty?",
+              "description": "an aggregate's created_by says something"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "AggregateCreatedBy"
         },
         {
           "attributes": [
@@ -2209,6 +2363,66 @@
               [
                 "calls",
                 "provenance_impl"
+              ]
+            ],
+            [
+              [
+                "word",
+                "formerly_known_as"
+              ],
+              [
+                "context",
+                "Aggregate"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "formerly_known_as"
+              ],
+              [
+                "calls",
+                "formerly_known_as_impl"
+              ]
+            ],
+            [
+              [
+                "word",
+                "created_by"
+              ],
+              [
+                "context",
+                "Aggregate"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "created_by"
+              ],
+              [
+                "calls",
+                "created_by_impl"
               ]
             ],
             [
@@ -3044,6 +3258,66 @@
               [
                 "fills",
                 "provenance"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "formerly_known_as"
+              ],
+              [
+                "context",
+                "Aggregate"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "formerly_known_as"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "created_by"
+              ],
+              [
+                "context",
+                "Aggregate"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "created_by"
               ]
             ],
             [
@@ -4493,6 +4767,16 @@
           "pattern": null,
           "relationship": null,
           "type": "Provision"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": true,
+          "name": "modules",
+          "optional": false,
+          "pattern": null,
+          "relationship": null,
+          "type": "ModuleMembership"
         }
       ],
       "commands": [
@@ -4571,6 +4855,7 @@
           ],
           "goal": "Open a bluebook",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -4697,6 +4982,7 @@
           ],
           "goal": "Name one core context this bluebook's own Syntax rows attach to",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -4760,6 +5046,7 @@
           ],
           "goal": "Declare one verb this bluebook answers a capability with",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -4773,6 +5060,72 @@
             }
           ],
           "name": "Provide",
+          "needs": [
+
+          ],
+          "provenance": null,
+          "references": null,
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "ModuleText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "vision",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "ModuleText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "aggregate",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "ModuleText"
+            }
+          ],
+          "emits": [
+            "AggregateGrouped"
+          ],
+          "ensures": [
+
+          ],
+          "from": null,
+          "givens": [
+
+          ],
+          "goal": "Declare that an aggregate belongs to a module",
+          "idempotent": false,
+          "mints_era": false,
+          "mutations": [
+            {
+              "fields": {
+                "aggregate": ":aggregate",
+                "name": ":name",
+                "vision": ":vision"
+              },
+              "op": "append",
+              "sign": "",
+              "target": "modules"
+            }
+          ],
+          "name": "Group",
           "needs": [
 
           ],
@@ -4845,6 +5198,7 @@
           ],
           "goal": "Attach one canonical-form rule to the bluebook",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -4868,10 +5222,12 @@
           "role": "Language"
         }
       ],
+      "created_by": null,
       "description": "One .bluebook file — the root a domain declaration hangs from.",
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "name.value"
       ],
@@ -4918,6 +5274,70 @@
         }
       ],
       "value_objects": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "vision",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "aggregate",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "ModuleMembership"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "ModuleText"
+        },
         {
           "attributes": [
             {
@@ -5855,6 +6275,32 @@
               [
                 "opens",
                 "ProcessManager"
+              ],
+              [
+                "fills",
+                ""
+              ]
+            ],
+            [
+              [
+                "word",
+                "domain_module"
+              ],
+              [
+                "context",
+                "Bluebook"
+              ],
+              [
+                "body",
+                "keywords"
+              ],
+              [
+                "inner",
+                "Bluebook"
+              ],
+              [
+                "opens",
+                "Bluebook"
               ],
               [
                 "fills",
@@ -6813,6 +7259,66 @@
                 "fills",
                 "provides"
               ]
+            ],
+            [
+              [
+                "keyword",
+                "aggregate"
+              ],
+              [
+                "context",
+                "Bluebook"
+              ],
+              [
+                "at",
+                ""
+              ],
+              [
+                "named",
+                "kind"
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "false"
+              ],
+              [
+                "fills",
+                "kind"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "domain_module"
+              ],
+              [
+                "context",
+                "Bluebook"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "name"
+              ]
             ]
           ],
           "name": "ArgumentSeed"
@@ -6873,6 +7379,16 @@
           "pattern": null,
           "relationship": null,
           "type": "Permission"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": true,
+          "name": "audience",
+          "optional": false,
+          "pattern": null,
+          "relationship": null,
+          "type": "Audience"
         },
         {
           "admits": null,
@@ -6978,6 +7494,16 @@
           "admits": null,
           "default": null,
           "list": false,
+          "name": "mints_era",
+          "optional": true,
+          "pattern": null,
+          "relationship": null,
+          "type": "CommandText"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
           "name": "from",
           "optional": true,
           "pattern": null,
@@ -7072,6 +7598,16 @@
               "admits": null,
               "default": null,
               "list": false,
+              "name": "mints_era",
+              "optional": true,
+              "pattern": null,
+              "relationship": null,
+              "type": "CommandText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
               "name": "from",
               "optional": true,
               "pattern": null,
@@ -7101,6 +7637,7 @@
           ],
           "goal": "Open a command on an aggregate",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -7164,6 +7701,15 @@
                 "name": "idempotent"
               },
               "target": "idempotent"
+            },
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "mints_era"
+              },
+              "target": "mints_era"
             },
             {
               "op": "set",
@@ -7287,6 +7833,7 @@
           ],
           "goal": "Attach one argument to the command",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -7407,6 +7954,7 @@
           ],
           "goal": "Attach an argument that points at another aggregate's head",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -7506,6 +8054,7 @@
           ],
           "goal": "Attach one given to the command",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -7599,6 +8148,7 @@
           ],
           "goal": "Attach one postcondition to the command",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -7722,6 +8272,7 @@
           ],
           "goal": "Attach one mutation to the command",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -7805,6 +8356,7 @@
           ],
           "goal": "Name the aggregate this command reaches through",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -7868,6 +8420,7 @@
           ],
           "goal": "Name the event this command emits",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -7930,6 +8483,7 @@
           ],
           "goal": "Name a role that may run this command, among several",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -7941,6 +8495,69 @@
             }
           ],
           "name": "Allow",
+          "needs": [
+
+          ],
+          "provenance": null,
+          "references": null,
+          "role": "Language"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "addressed",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "AudienceName"
+            }
+          ],
+          "emits": [
+            "AudienceAddressed"
+          ],
+          "ensures": [
+
+          ],
+          "from": null,
+          "givens": [
+            {
+              "ast": {
+                "expr": {
+                  "op": "empty",
+                  "receiver": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "addressed",
+                        "value"
+                      ]
+                    }
+                  }
+                },
+                "op": "not"
+              },
+              "canonical": "!addressed.value.to_s.empty?",
+              "description": "an audience is named"
+            }
+          ],
+          "goal": "Name an audience this command is listed for",
+          "idempotent": false,
+          "mints_era": false,
+          "mutations": [
+            {
+              "fields": {
+                "name": ":addressed"
+              },
+              "op": "append",
+              "sign": "",
+              "target": "audience"
+            }
+          ],
+          "name": "Address",
           "needs": [
 
           ],
@@ -7992,6 +8609,7 @@
           ],
           "goal": "Name an outside fact the runtime supplies before any given runs",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -8011,10 +8629,12 @@
           "role": "Language"
         }
       ],
+      "created_by": null,
       "description": "One command declared on an aggregate — its arguments, its rules, and what it announces.",
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "owner_id",
         "name.value"
@@ -8214,6 +8834,28 @@
 
           ],
           "name": "Permission"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Audience"
         },
         {
           "attributes": [
@@ -8637,6 +9279,28 @@
           "members": [
 
           ],
+          "name": "AudienceName"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
           "name": "FactName"
         },
         {
@@ -8806,6 +9470,36 @@
             [
               [
                 "word",
+                "audience"
+              ],
+              [
+                "context",
+                "Command"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "audience"
+              ],
+              [
+                "calls",
+                "audience_impl"
+              ]
+            ],
+            [
+              [
+                "word",
                 "provenance"
               ],
               [
@@ -8861,6 +9555,36 @@
               [
                 "calls",
                 "idempotent_impl"
+              ]
+            ],
+            [
+              [
+                "word",
+                "mints_era"
+              ],
+              [
+                "context",
+                "Command"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "mints_era"
+              ],
+              [
+                "calls",
+                "mints_era_impl"
               ]
             ],
             [
@@ -9416,6 +10140,40 @@
               [
                 "coerce",
                 "false"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "audience"
+              ],
+              [
+                "context",
+                "Command"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "symbol"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "audience"
+              ],
+              [
+                "variadic",
+                "true"
               ]
             ],
             [
@@ -10949,6 +11707,7 @@
           ],
           "goal": "Open an entity inside an aggregate",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -11048,6 +11807,7 @@
           ],
           "goal": "Attach one part of the entity's identity",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -11097,6 +11857,7 @@
           ],
           "goal": "Close an entity — the checks that need every declaration present",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
 
           ],
@@ -11203,6 +11964,7 @@
           ],
           "goal": "Attach one attribute to the entity",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -11323,6 +12085,7 @@
           ],
           "goal": "Attach an attribute that points at another aggregate's head",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -11443,6 +12206,7 @@
           ],
           "goal": "Attach an attribute whose type is a piece nested inside this one",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -11542,6 +12306,7 @@
           ],
           "goal": "Declare one precondition this piece's own commands can reference by name",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -11635,6 +12400,7 @@
           ],
           "goal": "Attach one shape rule this piece's own instances must hold",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -11689,6 +12455,7 @@
           ],
           "goal": "Name the field this entity's state machine runs on",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -11762,6 +12529,7 @@
           ],
           "goal": "Attach one transition to the entity's state machine",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -11817,6 +12585,7 @@
           ],
           "goal": "Attach one state to a named meaning of the entity's state machine",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -11837,10 +12606,12 @@
           "role": "Language"
         }
       ],
+      "created_by": null,
       "description": "One entity inside an aggregate — an element with its own identity, state machine, commands and queries. Its own root because it repeats the aggregate's whole shape one level down.",
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "aggregate",
         "name.value"
@@ -14127,6 +14898,7 @@
           ],
           "goal": "Declare a policy on a bluebook",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -14271,6 +15043,7 @@
           ],
           "goal": "Bind one argument of the triggered command",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -14291,10 +15064,12 @@
           "role": "Language"
         }
       ],
+      "created_by": null,
       "description": "One policy — the event it watches, the command it fires, and the domain that command belongs to.",
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "bluebook",
         "name.value"
@@ -15284,6 +16059,16 @@
           "admits": null,
           "default": null,
           "list": true,
+          "name": "resumes",
+          "optional": true,
+          "pattern": null,
+          "relationship": null,
+          "type": "ProcessManagerText"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": true,
           "name": "states",
           "optional": false,
           "pattern": null,
@@ -15377,6 +16162,16 @@
             {
               "admits": null,
               "default": null,
+              "list": true,
+              "name": "resumes",
+              "optional": true,
+              "pattern": null,
+              "relationship": null,
+              "type": "ProcessManagerText"
+            },
+            {
+              "admits": null,
+              "default": null,
               "list": false,
               "name": "position",
               "optional": true,
@@ -15397,6 +16192,7 @@
           ],
           "goal": "Open a process manager on a bluebook",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -15457,6 +16253,15 @@
               "sign": "",
               "source": {
                 "kind": "argument",
+                "name": "resumes"
+              },
+              "target": "resumes"
+            },
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
                 "name": "position"
               },
               "target": "position"
@@ -15495,6 +16300,7 @@
           ],
           "goal": "Attach one state to the process manager",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -15558,6 +16364,7 @@
           ],
           "goal": "Open a handler inside a process manager",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -15579,6 +16386,7 @@
           "role": "Language"
         }
       ],
+      "created_by": null,
       "description": "One process manager — what correlates its instances, what starts and ends it, and the states it moves through.",
       "entities": [
         {
@@ -15660,6 +16468,7 @@
               ],
               "goal": "Open a dispatch inside a handler",
               "idempotent": false,
+              "mints_era": false,
               "mutations": [
                 {
                   "fields": {
@@ -15771,6 +16580,7 @@
                   ],
                   "goal": "Bind one argument of the dispatched command",
                   "idempotent": false,
+                  "mints_era": false,
                   "mutations": [
                     {
                       "fields": {
@@ -15815,6 +16625,7 @@
                   ],
                   "goal": "Name the command this dispatch compensates for",
                   "idempotent": false,
+                  "mints_era": false,
                   "mutations": [
                     {
                       "op": "set",
@@ -15869,6 +16680,7 @@
                   ],
                   "goal": "Bind one argument of the compensation's own dispatched command",
                   "idempotent": false,
+                  "mints_era": false,
                   "mutations": [
                     {
                       "fields": {
@@ -15927,6 +16739,7 @@
           ]
         }
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "bluebook",
         "name.value"
@@ -16312,7 +17125,11 @@
               ],
               [
                 "fills",
-                "correlates_by"
+                ""
+              ],
+              [
+                "calls",
+                "correlates_by_impl"
               ]
             ],
             [
@@ -16373,6 +17190,36 @@
               [
                 "calls",
                 "ends_on_impl"
+              ]
+            ],
+            [
+              [
+                "word",
+                "resumes"
+              ],
+              [
+                "context",
+                "ProcessManager"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                ""
+              ],
+              [
+                "calls",
+                "resumes_impl"
               ]
             ],
             [
@@ -16719,6 +17566,36 @@
             [
               [
                 "keyword",
+                "correlates_by"
+              ],
+              [
+                "context",
+                "ProcessManager"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "constant"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "correlates_by"
+              ]
+            ],
+            [
+              [
+                "keyword",
                 "starts_on"
               ],
               [
@@ -16834,6 +17711,36 @@
               [
                 "fills",
                 "ends_on"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "resumes"
+              ],
+              [
+                "context",
+                "ProcessManager"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "resumes"
               ]
             ],
             [
@@ -17423,6 +18330,7 @@
           ],
           "goal": "Open a read model on a bluebook",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -17541,6 +18449,7 @@
           ],
           "goal": "Attach one aggregate head to the read model",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -17605,6 +18514,7 @@
           ],
           "goal": "Nest one collection's own rows by one of its own fields",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -17648,6 +18558,7 @@
           ],
           "goal": "Mark the read model as a bare row count over its one eligible collection",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -17711,6 +18622,7 @@
           ],
           "goal": "Mark the read model as the median of one numeric field across its one eligible collection",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -17774,6 +18686,7 @@
           ],
           "goal": "Mark the read model as the total of one numeric field across its one eligible collection",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -17837,6 +18750,7 @@
           ],
           "goal": "Mark the read model as the mean of one numeric field across its one eligible collection",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -17900,6 +18814,7 @@
           ],
           "goal": "Mark the read model as the smallest value of one numeric field across its one eligible collection",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -17963,6 +18878,7 @@
           ],
           "goal": "Mark the read model as the largest value of one numeric field across its one eligible collection",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -18036,6 +18952,7 @@
           ],
           "goal": "Mark the read model as one interpolated rank of one numeric field across its one eligible collection",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -18108,6 +19025,7 @@
           ],
           "goal": "Mark the read model as whether any row's boolean field is true across its one eligible collection",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -18171,6 +19089,7 @@
           ],
           "goal": "Mark the read model as whether every row's boolean field is true across its one eligible collection",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -18264,6 +19183,7 @@
           ],
           "goal": "Attach one part of one specification option to the read model",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -18286,10 +19206,12 @@
           "role": "Language"
         }
       ],
+      "created_by": null,
       "description": "One read model — the aggregate heads it gathers and the reference it hangs from.",
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "bluebook",
         "name.value"
@@ -20312,6 +21234,7 @@
           ],
           "goal": "Open a query on an aggregate",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -20448,6 +21371,7 @@
           ],
           "goal": "Attach one where-clause to the query",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -20542,6 +21466,7 @@
           ],
           "goal": "Attach one part of one specification option to the query",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -20607,6 +21532,7 @@
           ],
           "goal": "Name an outside fact the runtime supplies before the query's filter reads its arguments",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -20720,6 +21646,7 @@
           ],
           "goal": "Attach one parameter to the query",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -20746,10 +21673,12 @@
           "role": "Language"
         }
       ],
+      "created_by": null,
       "description": "One query declared on an aggregate — what it filters on, how it orders, and how many it returns.",
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "owner_id",
         "name.value"
@@ -22414,6 +23343,7 @@
           ],
           "goal": "Open a value object on an aggregate",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -22546,6 +23476,7 @@
           ],
           "goal": "Attach one field to the value object",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -22618,6 +23549,7 @@
           ],
           "goal": "Declare that this value object admits a closed set of rows",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -22711,6 +23643,7 @@
           ],
           "goal": "Attach one invariant to the value object",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -22755,6 +23688,7 @@
           ],
           "goal": "Open one admitted row on a value object",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -22774,6 +23708,7 @@
           "role": "Language"
         }
       ],
+      "created_by": null,
       "description": "One value object declared on an aggregate — its fields and the rules they must satisfy. Its own root because a value object holds nested lists, which no list element can.",
       "entities": [
         {
@@ -22854,6 +23789,7 @@
               ],
               "goal": "Bind one field of the admitted row",
               "idempotent": false,
+              "mints_era": false,
               "mutations": [
                 {
                   "fields": {
@@ -22894,6 +23830,7 @@
           ]
         }
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "aggregate",
         "name.value"
@@ -24329,6 +25266,7 @@
           ],
           "goal": "Open the language's own syntax table",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "op": "set",
@@ -24482,6 +25420,7 @@
           ],
           "goal": "Admit one word the bluebook surface accepts",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -24685,6 +25624,7 @@
           ],
           "goal": "Admit one argument a keyword takes",
           "idempotent": false,
+          "mints_era": false,
           "mutations": [
             {
               "fields": {
@@ -24719,6 +25659,7 @@
           "role": "Language"
         }
       ],
+      "created_by": null,
       "description": "How a bluebook is SPELLED — every word the surface admits, the body it may open, and the field it fills. The layer every other file in this directory does not have.",
       "entities": [
         {
@@ -24851,6 +25792,7 @@
               ],
               "goal": "Mark a word as on its way out, still read",
               "idempotent": false,
+              "mints_era": false,
               "mutations": [
 
               ],
@@ -24878,6 +25820,7 @@
               ],
               "goal": "Remove a word from every generated parser table",
               "idempotent": false,
+              "mints_era": false,
               "mutations": [
 
               ],
@@ -25114,6 +26057,7 @@
               ],
               "goal": "Mark an argument as on its way out, still read",
               "idempotent": false,
+              "mints_era": false,
               "mutations": [
 
               ],
@@ -25141,6 +26085,7 @@
               ],
               "goal": "Remove an argument from every generated parser table",
               "idempotent": false,
+              "mints_era": false,
               "mutations": [
 
               ],
@@ -25198,6 +26143,7 @@
           ]
         }
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "name.value"
       ],
@@ -25808,10 +26754,12 @@
       "commands": [
 
       ],
+      "created_by": null,
       "description": "The closed sets the language admits — the whole of what any runtime may accept, declared once.",
       "entities": [
 
       ],
+      "formerly_known_as": null,
       "identified_by": [
         "name.value"
       ],
@@ -33445,6 +34393,16 @@
               "pattern": null,
               "relationship": null,
               "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "runs_in",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
             }
           ],
           "closed_set": true,
@@ -33466,12 +34424,16 @@
                 "rspec (parallel)"
               ],
               [
+                "runs_in",
+                "ci"
+              ],
+              [
                 "argv",
                 ""
               ],
               [
                 "script",
-                "# Workers are grouped by this machine's own last timings, kept under the git directory\n# (shared by every worktree, never committed). CI's committed baseline leaves out the io\n# specs this run includes, so it only seeds the first run; each run then rewrites the log.\nlog=\"$(git rev-parse --git-common-dir)/hecks_rspec_runtime.log\"\n[ -f \"$log\" ] || cp .github/rspec_runtime_baseline.log \"$log\"\nbundle exec parallel_rspec spec -n {workers} --group-by runtime --runtime-log \"$log\" --allowed-missing 100 \\\n  -o \"--format progress --format ParallelTests::RSpec::RuntimeLogger --out $log\"\n"
+                "# Workers are grouped by this machine's own last timings, kept under the git directory\n# (shared by every worktree, never committed); the first run, with none, groups by file size and\n# writes the log.\nlog=\"$(git rev-parse --git-common-dir)/hecks_rspec_runtime.log\"\nif [ -f \"$log\" ]; then grouping=(--group-by runtime --runtime-log \"$log\" --allowed-missing 100); else grouping=(--group-by filesize); fi\nbundle exec parallel_rspec spec -n {workers} \"${grouping[@]}\" \\\n  -o \"--format progress --format ParallelTests::RSpec::RuntimeLogger --out $log\"\n"
               ],
               [
                 "blocked",
@@ -33545,7 +34507,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks conformance_run.check_engine_agreement --wait"
+                "bundle exec exe/hecks conformance_run.check_engine_agreement! --wait"
               ],
               [
                 "script",
@@ -33571,7 +34533,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks conformance_run.check_shape_ledger --wait"
+                "bundle exec exe/hecks conformance_run.check_shape_ledger! --wait"
               ],
               [
                 "script",
@@ -33579,7 +34541,7 @@
               ],
               [
                 "blocked",
-                "a bluebook's storage shape moved with no translation edge from the shape the ledger holds; the failure prints the edge to commit. A change that only adds is settled in one step with `hecks conformance_run.check_shape_ledger --confirm --additive --wait`, which writes the empty edge and moves the ledger; a change that renames or reshapes data needs rules first."
+                "a bluebook's storage shape moved with no translation edge from the shape the ledger holds; the failure prints the edge to commit. A change that only adds is settled in one step with `hecks conformance_run.check_shape_ledger! --confirm --additive --wait`, which writes the empty edge and moves the ledger; a change that renames or reshapes data needs rules first."
               ]
             ],
             [
@@ -33597,7 +34559,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks model_check --wait"
+                "bundle exec exe/hecks ModelCheckRun.model_check! --wait"
               ],
               [
                 "script",
@@ -33623,7 +34585,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks conformance_run.measure_doc_coverage --wait"
+                "bundle exec exe/hecks conformance_run.measure_doc_coverage! --wait"
               ],
               [
                 "script",
@@ -33675,7 +34637,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks regeneration_run.regenerate_corpus --check --wait"
+                "bundle exec exe/hecks regeneration_run.regenerate_corpus! --check --wait"
               ],
               [
                 "script",
@@ -33683,7 +34645,7 @@
               ],
               [
                 "blocked",
-                "regenerating hits a diff. The whole generated tree is committed, so run `hecks regenerate_corpus --confirm` and commit what it changed."
+                "regenerating hits a diff. The whole generated tree is committed, so run `hecks regeneration_run.regenerate_corpus! --confirm` and commit what it changed."
               ]
             ],
             [
@@ -33701,7 +34663,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks style_run.check_comments paths=lib/hecks spec --wait"
+                "bundle exec exe/hecks style_run.check_comments! paths=lib/hecks spec --wait"
               ],
               [
                 "script",
@@ -33709,7 +34671,7 @@
               ],
               [
                 "blocked",
-                "a comment breaks the style guide, such as a line past 100 characters; `hecks fix_comments` rewrites the mechanical ones, and the rest are shortened by hand. CI runs this same check."
+                "a comment breaks the style guide, such as a line past 100 characters; `hecks StyleRun.fix_comments!` rewrites the mechanical ones, and the rest are shortened by hand. CI runs this same check."
               ]
             ],
             [
@@ -33727,7 +34689,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks style_run.check_comments paths=lib,spec,examples only=long_block --wait"
+                "bundle exec exe/hecks style_run.check_comments! paths=lib,spec,examples only=long_block --wait"
               ],
               [
                 "script",
@@ -33736,6 +34698,110 @@
               [
                 "blocked",
                 "a comment block ran past the cap; shorten it."
+              ]
+            ],
+            [
+              [
+                "name",
+                "command_names"
+              ],
+              [
+                "id",
+                "command_names"
+              ],
+              [
+                "title",
+                "command names, every launcher name a workflow, hook, gate row, spec or guide invokes still resolves"
+              ],
+              [
+                "argv",
+                "bundle exec exe/hecks conformance_run.check_command_names! --wait"
+              ],
+              [
+                "script",
+                ""
+              ],
+              [
+                "blocked",
+                "a file invokes a launcher name the launcher no longer accepts (a renamed command, or a write without its !), so what runs it runs nothing. The failure names each file:line and the nearest valid name. Mark an invocation that is shown and not run with `dead-name-check: skip` on its line or the one before, a fence with `skip`, `historical` or `illustrative` after its language, or a whole page with `dead-name-check: skip-file` in its first lines."
+              ]
+            ],
+            [
+              [
+                "name",
+                "workflow_pagination"
+              ],
+              [
+                "id",
+                "workflow_pagination"
+              ],
+              [
+                "title",
+                "workflow pagination, no step counts or waits for GitHub list items from the first page alone"
+              ],
+              [
+                "argv",
+                "bundle exec exe/hecks conformance_run.check_workflow_pagination! --wait"
+              ],
+              [
+                "script",
+                ""
+              ],
+              [
+                "blocked",
+                "a workflow step counts or waits for the items of a list call (artifacts, runs, jobs, issues, releases, pulls, commits) and reads only the first 30. Add --paginate and count the lines it prints, or filter the path with ?name=."
+              ]
+            ],
+            [
+              [
+                "name",
+                "secret_output"
+              ],
+              [
+                "id",
+                "secret_output"
+              ],
+              [
+                "title",
+                "secret output, no value a world hands an adapter as a secret reaches what a launcher prints"
+              ],
+              [
+                "argv",
+                "bundle exec rspec spec/secret_output_spec.rb"
+              ],
+              [
+                "script",
+                ""
+              ],
+              [
+                "blocked",
+                "a declared secret, or a database URL's password, reached a refusal, a note or a result. Hold it through `Hecks::Secrets` where the world hands it over, and print through a guarded stream."
+              ]
+            ],
+            [
+              [
+                "name",
+                "adapter_words"
+              ],
+              [
+                "id",
+                "adapter_words"
+              ],
+              [
+                "title",
+                "adapter words, no domain name equal to a technology word the adapters are named for"
+              ],
+              [
+                "argv",
+                "bundle exec rspec spec/adapter_words_spec.rb"
+              ],
+              [
+                "script",
+                ""
+              ],
+              [
+                "blocked",
+                "a domain name (a module, aggregate, command or query) equals a technology word listed in lib/hecks/hecks/adapter_words.json. The failure names each one; rename the domain name, not the adapter."
               ]
             ],
             [
@@ -33783,7 +34849,7 @@
               ],
               [
                 "script",
-                "# Building the banking crate makes banking the default feature and rewrites the module\n# list, both tracked. They are put back on the way out, and the check will not start over\n# a person's uncommitted edits to them.\nrewritten=\"rust/Cargo.toml rust/src/generated/mod.rs\"\nif [ -n \"$(git status --porcelain -- $rewritten)\" ]; then\n  echo \"uncommitted changes in $rewritten; commit or discard them first\" >&2\n  exit 1\nfi\ntrap 'git checkout -q -- $rewritten' EXIT\nenv -u CARGO_TARGET_DIR bundle exec exe/hecks regeneration_run.regenerate_corpus --confirm --wait\nbundle exec exe/hecks build.project_rust domain=examples/banking --wait\nbundle exec rspec --tag io --profile 8 spec/rust_conformance_spec.rb spec/rust_conformance_fuzz_spec.rb spec/rust_numeric_coercion_spec.rb spec/rust_generated/has_many_spec.rb spec/semantics_corpus_spec.rb\nbundle exec rspec --tag io --profile 8 spec/rust_generated/domain_feature_exclusivity_spec.rb\nbundle exec rspec --tag io --profile 8 spec/rust_build_regeneration_order_spec.rb spec/rust_build_regeneration_subset_spec.rb\n"
+                "# Building the banking crate makes banking the default feature and rewrites the module\n# list, both tracked. They are put back on the way out, and the check will not start over\n# a person's uncommitted edits to them.\nrewritten=\"rust/Cargo.toml rust/src/generated/mod.rs\"\nif [ -n \"$(git status --porcelain -- $rewritten)\" ]; then\n  echo \"uncommitted changes in $rewritten; commit or discard them first\" >&2\n  exit 1\nfi\ntrap 'git checkout -q -- $rewritten' EXIT\nenv -u CARGO_TARGET_DIR bundle exec exe/hecks regeneration_run.regenerate_corpus! --confirm --wait\nbundle exec exe/hecks build.project_rust! domain=examples/banking --wait\nbundle exec rspec --tag io --profile 8 spec/rust_conformance_spec.rb spec/rust_conformance_fuzz_spec.rb spec/rust_numeric_coercion_spec.rb spec/rust_generated/has_many_spec.rb spec/semantics_corpus_spec.rb\nbundle exec rspec --tag io --profile 8 spec/rust_generated/domain_feature_exclusivity_spec.rb\nbundle exec rspec --tag io --profile 8 spec/rust_build_regeneration_order_spec.rb spec/rust_build_regeneration_subset_spec.rb\n"
               ],
               [
                 "blocked",
@@ -33813,7 +34879,7 @@
               ],
               [
                 "blocked",
-                "regenerating hits a diff. The whole generated tree is committed, so run `hecks regenerate_corpus --confirm` and commit what it changed."
+                "regenerating hits a diff. The whole generated tree is committed, so run `hecks regeneration_run.regenerate_corpus! --confirm` and commit what it changed."
               ]
             ],
             [
@@ -33839,7 +34905,7 @@
               ],
               [
                 "blocked",
-                "a spec that reads the whole generated tree failed; run `hecks regenerate_corpus --confirm` to materialize every domain, then `bundle exec rspec --tag generated_all`."
+                "a spec that reads the whole generated tree failed; run `hecks regeneration_run.regenerate_corpus! --confirm` to materialize every domain, then `bundle exec rspec --tag generated_all`."
               ]
             ],
             [
@@ -33865,7 +34931,7 @@
               ],
               [
                 "blocked",
-                "clippy found a warning in a Rust crate, under the strict `[lints.clippy]` table of its Cargo.toml. The main crate needs rust/src/generated, so run `hecks regenerate_corpus --confirm` first on a fresh checkout. Fix the code, or allow a lint at the one site with a line saying why; a warning in generated Rust is fixed in its generator."
+                "clippy found a warning in a Rust crate, under the strict `[lints.clippy]` table of its Cargo.toml. The main crate needs rust/src/generated, so run `hecks regeneration_run.regenerate_corpus! --confirm` first on a fresh checkout. Fix the code, or allow a lint at the one site with a line saying why; a warning in generated Rust is fixed in its generator."
               ]
             ],
             [
@@ -33883,7 +34949,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks deploy makefile_check.lint --wait"
+                "bundle exec exe/hecks deploy MakefileCheck.lint! --wait"
               ],
               [
                 "script",
@@ -33909,7 +34975,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks fuzz_run.fuzz shard=1/3 --wait"
+                "bundle exec exe/hecks fuzz_run.fuzz! shard=1/3 --wait"
               ],
               [
                 "script",
@@ -33935,7 +35001,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks fuzz_run.fuzz shard=2/3 --wait"
+                "bundle exec exe/hecks fuzz_run.fuzz! shard=2/3 --wait"
               ],
               [
                 "script",
@@ -33961,7 +35027,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks fuzz_run.fuzz shard=3/3 --wait"
+                "bundle exec exe/hecks fuzz_run.fuzz! shard=3/3 --wait"
               ],
               [
                 "script",
@@ -33987,7 +35053,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks fuzz_run.fuzz adapter=sqlite seeds=6 shard=1/3 --wait"
+                "bundle exec exe/hecks fuzz_run.fuzz! adapter=sqlite seeds=6 shard=1/3 --wait"
               ],
               [
                 "script",
@@ -34013,7 +35079,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks fuzz_run.fuzz adapter=sqlite seeds=6 shard=2/3 --wait"
+                "bundle exec exe/hecks fuzz_run.fuzz! adapter=sqlite seeds=6 shard=2/3 --wait"
               ],
               [
                 "script",
@@ -34039,7 +35105,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks fuzz_run.fuzz adapter=sqlite seeds=6 shard=3/3 --wait"
+                "bundle exec exe/hecks fuzz_run.fuzz! adapter=sqlite seeds=6 shard=3/3 --wait"
               ],
               [
                 "script",
@@ -34065,7 +35131,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks fuzz_run.fuzz list_shards=3 --wait"
+                "bundle exec exe/hecks fuzz_run.fuzz! list_shards=3 --wait"
               ],
               [
                 "script",
@@ -34091,7 +35157,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks fuzz_run.fuzz adapter=postgres seeds=3 steps=20 shard=1/2 --wait"
+                "bundle exec exe/hecks fuzz_run.fuzz! adapter=postgres seeds=3 steps=20 shard=1/2 --wait"
               ],
               [
                 "script",
@@ -34117,7 +35183,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks fuzz_run.fuzz adapter=postgres seeds=3 steps=20 shard=2/2 --wait"
+                "bundle exec exe/hecks fuzz_run.fuzz! adapter=postgres seeds=3 steps=20 shard=2/2 --wait"
               ],
               [
                 "script",
@@ -34147,7 +35213,7 @@
               ],
               [
                 "script",
-                "bundle exec exe/hecks language_run.project_vocabulary --confirm --wait\nbundle exec exe/hecks language_run.project_reserved_names --confirm --wait\ngit diff --exit-code -- lib/hecks/vocabulary.rb rust/codegen/src/reserved_names.rs rust/build/src/reserved_names.rs\n"
+                "bundle exec exe/hecks language_run.project_vocabulary! --confirm --wait\nbundle exec exe/hecks language_run.project_reserved_names! --confirm --wait\ngit diff --exit-code -- lib/hecks/vocabulary.rb rust/codegen/src/reserved_names.rs rust/build/src/reserved_names.rs\n"
               ],
               [
                 "blocked",
@@ -34169,7 +35235,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks regeneration_run.project_ci_gates --wait"
+                "bundle exec exe/hecks regeneration_run.project_ci_gates! --wait"
               ],
               [
                 "script",
@@ -34177,7 +35243,7 @@
               ],
               [
                 "blocked",
-                "a CiGate row changed with no projection, or a region was edited by hand; run `hecks regeneration_run.project_ci_gates --confirm`."
+                "a CiGate row changed with no projection, or a region was edited by hand; run `hecks regeneration_run.project_ci_gates! --confirm`."
               ]
             ],
             [
@@ -34195,7 +35261,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks regeneration_run.project_ci_pipeline --wait"
+                "bundle exec exe/hecks regeneration_run.project_ci_pipeline! --wait"
               ],
               [
                 "script",
@@ -34203,7 +35269,7 @@
               ],
               [
                 "blocked",
-                "a workflow row changed with no projection, or a projected workflow was edited by hand; run `hecks regeneration_run.project_ci_pipeline --confirm`."
+                "a workflow row changed with no projection, or a projected workflow was edited by hand; run `hecks regeneration_run.project_ci_pipeline! --confirm`."
               ]
             ],
             [
@@ -34221,7 +35287,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks regeneration_run.project_tools_doc --wait"
+                "bundle exec exe/hecks regeneration_run.project_tools_doc! --wait"
               ],
               [
                 "script",
@@ -34229,7 +35295,7 @@
               ],
               [
                 "blocked",
-                "a command's arguments changed with no regenerated doc; run `hecks regeneration_run.project_tools_doc --confirm`."
+                "a command's arguments changed with no regenerated doc; run `hecks regeneration_run.project_tools_doc! --confirm`."
               ]
             ],
             [
@@ -34247,7 +35313,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks query corpus_run.corpus_rust_coverage --wait"
+                "bundle exec exe/hecks corpus_run.corpus_rust_coverage --wait"
               ],
               [
                 "script",
@@ -34277,7 +35343,7 @@
               ],
               [
                 "script",
-                "for module in pizzas governance identity banking meta; do\n  bundle exec exe/hecks query build.rust_coverage module_name=$module codegen=rust --wait\ndone\n"
+                "for module in pizzas governance identity banking meta; do\n  bundle exec exe/hecks build.rust_coverage module_name=$module codegen=rust --wait\ndone\n"
               ],
               [
                 "blocked",
@@ -34299,7 +35365,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks kernel_run.measure_kernel_coverage --wait"
+                "bundle exec exe/hecks kernel_run.measure_kernel_coverage! --wait"
               ],
               [
                 "script",
@@ -34329,7 +35395,7 @@
               ],
               [
                 "script",
-                "bundle exec exe/hecks language_run.project_rust_vocabulary --confirm --wait\ngit diff --exit-code -- rust/src/kernel/vocab/\nuntracked=\"$(git status --porcelain --untracked-files=all -- rust/src/kernel/vocab/)\"\nif [ -n \"$untracked\" ]; then\n  echo \"rust/src/kernel/vocab has uncommitted generated files:\" >&2\n  echo \"$untracked\" >&2\n  exit 1\nfi\n"
+                "bundle exec exe/hecks language_run.project_rust_vocabulary! --confirm --wait\ngit diff --exit-code -- rust/src/kernel/vocab/\nuntracked=\"$(git status --porcelain --untracked-files=all -- rust/src/kernel/vocab/)\"\nif [ -n \"$untracked\" ]; then\n  echo \"rust/src/kernel/vocab has uncommitted generated files:\" >&2\n  echo \"$untracked\" >&2\n  exit 1\nfi\n"
               ],
               [
                 "blocked",
@@ -34388,7 +35454,21 @@
               ],
               [
                 "checks",
-                "rspec,fuzzing,query_agreement,engine_agreement,shape_ledger,model_check,doc_coverage,rubocop,codegen_drift,comment_style,comment_blocks,rust_fmt"
+                "fuzzing,query_agreement,engine_agreement,shape_ledger,model_check,doc_coverage,rubocop,codegen_drift,comment_style,comment_blocks,rust_fmt"
+              ]
+            ],
+            [
+              [
+                "name",
+                "ci_suite"
+              ],
+              [
+                "env",
+                "HECKS_ENVIRONMENT=memory HECKS_PROCESS_SPECS=1"
+              ],
+              [
+                "checks",
+                "rspec"
               ]
             ],
             [
@@ -34402,21 +35482,7 @@
               ],
               [
                 "checks",
-                "shape_ledger,rubocop,comment_style,comment_blocks"
-              ]
-            ],
-            [
-              [
-                "name",
-                "unguarded_push"
-              ],
-              [
-                "env",
-                "HECKS_ENVIRONMENT=memory"
-              ],
-              [
-                "checks",
-                "shape_ledger,rubocop,comment_style,comment_blocks,fuzzing"
+                "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,adapter_words"
               ]
             ],
             [
@@ -34444,11 +35510,131 @@
               ],
               [
                 "checks",
-                "model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,generated_tree,rust_fmt,rust_clippy,lint_deploy_recipes,fuzz_1_of_3,fuzz_2_of_3,fuzz_3_of_3,fuzz_sqlite_1_of_3,fuzz_sqlite_2_of_3,fuzz_sqlite_3_of_3,fuzz_postgres_1_of_2,fuzz_postgres_2_of_2,fuzz_shards,vocabulary_drift,ci_gates,ci_pipeline,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift"
+                "model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,generated_tree,rust_fmt,rust_clippy,lint_deploy_recipes,command_names,workflow_pagination,fuzz_1_of_3,fuzz_2_of_3,fuzz_3_of_3,fuzz_sqlite_1_of_3,fuzz_sqlite_2_of_3,fuzz_sqlite_3_of_3,fuzz_postgres_1_of_2,fuzz_postgres_2_of_2,fuzz_shards,vocabulary_drift,ci_gates,ci_pipeline,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift"
               ]
             ]
           ],
           "name": "GateStage"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "kind",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "argument",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "name",
+                "quick"
+              ],
+              [
+                "kind",
+                "gate"
+              ],
+              [
+                "argument",
+                "quick"
+              ]
+            ],
+            [
+              [
+                "name",
+                "impacted"
+              ],
+              [
+                "kind",
+                "impacted"
+              ],
+              [
+                "argument",
+                ""
+              ]
+            ]
+          ],
+          "name": "RehearsalStage"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "stages",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "name",
+                "quick"
+              ],
+              [
+                "stages",
+                "quick"
+              ]
+            ],
+            [
+              [
+                "name",
+                "deep"
+              ],
+              [
+                "stages",
+                "quick,impacted"
+              ]
+            ]
+          ],
+          "name": "RehearsalScope"
         },
         {
           "attributes": [
@@ -34854,7 +36040,7 @@
               ],
               [
                 "meaning",
-                "Most PRs (Patch plus Improvement) `hecks quality_control patch.open` opens per calendar day; 0 is uncapped."
+                "Most PRs (Patch plus Improvement) `hecks quality_control Patch.open!` opens per calendar day; 0 is uncapped."
               ]
             ],
             [
@@ -34882,7 +36068,7 @@
               ],
               [
                 "meaning",
-                "How many `hecks quality_control query sweep.run <target>` children `--all` keeps running at once."
+                "How many `hecks quality_control sweep.run <target>` children `--all` keeps running at once."
               ]
             ],
             [
@@ -34910,7 +36096,7 @@
               ],
               [
                 "meaning",
-                "Whether `hecks quality_control patch.open` opens its PR as a draft; false opens it ready for review."
+                "Whether `hecks quality_control Patch.open!` opens its PR as a draft; false opens it ready for review."
               ]
             ],
             [
@@ -34924,7 +36110,7 @@
               ],
               [
                 "meaning",
-                "Whether `hecks quality_control patch.open` queues the PR for auto-merge once it is open."
+                "Whether `hecks quality_control Patch.open!` queues the PR for auto-merge once it is open."
               ]
             ],
             [
@@ -35008,7 +36194,7 @@
               ],
               [
                 "meaning",
-                "Whether `hecks quality_control query sweep.run` also runs the self-consistency pass (cold rehydration, replay idempotency, value-object JSON round trip) on the same generated sequence."
+                "Whether `hecks quality_control sweep.run` also runs the self-consistency pass (cold rehydration, replay idempotency, value-object JSON round trip) on the same generated sequence."
               ]
             ],
             [
@@ -35022,7 +36208,7 @@
               ],
               [
                 "meaning",
-                "Candidate replays `hecks quality_control query sweep.run` may spend shrinking one surprised check; 0 turns shrinking off. `concurrency` is never shrunk: a race does not reproduce on demand."
+                "Candidate replays `hecks quality_control sweep.run` may spend shrinking one surprised check; 0 turns shrinking off. `concurrency` is never shrunk: a race does not reproduce on demand."
               ]
             ],
             [
@@ -35078,7 +36264,7 @@
               ],
               [
                 "meaning",
-                "Ceiling on `--seeds` for `--persistence-parity`, which pays for real Postgres per dispatch. `hecks quality_control query sweep.run` clamps down, never up, and prints a note."
+                "Ceiling on `--seeds` for `--persistence-parity`, which pays for real Postgres per dispatch. `hecks quality_control sweep.run` clamps down, never up, and prints a note."
               ]
             ],
             [
@@ -35120,7 +36306,7 @@
               ],
               [
                 "meaning",
-                "Which comparison modes `hecks quality_control query sweep.run` may run: the enabled ones intersected with what `TargetCapabilities.infer(path)` finds in the target. `--modes a,b,c` overrides for one run. `wasm_front` and `adapter_parity_postgres` are off because nothing runs them; the others are built and off because their I/O cost across the rotation is unmeasured. `hecks quality_control query sweep.run` refuses to start when a mode outside `TargetCapabilities::RUNNABLE_MODES` is enabled."
+                "Which comparison modes `hecks quality_control sweep.run` may run: the enabled ones intersected with what `TargetCapabilities.infer(path)` finds in the target. `--modes a,b,c` overrides for one run. `wasm_front` and `adapter_parity_postgres` are off because nothing runs them; the others are built and off because their I/O cost across the rotation is unmeasured. `hecks quality_control sweep.run` refuses to start when a mode outside `TargetCapabilities::RUNNABLE_MODES` is enabled."
               ]
             ],
             [
@@ -35233,6 +36419,90 @@
               [
                 "meaning",
                 "Construct families a skipped query verb may belong to. A skip inside the list is logged Held, one outside it Surprised. Shrink-only: spec/fuzzing/rust_gap_manifest_spec.rb fails when a family here is declared by no committed manifest."
+              ]
+            ],
+            [
+              [
+                "name",
+                "red_main_check"
+              ],
+              [
+                "type",
+                "Boolean"
+              ],
+              [
+                "meaning",
+                "Whether each `hecks quality_control sweep.tick` runs the quick gate on local main as its last finding step, logging each red check as a bug and fixing the self-contained ones; false skips the step."
+              ]
+            ],
+            [
+              [
+                "name",
+                "event_pump"
+              ],
+              [
+                "type",
+                "Boolean"
+              ],
+              [
+                "meaning",
+                "Whether each `hecks quality_control sweep.tick` runs the event pump as its last step: each attached domain's policies react to the events past their cursors, and every refusal is named. false skips the step; `hecks quality_control event_pump.pump!` runs it regardless."
+              ]
+            ],
+            [
+              [
+                "name",
+                "push_nudge"
+              ],
+              [
+                "type",
+                "Boolean"
+              ],
+              [
+                "meaning",
+                "Whether each `hecks quality_control sweep.tick` checks once whether a push of local main is due and files, revises or finishes the one `push-due` Work row; false skips the check. The thresholds are the QualityControl world's `push_nudge` setting."
+              ]
+            ],
+            [
+              [
+                "name",
+                "quiesced"
+              ],
+              [
+                "type",
+                "Boolean"
+              ],
+              [
+                "meaning",
+                "Whether each `hecks quality_control sweep.tick` runs no step at all: every step prints `quiesced: skipped <step>` and the tick exits 0, so a mint window sees a quiet ledger. The setting is read once at the start of a tick; `hecks qa_quiesce.hold!` writes a marker file every step checks as well, which a tick already running notices before its next step."
+              ]
+            ],
+            [
+              [
+                "name",
+                "main_maintenance"
+              ],
+              [
+                "type",
+                "Boolean"
+              ],
+              [
+                "meaning",
+                "Whether each `hecks quality_control sweep.tick` runs the main-maintenance chain after the main-check step: the quick gate on main, the reconcile plan, and the push through the train when origin is behind. false skips the chain."
+              ]
+            ],
+            [
+              [
+                "name",
+                "maintenance_confirm"
+              ],
+              [
+                "type",
+                "Boolean"
+              ],
+              [
+                "meaning",
+                "Whether the main-maintenance chain's reconcile writes after its plan (`Era.Reconcile` with confirm); false leaves the reconcile a dry run that writes nothing."
               ]
             ]
           ],
@@ -35821,7 +37091,7 @@
               ],
               [
                 "aggregate",
-                "Launch"
+                "Server"
               ],
               [
                 "verb",
@@ -36875,6 +38145,24 @@
             [
               [
                 "script",
+                "codemod_move_former_name"
+              ],
+              [
+                "section",
+                "Codebase"
+              ],
+              [
+                "aggregate",
+                "CodemodRun"
+              ],
+              [
+                "verb",
+                "move_former_name"
+              ]
+            ],
+            [
+              [
+                "script",
                 "rspec_shard_files"
               ],
               [
@@ -36924,24 +38212,6 @@
               [
                 "verb",
                 "write_io_parallel_spec_list"
-              ]
-            ],
-            [
-              [
-                "script",
-                "refresh_rspec_runtime_baseline"
-              ],
-              [
-                "section",
-                "Codebase"
-              ],
-              [
-                "aggregate",
-                "TestSuiteRun"
-              ],
-              [
-                "verb",
-                "refresh_runtime_baseline"
               ]
             ],
             [
@@ -37153,7 +38423,7 @@
               ],
               [
                 "aggregate",
-                "CorpusRun"
+                "Server"
               ],
               [
                 "verb",
@@ -37171,7 +38441,7 @@
               ],
               [
                 "aggregate",
-                "CorpusRun"
+                "Server"
               ],
               [
                 "verb",
@@ -37252,6 +38522,24 @@
               [
                 "verb",
                 "tick"
+              ]
+            ],
+            [
+              [
+                "script",
+                "qa_event_pump"
+              ],
+              [
+                "section",
+                "QualityControl"
+              ],
+              [
+                "aggregate",
+                "EventPump"
+              ],
+              [
+                "verb",
+                "pump"
               ]
             ],
             [
@@ -37554,6 +38842,46 @@
               [
                 "verb",
                 "create_ledger_role"
+              ]
+            ],
+            [
+              [
+                "script",
+                "qa_main_gate"
+              ],
+              [
+                "section",
+                "QualityControl"
+              ],
+              [
+                "aggregate",
+                "MainCheck"
+              ],
+              [
+                "verb",
+                "check_main"
+              ]
+            ],
+            [
+              [
+                "script",
+                "qa_fix_main_bug"
+              ],
+              [
+                "section",
+                "QualityControl"
+              ],
+              [
+                "aggregate",
+                "Bug"
+              ],
+              [
+                "verb",
+                "fix_and_land"
+              ],
+              [
+                "passes",
+                "--bug BUG#n"
               ]
             ],
             [

@@ -4,7 +4,7 @@ A port is a second implementation of dispatch — a runtime, likely in a
 different language, that accepts the same commands and queries a
 bluebook declares and produces the same refusals and events a real
 boot of it would. One exists: `rust/` (Cargo crate + Ruby generator,
-`hecks build.project_rust` the driver — see `docs/implemented/decisions/0011-rust-compiles-types-interprets-dispatch.md`
+`hecks build.project_rust!` the driver — see `docs/implemented/decisions/0011-rust-compiles-types-interprets-dispatch.md`
 for the architecture decision, and `docs/HECKS_IMPLEMENTATION_PLAN.md`
 §8 for its current, honestly-scoped status). This page is what running
 it, extending it to a new domain construct, or starting an analogous
@@ -36,7 +36,7 @@ also a report from having tried the alternative first.
 ## Getting the IR
 
 The IR is `Hecks::Bluebook#to_h`, per aggregate, per bluebook —
-the same shape `spec/golden/ir/*.json` pins and `hecks ir` prints.
+the same shape `spec/golden/ir/*.json` pins and `hecks Introspection.ir` prints.
 `Hecks::Projector::Exporter.call(registry)` returns it as a real
 Ruby `Hash`, keyed by bluebook name; `.json(registry)` wraps it in
 `JSON.pretty_generate` for a file or a pipe. Boot the domain the same
@@ -108,7 +108,7 @@ when there's nothing to say:
 ```ruby
 account = ir.fetch(:aggregates).find { |a| a[:name] == "Account" }
 
-account.keys # => [:name, :description, :identified_by, :attributes, :value_objects, :commands, :invariants, :preconditions, :projected_fields, :lifecycle, :entities, :queries, :ports, :provenance, :acknowledgements]
+account.keys # => [:name, :description, :identified_by, :attributes, :value_objects, :commands, :invariants, :preconditions, :projected_fields, :lifecycle, :entities, :queries, :ports, :provenance, :formerly_known_as, :created_by, :acknowledgements]
 ```
 
 `invariants` and `preconditions` are the aggregate-level rules (S10,
@@ -731,7 +731,7 @@ This is exactly the split `rust/` runs on, not a hypothetical: `Expr`
 and `interpret()` (`rust/expr/src/expr.rs`) are the generic
 READING/behavior half, hand-written once; `dispatch()`
 (`rust/src/kernel/dispatch.rs`) is the generic per-command orchestration,
-also hand-written once; `hecks build.project_rust` (driving `rust/codegen`)
+also hand-written once; `hecks build.project_rust!` (driving `rust/codegen`)
 is the small, per-command WRITING glue this paragraph names as the one
 place generation still earns its keep — real Rust struct literals and
 `Vec::push` calls, generated because constructing a specific type has

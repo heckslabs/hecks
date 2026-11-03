@@ -148,6 +148,7 @@ impl Parser<'_> {
             match m.id {
                 "background" => self.background(&m, &mut people)?,
                 "example" => tests.extend(self.example(&m, declaration, &people)?),
+                "examples_goal" => tests.extend(self.goal(&m, declaration, &people)?),
                 _ => return Err(self.unmeant(&m)),
             }
         }
@@ -175,6 +176,67 @@ impl Parser<'_> {
             });
         }
         Ok(())
+    }
+
+    /// Reads one `Goal:` and the examples under it (ADR 0173). The goal names a `Background:`
+    /// person who pursues it; the first example is its main scenario and the others its
+    /// extensions. The tests compile as any example does; a goal adds only its two checks.
+    fn goal(
+        &mut self,
+        header: &Matched,
+        declaration: &ir::Bluebook,
+        people: &[Person],
+    ) -> ParseResult<Vec<TestOut>> {
+        let goal = header.text_of("goal");
+        if !people.iter().any(|p| pursues(&goal, &p.name)) {
+            let names: Vec<&str> = people.iter().map(|p| p.name.as_str()).collect();
+            return Err(self.error(
+                header.line,
+                header.col_of("goal"),
+                format!(
+                    "a goal names the person who pursues it, one of the Background people ({})",
+                    names.join(", ")
+                ),
+            ));
+        }
+        let mut scenarios: Vec<(usize, Vec<TestOut>)> = Vec::new();
+        let mut scope = Scope::inside(header.indent);
+        while let Some(step) = self.step(&mut scope, "Goal", false)? {
+            let Step::Phrase(m) = step else { continue };
+            match m.id {
+                "goal_example" => scenarios.push((m.line, self.example(&m, declaration, people)?)),
+                _ => return Err(self.unmeant(&m)),
+            }
+        }
+        let Some((main_line, main)) = scenarios.first() else {
+            return Err(self.error(header.line, 1, "this goal holds no `Example:`"));
+        };
+        if main.iter().any(|test| test.expect.refused.is_some()) {
+            return Err(self.error(
+                *main_line,
+                1,
+                format!(
+                    "goal_without_success: the main scenario of '{goal}' ends in a refusal, so nothing under the goal reaches it"
+                ),
+            ));
+        }
+        let path = main_path(main);
+        for (line, extension) in scenarios.iter().skip(1) {
+            if let Some(off) = extension
+                .iter()
+                .find(|test| !path.contains(&tested_verb(test)))
+            {
+                return Err(self.error(
+                    *line,
+                    1,
+                    format!(
+                        "extension_off_path: this extension of '{goal}' tries {}, which its main scenario never does",
+                        tested_verb(off)
+                    ),
+                ));
+            }
+        }
+        Ok(scenarios.into_iter().flat_map(|(_, tests)| tests).collect())
     }
 
     /// Reads one `Example:` and compiles it, once per row of its `Where:` table.
@@ -779,6 +841,37 @@ impl Parser<'_> {
 
 /// Every event a command announces, including those announced by commands that policies run in
 /// answer to its events, and so on until nothing new follows.
+/// Whether a goal's sentence begins with the person's name.
+fn pursues(goal: &str, person: &str) -> bool {
+    goal.len() > person.len()
+        && goal[..person.len()].eq_ignore_ascii_case(person)
+        && goal[person.len()..].starts_with(' ')
+}
+
+/// A test's tested command as `Aggregate.Command`.
+fn tested_verb(test: &TestOut) -> String {
+    format!("{}.{}", test.aggregate, test.command)
+}
+
+/// Every command a main scenario calls, its setups and its tested step, as `Aggregate.Command`.
+fn main_path(main: &[TestOut]) -> Vec<String> {
+    main.iter()
+        .flat_map(|test| {
+            test.setups
+                .iter()
+                .map(|setup| {
+                    setup
+                        .verb
+                        .rsplit("::")
+                        .next()
+                        .unwrap_or(&setup.verb)
+                        .to_string()
+                })
+                .chain(std::iter::once(tested_verb(test)))
+        })
+        .collect()
+}
+
 fn announced_by(declaration: &ir::Bluebook, command: &ir::Command) -> Vec<String> {
     let mut events: Vec<String> = command.emits.clone();
     let mut grew = true;

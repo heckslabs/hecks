@@ -10,6 +10,8 @@ Hecks.bluebook "Bluebook" do
     attribute :name,          AggregateName
     attribute :description,   Description
     attribute :provenance,    LiteralText
+    attribute :formerly_known_as, AggregateFormerlyKnownAs, optional: true
+    attribute :created_by, AggregateCreatedBy, optional: true
     # Several paths, because the identity is their join in declared order: a command is named
     # by its aggregate and its own name.
     attribute :identified_by, list_of(IdentityPath)
@@ -40,6 +42,18 @@ Hecks.bluebook "Bluebook" do
     value_object "Description" do
       attribute :value, String
       invariant("a description says something") { !value.to_s.empty? }
+    end
+
+    # The aggregate's name before a rename; a rename keeps the old name resolving.
+    value_object "AggregateFormerlyKnownAs" do
+      attribute :value, String
+      invariant("an aggregate's formerly_known_as says something") { !value.to_s.empty? }
+    end
+
+    # The command that creates this aggregate's records, which a missing-record refusal names.
+    value_object "AggregateCreatedBy" do
+      attribute :value, String
+      invariant("an aggregate's created_by says something") { !value.to_s.empty? }
     end
 
     value_object "IdentityField" do
@@ -115,6 +129,8 @@ Hecks.bluebook "Bluebook" do
       attribute :description,   Description, optional: true
       # LiteralText: rides the same `inspect` encoding as `default:`, so it needs no invariant.
       attribute :provenance,    LiteralText, optional: true
+      attribute :formerly_known_as, AggregateFormerlyKnownAs, optional: true
+      attribute :created_by, AggregateCreatedBy, optional: true
 
       attribute :position, Position, optional: true
 
@@ -122,6 +138,8 @@ Hecks.bluebook "Bluebook" do
       sets :name
       sets :description
       sets :provenance
+      sets :formerly_known_as
+      sets :created_by
       sets :position
       emits RootDeclared
     end
@@ -392,6 +410,8 @@ Hecks.bluebook "Bluebook" do
 
       member word: "description",     context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "description"
       member word: "provenance",      context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "provenance", calls: "provenance_impl"
+      member word: "formerly_known_as", context: "Aggregate", body: "none",   inner: "",              opens: "",               fills: "formerly_known_as", calls: "formerly_known_as_impl"
+      member word: "created_by", context: "Aggregate", body: "none",   inner: "",              opens: "",               fills: "created_by", calls: "created_by_impl"
       member word: "identified_by",   context: "Aggregate", body: "keywords", inner: "ValueObject",   opens: "ValueObject",    fills: "identified_by", calls: "identified_by_impl"
       member word: "identified_by",   context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "identified_by", calls: "identified_by_impl"
       member word: "reference_to",    context: "Aggregate", body: "none",     inner: "",              opens: "",               fills: "attributes", calls: "reference_to_impl"
@@ -437,6 +457,8 @@ Hecks.bluebook "Bluebook" do
 
       member keyword: "description",     context: "Aggregate", at: "1", named: "",         kind: "text",     required: "true",  fills: "description", coerce: "false"
       member keyword: "provenance",      context: "Aggregate", at: "",  named: "from",     kind: "literal",  required: "true",  fills: "provenance"
+      member keyword: "formerly_known_as", context: "Aggregate", at: "1", named: "",    kind: "text",     required: "true",  fills: "formerly_known_as"
+      member keyword: "created_by", context: "Aggregate", at: "1", named: "",    kind: "text",     required: "true",  fills: "created_by"
       member keyword: "identified_by",   context: "Aggregate", at: "1", named: "",         kind: "symbol",   required: "false", fills: "identified_by", variadic: "true", minimum: "2"
       member keyword: "identified_by",   context: "Aggregate", at: "1", named: "",         kind: "constant", required: "false", fills: "type"
       member keyword: "identified_by",   context: "Aggregate", at: "",  named: "as",       kind: "symbol",   required: "false", fills: "name"

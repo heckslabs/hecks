@@ -1,0 +1,67 @@
+check — Is it right? Gate, model check, style, inspection and audit.
+
+  hecks <Aggregate.command>! [name=value …]    do something
+  hecks <Aggregate.query> [name=value …]       read something
+
+everyday:
+  GateRun.gate!  Run every check of a stage, or the ones named, and keep whether the…
+
+commands:
+  GateRun:
+    One run of a stage's checks: every check of the stage, or the ones named.
+    gate!                       Run every check of a stage, or the ones named, and keep whether the gate is green
+  ModelCheckRun:
+    One static analysis over domains' models, and what it found: a check's history.
+    model_check!                Check domains for dead states and unreachable steps, and keep the verdict
+  ConformanceRun:
+    One check that the engines, the reference docs and the argument gates agree with the language.
+    check_engine_agreement!     Check that the query engines route every comparator through the one shared implementation
+    measure_doc_coverage!       Check that every live word of the language has prose and a running example in the reference
+    check_shape_ledger!         Check that no bluebook's storage shape moved without a translation edge, and rewrite the ledger when confirmed
+    check_command_names!        Check that every launcher name a workflow, hook, gate row, spec or guide invokes is one the launcher accepts
+    check_workflow_pagination!  Check that no workflow counts or waits on the items of a GitHub list call that returns only its first page
+    argument_gate_matrix!       Generate the argument-gate ordering matrix; rewrite it and its fixtures only when confirmed
+  StyleRun:
+    One check or fix of comment style, or one document written with its keys in order.
+    check_comments!             List every comment that breaks the Ruby style guide
+    fix_comments!               Rewrite the mechanical Ruby comment violations
+    write_comment_baseline!     Record every long comment block as tolerated, for lib/hecks unless paths are named
+    check_comments_unchanged!   Prove an edit was comment-only: no file's code differs from the ref
+    check_rust_comments!        List every comment that breaks the Rust style guide
+    fix_rust_comments!          Rewrite the mechanical Rust comment violations
+    canonicalise!               Write a JSON document with every object's keys sorted
+  InspectionRun:
+    One inspection of the Ruby by flog, flay, reek or rubycritic.
+    flog!                       Rank the Ruby methods by complexity, worst first
+    flay!                       Find Ruby code that is copied or nearly copied
+    reek!                       List the design smells in the Ruby
+    rubycritic!                 Write the combined quality report, with git churn
+  Audit:
+    One walk of a domain's journal chain from its latest seal, and whether every digest held.
+    verify!                     Walk a domain's journal chain from its latest seal and say whether it was altered
+
+queries (nothing here changes anything):
+  StyleRun.report_comments       The Ruby comment violations, as summary tables, a list or JSON.
+  StyleRun.report_rust_comments  The Rust comment violations, as summary tables, a list or JSON.
+
+bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
+  deploy           Generate, check and compare deploy recipes, project OIDC manifests and provision tenants.
+  governance       Organizational authority is explicit, reviewable, and historically explainable.
+  tenancy          Which tenants exist, which realm and storage each one owns, and whether each is currently…
+  site             Declare a site's routes once and project them into the TypeScript its pages, navigation and CMS…
+  tickets          Track what Hecks needs, decide it, ship it, and drive GitHub from the record.
+  composer         Write a bluebook in an editor and watch the domain draw itself, with an agent that can change…
+  quality_control  A user should never be made to feel stupid by something that took what they said and quietly…
+  bluebook         The bluebook language, declared in itself.
+  hecksagon
+  world
+  adapter          The .adapter language, declared in itself.
+  port             The .port language, declared in itself.
+  translation
+  expression       The subset of regular Ruby a predicate is allowed to be — small enough that every target can…
+
+  hecks <command> --help       what one command wants, and every way it refuses
+  hecks --all                  also list the 38 internal commands and queries
+  hecks --maintainer           also list the 423 commands and queries for working on hecks itself
+  a command is called with its aggregate — GateRun.gate!
+  exit status: 0 answered, 1 refused or failed, 2 a line it could not read

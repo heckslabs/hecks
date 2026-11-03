@@ -357,7 +357,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Record",
@@ -401,7 +402,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         },
         {
           "name": "Decline",
@@ -445,7 +447,8 @@
           ],
           "from": null,
           "provenance": null,
-          "idempotent": false
+          "idempotent": false,
+          "mints_era": false
         }
       ],
       "invariants": [
@@ -555,6 +558,9 @@
               "emits": [
 
               ],
+              "handles": [
+
+              ],
               "direction": "outbound",
               "answers": "BulkRunSwept",
               "refuses": "BulkRunRefused",
@@ -564,6 +570,8 @@
         }
       ],
       "provenance": null,
+      "formerly_known_as": null,
+      "created_by": null,
       "acknowledgements": [
 
       ]

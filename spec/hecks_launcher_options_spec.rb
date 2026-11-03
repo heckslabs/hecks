@@ -64,7 +64,7 @@ RSpec.describe "the launcher's opt-in options" do
 
   describe "run keys" do
     it "mints the key of a creating command given none, and answers it", :aggregate_failures do
-      out, status = run_verb("model_check_run.model_check", "domains=#{File.join(@dir, "clean")}")
+      out, status = run_verb("model_check_run.model_check!", "domains=#{File.join(@dir, "clean")}")
       key = JSON.parse(out).fetch("run")
 
       expect(status).to eq(0)
@@ -82,14 +82,14 @@ RSpec.describe "the launcher's opt-in options" do
     end
 
     it "never fills the minted run key from a bare word, and says so", :aggregate_failures do
-      out, status = run_verb("conformance_run.check_engine_agreement", "bogus")
+      out, status = run_verb("conformance_run.check_engine_agreement!", "bogus")
 
-      expect(status).to eq(1)
+      expect(status).to eq(2)
       expect(out).to include("only argument is its run key", "run=<key>")
     end
 
     it "shows the minted run key as optional in help, and fills the next argument from a bare word", :aggregate_failures do
-      help, = run_verb("operation.run_behaviors", "--help")
+      help, = run_verb("operation.run_behaviors!", "--help")
 
       expect(help).to match(/run\.value\s+.*minted when omitted; optional/)
       expect(Hecks::Adapters::Driving::Cli.arguments(hecks_spec("operation.run_behaviors"), ["examples/banking"]))
@@ -97,7 +97,7 @@ RSpec.describe "the launcher's opt-in options" do
     end
 
     it "keeps an explicit key", :aggregate_failures do
-      out, = run_verb("model_check_run.model_check", "run=mine-1", "domains=#{File.join(@dir, "clean")}")
+      out, = run_verb("model_check_run.model_check!", "run=mine-1", "domains=#{File.join(@dir, "clean")}")
 
       expect(JSON.parse(out)).not_to have_key("run")
       expect(JSON.parse(run_verb("query", "model_check_run.verdict", "mine-1").first).first["run"]).to eq("mine-1")
@@ -118,8 +118,8 @@ RSpec.describe "the launcher's opt-in options" do
     end
 
     it "keeps both spellings working", :aggregate_failures do
-      expect(run_verb("launch.serve_mcp", "--help").first).to include("dispatches")
-      expect(run_verb("serve_mcp", "--help").first).to include("no such command: serve_mcp", "Launch.serve_mcp")
+      expect(run_verb("server.serve_mcp!", "--help").first).to include("dispatches")
+      expect(run_verb("serve_mcp", "--help").first).to include("no such command: serve_mcp", "Server.serve_mcp")
       expect(run_verb("mcp", "--help").first).to start_with("mcp")
     end
 
@@ -134,7 +134,7 @@ RSpec.describe "the launcher's opt-in options" do
     it "refuses the bare words that were once commands", :aggregate_failures do
       %w[run model_check smoke_test project_cli].each do |name|
         out, status = run_verb(name, "--help")
-        expect(status).to eq(1), name
+        expect(status).to eq(2), name
         expect(out).to include("no such command: #{name}")
       end
     end
@@ -151,21 +151,21 @@ RSpec.describe "the launcher's opt-in options" do
     def take_wait(spec, argv) = Hecks::Adapters::Driving::LauncherOptions.take_wait(spec, argv)
 
     it "exits 1 when the check is flagged, and prints the final state", :aggregate_failures do
-      out, status = run_verb("model_check_run.model_check", "run=wait-1", "domains=#{File.join(@dir, "shelf")}", "--wait")
+      out, status = run_verb("model_check_run.model_check!", "run=wait-1", "domains=#{File.join(@dir, "shelf")}", "--wait")
 
       expect(status).to eq(1)
       expect(JSON.parse(out).dig("state", "status")).to eq("flagged")
     end
 
     it "exits 0 when the check is clean", :aggregate_failures do
-      out, status = run_verb("model_check_run.model_check", "run=wait-2", "domains=#{File.join(@dir, "clean")}", "--wait")
+      out, status = run_verb("model_check_run.model_check!", "run=wait-2", "domains=#{File.join(@dir, "clean")}", "--wait")
 
       expect(status).to eq(0)
       expect(JSON.parse(out).dig("state", "status")).to eq("clean")
     end
 
     it "exits 1 for a refused request", :aggregate_failures do
-      out, status = run_verb("model_check_run.model_check", "run=wait-3", "profile=strictest", "--wait")
+      out, status = run_verb("model_check_run.model_check!", "run=wait-3", "profile=strictest", "--wait")
 
       expect(status).to eq(1)
       expect(out).to include("must match")
@@ -204,7 +204,7 @@ RSpec.describe "the launcher's opt-in options" do
 
   describe "--text" do
     it "waits and prints the recorded output alone, not the record", :aggregate_failures do
-      out, status = run_verb("model_check_run.model_check", "run=text-1", "domains=#{File.join(@dir, "clean")}", "--text")
+      out, status = run_verb("model_check_run.model_check!", "run=text-1", "domains=#{File.join(@dir, "clean")}", "--text")
 
       expect(status).to eq(0)
       expect { JSON.parse(out) }.to raise_error(JSON::ParserError)

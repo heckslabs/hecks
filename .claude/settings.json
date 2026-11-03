@@ -1,30 +1,20 @@
 {
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "sh -c 'root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0; hook=\"$root/.claude/hooks/hecks_binary_only.sh\"; [ -x \"$hook\" ] || exit 0; CLAUDE_PROJECT_DIR=\"$root\" exec \"$hook\"'"
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Edit|Write|MultiEdit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "sh -c 'root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0; hook=\"$root/.claude/hooks/rubocop_on_edit.sh\"; [ -x \"$hook\" ] || exit 0; CLAUDE_PROJECT_DIR=\"$root\" exec \"$hook\"'"
-          },
-          {
-            "type": "command",
-            "command": "sh -c 'root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0; hook=\"$root/.claude/hooks/comment_style_on_edit.sh\"; [ -x \"$hook\" ] || exit 0; CLAUDE_PROJECT_DIR=\"$root\" exec \"$hook\"'"
-          }
-        ]
-      }
+  "permissions": {
+    "deny": [
+      "Bash(ruby:*)",
+      "Bash(irb:*)",
+      "Bash(python:*)",
+      "Bash(python3:*)",
+      "Bash(node:*)",
+      "Bash(perl:*)",
+      "Bash(php:*)",
+      "Bash(lua:*)",
+      "Bash(bundle exec ruby:*)",
+      "Bash(bundle exec irb:*)",
+      "Bash(bundle exec rspec:*)",
+      "Bash(sh -c:*)",
+      "Bash(bash -c:*)",
+      "Bash(zsh -c:*)"
     ]
   }
 }

@@ -143,11 +143,35 @@ def run!(*cmd, stdin_data: nil)
   stdout
 end
 
+# A boot never holds an era, so the first one is held as the `hold_first` command holds it:
+# provision the lineage, freeze the source as era 1, provision its read side.
+def hold_first_era!(source, owner_url:)
+  bluebook = load_registry(source).bluebooks.values.first
+  db = Hecks::Adapters::PostgresEra.connect_for(bluebook.name, { database: owner_url })
+  lineage = Hecks::Adapters::PostgresEra::Lineage.new(db, bluebook.name)
+  lineage.ensure_base!
+  lineage.hold_first!(source, projection: Hecks::Runtime::StorageShape.project(bluebook))
+  lineage.provision_first_era!(bluebook.aggregates)
+ensure
+  db&.close
+end
+
+# A boot never mints; a mint carries the confirmed would_mint request the Maintenance mint
+# command makes, at the watermark the database holds when it asks.
+def mint_request_for(owner_url)
+  db = PG.connect(owner_url)
+  watermark = Hecks::Adapters::PostgresEra::Lineage.new(db, DOMAIN).last_ordinal
+  { confirm: true, verdict: "would_mint", watermark: watermark }
+ensure
+  db&.close
+end
+
 def check_ruby!(source, owner_url:, translation_source: nil, role: nil)
   registry = load_registry(source, translation_source: translation_source)
   bluebook = registry.bluebooks.values.first
   settings = { database: owner_url, mint_eras: true }
   settings[:role] = role if role
+  settings[:mint_request] = mint_request_for(owner_url)
   Hecks::Adapters::PostgresEra::LineageManager.check!(
     registry: registry, bluebook: bluebook, current_text: source, settings: settings
   )
@@ -170,6 +194,7 @@ end
 
 # era 1: each side mints, then writes through its own generic write path.
 
+hold_first_era!(V1, owner_url: ruby_owner_url)
 registry_v1 = check_ruby!(V1, owner_url: ruby_owner_url)
 aggregate_v1 = registry_v1.bluebooks.values.first.aggregate("Account")
 adapter_v1 = Hecks::Adapters::PostgresEra.new(aggregate: aggregate_v1, settings: { database: ruby_owner_url, domain: DOMAIN, era: 1 })

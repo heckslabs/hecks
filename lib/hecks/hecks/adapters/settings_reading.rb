@@ -2,6 +2,13 @@
 
 require "hecks"
 require_relative "console_capture"
+require_relative "../../ports/persistence/binding_policy"
+require_relative "settings_reading/stores"
+require_relative "settings_reading/disposable_ledger"
+require_relative "settings_reading/push_nudge"
+require_relative "settings_reading/test_scope"
+require_relative "settings_reading/event_tap_row"
+require_relative "work_limits"
 
 module Hecks
   module Adapters
@@ -15,6 +22,16 @@ module Hecks
     class SettingsReading
       # The variables no code reads; one that is set is reported as ignored.
       RETIRED = %w[HECKS_PRE_PUSH_GATE HECKS_EVAL HECKS_FUZZ_SCHEMA].freeze
+
+      # The persistence verb and the store a domain with no bind of its own uses.
+      VERB = Ports::Persistence::VERB
+      DEFAULT = Ports::Persistence::DEFAULT_ADAPTER
+
+      include Stores
+      include DisposableLedger
+      include PushNudge
+      include TestScope
+      include EventTapRow
 
       # The first line of a message.
       FIRST_LINE = /\A[^\n]*/
@@ -42,10 +59,12 @@ module Hecks
       private
 
       def rows(directory)
-        [environment, database(directory), mint_eras(directory), schema, project_environment,
+        [environment, database(directory), mint_eras(directory), disposable_ledger(directory), work_cap(directory),
+         push_nudge(directory), test_scope(directory),
+         schema, project_environment,
          variable_or_default("cache directory", "HECKS_CACHE_DIR", usage_cache_directory),
          variable_or_default("rust workspace", "HECKS_RUST_DIR", RustBuild.rust_dir),
-         registry_source(directory)]
+         event_tap(directory), registry_source(directory), *stores(directory)]
       end
 
       def line_of(name, value, source) = "#{name}: #{value} (#{source})"
@@ -90,6 +109,15 @@ module Hecks
         ["mint eras", mint_wording(declared), declared.key?(:mint_eras) ? "world" : "default"]
       rescue StandardError => e
         ["mint eras", "could not be read", first_line(e.message)]
+      end
+
+      # How many Work rows may be started at once, and whether the world or the default says.
+      def work_cap(directory)
+        registry = Hecks.describe(directory).registry
+        declared = registry.world("Tickets")&.for_verb(WorkLimits::VERB)&.key?(:cap)
+        ["work cap", WorkLimits.cap(registry), declared ? "world" : "default"]
+      rescue StandardError => e
+        ["work cap", "could not be read", first_line(e.message)]
       end
 
       def mint_wording(declared)

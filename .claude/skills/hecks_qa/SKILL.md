@@ -1,6 +1,6 @@
 ---
 name: hecks_qa
-description: Run one tick of hecks's adversarial QA practice — `exe/hecks quality_control query sweep.tick` (CI watch over open PRs, then a bounded sweep of the whole QualityControl rotation), then dispatch judgment only where a tick found something. Invoke directly for one tick, or via `/loop hecks_qa` for continuous operation. Use when asked to hunt for hecks Ruby/Rust parity bugs, "run a QA sweep", "run a QA tick", or "run the hecks QA loop".
+description: Run one tick of hecks's adversarial QA practice — `exe/hecks quality_control sweep.tick` (CI watch over open PRs, then a bounded sweep of the whole QualityControl rotation), then dispatch judgment only where a tick found something. Invoke directly for one tick, or via `/loop hecks_qa` for continuous operation. Use when asked to hunt for hecks Ruby/Rust parity bugs, "run a QA sweep", "run a QA tick", or "run the hecks QA loop".
 ---
 
 # `hecks_qa` — one tick, dispatched; judgment only where something was found
@@ -18,12 +18,12 @@ person). What is left here is judgment.
 
 The former `qa_*` scripts are verbs on the launcher now: `exe/hecks quality_control <verb>`.
 A `--flag` a script took goes inside `arguments="--flag …"` on the `ask` verbs, and the
-ledger-writing verbs (`log`, `patch.open`, `improvement.open`) take `name=value` words instead
+ledger-writing verbs (`bug.log!`, `patch.open!`, `improvement.open!`) take `name=value` words instead
 of flags (`exe/hecks quality_control <verb> --help` prints each one's words; the mapping is in
 `lib/hecks/three_zero/forms.yml`). Where a step below still shows the old flag spelling
 (`--title`, `--angle`, `--from-dials`, `--promote`), pass it that way.
 
-Run `exe/hecks quality_control query sweep.tick` in **one subagent**, in the **persistent worktree**
+Run `exe/hecks quality_control sweep.tick` in **one subagent**, in the **persistent worktree**
 `.claude/worktrees/hecks-qa-runner` (create it once with `EnterWorktree`
 and a fixed `name`, never tear it down: the Rust conformance-binary build
 cache under `rust/target/` is real and expensive, and a fresh
@@ -33,19 +33,23 @@ quality_control.world` — so it is shared state, not worktree state).
 Also once, per machine: the ledger connects as `hecks_qa`, an ordinary
 non-superuser role, because PostgresEra refuses to boot over a superuser
 connection — its era write-fence is row-level security, which a
-superuser walks through (BUG#24). Run `exe/hecks quality_control query sweep.create_ledger_role database.value=
+superuser walks through (BUG#24). Run `exe/hecks quality_control sweep.create_ledger_role database.value=
 hecks_quality_control` once (idempotent; the `.world` header explains)
 before the first boot. Never run the tick inline: its output is large
 and would land in this session's context every wakeup.
 
 The subagent's prompt is: `cd <absolute path of the runner worktree>`,
-then `bundle exec exe/hecks quality_control query sweep.tick`, then relay the ENTIRE printed report
-back verbatim, and make no judgment of its own. `exe/hecks quality_control query sweep.tick` refuses a
-dirty tree, rebases onto `origin/main`, runs `exe/hecks quality_control query clearance.check_pull_requests` FIRST
+then `exe/hecks LinkedTree.pull_main! --wait` (pull main first: the same operation `LinkedTree.add!` and `landing.finish!` run; relay a refusal, do not skip it), then `bundle exec exe/hecks quality_control sweep.tick`, then relay the ENTIRE printed report
+back verbatim, and make no judgment of its own. `exe/hecks quality_control sweep.tick` refuses a
+dirty tree, rebases onto `origin/main`, runs `exe/hecks quality_control clearance.check_pull_requests` FIRST
 (always — the order is the script, not a rule to remember), then
-`exe/hecks quality_control query sweep.run arguments="--all"` (bounded by `QualityControlDials::SWEEP_MAX_PARALLEL`,
+`exe/hecks quality_control sweep.run arguments="--all"` (bounded by `QualityControlDials::SWEEP_MAX_PARALLEL`,
 each target's depth widened from its own `clean_streak`, stale holds
 reclaimed and named), and exits with the precedence across both:
+
+Once per tick (the `push_nudge` dial) it also runs `PushNudge.check!`: when local main is ahead of origin/main past the QualityControl world's `push_nudge` thresholds (20 commits, 24 hours, or a red last rehearsal on the current main) it files, revises or finishes the one `push-due` Work row from refs git already holds; it never fetches, pushes or merges, so a `push-due` row in `work.undone` is the cue to push through the train.
+
+CI on main is read on GitHub (status and failure email), not by the tick. Take a `red-*` row before other work; dispatch fills it first.
 
 - **0 — clean.** Relay the summary. Nothing to dispatch.
 - **1 — operational error, nothing found.** Read the actual message(s);
@@ -63,6 +67,17 @@ Under `/loop hecks_qa`: dispatch the next tick the moment every subagent
 this tick started has reported. `QualityControlDials::CADENCE_SECONDS` is
 the floor between ticks (`0` = immediately); use `ScheduleWakeup` only as
 a liveness fallback, at `QualityControlDials::LIVENESS_FALLBACK_SECONDS`.
+
+## Quiet for a mint window
+
+A tick writes to the QA ledger constantly, so a mint window starts with `exe/hecks qa_quiesce.hold!
+reason.value="..." --wait` and ends with `exe/hecks qa_quiesce.release! --wait` (`qa_quiesce.status` shows
+owner, reason and age). The tick reads the marker before each step (the PR check, the sweep, the
+generated domains, mutation, `check_main`, `push_nudge`, and the event pump, which carries the
+maintenance chain and the CI watch). A held step prints `quiesced: skipped <step>`, and the tick exits 0.
+A marker older than two hours is ignored and reported, so a crashed mint cannot freeze QA. The
+`quiesced` dial in `qa/settings.yml` does the same for a standing pause, but only from the start of a
+tick. The mint does not require the flag. When a tick says `quiesced`, do not dispatch anything for it.
 
 ## On a finding — the per-finding subagent's own prompt
 
@@ -90,7 +105,7 @@ in order:
    uses for shrunk sequences) or committed alongside any fix work, then
    log it with `--reproduced no` (step 3) rather than leaving it
    unlogged.
-3. **Log it, triaged:** `exe/hecks quality_control bug.log sweep=<sweep-id> title.value=… \
+3. **Log it, triaged:** `exe/hecks quality_control bug.log! sweep=<sweep-id> title.value=… \
    --demonstration "<that command>" --symptom … --expectation … \
    --submitter <you> --triage self_contained|bigger [--reproduced no]`.
    It RUNS the demonstration and refuses a passing one — UNLESS
@@ -102,10 +117,18 @@ in order:
    guard, an off-by-one, a validation gap — no semantic or architectural
    call. Anything else is `bigger`.
 4. **If `self_contained`:** fix it on a fresh `qa/<slug>` branch in the
-   runner worktree; move the bug through `hecks run qa/bluebook
-   bug.investigate id=BUG#n …`, `fix id=BUG#n reference.value=BUG#n
-   commit.value=<sha>`, `verify id=BUG#n evidence.value="<what ran>"`;
-   then `exe/hecks quality_control patch.open bug=BUG#n title.value="…"`. It asks the ledger
+   runner worktree, cut after `exe/hecks LinkedTree.pull_main! --wait` (pull main first; `landing.land!`
+   refuses a branch behind `origin/main`); move the bug through `exe/hecks quality_control
+   bug.investigate! to=BUG#n site.value=… cause.value=…`, `bug.fix! to=BUG#n reference.value=BUG#n
+   commit.value=<sha>`, `bug.verify! to=BUG#n evidence.value="<what ran>"`;
+   The Fixer refuses a fix without a failing reproduction: first run the
+   real entry point the bug is reached through, print what that real path
+   resolves (era, config, route), and record the exact command, its
+   short output and that it failed (`reproduction`, `observed`,
+   `reproduced`); then fix. Verify re-runs that same command and records
+   it passing (`rerun`, `rerun_result`); passing only new tests is not
+   verified.
+   then `exe/hecks quality_control patch.open! bug=BUG#n title.value="…"`. It asks the ledger
    first, as a dry run of `Patch.Open`, whose `given`s refuse a branch
    off `BRANCH_PREFIX` and a bug that is not `fixed`; the `GitPr` adapter
    refuses a fix commit not on HEAD and a day already at
@@ -120,14 +143,14 @@ For a **newly-red PR** the record is already back in `investigating`
 through the SAME record and, for an Improvement, `land id=<n>
 number.value=<n> commit.value=<new-sha>`.
 
-**A suspended target is released only by a person**: `exe/hecks quality_control query sweep.run
+**A suspended target is released only by a person**: `exe/hecks quality_control sweep.run
 <target> --release --notes "<what you concluded, 40+ chars>"`. It concludes
 the open sweep, counts the bugs it logged, moves the streak, and records
 what the bluebook can be compared against. Never release from a subagent.
 
 ## On a generated-domain finding
 
-`exe/hecks quality_control query sweep.tick`'s third step, `exe/hecks quality_control query target.check_generated_domains --from-dials`,
+`exe/hecks quality_control sweep.tick`'s third step, `exe/hecks quality_control target.check_generated_domains --from-dials`,
 checks domains `Hecks::Fuzzing::DomainGenerator` wrote (two
 `FormCensus::FORMS` forced onto one aggregate, plus extras), against Rust
 too when `GENERATED_DOMAINS_RUST` is on. A `GENERATED DOMAIN FOUND
@@ -141,7 +164,7 @@ subagent's judgments:
    Rust projection cannot compile — real, unless the domain uses a name
    the projection documents as reserved. A divergence the rotation's own
    known-gap tables already excuse is not new.
-2. **If genuine:** promote it, `exe/hecks quality_control query target.check_generated_domains --promote
+2. **If genuine:** promote it, `exe/hecks quality_control target.check_generated_domains --promote
    <finding-dir> --name <stress_domain_name>` (the report's `promote:`
    line). That copies the minimal domain into `qa/stress_domains/`, renamed,
    with a NOTES.md. Then follow the printed next steps, `exe/hecks quality_control ask target.seed`
@@ -151,14 +174,14 @@ subagent's judgments:
    Forgetting it is how ten stress domains went unswept. The next sweep of
    that target surprises the ordinary way, and the
    "On a finding" section above applies from there: the failing test, then
-   `exe/hecks quality_control bug.log`.
+   `exe/hecks quality_control bug.log!`.
 3. **If an artifact of the generator itself:** say so in your report. A
-   generator fix is deliberate work (`exe/hecks quality_control improvement.open`),
+   generator fix is deliberate work (`exe/hecks quality_control improvement.open!`),
    never a Bug.
 
 ## On a surviving mutant
 
-`exe/hecks quality_control query sweep.tick`'s fourth step, `exe/hecks quality_control query target.mutate --from-dials`,
+`exe/hecks quality_control sweep.tick`'s fourth step, `exe/hecks quality_control target.mutate --from-dials`,
 runs `cargo mutants` over the `mutation_files` dial (an empty list turns it off) and prints the
 kill rate. A `FOUND SOMETHING` block lists each mutant no test caught, as
 `file:line:col: replace X with Y in fn`. A survivor is a missing test, not a bug in the code. The
@@ -168,41 +191,41 @@ per-finding subagent's judgments:
    (without `file:line:col:`) to `mutation_equivalent` in `qa/settings.yml`, with the reason in
    the commit.
 2. **Otherwise:** write the test that kills it, beside the code's other guard tests, and open it
-   as an Improvement (`exe/hecks quality_control improvement.open`). Never a Bug.
+   as an Improvement (`exe/hecks quality_control improvement.open!`). Never a Bug.
 
-The step needs `rust/src/generated` (`hecks regeneration_run.regenerate_corpus --confirm`); without it the build
+The step needs `rust/src/generated` (`hecks regeneration_run.regenerate_corpus! --confirm`); without it the build
 fails before any mutant runs, and the step reports an operational error.
 
 ## Mining combinations with an agent (opt-in, never part of a tick)
 
 Only when a person asks for it ("mine new combinations", "have an agent
-look for new bug shapes"): `exe/hecks quality_control query target.mine_combinations [--candidates N]
+look for new bug shapes"): `exe/hecks quality_control target.mine_combinations [--candidates N]
 [--rust]`. It censuses `qa/stress_domains/*` and `examples/*`, asks an
 agent (the `Agent` adapter: `claude -p` by default) to write N candidate bluebooks aimed at
 unmet form pairs and recent bug mechanisms, each with a HYPOTHESIS.md,
 gives non-booting ones back for one repair round, and checks the rest
-through `exe/hecks quality_control query target.check_generated_domains --source`. `--brief` prints the prompt
+through `exe/hecks quality_control target.check_generated_domains --source`. `--brief` prints the prompt
 without calling an agent; `--from <run>/candidates` re-checks an earlier
 run. Run it in a subagent (its output is large). A `GENERATED DOMAIN FOUND
 SOMETHING` block from it is handled exactly as in the section above; the
-promoted NOTES.md carries the agent's hypothesis. `exe/hecks quality_control query sweep.tick` never runs
+promoted NOTES.md carries the agent's hypothesis. `exe/hecks quality_control sweep.tick` never runs
 it and no dial turns it on.
 
 ## Authoring a new stress domain (occasional)
 
-Read the backlog first — `hecks run qa/bluebook ask backlog` and `ask
-resolved` — before inventing an angle; `ask citing citation.value="…"`
+Read the backlog first — `exe/hecks quality_control angle.backlog` and
+`query angle.resolved` — before inventing an angle; `query angle.citing citation.value="…"`
 before proposing one. A new domain lives under `qa/stress_domains/<name>/
 bluebook/<name>.bluebook`, biases hard toward re-triggering a bug class
 already found (cite it), and is discarded unless it covers a construct
-combination no current `Target` does (`exe/hecks quality_control query target.judge_novelty`, once it
+combination no current `Target` does (`exe/hecks quality_control target.judge_novelty`, once it
 exists). Close the loop: `angle.investigate` when you pick a lead up,
 `build resolution.value=…` or `discard reason.value=…` when it lands;
 `propose premise.value=… citation.value=… proposer.value=…` for a
 genuinely new angle. A surviving domain becomes a `Target` (`identify`)
-and enters the rotation like any other; `exe/hecks quality_control query sweep.run` picks its mode
+and enters the rotation like any other; `exe/hecks quality_control sweep.run` picks its mode
 itself. Deliberate work with no Bug behind it is opened with
-`exe/hecks quality_control improvement.open [--angle ANGLE-n] --title …`.
+`exe/hecks quality_control improvement.open! [--angle ANGLE-n] --title …`.
 
 The sweep compares on three axes — Ruby vs the compiled Rust binary, an
 engine against ITSELF (self-consistency: cold rehydration, replay
@@ -213,7 +236,7 @@ never the whole answer.
 ## Discovering external domains (opt-in, occasional)
 
 Only when a person asks for it ("look for new domains", "what's out
-there in ~/Projects"): `exe/hecks quality_control query target.discover_external_domains 
+there in ~/Projects"): `exe/hecks quality_control target.discover_external_domains 
 [--projects-dir <path>] [--max-depth N]`. It walks sibling repos under
 `~/Projects` (never this repo — already fully covered) for a directory
 shaped `<name>/bluebook/<name>.bluebook` — matched uniformly at every
@@ -225,17 +248,17 @@ depending only on a fork gem, e.g. `~/Projects/some_console_app`, is
 correctly excluded even though its bluebook reads `Hecks.bluebook` — that
 gem aliases `Hecks`, it is not the real `hecks` gem), cross-referenced against `Target.All` so an already-
 identified domain is never re-reported. **Report only** — it never
-calls `identify` itself; it prints the exact `hecks run qa/bluebook
-identify reference=… path=…` command for a person to review and run.
-`exe/hecks quality_control query sweep.tick` never runs it and no `qa/settings.yml` dial turns it on,
-same as `exe/hecks quality_control query target.mine_combinations arguments.value=` above. Before enrolling a real find,
-read its own header for a live limitation: `exe/hecks quality_control query sweep.run` resolves
+calls `identify` itself; it prints the exact `exe/hecks quality_control
+target.identify! reference.value=… path.value=…` command for a person to review and run.
+`exe/hecks quality_control sweep.tick` never runs it and no `qa/settings.yml` dial turns it on,
+same as `exe/hecks quality_control target.mine_combinations arguments.value=` above. Before enrolling a real find,
+read its own header for a live limitation: `exe/hecks quality_control sweep.run` resolves
 every `Target.path` relative to THIS repo's root, so sweeping a target
 whose real location is outside it needs that gap closed first.
 
 ## What this will never do
 
-- File a GitHub issue, or merge by hand (`exe/hecks quality_control patch.open` queues
+- File a GitHub issue, or merge by hand (`exe/hecks quality_control patch.open!` queues
   auto-merge per the dial; CI decides).
 - Waive a gate. `sweep.waive`/`bug.waive` now REFUSE `waived_by`
   `qa_sweep` and `nobody` — only a signed person gets through.
@@ -244,5 +267,15 @@ whose real location is outside it needs that gap closed first.
   `--demonstration` must still fail when run UNLESS `--reproduced no`
   says there is no reliable pass/fail signal to check (see "On a
   finding" above) — but it is never optional, and never prose.
-- Run the tick inline, hand it a fresh worktree, or skip `exe/hecks quality_control query clearance.check_pull_requests`
-  — `exe/hecks quality_control query sweep.tick` is the order.
+- Run the tick inline, hand it a fresh worktree, or skip `exe/hecks quality_control clearance.check_pull_requests`
+  — `exe/hecks quality_control sweep.tick` is the order.
+
+## Starting sessions for what a tick found
+
+A finding or a `red-*` Work row is planned like any other row; starting a session for it is one
+command, not a hand-pasted prompt. `exe/hecks Dispatch.fill! run.value=<name> repo.value=<checkout> --wait`
+reports which planned rows would start and why each other waits (area overlap, the cap, the load,
+the freeze); add `--confirm` to start them. The CI watch calls the same command after it files a
+`red-*` row. `exe/hecks Dispatch.settle! run.value=<name> repo.value=<checkout> --wait` finishes or
+yields the rows of sessions that ended. Each session is briefed by `Brief.compose!`, which forbids
+the push and the mint.

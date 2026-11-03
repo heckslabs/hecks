@@ -17,6 +17,15 @@ module Hecks
           @handlers = []
         end
 
+        # Records the key that ties one instance's events together. A dotted path or symbol is
+        # kept as written; a bare aggregate name (`correlates_by Message`) is kept as its bare
+        # name, which `BluebookBuilder` resolves to `"Message.<identity>"` once every aggregate
+        # is known.
+        #
+        # @param key [Symbol, String, Module] the dotted path, or a bare aggregate name
+        # @return [void]
+        def correlates_by_impl(key) = @correlates_by = key
+
         # Records the event that begins a fresh instance of this process manager.
         #
         # `starts_on Transfer::TransferRequested`: a bare constant, stored as the bare event
@@ -36,6 +45,13 @@ module Hecks
         #   `ScopedConstant` module `ConstShim` resolves) or quoted text
         # @return [void]
         def ends_on_impl(event_ref) = (@endings ||= []) << Naming.event_name_ref(event_ref)
+
+        # Records the command that resumes one stage, written `stage=command`, as the stage
+        # map a resume reads. The runtime does not read it yet.
+        #
+        # @param entry [String] one `stage=command` pair, for example `"gated=GateRun.Gate"`
+        # @return [void]
+        def resumes_impl(entry) = (@resumes ||= []) << entry.to_s
 
         # Records one leg of the state machine: the event that takes it, the state(s) it
         # applies from, and the dispatches (with optional compensations) it fires.
@@ -80,7 +96,7 @@ module Hecks
             correlates_by: @correlates_by,
             starts_on:     @starts_on,
             ends_on:       @endings&.first,
-            endings:       @endings || [],
+            endings: @endings || [], resumes: @resumes || [],
             states:        derived_states,
             handlers:      @handlers
           )
@@ -147,19 +163,14 @@ module Hecks
           refuse_ambiguous_legs!
         end
 
+        # A bare name is not checked here: it may name an aggregate, which only the bluebook
+        # can see. `BluebookBuilder` resolves it to `"<Aggregate>.<identity>"`, or refuses it
+        # with `bare_correlation_message`. A dotted path is a scalar by its spelling.
         def refuse_bad_correlation!
-          unless @correlates_by
-            raise InvalidProcessManager, "#{@name} declares no correlates_by — " \
-                                         "nothing would tie its events to one instance"
-          end
+          return if @correlates_by
 
-          # Names a scalar (`:"end_to_end.value"`), never a whole field or value object.
-          # A syntactic check: the dotted spelling leaves no question about the key's type.
-          return if @correlates_by.to_s.include?(".")
-
-          raise InvalidProcessManager, "#{@name} correlates_by #{@correlates_by.inspect}, which names a whole " \
-                                       "field rather than one of its scalars — say which one, e.g. " \
-                                       "#{@correlates_by}.value"
+          raise InvalidProcessManager, "#{@name} declares no correlates_by — " \
+                                       "nothing would tie its events to one instance"
         end
 
         # A leg is selected by (event, current state), so two legs on the same pair would

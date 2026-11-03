@@ -19,11 +19,19 @@ RSpec.describe "the DSL surface is fully covered" do
     ],
     "BluebookBuilder"             => [
       Hecks::Bluebook::DSL::BluebookBuilder,
-      # `attaches_to`/`aggregate` are covered by their `_impl` dispatch targets; `namespace` is
-      # tested in spec/bluebook_namespace_spec.rb.
-      %i[vision formerly_known_as namespace attaches_to_impl provides_impl core supporting generic aggregate_impl report
-         read_model policy
+      # `attaches_to`/`aggregate` are covered by their `_impl` dispatch targets.
+      %i[vision attaches_to_impl provides_impl aggregate_impl report read_model policy
          process_manager classification resolve_pending_bluebook_givens! resolve_pending_bluebook_entity_givens!]
+    ],
+    "BluebookBuilder::Metadata"   => [
+      # `namespace` is tested in spec/bluebook_namespace_spec.rb.
+      Hecks::Bluebook::DSL::BluebookBuilder::Metadata,
+      %i[formerly_known_as namespace core supporting generic]
+    ],
+    "BluebookBuilder::Modules"    => [
+      # `domain_module` is tested in spec/domain_module_spec.rb.
+      Hecks::Bluebook::DSL::BluebookBuilder::Modules,
+      %i[domain_module]
     ],
     "AggregateBuilder"            => [
       Hecks::Bluebook::DSL::AggregateBuilder,
@@ -43,7 +51,8 @@ RSpec.describe "the DSL surface is fully covered" do
       # `calls:` — including `delegates_to_impl`/`corrects_impl`, documented at
       # their own definitions.
       %i[role_impl goal provenance_impl reference_to_impl given_impl ensures then_set_impl sets_impl
-         delegates_to_impl corrects_impl emits state attribute list_of attributes needs_impl idempotent_impl]
+         delegates_to_impl corrects_impl emits state attribute list_of attributes needs_impl idempotent_impl
+         mints_era_impl]
     ],
     "PortBuilder"                 => [
       Hecks::Bluebook::DSL::PortBuilder,
@@ -59,11 +68,11 @@ RSpec.describe "the DSL surface is fully covered" do
     "PortOperationBuilder"        => [
       Hecks::Bluebook::DSL::PortOperationBuilder,
       # `reference_to` is covered by `reference_to_impl`.
-      %i[reference_to_impl emits attribute list_of attributes]
+      %i[reference_to_impl handles_impl emits attribute list_of attributes]
     ],
     "AdapterBuilder"              => [
       Hecks::Bluebook::DSL::AdapterBuilder,
-      %i[port field secret answers_query runs provides]
+      %i[port field secret answers_query runs provides stays_inside]
     ],
     "WorldBuilder"                => [
       Hecks::Bluebook::DSL::WorldBuilder,
@@ -109,7 +118,7 @@ RSpec.describe "the DSL surface is fully covered" do
     "TranslationAggregateBuilder" => [
       Hecks::Bluebook::DSL::TranslationAggregateBuilder,
       # These are all covered by their `_impl` dispatch targets.
-      %i[rename_impl move_impl convert_impl retype_impl backfill_impl unresolved_impl]
+      %i[rename_impl move_impl convert_impl retype_impl backfill_impl unresolved_impl split_impl]
     ]
   }.freeze
 

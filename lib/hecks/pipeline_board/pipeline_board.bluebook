@@ -1,0 +1,144 @@
+# PipelineBoard: the pipeline from coding to release, read live and shown on one local page. The
+# read side is six queries, each answered by an adapter behind a port: GitHub for the CI runs, Git
+# for local main and the train, Tickets for the Work items, Jobs for the sessions, Journal for the
+# events the tooling recorded. The bluebook names the questions and never fetches, shells out or
+# opens a file.
+#
+# The one command is `Serve`. It opens the page on 127.0.0.1 and answers `GET /` and
+# `GET /api/state` until it is stopped; no command is reachable from the page, so the board only
+# reads. A read that fails answers `unknown: <reason>` for its stage and leaves the others alone.
+#
+#   exe/hecks PipelineBoard.serve! port.value=4747 --wait
+
+Hecks.bluebook "PipelineBoard" do
+  vision "The pipeline from a Work row to a release is read live, stage by stage, and shown with the real events it emitted."
+
+  supporting
+
+  # The board. One run of it is one server opened on a local port, until it is stopped.
+  aggregate "PipelineBoard" do
+    description "The pipeline's stages, CI runs, work, sessions and events as they stand, and one server that shows them."
+
+    identified_by :run
+
+    attribute :run,  RunKey
+    attribute :port, Port, optional: true
+    attribute :last, Reason, optional: true
+
+    value_object "RunKey" do
+      attribute :value, String, matches: :present
+    end
+
+    # A local port the page is served on.
+    value_object "Port" do
+      attribute :value, Integer, default: 4747
+
+      invariant("a port is 1024 to 65535") { value >= 1024 && value <= 65535 }
+    end
+
+    # Why a server ended or was refused.
+    value_object "Reason" do
+      attribute :value, String
+    end
+
+    # A JSON document: the results of a query, or `unknown: <reason>` for a read that failed.
+    value_object "Document" do
+      attribute :text, String
+    end
+
+    # How many results a query answers, at most.
+    value_object "Limit" do
+      attribute :value, Integer, default: 20
+    end
+
+    lifecycle :status, default: "requested" do
+      mark :failure, "refused"
+      mark :terminal, "closed", "refused"
+      transition "Close"  => "closed",  from: "requested"
+      transition "Refuse" => "refused", from: "requested"
+    end
+
+    command "Serve" do
+      role "Maintainer"
+      goal "Show the pipeline on a page at 127.0.0.1 until stopped; the page reads and writes nothing"
+
+      attribute :run,  RunKey, sets: true
+      attribute :port, Port, default: 4747, sets: true
+
+      emits ServeRequested
+    end
+
+    command "Close" do
+      role "System"
+      goal "Record that the server ended"
+
+      reference_to PipelineBoard
+      attribute :last, Reason, sets: true
+
+      emits BoardClosed
+    end
+
+    command "Refuse" do
+      role "System"
+      goal "Record that the server could not open, and why"
+
+      reference_to PipelineBoard
+      attribute :last, Reason, sets: true
+
+      emits BoardRefused
+    end
+
+    query "Stages" do
+      description "One entry per stage, left to right: Work items, Sessions, Local main, Train, CI, Promote, Release, each with its state, count and a one-line detail."
+      returns Document
+    end
+
+    query "CiRuns" do
+      description "The last CI runs on main, oldest first: sha, started, wall minutes, conclusion and how many jobs failed."
+      attribute :limit, Limit, optional: true
+      returns Document
+    end
+
+    query "SlowestJobs" do
+      description "The jobs of the last completed CI run, slowest first, in minutes."
+      attribute :limit, Limit, optional: true
+      returns Document
+    end
+
+    query "OpenWork" do
+      description "The Work items that are not done: slug, status and area."
+      returns Document
+    end
+
+    query "Sessions" do
+      description "The busy and the recent dispatched sessions, with the job's own state."
+      returns Document
+    end
+
+    query "Wiring" do
+      description "What the loaded bluebooks wire together: aggregates, the policies between them, the ports an ask goes out through and the adapters that answer them."
+      returns Document
+    end
+
+    query "Events" do
+      description "The most recent events the tooling recorded, newest first: time, aggregate, event, and the policy that reacted where the journal holds one."
+      attribute :limit, Limit, optional: true
+      returns Document
+    end
+  end
+
+  policy "ListenWhenServed" do
+    on  "PipelineBoard.ServeRequested"
+    ask :listen, with: { port: :port }
+  end
+
+  policy "CloseWhenEnded" do
+    on      "PipelineBoard.ServerEnded"
+    trigger PipelineBoard::Close, with: { last: :last }
+  end
+
+  policy "RefuseWhenRefused" do
+    on      "PipelineBoard.ServerRefused"
+    trigger PipelineBoard::Refuse, with: { last: :last }
+  end
+end

@@ -3,11 +3,11 @@ require "open3"
 require "rbconfig"
 require "tmpdir"
 require "fileutils"
-require "hecks/cli/domain_stub"
+require "hecks/tools/domain_stub"
 
 # The stub files `hecks init` writes (ADR 0087): what each adapter's stub contains, that every
 # stub boots and takes its one command, and that the adapter list stays honest.
-RSpec.describe Hecks::CLI::DomainStub do
+RSpec.describe Hecks::Tools::DomainStub do
   # Boots a written stub in a child process, so the aggregate constants it installs do not join
   # this process's namespace. A server-backed stub boots on its memory overlay.
   STUB_BOOT = <<~RUBY.freeze

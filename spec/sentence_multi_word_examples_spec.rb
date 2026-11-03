@@ -41,7 +41,7 @@ RSpec.describe "examples whose commands are named by several words", :io do
   end
 
   it "fail when an expectation is wrong, so a pass means something" do
-    wrong = run_changed("Then the order is closed\n  And OrderClosed", "Then the order is open\n  And OrderClosed")
+    wrong = run_changed("Then the order is closed\n    And OrderClosed", "Then the order is open\n    And OrderClosed")
 
     expect(wrong.runs.first.status).to eq(:fail)
   end
