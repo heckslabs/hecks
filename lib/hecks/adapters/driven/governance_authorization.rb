@@ -10,47 +10,37 @@ module Hecks
 
       # Reports whether `actor_id` holds a live grant of `role`.
       #
-      # `as_of` and `scope` are opt-in: nil skips the matching check. `as_of` comes from the
-      # caller, since the dispatch path must not read the clock (see `Ports::Clock`).
+      # Liveness (not revoked, started by `as_of`) and scope are the bluebook's two Governance
+      # queries; this reads them and decides neither. `as_of` defaults to the bound clock, so a
+      # grant that starts later does not count yet.
       #
       # @param registry [Runtime::Registry] the booted registry
       # @param actor_id [String] the actor whose grants are checked
       # @param role [String, Symbol] the role name to look for
-      # @param as_of [Integer, nil] Unix epoch seconds; a later (or unparseable) `starts_at` fails
-      # @param scope [String, nil] the scope the caller acts in; nil skips the scope check
+      # @param as_of [Integer, nil] Unix epoch seconds the grant must have started by; nil reads
+      #   the clock port
+      # @param scope [String, nil] the scope the caller acts in; nil accepts a grant for any scope
       # @return [Boolean] true if a live grant of `role` to `actor_id` passes both checks
       # @raise [Runtime::WiringError] unless exactly one bluebook provides `"authorization"`
       def holds_role?(registry, actor_id:, role:, as_of: nil, scope: nil)
-        live_assignments(registry, actor_id).any? do |row|
-          row[:role_name][:value] == role.to_s && in_scope?(row, scope) && started?(row, as_of)
-        end
+        at = as_of_text(registry, as_of)
+        rows = if scope.nil?
+                 live_assignments(registry, actor_id, at)
+               else
+                 live_scoped_assignments(registry, actor_id, scope, at)
+               end
+        rows.any? { |row| row[:role_name][:value] == role.to_s }
       end
 
-      # Without a `scope`, any live assignment for the role authorizes everywhere.
+      # The `as_of` a query compares `starts_at` against: UTC `YYYY-MM-DDTHH:MM:SSZ`, which sorts
+      # with the stored UTC dates and date-times as text.
       #
-      # @param row [Hash{Symbol => Object}] one `RoleAssignment` row as
-      #   `Runtime::Dispatcher#query` returns it; `:scope` holds a `{value: String}` Hash
-      # @param scope [String, nil] the scope to check against; nil accepts any scope
-      # @return [Boolean] true if `scope` is nil, or the row's own scope matches it
-      def in_scope?(row, scope)
-        scope.nil? || row[:scope][:value] == scope.to_s
-      end
-
-      # `starts_at` is a UTC date or date-time (the aggregate refuses anything else), parsed with
-      # `Time.parse` to compare against `as_of`. Fails closed on a record that predates that
-      # rule: an unparseable value counts as not yet started.
-      #
-      # @param row [Hash{Symbol => Object}] one `RoleAssignment` row as
-      #   `Runtime::Dispatcher#query` returns it; `:starts_at` holds a `{value: String}` Hash
-      # @param as_of [Integer, nil] Unix epoch seconds to compare against; nil accepts any row
-      # @return [Boolean] true if `as_of` is nil, or the row's `starts_at` parses and is at or
-      #   before `as_of`; false if `starts_at` does not parse as a time
-      def started?(row, as_of)
-        return true if as_of.nil?
-
-        Time.parse(row[:starts_at][:value].to_s).to_i <= as_of
-      rescue ArgumentError, TypeError
-        false
+      # @param registry [Runtime::Registry] the booted registry, to read the clock port
+      # @param as_of [Integer, nil] Unix epoch seconds; nil reads the clock port
+      # @return [String] the UTC instant as a Timestamp value
+      def as_of_text(registry, as_of)
+        seconds = as_of || Ports::Clock.now(registry)
+        Time.at(seconds).utc.strftime("%Y-%m-%dT%H:%M:%SZ")
       end
 
       # Answers whether one role may act as another.
@@ -60,10 +50,11 @@ module Hecks
       # @param to_role [String, Symbol] the role the caller wants to act as, compared as a String
       # @return [Boolean] true if a live allowance lets `from_role` act as `to_role`
       # @raise [Runtime::WiringError] unless exactly one bluebook provides `"authorization"`
-      def authorized_as?(registry, from_role:, to_role:)
+      def authorized_as?(registry, from_role:, to_role:, as_of: nil)
         Runtime::Dispatcher.new(registry).query(
           provided_verb(registry, :live_transitions),
-          from_role: { value: from_role.to_s }, to_role: { value: to_role.to_s }
+          from_role: { value: from_role.to_s }, to_role: { value: to_role.to_s },
+          as_of: { value: as_of_text(registry, as_of) }
         ).any?
       end
 
@@ -76,7 +67,7 @@ module Hecks
       # @raise [Runtime::WiringError] if the loaded bluebooks providing `"authorization"` are
       #   not exactly one (see `provided_verb`)
       def live_role_for(registry, actor_id:)
-        live = live_assignments(registry, actor_id).first
+        live = live_assignments(registry, actor_id, as_of_text(registry, nil)).first
         live && live[:role_name][:value]
       end
 
@@ -84,11 +75,26 @@ module Hecks
       #
       # @param registry [Runtime::Registry] the booted registry
       # @param actor_id [String] the actor, compared as a String
-      # @return [Array<Hash{Symbol => Object}>] the actor's grants that have not ended
-      def live_assignments(registry, actor_id)
+      # @param as_of [String] the UTC Timestamp the grant must have started by
+      # @return [Array<Hash{Symbol => Object}>] the actor's grants that have not ended and have started
+      def live_assignments(registry, actor_id, as_of)
         Runtime::Dispatcher.new(registry).query(
           provided_verb(registry, :live_assignments),
-          actor_id: { value: actor_id.to_s }
+          actor_id: { value: actor_id.to_s }, as_of: { value: as_of }
+        )
+      end
+
+      # The rows the provider's `live_scoped_assignments` query answers for one actor and scope.
+      #
+      # @param registry [Runtime::Registry] the booted registry
+      # @param actor_id [String] the actor, compared as a String
+      # @param scope [String, Symbol] the scope the grant must have been made for
+      # @param as_of [String] the UTC Timestamp the grant must have started by
+      # @return [Array<Hash{Symbol => Object}>] the actor's live grants made for that scope
+      def live_scoped_assignments(registry, actor_id, scope, as_of)
+        Runtime::Dispatcher.new(registry).query(
+          provided_verb(registry, :live_scoped_assignments),
+          actor_id: { value: actor_id.to_s }, scope: { value: scope.to_s }, as_of: { value: as_of }
         )
       end
 

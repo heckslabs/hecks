@@ -25,10 +25,10 @@ module Hecks
       # @param role [String] the role the caller holds, checked against the command's `role`
       # @param actor_id [String, nil] who the caller is; when given, `CommandRules::Authorization`
       #   checks a real Governance `RoleAssignment`
-      # @param as_of [Integer, nil] Unix epoch seconds taken as "now"; nil leaves a
-      #   `RoleAssignment`'s `starts_at` unchecked
-      # @param scope [String, nil] the scope acted in, checked against the `RoleAssignment`'s
-      #   `scope`; nil skips that check
+      # @param as_of [Integer, nil] Unix epoch seconds taken as "now"; nil reads the clock port.
+      #   A `RoleAssignment` whose `starts_at` is later does not count yet
+      # @param scope [String, nil] the scope acted in; only a `RoleAssignment` made for that scope
+      #   counts. nil accepts a grant for any scope
       # @yield the code that sees these values as the ambient caller
       # @return [Object] the block's result
       def as(role:, actor_id: nil, as_of: nil, scope: nil)

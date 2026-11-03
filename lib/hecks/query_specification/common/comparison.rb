@@ -98,15 +98,18 @@ module Hecks
           end
         end
 
-        # Checks that both operands of an ordered comparison are numbers.
+        # Checks that both operands of an ordered comparison are numbers, or both are UTC
+        # `Timestamp` text, which orders as its string does.
         #
-        # Ordered comparators are numeric-only and silently false otherwise; a where-clause
-        # never raises.
+        # Ordered comparators are silently false otherwise; a where-clause never raises. The
+        # bluebook sealing decides which fields may be ordered, so a String here is a Timestamp.
         #
         # @param held [Object, nil] the record's own value for the field
         # @param want [Object, nil] the value compared against
-        # @return [Boolean] `true` only when both are `Numeric`
-        def ordered?(held, want) = held.is_a?(Numeric) && want.is_a?(Numeric)
+        # @return [Boolean] `true` when both are `Numeric`, or both are `String`
+        def ordered?(held, want)
+          (held.is_a?(Numeric) && want.is_a?(Numeric)) || (held.is_a?(String) && want.is_a?(String))
+        end
 
         # Reads a comparator's list operand as the Strings membership is tested against.
         #

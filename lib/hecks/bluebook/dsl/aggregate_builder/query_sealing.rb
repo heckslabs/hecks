@@ -15,7 +15,7 @@ module Hecks
           private
 
           # A query must ask about a field the aggregate has. A dotted path must land on a scalar
-          # member, an ordered comparator (lt/gt/gte/lte) on a numeric leaf, and a :symbol value
+          # member, an ordered comparator (lt/gt/gte/lte) on a numeric or Timestamp leaf, and a :symbol value
           # must name one of the query's own arguments; else engines disagree or match nothing.
           def seal_query_targets
             query_surfaces.each do |owner, fields, lifecycle, queries|
@@ -62,8 +62,18 @@ module Hecks
             name, *nested = clause.field.to_s.split(".")
             attribute = field_named(scope, name)
             return if attribute && numeric_path?(attribute, nested)
+            return if attribute && timestamp_path?(attribute, nested)
 
             refuse_unordered_comparison!(scope, clause, attribute)
+          end
+
+          # A `Timestamp` value object is UTC text whose order is its string order, so an ordered
+          # comparator reads it as the strings every engine compares alike.
+          def timestamp_path?(attribute, nested)
+            leaf = leaf_of(attribute, nested)
+            return false if leaf.nil? || leaf.list? || leaf.reference?
+
+            declared_value_object(leaf.type.to_s)&.hecks_name.to_s == "Timestamp"
           end
 
           def deferred_hop?(scope, clause)
@@ -81,11 +91,11 @@ module Hecks
           end
 
           def refuse_unordered_comparison!(scope, clause, attribute)
-            held = attribute ? "holds no number" : "is the lifecycle field, which holds text"
+            held = attribute ? "holds neither a number nor a Timestamp" : "is the lifecycle field, which holds text"
             raise Malformed,
                   "#{scope.label} compares #{clause.field} with #{clause.op}, " \
                   "but #{clause.field} #{held} — an ordered comparison needs a numeric " \
-                  "field, and over anything else the adapters answer differently or not at all"
+                  "or Timestamp field, and over anything else the adapters answer differently or not at all"
           end
 
           def seal_query_argument(scope, value)

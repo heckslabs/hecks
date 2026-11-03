@@ -53,6 +53,9 @@
       "args": {
         "actor_id": {
           "value": "u-1"
+        },
+        "as_of": {
+          "value": "2026-07-01"
         }
       }
     },
@@ -134,6 +137,9 @@
         },
         "to_role": {
           "value": "Customer registrar"
+        },
+        "as_of": {
+          "value": "2026-07-01"
         }
       }
     }

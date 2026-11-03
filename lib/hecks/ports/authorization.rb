@@ -15,7 +15,7 @@ module Hecks
       # @param actor_id [String] the actor whose grants are checked
       # @param role [String, Symbol] the role name to look for, compared as a String
       # @param as_of [Integer, nil] Unix epoch seconds (from `Ports::Clock.now`); a grant whose
-      #   `starts_at` is later, or does not parse as a time, does not count. nil skips the check
+      #   `starts_at` is later does not count. nil reads the clock port
       # @param scope [String, nil] only a grant made for this scope counts; nil counts any scope
       # @return [Boolean] true if at least one live grant of `role` to `actor_id` passes
       # @raise [Runtime::WiringError] if this port does not resolve to exactly one adapter,
@@ -35,8 +35,8 @@ module Hecks
       # @raise [Runtime::WiringError] if this port does not resolve to exactly one adapter,
       #   or the governance-backed adapter finds no single loaded bluebook providing
       #   `"authorization"`
-      def authorized_as?(registry, from_role:, to_role:)
-        adapter(registry).authorized_as?(registry, from_role: from_role, to_role: to_role)
+      def authorized_as?(registry, from_role:, to_role:, as_of: nil)
+        adapter(registry).authorized_as?(registry, from_role: from_role, to_role: to_role, as_of: as_of)
       end
 
       # Looks up the role an actor holds right now.

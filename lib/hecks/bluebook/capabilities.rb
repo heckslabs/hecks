@@ -34,15 +34,17 @@ module Hecks
       CONTRACTS = {
         AUTHORIZATION => {
           # every assignment an actor holds, current or historical
-          assignments:      :query,
-          # the assignments an actor holds right now: those that have not ended
-          live_assignments: :query,
+          assignments:             :query,
+          # the assignments an actor holds right now: those that have not ended and have started
+          live_assignments:        :query,
+          # the live assignments an actor holds over one scope, the scope a caller acts in
+          live_scoped_assignments: :query,
           # the command that grants an actor a role
-          grant:            :command,
+          grant:                   :command,
           # every grant of one role acting as another, current or historical
-          transitions:      :query,
-          # the grants of one role acting as another that have not ended
-          live_transitions: :query
+          transitions:             :query,
+          # the grants of one role acting as another that have not ended and have started
+          live_transitions:        :query
         }.freeze,
         MEMBERSHIP    => {
           # recognize a person who may eventually sign in

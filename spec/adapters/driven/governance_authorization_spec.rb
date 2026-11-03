@@ -91,8 +91,8 @@ RSpec.describe Hecks::Adapters::GovernanceAuthorization do
     end
   end
 
-  describe "as_of — starts_at, opt-in" do
-    it "answers true for a not-yet-started assignment when as_of is not given" do
+  describe "as_of — starts_at, read from the clock by default" do
+    it "answers true for an assignment that started before now when as_of is not given" do
       assign(business, actor: "officer-1", role: "Compliance officer") # starts_at: "2026-01-01"
 
       expect(
@@ -116,6 +116,23 @@ RSpec.describe Hecks::Adapters::GovernanceAuthorization do
         described_class.holds_role?(business.registry, actor_id: "officer-1", role: "Compliance officer",
                                      as_of: Time.parse("2026-06-01").to_i)
       ).to be(true)
+    end
+
+    it "does not count a future-dated grant when as_of is not given, since the clock is the default" do
+      assign(business, actor: "officer-5", role: "Compliance officer", starts_at: "2099-01-01")
+
+      expect(
+        described_class.holds_role?(business.registry, actor_id: "officer-5", role: "Compliance officer")
+      ).to be(false)
+    end
+
+    it "does not count a future-dated grant on the scoped check either" do
+      assign(business, actor: "officer-5", role: "Compliance officer", starts_at: "2099-01-01") # scope: "Branch-1"
+
+      expect(
+        described_class.holds_role?(business.registry, actor_id: "officer-5", role: "Compliance officer",
+                                     scope: "Branch-1")
+      ).to be(false)
     end
 
     it "never meets a starts_at that is not a time, because the assignment refuses it" do

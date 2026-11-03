@@ -9,6 +9,7 @@ Hecks.bluebook "Governance" do
   provides "authorization",
            assignments:      "RoleAssignment.AssignmentsForActor",
            live_assignments: "RoleAssignment.LiveAssignmentsForActor",
+           live_scoped_assignments: "RoleAssignment.LiveScopedAssignmentsForActor",
            grant:            "RoleAssignment.Assign",
            transitions:      "RoleTransition.Allowed",
            live_transitions: "RoleTransition.LiveAllowed"
@@ -79,12 +80,23 @@ Hecks.bluebook "Governance" do
       where(actor_id: :actor_id)
     end
 
-    # Live means not yet revoked: a grant whose `ends_at` was never set. The adapter that checks a
-    # role reads this and does not decide liveness itself.
+    # Live means not yet revoked, and started by `as_of` (the caller's now): a grant whose `ends_at`
+    # was never set and whose `starts_at` is at or before `as_of`. A future-dated grant does not
+    # count yet. The adapter that checks a role reads this and does not decide liveness itself.
     query "LiveAssignmentsForActor" do
-      description "Every role an actor holds right now: assigned and not yet revoked."
+      description "Every role an actor holds as of a moment: assigned, not yet revoked, and started by then."
       attribute :actor_id, IdentityId
-      where(actor_id: :actor_id, ends_at: nil)
+      attribute :as_of,    Timestamp
+      where(actor_id: :actor_id, ends_at: nil, starts_at: { lte: :as_of })
+    end
+
+    # The same liveness, for one scope: a grant made for another scope does not count here.
+    query "LiveScopedAssignmentsForActor" do
+      description "Every role an actor holds as of a moment over one scope: assigned, not yet revoked, started by then, and made for that scope."
+      attribute :actor_id, IdentityId
+      attribute :scope,    Scope
+      attribute :as_of,    Timestamp
+      where(actor_id: :actor_id, scope: :scope, ends_at: nil, starts_at: { lte: :as_of })
     end
   end
 
@@ -144,12 +156,14 @@ Hecks.bluebook "Governance" do
       where(from_role: :from_role, to_role: :to_role)
     end
 
-    # The grants of this pair that were never revoked: the ones that let one role act as another.
+    # The grants of this pair that were never revoked and have started by `as_of`: the ones that let
+    # one role act as another.
     query "LiveAllowed" do
-      description "Every role transition granted for this exact pair and not yet revoked."
+      description "Every role transition granted for this exact pair, not yet revoked, and started by a moment."
       attribute :from_role, RoleName
       attribute :to_role,   RoleName
-      where(from_role: :from_role, to_role: :to_role, ends_at: nil)
+      attribute :as_of,     Timestamp
+      where(from_role: :from_role, to_role: :to_role, ends_at: nil, starts_at: { lte: :as_of })
     end
   end
 end
