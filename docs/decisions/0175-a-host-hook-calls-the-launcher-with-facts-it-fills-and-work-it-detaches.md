@@ -1,6 +1,7 @@
 # A host hook calls the launcher, with facts the bluebook fills and work it detaches
 
-**Status:** Proposed (Miette, for the owner's review, 2026-11-03). Date: 2026-11-03.
+**Status:** Accepted (owner, 2026-11-03). Date: 2026-11-03. Section 2 (arguments read from stdin) is built in
+`Adapters::Driving::Cli::StdinSource`; sections 1 (`needs ... as:` and a fresh key) and 3 (`--detach`) are not yet.
 
 ## Context
 
