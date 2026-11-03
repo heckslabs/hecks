@@ -4,6 +4,7 @@ require "time"
 require_relative "event"
 require_relative "value"
 require_relative "../naming"
+require_relative "../limit"
 
 module Hecks
   module Runtime
@@ -14,12 +15,12 @@ module Hecks
       # trigger was declined, its `with:` read a key the event lacked, the cascade was too deep)
       # is settled `refused` with the reason in `error`: it ran and said no, which is neither
       # delivery nor a defect, and a trace reads it back.
-      STATUSES = %w[pending claimed delivered failed refused].freeze
+      STATUSES = Hecks::Vocabulary.fetch("OutboxStatus")
 
       # How long a row stays claimed before it counts as stalled: a claim that old was left by a
       # process that is gone, where a younger one is a reaction running in another process. Ten
       # minutes is the ceiling a reaction is expected to stay inside.
-      STALLED_AFTER = 600
+      STALLED_AFTER = Hecks::Limit.of("LanguageLimit", "outbox_stalled_after_seconds")
 
       # `claimed_for` is the seconds since the row was claimed, read from the store's own clock; nil
       # when the store does not say.
