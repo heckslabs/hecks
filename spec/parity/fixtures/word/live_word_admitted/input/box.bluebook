@@ -1,0 +1,19 @@
+Hecks.bluebook "Box", version: "v1" do
+  aggregate "Box" do
+    attribute :label, Label
+    attribute :note, Label
+    identified_by :label
+
+    value_object "Label" do
+      attribute :value, String, matches: :present
+    end
+
+    command "Open" do
+      sets :note, to: "open"
+      emits "Opened"
+    end
+
+    lifecycle :status, default: "closed" do
+    end
+  end
+end

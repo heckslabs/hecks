@@ -1,4 +1,5 @@
 require_relative "bootstrap_table"
+require_relative "live_row"
 
 module Hecks
   module Bluebook
@@ -62,7 +63,7 @@ module Hecks
         # nil when it falls outside this module's verified scope.
         #
         def shape_for(context, word, rows)
-          keyword = rows[:keywords].find { |k| k[:context] == context && k[:word] == word && k[:status] != "retired" }
+          keyword = rows[:keywords].find { |k| LiveRow.live?(k) && k[:context] == context && k[:word] == word }
           return nil unless keyword
 
           calls = keyword[:calls].to_s

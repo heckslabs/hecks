@@ -1,4 +1,5 @@
 require_relative "generic_dispatch"
+require_relative "live_row"
 module Hecks
   module Bluebook
     module DSL
@@ -46,12 +47,12 @@ module Hecks
           admitted = keywords.select { |row| word_gate_row?(row, context, word.to_s) }
           return [context, admitted] unless admitted.empty?
 
-          type_admitted = keywords.select { |row| row[:context] == "Type" && row[:word] == word.to_s }
+          type_admitted = keywords.select { |row| word_gate_type_row?(row, word.to_s) }
           type_admitted.empty? ? [context, admitted] : ["Type", type_admitted]
         end
 
         def word_gate_row?(row, context, name)
-          row[:context] == context && (row[:word] == name || row[:was] == name)
+          LiveRow.live?(row) && row[:context] == context && (row[:word] == name || row[:was] == name)
         end
 
         def refuse_unadmitted_word!(keywords, context, word)
@@ -83,17 +84,24 @@ module Hecks
         def respond_to_missing?(word, include_private = false)
           return super if MetaValidator.bootstrapping?
 
-          context = self.class::GRAMMAR_CONTEXT
           keywords = MetaValidator::SyntaxBoot.call[:keywords]
-          keywords.any? { |row| word_gate_row?(row, context, word.to_s) } ||
-            keywords.any? { |row| row[:context] == "Type" && row[:word] == word.to_s } ||
-            super
+          word_gate_known?(keywords, self.class::GRAMMAR_CONTEXT, word.to_s) || super
+        end
+
+        # Whether a live row admits the name in this context, or as a "Type" word.
+        def word_gate_known?(keywords, context, name)
+          keywords.any? { |row| word_gate_row?(row, context, name) } ||
+            keywords.any? { |row| word_gate_type_row?(row, name) }
+        end
+
+        def word_gate_type_row?(row, name)
+          LiveRow.live?(row) && row[:context] == "Type" && row[:word] == name
         end
 
         # `method_missing` fires for every typo in a builder, so only words the grammar knows
         # anywhere get the rich refusal; other typos keep Ruby's ordinary `NoMethodError`.
         def admitted_anywhere?(rows, word)
-          rows.any? { |row| row[:word] == word.to_s || row[:was] == word.to_s }
+          rows.any? { |row| LiveRow.live?(row) && (row[:word] == word.to_s || row[:was] == word.to_s) }
         end
       end
     end
