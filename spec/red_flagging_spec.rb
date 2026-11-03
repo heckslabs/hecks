@@ -23,13 +23,9 @@ RSpec.describe Hecks::Adapters::RedFlagging do
     out
   end
 
-  # A fake GitHub: the run list answers `runs` (the successes alone when asked), a run view answers
-  # one failed job.
+  # A fake GitHub: the run list answers `runs`, a run view answers one failed job.
   def gh(argv)
-    if argv[1] == "run" && argv[2] == "list"
-      listed = argv.include?("--status") ? runs.select { |run| run["conclusion"] == "success" } : runs
-      return [true, JSON.generate(listed)]
-    end
+    return [true, JSON.generate(runs)] if argv[1] == "run" && argv[2] == "list"
 
     jobs = [{ "name" => "rspec", "conclusion" => "failure" }, { "name" => "lint", "conclusion" => "success" }]
     [true, JSON.generate("jobs" => jobs)]
@@ -60,21 +56,6 @@ RSpec.describe Hecks::Adapters::RedFlagging do
 
     expect(outcome(answer)).to eq("noted")
     expect(answer.dig(:flag, :value)).to eq("flag-aaaaaaaaaa")
-  end
-
-  it "answers idle when the same CI run is reported again, so a run is recorded once", :aggregate_failures do
-    flagging.hoist(commit: "aaaaaaaaaaaa", detail: "aaaaaaaaaa: CI run 7 failure; failed jobs: rspec")
-    answer = flagging.hoist(commit: "aaaaaaaaaaaa", detail: "aaaaaaaaaa: CI run 7 failure; failed jobs: rspec")
-
-    expect(outcome(answer)).to eq("idle")
-    expect(answer.dig(:output, :value)).to eq("run 7 is already recorded on flag-aaaaaaaaaa")
-  end
-
-  it "keeps the last green head of main on the flag it raises from a survey" do
-    runs.replace(red_run + [{ "databaseId" => 6, "status" => "completed", "conclusion" => "success", "headSha" => "0b49c62c2c" }])
-    flagging.survey
-
-    expect(JSON.parse(File.read(File.join(repo, ".git", "hecks-red-flag.json")))["last_green"]).to eq("0b49c62c2c")
   end
 
   it "checks a session in and says what it takes", :aggregate_failures do

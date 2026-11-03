@@ -39,7 +39,6 @@ require_relative "support/memory_ports"
 require_relative "support/scratch_directory"
 require_relative "support/live_ledger_guard"
 require_relative "support/live_state_guard"
-require_relative "support/quiet_desktop_alert"
 
 # A push runs the pre-push hook with GIT_DIR and friends exported, and every
 # `git` the suite starts inherits them. Specs build scratch repositories and

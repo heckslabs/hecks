@@ -5,7 +5,7 @@ Hecks.hecksagon "Hecks" do
   # Expression, Tenancy, Deploy, Site, Tickets, Composer and QualityControl (the last three bring
   # their own ports), and Coder and Fixer, whose events Tickets and QualityControl react to.
   %w[Bluebook Hecksagon World Adapter Port Translation Expression Tenancy Deploy Site Tickets Composer QualityControl
-     Coder Fixer PipelineBoard Pipeline Triage]
+     Coder Fixer PipelineBoard Pipeline]
     .each { |declaration| attaches declaration }
   # Persistence is not bound here, so the domain is in Memory. A copy opts in with a
   # hecks.local.hecksagon whose `persisted_by` the attached bluebooks inherit (ADR 0136).
@@ -117,7 +117,7 @@ Hecks.hecksagon "Hecks" do
   end
 
   Hecks::RedFlag.port "Flagging" do
-    %w[Hoist SignIn Lower Survey Evict].each do |step|
+    %w[Hoist SignIn Lower Survey].each do |step|
       asks step, to: RedFlag do
         attribute :run, RunKey
         answers "FlagAnswered"
@@ -126,21 +126,6 @@ Hecks.hecksagon "Hecks" do
     end
 
     answers_query "Status"
-  end
-
-  # The owner's desktop hears the flag go up and come down; the ask carries the flag's facts, so
-  # it needs nothing the record has not been handed yet.
-  Hecks::RedFlag.port "Alerts" do
-    asks "Flag", to: RedFlag do
-      attribute :run,     RunKey
-      attribute :outcome, Word
-      attribute :flag,    Word
-      attribute :commit,  Word
-      attribute :ci_run,  Report, optional: true
-      attribute :jobs,    Report, optional: true
-      answers "AlertShown"
-      refuses "AlertRefused"
-    end
   end
 
   Hecks::QaQuiesce.port "Quiescing" do

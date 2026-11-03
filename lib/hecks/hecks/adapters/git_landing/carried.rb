@@ -24,9 +24,8 @@ module Hecks
           "it has #{lacking} commit(s) not on #{@onto}" if lacking.positive?
         end
 
-        # How many commits the branch adds that `onto` carries under no id and no patch:
-        # `git cherry` marks one `onto` has a patch-equivalent of with `-`, and one it lacks
-        # with `+`.
+        # How many commits the branch adds that `onto` carries under no id and no patch: `git cherry`
+        # marks one `onto` has a patch-equivalent of with `-`, and one it lacks with `+`.
         def unmatched(local, tip)
           read("cherry", local, tip, dir: @checkout).lines.count { |line| line.start_with?("+") }
         end
