@@ -15,7 +15,7 @@ RSpec.describe "SiteMembership" do
     File.join(InMemoryDomain::ROOT, "lib/hecks/framework/bluebook/identity.bluebook")
   ].freeze
 
-  # What the adapter hands a command when it knows nothing yet: a lone site, a caller who is an admin.
+  # What the adapter hands a command when it knows nothing yet: a lone site, an admin as caller.
   FACTS = {
     caller_role: "Admin", caller: "root@example.com", window_ended: "no", window_days: 0, window_ends_at: "",
     others_open_admins: 0, others_admins: 0, others_active_admins: 0

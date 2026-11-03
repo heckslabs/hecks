@@ -113,7 +113,7 @@ Hecks.bluebook "SiteMembership" do
     end
 
     # A plain grant sets the role and clears the window; a grant that names a window replaces any
-    # earlier one (a regrant renews). A grant with no role grants Admin. The window is 1 to 365 days;
+    # earlier one (a regrant renews). A grant with no role grants Admin. A window is 1 to 365 days;
     # the adapter turns the days into `window_ends_at`. A site keeps an admin with no end date: no
     # change may take the last one off that footing, and the site's first admin has no end date.
     command "Grant" do
