@@ -6,7 +6,8 @@ module Hecks
   module Adapters
     class SettingsReading
       # The `push nudge` row of `hecks config`: how many commits or hours local main may drift ahead
-      # of origin/main before QA files the `push-due` Work row, how many commits make it urgent, and
+      # of origin/main before QA files the `push-due` Work item, how many commits make it urgent,
+      # and
       # whether the QualityControl world or the default says so.
       module PushNudge
         # @param directory [String] the domain directory

@@ -47,7 +47,7 @@ dirty tree, rebases onto `origin/main`, runs `exe/hecks quality_control clearanc
 each target's depth widened from its own `clean_streak`, stale holds
 reclaimed and named), and exits with the precedence across both:
 
-Once per tick (the `push_nudge` dial) it also runs `PushNudge.check!`: when local main is ahead of origin/main past the QualityControl world's `push_nudge` thresholds (20 commits, 24 hours, or a red last rehearsal on the current main) it files, revises or finishes the one `push-due` Work row from refs git already holds; it never fetches, pushes or merges, so a `push-due` row in `work.undone` is the cue to push through the train.
+Once per tick (the `push_nudge` dial) it also runs `PushNudge.check!`: when local main is ahead of origin/main past the QualityControl world's `push_nudge` thresholds (20 commits, 24 hours, or a red last rehearsal on the current main) it files, revises or finishes the one `push-due` Work item from refs git already holds; it never fetches, pushes or merges, so a `push-due` Work item in `work.undone` is the cue to push through the train.
 
 CI on main is read on GitHub (status and failure email), not by the tick. Take a `red-*` row before other work; dispatch fills it first.
 
@@ -272,7 +272,7 @@ whose real location is outside it needs that gap closed first.
 
 ## Starting sessions for what a tick found
 
-A finding or a `red-*` Work row is planned like any other row; starting a session for it is one
+A finding or a `red-*` Work item is planned like any other; starting a session for it is one
 command, not a hand-pasted prompt. `exe/hecks Dispatch.fill! run.value=<name> repo.value=<checkout> --wait`
 reports which planned rows would start and why each other waits (area overlap, the cap, the load,
 the freeze); add `--confirm` to start them. The CI watch calls the same command after it files a

@@ -4,7 +4,7 @@ require "hecks/hecks/adapters/red_flagging"
 require "tmpdir"
 require "open3"
 
-# While main is red, a landing is refused by name unless it is the fix of a red Work row, and it
+# While main is red, a landing is refused by name unless it is the fix of a red Work item, and it
 # resumes when the flag is lowered. Every example builds its own throwaway repository.
 RSpec.describe Hecks::Adapters::GitLanding, "#merge under a red flag" do
   let(:dir) { Dir.mktmpdir("hecks-red-flag-landing") }
@@ -57,7 +57,7 @@ RSpec.describe Hecks::Adapters::GitLanding, "#merge under a red flag" do
     expect(landed?).not_to include("feature-x")
   end
 
-  it "lands the fix of a red row while main is red" do
+  it "lands the fix of a red Work item while main is red" do
     build_repo("red-ci-fuzz")
     raise_flag
 

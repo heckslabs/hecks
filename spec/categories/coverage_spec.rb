@@ -43,6 +43,8 @@ RSpec.describe "the category tests, covering every closed set", :aggregate_failu
     "ReleaseFile"           => "release bookkeeping, held by spec/release/",
     "RequiredCheck"         => "release checks, held by spec/tools_lanes_spec.rb",
     "RetiredScript"         => "retired tooling, held by spec/bin_holds_no_script_spec.rb",
+    "Term"                  => "the tooling's own words and the storage words that must not stand in for them, " \
+                               "held by spec/vocabulary_terms_spec.rb",
     "RustReservedWord"      => "names the Rust build refuses; spec/rust_vocabulary_spec.rb",
     "SignTest"              => "grammar table, held by spec/vocabulary_conformance_spec.rb",
     "SizedType"             => "grammar table, held by spec/vocabulary_conformance_spec.rb",

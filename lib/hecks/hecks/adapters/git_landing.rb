@@ -28,7 +28,7 @@ module Hecks
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] unused
       # @param root [String, nil] unused
-      # @param registry [Runtime::Registry, nil] where the started Work rows are read
+      # @param registry [Runtime::Registry, nil] where the started Work items are read
       # @param tune [Hash] overrides of the line's limits and collaborators (see `Lineup`)
       def initialize(aggregate: nil, settings: {}, root: nil, registry: nil, **tune)
         @git = Git.new
@@ -55,7 +55,8 @@ module Hecks
       # Takes the front place in the line and lands every branch whose landing is waiting behind
       # it, in ticket order, without giving the place up: each is rebased onto the moving `onto`,
       # run through the quick gate and landed. One that conflicts, fails the gate or overlaps
-      # another started row's area is skipped with its reason, and its own waiting `land!` is told.
+      # another started Work item's area is skipped with its reason, and its own waiting `land!` is
+      # told.
       #
       # @param held [Hash] the `Landing` record: `checkout` (any directory in the repository) and
       #   `onto`
