@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "hecks/release/lane"
 require_relative "../red_flag_guard"
 
 module Hecks
@@ -15,7 +16,7 @@ module Hecks
 
         # @return [Object] what the block answers, run only after main's checks pass
         def on_main(branch, onto)
-          return yield unless onto == "main"
+          return yield unless onto == Hecks::Release::Lane.lands_here
 
           refuse_stale_base(branch)
           git_dir = common_git_dir
@@ -26,7 +27,7 @@ module Hecks
 
         # Main's commit, read against the git directory: the worktree a finish lands from is gone
         # by now.
-        def tip(git_dir) = @git.capture("--git-dir=#{git_dir}", "rev-parse", "main").out.strip
+        def tip(git_dir) = @git.capture("--git-dir=#{git_dir}", "rev-parse", Hecks::Release::Lane.lands_here).out.strip
       end
     end
   end

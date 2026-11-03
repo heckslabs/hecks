@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "hecks/release/lane"
 require_relative "git"
 require_relative "console_capture"
 require_relative "push_size"
@@ -125,7 +126,7 @@ module Hecks
         [ahead, sentence.empty? ? "pushing #{ahead} commits" : "pushing #{ahead} commits; #{sentence}"]
       end
 
-      def branch_of(held) = plain(held[:branch]) || "main"
+      def branch_of(held) = plain(held[:branch]) || Hecks::Release::Lane.lands_here
 
       def remote_of(held) = plain(held[:remote]) || "origin"
 

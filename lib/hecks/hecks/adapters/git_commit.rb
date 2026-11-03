@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "hecks/release/lane"
 require_relative "git_worktrees"
 
 module Hecks
@@ -34,7 +35,7 @@ module Hecks
         raise ConsoleCapture::Failure, "a commit needs a message" if message.empty?
 
         branch = current_branch
-        raise ConsoleCapture::Failure, "a commit onto main goes through Landing" if branch == "main"
+        raise ConsoleCapture::Failure, "a commit onto main goes through Landing" if branch == Hecks::Release::Lane.lands_here
 
         stage(plain(held[:paths]))
         refuse_nothing_staged

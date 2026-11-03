@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "hecks/release/lane"
 require_relative "../git_worktrees"
 require_relative "../git_main_pull"
 require_relative "../shell"
@@ -44,7 +45,7 @@ module Hecks
         #   gate red
         def prepare
           refuse_unsaved
-          pull_main if @onto == "main"
+          pull_main if @onto == Hecks::Release::Lane.lands_here
           rebase
           run_gate
         end

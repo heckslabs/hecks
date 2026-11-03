@@ -166,8 +166,8 @@ module Hecks
         {"type"=>"String", "strategy"=>"substring"}.freeze
       ].freeze,
       "Lane" => [
-        {"name"=>"main", "guarded"=>"no", "pushers"=>"anyone", "feeds"=>"", "follows"=>"", "alert_after"=>"", "release_trailer"=>""}.freeze,
-        {"name"=>"stable", "guarded"=>"yes", "pushers"=>"green", "feeds"=>"edge", "follows"=>"main", "alert_after"=>"4", "release_trailer"=>"Release-Approved-By"}.freeze
+        {"name"=>"main", "guarded"=>"no", "pushers"=>"anyone", "feeds"=>"", "follows"=>"", "alert_after"=>"", "release_trailer"=>"", "lands_here"=>"yes"}.freeze,
+        {"name"=>"stable", "guarded"=>"yes", "pushers"=>"green", "feeds"=>"edge", "follows"=>"main", "alert_after"=>"4", "release_trailer"=>"Release-Approved-By", "lands_here"=>"no"}.freeze
       ].freeze,
       "LoadOrder" => [
         {"glob"=>"*.port"}.freeze,

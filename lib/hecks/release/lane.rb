@@ -17,6 +17,15 @@ module Hecks
 
         row.fetch("name")
       end
+
+      # @return [String] the name of the lane a work item's branch is landed onto
+      # @raise [KeyError] when no `Lane` row says it lands here
+      def lands_here
+        row = Hecks::Vocabulary.rows("Lane").find { |lane| lane["lands_here"] == "yes" }
+        raise KeyError, "no Lane row says it lands here, so no lane a branch is landed onto" unless row
+
+        row.fetch("name")
+      end
     end
   end
 end
