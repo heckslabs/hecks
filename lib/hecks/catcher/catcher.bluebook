@@ -1,0 +1,277 @@
+# The Catcher bluebook: the actions a session takes outside any declared command. Each
+# is kept as it was seen (Observation), judged as a pattern against the declared rules
+# (Audit), and, once a person accepts the audit, led to a corrective action
+# (CorrectiveAction). The judgment keeps the ISO vocabulary: nonconformity,
+# opportunity_for_improvement, or observation_only.
+#
+# Roles are checked by Governance, which the Catcher hecksagon attaches. A role here is a
+# name Governance grants through its RoleAssignments, never a list kept in this domain.
+# Accept and Dismiss are a person's decisions, so they run as Operator. `decided_by` is the
+# actor_id the caller names; the runtime does not fill it.
+Hecks.bluebook "Catcher" do
+  vision "Raw actions seen outside any declared command are kept, judged, and either brought under a declared command or dismissed."
+
+  aggregate "Observation" do
+    description "One action seen outside any declared command, recorded as it was seen and never changed."
+
+    attribute :observation_id, ObservationId
+    attribute :source,         Source
+    attribute :tool,           Tool
+    attribute :subject,        Subject
+    attribute :succeeded,      Succeeded
+    attribute :observed_in,    Session
+    attribute :observed_at,    Timestamp
+
+    identified_by :observation_id
+
+    # The caller supplies observation_id, and it must be unique. Two identical actions in one
+    # second are two observations.
+    value_object "ObservationId" do
+      attribute :value, String
+      invariant("an observation is identified") { !value.to_s.empty? }
+    end
+
+    # Where the action was seen, such as `bash`, `git`, `gh`, `make`, an MCP tool or a file edit.
+    value_object "Source" do
+      attribute :value, String
+      invariant("an observation names where it was seen") { !value.to_s.empty? }
+    end
+
+    # The program that ran, such as `git`.
+    value_object "Tool" do
+      attribute :value, String
+      invariant("an observation names its tool") { !value.to_s.empty? }
+    end
+
+    # The subcommand words of the action, with its arguments blanked: `git status`, never the
+    # arguments themselves.
+    value_object "Subject" do
+      attribute :value, String
+      invariant("an observation names its subject") { !value.to_s.empty? }
+    end
+
+    value_object "Succeeded" do
+      attribute :value, Boolean
+    end
+
+    # The session the action was seen in, as its identifier.
+    value_object "Session" do
+      attribute :value, String
+      invariant("an observation names its session") { !value.to_s.empty? }
+    end
+
+    # A UTC instant to the second, ending in Z: the moment the action was seen.
+    value_object "Timestamp" do
+      attribute :value, String, pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$'
+      invariant("a timestamp is present") { !value.to_s.empty? }
+    end
+
+    # One action seen outside any declared command, kept as it was seen. Nothing here changes or
+    # removes an observation: the only command adds one, so the log only grows.
+    command "Record" do
+      role "System"
+      goal "Keep one raw action seen outside any declared command"
+
+      sets :observation_id
+      sets :source
+      sets :tool
+      sets :subject
+      sets :succeeded
+      sets :observed_in
+      sets :observed_at
+
+      emits ObservationRecorded
+    end
+
+    query "OfSubject" do
+      description "Every observation of one subject, oldest first."
+      attribute :subject, String
+      where(subject: :subject)
+      order_by :observed_at
+    end
+  end
+
+  # The judgment of a pattern of observations against the declared rules. An adapter counts the
+  # recurrence and raises an audit; a person accepts it into corrective action or dismisses it.
+  aggregate "Audit" do
+    description "One pattern of observed actions, judged against the declared rules: raised, then accepted or dismissed, never deleted."
+
+    attribute :subject,        Subject
+    attribute :kind,           AuditKind
+    attribute :count,          Count
+    attribute :sessions,       Count
+    attribute :success_rate,   SuccessRate
+    attribute :proposal,       Proposal
+    attribute :proposed_kind,  ProposedKind
+    attribute :aggregate_name, AggregateName
+    attribute :raised_at,      Timestamp
+    attribute :decided_by,     DecidedBy, optional: true
+    attribute :reason,         Reason, optional: true
+
+    # The subject and the moment it was raised: a pattern raised again after a dismissal is a
+    # second audit, the same way a role granted again is a second assignment.
+    identified_by :subject, :raised_at
+
+    value_object "Subject" do
+      attribute :value, String
+      invariant("an audit names the pattern it concerns") { !value.to_s.empty? }
+    end
+
+    # nonconformity: an observed action breaks a declared rule. opportunity_for_improvement: a
+    # pattern a declared command would serve better. observation_only: seen, not yet judged.
+    value_object "AuditKind" do
+      attribute :value, String,
+                one_of: ["nonconformity", "opportunity_for_improvement", "observation_only"]
+    end
+
+    value_object "Count" do
+      attribute :value, Integer
+      invariant("a count is not negative") { !value.negative? }
+    end
+
+    # The share of the pattern's observations that succeeded, from 0.0 to 1.0.
+    value_object "SuccessRate" do
+      attribute :value, Float
+      invariant("a success rate is between 0 and 1") { value >= 0 && value <= 1 }
+    end
+
+    # The DSL block that would bring the pattern under a declared command, aggregate, lifecycle
+    # or invariant. For a command, lifecycle or invariant, the text is meant to sit inside the
+    # aggregate named by aggregate_name; for an aggregate, the text is that aggregate. Text for a
+    # person to read and paste; nothing here evaluates it.
+    value_object "Proposal" do
+      attribute :value, String
+    end
+
+    # command, lifecycle or invariant: the proposal text is meant to sit inside the aggregate
+    # named by aggregate_name. aggregate: the proposal text is meant to be that aggregate.
+    value_object "ProposedKind" do
+      attribute :value, String, one_of: ["command", "aggregate", "lifecycle", "invariant"]
+    end
+
+    # The PascalCase name of the aggregate the proposal sits in, or is, such as `Audit`.
+    value_object "AggregateName" do
+      attribute :value, String, pattern: '^[A-Z][A-Za-z0-9]*$'
+      invariant("an aggregate name is present") { !value.to_s.empty? }
+    end
+
+    value_object "Timestamp" do
+      attribute :value, String, pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$'
+      invariant("a timestamp is present") { !value.to_s.empty? }
+    end
+
+    # The actor_id the caller names for the person who accepted or dismissed the audit. The
+    # runtime does not fill it. Governance's own IdentityId is not shared across bluebooks, so
+    # this restates it.
+    value_object "DecidedBy" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Reason" do
+      attribute :value, String
+      invariant("a dismissal gives its reason") { !value.to_s.empty? }
+    end
+
+    lifecycle :status, default: "raised" do
+      transition "Accept"  => "accepted",  from: "raised"
+      transition "Dismiss" => "dismissed", from: "raised"
+      mark :terminal, "accepted", "dismissed"
+    end
+
+    command "Raise" do
+      role "System"
+      goal "Record a pattern of observed actions as an audit, judged against the declared rules"
+
+      given("a pattern has at least 3 calls") { count.value >= 3 }
+      given("a pattern is seen in at least 2 sessions") { sessions.value >= 2 }
+      given("a pattern has a success rate of at least 0.8") { success_rate.value >= 0.8 }
+
+      sets :subject
+      sets :kind
+      sets :count
+      sets :sessions
+      sets :success_rate
+      sets :proposal
+      sets :proposed_kind
+      sets :aggregate_name
+      sets :raised_at
+
+      emits AuditRaised
+    end
+
+    command "Accept" do
+      role "Operator"
+      goal "Take an audit on, so that a corrective action is started for it"
+
+      reference_to Audit
+      attribute :decided_by, DecidedBy, sets: true
+
+      emits AuditAccepted
+    end
+
+    command "Dismiss" do
+      role "Operator"
+      goal "Decline an audit, and say why"
+
+      reference_to Audit
+      attribute :decided_by, DecidedBy, sets: true
+      attribute :reason, Reason, sets: true
+
+      emits AuditDismissed
+    end
+
+    # A new raise reads this first, so the same pattern is not raised twice.
+    query "RaisedFor" do
+      description "Every raised audit of one subject, oldest first."
+      attribute :subject, String
+      where(status: "raised", subject: :subject)
+      order_by :raised_at
+    end
+  end
+
+  # The action one accepted audit leads to: one corrective action per audit, started by a
+  # policy when the audit is accepted.
+  aggregate "CorrectiveAction" do
+    description "The corrective action one accepted audit leads to, and the Work row that carries it out."
+
+    attribute :audit, AuditKey
+    attribute :work,  WorkKey, optional: true
+    attribute :state, ActionState
+
+    identified_by :audit
+
+    # The audit's identity as the Audit record writes it: its subject and raised_at, joined by a
+    # colon.
+    value_object "AuditKey" do
+      attribute :value, String
+      invariant("a corrective action names its audit") { !value.to_s.empty? }
+    end
+
+    # The identifier of the Work row this action started, when one was started for it.
+    value_object "WorkKey" do
+      attribute :value, String
+    end
+
+    # Started is the only state the model declares; more may be added.
+    value_object "ActionState" do
+      attribute :value, String
+      invariant("an action has a state") { !value.to_s.empty? }
+    end
+
+    command "Start" do
+      role "System"
+      goal "Begin the corrective action an accepted audit leads to"
+
+      sets :audit
+      sets :work
+      sets :state, to: "started"
+
+      emits CorrectiveActionStarted
+    end
+  end
+
+  policy "StartWhenAccepted" do
+    on      "Audit.AuditAccepted"
+    trigger CorrectiveAction::Start, with: { audit: :id }
+  end
+end
