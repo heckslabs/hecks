@@ -1,6 +1,6 @@
 # A thin, movable platform sign-in extension in the host
 
-**Status:** Proposed. Built: `rust/host/src/platform_signin/` (the verifier, the flow, the extension), off unless
+**Status:** Accepted, built (code present in the tree). Built: `rust/host/src/platform_signin/` (the verifier, the flow, the extension), off unless
 `PLATFORM_SIGNIN` is set. Date: 2026-10-16.
 
 ## Context

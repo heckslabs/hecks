@@ -1,5 +1,7 @@
 # Read model completes its reduction vocabulary — `sum`, `avg`, `min`, `max`, `percentile`, `any`, `all`
 
+> Historical: `bin/` is gone (removed in 3.0.0; its scripts are commands now: `bin/rust_conformance` is `exe/hecks build.check_conformance!`; the rest in `docs/tools.md`); `rust/project/` is gone (generation lives in `rust/codegen`, ADR 0086); paths below name what existed when this was decided.
+
 **Status:** Accepted. Overrides ADR 0061's "out of scope" line for `avg`/`min`/`max`, builds
 ADR 0061's already-designed `sum` as-is, and extends the same design to three words ADR 0061
 never considered: `percentile`, `any`, `all`.

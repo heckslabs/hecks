@@ -153,7 +153,7 @@ fn modules_json(rows: &[ir::ModuleRow]) -> JsonValue {
     )
 }
 
-/// `IR::Aggregate#to_h` (lib/hecks/bluebook/ir/aggregate.rb).
+/// `Bluebook::Aggregate`'s `emits_ir` (lib/hecks/bluebook/aggregate.rb).
 fn aggregate_json(a: &ir::Aggregate) -> JsonValue {
     JsonValue::Object(vec![
         ("name".to_string(), JsonValue::str(a.name.clone())),
@@ -234,7 +234,7 @@ fn aggregate_json(a: &ir::Aggregate) -> JsonValue {
     ])
 }
 
-/// `IR::Attribute#to_h` (lib/hecks/bluebook/ir/attribute.rb).
+/// `Bluebook::Attribute`'s `emits_ir` (lib/hecks/bluebook/attribute.rb).
 fn attribute_json(a: &ir::Attribute) -> JsonValue {
     JsonValue::Object(vec![
         ("name".to_string(), JsonValue::str(a.name.clone())),
@@ -257,7 +257,7 @@ fn attribute_json(a: &ir::Attribute) -> JsonValue {
     ])
 }
 
-/// `IR::ValueObject#to_h` (lib/hecks/bluebook/ir/value_object.rb).
+/// `Bluebook::ValueObject`'s `emits_ir` (lib/hecks/bluebook/value_object.rb).
 fn value_object_json(v: &ir::ValueObject) -> JsonValue {
     JsonValue::Object(vec![
         ("name".to_string(), JsonValue::str(v.name.clone())),
@@ -334,7 +334,7 @@ fn projected_field_json(f: &ir::ProjectedField) -> JsonValue {
     ])
 }
 
-/// `IR::Command#to_h` (lib/hecks/bluebook/ir/command.rb).
+/// `Bluebook::Command`'s `emits_ir` (lib/hecks/bluebook/command.rb).
 fn command_json(c: &ir::Command) -> JsonValue {
     let mut fields = vec![
         ("name".to_string(), JsonValue::str(c.name.clone())),
@@ -409,7 +409,7 @@ fn command_from_json(from: Option<&ir::CommandFrom>) -> JsonValue {
     }
 }
 
-/// `IR::Mutation#to_h` (lib/hecks/bluebook/ir/command.rb).
+/// `Bluebook::Mutation`'s `emits_ir` (lib/hecks/bluebook/command.rb).
 fn mutation_json(m: &ir::Mutation) -> JsonValue {
     match m {
         // Ruby's `Mutation#to_h` emits `sign: ""` for append too; key order is significant.
@@ -665,7 +665,7 @@ fn query_options_json(o: &ir::QueryOptions) -> Vec<(String, JsonValue)> {
     pairs
 }
 
-/// `IR::Entity#to_h` (lib/hecks/bluebook/ir/entity.rb).
+/// `Bluebook::Entity`'s `emits_ir` (lib/hecks/bluebook/entity.rb).
 fn entity_json(e: &ir::Entity) -> JsonValue {
     JsonValue::Object(vec![
         ("name".to_string(), JsonValue::str(e.name.clone())),

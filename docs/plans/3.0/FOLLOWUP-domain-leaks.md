@@ -1,3 +1,5 @@
+> **Historical:** written during the 3.0 work; paths and commands below may have moved. Read it as a record.
+
 # Follow-up: implementation leaking into the Hecks bluebooks (post-3.0)
 
 Source: a grep scan of the three Hecks bluebooks plus knowledge of the runtime changes. The counts are

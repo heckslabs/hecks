@@ -1,5 +1,7 @@
 # Time reaches a saga as a command an inbound clock dispatches
 
+> Historical: `bin/` is gone (removed in 3.0.0; its scripts are commands now, see `docs/tools.md`); paths below name what existed when this was decided.
+
 **Status:** Accepted (owner, 2026-11-02). Date: 2026-11-02. Adds no bluebook grammar word; it settles how a deadline is
 modelled and names the one missing piece, the inbound clock.
 Built 2026-11-02 as the worked example `examples/order_deadline` (see the addendum); the inbound clock

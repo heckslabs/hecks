@@ -13,9 +13,6 @@ commands:
   Revision:
     One commit made in a checkout, or declined with the reason: what it says and what it is on.
     make!       Commit what is staged in a checkout under a message: never pushed, never amended, never onto main
-  TreeCopy:
-    One copy of a tree as it stood at a ref, written to a new directory, or declined with the reason.
-    make!       Copy a tree, or one path of it, as it stood at a ref into a new directory: read from history, written nowhere else
   LinkedTree:
     A linked worktree opened on a new branch from main, or declined with the reason.
     add!        Open a linked worktree on a new branch from main, never on main itself
@@ -53,8 +50,7 @@ queries (nothing here changes anything):
     A look at a checkout: its branch, what it changed and what it committed.
     status    The checkout's branch, whether it is a linked worktree, where it stands against main and origin/main, and what is changed or untracked.
     changes   What the checkout changed since a ref (main by default): the diffstat, or the paths alone.
-    history   The commits in a range, newest first (the last 20 when none is named), optionally only those that add or remove some text or touch a path.
-    show      A file as it stood at a ref, or a listing of the repository's top level when no path is named: read from the repository's history with nothing checked out.
+    history   The commits in a range, newest first (the last 20 when none is named).
     settings  What this copy resolves for each setting that can come from a variable, its own world or a default, and which one supplied it. (also: config)
     doctor    Whether this checkout can run Hecks here: overlay files parse, the stores answer, the toolchain pin matches, and what this worktree cannot see.
     where     Where this checkout's domain resolves: the store each bluebook uses and why, the audience and environment with their reasons, and any overlay file this worktree lacks.
@@ -82,7 +78,7 @@ bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
   expression       The subset of regular Ruby a predicate is allowed to be — small enough that every target can…
 
   hecks <command> --help       what one command wants, and every way it refuses
-  hecks --all                  also list the 55 internal commands and queries
-  hecks --maintainer           also list the 414 commands and queries for working on hecks itself
+  hecks --all                  also list the 52 internal commands and queries
+  hecks --maintainer           also list the 415 commands and queries for working on hecks itself
   a command is called with its aggregate — Revision.make!
   exit status: 0 answered, 1 refused or failed, 2 a line it could not read

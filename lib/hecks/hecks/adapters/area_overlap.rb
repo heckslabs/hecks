@@ -6,7 +6,8 @@ module Hecks
   module Adapters
     # When two file areas overlap: the one rule behind a Work item's `area` claim and a Landing's
     # changed files. An area is a path prefix (`lib/hecks`) or a glob (`lib/**/*.rb`), compared by
-    # whole segments, so `lib/hecks` holds `lib/hecks/a` and not `lib/hecks_extra`.
+    # staleness-check: skip (the sibling is an illustration)
+    # whole segments, so `lib/hecks` holds `lib/hecks/a` and not a sibling such as `lib/hecks2`.
     #
     # It never misses a real overlap; it may report one that is not real. Areas are normalized
     # first (`//`, `.`, `..`, a trailing `/`, absolute paths made repository-relative, case folded

@@ -1,5 +1,7 @@
 # A clone runs `hecks console` with no environment variable and no database
 
+> Historical: `bin/` is gone (removed in 3.0.0; its scripts are commands now: `bin/console` is `exe/hecks console!`; the rest in `docs/tools.md`); paths below name what existed when this was decided.
+
 **Status:** Accepted — implemented. Date: 2026-10-02. [ADR 0073](0073-the-newcomer-path-is-a-memory-default-console-and-a-short-readme.md) promised a console that needs no database; the 3.0 launcher stopped keeping that promise, and this restores it.
 
 ## Context

@@ -1,5 +1,7 @@
 # A real "proven for all inputs" claim, scoped to the expression sublanguage
 
+> Historical: `bin/` is gone (removed in 3.0.0; its scripts are commands now: `bin/fuzz` is `exe/hecks fuzz_run.fuzz!`; the rest in `docs/tools.md`); paths below name what existed when this was decided.
+
 **Status:** Shipped. `lib/hecks/fuzzing/bounded_exhaustive_expressions.rb` + `spec/bounded_exhaustive_expression_spec.rb`, in the default suite (no `io:`/`fuzzing:` tag — deterministic, ~2,300 cases, well under a second).
 
 ## The claim, precisely

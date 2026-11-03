@@ -1,5 +1,7 @@
 # Closing the vendored-lineage gap named in 0030 — scoping, not executed
 
+> Historical: `bin/` is gone (removed in 3.0.0; its scripts are commands now: `bin/project_deploy` is `exe/hecks deploy recipe.project!`, `bin/project_rust` is `exe/hecks build.project_rust!`, `bin/project_wasm` is `exe/hecks build.build_wasm!`; the rest in `docs/tools.md`); paths below name what existed when this was decided.
+
 **Status:** Scoping only. No code changed by this document. Written after
 investigating far enough to find the fix touches more than it first
 looked like — recorded here so the next session (or this one, on
@@ -57,7 +59,7 @@ All three have to move together or not at all.
 
 ## What the Rust-consumption side actually needs (smaller than it looks)
 
-The good news: `rust/host/src/mint.rs` already has the exact primitive this
+The good news: `rust/host/src/store/mint.rs` already has the exact primitive this
 needs, private and unused for this purpose. `ensure_first_head` (`mint.rs:
 984-993`) is a byte-for-byte port of Ruby's `Lineage#ensure_first_head!`
 (`lineage/head_compiler.rb:185-195`) — idempotent (`ensure_head_snapshot`

@@ -38,7 +38,7 @@ module Hecks
 
       # The attached bluebooks the help points at, one line each, under the call that opens them.
       #
-      # @param bluebooks [Array<Array(String, String)>, nil] each bluebook's word and its summary
+      # @param declarations [Array<Array(String, String)>, nil] each bluebook's word and its summary
       def bluebook_lines(program, declarations)
         return [] if Array(declarations).empty?
 

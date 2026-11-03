@@ -1,5 +1,7 @@
 # `Waybill` — retention note
 
+> Historical: a record of what was true when it was written; the file paths and commands below name what existed then, and some have since moved or been removed (`bin/` is gone, see `docs/tools.md`).
+
 **Kept.** A construct combination that, checked directly against every
 existing `process_manager` in the corpus before this domain was
 authored, had never once been declared: a saga leg whose own `dispatch`

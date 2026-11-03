@@ -53,7 +53,7 @@ version = "0.1.0"
 edition = "2021"
 
 # The kernel's one dependency is the expression evaluator, a std-only crate of its own that the host
-# shares (ADR 0012's regex exception now lives there, for `.match?`).
+# shares (`regex`, the one exception to ADR 0012's std-only rule, now lives there, for `.match?`).
 [dependencies]
 hecks_expr = { path = "expr" }
 

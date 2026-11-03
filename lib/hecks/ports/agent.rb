@@ -20,7 +20,8 @@ module Hecks
       # One question; `because` is the reasoning shown to the human.
       Question = Struct.new(:text, :because, keyword_init: true)
 
-      # `arguments` are `{name:, field:, value:}` rows, as `bin/interview propose --arg` takes.
+      # `arguments` are `{name:, field:, value:}` rows, as the interview command's `--arg`
+      # takes them.
       Proposal = Struct.new(:verb, :arguments, :rationale, keyword_init: true)
 
       # Kinds are closed: an open kind is an open prompt, and an open prompt drifts.

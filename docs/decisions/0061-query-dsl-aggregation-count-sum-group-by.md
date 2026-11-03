@@ -1,5 +1,7 @@
 # Query-DSL aggregation (`count` / `sum` / `group_by`) — the gap is narrower than reported, and one part of it is a defect
 
+> Historical: `bin/` is gone (removed in 3.0.0; its scripts are commands now: `bin/doc_coverage` is `exe/hecks conformance_run.measure_doc_coverage!`, `bin/fuzz` is `exe/hecks fuzz_run.fuzz!`, `bin/model_check` is `exe/hecks model_check_run.model_check!`; the rest in `docs/tools.md`); `rust/project/` is gone (generation lives in `rust/codegen`, ADR 0086); paths below name what existed when this was decided.
+
 **Status:** Accepted — decision D1 (Option 1, the `group_by` collision refusal on
 Ruby and Rust with the identity shortcut) is implemented; Options 2 and 3 remain
 designs, gated on a consumer. It answers item 11 of an outside

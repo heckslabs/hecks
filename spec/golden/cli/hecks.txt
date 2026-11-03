@@ -55,6 +55,7 @@ commands:
     measure_doc_coverage!         Check that every live word of the language has prose and a running example in the reference
     check_shape_ledger!           Check that no bluebook's storage shape moved without a translation edge, and rewrite the ledger when confirmed
     check_command_names!          Check that every launcher name a workflow, hook, gate row, spec or guide invokes is one the launcher accepts
+    check_doc_staleness!          Check that no doc or comment cites a repo path, Hecks constant or @param that is gone
     check_workflow_pagination!    Check that no workflow counts or waits on the items of a GitHub list call that returns only its first page
     argument_gate_matrix!         Generate the argument-gate ordering matrix; rewrite it and its fixtures only when confirmed
   StyleRun:
@@ -95,9 +96,6 @@ commands:
   Revision:
     One commit made in a checkout, or declined with the reason: what it says and what it is on.
     make!                         Commit what is staged in a checkout under a message: never pushed, never amended, never onto main
-  TreeCopy:
-    One copy of a tree as it stood at a ref, written to a new directory, or declined with the reason.
-    make!                         Copy a tree, or one path of it, as it stood at a ref into a new directory: read from history, written nowhere else
   LinkedTree:
     A linked worktree opened on a new branch from main, or declined with the reason.
     add!                          Open a linked worktree on a new branch from main, never on main itself
@@ -273,8 +271,7 @@ queries (nothing here changes anything):
     A look at a checkout: its branch, what it changed and what it committed.
     status                  The checkout's branch, whether it is a linked worktree, where it stands against main and origin/main, and what is changed or untracked.
     changes                 What the checkout changed since a ref (main by default): the diffstat, or the paths alone.
-    history                 The commits in a range, newest first (the last 20 when none is named), optionally only those that add or remove some text or touch a path.
-    show                    A file as it stood at a ref, or a listing of the repository's top level when no path is named: read from the repository's history with nothing checked out.
+    history                 The commits in a range, newest first (the last 20 when none is named).
     settings                What this copy resolves for each setting that can come from a variable, its own world or a default, and which one supplied it. (also: config)
     doctor                  Whether this checkout can run Hecks here: overlay files parse, the stores answer, the toolchain pin matches, and what this worktree cannot see.
     where                   Where this checkout's domain resolves: the store each bluebook uses and why, the audience and environment with their reasons, and any overlay file this worktree lacks.
@@ -376,6 +373,6 @@ bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
   expression       The subset of regular Ruby a predicate is allowed to be — small enough that every target can…
 
   hecks <command> --help       what one command wants, and every way it refuses
-  hecks --all                  also list the 285 internal commands and queries
+  hecks --all                  also list the 282 internal commands and queries
   a command is called with its aggregate — Build.project_rust!
   exit status: 0 answered, 1 refused or failed, 2 a line it could not read

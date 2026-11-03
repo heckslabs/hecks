@@ -183,11 +183,12 @@ Hecks reads almost no environment variables for you to set, and none for a datab
 - **Two people changing the same bluebook's shape** conflict in `shapes.json` and leave two edges
   from one source shape, which the mint and CI refuse. The second to merge rebases, regenerates
   their edge from the merged shape, and moves the ledger again.
-- **The push train is optional.** `~/.claude/hecks-train` in the maintainer's setup is a detached
-  checkout that pushes through `hecks send_train.board! --confirm` so several agents' pushes run one at a
-  time. A person can push with plain `git push`; the hook runs the same gate. To run a train of
-  your own, make a detached checkout of this repository, give it an `environments/local.world`
-  naming a database on your own Postgres, and push from it with
+- **`main` is pushed through the push train.** `.githooks/pre-push` refuses a plain `git push` of
+  `main` that does not carry the mark the train sets; the owner's one-off override is
+  `HECKS_OWNER_PUSH=<reason>`, which an agent never sets. Branch and tag pushes are plain `git push`.
+  The train is `hecks send_train.board! --confirm`, so several agents' pushes run one at a time.
+  It runs in Memory, with no database and no Postgres. To run a train of
+  your own, make a detached checkout of this repository and push from it with
   `exe/hecks send_train.board! --confirm checkout=<your clone> remote=origin branch=main --wait`. It merges
   commits that reached `origin/main` meanwhile and retries, as a plain push would not.
 
@@ -210,12 +211,13 @@ bundle exec hecks operation.run! subject.value=examples/banking script.value=spe
 
 The `hecks` command is the one entry point for all of this. Its verbs are
 the commands of the `Hecks` bluebook (`lib/hecks/hecks/`), and its
-attached bluebooks add theirs (`hecks deploy recipe.project`, `hecks quality_control
+attached bluebooks add theirs (`hecks deploy recipe.project!`, `hecks quality_control
 …`); `hecks` lists them and `hecks <verb> --help` prints one's usage.
-`run`, `model_check`, `docs`, `narrate`, `ir`, `stores`, `smoke_test`,
-`project_diagrams`, `project_cli` and `mcp` ship in the installed gem; the
+The Custodian verbs (`operation.run!`, `model_check_run.model_check!`, `introspection.docs`, `introspection.narrate`,
+`introspection.ir`, `introspection.stores`, `operation.smoke_test!`, `introspection.project_diagrams`,
+`launch.project_cli!` and `server.serve_mcp!`) ship in the installed gem; the
 Codebase verbs (`regeneration_run.regenerate_corpus!`, `style_run.check_comments!`, `conformance_run.measure_doc_coverage!`,
-`publish` and the rest) need a checkout of this repository and refuse
+`publishing_run.publish!` and the rest) need a checkout of this repository and refuse
 without one. The logic lives under `lib/hecks/tools/`,
 so a change to a command goes there; there is no `bin/` directory. The fuzzing, bench,
 corpus, codemod, query IR, grammar evolve and doc reference tooling ships in
@@ -224,11 +226,10 @@ none of it (`spec/gemspec_packaging_spec.rb`). The gem also ships `rust/`,
 without `target/`, `rust/tests/` or `rust/src/generated/`; `Build` copies it to
 `.hecks/rust/<version>/` in the client project and never writes into the gem.
 
-`rust/src/generated/` is not committed, except `pizzas/` (its translations carry SQL that only the Ruby
-toolchain compiles) and `mod.rs`, which lists the domains beside the Cargo features. A fresh checkout
-materializes it with `exe/hecks regeneration_run.regenerate_corpus! --confirm --wait`, about a minute with
-`HECKS_ENVIRONMENT=memory`, before `cargo build` or any spec that reads it. CI does the same through the
-`generated-rust` action, which caches the result on the bluebooks and generator sources it reads.
+`rust/src/generated/` is committed, and `checks_codegen_drift` in CI fails when the committed tree differs from a
+fresh regeneration. A change to a bluebook or the generator commits the regenerated tree with it
+(`exe/hecks regeneration_run.regenerate_corpus! --confirm --wait`); a conflict in it is settled by regenerating,
+never by editing. The gem does not ship it.
 
 `spec/ir_golden_spec.rb` freezes the builder's `to_h` output per corpus
 member. If your change is a deliberate shape change (not a bug), you
@@ -266,8 +267,7 @@ Every Rust crate (`rust/`, `rust/parser`, `rust/codegen`, `rust/lsp`, `rust/host
 `cargo fmt --check` and `cargo clippy --all-targets -- -D warnings`. The lint set is the `[lints.clippy]` table in each
 crate's `Cargo.toml` (clippy's pedantic and nursery groups plus `unwrap_used`, `expect_used` and `panic`; the same table
 in every crate, so change them together), with `clippy.toml` letting tests unwrap. CI runs both in the
-`checks` job; `hecks gate_run.gate! stage=ci only=rust_fmt,rust_clippy` runs them here, after `hecks regeneration_run.regenerate_corpus!
---confirm` on a fresh checkout (the main crate needs the generated modules). Generated Rust is laid out by its
+`checks` job; `hecks gate_run.gate! stage=ci only=rust_fmt,rust_clippy` runs them here (the generated modules are committed, so a fresh checkout is ready). Generated Rust is laid out by its
 generators (`Hecks::RustFormat`) and is clippy-clean by the same route, so fix a warning in a generated file in the
 generator, never in the output. `rust/src/exemplar` is text templates, so it is neither formatted nor linted as code.
 Allow a lint only at the one site that needs it, with a line saying why. An `unwrap`, `expect` or `panic` in library
@@ -295,7 +295,7 @@ finding in one belongs to its generator. `.reek.yml` turns off the detectors tha
 RuboCop's Metrics cops already own or that the repo's style makes noisy. The most
 useful target is a method that both ranks high in flog and sits in a file that
 changes often: rubycritic's churn column shows that. Clippy needs the generated
-Rust modules on disk (they are untracked), so run the `project_rust` build above first.
+Rust modules on disk (they are committed), so a fresh checkout is ready to lint.
 
 ## How this project is built and reviewed
 

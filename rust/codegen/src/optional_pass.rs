@@ -1,7 +1,7 @@
 //! Marks value-object and entity fields `optional` when an `append` mutation binds them to an
 //! optional command argument, so the generated struct field is an `Option`.
 //!
-//! Resolves the appended element as `Hecks::RustBuild::AppendOptionals` does in Ruby: a local
+//! Resolves the appended element by scope: a local
 //! entity wins over any value object of the same name, a local value object over a domain-wide one,
 //! and an `append` into another aggregate's value object marks that value object.
 

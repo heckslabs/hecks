@@ -6,7 +6,7 @@
 
 An era is one storage shape of a domain. `PostgresEra` keeps every era's journal in one partitioned table and lets exactly one era be written: the write fence. The fence is Postgres row-level security. Provisioning turns on `FORCE ROW LEVEL SECURITY` on the journal, and each mint replaces one policy, `hecks_current_era`, so that an `INSERT` is accepted only when its `era` column is the current ordinal (`MintTransaction#advance_era!`). A process still running the code of an older era is refused by the database itself, whatever that code does. Boot refuses a superuser or `BYPASSRLS` role, which the policy cannot bind, unless the world opts in with `allow_superuser`.
 
-Sqlite and D1 have nothing equivalent: no roles, no row policies, and every connection can do whatever the file allows. So a domain persisted by `SqlitePersistence` or `D1` has no eras. A shape change there is not versioned, and an older process can write the old shape into the new one. The Rust host has no Sqlite backend at all today (`BACKENDS` in `rust/host/src/ir.rs`).
+Sqlite and D1 have nothing equivalent: no roles, no row policies, and every connection can do whatever the file allows. So a domain persisted by `SqlitePersistence` or `D1` has no eras. A shape change there is not versioned, and an older process can write the old shape into the new one. The Rust host has no Sqlite backend at all today (`BACKENDS` in `rust/host/core/src/ir.rs`).
 
 What the fence must guarantee, whatever the store:
 

@@ -102,7 +102,7 @@ own "silent-corruption territory" framing exactly.
 a `Float`-typed field is now also refused (a proper `TypeMismatch`, new
 `non_finite_field` wording — declared in `language/bluebook/
 vocabulary.bluebook`'s `RefusalTemplate` closed set, same as every other
-refusal wording, `spec/refusal_wording_conformance_spec.rb` holds the two
+refusal wording, the shared corpus script `spec/corpus/rust_conformance/refusal_wording_admits_declared_set.json` holds the two
 equal) when it is not `#finite?`. `-0.0` is deliberately NOT refused — it
 IS finite, round-trips through `JSON.generate`/`#to_json` cleanly
 (confirmed: `{a: -0.0}.to_json` => `'{"a":-0.0}'`), and is a legitimate

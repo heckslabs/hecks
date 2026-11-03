@@ -115,7 +115,7 @@ module Hecks
       # @param options [Hash] the parsed command line: `seeds` (how many executing seeds to ask
       #   for), `steps` (how many steps each sequence asks for), `adapter` (the persistence to boot
       #   on) and `persist` (whether each distinct finding's minimized repro is also kept under
-      #   `spec/corpus/regressions/`)
+      #   `spec/corpus/regressions/` (staleness-check: skip, made when a repro is kept))
       # @param root [String] the checkout
       # @return [Boolean] true if clean or skipped
       def fuzz_domain(domain, options, root = Tools::ROOT)

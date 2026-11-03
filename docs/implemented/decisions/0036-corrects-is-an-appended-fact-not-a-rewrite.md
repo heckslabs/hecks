@@ -1,5 +1,7 @@
 # `corrects` — retroactive correction is an appended fact, never a rewrite
 
+> Historical: `bin/` is gone (removed in 3.0.0; its scripts are commands now: `bin/project_parser_table` is `exe/hecks language_run.project_parser_table!`, `bin/project_vocabulary` is `exe/hecks language_run.project_vocabulary!`, `bin/reference` is `exe/hecks language_run.project_reference!`; the rest in `docs/tools.md`); paths below name what existed when this was decided.
+
 **Status:** Implemented.
 
 ## Context

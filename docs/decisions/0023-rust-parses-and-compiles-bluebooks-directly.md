@@ -1,5 +1,7 @@
 # Rust parses `.bluebook` source directly, and eventually compiles it with no Ruby involved
 
+> Historical: `bin/` is gone (removed in 3.0.0; its scripts are commands now: `bin/project_parser_table` is `exe/hecks language_run.project_parser_table!`, `bin/project_rust` is `exe/hecks build.project_rust!`; the rest in `docs/tools.md`); paths below name what existed when this was decided.
+
 **Status:** Accepted — implemented (parsing and codegen). `rust/parser/` (crate, binary `hecks-parse`), driven by `hecks language_run.project_parser_table` generating its keyword table from `syntax.bluebook` itself. Marks [0007](../implemented/decisions/0007-rust-generates-code-not-ruby-source.md)'s "no Rust parser to update" consequence and [0011](../implemented/decisions/0011-rust-compiles-types-interprets-dispatch.md)'s "parsing stays in Ruby, at build time, permanently" invariant as superseded — both said this on purpose, for reasons that held until the language described enough of itself to make the alternative viable. The codegen half (porting the Ruby generator so `cargo build` needs no Ruby boot at all) shipped too, as `rust/codegen`, and is now the only Rust generator ([ADR 0086](0086-hecks-codegen-is-the-only-rust-generator.md)).
 
 ## Context

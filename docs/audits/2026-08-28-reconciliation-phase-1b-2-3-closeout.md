@@ -1,5 +1,7 @@
 # Reconciliation Phase 1b/2/3 closeout — 2026-08-28
 
+> **Historical snapshot:** dated record; paths and commands below may have moved.
+
 Live-verified against the current `main` tip (not trusted from prior session
 notes) rather than assumed complete, per this project's own established
 practice of treating status claims as claims to re-check, not settled facts.

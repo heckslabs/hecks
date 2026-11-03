@@ -1,6 +1,6 @@
 # A change is previewed, confirmed against its plan, then applied
 
-**Status:** Proposed. Built: the `Change` framework chapter (`lib/hecks/framework/bluebook/change.bluebook`, `change.hecksagon`, `change.behaviors`), the `Script` port, and the in-process `ScriptRunner` adapter. Not built: typed arguments per script, a `describe` ask, other adapters, and moving any existing `*Run` aggregate onto it. Date: 2026-10-17.
+**Status:** Accepted, mostly built (see its Not built list). Built: the `Change` framework chapter (`lib/hecks/framework/bluebook/change.bluebook`, `change.hecksagon`, `change.behaviors`), the `Script` port, and the in-process `ScriptRunner` adapter. Not built: typed arguments per script, a `describe` ask, other adapters, and moving any existing `*Run` aggregate onto it. Date: 2026-10-17.
 
 ## Context
 

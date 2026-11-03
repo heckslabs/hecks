@@ -167,7 +167,7 @@ vendor/embryonaut_bluebooks/payments/
     payments.bluebook
 ```
 
-`VENDORED_COMMIT` is written for every pin, so `git -C <registry> show <commit>:payments/bluebook` reproduces the vendored files. `bluebook.lock` is written only for a release pin, as `key: value` lines: `package`, `version`, `tag`, `commit`, `digest` (the sha256 over the `<sha256>  <name>` line of every `*.bluebook` file, sorted by name, which `bin/bluebook_digest` in the registry prints for the same release), then one `shape: <Domain> <label>` line per domain. The label is the one `hecks introspection.shape` prints, the first characters of the hash PostgresEra names an era with.
+`VENDORED_COMMIT` is written for every pin, so `git -C <registry> show <commit>:payments/bluebook` reproduces the vendored files. `bluebook.lock` is written only for a release pin, as `key: value` lines: `package`, `version`, `tag`, `commit`, `digest` (the sha256 over the `<sha256>  <name>` line of every `*.bluebook` file, sorted by name, which `bin/bluebook_digest` in the registry <!-- staleness-check: skip --> prints for the same release), then one `shape: <Domain> <label>` line per domain. The label is the one `hecks introspection.shape` prints, the first characters of the hash PostgresEra names an era with.
 
 A release pin also carries two refusals, because a production project binds `PostgresEra`:
 

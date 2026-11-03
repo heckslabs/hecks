@@ -1,4 +1,8 @@
+> **Historical:** written during the 3.0 work; paths and commands below may have moved. Read it as a record.
+
 # Plan: build hecks 3.0 from ADR 0080
+
+> Historical: a record of what was true when it was written; the file paths and commands below name what existed then, and some have since moved or been removed (`bin/` is gone, see `docs/tools.md`).
 
 > **Status:** this is the original plan, kept as written. The build has moved on: see
 > [HANDOFF.md](HANDOFF.md) for what is committed, what remains, the gap register and the
@@ -193,11 +197,11 @@ Order: Language, Kernel, Conformance, Regeneration, Style, Codemod, TestSuite, C
 - **Command table coverage:** the section 7 table maps all 92 scripts. A spec checks every row has a command the launcher resolves (`hecks <verb> --help` answers).
 - **Installed-gem smoke:**
   - Build the gem and install it into a scratch directory.
-  - Run `hecks ir`, `hecks stores`, and `hecks build.build_wasm` against a sample domain outside a checkout.
+  - Run `hecks introspection.ir`, `hecks introspection.stores`, and `hecks build.build_wasm!` against a sample domain outside a checkout.
   - Confirm a Codebase verb refuses with "needs a hecks checkout".
 - **Client launcher smoke:** regenerate a client domain's launcher and confirm today's `verb name=value` calls still work, alongside the new forms.
 - **Committed approval:** rehearse on a scratch Postgres with `mint_harness`. A committed approval for an edge boots, and a mismatched digest refuses.
-- **Release dry run:** `hecks publishing_run.publish` without `--confirm` does what `bin/release --dry-run` did.
+- **Release dry run:** `hecks publishing_run.publish!` without `--confirm` does what `bin/release --dry-run` did.
 
 ## Risks
 

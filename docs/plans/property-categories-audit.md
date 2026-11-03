@@ -16,7 +16,7 @@ deleted and the mutation each one's replacement was shown to kill, and what is s
   value objects and sagas. Its own failing cases are in `spec/fuzzing/self_consistency_spec.rb`.
 - **Store parity.** `Fuzzing::PersistenceParity.diff` replays one sequence on two adapters and
   diffs instances, events, refusals, queries, sagas and reactions.
-- **The fuzzer and mutate.** `hecks fuzz_run.fuzz` sweeps generated sequences; `hecks
+- **The fuzzer and mutate.** `hecks fuzz_run.fuzz!` sweeps generated sequences; `hecks
   fuzz_run.mutate` mutates a domain's own bluebook (drop a given, flip a comparison, retarget a
   transition) and asks whether the battery, the corpus and the behaviors notice. It mutates
   domains, not the runtime, so runtime mutations in this audit were injected by hand.
@@ -53,9 +53,9 @@ the conformance and semantics corpora, drift and exact-output specs, real-infras
 (Postgres locks and eras, the Rust host, deploy, chaos) and tooling and CLI specs.
 
 - **Mutation ops:** the `spec/mutation_*_growth_spec.rb` family, `spec/mutation_spec.rb`,
-  `spec/mutation_arithmetic_absent_current_spec.rb`, `spec/runtime/entity_list_mutations_spec.rb`.
+  `spec/mutation_arithmetic_absent_current_spec.rb`.
   These are feature pins from the hecksagain migration, not fuzzer regression pins.
-- **Queries:** `spec/query_comparators_spec.rb`, the `spec/query_none_in_state_*` family,
+- **Queries:** `spec/query_comparator_exhaustiveness_spec.rb`, the `spec/query_none_in_state_*` family,
   `spec/query_null_vo_argument_spec.rb`, `spec/query_paging_agreement_spec.rb`.
 - **Lifecycle, identity, invariants:** `spec/lifecycle_value_scalar_growth_spec.rb`,
   `spec/identifier_numeric_coercion_growth_spec.rb`, `spec/banking_state_machine_spec.rb`,
@@ -133,11 +133,11 @@ replacement failed under the same mutation; otherwise it stayed. "Corpus" is the
 
 | Deleted | Mutation | Killed by |
 |---|---|---|
-| `spec/mutation_clamp_growth_spec.rb` (file) | clamp never caps at the max; never lifts to the min; moves an in-range value; refuses a never-set field | `mutation_ops_spec` entity-fixture outcome; corpus `numeric_effects_absent_target_and_operand` |
-| `spec/mutation_value_wrap_asymmetry_growth_spec.rb` (file) | a never-set current not read as zero; a literal amount not wrapped | corpus `numeric_effects_absent_target_and_operand`, `delegated_event_dropped_on_parent_refusal` |
-| `spec/runtime/entity_list_mutations_spec.rb` (file) | entity append, remove, increment, multiply and clamp each a no-op; append replacing the list; a bare-sets list left as raw hashes | `mutation_ops_spec` entity-fixture outcome and recompute; `refusal_kinds_spec`; corpus `remove_all_matches`; battery |
-| `spec/query_comparators_spec.rb` (file) | eq never matching; ne answering as eq; gt as gte and back; lt as lte and back; in testing one member; contains ignoring lists | `query_comparator_kinds_spec` pinned rows and SQLite parity |
-| `spec/query_none_in_state_lifecycle_spec.rb` (file) | none_in_state reading a hardcoded `:state` key instead of the target's lifecycle field | `query_comparator_kinds_spec` none_in_state rows |
+| `mutation_clamp_growth_spec.rb` (removed; `spec/categories/mutation_ops_spec.rb` covers clamp) | clamp never caps at the max; never lifts to the min; moves an in-range value; refuses a never-set field | `mutation_ops_spec` entity-fixture outcome; corpus `numeric_effects_absent_target_and_operand` |
+| `mutation_value_wrap_asymmetry_growth_spec.rb` (removed; the corpus scripts below cover it) | a never-set current not read as zero; a literal amount not wrapped | corpus `numeric_effects_absent_target_and_operand`, `delegated_event_dropped_on_parent_refusal` |
+| `entity_list_mutations_spec.rb` (removed; the entity fixture in `spec/categories/mutation_ops_spec.rb` covers it) | entity append, remove, increment, multiply and clamp each a no-op; append replacing the list; a bare-sets list left as raw hashes | `mutation_ops_spec` entity-fixture outcome and recompute; `refusal_kinds_spec`; corpus `remove_all_matches`; battery |
+| `spec/query_comparator_exhaustiveness_spec.rb` (file) | eq never matching; ne answering as eq; gt as gte and back; lt as lte and back; in testing one member; contains ignoring lists | `query_comparator_kinds_spec` pinned rows and SQLite parity |
+| `spec/query_none_in_state_growth_spec.rb` (file) | none_in_state reading a hardcoded `:state` key instead of the target's lifecycle field | `query_comparator_kinds_spec` none_in_state rows |
 | `mutation_remove_growth_spec.rb`: removes a matching element | aggregate remove a no-op | corpus `remove_all_matches` |
 | `mutation_float_arithmetic_growth_spec.rb`: Float increment | increment refusing a Float | corpus `numeric_int_float_compare`, `float_overflow_is_fault` |
 | `mutation_arithmetic_absent_current_spec.rb`: increment, decrement and multiply on an absent current | no unwrap for each op; an absent-path decrement that adds | corpus `numeric_effects_absent_target_and_operand` |

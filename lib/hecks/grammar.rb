@@ -47,7 +47,7 @@ module Hecks
     # Loads a bluebook's bluebook into a registry, after the ports and adapters it needs.
     #
     # @param registry [Runtime::Registry] the registry the bluebook loads into
-    # @param bluebook [String] the path of the bluebook's `.bluebook`
+    # @param declaration [String] the path of the bluebook's `.bluebook`
     # @return [void]
     def load_bluebook(registry, declaration)
       root = File.expand_path("../..", __dir__)

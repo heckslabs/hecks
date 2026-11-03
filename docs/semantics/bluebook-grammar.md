@@ -22,7 +22,7 @@ grammar before this document:
   keyword and argument as real `Keyword`/`Argument` rows, dispatched
   into a live domain instance at boot
   (`Hecks::Bluebook::MetaValidator::SyntaxBoot`) the same way any other
-  domain's own commands are. `hecks project_reference` regenerates
+  domain's own commands are. `hecks language_run.project_reference!` regenerates
   `docs/implemented/reference/*.md` — one page per construct — **from
   that table**, gated so a word with no prose or no runnable example
   fails the build. `spec/syntax_conformance_spec.rb` holds the DSL
@@ -32,7 +32,7 @@ grammar before this document:
   restate that table** — `docs/implemented/reference/index.md` is its
   authoritative, generated, coverage-gated form. `hecks-parse`'s own
   `rust/parser/src/keywords.rs` is itself generated from the same table
-  (`bin/project_keywords`-class projector), so drift between the two
+  (a projector run as `exe/hecks language_run.project_parser_table!`), so drift between the two
   engines' construct grammars is a build-time impossibility, not
   something this document could add value pinning again.
 

@@ -1,6 +1,6 @@
 # An AwsBox box ships every container log to CloudWatch
 
-**Status:** Proposed. Built: the `logs` and `log_retention_days` settings, the `awslogs` compose entries, the `BoxLogGroup` resource and
+**Status:** Accepted, built (code present in the tree). Built: the `logs` and `log_retention_days` settings, the `awslogs` compose entries, the `BoxLogGroup` resource and
 role policy in `box.yaml`, and the log group check in `deploy-box.sh`. Date: 2026-10-16.
 
 ## Context

@@ -1,5 +1,7 @@
 # The newcomer path is a Memory-default console and a short README
 
+> Historical: `bin/` is gone (removed in 3.0.0; its scripts are commands now: `bin/console` is `exe/hecks console!`; the rest in `docs/tools.md`); paths below name what existed when this was decided.
+
 **Status:** Accepted — implemented in 2.8.0. Date: 2026-09-27. A bare `bin/console` boots the Memory-bound pizzas hecksagon, and the README is a pitch, a quickstart and a glossary, with the status and projection material in guides. The open items below still stand.
 
 ## Context

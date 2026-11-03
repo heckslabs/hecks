@@ -143,7 +143,7 @@ having to change.
 
 ## Reference mirror
 
-`rust/parser/src/parse/bluebook.rs` (`bluebook_named_givens: Vec<(String,
+`rust/parser/src/parse/declaration.rs` (`bluebook_named_givens: Vec<(String,
 ir::Given)>`, owner name paired with each `Given` — one Rust `Vec` of
 pairs standing in for Ruby's nested `pool[description][owner] `Hash`) and
 `rust/parser/src/parse/aggregate.rs` (`parse_body`'s own write-through,

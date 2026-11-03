@@ -1,9 +1,9 @@
 # What a hecks release promises
 
-**Status: planned for 7.0.0.** This page states the compatibility promise the command line and
-the gem keep from 7.0.0, as [ADR 0163](decisions/0163-hecks-is-one-context-in-task-modules-and-a-bang-is-the-only-sign-of-a-write.md)
+**Status: in force since 7.0.0 (2026-11-02).** This page states the compatibility promise the command line and
+the gem keep, as [ADR 0163](decisions/0163-hecks-is-one-context-in-task-modules-and-a-bang-is-the-only-sign-of-a-write.md)
 and [ADR 0164](decisions/0164-hecks-distills-to-a-core-that-no-satellite-is-needed-to-build.md)
-decide it. Until 7.0.0 ships, the promise in force is the one in
+decide it. The release-number rules it builds on are in
 [What a release number promises](1.0-readiness.md#what-a-release-number-promises).
 
 The release number is the whole promise: a major may break, a minor may change behaviour and
@@ -31,8 +31,8 @@ command is called by its aggregate and verb, and a module only groups the listin
 ## Exit statuses
 
 A launcher exits with one of three statuses: `exe/hecks`, a project launcher `project_cli`
-writes for a bluebook with a `launcher` setting, and the positional forms (`hecks run`,
-`hecks docs` and the rest) alike. A script branches on the status; the text beside it is for a
+writes for a bluebook with a `launcher` setting, and the few bare words (`config`, `doctor`, `tour`, `search`,
+`completion`, `usage`) alike. A script branches on the status; the text beside it is for a
 person. A launcher of a bluebook with no `launcher` setting keeps the text every earlier
 generator wrote, which exits 1 for every line it could not read as well; opting in gives it the
 three.
@@ -44,19 +44,24 @@ three.
 | `2` | the line could not be read | no command named; a command or query the bluebook does not declare; a word the command does not take; a value its type cannot hold; a flag the command lacks |
 
 A launcher's help ends with the same three in one line. The constants are
-`Hecks::Adapters::Driving::ExitStatus`, which the runner and the positional table both return;
+`Hecks::Adapters::Driving::ExitStatus`, which the runner returns;
 `spec/cli_exit_status_spec.rb` pins each situation.
 
 ## How long an old name lives
 
 A renamed or moved command keeps answering to its old name for one major. From 7.0.0 the
-rename table, projected from the `formerly` entries on the bluebook, resolves an old name to
-the new command, maps its arguments where the shape changed, and prints the new spelling once
-per call. The old name stops resolving in 8.0.0.
+rename table (the `renamed:` entry of the `launcher` setting in `lib/hecks/hecks/hecks.world`,
+and the `formerly_known_as` of a renamed aggregate) resolves an old name to the new command,
+maps its arguments where the shape changed, and prints the new spelling once per call. The old
+name stops resolving in 8.0.0.
 
-A command named without its bang follows the same window. In 7.0.0 it runs and prints the
-spelling with the bang. In 8.0.0 a name without a bang reaches only a query, and a command
-spelled without one is refused with its bang spelling as the hint.
+A command named without its bang is refused from 7.0.0: the launcher exits 2 and names the
+spelling with the bang (`operation.run is a command and writes; write it as operation.run!`).
+A name without a bang reaches only a query. The legacy positional forms (`run`, `docs`,
+`narrate`, `ir`, `stores`, `model_check`, `smoke_test`, `project_diagrams`, `project_cli`) are
+refused the same way, with the launcher's suggestion (`operation.run!`, `introspection.docs`,
+`introspection.narrate`, `model_check_run.model_check!` and so on); the 7.0.0 changelog lists
+them under Breaking.
 
 A client project pins a hecks version, so a break reaches it when it moves to the major, not
 when the major ships. The window is counted from the client's move.
@@ -69,8 +74,8 @@ Three places say that a name is going, and all three say the same thing:
   soon as the rename is on `main`.
 - `--help` on the old name prints the new spelling, and `--help` on the new command names
   the old one under its `formerly` line.
-- The deprecation log records each call that reached a command through its old name, so a
-  caller that was missed shows up before the refusal ships.
+- The launcher's local usage record (`hecks usage`) keeps each name as typed beside the name
+  it resolved to, so a caller still using an old name shows up before the refusal ships.
 
 ## What this page does not cover
 
@@ -90,7 +95,8 @@ line. Nothing here changes that; this page says what the number means once it is
 
 ## Renamed commands
 
-A renamed command keeps its old spelling, through the launcher's `renamed` table in the Hecks world's
-`launcher` setting. The old name runs the new command and prints the new spelling once on standard
+A renamed command keeps its old spelling, through the `renamed:` table of the `launcher` setting in
+`lib/hecks/hecks/hecks.world` (`push_train.push` to `send_train.send`, `pull_request.merge` to
+`review_request.take`, `checkout.log` to `workspace.history`). The old name runs the new command and prints the new spelling once on standard
 error; an argument renamed by the table translates. The table resolves through 8.0 and is removed in
 8.0, when an old spelling becomes an unknown command.

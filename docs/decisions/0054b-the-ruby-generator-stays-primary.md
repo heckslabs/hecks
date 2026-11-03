@@ -1,5 +1,7 @@
 # The Ruby generator stays primary — 0054a's direction reversed, its parity fixes kept
 
+> Historical: `bin/` is gone (removed in 3.0.0; its scripts are commands now: `bin/project_rust` is `exe/hecks build.project_rust!`, `bin/project_wasm` is `exe/hecks build.build_wasm!`; the rest in `docs/tools.md`); `rust/project/` is gone (generation lives in `rust/codegen`, ADR 0086); paths below name what existed when this was decided.
+
 **Status:** Accepted (maintainer decision, 2026-09-14); Decision items 1, 2, 4, 5 and 6
 SUPERSEDED by [0086](0086-hecks-codegen-is-the-only-rust-generator.md)
 (2026-10-02). SUPERSEDES

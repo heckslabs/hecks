@@ -1,5 +1,7 @@
 # Phase 10's sixth shipped capability — `sets :field, multiply: :arg`, ported for real (Integer fields)
 
+> Historical: `bin/` is gone (removed in 3.0.0; its scripts are commands now: `bin/rust_conformance` is `exe/hecks build.check_conformance!`, `bin/doc_coverage` is `exe/hecks conformance_run.measure_doc_coverage!`, `bin/project_wasm` is `exe/hecks build.build_wasm!`; the rest in `docs/tools.md`); `rust/project/` is gone (generation lives in `rust/codegen`, ADR 0086); paths below name what existed when this was decided.
+
 **Status:** Shipped, both generators, verified against a purpose-built fixture (no real corpus command declares `multiply` — see `docs/decisions/0041`'s own accounting of why that ADR flagged this item as "structurally close but zero real corpus motivation," and why it stayed scoped narrow here rather than trying to close that whole gap at once).
 
 ## What shipped

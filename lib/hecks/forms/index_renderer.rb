@@ -8,7 +8,7 @@ module Hecks
       # Renders the home page body: one section per exposed bluebook, each linking to its
       # aggregates.
       #
-      # @param bluebooks [Hash{String => Bluebook::Declaration}] the loaded bluebooks by domain
+      # @param declarations [Hash{String => Bluebook::Declaration}] the loaded bluebooks by domain
       #   name, in `expose` order
       # @return [String] the HTML page body; only the heading when `bluebooks` is empty
       def self.render(declarations)
@@ -23,7 +23,7 @@ module Hecks
       # and a link per aggregate showing how many commands and queries it has.
       #
       # @param name [String] the domain name, used as the heading and the first path segment
-      # @param bluebook [Bluebook::Declaration] the loaded bluebook
+      # @param declaration [Bluebook::Declaration] the loaded bluebook
       # @return [String] HTML for the section's heading and aggregate list
       def self.bluebook_section(name, declaration)
         items = declaration.aggregates.map { |aggregate| aggregate_item(name, aggregate) }

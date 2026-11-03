@@ -40,7 +40,7 @@ RSpec.describe Hecks::EmbryonautBluebook, ".vendor!" do
 
   def lock = Hecks::EmbryonautBluebook::Lock.read(File.join(package_dir, "bluebook.lock"))
 
-  # The digest the registry's own bin/bluebook_digest prints: sha256 over the
+  # The digest the registry's own digest script prints: sha256 over the
   # sha256 lines of the sorted top-level bluebook files, in the C locale.
   def shell_digest(dir)
     out, = Open3.capture2({ "LC_ALL" => "C" }, "sh", "-c", "shasum -a 256 -- *.bluebook | shasum -a 256 | cut -d' ' -f1",

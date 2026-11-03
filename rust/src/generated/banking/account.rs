@@ -405,7 +405,7 @@ impl LedgerDirection {
         // refuses `InvariantViolation`, matching Ruby's own refusal kind,
         // never `TypeMismatch` for a shape a member set never declared.
         //
-        // BUG#14 (qa/bluebook/quality_control.bluebook) — a missing field
+        // BUG#14 in the QualityControl ledger — a missing field
         // is not "a shape a member set never declared" the way a present-
         // but-wrong value is; it is `Value::Coercion#check_required_fields`
         // (runtime/value/coercion.rb) firing, and that check runs before
@@ -783,7 +783,7 @@ impl AccountKind {
         // refuses `InvariantViolation`, matching Ruby's own refusal kind,
         // never `TypeMismatch` for a shape a member set never declared.
         //
-        // BUG#14 (qa/bluebook/quality_control.bluebook) — a missing field
+        // BUG#14 in the QualityControl ledger — a missing field
         // is not "a shape a member set never declared" the way a present-
         // but-wrong value is; it is `Value::Coercion#check_required_fields`
         // (runtime/value/coercion.rb) firing, and that check runs before

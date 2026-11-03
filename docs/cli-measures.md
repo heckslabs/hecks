@@ -1,9 +1,10 @@
 # What makes the command line better
 
-**Status: planned for 7.0.0, measured against 6.x.** The measures here judge the steps of
+**Status: in force since 7.0.0, measured against 6.x.** The measures here judge the steps of
 [ADR 0163](decisions/0163-hecks-is-one-context-in-task-modules-and-a-bang-is-the-only-sign-of-a-write.md).
-Most of what they measure is not built yet, so the numbers are not written down here: a
-measure names what is counted, where it is read from, and which way it should move.
+What they read exists: the tour (`hecks tour`), `hecks doctor`, the usage record (`hecks usage`),
+the cold-start spec and the help snapshots. The numbers are not written down here: a measure
+names what is counted, where it is read from, and which way it should move.
 
 A step of the plan is judged by the measure it targets, not by whether it landed. A step
 that lands and moves no measure was not worth its cost; a measure that moves the wrong way
@@ -15,11 +16,11 @@ is a regression, whichever step moved it.
 |---|---|---|---|---|
 | Time to a first working command | Wall-clock from `gem install hecks` to the first command that answers, on a clean machine | The tour's own timing, run in CI from a clean image | fall | the tour (step 40), the startup budget (step 35) |
 | Commands a newcomer must learn | Names in the `everyday` list of the launcher setting, plus any other name the tour makes a newcomer type | The `everyday` list in `lib/hecks/hecks/hecks.world` and the tour's transcript | fall, then hold | the everyday list (steps 1 and 49), the collapsed families (step 5) |
-| Refusals recovered without reading source | Refusals whose next command the user or agent ran, over refusals seen | The deprecation log and the usage counts, once they exist; until then, a sampled session transcript | rise | refusal hints (step 10), refusal codes (step 33), the undo for every write (step 37) |
-| Cold start of a command | Wall-clock from the shell prompt to the first byte a command writes, for `Checkout.status` and for a bang that writes nothing | A timing spec in CI, warm cache and cold cache both | fall, then hold under its budget | the startup budget (step 35) |
+| Refusals recovered without reading source | Refusals whose next command the user or agent ran, over refusals seen | The usage record (`hecks usage`) and a sampled session transcript | rise | refusal hints (step 10), refusal codes (step 33), the undo for every write (step 37) |
+| Cold start of a command | Wall-clock from the shell prompt to the first byte a command writes, for `Workspace.status` and for a bang that writes nothing | A timing spec in CI, warm cache and cold cache both | fall, then hold under its budget | the startup budget (step 35) |
 | Lines of bare `hecks` | Lines the bare launcher prints inside a hecks checkout and in a client project | The help snapshot | fall, then hold | the modules (step 4), the 7.0.0 change (step 5), the snapshot (step 21) |
-| Hand-kept lists the help depends on | Lists an edit to the bluebook does not move on its own: the `legacy` table, a scope list kept beside the bluebook, a rename map written by hand | A count of such lists in the launcher setting, the MCP door and the projector | fall to none | the retired gem table (step 9 of the ADR plan), the rename table (step 26), the MCP scope from the audience (step 23) |
-| Old-name calls during the warning window | Calls that reached a command through its old name, by name | The deprecation log | fall to none before the refusal ships | the bang rule (step 7), the deprecation log (step 11), the rename table (step 26) |
+| Hand-kept lists the help depends on | Lists an edit to the bluebook does not move on its own: a positional-name table, a scope list kept beside the bluebook, a rename map written by hand | A count of such lists in the launcher setting, the MCP door and the projector | fall to none | the retired gem table (step 9 of the ADR plan), the rename table (step 26), the MCP scope from the audience (step 23) |
+| Old-name calls during the warning window | Calls that reached a command through its old name, by name | The usage record (`hecks usage`) | fall to none before the refusal ships | the bang rule (step 7), the usage record (step 11), the rename table (step 26) |
 
 ## How to read a measure
 

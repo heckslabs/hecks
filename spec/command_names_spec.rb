@@ -41,6 +41,18 @@ RSpec.describe Hecks::CommandNames do
     end
   end
 
+  describe "a name in a top-level or docs page" do
+    it "is read in README.md" do
+      write("README.md", "Run `#{launcher} model_check` first.\n")
+      expect(found.first).to start_with("README.md:1:")
+    end
+
+    it "is read in a page under docs/" do
+      write("docs/guide.md", "Run `#{launcher} model_check` first.\n")
+      expect(found.first).to start_with("docs/guide.md:1:")
+    end
+  end
+
   describe "a regex that matches a command line" do
     before { write("spec/a_spec.rb", "match = line.match(%r{\\Abundle exec #{launcher} gate_run\\.gate! stage=ci})\n") }
 

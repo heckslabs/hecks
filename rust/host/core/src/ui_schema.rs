@@ -7,7 +7,7 @@ use std::collections::HashMap;
 
 use crate::hecks_naming::{plural, snake};
 
-/// `Hecks::Bluebook::IR::Attribute::PRIMITIVES`.
+/// `Hecks::Bluebook::Attribute::PRIMITIVES`.
 const PRIMITIVES: &[&str] = &["String", "Integer", "Float", "TrueClass", "FalseClass"];
 
 /// `UiSchema::DISPLAY_BY_SHAPE` — a detail field's default placement,

@@ -13,7 +13,7 @@ commands that `arbitrary` decodes from libFuzzer's bytes (`src/ops.rs`).
 Needs the compiled kernel and, for the comparison, a scratch Postgres database.
 
 ```sh
-exe/hecks build.build_wasm domain=examples/banking profile=dev --wait   # rust/dist/banking.wasm
+exe/hecks build.build_wasm! domain=examples/banking profile=dev --wait   # rust/dist/banking.wasm
 createdb hecks_fuzz
 
 rustup toolchain install nightly --profile minimal

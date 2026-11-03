@@ -1,5 +1,7 @@
 # A transactional outbox for domain events and external effects
 
+> Historical: `bin/` is gone (removed in 3.0.0; its scripts are commands now: `bin/doc_coverage` is `exe/hecks conformance_run.measure_doc_coverage!`; the rest in `docs/tools.md`); paths below name what existed when this was decided.
+
 **Status:** Shipped. `future-features.md` item 8 ("`OutboundEvent`, a durable outbox, `pending → claimed → delivered | failed`, idempotent delivery ids") was the last named durability gap left open by the saga-durability review (`docs/decisions/` has no ADR for that review; its findings live in `saga_pending_dispatch.rb`'s header and the guide's "Nobody had to notice" caveat). This ADR closes it — for the Ruby runtime, on Memory, Sqlite, Postgres and PostgresEra — and records what it deliberately does not do.
 
 ## The gap

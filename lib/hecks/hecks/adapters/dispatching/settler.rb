@@ -11,7 +11,7 @@ module Hecks
       # way,
       # with the condition as the reason. A session still working is left alone.
       class Settler
-        # @param work items [WorkItems] where the started work items and the runs are read
+        # @param work_items [WorkItems] where the started work items and the runs are read
         # @param launcher [Launcher] runs the commands that check, finish and yield
         def initialize(work_items, launcher)
           @work_items = work_items

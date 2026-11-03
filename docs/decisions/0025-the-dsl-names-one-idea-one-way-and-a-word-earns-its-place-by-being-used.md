@@ -1,5 +1,7 @@
 # The DSL names one idea one way, and a word earns its place by being used
 
+> Historical: `bin/` is gone (removed in 3.0.0; its scripts are commands now: `bin/project` is `exe/hecks operation.refresh_projections!`, `bin/reattest_era` is `exe/hecks era.reattest!`; the rest in `docs/tools.md`); `rust/project/` is gone (generation lives in `rust/codegen`, ADR 0086); paths below name what existed when this was decided.
+
 **Status:** Accepted — implemented. Every slice of the work plan (S0a-S13)
 is DONE as of 2026-08-28; [`docs/dsl-work-slices.md`](../dsl-work-slices.md)
 re-cuts the plan into those slices and holds the per-slice record, checked

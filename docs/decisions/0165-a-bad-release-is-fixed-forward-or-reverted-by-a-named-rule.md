@@ -1,5 +1,7 @@
 # A bad release is fixed forward or reverted by a named rule
 
+> Historical: `bin/` is gone (removed in 3.0.0; its scripts are commands now, see `docs/tools.md`); paths below name what existed when this was decided.
+
 **Status:** Proposed. Date: 2026-10-30. Planned for 7.0.0. The choice between the two options
 below is the owner's, by the same rule that approves a release; this record lays the options
 out so it can be made in one reply. Step 47 of

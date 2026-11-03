@@ -11,7 +11,7 @@ require_relative "support/generated_rust"
 # comparison stood, now that hecks-codegen is the only generator (ADR 0086): every corpus
 # domain's manifest is diffed by `hecks regenerate_corpus --check`, and this covers the families
 # no corpus domain has. Regenerate with GOLDEN=rewrite only when a reason string really changed;
-# `bin/rust_coverage`'s allowlist cites them, so read the diff first.
+# `corpus_run.corpus_rust_coverage`'s allowlist cites them, so read the diff first.
 RSpec.describe "hecks-codegen manifest for every planted construct family", :io do
   include_context "with the generated Rust tree"
 

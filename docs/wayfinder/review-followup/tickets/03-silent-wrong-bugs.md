@@ -7,13 +7,15 @@ claimed_by:
 
 # Silent-wrong bugs: refuse, fix, or both
 
+> Historical: a record of what was true when it was written; the file paths and commands below name what existed then, and some have since moved or been removed (`bin/` is gone, see `docs/tools.md`).
+
 ## Question
 
 The project's thesis is refuse deterministically rather than drift quietly, yet the two
 documented defects drift quietly. For each: does it refuse at boot or seal time, get fixed, or
 both, and in which order? Where does the refusal live (one place, on the fixed dispatch path),
 how does the Rust runtime stay in agreement, and what test would make a future silent-wrong
-construct fail the suite? Note `hecks model_check --profile client` already refuses three
+construct fail the suite? Note `hecks model_check_run.model_check! --profile client` already refuses three
 constructs; say whether these join that list.
 
 ## Prep (not a decision)

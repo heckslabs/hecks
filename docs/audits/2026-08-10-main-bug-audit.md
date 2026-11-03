@@ -1,5 +1,7 @@
 # Bug audit — `main` @ `a9236cd`
 
+> **Historical snapshot:** dated record; paths and commands below may have moved.
+
 _2026-08-10._ A line-by-line correctness review of the whole codebase: every
 `.rb` under `lib/`, all 27 `bin/` scripts, and the hand-written + generated
 `rust/`. Ten parallel deep-read passes (one per subsystem), cross-checked

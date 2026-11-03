@@ -1,5 +1,7 @@
 # An AI-driven interview records what an expert says and drafts the first domain
 
+> Historical: `bin/` is gone (removed in 3.0.0; its scripts are commands now, see `docs/tools.md`); paths below name what existed when this was decided.
+
 **Status:** Accepted, implemented. Date: 2026-10-03. The SME chapter and its `Interview` aggregate (decisions 1 to 4), the generator and the record (7 to 9) and the interview itself (5, 6, 10 to 12) are built: `hecks interview <Name>` holds the conversation in `Hecks::CLI::InterviewSession`, calls the agent port through `Hecks::CLI::InterviewAgent`, and writes through `Hecks::CLI::InterviewDraft`. It builds on [ADR 0087](0087-hecks-init-writes-the-stub-files-of-a-new-domain.md), the stub-writing `hecks init`, which asks nothing; this is the separate command for a guided start.
 
 ## Context

@@ -1,6 +1,6 @@
 # An environment variable is a one-off override or a secret
 
-**Status:** Proposed. Date: 2026-10-25. Partly built on this branch, not released.
+**Status:** Proposed. Date: 2026-10-25. Partly built; which part remains was not checked.
 
 ## Context
 

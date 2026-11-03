@@ -7,6 +7,8 @@ claimed_by:
 
 # Newcomer path: README shape, glossary, zero-setup start
 
+> Historical: a record of what was true when it was written; the file paths and commands below name what existed then, and some have since moved or been removed (`bin/` is gone, see `docs/tools.md`).
+
 ## Question
 
 A newcomer meets bluebook, hecksagon, world, heki, era, PostgresEra, bluebook, door, and corpus

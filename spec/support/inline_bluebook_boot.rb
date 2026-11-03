@@ -12,7 +12,7 @@ module InlineBluebookBoot
   # @param root [String, nil] the registry's root directory, for an adapter that writes files
   # @param adapters [Array<String>] adapter files to load after the memory stack
   # @yield the hecksagon body, run once the source has been evaluated
-  # @return [Hecks::Runtime::Runtime] the booted runtime
+  # @return [Hecks::Runtime::Dispatcher] the booted runtime
   def boot(source, hecksagon_name, validate: false, root: nil, adapters: [], &binds)
     registry = Hecks::Runtime::Registry.new(root: root)
     with_bluebook_file(source) do |path|

@@ -34729,6 +34729,32 @@
             [
               [
                 "name",
+                "doc_staleness"
+              ],
+              [
+                "id",
+                "doc_staleness"
+              ],
+              [
+                "title",
+                "doc staleness, every repo path, Hecks constant and @param tag a doc or comment cites still exists"
+              ],
+              [
+                "argv",
+                "bundle exec exe/hecks conformance_run.check_doc_staleness! --wait"
+              ],
+              [
+                "script",
+                ""
+              ],
+              [
+                "blocked",
+                "a doc or comment cites a path, a Hecks:: constant or a @param that is gone. The failure names each file:line and the reason. Fix the citation; mark one that is shown and not meant to exist with `staleness-check: skip` on its line or the one before, and a whole page that records a past state with a leading `> Historical:` quote, a `Status: Superseded|Historical|Rejected` line, or `staleness-check: skip-file` in its first lines."
+              ]
+            ],
+            [
+              [
+                "name",
                 "workflow_pagination"
               ],
               [
@@ -35510,7 +35536,7 @@
               ],
               [
                 "checks",
-                "model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,generated_tree,rust_fmt,rust_clippy,lint_deploy_recipes,command_names,workflow_pagination,fuzz_1_of_3,fuzz_2_of_3,fuzz_3_of_3,fuzz_sqlite_1_of_3,fuzz_sqlite_2_of_3,fuzz_sqlite_3_of_3,fuzz_postgres_1_of_2,fuzz_postgres_2_of_2,fuzz_shards,vocabulary_drift,ci_gates,ci_pipeline,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift"
+                "model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,generated_tree,rust_fmt,rust_clippy,lint_deploy_recipes,command_names,doc_staleness,workflow_pagination,fuzz_1_of_3,fuzz_2_of_3,fuzz_3_of_3,fuzz_sqlite_1_of_3,fuzz_sqlite_2_of_3,fuzz_sqlite_3_of_3,fuzz_postgres_1_of_2,fuzz_postgres_2_of_2,fuzz_shards,vocabulary_drift,ci_gates,ci_pipeline,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift"
               ]
             ]
           ],
@@ -36785,7 +36811,7 @@
               ],
               [
                 "form",
-                "hecks run [domain] <verb [name=value …] | script.json | - | '{\"steps\":[…]}'>"
+                "hecks operation.run! [subject.value=<domain>] verb.value=<verb> [arguments.value=name=value …]; or script.value=<file>"
               ]
             ],
             [

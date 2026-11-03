@@ -1,5 +1,7 @@
 # Migrating from Hecks 6.x to 7.0
 
+<!-- dead-name-check: skip-file -->
+
 This is the one page to follow when you take 7.0.0. It lists every break in the order a project
 meets them. Each item gives the old spelling, the new one and how to find what needs changing.
 The [CHANGELOG](../CHANGELOG.md) entry for 7.0.0 has the full wording and the reasons. Where this

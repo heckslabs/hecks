@@ -57,7 +57,7 @@ module FirstEraHold
   # Holds era 1 for a bluebook a spec declared in code, which has no source file to freeze: the
   # era holds its name as text and its storage-shape projection, which is what a boot compares.
   #
-  # @param bluebook [Hecks::Bluebook::Domain] the declared domain
+  # @param bluebook [Hecks::Bluebook::Declaration] the declared domain
   # @param url [String] the database URL the lineage lives in
   # @param schema [String, nil] the schema the lineage is held in
   # @return [void]

@@ -1,5 +1,7 @@
 # The first external adoption target is a standalone rules service
 
+> Historical: `bin/` is gone (removed in 3.0.0; its scripts are commands now: `bin/project_deploy` is `exe/hecks deploy recipe.project!`; the rest in `docs/tools.md`); paths below name what existed when this was decided.
+
 **Status:** Accepted — partly implemented. Date: 2026-09-27. The two pieces the target needs (see "Consequences") now exist as `docs/running-a-rules-service.md`, with its known gaps listed. The exit test, an outside team following it with only the docs, has not been run.
 
 ## Context

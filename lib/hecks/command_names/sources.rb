@@ -6,7 +6,7 @@ module Hecks
       INCLUDED = %w[
         .github/workflows/*.yml .github/workflows/*.yaml .github/actions/**/* .githooks/*
         lib/hecks/language/bluebook/vocabulary.bluebook Makefile scripts/**/* spec/**/*.rb
-        docs/implemented/**/*.md CLAUDE.md
+        *.md docs/**/*.md examples/**/*.md packages/**/*.md rust/**/*.md release/**/*.md editors/**/*.md
         lib/**/*.rb qa/**/*.rb qa/**/*.md qa/**/*.sh qa/**/*.yml
         .claude/hooks/* .claude/settings.json .claude/skills/**/*.md .claude/agents/**/*.md
       ].freeze

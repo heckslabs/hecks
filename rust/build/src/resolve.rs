@@ -106,7 +106,7 @@ pub fn resolve_vendored_packages(
 }
 
 // Where the gem keeps the bluebooks other than framework members, relative to `lib/hecks`; the
-// same places `Hecks::Bluebooks::GLOBS` lists.
+// same places `Hecks::FrameworkBluebooks::GLOBS` lists.
 const OTHER_GEM_BLUEBOOK_DIRS: &[&str] = &[
     "language",
     "grammar",
@@ -159,7 +159,7 @@ pub fn other_gem_bluebook_names(root: &Path) -> Result<Vec<String>, String> {
     Ok(names)
 }
 
-// The files that declare one of the gem's other bluebooks, sorted, as `Hecks::Bluebooks` loads them,
+// The files that declare one of the gem's other bluebooks, sorted, as `Hecks::FrameworkBluebooks` loads them,
 // then the `<snake_name>.ports.hecksagon` beside them that declares the bluebook's ports.
 pub fn other_gem_bluebook_files(root: &Path, declaration: &str) -> Result<Vec<PathBuf>, String> {
     let mut files: Vec<PathBuf> = other_gem_bluebook_entries(root)?

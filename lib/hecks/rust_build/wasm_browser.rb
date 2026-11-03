@@ -8,7 +8,7 @@ require_relative "wasm"
 module Hecks
   module RustBuild
     # Builds the `rust/web` wasm-bindgen crate over a domain's generated code
-    # (docs/decisions/0015-wasm-bindgen-browser-projection.md).
+    # (docs/implemented/decisions/0015-wasm-bindgen-browser-projection.md).
     #
     #   WasmBrowser.call(["path/to/domain"])
     #

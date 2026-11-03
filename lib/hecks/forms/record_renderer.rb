@@ -115,11 +115,12 @@ module Hecks
           "<ul class=\"verb-list\">#{(cmd_items + query_items).join}</ul>"
       end
 
-      # @param kind [String] the word shown beside the verb, `"command"` or `"query"`
-      # @return [String] the list item linking to the verb's own page
+      # @param aggregate [Bluebook::Aggregate] the aggregate to name
       # @return [String] the aggregate's name as a lowercase plural, HTML-escaped: "orders"
       def self.plural_noun(aggregate) = Escape.html(Naming.plural(Humanize.noun(aggregate.hecks_name)))
 
+      # @param kind [String] the word shown beside the verb, `"command"` or `"query"`
+      # @return [String] the list item linking to the verb's own page
       def self.verb_item(domain, aggregate, verb, kind)
         %(<li><a href="/#{domain}/#{aggregate.hecks_name}/#{verb.hecks_name}.html">) \
           "<span>#{Escape.html(Humanize.phrase(verb.hecks_name))}</span><span class=\"kind\">#{kind}</span></a></li>"

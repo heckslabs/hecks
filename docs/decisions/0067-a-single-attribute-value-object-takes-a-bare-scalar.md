@@ -1,5 +1,7 @@
 # A single-attribute value object takes a bare scalar, and no new syntax is added for it
 
+> Historical: `rust/project/` is gone (generation lives in `rust/codegen`, ADR 0086); paths below name what existed when this was decided.
+
 **Status:** Accepted — implemented in 2.8.0. The behavior already shipped in both runtimes. The live confirmation on both runtimes and the cross-runtime pin fixture are done; the documentation sweep covered the README and the pizzas behaviors file, and the guides still use the explicit spelling in places.
 
 **Date:** 2026-09-27
@@ -11,7 +13,7 @@ Calls such as `name: { value: "Margherita" }` look verbose for a value object wi
 - **Ruby.** `Value::Coercion#for_attribute` (`lib/hecks/runtime/value/coercion.rb:112`) wraps a bare scalar into the sole field when the value object has exactly one attribute (`:387`). Anything else that is not an object raises `TypeMismatch` (`:389`), worded by the `value_object_shape` entry in `lib/hecks/vocabulary.rb:300`.
 - **Rust.** `Json::coerce_single_field` (`rust/src/kernel/json.rs:307`) wraps a non-object, and `expect_value_object_shape` (`:333`) refuses a multi-field type with the same wording. Both generators emit the choice (`rust/project/json_codec.rb:115-128,251` and `rust/codegen/src/json_codec.rs:107-124,226`). The origin is commit `a144829f`.
 - **Documented and tested.** `docs/implemented/reference/value_object.md:66-75` and `docs/implemented/guides/aggregates-and-value-objects.md:521-538` describe the rule. In Ruby, `spec/scalar_value_object_spec.rb:151-190` covers it. No cross-runtime fixture in `spec/corpus/rust_conformance/` pins it; only that spec, the fuzzer and codegen parity do.
-- **Where the verbosity really is.** The docs and examples still use the explicit spelling: about 7 README lines, the pizzas behaviors file, banking, and many lines across the guides and reference. The UI schema keeps `{value: ...}` as a wire shape by choice (`rust/host/src/ui_schema.rs:11-21`).
+- **Where the verbosity really is.** The docs and examples still use the explicit spelling: about 7 README lines, the pizzas behaviors file, banking, and many lines across the guides and reference. The UI schema keeps `{value: ...}` as a wire shape by choice (`rust/host/core/src/ui_schema.rs:11-21`).
 
 ## Decision
 

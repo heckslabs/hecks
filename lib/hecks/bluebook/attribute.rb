@@ -63,7 +63,8 @@ module Hecks
       end
       private :spell
 
-      # Pinned by spec/vocabulary_conformance, which holds `Primitive`'s members to this list.
+      # Pinned by spec/vocabulary_conformance_spec.rb, which holds `Primitive`'s members to
+      # this list.
       PRIMITIVES = Hecks::Vocabulary.fetch("Primitive")
     end
   end
