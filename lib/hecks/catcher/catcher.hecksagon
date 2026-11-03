@@ -5,10 +5,23 @@ Hecks.hecksagon "Catcher" do
   attaches "Governance"
   persisted_by "Memory"
 
-  # The outside a drain reaches: the spool file the hook appends to. The port answers `Lines`
-  # by reading that file, and never writes to it.
+  # The outside a drain reaches: the spool file the hook appends to, and the cursor that says how
+  # far a drain has read it. `read` answers the lines the spool holds, through `through`, the
+  # number of lines consumed so far; `acknowledge` moves the cursor to `through`. The port never
+  # writes a line to the spool.
   Catcher::Drain.port "Spool" do
-    answers_query "Lines"
+    asks "Read", to: Drain do
+      attribute :run, RunKey
+      answers "SpoolRead"
+      refuses "SpoolRefused"
+    end
+
+    asks "Acknowledge", to: Drain do
+      attribute :run,     RunKey
+      attribute :through, Count
+      answers "SpoolAcknowledged"
+      refuses "SpoolAckRefused"
+    end
   end
 end
 
