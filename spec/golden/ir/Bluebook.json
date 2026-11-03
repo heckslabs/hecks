@@ -36111,6 +36111,33 @@
               "pattern": null,
               "relationship": null,
               "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "name",
+                "Chris Young"
+              ]
+            ]
+          ],
+          "name": "ReleaseOwner"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
             },
             {
               "admits": null,
@@ -39736,6 +39763,1470 @@
             ]
           ],
           "name": "CargoReservedName"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "name",
+                "success"
+              ]
+            ],
+            [
+              [
+                "name",
+                "neutral"
+              ]
+            ],
+            [
+              [
+                "name",
+                "skipped"
+              ]
+            ]
+          ],
+          "name": "PassingConclusion"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "kind",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "severity",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "check",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "acknowledged_on",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "subject",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "kind",
+                "conformist_translates"
+              ],
+              [
+                "severity",
+                "warning"
+              ],
+              [
+                "check",
+                "context_map_checks"
+              ],
+              [
+                "acknowledged_on",
+                "relationship"
+              ],
+              [
+                "subject",
+                ""
+              ]
+            ],
+            [
+              [
+                "kind",
+                "context_cycle"
+              ],
+              [
+                "severity",
+                "warning"
+              ],
+              [
+                "check",
+                "context_checks"
+              ],
+              [
+                "acknowledged_on",
+                ""
+              ],
+              [
+                "subject",
+                ""
+              ]
+            ],
+            [
+              [
+                "kind",
+                "contradictory_relationship"
+              ],
+              [
+                "severity",
+                "error"
+              ],
+              [
+                "check",
+                "policy_checks"
+              ],
+              [
+                "acknowledged_on",
+                ""
+              ],
+              [
+                "subject",
+                ""
+              ]
+            ],
+            [
+              [
+                "kind",
+                "core_conforms"
+              ],
+              [
+                "severity",
+                "warning"
+              ],
+              [
+                "check",
+                "classification_checks"
+              ],
+              [
+                "acknowledged_on",
+                "relationship"
+              ],
+              [
+                "subject",
+                ""
+              ]
+            ],
+            [
+              [
+                "kind",
+                "dead_compensation"
+              ],
+              [
+                "severity",
+                "error"
+              ],
+              [
+                "check",
+                "saga_checks"
+              ],
+              [
+                "acknowledged_on",
+                ""
+              ],
+              [
+                "subject",
+                ""
+              ]
+            ],
+            [
+              [
+                "kind",
+                "dead_transition"
+              ],
+              [
+                "severity",
+                "error"
+              ],
+              [
+                "check",
+                "lifecycle_checks"
+              ],
+              [
+                "acknowledged_on",
+                ""
+              ],
+              [
+                "subject",
+                ""
+              ]
+            ],
+            [
+              [
+                "kind",
+                "deaf_handler"
+              ],
+              [
+                "severity",
+                "error"
+              ],
+              [
+                "check",
+                "saga_checks"
+              ],
+              [
+                "acknowledged_on",
+                ""
+              ],
+              [
+                "subject",
+                ""
+              ]
+            ],
+            [
+              [
+                "kind",
+                "deaf_policy"
+              ],
+              [
+                "severity",
+                "error"
+              ],
+              [
+                "check",
+                "policy_checks"
+              ],
+              [
+                "acknowledged_on",
+                ""
+              ],
+              [
+                "subject",
+                ""
+              ]
+            ],
+            [
+              [
+                "kind",
+                "deaf_trigger"
+              ],
+              [
+                "severity",
+                "error"
+              ],
+              [
+                "check",
+                "saga_checks"
+              ],
+              [
+                "acknowledged_on",
+                ""
+              ],
+              [
+                "subject",
+                ""
+              ]
+            ],
+            [
+              [
+                "kind",
+                "deep_reaction_chain"
+              ],
+              [
+                "severity",
+                "warning"
+              ],
+              [
+                "check",
+                "reaction_depth_checks"
+              ],
+              [
+                "acknowledged_on",
+                ""
+              ],
+              [
+                "subject",
+                ""
+              ]
+            ],
+            [
+              [
+                "kind",
+                "external_query"
+              ],
+              [
+                "severity",
+                "error"
+              ],
+              [
+                "check",
+                "ask_checks"
+              ],
+              [
+                "acknowledged_on",
+                ""
+              ],
+              [
+                "subject",
+                ""
+              ]
+            ],
+            [
+              [
+                "kind",
+                "generic_depends_on_core"
+              ],
+              [
+                "severity",
+                "error"
+              ],
+              [
+                "check",
+                "classification_checks"
+              ],
+              [
+                "acknowledged_on",
+                ""
+              ],
+              [
+                "subject",
+                ""
+              ]
+            ],
+            [
+              [
+                "kind",
+                "key_by_value"
+              ],
+              [
+                "severity",
+                "warning"
+              ],
+              [
+                "check",
+                "reference_checks"
+              ],
+              [
+                "acknowledged_on",
+                "aggregate"
+              ],
+              [
+                "subject",
+                "attribute"
+              ]
+            ],
+            [
+              [
+                "kind",
+                "large_aggregate"
+              ],
+              [
+                "severity",
+                "warning"
+              ],
+              [
+                "check",
+                "aggregate_checks"
+              ],
+              [
+                "acknowledged_on",
+                "aggregate"
+              ],
+              [
+                "subject",
+                ""
+              ]
+            ],
+            [
+              [
+                "kind",
+                "no_command_surface"
+              ],
+              [
+                "severity",
+                "error"
+              ],
+              [
+                "check",
+                "aggregate_checks"
+              ],
+              [
+                "acknowledged_on",
+                "aggregate"
+              ],
+              [
+                "subject",
+                ""
+              ]
+            ],
+            [
+              [
+                "kind",
+                "one_of_branch_unhandled"
+              ],
+              [
+                "severity",
+                "error"
+              ],
+              [
+                "check",
+                "one_of_checks"
+              ],
+              [
+                "acknowledged_on",
+                ""
+              ],
+              [
+                "subject",
+                ""
+              ]
+            ],
+            [
+              [
+                "kind",
+                "orphaned_reference"
+              ],
+              [
+                "severity",
+                "warning"
+              ],
+              [
+                "check",
+                "orphan_checks"
+              ],
+              [
+                "acknowledged_on",
+                "aggregate"
+              ],
+              [
+                "subject",
+                "referenced aggregate"
+              ]
+            ],
+            [
+              [
+                "kind",
+                "port_trigger"
+              ],
+              [
+                "severity",
+                "warning"
+              ],
+              [
+                "check",
+                "ask_checks"
+              ],
+              [
+                "acknowledged_on",
+                ""
+              ],
+              [
+                "subject",
+                ""
+              ]
+            ],
+            [
+              [
+                "kind",
+                "reaction_chain_search_capped"
+              ],
+              [
+                "severity",
+                "warning"
+              ],
+              [
+                "check",
+                "reaction_depth_checks"
+              ],
+              [
+                "acknowledged_on",
+                ""
+              ],
+              [
+                "subject",
+                ""
+              ]
+            ],
+            [
+              [
+                "kind",
+                "redundant_relationship"
+              ],
+              [
+                "severity",
+                "warning"
+              ],
+              [
+                "check",
+                "redundant_relationships"
+              ],
+              [
+                "acknowledged_on",
+                "relationship"
+              ],
+              [
+                "subject",
+                ""
+              ]
+            ],
+            [
+              [
+                "kind",
+                "relationship_kind_mismatch"
+              ],
+              [
+                "severity",
+                "error"
+              ],
+              [
+                "check",
+                "context_map_checks"
+              ],
+              [
+                "acknowledged_on",
+                "relationship"
+              ],
+              [
+                "subject",
+                ""
+              ]
+            ],
+            [
+              [
+                "kind",
+                "rust_reserved_name"
+              ],
+              [
+                "severity",
+                "warning"
+              ],
+              [
+                "check",
+                "model_check"
+              ],
+              [
+                "acknowledged_on",
+                ""
+              ],
+              [
+                "subject",
+                ""
+              ]
+            ],
+            [
+              [
+                "kind",
+                "separate_ways_violated"
+              ],
+              [
+                "severity",
+                "error"
+              ],
+              [
+                "check",
+                "context_map_checks"
+              ],
+              [
+                "acknowledged_on",
+                ""
+              ],
+              [
+                "subject",
+                ""
+              ]
+            ],
+            [
+              [
+                "kind",
+                "stale_undelivered_expectation"
+              ],
+              [
+                "severity",
+                "error"
+              ],
+              [
+                "check",
+                "policy_checks"
+              ],
+              [
+                "acknowledged_on",
+                ""
+              ],
+              [
+                "subject",
+                ""
+              ]
+            ],
+            [
+              [
+                "kind",
+                "stuck_state"
+              ],
+              [
+                "severity",
+                "warning"
+              ],
+              [
+                "check",
+                "lifecycle_checks"
+              ],
+              [
+                "acknowledged_on",
+                ""
+              ],
+              [
+                "subject",
+                ""
+              ]
+            ],
+            [
+              [
+                "kind",
+                "terminal_has_exit"
+              ],
+              [
+                "severity",
+                "error"
+              ],
+              [
+                "check",
+                "lifecycle_checks"
+              ],
+              [
+                "acknowledged_on",
+                ""
+              ],
+              [
+                "subject",
+                ""
+              ]
+            ],
+            [
+              [
+                "kind",
+                "unacknowledged_relationship"
+              ],
+              [
+                "severity",
+                "error"
+              ],
+              [
+                "check",
+                "policy_checks"
+              ],
+              [
+                "acknowledged_on",
+                ""
+              ],
+              [
+                "subject",
+                ""
+              ]
+            ],
+            [
+              [
+                "kind",
+                "unacknowledged_source"
+              ],
+              [
+                "severity",
+                "error"
+              ],
+              [
+                "check",
+                "context_checks"
+              ],
+              [
+                "acknowledged_on",
+                ""
+              ],
+              [
+                "subject",
+                ""
+              ]
+            ],
+            [
+              [
+                "kind",
+                "unarmed_compensation"
+              ],
+              [
+                "severity",
+                "error"
+              ],
+              [
+                "check",
+                "saga_checks"
+              ],
+              [
+                "acknowledged_on",
+                ""
+              ],
+              [
+                "subject",
+                ""
+              ]
+            ],
+            [
+              [
+                "kind",
+                "unbounded_reaction_loop"
+              ],
+              [
+                "severity",
+                "warning"
+              ],
+              [
+                "check",
+                "reaction_depth_checks"
+              ],
+              [
+                "acknowledged_on",
+                ""
+              ],
+              [
+                "subject",
+                ""
+              ]
+            ],
+            [
+              [
+                "kind",
+                "undeclared_coupling"
+              ],
+              [
+                "severity",
+                "error"
+              ],
+              [
+                "check",
+                "context_map_checks"
+              ],
+              [
+                "acknowledged_on",
+                ""
+              ],
+              [
+                "subject",
+                ""
+              ]
+            ],
+            [
+              [
+                "kind",
+                "unknown_command"
+              ],
+              [
+                "severity",
+                "error"
+              ],
+              [
+                "check",
+                "lifecycle_checks"
+              ],
+              [
+                "acknowledged_on",
+                ""
+              ],
+              [
+                "subject",
+                ""
+              ]
+            ],
+            [
+              [
+                "kind",
+                "unknown_dispatch"
+              ],
+              [
+                "severity",
+                "error"
+              ],
+              [
+                "check",
+                "saga_checks"
+              ],
+              [
+                "acknowledged_on",
+                ""
+              ],
+              [
+                "subject",
+                ""
+              ]
+            ],
+            [
+              [
+                "kind",
+                "unknown_target_domain"
+              ],
+              [
+                "severity",
+                "error"
+              ],
+              [
+                "check",
+                "policy_checks"
+              ],
+              [
+                "acknowledged_on",
+                ""
+              ],
+              [
+                "subject",
+                ""
+              ]
+            ],
+            [
+              [
+                "kind",
+                "unknown_trigger"
+              ],
+              [
+                "severity",
+                "error"
+              ],
+              [
+                "check",
+                "policy_checks"
+              ],
+              [
+                "acknowledged_on",
+                ""
+              ],
+              [
+                "subject",
+                ""
+              ]
+            ],
+            [
+              [
+                "kind",
+                "unpublished_dependency"
+              ],
+              [
+                "severity",
+                "error"
+              ],
+              [
+                "check",
+                "context_map_checks"
+              ],
+              [
+                "acknowledged_on",
+                "relationship"
+              ],
+              [
+                "subject",
+                ""
+              ]
+            ],
+            [
+              [
+                "kind",
+                "unreachable_pm_state"
+              ],
+              [
+                "severity",
+                "error"
+              ],
+              [
+                "check",
+                "saga_checks"
+              ],
+              [
+                "acknowledged_on",
+                ""
+              ],
+              [
+                "subject",
+                ""
+              ]
+            ],
+            [
+              [
+                "kind",
+                "unreachable_state"
+              ],
+              [
+                "severity",
+                "error"
+              ],
+              [
+                "check",
+                "lifecycle_checks"
+              ],
+              [
+                "acknowledged_on",
+                ""
+              ],
+              [
+                "subject",
+                ""
+              ]
+            ],
+            [
+              [
+                "kind",
+                "unresolved_ask"
+              ],
+              [
+                "severity",
+                "error"
+              ],
+              [
+                "check",
+                "ask_checks"
+              ],
+              [
+                "acknowledged_on",
+                ""
+              ],
+              [
+                "subject",
+                ""
+              ]
+            ],
+            [
+              [
+                "kind",
+                "unused_ask"
+              ],
+              [
+                "severity",
+                "warning"
+              ],
+              [
+                "check",
+                "ask_checks"
+              ],
+              [
+                "acknowledged_on",
+                ""
+              ],
+              [
+                "subject",
+                ""
+              ]
+            ],
+            [
+              [
+                "kind",
+                "unused_relationship"
+              ],
+              [
+                "severity",
+                "warning"
+              ],
+              [
+                "check",
+                "context_map_checks"
+              ],
+              [
+                "acknowledged_on",
+                "relationship"
+              ],
+              [
+                "subject",
+                ""
+              ]
+            ]
+          ],
+          "name": "ModelCheckFinding"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "name",
+                "large_aggregate_weight"
+              ],
+              [
+                "value",
+                "40"
+              ]
+            ],
+            [
+              [
+                "name",
+                "suggested_commands"
+              ],
+              [
+                "value",
+                "3"
+              ]
+            ],
+            [
+              [
+                "name",
+                "reaction_chain_search_work"
+              ],
+              [
+                "value",
+                "10000"
+              ]
+            ]
+          ],
+          "name": "ModelCheckLimit"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "name",
+                "customer_supplier"
+              ]
+            ],
+            [
+              [
+                "name",
+                "conformist"
+              ]
+            ],
+            [
+              [
+                "name",
+                "anticorruption_layer"
+              ]
+            ],
+            [
+              [
+                "name",
+                "shared_kernel"
+              ]
+            ],
+            [
+              [
+                "name",
+                "open_host"
+              ]
+            ],
+            [
+              [
+                "name",
+                "partnership"
+              ]
+            ]
+          ],
+          "name": "ContextRelationshipKind"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "name",
+                "shared_kernel"
+              ]
+            ],
+            [
+              [
+                "name",
+                "partnership"
+              ]
+            ]
+          ],
+          "name": "MutualRelationshipKind"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "edge",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "kind",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "edge",
+                "customer_supplier"
+              ],
+              [
+                "kind",
+                "customer_supplier"
+              ]
+            ],
+            [
+              [
+                "edge",
+                "acl"
+              ],
+              [
+                "kind",
+                "anticorruption_layer"
+              ]
+            ],
+            [
+              [
+                "edge",
+                "shared_kernel"
+              ],
+              [
+                "kind",
+                "conformist"
+              ]
+            ],
+            [
+              [
+                "edge",
+                "shared_kernel"
+              ],
+              [
+                "kind",
+                "shared_kernel"
+              ]
+            ],
+            [
+              [
+                "edge",
+                "shared_kernel"
+              ],
+              [
+                "kind",
+                "open_host"
+              ]
+            ],
+            [
+              [
+                "edge",
+                "subscription"
+              ],
+              [
+                "kind",
+                "conformist"
+              ]
+            ],
+            [
+              [
+                "edge",
+                "subscription"
+              ],
+              [
+                "kind",
+                "customer_supplier"
+              ]
+            ],
+            [
+              [
+                "edge",
+                "subscription"
+              ],
+              [
+                "kind",
+                "open_host"
+              ]
+            ]
+          ],
+          "name": "EdgeImplementation"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "name",
+                "reaction_depth"
+              ],
+              [
+                "value",
+                "5"
+              ]
+            ],
+            [
+              [
+                "name",
+                "reference_hops"
+              ],
+              [
+                "value",
+                "4"
+              ]
+            ],
+            [
+              [
+                "name",
+                "chain_hops"
+              ],
+              [
+                "value",
+                "8"
+              ]
+            ],
+            [
+              [
+                "name",
+                "outbox_stalled_after_seconds"
+              ],
+              [
+                "value",
+                "600"
+              ]
+            ]
+          ],
+          "name": "LanguageLimit"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "name",
+                "now"
+              ]
+            ],
+            [
+              [
+                "name",
+                "today"
+              ]
+            ]
+          ],
+          "name": "NeedableFact"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "name",
+                "person"
+              ]
+            ],
+            [
+              [
+                "name",
+                "agent"
+              ]
+            ],
+            [
+              [
+                "name",
+                "ci"
+              ]
+            ],
+            [
+              [
+                "name",
+                "record"
+              ]
+            ]
+          ],
+          "name": "CommandAudience"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "name",
+                "pending"
+              ]
+            ],
+            [
+              [
+                "name",
+                "claimed"
+              ]
+            ],
+            [
+              [
+                "name",
+                "delivered"
+              ]
+            ],
+            [
+              [
+                "name",
+                "failed"
+              ]
+            ],
+            [
+              [
+                "name",
+                "refused"
+              ]
+            ]
+          ],
+          "name": "OutboxStatus"
         }
       ]
     }
