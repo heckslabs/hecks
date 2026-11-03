@@ -3,19 +3,31 @@
 //! lives in Ruby conformance specs a Rust-side mutation run cannot see.
 
 use super::*;
+use crate::kernel::read_model::{ReadModelDef, ReadModelHead};
 
 struct Bus {
     calls: Vec<(String, Json)>,
 }
 
+impl Bus {
+    fn empty() -> Self {
+        Self { calls: Vec::new() }
+    }
+}
+
 impl AggregateScan for Bus {
     fn scan(&self, aggregate: &str) -> Option<Vec<(String, Json)>> {
-        (aggregate == "D::Order").then(|| {
-            vec![
+        match aggregate {
+            "D::Order" => Some(vec![
                 ("o1".to_string(), Json::obj(vec![])),
                 ("o2".to_string(), Json::obj(vec![])),
-            ]
-        })
+            ]),
+            "D::Guardian" => Some(vec![
+                ("g1".to_string(), Json::obj(vec![])),
+                ("g2".to_string(), Json::obj(vec![])),
+            ]),
+            _ => None,
+        }
     }
 }
 
@@ -82,6 +94,7 @@ const fn policy(name: &'static str, event_name: &'static str, target: &'static s
         where_expr: None,
         for_each: None,
         for_each_key: None,
+        for_each_heads: &[],
         with_spec: NO_WITH,
     }
 }
@@ -98,7 +111,9 @@ const fn cross(name: &'static str, event_name: &'static str) -> CrossDomainPolic
     }
 }
 
-static POLICIES: [PolicyRule; 8] = [
+const GUARDIAN_HEADS: &[(&str, &str)] = &[("guardian", "guardian_id")];
+
+static POLICIES: [PolicyRule; 12] = [
     policy("NotifyOnPlaced", "Placed", "D::Order.Notify"),
     PolicyRule {
         event_qualifier: Some("Other"),
@@ -120,13 +135,67 @@ static POLICIES: [PolicyRule; 8] = [
     PolicyRule {
         for_each: Some("D::Order.Open"),
         for_each_key: Some("order_id"),
+        for_each_heads: &[],
         ..policy("FanPing", "Fan", "D::Order.Ping")
     },
     PolicyRule {
         for_each: Some("D::Order.Missing"),
         ..policy("FanMissing", "FanMissing", "D::Order.Ping")
     },
+    PolicyRule {
+        for_each: Some("D::Guardians"),
+        for_each_heads: GUARDIAN_HEADS,
+        ..policy("FanRoster", "Roster", "D::Order.Ping")
+    },
+    PolicyRule {
+        for_each: Some("D::Nobody"),
+        for_each_heads: GUARDIAN_HEADS,
+        ..policy("FanNobody", "Nobody", "D::Order.Ping")
+    },
+    PolicyRule {
+        for_each: Some("D::Nowhere"),
+        ..policy("FanNowhere", "Stray", "D::Order.Ping")
+    },
+    PolicyRule {
+        for_each: Some("D::Guardians"),
+        for_each_heads: &[("guardian", "guardian_id"), ("ledger", "ledger_id")],
+        ..policy("FanTwice", "Twice", "D::Order.Ping")
+    },
 ];
+
+const GUARDIANS: ReadModelDef = ReadModelDef {
+    verb: "D.Guardians",
+    reference_name: None,
+    heads: &[ReadModelHead {
+        aggregate: "D::Guardian",
+        as_name: "guardian",
+        many: true,
+        is_root: false,
+        reference_fields: &[],
+    }],
+    filtered_heads: &[],
+    authorization: None,
+    group_by: None,
+    reduction: None,
+};
+
+const NOBODY: ReadModelDef = ReadModelDef {
+    verb: "D.Nobody",
+    reference_name: None,
+    heads: &[ReadModelHead {
+        aggregate: "D::Nobody",
+        as_name: "guardian",
+        many: true,
+        is_root: false,
+        reference_fields: &[],
+    }],
+    filtered_heads: &[],
+    authorization: None,
+    group_by: None,
+    reduction: None,
+};
+
+static READ_MODELS: [ReadModelDef; 2] = [GUARDIANS, NOBODY];
 
 static CROSS_POLICIES: [CrossDomainPolicyRule; 5] = [
     cross("XPlain", "XEvt"),
@@ -266,11 +335,70 @@ fn tables() -> Tables<'static> {
         process_managers: &PROCESS_MANAGERS,
         reference_key_fn: no_key,
         queries: &QUERIES,
+        read_models: &READ_MODELS,
         command_creates_fn: creates,
         identity_head_fn: identity_head,
         command_attributes_fn: declared,
         entity_identity_head_fn: entity_head,
+        reference_table: &[],
     }
+}
+
+const DELIVERY_REFERENCES: crate::kernel::reference_lookup::ReferenceTable = &[(
+    "D::Delivery",
+    &[crate::kernel::reference_lookup::ReferenceSpec {
+        field: "message",
+        as_name: "message",
+        target: "D::Message",
+    }],
+)];
+
+fn queue_declared(_verb: &str) -> &'static [&'static str] {
+    &["message", "guardianship"]
+}
+
+#[test]
+fn an_emitter_identity_is_lent_to_a_reference_the_target_declares_unless_the_args_pass_it() {
+    let t = Tables {
+        command_attributes_fn: queue_declared,
+        reference_table: DELIVERY_REFERENCES,
+        ..tables()
+    };
+    let sent = event("D::Message.Sent", "D::Message", "m-1", Json::obj(vec![]));
+    let queue = "D::Delivery.Queue";
+
+    let lent = trigger_args(
+        &rule(queue, &[]),
+        &sent,
+        Some(("guardianship", "g-1")),
+        queue,
+        &t,
+    );
+    assert_eq!(
+        lent,
+        Json::obj(vec![
+            ("guardianship", Json::str("g-1")),
+            ("message", Json::str("m-1"))
+        ])
+    );
+
+    let carried = event(
+        "D::Message.Sent",
+        "D::Message",
+        "m-1",
+        Json::obj(vec![("message", Json::str("m-9"))]),
+    );
+    let passed = trigger_args(&rule(queue, &[]), &carried, None, queue, &t);
+    assert_eq!(passed, Json::obj(vec![("message", Json::str("m-9"))]));
+
+    let unrelated = trigger_args(
+        &rule("D::Order.Place", &[]),
+        &sent,
+        None,
+        "D::Order.Place",
+        &t,
+    );
+    assert_eq!(unrelated, Json::obj(vec![]));
 }
 
 fn ping_leg() -> SagaLeg<'static> {
@@ -567,6 +695,63 @@ fn a_fan_out_dispatches_once_per_row_with_the_row_id_under_the_declared_key_one_
         .reaction_log
         .iter()
         .any(|entry| entry.get("for_row").and_then(Json::as_str) == Some("o2")));
+}
+
+#[test]
+fn a_fan_out_over_a_read_model_dispatches_once_per_row_under_the_addressing_key() {
+    let mut w = world();
+
+    w.react(&event("Roster", "D::Order", "o1", Json::obj(vec![])), 3);
+
+    assert_eq!(w.verbs(), ["D::Order.Ping", "D::Order.Ping"]);
+    assert_eq!(
+        w.bus.calls[0].1,
+        Json::obj(vec![("guardian_id", Json::str("g1"))])
+    );
+    assert_eq!(
+        w.bus.calls[1].1,
+        Json::obj(vec![("guardian_id", Json::str("g2"))])
+    );
+    assert!(w
+        .reaction_log
+        .iter()
+        .any(|entry| entry.get("for_row").and_then(Json::as_str) == Some("g2")));
+}
+
+#[test]
+fn a_fan_out_over_a_read_model_with_no_rows_fires_nothing() {
+    let mut w = world();
+
+    w.react(&event("Nobody", "D::Order", "o1", Json::obj(vec![])), 0);
+
+    assert!(w.bus.calls.is_empty());
+    assert!(w.reaction_log.is_empty());
+}
+
+#[test]
+fn a_fan_out_naming_no_query_or_read_model_is_refused_by_name() {
+    let mut w = world();
+
+    w.react(&event("Stray", "D::Order", "o1", Json::obj(vec![])), 0);
+
+    assert!(w.bus.calls.is_empty());
+    assert_eq!(
+        reason(&w.reaction_log[0]),
+        Some("for_each \"Nowhere\" names no query or read model in D")
+    );
+}
+
+#[test]
+fn a_fan_out_over_a_read_model_with_two_candidate_heads_is_refused() {
+    let mut w = world();
+
+    w.react(&event("Twice", "D::Order", "o1", Json::obj(vec![])), 0);
+
+    assert!(w.bus.calls.is_empty());
+    assert_eq!(
+        reason(&w.reaction_log[0]),
+        Some("for_each Guardians must have exactly one row kind that D::Order.Ping can address, found 2")
+    );
 }
 
 #[test]
@@ -916,7 +1101,12 @@ const READS_ORDER_ID: crate::kernel::QueryDef = crate::kernel::QueryDef {
 
 #[test]
 fn a_for_each_query_is_lent_the_emitting_records_id_under_its_identity_head() {
-    let args = for_each_query_args(&READS_ORDER_ID, &order_event(Json::obj(vec![])), &tables());
+    let args = for_each_query_args(
+        &READS_ORDER_ID,
+        &order_event(Json::obj(vec![])),
+        &tables(),
+        &Bus::empty(),
+    );
 
     assert_eq!(args, Json::obj(vec![("order_id", Json::str("o1"))]));
 }
@@ -927,6 +1117,7 @@ fn a_for_each_query_keeps_a_payload_value_over_the_lent_identity() {
         &READS_ORDER_ID,
         &order_event(Json::obj(vec![("order_id", Json::str("mine"))])),
         &tables(),
+        &Bus::empty(),
     );
 
     assert_eq!(args, Json::obj(vec![("order_id", Json::str("mine"))]));
@@ -934,7 +1125,12 @@ fn a_for_each_query_keeps_a_payload_value_over_the_lent_identity() {
 
 #[test]
 fn a_for_each_query_that_does_not_read_the_head_is_lent_nothing() {
-    let args = for_each_query_args(&QUERIES[0], &order_event(payload()), &tables());
+    let args = for_each_query_args(
+        &QUERIES[0],
+        &order_event(payload()),
+        &tables(),
+        &Bus::empty(),
+    );
 
     assert_eq!(args, payload());
 }
@@ -945,6 +1141,105 @@ fn a_for_each_query_is_lent_nothing_for_an_aggregate_without_a_single_head() {
         &READS_ORDER_ID,
         &event("E", "D::Other", "x1", Json::obj(vec![])),
         &tables(),
+        &Bus::empty(),
+    );
+
+    assert_eq!(args, Json::obj(vec![]));
+}
+
+const READS_CUSTOMER: crate::kernel::QueryDef = crate::kernel::QueryDef {
+    verb: "D::Order.ForCustomer",
+    aggregate: "D::Order",
+    conditions: &[crate::kernel::QueryCondition {
+        field: "customer",
+        comparator: crate::kernel::query_comparators::QueryComparator::Eq,
+        value: crate::kernel::QueryConditionValue::Arg("customer"),
+    }],
+    reference_hop_conditions: &[],
+    order_by: None,
+    offset: None,
+    limit: None,
+    cursor: false,
+    authorization: None,
+};
+
+const READS_GROUP: crate::kernel::QueryDef = crate::kernel::QueryDef {
+    verb: "D::Order.ForGroup",
+    aggregate: "D::Order",
+    conditions: &[crate::kernel::QueryCondition {
+        field: "group",
+        comparator: crate::kernel::query_comparators::QueryComparator::Eq,
+        value: crate::kernel::QueryConditionValue::Arg("group"),
+    }],
+    reference_hop_conditions: &[],
+    order_by: None,
+    offset: None,
+    limit: None,
+    cursor: false,
+    authorization: None,
+};
+
+const ORDER_REFERENCES: crate::kernel::reference_lookup::ReferenceTable = &[(
+    "D::Order",
+    &[crate::kernel::reference_lookup::ReferenceSpec {
+        field: "customer",
+        as_name: "customer",
+        target: "D::Customer",
+    }],
+)];
+
+fn referenced_tables() -> Tables<'static> {
+    Tables {
+        reference_table: ORDER_REFERENCES,
+        ..tables()
+    }
+}
+
+// Holds one order, `o1`, whose stored `customer` reference is `c-9`.
+struct StoredOrder;
+
+impl AggregateScan for StoredOrder {
+    fn scan(&self, aggregate: &str) -> Option<Vec<(String, Json)>> {
+        (aggregate == "D::Order").then(|| {
+            vec![(
+                "o1".to_string(),
+                Json::obj(vec![("customer", Json::str("c-9"))]),
+            )]
+        })
+    }
+}
+
+#[test]
+fn a_for_each_query_argument_named_after_a_reference_is_lent_the_emitters_stored_reference() {
+    let args = for_each_query_args(
+        &READS_CUSTOMER,
+        &order_event(Json::obj(vec![])),
+        &referenced_tables(),
+        &StoredOrder,
+    );
+
+    assert_eq!(args, Json::obj(vec![("customer", Json::str("c-9"))]));
+}
+
+#[test]
+fn a_for_each_query_keeps_a_payload_value_over_the_lent_reference() {
+    let args = for_each_query_args(
+        &READS_CUSTOMER,
+        &order_event(Json::obj(vec![("customer", Json::str("mine"))])),
+        &referenced_tables(),
+        &StoredOrder,
+    );
+
+    assert_eq!(args, Json::obj(vec![("customer", Json::str("mine"))]));
+}
+
+#[test]
+fn a_for_each_query_argument_with_no_matching_reference_is_lent_nothing() {
+    let args = for_each_query_args(
+        &READS_GROUP,
+        &order_event(Json::obj(vec![])),
+        &referenced_tables(),
+        &StoredOrder,
     );
 
     assert_eq!(args, Json::obj(vec![]));

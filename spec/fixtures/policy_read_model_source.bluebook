@@ -1,0 +1,82 @@
+# A `for_each` policy whose source is a read model rather than a query. Each row of Recipients is
+# one guardianship of an enrolled student, and the trigger acts on the guardianship it names.
+# Held by spec/runtime/policy_fan_out_read_model_spec.rb.
+Hecks.bluebook "ReadRoster" do
+  vision "Announcements fan out to the guardians of each section's students."
+  core
+
+  aggregate "Section" do
+    attribute :code, Code
+    identified_by :code
+    value_object("Code") { attribute :value, String }
+
+    command("OpenSection") do
+      attribute :code, Code
+      sets :code
+      emits "SectionOpened"
+    end
+  end
+
+  aggregate "Enrollment" do
+    reference_to Section
+    attribute :student, Name
+    identified_by :id
+    value_object("Name") { attribute :value, String }
+
+    command("Enroll") do
+      reference_to Section
+      attribute :student, Name
+      sets :student
+      emits "Enrolled"
+    end
+  end
+
+  aggregate "Guardianship" do
+    reference_to Section
+    attribute :guardian, Name
+    identified_by :id
+    value_object("Name") { attribute :value, String }
+
+    command("LinkGuardian") do
+      reference_to Section
+      attribute :guardian, Name
+      sets :guardian
+      emits "Linked"
+    end
+  end
+
+  aggregate "Delivery" do
+    reference_to Guardianship
+    identified_by :guardianship
+
+    # The policy forwards the Sent payload unprojected, so the section it carries must be declared.
+    command("Queue") do
+      reference_to Section
+      reference_to Guardianship
+      emits "Queued"
+    end
+  end
+
+  aggregate "Announcement" do
+    reference_to Section
+    identified_by :id
+
+    command("Send") do
+      reference_to Section
+      emits "Sent"
+    end
+  end
+
+  read_model "Recipients" do
+    reference_to Section
+    include Section
+    include Enrollment
+    include Guardianship
+  end
+
+  policy "FanOutDeliveries" do
+    on "Sent"
+    for_each "Recipients"
+    trigger Delivery::Queue
+  end
+end

@@ -106,7 +106,7 @@ module Hecks
         return nil unless where_holds?(policy, event)
         return depth_refusal(record) if @dispatcher.reaction_depth_reached?
 
-        args = trigger_args(policy, event)
+        args = trigger_args(policy, event, target)
         log_cross_domain(policy, target, args)
         @dispatcher.reenter(target, **reaction_invocation(target, args, policy, event))
         record.merge(delivered: true)

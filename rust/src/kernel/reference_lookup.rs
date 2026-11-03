@@ -24,7 +24,7 @@ pub trait ReferenceLookup {
     fn find_fielded(&self, target: &str, id: &str) -> Option<Box<dyn Fielded>>;
 }
 
-fn specs_for(table: ReferenceTable, target: &str) -> &'static [ReferenceSpec] {
+pub fn specs_for(table: ReferenceTable, target: &str) -> &'static [ReferenceSpec] {
     table
         .iter()
         .find(|(name, _)| *name == target)
