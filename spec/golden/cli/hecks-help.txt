@@ -37,6 +37,7 @@ commands:
     project_ci_pipeline!          Project the CiWorkflows rows into their workflow files, or with check only compare them
     project_lanes!                Project the Lane rows into the rulesets and the promotion workflow, or with live compare GitHub's rulesets
     project_tools_doc!            Write the launcher forms of docs/tools.md from the RetiredScript rows, or with check only compare them
+    project_glossary!             Write a bluebook's Ubiquitous Language glossary into its domain's glossary folder, or with check only compare it
     decide_ci_gate!               Say whether this run's change touches what a CiGate row guards, as the gated job's detector
   KernelRun:
     One projection of the Rust kernel's capability enums, or one measure of their coverage.
@@ -83,9 +84,9 @@ commands:
     One check of every started run's session: each change of state is recorded on its run.
     check_all!                    Check every run whose session was started and is not known to have ended (also: agent_run.check_all!)
   Dispatch:
-    One filling of the Work queue: the planned rows that start a session now, and why each other waits.
-    fill!                         Choose the planned Work rows that start a session now and, with confirm, start them; without it, say what would start
-    settle!                       Check the started sessions and finish the row of each that is done, or yield the row of one that stopped
+    One filling of the Work queue: the planned Work items that start a session now, and why each other waits.
+    fill!                         Choose the planned Work items that start a session now and, with confirm, start them; without it, say what would start
+    settle!                       Check the started sessions and finish the Work item of each that is done, or yield the Work item of one that stopped
   Revision:
     One commit made in a checkout, or declined with the reason: what it says and what it is on.
     make!                         Commit what is staged in a checkout under a message: never pushed, never amended, never onto main
@@ -187,9 +188,9 @@ commands:
     release!                      End a mint window: remove the QA quiet marker, which another owner's marker survives without force
   RedFlag:
     One request against main's red flag: raised, noted, checked in to, kicked, lowered, or refused.
-    check_in!                     Say who is helping with the red flag and what they take (a red-* Work row or a cause), so nobody fixes the same thing twice
+    check_in!                     Say who is helping with the red flag and what they take (a red-* Work item or a cause), so nobody fixes the same thing twice
     sync!                         Read main's newest CI run on GitHub and raise or lower the red flag to match it
-    kick!                         Revert the push batch since the last green head off main as a red-* fix, once the flag has stood past kick_after_minutes with no fix landed, and file the batch as a Work row to land again
+    kick!                         Revert the push batch since the last green head off main as a red-* fix, once the flag has stood past kick_after_minutes with no fix landed, and file the batch as a Work item to land again
   PushRehearsal:
     One dry run of the push against local main: green or red per stage, or refused when it could not run.
     rehearse!                     Run the push's stages against local main without pushing, and say pass or fail for each

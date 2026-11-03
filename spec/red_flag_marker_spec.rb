@@ -10,7 +10,7 @@ require "hecks/hecks/adapters/red_flag_report"
 RSpec.describe Hecks::Adapters::RedFlagMarker do
   let(:dir) { Dir.mktmpdir("hecks-red-flag-spec") }
   let(:marker) { described_class.new(dir, clock: -> { Time.utc(2026, 11, 2, 12, 0, 0) }) }
-  let(:run) { { ci_run: "99", jobs: "rspec, fuzz", rows: "red-a" } }
+  let(:run) { { ci_run: "99", jobs: "rspec, fuzz", work_items: "red-a" } }
 
   after { FileUtils.remove_entry(dir) }
 
@@ -44,12 +44,12 @@ RSpec.describe Hecks::Adapters::RedFlagMarker do
     expect(marker.read["last_green"]).to eq("0b49c62c2c")
   end
 
-  it "records the kick: the branch, the commits reverted and the row filed", :aggregate_failures do
+  it "records the kick: the branch, the commits reverted and the Work item filed", :aggregate_failures do
     marker.raise!(commit: "aaaaaaaaaaaa", run: run)
-    flag = marker.kicked!(branch: "red-kick-flag-aaaaaaaaaa", reverted: %w[a2 a1], row: "reland-flag-aaaaaaaaaa")
+    flag = marker.kicked!(branch: "red-kick-flag-aaaaaaaaaa", reverted: %w[a2 a1], work_item: "reland-flag-aaaaaaaaaa")
 
     expect(flag["kicked"]).to include("branch" => "red-kick-flag-aaaaaaaaaa", "reverted" => %w[a2 a1])
-    expect(marker.kicked!(branch: "x", reverted: [], row: "y")).to include("kicked")
+    expect(marker.kicked!(branch: "x", reverted: [], work_item: "y")).to include("kicked")
   end
 
   it "lists who checked in and what they take", :aggregate_failures do

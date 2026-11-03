@@ -15,7 +15,8 @@ module Hecks
 
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] `jobs_dir:` the directory of jobs, `agents:` a callable answering
-      #   the parsed `claude agents --json`, `runs:` a callable answering session id => `{row:}`,
+      #   the parsed `claude agents --json`, `runs:` a callable answering session id =>
+      #   `{work_item:}`,
       #   `now:` a callable answering the time
       # @param root [String, nil] unused
       def initialize(aggregate: nil, settings: {}, root: nil)
@@ -30,7 +31,7 @@ module Hecks
       def sessions = { text: JSON.generate(rows) }
 
       # @return [Array<Hash>] the sessions, each with `id`, `name`, `status`, `state`, `detail`,
-      #   `started`, `ended` and the `row` it was dispatched for
+      #   `started`, `ended` and the `work_item` it was dispatched for
       def rows
         agents = listed
         found = Dir.glob(File.join(@dir, "*", "state.json")).filter_map { |path| session(path, agents) }
@@ -61,7 +62,7 @@ module Hecks
         status = status_of(state, agent, age)
         { id: id, name: name_of(id, agent), status: status, state: state["state"].to_s,
           detail: state["detail"].to_s.slice(0, 140), started: stamp(agent, edges),
-          ended: %w[busy blocked].include?(status) ? nil : edges.last, row: @runs.call.dig(id, :row).to_s }
+          ended: %w[busy blocked].include?(status) ? nil : edges.last, work_item: @runs.call.dig(id, :work_item).to_s }
       end
 
       def name_of(id, agent) = (agent && agent["name"]) || id

@@ -11,7 +11,7 @@ module Hecks
     # repository sees the same flag and a spec's temporary repository never sees the owner's.
     #
     # The file holds the flag id, the main commit and CI run that raised it, the failed jobs, the
-    # red Work rows, every later red run, who checked in and what they took, and the tip of the
+    # red Work items, every later red run, who checked in and what they took, and the tip of the
     # last fix landed while the flag stood. Clearing removes the file.
     class RedFlagMarker
       # The marker's file name, in the common git directory.
@@ -37,7 +37,8 @@ module Hecks
       # records changes nothing, so the same CI result may be reported twice.
       #
       # @param commit [String] the main commit whose CI run was red
-      # @param run [Hash] `ci_run:`, `jobs:`, `rows:` of that run, and `last_green:` the newest
+      # @param run [Hash] `ci_run:`, `jobs:`, `work_items:` of that run, and `last_green:` the
+      #   newest
       #   commit of main whose run passed, when known
       # @return [Array(Symbol, Hash)] `:raised`, `:noted` or `:unchanged`, and the flag
       def raise!(commit:, run:)
@@ -53,18 +54,18 @@ module Hecks
       #
       # @param branch [String] the branch the revert landed from
       # @param reverted [Array<String>] the commits reverted, newest first
-      # @param row [String] the Work row filed to land the batch again
+      # @param work_item [String] the Work item filed to land the batch again
       # @return [Hash, nil] the flag, or nil when none stands
-      def kicked!(branch:, reverted:, row:)
+      def kicked!(branch:, reverted:, work_item:)
         flag = read
         return unless flag
 
-        flag["kicked"] = { "branch" => branch, "reverted" => reverted, "row" => row, "at" => stamp }
+        flag["kicked"] = { "branch" => branch, "reverted" => reverted, "work_item" => work_item, "at" => stamp }
         write(flag)
       end
 
       # @param session [String] who checks in
-      # @param taking [String] the Work row or cause they take
+      # @param taking [String] the Work item or cause they take
       # @return [Hash, nil] the flag after the check-in, or nil when none stands
       def check_in!(session:, taking:)
         flag = read
@@ -74,7 +75,7 @@ module Hecks
         write(flag)
       end
 
-      # Records the main tip a red-row fix landed at, so the train may board it.
+      # Records the main tip a red Work item's fix landed at, so the train may board it.
       #
       # @param tip [String] the commit main points at after the fix landed
       # @param branch [String] the fix's branch
@@ -105,7 +106,8 @@ module Hecks
       end
 
       def sighting(commit, run)
-        { "commit" => commit, "ci_run" => run[:ci_run].to_s, "jobs" => run[:jobs].to_s, "rows" => run[:rows].to_s, "at" => stamp }
+        { "commit" => commit, "ci_run" => run[:ci_run].to_s, "jobs" => run[:jobs].to_s,
+          "work_items" => run[:work_items].to_s, "at" => stamp }
       end
 
       # Whether the flag already records this CI run; a run with no id is always new.

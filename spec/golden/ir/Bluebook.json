@@ -36460,7 +36460,7 @@
               ],
               [
                 "meaning",
-                "Whether each `hecks quality_control sweep.tick` checks once whether a push of local main is due and files, revises or finishes the one `push-due` Work row; false skips the check. The thresholds are the QualityControl world's `push_nudge` setting."
+                "Whether each `hecks quality_control sweep.tick` checks once whether a push of local main is due and files, revises or finishes the one `push-due` Work item; false skips the check. The thresholds are the QualityControl world's `push_nudge` setting."
               ]
             ],
             [
@@ -38908,6 +38908,75 @@
             ]
           ],
           "name": "RetiredScript"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "term",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "aggregate",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "meaning",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "never",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "term",
+                "work item"
+              ],
+              [
+                "aggregate",
+                "Work"
+              ],
+              [
+                "meaning",
+                "One planned, started or done piece of Work, keyed by its id: what the Tickets bluebook's Work aggregate holds, what a brief is composed for, what a branch is cut for and what a landing finishes."
+              ],
+              [
+                "never",
+                "row"
+              ]
+            ]
+          ],
+          "name": "Term"
         },
         {
           "attributes": [

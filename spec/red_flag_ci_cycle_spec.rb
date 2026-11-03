@@ -9,7 +9,7 @@ require "hecks/hecks/adapters/red_flagging"
 require "hecks/runtime/event_tap"
 
 # Main's red flag over one CI cycle, with GitHub's own records (the jobs of CI run 41540218609 and
-# the run rows of 2026-11-02): the red run raises it, a landing that is not a red row's fix is
+# the run rows of 2026-11-02): the red run raises it, a landing that is not a red Work item's fix is
 # refused by name, the fix lands and records its tip, the same red run reported again changes
 # nothing, the green run lowers it and landing resumes. Every session hears it: two readers of the
 # event tap see the same events with the flag, commit, run and jobs, and the owner's desktop is
@@ -144,7 +144,7 @@ RSpec.describe "the red flag over a real CI cycle" do
     expect(payload(events("RedFlagRaised").last).dig(:jobs, :value)).to include("rspec_impl / rspec_shard (1)")
   end
 
-  it "refuses a landing that is not a red row's fix, naming the flag", :aggregate_failures do
+  it "refuses a landing that is not a red Work item's fix, naming the flag", :aggregate_failures do
     sync
     before = git("rev-parse", "main")
 
@@ -152,7 +152,7 @@ RSpec.describe "the red flag over a real CI cycle" do
     expect(refusal("MergeRefused")).to include("main is red: flag flag-2dc207c705")
   end
 
-  it "lands the fix of a red row while the flag stands and records its tip for the train", :aggregate_failures do
+  it "lands the fix of a red Work item while the flag stands and records its tip for the train", :aggregate_failures do
     sync
     tip = land("red-ci-rspec-shards")
 
@@ -230,7 +230,7 @@ RSpec.describe "the red flag over a real CI cycle" do
     [green_head, bad]
   end
 
-  it "kicks the push batch off main as a red row's fix", :aggregate_failures do
+  it "kicks the push batch off main as a red Work item's fix", :aggregate_failures do
     green_head, bad = kick_batch
 
     expect(git("rev-parse", "main^{tree}")).to eq(git("rev-parse", "#{green_head}^{tree}"))
@@ -238,11 +238,11 @@ RSpec.describe "the red flag over a real CI cycle" do
     expect(flag["kicked"]).to include("reverted" => [bad])
   end
 
-  it "files the kicked batch as a Work row to land again, and says so in the event", :aggregate_failures do
+  it "files the kicked batch as a Work item to land again, and says so in the event", :aggregate_failures do
     _green_head, bad = kick_batch
 
-    expect(flag["kicked"]).to include("row" => "reland-flag-#{bad[0, 10]}")
-    expect(payload(events("RedFlagKicked").last).dig(:rows, :value)).to eq("reland-flag-#{bad[0, 10]}")
+    expect(flag["kicked"]).to include("work_item" => "reland-flag-#{bad[0, 10]}")
+    expect(payload(events("RedFlagKicked").last).dig(:work_items, :value)).to eq("reland-flag-#{bad[0, 10]}")
     expect(payload(events("WorkPlanned").last).dig(:work, :value)).to eq("reland-flag-#{bad[0, 10]}")
   end
 end

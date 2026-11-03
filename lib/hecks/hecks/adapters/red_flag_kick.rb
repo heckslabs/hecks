@@ -12,8 +12,9 @@ module Hecks
   module Adapters
     # Kicks the red push batch off main for a fixer: every first-parent commit since the last
     # green head of main is reverted, newest first, on a branch named for the flag
-    # (`red-kick-<flag>`, a red row's fix, so Landing takes it while the flag stands), the branch
-    # lands on local main, and a Work row (`reland-<flag>`) is filed with the commits for their
+    # (`red-kick-<flag>`, a red Work item's fix, so Landing takes it while the flag stands), the
+    # branch
+    # lands on local main, and a Work item (`reland-<flag>`) is filed with the commits for their
     # owner to land again once fixed. The push train boards the landed tip as the flag's fix, and
     # the green run that follows lowers the flag. Nothing is force-pushed: the revert is a new
     # commit.
@@ -25,19 +26,20 @@ module Hecks
       # The lead of the revert branch's name.
       BRANCH = "red-kick-"
 
-      # The lead of the Work row filed for the owner of the kicked batch.
-      ROW = "reland-"
+      # The lead of the Work item filed for the owner of the kicked batch.
+      WORK_ITEM = "reland-"
 
       # How long a flag stands before a kick, when the world says nothing.
       DEFAULT_MINUTES = 60
 
       # @param marker [RedFlagMarker] the repository's flag
       # @param checkout [String] a directory in the repository
-      # @param registry [Runtime::Registry, nil] the booted registry the landing and the row go
+      # @param registry [Runtime::Registry, nil] the booted registry the landing and the Work item
+      #   go
       #   through
       # @param tune [Hash] `clock:`, `runner:` (reads GitHub), `kick_after:` (minutes), `lander:`
       #   (takes the branch and its worktree) and `filer:` (takes the flag, the batch and the
-      #   branch, answers the row) replace the defaults, for a spec
+      #   branch, answers the Work item) replace the defaults, for a spec
       def initialize(marker, checkout, registry: nil, **tune)
         @marker = marker
         @checkout = checkout
@@ -48,7 +50,7 @@ module Hecks
 
       # @param force [Boolean] kick before the time is up
       # @return [Hash{Symbol => Object}] `flag:` after the kick, `reverted:` the commits newest
-      #   first, `branch:` and `row:`
+      #   first, `branch:` and `work_item:`
       # @raise [ConsoleCapture::Failure] on any refusal the class describes
       def run(force: false)
         flag = standing(force)
@@ -56,9 +58,10 @@ module Hecks
         branch = "#{BRANCH}#{flag["id"]}"
         tree = reverter.revert(branch, batch)
         lander.call(branch, tree)
-        row = filer.call(flag, batch, branch)
+        work_item = filer.call(flag, batch, branch)
         reverter.tidy(branch, tree)
-        { flag: @marker.kicked!(branch: branch, reverted: batch, row: row), reverted: batch, branch: branch, row: row }
+        flag = @marker.kicked!(branch: branch, reverted: batch, work_item: work_item)
+        { flag: flag, reverted: batch, branch: branch, work_item: work_item }
       end
 
       private
@@ -115,13 +118,14 @@ module Hecks
 
       def filer
         @tune[:filer] || lambda do |flag, batch, branch|
-          row = "#{ROW}#{flag["id"]}"
-          top_level("Tickets::Work.Plan", work: row, title: title(flag), detail: detail(flag, batch, branch))
-          row
+          work_item = "#{WORK_ITEM}#{flag["id"]}"
+          top_level("Tickets::Work.Plan", work: work_item, title: title(flag), detail: detail(flag, batch, branch))
+          work_item
         end
       end
 
-      # The landing and the row are dispatches of their own, as an operator would make them, not
+      # The landing and the Work item are dispatches of their own, as an operator would make them,
+      # not
       # reactions of the kick: each starts its own reaction chain, so the depth the kick's ask
       # reached does not count against the landing's.
       def top_level(verb, **args)

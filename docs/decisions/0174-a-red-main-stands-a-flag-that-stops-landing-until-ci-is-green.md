@@ -4,7 +4,7 @@
 
 ## Context
 
-"While main CI is red, only a push that fixes a red-* Work row goes out" was a sentence in the briefs and
+"While main CI is red, only a push that fixes a red-* Work item goes out" was a sentence in the briefs and
 in CLAUDE.md. Nothing enforced it, and no session heard that main had gone red. On 2026-11-02 main stood
 red from 20:31Z to 23:12Z across eleven pushes, each landing on top of the last failure, while every
 session fixed forward on a red main.
@@ -14,9 +14,9 @@ session fixed forward on a red main.
 1. **`RedFlag` is a bluebook** (`lib/hecks/hecks/redflag/redflag.bluebook`, ports in `hecks.hecksagon`), the
    flag itself a marker file in the repository's common git directory (`hecks-red-flag.json`), so every
    worktree sees it and a spec's temporary repository never sees the owner's.
-2. **Events:** `RedFlagRaised` (flag id, main commit, CI run, failed jobs, red rows), `RedFlagRunNoted` (a
+2. **Events:** `RedFlagRaised` (flag id, main commit, CI run, failed jobs, red Work items), `RedFlagRunNoted` (a
    second red run while flagged is recorded on the flag, not a new one), `RedFlagCheckedIn` (session, what
-   it takes), `RedFlagKicked` (the commits reverted and the Work row filed) and `RedFlagCleared`. A CI
+   it takes), `RedFlagKicked` (the commits reverted and the Work item filed) and `RedFlagCleared`. A CI
    observation that ends red or green raises or lowers it (`Integration.ObserveAnswered`), and
    `RedFlag.sync!` does the same from GitHub's newest run of main. A run is recorded on the flag once: the
    same CI result reported twice, by the saga and by the board, or by two boards, answers `RedFlagUnchanged`.
@@ -31,7 +31,7 @@ session fixed forward on a red main.
    answered cursor as `since.value`. `Coder::Brief` restraints tell every session to stop feature work on
    `RedFlagRaised`, check in with `exe/hecks RedFlag.check_in!`, and resume on `RedFlagCleared`.
 4. **Stopping:** `GitLanding` refuses a landing on main, and `GitTrain` a boarding, with `main is red: flag
-   <id>`, except a branch named for a `red-*` row (a `qa/` lead is ignored). That fix's landing records its
+   <id>`, except a branch named for a `red-*` Work item (a `qa/` lead is ignored). That fix's landing records its
    tip on the flag, and the train boards only that tip. Lowering the flag releases both. The train's own
    copy (`~/.claude/hecks-train`) is brought to `origin/main` before each boarding the integration saga
    makes (`MainIntegration::Train#refresh`), so it carries the guard.
@@ -49,7 +49,7 @@ session fixed forward on a red main.
 8. **A flag that stands too long kicks the batch off main.** `RedFlag.kick!` (after the world's
    `kick_after_minutes`, or at once with `force.value=true`) reverts every first-parent commit since the
    last green head of main, newest first, on a branch `red-kick-<flag>`, lands it on local main as a red
-   row's fix, files a Work row `reland-<flag>` naming the commits for their owner to land again once fixed,
+   Work item's fix, files a Work item `reland-<flag>` naming the commits for their owner to land again once fixed,
    and records the kick on the flag; the train boards the landed tip and the green run that follows lowers
    the flag. The unit is the push batch, because CI runs once per push and a push carries several landings;
    a bisect inside the batch costs a CI run per step. A revert beats fixing forward here because the red
@@ -60,7 +60,7 @@ session fixed forward on a red main.
 ## Consequences
 
 The flag is local to a repository checkout family; a clone elsewhere learns of it through `RedFlag.sync!`.
-The red Work rows an event carries are those a caller supplies (`rows`); the CI bridge supplies none.
+The red Work items an event carries are those a caller supplies (`work_items`); the CI bridge supplies none.
 Specs never write the owner's tap or the checkout's flag (`spec/support/live_state_guard.rb`): the Memory
 overlay declares no tap, a spec that wants one points a tap at its own file, and every spec builds its
 own repository.

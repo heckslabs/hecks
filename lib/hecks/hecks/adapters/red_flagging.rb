@@ -38,29 +38,31 @@ module Hecks
       # Raises the flag for a red run, or notes the run on the flag that stands. A run the flag
       # already records is answered `idle`, so the same CI result may be reported twice.
       #
-      # @param held [Hash] the `RedFlag` record: `commit`, `detail`, `rows`, `checkout`
+      # @param held [Hash] the `RedFlag` record: `commit`, `detail`, `work_items`, `checkout`
       # @return [Hash{Symbol => Hash}] `outcome:` (`raised`, `noted` or `idle`) and the flag's facts
       def hoist(**held)
         detail = pick(held, :detail, :report).to_s
-        facts = { ci_run: detail[RUN_ID, 1], jobs: detail[JOBS, 1], rows: plain(held[:rows]), last_green: held[:last_green] }
+        facts = { ci_run: detail[RUN_ID, 1], jobs: detail[JOBS, 1], work_items: plain(held[:work_items]),
+                  last_green: held[:last_green] }
         state, flag = marker(held).raise!(commit: pick(held, :commit, :landed).to_s, run: facts)
         return unchanged("run #{facts[:ci_run]} is already recorded on #{flag["id"]}") if state == :unchanged
 
         answer(state.to_s, flag, facts)
       end
 
-      # Reverts the push batch since the last green head off main, as a red row's fix, once the
+      # Reverts the push batch since the last green head off main, as a red Work item's fix, once
+      # the
       # flag has stood past the world's `kick_after_minutes` with no fix landed.
       #
       # @param held [Hash] the `RedFlag` record: `checkout` and `force` (kick before the time is up)
       # @return [Hash{Symbol => Hash}] `outcome:` (`kicked`), the flag's facts, `detail:` the
-      #   reverted commits and `rows:` the Work row filed to land them again
+      #   reverted commits and `work_items:` the Work item filed to land them again
       # @raise [ConsoleCapture::Failure] when no flag stands, a fix is landed, the time is not up,
       #   the batch cannot be told, or a revert conflicts
       def evict(**held)
         kick = RedFlagKick.new(marker(held), checkout(held), registry: @registry, **@tune, runner: runner)
         kicked = kick.run(force: plain(held[:force]) == true)
-        answer("kicked", kicked[:flag], detail: kicked[:reverted].join(", "), rows: kicked[:row])
+        answer("kicked", kicked[:flag], detail: kicked[:reverted].join(", "), work_items: kicked[:work_item])
       end
 
       # @param held [Hash] the `RedFlag` record: `session`, `taking`, `checkout`
@@ -105,9 +107,9 @@ module Hecks
 
       def answer(outcome, flag, facts)
         { outcome: { value: outcome }, flag: { value: flag["id"] }, commit: { value: flag["commit"].to_s },
-          ci_run: { value: facts[:ci_run].to_s }, jobs: { value: facts[:jobs].to_s }, rows: { value: facts[:rows].to_s },
-          session: { value: facts[:session].to_s }, taking: { value: facts[:taking].to_s },
-          detail: { value: facts[:detail].to_s } }
+          ci_run: { value: facts[:ci_run].to_s }, jobs: { value: facts[:jobs].to_s },
+          work_items: { value: facts[:work_items].to_s }, session: { value: facts[:session].to_s },
+          taking: { value: facts[:taking].to_s }, detail: { value: facts[:detail].to_s } }
       end
 
       def unchanged(why) = { outcome: { value: "idle" }, output: { value: why.to_s } }

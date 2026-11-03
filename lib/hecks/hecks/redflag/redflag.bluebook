@@ -17,7 +17,7 @@ Hecks.bluebook "Hecks" do
       attribute :run,      RunKey
       attribute :commit,   Word,   optional: true
       attribute :detail,   Report, optional: true
-      attribute :rows,     Report, optional: true
+      attribute :work_items, Report, optional: true
       attribute :session,  Word,   optional: true
       attribute :taking,   Word,   optional: true
       attribute :checkout, Word,   optional: true
@@ -68,7 +68,7 @@ Hecks.bluebook "Hecks" do
         attribute :run,      RunKey, sets: true
         attribute :commit,   Word, sets: true
         attribute :detail,   Report, optional: true, sets: true
-        attribute :rows,     Report, optional: true, sets: true
+        attribute :work_items, Report, optional: true, sets: true
         attribute :checkout, Word, optional: true, sets: true
 
         emits RaiseRequested
@@ -76,7 +76,7 @@ Hecks.bluebook "Hecks" do
 
       command "CheckIn" do
         role "Operator"
-        goal "Say who is helping with the red flag and what they take (a red-* Work row or a cause), so nobody fixes the same thing twice"
+        goal "Say who is helping with the red flag and what they take (a red-* Work item or a cause), so nobody fixes the same thing twice"
 
         attribute :run,      RunKey, sets: true
         attribute :session,  Word, sets: true
@@ -109,7 +109,7 @@ Hecks.bluebook "Hecks" do
 
       command "Kick" do
         role "Operator"
-        goal "Revert the push batch since the last green head off main as a red-* fix, once the flag has stood past kick_after_minutes with no fix landed, and file the batch as a Work row to land again"
+        goal "Revert the push batch since the last green head off main as a red-* fix, once the flag has stood past kick_after_minutes with no fix landed, and file the batch as a Work item to land again"
 
         attribute :run,      RunKey, sets: true
         attribute :checkout, Word, optional: true, sets: true
@@ -120,14 +120,14 @@ Hecks.bluebook "Hecks" do
 
       command "Record" do
         role "System"
-        goal "Record that the red flag was raised, with the main commit, CI run, failed jobs and red Work rows"
+        goal "Record that the red flag was raised, with the main commit, CI run, failed jobs and red Work items"
 
         reference_to RedFlag
         attribute :flag,   Word, sets: true
         attribute :commit, Word, sets: true
         attribute :ci_run, Report, optional: true, sets: true
         attribute :jobs,   Report, optional: true, sets: true
-        attribute :rows,   Report, optional: true, sets: true
+        attribute :work_items, Report, optional: true, sets: true
 
         emits RedFlagRaised
       end
@@ -170,13 +170,13 @@ Hecks.bluebook "Hecks" do
 
       command "Eject" do
         role "System"
-        goal "Record that the red push batch was reverted off main, naming the commits reverted and the Work row filed to land them again"
+        goal "Record that the red push batch was reverted off main, naming the commits reverted and the Work item filed to land them again"
 
         reference_to RedFlag
         attribute :flag,   Word, sets: true
         attribute :commit, Word, sets: true
         attribute :detail, Report, optional: true, sets: true
-        attribute :rows,   Report, optional: true, sets: true
+        attribute :work_items, Report, optional: true, sets: true
 
         emits RedFlagKicked
       end
@@ -231,7 +231,7 @@ Hecks.bluebook "Hecks" do
     policy "RecordTheRaisedFlag" do
       on      "RedFlag.FlagAnswered"
       where   { outcome.value == "raised" }
-      trigger RedFlag::Record, with: { flag: :flag, commit: :commit, ci_run: :ci_run, jobs: :jobs, rows: :rows }
+      trigger RedFlag::Record, with: { flag: :flag, commit: :commit, ci_run: :ci_run, jobs: :jobs, work_items: :work_items }
     end
 
     policy "RecordTheNotedRun" do
@@ -271,7 +271,7 @@ Hecks.bluebook "Hecks" do
     policy "RecordTheKick" do
       on      "RedFlag.FlagAnswered"
       where   { outcome.value == "kicked" }
-      trigger RedFlag::Eject, with: { flag: :flag, commit: :commit, detail: :detail, rows: :rows }
+      trigger RedFlag::Eject, with: { flag: :flag, commit: :commit, detail: :detail, work_items: :work_items }
     end
 
     # The owner hears the flag go up and come down on the desktop. The alert is asked beside the

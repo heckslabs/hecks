@@ -7,7 +7,8 @@ require "hecks/hecks/adapters/red_flag_marker"
 
 # A flag that has stood too long with no fix landed kicks the push batch off main: every
 # first-parent commit since the last green head is reverted, newest first, on a red-kick branch
-# that lands as a red row's fix, and the batch is filed as a Work row to land again. Every example
+# that lands as a red Work item's fix, and the batch is filed as a Work item to land again. Every
+# example
 # builds its own repository; the landing and the filing are stand-ins that record what they were
 # handed.
 RSpec.describe Hecks::Adapters::RedFlagKick do
@@ -68,13 +69,13 @@ RSpec.describe Hecks::Adapters::RedFlagKick do
     expect(tree_of(landed.first.last)).to eq(tree_of(@green))
   end
 
-  it "lands the branch as a red row's fix and files the batch as a Work row", :aggregate_failures do
+  it "lands the branch as a red Work item's fix and files the batch as a Work item", :aggregate_failures do
     raise_flag
     kicked = kick
 
     expect(landed.first.first).to eq("red-kick-#{marker.read["id"]}")
     expect(filed).to eq([[@merge, @bad]])
-    expect(marker.read["kicked"]).to include("row" => kicked[:row], "reverted" => [@merge, @bad])
+    expect(marker.read["kicked"]).to include("work_item" => kicked[:work_item], "reverted" => [@merge, @bad])
   end
 
   it "leaves main where it was: the revert is the fixer's to land" do
