@@ -43,6 +43,13 @@ commands:
     One projection of the Rust kernel's capability enums, or one measure of their coverage.
     project_kernel_capabilities!  Project the capability enums the hand-written Rust kernel is matched against
     measure_kernel_coverage!      Check that every capability the grammar admits has its hand-written kernel file
+  Candidate:
+    One request against the candidate gate: the candidate observed, promoted, rejected, or the gate switched; or refused.
+    observe!                      Read the candidate on GitHub: promoted onto main, green and awaiting promotion, red with the failed jobs, or still running
+    promote!                      Fast-forward the remote's main onto the green candidate from here, never forcing, when the candidate workflow did not
+    reject!                       Clear a red candidate: keep its commits on rejected/<sha>, reset local main to the remote's, file one red-<cause> Work item per failing cause and name the coders it carried
+    enable!                       Turn the candidate gate on for this repository: from now on the push train queues a candidate and main moves only by promotion
+    disable!                      Turn the candidate gate off for this repository: the push train pushes main as before
   GateRun:
     One run of a stage's checks: every check of the stage, or the ones named.
     gate!                         Run every check of a stage, or the ones named, and keep whether the gate is green
@@ -253,6 +260,9 @@ queries (nothing here changes anything):
     ir_constructs           The structural diff of each IR construct from its meta-domain.
     ir_duplicates           The rules declared more than once across the corpus.
     ir_impact               Which propagation touchpoints of a construct's field already show it.
+  Candidate:
+    One request against the candidate gate: the candidate observed, promoted, rejected, or the gate switched; or refused.
+    status                  Whether the gate is on, and the candidate: its sha, base, commits, state and CI run.
   StyleRun:
     One check or fix of comment style, or one document written with its keys in order.
     report_comments         The Ruby comment violations, as summary tables, a list or JSON.
@@ -363,6 +373,6 @@ bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
   expression       The subset of regular Ruby a predicate is allowed to be — small enough that every target can…
 
   hecks <command> --help       what one command wants, and every way it refuses
-  hecks --all                  also list the 279 internal commands and queries
+  hecks --all                  also list the 291 internal commands and queries
   a command is called with its aggregate — Build.project_rust!
   exit status: 0 answered, 1 refused or failed, 2 a line it could not read
