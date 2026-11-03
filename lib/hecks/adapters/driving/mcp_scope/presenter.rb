@@ -63,7 +63,7 @@ module Hecks
 
           # What a reader server says about itself when it starts.
           def reader_notes(domains)
-            ["Reader mode (#{TOOLS_VARIABLE}=#{READERS}): serves #{READER_TOOLS.join(", ")}; " \
+            ["Reader mode (#{TOOLS_VARIABLE}=#{READERS}): serves #{McpScope::READER_TOOLS.join(", ")}; " \
              "refuses dispatch (with dry_run and steps), behaviors and every other tool.",
              "domain: boots only #{DOMAINS_VARIABLE}: #{domains.join(", ")}.",
              "Reader mode limits reach and identifies no one; it is not authentication."]
@@ -71,7 +71,7 @@ module Hecks
 
           # What a commands server says about itself when it starts.
           def commands_notes(domains, commands)
-            ["Commands mode (#{TOOLS_VARIABLE}=#{COMMANDS}): serves #{READER_TOOLS.join(", ")} and dispatch of only " \
+            ["Commands mode (#{TOOLS_VARIABLE}=#{COMMANDS}): serves #{McpScope::READER_TOOLS.join(", ")} and dispatch of only " \
              "#{COMMANDS_VARIABLE}: #{commands.join(", ")}; refuses behaviors and every other tool.",
              "domain: boots only #{DOMAINS_VARIABLE}: #{domains.join(", ")}.",
              "Commands mode limits reach and identifies no one; role: stays self-asserted and it is not authentication."]

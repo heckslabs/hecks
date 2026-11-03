@@ -16,36 +16,12 @@ module Hecks
         MODES              = [READERS, COMMANDS].freeze
         EXIT_STATUS        = 2
 
-        # The tools a reader server serves — each reads a domain or the server's own
-        # audit log and writes no domain state. `validate` still boots its
-        # domain, so it stays bound to the allowed set like every other tool.
-        READER_TOOLS = %w[query events state catalog describe validate domains history follow].freeze
-
-        # The tools a commands server serves: the reader tools, and `dispatch` for the allowed
-        # commands.
-        COMMAND_TOOLS = (READER_TOOLS + %w[dispatch]).freeze
-
-        # Argument names a restricted server never passes on, whatever command carries them: each
-        # one
-        # names a host or a URL, a binary to run, what a spawned session is told to do, a place to
-        # write, a port to open, a store to switch to, or flips a command from a preview to a
-        # change of state.
-        DENIED_ARGUMENTS = %w[
-          adapter artifact bluebook brief claimed confirm expected force from gem_only header health_path host live
-          no_wait npm_local npm_only output path payload payload_file port prebuilt remote row rust_binary
-          scheme stage_dir state_path stdio url write
-        ].freeze
-
-        # Argument names whose values are paths (a comma-separated list for some). A restricted
-        # server
-        # passes them on only when each resolves, symlinks followed, inside `Storehouse::BOOT_ROOT`,
-        # and holds no colon: `host:repo` and `https://host/x` would otherwise pass as relative
-        # paths.
-        PATH_ARGUMENTS = %w[checkout dir directory domain domains file files fixture paths repo root script].freeze
-
-        # Argument names whose values are git refs: plain names only, so a value cannot read as an
-        # option to git.
-        REF_ARGUMENTS = %w[base branch commit onto ref].freeze
+        # `READER_TOOLS`, `COMMAND_TOOLS`, `DENIED_ARGUMENTS`, `PATH_ARGUMENTS` and `REF_ARGUMENTS`
+        # are declared by Governance and read on first use; see {Declared}.
+        def self.const_missing(name)
+          declared = Declared.list(name)
+          declared ? const_set(name, declared) : super
+        end
 
         # What a plain git ref looks like: no leading dash, no `..`, no spaces.
         PLAIN_REF = %r{\A[A-Za-z0-9][A-Za-z0-9._/~^@-]*\z}
@@ -210,6 +186,7 @@ module Hecks
   end
 end
 
+require_relative "mcp_scope/declared"
 require_relative "mcp_scope/env_problems"
 require_relative "mcp_scope/argument_policy"
 require_relative "mcp_scope/presenter"

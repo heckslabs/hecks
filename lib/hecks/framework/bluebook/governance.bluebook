@@ -152,4 +152,122 @@ Hecks.bluebook "Governance" do
       where(from_role: :from_role, to_role: :to_role, ends_at: nil)
     end
   end
+
+  # What a storehouse call must carry before it reads anything. `Hecks::Storehouse` reads the two
+  # closed lists from here and its refusals name them; it holds no copy.
+  aggregate "Call" do
+    description "One dispatch, query or state call to a storehouse: what it is for, where it came from, and who makes it."
+
+    attribute :summary,    Summary
+    attribute :source,     Source, optional: true
+    attribute :surface,    Surface, optional: true
+    attribute :role_name,  RoleName, optional: true
+    attribute :actor_id,   IdentityId, optional: true
+    attribute :role_gated, Gated
+
+    identified_by :summary
+
+    # One line that makes an audit row legible later.
+    value_object "Summary" do
+      attribute :value, String, matches: :present
+    end
+
+    # Who is calling, when the caller says.
+    value_object "Source" do
+      attribute :value, String, one_of: ["process-manager", "operator", "hook", "sidequest-agent", "cascade", "daemon"]
+    end
+
+    # What made the call: a person at a shell, an agent over MCP, or the domain itself.
+    value_object "Surface" do
+      attribute :value, String, one_of: ["cli", "mcp", "policy", "saga", "reaction"]
+    end
+
+    value_object "RoleName" do
+      attribute :value, String
+    end
+
+    value_object "IdentityId" do
+      attribute :value, String
+    end
+
+    # Whether the command asked for names a role that may run it.
+    value_object "Gated" do
+      attribute :value, String, one_of: ["yes", "no"]
+    end
+
+    command "Admit" do
+      role "System"
+      goal "Admit a call to a storehouse only when it says what it is for and, where a role is asked, who makes it"
+
+      attribute :summary,    Summary
+      attribute :source,     Source, optional: true
+      attribute :surface,    Surface, optional: true
+      attribute :role_name,  RoleName, optional: true
+      attribute :actor_id,   IdentityId, optional: true
+      attribute :role_gated, Gated
+
+      given("an actor names the role it holds") { actor_id.nil? || !role_name.nil? }
+      given("a role-gated command has a caller bound") { role_gated.value != "yes" || !role_name.nil? }
+
+      emits CallAdmitted
+    end
+  end
+
+  # What a spawned MCP server may serve and pass on: only reader tools (and `dispatch` in commands
+  # mode), and never an argument that names a host, a URL, a binary, a place to write or a switch
+  # from preview to change. `Hecks::Adapters::Driving::McpScope` reads these lists from here.
+  aggregate "Door" do
+    description "The reach of one restricted MCP server: the tools it serves and the argument names it never passes on."
+
+    attribute :tool,     ReaderTool
+    attribute :dispatch, DispatchTool, optional: true
+    attribute :denied,   DeniedArgument, optional: true
+    attribute :path,     PathArgument, optional: true
+    attribute :ref,      RefArgument, optional: true
+
+    identified_by :tool
+
+    # Each reads a domain or the server's own audit log and writes no domain state.
+    value_object "ReaderTool" do
+      attribute :value, String, one_of: %w[query events state catalog describe validate domains history follow]
+    end
+
+    # Served in commands mode only, for a closed list of commands.
+    value_object "DispatchTool" do
+      attribute :value, String, one_of: ["dispatch"]
+    end
+
+    # Names a host or a URL, a binary to run, what a spawned session is told to do, a place to
+    # write, a port to open, a store to switch to, or flips a command from a preview to a change.
+    value_object "DeniedArgument" do
+      attribute :value, String, one_of: %w[
+        adapter artifact bluebook brief claimed confirm expected force from gem_only header health_path host live
+        no_wait npm_local npm_only output path payload payload_file port prebuilt remote row rust_binary
+        scheme stage_dir state_path stdio url write
+      ]
+    end
+
+    # Values are paths: each must resolve, symlinks followed, inside the boot root.
+    value_object "PathArgument" do
+      attribute :value, String, one_of: %w[checkout dir directory domain domains file files fixture paths repo root script]
+    end
+
+    # Values are git refs: plain names only, so a value cannot read as an option to git.
+    value_object "RefArgument" do
+      attribute :value, String, one_of: %w[base branch commit onto ref]
+    end
+
+    command "Serve" do
+      role "System"
+      goal "Serve a reader tool on a restricted MCP server"
+
+      attribute :tool,     ReaderTool
+      attribute :dispatch, DispatchTool, optional: true
+      attribute :denied,   DeniedArgument, optional: true
+      attribute :path,     PathArgument, optional: true
+      attribute :ref,      RefArgument, optional: true
+
+      emits ToolServed
+    end
+  end
 end

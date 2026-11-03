@@ -43,11 +43,11 @@ module Hecks
             return if window?(name, read_question)
             return admit_path!(name, value, label) if name == "path" && read_question
 
-            if DENIED_ARGUMENTS.include?(name)
+            if McpScope::DENIED_ARGUMENTS.include?(name)
               refuse!(name, label, "never passes it on: it names a host, a binary, an output or a change of state")
             end
-            admit_path!(name, value, label) if PATH_ARGUMENTS.include?(name)
-            admit_ref!(name, value, label) if REF_ARGUMENTS.include?(name)
+            admit_path!(name, value, label) if McpScope::PATH_ARGUMENTS.include?(name)
+            admit_ref!(name, value, label) if McpScope::REF_ARGUMENTS.include?(name)
           end
 
           # Yields every argument name with its value, descending into nested objects and lists, so
