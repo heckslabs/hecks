@@ -3,7 +3,7 @@ require_relative "../errors"
 module Hecks
   module Runtime
     module Outbox
-      # Runs the consumer a row names: the policy or process manager that owes the reaction.
+      # Runs the consumer a row names: the policy or saga that owes the reaction.
       # Mixed into {Relay}, which holds the registry and the interpreters it attached.
       module ConsumerRunner
         private

@@ -54,7 +54,7 @@ RSpec.describe "reaction invocation routing" do
     end
   end
 
-  # What the settlement fixture's Carry process manager hands the dispatcher for WireAsked.
+  # What the settlement fixture's Carry saga hands the dispatcher for WireAsked.
   REACTION_WIRE_TAKE_CALLS = [
     [
       "Wire::Drawer.Take",
@@ -89,7 +89,7 @@ RSpec.describe "reaction invocation routing" do
     )
   end
 
-  # Locates the Carry process manager's WireAsked handler and drives deliver_saga_dispatch
+  # Locates the Carry saga's WireAsked handler and drives deliver_saga_dispatch
   # directly; answers the calls the dispatcher received.
   def carry_calls(registry)
     process_manager = registry.bluebook("Wire").process_managers.find { |candidate| candidate.name == "Carry" }
@@ -139,7 +139,7 @@ RSpec.describe "reaction invocation routing" do
   # Loads a real fixture bluebook and proves one end-to-end routing claim (correlation
   # passthrough kept separate from declared facts) against a real dispatch shape, not a
   # hand-rolled stand-in.
-  it "separates a process manager's receiver and correlation passthrough from its declared facts" do
+  it "separates a saga's receiver and correlation passthrough from its declared facts" do
     expect(carry_calls(settlement_registry)).to eq(REACTION_WIRE_TAKE_CALLS)
   end
 end

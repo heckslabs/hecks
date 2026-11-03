@@ -1,11 +1,11 @@
 module Hecks
   module Bluebook
     module ModelCheck
-      # The checks over a process manager read as a protocol: triggers nothing emits, states no
+      # The checks over a saga read as a protocol: triggers nothing emits, states no
       # handler chain reaches, handlers that dispatch nothing real, and compensations that can
       # never fire.
       module SagaChecks
-        # Runs every saga-shaped check for one process manager.
+        # Runs every saga-shaped check for one saga.
         def saga_findings(bluebook, process_manager)
           emitted = emitted_events(bluebook)
           # Parsed as (domain, aggregate, command) triples via Naming.split_verb, not
@@ -83,7 +83,7 @@ module Hecks
         end
 
         # No handler anywhere answers `REFUSED` means SagaInterpreter#unwind never
-        # runs for this process manager, so a declared compensates is structurally
+        # runs for this saga, so a declared compensates is structurally
         # unreachable — a dead declaration, not a style warning.
         def unarmed_compensation_findings(process_manager, handler)
           return [] if process_manager.saga?

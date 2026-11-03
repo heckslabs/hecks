@@ -48,7 +48,7 @@ RSpec.describe "the language uses everything the core grammar declares" do
       end
     },
     "policy"                 => -> { SELF_USE_LANGUAGE.aggregates.sum { |a| a.policies.size } + SELF_USE_LANGUAGE.policies.size },
-    "process_manager"        => -> { SELF_USE_LANGUAGE.process_managers.size },
+    "saga"                   => -> { SELF_USE_LANGUAGE.process_managers.size },
     "ensures"                => -> { every_command.sum { |c| c.ensures.to_a.size } },
     "provenance"             => -> { every_command.count(&:provenance) },
     "group_by"               => -> { SELF_USE_LANGUAGE.read_models.count { |r| !r.group_by.to_a.empty? } },
@@ -61,45 +61,45 @@ RSpec.describe "the language uses everything the core grammar declares" do
   # Named gaps, never silent exclusions: adopting these constructs in a domain that only
   # describes shape would be decoration, not real use (ADR 0026).
   SELF_USE_KNOWN_GAPS = {
-    "policy"          =>
-                         "a policy reacts to an event with a trigger and (optionally) a with: " \
-                         "projection — the language's own commands each mint one static record " \
-                         "and react to nothing; inventing a reaction among them would be a " \
-                         "policy in name only, satisfying the gate rather than describing a " \
-                         "real cross-command consequence.",
-    "process_manager" =>
-                         "a saga correlates several commands over time via the events they " \
-                         "emit — nothing in the language's own description is a multi-step " \
-                         "workflow; every declaration here is a single, complete, one-shot " \
-                         "fact about a construct, with no \"and then\" for a saga to carry.",
-    "provenance"      =>
-                         "provenance records where a construct's SHAPE was ported from " \
-                         "(banking's own use: \"HecksCanonical\", an external canonical " \
-                         "model) — the language's own aggregates ARE the canonical " \
-                         "definition, not a port of one; naming a source for something " \
-                         "that has none would be fiction, not documentation.",
-    "group_by"        =>
-                         "the ADR's own \"Rejected alternatives\" names this exact risk " \
-                         "(\"grouping words by context... is decoration... modelling to " \
-                         "satisfy a tool\") for the read model this gate would have to " \
-                         "invent — WholeBluebook already gathers everything a bluebook holds " \
-                         "in one read, and no real question the language needs answered " \
-                         "about itself is a REDUCTION over its own records rather than the " \
-                         "records themselves.",
-    "authorize"       =>
-                         "authorize gates a query behind a tenant/policy boundary — the " \
-                         "language has no multi-tenant concept of its own; a grammar row is " \
-                         "not scoped to a caller, and inventing a tenant for the language's " \
-                         "own records to be walled off by would be pure decoration.",
-    "generic"         =>
-                         "generic marks a bluebook as NOT a real business domain, so that " \
-                         "Expression/Translation/Paging can classify themselves that way — " \
-                         "the language's own bluebook IS the canonical grammar, declared " \
-                         "`core`, and applying `generic` reflexively to the definition that " \
-                         "does the classifying would be the sub-language demotion test " \
-                         "turned on itself. ADR 0025 already names it as zero-corpus-use " \
-                         "everywhere, not just here; ADR 0026's own Consequences section " \
-                         "names this exact gap by hand."
+    "policy"     =>
+                    "a policy reacts to an event with a trigger and (optionally) a with: " \
+                    "projection — the language's own commands each mint one static record " \
+                    "and react to nothing; inventing a reaction among them would be a " \
+                    "policy in name only, satisfying the gate rather than describing a " \
+                    "real cross-command consequence.",
+    "saga"       =>
+                    "a saga correlates several commands over time via the events they " \
+                    "emit — nothing in the language's own description is a multi-step " \
+                    "workflow; every declaration here is a single, complete, one-shot " \
+                    "fact about a construct, with no \"and then\" for a saga to carry.",
+    "provenance" =>
+                    "provenance records where a construct's SHAPE was ported from " \
+                    "(banking's own use: \"HecksCanonical\", an external canonical " \
+                    "model) — the language's own aggregates ARE the canonical " \
+                    "definition, not a port of one; naming a source for something " \
+                    "that has none would be fiction, not documentation.",
+    "group_by"   =>
+                    "the ADR's own \"Rejected alternatives\" names this exact risk " \
+                    "(\"grouping words by context... is decoration... modelling to " \
+                    "satisfy a tool\") for the read model this gate would have to " \
+                    "invent — WholeBluebook already gathers everything a bluebook holds " \
+                    "in one read, and no real question the language needs answered " \
+                    "about itself is a REDUCTION over its own records rather than the " \
+                    "records themselves.",
+    "authorize"  =>
+                    "authorize gates a query behind a tenant/policy boundary — the " \
+                    "language has no multi-tenant concept of its own; a grammar row is " \
+                    "not scoped to a caller, and inventing a tenant for the language's " \
+                    "own records to be walled off by would be pure decoration.",
+    "generic"    =>
+                    "generic marks a bluebook as NOT a real business domain, so that " \
+                    "Expression/Translation/Paging can classify themselves that way — " \
+                    "the language's own bluebook IS the canonical grammar, declared " \
+                    "`core`, and applying `generic` reflexively to the definition that " \
+                    "does the classifying would be the sub-language demotion test " \
+                    "turned on itself. ADR 0025 already names it as zero-corpus-use " \
+                    "everywhere, not just here; ADR 0026's own Consequences section " \
+                    "names this exact gap by hand."
   }.freeze
 
   SELF_USE_UNNAMED_WHY = <<~WHY.freeze

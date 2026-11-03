@@ -32,7 +32,7 @@ module Hecks
           # @param bluebook [Bluebook::Declaration] the assembled bluebook to validate
           # @return [void]
           # @raise [Bluebook::DSL::Malformed] if any check finds a violation
-          # @raise [Bluebook::DSL::ProcessManagerBuilder::InvalidProcessManager] if a
+          # @raise [Bluebook::DSL::SagaBuilder::InvalidProcessManager] if a
           #   `correlates_by` resolves to something other than a scalar field
           def validate_assembled!(bluebook)
             resolve_bare_correlation_keys!(bluebook)

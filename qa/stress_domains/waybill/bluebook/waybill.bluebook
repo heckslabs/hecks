@@ -1,7 +1,7 @@
 # Stress domain: a process_manager whose dispatch leg targets a nested entity's command.
 # Pinned end to end by spec/waybill_spec.rb, including the entity-level compensation.
 Hecks.bluebook "Waybill" do
-  vision "A consignment saga that opens a manifest, reserves a slot on it, and tries to fill that slot through the saga's own dispatch — the first process manager anywhere in this corpus to target a nested entity's own command, rather than a plain aggregate's."
+  vision "A consignment saga that opens a manifest, reserves a slot on it, and tries to fill that slot through the saga's own dispatch — the first saga anywhere in this corpus to target a nested entity's own command, rather than a plain aggregate's."
 
   core
 
@@ -150,7 +150,7 @@ Hecks.bluebook "Waybill" do
   end
 
   # Correlates on the dotted scalar shared by every aggregate a leg touches.
-  process_manager "Packing" do
+  saga "Packing" do
     correlates_by :"reference.value"
     starts_on Consignment::ConsignmentRequested
     ends_on   Consignment::ConsignmentShipped

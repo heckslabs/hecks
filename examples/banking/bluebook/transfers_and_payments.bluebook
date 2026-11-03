@@ -391,7 +391,7 @@ Hecks.bluebook "Banking" do
     end
   end
 
-  process_manager "Settlement" do
+  saga "Settlement" do
     # `reference` is the field Transfer.Request sets and `identified_by` derives the id from.
     correlates_by :"reference.value"
     starts_on Transfer::TransferRequested
@@ -435,7 +435,7 @@ Hecks.bluebook "Banking" do
 
   # Correlates on a different key over the external event stream, pointed at the network leg.
   # Keyed on the scalar `end_to_end.value`, not the value object, whose rendering is ambiguous.
-  process_manager "ExternalSettlement" do
+  saga "ExternalSettlement" do
     correlates_by :"end_to_end.value"
     starts_on ExternalTransfer::ExternalTransferRequested
     ends_on   ExternalTransfer::ExternalTransferSent

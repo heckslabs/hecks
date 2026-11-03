@@ -57,7 +57,7 @@ fuzz-luck-dependent. `spec/waybill_spec.rb`'s three examples confirm
 this directly: `Manifest.Open`/`Manifest.AddSlot` (aggregate-level, legs
 1-2) deliver correctly every time; `Manifest::Slot.Fill` (entity-level,
 leg 3) never delivers; the saga's own `:refused` leg fires every time as
-a result, making `ConsignmentShipped` (this process manager's own
+a result, making `ConsignmentShipped` (this saga's own
 `ends_on`) an unreachable happy path today.
 
 ## Confirmed NOT a saga-wide bug — `PolicyInterpreter` does not share it

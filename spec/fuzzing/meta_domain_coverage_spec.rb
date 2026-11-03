@@ -154,7 +154,7 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
                                            "shape no era holds yet; spec/adapters/driven/postgres_era/" \
                                            "mints_era_write_spec.rb holds it. The fuzzer runs in Memory, which has no " \
                                            "eras, so no fuzzed sequence can reach what the flag changes",
-    "ProcessManager#resumes"            => "the command that resumes each stage of a process manager, read by the saga " \
+    "ProcessManager#resumes"            => "the command that resumes each stage of a saga, read by the saga " \
                                            "recovery path; spec/dsl_spec.rb and spec/syntax_conformance_spec.rb hold its " \
                                            "declaration and parse. The crash-recovery specs drive the resume path itself"
   }.freeze

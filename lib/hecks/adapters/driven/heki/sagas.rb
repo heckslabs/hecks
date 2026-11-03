@@ -6,7 +6,7 @@ module Hecks
       module Sagas
         # Checkpoints one saga instance in a sibling file pair (`SagaStore`).
         #
-        # @param process_manager [String, Symbol] the process manager's name, compared as
+        # @param process_manager [String, Symbol] the saga's name, compared as
         #   `.to_s`
         # @param correlation [String, Symbol, Object] the instance's correlation value, compared
         #   as `.to_s`
@@ -23,7 +23,7 @@ module Hecks
 
         # Removes a finished saga instance's checkpoint; a missing one is not an error.
         #
-        # @param process_manager [String, Symbol] the process manager's name, compared as
+        # @param process_manager [String, Symbol] the saga's name, compared as
         #   `.to_s`
         # @param correlation [String, Symbol, Object] the instance's correlation value, compared
         #   as `.to_s`
@@ -35,7 +35,7 @@ module Hecks
 
         # Yields every checkpointed saga instance of this domain, for boot-time rehydration.
         #
-        # @yieldparam process_manager [String] the process manager's name
+        # @yieldparam process_manager [String] the saga's name
         # @yieldparam correlation [String] the instance's correlation value
         # @yieldparam state [String] the saga's state name
         # @yieldparam memory [Hash{Symbol => Object}] the saga's memory, Symbol keys at every

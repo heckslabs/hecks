@@ -49,7 +49,7 @@ Hecks.bluebook "Courier" do
   end
 
   # THE SAGA answers the FIRST announced event.
-  process_manager "Route" do
+  saga "Route" do
     correlates_by :"tag.value"
     starts_on "RunStarted"
     ends_on   "RunLogged"

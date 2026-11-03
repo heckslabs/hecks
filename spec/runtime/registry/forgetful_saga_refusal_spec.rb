@@ -2,7 +2,7 @@ require "spec_helper"
 require "tmpdir"
 require_relative "../../support/memory_ports"
 
-# verify! refuses a process manager whose checkpoints no store keeps when it dispatches to an
+# verify! refuses a saga whose checkpoints no store keeps when it dispatches to an
 # aggregate a store keeps across a restart (ADR 0170). Wire's Carry dispatches to Drawer and Wire.
 RSpec.describe "verify! refusal for a saga less durable than the aggregates it moves" do
   WIRE_FIXTURE = File.join(InMemoryDomain::ROOT, "spec/fixtures/settlement.bluebook") unless defined?(WIRE_FIXTURE)

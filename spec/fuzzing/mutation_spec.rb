@@ -47,7 +47,7 @@ RSpec.describe Hecks::Fuzzing::Mutation, :aggregate_failures do
         trigger Order::Cancel
       end
 
-      process_manager "Fulfilment" do
+      saga "Fulfilment" do
         correlates_by :id
         starts_on Order::Placed
         ends_on Order::Cancelled
@@ -103,7 +103,7 @@ RSpec.describe Hecks::Fuzzing::Mutation, :aggregate_failures do
       expect(mutate(:drop_policy)).not_to include("Notify")
       saga = mutate(:drop_saga_transition)
       expect(saga).not_to include("dispatch Order::Cancel")
-      expect(saga).to include("process_manager \"Fulfilment\"")
+      expect(saga).to include("saga \"Fulfilment\"")
     end
 
     it "drops only the dispatch a handler makes" do

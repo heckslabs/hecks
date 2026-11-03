@@ -81,6 +81,13 @@ module Hecks
                   :classification, :read_models, :ports, :namespace, :attaches_to, :provides,
                   :modules
 
+      # The sagas, under the language's word: the judge reads a `Saga` category's collection
+      # by that name (ADR 0180). The IR key stays `process_managers` until its own slice moves
+      # it on both sides of the Ruby/Rust comparison.
+      #
+      # @return [Array<Bluebook::ProcessManager>] every saga this bluebook declares
+      def sagas = process_managers
+
       # Every optional field and what it holds when the declaration omits it.
       FIELD_DEFAULTS = {
         version: nil, vision: nil, aggregates: [], policies: [], process_managers: [],

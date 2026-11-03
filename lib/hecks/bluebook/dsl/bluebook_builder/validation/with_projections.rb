@@ -10,7 +10,7 @@ module Hecks
             # aggregates, and the sagas' correlation heads.
             WithContext = Struct.new(:lookup, :aggregates, :correlation_heads)
             # One `with:` to check: the command it targets, the event it reads from, the spec
-            # itself, how a refusal names it, and the process manager when it is a saga leg.
+            # itself, how a refusal names it, and the saga when it is a saga leg.
             WithSpec = Struct.new(:command_ref, :event_name, :with_spec, :label, :process_manager, :row_names)
             # What a `with:` source may read: the correlation key, the emitter's identity heads and
             # the event shapes whose fields are legal, and a fan-out row's names (empty off a

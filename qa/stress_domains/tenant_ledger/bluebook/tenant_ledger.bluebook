@@ -152,7 +152,7 @@ Hecks.bluebook "TenantLedger" do
 
   # Starts on TransferRequested, so a refused cross-tenant Request never begins this saga.
   # Sagas carry no tenant check of their own.
-  process_manager "SettleAcrossRegions" do
+  saga "SettleAcrossRegions" do
     correlates_by :"reference.value"
     starts_on Transfer::TransferRequested
     ends_on   Ledger::LedgerCredited

@@ -19,10 +19,10 @@ RSpec.describe "every list the language declares, filled more than once" do
   # Lists the corpus never fills twice. Each entry says why it is untested; delete one and the
   # spec tells you whether the corpus now covers it.
   ALLOWED_SINGLETON = {
-    # A process manager fills `endings` with one item per `ends_on` it declares. The corpus has none
+    # A saga fills `endings` with one item per `ends_on` it declares. The corpus has none
     # that ends on more than one event yet, so every saga in it fills the list with one.
     "endings"          =>
-                          "A process manager that declares several ends_on fills endings with each; " \
+                          "A saga that declares several ends_on fills endings with each; " \
                           "no corpus domain declares one, so the walk sees one per saga.",
     # Filled with three in `PublishingRun` (lib/hecks/hecks/release/release.bluebook), which is
     # not a golden IR fixture: `Hecks.json` holds the root bluebook only.
@@ -47,9 +47,9 @@ RSpec.describe "every list the language declares, filled more than once" do
                           "The runtime supplies one fact, `now`, and a repeat is refused, so a command's " \
                           "needs hold at most one row until a second fact is admitted.",
     # Filled with two in spec/dsl_spec.rb and spec/runtime/resume_words_spec.rb, which build their
-    # own process manager; no corpus domain declares a stage map of more than one stage.
+    # own saga; no corpus domain declares a stage map of more than one stage.
     "resumes"          =>
-                          "A process manager's stage map fills resumes with one stage=command entry per " \
+                          "A saga's stage map fills resumes with one stage=command entry per " \
                           "stage; dsl_spec and resume_words_spec fill it twice, but no golden IR " \
                           "fixture declares a saga with more than one resumable stage."
   }.freeze

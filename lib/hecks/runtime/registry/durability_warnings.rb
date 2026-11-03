@@ -6,7 +6,7 @@ module Hecks
       module DurabilityWarnings
         private
 
-        # A domain with policies/a process_manager but no outbox on its bound adapter
+        # A domain with policies/a saga but no outbox on its bound adapter
         # (`AppendOnly#outbox?`) runs reactions inline — lost on a crash between a
         # commit and its reaction. A warning, not a refusal: Memory has an in-process
         # outbox, so dev/test stays quiet, but file/remote adapters need this to be loud.
@@ -25,7 +25,7 @@ module Hecks
         end
 
         def undurable_outbox_wording(hecksagon, bind)
-          "[hecks] #{hecksagon.domain} declares policies/process_managers but its persistence adapter " \
+          "[hecks] #{hecksagon.domain} declares policies/sagas but its persistence adapter " \
             "(#{bind.adapter}) has no outbox — reactions run inline and a crash between a command's commit " \
             "and its reactions loses them silently. Bind SqlitePersistence or Postgres for a durable outbox " \
             "(see Runtime::Outbox), or accept in-process-only reactions on purpose."
@@ -69,23 +69,23 @@ module Hecks
         # A warning, not a refusal: running sagas on a store with no `save_saga` is
         # legitimate on purpose in a fast in-memory test/dev boot.
         def warn_undurable_sagas!(hecksagon)
-          undurable = undurable_process_managers(hecksagon.domain)
+          undurable = undurable_sagas(hecksagon.domain)
           return if undurable.empty?
 
           names = undurable.map(&:name).join(", ")
-          warn "[hecks] #{hecksagon.domain} declares process_manager(s) #{names} but its resolved " \
+          warn "[hecks] #{hecksagon.domain} declares saga(s) #{names} but its resolved " \
                "persistence adapter has no save_saga — saga state advances correctly in-process " \
                "and is LOST on restart (no checkpoint, no rehydration, no compensation replay). " \
-               "Bind this domain to an adapter that implements save_saga if this process_manager " \
+               "Bind this domain to an adapter that implements save_saga if this saga " \
                "must survive a crash."
         end
 
-        # The process managers whose checkpoints no store keeps: each is held by its starting
+        # The sagas whose checkpoints no store keeps: each is held by its starting
         # aggregate's store or by the domain's, and either may be the null store.
-        def undurable_process_managers(domain)
-          process_managers = bluebook(domain)&.process_managers || []
-          process_managers.select do |process_manager|
-            saga_persistence(domain, process_manager).equal?(Ports::Persistence::NULL_SAGA_STORE)
+        def undurable_sagas(domain)
+          sagas = bluebook(domain)&.process_managers || []
+          sagas.select do |saga|
+            saga_persistence(domain, saga).equal?(Ports::Persistence::NULL_SAGA_STORE)
           end
         end
       end

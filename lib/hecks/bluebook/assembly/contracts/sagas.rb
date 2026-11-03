@@ -1,10 +1,10 @@
 module Hecks
   module Bluebook
     class Assembly
-      # The contracts for the process manager chain and the syntax records;
+      # The contracts for the saga chain and the syntax records;
       # `CONTRACTS` merges every group.
       SAGAS = {
-        "ProcessManager" => Contract.new(
+        "Saga"     => Contract.new(
           holder: ProcessManager, make: :new,
           fields: {
             name:          [:name,          :plain],
@@ -19,15 +19,15 @@ module Hecks
           },
           reads: { states: :names },
           # `handlers` comes from the judge walking the containment tree
-          # (`Handler.parent == "ProcessManager"`), the same as Aggregate's
+          # (`Handler.parent == "Saga"`), the same as Aggregate's
           # own `value_objects` — not from any field this contract reads.
           derived: { position: :walk, handlers: :children }
         ),
 
-        # Handler is nested under ProcessManager. `event_type` is its real
+        # Handler is nested under Saga. `event_type` is its real
         # identity (a saga answers each event once), so unlike other entities
         # it has no walk-minted `position` to derive.
-        "Handler"        => Contract.new(
+        "Handler"  => Contract.new(
           holder: ProcessManagerHandler, make: :new,
           fields: {
             event_type: [:event_type, :plain],
@@ -42,7 +42,7 @@ module Hecks
         # Dispatch is nested under Handler, two levels deep. `command_name` alone
         # is not identity — a handler can fan the same command out more than
         # once, so `position` (walk-minted) disambiguates.
-        "Dispatch"       => Contract.new(
+        "Dispatch" => Contract.new(
           holder: DispatchSpec, make: :new,
           fields: {
             command_name: [:command_name, :plain],
@@ -61,13 +61,13 @@ module Hecks
         # Syntax/Keyword/Argument bypass Build/Reconstruction entirely (ADR 0026) —
         # SyntaxBoot reads them directly. These entries exist only so assembly_spec
         # can hold them to the same "every field claimed" discipline as the rest.
-        "Syntax"         => Contract.new(
+        "Syntax"   => Contract.new(
           holder: nil, make: nil,
           fields: { name: [:name, :plain] },
           derived: { keywords: :children, arguments: :children }
         ),
 
-        "Keyword"        => Contract.new(
+        "Keyword"  => Contract.new(
           holder: nil, make: nil,
           fields: {
             word:          [:word,          :plain],
@@ -84,7 +84,7 @@ module Hecks
           derived: { position: :walk }
         ),
 
-        "Argument"       => Contract.new(
+        "Argument" => Contract.new(
           holder: nil, make: nil,
           fields: {
             keyword:          [:keyword,          :plain],

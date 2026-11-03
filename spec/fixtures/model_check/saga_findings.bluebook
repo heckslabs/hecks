@@ -28,7 +28,7 @@ Hecks.bluebook "SagaFindings" do
     end
   end
 
-  process_manager "LegSaga" do
+  saga "LegSaga" do
     correlates_by :"reference.value"
     starts_on "LegRequested"
     # Deaf trigger: nothing in this domain ever emits "LegFinished".
@@ -52,7 +52,7 @@ Hecks.bluebook "SagaFindings" do
   end
 
   # Unarmed compensation: `compensates` is declared, but no handler answers a refusal.
-  process_manager "UnarmedSaga" do
+  saga "UnarmedSaga" do
     correlates_by :"reference.value"
     starts_on "LegRequested"
     ends_on   "LegFinished"

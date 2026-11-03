@@ -3,14 +3,14 @@ module Hecks
     module DSL
       class BluebookBuilder
         module Validation
-          # Checks that a process manager's `correlates_by` lands on a scalar field of the commands
+          # Checks that a saga's `correlates_by` lands on a scalar field of the commands
           # that emit the events it reacts to.
           module CorrelationKeys
             private
 
             # A bare name (`correlates_by Message`) naming an aggregate of this bluebook means
             # that aggregate's identity, `"Message.id"`. Any other bare name is refused here,
-            # with the message the builder used to give. Runs before the other correlation
+            # with the builder's own refusal message. Runs before the other correlation
             # checks, so they only ever see the dotted form.
             def resolve_bare_correlation_keys!(bluebook)
               bluebook.process_managers.each do |process_manager|
@@ -28,7 +28,7 @@ module Hecks
             def resolve_bare_correlation_key!(bluebook, process_manager, key)
               aggregate = find_correlated_aggregate(bluebook, key)
               unless aggregate
-                raise ProcessManagerBuilder::InvalidProcessManager,
+                raise SagaBuilder::InvalidProcessManager,
                       bare_correlation_message(process_manager.name, key)
               end
 
@@ -55,13 +55,13 @@ module Hecks
               return "id" if paths.empty?
               return paths.first.delete_suffix(".value") if paths.one?
 
-              raise ProcessManagerBuilder::InvalidProcessManager,
+              raise SagaBuilder::InvalidProcessManager,
                     "#{process_manager.name} correlates_by #{aggregate.name}, but #{aggregate.name} has a " \
                     "composite identity — name the one field, e.g. #{aggregate.name}.#{paths.first}"
             end
 
             # `correlates_by` must land on a scalar: the dotted path is walked against each
-            # command that emits an event the process manager reacts to. A command lacking the
+            # command that emits an event the saga reacts to. A command lacking the
             # first segment is skipped, since correlation has fallback tiers
             # (saga_interpreter/correlation.rb).
             def validate_correlation_keys!(process_managers, aggregates)
@@ -71,7 +71,7 @@ module Hecks
                 reason = correlation_key_violation(pm, aggregates)
                 next unless reason
 
-                raise ProcessManagerBuilder::InvalidProcessManager,
+                raise SagaBuilder::InvalidProcessManager,
                       "#{pm.name} correlates_by #{pm.correlates_by.inspect}, but #{reason}"
               end
             end

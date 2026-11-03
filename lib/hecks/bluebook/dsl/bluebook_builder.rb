@@ -7,7 +7,7 @@ module Hecks
   module Bluebook
     module DSL
       # The `Hecks.bluebook "Name" do ... end` receiver, collecting every aggregate,
-      # read model, policy and process manager a bluebook declares.
+      # read model, policy and saga a bluebook declares.
       class BluebookBuilder
         GRAMMAR_CONTEXT = "Bluebook".freeze
 
@@ -158,14 +158,28 @@ module Hecks
           @policies << PolicyBuilder.build(name, &)
         end
 
-        # Declares a process manager (saga) belonging to this bluebook.
+        # Declares a saga belonging to this bluebook.
         #
-        # @param name [String] the process manager's own name
-        # @yield the process manager body, evaluated against a new `ProcessManagerBuilder`
-        # @return [Array<Bluebook::ProcessManager>] every process manager declared so far,
+        # @param name [String] the saga's own name
+        # @yield the saga body, evaluated against a new `SagaBuilder`
+        # @return [Array<Bluebook::ProcessManager>] every saga declared so far,
         #   this one last
+        def saga(name, &)
+          @process_managers << SagaBuilder.build(name, &)
+        end
+
+        # Answered only under shadow-parsing, so frozen era text spelled `process_manager`
+        # keeps booting; live source refuses it and names `saga` as the replacement (ADR 0180).
+        #
+        # @param name [String] the saga's own name
+        # @yield the saga body, evaluated against a new `SagaBuilder`
+        # @return [Array<Bluebook::ProcessManager>] every saga declared so far, this one last,
+        #   under shadow-parsing
+        # @raise [Bluebook::DSL::Malformed] always, outside shadow-parsing
         def process_manager(name, &)
-          @process_managers << ProcessManagerBuilder.build(name, &)
+          return saga(name, &) if MetaValidator.shadow_parsing?
+
+          raise Malformed, "process_manager is gone — saga is the word now"
         end
 
         # Assembles this builder's accumulated declarations into a judged `Bluebook`.
@@ -175,7 +189,7 @@ module Hecks
         # @raise [Bluebook::DSL::Malformed] if a bluebook-wide given reference cannot be
         #   resolved, if cross-construct validation fails, or if the language's own
         #   whole-document judgment refuses the bluebook
-        # @raise [Bluebook::DSL::ProcessManagerBuilder::InvalidProcessManager] if a process
+        # @raise [Bluebook::DSL::SagaBuilder::InvalidProcessManager] if a process
         #   manager's own structural check fails
         def build
           # The bluebook is the top of the construct chain — its constructor stamps every
@@ -209,7 +223,7 @@ module Hecks
         # @return [Bluebook::Declaration] the built, judged bluebook
         # @raise [Bluebook::DSL::Malformed] if `version` conflicts with an already-adopted
         #   version, or the built bluebook fails validation
-        # @raise [Bluebook::DSL::ProcessManagerBuilder::InvalidProcessManager] if a process
+        # @raise [Bluebook::DSL::SagaBuilder::InvalidProcessManager] if a process
         #   manager's structural check fails
         def self.build(name, version: nil, &block)
           registry = Hecks.current_registry

@@ -291,7 +291,7 @@ Hecks.bluebook "Hecks" do
       trigger StyleRun::FixComments, with: { run: :run, paths: :paths, confirm: :confirm }
     end
 
-    process_manager "GateAndBoard" do
+    saga "GateAndBoard" do
       correlates_by :"run.value"
       starts_on Shipment::ShipRequested
 
@@ -961,7 +961,7 @@ Hecks.bluebook "Hecks" do
     # boarding the train already carried is recorded as pushed. A run is checkpointed with the
     # Landing records that start it, so a copy that keeps those keeps its runs across a restart.
     # A run in needs_human is taken up again by verifying it again (`Integration.verify!`).
-    process_manager "MainIntegration" do
+    saga "MainIntegration" do
       correlates_by :"landed.value"
       starts_on Landing::BranchLanded
 

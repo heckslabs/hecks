@@ -8,7 +8,7 @@ module Hecks
         private
 
         # Reads every declared bluebook, not each hecksagon: a domain kept by its world's
-        # `default_adapter` or by an attaching bluebook has process managers too.
+        # `default_adapter` or by an attaching bluebook has sagas too.
         def refuse_forgetful_sagas!
           @declared.bluebooks.each_key do |domain|
             process_managers_of(domain).each { |process_manager| refuse_forgetful_saga!(domain, process_manager) }
@@ -24,7 +24,7 @@ module Hecks
           raise WiringError, forgetful_saga_wording(domain, process_manager, kept)
         end
 
-        # The domain's own aggregates a process manager's legs and compensations dispatch to.
+        # The domain's own aggregates a saga's legs and compensations dispatch to.
         def dispatched_aggregates(domain, process_manager)
           names = dispatch_specs(process_manager).map { |spec| aggregate_of_command(spec.command_name) }
           bluebook(domain).aggregates.select { |aggregate| names.include?(aggregate.name.to_s) }

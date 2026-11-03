@@ -17,7 +17,7 @@ require_relative "model_check/verbs"
 module Hecks
   module Bluebook
     # Static formal checks over the assembled bluebook IR: lifecycles as state
-    # machines, process managers as protocols, checked as data without booting a runtime.
+    # machines, sagas as protocols, checked as data without booting a runtime.
     module ModelCheck
       Finding = Struct.new(:kind, :severity, :subject, :message, keyword_init: true) do
         def to_s = "#{severity.to_s.upcase.ljust(7)} #{kind.to_s.ljust(20)} #{subject}  —  #{message}"

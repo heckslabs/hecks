@@ -25,7 +25,7 @@ module Hecks
           offenders.empty? || offenders.join("; ")
         end
 
-        # A saga instance's own state is one the process manager declares, and
+        # A saga instance's own state is one the saga declares, and
         # its memory survives the same JSON round-trip `SagaInterpreter#checkpoint`'s
         # own `deep_copy` performs (mirrored here, a private instance method
         # with no registry to hand it).

@@ -6,17 +6,17 @@ module Hecks
     class Registry
       # A domain's sagas persist through whatever adapter its aggregates already use;
       # `save_saga`/`delete_saga`/`each_saga` are optional, `respond_to?`-checked capabilities.
-      # A process manager started by an aggregate the hecksagon binds on its own persists with
+      # A saga started by an aggregate the hecksagon binds on its own persists with
       # that aggregate's records instead (see {SagaAnchor}), so a saga lives where the record
       # that starts it lives.
       module SagaPersistence
         include SagaAnchor
 
-        # The store one domain's sagas, or one of its process managers, checkpoint to. Memoized
+        # The store one domain's sagas, or one of its sagas, checkpoint to. Memoized
         # per store via double-checked locking; never reuse @saga_mutex, see #initialize.
         #
         # @param domain [String, Symbol] the domain whose sagas are checkpointed
-        # @param process_manager [Bluebook::ProcessManager, String, nil] one process manager,
+        # @param process_manager [Bluebook::ProcessManager, String, nil] one saga,
         #   whose starting aggregate may hold it; the domain's own store when nil
         # @return [#save_saga] the adapter, or the null store when nothing can checkpoint
         def saga_persistence(domain, process_manager = nil)
@@ -40,7 +40,7 @@ module Hecks
 
         # Boot-time-only (Loader.run_boot_gates!, before dispatch exists); no concurrent
         # writer to race here, unlike saga_interpreter.rb's writes under @saga_mutex. Each store
-        # restores only the process managers that checkpoint to it; the domain's own store
+        # restores only the sagas that checkpoint to it; the domain's own store
         # restores every other one, including any the bluebook does not declare.
         def rehydrate_sagas!
           saga_domains.each do |domain|
@@ -53,7 +53,7 @@ module Hecks
 
         private
 
-        # Restores the instances a store holds whose process manager the block accepts.
+        # Restores the instances a store holds whose saga the block accepts.
         def restore_sagas(store)
           store.each_saga do |process_manager, correlation, state, memory, completed_compensations = []|
             next unless yield(process_manager.to_s)

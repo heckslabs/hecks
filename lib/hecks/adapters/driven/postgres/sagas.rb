@@ -3,10 +3,10 @@ module Hecks
     class Postgres
       # Saga checkpoints, scoped by the adapter's domain.
       module Sagas
-        # Upserts one saga instance's checkpoint, keyed by domain, process manager and
+        # Upserts one saga instance's checkpoint, keyed by domain, saga and
         # correlation.
         #
-        # @param process_manager [String, Symbol] the process manager's name
+        # @param process_manager [String, Symbol] the saga's name
         # @param correlation [String, Object] the instance's correlation value, stored as
         #   `correlation.to_s`
         # @param state [String, Symbol] the saga's current state name
@@ -29,7 +29,7 @@ module Hecks
 
         # Removes a finished saga instance's checkpoint; a missing row is not an error.
         #
-        # @param process_manager [String, Symbol] the process manager's name
+        # @param process_manager [String, Symbol] the saga's name
         # @param correlation [String, Object] the instance's correlation value, matched as
         #   `correlation.to_s`
         # @return [PG::Result] the delete's result; callers ignore it
@@ -44,7 +44,7 @@ module Hecks
         # Yields every checkpointed saga instance of this adapter's domain, for
         # `Registry#rehydrate_sagas!` to restore at boot.
         #
-        # @yieldparam process_manager [String] the process manager's name
+        # @yieldparam process_manager [String] the saga's name
         # @yieldparam correlation [String] the instance's correlation value
         # @yieldparam state [String] the saga's state name
         # @yieldparam memory [Hash{Symbol => Object}] the saga's memory, Symbol keys at every depth

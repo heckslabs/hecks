@@ -27,7 +27,7 @@ RSpec.describe "a saga correlated by a value-object identity" do
 
   def bare_key_process_manager
     proc do
-      process_manager "BareKey" do
+      saga "BareKey" do
         correlates_by Sighting
         starts_on "SightingRaised"
         transition("SightingRaised" => "watching", from: "watching")
@@ -37,7 +37,7 @@ RSpec.describe "a saga correlated by a value-object identity" do
 
   def dotted_key_process_manager
     proc do
-      process_manager "DottedKey" do
+      saga "DottedKey" do
         correlates_by :"code.value"
         starts_on "SightingRaised"
         transition("SightingRaised" => "watching", from: "watching")

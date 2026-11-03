@@ -2900,7 +2900,7 @@ Hecks.bluebook "QualityControl" do
   # red. Correlates by commit, which `BugFixed` carries and `Clearance` is identified by.
   # `ClearanceRefused` has no `ends_on`, as in banking's `ExternalSettlement`: an instance left in
   # "regressed" costs nothing.
-  process_manager "BugCiWatch" do
+  saga "BugCiWatch" do
     correlates_by :"commit.value"
     starts_on Bug::BugFixed
     ends_on   Clearance::ClearanceGiven
@@ -2915,7 +2915,7 @@ Hecks.bluebook "QualityControl" do
   # The `BugCiWatch` mechanism aimed at deliberate work, dispatching `Improvement::Regress`. That
   # lands in `needs_fix`, not an investigating state; a fresh `Improvement.Land` clears it and
   # starts a new watch.
-  process_manager "ImprovementCiWatch" do
+  saga "ImprovementCiWatch" do
     correlates_by :"commit.value"
     starts_on Improvement::ImprovementLanded
     ends_on   Clearance::ClearanceGiven

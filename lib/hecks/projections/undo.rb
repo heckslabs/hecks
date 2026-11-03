@@ -3,7 +3,7 @@ require_relative "../projector"
 module Hecks
   module Projections
     # The command that undoes a declared command, read from the bluebook's compensations: a
-    # process manager's dispatch that names a `compensates` for the command. Answers "none
+    # saga's dispatch that names a `compensates` for the command. Answers "none
     # declared" when no compensation is declared, and never invents one.
     #
     #   Projector.call(:undo, bluebook: bluebook, options: { command: "Account.Debit" })
@@ -14,7 +14,7 @@ module Hecks
 
       module_function
 
-      # @param bluebook [Bluebook::Declaration] the bluebook holding the process managers
+      # @param bluebook [Bluebook::Declaration] the bluebook holding the sagas
       # @param options [Hash{Symbol => Object}] `command:`, the command's verb form, e.g.
       #   "Account.Debit"
       # @return [Array<String>] one sentence: the undoing command, or that none is declared

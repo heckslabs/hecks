@@ -42,7 +42,7 @@ module Hecks
         # Every logged saga advance follows a `(from_state, to_state)` pair some handler declares.
         #
         # @param history [Hash] a replayed history as returned by `Replay.call`
-        # @return [true, String] true, or a message naming the process manager and undeclared pair
+        # @return [true, String] true, or a message naming the saga and undeclared pair
         def saga_advances_follow_declared_handlers(history)
           edges = saga_edges(history.fetch(:bluebook))
           return true if edges.empty?
@@ -51,7 +51,7 @@ module Hecks
           offenders.empty? || offenders.join("; ")
         end
 
-        # The `(from_state, to_state)` pairs each process manager's handlers declare.
+        # The `(from_state, to_state)` pairs each saga's handlers declare.
         def saga_edges(bluebook)
           edges = Hash.new { |h, k| h[k] = [] }
           bluebook.process_managers.each do |pm|

@@ -13,7 +13,7 @@ Hecks.bluebook "FixtureBareNonAggregate" do
     end
   end
 
-  process_manager "ScheduledSend" do
+  saga "ScheduledSend" do
     correlates_by MessageId
     starts_on "Message.Scheduled"
 
