@@ -7563,3 +7563,8 @@ pub static ARGUMENT_KINDS: &[&str] = &[
 pub static PAIRS_SHAPES: &[&str] = &["fields", "elements", "verbatim", "sibling"];
 
 pub static STATUSES: &[&str] = &["proposed", "admitted", "deprecated", "retired"];
+
+pub const RESOLUTION_HASH_CHAIN: &str = "hash_chain";
+pub const RESOLUTION_OWNER_KEYED: &str = "owner_keyed";
+pub const RESOLUTION_SIBLING_SCAN: &str = "sibling_scan";
+pub const DISAMBIGUATOR_DECLARED_BY: &str = "declared_by";

@@ -43,7 +43,13 @@ fn try_reference_named_bluebook_given(
         return Ok(None);
     }
 
-    super::verify_resolves_via(file, line.number, "given", "Aggregate", "owner_keyed")?;
+    super::verify_resolves_via(
+        file,
+        line.number,
+        "given",
+        "Aggregate",
+        crate::keywords::RESOLUTION_OWNER_KEYED,
+    )?;
 
     let args = super::argument_gate(file, "given", "Aggregate", &call.args, line.number)?;
     let description = super::positional_text(file, line.number, "given", &args, 1)?;

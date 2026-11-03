@@ -87,6 +87,16 @@ module Hecks
         "pub static #{name}: &[&str] = &[\n#{lines.join("\n")}\n];\n"
       end
 
+      # Renders one `pub const` per closed-set member, so Rust code can name a member
+      # (`RESOLUTION_OWNER_KEYED`) rather than repeat its spelling.
+      #
+      # @param prefix [String] the constant name's leading words, such as `"RESOLUTION"`
+      # @param values [Array<String>] the closed set's member strings
+      # @return [String] one `pub const NAME: &str` declaration per member
+      def const_str_consts(prefix, values)
+        values.map { |value| "pub const #{prefix}_#{value.upcase}: &str = #{rust_string(value)};" }.join("\n")
+      end
+
       # Renders the whole Rust source. Keyword and Argument rows come from `SyntaxBoot.call`,
       # which dispatches the seed rows so `status` is a real lifecycle (ADR 0026).
       #
@@ -174,6 +184,8 @@ module Hecks
           #{const_str_array('ARGUMENT_KINDS', closed_set_members(bluebook, 'ArgumentKind'))}
           #{const_str_array('PAIRS_SHAPES', closed_set_members(bluebook, 'PairsShape'))}
           #{const_str_array('STATUSES', closed_set_members(bluebook, 'Status'))}
+          #{const_str_consts("RESOLUTION", closed_set_members(bluebook, "ResolutionScope"))}
+          #{const_str_consts("DISAMBIGUATOR", closed_set_members(bluebook, "Disambiguator"))}
         RUST
       end
     end
