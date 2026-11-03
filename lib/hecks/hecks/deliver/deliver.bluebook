@@ -39,9 +39,19 @@ Hecks.bluebook "Hecks" do
       end
 
       query "History" do
-        description "The commits in a range, newest first (the last 20 when none is named)."
+        description "The commits in a range, newest first (the last 20 when none is named), optionally only those that add or remove some text or touch a path."
+        attribute :checkout,   Place, optional: true
+        attribute :range,      Word,  optional: true
+        attribute :containing, Word,  optional: true
+        attribute :path,       Word,  optional: true
+        returns Document
+      end
+
+      query "Show" do
+        description "A file as it stood at a ref, or a listing of the repository's top level when no path is named: read from the repository's history with nothing checked out."
         attribute :checkout, Place, optional: true
-        attribute :range,    Word,  optional: true
+        attribute :ref,      Word
+        attribute :path,     Word,  optional: true
         returns Document
       end
 
