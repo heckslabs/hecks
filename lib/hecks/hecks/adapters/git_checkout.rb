@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require_relative "git_names"
 require_relative "git_worktrees"
 
 module Hecks
@@ -10,13 +11,14 @@ module Hecks
     # Every query takes `checkout`, a directory inside the repository (the current directory when
     # absent), and answers `text:`; a refusal is a `Runtime::NotFound`.
     class GitCheckout
+      include GitNames
       include GitWorktrees
 
       # How many commits `log` prints when it is given no range.
       RECENT = 20
 
-      # A commit range as git writes one: names joined by `..` or `...`, never an option.
-      RANGE = %r{\A[0-9A-Za-z_][0-9A-Za-z_./^~@{}-]*\z}
+      # How many characters `show` returns before it cuts a file and says so.
+      SHOWN = 200_000
 
       # Accepts the arguments every driven adapter is built with and keeps none of them.
       #
@@ -60,14 +62,35 @@ module Hecks
 
       # The commits in a range, newest first, one `short-sha subject` line each.
       #
-      # @param held [Hash] `checkout`; `range` (default: the last 20 commits)
+      # @param held [Hash] `checkout`; `range` (default: the last 20 commits); `containing` (only
+      #   the commits that add or remove this text); `path` (only the commits that touch it)
       # @return [Hash{Symbol => String}] `text:` the commits
-      # @raise [Runtime::NotFound] when the checkout or the range is not found
+      # @raise [Runtime::NotFound] when the checkout, the range or the path is not found
       def history(**held)
         answering(held) do
           range = plain(held[:range])
-          read("log", "--format=%h %s", *(range ? [checked_range(range)] : ["-n", RECENT.to_s]))
+          read("log", "--format=%h %s", *containing(plain(held[:containing])),
+               *(range ? [checked_range(range)] : ["-n", RECENT.to_s]), *within(plain(held[:path])))
         end
+      end
+
+      # A file as it stood at a ref, read from the repository's objects; nothing is checked out.
+      # A file longer than `SHOWN` characters is cut and the text ends with a line saying so.
+      #
+      # @param held [Hash] `checkout`; `ref` (a commit, branch, tag or `sha^`); `path` (from the
+      #   repository's top level, never starting with `/`, `-` or `.`-then-`/`, never holding `..`;
+      #   the top level itself when absent)
+      # @return [Hash{Symbol => String}] `text:` the file, exactly as committed
+      # @raise [Runtime::NotFound] when the checkout, the ref or the path is not found
+      def show(**held)
+        settle(held)
+        result = @git.capture("show", "#{checked_revision(plain(held[:ref]))}:#{checked_path(plain(held[:path]))}",
+                              chdir: @checkout)
+        raise ConsoleCapture::Failure, "git show failed in #{@checkout}: #{result.err.strip}" unless result.ok?
+
+        { text: clipped(result.out) }
+      rescue ConsoleCapture::Failure => e
+        raise Runtime::NotFound, e.message
       end
 
       private
@@ -89,10 +112,24 @@ module Hecks
         "#{other}: ahead #{ahead}, behind #{behind}"
       end
 
-      def checked_range(range)
-        return range if range.match?(RANGE)
+      # The pickaxe argument for the commits that add or remove `text`, none when no text is named.
+      def containing(text)
+        return [] if text.nil?
+        raise ConsoleCapture::Failure, "#{text.inspect} is not text to look for" if text.empty? || text.match?(NOT_ONE_LINE)
 
-        raise ConsoleCapture::Failure, "#{range.inspect} is not a commit range"
+        ["-S#{text}"]
+      end
+
+      # The pathspec that limits a log to one path, none when no path is named.
+      def within(path)
+        path.nil? ? [] : ["--", checked_path(path)]
+      end
+
+      def clipped(text)
+        text = text.dup.force_encoding(Encoding::UTF_8).scrub
+        return text if text.length <= SHOWN
+
+        "#{text[0, SHOWN]}\n[cut at #{SHOWN} of #{text.length} characters]\n"
       end
     end
   end
