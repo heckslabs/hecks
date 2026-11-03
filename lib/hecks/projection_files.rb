@@ -152,10 +152,10 @@ module Hecks
     end
 
     # @param root [String] the checkout
-    # @return [Result] the Rust parser's keyword table
+    # @return [Result] the Rust parser's keyword table, and the Ruby constant the cache digests read
     def parser_table(root)
       require "hecks"
-      Result.new({ File.join(root, "rust/parser/src/keywords.rs") => artifact_text(:parser_table) }, [])
+      Result.new(Hecks::Projections::CacheInputFile.with_parser_table(root, artifact_text(:parser_table), declaration), [])
     end
 
     # @param root [String] the checkout

@@ -891,6 +891,173 @@ impl DrivingAdapter {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct CacheInput {
+    pub name: &'static str,
+    pub digest: &'static str,
+    pub glob: &'static str,
+}
+
+pub const CACHE_INPUT: &[CacheInput] = &[
+    CacheInput {
+        name: "Lib",
+        digest: "yes",
+        glob: "**/*",
+    },
+    CacheInput {
+        name: "Grammar",
+        digest: "yes",
+        glob: "hecks/language/**/*",
+    },
+    CacheInput {
+        name: "PreamblePorts",
+        digest: "yes",
+        glob: "hecks/ports/{persistence,extraction}.port",
+    },
+    CacheInput {
+        name: "PreambleAdapters",
+        digest: "yes",
+        glob: "hecks/adapters/driven/{memory,prism}.adapter",
+    },
+    CacheInput {
+        name: "Projections",
+        digest: "yes",
+        glob: "hecks/projections{/**/*,.rb}",
+    },
+    CacheInput {
+        name: "Bench",
+        digest: "no",
+        glob: "hecks/bench{/**/*,.rb}",
+    },
+    CacheInput {
+        name: "Cli",
+        digest: "no",
+        glob: "hecks/cli{/**/*,.rb}",
+    },
+    CacheInput {
+        name: "Codemod",
+        digest: "no",
+        glob: "hecks/codemod{/**/*,.rb}",
+    },
+    CacheInput {
+        name: "Deploy",
+        digest: "no",
+        glob: "hecks/deploy{/**/*,.rb}",
+    },
+    CacheInput {
+        name: "Doc",
+        digest: "no",
+        glob: "hecks/doc{/**/*,.rb}",
+    },
+    CacheInput {
+        name: "DrivingAdapters",
+        digest: "no",
+        glob: "hecks/adapters/driving{/**/*,.rb}",
+    },
+    CacheInput {
+        name: "Fuzzing",
+        digest: "no",
+        glob: "hecks/fuzzing{/**/*,.rb}",
+    },
+    CacheInput {
+        name: "QualityControl",
+        digest: "no",
+        glob: "hecks/quality_control{/**/*,.rb}",
+    },
+    CacheInput {
+        name: "Release",
+        digest: "no",
+        glob: "hecks/release{/**/*,.rb}",
+    },
+];
+
+impl CacheInput {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+            (
+                "name".to_string(),
+                crate::kernel::Json::Str(self.name.to_string()),
+            ),
+            (
+                "digest".to_string(),
+                crate::kernel::Json::Str(self.digest.to_string()),
+            ),
+            (
+                "glob".to_string(),
+                crate::kernel::Json::Str(self.glob.to_string()),
+            ),
+        ])
+    }
+
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        // `validate!`'s order: a name the set does not declare, then a field left out, then
+        // membership of the whole row.
+        let unknown = v.unknown_keys(&["name", "digest", "glob"]);
+        if !unknown.is_empty() {
+            let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
+            return Err(crate::kernel::Refusal::UnknownArgument(
+                crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+                    command: "CacheInput",
+                    unknown: &unknown,
+                    declared: &["name", "digest", "glob"],
+                }
+                .render_args(),
+            ));
+        }
+        if matches!(v.get("name"), None | Some(crate::kernel::Json::Null)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(
+                "CacheInput.name expects String, got nil".to_string(),
+            ));
+        }
+        if matches!(v.get("digest"), None | Some(crate::kernel::Json::Null)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(
+                "CacheInput.digest expects String, got nil".to_string(),
+            ));
+        }
+        if matches!(v.get("glob"), None | Some(crate::kernel::Json::Null)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(
+                "CacheInput.glob expects String, got nil".to_string(),
+            ));
+        }
+        for row in CACHE_INPUT {
+            if v.get("name").and_then(crate::kernel::Json::as_str) == Some(row.name)
+                && v.get("digest").and_then(crate::kernel::Json::as_str) == Some(row.digest)
+                && v.get("glob").and_then(crate::kernel::Json::as_str) == Some(row.glob)
+            {
+                return Ok(row.clone());
+            }
+        }
+        // The refusal quotes the first column only, as Ruby's `refuse_non_member!` does.
+        let offered = v
+            .get("name")
+            .map(|offered| offered.inspect())
+            .unwrap_or_else(|| "nil".to_string());
+        Err(crate::kernel::Refusal::InvariantViolation(
+            crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
+                r#type: "CacheInput",
+                admitted: &[
+                    "Lib",
+                    "Grammar",
+                    "PreamblePorts",
+                    "PreambleAdapters",
+                    "Projections",
+                    "Bench",
+                    "Cli",
+                    "Codemod",
+                    "Deploy",
+                    "Doc",
+                    "DrivingAdapters",
+                    "Fuzzing",
+                    "QualityControl",
+                    "Release",
+                ],
+                offered: offered.as_str(),
+            }
+            .render_args(),
+        ))
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Disambiguator {
     DeclaredBy,

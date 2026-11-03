@@ -6,6 +6,7 @@ require_relative "../../version"
 require_relative "verdict_cache/tagging"
 require_relative "verdict_cache/prebuilt"
 require_relative "../../switches"
+require_relative "cache_input"
 
 module Hecks
   module Bluebook
@@ -15,8 +16,8 @@ module Hecks
       #
       # Only bluebook verdicts live here; `Assembly.call` still runs every boot
       # and a miss judges as a cold process does. The file name carries a digest
-      # of the judging code (`lib/` outside `CONSUMER_TREES`, the Ruby and Hecks
-      # versions, `FORMAT`); each entry is keyed by the bluebook IR's SHA-256.
+      # of the judging code (the files `CacheInput` marks as digested, the Ruby
+      # and Hecks versions, `FORMAT`); each entry is keyed by the bluebook IR's SHA-256.
       # The file is tagged JSON, never `Marshal`, read only from a private,
       # user-owned directory: a forged "no refusals" entry would skip validation.
       #
@@ -30,13 +31,6 @@ module Hecks
 
         # Bumped when the encoding or the entry shape changes.
         FORMAT = 1
-
-        # The subtrees of `lib/` that read the language and never judge it: they
-        # project, serve or deploy from a bluebook, and nothing the judge runs
-        # calls into them. An edit there leaves every verdict as it was, so
-        # their files stay out of the key. Paths are relative to `lib/hecks`.
-        CONSUMER_TREES = %r{\A/hecks/(?:bench|cli|codemod|deploy|doc|adapters/driving|fuzzing|projections|
-                            quality_control|release)(?:/|\.rb\z)}x
 
         # Files older than this that do not match the current code digest are
         # pruned on write.
@@ -57,9 +51,8 @@ module Hecks
         # @return [String] an absolute path
         def path = File.join(dir, "verdicts-#{code_digest}.json")
 
-        # A digest of everything that decides a verdict: each file under
-        # `lib/` outside `CONSUMER_TREES` (path and bytes), the Ruby and Hecks
-        # versions and `FORMAT`.
+        # A digest of everything that decides a verdict: each file `judging_files`
+        # names (path and bytes), the Ruby and Hecks versions and `FORMAT`.
         # Computed once per process, at first use, which is when the judging
         # code was loaded.
         #
@@ -80,13 +73,32 @@ module Hecks
           state.hexdigest
         end
 
+        # The files a verdict depends on: those a digested `CacheInput` member's glob
+        # names, less those a non-digested member's glob names. Globs are relative to `lib`.
+        #
         # @param lib [String] the directory whose files decide a verdict
-        # @return [Array<String>] every file under it outside `CONSUMER_TREES`, sorted
+        # @return [Array<String>] those files, absolute, sorted
         def judging_files(lib)
-          Dir.glob(File.join(lib, "**", "*"), File::FNM_DOTMATCH).sort.select do |file|
-            File.file?(file) && !file.delete_prefix(lib).match?(CONSUMER_TREES)
-          end
+          (cache_input_files(lib, true) - cache_input_files(lib, false))
+            .sort.map { |relative| File.join(lib, relative) }
         end
+
+        # The files, relative to `lib`, that the `CacheInput` members with the given digest
+        # flag name.
+        #
+        # @param lib [String] the directory the globs are relative to
+        # @param digest [Boolean] whether to read the members that enter the digest
+        # @return [Array<String>] the matching regular files, relative to `lib`
+        def cache_input_files(lib, digest)
+          globbed = cache_input_members(digest).flat_map { |member| Dir.glob(member[:glob], File::FNM_DOTMATCH, base: lib) }
+          globbed.uniq.select { |relative| File.file?(File.join(lib, relative)) }
+        end
+
+        # The `CacheInput` members whose digest flag is the given one.
+        #
+        # @param digest [Boolean] the flag to select on
+        # @return [Array<Hash{Symbol => Object}>] the matching members
+        def cache_input_members(digest) = CacheInput::MEMBERS.select { |member| member[:digest] == digest }
 
         # Loads the stored verdicts, once per process; later calls return an
         # empty hash so a caller that resets its own memo re-judges for real.

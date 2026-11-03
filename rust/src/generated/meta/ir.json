@@ -26307,6 +26307,243 @@
           ]
         },
         {
+          "name": "CacheInput",
+          "attributes": [
+            {
+              "name": "name",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "digest",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "glob",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": true,
+          "members": [
+            [
+              [
+                "name",
+                "Lib"
+              ],
+              [
+                "digest",
+                "yes"
+              ],
+              [
+                "glob",
+                "**/*"
+              ]
+            ],
+            [
+              [
+                "name",
+                "Grammar"
+              ],
+              [
+                "digest",
+                "yes"
+              ],
+              [
+                "glob",
+                "hecks/language/**/*"
+              ]
+            ],
+            [
+              [
+                "name",
+                "PreamblePorts"
+              ],
+              [
+                "digest",
+                "yes"
+              ],
+              [
+                "glob",
+                "hecks/ports/{persistence,extraction}.port"
+              ]
+            ],
+            [
+              [
+                "name",
+                "PreambleAdapters"
+              ],
+              [
+                "digest",
+                "yes"
+              ],
+              [
+                "glob",
+                "hecks/adapters/driven/{memory,prism}.adapter"
+              ]
+            ],
+            [
+              [
+                "name",
+                "Projections"
+              ],
+              [
+                "digest",
+                "yes"
+              ],
+              [
+                "glob",
+                "hecks/projections{/**/*,.rb}"
+              ]
+            ],
+            [
+              [
+                "name",
+                "Bench"
+              ],
+              [
+                "digest",
+                "no"
+              ],
+              [
+                "glob",
+                "hecks/bench{/**/*,.rb}"
+              ]
+            ],
+            [
+              [
+                "name",
+                "Cli"
+              ],
+              [
+                "digest",
+                "no"
+              ],
+              [
+                "glob",
+                "hecks/cli{/**/*,.rb}"
+              ]
+            ],
+            [
+              [
+                "name",
+                "Codemod"
+              ],
+              [
+                "digest",
+                "no"
+              ],
+              [
+                "glob",
+                "hecks/codemod{/**/*,.rb}"
+              ]
+            ],
+            [
+              [
+                "name",
+                "Deploy"
+              ],
+              [
+                "digest",
+                "no"
+              ],
+              [
+                "glob",
+                "hecks/deploy{/**/*,.rb}"
+              ]
+            ],
+            [
+              [
+                "name",
+                "Doc"
+              ],
+              [
+                "digest",
+                "no"
+              ],
+              [
+                "glob",
+                "hecks/doc{/**/*,.rb}"
+              ]
+            ],
+            [
+              [
+                "name",
+                "DrivingAdapters"
+              ],
+              [
+                "digest",
+                "no"
+              ],
+              [
+                "glob",
+                "hecks/adapters/driving{/**/*,.rb}"
+              ]
+            ],
+            [
+              [
+                "name",
+                "Fuzzing"
+              ],
+              [
+                "digest",
+                "no"
+              ],
+              [
+                "glob",
+                "hecks/fuzzing{/**/*,.rb}"
+              ]
+            ],
+            [
+              [
+                "name",
+                "QualityControl"
+              ],
+              [
+                "digest",
+                "no"
+              ],
+              [
+                "glob",
+                "hecks/quality_control{/**/*,.rb}"
+              ]
+            ],
+            [
+              [
+                "name",
+                "Release"
+              ],
+              [
+                "digest",
+                "no"
+              ],
+              [
+                "glob",
+                "hecks/release{/**/*,.rb}"
+              ]
+            ]
+          ]
+        },
+        {
           "name": "Disambiguator",
           "attributes": [
             {

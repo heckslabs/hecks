@@ -66,6 +66,30 @@ Hecks.bluebook "Bluebook" do
       attribute :name, String, one_of: ["Ruby", "Cli", "Json", "Mcp", "Web"]
     end
 
+    # The path classes a cache digest reads, relative to `lib/`. A file enters a digest when a
+    # `digest "yes"` member's glob matches it and no `digest "no"` member's glob does. The
+    # projection emits them as a plain constant (lib/hecks/bluebook/meta_validator/cache_input.rb),
+    # so a cache key never reads the grammar registry.
+    value_object "CacheInput" do
+      attribute :name,   String
+      attribute :digest, String
+      attribute :glob,   String
+      member name: "Lib",          digest: "yes", glob: "**/*"
+      member name: "Grammar",      digest: "yes", glob: "hecks/language/**/*"
+      member name: "PreamblePorts",    digest: "yes", glob: "hecks/ports/{persistence,extraction}.port"
+      member name: "PreambleAdapters", digest: "yes", glob: "hecks/adapters/driven/{memory,prism}.adapter"
+      member name: "Projections",  digest: "yes", glob: "hecks/projections{/**/*,.rb}"
+      member name: "Bench",        digest: "no",  glob: "hecks/bench{/**/*,.rb}"
+      member name: "Cli",          digest: "no",  glob: "hecks/cli{/**/*,.rb}"
+      member name: "Codemod",      digest: "no",  glob: "hecks/codemod{/**/*,.rb}"
+      member name: "Deploy",       digest: "no",  glob: "hecks/deploy{/**/*,.rb}"
+      member name: "Doc",          digest: "no",  glob: "hecks/doc{/**/*,.rb}"
+      member name: "DrivingAdapters", digest: "no", glob: "hecks/adapters/driving{/**/*,.rb}"
+      member name: "Fuzzing",      digest: "no",  glob: "hecks/fuzzing{/**/*,.rb}"
+      member name: "QualityControl", digest: "no", glob: "hecks/quality_control{/**/*,.rb}"
+      member name: "Release",      digest: "no",  glob: "hecks/release{/**/*,.rb}"
+    end
+
     # The keyword a bare reference may supply to pick among `owner_keyed` candidates.
     # A closed set rather than a flag, so a second kind is a new member.
     value_object "Disambiguator" do

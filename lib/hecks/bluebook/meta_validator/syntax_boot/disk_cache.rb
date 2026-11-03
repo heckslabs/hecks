@@ -86,17 +86,14 @@ module Hecks
             Digest::SHA256.hexdigest("#{names.join(",")}:#{grammar_content_digest}:#{VerdictCache.code_digest}")
           end
 
-          # The key also carries `VerdictCache.code_digest` (all of `lib/`), so an
-          # edit to Ruby that builds or judges the grammar misses too.
-          #
-          # Covers every bluebook's grammar files, not just the core ones —
-          # coarser than strictly necessary, but under-covering this set would
-          # let a stale table survive a real grammar edit.
+          # The bytes of every file the `CacheInput` set digests, so the grammar
+          # files and the preamble are in the key by the same declaration the
+          # verdict cache reads. Memoized per process, as `VerdictCache.code_digest` is.
           def grammar_content_digest
-            files = (MetaValidator::GRAMMAR_FILES + MetaValidator::WORLD_GRAMMAR + MetaValidator::HECKSAGON_GRAMMAR +
-                      MetaValidator::CONTEXT_MAP_GRAMMAR +
-                      Dir.glob(File.join(MetaValidator::ATTACHED_GRAMMAR_DIR, "*.bluebook"))).sort
-            Digest::SHA256.hexdigest(files.map { |file| File.read(file) }.join("\0"))
+            @grammar_content_digest ||= begin
+              files = VerdictCache.judging_files(File.expand_path("../../../..", __dir__))
+              Digest::SHA256.hexdigest(files.map { |file| File.read(file) }.join("\0"))
+            end
           end
         end
       end

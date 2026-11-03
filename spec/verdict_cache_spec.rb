@@ -137,7 +137,13 @@ RSpec.describe Hecks::Bluebook::MetaValidator::VerdictCache do
     end
 
     it "ignores an edit inside a consumer tree" do
-      expect(digests_around_edit("projections/p.rb")).to all(eq(cache.digest_of(lib)))
+      expect(digests_around_edit("cli/c.rb")).to all(eq(cache.digest_of(lib)))
+    end
+
+    it "covers projections, so an edit to a projection changes the key" do
+      before, after = digests_around_edit("projections/p.rb")
+
+      expect(after).not_to eq(before)
     end
 
     it "still covers the judging trees" do
