@@ -3,6 +3,101 @@
 #![allow(dead_code, unused_variables)]
 use crate::kernel::Expr;
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct DoorKey {
+    pub value: String,
+}
+
+impl crate::kernel::Fielded for DoorKey {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::Field;
+        use crate::kernel::Value;
+        match name {
+            "value" => Some(Field::Value(Value::Str(self.value.clone()))),
+            _ => None,
+        }
+    }
+
+    fn items(&self, name: &str) -> Option<Vec<crate::kernel::Field<'_>>> {
+        #[allow(unused_imports)]
+        use crate::kernel::{Field, Value};
+        match name {
+            _ => None,
+        }
+    }
+
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") {
+            Some(crate::kernel::Field::Value(v)) => Some(v),
+            _ => None,
+        }
+    }
+}
+
+impl DoorKey {
+    pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
+        if !crate::kernel::pattern::matches_whole("[^ \\t\\n\\r]", &self.value) {
+            return Err(crate::kernel::Refusal::TypeMismatch(
+                crate::kernel::refusal_wording::TypeMismatchPatternMismatchArgs {
+                    r#type: "DoorKey",
+                    field: "value",
+                    pattern: "[^ \\t\\n\\r]",
+                    offered: format!("{:?}", self.value).as_str(),
+                }
+                .render_args(),
+            ));
+        }
+        Ok(())
+    }
+}
+
+impl DoorKey {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![(
+            "value".to_string(),
+            crate::kernel::Json::Str(self.value.clone()),
+        )])
+    }
+}
+
+impl DoorKey {
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        if !matches!(v, crate::kernel::Json::Object(_)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(format!(
+                "DoorKey expects an object, got {}",
+                v.inspect()
+            )));
+        }
+        let unknown = v.unknown_keys(&["value"]);
+        if !unknown.is_empty() {
+            let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
+            return Err(crate::kernel::Refusal::UnknownArgument(
+                crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+                    command: "DoorKey",
+                    unknown: &unknown,
+                    declared: &["value"],
+                }
+                .render_args(),
+            ));
+        }
+        Ok(Self {
+            value: {
+                let x = v.get("value").ok_or_else(|| {
+                    crate::kernel::Refusal::TypeMismatch(
+                        "DoorKey.value expects String, got nil".to_string(),
+                    )
+                })?;
+                x.as_str().map(ToString::to_string).ok_or_else(|| {
+                    crate::kernel::Refusal::TypeMismatch(format!(
+                        "DoorKey.value expects String, got {}",
+                        x.describe()
+                    ))
+                })?
+            },
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ReaderTool {
     Query,
@@ -775,6 +870,7 @@ impl RefArgument {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Door {
+    pub door: Option<DoorKey>,
     pub tool: Option<ReaderTool>,
     pub dispatch: Option<DispatchTool>,
     pub denied: Option<DeniedArgument>,
@@ -786,6 +882,11 @@ impl crate::kernel::Fielded for Door {
     fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
         use crate::kernel::{Field, Value};
         match name {
+            "door" => self
+                .door
+                .as_ref()
+                .map(|v| Field::Nested(v))
+                .or(Some(Field::Value(Value::Nil))),
             "tool" => self
                 .tool
                 .as_ref()
@@ -832,6 +933,12 @@ impl Door {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(vec![
             (
+                "door".to_string(),
+                self.door
+                    .as_ref()
+                    .map_or(crate::kernel::Json::Null, |v| v.to_json()),
+            ),
+            (
                 "tool".to_string(),
                 self.tool
                     .as_ref()
@@ -874,6 +981,10 @@ impl Door {
             )));
         }
         Ok(Self {
+            door: match v.get("door") {
+                Some(&crate::kernel::Json::Null) | None => None,
+                Some(x) => Some(DoorKey::from_json(&x.coerce_single_field("value"))?),
+            },
             tool: match v.get("tool") {
                 Some(&crate::kernel::Json::Null) | None => None,
                 Some(x) => Some(ReaderTool::from_json(&x.coerce_single_field("value"))?),
@@ -917,7 +1028,7 @@ pub static DOOR_PROJECTED_FIELDS: &[crate::kernel::ProjectedFieldSpec] = &[];
 impl Door {
     pub fn extract_id(v: &crate::kernel::Json) -> Result<String, crate::kernel::Refusal> {
         let by_identity = (|| -> Option<String> {
-            let c0 = v.dig("tool.value")?.to_id_component().ok()?;
+            let c0 = v.dig("door.value")?.to_id_component().ok()?;
             Some(c0)
         })();
         let by_id_key = v.get("id").and_then(|j| j.to_id_component().ok());
@@ -928,7 +1039,7 @@ impl Door {
             .or(by_reference_key)
             .ok_or_else(|| {
                 crate::kernel::Refusal::TypeMismatch(
-                    "Door: no identity found (tried tool.value, id, door)".to_string(),
+                    "Door: no identity found (tried door.value, id, door)".to_string(),
                 )
             })
     }
@@ -946,6 +1057,7 @@ impl crate::kernel::Fielded for ServeArgs {
         use crate::kernel::Field;
         use crate::kernel::Value;
         match name {
+            "door" => Some(Field::Nested(&self.door)),
             "tool" => Some(Field::Nested(&self.tool)),
             "dispatch" => self
                 .dispatch
@@ -986,6 +1098,7 @@ impl crate::kernel::Fielded for ServeArgs {
 
 #[derive(Debug, Clone)]
 pub struct ServeArgs {
+    pub door: DoorKey,
     pub tool: ReaderTool,
     pub dispatch: Option<DispatchTool>,
     pub denied: Option<DeniedArgument>,
@@ -1002,6 +1115,7 @@ pub fn dispatch_serve(
     command_deref: Vec<(&'static str, crate::kernel::DerefNode)>,
     tenant_boundary_check: Result<(), crate::kernel::Refusal>,
 ) -> crate::kernel::DispatchResult<Door> {
+    args.door.check_invariants()?;
     let with_references = crate::kernel::WithReferences {
         command_deref: &command_deref,
         args: &args,
@@ -1020,10 +1134,11 @@ pub fn dispatch_serve(
                 }
             }
             None => {
-                let __hydrate_id: String = args.tool.value.to_string();
+                let __hydrate_id: String = args.door.value.to_string();
                 crate::kernel::Hydrate::Create {
                     id: __hydrate_id,
                     build: Box::new(|| Door {
+                        door: Some(args.door.clone()),
                         tool: Some(args.tool.clone()),
                         dispatch: args.dispatch.clone(),
                         denied: args.denied.clone(),
@@ -1037,12 +1152,12 @@ pub fn dispatch_serve(
         "Serve",
         "Governance::Door",
         "Door",
-        "tool.value",
+        "door.value",
         &with_references,
         &[],
         None,
         |record| {
-            let _ = record;
+            record.door = Some(args.door.clone());
             Ok(())
         },
         &[],
@@ -1059,6 +1174,7 @@ impl ServeArgs {
     pub fn to_json(&self) -> crate::kernel::Json {
         crate::kernel::Json::Object(
             vec![
+                ("door".to_string(), self.door.to_json()),
                 ("tool".to_string(), self.tool.to_json()),
                 (
                     "dispatch".to_string(),
@@ -1100,19 +1216,19 @@ impl ServeArgs {
                 v.inspect()
             )));
         }
-        let unknown = v.unknown_keys(&["tool", "dispatch", "denied", "path", "ref", "id"]);
+        let unknown = v.unknown_keys(&["door", "tool", "dispatch", "denied", "path", "ref", "id"]);
         if !unknown.is_empty() {
             let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
             return Err(crate::kernel::Refusal::UnknownArgument(
                 crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
                     command: "Serve",
                     unknown: &unknown,
-                    declared: &["tool", "dispatch", "denied", "path", "ref"],
+                    declared: &["door", "tool", "dispatch", "denied", "path", "ref"],
                 }
                 .render_args(),
             ));
         }
-        let required: &[&str] = &["tool"];
+        let required: &[&str] = &["door", "tool"];
         let absent: Vec<&str> = required
             .iter()
             .copied()
@@ -1123,11 +1239,23 @@ impl ServeArgs {
                 crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
                     command: "Serve",
                     absent: &absent,
-                    declared: &["tool", "dispatch", "denied", "path", "ref"],
+                    declared: &["door", "tool", "dispatch", "denied", "path", "ref"],
                 }
                 .render_args(),
             ));
         }
+        let door = DoorKey::from_json(
+            &(match v.get("door").ok_or_else(|| {
+                crate::kernel::Refusal::TypeMismatch(
+                    "Serve.door expects DoorKey, got nil".to_string(),
+                )
+            })? {
+                crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()),
+                other => other.clone(),
+            })
+            .coerce_single_field("value"),
+        )?;
+        door.check_invariants()?;
         let tool = ReaderTool::from_json(
             &(match v.get("tool").ok_or_else(|| {
                 crate::kernel::Refusal::TypeMismatch(
@@ -1156,6 +1284,7 @@ impl ServeArgs {
             Some(x) => Some(RefArgument::from_json(&x.coerce_single_field("value"))?),
         };
         Ok(Self {
+            door,
             tool,
             dispatch,
             denied,
@@ -1177,7 +1306,7 @@ impl ServeArgs {
     }
 
     pub fn refuse_unknown_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
-        let unknown = v.unknown_keys(&["tool", "dispatch", "denied", "path", "ref", "id"]);
+        let unknown = v.unknown_keys(&["door", "tool", "dispatch", "denied", "path", "ref", "id"]);
         if !unknown.is_empty() {
             let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
             crate::kernel::collecting::refuse_each(&unknown, |names| {
@@ -1185,7 +1314,7 @@ impl ServeArgs {
                     crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
                         command: "Serve",
                         unknown: names,
-                        declared: &["tool", "dispatch", "denied", "path", "ref"],
+                        declared: &["door", "tool", "dispatch", "denied", "path", "ref"],
                     }
                     .render_args(),
                 )
@@ -1195,7 +1324,7 @@ impl ServeArgs {
     }
 
     pub fn refuse_absent_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
-        let required: &[&str] = &["tool"];
+        let required: &[&str] = &["door", "tool"];
         let absent: Vec<&str> = required
             .iter()
             .copied()
@@ -1207,7 +1336,7 @@ impl ServeArgs {
                     crate::kernel::refusal_wording::AbsentArgumentAbsentArgsArgs {
                         command: "Serve",
                         absent: names,
-                        declared: &["tool", "dispatch", "denied", "path", "ref"],
+                        declared: &["door", "tool", "dispatch", "denied", "path", "ref"],
                     }
                     .render_args(),
                 )
@@ -1226,6 +1355,13 @@ pub fn present(state: crate::kernel::Json) -> crate::kernel::Json {
                 .into_iter()
                 .map(|(k, v)| {
                     let new_v = match k.as_str() {
+                        "door" => match v {
+                            crate::kernel::Json::Object(fields) => fields
+                                .into_iter()
+                                .find(|(k, _)| k == "value")
+                                .map_or(crate::kernel::Json::Null, |(_, field_value)| field_value),
+                            other => other,
+                        },
                         "tool" => match v {
                             crate::kernel::Json::Object(fields) => fields
                                 .into_iter()

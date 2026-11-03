@@ -4008,6 +4008,7 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Gove
                             &crate::generated::governance::door::ServeArgs::refuse_absent_arguments,
                         normalize_args: &|v: &crate::kernel::Json| {
                             let args = crate::generated::governance::door::ServeArgs::from_json(v)?;
+                            args.door.check_invariants()?;
                             Ok(args)
                         },
                         refuse_role_mismatch: &|| {
@@ -4045,6 +4046,7 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Gove
                             &crate::generated::governance::door::ServeArgs::refuse_absent_arguments,
                         normalize_args: &|v: &crate::kernel::Json| {
                             let args = crate::generated::governance::door::ServeArgs::from_json(v)?;
+                            args.door.check_invariants()?;
                             Ok(args)
                         },
                         refuse_role_mismatch: &|| {
@@ -5690,7 +5692,7 @@ pub fn identity_head_for_aggregate(qualified_name: &str) -> Option<&'static str>
         "Banking::ExternalTransfer" => Some("end_to_end"),
         "Banking::ScheduledPayment" => Some("instruction"),
         "Governance::Call" => Some("summary"),
-        "Governance::Door" => Some("tool"),
+        "Governance::Door" => Some("door"),
         "Identity::Identity" => Some("identity_id"),
         "Identity::ExternalIdentifier" => Some("key"),
         "Bulk::BulkRun" => Some("run"),
@@ -5802,7 +5804,7 @@ pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
             "actor_id",
             "role_gated",
         ],
-        "Governance::Door.Serve" => &["tool", "dispatch", "denied", "path", "ref"],
+        "Governance::Door.Serve" => &["door", "tool", "dispatch", "denied", "path", "ref"],
         "Identity::Identity.Register" => &["identity_id"],
         "Identity::ExternalIdentifier.Link" => &["identity", "key", "issuer", "subject"],
         "Bulk::BulkRun.Request" => &["run", "verb", "over", "arguments"],
