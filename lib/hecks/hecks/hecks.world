@@ -62,9 +62,7 @@ Hecks.world "Hecks" do
   # shape no era holds yet. This domain's PostgresEra binding lives in uncommitted local files, so the
   # name is said here, where every copy reads it.
   minting commands: ["Era.MintHeld"]
-  # `shallow_checks: false` switches off the landing's shallow checks (the `landing` gate stage run on a depth-1
-  # clone of a branch that changes a bluebook, spec or generator); absent or true, they run.
-  landing "Queue", stale_minutes: 30, wait_minutes: 40, shallow_checks: true
+  landing "Queue", stale_minutes: 30, wait_minutes: 40
   # Owner decision: the full spec suite runs only in CI (the Vocabulary `rspec` check is `runs_in: "ci"`).
   # Locally `test_suite_run.run_suite!` is refused, and `run_spec_files!` and `run_impacted_specs!` run at
   # most `spec_files_limit` files per call; CI is detected by the environment (`CI`, `GITHUB_ACTIONS`).
