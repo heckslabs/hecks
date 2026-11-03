@@ -58,10 +58,30 @@ module Hecks
           module_name ? module_header(bluebook, module_name, program) : usage_header(bluebook, program)
         end
 
-        # The bluebook's vision, the release of the gem this launcher runs, and the two ways to call
-        # it.
+        # The name the banner falls back to when the program names nothing.
+        BANNER_FALLBACK = "hecks".freeze
+
+        # The banner line that opens the overall listing, and no other output: the program's first
+        # word, cut to its basename without extension, upcased (`"./exe/acme-shop"` gives
+        # `=== ACME-SHOP ===`). A program that names nothing reads as `hecks`.
+        #
+        # @param program [String, nil] how the caller was invoked
+        # @return [String] the banner line
+        def banner(program)
+          word = program_stem(program)
+          "=== #{(word.empty? ? BANNER_FALLBACK : word).upcase} ==="
+        end
+
+        # @return [String] the program's first word, as a basename without extension
+        def program_stem(program)
+          first = program.to_s.split.first
+          File.basename(first.to_s, ".*")
+        end
+
+        # The banner, the bluebook's vision, the release of the gem this launcher runs, and the two
+        # ways to call it.
         def usage_header(bluebook, program)
-          ["#{bluebook.name} — #{bluebook.vision}", "  hecks #{Hecks::VERSION}", "",
+          [banner(program), "#{bluebook.name} — #{bluebook.vision}", "  hecks #{Hecks::VERSION}", "",
            "  #{program} <command>! [name=value …]       do something",
            "  #{program} <query> [name=value …]          read something, written bare", ""]
         end
