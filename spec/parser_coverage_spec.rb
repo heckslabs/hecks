@@ -106,7 +106,7 @@ RSpec.describe "the Rust parser's own coverage", :io do
     # Work item `rust-parser-new-words` (Tickets) implements them, and each leaves here as it lands.
     ["a word added after the Rust parser's last pass (Work item rust-parser-new-words)", [
       %w[created_by Aggregate], %w[domain_module Bluebook], %w[formerly_known_as Aggregate],
-      %w[handles PortOperation], %w[resumes ProcessManager], %w[split TranslationAggregate]
+      %w[handles PortOperation], %w[resumes ProcessManager], %w[root Policy], %w[split TranslationAggregate]
     ]]
   ].freeze
 

@@ -39,9 +39,7 @@ module Hecks
         # Declared but deliberately not emitted, each with its reason.
         OFF_THE_WIRE = {
           "Policy"      => { aggregate: "the wire format is a pinned contract, and it does not carry " \
-                                        "where a policy was written before the builder hoisted it",
-                             root:      "a dispatch instruction to the Ruby runtime's depth cap, which the pinned " \
-                                        "wire and the Rust parser do not carry yet" },
+                                        "where a policy was written before the builder hoisted it" },
           "Bluebook"    => { formerly_known_as: "a rename's old name is a fact about the source",
                              normalisations:    "the normalisation table rides on canonical_form instead" },
           "ValueObject" => { rows: "the language's name for a closed set's members; emitted as `members`" }
