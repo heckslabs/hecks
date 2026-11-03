@@ -16,11 +16,11 @@ RSpec.describe "parser parity corpus, Ruby side" do
     { /which no driving adapter answers to/ => "driven_by.outside_set" }
   end
 
-  def corpus_root
+  def self.corpus_root
     File.expand_path("fixtures", __dir__)
   end
 
-  def fixture_paths
+  def self.fixture_paths
     Dir.glob(File.join(corpus_root, "**", "expected.json"))
   end
 
@@ -74,11 +74,11 @@ RSpec.describe "parser parity corpus, Ruby side" do
   end
 
   it "has fixtures to run" do
-    expect(fixture_paths).not_to be_empty
+    expect(self.class.fixture_paths).not_to be_empty
   end
 
   fixture_paths.each do |expected_path|
-    relative = expected_path.delete_prefix("#{File.expand_path("fixtures", __dir__)}/").delete_suffix("/expected.json")
+    relative = expected_path.delete_prefix("#{corpus_root}/").delete_suffix("/expected.json")
 
     it "matches expected.json for #{relative}" do
       expected = JSON.parse(File.read(expected_path))
