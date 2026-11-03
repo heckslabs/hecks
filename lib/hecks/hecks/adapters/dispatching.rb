@@ -32,14 +32,14 @@ module Hecks
 
       # Says which planned work items start now, and starts them when confirmed.
       #
-      # @param held [Hash] the `Dispatch` record: `repo`, `budget_minutes`, `confirm`
+      # @param held [Hash] the `Dispatch` record: `repo`, `budget_minutes`, `only`, `confirm`
       # @return [Hash{Symbol => Hash}] `report:` the load, the work items started or that would be,
       #   and
       #   the
       #   work items left waiting with the reason
       def choose(**held)
-        plan = plan_for
-        lines = [header(plan)] + plan.chosen.map { |item| chosen_line(item) } + plan.skipped.map { |skip| skipped_line(skip) }
+        plan = plan_for(plain(held[:only]))
+        lines = report_lines(plan)
         lines += launch(plan, held) if plain(held[:confirm]) == true
         { report: { value: lines.join("\n") } }
       end
@@ -61,9 +61,16 @@ module Hecks
 
       def launcher_for(held) = Launcher.new(plain(held[:repo]), runner: @standins[:runner])
 
-      def plan_for
-        Plan.new(work_items.planned, work_items.started, cap: machine.cap, load: machine.load, max_load: machine.max_load,
-                                             frozen: machine.frozen)
+      def plan_for(only = nil)
+        Plan.new(planned_with(only), work_items.started, cap: machine.cap, load: machine.load,
+                                                         max_load: machine.max_load, frozen: machine.frozen)
+      end
+
+      # The planned work items whose id starts with `only`, or all of them when it is left out.
+      def planned_with(only) = work_items.planned.select { |item| only.nil? || item.key.start_with?(only) }
+
+      def report_lines(plan)
+        [header(plan)] + plan.chosen.map { |item| chosen_line(item) } + plan.skipped.map { |skip| skipped_line(skip) }
       end
 
       def header(plan)
