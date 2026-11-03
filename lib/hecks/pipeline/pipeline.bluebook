@@ -5,7 +5,7 @@
 # outside anything.
 #
 #   Tickets   Work.WorkPlanned        -> Plan      (planned)
-#   Tickets   Work.WorkStarted        -> Dispatch  (dispatched)
+#   Tickets   Work.WorkStarted        -> Dispatch  (dispatched), again for a row started again
 #   Hecks     Landing.LandedWorkFound -> Land      (landed)
 #   Hecks     Integration.MainPushed  -> Push      (pushed), every landed passage at once
 #   Hecks     RedFlag.RedFlagRaised   -> Hold      (held), every pushed passage
@@ -59,7 +59,7 @@ Hecks.bluebook "Pipeline" do
 
     lifecycle :stage, default: "planned" do
       mark :terminal, "released"
-      transition "Dispatch" => "dispatched", from: "planned"
+      transition "Dispatch" => "dispatched", from: %w[planned dispatched]
       transition "Land"     => "landed",     from: %w[planned dispatched]
       transition "Push"     => "pushed",     from: "landed"
       transition "Hold"     => "held",       from: "pushed"
@@ -78,9 +78,11 @@ Hecks.bluebook "Pipeline" do
       emits PassagePlanned
     end
 
+    # A Work row yielded or released goes back to the plan and starts again under another
+    # session, so a dispatched passage takes the newer session rather than refusing it.
     command "Dispatch" do
       role "System"
-      goal "Record the session a planned change was handed to"
+      goal "Record the session a planned change was handed to, or the one it was handed to again"
 
       reference_to Passage
       attribute :session, Word, sets: true

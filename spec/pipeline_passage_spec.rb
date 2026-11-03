@@ -18,7 +18,11 @@ RSpec.describe "Pipeline passages" do
 
   def plan(work) = run("tickets", "Work.plan!", "work.value=#{work}", "title.value=Title #{work}")
 
-  def start(work) = run("tickets", "Work.start!", "to=#{work}", "claimed_by.value=s1", "claimed_at.value=2026-11-02T10:00:00Z")
+  def start(work, session = "s1")
+    run("tickets", "Work.start!", "to=#{work}", "claimed_by.value=#{session}", "claimed_at.value=2026-11-02T10:00:00Z")
+  end
+
+  def yield_row(work) = run("tickets", "Work.yield!", "to=#{work}", "reason.value=area overlaps")
 
   def rows(query) = JSON.parse(launch("pipeline", "Passage.#{query}").first)
 
@@ -37,6 +41,14 @@ RSpec.describe "Pipeline passages" do
     plan("p-start")
     start("p-start")
     expect(passage("p-start")).to include("stage" => "dispatched", "session" => "s1")
+  end
+
+  it "dispatches a yielded row again to the session that starts it next", :aggregate_failures do
+    plan("p-again")
+    start("p-again")
+    yield_row("p-again")
+    start("p-again", "s2")
+    expect(passage("p-again")).to include("stage" => "dispatched", "session" => "s2")
   end
 
   it "moves through landed, pushed, verified, promoted and released in order", :aggregate_failures do
