@@ -8,18 +8,15 @@ require_relative "../../text"
 module Hecks
   module Adapters
     module Driving
-      # What a domain's world file adds to its generated launcher, all of it opt-in.
-      #
-      # A `.world` that declares a `launcher` setting switches these on for that bluebook; a
-      # domain without one keeps the launcher's plain forms exactly:
+      # What a domain's world file adds to its generated launcher, all of it opt-in: a `launcher`
+      # setting switches these on for that bluebook; a domain without one keeps the plain forms.
       #
       # - **run_keys** mints the `run` key of a creating command that was given none.
       # - **settled** lists the commands (`aggregate.command`) that always act as if given `--wait`.
       # - **unknown_runs** lists the questions that refuse a run this process does not hold.
       # - **report** lists the settled commands whose answer is the report they recorded, as text.
       # - **names** maps a launcher name to the command it stands for (see `CliProjector`).
-      # - **memory_commands** lists the commands the generated launcher runs on Memory and waits for.
-      # - **ledgers** maps a command word to the ledger directory the launcher boots for it.
+      # - **memory_commands** run on Memory and wait; **ledgers** map a word to a ledger directory.
       # - **streams** lists the questions `--stream` may tail, one JSON line per new entry.
       # - **maintainer**, **bluebooks**, **maintainer_bluebooks** shape the help for its audience.
       module LauncherOptions
