@@ -9,6 +9,7 @@ require_relative "git_train/bench"
 require_relative "git_train/local_branch"
 require_relative "git_train/carriage"
 require_relative "git_train/candidate_boarding"
+require_relative "git_train/snapshot"
 require_relative "candidate_gate"
 require_relative "git_train/survey"
 require_relative "git_train/settlement"
@@ -91,8 +92,23 @@ module Hecks
 
       private
 
-      # The commit the branch names as the boarding begins, read once the line is held.
+      # A pinned boarding checks its snapshot once it holds the line, before the mint or any push:
+      # the remote still at the green head, the local branch the handoff alone on it, and the tree
+      # beyond the handoff unchanged. An unpinned boarding carries what the branch holds.
+      def snapshot_checked!(held)
+        pinned = plain(held[:pinned])
+        return unless pinned
+
+        green = plain(held[:green])
+        raise ConsoleCapture::Failure, "a pinned handoff needs the green head it was checked against" unless green
+
+        Snapshot.new(@git, @checkout, branch: branch_of(held), remote: remote_of(held), pinned: pinned).check!(green)
+      end
+
+      # The commit the branch names as the boarding begins, read once the line is held. A pinned
+      # boarding checks its snapshot first, so the commit read is the checked handoff.
       def boarded_commit(held)
+        snapshot_checked!(held)
         head = Carriage.new(@git, @checkout, branch: branch_of(held), remote: remote_of(held)).local_head
         RedFlagGuard.new(read("rev-parse", "--path-format=absolute", "--git-common-dir")).boarding!(head)
         head

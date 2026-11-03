@@ -657,6 +657,8 @@ Hecks.bluebook "Hecks" do
       attribute :remote,   Word,   optional: true
       attribute :checkout, Word,   optional: true
       attribute :full_gate, Switch, optional: true
+      attribute :pinned,   Word,   optional: true
+      attribute :green,    Word,   optional: true
       attribute :boarded,  Word,   optional: true
       attribute :pushed,   Word,   optional: true
       attribute :commits,  Count,  optional: true
@@ -708,10 +710,15 @@ Hecks.bluebook "Hecks" do
         # Run the whole `pre_push` stage, the suite included, which also writes the CI attestation
         # note; without it the push runs only the `quick` stage.
         attribute :full_gate, Switch, optional: true, sets: true
+        # The handoff the coordinator checked: the commit to board, and the remote branch's head it was
+        # checked against. Both or neither. A pinned boarding refuses, before it mints or pushes, unless
+        # the remote still stands at `green`, the local branch is `green` plus `pinned` and nothing else,
+        # and the tree beyond the handoff is unchanged.
+        attribute :pinned,    Word, optional: true, sets: true
+        attribute :green,     Word, optional: true, sets: true
         attribute :confirm,   Switch, optional: true, sets: true
 
         given("pushes the branch to the remote needs --confirm; without it this only reports") { confirm.value == true }
-
         emits BoardingRequested
       end
 
