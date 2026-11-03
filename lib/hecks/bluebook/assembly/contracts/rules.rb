@@ -72,12 +72,13 @@ module Hecks
             ask:                [:ask,             :plain],
             target_domain:      [:target_domain,   :plain],
             expect_undelivered: [:expect_undelivered, :plain],
-            where:              [:where,           :plain],
+            root:               [:root, :plain],
+            where:              [:where, :plain],
             for_each:           [:for_each,        :plain],
             with_spec:          [:with_spec,       :bindings]
           },
           rows: { with_spec: :with_spec_rows },
-          reads: { with_spec: [:from, :with_spec], expect_undelivered: :expect_undelivered? },
+          reads: { with_spec: [:from, :with_spec], expect_undelivered: :expect_undelivered?, root: :root? },
           derived: { position: :walk }
         )
       }.freeze
