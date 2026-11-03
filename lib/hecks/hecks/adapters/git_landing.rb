@@ -8,6 +8,7 @@ require_relative "git_landing/rivals"
 require_relative "git_landing/finisher"
 require_relative "git_landing/lineup"
 require_relative "git_landing/flagged"
+require_relative "git_landing/generated"
 require_relative "../../indifferent_key"
 
 module Hecks
@@ -154,6 +155,7 @@ module Hecks
       def land_alone(branch, onto, note)
         refuse_unsaved(branch)
         refuse_rival(branch, onto)
+        Generated.new(@git, @checkout, branch: branch, onto: onto, runner: @tune[:generated]).refuse_stale!
         said = on_main(branch, onto) { tidy(Merger.new(@git, @checkout, branch: branch, onto: onto).land, branch, onto) }
         note ? said.merge(report: { value: "#{said[:report][:value]}; #{note}" }) : said
       end
@@ -161,10 +163,7 @@ module Hecks
       def common_git_dir = read("rev-parse", "--path-format=absolute", "--git-common-dir")
 
       # The line of this repository, with the limits of the world's `landing "Queue"` setting.
-      def lineup
-        setting = (@registry&.world("Hecks")&.settings || {})["landing"]
-        Lineup.new(common_git_dir, setting: setting, **@tune)
-      end
+      def lineup = Lineup.new(common_git_dir, setting: (@registry&.world("Hecks")&.settings || {})["landing"], **@tune)
 
       def refuse_rival(branch, onto)
         clash = Rivals.new(@git, @checkout, @registry).refusal(branch, onto)
