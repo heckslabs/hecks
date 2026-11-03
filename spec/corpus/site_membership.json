@@ -1,0 +1,95 @@
+{
+  "name": "site-membership-parity",
+  "note": "Admit two people, grant the first an open-ended admin role and the second a windowed one, then disable and delete the second. Five refusals ride along: the last open-ended admin may not take an end date, a window past 365 days, an admin disabling themselves, enabling a deleted person, and deleting a person who is not disabled. A runtime that accepts any of them is the failure worth catching.",
+  "expectations": {
+    "events": 6
+  },
+  "steps": [
+    {
+      "verb": "SiteMembership::Membership.Admit",
+      "args": { "email": { "value": "amy@example.com" }, "name": { "value": "Amy" } }
+    },
+    {
+      "verb": "SiteMembership::Membership.Grant",
+      "args": {
+        "id": "amy@example.com",
+        "new_role": { "value": "Admin" },
+        "window_days": { "value": 0 },
+        "window_ends_at": { "value": "" },
+        "others_open_admins": { "value": 0 },
+        "others_admins": { "value": 0 }
+      }
+    },
+    {
+      "verb": "SiteMembership::Membership.Admit",
+      "args": { "email": { "value": "bob@example.com" }, "name": { "value": "Bob" } }
+    },
+    {
+      "verb": "SiteMembership::Membership.Grant",
+      "args": {
+        "id": "bob@example.com",
+        "new_role": { "value": "Admin" },
+        "window_days": { "value": 7 },
+        "window_ends_at": { "value": "2031-01-01T00:00:00Z" },
+        "others_open_admins": { "value": 1 },
+        "others_admins": { "value": 1 }
+      }
+    },
+    {
+      "verb": "SiteMembership::Membership.Grant",
+      "args": {
+        "id": "amy@example.com",
+        "new_role": { "value": "Admin" },
+        "window_days": { "value": 7 },
+        "window_ends_at": { "value": "2031-01-01T00:00:00Z" },
+        "others_open_admins": { "value": 0 },
+        "others_admins": { "value": 1 }
+      }
+    },
+    {
+      "verb": "SiteMembership::Membership.Grant",
+      "args": {
+        "id": "bob@example.com",
+        "new_role": { "value": "Member" },
+        "window_days": { "value": 366 },
+        "window_ends_at": { "value": "2031-01-01T00:00:00Z" },
+        "others_open_admins": { "value": 1 },
+        "others_admins": { "value": 1 }
+      }
+    },
+    {
+      "verb": "SiteMembership::Membership.Disable",
+      "args": {
+        "id": "amy@example.com",
+        "caller": { "value": "amy@example.com" },
+        "caller_role": { "value": "Admin" },
+        "window_ended": { "value": "no" },
+        "others_active_admins": { "value": 1 },
+        "others_open_admins": { "value": 1 }
+      }
+    },
+    {
+      "verb": "SiteMembership::Membership.Disable",
+      "args": {
+        "id": "bob@example.com",
+        "caller": { "value": "amy@example.com" },
+        "caller_role": { "value": "Admin" },
+        "window_ended": { "value": "no" },
+        "others_active_admins": { "value": 1 },
+        "others_open_admins": { "value": 1 }
+      }
+    },
+    {
+      "verb": "SiteMembership::Membership.Delete",
+      "args": { "id": "bob@example.com", "caller_role": { "value": "Admin" } }
+    },
+    {
+      "verb": "SiteMembership::Membership.Enable",
+      "args": { "id": "bob@example.com", "caller_role": { "value": "Admin" } }
+    },
+    {
+      "verb": "SiteMembership::Membership.Delete",
+      "args": { "id": "amy@example.com", "caller_role": { "value": "Admin" } }
+    }
+  ]
+}

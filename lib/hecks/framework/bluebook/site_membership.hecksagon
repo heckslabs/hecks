@@ -1,0 +1,5 @@
+Hecks.hecksagon "SiteMembership" do
+  # A bluebook that provides "membership" needs an identity bluebook beside it, or boot refuses.
+  attaches "Identity"
+  persisted_by "Memory"
+end

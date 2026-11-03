@@ -1,0 +1,11 @@
+# The Identity and Governance siblings `site_membership.hecksagon` attaches, for
+# `site_membership.behaviors`. They live outside the framework directory so booting that directory,
+# which binds both in framework.hecksagon, never sees a second binding.
+Hecks.hecksagon "Identity" do
+  attaches "Governance"
+  persisted_by "Memory"
+end
+
+Hecks.hecksagon "Governance" do
+  persisted_by "Memory"
+end

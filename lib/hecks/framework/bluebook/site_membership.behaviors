@@ -1,0 +1,50 @@
+Hecks.behaviors "SiteMembership" do
+  vision "A site keeps an admin who cannot lapse; a window is 1 to 365 days; only a disabled person is deleted, and never undeleted."
+
+  loads "site_membership.bluebook", "identity.bluebook", "governance.bluebook", "site_membership.hecksagon",
+        "../../../../spec/fixtures/site_membership/identity_stack.hecksagon"
+
+  test "Admit recognizes a person with no role" do
+    tests "Admit", on: "Membership"
+    input email: { value: "amy@example.com" }, name: { value: "Amy" }
+    expect emits: ["PersonAdmitted"]
+  end
+
+  test "Grant gives a role to a site's first admin with no end date" do
+    tests "Grant", on: "Membership"
+    setup "SiteMembership::Membership.Admit", email: { value: "amy@example.com" }, name: { value: "Amy" }
+    input id: "amy@example.com", others_open_admins: { value: 0 }, others_admins: { value: 0 }
+    expect emits: ["AccessGranted"]
+  end
+
+  test "Grant refuses a window of more than 365 days" do
+    tests "Grant", on: "Membership"
+    setup "SiteMembership::Membership.Admit", email: { value: "amy@example.com" }, name: { value: "Amy" }
+    input id: "amy@example.com", new_role: { value: "Member" }, window_days: { value: 366 },
+          window_ends_at: { value: "2031-01-01T00:00:00Z" }, others_open_admins: { value: 1 }, others_admins: { value: 1 }
+    expect refused: "1 to 365 days"
+  end
+
+  test "Grant refuses a first admin who has an end date" do
+    tests "Grant", on: "Membership"
+    setup "SiteMembership::Membership.Admit", email: { value: "amy@example.com" }, name: { value: "Amy" }
+    input id: "amy@example.com", new_role: { value: "Admin" }, window_days: { value: 7 },
+          window_ends_at: { value: "2031-01-01T00:00:00Z" }, others_open_admins: { value: 0 }, others_admins: { value: 0 }
+    expect refused: "the first admin of a site has no end date"
+  end
+
+  test "Disable refuses an admin who disables themselves" do
+    tests "Disable", on: "Membership"
+    setup "SiteMembership::Membership.Admit", email: { value: "amy@example.com" }, name: { value: "Amy" }
+    input id: "amy@example.com", caller: { value: "amy@example.com" }, caller_role: { value: "Admin" },
+          window_ended: { value: "no" }, others_active_admins: { value: 1 }, others_open_admins: { value: 1 }
+    expect refused: "an admin cannot disable themselves"
+  end
+
+  test "Delete refuses a person who is not disabled" do
+    tests "Delete", on: "Membership"
+    setup "SiteMembership::Membership.Admit", email: { value: "amy@example.com" }, name: { value: "Amy" }
+    input id: "amy@example.com", caller_role: { value: "Admin" }
+    expect refused: "disabled"
+  end
+end
