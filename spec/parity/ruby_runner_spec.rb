@@ -30,8 +30,8 @@ RSpec.describe "parser parity corpus, Ruby side" do
     end
   end
 
-  def entities_of(ir)
-    ir.fetch("aggregates").flat_map do |aggregate|
+  def entities_of(document)
+    document.fetch("aggregates").flat_map do |aggregate|
       (aggregate["entities"] || []).map do |entity|
         { "aggregate" => aggregate["name"], "entity" => entity["name"], "preconditions" => preconditions_of(entity) }
       end
