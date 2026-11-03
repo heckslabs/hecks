@@ -2,6 +2,7 @@
 
 require "hecks/vocabulary"
 require_relative "../tools"
+require_relative "attested_checks"
 require_relative "../hecks/adapters/github_rulesets"
 
 module Hecks
