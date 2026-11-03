@@ -3,8 +3,6 @@
 
 use super::expr::{interpret, EvalContext, Expr, NoFields};
 use super::named_query;
-use super::read_model;
-use super::reference_lookup::{self, ReferenceTable};
 use super::repository::AggregateScan;
 use super::{Event, Json, MutationRecord, Refusal};
 use std::collections::HashMap;
@@ -25,10 +23,6 @@ pub struct PolicyRule {
     /// Name each matched row's ID is minted under, resolved at codegen from the target command.
     /// The target command, not the aggregate name, decides it (`account` vs `account_id`).
     pub for_each_key: Option<&'static str>,
-    /// The many-side heads a read-model `for_each` may fan out over, as `(as name, addressing
-    /// key)` pairs, settled at codegen from the target command. Empty for a query source. A
-    /// read model source fans out only when exactly one pair is listed.
-    pub for_each_heads: &'static [(&'static str, &'static str)],
     /// `trigger ..., with:` as `(argument_name, binding)` pairs; empty forwards the whole payload.
     /// A binding starting with ":" names a source field; any other is a rendered literal.
     pub with_spec: &'static [(&'static str, &'static str)],
@@ -233,16 +227,12 @@ pub struct Tables<'a> {
     pub process_managers: &'a [ProcessManagerDef],
     pub reference_key_fn: fn(&str) -> Option<&'static str>,
     pub queries: &'a [crate::kernel::QueryDef],
-    pub read_models: &'a [read_model::ReadModelDef],
     pub command_creates_fn: fn(&str) -> bool,
     pub identity_head_fn: fn(&str) -> Option<&'static str>,
     // Slices a reaction's `with:` facts to the target command's declared attributes.
     pub command_attributes_fn: fn(&str) -> &'static [&'static str],
     // Keyed by "Domain::Aggregate.Entity".
     pub entity_identity_head_fn: fn(&str) -> Option<&'static str>,
-    // Each aggregate's `reference_to` fields, as `REFERENCE_TABLE` holds them. A `for_each` query
-    // argument named after one is lent the emitting record's stored value for it.
-    pub reference_table: ReferenceTable,
 }
 
 /// The shape of the generated `dispatch` an orchestration step calls into: the store, the verb,
@@ -474,35 +464,6 @@ fn offer_emitter_id(source: &mut Vec<(String, Json)>, event: &Event) {
     }
 }
 
-// Lends the emitter's identity to a target that declares a reference to the emitting aggregate,
-// under that reference's own name, when `args` does not already carry the name. An event's payload
-// need not carry the emitting record (a command with no attributes emits none), so the identity is
-// the source. A value already passed is never overridden, and a target with no such reference is
-// left alone, as Ruby's `lend_emitter_reference` does.
-fn lend_emitter_reference(
-    args: &mut Vec<(String, Json)>,
-    target_verb: &str,
-    event: &Event,
-    tables: &Tables,
-) {
-    if event.id.is_empty() {
-        return;
-    }
-    let Some((target_aggregate, _)) = target_verb.rsplit_once('.') else {
-        return;
-    };
-    let declared = (tables.command_attributes_fn)(target_verb);
-    let name = reference_lookup::specs_for(tables.reference_table, target_aggregate)
-        .iter()
-        .find(|spec| spec.target == event.aggregate && declared.contains(&spec.field))
-        .map(|spec| spec.field);
-    if let Some(name) = name {
-        if !args.iter().any(|(arg, _)| arg == name) {
-            args.push((name.to_string(), Json::str(event.id.clone())));
-        }
-    }
-}
-
 // Reads a `with:` against a source: a binding starting with ":" names a source field (null when
 // absent), any other is a rendered literal.
 fn resolve_with_spec(with_spec: &[(&str, &str)], source: &[(String, Json)]) -> Vec<(String, Json)> {
@@ -563,143 +524,26 @@ fn trigger_args(
 
 // `row` is a fan-out's own row (its id and stored record). A projection may read its fields, below
 // the emitter identity and the payload; an undeclared projection never sees them.
-/// The rows a `for_each` fans out over, and the key the trigger addresses each row by. A name with
-/// a `.` is a declared `Aggregate.Query`; a bare name is a read model, as Ruby's `for_each_rows`
-/// reads it. Either refusal is the reaction's recorded reason.
-fn fan_out_rows(
-    store: &impl AggregateScan,
-    policy: &PolicyRule,
-    for_each: &str,
-    event: &Event,
-    tables: &Tables,
-) -> Result<(Vec<(String, Json)>, Option<&'static str>), String> {
-    if for_each.contains('.') {
-        let Some(def) = named_query::find(tables.queries, for_each) else {
-            return Err(format!("no query {for_each}"));
-        };
-        // The query reads the event, not the projection, with the emitting record's identity lent
-        // under its head. No caller role: the policy is system-triggered.
-        let args = for_each_query_args(def, event, tables, store);
-        let rows =
-            named_query::run(store, def, &args, None).map_err(|refusal| refusal.to_string())?;
-        return Ok((rows, policy.for_each_key));
-    }
-    read_model_rows(store, policy, for_each, event, tables)
-}
-
-/// The rows of a read model's one many-side head that the trigger addresses, each keyed by its own
-/// `id`. The read model is answered from the event payload alone, as Ruby's `read_model_rows` does
-/// (no emitter id is lent to it).
-fn read_model_rows(
-    store: &impl AggregateScan,
-    policy: &PolicyRule,
-    for_each: &str,
-    event: &Event,
-    tables: &Tables,
-) -> Result<(Vec<(String, Json)>, Option<&'static str>), String> {
-    let (domain, name) = for_each.rsplit_once("::").unwrap_or(("", for_each));
-    let Some(def) = read_model::find(tables.read_models, &format!("{domain}.{name}")) else {
-        return Err(format!(
-            "for_each {name:?} names no query or read model in {domain}"
-        ));
-    };
-    let [(head, key)] = policy.for_each_heads else {
-        return Err(format!(
-            "for_each {name} must have exactly one row kind that {} can address, found {}",
-            policy.target_verb,
-            policy.for_each_heads.len()
-        ));
-    };
-    let answer =
-        read_model::run(store, def, &event.payload).map_err(|refusal| refusal.to_string())?;
-    let rows = match answer.get(head) {
-        Some(Json::Array(records)) => records
-            .iter()
-            .filter_map(|record| {
-                let id = record.get("id").and_then(Json::as_str)?;
-                Some((id.to_string(), record.clone()))
-            })
-            .collect(),
-        _ => Vec::new(),
-    };
-    Ok((rows, Some(key)))
-}
-
 /// The arguments a `for_each` query runs with: the event payload, plus the emitting record's id
 /// under its aggregate's identity head when the query reads that name and the payload lacks it, as
-/// Ruby's `for_each_query_args` lends it, and each `reference_to` value the emitting record holds
-/// under a name the query reads (see `lend_references`). A payload value is never overridden. A
-/// composite identity has no single head in the table, so nothing is lent for it.
-fn for_each_query_args(
-    def: &named_query::QueryDef,
-    event: &Event,
-    tables: &Tables,
-    store: &impl AggregateScan,
-) -> Json {
+/// Ruby's `for_each_query_args` lends it. A payload value is never overridden. A composite identity
+/// has no single head in the table, so nothing is lent for it.
+fn for_each_query_args(def: &named_query::QueryDef, event: &Event, tables: &Tables) -> Json {
     let mut args = match &event.payload {
         Json::Object(pairs) => pairs.clone(),
         _ => Vec::new(),
     };
+    let reads = |head: &str| {
+        def.conditions
+            .iter()
+            .any(|c| matches!(c.value, named_query::QueryConditionValue::Arg(name) if name == head))
+    };
     if let Some(head) = (tables.identity_head_fn)(&event.aggregate) {
-        let unfilled = !args.iter().any(|(name, _)| name == head);
-        if !event.id.is_empty() && query_reads_arg(def, head) && unfilled {
+        if !event.id.is_empty() && reads(head) && !args.iter().any(|(name, _)| name == head) {
             args.push((head.to_string(), Json::str(event.id.clone())));
         }
     }
-    lend_references(def, event, tables, store, &mut args);
     Json::Object(args)
-}
-
-/// Lends each `reference_to` the emitting aggregate declares, under its own name, to a query that
-/// reads that name and whose payload lacks it. An event's payload need not carry the record's
-/// references (a command with no attributes emits none), so the stored value is the source. A
-/// stored null lends nothing, and an argument with no matching reference is left alone, as Ruby's
-/// `lent_references` does.
-fn lend_references(
-    def: &named_query::QueryDef,
-    event: &Event,
-    tables: &Tables,
-    store: &impl AggregateScan,
-    args: &mut Vec<(String, Json)>,
-) {
-    let names: Vec<&str> = reference_lookup::specs_for(tables.reference_table, &event.aggregate)
-        .iter()
-        .map(|spec| spec.field)
-        .filter(|&name| query_reads_arg(def, name) && !args.iter().any(|(arg, _)| arg == name))
-        .collect();
-    if names.is_empty() {
-        return;
-    }
-    let Some(record) = emitter_record(store, event) else {
-        return;
-    };
-    for name in names {
-        match record.get(name) {
-            Some(Json::Null) | None => {}
-            Some(value) => args.push((name.to_string(), value.clone())),
-        }
-    }
-}
-
-/// The emitting record as the store holds it, or `None` when the event carries no identity to find it by.
-fn emitter_record(store: &impl AggregateScan, event: &Event) -> Option<Json> {
-    if event.id.is_empty() {
-        return None;
-    }
-    let mut found = None;
-    store.scan_each(&event.aggregate, &mut |id, record| {
-        if id == event.id {
-            found = Some(record.clone());
-        }
-    });
-    found
-}
-
-/// Whether a query binds `name` as one of its arguments.
-fn query_reads_arg(def: &named_query::QueryDef, name: &str) -> bool {
-    def.conditions
-        .iter()
-        .any(|c| matches!(c.value, named_query::QueryConditionValue::Arg(arg) if arg == name))
 }
 
 fn trigger_args_with_row(
@@ -720,7 +564,6 @@ fn trigger_args_with_row(
     }
 
     if policy.with_spec.is_empty() {
-        lend_emitter_reference(&mut source, target_verb, event, tables);
         // No `with:`: lift the same-aggregate event id into the receiver of a non-creating
         // target, as `ReactionInvocation.build` does. Never for a `for_each` row, whose id is
         // already in `source` under the fan-out's own name.
@@ -750,8 +593,7 @@ fn trigger_args_with_row(
     // lends it.
     offer_emitter_id(&mut source, event);
 
-    let mut projected = resolve_with_spec(policy.with_spec, &source);
-    lend_emitter_reference(&mut projected, target_verb, event, tables);
+    let projected = resolve_with_spec(policy.with_spec, &source);
     // Only an explicit `with:` is split; an undeclared projection forwards the payload unsplit.
     let routed = split_routed_args(Json::Object(projected), target_verb, tables);
     // Fallback when nothing named the target's identity: the source's own is the receiver for a
@@ -955,12 +797,22 @@ impl<S: AggregateScan> Cascade<'_, S> {
             // A fan-out dispatches once per row its query answers; the row id is merged into the
             // source a `with:` projection reads from.
             if let Some(for_each) = policy.for_each {
-                let (rows, key) = match fan_out_rows(self.store, policy, for_each, event, &tables) {
-                    Ok(found) => found,
-                    Err(reason) => {
+                let Some(def) = named_query::find(tables.queries, for_each) else {
+                    self.reaction_log.push(record(vec![
+                        ("delivered", Json::Bool(false)),
+                        ("reason", Json::str(format!("no query {for_each}"))),
+                    ]));
+                    continue;
+                };
+                // The query reads the event, not the projection, with the emitting record's
+                // identity lent under its head. No caller role: the policy is system-triggered.
+                let query_args = for_each_query_args(def, event, &tables);
+                let rows = match named_query::run(self.store, def, &query_args, None) {
+                    Ok(rows) => rows,
+                    Err(refusal) => {
                         self.reaction_log.push(record(vec![
                             ("delivered", Json::Bool(false)),
-                            ("reason", Json::str(reason)),
+                            ("reason", Json::str(refusal.to_string())),
                         ]));
                         continue;
                     }
@@ -978,7 +830,7 @@ impl<S: AggregateScan> Cascade<'_, S> {
                             other => other,
                         }
                     };
-                    let extra = key.map(|key| (key, row_id.as_str()));
+                    let extra = policy.for_each_key.map(|key| (key, row_id.as_str()));
                     let args = trigger_args_with_row(
                         policy,
                         event,
@@ -1757,12 +1609,10 @@ mod tests {
             process_managers: PROCESS_MANAGERS,
             reference_key_fn: multi_leg_no_reference_key,
             queries: QUERIES,
-            read_models: &[],
             command_creates_fn: multi_leg_always_creates,
             identity_head_fn: multi_leg_no_identity_head,
             command_attributes_fn: multi_leg_no_declared_attributes,
             entity_identity_head_fn: multi_leg_no_entity_identity_head,
-            reference_table: &[],
         };
 
         let mut store = MultiLegTestStore;
@@ -1867,12 +1717,10 @@ mod tests {
             process_managers: NONE_M,
             reference_key_fn: multi_leg_no_reference_key,
             queries: NONE_Q,
-            read_models: &[],
             command_creates_fn: multi_leg_always_creates,
             identity_head_fn: multi_leg_no_identity_head,
             command_attributes_fn: multi_leg_no_declared_attributes,
             entity_identity_head_fn: multi_leg_no_entity_identity_head,
-            reference_table: &[],
         };
         SEEN.with(|s| *s.borrow_mut() = None);
         orchestrate(
@@ -1994,12 +1842,10 @@ mod tests {
             process_managers: PROCESS_MANAGERS,
             reference_key_fn: multi_leg_no_reference_key,
             queries: QUERIES,
-            read_models: &[],
             command_creates_fn: multi_leg_always_creates,
             identity_head_fn: multi_leg_no_identity_head,
             command_attributes_fn: multi_leg_no_declared_attributes,
             entity_identity_head_fn: multi_leg_no_entity_identity_head,
-            reference_table: &[],
         };
 
         let mut store = MultiLegTestStore;
@@ -2100,12 +1946,10 @@ mod tests {
             process_managers: &[],
             reference_key_fn: routed_reference_key_never_found,
             queries: &[],
-            read_models: &[],
             command_creates_fn: routed_never_creates,
             identity_head_fn: routed_identity_head,
             command_attributes_fn: routed_declared_attributes,
             entity_identity_head_fn: routed_entity_identity_head_never_found,
-            reference_table: &[],
         }
     }
 
@@ -2140,7 +1984,6 @@ mod tests {
             where_expr: None,
             for_each: None,
             for_each_key: None,
-            for_each_heads: &[],
             with_spec: &[("subject_key", ":id"), ("subject_kind", "\"box\"")],
         }
     }
@@ -2364,12 +2207,10 @@ mod tests {
             process_managers: &[],
             reference_key_fn: bug10_reference_key_never_found,
             queries: &[],
-            read_models: &[],
             command_creates_fn: bug10_never_creates,
             identity_head_fn: bug10_identity_head_never_found,
             command_attributes_fn: bug10_declared_attributes,
             entity_identity_head_fn: bug10_entity_identity_head,
-            reference_table: &[],
         }
     }
 
@@ -2500,12 +2341,10 @@ mod tests {
             process_managers: PROCESS_MANAGERS,
             reference_key_fn: multi_leg_no_reference_key,
             queries: QUERIES,
-            read_models: &[],
             command_creates_fn: multi_leg_always_creates,
             identity_head_fn: multi_leg_no_identity_head,
             command_attributes_fn: multi_leg_no_declared_attributes,
             entity_identity_head_fn: multi_leg_no_entity_identity_head,
-            reference_table: &[],
         };
 
         let mut store = MultiLegTestStore;
@@ -2627,7 +2466,6 @@ mod tests {
             where_expr: None,
             for_each: None,
             for_each_key: None,
-            for_each_heads: &[],
             with_spec: &[],
         }];
         static CROSS_DOMAIN_POLICIES: &[CrossDomainPolicyRule] = &[];
@@ -2639,12 +2477,10 @@ mod tests {
             process_managers: PROCESS_MANAGERS,
             reference_key_fn: multi_leg_no_reference_key,
             queries: QUERIES,
-            read_models: &[],
             command_creates_fn: multi_leg_always_creates,
             identity_head_fn: multi_leg_no_identity_head,
             command_attributes_fn: multi_leg_no_declared_attributes,
             entity_identity_head_fn: multi_leg_no_entity_identity_head,
-            reference_table: &[],
         };
 
         let mut store = MultiLegTestStore;

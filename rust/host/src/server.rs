@@ -35,9 +35,6 @@ pub async fn dispatch_body(body: Value, host: Host<'_>) -> Result<Value, Error> 
     if let Some(response) = web::render(&body, host).await {
         return Ok(conceal_internal_error(response));
     }
-    if let Some(minted) = crate::identity::answer(&body) {
-        return Ok(minted);
-    }
     let answer = kernel_answer(&body, host).await?;
     if !wants_bare(&body) || wants_preview(&body) {
         return Ok(answer);
@@ -480,7 +477,6 @@ fn is_internal_dispatch_shape(value: &Value) -> bool {
         || value.get("read").is_some()
         || value.get("query").is_some()
         || value.get("verb").is_some()
-        || crate::identity::answer(value).is_some()
 }
 
 /// Rebuilds the envelope shape a real Lambda Function URL invocation already produces
@@ -596,16 +592,6 @@ mod tests {
     fn a_verb_command_body_is_recognized_as_internal_dispatch() {
         assert!(is_internal_dispatch_shape(
             &serde_json::json!({"verb": "Register", "args": {}})
-        ));
-    }
-
-    #[test]
-    fn an_identity_request_is_recognized_as_internal_dispatch() {
-        assert!(is_internal_dispatch_shape(
-            &serde_json::json!({"port": "identity_generation"})
-        ));
-        assert!(!is_internal_dispatch_shape(
-            &serde_json::json!({"port": "clock"})
         ));
     }
 

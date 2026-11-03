@@ -293,23 +293,17 @@ fn run_full(args: &[String]) -> Result<(), String> {
         .get("aggregates")
         .map_or_default(Json::each)
         .to_vec();
-    let policy_read_models: Vec<Json> = target_ir
-        .get("read_models")
-        .map_or_default(Json::each)
-        .to_vec();
 
     let mut policy_sources: Vec<reactions::PolicySource> = vec![reactions::PolicySource {
         domain_name: &target_domain_name,
         policies: &policies,
         aggregates: &policy_aggregates,
-        read_models: &policy_read_models,
     }];
     for (name, ir) in bluebook_domain_names.iter().zip(bluebook_irs.iter()) {
         policy_sources.push(reactions::PolicySource {
             domain_name: name,
             policies: ir.get("policies").map_or_default(Json::each),
             aggregates: ir.get("aggregates").map_or_default(Json::each),
-            read_models: ir.get("read_models").map_or_default(Json::each),
         });
     }
 
