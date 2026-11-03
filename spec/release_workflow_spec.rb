@@ -51,7 +51,7 @@ RSpec.describe ".github/workflows/release.yml" do
     it "releases the commit that set the version, not whatever stable has moved on to" do
       stand = step_named("Stand on the commit that set the version")
 
-      expect(stand.fetch("run")).to include("VersionCommit.commit", "checkout --detach")
+      expect(stand.fetch("run")).to include("--first-parent", "lib/hecks/version.rb", "checkout --detach")
     end
 
     it "refuses a commit that stable does not contain, before it tags or publishes", :aggregate_failures do
@@ -91,10 +91,11 @@ RSpec.describe ".github/workflows/release.yml" do
     expect(workflow.fetch("jobs").fetch("release")).to include("timeout-minutes")
   end
 
-  it "checks that every ReleaseFile row agrees before it tags or publishes", :aggregate_failures do
+  it "checks that the four version sources agree before it tags or publishes", :aggregate_failures do
     check = step_named("The files agree on one version")
 
-    expect(check.fetch("run")).to include("hecks/release/conditions", "Conditions.check")
+    expect(check.fetch("run")).to include("lib/hecks/version.rb", "packages/hecks-client/package.json",
+                                          "rust/host/HECKS_RELEASE", "CHANGELOG.md")
     expect(names.index("The files agree on one version")).to be < names.index("Tag the release commit")
     expect(names.index("Tag the release commit")).to be < names.index("Push the gem with the API key")
   end
@@ -105,8 +106,7 @@ RSpec.describe ".github/workflows/release.yml" do
     def check = step_named("The version bump carries the owner's approval")
 
     it "is checked from the commit that set the version, before anything is tagged or pushed", :aggregate_failures do
-      expect(check.fetch("run")).to include("hecks/release/version_commit", "VersionCommit.commit", "hecks/release/approval",
-                                            "Approval.check")
+      expect(check.fetch("run")).to include("-G'^ *VERSION = '", "hecks/release/approval", "Approval.check")
       expect(names.index("The version bump carries the owner's approval")).to be < names.index("Tag the release commit")
       expect(check).not_to have_key("if")
       expect(check).not_to have_key("continue-on-error")

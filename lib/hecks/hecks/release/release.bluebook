@@ -116,7 +116,6 @@ Hecks.bluebook "Hecks" do
       attribute :version,        Version, optional: true
       attribute :client_version, Version, optional: true
       attribute :changelog,      Switch, optional: true
-      attribute :files_agree,    Switch, optional: true
       attribute :approved,       Switch, optional: true
       attribute :tag_state,      Word, optional: true
       attribute :head,           Word, optional: true
@@ -213,7 +212,6 @@ Hecks.bluebook "Hecks" do
         attribute :version,        Version, sets: true
         attribute :client_version, Version, sets: true
         attribute :changelog,      Switch, sets: true
-        attribute :files_agree,    Switch, sets: true
         attribute :approved,       Switch, sets: true
         attribute :tag_state,      Word, sets: true
         attribute :head,           Word, sets: true
@@ -229,11 +227,8 @@ Hecks.bluebook "Hecks" do
         given("the client package is at the gem's version: bump the package first") do
           client_version.value == version.value
         end
-        given("CHANGELOG.md has a dated '## [version] - YYYY-MM-DD' heading for the version: add the release entry") { changelog.value }
-        given("every ReleaseFile row names the version (rust/host/HECKS_RELEASE, README, lockfiles, client): fix them in the release PR") do
-          files_agree.value
-        end
-        given("the commit that set the version (the newest first-parent commit that changes VERSION, as release.yml finds it) carries a Release-Approved-By line written by a ReleaseOwner: the owner decides when a release happens") do
+        given("CHANGELOG.md has a heading for the version: add the release entry") { changelog.value }
+        given("the commit that set the version carries a Release-Approved-By line: the owner decides when a release happens") do
           approved.value || tag_state.value == "at_release_commit"
         end
         given("a tag for the version points at the release commit, not elsewhere") do
@@ -320,8 +315,7 @@ Hecks.bluebook "Hecks" do
       trigger PublishingRun::Accept, with: { checkout: :checkout, branch: :branch, release_lane: :release_lane,
                                              on_origin: :on_origin, clean: :clean, version: :version,
                                              client_version: :client_version,
-                                             changelog: :changelog, files_agree: :files_agree,
-                                             approved: :approved, tag_state: :tag_state,
+                                             changelog: :changelog, approved: :approved, tag_state: :tag_state,
                                              head: :head, ir_version: :ir_version, ships_from: :ships_from }
     end
 
@@ -338,7 +332,7 @@ Hecks.bluebook "Hecks" do
       where do
         operation.value == "publish" &&
           (!checkout.value || branch.value != release_lane.value || !on_origin.value || !clean.value ||
-            client_version.value != version.value || !changelog.value || !files_agree.value || tag_state.value == "elsewhere" ||
+            client_version.value != version.value || !changelog.value || tag_state.value == "elsewhere" ||
             (!approved.value && tag_state.value != "at_release_commit"))
       end
       trigger PublishingRun::Fault, with: { refusal: "a release rule is not met: check the branch, tree, versions, CHANGELOG, tag and the Release-Approved-By line" }

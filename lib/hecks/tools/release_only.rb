@@ -19,7 +19,7 @@ module Hecks
     #
     # Every case that cannot be confirmed answers "not a release bump", so the suite runs.
     module ReleaseOnly
-      GREEN = Hecks::Vocabulary.fetch("PassingConclusion")
+      GREEN = %w[success skipped].freeze
 
       # The `+` or `-` that opens an added or removed line of a diff.
       CHANGE_MARK = /\A[+-]/

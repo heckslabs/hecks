@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "json"
-require "hecks/vocabulary"
 require_relative "console_capture"
 require_relative "main_integration/command_runner"
 
@@ -13,8 +12,8 @@ module Hecks
       # The workflow whose run is read.
       WORKFLOW = "CI"
 
-      # Job conclusions that are not a failure: the language's `PassingConclusion` table.
-      CLEAN = Hecks::Vocabulary.fetch("PassingConclusion")
+      # Job conclusions that are not a failure.
+      CLEAN = %w[success skipped neutral].freeze
 
       # @param runner [#call, nil] takes `(argv, chdir:)` and answers `[ok, output]`
       # @param checkout [String] a directory in the repository

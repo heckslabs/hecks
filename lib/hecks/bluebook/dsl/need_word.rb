@@ -1,5 +1,3 @@
-require "hecks/vocabulary"
-
 module Hecks
   module Bluebook
     module DSL
@@ -10,7 +8,7 @@ module Hecks
         # The outside facts a declaration may need, each the name of the attribute the runtime
         # fills when the caller leaves it out. `now` is the clock port's reading in epoch seconds;
         # `today` is the day it falls in, whole days since the epoch in UTC.
-        NEEDABLE_FACTS = Hecks::Vocabulary.symbols("NeedableFact").freeze
+        NEEDABLE_FACTS = %i[now today].freeze
 
         # Declares an outside fact the runtime supplies before any given or filter runs:
         # `needs :now` fills the declaration's own `now` attribute from the clock port when the
