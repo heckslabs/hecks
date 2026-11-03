@@ -648,7 +648,6 @@ pub const POLICIES: &[crate::kernel::PolicyRule] = &[crate::kernel::PolicyRule {
     target_verb: "Pizzas::Order.Purchase",
     for_each: None,
     for_each_key: None,
-    for_each_heads: &[],
     with_spec: &[],
     where_expr: None,
 }];
