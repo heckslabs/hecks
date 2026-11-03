@@ -4823,6 +4823,7 @@ pub const GATE_CHECK: &[GateCheck] = &[
     GateCheck { name: "fuzz_postgres_1_of_2", id: "fuzz_postgres_1_of_2", title: "fuzz, shard 1 of 2 on real Postgres (each run in its own scratch schema)", argv: "bundle exec exe/hecks fuzz_run.fuzz! adapter=postgres seeds=3 steps=20 shard=1/2 --wait", script: "", blocked: "the Postgres adapter broke a property the Memory adapter held; it needs PGHOST, PGUSER and PGPASSWORD.", runs_in: "" },
     GateCheck { name: "fuzz_postgres_2_of_2", id: "fuzz_postgres_2_of_2", title: "fuzz, shard 2 of 2 on real Postgres (each run in its own scratch schema)", argv: "bundle exec exe/hecks fuzz_run.fuzz! adapter=postgres seeds=3 steps=20 shard=2/2 --wait", script: "", blocked: "the Postgres adapter broke a property the Memory adapter held; it needs PGHOST, PGUSER and PGPASSWORD.", runs_in: "" },
     GateCheck { name: "vocabulary_drift", id: "vocabulary_drift", title: "vocabulary, the reserved-name tables regenerated must match the committed ones", argv: "", script: "bundle exec exe/hecks language_run.project_vocabulary! --confirm --wait\nbundle exec exe/hecks language_run.project_reserved_names! --confirm --wait\ngit diff --exit-code -- lib/hecks/vocabulary.rb rust/codegen/src/reserved_names.rs rust/build/src/reserved_names.rs\n", blocked: "a generated vocabulary file is stale; the check rewrote it, so commit the result.", runs_in: "" },
+    GateCheck { name: "vocabulary_check", id: "vocabulary_drift", title: "vocabulary, the reserved-name tables must match their projections (read only)", argv: "", script: "for projection in project_vocabulary project_reserved_names; do\n  out=\"$(bundle exec exe/hecks language_run.$projection! --wait)\"\n  printf '%s\\n' \"$out\"\n  case \"$out\" in *'dry run'*) echo \"$projection: a generated table is stale; regenerate it outside the boarding and commit what it changed\"; exit 1;; esac\ndone\n", blocked: "a generated vocabulary table is stale; regenerate it with `hecks language_run.project_vocabulary! --confirm` (or project_reserved_names) and commit what it changed.", runs_in: "" },
     GateCheck { name: "ci_gates", id: "ci_gates", title: "ci gates, the CiGate rows must match the marked regions of the workflows", argv: "bundle exec exe/hecks regeneration_run.project_ci_gates! --wait", script: "", blocked: "a CiGate row changed with no projection, or a region was edited by hand; run `hecks regeneration_run.project_ci_gates! --confirm`.", runs_in: "" },
     GateCheck { name: "ci_pipeline", id: "ci_pipeline", title: "ci pipeline, the workflow rows must match the files they project", argv: "bundle exec exe/hecks regeneration_run.project_ci_pipeline! --wait", script: "", blocked: "a workflow row changed with no projection, or a projected workflow was edited by hand; run `hecks regeneration_run.project_ci_pipeline! --confirm`.", runs_in: "" },
     GateCheck { name: "tools_doc", id: "tools_doc", title: "tools doc, docs/tools.md must match the RetiredScript rows", argv: "bundle exec exe/hecks regeneration_run.project_tools_doc! --wait", script: "", blocked: "a command's arguments changed with no regenerated doc; run `hecks regeneration_run.project_tools_doc! --confirm`.", runs_in: "" },
@@ -4972,6 +4973,7 @@ impl GateCheck {
                     "fuzz_postgres_1_of_2",
                     "fuzz_postgres_2_of_2",
                     "vocabulary_drift",
+                    "vocabulary_check",
                     "ci_gates",
                     "ci_pipeline",
                     "tools_doc",
@@ -5000,6 +5002,7 @@ pub const GATE_STAGE: &[GateStage] = &[
     GateStage { name: "quick", env: "HECKS_ENVIRONMENT=memory", checks: "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,adapter_words" },
     GateStage { name: "rust_io", env: "CI=true HECKS_ENVIRONMENT=memory", checks: "rust_io" },
     GateStage { name: "ci", env: "", checks: "model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,generated_tree,rust_fmt,rust_clippy,lint_deploy_recipes,command_names,workflow_pagination,fuzz_1_of_3,fuzz_2_of_3,fuzz_3_of_3,fuzz_sqlite_1_of_3,fuzz_sqlite_2_of_3,fuzz_sqlite_3_of_3,fuzz_postgres_1_of_2,fuzz_postgres_2_of_2,fuzz_shards,vocabulary_drift,ci_gates,ci_pipeline,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift" },
+    GateStage { name: "boarding", env: "", checks: "codegen_drift,vocabulary_check,ci_gates" },
 ];
 
 impl GateStage {
@@ -5066,7 +5069,7 @@ impl GateStage {
         Err(crate::kernel::Refusal::InvariantViolation(
             crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
                 r#type: "GateStage",
-                admitted: &["pre_push", "ci_suite", "quick", "rust_io", "ci"],
+                admitted: &["pre_push", "ci_suite", "quick", "rust_io", "ci", "boarding"],
                 offered: offered.as_str(),
             }
             .render_args(),
@@ -5376,6 +5379,7 @@ pub struct Lane {
     pub follows: &'static str,
     pub alert_after: &'static str,
     pub release_trailer: &'static str,
+    pub lands_here: &'static str,
 }
 
 pub const LANE: &[Lane] = &[
@@ -5387,6 +5391,7 @@ pub const LANE: &[Lane] = &[
         follows: "",
         alert_after: "",
         release_trailer: "",
+        lands_here: "yes",
     },
     Lane {
         name: "stable",
@@ -5396,6 +5401,7 @@ pub const LANE: &[Lane] = &[
         follows: "main",
         alert_after: "4",
         release_trailer: "Release-Approved-By",
+        lands_here: "no",
     },
 ];
 
@@ -5430,6 +5436,10 @@ impl Lane {
                 "release_trailer".to_string(),
                 crate::kernel::Json::Str(self.release_trailer.to_string()),
             ),
+            (
+                "lands_here".to_string(),
+                crate::kernel::Json::Str(self.lands_here.to_string()),
+            ),
         ])
     }
 
@@ -5444,6 +5454,7 @@ impl Lane {
             "follows",
             "alert_after",
             "release_trailer",
+            "lands_here",
         ]);
         if !unknown.is_empty() {
             let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
@@ -5459,6 +5470,7 @@ impl Lane {
                         "follows",
                         "alert_after",
                         "release_trailer",
+                        "lands_here",
                     ],
                 }
                 .render_args(),
@@ -5502,6 +5514,11 @@ impl Lane {
                 "Lane.release_trailer expects String, got nil".to_string(),
             ));
         }
+        if matches!(v.get("lands_here"), None | Some(crate::kernel::Json::Null)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(
+                "Lane.lands_here expects String, got nil".to_string(),
+            ));
+        }
         for row in LANE {
             if v.get("name").and_then(crate::kernel::Json::as_str) == Some(row.name)
                 && v.get("guarded").and_then(crate::kernel::Json::as_str) == Some(row.guarded)
@@ -5513,6 +5530,7 @@ impl Lane {
                 && v.get("release_trailer")
                     .and_then(crate::kernel::Json::as_str)
                     == Some(row.release_trailer)
+                && v.get("lands_here").and_then(crate::kernel::Json::as_str) == Some(row.lands_here)
             {
                 return Ok(row.clone());
             }
