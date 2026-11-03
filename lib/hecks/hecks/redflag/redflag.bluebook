@@ -1,6 +1,6 @@
 Hecks.bluebook "Hecks" do
   domain_module "Redflag" do
-    vision "Main red is a red flag: everyone working hears it, checks in to help, and stops landing until CI is green again."
+    vision "Agents work on branches and open PRs; the coordinator approves a PR automatically when its CI is green, and that approval moves it to main. Main never goes red: a red PR stays on its branch. If a red reaches main anyway, it is a red flag: everyone working hears it, checks in to help, and stops landing until CI is green again."
 
     # One request against the standing flag of the repository: raise it, note another red run on it,
     # check in to help, or lower it. The flag itself is a marker in the repository's git directory, so
@@ -8,8 +8,20 @@ Hecks.bluebook "Hecks" do
     # (Integration.CiFailed, or `RedFlag.sync!`), and one that completes green lowers it. One flag
     # stands at a time: a second red run is recorded on it. Anything can listen to the events
     # RedFlagRaised, RedFlagRunNoted, RedFlagCheckedIn and RedFlagCleared through the ordinary journal.
+    #
+    # **The main-red rule.** main should never go red. An agent works on a branch and opens a pull
+    # request; the coordinator approves that pull request automatically once its CI is green, and that
+    # approval is what moves the change to main, through the push train. A red pull request never
+    # reaches main: it stays on its branch, and the session the owner names fixes it there.
+    #
+    # The red flag is the fallback for a red main, which happens only when a red reaches main anyway.
+    # The recovery is `Restore`: main goes back to its last green tree, as a new commit with that tree,
+    # and the restored tree is accepted as green with no new CI run. The batch that landed since then
+    # comes back as its own handoff, fixed on a branch, and lands only once CI on that branch is green.
+    # A fix is never made forward on a red main. `Restore` refuses, by name, any tree that is not the
+    # last green tree on this record.
     aggregate "RedFlag" do
-      description "One request against main's red flag: raised, noted, checked in to, lowered, or refused."
+      description "One request against main's red flag: raised, noted, checked in to, lowered, restored, or refused."
       created_by "RedFlag.raise!"
 
       attribute :run,      RunKey
@@ -24,6 +36,11 @@ Hecks.bluebook "Hecks" do
       attribute :jobs,     Report, optional: true
       attribute :output,   Report, optional: true
       attribute :refusal,  Report, optional: true
+      # The last green head of main and its tree, the data a restore goes back to. Empty until a green
+      # run records them, and while empty every restore is refused by name.
+      attribute :last_green,      GreenHead, optional: true
+      attribute :last_green_tree, GreenTree
+      attribute :tree,            Word, optional: true
       identified_by :run
 
       value_object "RunKey" do
@@ -42,6 +59,16 @@ Hecks.bluebook "Hecks" do
         attribute :text, String
       end
 
+      # A commit sha of a green head of main; empty when none is recorded.
+      value_object "GreenHead" do
+        attribute :value, String, default: ""
+      end
+
+      # The tree of a green head of main; empty when none is recorded, so no tree matches it.
+      value_object "GreenTree" do
+        attribute :value, String, default: ""
+      end
+
       lifecycle :status, default: "requested" do
         mark :failure, "refused"
         transition "Record"  => "raised",     from: "requested"
@@ -49,8 +76,9 @@ Hecks.bluebook "Hecks" do
         transition "Welcome" => "checked_in", from: "requested"
         transition "Lift"    => "cleared",    from: "requested"
         transition "Settle"  => "idle",       from: "requested"
+        transition "Restore" => "restored",   from: "requested"
         transition "Decline" => "refused",    from: "requested"
-        mark :terminal, "raised", "noted", "checked_in", "cleared", "idle", "refused"
+        mark :terminal, "raised", "noted", "checked_in", "cleared", "idle", "restored", "refused"
       end
 
       command "Raise" do
@@ -169,6 +197,25 @@ Hecks.bluebook "Hecks" do
         emits RedFlagDeclined
       end
 
+      # The recovery when a red reached main anyway. It goes back to the last green tree, which is the
+      # only tree this accepts: the restored commit is green without a CI run, because its tree already
+      # passed one. Refused by name for any other tree.
+      command "Restore" do
+        role "Operator"
+        goal "Restore main to its last green tree after a red reached it: a new commit with that tree, accepted as green with no new CI run"
+
+        reference_to RedFlag
+        attribute :flag,   Word, sets: true
+        attribute :commit, Word, sets: true
+        attribute :tree,   Word, sets: true
+
+        given("a restore goes only to the last green tree: a tree nothing green has passed is refused") do
+          tree.value == last_green_tree.value
+        end
+
+        emits RedFlagRestored
+      end
+
       query "Status" do
         description "Whether main is flagged: the flag, its commit, red time, failed jobs and who is helping."
         attribute :run, RunKey, optional: true
@@ -229,6 +276,13 @@ Hecks.bluebook "Hecks" do
     policy "RecordTheRefusedFlag" do
       on      "RedFlag.FlagRefused"
       trigger RedFlag::Decline, with: { refusal: :refusal }
+    end
+
+    # A restore lowers the flag through the ordinary clear, so the flag marker is removed by the same
+    # port a green run uses. No CI run is needed: the restored tree already passed one.
+    policy "LowerTheFlagWhenRestored" do
+      on      "RedFlag.RedFlagRestored"
+      trigger RedFlag::Clear, with: { run: :flag, commit: :commit }
     end
 
     # A CI observation that ends red raises the flag; one that ends green lowers it. The policies hear
