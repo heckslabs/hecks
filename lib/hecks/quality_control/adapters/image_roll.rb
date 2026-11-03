@@ -54,11 +54,16 @@ module Hecks
       # @return [Boolean]
       def self.image_path?(path, source = nil)
         inputs = Hecks::QualityControlCli::Declared.rows(source, "ImageRoll", "ImageInput")
-        covered = ->(kind) { inputs.select { |row| row[:kind] == kind }.map { |row| row[:path] } }
-        return false if covered.("outside").any? { |dir| path.start_with?(dir) }
+                                                   .group_by { |row| row[:kind] }
+                                                   .transform_values { |rows| rows.map { |row| row[:path] } }
+        return false if under?(inputs["outside"], path)
 
-        covered.("file").include?(path) || covered.("dir").any? { |dir| path.start_with?(dir) }
+        inputs.fetch("file", []).include?(path) || under?(inputs["dir"], path)
       end
+
+      # @return [Boolean] whether the path starts with any of the prefixes
+      def self.under?(prefixes, path) = Array(prefixes).any? { |prefix| path.start_with?(prefix) }
+      private_class_method :under?
 
       # @param root [String, nil] the Hecks checkout, whose QA ledger holds the quick gate's
       # records
@@ -69,8 +74,8 @@ module Hecks
       # @param ledger [#query, nil] the QA ledger the quick gate's records are read from; booted
       # from
       #   `root` when nil
-      def initialize(root: nil, platform_root: PLATFORM_ROOT, commands: Commands, ledger: nil, registry: nil, **)
-        @registry = registry
+      def initialize(root: nil, platform_root: PLATFORM_ROOT, commands: Commands, ledger: nil, **context)
+        @registry = context[:registry]
         @root = root || Dir.pwd
         @platform_root = platform_root
         @commands = commands
