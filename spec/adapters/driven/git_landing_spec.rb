@@ -184,14 +184,20 @@ RSpec.describe "the Checkout and Landing adapters", :io do
       expect(File).not_to exist(File.join(other, "second"))
     end
 
-    it "declines a relative destination, one inside the checkout, a full one and a bad ref or path", :aggregate_failures do
+    # The copies that are declined: a relative destination, one inside the checkout, one that
+    # already holds files, an option for a ref, a path that leaves the repository, and an unknown ref.
+    def declined_copies
       File.write(File.join(scratch, "occupied"), "x")
       [{ ref: { value: "HEAD" }, destination: { value: "relative/dir" } },
        { ref: { value: "HEAD" }, destination: { value: File.join(feature_tree, "inside") } },
        { ref: { value: "HEAD" }, destination: { value: File.join(scratch, "occupied") } },
        { ref: { value: "--all" }, destination: { value: destination } },
        { ref: { value: "HEAD" }, path: { value: "../first" }, destination: { value: destination } },
-       { ref: { value: "nosuchref" }, destination: { value: destination } }].each do |held|
+       { ref: { value: "nosuchref" }, destination: { value: destination } }]
+    end
+
+    it "declines each copy it must not make and writes nothing", :aggregate_failures do
+      declined_copies.each do |held|
         expect { copy(**held) }.to raise_error(Hecks::Adapters::ConsoleCapture::Failure), held.inspect
       end
       expect(File).not_to exist(destination)
