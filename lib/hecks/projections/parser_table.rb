@@ -6,6 +6,7 @@ module Hecks
     # so the parser's grammar knowledge is derived rather than hand-typed a second time.
     module ParserTable
       extend Projector::Target
+
       projects_as :parser_table, declares: "Syntax"
 
       module_function
@@ -18,8 +19,6 @@ module Hecks
       #   `Projector::Target` calling convention
       # @return [String] the rendered Rust source
       def call(bluebook:, options: {}) = render(bluebook)
-
-      module_function
 
       # The bluebook's `Syntax` aggregate. Taken from the argument, not the grammar registry,
       # so the projection is not pinned to the language's own bluebook.
@@ -38,7 +37,7 @@ module Hecks
       #   field stringified
       def rows(bluebook, name)
         syntax(bluebook).value_objects.find { |vo| vo.hecks_name == name }
-              .members.map { |row| row.to_h.transform_values(&:to_s) }
+                        .members.map { |row| row.to_h.transform_values(&:to_s) }
       end
 
       # Reads one closed set's member names, for a Rust `&[&str]` constant.
@@ -48,7 +47,7 @@ module Hecks
       # @return [Array<String>] every declared member's `:name` field
       def closed_set_members(bluebook, name) = rows(bluebook, name).map { |row| row[:name] }
 
-      KEYWORD_FIELDS  = %i[word context body inner opens fills status was resolves_via disambiguator].freeze
+      KEYWORD_FIELDS  = %i[word context body inner opens fills status was resolves_via disambiguator requires disposition].freeze
       ARGUMENT_FIELDS = %i[keyword context at named kind required fills selects
                            pair_key_fills pair_value_fills pairs_shape status variadic minimum].freeze
 
@@ -57,7 +56,7 @@ module Hecks
       #
       # @param value [Object] the field value to render; stringified before escaping
       # @return [String] a quoted Rust string literal
-      def rust_string(value) = "\"#{value.to_s.gsub('\\', '\\\\\\\\').gsub('"', '\\"')}\""
+      def rust_string(value) = "\"#{value.to_s.gsub("\\", "\\\\\\\\").gsub('"', '\\"')}\""
 
       # Renders one `KEYWORDS` table entry.
       #
@@ -65,7 +64,7 @@ module Hecks
       # @return [String] one `KeywordRow { ... },` line
       def keyword_row(row)
         fields = KEYWORD_FIELDS.map { |field| rust_string(row[field]) }
-        "    KeywordRow { #{KEYWORD_FIELDS.zip(fields).map { |name, value| "#{name}: #{value}" }.join(', ')} },"
+        "    KeywordRow { #{KEYWORD_FIELDS.zip(fields).map { |name, value| "#{name}: #{value}" }.join(", ")} },"
       end
 
       # Renders one `ARGUMENTS` table entry.
@@ -74,7 +73,7 @@ module Hecks
       # @return [String] one `ArgumentRow { ... },` line
       def argument_row(row)
         fields = ARGUMENT_FIELDS.map { |field| rust_string(row[field]) }
-        "    ArgumentRow { #{ARGUMENT_FIELDS.zip(fields).map { |name, value| "#{name}: #{value}" }.join(', ')} },"
+        "    ArgumentRow { #{ARGUMENT_FIELDS.zip(fields).map { |name, value| "#{name}: #{value}" }.join(", ")} },"
       end
 
       # Renders one `pub static NAME: &[&str]` constant.
@@ -137,6 +136,10 @@ module Hecks
               /// Which disambiguator keyword argument a bare reference
               /// may supply — "declared_by" today, "" otherwise.
               pub disambiguator: &'static str,
+              /// The sibling word the same block must declare ("translates" for `bounded`).
+              pub requires: &'static str,
+              /// "enforced" applies the word's rules; "dropped" accepts and discards the word.
+              pub disposition: &'static str,
           }
 
           #[derive(Debug, Clone, Copy)]
@@ -179,13 +182,14 @@ module Hecks
           #{arguments.map { |row| argument_row(row) }.join("\n")}
           ];
 
-          #{const_str_array('CONTEXTS', closed_set_members(bluebook, 'Context'))}
-          #{const_str_array('BODIES', closed_set_members(bluebook, 'Body'))}
-          #{const_str_array('ARGUMENT_KINDS', closed_set_members(bluebook, 'ArgumentKind'))}
-          #{const_str_array('PAIRS_SHAPES', closed_set_members(bluebook, 'PairsShape'))}
-          #{const_str_array('STATUSES', closed_set_members(bluebook, 'Status'))}
+          #{const_str_array("CONTEXTS", closed_set_members(bluebook, "Context"))}
+          #{const_str_array("BODIES", closed_set_members(bluebook, "Body"))}
+          #{const_str_array("ARGUMENT_KINDS", closed_set_members(bluebook, "ArgumentKind"))}
+          #{const_str_array("PAIRS_SHAPES", closed_set_members(bluebook, "PairsShape"))}
+          #{const_str_array("STATUSES", closed_set_members(bluebook, "Status"))}
           #{const_str_consts("RESOLUTION", closed_set_members(bluebook, "ResolutionScope"))}
           #{const_str_consts("DISAMBIGUATOR", closed_set_members(bluebook, "Disambiguator"))}
+          #{const_str_array("DRIVING_ADAPTERS", closed_set_members(bluebook, "DrivingAdapter"))}
         RUST
       end
     end

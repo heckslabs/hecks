@@ -193,16 +193,18 @@ Hecks.bluebook "Bluebook" do
       attribute :was,           String
       attribute :resolves_via,  String, default: "", admits: "Syntax::ResolutionScope"
       attribute :disambiguator, String, default: "", admits: "Syntax::Disambiguator"
+      attribute :requires,    String, optional: true
+      attribute :disposition, String, admits: "Syntax::Disposition"
 
-      member word: "description",     context: "Query", body: "none", inner: "", opens: "", fills: "description"
-      member word: "attribute",       context: "Query", body: "none", inner: "", opens: "", fills: "attributes", calls: "attribute_impl"
-      member word: "reference_to",    context: "Query", body: "none", inner: "", opens: "", fills: "attributes", calls: "reference_to_impl"
-      member word: "where",           context: "Query", body: "none", inner: "", opens: "", fills: "wheres", calls: "where_impl"
-      member word: "order_by",        context: "Query", body: "none", inner: "", opens: "", fills: "order_field", calls: "order_by_impl"
-      member word: "authorize",       context: "Query", body: "none", inner: "", opens: "", fills: "options", calls: "authorize_impl"
-      member word: "inspect_query",   context: "Query", body: "none", inner: "", opens: "", fills: "options"
-      member word: "returns",         context: "Query", body: "none", inner: "", opens: "", fills: "returns"
-      member word: "needs",           context: "Query", body: "none", inner: "", opens: "", fills: "needs", calls: "needs_impl"
+      member word: "description",     context: "Query", body: "none", inner: "", opens: "", fills: "description", disposition: "enforced"
+      member word: "attribute",       context: "Query", body: "none", inner: "", opens: "", fills: "attributes", calls: "attribute_impl", disposition: "enforced"
+      member word: "reference_to",    context: "Query", body: "none", inner: "", opens: "", fills: "attributes", calls: "reference_to_impl", disposition: "enforced"
+      member word: "where",           context: "Query", body: "none", inner: "", opens: "", fills: "wheres", calls: "where_impl", disposition: "enforced"
+      member word: "order_by",        context: "Query", body: "none", inner: "", opens: "", fills: "order_field", calls: "order_by_impl", disposition: "enforced"
+      member word: "authorize",       context: "Query", body: "none", inner: "", opens: "", fills: "options", calls: "authorize_impl", disposition: "enforced"
+      member word: "inspect_query",   context: "Query", body: "none", inner: "", opens: "", fills: "options", disposition: "enforced"
+      member word: "returns",         context: "Query", body: "none", inner: "", opens: "", fills: "returns", disposition: "enforced"
+      member word: "needs",           context: "Query", body: "none", inner: "", opens: "", fills: "needs", calls: "needs_impl", disposition: "enforced"
 
     end
 

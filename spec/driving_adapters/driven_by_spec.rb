@@ -50,7 +50,7 @@ RSpec.describe "driven_by, the hecksagon word that admits a driving adapter" do
   it "leaves a domain that declares none open to every adapter" do
     registry = boot_with("").registry
 
-    expect(Hecks::Bluebook::Hecksagon::DRIVING_ADAPTERS.map { |name| admission.refusal(registry, name) }).to all(be_nil)
+    expect(Hecks::Bluebook::Hecksagon.driving_adapters.map { |name| admission.refusal(registry, name) }).to all(be_nil)
   end
 
   it "names the domain and what it admits when an adapter is left out" do

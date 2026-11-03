@@ -846,6 +846,26 @@
               "pattern": null,
               "relationship": null,
               "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "requires",
+              "optional": true,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": "Syntax::Disposition",
+              "default": null,
+              "list": false,
+              "name": "disposition",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
             }
           ],
           "closed_set": true,
@@ -877,6 +897,10 @@
               [
                 "fills",
                 ""
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -907,6 +931,10 @@
               [
                 "calls",
                 "realm_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -937,6 +965,10 @@
               [
                 "calls",
                 "latest_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -967,6 +999,10 @@
               [
                 "calls",
                 "default_database_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -997,6 +1033,10 @@
               [
                 "calls",
                 "default_adapter_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ]
           ],

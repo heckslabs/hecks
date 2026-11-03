@@ -1005,6 +1005,8 @@ pub struct KeywordSeed {
     pub was: &'static str,
     pub resolves_via: &'static str,
     pub disambiguator: &'static str,
+    pub requires: &'static str,
+    pub disposition: &'static str,
 }
 
 pub const KEYWORD_SEED: &[KeywordSeed] = &[
@@ -1019,6 +1021,8 @@ pub const KEYWORD_SEED: &[KeywordSeed] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordSeed {
         word: "attribute",
@@ -1031,6 +1035,8 @@ pub const KEYWORD_SEED: &[KeywordSeed] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordSeed {
         word: "reference_to",
@@ -1043,6 +1049,8 @@ pub const KEYWORD_SEED: &[KeywordSeed] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordSeed {
         word: "where",
@@ -1055,6 +1063,8 @@ pub const KEYWORD_SEED: &[KeywordSeed] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordSeed {
         word: "order_by",
@@ -1067,6 +1077,8 @@ pub const KEYWORD_SEED: &[KeywordSeed] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordSeed {
         word: "authorize",
@@ -1079,6 +1091,8 @@ pub const KEYWORD_SEED: &[KeywordSeed] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordSeed {
         word: "inspect_query",
@@ -1091,6 +1105,8 @@ pub const KEYWORD_SEED: &[KeywordSeed] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordSeed {
         word: "returns",
@@ -1103,6 +1119,8 @@ pub const KEYWORD_SEED: &[KeywordSeed] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordSeed {
         word: "needs",
@@ -1115,6 +1133,8 @@ pub const KEYWORD_SEED: &[KeywordSeed] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
 ];
 
@@ -1161,6 +1181,14 @@ impl KeywordSeed {
                 "disambiguator".to_string(),
                 crate::kernel::Json::Str(self.disambiguator.to_string()),
             ),
+            (
+                "requires".to_string(),
+                crate::kernel::Json::Str(self.requires.to_string()),
+            ),
+            (
+                "disposition".to_string(),
+                crate::kernel::Json::Str(self.disposition.to_string()),
+            ),
         ])
     }
 
@@ -1178,6 +1206,8 @@ impl KeywordSeed {
             "was",
             "resolves_via",
             "disambiguator",
+            "requires",
+            "disposition",
         ]);
         if !unknown.is_empty() {
             let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
@@ -1196,6 +1226,8 @@ impl KeywordSeed {
                         "was",
                         "resolves_via",
                         "disambiguator",
+                        "requires",
+                        "disposition",
                     ],
                 }
                 .render_args(),
@@ -1257,6 +1289,16 @@ impl KeywordSeed {
                 "KeywordSeed.disambiguator expects String, got nil".to_string(),
             ));
         }
+        if matches!(v.get("requires"), None | Some(crate::kernel::Json::Null)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(
+                "KeywordSeed.requires expects String, got nil".to_string(),
+            ));
+        }
+        if matches!(v.get("disposition"), None | Some(crate::kernel::Json::Null)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(
+                "KeywordSeed.disposition expects String, got nil".to_string(),
+            ));
+        }
         for row in KEYWORD_SEED {
             if v.get("word").and_then(crate::kernel::Json::as_str) == Some(row.word)
                 && v.get("context").and_then(crate::kernel::Json::as_str) == Some(row.context)
@@ -1270,6 +1312,9 @@ impl KeywordSeed {
                     == Some(row.resolves_via)
                 && v.get("disambiguator").and_then(crate::kernel::Json::as_str)
                     == Some(row.disambiguator)
+                && v.get("requires").and_then(crate::kernel::Json::as_str) == Some(row.requires)
+                && v.get("disposition").and_then(crate::kernel::Json::as_str)
+                    == Some(row.disposition)
             {
                 return Ok(row.clone());
             }

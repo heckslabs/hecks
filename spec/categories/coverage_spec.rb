@@ -108,7 +108,7 @@ RSpec.describe "the category tests, covering every closed set", :aggregate_failu
   end
 
   it "sends through every door, or says why a door is left out" do
-    expect(Hecks::Bluebook::Hecksagon::DRIVING_ADAPTERS - DOOR_NAMES.keys - DOORS_ELSEWHERE.keys).to be_empty
+    expect(Hecks::Bluebook::Hecksagon.driving_adapters - DOOR_NAMES.keys - DOORS_ELSEWHERE.keys).to be_empty
     expect(DOOR_NAMES.values.map(&:to_sym)).to match_array(Doors::NAMES)
   end
 

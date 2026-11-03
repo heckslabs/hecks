@@ -197,14 +197,16 @@ Hecks.bluebook "Bluebook" do
       attribute :was,           String
       attribute :resolves_via,  String, default: "", admits: "Syntax::ResolutionScope"
       attribute :disambiguator, String, default: "", admits: "Syntax::Disambiguator"
+      attribute :requires,    String, optional: true
+      attribute :disposition, String, admits: "Syntax::Disposition"
 
-      member word: "attribute",       context: "ValueObject", body: "none",   inner: "",      opens: "", fills: "attributes", calls: "attribute_impl"
-      member word: "one_of",          context: "ValueObject", body: "rows",   inner: "OneOf", opens: "", fills: "rows", calls: "one_of_impl"
-      member word: "invariant",       context: "ValueObject", body: "source", inner: "",      opens: "", fills: "invariants", resolves_via: "sibling_scan", calls: "invariant_impl"
-      member word: "member",          context: "ValueObject", body: "none", inner: "", opens: "Member", fills: "", calls: "member_impl"
-      member word: "member",          context: "OneOf",     body: "none", inner: "", opens: "Member", fills: "", calls: "member_impl"
-      member word: "list_of",         context: "Type", body: "none", inner: "", opens: "", fills: "", calls: "list_of_impl"
-      member word: "one_of",          context: "Type", body: "none", inner: "", opens: "", fills: "", calls: "one_of_impl"
+      member word: "attribute",       context: "ValueObject", body: "none",   inner: "",      opens: "", fills: "attributes", calls: "attribute_impl", disposition: "enforced"
+      member word: "one_of",          context: "ValueObject", body: "rows",   inner: "OneOf", opens: "", fills: "rows", calls: "one_of_impl", disposition: "enforced"
+      member word: "invariant",       context: "ValueObject", body: "source", inner: "",      opens: "", fills: "invariants", resolves_via: "sibling_scan", calls: "invariant_impl", disposition: "enforced"
+      member word: "member",          context: "ValueObject", body: "none", inner: "", opens: "Member", fills: "", calls: "member_impl", disposition: "enforced"
+      member word: "member",          context: "OneOf",     body: "none", inner: "", opens: "Member", fills: "", calls: "member_impl", disposition: "enforced"
+      member word: "list_of",         context: "Type", body: "none", inner: "", opens: "", fills: "", calls: "list_of_impl", disposition: "enforced"
+      member word: "one_of",          context: "Type", body: "none", inner: "", opens: "", fills: "", calls: "one_of_impl", disposition: "enforced"
 
     end
 

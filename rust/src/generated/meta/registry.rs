@@ -7293,6 +7293,13 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
                             if let Some(v) = &args.calls {
                                 v.check_invariants()?;
                             }
+                            if let Some(v) = &args.requires {
+                                v.check_invariants()?;
+                            }
+                            if !["enforced", "dropped"].contains(&args.disposition.value.as_str()) {
+                                return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::refusal_wording::InvariantViolationAdmitsDeclaredSetArgs { name: "disposition", admits: "Syntax::Disposition", admitted: &["enforced", "dropped"], offered: format!("{:?}", args.disposition.value).as_str() }.render_args()));
+                            }
+                            args.disposition.check_invariants()?;
                             Ok(args)
                         },
                         refuse_role_mismatch: &|| {
@@ -7396,6 +7403,13 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
                             if let Some(v) = &args.calls {
                                 v.check_invariants()?;
                             }
+                            if let Some(v) = &args.requires {
+                                v.check_invariants()?;
+                            }
+                            if !["enforced", "dropped"].contains(&args.disposition.value.as_str()) {
+                                return Err(crate::kernel::Refusal::InvariantViolation(crate::kernel::refusal_wording::InvariantViolationAdmitsDeclaredSetArgs { name: "disposition", admits: "Syntax::Disposition", admitted: &["enforced", "dropped"], offered: format!("{:?}", args.disposition.value).as_str() }.render_args()));
+                            }
+                            args.disposition.check_invariants()?;
                             Ok(args)
                         },
                         refuse_role_mismatch: &|| {
@@ -8874,6 +8888,8 @@ pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
             "resolves_via",
             "disambiguator",
             "calls",
+            "requires",
+            "disposition",
         ],
         "Bluebook::Syntax.Argument" => &[
             "position",

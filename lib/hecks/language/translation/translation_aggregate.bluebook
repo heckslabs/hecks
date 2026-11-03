@@ -212,17 +212,19 @@ Hecks.bluebook "Translation" do
       attribute :was,           String
       attribute :resolves_via,  String, default: "", admits: "Syntax::ResolutionScope"
       attribute :disambiguator, String, default: "", admits: "Syntax::Disambiguator"
+      attribute :requires,    String, optional: true
+      attribute :disposition, String, admits: "Syntax::Disposition"
 
-      member word: "rename",          context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "renames", calls: "rename_impl"
-      member word: "split",            context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "splits", calls: "split_impl"
-      member word: "move",            context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "moves", calls: "move_impl"
-      member word: "convert",         context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "converts", calls: "convert_impl"
-      member word: "drop",            context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "drops"
-      member word: "retype",          context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "retypes", calls: "retype_impl"
-      member word: "derive",          context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "derives", calls: "derive_impl"
-      member word: "rekey_to",        context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "rekeys", calls: "rekey_to_impl"
-      member word: "backfill",        context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "backfills", calls: "backfill_impl"
-      member word: "unresolved",      context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "", calls: "unresolved_impl"
+      member word: "rename",          context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "renames", calls: "rename_impl", disposition: "enforced"
+      member word: "split",            context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "splits", calls: "split_impl", disposition: "enforced"
+      member word: "move",            context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "moves", calls: "move_impl", disposition: "enforced"
+      member word: "convert",         context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "converts", calls: "convert_impl", disposition: "enforced"
+      member word: "drop",            context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "drops", disposition: "enforced"
+      member word: "retype",          context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "retypes", calls: "retype_impl", disposition: "enforced"
+      member word: "derive",          context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "derives", calls: "derive_impl", disposition: "enforced"
+      member word: "rekey_to",        context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "rekeys", calls: "rekey_to_impl", disposition: "enforced"
+      member word: "backfill",        context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "backfills", calls: "backfill_impl", disposition: "enforced"
+      member word: "unresolved",      context: "TranslationAggregate", body: "none", inner: "", opens: "", fills: "", calls: "unresolved_impl", disposition: "enforced"
 
     end
 

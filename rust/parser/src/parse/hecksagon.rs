@@ -6,6 +6,7 @@ use super::domain_port;
 use super::policy;
 use crate::diag::{Diagnostic, ParseResult};
 use crate::ir;
+use crate::keywords::{DRIVING_ADAPTERS, KEYWORDS};
 use crate::lex::{self, LineShape, Opener, SourceLine};
 
 pub fn not_implemented(file: &str, line: usize, word: &str) -> Diagnostic {
@@ -30,6 +31,8 @@ pub fn apply(
     vendored_bluebook_names: &mut Vec<String>,
     require_matching_aggregate: bool,
 ) -> ParseResult<()> {
+    // Every root word this block declared, so a `requires` in the grammar can be checked at `end`.
+    let mut declared: Vec<&'static str> = Vec::new();
     loop {
         let line = *lines.get(*pos).ok_or_else(|| {
             let last = lines.last().map_or(0, |l| l.number);
@@ -41,6 +44,7 @@ pub fn apply(
         })?;
 
         if line.text == "end" {
+            refuse_unmet_requires(file, line.number, &declared)?;
             *pos += 1;
             return Ok(());
         }
@@ -98,68 +102,133 @@ pub fn apply(
         }
 
         match super::next_line(file, lines, pos, "Hecksagon")? {
-            None => return Ok(()),
-            Some(gated) => match gated.row.word {
-                // A bare root port belongs to the bluebook, not an aggregate; validated, then
-                // discarded (`IR::Bluebook#to_h` has no `ports:` key).
-                "port" => {
-                    let name =
-                        super::positional_text(file, gated.line.number, "port", &gated.args, 1)?;
-                    let _ = domain_port::parse_body(file, lines, pos, &name, None)?;
-                }
-                // A cross-domain reaction wired here instead of the `.bluebook`; builds the same
-                // `ir::Policy`, pushed after every policy the sibling file contributed.
-                "translates" => {
-                    let name = super::positional_text(
-                        file,
-                        gated.line.number,
-                        "translates",
-                        &gated.args,
-                        1,
-                    )?;
-                    let built = policy::parse_body(file, lines, pos, &name)?;
-                    bluebook.policies.push(built);
-                }
-                "subscribe" => {}
-                // One word for a bluebook the gem carries and for a vendored package; a binding
-                // fact collected for `resolve`, absent from `ir.json`. Only `from: :vendor`
-                // is admitted as a source, and anything else is refused.
-                "attaches" => {
-                    let name = super::positional_text(
-                        file,
-                        gated.line.number,
-                        "attaches",
-                        &gated.args,
-                        1,
-                    )?;
-                    match super::named_symbol(&gated.args, "from").as_deref() {
-                        None => gem_bluebook_names.push(name),
-                        Some("vendor") => vendored_bluebook_names.push(name),
-                        Some(other) => {
-                            return Err(Diagnostic::new(
-                                file,
-                                gated.line.number,
-                                format!("'attaches' from: takes only :vendor, got :{other}"),
-                            ))
+            None => {
+                refuse_unmet_requires(file, line.number, &declared)?;
+                return Ok(());
+            }
+            Some(gated) => {
+                declared.push(gated.row.word);
+                match gated.row.word {
+                    // A bare root port belongs to the bluebook, not an aggregate; validated, then
+                    // discarded (`IR::Bluebook#to_h` has no `ports:` key).
+                    "port" => {
+                        let name = super::positional_text(
+                            file,
+                            gated.line.number,
+                            "port",
+                            &gated.args,
+                            1,
+                        )?;
+                        let _ = domain_port::parse_body(file, lines, pos, &name, None)?;
+                    }
+                    // A cross-domain reaction wired here instead of the `.bluebook`; builds the same
+                    // `ir::Policy`, pushed after every policy the sibling file contributed.
+                    "translates" => {
+                        let name = super::positional_text(
+                            file,
+                            gated.line.number,
+                            "translates",
+                            &gated.args,
+                            1,
+                        )?;
+                        let built = policy::parse_body(file, lines, pos, &name)?;
+                        bluebook.policies.push(built);
+                    }
+                    // Dropped, per the grammar row's `disposition`: Ruby enforces it, Rust does not.
+                    // Follow-up: carry subscriptions into the Rust IR.
+                    "subscribe" => {}
+                    // One word for a bluebook the gem carries and for a vendored package; a binding
+                    // fact collected for `resolve`, absent from `ir.json`. Only `from: :vendor`
+                    // is admitted as a source, and anything else is refused.
+                    "attaches" => {
+                        let name = super::positional_text(
+                            file,
+                            gated.line.number,
+                            "attaches",
+                            &gated.args,
+                            1,
+                        )?;
+                        match super::named_symbol(&gated.args, "from").as_deref() {
+                            None => gem_bluebook_names.push(name),
+                            Some("vendor") => vendored_bluebook_names.push(name),
+                            Some(other) => {
+                                return Err(Diagnostic::new(
+                                    file,
+                                    gated.line.number,
+                                    format!("'attaches' from: takes only :vendor, got :{other}"),
+                                ))
+                            }
                         }
                     }
+                    // Consumer-owned bounded-context mark; its `requires` is checked at `end`.
+                    "bounded" => {}
+                    // A driving adapter the domain admits; refused here as Ruby's boot refuses it, and
+                    // `ir.json` carries none.
+                    "driven_by" => {
+                        let adapter = super::positional_text(
+                            file,
+                            gated.line.number,
+                            "driven_by",
+                            &gated.args,
+                            1,
+                        )?;
+                        if !DRIVING_ADAPTERS.contains(&adapter.as_str()) {
+                            return Err(Diagnostic::new(
+                            file,
+                            gated.line.number,
+                            format!(
+                                "driven_by {adapter:?}, which no driving adapter answers to — the adapters are {}",
+                                DRIVING_ADAPTERS.join(", ")
+                            ),
+                        ));
+                        }
+                    }
+                    _ => {
+                        return Err(super::not_built_yet(
+                            "Hecksagon",
+                            gated.row,
+                            file,
+                            gated.line.number,
+                            &gated.call.word,
+                        ))
+                    }
                 }
-                // Consumer-owned bounded-context mark; a wiring fact, dropped like `subscribe`.
-                "bounded" => {}
-                // A driving adapter the domain admits; Ruby's boot enforces it, `ir.json` carries none.
-                "driven_by" => {}
-                _ => {
-                    return Err(super::not_built_yet(
-                        "Hecksagon",
-                        gated.row,
-                        file,
-                        gated.line.number,
-                        &gated.call.word,
-                    ))
-                }
-            },
+            }
         }
     }
+}
+
+/// Refuses a root word whose grammar row names a `requires` sibling this block never declares,
+/// such as `bounded` without `translates`. The rule is read from the generated `KEYWORDS` table.
+///
+/// # Errors
+///
+/// Returns the diagnostic for the first declared word whose required sibling is missing.
+fn refuse_unmet_requires(file: &str, line: usize, declared: &[&str]) -> ParseResult<()> {
+    for word in declared {
+        let Some(required) = required_sibling(word) else {
+            continue;
+        };
+        if !declared.contains(&required) {
+            return Err(Diagnostic::new(
+                file,
+                line,
+                format!(
+                    "`{word}` needs a `{required}` and this hecksagon declares none; \
+                     add `{required}` or drop `{word}`"
+                ),
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// The sibling word a hecksagon root word requires, from its grammar row; `None` when it needs none.
+fn required_sibling(word: &str) -> Option<&'static str> {
+    KEYWORDS
+        .iter()
+        .find(|row| row.context == "Hecksagon" && row.word == word && !row.requires.is_empty())
+        .map(|row| row.requires)
 }
 
 /// `<Domain>::<Aggregate>.<verb>`: `port` attaches a port to the named aggregate; any other

@@ -1001,6 +1001,26 @@
               "pattern": null,
               "admits": "Syntax::Disambiguator",
               "relationship": null
+            },
+            {
+              "name": "requires",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "disposition",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": "Syntax::Disposition",
+              "relationship": null
             }
           ],
           "invariants": [
@@ -1032,6 +1052,10 @@
               [
                 "fills",
                 "description"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -1062,6 +1086,10 @@
               [
                 "calls",
                 "provenance_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -1092,6 +1120,10 @@
               [
                 "calls",
                 "formerly_known_as_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -1122,6 +1154,10 @@
               [
                 "calls",
                 "created_by_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -1152,6 +1188,10 @@
               [
                 "calls",
                 "identified_by_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -1182,6 +1222,10 @@
               [
                 "calls",
                 "identified_by_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -1212,6 +1256,10 @@
               [
                 "calls",
                 "reference_to_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -1242,6 +1290,10 @@
               [
                 "calls",
                 "has_many_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -1272,6 +1324,10 @@
               [
                 "calls",
                 "has_one_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -1302,6 +1358,10 @@
               [
                 "calls",
                 "belongs_to_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -1332,6 +1392,10 @@
               [
                 "calls",
                 "lifecycle_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -1362,6 +1426,10 @@
               [
                 "calls",
                 "entity_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -1392,6 +1460,10 @@
               [
                 "calls",
                 "query_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -1422,6 +1494,10 @@
               [
                 "calls",
                 "policy_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -1448,6 +1524,10 @@
               [
                 "fills",
                 "value_objects"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -1474,6 +1554,10 @@
               [
                 "fills",
                 "value_objects"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -1504,6 +1588,10 @@
               [
                 "calls",
                 "command_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -1534,6 +1622,10 @@
               [
                 "calls",
                 "attribute_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -1564,6 +1656,10 @@
               [
                 "calls",
                 "invariant_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -1602,6 +1698,10 @@
               [
                 "calls",
                 "given_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -1632,6 +1732,10 @@
               [
                 "calls",
                 "acknowledges_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -1662,6 +1766,10 @@
               [
                 "calls",
                 "projects_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -1692,6 +1800,10 @@
               [
                 "calls",
                 "transition_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -1722,6 +1834,10 @@
               [
                 "calls",
                 "mark_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ]
           ]
@@ -5436,6 +5552,26 @@
               "pattern": null,
               "admits": "Syntax::Disambiguator",
               "relationship": null
+            },
+            {
+              "name": "requires",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "disposition",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": "Syntax::Disposition",
+              "relationship": null
             }
           ],
           "invariants": [
@@ -5467,6 +5603,10 @@
               [
                 "fills",
                 ""
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -5493,6 +5633,10 @@
               [
                 "fills",
                 "vision"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -5519,6 +5663,10 @@
               [
                 "fills",
                 "formerly_known_as"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -5545,6 +5693,10 @@
               [
                 "fills",
                 "namespace"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -5575,6 +5727,10 @@
               [
                 "calls",
                 "attaches_to_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -5605,6 +5761,10 @@
               [
                 "calls",
                 "provides_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -5631,6 +5791,10 @@
               [
                 "fills",
                 "classification"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -5657,6 +5821,10 @@
               [
                 "fills",
                 "classification"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -5683,6 +5851,10 @@
               [
                 "fills",
                 "classification"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -5713,6 +5885,10 @@
               [
                 "calls",
                 "aggregate_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -5743,6 +5919,10 @@
               [
                 "was",
                 "report"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -5769,6 +5949,10 @@
               [
                 "fills",
                 ""
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -5795,6 +5979,10 @@
               [
                 "fills",
                 ""
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -5821,6 +6009,10 @@
               [
                 "fills",
                 ""
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ]
           ]
@@ -8252,6 +8444,26 @@
               "pattern": null,
               "admits": "Syntax::Disambiguator",
               "relationship": null
+            },
+            {
+              "name": "requires",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "disposition",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": "Syntax::Disposition",
+              "relationship": null
             }
           ],
           "invariants": [
@@ -8287,6 +8499,10 @@
               [
                 "calls",
                 "role_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -8313,6 +8529,10 @@
               [
                 "fills",
                 "goal"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -8343,6 +8563,10 @@
               [
                 "calls",
                 "audience_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -8373,6 +8597,10 @@
               [
                 "calls",
                 "provenance_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -8403,6 +8631,10 @@
               [
                 "calls",
                 "idempotent_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -8433,6 +8665,10 @@
               [
                 "calls",
                 "mints_era_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -8463,6 +8699,10 @@
               [
                 "calls",
                 "reference_to_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -8497,6 +8737,10 @@
               [
                 "calls",
                 "given_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -8527,6 +8771,10 @@
               [
                 "calls",
                 "sets_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -8561,6 +8809,10 @@
               [
                 "calls",
                 "then_set_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -8591,6 +8843,10 @@
               [
                 "calls",
                 "delegates_to_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -8617,6 +8873,10 @@
               [
                 "fills",
                 "emits"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -8643,6 +8903,10 @@
               [
                 "fills",
                 "mutations"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -8673,6 +8937,10 @@
               [
                 "calls",
                 "attribute_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -8699,6 +8967,10 @@
               [
                 "fills",
                 "ensures"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -8729,6 +9001,10 @@
               [
                 "calls",
                 "needs_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -8759,6 +9035,10 @@
               [
                 "calls",
                 "corrects_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ]
           ]
@@ -12058,6 +12338,26 @@
               "pattern": null,
               "admits": "Syntax::Disambiguator",
               "relationship": null
+            },
+            {
+              "name": "requires",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "disposition",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": "Syntax::Disposition",
+              "relationship": null
             }
           ],
           "invariants": [
@@ -12089,6 +12389,10 @@
               [
                 "fills",
                 "description"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -12119,6 +12423,10 @@
               [
                 "calls",
                 "identified_by_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -12149,6 +12457,10 @@
               [
                 "calls",
                 "identified_by_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -12187,6 +12499,10 @@
               [
                 "calls",
                 "given_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -12217,6 +12533,10 @@
               [
                 "calls",
                 "invariant_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -12247,6 +12567,10 @@
               [
                 "calls",
                 "command_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -12277,6 +12601,10 @@
               [
                 "calls",
                 "query_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -12307,6 +12635,10 @@
               [
                 "calls",
                 "lifecycle_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -12337,6 +12669,10 @@
               [
                 "calls",
                 "attribute_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -12367,6 +12703,10 @@
               [
                 "calls",
                 "reference_to_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -12397,6 +12737,10 @@
               [
                 "calls",
                 "has_many_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -12427,6 +12771,10 @@
               [
                 "calls",
                 "has_one_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -12457,6 +12805,10 @@
               [
                 "calls",
                 "belongs_to_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -12487,6 +12839,10 @@
               [
                 "calls",
                 "entity_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ]
           ]
@@ -15001,6 +15357,26 @@
               "pattern": null,
               "admits": "Syntax::Disambiguator",
               "relationship": null
+            },
+            {
+              "name": "requires",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "disposition",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": "Syntax::Disposition",
+              "relationship": null
             }
           ],
           "invariants": [
@@ -15036,6 +15412,10 @@
               [
                 "calls",
                 "on_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -15066,6 +15446,10 @@
               [
                 "calls",
                 "trigger_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -15096,6 +15480,10 @@
               [
                 "calls",
                 "ask_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -15126,6 +15514,10 @@
               [
                 "calls",
                 "across_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -15152,6 +15544,10 @@
               [
                 "fills",
                 "where"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -15178,6 +15574,10 @@
               [
                 "fills",
                 "for_each"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ]
           ]
@@ -16413,6 +16813,26 @@
               "pattern": null,
               "admits": "Syntax::Disambiguator",
               "relationship": null
+            },
+            {
+              "name": "requires",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "disposition",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": "Syntax::Disposition",
+              "relationship": null
             }
           ],
           "invariants": [
@@ -16448,6 +16868,10 @@
               [
                 "calls",
                 "correlates_by_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -16478,6 +16902,10 @@
               [
                 "calls",
                 "starts_on_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -16508,6 +16936,10 @@
               [
                 "calls",
                 "ends_on_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -16538,6 +16970,10 @@
               [
                 "calls",
                 "resumes_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -16568,6 +17004,10 @@
               [
                 "calls",
                 "transition_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -16598,6 +17038,10 @@
               [
                 "calls",
                 "transition_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -16628,6 +17072,10 @@
               [
                 "calls",
                 "dispatch_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -16658,6 +17106,10 @@
               [
                 "calls",
                 "dispatch_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -16688,6 +17140,10 @@
               [
                 "calls",
                 "compensates_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ]
           ]
@@ -18615,6 +19071,26 @@
               "pattern": null,
               "admits": "Syntax::Disambiguator",
               "relationship": null
+            },
+            {
+              "name": "requires",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "disposition",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": "Syntax::Disposition",
+              "relationship": null
             }
           ],
           "invariants": [
@@ -18646,6 +19122,10 @@
               [
                 "fills",
                 "description"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -18676,6 +19156,10 @@
               [
                 "calls",
                 "reference_to_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -18706,6 +19190,10 @@
               [
                 "calls",
                 "include_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -18736,6 +19224,10 @@
               [
                 "calls",
                 "group_by_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -18762,6 +19254,10 @@
               [
                 "fills",
                 "count"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -18788,6 +19284,10 @@
               [
                 "fills",
                 "median_field"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -18814,6 +19314,10 @@
               [
                 "fills",
                 "sum_field"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -18840,6 +19344,10 @@
               [
                 "fills",
                 "avg_field"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -18866,6 +19374,10 @@
               [
                 "fills",
                 "min_field"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -18892,6 +19404,10 @@
               [
                 "fills",
                 "max_field"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -18922,6 +19438,10 @@
               [
                 "calls",
                 "percentile_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -18948,6 +19468,10 @@
               [
                 "fills",
                 "any_field"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -18974,6 +19498,10 @@
               [
                 "fills",
                 "all_field"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -19004,6 +19532,10 @@
               [
                 "calls",
                 "where_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -19034,6 +19566,10 @@
               [
                 "calls",
                 "order_by_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -19064,6 +19600,10 @@
               [
                 "calls",
                 "authorize_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -19090,6 +19630,10 @@
               [
                 "fills",
                 "options"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ]
           ]
@@ -21555,6 +22099,26 @@
               "pattern": null,
               "admits": "Syntax::Disambiguator",
               "relationship": null
+            },
+            {
+              "name": "requires",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "disposition",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": "Syntax::Disposition",
+              "relationship": null
             }
           ],
           "invariants": [
@@ -21586,6 +22150,10 @@
               [
                 "fills",
                 "description"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -21616,6 +22184,10 @@
               [
                 "calls",
                 "attribute_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -21646,6 +22218,10 @@
               [
                 "calls",
                 "reference_to_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -21676,6 +22252,10 @@
               [
                 "calls",
                 "where_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -21706,6 +22286,10 @@
               [
                 "calls",
                 "order_by_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -21736,6 +22320,10 @@
               [
                 "calls",
                 "authorize_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -21762,6 +22350,10 @@
               [
                 "fills",
                 "options"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -21788,6 +22380,10 @@
               [
                 "fills",
                 "returns"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -21818,6 +22414,10 @@
               [
                 "calls",
                 "needs_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ]
           ]
@@ -23827,6 +24427,26 @@
               "pattern": null,
               "admits": "Syntax::Disambiguator",
               "relationship": null
+            },
+            {
+              "name": "requires",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "disposition",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": "Syntax::Disposition",
+              "relationship": null
             }
           ],
           "invariants": [
@@ -23862,6 +24482,10 @@
               [
                 "calls",
                 "attribute_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -23892,6 +24516,10 @@
               [
                 "calls",
                 "one_of_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -23926,6 +24554,10 @@
               [
                 "calls",
                 "invariant_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -23956,6 +24588,10 @@
               [
                 "calls",
                 "member_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -23986,6 +24622,10 @@
               [
                 "calls",
                 "member_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -24016,6 +24656,10 @@
               [
                 "calls",
                 "list_of_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ],
             [
@@ -24046,6 +24690,10 @@
               [
                 "calls",
                 "one_of_impl"
+              ],
+              [
+                "disposition",
+                "enforced"
               ]
             ]
           ]
@@ -25575,6 +26223,90 @@
           ]
         },
         {
+          "name": "Disposition",
+          "attributes": [
+            {
+              "name": "name",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": true,
+          "members": [
+            [
+              [
+                "name",
+                "enforced"
+              ]
+            ],
+            [
+              [
+                "name",
+                "dropped"
+              ]
+            ]
+          ]
+        },
+        {
+          "name": "DrivingAdapter",
+          "attributes": [
+            {
+              "name": "name",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": true,
+          "members": [
+            [
+              [
+                "name",
+                "Ruby"
+              ]
+            ],
+            [
+              [
+                "name",
+                "Cli"
+              ]
+            ],
+            [
+              [
+                "name",
+                "Json"
+              ]
+            ],
+            [
+              [
+                "name",
+                "Mcp"
+              ]
+            ],
+            [
+              [
+                "name",
+                "Web"
+              ]
+            ]
+          ]
+        },
+        {
           "name": "Disambiguator",
           "attributes": [
             {
@@ -25984,6 +26716,26 @@
               "pattern": null,
               "admits": null,
               "relationship": null
+            },
+            {
+              "name": "requires",
+              "type": "KeywordSeedText",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "disposition",
+              "type": "KeywordSeedText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": "Syntax::Disposition",
+              "relationship": null
             }
           ],
           "givens": [
@@ -26011,7 +26763,9 @@
                 "was": ":was",
                 "resolves_via": ":resolves_via",
                 "disambiguator": ":disambiguator",
-                "calls": ":calls"
+                "calls": ":calls",
+                "requires": ":requires",
+                "disposition": ":disposition"
               }
             }
           ],
@@ -26359,6 +27113,26 @@
               "optional": true,
               "pattern": null,
               "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "requires",
+              "type": "KeywordSeedText",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "disposition",
+              "type": "KeywordSeedText",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": "Syntax::Disposition",
               "relationship": null
             }
           ],

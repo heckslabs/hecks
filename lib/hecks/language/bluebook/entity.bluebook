@@ -263,21 +263,23 @@ Hecks.bluebook "Bluebook" do
       attribute :was,           String
       attribute :resolves_via,  String, default: "", admits: "Syntax::ResolutionScope"
       attribute :disambiguator, String, default: "", admits: "Syntax::Disambiguator"
+      attribute :requires,    String, optional: true
+      attribute :disposition, String, admits: "Syntax::Disposition"
 
-      member word: "description",     context: "Entity", body: "none",     inner: "",           opens: "",         fills: "description"
-      member word: "identified_by",   context: "Entity", body: "keywords", inner: "ValueObject", opens: "ValueObject", fills: "identified_by", calls: "identified_by_impl"
-      member word: "identified_by",   context: "Entity", body: "none",     inner: "",           opens: "",         fills: "identified_by", calls: "identified_by_impl"
-      member word: "given",           context: "Entity", body: "source",   inner: "",           opens: "",         fills: "preconditions", resolves_via: "owner_keyed", disambiguator: "declared_by", calls: "given_impl"
-      member word: "invariant",       context: "Entity", body: "source",   inner: "",           opens: "",         fills: "invariants", calls: "invariant_impl"
-      member word: "command",         context: "Entity", body: "keywords", inner: "Command",    opens: "Command",  fills: "", calls: "command_impl"
-      member word: "query",           context: "Entity", body: "keywords", inner: "Query",      opens: "Query",    fills: "", calls: "query_impl"
-      member word: "lifecycle",       context: "Entity", body: "keywords", inner: "Lifecycle",  opens: "",         fills: "state_field", calls: "lifecycle_impl"
-      member word: "attribute",       context: "Entity", body: "none",     inner: "",           opens: "",         fills: "attributes", calls: "attribute_impl"
-      member word: "reference_to",    context: "Entity", body: "none",     inner: "",           opens: "",         fills: "attributes", calls: "reference_to_impl"
-      member word: "has_many",        context: "Entity", body: "none",     inner: "",           opens: "",         fills: "attributes", calls: "has_many_impl"
-      member word: "has_one",         context: "Entity", body: "none",     inner: "",           opens: "",         fills: "attributes", calls: "has_one_impl"
-      member word: "belongs_to",      context: "Entity", body: "none",     inner: "",           opens: "",         fills: "attributes", calls: "belongs_to_impl"
-      member word: "entity",          context: "Entity", body: "keywords", inner: "Entity",     opens: "Entity",   fills: "", calls: "entity_impl"
+      member word: "description",     context: "Entity", body: "none",     inner: "",           opens: "",         fills: "description", disposition: "enforced"
+      member word: "identified_by",   context: "Entity", body: "keywords", inner: "ValueObject", opens: "ValueObject", fills: "identified_by", calls: "identified_by_impl", disposition: "enforced"
+      member word: "identified_by",   context: "Entity", body: "none",     inner: "",           opens: "",         fills: "identified_by", calls: "identified_by_impl", disposition: "enforced"
+      member word: "given",           context: "Entity", body: "source",   inner: "",           opens: "",         fills: "preconditions", resolves_via: "owner_keyed", disambiguator: "declared_by", calls: "given_impl", disposition: "enforced"
+      member word: "invariant",       context: "Entity", body: "source",   inner: "",           opens: "",         fills: "invariants", calls: "invariant_impl", disposition: "enforced"
+      member word: "command",         context: "Entity", body: "keywords", inner: "Command",    opens: "Command",  fills: "", calls: "command_impl", disposition: "enforced"
+      member word: "query",           context: "Entity", body: "keywords", inner: "Query",      opens: "Query",    fills: "", calls: "query_impl", disposition: "enforced"
+      member word: "lifecycle",       context: "Entity", body: "keywords", inner: "Lifecycle",  opens: "",         fills: "state_field", calls: "lifecycle_impl", disposition: "enforced"
+      member word: "attribute",       context: "Entity", body: "none",     inner: "",           opens: "",         fills: "attributes", calls: "attribute_impl", disposition: "enforced"
+      member word: "reference_to",    context: "Entity", body: "none",     inner: "",           opens: "",         fills: "attributes", calls: "reference_to_impl", disposition: "enforced"
+      member word: "has_many",        context: "Entity", body: "none",     inner: "",           opens: "",         fills: "attributes", calls: "has_many_impl", disposition: "enforced"
+      member word: "has_one",         context: "Entity", body: "none",     inner: "",           opens: "",         fills: "attributes", calls: "has_one_impl", disposition: "enforced"
+      member word: "belongs_to",      context: "Entity", body: "none",     inner: "",           opens: "",         fills: "attributes", calls: "belongs_to_impl", disposition: "enforced"
+      member word: "entity",          context: "Entity", body: "keywords", inner: "Entity",     opens: "Entity",   fills: "", calls: "entity_impl", disposition: "enforced"
 
     end
 

@@ -91,8 +91,15 @@ module Hecks
 
       attr_reader :domain, :binds, :subscriptions, :attachments, :translates, :driving
 
-      # The driving adapters `driven_by` can name.
-      DRIVING_ADAPTERS = %w[Ruby Cli Json Mcp Web].freeze
+      # The driving adapters `driven_by` can name, read from the grammar's `DrivingAdapter` set
+      # through the parser projection, the same list the Rust parser compiles in.
+      #
+      # @return [Array<String>] every driving adapter name, frozen
+      def self.driving_adapters
+        @driving_adapters ||= Hecks::Projections::ParserTable.closed_set_members(
+          Hecks::Bluebook::MetaValidator.grammar_registry.bluebook("Bluebook"), "DrivingAdapter"
+        ).freeze
+      end
 
       # Every optional keyword and what it holds when the declaration omits it.
       FIELD_DEFAULTS = {

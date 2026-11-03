@@ -670,6 +670,228 @@ impl ResolutionScope {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Disposition {
+    Enforced,
+    Dropped,
+}
+
+impl crate::kernel::Fielded for Disposition {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::{Field, Value};
+        match name {
+            "value" => Some(Field::Value(Value::Str(match self {
+                Self::Enforced => "enforced".to_string(),
+                Self::Dropped => "dropped".to_string(),
+            }))),
+            _ => None,
+        }
+    }
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") {
+            Some(crate::kernel::Field::Value(v)) => Some(v),
+            _ => None,
+        }
+    }
+}
+
+impl Disposition {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        let member = match self {
+            Self::Enforced => "enforced",
+            Self::Dropped => "dropped",
+        };
+        crate::kernel::Json::obj(vec![("name", crate::kernel::Json::str(member))])
+    }
+
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        // A name the set does not declare refuses first, as `Value::FieldChecks#check_unknown_fields`
+        // does in `validate!`: before a missing field, and before membership.
+        let unknown = v.unknown_keys(&["name"]);
+        if !unknown.is_empty() {
+            let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
+            return Err(crate::kernel::Refusal::UnknownArgument(
+                crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+                    command: "Disposition",
+                    unknown: &unknown,
+                    declared: &["name"],
+                }
+                .render_args(),
+            ));
+        }
+        // A `one_of` closed set is admission-checked on the raw offered
+        // value, no shape check first — `Value::Admission#admit_member`
+        // runs on whatever `Value::Coercion#fields_for` auto-wrapped into
+        // the sole attribute's slot (a bare Array, a Bool, anything), never
+        // on a value already known to be a String. `v.dig` gives the same
+        // tolerant unwrap Ruby's own `fields_for` does: the wrapped
+        // `{"name": ...}` shape's inner value if `v` is an
+        // object, or `v` itself untouched if it isn't (matching
+        // `fields_for`'s single-field auto-wrap of a bare scalar/array/
+        // whatever). Only then is admission checked — a non-member value
+        // refuses `InvariantViolation`, matching Ruby's own refusal kind,
+        // never `TypeMismatch` for a shape a member set never declared.
+        //
+        // BUG#14 (qa/bluebook/quality_control.bluebook) — a missing field
+        // is not "a shape a member set never declared" the way a present-
+        // but-wrong value is; it is `Value::Coercion#check_required_fields`
+        // (runtime/value/coercion.rb) firing, and that check runs before
+        // `admit_member` in `validate!`'s own order. A caller-supplied
+        // `null` for a required command argument of this type is translated
+        // by `required_composite_argument_expr` (json_codec.rb, BUG#4) into
+        // an empty object — "build the value object from no fields at all",
+        // matching `Value::Coercion#nil_argument`'s own `build(value_object,
+        // {}, aggregate)` exactly — so `v.dig` above finding nothing is
+        // genuinely indistinguishable, at this point, from a Hash-shaped
+        // caller argument that simply never named the sole field's own key
+        // either way: both are that field's own absence, not a member
+        // mismatch.
+        // Without this explicit null check, that absence would still fall
+        // through to the admission match below, stringified as
+        // `Json::Null`'s own `ruby_to_s` (never a real member), so a
+        // required-but-omitted closed-set argument would misreport
+        // `InvariantViolation` where Ruby raises `TypeMismatch`
+        // ("{type}.{field} expects {expected}, got nil" — the same
+        // `numeric_field` wording `required_field_expr` already gives
+        // every other composite field's own missing-key case).
+        let candidate = v.dig("name").cloned().unwrap_or(crate::kernel::Json::Null);
+        if matches!(candidate, crate::kernel::Json::Null) {
+            return Err(crate::kernel::Refusal::TypeMismatch(
+                "Disposition.name expects String, got nil".to_string(),
+            ));
+        }
+        match candidate.ruby_to_s().as_str() {
+            "enforced" => Ok(Self::Enforced),
+            "dropped" => Ok(Self::Dropped),
+            _ => Err(crate::kernel::Refusal::InvariantViolation(
+                crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
+                    r#type: "Disposition",
+                    admitted: &["enforced", "dropped"],
+                    offered: candidate.inspect().as_str(),
+                }
+                .render_args(),
+            )),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DrivingAdapter {
+    Ruby,
+    Cli,
+    Json,
+    Mcp,
+    Web,
+}
+
+impl crate::kernel::Fielded for DrivingAdapter {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::{Field, Value};
+        match name {
+            "value" => Some(Field::Value(Value::Str(match self {
+                Self::Ruby => "Ruby".to_string(),
+                Self::Cli => "Cli".to_string(),
+                Self::Json => "Json".to_string(),
+                Self::Mcp => "Mcp".to_string(),
+                Self::Web => "Web".to_string(),
+            }))),
+            _ => None,
+        }
+    }
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") {
+            Some(crate::kernel::Field::Value(v)) => Some(v),
+            _ => None,
+        }
+    }
+}
+
+impl DrivingAdapter {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        let member = match self {
+            Self::Ruby => "Ruby",
+            Self::Cli => "Cli",
+            Self::Json => "Json",
+            Self::Mcp => "Mcp",
+            Self::Web => "Web",
+        };
+        crate::kernel::Json::obj(vec![("name", crate::kernel::Json::str(member))])
+    }
+
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        // A name the set does not declare refuses first, as `Value::FieldChecks#check_unknown_fields`
+        // does in `validate!`: before a missing field, and before membership.
+        let unknown = v.unknown_keys(&["name"]);
+        if !unknown.is_empty() {
+            let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
+            return Err(crate::kernel::Refusal::UnknownArgument(
+                crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+                    command: "DrivingAdapter",
+                    unknown: &unknown,
+                    declared: &["name"],
+                }
+                .render_args(),
+            ));
+        }
+        // A `one_of` closed set is admission-checked on the raw offered
+        // value, no shape check first — `Value::Admission#admit_member`
+        // runs on whatever `Value::Coercion#fields_for` auto-wrapped into
+        // the sole attribute's slot (a bare Array, a Bool, anything), never
+        // on a value already known to be a String. `v.dig` gives the same
+        // tolerant unwrap Ruby's own `fields_for` does: the wrapped
+        // `{"name": ...}` shape's inner value if `v` is an
+        // object, or `v` itself untouched if it isn't (matching
+        // `fields_for`'s single-field auto-wrap of a bare scalar/array/
+        // whatever). Only then is admission checked — a non-member value
+        // refuses `InvariantViolation`, matching Ruby's own refusal kind,
+        // never `TypeMismatch` for a shape a member set never declared.
+        //
+        // BUG#14 (qa/bluebook/quality_control.bluebook) — a missing field
+        // is not "a shape a member set never declared" the way a present-
+        // but-wrong value is; it is `Value::Coercion#check_required_fields`
+        // (runtime/value/coercion.rb) firing, and that check runs before
+        // `admit_member` in `validate!`'s own order. A caller-supplied
+        // `null` for a required command argument of this type is translated
+        // by `required_composite_argument_expr` (json_codec.rb, BUG#4) into
+        // an empty object — "build the value object from no fields at all",
+        // matching `Value::Coercion#nil_argument`'s own `build(value_object,
+        // {}, aggregate)` exactly — so `v.dig` above finding nothing is
+        // genuinely indistinguishable, at this point, from a Hash-shaped
+        // caller argument that simply never named the sole field's own key
+        // either way: both are that field's own absence, not a member
+        // mismatch.
+        // Without this explicit null check, that absence would still fall
+        // through to the admission match below, stringified as
+        // `Json::Null`'s own `ruby_to_s` (never a real member), so a
+        // required-but-omitted closed-set argument would misreport
+        // `InvariantViolation` where Ruby raises `TypeMismatch`
+        // ("{type}.{field} expects {expected}, got nil" — the same
+        // `numeric_field` wording `required_field_expr` already gives
+        // every other composite field's own missing-key case).
+        let candidate = v.dig("name").cloned().unwrap_or(crate::kernel::Json::Null);
+        if matches!(candidate, crate::kernel::Json::Null) {
+            return Err(crate::kernel::Refusal::TypeMismatch(
+                "DrivingAdapter.name expects String, got nil".to_string(),
+            ));
+        }
+        match candidate.ruby_to_s().as_str() {
+            "Ruby" => Ok(Self::Ruby),
+            "Cli" => Ok(Self::Cli),
+            "Json" => Ok(Self::Json),
+            "Mcp" => Ok(Self::Mcp),
+            "Web" => Ok(Self::Web),
+            _ => Err(crate::kernel::Refusal::InvariantViolation(
+                crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
+                    r#type: "DrivingAdapter",
+                    admitted: &["Ruby", "Cli", "Json", "Mcp", "Web"],
+                    offered: candidate.inspect().as_str(),
+                }
+                .render_args(),
+            )),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Disambiguator {
     DeclaredBy,
 }
@@ -1353,6 +1575,8 @@ pub struct Keyword {
     pub resolves_via: Option<KeywordSeedText>,
     pub disambiguator: Option<KeywordSeedText>,
     pub calls: Option<KeywordSeedText>,
+    pub requires: Option<KeywordSeedText>,
+    pub disposition: KeywordSeedText,
     pub status: String,
 }
 
@@ -1388,6 +1612,12 @@ impl crate::kernel::Fielded for Keyword {
                 .as_ref()
                 .map(|v| Field::Nested(v))
                 .or(Some(Field::Value(Value::Nil))),
+            "requires" => self
+                .requires
+                .as_ref()
+                .map(|v| Field::Nested(v))
+                .or(Some(Field::Value(Value::Nil))),
+            "disposition" => Some(Field::Nested(&self.disposition)),
             "status" => Some(Field::Value(Value::Str(self.status.clone()))),
             _ => None,
         }
@@ -1440,6 +1670,13 @@ impl Keyword {
                     .as_ref()
                     .map_or(crate::kernel::Json::Null, |v| v.to_json()),
             ),
+            (
+                "requires".to_string(),
+                self.requires
+                    .as_ref()
+                    .map_or(crate::kernel::Json::Null, |v| v.to_json()),
+            ),
+            ("disposition".to_string(), self.disposition.to_json()),
             (
                 "status".to_string(),
                 crate::kernel::Json::Str(self.status.clone()),
@@ -1496,6 +1733,14 @@ impl Keyword {
                 Some(&crate::kernel::Json::Null) | None => None,
                 Some(x) => Some(KeywordSeedText::from_json(&x.coerce_single_field("value"))?),
             },
+            requires: match v.get("requires") {
+                Some(&crate::kernel::Json::Null) | None => None,
+                Some(x) => Some(KeywordSeedText::from_json(&x.coerce_single_field("value"))?),
+            },
+            disposition: KeywordSeedText::from_json(
+                &v.require("disposition", "Keyword")?
+                    .coerce_single_field("value"),
+            )?,
             status: v
                 .require("status", "Keyword")?
                 .as_str()
@@ -2884,6 +3129,12 @@ impl crate::kernel::Fielded for KeywordArgs {
                 .as_ref()
                 .map(|v| Field::Nested(v))
                 .or(Some(Field::Value(Value::Nil))),
+            "requires" => self
+                .requires
+                .as_ref()
+                .map(|v| Field::Nested(v))
+                .or(Some(Field::Value(Value::Nil))),
+            "disposition" => Some(Field::Nested(&self.disposition)),
             _ => None,
         }
     }
@@ -2914,6 +3165,8 @@ pub struct KeywordArgs {
     pub resolves_via: Option<KeywordSeedText>,
     pub disambiguator: Option<KeywordSeedText>,
     pub calls: Option<KeywordSeedText>,
+    pub requires: Option<KeywordSeedText>,
+    pub disposition: KeywordSeedText,
 }
 
 pub fn dispatch_keyword(
@@ -3045,6 +3298,21 @@ pub fn dispatch_keyword(
     if let Some(v) = &args.calls {
         v.check_invariants()?;
     }
+    if let Some(v) = &args.requires {
+        v.check_invariants()?;
+    }
+    if !["enforced", "dropped"].contains(&args.disposition.value.as_str()) {
+        return Err(crate::kernel::Refusal::InvariantViolation(
+            crate::kernel::refusal_wording::InvariantViolationAdmitsDeclaredSetArgs {
+                name: "disposition",
+                admits: "Syntax::Disposition",
+                admitted: &["enforced", "dropped"],
+                offered: format!("{:?}", args.disposition.value).as_str(),
+            }
+            .render_args(),
+        ));
+    }
+    args.disposition.check_invariants()?;
     let with_references = crate::kernel::WithReferences {
         command_deref: &command_deref,
         args: &args,
@@ -3092,6 +3360,8 @@ pub fn dispatch_keyword(
                 resolves_via: args.resolves_via.clone(),
                 disambiguator: args.disambiguator.clone(),
                 calls: args.calls.clone(),
+                requires: args.requires.clone(),
+                disposition: args.disposition.clone(),
                 status: "admitted".to_string(),
             });
             Ok(())
@@ -3141,6 +3411,13 @@ impl KeywordArgs {
                         .as_ref()
                         .map_or(crate::kernel::Json::Null, |v| v.to_json()),
                 ),
+                (
+                    "requires".to_string(),
+                    self.requires
+                        .as_ref()
+                        .map_or(crate::kernel::Json::Null, |v| v.to_json()),
+                ),
+                ("disposition".to_string(), self.disposition.to_json()),
             ]
             .into_iter()
             .filter(|(_, v)| !matches!(v, crate::kernel::Json::Null))
@@ -3169,6 +3446,8 @@ impl KeywordArgs {
             "resolves_via",
             "disambiguator",
             "calls",
+            "requires",
+            "disposition",
             "id",
             "name",
         ]);
@@ -3190,13 +3469,22 @@ impl KeywordArgs {
                         "resolves_via",
                         "disambiguator",
                         "calls",
+                        "requires",
+                        "disposition",
                     ],
                 }
                 .render_args(),
             ));
         }
         let required: &[&str] = &[
-            "body", "context", "fills", "inner", "opens", "position", "word",
+            "body",
+            "context",
+            "disposition",
+            "fills",
+            "inner",
+            "opens",
+            "position",
+            "word",
         ];
         let absent: Vec<&str> = required
             .iter()
@@ -3220,6 +3508,8 @@ impl KeywordArgs {
                         "resolves_via",
                         "disambiguator",
                         "calls",
+                        "requires",
+                        "disposition",
                     ],
                 }
                 .render_args(),
@@ -3439,6 +3729,36 @@ impl KeywordArgs {
         if let Some(v) = &calls {
             v.check_invariants()?;
         }
+        let requires = match v.get("requires") {
+            Some(crate::kernel::Json::Null) | None => None,
+            Some(x) => Some(KeywordSeedText::from_json(&x.coerce_single_field("value"))?),
+        };
+        if let Some(v) = &requires {
+            v.check_invariants()?;
+        }
+        let disposition = KeywordSeedText::from_json(
+            &(match v.get("disposition").ok_or_else(|| {
+                crate::kernel::Refusal::TypeMismatch(
+                    "Keyword.disposition expects KeywordSeedText, got nil".to_string(),
+                )
+            })? {
+                crate::kernel::Json::Null => crate::kernel::Json::Object(Vec::new()),
+                other => other.clone(),
+            })
+            .coerce_single_field("value"),
+        )?;
+        if !["enforced", "dropped"].contains(&disposition.value.as_str()) {
+            return Err(crate::kernel::Refusal::InvariantViolation(
+                crate::kernel::refusal_wording::InvariantViolationAdmitsDeclaredSetArgs {
+                    name: "disposition",
+                    admits: "Syntax::Disposition",
+                    admitted: &["enforced", "dropped"],
+                    offered: format!("{:?}", disposition.value).as_str(),
+                }
+                .render_args(),
+            ));
+        }
+        disposition.check_invariants()?;
         Ok(Self {
             position,
             word,
@@ -3451,6 +3771,8 @@ impl KeywordArgs {
             resolves_via,
             disambiguator,
             calls,
+            requires,
+            disposition,
         })
     }
 }
@@ -3479,6 +3801,8 @@ impl KeywordArgs {
             "resolves_via",
             "disambiguator",
             "calls",
+            "requires",
+            "disposition",
             "id",
             "name",
         ]);
@@ -3501,6 +3825,8 @@ impl KeywordArgs {
                             "resolves_via",
                             "disambiguator",
                             "calls",
+                            "requires",
+                            "disposition",
                         ],
                     }
                     .render_args(),
@@ -3512,7 +3838,14 @@ impl KeywordArgs {
 
     pub fn refuse_absent_arguments(v: &crate::kernel::Json) -> Result<(), crate::kernel::Refusal> {
         let required: &[&str] = &[
-            "body", "context", "fills", "inner", "opens", "position", "word",
+            "body",
+            "context",
+            "disposition",
+            "fills",
+            "inner",
+            "opens",
+            "position",
+            "word",
         ];
         let absent: Vec<&str> = required
             .iter()
@@ -3537,6 +3870,8 @@ impl KeywordArgs {
                             "resolves_via",
                             "disambiguator",
                             "calls",
+                            "requires",
+                            "disposition",
                         ],
                     }
                     .render_args(),
@@ -4378,5 +4713,5 @@ impl ArgumentArgs {
 /// This aggregate's state, or one of its events' payloads, as a caller is answered with
 /// it: each single-field value object as its bare field (the shape a command takes it in).
 pub fn present(state: crate::kernel::Json) -> crate::kernel::Json {
-    match state { crate::kernel::Json::Object(fields) => crate::kernel::Json::Object(fields.into_iter().map(|(k, v)| { let new_v = match k.as_str() { "bluebook" => if matches!(&v, crate::kernel::Json::Object(fields) if fields.iter().all(|(k, _)| matches!(k.as_str(), "value"))) { match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other } } else { v }, "name" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "keywords" => match v { crate::kernel::Json::Array(items) => crate::kernel::Json::Array(items.into_iter().map(|item| match item { crate::kernel::Json::Object(fields) => crate::kernel::Json::Object(fields.into_iter().map(|(k, v)| { let new_v = match k.as_str() { "position" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "word" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "context" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "body" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "inner" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "opens" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "fills" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "was" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "resolves_via" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "disambiguator" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "calls" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, _ => v }; (k, new_v) }).collect()), other => other }).collect()), other => other }, "arguments" => match v { crate::kernel::Json::Array(items) => crate::kernel::Json::Array(items.into_iter().map(|item| match item { crate::kernel::Json::Object(fields) => crate::kernel::Json::Object(fields.into_iter().map(|(k, v)| { let new_v = match k.as_str() { "name" => v, "type" => v, "list" => v, "optional" => v, "pattern" => v, "default" => v, "admits" => v, "relationship" => v, _ => v }; (k, new_v) }).collect()), other => other }).collect()), other => other }, "position" => if matches!(&v, crate::kernel::Json::Object(fields) if fields.iter().all(|(k, _)| matches!(k.as_str(), "value"))) { match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other } } else if matches!(&v, crate::kernel::Json::Object(fields) if fields.iter().all(|(k, _)| matches!(k.as_str(), "value"))) { match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other } } else { v }, "word" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "context" => if matches!(&v, crate::kernel::Json::Object(fields) if fields.iter().all(|(k, _)| matches!(k.as_str(), "value"))) { match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other } } else if matches!(&v, crate::kernel::Json::Object(fields) if fields.iter().all(|(k, _)| matches!(k.as_str(), "value"))) { match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other } } else { v }, "body" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "inner" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "opens" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "fills" => if matches!(&v, crate::kernel::Json::Object(fields) if fields.iter().all(|(k, _)| matches!(k.as_str(), "value"))) { match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other } } else if matches!(&v, crate::kernel::Json::Object(fields) if fields.iter().all(|(k, _)| matches!(k.as_str(), "value"))) { match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other } } else { v }, "was" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "resolves_via" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "disambiguator" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "calls" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "keyword" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "at" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "named" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "kind" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "required" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "selects" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "pair_key_fills" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "pair_value_fills" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "pairs_shape" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "variadic" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "minimum" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "coerce" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "blank_message" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, _ => v }; (k, new_v) }).collect()), other => other }
+    match state { crate::kernel::Json::Object(fields) => crate::kernel::Json::Object(fields.into_iter().map(|(k, v)| { let new_v = match k.as_str() { "bluebook" => if matches!(&v, crate::kernel::Json::Object(fields) if fields.iter().all(|(k, _)| matches!(k.as_str(), "value"))) { match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other } } else { v }, "name" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "keywords" => match v { crate::kernel::Json::Array(items) => crate::kernel::Json::Array(items.into_iter().map(|item| match item { crate::kernel::Json::Object(fields) => crate::kernel::Json::Object(fields.into_iter().map(|(k, v)| { let new_v = match k.as_str() { "position" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "word" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "context" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "body" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "inner" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "opens" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "fills" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "was" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "resolves_via" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "disambiguator" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "calls" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "requires" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "disposition" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, _ => v }; (k, new_v) }).collect()), other => other }).collect()), other => other }, "arguments" => match v { crate::kernel::Json::Array(items) => crate::kernel::Json::Array(items.into_iter().map(|item| match item { crate::kernel::Json::Object(fields) => crate::kernel::Json::Object(fields.into_iter().map(|(k, v)| { let new_v = match k.as_str() { "name" => v, "type" => v, "list" => v, "optional" => v, "pattern" => v, "default" => v, "admits" => v, "relationship" => v, _ => v }; (k, new_v) }).collect()), other => other }).collect()), other => other }, "position" => if matches!(&v, crate::kernel::Json::Object(fields) if fields.iter().all(|(k, _)| matches!(k.as_str(), "value"))) { match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other } } else if matches!(&v, crate::kernel::Json::Object(fields) if fields.iter().all(|(k, _)| matches!(k.as_str(), "value"))) { match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other } } else { v }, "word" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "context" => if matches!(&v, crate::kernel::Json::Object(fields) if fields.iter().all(|(k, _)| matches!(k.as_str(), "value"))) { match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other } } else if matches!(&v, crate::kernel::Json::Object(fields) if fields.iter().all(|(k, _)| matches!(k.as_str(), "value"))) { match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other } } else { v }, "body" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "inner" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "opens" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "fills" => if matches!(&v, crate::kernel::Json::Object(fields) if fields.iter().all(|(k, _)| matches!(k.as_str(), "value"))) { match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other } } else if matches!(&v, crate::kernel::Json::Object(fields) if fields.iter().all(|(k, _)| matches!(k.as_str(), "value"))) { match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other } } else { v }, "was" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "resolves_via" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "disambiguator" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "calls" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "requires" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "disposition" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "keyword" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "at" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "named" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "kind" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "required" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "selects" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "pair_key_fills" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "pair_value_fills" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "pairs_shape" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "variadic" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "minimum" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "coerce" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, "blank_message" => match v { crate::kernel::Json::Object(fields) => fields.into_iter().find(|(k, _)| k == "value").map_or(crate::kernel::Json::Null, |(_, field_value)| field_value), other => other }, _ => v }; (k, new_v) }).collect()), other => other }
 }

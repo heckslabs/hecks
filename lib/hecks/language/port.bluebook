@@ -72,11 +72,13 @@ Hecks.bluebook "Port" do
       attribute :was,           String
       attribute :resolves_via,  String, default: "", admits: "Syntax::ResolutionScope"
       attribute :disambiguator, String, default: "", admits: "Syntax::Disambiguator"
+      attribute :requires,    String, optional: true
+      attribute :disposition, String, admits: "Syntax::Disposition"
 
-      member word: "port",            context: "File",     body: "keywords", inner: "Port",           opens: "Port",           fills: ""
-      member word: "verb",            context: "Port",      body: "none", inner: "", opens: "", fills: "verb"
-      member word: "signal",          context: "Port",      body: "none", inner: "", opens: "", fills: "signal"
-      member word: "answers",         context: "Port",      body: "none", inner: "", opens: "", fills: "answers"
+      member word: "port",            context: "File",     body: "keywords", inner: "Port",           opens: "Port",           fills: "", disposition: "enforced"
+      member word: "verb",            context: "Port",      body: "none", inner: "", opens: "", fills: "verb", disposition: "enforced"
+      member word: "signal",          context: "Port",      body: "none", inner: "", opens: "", fills: "signal", disposition: "enforced"
+      member word: "answers",         context: "Port",      body: "none", inner: "", opens: "", fills: "answers", disposition: "enforced"
 
     end
 

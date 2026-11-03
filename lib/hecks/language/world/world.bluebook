@@ -72,15 +72,17 @@ Hecks.bluebook "World" do
       attribute :was,           String
       attribute :resolves_via,  String, default: "", admits: "Syntax::ResolutionScope"
       attribute :disambiguator, String, default: "", admits: "Syntax::Disambiguator"
+      attribute :requires,    String, optional: true
+      attribute :disposition, String, admits: "Syntax::Disposition"
 
-      member word: "world",           context: "File",     body: "keywords", inner: "World",          opens: "World",          fills: ""
-      member word: "realm",           context: "World",     body: "none", inner: "", opens: "", fills: "realm", calls: "realm_impl"
-      member word: "latest",          context: "World",     body: "none", inner: "", opens: "", fills: "latest", calls: "latest_impl"
+      member word: "world",           context: "File",     body: "keywords", inner: "World",          opens: "World",          fills: "", disposition: "enforced"
+      member word: "realm",           context: "World",     body: "none", inner: "", opens: "", fills: "realm", calls: "realm_impl", disposition: "enforced"
+      member word: "latest",          context: "World",     body: "none", inner: "", opens: "", fills: "latest", calls: "latest_impl", disposition: "enforced"
       # The connection string and persistence adapter every bluebook of a
       # project would otherwise repeat, written once here; a bluebook's own
       # world or hecksagon bind still wins.
-      member word: "default_database", context: "World", body: "none", inner: "", opens: "", fills: "default_database", calls: "default_database_impl"
-      member word: "default_adapter",  context: "World", body: "none", inner: "", opens: "", fills: "default_adapter", calls: "default_adapter_impl"
+      member word: "default_database", context: "World", body: "none", inner: "", opens: "", fills: "default_database", calls: "default_database_impl", disposition: "enforced"
+      member word: "default_adapter",  context: "World", body: "none", inner: "", opens: "", fills: "default_adapter", calls: "default_adapter_impl", disposition: "enforced"
 
     end
 

@@ -99,7 +99,8 @@ module Hecks
         # one whose "" means "not given".
         KEYWORD_COLUMNS = {
           word: :v, context: :v, body: :v, inner: :v, opens: :v, fills: :v,
-          was: :optional, resolves_via: :optional, disambiguator: :optional, calls: :optional
+          was: :optional, resolves_via: :optional, disambiguator: :optional, calls: :optional,
+          requires: :optional, disposition: :v
         }.freeze
 
         # The same, for each Argument seed column.

@@ -9,9 +9,6 @@ module Hecks
       # A domain that declares no `driven_by` is open to every adapter. One that declares any is
       # reached through those, and each adapter it omits refuses the domain.
       module Admission
-        # The driving adapters a hecksagon can admit.
-        ADAPTERS = Bluebook::Hecksagon::DRIVING_ADAPTERS
-
         # Raised by an adapter that a domain's hecksagon left out of `driven_by`.
         class Refused < StandardError; end
 
@@ -20,7 +17,7 @@ module Hecks
         # The sentence a domain gives an adapter it did not admit.
         #
         # @param registry [Runtime::Registry] the booted registry, whose hecksagons are asked
-        # @param adapter [String] the adapter reaching in, one of `ADAPTERS`
+        # @param adapter [String] the adapter reaching in, one of `Bluebook::Hecksagon.driving_adapters`
         # @return [String, nil] the refusal, or nil when every domain admits `adapter`
         def refusal(registry, adapter)
           omitting = registry.hecksagons.values.find { |hecksagon| !hecksagon.driven_by?(adapter) }
@@ -33,7 +30,7 @@ module Hecks
         # Raises when a domain in `registry` did not admit `adapter`.
         #
         # @param registry [Runtime::Registry] the booted registry
-        # @param adapter [String] the adapter reaching in, one of `ADAPTERS`
+        # @param adapter [String] the adapter reaching in, one of `Bluebook::Hecksagon.driving_adapters`
         # @return [void]
         # @raise [Refused] with the domain's sentence
         def admit!(registry, adapter)

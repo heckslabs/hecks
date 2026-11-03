@@ -219,23 +219,25 @@ Hecks.bluebook "Bluebook", version: "1" do
       attribute :was,           String
       attribute :resolves_via,  String, default: "", admits: "Syntax::ResolutionScope"
       attribute :disambiguator, String, default: "", admits: "Syntax::Disambiguator"
+      attribute :requires,    String, optional: true
+      attribute :disposition, String, admits: "Syntax::Disposition"
 
-      member word: "bluebook",        context: "File",     body: "keywords", inner: "Bluebook",       opens: "Bluebook",       fills: ""
-      member word: "vision", context: "Bluebook", body: "none", inner: "", opens: "", fills: "vision"
-      member word: "formerly_known_as", context: "Bluebook", body: "none",   inner: "",               opens: "",               fills: "formerly_known_as"
-      member word: "namespace",       context: "Bluebook", body: "none",     inner: "",               opens: "",               fills: "namespace"
-      member word: "attaches_to",     context: "Bluebook", body: "none",     inner: "",               opens: "",               fills: "attaches_to", calls: "attaches_to_impl"
-      member word: "provides",        context: "Bluebook", body: "none",     inner: "",               opens: "",               fills: "provides", calls: "provides_impl"
-      member word: "core",            context: "Bluebook", body: "none",     inner: "",               opens: "",               fills: "classification"
-      member word: "supporting",      context: "Bluebook", body: "none",     inner: "",               opens: "",               fills: "classification"
-      member word: "generic",         context: "Bluebook", body: "none",     inner: "",               opens: "",               fills: "classification"
-      member word: "aggregate",       context: "Bluebook", body: "keywords", inner: "Aggregate",      opens: "Aggregate",      fills: "", calls: "aggregate_impl"
-      member word: "read_model",      context: "Bluebook", body: "keywords", inner: "ReadModel",      opens: "ReadModel",      fills: "", was: "report"
-      member word: "policy",          context: "Bluebook", body: "keywords", inner: "Policy",         opens: "Policy",         fills: ""
-      member word: "process_manager", context: "Bluebook", body: "keywords", inner: "ProcessManager", opens: "ProcessManager", fills: ""
+      member word: "bluebook",        context: "File",     body: "keywords", inner: "Bluebook",       opens: "Bluebook",       fills: "", disposition: "enforced"
+      member word: "vision", context: "Bluebook", body: "none", inner: "", opens: "", fills: "vision", disposition: "enforced"
+      member word: "formerly_known_as", context: "Bluebook", body: "none",   inner: "",               opens: "",               fills: "formerly_known_as", disposition: "enforced"
+      member word: "namespace",       context: "Bluebook", body: "none",     inner: "",               opens: "",               fills: "namespace", disposition: "enforced"
+      member word: "attaches_to",     context: "Bluebook", body: "none",     inner: "",               opens: "",               fills: "attaches_to", calls: "attaches_to_impl", disposition: "enforced"
+      member word: "provides",        context: "Bluebook", body: "none",     inner: "",               opens: "",               fills: "provides", calls: "provides_impl", disposition: "enforced"
+      member word: "core",            context: "Bluebook", body: "none",     inner: "",               opens: "",               fills: "classification", disposition: "enforced"
+      member word: "supporting",      context: "Bluebook", body: "none",     inner: "",               opens: "",               fills: "classification", disposition: "enforced"
+      member word: "generic",         context: "Bluebook", body: "none",     inner: "",               opens: "",               fills: "classification", disposition: "enforced"
+      member word: "aggregate",       context: "Bluebook", body: "keywords", inner: "Aggregate",      opens: "Aggregate",      fills: "", calls: "aggregate_impl", disposition: "enforced"
+      member word: "read_model",      context: "Bluebook", body: "keywords", inner: "ReadModel",      opens: "ReadModel",      fills: "", was: "report", disposition: "enforced"
+      member word: "policy",          context: "Bluebook", body: "keywords", inner: "Policy",         opens: "Policy",         fills: "", disposition: "enforced"
+      member word: "process_manager", context: "Bluebook", body: "keywords", inner: "ProcessManager", opens: "ProcessManager", fills: "", disposition: "enforced"
 
 
-      member word: "domain_module", context: "Bluebook", body: "keywords", inner: "Bluebook", opens: "Bluebook", fills: ""
+      member word: "domain_module", context: "Bluebook", body: "keywords", inner: "Bluebook", opens: "Bluebook", fills: "", disposition: "enforced"
     end
 
     value_object "ArgumentSeed" do

@@ -29,12 +29,12 @@ module Hecks
 
         # `driven_by` names a driving adapter; a name none answers to would silently admit nothing.
         def refuse_unknown_driving!(hecksagon)
-          unknown = hecksagon.driving - Bluebook::Hecksagon::DRIVING_ADAPTERS
+          unknown = hecksagon.driving - Bluebook::Hecksagon.driving_adapters
           return if unknown.empty?
 
           raise WiringError,
                 "#{hecksagon.domain} is driven_by #{unknown.map(&:inspect).join(", ")}, which no driving " \
-                "adapter answers to — the adapters are #{Bluebook::Hecksagon::DRIVING_ADAPTERS.join(", ")}"
+                "adapter answers to — the adapters are #{Bluebook::Hecksagon.driving_adapters.join(", ")}"
         end
 
         # `attaches` loads a bounded context; the consumer must declare the sibling hecksagon

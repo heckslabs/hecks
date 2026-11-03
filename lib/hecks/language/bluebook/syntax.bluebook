@@ -54,6 +54,18 @@ Hecks.bluebook "Bluebook" do
       attribute :name, String, one_of: ["hash_chain", "owner_keyed", "sibling_scan"]
     end
 
+    # How the Rust parser treats a word's own rules: `enforced` applies them (builds the value into
+    # its IR or refuses the input), `dropped` accepts the word and discards it without checking.
+    value_object "Disposition" do
+      attribute :name, String, one_of: ["enforced", "dropped"]
+    end
+
+    # The driving adapters a `driven_by` may name. Ruby's `Bluebook::Hecksagon` and the Rust parser
+    # both read this set from the projection, so a new adapter is one row here.
+    value_object "DrivingAdapter" do
+      attribute :name, String, one_of: ["Ruby", "Cli", "Json", "Mcp", "Web"]
+    end
+
     # The keyword a bare reference may supply to pick among `owner_keyed` candidates.
     # A closed set rather than a flag, so a second kind is a new member.
     value_object "Disambiguator" do
@@ -108,6 +120,11 @@ Hecks.bluebook "Bluebook" do
       # names the Ruby method the whole call forwards to, for words too complex to derive
       # from argument shape. Read during bootstrap via `WordGate`'s BOOTSTRAP_CALLS_FALLBACK.
       attribute :calls, KeywordSeedText, optional: true
+      # What the word needs beside itself: a sibling word the same block must also declare. Blank
+      # when it needs none; `bounded` needs `translates`.
+      attribute :requires, KeywordSeedText, optional: true
+      # How the Rust parser treats the word's rules; see `Disposition`.
+      attribute :disposition, KeywordSeedText, admits: "Syntax::Disposition"
 
       lifecycle :status, default: "admitted" do
         # No `proposed` state: no row is declared proposed, and the default must stay
@@ -216,7 +233,8 @@ Hecks.bluebook "Bluebook" do
 
       sets :keywords, append: { position: :position, word: :word, context: :context, body: :body,
                                  inner: :inner, opens: :opens, fills: :fills, was: :was,
-                                 resolves_via: :resolves_via, disambiguator: :disambiguator, calls: :calls }
+                                 resolves_via: :resolves_via, disambiguator: :disambiguator, calls: :calls,
+                                 requires: :requires, disposition: :disposition }
 
       emits KeywordAdmitted
     end

@@ -24,16 +24,18 @@ Hecks.bluebook "Paging" do
       attribute :opens,   String
       attribute :fills,   String
       attribute :was,     String, optional: true
+      attribute :requires,    String, optional: true
+      attribute :disposition, String, admits: "Syntax::Disposition"
 
-      member word: "limit",  context: "Query", body: "none", inner: "", opens: "", fills: "limit", calls: "limit_impl"
-      member word: "offset", context: "Query", body: "none", inner: "", opens: "", fills: "options", calls: "offset_impl"
-      member word: "cursor", context: "Query", body: "none", inner: "", opens: "", fills: "options"
-      member word: "nulls",  context: "Query", body: "none", inner: "", opens: "", fills: "options"
+      member word: "limit",  context: "Query", body: "none", inner: "", opens: "", fills: "limit", calls: "limit_impl", disposition: "enforced"
+      member word: "offset", context: "Query", body: "none", inner: "", opens: "", fills: "options", calls: "offset_impl", disposition: "enforced"
+      member word: "cursor", context: "Query", body: "none", inner: "", opens: "", fills: "options", disposition: "enforced"
+      member word: "nulls",  context: "Query", body: "none", inner: "", opens: "", fills: "options", disposition: "enforced"
 
-      member word: "limit",  context: "ReadModel", body: "none", inner: "", opens: "", fills: "options", calls: "limit_impl"
-      member word: "offset", context: "ReadModel", body: "none", inner: "", opens: "", fills: "options", calls: "offset_impl"
-      member word: "cursor", context: "ReadModel", body: "none", inner: "", opens: "", fills: "options"
-      member word: "nulls",  context: "ReadModel", body: "none", inner: "", opens: "", fills: "options"
+      member word: "limit",  context: "ReadModel", body: "none", inner: "", opens: "", fills: "options", calls: "limit_impl", disposition: "enforced"
+      member word: "offset", context: "ReadModel", body: "none", inner: "", opens: "", fills: "options", calls: "offset_impl", disposition: "enforced"
+      member word: "cursor", context: "ReadModel", body: "none", inner: "", opens: "", fills: "options", disposition: "enforced"
+      member word: "nulls",  context: "ReadModel", body: "none", inner: "", opens: "", fills: "options", disposition: "enforced"
     end
 
     value_object "ArgumentSeed" do

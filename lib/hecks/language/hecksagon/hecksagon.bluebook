@@ -99,17 +99,22 @@ Hecks.bluebook "Hecksagon" do
       attribute :was,           String
       attribute :resolves_via,  String, default: "", admits: "Syntax::ResolutionScope"
       attribute :disambiguator, String, default: "", admits: "Syntax::Disambiguator"
+      attribute :requires,    String, optional: true
+      attribute :disposition, String, admits: "Syntax::Disposition"
 
-      member word: "hecksagon",       context: "File",     body: "keywords", inner: "Hecksagon",      opens: "Hecksagon",      fills: ""
-      member word: "subscribe",       context: "Hecksagon", body: "none", inner: "", opens: "", fills: "subscriptions"
-      member word: "attaches",        context: "Hecksagon", body: "none", inner: "", opens: "", fills: "attachments"
-      member word: "driven_by",       context: "Hecksagon", body: "none", inner: "", opens: "", fills: "driving"
-      member word: "port",            context: "Hecksagon",     body: "keywords", inner: "DomainPort",    opens: "DomainPort",    fills: "", calls: "port_impl"
+      member word: "hecksagon",       context: "File",     body: "keywords", inner: "Hecksagon",      opens: "Hecksagon",      fills: "", disposition: "enforced"
+      # Explicit divergence: Ruby enforces it (the events go into the IR); the Rust parser accepts and
+      # drops it. Its Rust side is `dropped` until the follow-up: carry subscriptions into the Rust IR.
+      member word: "subscribe",       context: "Hecksagon", body: "none", inner: "", opens: "", fills: "subscriptions", disposition: "dropped"
+      member word: "attaches",        context: "Hecksagon", body: "none", inner: "", opens: "", fills: "attachments", disposition: "enforced"
+      member word: "driven_by",       context: "Hecksagon", body: "none", inner: "", opens: "", fills: "driving", disposition: "enforced"
+      member word: "port",            context: "Hecksagon",     body: "keywords", inner: "DomainPort",    opens: "DomainPort",    fills: "", calls: "port_impl", disposition: "enforced"
       # A cross-domain reaction wired here rather than in the bluebook; reuses the Policy context.
       # No `calls:` — HecksagonBuilder#translates is an ordinary method, found before `word_gate`.
-      member word: "translates",      context: "Hecksagon",     body: "keywords", inner: "Policy",        opens: "Policy",        fills: ""
+      member word: "translates",      context: "Hecksagon",     body: "keywords", inner: "Policy",        opens: "Policy",        fills: "", disposition: "enforced"
       # Marks a consumer-owned bounded context; framework and vendored packages get it implicitly.
-      member word: "bounded",         context: "Hecksagon", body: "none", inner: "", opens: "", fills: ""
+      # Needs a `translates` in the same hecksagon; both sides refuse a bounded domain without one.
+      member word: "bounded",         context: "Hecksagon", body: "none", inner: "", opens: "", fills: "", requires: "translates", disposition: "enforced"
 
     end
 

@@ -27,6 +27,10 @@ pub struct KeywordRow {
     /// Which disambiguator keyword argument a bare reference
     /// may supply — "declared_by" today, "" otherwise.
     pub disambiguator: &'static str,
+    /// The sibling word the same block must declare ("translates" for `bounded`).
+    pub requires: &'static str,
+    /// "enforced" applies the word's rules; "dropped" accepts and discards the word.
+    pub disposition: &'static str,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -73,6 +77,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "provenance",
@@ -85,6 +91,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "formerly_known_as",
@@ -97,6 +105,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "created_by",
@@ -109,6 +119,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "identified_by",
@@ -121,6 +133,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "identified_by",
@@ -133,6 +147,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "reference_to",
@@ -145,6 +161,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "has_many",
@@ -157,6 +175,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "has_one",
@@ -169,6 +189,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "belongs_to",
@@ -181,6 +203,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "lifecycle",
@@ -193,6 +217,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "entity",
@@ -205,6 +231,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "query",
@@ -217,6 +245,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "policy",
@@ -229,6 +259,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "value_object",
@@ -241,6 +273,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "value_object",
@@ -253,6 +287,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "command",
@@ -265,6 +301,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "attribute",
@@ -277,6 +315,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "invariant",
@@ -289,6 +329,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "given",
@@ -301,6 +343,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "owner_keyed",
         disambiguator: "declared_by",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "acknowledges",
@@ -313,6 +357,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "projects",
@@ -325,6 +371,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "transition",
@@ -337,6 +385,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "mark",
@@ -349,6 +399,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "bluebook",
@@ -361,6 +413,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "vision",
@@ -373,6 +427,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "formerly_known_as",
@@ -385,6 +441,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "namespace",
@@ -397,6 +455,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "attaches_to",
@@ -409,6 +469,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "provides",
@@ -421,6 +483,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "core",
@@ -433,6 +497,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "supporting",
@@ -445,6 +511,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "generic",
@@ -457,6 +525,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "aggregate",
@@ -469,6 +539,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "read_model",
@@ -481,6 +553,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "report",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "policy",
@@ -493,6 +567,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "process_manager",
@@ -505,6 +581,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "domain_module",
@@ -517,6 +595,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "role",
@@ -529,6 +609,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "goal",
@@ -541,6 +623,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "audience",
@@ -553,6 +637,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "provenance",
@@ -565,6 +651,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "idempotent",
@@ -577,6 +665,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "mints_era",
@@ -589,6 +679,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "reference_to",
@@ -601,6 +693,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "given",
@@ -613,6 +707,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "hash_chain",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "sets",
@@ -625,6 +721,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "then_set",
@@ -637,6 +735,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "delegates_to",
@@ -649,6 +749,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "emits",
@@ -661,6 +763,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "state",
@@ -673,6 +777,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "attribute",
@@ -685,6 +791,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "ensures",
@@ -697,6 +805,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "needs",
@@ -709,6 +819,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "corrects",
@@ -721,6 +833,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "description",
@@ -733,6 +847,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "identified_by",
@@ -745,6 +861,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "identified_by",
@@ -757,6 +875,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "given",
@@ -769,6 +889,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "owner_keyed",
         disambiguator: "declared_by",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "invariant",
@@ -781,6 +903,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "command",
@@ -793,6 +917,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "query",
@@ -805,6 +931,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "lifecycle",
@@ -817,6 +945,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "attribute",
@@ -829,6 +959,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "reference_to",
@@ -841,6 +973,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "has_many",
@@ -853,6 +987,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "has_one",
@@ -865,6 +1001,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "belongs_to",
@@ -877,6 +1015,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "entity",
@@ -889,6 +1029,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "on",
@@ -901,6 +1043,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "trigger",
@@ -913,6 +1057,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "ask",
@@ -925,6 +1071,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "across",
@@ -937,6 +1085,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "where",
@@ -949,6 +1099,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "for_each",
@@ -961,6 +1113,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "correlates_by",
@@ -973,6 +1127,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "starts_on",
@@ -985,6 +1141,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "ends_on",
@@ -997,6 +1155,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "resumes",
@@ -1009,6 +1169,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "transition",
@@ -1021,6 +1183,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "transition",
@@ -1033,6 +1197,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "dispatch",
@@ -1045,6 +1211,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "dispatch",
@@ -1057,6 +1225,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "compensates",
@@ -1069,6 +1239,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "description",
@@ -1081,6 +1253,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "reference_to",
@@ -1093,6 +1267,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "include",
@@ -1105,6 +1281,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "group_by",
@@ -1117,6 +1295,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "count",
@@ -1129,6 +1309,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "median",
@@ -1141,6 +1323,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "sum",
@@ -1153,6 +1337,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "avg",
@@ -1165,6 +1351,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "min",
@@ -1177,6 +1365,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "max",
@@ -1189,6 +1379,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "percentile",
@@ -1201,6 +1393,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "any",
@@ -1213,6 +1407,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "all",
@@ -1225,6 +1421,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "where",
@@ -1237,6 +1435,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "order_by",
@@ -1249,6 +1449,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "authorize",
@@ -1261,6 +1463,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "inspect_query",
@@ -1273,6 +1477,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "description",
@@ -1285,6 +1491,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "attribute",
@@ -1297,6 +1505,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "reference_to",
@@ -1309,6 +1519,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "where",
@@ -1321,6 +1533,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "order_by",
@@ -1333,6 +1547,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "authorize",
@@ -1345,6 +1561,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "inspect_query",
@@ -1357,6 +1575,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "returns",
@@ -1369,6 +1589,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "needs",
@@ -1381,6 +1603,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "attribute",
@@ -1393,6 +1617,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "one_of",
@@ -1405,6 +1631,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "invariant",
@@ -1417,6 +1645,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "sibling_scan",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "member",
@@ -1429,6 +1659,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "member",
@@ -1441,6 +1673,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "list_of",
@@ -1453,6 +1687,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "one_of",
@@ -1465,6 +1701,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "world",
@@ -1477,6 +1715,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "realm",
@@ -1489,6 +1729,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "latest",
@@ -1501,6 +1743,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "default_database",
@@ -1513,6 +1757,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "default_adapter",
@@ -1525,6 +1771,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "operation",
@@ -1537,6 +1785,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "tells",
@@ -1549,6 +1799,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "asks",
@@ -1561,6 +1813,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "verb",
@@ -1573,6 +1827,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "signal",
@@ -1585,6 +1841,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "answers",
@@ -1597,6 +1855,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "answers_query",
@@ -1609,6 +1869,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "hecksagon",
@@ -1621,6 +1883,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "subscribe",
@@ -1633,6 +1897,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "dropped",
     },
     KeywordRow {
         word: "attaches",
@@ -1645,6 +1911,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "driven_by",
@@ -1657,6 +1925,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "port",
@@ -1669,6 +1939,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "translates",
@@ -1681,6 +1953,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "bounded",
@@ -1693,6 +1967,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "translates",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "reference_to",
@@ -1705,6 +1981,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "attribute",
@@ -1717,6 +1995,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "emits",
@@ -1729,6 +2009,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "answers",
@@ -1741,6 +2023,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "refuses",
@@ -1753,6 +2037,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "handles",
@@ -1765,6 +2051,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "port",
@@ -1777,6 +2065,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "verb",
@@ -1789,6 +2079,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "signal",
@@ -1801,6 +2093,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "answers",
@@ -1813,6 +2107,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "adapter",
@@ -1825,6 +2121,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "port",
@@ -1837,6 +2135,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "field",
@@ -1849,6 +2149,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "secret",
@@ -1861,6 +2163,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "answers_query",
@@ -1873,6 +2177,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "runs",
@@ -1885,6 +2191,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "provides",
@@ -1897,6 +2205,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "stays_inside",
@@ -1909,6 +2219,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "data_translation",
@@ -1921,6 +2233,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "aggregate",
@@ -1933,6 +2247,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "retired",
@@ -1945,6 +2261,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "rename",
@@ -1957,6 +2275,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "split",
@@ -1969,6 +2289,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "move",
@@ -1981,6 +2303,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "convert",
@@ -1993,6 +2317,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "drop",
@@ -2005,6 +2331,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "retype",
@@ -2017,6 +2345,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "derive",
@@ -2029,6 +2359,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "rekey_to",
@@ -2041,6 +2373,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "backfill",
@@ -2053,6 +2387,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "unresolved",
@@ -2065,6 +2401,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "context_map",
@@ -2077,6 +2415,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "context",
@@ -2089,6 +2429,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "relate",
@@ -2101,6 +2443,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "separate_ways",
@@ -2113,6 +2457,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "limit",
@@ -2125,6 +2471,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "offset",
@@ -2137,6 +2485,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "cursor",
@@ -2149,6 +2499,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "nulls",
@@ -2161,6 +2513,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "limit",
@@ -2173,6 +2527,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "offset",
@@ -2185,6 +2541,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "cursor",
@@ -2197,6 +2555,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
     KeywordRow {
         word: "nulls",
@@ -2209,6 +2569,8 @@ pub static KEYWORDS: &[KeywordRow] = &[
         was: "",
         resolves_via: "",
         disambiguator: "",
+        requires: "",
+        disposition: "enforced",
     },
 ];
 
@@ -7568,3 +7930,4 @@ pub const RESOLUTION_HASH_CHAIN: &str = "hash_chain";
 pub const RESOLUTION_OWNER_KEYED: &str = "owner_keyed";
 pub const RESOLUTION_SIBLING_SCAN: &str = "sibling_scan";
 pub const DISAMBIGUATOR_DECLARED_BY: &str = "declared_by";
+pub static DRIVING_ADAPTERS: &[&str] = &["Ruby", "Cli", "Json", "Mcp", "Web"];
