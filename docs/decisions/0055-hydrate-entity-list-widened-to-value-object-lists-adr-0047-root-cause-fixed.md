@@ -1,6 +1,6 @@
 # `Value::Coercion#hydrate_entity_list` widened to value-object lists — ADR 0047's root cause fixed; `remove:`'s own Rust port still deliberately not attempted
 
-**Status:** Accepted. Root cause fixed and regression-tested, in Ruby only. `remove:` mutation op is still not ported to Rust this round — closing ADR 0047's own item 4 needs its own scoped round, same as `multiply`/`clamp` (ADR 0042/0046) each got.
+**Status:** Root cause fixed and regression-tested, in Ruby only. `remove:` mutation op is still not ported to Rust this round — closing ADR 0047's own item 4 needs its own scoped round, same as `multiply`/`clamp` (ADR 0042/0046) each got.
 
 ## What ADR 0047 found, restated briefly
 

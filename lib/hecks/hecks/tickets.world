@@ -8,9 +8,6 @@
 # when absent). `session_environment` is what every dispatched session starts with: a shared cargo
 # target directory and a `nice` increment.
 Hecks.world "Tickets" do
-  # The store of a Tickets aggregate no hecksagon binds: Adr is bound to its files, and a finding or
-  # a step stays in Memory unless a local hecksagon binds it or the domain inherits a store.
-  default_adapter "Memory"
   work_limit "WorkLimits", cap: 8
   frozen_shapes "PersistedShapes", areas: []
   session_environment "Sessions", cargo_target_dir: "~/.cache/hecks/cargo-target", nice: 15

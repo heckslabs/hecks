@@ -1,6 +1,6 @@
 # Map: Hecks comments that read like a mature framework
 
-**Status:** Proposed. Open map (wayfinder). Each ticket under `0075-comment-sweep/` is an ADR-shaped question. Resolving one fills in its own Decision section, sets its Status to Accepted, and adds a line to "Decisions so far" below. The map is an index: a decision lives in exactly one place, its ticket.
+**Status:** Open map (wayfinder). Each ticket under `0075-comment-sweep/` is an ADR-shaped question. Resolving one fills in its own Decision section, sets its Status to Accepted, and adds a line to "Decisions so far" below. The map is an index: a decision lives in exactly one place, its ticket.
 
 **Charted:** 2026-09-26. Nothing under a ticket's "Working recommendation" is decided.
 

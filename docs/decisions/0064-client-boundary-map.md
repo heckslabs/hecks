@@ -1,6 +1,6 @@
 # Map: a Hecks with no client material, and a right home for each piece that leaves it
 
-**Status:** Accepted. Executed (wayfinder). Every ticket under `0064-client-boundary/` is Accepted or Resolved, the work they decided shipped in Hecks 2.7.0, and the client site runs it in production. The map is an index: a decision lives in exactly one place, its ticket. "Shipped" and "Follow-ups" below record what is done and what is left.
+**Status:** Executed (wayfinder). Every ticket under `0064-client-boundary/` is Accepted or Resolved, the work they decided shipped in Hecks 2.7.0, and the client site runs it in production. The map is an index: a decision lives in exactly one place, its ticket. "Shipped" and "Follow-ups" below record what is done and what is left.
 
 **Charted:** 2026-09-26. **Executed:** 2026-09-27.
 

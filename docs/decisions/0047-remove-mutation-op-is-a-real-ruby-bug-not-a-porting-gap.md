@@ -1,6 +1,6 @@
 # `remove` mutation op — investigated, found to expose a real, already-live Ruby representation bug
 
-**Status:** Accepted. Investigated, not implemented, no Rust changes made. **CORRECTION (same session, before this ADR was ever read by anyone else): the root cause stated in the first version of this ADR was wrong.** That version blamed `remove:`'s own target-value coercion; direct instrumentation of the real dispatch path showed the target value coerces correctly. The actual bug is upstream of `remove:` entirely, already live in shipped `examples/banking`, and affects more than this one mutation op. This version replaces that analysis.
+**Status:** Investigated, not implemented, no Rust changes made. **CORRECTION (same session, before this ADR was ever read by anyone else): the root cause stated in the first version of this ADR was wrong.** That version blamed `remove:`'s own target-value coercion; direct instrumentation of the real dispatch path showed the target value coerces correctly. The actual bug is upstream of `remove:` entirely, already live in shipped `examples/banking`, and affects more than this one mutation op. This version replaces that analysis.
 
 ## What was tested, and the first (wrong) conclusion
 

@@ -16,7 +16,7 @@ RSpec.describe "the Work queue" do
   end
 
   def plan(key, step: nil)
-    run_cli("work.plan!", "work.value=#{key}", "title.value=Step #{key}", "detail.value=The brief for #{key}", "decision=0174",
+    run_cli("work.plan!", "work.value=#{key}", "title.value=Step #{key}", "detail.value=The brief for #{key}",
             *(step ? ["step.value=#{step}"] : []))
   end
 

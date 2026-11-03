@@ -11,7 +11,7 @@ RSpec.describe "Work area claims" do
     out
   end
 
-  def plan(key) = cli("work.plan!", "work.value=#{key}", "title.value=Step #{key}", "decision=0174")
+  def plan(key) = cli("work.plan!", "work.value=#{key}", "title.value=Step #{key}")
 
   def start(key, *area)
     plan(key)

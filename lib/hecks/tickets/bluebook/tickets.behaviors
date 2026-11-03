@@ -1,34 +1,29 @@
 Hecks.behaviors "Tickets" do
-  vision "A decision is proposed, then accepted or withdrawn, and possibly superseded. A step of a plan carries out " \
-         "an accepted decision and moves planned, started, done; or it is dropped with a reason, or lapses with its decision."
+  vision "A step of a plan moves planned, started, done; or it is dropped with a reason, or lapses with its decision."
 
   loads "tickets.bluebook", "tickets.hecksagon", "tickets.ports.hecksagon"
 
   test "Plan enters a step as planned" do
     tests "Plan", on: "Work"
-    setup  "Tickets::Adr.Draft", adr: { value: "0001" }, title: { value: "Plan the work" }
-    setup  "Tickets::Adr.Accept", adr: { value: "0001" }
-    input work: { value: "w1" }, title: { value: "Add the everyday list" }, step: { value: 1 }, decision: "0001"
+    input work: { value: "w1" }, title: { value: "Add the everyday list" }, step: { value: 1 }
     expect status: "planned"
   end
 
   test "Plan refuses a step with no title" do
     tests "Plan", on: "Work"
-    input work: { value: "w2" }, title: { value: "" }, decision: "0001"
+    input work: { value: "w2" }, title: { value: "" }
     expect refused: "a piece of work has a title"
   end
 
   test "Plan refuses a negative step" do
     tests "Plan", on: "Work"
-    input work: { value: "w3" }, title: { value: "Too early" }, step: { value: -1 }, decision: "0001"
+    input work: { value: "w3" }, title: { value: "Too early" }, step: { value: -1 }
     expect refused: "a step is not negative"
   end
 
   test "Start moves a planned step to started" do
     tests "Start", on: "Work"
-    setup  "Tickets::Adr.Draft", adr: { value: "0001" }, title: { value: "Plan the work" }
-    setup  "Tickets::Adr.Accept", adr: { value: "0001" }
-    setup  "Tickets::Work.Plan", work: { value: "w4" }, title: { value: "Declare for:" }, decision: "0001"
+    setup  "Tickets::Work.Plan", work: { value: "w4" }, title: { value: "Declare for:" }
     input  work: { value: "w4" },
            claimed_by: { value: "session-1" }, claimed_at: { value: "2026-11-01T00:00:00Z" }
     expect status: "started"
@@ -36,9 +31,7 @@ Hecks.behaviors "Tickets" do
 
   test "Finish closes a started step as done" do
     tests "Finish", on: "Work"
-    setup  "Tickets::Adr.Draft", adr: { value: "0001" }, title: { value: "Plan the work" }
-    setup  "Tickets::Adr.Accept", adr: { value: "0001" }
-    setup  "Tickets::Work.Plan", work: { value: "w5" }, title: { value: "Declare the run kind" }, decision: "0001"
+    setup  "Tickets::Work.Plan", work: { value: "w5" }, title: { value: "Declare the run kind" }
     setup  "Tickets::Work.Start", work: { value: "w5" },
            claimed_by: { value: "session-1" }, claimed_at: { value: "2026-11-01T00:00:00Z" }
     input  work: { value: "w5" }
@@ -47,74 +40,31 @@ Hecks.behaviors "Tickets" do
 
   test "Finish closes a planned step that was never started" do
     tests "Finish", on: "Work"
-    setup  "Tickets::Adr.Draft", adr: { value: "0001" }, title: { value: "Plan the work" }
-    setup  "Tickets::Adr.Accept", adr: { value: "0001" }
-    setup  "Tickets::Work.Plan", work: { value: "w6" }, title: { value: "A one-line change" }, decision: "0001"
+    setup  "Tickets::Work.Plan", work: { value: "w6" }, title: { value: "A one-line change" }
     input  work: { value: "w6" }
     expect status: "done"
   end
 
   test "Drop sets a step aside with the reason" do
     tests "Drop", on: "Work"
-    setup  "Tickets::Adr.Draft", adr: { value: "0001" }, title: { value: "Plan the work" }
-    setup  "Tickets::Adr.Accept", adr: { value: "0001" }
-    setup  "Tickets::Work.Plan", work: { value: "w7" }, title: { value: "The context candidates query" }, decision: "0001"
+    setup  "Tickets::Work.Plan", work: { value: "w7" }, title: { value: "The context candidates query" }
     input  work: { value: "w7" }, reason: { value: "modules inside one context need no boundary finder" }
     expect status: "dropped"
   end
 
-  test "Lapse drops a step whose decision does not stand" do
+  test "Lapse drops a step whose decision was superseded" do
     tests "Lapse", on: "Work"
-    setup  "Tickets::Adr.Draft", adr: { value: "0001" }, title: { value: "Plan the work" }
-    setup  "Tickets::Adr.Accept", adr: { value: "0001" }
-    setup  "Tickets::Work.Plan", work: { value: "w8" }, title: { value: "A step of a replaced plan" }, decision: "0001"
-    input  work: { value: "w8" }, reason: { value: "its decision was superseded" }
+    setup  "Tickets::Work.Plan", work: { value: "w8" }, title: { value: "A step of a replaced plan" }
+    input  work: { value: "w8" }
     expect status: "dropped"
   end
 
   test "Start refuses a step that is already done" do
     tests "Start", on: "Work"
-    setup  "Tickets::Adr.Draft", adr: { value: "0001" }, title: { value: "Plan the work" }
-    setup  "Tickets::Adr.Accept", adr: { value: "0001" }
-    setup  "Tickets::Work.Plan", work: { value: "w9" }, title: { value: "Finished early" }, decision: "0001"
+    setup  "Tickets::Work.Plan", work: { value: "w9" }, title: { value: "Finished early" }
     setup  "Tickets::Work.Finish", work: { value: "w9" }
     input  work: { value: "w9" },
            claimed_by: { value: "session-1" }, claimed_at: { value: "2026-11-01T00:00:00Z" }
     expect refused: "done"
-  end
-
-  test "Draft proposes a decision" do
-    tests "Draft", on: "Adr"
-    input  adr: { value: "0002" }, title: { value: "Decide the next step" }
-    expect status: "proposed"
-  end
-
-  test "Accept takes a proposed decision" do
-    tests "Accept", on: "Adr"
-    setup  "Tickets::Adr.Draft", adr: { value: "0003" }, title: { value: "Take it" }
-    input  adr: { value: "0003" }
-    expect status: "accepted"
-  end
-
-  test "Withdraw sets a proposed decision aside" do
-    tests "Withdraw", on: "Adr"
-    setup  "Tickets::Adr.Draft", adr: { value: "0004" }, title: { value: "Not taken" }
-    input  adr: { value: "0004" }
-    expect status: "withdrawn"
-  end
-
-  test "Supersede refuses a decision superseded by itself" do
-    tests "Supersede", on: "Adr"
-    setup  "Tickets::Adr.Draft", adr: { value: "0005" }, title: { value: "Replaced" }
-    setup  "Tickets::Adr.Accept", adr: { value: "0005" }
-    input  adr: { value: "0005" }, superseded_by: { value: "0005" }
-    expect refused: "a decision is not superseded by itself"
-  end
-
-  test "Plan lapses a step whose decision is only proposed" do
-    tests "Plan", on: "Work"
-    setup  "Tickets::Adr.Draft", adr: { value: "0006" }, title: { value: "Not yet accepted" }
-    input  work: { value: "w10" }, title: { value: "Too soon" }, decision: "0006"
-    expect status: "dropped"
   end
 end

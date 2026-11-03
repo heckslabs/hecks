@@ -1,6 +1,6 @@
 # `list_of admits:/pattern:` resolved — not by porting a new capability, but by removing a real Rust over-enforcement
 
-**Status:** Accepted. Shipped, following up on ADR 0043's own left-open question. ADR 0041 named `list_of admits:/pattern:` as a "structurally close" backlog item; ADR 0043 investigated it, found a bigger, more consequential unknown underneath (whether the SCALAR case's own usage-level `admits:`/`pattern:` check has any real Ruby enforcement at all), and stopped short of a verdict — "resolving this needs reading `Runtime::CommandInterpreter`'s FULL dispatch pipeline closely... that is real, separate investigation work." This ADR is that investigation, completed, with a concrete fix.
+**Status:** Shipped, following up on ADR 0043's own left-open question. ADR 0041 named `list_of admits:/pattern:` as a "structurally close" backlog item; ADR 0043 investigated it, found a bigger, more consequential unknown underneath (whether the SCALAR case's own usage-level `admits:`/`pattern:` check has any real Ruby enforcement at all), and stopped short of a verdict — "resolving this needs reading `Runtime::CommandInterpreter`'s FULL dispatch pipeline closely... that is real, separate investigation work." This ADR is that investigation, completed, with a concrete fix.
 
 ## The question, answered exhaustively
 

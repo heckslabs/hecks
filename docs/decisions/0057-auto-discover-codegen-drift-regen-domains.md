@@ -1,6 +1,6 @@
 # `checks_codegen_drift` auto-discovers its own domain list, instead of a maintained one
 
-**Status:** Accepted. Adopted. `bin/regen_codegen_domains` (2026-09-13) replaces `.github/workflows/ci-checks.yml`'s `checks_codegen_drift` step's hand-maintained list of `bin/project_rust <domain>` lines with a walk over `examples/`, `qa/stress_domains/`, and `spec/fixtures/rust_project/` that regenerates any domain already carrying committed output under `rust/src/generated/<name>/`.
+**Status:** Adopted. `bin/regen_codegen_domains` (2026-09-13) replaces `.github/workflows/ci-checks.yml`'s `checks_codegen_drift` step's hand-maintained list of `bin/project_rust <domain>` lines with a walk over `examples/`, `qa/stress_domains/`, and `spec/fixtures/rust_project/` that regenerates any domain already carrying committed output under `rust/src/generated/<name>/`.
 
 ## The recurring failure this closes
 

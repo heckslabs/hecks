@@ -1,6 +1,6 @@
 # Cross-aggregate door-argument type-bridging — ported for real
 
-**Status:** Accepted. Shipped. ADR 0041 listed cross-aggregate door-argument type-bridging as "not yet investigated." Investigating it directly, against real Ruby behavior via a purpose-built fixture, found a genuine equivalence gap — Rust refuses to generate a `delegates_to` door whenever its own argument's declared type name differs from the target's, even though Ruby happily dispatches exactly that shape — and the fix reuses machinery this session had already built and trusted (`bridgeable_value_types?`/`value_rhs`, ADR 0042's own neighbor).
+**Status:** Shipped. ADR 0041 listed cross-aggregate door-argument type-bridging as "not yet investigated." Investigating it directly, against real Ruby behavior via a purpose-built fixture, found a genuine equivalence gap — Rust refuses to generate a `delegates_to` door whenever its own argument's declared type name differs from the target's, even though Ruby happily dispatches exactly that shape — and the fix reuses machinery this session had already built and trusted (`bridgeable_value_types?`/`value_rhs`, ADR 0042's own neighbor).
 
 ## The refusal
 

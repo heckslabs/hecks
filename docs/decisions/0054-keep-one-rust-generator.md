@@ -1,6 +1,6 @@
 # Keep one Rust generator — decided against; a Ruby-free toolchain is required
 
-**Status:** Accepted. Decided (status quo) — the maintainer confirmed a Ruby-free build
+**Status:** Decided (status quo) — the maintainer confirmed a Ruby-free build
 toolchain is a product requirement, so `rust/codegen` stays. DECISION
 SUPERSEDED IN PART by
 [0054a](0054a-make-hecks-codegen-the-only-rust-generator.md): option 2

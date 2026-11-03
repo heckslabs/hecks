@@ -12,7 +12,7 @@ RSpec.describe "the Work concurrency cap" do
   end
 
   def start(key)
-    cli("work.plan!", "work.value=#{key}", "title.value=Step #{key}", "decision=0174")
+    cli("work.plan!", "work.value=#{key}", "title.value=Step #{key}")
     cli("work.start!", "to=#{key}", "claimed_by.value=s", "claimed_at.value=2026-11-01T09:00:00Z")
     JSON.parse(cli("work.undone")).find { |work| work["work"] == key }
   end
