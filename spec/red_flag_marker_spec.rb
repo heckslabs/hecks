@@ -12,7 +12,7 @@ RSpec.describe Hecks::Adapters::RedFlagMarker do
   let(:marker) { described_class.new(dir, clock: -> { Time.utc(2026, 11, 2, 12, 0, 0) }) }
   let(:run) { { ci_run: "99", jobs: "rspec, fuzz", work_items: "red-a" } }
 
-  after { FileUtils.remove_entry(dir) }
+  after { FileUtils.rm_rf(dir) }
 
   it "raises a flag for a red run" do
     expect(marker.raise!(commit: "abcdef1234567", run: run).first).to eq(:raised)
