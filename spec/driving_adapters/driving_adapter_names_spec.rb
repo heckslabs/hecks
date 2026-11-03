@@ -1,7 +1,8 @@
 require "spec_helper"
 
-# The driving adapter names are declared in the Hecksagon bluebook and copied by Ruby and by the Rust
-# parser. This holds the three copies equal, so a name added in one place cannot be refused in another.
+# The driving adapter names are declared in the Hecksagon bluebook and copied by Ruby and by the
+# Rust parser. This holds the three copies equal, so a name added in one place cannot be refused in
+# another.
 RSpec.describe "The driving adapter names" do
   def read(path) = File.read(File.expand_path("../../#{path}", __dir__))
 
