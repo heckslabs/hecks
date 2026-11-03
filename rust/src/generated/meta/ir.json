@@ -35778,6 +35778,16 @@
               "pattern": null,
               "admits": null,
               "relationship": null
+            },
+            {
+              "name": "lands_here",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -35813,6 +35823,10 @@
               [
                 "release_trailer",
                 ""
+              ],
+              [
+                "lands_here",
+                "yes"
               ]
             ],
             [
@@ -35843,6 +35857,10 @@
               [
                 "release_trailer",
                 "Release-Approved-By"
+              ],
+              [
+                "lands_here",
+                "no"
               ]
             ]
           ]

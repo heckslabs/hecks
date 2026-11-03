@@ -5376,6 +5376,7 @@ pub struct Lane {
     pub follows: &'static str,
     pub alert_after: &'static str,
     pub release_trailer: &'static str,
+    pub lands_here: &'static str,
 }
 
 pub const LANE: &[Lane] = &[
@@ -5387,6 +5388,7 @@ pub const LANE: &[Lane] = &[
         follows: "",
         alert_after: "",
         release_trailer: "",
+        lands_here: "yes",
     },
     Lane {
         name: "stable",
@@ -5396,6 +5398,7 @@ pub const LANE: &[Lane] = &[
         follows: "main",
         alert_after: "4",
         release_trailer: "Release-Approved-By",
+        lands_here: "no",
     },
 ];
 
@@ -5430,6 +5433,10 @@ impl Lane {
                 "release_trailer".to_string(),
                 crate::kernel::Json::Str(self.release_trailer.to_string()),
             ),
+            (
+                "lands_here".to_string(),
+                crate::kernel::Json::Str(self.lands_here.to_string()),
+            ),
         ])
     }
 
@@ -5444,6 +5451,7 @@ impl Lane {
             "follows",
             "alert_after",
             "release_trailer",
+            "lands_here",
         ]);
         if !unknown.is_empty() {
             let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
@@ -5459,6 +5467,7 @@ impl Lane {
                         "follows",
                         "alert_after",
                         "release_trailer",
+                        "lands_here",
                     ],
                 }
                 .render_args(),
@@ -5502,6 +5511,11 @@ impl Lane {
                 "Lane.release_trailer expects String, got nil".to_string(),
             ));
         }
+        if matches!(v.get("lands_here"), None | Some(crate::kernel::Json::Null)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(
+                "Lane.lands_here expects String, got nil".to_string(),
+            ));
+        }
         for row in LANE {
             if v.get("name").and_then(crate::kernel::Json::as_str) == Some(row.name)
                 && v.get("guarded").and_then(crate::kernel::Json::as_str) == Some(row.guarded)
@@ -5513,6 +5527,7 @@ impl Lane {
                 && v.get("release_trailer")
                     .and_then(crate::kernel::Json::as_str)
                     == Some(row.release_trailer)
+                && v.get("lands_here").and_then(crate::kernel::Json::as_str) == Some(row.lands_here)
             {
                 return Ok(row.clone());
             }
