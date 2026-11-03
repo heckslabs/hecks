@@ -34783,6 +34783,32 @@
             [
               [
                 "name",
+                "decision_records"
+              ],
+              [
+                "id",
+                "decision_records"
+              ],
+              [
+                "title",
+                "decision records, each with a title, a lifecycle status, its own number and a successor that exists"
+              ],
+              [
+                "argv",
+                "bundle exec rspec spec/decision_records_spec.rb"
+              ],
+              [
+                "script",
+                ""
+              ],
+              [
+                "blocked",
+                "a record under docs/decisions has no title, a status that leads with no state of the Adr lifecycle, a number another record holds, or a successor no record holds. Draft a record with `hecks tickets Adr.draft!` and move it with accept!, withdraw! or supersede! (ADR 0175)."
+              ]
+            ],
+            [
+              [
+                "name",
                 "rust_fmt"
               ],
               [
@@ -35458,7 +35484,7 @@
               ],
               [
                 "checks",
-                "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,adapter_words"
+                "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,adapter_words,decision_records"
               ]
             ],
             [

@@ -76,6 +76,17 @@ none), and the standing rules, which live in that bluebook and are not restated 
 whole picture, act on everything in the area, stop only for a risk of losing data, an owner-only action, or
 a change outside the area, and report what was stuck first.
 
+## Decision records go through the Adr aggregate
+
+A decision record is its file under `docs/decisions`, and `Tickets::Adr` reads and writes it (ADR 0175).
+Write one with `exe/hecks tickets Adr.draft! adr.value=NNNN title.value="..."`, which writes the file with
+its headings and refuses a number already held, then fill in the prose. Move it with `Adr.accept!`,
+`Adr.withdraw!` or `Adr.supersede! superseded_by.value=NNNN`; accepting is the owner's call. A status line
+leads with the lifecycle word (`Proposed`, `Accepted`, `Superseded`, `Withdrawn`), and the quick gate's
+`decision_records` check refuses one that does not. Every Work step names the decision it carries out:
+`Work.plan! … decision=NNNN`; a number no record holds is refused, and a step under a decision that is not
+accepted lapses at once with the reason.
+
 ## Running specs
 
 Run a spec file through the launcher, which is the sanctioned path (see "Use the

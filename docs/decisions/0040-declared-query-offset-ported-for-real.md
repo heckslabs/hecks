@@ -1,6 +1,6 @@
 # Phase 10's first shipped capabilities — `offset`, `nulls`, and `authorize`/TenantScope, ported for real
 
-**Status:** Shipped, both generators, each verified against a real (or, for one item, purpose-built) fixture. This closes five items of Phase 10's own "long-tail feature-completeness backlog" — the backlog itself stays open; see "What Phase 10 still leaves open," below, and `docs/decisions/0041` for the honest accounting of everything still open, investigated directly rather than guessed at.
+**Status:** Accepted. Shipped, both generators, each verified against a real (or, for one item, purpose-built) fixture. This closes five items of Phase 10's own "long-tail feature-completeness backlog" — the backlog itself stays open; see "What Phase 10 still leaves open," below, and `docs/decisions/0041` for the honest accounting of everything still open, investigated directly rather than guessed at.
 
 ## What shipped
 

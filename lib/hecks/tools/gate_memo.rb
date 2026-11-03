@@ -64,6 +64,7 @@ module Hecks
         "comment_blocks"   => STYLE + %w[examples/**/*.rb],
         "secret_output"    => LIBRARY + SPEC + %w[spec/secret_output_spec.rb],
         "adapter_words"    => LIBRARY + SPEC + %w[spec/adapter_words_spec.rb],
+        "decision_records" => LIBRARY + SPEC + %w[spec/decision_records_spec.rb docs/decisions/**/* docs/implemented/decisions/**/*],
         "rspec"            => SOURCE,
         "fuzzing"          => FUZZING,
         "query_agreement"  => SOURCE,

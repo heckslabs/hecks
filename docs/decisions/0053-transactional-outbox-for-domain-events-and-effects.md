@@ -1,6 +1,6 @@
 # A transactional outbox for domain events and external effects
 
-**Status:** Shipped. `future-features.md` item 8 ("`OutboundEvent`, a durable outbox, `pending → claimed → delivered | failed`, idempotent delivery ids") was the last named durability gap left open by the saga-durability review (`docs/decisions/` has no ADR for that review; its findings live in `saga_pending_dispatch.rb`'s header and the guide's "Nobody had to notice" caveat). This ADR closes it — for the Ruby runtime, on Memory, Sqlite, Postgres and PostgresEra — and records what it deliberately does not do.
+**Status:** Accepted. Shipped. `future-features.md` item 8 ("`OutboundEvent`, a durable outbox, `pending → claimed → delivered | failed`, idempotent delivery ids") was the last named durability gap left open by the saga-durability review (`docs/decisions/` has no ADR for that review; its findings live in `saga_pending_dispatch.rb`'s header and the guide's "Nobody had to notice" caveat). This ADR closes it — for the Ruby runtime, on Memory, Sqlite, Postgres and PostgresEra — and records what it deliberately does not do.
 
 ## The gap
 

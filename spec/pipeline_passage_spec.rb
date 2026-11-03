@@ -16,7 +16,7 @@ RSpec.describe "Pipeline passages" do
 
   def run(*argv) = JSON.parse(launch(*argv, "--wait").first)
 
-  def plan(work) = run("tickets", "Work.plan!", "work.value=#{work}", "title.value=Title #{work}")
+  def plan(work) = run("tickets", "Work.plan!", "work.value=#{work}", "title.value=Title #{work}", "decision=0174")
 
   def start(work, session = "s1")
     run("tickets", "Work.start!", "to=#{work}", "claimed_by.value=#{session}", "claimed_at.value=2026-11-02T10:00:00Z")

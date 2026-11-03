@@ -1,6 +1,6 @@
 # `cursor`/`consistency` — investigated, and it isn't an equivalence gap at all
 
-**Status:** Investigated, closed. ADR 0041 listed `cursor`/`consistency` ("cross-aggregate door-argument type-bridging" its own paired item, still open — see that ADR) as "not yet investigated." Reading the actual Ruby IR/DSL/interpreters directly, rather than trusting the Rust codegen's own comments about them, found there is no capability here for Rust to be missing.
+**Status:** Accepted. Investigated, closed. ADR 0041 listed `cursor`/`consistency` ("cross-aggregate door-argument type-bridging" its own paired item, still open — see that ADR) as "not yet investigated." Reading the actual Ruby IR/DSL/interpreters directly, rather than trusting the Rust codegen's own comments about them, found there is no capability here for Rust to be missing.
 
 ## What `rust/project/queries.rb`/`read_models.rb`/`domain_generator.rb` claim
 

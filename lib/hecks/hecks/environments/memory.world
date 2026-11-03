@@ -13,3 +13,11 @@ end
 Hecks.world "Governance" do
   default_adapter "Memory"
 end
+
+# Decision records are read from `docs/decisions` but never written: what a spec or gate drafts or
+# accepts stays in the run's memory (ADR 0175).
+Hecks.world "Tickets" do
+  persisted_by("AdrFiles") do
+    writes false
+  end
+end

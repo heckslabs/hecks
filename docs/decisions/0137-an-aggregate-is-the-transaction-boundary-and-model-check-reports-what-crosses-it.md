@@ -1,6 +1,6 @@
 # An aggregate is the transaction boundary, and model_check reports what crosses it
 
-**Status:** Partly built (items 3 and 5: the bulk mode removed, the size warning). Date: 2026-10-27.
+**Status:** Accepted. Partly built (items 3 and 5: the bulk mode removed, the size warning). Date: 2026-10-27.
 
 ## Context
 

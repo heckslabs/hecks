@@ -1,6 +1,6 @@
 # `corrects`'s kernel gap, precisely scoped — it's a snapshot-format decision, not just "new kernel architecture"
 
-**Status:** Investigated further, not implemented. ADR 0041 identified that `enforce_correction_target`'s Rust port needs "genuinely new state — either a per-instance emitted-event-name index threaded through the `Store`/dispatch pipeline... or some other mechanism not yet designed." This ADR replaces "not yet designed" with two concrete, real options, found by tracing `rust/host`'s ACTUAL production dispatch path, not just the CLI conformance harness.
+**Status:** Accepted. Investigated further, not implemented. ADR 0041 identified that `enforce_correction_target`'s Rust port needs "genuinely new state — either a per-instance emitted-event-name index threaded through the `Store`/dispatch pipeline... or some other mechanism not yet designed." This ADR replaces "not yet designed" with two concrete, real options, found by tracing `rust/host`'s ACTUAL production dispatch path, not just the CLI conformance harness.
 
 ## The good news, found first: the kernel already accumulates almost what's needed
 

@@ -1,6 +1,6 @@
 # `corrects` — retroactive correction is an appended fact, never a rewrite
 
-**Status:** Implemented.
+**Status:** Accepted. Implemented.
 
 ## Context
 

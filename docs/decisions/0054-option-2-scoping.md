@@ -1,6 +1,6 @@
 # Option 2 scoping — making `hecks-codegen` the sole Rust generator
 
-**Status:** Scoping addendum to 0054, not a decision. Option 2 was adopted by
+**Status:** Proposed. Scoping addendum to 0054, not a decision. Option 2 was adopted by
 [0054a](0054a-make-hecks-codegen-the-only-rust-generator.md) and then
 reversed by [0054b](0054b-the-ruby-generator-stays-primary.md): the Ruby
 generator stays primary and `rust/project` is not retired. Items 1-2 and 4
