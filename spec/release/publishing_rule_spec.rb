@@ -26,12 +26,11 @@ RSpec.describe "the publishing rules the release workflow repeats" do
     attempts = rules.fetch("push_attempts").to_i
     backoff = rules.fetch("push_backoff_seconds").to_i
 
-    expect(workflow).to include("for attempt in #{(1..attempts).to_a.join(" ")}; do")
-    expect(workflow).to include("sleep $((attempt * #{backoff}))")
+    expect(workflow).to include("for attempt in #{(1..attempts).to_a.join(" ")}; do", "sleep $((attempt * #{backoff}))")
   end
 
   it "matches the done and refused output the rows name" do
-    expect(workflow).to include("grep -qiE '#{rules.fetch("push_done_pattern")}' push.log")
-    expect(workflow).to include("grep -qiE '#{rules.fetch("push_refused_pattern")}' push.log")
+    expect(workflow).to include("grep -qiE '#{rules.fetch("push_done_pattern")}' push.log",
+                                "grep -qiE '#{rules.fetch("push_refused_pattern")}' push.log")
   end
 end
