@@ -7,20 +7,18 @@
         "spec/reference_doctest_spec.rb",
         "spec/hecks_model_check_spec.rb",
         "spec/mcp_argument_policy_spec.rb",
-        "spec/cli_help_snapshot_spec.rb",
-        "spec/hecks_tickets_bluebook_spec.rb"
+        "spec/cli_help_snapshot_spec.rb"
       ],
-      "cause": "A new domain, command or word landed without the repo-wide specs that list it: a context map relationship, the FrameworkBluebooks list, model_check findings, MCP argument names, CLI help snapshots and the Tickets bluebook spec.",
-      "check": "Run the six named specs when a landing touches a bluebook, a hecksagon or a command.",
-      "fix": "Declare the context map relationship, list the bluebook in the hecksagon reference, classify the new MCP argument names, and rewrite the CLI help snapshots by running spec/cli_help_snapshot_spec.rb with SNAPSHOT=rewrite after reading the diff, never by hand.",
+      "cause": "A new domain, command or word landed without the repo-wide specs that list it: a context map relationship, the FrameworkBluebooks list, model_check findings, MCP argument names and CLI help snapshots.",
+      "check": "Run the five named specs when a landing touches a bluebook, a hecksagon or a command.",
+      "fix": "Declare the context map relationship, list the bluebook in the hecksagon reference, classify the new MCP argument names, and update the CLI help snapshot through the command that writes it, never by hand.",
       "always": "no",
       "area": ["lib/hecks"],
       "enforced_by": "",
       "sightings": [
-        { "run": "41529010109", "commit": "fe033d622" },
-        { "run": "41546859608", "commit": "d29f87cbc" },
-        { "run": "41559222828", "commit": "3c30e5030" },
-        { "run": "41561136796", "commit": "bc1b7476b" }
+        { "run": "0379cf94a", "commit": "0379cf94a" },
+        { "run": "186ab0345", "commit": "186ab0345" },
+        { "run": "a70ba475a", "commit": "a70ba475a" }
       ]
     },
     {
@@ -30,14 +28,15 @@
         "spec/glossary_spec.rb",
         "spec/adapters/driven/codebase_language_spec.rb"
       ],
-      "cause": "A bluebook or command changed and the committed generated output (the reference docs and README indexes, and each domain's glossary) was not rewritten.",
-      "check": "Run spec/reference_golden_spec.rb, spec/glossary_spec.rb and spec/adapters/driven/codebase_language_spec.rb when a bluebook or command changes.",
-      "fix": "Rewrite the reference docs and README indexes with exe/hecks language_run.project_reference! --confirm --wait, and each domain's glossary/ with the glossary projection spec/glossary_spec.rb compares against (the introspection.glossary command); commit what they changed and never hand-edit the output. regeneration_run.regenerate_corpus! rewrites the Rust output only.",
+      "cause": "A bluebook or command changed and the committed generated output (the README corpus index, the glossary and the reference docs) was not rewritten.",
+      "check": "exe/hecks regeneration_run.regenerate_corpus! --check",
+      "fix": "Run exe/hecks regeneration_run.regenerate_corpus! --confirm --wait, commit what it changed, and never hand-edit the output.",
       "always": "no",
       "area": ["README.md", "docs", "lib/hecks"],
       "enforced_by": "",
       "sightings": [
-        { "run": "41546859608", "commit": "d29f87cbc" }
+        { "run": "231384151", "commit": "231384151" },
+        { "run": "186ab0345", "commit": "186ab0345" }
       ]
     },
     {
@@ -54,7 +53,7 @@
       "area": ["lib/hecks"],
       "enforced_by": "",
       "sightings": [
-        { "run": "41537793905", "commit": "9bba9e31f" }
+        { "run": "2dc207c70", "commit": "2dc207c70" }
       ]
     },
     {
@@ -71,8 +70,9 @@
       "area": ["spec"],
       "enforced_by": "",
       "sightings": [
-        { "run": "41524405280", "commit": "bc670c00d" },
-        { "run": "41555688799", "commit": "5870a7b20" }
+        { "run": "0379cf94a", "commit": "0379cf94a" },
+        { "run": "387566ea5", "commit": "387566ea5" },
+        { "run": "c19c4808e", "commit": "c19c4808e" }
       ]
     },
     {
@@ -89,7 +89,7 @@
       "area": ["spec"],
       "enforced_by": "",
       "sightings": [
-        { "run": "unknown", "commit": "9bba9e31f" }
+        { "run": "5f015240d", "commit": "5f015240d" }
       ]
     },
     {
@@ -104,7 +104,8 @@
       "area": ["spec"],
       "enforced_by": "",
       "sightings": [
-        { "run": "41543631668", "commit": "186ab0345" }
+        { "run": "338c0e60f", "commit": "338c0e60f" },
+        { "run": "5860ece7c", "commit": "5860ece7c" }
       ]
     },
     {
@@ -114,27 +115,13 @@
         "Claude-Session"
       ],
       "cause": "A commit message carried a Claude attribution trailer, which the repository's rules forbid.",
-      "check": "The MainIntegration saga's boarding refuses a range that carries an agent's attribution trailer, by name. SendTrain.board! does not check.",
+      "check": "Boarding the push train refuses a range that carries an agent's attribution trailer, by name.",
       "fix": "Amend the commit message to remove the trailer line: no Co-Authored-By line and no Claude-Session line.",
       "always": "yes",
       "area": [],
-      "enforced_by": "MainIntegration::RangeGuard refuses a range with an attribution trailer when the MainIntegration saga boards (ab08527fd). Not yet enforced on SendTrain.board!: lib/hecks/hecks/adapters/git_train.rb does not read commit messages. Follow-up: a trailer check on the SendTrain.board! path.",
-      "sightings": []
-    },
-    {
-      "kind": "push-carried-unverified-commits",
-      "signature": [
-        "Revert",
-        "a red run on a pushed range"
-      ],
-      "cause": "The push train pushes everything on local main, so a boarding carried commits that sat there unverified, with a revert on top of them.",
-      "check": "Before boarding, local main is ahead of origin/main by exactly your commit, or its tree equals a green tree.",
-      "fix": "Stop when local main holds other commits; let their coders board them, or revert only your own.",
-      "always": "yes",
-      "area": [],
-      "enforced_by": "not yet: coder 551cebfb builds the guard in the kick",
+      "enforced_by": "push train boarding refuses a range with an agent's attribution trailer (ab08527fd)",
       "sightings": [
-        { "run": "41562200680", "commit": "364303e81" }
+        { "run": "09c28bcb3", "commit": "09c28bcb3" }
       ]
     }
   ]
