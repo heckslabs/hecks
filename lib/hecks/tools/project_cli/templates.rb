@@ -119,6 +119,23 @@ module Hecks
           end
         RUBY
 
+        # The lines that put a launcher beside a client's domain on the gems its project's Gemfile
+        # pins, such as a Hecks checkout the client is built alongside. They do nothing where the
+        # project has no Gemfile, and leave the gems at hand when the pinned set is not installed.
+        PROJECT_GEMS = <<~RUBY.freeze
+
+          # Where the project's Gemfile pins its gems (a local Hecks among them), this runs on them.
+          gemfile = File.expand_path("{{up}}Gemfile", __dir__)
+          if File.exist?(gemfile)
+            ENV["BUNDLE_GEMFILE"] ||= gemfile
+            begin
+              require "bundler/setup"
+            rescue LoadError, StandardError
+              nil
+            end
+          end
+        RUBY
+
         # Fills a template's `{{name}}` placeholders.
         #
         # @param template [String] the template text
