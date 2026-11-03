@@ -60,6 +60,13 @@ RSpec.describe Hecks::Release::VersionCommit do
     expect(verdict(dir)).to be(false)
   end
 
+  it "finds the commit that set the version as the first-parent commit that touches VERSION", :aggregate_failures do
+    merged_repo(dir, approved)
+
+    expect(described_class.commit(dir: dir)).to eq(head(dir))
+    expect(described_class.commit(dir: dir, ref: "HEAD~1")).not_to eq(head(dir))
+  end
+
   it "judges a plain bump commit by its own message", :aggregate_failures do
     plain_repo(dir)
 

@@ -26,15 +26,15 @@ module Hecks
       # @param root [String] the repository root
       # @param options [Options] which steps to run and how
       # @param commands [#capture, #run!] starts every process the release runs
-      # @param facts [Preflight::Facts, nil] what a caller already checked and cleared (a branch, a
-      #   clean tree, matching versions, a changelog entry); the release then checks only that its
-      #   tools are installed, and every rule stays with the caller
+      # @param facts [Preflight::Facts] what `PublishingRun.Accept` already checked and cleared (a
+      #   branch, a clean tree, matching versions, a changelog entry, the approval); the release
+      #   checks only that its tools are installed, and every rule stays with `Accept`
       # @param environment [Hash] any of: `input` (an IO confirmations are read from, `$stdin`),
       #   `out` (where progress is written, `$stdout`), `err` (where refusals and failures are
       #   written, `$stderr`), `pause` (sleeps for a number of seconds while waiting for CI) and
       #   `now` (the current time in seconds, monotonically, while waiting for CI)
       # @raise [ArgumentError] for any other keyword
-      def initialize(root:, options: Options.new, commands: Commands.new, facts: nil, **environment)
+      def initialize(root:, facts:, options: Options.new, commands: Commands.new, **environment)
         unknown = environment.keys - ENVIRONMENT_KEYS
         raise ArgumentError, "unknown keyword: #{unknown.first.inspect}" unless unknown.empty?
 
@@ -98,10 +98,7 @@ module Hecks
       end
 
       def preflight
-        check = Preflight.new(root: @root, commands: @commands, git: @git, tools: tools)
-        return check.check! unless @facts
-
-        check.check_tools!
+        Preflight.new(commands: @commands, tools: tools).check_tools!
         @facts
       end
 
