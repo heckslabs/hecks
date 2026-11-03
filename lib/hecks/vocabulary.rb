@@ -205,6 +205,13 @@ module Hecks
         {"name"=>"TrueClass"}.freeze,
         {"name"=>"FalseClass"}.freeze
       ].freeze,
+      "PublishingRule" => [
+        {"name"=>"version_line", "value"=>"^ *VERSION = "}.freeze,
+        {"name"=>"push_attempts", "value"=>"4"}.freeze,
+        {"name"=>"push_backoff_seconds", "value"=>"15"}.freeze,
+        {"name"=>"push_done_pattern", "value"=>"already exists|repushing of gem versions is not allowed"}.freeze,
+        {"name"=>"push_refused_pattern", "value"=>"401|403|unauthorized|forbidden|access denied|not authorized|invalid api key|scope"}.freeze
+      ].freeze,
       "QaDial" => [
         {"name"=>"cadence_seconds", "type"=>"Integer", "meaning"=>"Minimum gap in seconds between one tick's report and the next dispatch; 0 is immediately. Read by the `/loop hecks_qa` caller, not by any script."}.freeze,
         {"name"=>"pr_cap_per_day", "type"=>"Integer", "meaning"=>"Most PRs (Patch plus Improvement) `hecks quality_control Patch.open!` opens per calendar day; 0 is uncapped."}.freeze,

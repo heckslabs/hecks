@@ -748,6 +748,24 @@ Hecks.bluebook "Bluebook" do
       member path: "packages/hecks-client/package-lock.json", lines: "^\\s*\"version\": \"[0-9]+\\.[0-9]+\\.[0-9]+\",?$"
     end
 
+    # The rules a release reads from git and from the gem registry. `version_line` is the line a
+    # version bump sets, as `git log -G` reads it, so the commit that set the version is found the
+    # same way on every path. The `push_*` rows are the gem push's retry policy in release.yml: how
+    # many attempts, the backoff unit in seconds (attempt n waits n times it), the output that means
+    # the version is already on the registry (done), and the output that means the key was refused
+    # (go on to trusted publishing; any other failure is retried). Ruby reads `version_line`; the
+    # workflow's copy of the rest is checked by spec/release/publishing_rule_spec.rb.
+    value_object "PublishingRule" do
+      attribute :name,  String
+      attribute :value, String
+
+      member name: "version_line",         value: "^ *VERSION = "
+      member name: "push_attempts",        value: "4"
+      member name: "push_backoff_seconds", value: "15"
+      member name: "push_done_pattern",    value: "already exists|repushing of gem versions is not allowed"
+      member name: "push_refused_pattern", value: "401|403|unauthorized|forbidden|access denied|not authorized|invalid api key|scope"
+    end
+
     # The checks a stage holds a change against before it is let through. `hecks gate_run.gate!`
     # reads these rows, the git pre-push hook calls it, and the `ci` stage's checks are the ones
     # `.github/workflows/ci-checks.yml` runs, so the list of checks lives here and nowhere else.

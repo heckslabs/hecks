@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "open3"
+require "hecks/vocabulary"
 
 module Hecks
   module Release
@@ -15,7 +16,9 @@ module Hecks
       # Raised when git cannot answer, so a release is never judged from a guess.
       class GitFailed < StandardError; end
 
-      VERSION_LINE = "^ *VERSION = "
+      # The `PublishingRule` row that names the line a version bump sets, as `git log -G` reads it.
+      VERSION_LINE = Hecks::Vocabulary.rows("PublishingRule").find { |rule| rule["name"] == "version_line" }
+                                      .fetch("value")
       VERSION_FILE = "lib/hecks/version.rb"
 
       module_function
