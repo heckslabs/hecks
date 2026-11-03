@@ -880,6 +880,69 @@ Hecks.bluebook "Bluebook" do
              argv: "bundle exec exe/hecks deploy MakefileCheck.lint! --wait",
              script: "",
              blocked: "a generated deploy Makefile has an unchecked command, or real AWS or database work with no echo telling the person running it what is about to happen."
+      # The specs that failed in CI on checkouts that passed locally (shallow history, load-hygiene
+      # constant clashes, shard-order dependence, git identity). The `landing` stage runs them on a
+      # depth-1 clone of a branch's tip, so a red one refuses the landing before it reaches main.
+      member name: "landing_context_map_hecks", id: "landing_context_map_hecks",
+             title: "context map, on a depth-1 clone of the branch (landing)",
+             argv: "bundle exec rspec spec/context_map_hecks_spec.rb",
+             script: "",
+             blocked: "spec/context_map_hecks_spec.rb is red on a shallow clone of the branch; the first failure line names it."
+      member name: "landing_reference_doctest", id: "landing_reference_doctest",
+             title: "reference doctests, on a depth-1 clone of the branch (landing)",
+             argv: "bundle exec rspec spec/reference_doctest_spec.rb",
+             script: "",
+             blocked: "spec/reference_doctest_spec.rb is red on a shallow clone of the branch; the first failure line names it."
+      member name: "landing_mcp_argument_policy", id: "landing_mcp_argument_policy",
+             title: "MCP argument policy, on a depth-1 clone of the branch (landing)",
+             argv: "bundle exec rspec spec/mcp_argument_policy_spec.rb",
+             script: "",
+             blocked: "spec/mcp_argument_policy_spec.rb is red on a shallow clone of the branch; the first failure line names it."
+      member name: "landing_glossary", id: "landing_glossary",
+             title: "glossary, on a depth-1 clone of the branch (landing)",
+             argv: "bundle exec rspec spec/glossary_spec.rb",
+             script: "",
+             blocked: "spec/glossary_spec.rb is red on a shallow clone of the branch; the first failure line names it."
+      member name: "landing_reference_golden", id: "landing_reference_golden",
+             title: "reference golden, on a depth-1 clone of the branch (landing)",
+             argv: "bundle exec rspec spec/reference_golden_spec.rb",
+             script: "",
+             blocked: "spec/reference_golden_spec.rb is red on a shallow clone of the branch; the first failure line names it."
+      member name: "landing_cli_help_snapshot", id: "landing_cli_help_snapshot",
+             title: "CLI help snapshot, on a depth-1 clone of the branch (landing)",
+             argv: "bundle exec rspec spec/cli_help_snapshot_spec.rb",
+             script: "",
+             blocked: "spec/cli_help_snapshot_spec.rb is red on a shallow clone of the branch; the first failure line names it."
+      member name: "landing_hecks_model_check", id: "landing_hecks_model_check",
+             title: "model check, on a depth-1 clone of the branch (landing)",
+             argv: "bundle exec rspec spec/hecks_model_check_spec.rb",
+             script: "",
+             blocked: "spec/hecks_model_check_spec.rb is red on a shallow clone of the branch; the first failure line names it."
+      member name: "landing_dsl_coverage", id: "landing_dsl_coverage",
+             title: "DSL coverage, on a depth-1 clone of the branch (landing)",
+             argv: "bundle exec rspec spec/dsl_coverage_spec.rb",
+             script: "",
+             blocked: "spec/dsl_coverage_spec.rb is red on a shallow clone of the branch; the first failure line names it."
+      member name: "landing_word_coverage", id: "landing_word_coverage",
+             title: "word coverage, on a depth-1 clone of the branch (landing)",
+             argv: "bundle exec rspec spec/word_coverage_spec.rb",
+             script: "",
+             blocked: "spec/word_coverage_spec.rb is red on a shallow clone of the branch; the first failure line names it."
+      member name: "landing_load_hygiene", id: "landing_load_hygiene",
+             title: "load hygiene, on a depth-1 clone of the branch (landing)",
+             argv: "bundle exec rspec spec/load_hygiene_spec.rb",
+             script: "",
+             blocked: "spec/load_hygiene_spec.rb is red on a shallow clone of the branch; the first failure line names it."
+      member name: "landing_hecks_tickets_bluebook", id: "landing_hecks_tickets_bluebook",
+             title: "tickets bluebook, on a depth-1 clone of the branch (landing)",
+             argv: "bundle exec rspec spec/hecks_tickets_bluebook_spec.rb",
+             script: "",
+             blocked: "spec/hecks_tickets_bluebook_spec.rb is red on a shallow clone of the branch; the first failure line names it."
+      member name: "landing_bounded_context", id: "landing_bounded_context",
+             title: "bounded context, on a depth-1 clone of the branch (landing)",
+             argv: "bundle exec rspec spec/bounded_context_spec.rb",
+             script: "",
+             blocked: "spec/bounded_context_spec.rb is red on a shallow clone of the branch; the first failure line names it."
       # The fuzz sweeps run as three shards each, one CI job leg apiece, so the corpus is swept in
       # a third of the time. No unsharded row stays: no stage but `ci` ran the whole sweep, and a
       # person who wants one run of it types `hecks fuzz_run.fuzz! --wait`. A shard is `shard=I/N`,
@@ -1003,6 +1066,7 @@ Hecks.bluebook "Bluebook" do
       member name: "pre_push", env: "HECKS_ENVIRONMENT=memory HECKS_PROCESS_SPECS=1", checks: "fuzzing,query_agreement,engine_agreement,shape_ledger,model_check,doc_coverage,rubocop,codegen_drift,comment_style,comment_blocks,rust_fmt"
       member name: "ci_suite", env: "HECKS_ENVIRONMENT=memory HECKS_PROCESS_SPECS=1", checks: "rspec"
       member name: "quick", env: "HECKS_ENVIRONMENT=memory", checks: "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,adapter_words"
+      member name: "landing", env: "HECKS_ENVIRONMENT=memory", checks: "landing_context_map_hecks,landing_reference_doctest,landing_mcp_argument_policy,landing_glossary,landing_reference_golden,landing_cli_help_snapshot,landing_hecks_model_check,landing_dsl_coverage,landing_word_coverage,landing_load_hygiene,landing_hecks_tickets_bluebook,landing_bounded_context,fuzz_1_of_3,fuzz_2_of_3,fuzz_3_of_3"
       member name: "rust_io", env: "CI=true HECKS_ENVIRONMENT=memory", checks: "rust_io"
       member name: "ci", env: "", checks: "model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,generated_tree,rust_fmt,rust_clippy,lint_deploy_recipes,command_names,workflow_pagination,fuzz_1_of_3,fuzz_2_of_3,fuzz_3_of_3,fuzz_sqlite_1_of_3,fuzz_sqlite_2_of_3,fuzz_sqlite_3_of_3,fuzz_postgres_1_of_2,fuzz_postgres_2_of_2,fuzz_shards,vocabulary_drift,ci_gates,ci_pipeline,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift"
     end
@@ -1028,6 +1092,24 @@ Hecks.bluebook "Bluebook" do
 
       member name: "quick", stages: "quick"
       member name: "deep", stages: "quick,impacted"
+    end
+
+    # The paths whose change makes a landing run its shallow checks (the `landing` GateStage, on a
+    # depth-1 clone of the branch tip): a bluebook, hecksagon, behaviors or world file, a context
+    # map, a spec, or a generator or command under lib/hecks. A landing that changes none of them,
+    # such as a docs-only one, runs nothing extra. `pattern` is a Ruby regular expression over the
+    # path relative to the repository root.
+    value_object "LandingTrigger" do
+      attribute :name, String
+      attribute :pattern, String
+
+      member name: "bluebook", pattern: "\\.bluebook\\z"
+      member name: "hecksagon", pattern: "\\.hecksagon\\z"
+      member name: "behaviors", pattern: "\\.behaviors\\z"
+      member name: "world", pattern: "\\.world\\z"
+      member name: "context_map", pattern: "\\.contextmap\\z"
+      member name: "spec", pattern: "\\Aspec/.*_spec\\.rb\\z"
+      member name: "generator", pattern: "\\Alib/hecks/.*(generat|command|projection).*\\.rb\\z"
     end
 
     # The checks a commit must have passed before a `Promotion` moves it onto a guarded lane. Each
