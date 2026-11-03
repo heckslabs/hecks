@@ -1,9 +1,9 @@
 require "spec_helper"
 
-# The limits and word lists the language puts on a declaration are declared in vocabulary.bluebook
-# (LanguageLimit, NeedableFact, CommandAudience, OutboxStatus). The Ruby reads them from the generated
-# table; Rust cannot yet, so each Rust constant is held equal to its declaration here, and a number
-# changed in one place fails until the other follows.
+# The limits and word lists the language puts on a declaration are declared in
+# vocabulary.bluebook (LanguageLimit, NeedableFact, CommandAudience, OutboxStatus). The Ruby
+# reads them from the generated table; Rust cannot yet, so each Rust constant is held equal to
+# its declaration here, and a number changed in one place fails until the other follows.
 RSpec.describe "The language limits both engines enforce" do
   def read(path) = File.read(File.expand_path("../#{path}", __dir__))
 
