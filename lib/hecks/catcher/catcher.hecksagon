@@ -1,9 +1,8 @@
 # The Catcher domain, bound so it boots standing alone (a model_check or behaviors boot of this
-# directory). Its records are held in Memory, like every standalone domain; Governance checks
-# the role each command names.
+# directory). Its records are kept by the store catcher.world names, so a drain's sitting outlives
+# the process. Governance checks the role each command names.
 Hecks.hecksagon "Catcher" do
   attaches "Governance"
-  persisted_by "Memory"
 
   # The outside a drain reaches: the spool file the hook appends to. `read` answers the lines the
   # spool holds, through `through`, the number of lines consumed so far. The port never writes a
@@ -29,6 +28,7 @@ Hecks.hecksagon "Catcher" do
 end
 
 # The anti-corruption layer for Governance, which the bluebook's roles are checked against.
+# Its records stay in Memory: the Catcher world's store is for Catcher's own aggregates.
 Hecks.hecksagon "Governance" do
   persisted_by "Memory"
 end
