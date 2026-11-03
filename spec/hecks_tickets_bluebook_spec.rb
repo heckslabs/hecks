@@ -12,13 +12,13 @@ RSpec.describe "the Tickets bluebook" do
   end
 
   it "declares its aggregates, and leaves Release to the Hecks domain and Ticket to QualityControl" do
-    expect(@bluebook.aggregates.map(&:hecks_name)).to contain_exactly(*declared)
+    expect(@bluebook.aggregates.map(&:hecks_name)).to match_array(declared)
   end
 
   it "boots standing alone, as a fuzz or model_check boot of its directory does" do
     standalone = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/tickets/bluebook"), install_driving: false)
 
-    expect(standalone.registry.bluebook("Tickets").aggregates.map(&:hecks_name)).to contain_exactly(*declared)
+    expect(standalone.registry.bluebook("Tickets").aggregates.map(&:hecks_name)).to match_array(declared)
   end
 
   it "gives a Finding the commands of its lifecycle" do
