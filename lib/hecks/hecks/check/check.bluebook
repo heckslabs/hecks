@@ -8,7 +8,7 @@ Hecks.bluebook "Hecks" do
     #
     # Reuse rule (enforced by Tools::GateMemo): a check is skipped only when its inputs hash the
     # same as the inputs of its last green run, and the skip is reported as "skipped", never as
-    # passed. The inputs are the files the check reads (the `inputs` of its GateCheck row, by content hash), its
+    # passed. The inputs are the files the check reads (GateMemo::INPUTS, by content hash), its
     # command and its environment. A red result is never reused, and an unreadable or unwritable
     # memo runs every check in full and says so. RuboCop reuses per file: the run is skipped only
     # when the Ruby files and their hashes match the last green run; otherwise it lints the

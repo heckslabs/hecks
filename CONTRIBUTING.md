@@ -482,7 +482,7 @@ an issue first — see the templates under `.github/ISSUE_TEMPLATE/`.
    scoped Read and write to the `@hecks` scope with "Bypass two-factor
    authentication" enabled, and short-lived: the account's second factor
    is a passkey, so a token that requires a one-time code cannot publish
-   (npm answers `EOTP`). `release/npm_publish.env` has the setup. The
+   (npm answers `EOTP`). The header of `lib/hecks/tools/release.rb` has the setup. The
    publish passes `--auth-type=web` as an interactive fallback: if npm
    does ask for a passkey or security key, it prints an approval link and
    waits.

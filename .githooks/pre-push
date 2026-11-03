@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# pre-push — runs the pushed lane's gate stage; a red check blocks the push.
+# pre-push — runs the suite and static checks concurrently; a red check blocks the push.
 # Rust conformance specs need a toolchain and build time, so CI runs them, not this hook.
 #
 # Install:  git config core.hooksPath .githooks
@@ -8,18 +8,16 @@
 #
 # ROOT comes from `git rev-parse --show-toplevel`, not `dirname "$0"`, since an absolute
 # core.hooksPath makes every worktree run this one file. The checks themselves, and why each
-# one blocks, are the `GateStage` and `GateCheck` rows of the Vocabulary bluebook; every check is reported
-# even if an earlier one failed. Among the `pre_push` stage's, `codegen_drift` catches a Bluebook `given` changing
+# one blocks, are the `pre_push` stage in the Vocabulary gate rows; every check is reported
+# even if an earlier one failed. Among them, `codegen_drift` catches a Bluebook `given` changing
 # with nobody rerunning `hecks build.project_rust!` (ADR 0057): CI's own `checks_codegen_drift` runs
 # on `pull_request` and on a push to main, after the push has landed, so this is the one local
 # backstop before it.
 #
-# Which stage a push runs is the `Lane` row of the lane it names (`push_gate`, `full_gate`, `train`),
-# read from pre-push.lanes, which `hecks regeneration_run.project_lanes!` writes. By default a push
-# of `main` runs only the `quick` stage (seconds: shape ledger, rubocop, the comment-style checks,
-# secret output, adapter words); CI and the nightly run hold everything slower and gate `stable`,
-# not `main`. `hecks.fullGate` (git config) runs the lane's `full_gate` stage, the whole `pre_push`
-# stage, suite included. A hook takes no arguments, so `hecks send_train.board! --confirm full_gate.value=true` is how a
+# The suite is opt-in. By default a push runs only the `quick` stage (seconds: shape ledger, rubocop,
+# the comment-style checks, secret output, adapter words); CI and the nightly run hold everything slower
+# and gate `stable`, not `main`. `hecks.fullGate` (git config) runs the whole `pre_push` stage,
+# suite included. A hook takes no arguments, so `hecks send_train.board! --confirm full_gate.value=true` is how a
 # person asks for it: the train pushes with `git -c hecks.fullGate=true` for that push only. A repository
 # can also keep it on with `git config hecks.fullGate true`. No commit hook runs anything: a commit is instant, and a push is where checks run.
 
@@ -34,49 +32,44 @@ cd "$ROOT"
 HECKS_ENVIRONMENT=${HECKS_ENVIRONMENT:-memory}
 export HECKS_ENVIRONMENT
 
-# What a push runs is the pushed lane's row (the `Lane` rows of the Vocabulary bluebook), projected
-# into pre-push.lanes beside this file. A pushed ref names a lane when it is refs/heads/<lane>; a
-# push that names no lane (a topic branch, a tag, a note) runs nothing. A lane with a `push_gate`
-# runs that stage; a lane with `train` yes is refused unless the push train carries it. Pushed refs
-# arrive on stdin, not in $1/$2. The table is read from beside the hook itself, and a missing table
-# refuses the push rather than passing it unchecked.
-HOOK_DIR=$(cd "$(dirname "$0")" && pwd)
-LANE_TABLE="$HOOK_DIR/pre-push.lanes"
-if [ ! -r "$LANE_TABLE" ]; then
-  printf '[pre-push] %s is missing; run hecks regeneration_run.project_lanes! to write it\n' "$LANE_TABLE" >&2
-  exit 1
+# Tag-only pushes skip the suite when every pushed ref is a tag on a commit already reachable
+# from a remote-tracking branch. Pushed refs arrive on stdin, not in $1/$2.
+TAG_SKIP_INELIGIBLE="$WORKDIR/tag_skip_ineligible"
+PUSHED_REFS=$(cat)
+if [ -n "$PUSHED_REFS" ]; then
+  printf '%s\n' "$PUSHED_REFS" | while IFS=' ' read -r local_ref local_oid _remote_ref _remote_oid; do
+    case "$local_ref" in
+      refs/tags/*)
+        if git branch -r --contains "$local_oid" 2>/dev/null | grep -q .; then
+          continue
+        fi
+        ;;
+    esac
+    : >"$TAG_SKIP_INELIGIBLE"
+    break
+  done
+
+  if [ ! -e "$TAG_SKIP_INELIGIBLE" ]; then
+    printf '[pre-push] every pushed ref is a tag on an already-verified commit — skipping the local suite.\n\n'
+    exit 0
+  fi
 fi
 
-FULL_GATE=$(git config --type=bool --get hecks.fullGate 2>/dev/null)
-STAGES_FILE="$WORKDIR/stages"
-TRAIN_FILE="$WORKDIR/train_lanes"
-: >"$STAGES_FILE"
-: >"$TRAIN_FILE"
-cat >"$WORKDIR/refs"
-while read -r _local_ref _local_oid remote_ref _remote_oid; do
-  lane=${remote_ref#refs/heads/}
-  [ "$lane" = "$remote_ref" ] && continue
-  while read -r name gate full train; do
-    case "$name" in '' | '#'* | '@'*) continue ;; esac
-    [ "$name" = "$lane" ] || continue
-    stage=$gate
-    if [ "$FULL_GATE" = "true" ] && [ "$full" != "-" ]; then stage=$full; fi
-    if [ "$stage" != "-" ] && ! grep -qx "$stage" "$STAGES_FILE"; then printf '%s\n' "$stage" >>"$STAGES_FILE"; fi
-    if [ "$train" = "yes" ]; then printf '%s\n' "$lane" >>"$TRAIN_FILE"; fi
-  done <"$LANE_TABLE"
-done <"$WORKDIR/refs"
-
-if [ ! -s "$STAGES_FILE" ] && [ ! -s "$TRAIN_FILE" ]; then
-  printf '[pre-push] no pushed ref is a lane with a gate — skipping all checks.\n\n'
-  exit 0
+# The hook gates `main`. A push that names no ref on `main` (a feature branch, a note) skips every
+# check, the style checks included.
+if [ -n "$PUSHED_REFS" ]; then
+  if ! printf '%s\n' "$PUSHED_REFS" | awk '$3 == "refs/heads/main" { found = 1 } END { exit !found }'; then
+    printf '[pre-push] no pushed ref is main — skipping all checks.\n\n'
+    exit 0
+  fi
 fi
 
-# A lane pushed through the push train: any agent boards it, and the train's
+# Main is pushed through the push train: any agent boards it, and the train's
 # own `git push` carries `-c hecks.trainCarry=<commit>` (git config, like `hecks.fullGate`, for
-# that push only). A push of such a lane without it is refused, unless the owner sets HECKS_OWNER_PUSH
+# that push only). A push of main without it is refused, unless the owner sets HECKS_OWNER_PUSH
 # to a reason (ADR 0132): the reason is printed here and the push goes on to the checks. The
 # gate cannot see the pushed refs, so this check lives in the hook.
-if [ -s "$TRAIN_FILE" ] && [ -z "$(git config --get hecks.trainCarry)" ]; then
+if [ -z "$(git config --get hecks.trainCarry)" ]; then
   if [ -n "$HECKS_OWNER_PUSH" ]; then
     printf '[pre-push] owner push of main outside the train: %s\n\n' "$HECKS_OWNER_PUSH" >&2
   else
@@ -86,27 +79,32 @@ if [ -s "$TRAIN_FILE" ] && [ -z "$(git config --get hecks.trainCarry)" ]; then
 fi
 
 # A stub (`hecks-stub: <finding>`) in a file this push touches blocks it until the finding is fixed
-# and its marker removed. It runs on every push of a gated lane, whatever the suite setting.
+# and its marker removed. It runs on every main push, whatever the suite setting.
 if ! bundle exec ruby -Ilib -e 'require "hecks/tools"; Hecks::Tools.script("stub_scope", ARGV)'; then
   printf '\n[pre-push] BLOCKED by a stub. Fix the finding and remove its marker, or push with --no-verify and say why.\n\n'
   exit 1
 fi
 
-# The checks are data in the Vocabulary gate rows. `hecks gate_run.gate!` runs a stage's checks together and
-# prints every red one, so a failure does not hide the others. The tool is called directly, not
-# through the launcher, so a red check's output arrives as text and not inside a journal record
-# (`hecks gate_run.gate! stage=<stage> --wait` is the recorded form).
-FULL_RAN=no
-while read -r stage; do
-  if ! bundle exec ruby -Ilib -e 'require "hecks/tools"; Hecks::Tools.script("gate", ARGV)' "$stage" </dev/null; then
+# The slow suite is opt-in: a push runs only the `quick` stage, seconds long, since CI runs every other
+# check on the pushed commit. hecks.fullGate runs the whole `pre_push` stage and, when green, writes the
+# attestation note that lets CI skip its checks.
+FULL_GATE=$(git config --type=bool --get hecks.fullGate 2>/dev/null)
+if [ "$FULL_GATE" != "true" ]; then
+  if ! bundle exec ruby -Ilib -e 'require "hecks/tools"; Hecks::Tools.script("gate", ARGV)' quick; then
     printf '\n[pre-push] BLOCKED. Fix it, or push with --no-verify and say why.\n\n'
     exit 1
   fi
-  if [ "$stage" = "pre_push" ]; then FULL_RAN=yes; fi
-done <"$STAGES_FILE"
+  exit 0
+fi
 
-# Only the whole `pre_push` stage, green, writes the attestation note that lets CI skip its checks.
-[ "$FULL_RAN" = "yes" ] || exit 0
+# The checks are data in the Vocabulary gate rows. `hecks gate_run.gate!` runs a stage's checks together and
+# prints every red one, so a failure does not hide the others. The tool is called directly, not
+# through the launcher, so a red check's output arrives as text and not inside a journal record
+# (`hecks gate_run.gate! stage=pre_push --wait` is the recorded form).
+if ! bundle exec ruby -Ilib -e 'require "hecks/tools"; Hecks::Tools.script("gate", ARGV)' pre_push; then
+  printf '\n[pre-push] BLOCKED. Fix it, or push with --no-verify and say why.\n\n'
+  exit 1
+fi
 
 printf '\n[pre-push] every gate check is green.\n\n'
 
@@ -126,13 +124,7 @@ if [ -n "$ATTEST_DIRTY" ]; then
   printf '[pre-push] the working tree has uncommitted changes, so the checks did not run on HEAD alone — no CI attestation note written\n\n'
 elif [ -n "$ATTEST_KEY" ]; then
   ATTEST_TREE=$(git rev-parse HEAD^{tree})
-  # The names are the GateCheck rows marked `attests`, which pre-push.lanes carries on its @attests
-  # line; none declared writes no note, since a note with no names would vouch for nothing.
-  ATTEST_CHECKS=$(awk '$1 == "@attests" { print $2 }' "$LANE_TABLE")
-  if [ -z "$ATTEST_CHECKS" ]; then
-    printf '[pre-push] no GateCheck row declares attests — no CI attestation note written\n\n'
-    exit 0
-  fi
+  ATTEST_CHECKS="doc_coverage,engine_agreement,model_check,rubocop"
   ATTEST_HMAC=$(printf '%s:%s' "$ATTEST_TREE" "$ATTEST_CHECKS" | openssl dgst -sha256 -hmac "$ATTEST_KEY" -r | awk '{print $1}')
 
   if git notes --ref=ci add -f -m "checks=$ATTEST_CHECKS

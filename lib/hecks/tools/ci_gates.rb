@@ -2,7 +2,6 @@
 
 require "hecks/vocabulary"
 require_relative "../tools"
-require_relative "attested_checks"
 
 module Hecks
   module Tools
@@ -10,9 +9,6 @@ module Hecks
     # detector job between a pair of marker comments in its `workflow`. The job runs
     # `hecks decide_ci_gate gate=<name>` (`CiGateDecision`), so the decision is made by the binary
     # from the same row, never by shell the workflow carries.
-    #
-    # The `checks:` line of each `write-attestation` step is a region too (`attested_checks`), written
-    # from the rows that declare which checks a signed note may stand in for (`AttestedChecks`).
     #
     # Everything outside the markers is hand-written and left alone. With `--check` nothing is
     # written: the tool answers 1 and names each workflow whose region differs from the rows.
@@ -44,8 +40,7 @@ module Hecks
       def projection(root)
         gates.group_by { |gate| gate.fetch("workflow") }.to_h do |workflow, rows|
           path = File.join(root, WORKFLOWS, workflow)
-          detectors = rows.reduce(File.read(path)) { |text, gate| replace_region(text, gate, workflow) }
-          [path, AttestedChecks.replace_regions(detectors)]
+          [path, rows.reduce(File.read(path)) { |text, gate| replace_region(text, gate, workflow) }]
         end
       end
 

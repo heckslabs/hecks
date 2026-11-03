@@ -20,8 +20,6 @@ pub struct Store {
     pub roletransition: crate::kernel::InMemoryRepository<
         crate::generated::governance::roletransition::RoleTransition,
     >,
-    pub call: crate::kernel::InMemoryRepository<crate::generated::governance::call::Call>,
-    pub door: crate::kernel::InMemoryRepository<crate::generated::governance::door::Door>,
 }
 
 impl Store {
@@ -30,8 +28,6 @@ impl Store {
             review: crate::kernel::InMemoryRepository::new(),
             roleassignment: crate::kernel::InMemoryRepository::new(),
             roletransition: crate::kernel::InMemoryRepository::new(),
-            call: crate::kernel::InMemoryRepository::new(),
-            door: crate::kernel::InMemoryRepository::new(),
         }
     }
 
@@ -56,12 +52,6 @@ impl Store {
                 format!("{}{}", "Governance::RoleTransition#", id),
                 record.to_json(),
             ));
-        }
-        for (id, record) in self.call.entries() {
-            instances.push((format!("{}{}", "Governance::Call#", id), record.to_json()));
-        }
-        for (id, record) in self.door.entries() {
-            instances.push((format!("{}{}", "Governance::Door#", id), record.to_json()));
         }
         instances
     }
@@ -98,20 +88,6 @@ impl Store {
                         crate::generated::governance::roletransition::RoleTransition::from_json(
                             value,
                         )?,
-                    );
-                    continue;
-                }
-                if let Some(id) = key.strip_prefix("Governance::Call#") {
-                    store.call.save(
-                        id,
-                        crate::generated::governance::call::Call::from_json(value)?,
-                    );
-                    continue;
-                }
-                if let Some(id) = key.strip_prefix("Governance::Door#") {
-                    store.door.save(
-                        id,
-                        crate::generated::governance::door::Door::from_json(value)?,
                     );
                     continue;
                 }
@@ -156,22 +132,6 @@ impl crate::kernel::AggregateScan for Store {
                     .collect(),
             );
         }
-        if aggregate == "Governance::Call" {
-            return Some(
-                self.call
-                    .json_entries(|record| record.to_json())
-                    .map(|(id, json)| (id.clone(), json.clone()))
-                    .collect(),
-            );
-        }
-        if aggregate == "Governance::Door" {
-            return Some(
-                self.door
-                    .json_entries(|record| record.to_json())
-                    .map(|(id, json)| (id.clone(), json.clone()))
-                    .collect(),
-            );
-        }
         None
     }
 
@@ -194,18 +154,6 @@ impl crate::kernel::AggregateScan for Store {
         }
         if aggregate == "Governance::RoleTransition" {
             for (id, json) in self.roletransition.json_entries(|record| record.to_json()) {
-                visit(id, json);
-            }
-            return true;
-        }
-        if aggregate == "Governance::Call" {
-            for (id, json) in self.call.json_entries(|record| record.to_json()) {
-                visit(id, json);
-            }
-            return true;
-        }
-        if aggregate == "Governance::Door" {
-            for (id, json) in self.door.json_entries(|record| record.to_json()) {
                 visit(id, json);
             }
             return true;
@@ -548,196 +496,6 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Gove
             )
             .map(|(_, events)| stamp_payload(events, &payload))
         }
-        "Governance::Call.Admit" => {
-            let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
-            let route = invocation.route();
-            let facts_json = invocation.facts();
-            let args = if invocation.explicit_with() {
-                let args = crate::kernel::decode_aggregate_arguments(
-                    facts_json,
-                    &crate::kernel::ArgumentGates {
-                        decode_arguments:
-                            &crate::generated::governance::call::AdmitArgs::decode_arguments,
-                        refuse_unknown_arguments:
-                            &crate::generated::governance::call::AdmitArgs::refuse_unknown_arguments,
-                        refuse_absent_arguments:
-                            &crate::generated::governance::call::AdmitArgs::refuse_absent_arguments,
-                        normalize_args: &|v: &crate::kernel::Json| {
-                            let args = crate::generated::governance::call::AdmitArgs::from_json(v)?;
-                            args.summary.check_invariants()?;
-                            if let Some(v) = &args.role_name {
-                                v.check_invariants()?;
-                            }
-                            if let Some(v) = &args.actor_id {
-                                v.check_invariants()?;
-                            }
-                            Ok(args)
-                        },
-                        refuse_role_mismatch: &|| {
-                            crate::kernel::check_role_via(
-                                Some("System"),
-                                "Admit",
-                                caller_role,
-                                caller_actor_id,
-                                &*store,
-                                QUERIES,
-                                AUTHORIZATION_ASSIGNMENTS,
-                            )?;
-                            Ok(())
-                        },
-                        resolve_references:
-                            &|_args: &crate::generated::governance::call::AdmitArgs| Ok(()),
-                    },
-                )?;
-                if let Some(route) = route {
-                    route.require_depth(0)?;
-                }
-                args
-            } else {
-                if let Some(route) = route {
-                    route.require_depth(0)?;
-                }
-                crate::kernel::decode_aggregate_arguments(
-                    facts_json,
-                    &crate::kernel::ArgumentGates {
-                        decode_arguments:
-                            &crate::generated::governance::call::AdmitArgs::decode_arguments,
-                        refuse_unknown_arguments:
-                            &crate::generated::governance::call::AdmitArgs::refuse_unknown_arguments,
-                        refuse_absent_arguments:
-                            &crate::generated::governance::call::AdmitArgs::refuse_absent_arguments,
-                        normalize_args: &|v: &crate::kernel::Json| {
-                            let args = crate::generated::governance::call::AdmitArgs::from_json(v)?;
-                            args.summary.check_invariants()?;
-                            if let Some(v) = &args.role_name {
-                                v.check_invariants()?;
-                            }
-                            if let Some(v) = &args.actor_id {
-                                v.check_invariants()?;
-                            }
-                            Ok(args)
-                        },
-                        refuse_role_mismatch: &|| {
-                            crate::kernel::check_role_via(
-                                Some("System"),
-                                "Admit",
-                                caller_role,
-                                caller_actor_id,
-                                &*store,
-                                QUERIES,
-                                AUTHORIZATION_ASSIGNMENTS,
-                            )?;
-                            Ok(())
-                        },
-                        resolve_references:
-                            &|_args: &crate::generated::governance::call::AdmitArgs| Ok(()),
-                    },
-                )?
-            };
-            let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
-            let owner_deref = Vec::new();
-            let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
-            let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-            crate::generated::governance::call::dispatch_admit(
-                &mut store.call,
-                route,
-                args,
-                mutations,
-                owner_deref,
-                command_deref,
-                tenant_boundary_check,
-            )
-            .map(|(_, events)| stamp_payload(events, &payload))
-        }
-        "Governance::Door.Serve" => {
-            let invocation = crate::kernel::CommandInvocation::from_json(args_json)?;
-            let route = invocation.route();
-            let facts_json = invocation.facts();
-            let args = if invocation.explicit_with() {
-                let args = crate::kernel::decode_aggregate_arguments(
-                    facts_json,
-                    &crate::kernel::ArgumentGates {
-                        decode_arguments:
-                            &crate::generated::governance::door::ServeArgs::decode_arguments,
-                        refuse_unknown_arguments:
-                            &crate::generated::governance::door::ServeArgs::refuse_unknown_arguments,
-                        refuse_absent_arguments:
-                            &crate::generated::governance::door::ServeArgs::refuse_absent_arguments,
-                        normalize_args: &|v: &crate::kernel::Json| {
-                            let args = crate::generated::governance::door::ServeArgs::from_json(v)?;
-                            args.door.check_invariants()?;
-                            Ok(args)
-                        },
-                        refuse_role_mismatch: &|| {
-                            crate::kernel::check_role_via(
-                                Some("System"),
-                                "Serve",
-                                caller_role,
-                                caller_actor_id,
-                                &*store,
-                                QUERIES,
-                                AUTHORIZATION_ASSIGNMENTS,
-                            )?;
-                            Ok(())
-                        },
-                        resolve_references:
-                            &|_args: &crate::generated::governance::door::ServeArgs| Ok(()),
-                    },
-                )?;
-                if let Some(route) = route {
-                    route.require_depth(0)?;
-                }
-                args
-            } else {
-                if let Some(route) = route {
-                    route.require_depth(0)?;
-                }
-                crate::kernel::decode_aggregate_arguments(
-                    facts_json,
-                    &crate::kernel::ArgumentGates {
-                        decode_arguments:
-                            &crate::generated::governance::door::ServeArgs::decode_arguments,
-                        refuse_unknown_arguments:
-                            &crate::generated::governance::door::ServeArgs::refuse_unknown_arguments,
-                        refuse_absent_arguments:
-                            &crate::generated::governance::door::ServeArgs::refuse_absent_arguments,
-                        normalize_args: &|v: &crate::kernel::Json| {
-                            let args = crate::generated::governance::door::ServeArgs::from_json(v)?;
-                            args.door.check_invariants()?;
-                            Ok(args)
-                        },
-                        refuse_role_mismatch: &|| {
-                            crate::kernel::check_role_via(
-                                Some("System"),
-                                "Serve",
-                                caller_role,
-                                caller_actor_id,
-                                &*store,
-                                QUERIES,
-                                AUTHORIZATION_ASSIGNMENTS,
-                            )?;
-                            Ok(())
-                        },
-                        resolve_references:
-                            &|_args: &crate::generated::governance::door::ServeArgs| Ok(()),
-                    },
-                )?
-            };
-            let tenant_boundary_check: Result<(), crate::kernel::Refusal> = Ok(());
-            let owner_deref = Vec::new();
-            let command_deref = crate::kernel::command_deref(&*store, REFERENCE_TABLE, &[], &args);
-            let payload = crate::kernel::Json::overlay(facts_json, &args.to_json());
-            crate::generated::governance::door::dispatch_serve(
-                &mut store.door,
-                route,
-                args,
-                mutations,
-                owner_deref,
-                command_deref,
-                tenant_boundary_check,
-            )
-            .map(|(_, events)| stamp_payload(events, &payload))
-        }
         other => Err(crate::kernel::Refusal::TypeMismatch(format!(
             "unknown command {other:?}"
         ))),
@@ -776,8 +534,6 @@ pub static REFERENCE_TABLE: crate::kernel::ReferenceTable = &[
     ("Compliance::Review", &[]),
     ("Governance::RoleAssignment", &[]),
     ("Governance::RoleTransition", &[]),
-    ("Governance::Call", &[]),
-    ("Governance::Door", &[]),
 ];
 
 impl crate::kernel::ReferenceLookup for Store {
@@ -800,18 +556,6 @@ impl crate::kernel::ReferenceLookup for Store {
                 .find(id)
                 .map(|r| Box::new(r) as Box<dyn crate::kernel::Fielded>);
         }
-        if target == "Governance::Call" {
-            return self
-                .call
-                .find(id)
-                .map(|r| Box::new(r) as Box<dyn crate::kernel::Fielded>);
-        }
-        if target == "Governance::Door" {
-            return self
-                .door
-                .find(id)
-                .map(|r| Box::new(r) as Box<dyn crate::kernel::Fielded>);
-        }
         None
     }
 }
@@ -827,8 +571,6 @@ pub fn reference_key_for_aggregate(qualified_name: &str) -> Option<&'static str>
         "Compliance::Review" => Some("review"),
         "Governance::RoleAssignment" => Some("role_assignment"),
         "Governance::RoleTransition" => Some("role_transition"),
-        "Governance::Call" => Some("call"),
-        "Governance::Door" => Some("door"),
         _ => None,
     }
 }
@@ -842,16 +584,12 @@ pub fn command_creates(verb: &str) -> bool {
         "Governance::RoleAssignment.Revoke" => false,
         "Governance::RoleTransition.Grant" => true,
         "Governance::RoleTransition.Revoke" => false,
-        "Governance::Call.Admit" => true,
-        "Governance::Door.Serve" => true,
         _ => false,
     }
 }
 
 pub fn identity_head_for_aggregate(qualified_name: &str) -> Option<&'static str> {
     match qualified_name {
-        "Governance::Call" => Some("summary"),
-        "Governance::Door" => Some("door"),
         _ => None,
     }
 }
@@ -871,15 +609,6 @@ pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
         "Governance::RoleAssignment.Revoke" => &["ends_at"],
         "Governance::RoleTransition.Grant" => &["from_role", "to_role", "starts_at"],
         "Governance::RoleTransition.Revoke" => &["ends_at"],
-        "Governance::Call.Admit" => &[
-            "summary",
-            "source",
-            "surface",
-            "role_name",
-            "actor_id",
-            "role_gated",
-        ],
-        "Governance::Door.Serve" => &["door", "tool", "dispatch", "denied", "path", "ref"],
         _ => &[],
     }
 }
@@ -1050,8 +779,6 @@ pub fn present(aggregate: &str, state: crate::kernel::Json) -> crate::kernel::Js
         "Governance::RoleTransition" => {
             crate::generated::governance::roletransition::present(state)
         }
-        "Governance::Call" => crate::generated::governance::call::present(state),
-        "Governance::Door" => crate::generated::governance::door::present(state),
         _ => state,
     }
 }

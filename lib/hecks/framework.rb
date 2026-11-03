@@ -43,52 +43,6 @@ module Hecks
       scratch_registry(path).bluebook(name.to_s)
     end
 
-    # The values a closed-set value object declares in a framework member, so the code that checks
-    # a value reads the list from the bluebook and holds no copy. The member loads once per
-    # process.
-    #
-    # @param member [String] the member's name, such as `"Governance"`
-    # @param aggregate [String] the aggregate holding the value object
-    # @param value_object [String] the value object declaring `one_of`
-    # @return [Array<String>] the members of the set, frozen
-    # @raise [Runtime::WiringError] if the member, aggregate or value object is not declared
-    def self.closed_set(member, aggregate, value_object)
-      @closed_sets ||= {}
-      @closed_sets[[member, aggregate, value_object]] ||= set_members(member, aggregate, value_object)
-    end
-
-    # @return [Array<String>] the members of one declared closed set, frozen
-    def self.set_members(member, aggregate, value_object)
-      @declarations ||= {}
-      held = (@declarations[member.to_s] ||= declaration(member))
-      closed_values(held, aggregate, value_object)
-    end
-    private_class_method :set_members
-
-    # The values a closed-set value object declares in any loaded bluebook.
-    #
-    # @param declaration [Bluebook::Declaration] the bluebook holding the value object
-    # @param aggregate [String] the aggregate holding it
-    # @param value_object [String] the value object declaring `one_of`
-    # @return [Array<String>] the members of the set, frozen
-    # @raise [Runtime::WiringError] if the bluebook declares no such closed set
-    def self.closed_values(declaration, aggregate, value_object)
-      found = declaration.aggregate(aggregate)&.value_object(value_object)
-      raise Runtime::WiringError, "#{declaration.name} declares no #{aggregate}.#{value_object}" unless found&.closed_set?
-
-      values = found.members.flat_map(&:values)
-      values.uniq.freeze
-    end
-
-    # Any one bluebook file, built in isolation like a member.
-    #
-    # @param path [String] the bluebook file
-    # @param name [String] the name its header declares
-    # @return [Bluebook::Declaration] the bluebook, loaded into a scratch registry
-    def self.declaration_at(path, name)
-      scratch_registry(path).bluebook(name)
-    end
-
     # @param path [String] a member's bluebook file
     # @return [Runtime::Registry] a fresh registry holding only that member's bluebook
     def self.scratch_registry(path)

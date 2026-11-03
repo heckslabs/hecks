@@ -1,4 +1,3 @@
-require_relative "../../limit"
 require_relative "../errors"
 require_relative "../collecting"
 require_relative "../refusal_wording"
@@ -133,7 +132,7 @@ module Hecks
         end
 
         # Recursion bound; simpler than cycle detection for a cycle no corpus rule declares.
-        DEREFERENCE_DEPTH = Hecks::Limit.of("LanguageLimit", "reference_hops")
+        DEREFERENCE_DEPTH = 4
         private_constant :DEREFERENCE_DEPTH
 
         # Hydrates reference-typed attributes into the records they name, so `given`/`ensures`

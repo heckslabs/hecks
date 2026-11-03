@@ -34,28 +34,6 @@
     "routed": true
   },
   {
-    "kind": "aggregate",
-    "id": "Governance::Call",
-    "generated": true
-  },
-  {
-    "kind": "command",
-    "id": "Governance::Call.Admit",
-    "generated": true,
-    "routed": true
-  },
-  {
-    "kind": "aggregate",
-    "id": "Governance::Door",
-    "generated": true
-  },
-  {
-    "kind": "command",
-    "id": "Governance::Door.Serve",
-    "generated": true,
-    "routed": true
-  },
-  {
     "kind": "query",
     "id": "Governance::RoleAssignment.AssignmentsForActor",
     "generated": true

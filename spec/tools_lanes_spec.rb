@@ -19,33 +19,6 @@ RSpec.describe Hecks::Tools::Lanes do
 
   def promote_workflow = YAML.load_file(File.join(root, ".github/workflows/promote.yml"))
 
-  describe "the pre-push hook table" do
-    it "holds a line for each lane, with - for a gate it does not run", :aggregate_failures do
-      table = Hecks::Tools::Lanes::HookTable.text(described_class.lanes).lines.grep_v(/\A[#@]/)
-
-      expect(table).to eq(["main quick pre_push yes\n", "stable - - no\n"])
-    end
-  end
-
-  describe "the workflow dials" do
-    def workflow_text(path) = File.read(File.join(root, path))
-
-    it "write the watch schedule and job timeouts from the LaneWorkflow and PrebuiltBinary rows", :aggregate_failures do
-      watch = described_class.workflow_row("watch")
-      promote = described_class.workflow_row("promote")
-
-      expect(workflow_text(".github/workflows/lane-watch.yml"))
-        .to include("cron: \"#{watch["cron"]}\"").and include("timeout-minutes: #{watch["timeout_minutes"]}")
-      expect(workflow_text(".github/workflows/promote.yml")).to include("timeout-minutes: #{promote["timeout_minutes"]}")
-    end
-
-    it "refuse a dial row that is missing" do
-      allow(Hecks::Vocabulary).to receive(:rows).with("LaneWorkflow").and_return([])
-
-      expect { described_class.workflow_row("watch") }.to raise_error(SystemExit).and output(/no LaneWorkflow row/).to_stderr
-    end
-  end
-
   describe "the committed files" do
     it "hold exactly what the Lane rows project" do
       drifted = described_class.projection(root).reject { |path, text| File.exist?(path) && File.read(path) == text }
@@ -257,25 +230,10 @@ RSpec.describe Hecks::Tools::Lanes do
 
   describe "a row the projection cannot express" do
     def base
-      { "name" => "x", "guarded" => "no", "pushers" => "anyone", "feeds" => "", "follows" => "", "alert_after" => "",
-        "push_gate" => "quick", "full_gate" => "", "train" => "no" }
-    end
-
-    it "refuses a push gate that is no GateStage row" do
-      rows_are(push_gate: "slowest")
-
-      expect { described_class.lanes }
-        .to raise_error(SystemExit).and output(/push_gate "slowest", which is not a GateStage/).to_stderr
-    end
-
-    it "refuses a train that is neither yes nor no" do
-      rows_are(train: "maybe")
-
-      expect { described_class.lanes }.to raise_error(SystemExit).and output(/train "maybe", not yes or no/).to_stderr
+      { "name" => "x", "guarded" => "no", "pushers" => "anyone", "feeds" => "", "follows" => "", "alert_after" => "" }
     end
 
     def rows_are(**given)
-      allow(Hecks::Vocabulary).to receive(:rows).and_call_original
       allow(Hecks::Vocabulary).to receive(:rows).with("Lane").and_return([base.merge(given.transform_keys(&:to_s))])
     end
 

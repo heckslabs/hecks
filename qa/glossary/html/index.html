@@ -730,11 +730,6 @@ section.searching > p { display: none; }
 <p>Every bug still owed work — the open ledger, derived rather than maintained.</p>
 <p>Bugs that are logged, investigating, or paused, sorted by bug sequence, lowest first.</p>
 </article>
-<article class="term" id="open-named">
-<h4>Open named</h4>
-<p>The open bugs carrying one name, such as main-red-rubocop: what a second log of the same red check looks for first.</p>
-<p>Bugs whose bug name is the name you give and that are logged, investigating, or paused, sorted by bug sequence, lowest first.</p>
-</article>
 <article class="term" id="paused">
 <h4>Paused</h4>
 <p>Real, unfixed, stopped on, each with what would move it. The only queue a ticket is ever raised from.</p>
@@ -838,10 +833,6 @@ section.searching > p { display: none; }
 <h4>Instant</h4>
 <p>A whole number.</p>
 <p class="rule">Always true: an instant is not before the epoch.</p>
-</article>
-<article class="term" id="mechanical-fix">
-<h4>Mechanical fix</h4>
-<p>One of rubocop.</p>
 </article>
 <article class="term" id="next-step">
 <h4>Next step</h4>
@@ -1323,7 +1314,6 @@ section.searching > p { display: none; }
 <h4>Consider</h4>
 <p>Take one green commit of embryonaut_platform&#39;s main into the image roll&#39;s chain. Done by the system.</p>
 <p>Needs a commit (<a href="#commit-ref-2">Commit ref</a>), a branch (<a href="#roll-branch">Roll branch</a>), and a repo (<a href="#roll-repo">Roll repo</a>).</p>
-<p class="rule">Allowed only when: only main rolls; only embryonaut_platform rolls.</p>
 <p>Records <a href="#roll-considered">Roll considered</a>.</p>
 </article>
 <article class="term" id="finish">
@@ -1392,10 +1382,6 @@ section.searching > p { display: none; }
 <article class="term" id="commit-ref-2">
 <h4>Commit ref</h4>
 <p>Text that must follow a set format.</p>
-</article>
-<article class="term" id="image-input">
-<h4>Image input</h4>
-<p>One of: file (path Dockerfile); file (path Gemfile); file (path Gemfile.lock); file (path lib/telemetry_ingress.rb); file (path lib/site_roster.rb); dir (path bluebook/); dir (path vendor/); dir (path deploy/console/); dir (path lib/telemetry_ingress/); dir (path lib/site_roster/); outside (path bluebook/translations/).</p>
 </article>
 <article class="term" id="outcome">
 <h4>Outcome</h4>
@@ -2173,7 +2159,7 @@ section.searching > p { display: none; }
 <div class="terms">
 <article class="term" id="release-approver">
 <h4>Release approver</h4>
-<p>Text that must not be blank.</p>
+<p>One of Chris Young.</p>
 </article>
 <article class="term" id="release-branch">
 <h4>Release branch</h4>
@@ -2185,7 +2171,7 @@ section.searching > p { display: none; }
 </article>
 <article class="term" id="release-trailer">
 <h4>Release trailer</h4>
-<p>Text that must not be blank.</p>
+<p>One of Release-Approved-By.</p>
 </article>
 <article class="term" id="release-version">
 <h4>Release version</h4>

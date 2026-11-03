@@ -41,8 +41,7 @@ module Hecks
         end
 
         def job(row)
-          ["jobs:", "  publish:", "    runs-on: #{row["runner"]}", "    timeout-minutes: #{row["timeout_minutes"]}",
-           "    steps:",
+          ["jobs:", "  publish:", "    runs-on: #{row["runner"]}", "    timeout-minutes: 40", "    steps:",
            "      - uses: actions/checkout@v4", "      - uses: ./.github/actions/setup-ruby", *key_step(row),
            *build_steps(row), *release_step(row)]
         end
