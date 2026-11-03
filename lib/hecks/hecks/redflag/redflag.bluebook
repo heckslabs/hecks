@@ -53,7 +53,7 @@ Hecks.bluebook "Hecks" do
         transition "Eject"   => "kicked",     from: %w[requested raised noted checked_in]
         transition "Settle"  => "idle",       from: "requested"
         transition "Decline" => "refused",    from: "requested"
-        mark :terminal, "raised", "noted", "checked_in", "cleared", "idle", "refused"
+        mark :terminal, "cleared", "idle", "refused"
       end
 
       command "Raise" do
