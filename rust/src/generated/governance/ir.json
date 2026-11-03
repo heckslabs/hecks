@@ -1274,9 +1274,19 @@
       "name": "Door",
       "description": "The reach of one restricted MCP server: the tools it serves and the argument names it never passes on.",
       "identified_by": [
-        "tool.value"
+        "door.value"
       ],
       "attributes": [
+        {
+          "name": "door",
+          "type": "DoorKey",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
         {
           "name": "tool",
           "type": "ReaderTool",
@@ -1329,6 +1339,28 @@
         }
       ],
       "value_objects": [
+        {
+          "name": "DoorKey",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
         {
           "name": "ReaderTool",
           "attributes": [
@@ -1797,6 +1829,16 @@
           "references": null,
           "attributes": [
             {
+              "name": "door",
+              "type": "DoorKey",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
               "name": "tool",
               "type": "ReaderTool",
               "list": false,
@@ -1857,7 +1899,15 @@
 
           ],
           "mutations": [
-
+            {
+              "target": "door",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "door"
+              }
+            }
           ],
           "emits": [
             "ToolServed"
