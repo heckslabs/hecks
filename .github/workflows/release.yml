@@ -6,8 +6,10 @@ name: Release
 # releases nothing until every required check has passed on it and `stable` has reached it. It
 # does what the local publish does, in the same order:
 #
-#   1. check that Hecks::VERSION, packages/hecks-client, rust/host/HECKS_RELEASE and a
-#      `## [X.Y.Z]` heading in CHANGELOG.md all name the same version, and refuse if they do not;
+#   1. check that every `ReleaseFile` row of the Vocabulary bluebook (Hecks::VERSION,
+#      rust/host/HECKS_RELEASE, the client package, the lockfiles, README) and a dated
+#      `## [X.Y.Z] - YYYY-MM-DD` heading in CHANGELOG.md name the same version, and refuse if they do
+#      not (lib/hecks/release/conditions.rb, the same list `publishing_run.publish` is held to);
 #   2. tag the commit vX.Y.Z (annotated);
 #   3. push the gem to rubygems.org (the API key first, then trusted publishing, see below);
 #   4. start publish-client.yml for the tag, which publishes @hecks/client to npm (OIDC);
@@ -111,7 +113,7 @@ jobs:
         run: |
           pending=true
           if [ "$EVENT" = "workflow_run" ]; then
-            commit="$(git log --first-parent -1 --format=%H -G'^ *VERSION = ' -- lib/hecks/version.rb)"
+            commit="$(ruby -I lib -r hecks/release/version_commit -e 'puts Hecks::Release::VersionCommit.commit')"
             version="$(git show "$commit:lib/hecks/version.rb" | sed -n 's/^ *VERSION = "\(.*\)".*/\1/p')"
             if [ -n "$version" ] && gh release view "v$version" > /dev/null 2>&1; then
               pending=false
@@ -157,7 +159,7 @@ jobs:
       - name: Stand on the commit that set the version
         if: github.event_name == 'workflow_run'
         run: |
-          commit="$(git log --first-parent -1 --format=%H -G'^ *VERSION = ' -- lib/hecks/version.rb)"
+          commit="$(ruby -I lib -r hecks/release/version_commit -e 'puts Hecks::Release::VersionCommit.commit')"
           [ -n "$commit" ] || { echo "::error::no commit on stable sets Hecks::VERSION"; exit 1; }
           git checkout --detach "$commit"
 
@@ -175,7 +177,7 @@ jobs:
             git checkout --detach "refs/tags/$REQUESTED_TAG"
           else
             git fetch --quiet origin stable
-            commit="$(git log --first-parent -1 --format=%H -G'^ *VERSION = ' FETCH_HEAD -- lib/hecks/version.rb)"
+            commit="$(ruby -I lib -r hecks/release/version_commit -e 'puts Hecks::Release::VersionCommit.commit(ref: "FETCH_HEAD")')"
             [ -n "$commit" ] || { echo "::error::no commit on stable sets Hecks::VERSION"; exit 1; }
             git checkout --detach "$commit"
           fi
@@ -192,7 +194,7 @@ jobs:
       - name: The version bump carries the owner's approval
         run: |
           version="$(sed -n 's/^ *VERSION = "\(.*\)".*/\1/p' lib/hecks/version.rb)"
-          commit="$(git log --first-parent -1 --format=%H -G'^ *VERSION = ' -- lib/hecks/version.rb)"
+          commit="$(ruby -I lib -r hecks/release/version_commit -e 'puts Hecks::Release::VersionCommit.commit')"
           tag_exists=false
           [ -n "$(git ls-remote origin "refs/tags/v$version")" ] && tag_exists=true
           COMMIT="$commit" TAG_EXISTS="$tag_exists" \
@@ -202,16 +204,9 @@ jobs:
         id: release
         run: |
           version="$(sed -n 's/^ *VERSION = "\(.*\)".*/\1/p' lib/hecks/version.rb)"
-          client="$(node -p "require('./packages/hecks-client/package.json').version")"
-          host="$(tr -d '[:space:]' < rust/host/HECKS_RELEASE)"
-          if [ -z "$version" ] || [ "$client" != "$version" ] || [ "$host" != "$version" ]; then
-            echo "::error::Hecks::VERSION is '$version', packages/hecks-client is '$client', rust/host/HECKS_RELEASE is '$host'; they must all match. Fix them in the release PR."
-            exit 1
-          fi
-          if ! grep -q "^## \[$version\]" CHANGELOG.md; then
-            echo "::error::CHANGELOG.md has no '## [$version]' heading; add the release entry in the release PR."
-            exit 1
-          fi
+          # Every ReleaseFile row of the Vocabulary bluebook, and a dated CHANGELOG heading: the same
+          # list publishing_run.publish holds a release to.
+          ruby -I lib -r hecks/release/conditions -e 'exit Hecks::Release::Conditions.check'
           if [ -n "$REQUESTED_TAG" ] && [ "$REQUESTED_TAG" != "v$version" ]; then
             echo "::error::$REQUESTED_TAG was requested, but this tree is release $version."
             exit 1
