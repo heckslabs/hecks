@@ -9,9 +9,9 @@ RSpec.describe Hecks::Adapters::Driving::McpScope do
     additive agent aggregates arguments at body budget budget_minutes cap check commits context crate
     declaration_cache dry email environment era example exclude expert fills format full_gate
     gate inner isolation iterations kind lane landed list_shards message name named new_name no_ai number only
-    opens outcome owner package pairs_shape parallel persist_regressions pin profile pushed reader reason recipient
-    rehearsal_verdict report required role run runs scope seed_start seeds sender session shard stage stdout steps strict
-    subject tags taking target targets text timeout to top verb warmup watermark winners word work workers
+    opens outcome owner package pairs_shape parallel persist_regressions pin profile pushed reason rehearsal_verdict
+    report required role run runs scope seed_start seeds session shard stage stdout steps strict subject tags taking
+    target targets timeout to top verb warmup watermark winners word workers
   ].freeze
 
   let(:classes) do
