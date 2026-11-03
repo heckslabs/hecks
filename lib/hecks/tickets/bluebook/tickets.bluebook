@@ -274,6 +274,8 @@ Hecks.bluebook "Tickets" do
     attribute :claimed_at, ClaimedAt, optional: true
     attribute :area,   list_of(Word), optional: true
     attribute :budget_minutes, Minutes, optional: true
+    attribute :category, Category, optional: true
+    attribute :priority, Priority, optional: true
     reference_to Adr, as: :decision, optional: true
     identified_by :work
 
@@ -331,6 +333,17 @@ Hecks.bluebook "Tickets" do
       invariant("a step is not negative") { !value.negative? }
     end
 
+    # What kind of work an item is, one per item. It never decides whether two items clash: that is the
+    # path claim in `area`.
+    value_object "Category" do
+      attribute :value, String, one_of: %w[bluebook-gap language delivery coder parity host tooling]
+    end
+
+    # How soon an item is wanted. Unset means nobody has said.
+    value_object "Priority" do
+      attribute :value, String, one_of: %w[now next later]
+    end
+
     lifecycle :status, default: "planned" do
       transition "Start"   => "started", from: "planned"
       transition "Release" => "planned", from: "started"
@@ -369,6 +382,32 @@ Hecks.bluebook "Tickets" do
       attribute :detail, WorkText, sets: true
 
       emits "WorkRevised"
+    end
+
+    # An open work item is sorted into one category. The claim, the step and the area stay as they are.
+    command "Categorize" do
+      role "Maintainer"
+      goal "Sort an open work item into a category"
+
+      reference_to Work
+      attribute :category, Category, sets: true
+
+      given("a done or dropped work item takes no category") { status != "done" && status != "dropped" }
+
+      emits "WorkCategorized"
+    end
+
+    # An open work item is given how soon it is wanted. The claim, the step and the area stay as they are.
+    command "Prioritize" do
+      role "Maintainer"
+      goal "Say how soon an open work item is wanted: now, next or later"
+
+      reference_to Work
+      attribute :priority, Priority, sets: true
+
+      given("a done or dropped work item takes no priority") { status != "done" && status != "dropped" }
+
+      emits "WorkPrioritized"
     end
 
     # A started work item is claimed: the second Start on it is refused, since only a planned one
@@ -488,6 +527,20 @@ Hecks.bluebook "Tickets" do
       description "The work items of one decision's plan not yet done or dropped: the ones its superseding drops."
       attribute :adr, String
       where(decision: :adr, status: { in: "planned,started" })
+      order_by :step
+    end
+
+    query "UndoneInTier" do
+      description "Every work item not yet done or dropped that is wanted now, next or later, in plan order."
+      attribute :tier, String
+      where(priority: :tier, status: { in: "planned,started" })
+      order_by :step
+    end
+
+    query "UndoneInCategory" do
+      description "Every work item not yet done or dropped in one category, in plan order."
+      attribute :kind, String
+      where(category: :kind, status: { in: "planned,started" })
       order_by :step
     end
   end
