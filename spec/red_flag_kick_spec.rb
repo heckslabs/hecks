@@ -6,8 +6,8 @@ require "hecks/hecks/adapters/red_flag_kick"
 require "hecks/hecks/adapters/red_flag_marker"
 
 # A flag that goes up kicks the push batch off main: every first-parent commit since the last green
-# head is reverted, newest first, on a red-main-<cause> branch, which is finished onto main, boarded,
-# filed as a red-* Work row and handed to one coder. Every example builds its own repository; the
+# head is reverted, newest first, on a red-main-<cause> branch, finished onto main and boarded, and
+# a red-* Work item is filed for one coder. Every example builds its own repository; the
 # steps are stand-ins that record what they were handed and touch neither GitHub nor the train.
 RSpec.describe Hecks::Adapters::RedFlagKick do
   let(:dir) { File.realpath(Dir.mktmpdir("hecks-red-kick")) }

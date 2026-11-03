@@ -15,7 +15,7 @@ require "hecks/runtime/event_tap"
 # event tap see the same events with the flag, commit, run and jobs, and the owner's desktop is
 # told. The domain is in Memory, the repository a throwaway one, GitHub a stand-in fed the records.
 RSpec.describe "the red flag over a real CI cycle" do
-  # Named for this file: a top-level constant lands on Object, so the other specs' names are off limits.
+  # Named for this file: top-level constants land on Object, so other specs must not reuse these.
   CYCLE_FIXTURES = File.expand_path("fixtures/red_flag", __dir__) unless defined?(CYCLE_FIXTURES)
   CYCLE_JOBS = JSON.parse(File.read(File.join(CYCLE_FIXTURES, "run_41540218609_jobs.json"))) unless defined?(CYCLE_JOBS)
   CYCLE_RUNS = JSON.parse(File.read(File.join(CYCLE_FIXTURES, "main_runs.json"))) unless defined?(CYCLE_RUNS)
