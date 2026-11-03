@@ -43,7 +43,7 @@ RSpec.describe "the red flag over a real CI cycle" do
     Hecks::Adapters::RedFlagging.runner = nil
     Hecks::Adapters::RedFlagKick.effects = nil
     @hecks.registry.event_log.observer = nil
-    FileUtils.remove_entry(dir)
+    FileUtils.rm_rf(dir) # a detached `git maintenance` may still hold a lock file in the repository
   end
 
   def git(*args, chdir: repo)
@@ -59,6 +59,8 @@ RSpec.describe "the red flag over a real CI cycle" do
     # The kick's revert commits with the repository's own identity, which a CI runner lacks.
     git("config", "user.name", "t")
     git("config", "user.email", "t@t")
+    git("config", "maintenance.auto", "false")
+    git("config", "gc.auto", "0")
     git("commit", "--allow-empty", "-m", "start")
     git("push", "-q", "origin", "main")
   end

@@ -18,7 +18,8 @@ RSpec.describe Hecks::Adapters::RedFlagKick do
   let(:calls) { [] }
   let(:failure) { Hecks::Adapters::ConsoleCapture::Failure }
 
-  after { FileUtils.remove_entry(dir) }
+  # rm_rf, not remove_entry: a detached `git maintenance` may still hold a lock in the repository.
+  after { FileUtils.rm_rf(dir) }
 
   def git(*args, chdir: repo)
     out, status = Open3.capture2e("git", "-c", "user.name=t", "-c", "user.email=t@t", *args, chdir: chdir)
@@ -38,6 +39,8 @@ RSpec.describe Hecks::Adapters::RedFlagKick do
   def build_repo
     FileUtils.mkdir_p(repo)
     git("init", "-q", "-b", "main")
+    git("config", "maintenance.auto", "false")
+    git("config", "gc.auto", "0")
     identify
     @green = commit("a.txt", "green")
     @bad = commit("b.txt", "bad")
