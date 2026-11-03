@@ -1,8 +1,8 @@
 require "spec_helper"
 
-# The Tickets bluebook is attached to the Hecks domain: Finding, Adr and Work are declared in it,
-# the finding's lifecycle drives GitHub through the GitHubIssues port, a refused ask never blocks
-# the finding, and a Work step stays inside Hecks.
+# The Tickets bluebook is attached to the Hecks domain: Finding, Adr, Work, Lesson and Sighting are
+# declared in it, the finding's lifecycle drives GitHub through the GitHubIssues port, a refused ask
+# never blocks the finding, and a Work step stays inside Hecks.
 RSpec.describe "the Tickets bluebook" do
   before(:all) do
     @hecks = InMemoryDomain.boot_hecks_in_memory
