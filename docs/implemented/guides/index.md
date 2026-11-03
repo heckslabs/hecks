@@ -25,7 +25,7 @@ you're not.
    `hecks ModelCheckRun.model_check!` flags before you ship one wrong.
 7. **[Entities](entities.md)** — identity and behavior that lives inside
    an aggregate, never addressed alone.
-8. **[Policies and process managers](policies-and-process-managers.md)**
+8. **[Policies and sagas](policies-and-sagas.md)**
    — reactions, sagas, correlation, and the depth limit that keeps a
    feedback loop from becoming an incident.
 9. **[Wiring](wiring.md)** — the hecksagon and the world: what's decided

@@ -15,7 +15,7 @@ does not clear has nothing to put back:
 
 ```ruby skip
 # examples/banking/bluebook/
-process_manager "Onboarding" do
+saga "Onboarding" do
   correlates_by :"reference.value"
   starts_on "OnboardingOpened"
   ends_on   "AccountOpened"
@@ -53,7 +53,7 @@ Hecks.bluebook "ProcessManagerResumes" do
     end
   end
 
-  process_manager "Filing" do
+  saga "Filing" do
     correlates_by :"ref.value"
     starts_on "TicketFiled"
     ends_on "TicketClosed"
@@ -198,7 +198,7 @@ lifecycle.md), one level over — `"EventType" => "to_state", from:
 aggregate, an event here. `event_type` is usually an event name;
 `:refused` is the one exception, matching a dispatched command's own
 refusal rather than any event an aggregate emits — the
-compensating-leg mechanics live in policies-and-process-managers.md.
+compensating-leg mechanics live in policies-and-sagas.md.
 
 Unlike `Lifecycle#transition`, `from:` is MANDATORY — a saga's own
 admission check tests a running instance's current state by plain
@@ -208,7 +208,7 @@ match no instance ever, silently, and is refused at declaration
 instead:
 
 ```ruby skip
-Hecks.bluebook("Gone") { process_manager("Nowhere") { correlates_by :"ref.value"; starts_on "Opened"; ends_on "Closed"; transition "Opened" => "open" } }  # ~> InvalidProcessManager: Nowhere's transition {"Opened"=>"open"} names no from: — a process manager's own admission checks a saga instance's CURRENT state exactly, so a transition with no from: would match no instance ever, silently
+Hecks.bluebook("Gone") { saga("Nowhere") { correlates_by :"ref.value"; starts_on "Opened"; ends_on "Closed"; transition "Opened" => "open" } }  # ~> InvalidProcessManager: Nowhere's transition {"Opened"=>"open"} names no from: — a saga's own admission checks a saga instance's CURRENT state exactly, so a transition with no from: would match no instance ever, silently
 ```
 
 Given a list, a leg may fire from any of several states, the same

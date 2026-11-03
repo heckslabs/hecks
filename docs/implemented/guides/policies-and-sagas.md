@@ -1,4 +1,4 @@
-# Policies and process managers
+# Policies and sagas
 
 A command answers a synchronous caller directly. Much of what a real
 system does is not synchronous — a payment gateway's webhook fires, a
@@ -331,7 +331,7 @@ which conversation a later event belongs to.
 
 ```ruby skip
 # Banking, top level, in examples/banking/bluebook/
-process_manager "Settlement" do
+saga "Settlement" do
   # THE FIELD, NAMED — Transfer.Request declares `attribute :reference,
   # TransferReference`, which is also what Transfer's own `identified_by
   # :reference` derives its id from, so this reads the exact same scalar
@@ -508,7 +508,7 @@ two windows. **Between the triggering command's commit and its
 reactions:** the transactional outbox (`Runtime::Outbox`, ADR 0053)
 closes this one. On the durable adapters (Sqlite, Postgres, PostgresEra; Memory keeps the same rows in-process, so they do not survive a crash), the command's save,
 its event, and one `pending` row per consumer — every policy that
-would fire, every process manager that would begin, advance or end on
+would fire, every saga that would begin, advance or end on
 the event — commit in ONE transaction; the dispatcher then claims and
 delivers each row inline. A crash before delivery leaves the row
 `pending`, and the next boot redrives it (its consumer provably never
@@ -564,7 +564,7 @@ newest saga, does not, and its own comment says exactly why:
 # money ever moved, so Decline is simply where the flow stops. There is no
 # `on :refused` leg here — compare its shape against Settlement's above
 # rather than trusting the claim.
-process_manager "Onboarding" do
+saga "Onboarding" do
   correlates_by :"reference.value"
   starts_on "OnboardingOpened"
   ends_on   "AccountOpened"
@@ -678,7 +678,7 @@ it; it puts back what it can and moves on.
 
 ## What `hecks ModelCheckRun.model_check!` still catches here
 
-Every policy and every process manager here is data, the same data the
+Every policy and every saga here is data, the same data the
 runtime dispatches against, which means the checker `verification.md`
 covers in depth can walk it with nothing booted. Several of its finding
 kinds are specific to this page's own vocabulary, among them: `deaf_trigger` (a

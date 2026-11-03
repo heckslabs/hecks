@@ -96,7 +96,7 @@ runtime.sagas.select { |s| s[:instance] == "t1" && s[:compensation] }.map { |s| 
 `Account.Credit`'s own leg — the one that refused — declares no
 `compensates` at all, and needs none: a leg that never completed has
 nothing of its own to undo. See
-`docs/implemented/guides/policies-and-process-managers.md`'s own
+`docs/implemented/guides/policies-and-sagas.md`'s own
 "Compensation" section for the full walkthrough, including the
 unconditional `Transfer.Reverse` mark that stays hand-written on the
 saga's own `on :refused` leg rather than becoming a second `compensates` —

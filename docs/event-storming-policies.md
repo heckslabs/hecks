@@ -1,7 +1,7 @@
 # Event storming's Policy, in hecks
 
 > The consumer guide for policies and process managers now lives at
-> [guides/policies-and-process-managers.md](guides/policies-and-process-managers.md);
+> [guides/policies-and-sagas.md](guides/policies-and-sagas.md);
 > this file remains the original investigation record.
 
 **Status: mostly a record of what's already built, verified directly.** Event

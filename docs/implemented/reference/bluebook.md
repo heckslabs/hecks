@@ -401,7 +401,7 @@ runtime.registry.bluebook("Banking").process_managers.map(&:name)  # => ["Onboar
 | positional 1 | text | true | name |
 <!-- generated:end -->
 
-Groups aggregates in a module named for the task a person comes to do (ADR 0163). The block takes the words a bluebook body takes, so its aggregates are declared exactly as they are outside it; `vision` inside it describes the module. Policies, read models and process managers written inside the block stay the bluebook's own. A module changes no aggregate, its name, its stored shape or the context map, it names where the aggregate belongs. A second file may reopen a module of the same name and add aggregates to it. The words that describe the whole bluebook (`namespace`, `formerly_known_as`, `attaches_to`, `provides`, `core`, `supporting`, `generic`) refuse inside a module, modules do not nest, and a module that holds no aggregate refuses.
+Groups aggregates in a module named for the task a person comes to do (ADR 0163). The block takes the words a bluebook body takes, so its aggregates are declared exactly as they are outside it; `vision` inside it describes the module. Policies, read models and sagas written inside the block stay the bluebook's own. A module changes no aggregate, its name, its stored shape or the context map, it names where the aggregate belongs. A second file may reopen a module of the same name and add aggregates to it. The words that describe the whole bluebook (`namespace`, `formerly_known_as`, `attaches_to`, `provides`, `core`, `supporting`, `generic`) refuse inside a module, modules do not nest, and a module that holds no aggregate refuses.
 
 The bluebook reads its modules back in declaration order:
 
