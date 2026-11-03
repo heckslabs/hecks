@@ -81,7 +81,7 @@ const fn policy(name: &'static str, event_name: &'static str, target: &'static s
         target_verb: target,
         where_expr: None,
         for_each: None,
-        for_each_key: None,
+        for_each_key: None, root: false,
         with_spec: NO_WITH,
     }
 }
@@ -119,7 +119,7 @@ static POLICIES: [PolicyRule; 8] = [
     policy("Pinger", "Ping", "D::Order.Ping"),
     PolicyRule {
         for_each: Some("D::Order.Open"),
-        for_each_key: Some("order_id"),
+        for_each_key: Some("order_id"), root: false,
         ..policy("FanPing", "Fan", "D::Order.Ping")
     },
     PolicyRule {

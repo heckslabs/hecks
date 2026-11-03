@@ -4505,6 +4505,9 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
                             if let Some(v) = &args.expect_undelivered {
                                 v.check_invariants()?;
                             }
+                            if let Some(v) = &args.root {
+                                v.check_invariants()?;
+                            }
                             if let Some(v) = &args.r#where {
                                 v.check_invariants()?;
                             }
@@ -4574,6 +4577,9 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Lang
                                 v.check_invariants()?;
                             }
                             if let Some(v) = &args.expect_undelivered {
+                                v.check_invariants()?;
+                            }
+                            if let Some(v) = &args.root {
                                 v.check_invariants()?;
                             }
                             if let Some(v) = &args.r#where {
@@ -8783,6 +8789,7 @@ pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
             "ask",
             "target_domain",
             "expect_undelivered",
+            "root",
             "where",
             "for_each",
             "position",
