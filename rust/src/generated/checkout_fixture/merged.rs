@@ -1592,6 +1592,7 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Gove
                             &crate::generated::governance::door::ServeArgs::refuse_absent_arguments,
                         normalize_args: &|v: &crate::kernel::Json| {
                             let args = crate::generated::governance::door::ServeArgs::from_json(v)?;
+                            args.door.check_invariants()?;
                             Ok(args)
                         },
                         refuse_role_mismatch: &|| {
@@ -1629,6 +1630,7 @@ Ok(args) }, refuse_role_mismatch: &|| { crate::kernel::check_role_via(Some("Gove
                             &crate::generated::governance::door::ServeArgs::refuse_absent_arguments,
                         normalize_args: &|v: &crate::kernel::Json| {
                             let args = crate::generated::governance::door::ServeArgs::from_json(v)?;
+                            args.door.check_invariants()?;
                             Ok(args)
                         },
                         refuse_role_mismatch: &|| {
@@ -2992,7 +2994,7 @@ pub fn identity_head_for_aggregate(qualified_name: &str) -> Option<&'static str>
         "CheckoutFixture::PaymentConnection" => Some("slug"),
         "Payments::Payment" => Some("reference"),
         "Governance::Call" => Some("summary"),
-        "Governance::Door" => Some("tool"),
+        "Governance::Door" => Some("door"),
         "ConsoleSettings::Collection" => Some("agg"),
         "ConsoleSettings::CollectionIdentity" => Some("agg"),
         "ConsoleSettings::CollectionLayout" => Some("agg"),
@@ -3053,7 +3055,7 @@ pub fn command_attributes_for_verb(verb: &str) -> &'static [&'static str] {
             "actor_id",
             "role_gated",
         ],
-        "Governance::Door.Serve" => &["tool", "dispatch", "denied", "path", "ref"],
+        "Governance::Door.Serve" => &["door", "tool", "dispatch", "denied", "path", "ref"],
         "ConsoleSettings::StateStyle.Declare" => &["agg", "state"],
         "ConsoleSettings::StateStyle.SetTone" => &["tone"],
         "ConsoleSettings::StateStyle.SetAttention" => &["attention"],

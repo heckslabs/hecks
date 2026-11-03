@@ -219,13 +219,20 @@ Hecks.bluebook "Governance" do
   aggregate "Door" do
     description "The reach of one restricted MCP server: the tools it serves and the argument names it never passes on."
 
+    attribute :door,     DoorKey
     attribute :tool,     ReaderTool
     attribute :dispatch, DispatchTool, optional: true
     attribute :denied,   DeniedArgument, optional: true
     attribute :path,     PathArgument, optional: true
     attribute :ref,      RefArgument, optional: true
 
-    identified_by :tool
+    identified_by :door
+
+    # The name of one restricted server's door. A string key, not a closed set: the tool a door
+    # serves is an attribute, so the identity of the door does not depend on which tool it serves.
+    value_object "DoorKey" do
+      attribute :value, String, matches: :present
+    end
 
     # Each reads a domain or the server's own audit log and writes no domain state.
     value_object "ReaderTool" do
@@ -261,6 +268,7 @@ Hecks.bluebook "Governance" do
       role "System"
       goal "Serve a reader tool on a restricted MCP server"
 
+      attribute :door,     DoorKey, sets: true
       attribute :tool,     ReaderTool
       attribute :dispatch, DispatchTool, optional: true
       attribute :denied,   DeniedArgument, optional: true
