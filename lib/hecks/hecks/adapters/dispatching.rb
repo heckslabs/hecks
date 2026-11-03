@@ -5,6 +5,7 @@ require_relative "dispatching/settings"
 require_relative "dispatching/work_items"
 require_relative "dispatching/plan"
 require_relative "dispatching/launcher"
+require_relative "dispatching/lesson_traps"
 require_relative "dispatching/settler"
 
 module Hecks
@@ -82,10 +83,13 @@ module Hecks
         launcher = launcher_for(held)
         minutes = plain(held[:budget_minutes]) || Settings::BUDGET_MINUTES
         plan.chosen.each_with_index.map do |item, index|
-          launcher.launch(item, held: holding(plan, index), frozen: machine.frozen, minutes: minutes,
-                          limit: machine.spec_files_limit)
+          launcher.launch(item, held: holding(plan, index), minutes: minutes, limit: machine.spec_files_limit,
+                                frozen: machine.frozen, traps: traps_for(item))
         end
       end
+
+      # The known traps the work item's area meets, one line each.
+      def traps_for(item) = LessonTraps.new(work_items.lessons).for(item.area)
 
       # A line for each other work item, started or chosen before this one, that holds an area.
       def holding(plan, index)

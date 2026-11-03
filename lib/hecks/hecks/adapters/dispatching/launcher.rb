@@ -35,11 +35,12 @@ module Hecks
         # @param frozen [Array<String>] the frozen areas and aggregates
         # @param minutes [Integer] the time budget of the work item
         # @param limit [Integer, nil] the most spec files a session runs per call, from the world
+        # @param lines [Hash] `traps:` a line for each known trap the work item's area meets
         # @return [String] one line: the session started, or why the work item went back to the plan
-        def launch(item, held:, frozen:, minutes:, limit: nil)
+        def launch(item, held:, minutes:, limit: nil, **lines)
           step(item, "pull main", pull_argv)
           step(item, "start", start_argv(item, minutes))
-          text = BriefText.new(composed(item)).render(item.key, area: item.area, held: held, frozen: frozen, limit: limit)
+          text = BriefText.new(composed(item)).render(item.key, area: item.area, limit: limit, held: held, **lines)
           step(item, "dispatch", dispatch_argv(item, text))
           "started #{item.key}"
         rescue ConsoleCapture::Failure => e
