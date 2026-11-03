@@ -182,6 +182,9 @@ commands:
     A running rust/host, and the version and era it last reported.
     check_era!                    Ask a running host which era it reports, and keep whether it is one that should be running
     recheck!                      Ask a host already checked which era it reports now
+  Pusher:
+    One request against the repository's pusher: assigned to a session, or a boarding refused for not being it.
+    assign!                       Name the session that is the only one allowed to board the push train, replacing the one before it
   QaQuiesce:
     One hold or release of the QA quiet marker: held, released, or refused.
     hold!                         Quiet QA for a mint window: every tick step refuses to start while the marker is fresh
@@ -318,6 +321,10 @@ queries (nothing here changes anything):
     docs                    A domain's usage document, whole or for one aggregate.
     project_diagrams        A bluebook's Mermaid diagrams, as file names mapped to their text; nothing is written.
     glossary                A bluebook's Ubiquitous Language glossary, as file names mapped to their text; nothing is written.
+  Pusher:
+    One request against the repository's pusher: assigned to a session, or a boarding refused for not being it.
+    current                 The assigned pusher of the repository, or that none is assigned.
+    waiting                 Commits on local main the remote lacks: sha, author, landed branch, subject and files.
   QaQuiesce:
     One hold or release of the QA quiet marker: held, released, or refused.
     status                  Whether QA is quiesced: the marker's owner, reason and age, or that it is stale or absent.
@@ -363,6 +370,6 @@ bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
   expression       The subset of regular Ruby a predicate is allowed to be — small enough that every target can…
 
   hecks <command> --help       what one command wants, and every way it refuses
-  hecks --all                  also list the 279 internal commands and queries
+  hecks --all                  also list the 283 internal commands and queries
   a command is called with its aggregate — Build.project_rust!
   exit status: 0 answered, 1 refused or failed, 2 a line it could not read

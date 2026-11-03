@@ -128,6 +128,19 @@ Hecks.hecksagon "Hecks" do
     answers_query "Status"
   end
 
+  # Who may board the push train: the assignment is a marker in the repository's git directory, and
+  # the waiting read lists what landed on local main and is not on the remote.
+  Hecks::Pusher.port "Pushing" do
+    asks "Mark", to: Pusher do
+      attribute :run, RunKey
+      answers "PusherAnswered"
+      refuses "PusherRefused"
+    end
+
+    answers_query "Current"
+    answers_query "Waiting"
+  end
+
   Hecks::QaQuiesce.port "Quiescing" do
     asks "Mark", to: QaQuiesce do
       attribute :run, RunKey
