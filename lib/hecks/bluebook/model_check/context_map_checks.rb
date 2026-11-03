@@ -11,7 +11,8 @@ module Hecks
         include RedundantRelationships
 
         # @param rows [Array<Hash>] the `EdgeImplementation` rows, one per edge and kind
-        # @return [Hash{String => Array<Symbol>}] each derived edge kind to the kinds it may implement
+        # @return [Hash{String => Array<Symbol>}] each derived edge kind to the kinds it may
+        #   implement
         def self.kinds_by_edge(rows)
           rows.group_by { |row| row["edge"] }.transform_values { |edge_rows| edge_rows.map { |row| row["kind"].to_sym } }
         end

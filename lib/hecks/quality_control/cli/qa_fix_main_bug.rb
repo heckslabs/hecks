@@ -124,7 +124,8 @@ module Hecks
         "no mechanical fixer for #{check_id(row)}" unless QaMainGate::Logging.self_contained?(check_id(row), @runtime)
       end
 
-      # The states the Bug lifecycle marks `auto_fixable`: the command investigates a logged bug before
+      # The states the Bug lifecycle marks `auto_fixable`: the command investigates a logged bug
+      # before
       # it fixes it, because `Bug.Fix` moves only an investigating one.
       def fixable_states
         @fixable_states ||= Declared.marked(@runtime, "Bug", :auto_fixable)

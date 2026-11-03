@@ -91,7 +91,8 @@ module Hecks
           raise Release::Runner::Refusal, e.message
         end
 
-        # Whether every `ReleaseFile` row names the version (host release, README, lockfiles, client).
+        # Whether every `ReleaseFile` row names the version (host release, README, lockfiles,
+        # client).
         def files_agree?(version) = Release::Conditions.files_agree?(@tree.root, version)
 
         def tag_state(tag, head)

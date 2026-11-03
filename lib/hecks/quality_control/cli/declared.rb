@@ -4,9 +4,12 @@ require_relative "../../../hecks"
 
 module Hecks
   module QualityControlCli
-    # Reads what the QualityControl bluebook declares as data, so a rule lives once, in the bluebook, and
-    # the command that applies it asks the declaration instead of keeping a list of its own. A booted
-    # ledger answers for itself; a caller with none (a spec, a bare adapter) reads the declarations of
+    # Reads what the QualityControl bluebook declares as data, so a rule lives once, in the
+    # bluebook, and
+    # the command that applies it asks the declaration instead of keeping a list of its own. A
+    # booted
+    # ledger answers for itself; a caller with none (a spec, a bare adapter) reads the declarations
+    # of
     # this checkout's bluebook, loaded without binding any adapter.
     module Declared
       DIRECTORY = File.expand_path("..", __dir__)

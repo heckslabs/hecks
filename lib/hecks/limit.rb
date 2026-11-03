@@ -9,7 +9,8 @@ module Hecks
     # @param table [String] a vocabulary table of `name` and `value` rows
     # @param name [String] the row's name
     # @return [Integer] the row's value
-    # @raise [KeyError] if the table has no such row: a limit the language does not declare is a typo
+    # @raise [KeyError] if the table has no such row: a limit the language does not declare is a
+    #   typo
     def of(table, name)
       row = Hecks::Vocabulary.rows(table).find { |candidate| candidate["name"] == name }
       Integer(row.fetch("value"))

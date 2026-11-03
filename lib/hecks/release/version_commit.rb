@@ -47,7 +47,8 @@ module Hecks
             "--", VERSION_FILE)
       end
 
-      # @param reader [#read, nil] answers a git command in the checkout, as the release facts' runner
+      # @param reader [#read, nil] answers a git command in the checkout, as the release facts'
+      #   runner
       #   does; nil runs `git` in `dir`
       # @return [String] what git prints for the arguments
       def ask(dir, reader, *) = reader ? reader.read(*) : git(dir, *)

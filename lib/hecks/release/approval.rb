@@ -10,10 +10,13 @@ module Hecks
     # Releases are the owner's decision. A bump on `main` reaches `stable` by itself, so the bump
     # commit must say, in its message, that a release is wanted: a trailer line named by the
     # `release_trailer` of the `Lane` row a release is cut from, `Release-Approved-By: <name>`. The
-    # name must be one of the `ReleaseOwner` rows of the Vocabulary bluebook, the one list of who may
-    # approve a release. Two ways round a missing trailer exist and are declared: a tag for the version
+    # name must be one of the `ReleaseOwner` rows of the Vocabulary bluebook, the one list of who
+    # may
+    # approve a release. Two ways round a missing trailer exist and are declared: a tag for the
+    # version
     # already standing (`PublishingRun.Accept`'s `tag_state`), and a by-hand run whose `approved_by`
-    # names an owner. The decision is read from git history alone, so it can be made again on any later run. It reads
+    # names an owner. The decision is read from git history alone, so it can be made again on any
+    # later run. It reads
     # only the Vocabulary table, so `release.yml` can run it with the runner's own Ruby.
     module Approval
       # The key of a trailer line and the space after its colon: "Release-Approved-By: ".

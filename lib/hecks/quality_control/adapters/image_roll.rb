@@ -15,7 +15,8 @@ module Hecks
     # policy
     # waits for, or raise, which the runtime records as the refusal.
     class ImageRoll
-      # The repository this adapter reads changes from, and the one service it rolls. Which repository
+      # The repository this adapter reads changes from, and the one service it rolls. Which
+      # repository
       # and branch roll at all is the `RollRepo` and `RollBranch` declaration, which the chain's
       # `Consider` command enforces.
       PLATFORM_REPO = "heckslabs/embryonaut_platform"
@@ -46,7 +47,8 @@ module Hecks
         end
       end
 
-      # Whether one changed path is part of the console container's inputs, as the `ImageInput` rows of
+      # Whether one changed path is part of the console container's inputs, as the `ImageInput` rows
+      # of
       # the QualityControl bluebook declare them.
       #
       # @param path [String] a repository-relative path
@@ -87,7 +89,8 @@ module Hecks
       # remote CI alone, and an infra commit is held for a person.
       #
       # @param commit [Hash, String] the commit
-      # @param branch [Hash, String] the branch; `RollBranch` allows only main, which `Consider` enforces
+      # @param branch [Hash, String] the branch; `RollBranch` allows only main, which `Consider`
+      #   enforces
       # @param repo [Hash, String] `owner/name`; `RollRepo` allows only embryonaut_platform
       # @return [Hash] `commit`, `app`, `kind` and `paths`
       def classify(commit:, branch:, repo:, **)

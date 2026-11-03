@@ -12,8 +12,10 @@ module Hecks
         SUBMITTER = "qa_main_gate"
         NAME_PREFIX = "main-red-"
 
-        # Whether a mechanical fixer exists for a check, as the QualityControl bluebook's `MechanicalFix`
-        # rows declare: `rubocop -a` fixes the style offenses it can; metrics and the rest need a person.
+        # Whether a mechanical fixer exists for a check, as the QualityControl bluebook's
+        # `MechanicalFix`
+        # rows declare: `rubocop -a` fixes the style offenses it can; metrics and the rest need a
+        # person.
         #
         # @param check_id [String] the gate check, such as `rubocop`
         # @param source [#bluebook, nil] the booted ledger, or nil to read this checkout's bluebook
@@ -21,7 +23,8 @@ module Hecks
           Declared.rows(source, "Bug", "MechanicalFix").any? { |row| row[:check] == check_id }
         end
 
-        # A bug already open for the same check is not logged again (`Bug.OpenNamed`): the commit moved,
+        # A bug already open for the same check is not logged again (`Bug.OpenNamed`): the commit
+        # moved,
         # the red did not.
         # @return [Array(String, String, Boolean)] the reference, its disposition, and whether it
         #   was new

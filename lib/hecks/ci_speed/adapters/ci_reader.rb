@@ -135,7 +135,8 @@ module Hecks
       end
 
       # @return [Hash] the bluebook's `CacheMissRule` row: the step a job that materializes the
-      #   generated Rust shows for its composite action, and the seconds beyond which the cache missed
+      #   generated Rust shows for its composite action, and the seconds beyond which the cache
+      #   missed
       def miss_rule
         @miss_rule ||= rows_of("CacheMissRule").first
       end

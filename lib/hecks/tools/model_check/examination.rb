@@ -75,7 +75,8 @@ module Hecks
           end
         end
 
-        # Each context's classification (`core`, `supporting`, `generic`), as its bluebook declares it.
+        # Each context's classification (`core`, `supporting`, `generic`), as its bluebook declares
+        # it.
         #
         # @api private
         # @return [Hash{String => String}] only the contexts that declare one

@@ -5,7 +5,8 @@ module Hecks
     class Runner
       # The one check a release makes for itself: the tools it runs are installed.
       #
-      # Every rule about the tree (branch, lane, clean, versions, changelog, approval, tag) is a given
+      # Every rule about the tree (branch, lane, clean, versions, changelog, approval, tag) is a
+      # given
       # of `PublishingRun.Accept`, judged before a release is carried out and passed in as `Facts`;
       # none is repeated here.
       class Preflight
