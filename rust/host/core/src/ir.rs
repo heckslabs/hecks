@@ -264,6 +264,29 @@ pub fn identity_provider(domain_ir: &Value) -> Option<IdentityProvider> {
     })
 }
 
+/// The declared default of one `sign_in` verb (`session`, `handoff`, `sso_token`, `google_state`
+/// in whole seconds, or `email` as a pattern), from the attaching domain's own `provides` map.
+/// `None` when no attached bluebook provides `sign_in`, or the verb is not in it.
+pub fn sign_in_default<'a>(domain_ir: &'a Value, verb: &str) -> Option<&'a Value> {
+    domain_ir
+        .get("provides")?
+        .get("sign_in")?
+        .get(verb)?
+        .get("default")
+}
+
+/// The qualified verb a package capability names under `key` (for example `Signups::Signup.SignUp`
+/// for `provides "signup", sign_up:`), read from the attaching domain's own `provides` map.
+/// `None` when nothing attached provides `capability`, or it names no `key`.
+pub fn provided_verb(domain_ir: &Value, capability: &str, key: &str) -> Option<String> {
+    domain_ir
+        .get("provides")?
+        .get(capability)?
+        .get(key)?
+        .as_str()
+        .map(str::to_string)
+}
+
 /// Settings a world binding carries that are not adapter fields.
 const WORLD_EXEMPT_SETTINGS: &[&str] = &["adapter", "role"];
 

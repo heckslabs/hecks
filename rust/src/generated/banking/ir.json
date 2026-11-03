@@ -11270,7 +11270,7 @@
       },
       "email": {
         "attribute": "email_pattern",
-        "default": "\\A[^@[:space:]]+@[^[:space:]]*[.][^[:space:]]*\\z"
+        "default": "\\A[^@\\s]+@\\S*[.]\\S*\\z"
       }
     }
   },

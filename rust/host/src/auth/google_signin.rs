@@ -15,9 +15,6 @@ use crate::crypto::constant_time_eq;
 use std::collections::HashMap;
 use std::hash::BuildHasher;
 
-/// How long the browser keeps the cookie, in seconds: long enough to pick a Google account.
-pub const MAX_AGE_SECONDS: u32 = 600;
-
 const SECURE_NAME: &str = "__Host-hecks_google";
 const PLAIN_NAME: &str = "hecks_google";
 const SECURE_ATTRIBUTES: &str = "Path=/; HttpOnly; Secure; SameSite=Lax";
@@ -55,9 +52,11 @@ pub const fn cookie_name(secure: bool) -> &'static str {
 }
 
 /// The `Set-Cookie` value that stores `signin` in the browser.
-pub fn set_header(signin: &GoogleSignin, secure: bool) -> String {
+/// `max_age_secs` is the `google_state` lifetime the bluebook declares: long enough to pick a
+/// Google account.
+pub fn set_header(signin: &GoogleSignin, secure: bool, max_age_secs: u64) -> String {
     format!(
-        "{}={}.{}; Max-Age={MAX_AGE_SECONDS}; {}",
+        "{}={}.{}; Max-Age={max_age_secs}; {}",
         cookie_name(secure),
         signin.nonce,
         signin.state,
@@ -121,7 +120,7 @@ mod tests {
         let (one, two) = (GoogleSignin::fresh(), GoogleSignin::fresh());
         assert_ne!(one, two);
         assert_ne!(one.state, one.nonce);
-        let header = set_header(&one, true);
+        let header = set_header(&one, true, 600);
         let value = header
             .strip_prefix("__Host-hecks_google=")
             .and_then(|rest| rest.split(';').next())
@@ -134,7 +133,7 @@ mod tests {
 
     #[test]
     fn the_secure_cookie_is_host_prefixed_with_no_domain_and_lax() {
-        let header = set_header(&GoogleSignin::fresh(), true);
+        let header = set_header(&GoogleSignin::fresh(), true, 600);
         assert!(header.starts_with("__Host-hecks_google="), "{header}");
         for attribute in [
             "Path=/",
@@ -154,7 +153,7 @@ mod tests {
 
     #[test]
     fn a_plain_http_host_uses_the_bare_name_without_secure() {
-        let header = set_header(&GoogleSignin::fresh(), false);
+        let header = set_header(&GoogleSignin::fresh(), false, 600);
         assert!(header.starts_with("hecks_google="), "{header}");
         assert!(!header.contains("Secure"));
     }

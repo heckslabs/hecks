@@ -30,7 +30,7 @@ fn query_param(url: &str, name: &str) -> String {
 
 fn started() -> (Value, HashMap<String, String>) {
     crate::secrets::provide("GOOGLE_CLIENT_ID", "client-1".to_string());
-    let response = google_start();
+    let response = google_start(&members_domain_ir());
     let set = cookies_of(&response);
     assert_eq!(set.len(), 1, "{response:?}");
     let cookies = HashMap::from([cookie_pair(&set[0])]);
@@ -97,12 +97,12 @@ fn logout_clears_the_account_cookie_as_well_as_the_session_cookie() {
 }
 
 fn handoff(body: &Value) -> Value {
-    google_handoff_route(&body.to_string(), "s3cret")
+    google_handoff_route(&members_domain_ir(), &body.to_string(), "s3cret")
 }
 
 #[test]
 fn a_handoff_token_is_traded_once_for_the_account_token() {
-    let token = auth::handoff_token("s3cret", "zed@example.com");
+    let token = auth::handoff_token("s3cret", "zed@example.com", 60);
     let first = handoff(&json!({ "token": token }));
     assert_eq!(first["statusCode"], 200, "{first:?}");
     let body: Value = serde_json::from_str(first["body"].as_str().unwrap()).unwrap();
@@ -125,7 +125,7 @@ fn an_account_token_or_garbage_is_not_traded() {
         assert_eq!(handoff(&body)["statusCode"], 401, "{body}");
     }
     assert_eq!(
-        google_handoff_route("not json", "s3cret")["statusCode"],
+        google_handoff_route(&members_domain_ir(), "not json", "s3cret")["statusCode"],
         401
     );
 }

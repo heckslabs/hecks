@@ -362,7 +362,9 @@ async fn auth_route(
 
         ("GET", "/accounts/me") => Some(accounts_me_route(domain_ir, cookies, secret, store).await),
 
-        ("POST", "/accounts/google-handoff") => Some(google_handoff_route(raw_body, secret)),
+        ("POST", "/accounts/google-handoff") => {
+            Some(google_handoff_route(domain_ir, raw_body, secret))
+        }
 
         ("GET", "/members") => Some(members_route(domain_ir, cookies, secret, store).await),
 
@@ -373,7 +375,7 @@ async fn auth_route(
             .await,
         ),
 
-        ("POST", "/signups") => Some(signup_route(raw_body, secret, host).await),
+        ("POST", "/signups") => Some(signup_route(domain_ir, raw_body, secret, host).await),
 
         ("POST", "/members/disable") => Some(
             set_member_disabled_route(domain_ir, raw_body, cookies, secret, store, config, true)
@@ -400,7 +402,7 @@ async fn auth_route(
             Some(accounts_sso_token_route(domain_ir, cookies, secret, store).await)
         }
 
-        ("GET", "/auth/google") => Some(google_start()),
+        ("GET", "/auth/google") => Some(google_start(domain_ir)),
 
         // The sign-in cookie is cleared whatever the outcome: one cookie, one attempt.
         ("GET", "/auth/google/callback") => {
@@ -501,10 +503,7 @@ async fn admin_members_route(
             ),
         );
     }
-    if !email
-        .split_once('@')
-        .is_some_and(|(local, domain)| !local.is_empty() && domain.contains('.'))
-    {
+    if !auth::is_valid_email(domain_ir, &email) {
         return html(400, "<p>Give a valid email.</p>");
     }
     let days = match expiry_days(
@@ -687,10 +686,7 @@ pub(crate) async fn add_member_route(
             .unwrap_or_default()
     };
     let (email, name) = (field("email"), field("name"));
-    let looks_like_email = email.split_once('@').is_some_and(|(local, domain)| {
-        !local.is_empty() && domain.contains('.') && !email.contains(char::is_whitespace)
-    });
-    if name.is_empty() || !looks_like_email {
+    if name.is_empty() || !auth::is_valid_email(domain_ir, &email) {
         return json_error(400, "a name and a valid email are required");
     }
     let role = match body.get("role") {
@@ -744,9 +740,9 @@ pub(crate) async fn add_member_route(
 // The `purpose_token` purpose a `POST /signups` call must carry.
 const SIGNUP_PURPOSE: &str = "signup";
 
-// POST /signups: dispatches Signups::Signup.SignUp as System, gated by
-// a signup-purpose token rather than a session cookie (nobody is signed in yet).
-async fn signup_route(raw_body: &str, secret: &str, host: Host<'_>) -> Value {
+// POST /signups: dispatches the command the attached bluebook provides as `signup` (`sign_up`)
+// as System, gated by a signup-purpose token rather than a session cookie (nobody is signed in yet).
+async fn signup_route(domain_ir: &Value, raw_body: &str, secret: &str, host: Host<'_>) -> Value {
     let body: Value = serde_json::from_str(raw_body).unwrap_or(Value::Null);
     let field = |key: &str| {
         body.get(key)
@@ -760,16 +756,18 @@ async fn signup_route(raw_body: &str, secret: &str, host: Host<'_>) -> Value {
     }
 
     let (email, name) = (field("email").to_lowercase(), field("name"));
-    let looks_like_email = email.split_once('@').is_some_and(|(local, domain)| {
-        !local.is_empty() && domain.contains('.') && !email.contains(char::is_whitespace)
-    });
-    if name.is_empty() || !looks_like_email {
+    if name.is_empty() || !auth::is_valid_email(domain_ir, &email) {
         return json_error(400, "a name and a valid email are required");
     }
+    let Some(sign_up) = crate::ir::provided_verb(domain_ir, "signup", "sign_up") else {
+        return json_error(
+            404,
+            "this domain attaches no bluebook that provides \"signup\" with sign_up:",
+        );
+    };
 
     let args = json!({"email": {"value": email}, "name": {"value": name}});
-    let outcome = match dispatch::handle(host, "Signups::Signup.SignUp", args, Some("System")).await
-    {
+    let outcome = match dispatch::handle(host, &sign_up, args, Some("System")).await {
         Ok(o) => o,
         Err(e) => return json_error(500, &format!("{e:#}")),
     };
@@ -1020,12 +1018,15 @@ async fn accounts_sso_token_route(
     secret: &str,
     store: &Store,
 ) -> Value {
-    const SSO_TOKEN_TTL_SECS: u64 = 60;
+    let lifetimes = match auth::Lifetimes::declared(domain_ir) {
+        Ok(lifetimes) => lifetimes,
+        Err(message) => return json_error(500, &message),
+    };
     let email = match active_session_email(domain_ir, cookies, secret, store).await {
         Ok(email) => email,
         Err(response) => return response,
     };
-    let sso_token = auth::account_token(secret, &email, SSO_TOKEN_TTL_SECS);
+    let sso_token = auth::account_token(secret, &email, lifetimes.sso_token);
     respond(
         200,
         "application/json",
@@ -1046,12 +1047,16 @@ fn logout_response() -> Value {
 
 // Starts a Google sign-in bound to this browser: the cookie set here holds the state and nonce
 // the callback must bring back (auth/google_signin.rs).
-fn google_start() -> Value {
+fn google_start(domain_ir: &Value) -> Value {
+    let lifetimes = match auth::Lifetimes::declared(domain_ir) {
+        Ok(lifetimes) => lifetimes,
+        Err(message) => return json_error(500, &message),
+    };
     let signin = auth::GoogleSignin::fresh();
     match auth::authorization_url(&redirect_uri(), &signin) {
         Ok(url) => redirect_with_cookie(
             &url,
-            &auth::google_signin_set_header(&signin, secure_cookies()),
+            &auth::google_signin_set_header(&signin, secure_cookies(), lifetimes.google_state),
         ),
         Err(e) => respond(
             500,
@@ -1081,14 +1086,18 @@ fn google_signin_for(
 
 // A site on another origin than this host trades the handoff token from the callback's redirect
 // for the account token here, server-to-server, so the long-lived token never rides a URL.
-fn google_handoff_route(raw_body: &str, secret: &str) -> Value {
+fn google_handoff_route(domain_ir: &Value, raw_body: &str, secret: &str) -> Value {
     static SPENT: OnceLock<JtiStore> = OnceLock::new();
     let spent = SPENT.get_or_init(JtiStore::new);
+    let lifetimes = match auth::Lifetimes::declared(domain_ir) {
+        Ok(lifetimes) => lifetimes,
+        Err(message) => return json_error(500, &message),
+    };
     let token = serde_json::from_str::<Value>(raw_body)
         .ok()
         .and_then(|body| body.get("token")?.as_str().map(str::to_string));
     token
-        .and_then(|token| auth::redeem_handoff_token(secret, &token, spent))
+        .and_then(|token| auth::redeem_handoff_token(secret, &token, spent, lifetimes.session))
         .map_or_else(
             || {
                 json_error(
@@ -1203,15 +1212,19 @@ async fn google_callback(
     // host's own session cookie. Cross-origin, a cookie here would never
     // reach the site, so a one-minute handoff token goes to its
     // /api/google-handoff, which trades it at /accounts/google-handoff.
+    let lifetimes = match auth::Lifetimes::declared(domain_ir) {
+        Ok(lifetimes) => lifetimes,
+        Err(message) => return json_error(500, &message),
+    };
     let site = site_url();
     let site = site.trim_end_matches('/');
     if same_origin(site, &redirect_uri()) {
-        let token = auth::account_token(secret, &session.email, auth::SESSION_TTL_SECS);
+        let token = auth::account_token(secret, &session.email, lifetimes.session);
         let cookie = format!(
             "{}={token}{}; Max-Age={}",
             auth::account_cookie_name(),
             cookie_flags(),
-            auth::SESSION_TTL_SECS
+            lifetimes.session
         );
         redirect_with_cookie("/admin.html", &cookie)
     } else {
@@ -1219,7 +1232,11 @@ async fn google_callback(
         redirect(&format!(
             "{}/api/google-handoff?token={}",
             site,
-            auth::urlencode(&auth::handoff_token(secret, &session.email))
+            auth::urlencode(&auth::handoff_token(
+                secret,
+                &session.email,
+                lifetimes.handoff
+            ))
         ))
     }
 }
@@ -2649,6 +2666,27 @@ fn respond_with_cookie(status: u16, content_type: &str, body: &str, cookie: &str
     json!({"statusCode": status, "headers": {"content-type": content_type}, "cookies": [cookie], "body": body, "isBase64Encoded": false})
 }
 
+/// A members domain whose IR declares the `sign_in` settings and the `signup` capability, the way
+/// an attaching bluebook does (`ir.json`'s `provides` map).
+#[cfg(test)]
+pub(crate) fn members_domain_ir() -> Value {
+    json!({
+        "name": "Acme",
+        "lineage": {"capable_aggregates": [{"name": "Member", "storage_name": "member"}]},
+        "membership": {"provider": "Acme", "aggregate": "Acme::Member"},
+        "provides": {
+            "sign_in": {
+                "session": {"attribute": "session_seconds", "default": 1_209_600},
+                "handoff": {"attribute": "handoff_seconds", "default": 60},
+                "sso_token": {"attribute": "sso_token_seconds", "default": 60},
+                "google_state": {"attribute": "google_state_seconds", "default": 600},
+                "email": {"attribute": "email_pattern", "default": "\\A[^@\\s]+@\\S*[.]\\S*\\z"},
+            },
+            "signup": {"provider": "Onboarding", "sign_up": "Onboarding::Signup.SignUp"},
+        },
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -3243,7 +3281,7 @@ mod tests {
         let mut cookies = HashMap::new();
         cookies.insert(
             "session".to_string(),
-            auth::session_cookie(&session_secret(), &session),
+            auth::session_cookie(&session_secret(), &session, 1_209_600),
         );
         cookies
     }
@@ -3530,12 +3568,7 @@ mod tests {
                 .await
                 .unwrap();
         }
-        let domain_ir = json!({
-            "name": "Acme",
-            "lineage": {"capable_aggregates": [{"name": "Member", "storage_name": "member"}]},
-            "membership": {"provider": "Acme", "aggregate": "Acme::Member"},
-        });
-        (client, domain_ir)
+        (client, members_domain_ir())
     }
 
     #[tokio::test]
@@ -3678,6 +3711,7 @@ mod tests {
             wrong_secret.as_str(),
         ] {
             let response = signup_route(
+                &domain_ir,
                 &body(token),
                 secret,
                 Host::new(
@@ -3698,6 +3732,7 @@ mod tests {
             );
         }
         let unparseable = signup_route(
+            &domain_ir,
             "not json",
             secret,
             Host::new(
@@ -3719,7 +3754,7 @@ mod tests {
     #[tokio::test]
     async fn signup_route_rejects_a_blank_or_malformed_name_or_email_with_a_400() {
         let secret = "s3cret";
-        let (client, _) = scratch_members_db("hecks_host_web_test_signup_400").await;
+        let (client, domain_ir) = scratch_members_db("hecks_host_web_test_signup_400").await;
         let token = auth::purpose_token(secret, SIGNUP_PURPOSE, json!({}), 60);
 
         for (email, name) in [
@@ -3732,6 +3767,7 @@ mod tests {
         ] {
             let body = json!({"token": token, "email": email, "name": name}).to_string();
             let response = signup_route(
+                &domain_ir,
                 &body,
                 secret,
                 Host::new(

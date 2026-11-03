@@ -28,7 +28,7 @@ fn a_signed_cookie_reads_back_as_the_session_it_was_made_from() {
             let mut rng = Rng::new(seed);
             for _ in 0..30 {
                 let original = session(&mut rng);
-                let cookie = session_cookie(SECRET, &original);
+                let cookie = session_cookie(SECRET, &original, 1_209_600);
                 let read = parse_session_cookie(SECRET, &cookie).unwrap_or_else(|| {
                     panic!("seed {seed}: own cookie for {:?} refused", original.email)
                 });
@@ -56,7 +56,7 @@ fn no_arbitrary_or_tampered_token_ever_verifies() {
     for seed in 0..seeds() {
         guarded(&format!("seed {seed}"), move || {
             let mut rng = Rng::new(seed ^ 0x70C);
-            let genuine_cookie = session_cookie(SECRET, &session(&mut rng));
+            let genuine_cookie = session_cookie(SECRET, &session(&mut rng), 1_209_600);
             let genuine_account = account_token(SECRET, &random_text(&mut rng), 60);
             let genuine_purpose =
                 purpose_token(SECRET, "reset", json!({"email": random_text(&mut rng)}), 60);

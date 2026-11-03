@@ -255,27 +255,88 @@ fn purpose_key(secret: &str, purpose: &str) -> String {
 }
 
 const HANDOFF_PURPOSE: &str = "google-handoff";
-const HANDOFF_TTL_SECS: u64 = 60;
 
-/// A one-minute, single-use stand-in for `email`'s account token. It rides the redirect onto a
-/// site on another origin, where a URL is logged and kept in history, and the site trades it for
-/// the account token server-to-server (`redeem_handoff_token`).
-pub fn handoff_token(secret: &str, email: &str) -> String {
+/// The sign-in lifetimes the bluebook that provides `sign_in` declares, in whole seconds. Read
+/// from the attaching domain's IR, never hard-coded here: a domain that declares none cannot
+/// mint a session, a handoff or an SSO token.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Lifetimes {
+    /// How long a session cookie, and the account token minted beside it, stays valid.
+    pub session: u64,
+    /// How long a one-shot handoff token stays redeemable.
+    pub handoff: u64,
+    /// How long an SSO token, handed to the CMS, stays valid.
+    pub sso_token: u64,
+    /// How long the browser keeps the Google sign-in state cookie.
+    pub google_state: u64,
+}
+
+impl Lifetimes {
+    /// The declared lifetimes of `domain_ir`.
+    ///
+    /// # Errors
+    /// Names the first lifetime the attaching domain does not declare, and the line that adds it.
+    pub fn declared(domain_ir: &Value) -> Result<Self, String> {
+        let seconds = |verb: &str| {
+            crate::ir::sign_in_default(domain_ir, verb)
+                .and_then(Value::as_u64)
+                .filter(|seconds| *seconds > 0)
+                .ok_or_else(|| {
+                    format!(
+                        "this domain declares no sign_in {verb} lifetime: attach a bluebook that provides \"sign_in\" with {verb}:"
+                    )
+                })
+        };
+        Ok(Self {
+            session: seconds("session")?,
+            handoff: seconds("handoff")?,
+            sso_token: seconds("sso_token")?,
+            google_state: seconds("google_state")?,
+        })
+    }
+}
+
+/// The one email rule, declared as the `email` verb of `sign_in` and read from the attaching
+/// domain's IR: a local part, one `@`, and a domain containing a dot, with no whitespace.
+///
+/// # Errors
+/// When no attached bluebook declares the rule, or the declared pattern is not a regular expression.
+pub fn email_rule(domain_ir: &Value) -> Result<regex::Regex, String> {
+    let pattern = crate::ir::sign_in_default(domain_ir, "email")
+        .and_then(Value::as_str)
+        .ok_or_else(|| {
+            "this domain declares no sign_in email rule: attach a bluebook that provides \"sign_in\" with email:".to_string()
+        })?;
+    regex::Regex::new(pattern)
+        .map_err(|e| format!("the declared sign_in email rule is not a pattern: {e}"))
+}
+
+/// Whether `email` meets the declared email rule. A domain that declares none accepts nothing.
+pub fn is_valid_email(domain_ir: &Value, email: &str) -> bool {
+    email_rule(domain_ir).is_ok_and(|rule| rule.is_match(email))
+}
+
+/// A one-shot, single-use stand-in for `email`'s account token, valid for `ttl_secs`. It rides the
+/// redirect onto a site on another origin, where a URL is logged and kept in history, and the site
+/// trades it for the account token server-to-server (`redeem_handoff_token`).
+pub fn handoff_token(secret: &str, email: &str, ttl_secs: u64) -> String {
     let jti = uuid::Uuid::new_v4().simple().to_string();
     purpose_token(
         secret,
         HANDOFF_PURPOSE,
         json!({ "email": email, "jti": jti }),
-        HANDOFF_TTL_SECS,
+        ttl_secs,
     )
 }
 
-/// The account token a handoff token stands for, the first time it is redeemed; `None` when it is
-/// forged, expired, minted for another purpose, or already spent in `spent`.
+/// The account token a handoff token stands for, the first time it is redeemed, valid for
+/// `session_ttl_secs`; `None` when it is forged, expired, minted for another purpose, or already
+/// spent in `spent`.
 pub fn redeem_handoff_token(
     secret: &str,
     token: &str,
     spent: &crate::platform_signin::jti::JtiStore,
+    session_ttl_secs: u64,
 ) -> Option<String> {
     let claims = verify_purpose_token(secret, HANDOFF_PURPOSE, token)?;
     let email = claims.get("email")?.as_str()?;
@@ -284,19 +345,16 @@ pub fn redeem_handoff_token(
     let now = i64::try_from(now_secs()).ok()?;
     spent
         .claim(jti, expires_at + 1, now)
-        .then(|| account_token(secret, email, SESSION_TTL_SECS))
+        .then(|| account_token(secret, email, session_ttl_secs))
 }
 
-/// How long a session cookie, and the account token minted beside it, stays valid.
-pub const SESSION_TTL_SECS: u64 = 60 * 60 * 24 * 14;
-
-pub fn session_cookie(secret: &str, session: &Session) -> String {
+pub fn session_cookie(secret: &str, session: &Session, session_ttl_secs: u64) -> String {
     let payload = json!({
         "identity_id": session.identity_id,
         "email": session.email,
         "name": session.name,
         "role": session.role,
-        "exp": now_secs() + SESSION_TTL_SECS,
+        "exp": now_secs() + session_ttl_secs,
     });
     let encoded = b64::url_encode(payload.to_string().as_bytes());
     format!("{encoded}.{}", sign(secret, &encoded))
@@ -1344,7 +1402,7 @@ mod tests {
             name: "Chris Young".to_string(),
             role: Some("Admin".to_string()),
         };
-        let cookie = session_cookie("s3cret", &session);
+        let cookie = session_cookie("s3cret", &session, 1_209_600);
         let parsed =
             parse_session_cookie("s3cret", &cookie).expect("should parse with the right secret");
         assert_eq!(parsed.identity_id, "id-1");
@@ -1389,23 +1447,113 @@ mod tests {
     #[test]
     fn a_handoff_token_is_redeemed_once_for_the_account_token() {
         let spent = crate::platform_signin::jti::JtiStore::new();
-        let handoff = handoff_token("s3cret", "zed@example.com");
+        let handoff = handoff_token("s3cret", "zed@example.com", 60);
         assert_eq!(verify_account_token("s3cret", &handoff), None);
-        let account = redeem_handoff_token("s3cret", &handoff, &spent).unwrap();
+        let account = redeem_handoff_token("s3cret", &handoff, &spent, 1_209_600).unwrap();
         assert_eq!(
             verify_account_token("s3cret", &account).as_deref(),
             Some("zed@example.com")
         );
-        assert_eq!(redeem_handoff_token("s3cret", &handoff, &spent), None);
+        assert_eq!(
+            redeem_handoff_token("s3cret", &handoff, &spent, 1_209_600),
+            None
+        );
+    }
+
+    /// The `sign_in` verbs as an attaching bluebook's IR carries them, with the declared defaults.
+    fn declared_sign_in() -> Value {
+        json!({"provides": {"sign_in": {
+            "session": {"attribute": "session_seconds", "default": 1_209_600},
+            "handoff": {"attribute": "handoff_seconds", "default": 60},
+            "sso_token": {"attribute": "sso_token_seconds", "default": 60},
+            "google_state": {"attribute": "google_state_seconds", "default": 600},
+            "email": {"attribute": "email_pattern", "default": "\\A[^@\\s]+@\\S*[.]\\S*\\z"},
+        }}})
+    }
+
+    #[test]
+    fn lifetimes_are_read_from_the_declared_sign_in_verbs_and_named_when_missing() {
+        assert_eq!(
+            Lifetimes::declared(&declared_sign_in()),
+            Ok(Lifetimes {
+                session: 1_209_600,
+                handoff: 60,
+                sso_token: 60,
+                google_state: 600
+            })
+        );
+        let undeclared =
+            json!({"provides": {"sign_in": {"session": {"attribute": "s", "default": 1}}}});
+        let message = Lifetimes::declared(&undeclared).unwrap_err();
+        assert!(message.contains("sign_in handoff lifetime"), "{message}");
+        assert!(Lifetimes::declared(&json!({})).is_err());
+    }
+
+    #[test]
+    fn the_declared_email_rule_accepts_what_both_old_variants_accepted_and_nothing_else() {
+        // The two checks the host carried by hand: a non-empty local part before the first `@`,
+        // a dot somewhere after it, and (the stricter variant) no whitespace anywhere.
+        let strict = |email: &str| {
+            email.split_once('@').is_some_and(|(local, domain)| {
+                !local.is_empty() && domain.contains('.') && !email.contains(char::is_whitespace)
+            })
+        };
+        let loose = |email: &str| {
+            email
+                .split_once('@')
+                .is_some_and(|(local, domain)| !local.is_empty() && domain.contains('.'))
+        };
+        let ir = declared_sign_in();
+        let samples = [
+            "ada@example.com",
+            "a.b+c@sub.example.co.uk",
+            "x@y.z",
+            "a@b@c.d",
+            "ada@localhost",
+            "@example.com",
+            "ada@",
+            "ada@example",
+            "ada @example.com",
+            "ada@exa mple.com",
+            "ada\t@example.com",
+            "ada@example.com\n",
+            "ünï@exämple.de",
+            "a@.",
+            "a@b.",
+        ];
+        for email in samples {
+            assert_eq!(
+                is_valid_email(&ir, email),
+                strict(email),
+                "declared rule on {email:?}"
+            );
+            if !email.contains(char::is_whitespace) {
+                assert_eq!(
+                    is_valid_email(&ir, email),
+                    loose(email),
+                    "the rule agrees with the admin variant on {email:?}"
+                );
+            }
+        }
+        assert!(
+            !is_valid_email(&json!({}), "ada@example.com"),
+            "no declared rule accepts nothing"
+        );
     }
 
     #[test]
     fn an_account_or_foreign_token_is_not_a_handoff_token() {
         let spent = crate::platform_signin::jti::JtiStore::new();
         let account = account_token("s3cret", "zed@example.com", 60);
-        assert_eq!(redeem_handoff_token("s3cret", &account, &spent), None);
-        let handoff = handoff_token("other-secret", "zed@example.com");
-        assert_eq!(redeem_handoff_token("s3cret", &handoff, &spent), None);
+        assert_eq!(
+            redeem_handoff_token("s3cret", &account, &spent, 1_209_600),
+            None
+        );
+        let handoff = handoff_token("other-secret", "zed@example.com", 60);
+        assert_eq!(
+            redeem_handoff_token("s3cret", &handoff, &spent, 1_209_600),
+            None
+        );
     }
 
     #[test]

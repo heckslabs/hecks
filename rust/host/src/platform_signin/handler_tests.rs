@@ -146,7 +146,7 @@ async fn the_account_cookie_carries_the_hosts_flags_and_lifetime() {
             "HttpOnly",
             "Secure",
             "SameSite=Lax",
-            &format!("Max-Age={}", auth::SESSION_TTL_SECS)
+            &format!("Max-Age={}", 1_209_600)
         ]
     );
 }

@@ -105,7 +105,7 @@ Hecks.bluebook "Identity" do
     attribute :handoff_seconds,      Seconds,      default: { value: 60 }
     attribute :sso_token_seconds,    Seconds,      default: { value: 60 }
     attribute :google_state_seconds, Seconds,      default: { value: 600 }
-    attribute :email_pattern,        EmailPattern, default: { value: '\A[^@[:space:]]+@[^[:space:]]*[.][^[:space:]]*\z' }
+    attribute :email_pattern,        EmailPattern, default: { value: '\A[^@\s]+@\S*[.]\S*\z' }
 
     identified_by :settings_key
 

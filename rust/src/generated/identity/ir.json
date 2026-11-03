@@ -506,7 +506,7 @@
           "type": "EmailPattern",
           "list": false,
           "default": {
-            "value": "\\A[^@[:space:]]+@[^[:space:]]*[.][^[:space:]]*\\z"
+            "value": "\\A[^@\\s]+@\\S*[.]\\S*\\z"
           },
           "optional": false,
           "pattern": null,

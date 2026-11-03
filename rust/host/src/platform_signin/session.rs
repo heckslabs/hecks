@@ -92,20 +92,21 @@ pub fn role_drift(claims: &VerifiedClaims, session: &Session) -> Option<RoleDrif
     })
 }
 
+/// The session lifetime of the platform sign-in flow. Still a host constant: the platform
+/// extension is built from env vars with no domain IR in hand, so it does not yet read the
+/// `sign_in` session lifetime the Identity bluebook declares (`auth::Lifetimes`). Keep the two equal
+/// until that wiring lands.
+const SESSION_TTL_SECS: u64 = 60 * 60 * 24 * 14;
+
 /// Builds the signed-in response: the account cookie, the cleared sign-in cookie, and a redirect
 /// to the landing page.
 pub fn signed_in(settings: &SigninSettings, session: &Session) -> Value {
-    let token = auth::account_token(
-        &settings.session_secret,
-        &session.email,
-        auth::SESSION_TTL_SECS,
-    );
+    let token = auth::account_token(&settings.session_secret, &session.email, SESSION_TTL_SECS);
     // The site address decides Secure: the redirect URI of a Google client may be absent.
     let flags = crate::web::account_cookie_flags("", &settings.site_url);
     let account = format!(
         "{}={token}{flags}; Max-Age={}",
-        settings.account_cookie,
-        auth::SESSION_TTL_SECS
+        settings.account_cookie, SESSION_TTL_SECS
     );
     pages::redirect(LANDING_PATH, &[account, cookie::clear_header()])
 }
