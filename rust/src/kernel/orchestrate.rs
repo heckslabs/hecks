@@ -11,7 +11,11 @@ pub const MAX_REACTION_DEPTH: usize = 5;
 
 /// The depth a reaction's own dispatch runs at: one deeper, or back at zero for a root reaction.
 fn reaction_depth(root: bool, depth: usize) -> usize {
-    if root { 0 } else { depth + 1 }
+    if root {
+        0
+    } else {
+        depth + 1
+    }
 }
 
 /// One `policy` block whose target lives in this domain.
@@ -847,7 +851,14 @@ impl<S: AggregateScan> Cascade<'_, S> {
                         policy.target_verb,
                         &tables,
                     );
-                    let outcome = self.run(policy.target_verb, &args, None, None, None, reaction_depth(policy.root, depth));
+                    let outcome = self.run(
+                        policy.target_verb,
+                        &args,
+                        None,
+                        None,
+                        None,
+                        reaction_depth(policy.root, depth),
+                    );
                     match outcome {
                         Ok(()) => self
                             .reaction_log
@@ -864,7 +875,14 @@ impl<S: AggregateScan> Cascade<'_, S> {
             // No `with:`: the whole payload forwards verbatim. Reactions are system-triggered, so
             // no caller role, and only saga legs stamp a correlation.
             let args = trigger_args(policy, event, None, policy.target_verb, &tables);
-            let outcome = self.run(policy.target_verb, &args, None, None, None, reaction_depth(policy.root, depth));
+            let outcome = self.run(
+                policy.target_verb,
+                &args,
+                None,
+                None,
+                None,
+                reaction_depth(policy.root, depth),
+            );
             match outcome {
                 Ok(()) => self
                     .reaction_log
@@ -1991,7 +2009,8 @@ mod tests {
             target_verb: "Other::Review.Open",
             where_expr: None,
             for_each: None,
-            for_each_key: None, root: false,
+            for_each_key: None,
+            root: false,
             with_spec: &[("subject_key", ":id"), ("subject_kind", "\"box\"")],
         }
     }
@@ -2473,7 +2492,8 @@ mod tests {
             target_verb: "Test::Note",
             where_expr: None,
             for_each: None,
-            for_each_key: None, root: false,
+            for_each_key: None,
+            root: false,
             with_spec: &[],
         }];
         static CROSS_DOMAIN_POLICIES: &[CrossDomainPolicyRule] = &[];

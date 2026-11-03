@@ -359,6 +359,7 @@
       "ask": "run",
       "target_domain": null,
       "expect_undelivered": false,
+      "root": false,
       "where": null,
       "for_each": null,
       "with_spec": [
@@ -375,6 +376,7 @@
       "ask": "audit",
       "target_domain": null,
       "expect_undelivered": false,
+      "root": false,
       "where": null,
       "for_each": null,
       "with_spec": [
@@ -391,6 +393,7 @@
       "trigger_command": "Job.Settle",
       "target_domain": null,
       "expect_undelivered": false,
+      "root": false,
       "where": null,
       "for_each": null,
       "with_spec": [
@@ -407,6 +410,7 @@
       "trigger_command": "Job.Abandon",
       "target_domain": null,
       "expect_undelivered": false,
+      "root": false,
       "where": null,
       "for_each": null,
       "with_spec": [
