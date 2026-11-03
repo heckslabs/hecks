@@ -34372,6 +34372,87 @@
           ]
         },
         {
+          "name": "PublishingRule",
+          "attributes": [
+            {
+              "name": "name",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": true,
+          "members": [
+            [
+              [
+                "name",
+                "version_line"
+              ],
+              [
+                "value",
+                "^ *VERSION = "
+              ]
+            ],
+            [
+              [
+                "name",
+                "push_attempts"
+              ],
+              [
+                "value",
+                "4"
+              ]
+            ],
+            [
+              [
+                "name",
+                "push_backoff_seconds"
+              ],
+              [
+                "value",
+                "15"
+              ]
+            ],
+            [
+              [
+                "name",
+                "push_done_pattern"
+              ],
+              [
+                "value",
+                "already exists|repushing of gem versions is not allowed"
+              ]
+            ],
+            [
+              [
+                "name",
+                "push_refused_pattern"
+              ],
+              [
+                "value",
+                "401|403|unauthorized|forbidden|access denied|not authorized|invalid api key|scope"
+              ]
+            ]
+          ]
+        },
+        {
           "name": "GateCheck",
           "attributes": [
             {
