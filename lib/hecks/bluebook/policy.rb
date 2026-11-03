@@ -16,7 +16,6 @@ module Hecks
         ask:                :ask,
         target_domain:      :target_domain,
         expect_undelivered: :expect_undelivered,
-        root:               :root,
         where:              :where,
         for_each:           :for_each,
         with_spec:          -> { with_spec.map { |key, value| [key.to_s, Bluebook.render_value(value)] } },
