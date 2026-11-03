@@ -25,14 +25,6 @@ module Hecks
         # @return [Array<Plan::Row>] the started rows
         def started = rows("started").map(&:last)
 
-        # @return [Array<Hash>] every lesson the Tickets store holds, as {LessonTraps} reads it
-        def lessons
-          aggregate = find("Tickets", "Lesson")
-          return [] unless aggregate
-
-          @registry.repository("Tickets", aggregate).all.map { |record| lesson(record) }
-        end
-
         # @return [Hash{String => Hash}] each agent run's key with its `status:` and `condition:`
         def runs
           aggregate = find("Hecks", "AgentRun")
@@ -59,12 +51,6 @@ module Hecks
         end
 
         def state(run) = { status: field(run, :status).to_s, condition: field(run, :condition).to_s }
-
-        def lesson(record)
-          { kind: field(record, :kind).to_s, signature: StartedWork.words(field(record, :signature)),
-            cause: field(record, :cause).to_s, check: field(record, :check).to_s, fix: field(record, :fix).to_s,
-            always: field(record, :always).to_s, area: StartedWork.words(field(record, :area)) }
-        end
 
         def step(record) = field(record, :step) || Float::INFINITY
 

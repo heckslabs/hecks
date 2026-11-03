@@ -34,10 +34,10 @@ module Hecks
         # @param minutes [Integer] the time budget of the row
         # @param limit [Integer, nil] the most spec files a session runs per call, from the world
         # @return [String] one line: the session started, or why the row went back to the plan
-        def launch(row, held:, minutes:, limit: nil, **lines)
+        def launch(row, held:, frozen:, minutes:, limit: nil)
           step(row, "pull main", pull_argv)
           step(row, "start", start_argv(row, minutes))
-          text = BriefText.new(composed(row)).render(row.key, area: row.area, limit: limit, held: held, **lines)
+          text = BriefText.new(composed(row)).render(row.key, area: row.area, held: held, frozen: frozen, limit: limit)
           step(row, "dispatch", dispatch_argv(row, text))
           "started #{row.key}"
         rescue ConsoleCapture::Failure => e
