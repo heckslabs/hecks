@@ -76,7 +76,7 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
 .lane { position: relative; height: 22px; border-bottom: 1px solid var(--grid); }
 .lane .tag { position: absolute; left: 4px; top: 2px; font-size: 11px; color: var(--ink2); z-index: 2; white-space: nowrap; pointer-events: none; }
 .lane .span { position: absolute; top: 3px; height: 16px; border-radius: 4px; min-width: 6px; opacity: .85; }
-.span.busy { background: var(--series1); } .span.done { background: var(--good); } .span.failed { background: var(--critical); }
+.span.busy { background: var(--series1); } .span.done { background: var(--good); } .span.failed { background: var(--critical); } .span.blocked { background: var(--warning); }
 .hours { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); margin-top: 2px; }
 .legend { display: flex; gap: 14px; font-size: 12px; color: var(--ink2); margin: 6px 0; flex-wrap: wrap; }
 .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; }
@@ -163,6 +163,11 @@ function h(tag, attrs, ...kids) {
 }
 function put(id, ...kids) { const el = $(id); el.replaceChildren(...kids.flat()); }
 function badge(state) { return h("span", { class: "badge " + state }, ICON[state] || "?", " ", WORD[state] || state); }
+/* A blocked session is waiting on a person: amber, not green. */
+function sessionBadge(status) {
+  if (status === "blocked") return h("span", { class: "badge attention" }, ICON.attention, " blocked");
+  return badge(status === "busy" ? "working" : status === "failed" ? "failed" : "ok");
+}
 function isUnknown(x) { return x && !Array.isArray(x) && typeof x === "object" && "unknown" in x; }
 function unknown(x) { return h("p", { class: "unknown-note" }, "unknown: " + x.unknown); }
 function clock(iso) { if (!iso) return "-"; const d = new Date(iso); return isNaN(d) ? String(iso) : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }); }
@@ -218,20 +223,21 @@ function renderWork(work) {
 }
 function renderSessions(list) {
   if (isUnknown(list)) return put("sessions", unknown(list));
-  put("sessions", table(["Session", "Status", "Work item", "Started", "Detail"], list.map((s) => [s.name, [badge(s.status === "busy" ? "working" : s.status === "failed" ? "failed" : "ok"), " ", s.state], s.row || "-", clock(s.started), s.detail])));
+  put("sessions", table(["Session", "Status", "Work item", "Started", "Detail"], list.map((s) => [s.name, [sessionBadge(s.status), " ", s.state], s.row || "-", clock(s.started), s.detail])));
 }
 function renderFan(fan) {
   if (isUnknown(fan)) { for (const id of ["lanes", "meters", "flags", "fill", "mapping", "lanetable"]) put(id, unknown(fan)); return; }
   const sessions = fan.sessions.filter((s) => s.started), now = Date.now(), span = 24 * 3600 * 1000, start = now - span;
-  put("lanelegend", ["busy", "done", "failed"].map((k) => h("span", {}, h("i", { class: "swatch span " + k }), (k === "busy" ? "◔ busy" : k === "done" ? "✓ done" : "✕ failed"))));
+  const GLYPH = { busy: "◔ busy", blocked: "▲ blocked on you", done: "✓ done", failed: "✕ failed" };
+  put("lanelegend", Object.keys(GLYPH).map((k) => h("span", {}, h("i", { class: "swatch span " + k }), GLYPH[k])));
   put("lanes", h("div", { class: "lanes" }, sessions.map((s) => {
     const a = Math.max(start, Date.parse(s.started)), b = s.ended ? Date.parse(s.ended) : now;
     const left = 100 * (a - start) / span, width = Math.max(0.5, 100 * (Math.min(b, now) - a) / span);
-    return h("div", { class: "lane" }, h("div", { class: "tag" }, (s.status === "busy" ? "◔ " : s.status === "failed" ? "✕ " : "✓ ") + s.name + (s.row ? " · " + s.row : "")),
+    return h("div", { class: "lane" }, h("div", { class: "tag" }, (GLYPH[s.status] || GLYPH.done).slice(0, 2) + s.name + (s.row ? " · " + s.row : "")),
       h("div", { class: "span " + s.status, style: "left:" + left + "%;width:" + width + "%", tip: s.name + " " + s.status + " " + clock(s.started) + " to " + (s.ended ? clock(s.ended) : "now") }));
   })), h("div", { class: "hours" }, h("span", {}, "-24 h"), h("span", {}, "-12 h"), h("span", {}, "now")));
   put("lanetable", table(["Session", "Status", "Started", "Ended", "Work item"], sessions.map((s) => [s.name, s.status, clock(s.started), s.ended ? clock(s.ended) : "now", s.row || "-"])));
-  const fill = fan.fill, ok = fill && !isUnknown(fill), busy = sessions.filter((s) => s.status === "busy").length, cap = ok ? fill.cap : 8;
+  const fill = fan.fill, ok = fill && !isUnknown(fill), busy = sessions.filter((s) => s.status === "busy" || s.status === "blocked").length, cap = ok ? fill.cap : 8;
   put("meters", h("div", {}, h("div", {}, "Sessions busy: " + busy + " of " + cap), h("div", { class: "meter" }, h("div", { style: "width:" + Math.min(100, 100 * busy / cap) + "%" })),
     ok ? [h("div", {}, "Machine load: " + fill.load + " of " + fill.limit), h("div", { class: "meter" }, h("div", { style: "width:" + Math.min(100, 100 * fill.load / fill.limit) + "%" }))] : h("div", { class: "unknown-note" }, "load: unknown")));
   put("flags", fan.flags.length ? fan.flags.map((f) => h("div", { class: "flag" }, badge("attention"), " ", h("b", {}, f.kind), " ", f.row + ": " + f.detail)) : h("div", {}, badge("ok"), " no disagreements between work items and sessions"));

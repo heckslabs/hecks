@@ -17,7 +17,7 @@ RSpec.describe Hecks::Adapters::PipelineJournal do
   def write(*lines) = File.write(log, lines.join)
 
   def board
-    described_class.new(settings: { trace: ->(_) { { events: [] } }, tap: log, ttl: 0 })
+    described_class.new(settings: { trace: ->(*) { { events: [] } }, tap: log, ttl: 0 })
   end
 
   def send_train_log

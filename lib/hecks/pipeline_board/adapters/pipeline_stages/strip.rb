@@ -49,7 +49,16 @@ module Hecks
           return unknown("Sessions", list) unless list.is_a?(Array)
 
           busy = list.count { |s| s[:status] == "busy" }
-          row("Sessions", busy.positive? ? "working" : "ok", busy, "#{busy} busy of #{list.size} in the last day")
+          blocked = list.count { |s| s[:status] == "blocked" }
+          note = "#{busy} busy, #{blocked} blocked on you, of #{list.size} in the last day"
+          row("Sessions", session_state(busy, blocked), busy + blocked, note)
+        end
+
+        # Attention while anyone waits on a person, working while anyone works, else ok.
+        def session_state(busy, blocked)
+          return "attention" if blocked.positive?
+
+          busy.positive? ? "working" : "ok"
         end
 
         def local(main)

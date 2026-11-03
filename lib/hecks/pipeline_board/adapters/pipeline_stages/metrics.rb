@@ -28,7 +28,7 @@ module Hecks
         end
 
         def self.work(data, now)
-          [ahead(data[:local], now), working(data), throughput(data[:history], now), release(data[:release], now)]
+          [ahead(data[:local], now), working(data), throughput(data[:finished], now), release(data[:release], now)]
         end
       end
     end

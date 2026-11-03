@@ -14,7 +14,7 @@ module Hecks
         # @param fill [Hash, nil] the Dispatch.Fill preview
         # @return [Array<Hash>] one row per open Work row: its claim, its sessions and its flags
         def mapping(sessions:, work:, landed:, fill:)
-          busy = sessions.select { |s| s[:status] == "busy" }
+          busy = sessions.select { |s| %w[busy blocked].include?(s[:status]) }
           world = { busy: busy, landed: landed, fill: fill, areas: work.to_h { |w| [w[:slug], w[:area].to_a] } }
           work.map { |row| mapped(row, world) }
         end

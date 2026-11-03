@@ -29,7 +29,7 @@ RSpec.describe Hecks::Adapters::PipelineStages do
     { github: Hecks::Adapters::PipelineGitHub.new(settings: { gh: gh, ttl: 0 }),
       git: Hecks::Adapters::PipelineGit.new(root: work, settings: { train: work, ttl: 0 }),
       tickets: Hecks::Adapters::PipelineTickets.new(settings: { rows: work_rows, landings: [] }),
-      jobs: jobs_reader, journal: instance_double(Hecks::Adapters::PipelineJournal, recent: []),
+      jobs: jobs_reader, journal: instance_double(Hecks::Adapters::PipelineJournal, recent: [], named: []),
       fill: fill_reader }.merge(overrides)
   end
 
