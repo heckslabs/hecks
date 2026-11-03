@@ -21,9 +21,12 @@ module Hecks
       # A word of a subject: the run of letters and digits a name is built from.
       WORD = /[A-Za-z0-9]+/
 
+      # What a subject's spaces and symbols become in an audit id: single hyphens.
+      NON_TOKEN = /[^A-Za-z0-9]+/
+
       # What the adapter answers when no subject is left: no calls, no sessions, no text.
-      NOTHING = { subject: "", calls: 0, sessions: 0, success_rate: 0.0, proposal: "",
-                  proposed_kind: "", aggregate_name: "", raised_at: "" }.freeze
+      NOTHING = { audit_id: "none", subject: "", calls: 0, sessions: 0, success_rate: 0.0,
+                  proposal: "", proposed_kind: "", aggregate_name: "", raised_at: "" }.freeze
 
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] `path:` the Catcher store (default {DEFAULT_PATH})
@@ -49,8 +52,11 @@ module Hecks
       private
 
       def answer(best)
-        best.merge(proposal: proposal(best[:subject]), proposed_kind: "aggregate",
-                   aggregate_name: words(best[:subject]).first, raised_at: now)
+        raised = now
+        token = best[:subject].gsub(NON_TOKEN, "-")
+        best.merge(audit_id: "#{token}-#{raised}",
+                   proposal: proposal(best[:subject]), proposed_kind: "aggregate",
+                   aggregate_name: words(best[:subject]).first, raised_at: raised)
       end
 
       def wrapped(row) = row.transform_values { |value| { value: value } }

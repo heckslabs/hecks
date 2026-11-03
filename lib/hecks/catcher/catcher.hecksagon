@@ -27,10 +27,12 @@ Hecks.hecksagon "Catcher" do
   end
 
   # The tally of recurring patterns, asked once per detection run. The answer is the best
-  # candidate with no audit yet: `calls`, `sessions` and `success_rate`, each `{ value: }`, then
-  # `subject`, `proposal`, `proposed_kind` and `aggregate_name` as `{ value: }` strings, and
-  # `raised_at`, a UTC instant ending in Z. No candidate answers zero calls and empty strings.
-  # A refusal gives its reason as `refusal`, as `{ value: }`.
+  # candidate with no audit yet. `audit_id` is one token of letters, digits, dots, underscores,
+  # colons and hyphens, such as `git-add-2026-11-03T06:41:25Z`, given as `{ value: }`. Then
+  # `calls`, `sessions` and `success_rate`, each `{ value: }`, then `subject`, `proposal`,
+  # `proposed_kind` and `aggregate_name` as `{ value: }` strings, and `raised_at`, a UTC instant
+  # ending in Z. No candidate answers zero calls and empty strings. A refusal gives its reason
+  # as `refusal`, as `{ value: }`.
   Catcher::Detection.port "Tally" do
     asks "Tally", to: Detection do
       attribute :run, RunKey
