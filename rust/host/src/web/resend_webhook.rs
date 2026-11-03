@@ -20,8 +20,6 @@ type HmacSha256 = Hmac<Sha256>;
 // directly or from the `webhook_secret` field of the secret RESEND_SECRET_ID names.
 
 const SECRET_VARIABLE: &str = "RESEND_WEBHOOK_SECRET";
-// Resend signs with Svix, whose default replay window is five minutes.
-const TOLERANCE_SECONDS: i64 = 300;
 
 #[derive(Debug, PartialEq)]
 enum Tracked {
@@ -71,6 +69,7 @@ pub(super) async fn resend_webhook_route(
         header("svix-signature"),
         secret.trim(),
         unix_now(),
+        crate::commerce_ir::checkout_windows_binding().webhook_tolerance,
     ) {
         return Some(respond(400, "text/plain", &reason));
     }
@@ -186,6 +185,7 @@ fn verify(
     signatures: &str,
     secret: &str,
     now: i64,
+    tolerance: i64,
 ) -> Result<(), String> {
     if id.is_empty() || timestamp.is_empty() || signatures.is_empty() {
         return Err("missing svix-id, svix-timestamp or svix-signature header".to_string());
@@ -193,9 +193,9 @@ fn verify(
     let sent: i64 = timestamp
         .parse()
         .map_err(|_| "svix-timestamp is not a number".to_string())?;
-    if (now - sent).abs() > TOLERANCE_SECONDS {
+    if (now - sent).abs() > tolerance {
         return Err(format!(
-            "timestamp {sent} is outside the {TOLERANCE_SECONDS}s tolerance (now: {now})"
+            "timestamp {sent} is outside the {tolerance}s tolerance (now: {now})"
         ));
     }
     let key = crate::b64::standard_decode(secret.strip_prefix("whsec_").unwrap_or(secret))
@@ -224,6 +224,21 @@ mod tests {
     use super::*;
 
     const SECRET: &str = "whsec_c2VjcmV0LWtleQ=="; // "secret-key"
+    // The legacy checkout tolerance, the value a bluebook without `webhook_tolerance` gets.
+    const TOLERANCE_SECONDS: i64 = crate::commerce_ir::LEGACY_WEBHOOK_TOLERANCE_SECS;
+
+    // The verifier with the tolerance the checkout bluebook declares, so each test reads as
+    // the default window.
+    fn verify(
+        payload: &str,
+        id: &str,
+        timestamp: &str,
+        signatures: &str,
+        secret: &str,
+        now: i64,
+    ) -> Result<(), String> {
+        super::verify(payload, id, timestamp, signatures, secret, now, TOLERANCE_SECONDS)
+    }
 
     fn base64_encode(bytes: &[u8]) -> String {
         const TABLE: &[u8; 64] =
