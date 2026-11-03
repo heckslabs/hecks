@@ -3,7 +3,9 @@
 require "json"
 require "time"
 require_relative "cache"
+require_relative "pipeline_github/settled_counts"
 require_relative "pipeline_github/runs"
+require_relative "../../cache_dir"
 
 module Hecks
   module Adapters
@@ -26,7 +28,7 @@ module Hecks
       def initialize(aggregate: nil, settings: {}, root: nil)
         @gh = settings[:gh] || ->(*args) { PipelineBoard::Probe.json("gh", *args, chdir: root) }
         @cache = PipelineBoard::Cache.new(ttl: settings.fetch(:ttl, 20))
-        @settled = {}
+        @settled = PipelineBoard::SettledCounts.new(settled_path(settings))
       end
 
       # @param limit [Hash, Integer, nil] how many runs (20 when none is named)
@@ -58,6 +60,14 @@ module Hecks
       def latest_run = rows(1).last
 
       private
+
+      # The file the settled counts live in: `settled_path:` when named, else under the cache
+      # directory for the real `gh`; a stubbed `gh` keeps them in memory only.
+      def settled_path(settings)
+        return settings[:settled_path] if settings.key?(:settled_path)
+
+        File.join(Hecks::CacheDir.path("pipeline_board"), "settled_runs.json") unless settings[:gh]
+      end
 
       def count(value, default)
         number = value.is_a?(Hash) ? value[:value] : value
