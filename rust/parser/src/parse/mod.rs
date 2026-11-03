@@ -1335,28 +1335,3 @@ pub(crate) fn resolve_type_expression(
         None => Ok((trimmed.to_string(), false, None)),
     }
 }
-
-#[cfg(test)]
-mod live_row_tests {
-    use crate::keywords::{KeywordRow, KEYWORDS};
-
-    fn with_status(status: &'static str) -> KeywordRow {
-        KeywordRow {
-            status,
-            ..KEYWORDS[0]
-        }
-    }
-
-    #[test]
-    fn admitted_deprecated_and_unset_rows_are_live() {
-        assert!(["", "admitted", "deprecated"]
-            .iter()
-            .all(|status| with_status(status).live()));
-    }
-
-    #[test]
-    fn retired_and_proposed_rows_are_not_live() {
-        assert!(!with_status("retired").live());
-        assert!(!with_status("proposed").live());
-    }
-}

@@ -166,7 +166,6 @@ Hecks.hecksagon "Hecks" do
     answers_query "Status"
     answers_query "Changes"
     answers_query "History"
-    answers_query "Show"
   end
 
   Hecks::Workspace.port "Settings" do
@@ -186,14 +185,6 @@ Hecks.hecksagon "Hecks" do
       attribute :run, RunKey
       answers "CommitAnswered"
       refuses "CommitRefused"
-    end
-  end
-
-  Hecks::TreeCopy.port "Copying" do
-    asks "Copy", to: TreeCopy do
-      attribute :run, RunKey
-      answers "CopyAnswered"
-      refuses "CopyRefused"
     end
   end
 

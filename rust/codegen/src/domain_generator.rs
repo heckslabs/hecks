@@ -1365,13 +1365,7 @@ pub fn generate(
     puts_blank(&mut registry_rs);
     puts_str(
         &mut registry_rs,
-        &reactions::emit_policy_table(
-            exemplar,
-            domain_name,
-            &policies,
-            &policy_aggregates,
-            ir.get("read_models").map_or_default(Json::each),
-        ),
+        &reactions::emit_policy_table(exemplar, domain_name, &policies, &policy_aggregates),
     );
     puts_blank(&mut registry_rs);
     puts_str(
