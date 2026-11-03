@@ -13,8 +13,8 @@ module Hecks
   module Adapters
     # Kicks the red push batch off main for a standing flag, with no hand in it. Every first-parent
     # commit since the last green head of main is reverted, newest first, on `red-main-<cause>`,
-    # a red row's fix. The branch is finished onto local main, the train boards the landed tip,
-    # a Work row `red-<cause>` is filed naming the failing jobs and the CI run, one coder is
+    # a red-* fix. The branch is finished onto local main, the train boards the landed tip,
+    # a Work item `red-<cause>` is filed naming the failing jobs and the CI run, one coder is
     # dispatched on its brief to bring the batch back green, and the kick's worktree is retired
     # if it is still there. The revert is a new commit; nothing is force-pushed.
     #
@@ -31,7 +31,7 @@ module Hecks
       # The lead of the revert branch's name.
       BRANCH = "red-main-"
 
-      # The lead of the Work row filed for the batch.
+      # The lead of the Work item filed for the batch.
       ROW = "red-"
 
       # The trailer that marks a release commit, which the owner alone may land.

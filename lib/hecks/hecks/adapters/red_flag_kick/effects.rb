@@ -6,7 +6,7 @@ module Hecks
   module Adapters
     class RedFlagKick
       # The commands a kick runs once its revert is on the branch: the landing, the train, the
-      # Work row, the coder's brief and dispatch, and the retirement. Each is a dispatch of its
+      # Work item, the coder's brief and dispatch, and the retirement. Each is a dispatch of its
       # own, as an operator would make it, so the reaction depth the kick's policy reached does
       # not count against it. A spec replaces any step with a callable that takes the same keywords.
       class Effects

@@ -3,7 +3,7 @@
 module Hecks
   module Adapters
     class RedFlagKick
-      # The red-* Work row a kick files for the batch it reverted, and the outcome its coder is
+      # The red-* Work item a kick files for the batch it reverted, and the outcome its coder is
       # briefed on: the flag, the failing CI run and its failed jobs, and the commits reverted,
       # newest first.
       class WorkRow

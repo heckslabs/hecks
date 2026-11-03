@@ -87,7 +87,7 @@ RSpec.describe Hecks::Adapters::RedFlagKick do
     expect(tree_of(args_of(:land)[:head])).to eq(tree_of(@green))
   end
 
-  it "finishes the branch onto main, boards main, files a red row and dispatches one coder on its brief", :aggregate_failures do
+  it "finishes the branch onto main, boards main, files a red-* Work item and dispatches one coder", :aggregate_failures do
     raise_flag
     kick
 
@@ -96,7 +96,7 @@ RSpec.describe Hecks::Adapters::RedFlagKick do
     expect(args_of(:dispatch)).to include(brief: "brief for red-#{marker.read["id"]}", repo: repo)
   end
 
-  it "names the failing jobs and the CI run in the Work row it files", :aggregate_failures do
+  it "names the failing jobs and the CI run in the Work item it files", :aggregate_failures do
     raise_flag
     kick
 

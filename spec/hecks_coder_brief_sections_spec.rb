@@ -39,7 +39,7 @@ RSpec.describe "the Coder brief's standing sections" do
 
   it "tells the session to hear the red flag as events, stop and check in, and resume when it clears" do
     expect(section(:restraints)).to include(
-      "Operation.follow domain.value=lib/hecks/hecks aggregate.value=RedFlag from_now=true wait=60",
+      "Operation.follow domain.value=Hecks aggregate.value=RedFlag from_now=true wait=600",
       "On RedFlagRaised stop feature work and check in", "RedFlag.check_in!", "Resume on RedFlagCleared"
     )
   end

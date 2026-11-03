@@ -109,7 +109,7 @@ Hecks.bluebook "Hecks" do
 
       command "Kick" do
         role "Operator"
-        goal "Revert the push batch since the last green head off main as a red-main-* fix, finish it onto main, board it, file a red-* Work row for the batch and dispatch one coder to bring it back green"
+        goal "Revert the push batch since the last green head off main as a red-main-* fix, finish it onto main, board it, file a red-* Work item for the batch and dispatch one coder to bring it back green"
 
         attribute :run,      RunKey, sets: true
         attribute :checkout, Word, optional: true, sets: true

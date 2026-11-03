@@ -265,11 +265,11 @@ RSpec.describe "the red flag over a real CI cycle" do
     expect(flag["kicked"]).to include("reverted" => [bad])
   end
 
-  it "dispatches one coder on the Work row it files, and says so in the event", :aggregate_failures do
+  it "dispatches one coder on the Work item it files, and says so in the event", :aggregate_failures do
     _green_head, bad = kick_batch
 
     expect(flag["kicked"]).to include("row" => "red-flag-#{bad[0, 10]}")
-    expect(payload(events("RedFlagKicked").last).dig(:rows, :value)).to eq("red-flag-#{bad[0, 10]}")
+    expect(payload(events("RedFlagKicked").last).dig(:work_items, :value)).to eq("red-flag-#{bad[0, 10]}")
     expect(payload(events("WorkPlanned").last).dig(:work, :value)).to eq("red-flag-#{bad[0, 10]}")
     expect(@dispatched.map { |args| args[:brief] }).to eq(["brief for red-flag-#{bad[0, 10]}"])
   end
