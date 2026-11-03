@@ -3,6 +3,7 @@
 require "json"
 require "open3"
 require_relative "../cli/qa_main_gate"
+require_relative "../cli/declared"
 
 module Hecks
   module Adapters
@@ -14,19 +15,11 @@ module Hecks
     # policy
     # waits for, or raise, which the runtime records as the refusal.
     class ImageRoll
-      # The repository this adapter rolls, and the one service it rolls.
+      # The repository this adapter reads changes from, and the one service it rolls. Which repository
+      # and branch roll at all is the `RollRepo` and `RollBranch` declaration, which the chain's
+      # `Consider` command enforces.
       PLATFORM_REPO = "heckslabs/embryonaut_platform"
       APP = "console"
-
-      # The console container's inputs, as the platform's Dockerfile copies them. A path outside
-      # them is
-      # infrastructure: default-deny, so a new top-level directory waits for a person.
-      IMAGE_FILES = %w[Dockerfile Gemfile Gemfile.lock lib/telemetry_ingress.rb lib/site_roster.rb].freeze
-      IMAGE_DIRS = %w[bluebook/ vendor/ deploy/console/ lib/telemetry_ingress/ lib/site_roster/].freeze
-
-      # The bluebook's translation edges move a box's data, so a person releases them even under a
-      # bluebook.
-      OUTSIDE_IMAGE_DIRS = %w[bluebook/translations/].freeze
 
       # The default platform checkout the roll builds from; `platform_root:` overrides it.
       PLATFORM_ROOT = File.expand_path("~/Projects/embryonaut_platform")
@@ -53,24 +46,31 @@ module Hecks
         end
       end
 
-      # Whether one changed path is part of the console container's inputs.
+      # Whether one changed path is part of the console container's inputs, as the `ImageInput` rows of
+      # the QualityControl bluebook declare them.
       #
       # @param path [String] a repository-relative path
+      # @param source [#bluebook, nil] the booted ledger, or nil to read this checkout's bluebook
       # @return [Boolean]
-      def self.image_path?(path)
-        return false if OUTSIDE_IMAGE_DIRS.any? { |dir| path.start_with?(dir) }
+      def self.image_path?(path, source = nil)
+        inputs = Hecks::QualityControlCli::Declared.rows(source, "ImageRoll", "ImageInput")
+        covered = ->(kind) { inputs.select { |row| row[:kind] == kind }.map { |row| row[:path] } }
+        return false if covered.("outside").any? { |dir| path.start_with?(dir) }
 
-        IMAGE_FILES.include?(path) || IMAGE_DIRS.any? { |dir| path.start_with?(dir) }
+        covered.("file").include?(path) || covered.("dir").any? { |dir| path.start_with?(dir) }
       end
 
       # @param root [String, nil] the Hecks checkout, whose QA ledger holds the quick gate's
       # records
       # @param platform_root [String] the embryonaut_platform checkout the roll builds from
       # @param commands [Module] the outside-world commands; a spec injects a stub
+      # @param registry [Runtime::Registry, nil] the booted registry whose QualityControl bluebook
+      #   declares the console image's inputs; this checkout's bluebook is read when nil
       # @param ledger [#query, nil] the QA ledger the quick gate's records are read from; booted
       # from
       #   `root` when nil
-      def initialize(root: nil, platform_root: PLATFORM_ROOT, commands: Commands, ledger: nil, **)
+      def initialize(root: nil, platform_root: PLATFORM_ROOT, commands: Commands, ledger: nil, registry: nil, **)
+        @registry = registry
         @root = root || Dir.pwd
         @platform_root = platform_root
         @commands = commands
@@ -82,12 +82,11 @@ module Hecks
       # remote CI alone, and an infra commit is held for a person.
       #
       # @param commit [Hash, String] the commit
-      # @param branch [Hash, String] the branch; only main rolls
-      # @param repo [Hash, String] `owner/name`; only embryonaut_platform rolls
+      # @param branch [Hash, String] the branch; `RollBranch` allows only main, which `Consider` enforces
+      # @param repo [Hash, String] `owner/name`; `RollRepo` allows only embryonaut_platform
       # @return [Hash] `commit`, `app`, `kind` and `paths`
       def classify(commit:, branch:, repo:, **)
         sha = value_of(commit)
-        refuse_unless_rollable(value_of(branch), value_of(repo))
         paths = changed_paths(sha)
         kind = image_only?(paths) ? "image" : "infra"
         { commit: wrap(sha), app: wrap(APP), kind: wrap(kind), paths: wrap(paths.join("\n")) }
@@ -111,11 +110,6 @@ module Hecks
 
       private
 
-      def refuse_unless_rollable(branch, repo)
-        raise Refused, "only main rolls, not #{branch}" unless branch == "main"
-        raise Refused, "only #{PLATFORM_REPO} rolls, not #{repo}" unless repo == PLATFORM_REPO
-      end
-
       # An infra commit is the fail-closed case: its roll needs the quick gate on record green. An
       # image-only commit rolls on remote CI's green verdict alone.
       def refuse_infra_without_gate(sha)
@@ -125,7 +119,7 @@ module Hecks
         raise Refused, "#{sha[0, 7]} changes paths outside the console image and the quick gate on record for it is not green"
       end
 
-      def image_only?(paths) = paths.all? { |path| self.class.image_path?(path) }
+      def image_only?(paths) = paths.all? { |path| self.class.image_path?(path, @registry) }
 
       def changed_paths(sha)
         output, status = Open3.capture2e("gh", "api", "repos/#{PLATFORM_REPO}/commits/#{sha}",

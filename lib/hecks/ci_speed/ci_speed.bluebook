@@ -80,6 +80,16 @@ Hecks.bluebook "CiSpeed" do
       attribute :value, String, pattern: '^(hit|miss)$'
     end
 
+    # How a run's cache state is told from its jobs: a job that spent more than `seconds` on the step
+    # `step` regenerated the corpus, so its run is a `miss`; a composite action shows as one step, and
+    # a restore takes seconds. `Adapters::CiReader` reads this row.
+    value_object "CacheMissRule" do
+      attribute :step,    String
+      attribute :seconds, Integer
+
+      member step: "Run ./.github/actions/generated-rust", seconds: 60
+    end
+
     value_object "Conclusion" do
       attribute :value, String, pattern: '^(success|failure|cancelled)$'
     end
