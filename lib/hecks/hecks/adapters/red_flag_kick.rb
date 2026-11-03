@@ -5,6 +5,7 @@ require_relative "git"
 require_relative "console_capture"
 require_relative "red_flag_survey"
 require_relative "red_flag_kick/restorer"
+require_relative "red_flag_kick/board_guard"
 require_relative "red_flag_kick/effects"
 require_relative "red_flag_kick/work_item"
 
@@ -61,10 +62,10 @@ module Hecks
         refuse_release!(batch)
         branch = "#{BRANCH}#{flag["id"]}"
         land(branch, restorer.restore(branch, green, batch))
-        guard_board!(green)
+        guard.check!(green)
         publish(flag, batch, branch)
         retire(branch)
-        kicked(flag, batch, branch, same_tree?(green))
+        kicked(flag, batch, branch, guard.same_tree?(green))
       end
 
       private
@@ -120,24 +121,9 @@ module Hecks
         refuse("#{held[0, 10]} is a release commit; releases are the owner's, so the batch is not rolled back") if held
       end
 
-      # Local main may go out only as the restore alone, or as exactly the green tree; a commit
-      # another session landed on local main must not ride out with the kick.
-      def guard_board!(green)
-        fetched = git("fetch", "-q", "origin")
-        refuse("cannot fetch origin before boarding: #{fetched.err.strip}") unless fetched.ok?
-        ahead = out("rev-list", "--first-parent", "origin/main..main").split
-        return if same_tree?(green) || only_the_restore?(ahead)
-
-        refuse("local main is #{ahead.size} commits ahead of origin/main, not only the restore: not boarding")
-      end
-
-      def only_the_restore?(ahead)
-        ahead.size == 1 && out("log", "-1", "--format=%s", ahead.first).start_with?(Restorer::SUBJECT)
-      end
-
-      def same_tree?(green) = out("rev-parse", "main^{tree}") == out("rev-parse", "#{green}^{tree}")
-
       def restorer = Restorer.new(@git, @checkout)
+
+      def guard = BoardGuard.new(@git, @checkout)
 
       def steps = @steps ||= Effects.new(@registry, @tune[:effects] || self.class.effects || {})
 
