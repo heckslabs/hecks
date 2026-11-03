@@ -6,7 +6,6 @@ require "hecks/tools/canonicalise"
 require "hecks/tools/doc_coverage"
 require "hecks/tools/expression_projection"
 require "hecks/tools/pattern_cases"
-require "hecks/tools/release"
 require "hecks/tools/release_gem"
 require "hecks/tools/rspec_io_parallel_files"
 require "hecks/tools/rspec_shard_files"
@@ -70,20 +69,6 @@ RSpec.describe "the repository tooling commands" do
       expect(described_class.call(["--stdout"], out: out)).to eq(0)
       expect(out.string).to eq(before)
       expect(File.read(path)).to eq(before)
-    end
-  end
-
-  describe Hecks::Tools::Release do
-    it "prints its usage and exits 0 for --help", :aggregate_failures do
-      expect { @status = described_class.call(["--help"], root: Dir.pwd) }.to output(/Usage: hecks publish/).to_stdout
-      expect(@status).to eq(0)
-    end
-
-    it "exits 2 with the usage for a flag it does not know", :aggregate_failures do
-      status = nil
-      expect { status = described_class.call(["--frobnicate"], root: Dir.pwd) }
-        .to output(/--frobnicate.*Usage: hecks publish/m).to_stderr
-      expect(status).to eq(2)
     end
   end
 

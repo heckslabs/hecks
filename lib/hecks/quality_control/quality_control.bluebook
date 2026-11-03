@@ -2357,15 +2357,17 @@ Hecks.bluebook "QualityControl" do
                                          "changelog_undated", "version_mismatch"]
     end
 
-    # The owner who approves each release PR. The trailer line names this person; no other name is approved.
+    # The owner who approves each release PR. Who may approve is the `ReleaseOwner` rows of the Vocabulary
+    # bluebook, which `Hecks::Release::Approval` reads; this type carries a name, and the judge refuses a name
+    # that is not one of those rows.
     value_object "ReleaseApprover" do
-      attribute :value, String, one_of: ["Chris Young"]
+      attribute :value, String, matches: :present
     end
 
-    # The commit-message trailer an approval writes. It is the `release_trailer` of the stable `Lane` row
-    # (Vocabulary), which `Hecks::Release::Approval` reads, so the check accepts what the policy writes.
+    # The commit-message trailer an approval writes: the `release_trailer` of the stable `Lane` row (Vocabulary),
+    # which `Hecks::Release::Approval` reads, so the check accepts what the policy writes.
     value_object "ReleaseTrailer" do
-      attribute :value, String, one_of: ["Release-Approved-By"]
+      attribute :value, String, matches: :present
     end
 
     # Opens the release PR for a version bump on a branch. The open is answered by the `ReleaseGh` port.

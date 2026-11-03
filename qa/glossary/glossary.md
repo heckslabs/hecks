@@ -2175,7 +2175,7 @@ When [Release approved](#release-approved) happens, Release pr::release gh is as
 
 #### Release approver
 
-One of Chris Young.
+Text that must not be blank.
 
 #### Release branch
 
@@ -2187,7 +2187,7 @@ One of met, not_on_stable_head, checks_not_green, changelog_undated, or version_
 
 #### Release trailer
 
-One of Release-Approved-By.
+Text that must not be blank.
 
 #### Release version
 
