@@ -18,6 +18,8 @@ module Hecks
       # - **unknown_runs** lists the questions that refuse a run this process does not hold.
       # - **report** lists the settled commands whose answer is the report they recorded, as text.
       # - **names** maps a launcher name to the command it stands for (see `CliProjector`).
+      # - **memory_commands** lists the commands the generated launcher runs on Memory and waits for.
+      # - **ledgers** maps a command word to the ledger directory the launcher boots for it.
       # - **streams** lists the questions `--stream` may tail, one JSON line per new entry.
       # - **maintainer**, **bluebooks**, **maintainer_bluebooks** shape the help for its audience.
       module LauncherOptions
