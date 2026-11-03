@@ -7,6 +7,8 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+## [7.1.0] - 2026-11-02
+
 ### Added
 
 - **`hecks narrate` tells each goal in a domain's `.examples` files as a use case (ADR 0173).** The narration ends with a "Use cases" section: the goal, its main scenario, then its extensions, every line quoted from the file. `NarrateProjector` takes the files as `options[:examples]`.
