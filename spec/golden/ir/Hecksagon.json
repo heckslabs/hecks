@@ -1787,7 +1787,7 @@
               "type": "String"
             }
           ],
-          "closed_set": false,
+          "closed_set": true,
           "invariants": [
             {
               "ast": {
@@ -1810,7 +1810,36 @@
             }
           ],
           "members": [
-
+            [
+              [
+                "value",
+                "Ruby"
+              ]
+            ],
+            [
+              [
+                "value",
+                "Cli"
+              ]
+            ],
+            [
+              [
+                "value",
+                "Json"
+              ]
+            ],
+            [
+              [
+                "value",
+                "Mcp"
+              ]
+            ],
+            [
+              [
+                "value",
+                "Web"
+              ]
+            ]
           ],
           "name": "DrivingAdapter"
         },
