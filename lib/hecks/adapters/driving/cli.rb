@@ -14,9 +14,6 @@ module Hecks
 
         # Builds a command's nested, typed argument Hash from its `name=value` words.
         #
-        #   arguments(spec, ["reference.value=A-1", "sequence.value=99"])
-        #   # => { reference: { value: "A-1" }, sequence: { value: 99 } }
-        #
         # @param spec [Hash{Symbol => Object}] one command's entry from `Projector::CliProjector`
         # @param pairs [Array<String>] the words after the command: `name=value` pairs (a path may
         #   be a value object's short form), `--name` for a Boolean, at most one bare word for the
