@@ -61,13 +61,33 @@ module Hecks
     def self.set_members(member, aggregate, value_object)
       @declarations ||= {}
       held = (@declarations[member.to_s] ||= declaration(member))
-      found = held.aggregate(aggregate)&.value_object(value_object)
-      raise Runtime::WiringError, "#{member} declares no #{aggregate}.#{value_object}" unless found&.closed_set?
+      closed_values(held, aggregate, value_object)
+    end
+    private_class_method :set_members
+
+    # The values a closed-set value object declares in any loaded bluebook.
+    #
+    # @param declaration [Bluebook::Declaration] the bluebook holding the value object
+    # @param aggregate [String] the aggregate holding it
+    # @param value_object [String] the value object declaring `one_of`
+    # @return [Array<String>] the members of the set, frozen
+    # @raise [Runtime::WiringError] if the bluebook declares no such closed set
+    def self.closed_values(declaration, aggregate, value_object)
+      found = declaration.aggregate(aggregate)&.value_object(value_object)
+      raise Runtime::WiringError, "#{declaration.name} declares no #{aggregate}.#{value_object}" unless found&.closed_set?
 
       values = found.members.flat_map(&:values)
       values.uniq.freeze
     end
-    private_class_method :set_members
+
+    # Any one bluebook file, built in isolation like a member.
+    #
+    # @param path [String] the bluebook file
+    # @param name [String] the name its header declares
+    # @return [Bluebook::Declaration] the bluebook, loaded into a scratch registry
+    def self.declaration_at(path, name)
+      scratch_registry(path).bluebook(name)
+    end
 
     # @param path [String] a member's bluebook file
     # @return [Runtime::Registry] a fresh registry holding only that member's bluebook

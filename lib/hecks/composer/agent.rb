@@ -1,4 +1,5 @@
 require_relative "../runtime/registry"
+require_relative "declared"
 
 module Hecks
   module Composer
@@ -14,8 +15,13 @@ module Hecks
       PORT = File.expand_path("ports/composer_agent.port", __dir__).freeze
       ADAPTERS = File.expand_path("adapters", __dir__).freeze
 
-      # What a prompt can be asking for.
-      INTENTS = %w[edit wire question new_domain].freeze
+      # What a prompt can be asking for, as `composer.bluebook` declares it (`Request.Intent`),
+      # read the first time it is named.
+      def self.const_missing(name)
+        return super unless name == :INTENTS
+
+        const_set(name, Declared.closed_set("Request", "Intent"))
+      end
 
       # The adapter's answer arrived but was unusable; asking again will not help.
       class ValidationError < StandardError
