@@ -270,6 +270,89 @@ Hecks.bluebook "Catcher" do
     end
   end
 
+  # One reading of the spool file the hook appends to. The Spool port answers the lines it holds;
+  # the bluebook says what a drain is and how it ends. The port only reads, and never records.
+  aggregate "Drain" do
+    description "One reading of the spool: drained, or refused with the reason it could not read."
+
+    attribute :run,     DrainKey
+    attribute :drained, Count,  optional: true
+    attribute :refusal, Reason, optional: true
+    identified_by :run
+
+    value_object "DrainKey" do
+      attribute :value, String, matches: :present
+    end
+
+    # How many spooled lines the drain read.
+    value_object "Count" do
+      attribute :value, Integer
+      invariant("a count is not negative") { !value.negative? }
+    end
+
+    value_object "Reason" do
+      attribute :value, String
+      invariant("a refusal gives its reason") { !value.to_s.empty? }
+    end
+
+    # One line the hook appended, with the fields an Observation takes. observed_at is the UTC
+    # second the action was seen, ending in Z.
+    value_object "SpoolLine" do
+      attribute :observation_id, String
+      attribute :source,         String
+      attribute :tool,           String
+      attribute :subject,        String
+      attribute :succeeded,      Boolean
+      attribute :observed_in,    String
+      attribute :observed_at,    String,
+                pattern: '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$'
+    end
+
+    lifecycle :status, default: "requested" do
+      mark :failure, "refused"
+      transition "Complete" => "drained", from: "requested"
+      transition "Decline"  => "refused", from: "requested"
+      mark :terminal, "drained", "refused"
+    end
+
+    # A person asks for one drain of the spool.
+    command "Request" do
+      role "Operator"
+      goal "Read the spool once, so that each line it holds is kept as an observation"
+
+      sets :run
+
+      emits DrainRequested
+    end
+
+    command "Complete" do
+      role "System"
+      goal "Record how many spooled lines the drain read"
+
+      reference_to Drain
+      attribute :drained, Count, sets: true
+
+      emits DrainCompleted
+    end
+
+    command "Decline" do
+      role "System"
+      goal "Record why the spool could not be read"
+
+      reference_to Drain
+      attribute :refusal, Reason, sets: true
+
+      emits DrainDeclined
+    end
+
+    # The lines the spool holds, answered by the Spool port's adapter. Nothing here stores them,
+    # and each line is kept as an observation only through Observation.Record.
+    query "Lines" do
+      description "Every line the spool file holds, in the order the hook wrote them."
+      returns list_of(SpoolLine)
+    end
+  end
+
   policy "StartWhenAccepted" do
     on      "Audit.AuditAccepted"
     trigger CorrectiveAction::Start, with: { audit: :id }

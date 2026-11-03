@@ -4,6 +4,12 @@
 Hecks.hecksagon "Catcher" do
   attaches "Governance"
   persisted_by "Memory"
+
+  # The outside a drain reaches: the spool file the hook appends to. The port answers `Lines`
+  # by reading that file, and never writes to it.
+  Catcher::Drain.port "Spool" do
+    answers_query "Lines"
+  end
 end
 
 # The anti-corruption layer for Governance, which the bluebook's roles are checked against.
