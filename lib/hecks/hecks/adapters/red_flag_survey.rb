@@ -22,30 +22,19 @@ module Hecks
         @checkout = checkout
       end
 
-      # @return [Hash] `verdict:` (`:red`, `:green` or `:running`), `commit:`, `detail:` in the
-      #   words `RedFlagging` reads a run id and failed jobs from, and for a red run `last_green:`,
-      #   the newest commit of main whose run passed
+      # @return [Hash] `verdict:` (`:red`, `:green` or `:running`), `commit:` and `detail:` in the
+      #   words `RedFlagging` reads a run id and failed jobs from
       # @raise [ConsoleCapture::Failure] when `gh` cannot be read
       def latest
-        run = runs("--limit", "1").first
+        run = gh("run", "list", "--workflow", WORKFLOW, "--branch", "main", "--event", "push", "--limit", "1",
+                 "--json", "databaseId,status,conclusion,headSha").first
         return { verdict: :running, commit: "", detail: "no #{WORKFLOW} run of main yet" } unless run
         return running(run) unless run["status"] == "completed"
 
         judged(run)
       end
 
-      # @return [String, nil] the newest commit of main whose CI run passed, nil when none has
-      # @raise [ConsoleCapture::Failure] when `gh` cannot be read
-      def last_green
-        runs("--status", "success", "--limit", "1").first&.fetch("headSha", nil)
-      end
-
       private
-
-      def runs(*scope)
-        gh("run", "list", "--workflow", WORKFLOW, "--branch", "main", "--event", "push", *scope,
-           "--json", "databaseId,status,conclusion,headSha")
-      end
 
       def running(run) = { verdict: :running, commit: run["headSha"], detail: "run #{run["databaseId"]} is #{run["status"]}" }
 
@@ -54,7 +43,7 @@ module Hecks
         return { verdict: :green, commit: run["headSha"], detail: "run #{id} passed" } if run["conclusion"] == "success"
 
         said = "#{run["headSha"][0, 10]}: run #{id} #{run["conclusion"]}; failed jobs: #{failed(id)}"
-        { verdict: :red, commit: run["headSha"], detail: said, last_green: last_green.to_s }
+        { verdict: :red, commit: run["headSha"], detail: said }
       end
 
       def failed(id)
