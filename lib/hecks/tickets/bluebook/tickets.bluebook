@@ -6,15 +6,13 @@
 # any observation, not yet a proven bug, and it needs no sweep or failing test to be recorded.
 #
 # A Finding is the record. A gap, a parity divergence, a QA finding and an idea are kinds of it, not
-# separate aggregates. Hecks owns the finding's state; GitHub is driven from it through the
-# GitHubIssues port, which a hecksagon binds (nothing here reads GitHub back). A finding exists whether
-# or not GitHub answers: each lifecycle event asks the port, and a refused ask is recorded on the
-# finding as a sync failure that a later run retries.
+# separate aggregates. Hecks owns the finding's state and nothing leaves Hecks: no GitHub issue is
+# opened for a finding. A run finding is also planned as a work item, which `Work.undone` lists.
 #
 # An Adr is a decision record with its own lifecycle, linked to the finding it settles. A Work is a work item:
 # one step of the plan a decision carries, and it stays inside Hecks.
 Hecks.bluebook "Tickets" do
-  vision "Track what Hecks needs, decide it, ship it, and drive GitHub from the record."
+  vision "Track what Hecks needs, decide it, and ship it, from the record Hecks keeps."
 
   aggregate "Finding" do
     description "One thing observed about Hecks that needs a decision or a fix: reported, triaged, then resolved or dismissed."
@@ -27,10 +25,8 @@ Hecks.bluebook "Tickets" do
     attribute :severity,       Severity, optional: true
     attribute :source,         Source
     attribute :fingerprint,    Fingerprint, optional: true
-    attribute :issue_number,   Number, optional: true
     attribute :fix_pr_number,  Number, optional: true
     attribute :dismissal,      Body, optional: true
-    attribute :sync_failure,   Body, optional: true
     identified_by :finding
 
     value_object "FindingKey" do
@@ -103,9 +99,10 @@ Hecks.bluebook "Tickets" do
 
       attribute :finding, FindingKey, sets: true
       attribute :body,   Body, sets: true
+      # The title rides the event, so the work item this run plans can read it.
+      attribute :title,  Title, optional: true, sets: true, default: { value: "A Codebase run failed" }
 
       sets :fingerprint, to: "run"
-      sets :title,  to: "A Codebase run failed"
       sets :source, to: "qa_loop"
 
       emits "RunFindingReported"
@@ -161,28 +158,6 @@ Hecks.bluebook "Tickets" do
       reference_to Finding
 
       emits "FindingReopened"
-    end
-
-    command "RecordIssue" do
-      goal "Record the GitHub issue number once the issue is opened"
-      audience :record
-
-      reference_to Finding
-      attribute :issue_number, Number, sets: true
-
-
-      emits "IssueRecorded"
-    end
-
-    command "RecordSyncFailure" do
-      goal "Record that GitHub could not be driven, so a later run retries"
-      audience :record
-
-      reference_to Finding
-      attribute :sync_failure, Body, sets: true
-
-
-      emits "SyncFailed"
     end
 
     query "Open" do
@@ -492,42 +467,6 @@ Hecks.bluebook "Tickets" do
     end
   end
 
-  # Each lifecycle event drives GitHub. A finding's own state never waits on the answer.
-  policy "OpenIssueWhenReported" do
-    on      "Finding.FindingReported"
-    ask     :open_issue, with: { finding: :finding }
-  end
-
-  policy "OpenIssueWhenRunReported" do
-    on      "Finding.RunFindingReported"
-    ask     :open_issue, with: { finding: :finding }
-  end
-
-  policy "LabelIssueWhenTriaged" do
-    on      "Finding.FindingTriaged"
-    ask     :label_issue, with: { finding: :finding }
-  end
-
-  policy "CommentWhenFixLinked" do
-    on      "Finding.FixLinked"
-    ask     :comment_on_issue, with: { finding: :finding }
-  end
-
-  policy "CloseIssueWhenResolved" do
-    on      "Finding.FindingResolved"
-    ask     :close_issue, with: { finding: :finding }
-  end
-
-  policy "CloseIssueWhenDismissed" do
-    on      "Finding.FindingDismissed"
-    ask     :close_issue, with: { finding: :finding }
-  end
-
-  policy "ReopenIssueWhenReopened" do
-    on      "Finding.FindingReopened"
-    ask     :reopen_issue, with: { finding: :finding }
-  end
-
   # A started work item with an area asks the WorkAreas port whether another started one holds any
   # of it.
   policy "CheckAreaWhenStarted" do
@@ -626,14 +565,11 @@ Hecks.bluebook "Tickets" do
     trigger Work::Finish, with: { work: :work }
   end
 
-  policy "RecordTheIssue" do
-    on      "Finding.IssueOpened"
-    trigger Finding::RecordIssue, with: { issue_number: :issue_number }
-  end
-
-  policy "RecordTheSyncFailure" do
-    on      "Finding.GitHubRefused"
-    trigger Finding::RecordSyncFailure, with: { sync_failure: :refusal }
+  # A run that faults files a finding and plans a work item for it. The finding's key is the work item's
+  # key, so the work item is the one the coder session finds in `Work.undone`.
+  policy "PlanWorkWhenRunFindingReported" do
+    on      "Finding.RunFindingReported"
+    trigger Work::Plan, with: { work: :finding, title: :title, detail: :body }
   end
 
   # One kind of red cause the coordinator has triaged. Its signature says how to recognise it in CI

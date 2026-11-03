@@ -1,8 +1,8 @@
 require "spec_helper"
 
 # The Tickets bluebook is attached to the Hecks domain: Finding, Adr, Work, Lesson and Sighting are
-# declared in it, the finding's lifecycle drives GitHub through the GitHubIssues port, a refused ask
-# never blocks the finding, and a Work step stays inside Hecks.
+# declared in it, a run finding is planned as a work item, and nothing leaves Hecks: no GitHub issue
+# is opened for a finding.
 RSpec.describe "the Tickets bluebook" do
   def declared = %w[Finding Adr Work Lesson Sighting]
 
@@ -33,17 +33,10 @@ RSpec.describe "the Tickets bluebook" do
     expect(release.commands.map(&:hecks_name)).to include("CloseFindings")
   end
 
-  it "records the issue number only from the answer that carries it" do
-    policies = @bluebook.policies.to_h { |policy| [policy.hecks_name, policy.event_name] }
-
-    expect(policies["RecordTheIssue"]).to eq("IssueOpened")
-  end
-
-  # Reports a finding with no findings repository set, so GitHub cannot be driven; answers what the
-  # launcher printed and the policies that reacted.
-  def report_without_a_repository(key = "f-1")
-    allow(Open3).to receive(:capture3)
-    stub_const("ENV", ENV.to_h.except("HECKS_FINDINGS_REPO"))
+  # Reports a finding through the launcher; answers what it printed and the policies that reacted.
+  # A stub that raises on Open3 fails the example if anything calls GitHub.
+  def report_finding(key = "f-1")
+    allow(Open3).to receive(:capture3) { raise "GitHub must not be called: a finding opens no issue" }
     before = @hecks.registry.reaction_log.size
     argv = ["tickets", "finding.report!", "finding.value=#{key}", "title.value=A gap", "source.value=maintainer"]
 
@@ -51,12 +44,11 @@ RSpec.describe "the Tickets bluebook" do
     [out, @hecks.registry.reaction_log.drop(before).map { |reaction| reaction[:policy] }]
   end
 
-  it "keeps a reported finding when GitHub cannot be driven, and records why", :aggregate_failures do
-    out, reacted = report_without_a_repository
+  it "keeps a reported finding with no GitHub call, and no reaction names GitHub", :aggregate_failures do
+    out, reacted = report_finding
 
     expect(JSON.parse(out).dig("state", "status")).to eq("reported")
-    expect(reacted).to include("OpenIssueWhenReported", "RecordTheSyncFailure")
-    expect(Open3).not_to have_received(:capture3)
+    expect(reacted).to be_empty
   end
 
   def draft_adr(adr, settles)
@@ -64,7 +56,7 @@ RSpec.describe "the Tickets bluebook" do
   end
 
   it "accepts an Adr that settles a finding which exists" do
-    report_without_a_repository("f-settled")
+    report_finding("f-settled")
     expect { draft_adr("0901", "f-settled") }.not_to raise_error
   end
 
@@ -81,18 +73,37 @@ RSpec.describe "the Tickets bluebook" do
     expect(JSON.parse(out).map { |row| row["finding"] }).to include("f-open")
   end
 
-  it "files a finding when a conformance or gate run faults", :aggregate_failures do
+  it "files a finding and plans its work item when a conformance or gate run faults", :aggregate_failures do
     policies = @bluebook.policies.map(&:hecks_name)
 
-    expect(policies).to include("ReportWhenConformanceFaulted", "ReportWhenGateFaulted", "OpenIssueWhenRunReported")
+    expect(policies).to include("ReportWhenConformanceFaulted", "ReportWhenGateFaulted", "PlanWorkWhenRunFindingReported")
     expect(@bluebook.aggregate("Finding").commands.map(&:hecks_name)).to include("ReportFailedRun")
   end
 
-  it "drives GitHub from each lifecycle event, and records the answer or the refusal" do
+  # The policy names of every reaction logged after `before`.
+  def reactions_since(before)
+    @hecks.registry.reaction_log.drop(before).map { |reaction| reaction[:policy] }
+  end
+
+  # The keys of the work items `Work.undone` lists, read through the launcher.
+  def undone_work_keys
+    out, = Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, program: "hecks", argv: ["tickets", "query", "work.undone"])
+    JSON.parse(out).map { |row| row["work"] }
+  end
+
+  it "plans a run finding as a work item, with no GitHub call", :aggregate_failures do
+    allow(Open3).to receive(:capture3) { raise "GitHub must not be called: a run finding opens no issue" }
+    before = @hecks.registry.reaction_log.size
+    @hecks.dispatch_flat("Tickets::Finding.ReportFailedRun", finding: "run-1", body: "gate red")
+    expect(reactions_since(before)).to include("PlanWorkWhenRunFindingReported")
+    expect(undone_work_keys).to include("run-1")
+  end
+
+  it "names no GitHub policy: the bluebook drives nothing outside Hecks", :aggregate_failures do
     policies = @bluebook.policies.map(&:hecks_name)
 
-    expect(policies).to include("OpenIssueWhenReported", "LabelIssueWhenTriaged", "CloseIssueWhenResolved",
-                                "ReopenIssueWhenReopened", "RecordTheIssue", "RecordTheSyncFailure")
+    expect(policies.grep(/Issue|GitHub/)).to be_empty
+    expect(@bluebook.policies.select { |policy| policy.asks? && policy.event_name.start_with?("Finding") }).to be_empty
   end
 
   it "gives a Work step the commands of its lifecycle" do

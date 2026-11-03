@@ -1,5 +1,5 @@
 # The Tickets domain, bound so it boots standing alone (a fuzz or model_check boot of this
-# directory). The GitHubIssues port every attaching hecksagon shares is in tickets.ports.hecksagon.
+# directory). The ports every attaching hecksagon shares are in tickets.ports.hecksagon.
 Hecks.hecksagon "Tickets" do
   attaches "Governance"
   persisted_by "Memory"
