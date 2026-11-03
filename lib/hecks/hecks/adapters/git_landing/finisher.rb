@@ -3,13 +3,13 @@
 require_relative "../git_worktrees"
 require_relative "../git_main_pull"
 require_relative "../shell"
+require_relative "shallow_check"
 
 module Hecks
   module Adapters
     class GitLanding
-      # The steps before a landing that an agent used to run by hand: refuse unsaved work, rebase
-      # the
-      # branch onto local `main`, and run the quick gate in the branch's worktree.
+      # The steps before a landing, which an agent would otherwise run by hand: refuse unsaved work,
+      # rebase the branch onto local `main`, and run the quick gate in the branch's worktree.
       #
       # Each step refuses by name at the first failure, with the reason, and leaves the branch as it
       # was: a rebase that conflicts is aborted. The landing itself and the tidy after it are
@@ -37,16 +37,19 @@ module Hecks
           @gate = gate || ->(dir) { Shell.new.capture(*GATE, chdir: dir) }
         end
 
-        # Refuses unsaved work, pulls `main` when it is the target, rebases and runs the gate.
+        # Refuses unsaved work, pulls `main` when it is the target, rebases, runs the quick gate
+        # and then the landing's shallow checks.
         #
+        # @param shallow [ShallowCheck] the shallow checks to run after the quick gate
         # @return [void]
         # @raise [ConsoleCapture::Failure] naming the step that failed: unsaved work, conflict or
         #   gate red
-        def prepare
+        def prepare(shallow = ShallowCheck.new(@git))
           refuse_unsaved
           pull_main if @onto == "main"
           rebase
           run_gate
+          shallow.call(@checkout, @branch, @onto)
         end
 
         private

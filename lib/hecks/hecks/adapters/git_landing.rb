@@ -6,6 +6,7 @@ require_relative "git_landing/merger"
 require_relative "git_landing/tidy"
 require_relative "git_landing/rivals"
 require_relative "git_landing/finisher"
+require_relative "git_landing/shallow_check"
 require_relative "git_landing/lineup"
 require_relative "git_landing/flagged"
 require_relative "../../indifferent_key"
@@ -84,7 +85,8 @@ module Hecks
         onto = plain(held[:onto]) || "main"
         raise ConsoleCapture::Failure, "#{branch} is the branch to land onto" if branch == onto
 
-        Finisher.new(@git, @checkout, branch: branch, onto: onto, gate: held[:gate]).prepare
+        shallow = ShallowCheck.new(@git, enabled: ShallowCheck.enabled_in?(landing_setting))
+        Finisher.new(@git, @checkout, branch: branch, onto: onto, gate: held[:gate]).prepare(shallow)
         @retiring = true
         merge(**held)
       ensure
@@ -161,10 +163,10 @@ module Hecks
       def common_git_dir = read("rev-parse", "--path-format=absolute", "--git-common-dir")
 
       # The line of this repository, with the limits of the world's `landing "Queue"` setting.
-      def lineup
-        setting = (@registry&.world("Hecks")&.settings || {})["landing"]
-        Lineup.new(common_git_dir, setting: setting, **@tune)
-      end
+      def lineup = Lineup.new(common_git_dir, setting: landing_setting, **@tune)
+
+      # The world's `landing "Queue"` setting, or nil when the world names none.
+      def landing_setting = (@registry&.world("Hecks")&.settings || {})["landing"]
 
       def refuse_rival(branch, onto)
         clash = Rivals.new(@git, @checkout, @registry).refusal(branch, onto)
