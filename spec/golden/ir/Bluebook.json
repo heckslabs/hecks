@@ -34413,6 +34413,16 @@
               "pattern": null,
               "relationship": null,
               "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "inputs",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
             }
           ],
           "closed_set": true,
@@ -34428,6 +34438,10 @@
               [
                 "id",
                 "rspec"
+              ],
+              [
+                "inputs",
+                "lib/**/* spec/**/* examples/**/* qa/**/* exe/**/* bin/**/* docs/**/* rust/**/* .github/**/* Gemfile Gemfile.lock *.gemspec .rubocop.yml .rubocop_todo.yml"
               ],
               [
                 "title",
@@ -34460,6 +34474,10 @@
                 "fuzzing"
               ],
               [
+                "inputs",
+                "lib/**/* spec/**/* examples/**/* exe/**/* bin/**/* rust/**/* Gemfile Gemfile.lock *.gemspec qa/**/*"
+              ],
+              [
                 "title",
                 "spec/fuzzing, which the parallel run above excludes"
               ],
@@ -34484,6 +34502,10 @@
               [
                 "id",
                 "query_agreement"
+              ],
+              [
+                "inputs",
+                "lib/**/* spec/**/* examples/**/* qa/**/* exe/**/* bin/**/* docs/**/* rust/**/* .github/**/* Gemfile Gemfile.lock *.gemspec .rubocop.yml .rubocop_todo.yml"
               ],
               [
                 "title",
@@ -34516,6 +34538,10 @@
                 "yes"
               ],
               [
+                "inputs",
+                "lib/**/* spec/**/* examples/**/* qa/**/* exe/**/* bin/**/* docs/**/* rust/**/* .github/**/* Gemfile Gemfile.lock *.gemspec .rubocop.yml .rubocop_todo.yml"
+              ],
+              [
                 "title",
                 "engine agreement, every declared comparator on both engines"
               ],
@@ -34540,6 +34566,10 @@
               [
                 "id",
                 "shape_ledger"
+              ],
+              [
+                "inputs",
+                "lib/**/*.rb lib/**/*.bluebook lib/**/*.hecksagon lib/**/*.world lib/**/*.json lib/**/*.adapter"
               ],
               [
                 "title",
@@ -34572,6 +34602,10 @@
                 "yes"
               ],
               [
+                "inputs",
+                "lib/**/*.rb lib/**/*.bluebook lib/**/*.hecksagon lib/**/*.world examples/**/*"
+              ],
+              [
                 "title",
                 "model check, unreachable states, dead transitions and orphaned handlers"
               ],
@@ -34600,6 +34634,10 @@
               [
                 "attests",
                 "yes"
+              ],
+              [
+                "inputs",
+                "lib/**/* docs/implemented/reference/**/* Gemfile Gemfile.lock *.gemspec"
               ],
               [
                 "title",
@@ -34658,6 +34696,10 @@
                 "codegen_drift"
               ],
               [
+                "inputs",
+                "lib/**/* examples/**/* qa/**/* packages/**/* spec/fixtures/**/* spec/corpus/**/* exe/**/* bin/**/* rust/**/* Gemfile Gemfile.lock *.gemspec"
+              ],
+              [
                 "title",
                 "codegen drift, rust/src/generated/ must match a fresh regeneration"
               ],
@@ -34684,6 +34726,10 @@
                 "comment_style"
               ],
               [
+                "inputs",
+                "lib/**/*.rb spec/**/*.rb docs/COMMENT_STYLE_GUIDE.md"
+              ],
+              [
                 "title",
                 "comment style, every comment under lib/hecks and spec against docs/COMMENT_STYLE_GUIDE.md"
               ],
@@ -34708,6 +34754,10 @@
               [
                 "id",
                 "comment_blocks"
+              ],
+              [
+                "inputs",
+                "lib/**/*.rb spec/**/*.rb docs/COMMENT_STYLE_GUIDE.md examples/**/*.rb"
               ],
               [
                 "title",
@@ -34788,6 +34838,10 @@
                 "secret_output"
               ],
               [
+                "inputs",
+                "lib/**/* spec/spec_helper.rb spec/support/**/*.rb spec/secret_output_spec.rb"
+              ],
+              [
                 "title",
                 "secret output, no value a world hands an adapter as a secret reaches what a launcher prints"
               ],
@@ -34814,6 +34868,10 @@
                 "adapter_words"
               ],
               [
+                "inputs",
+                "lib/**/* spec/spec_helper.rb spec/support/**/*.rb spec/adapter_words_spec.rb"
+              ],
+              [
                 "title",
                 "adapter words, no domain name equal to a technology word the adapters are named for"
               ],
@@ -34838,6 +34896,10 @@
               [
                 "id",
                 "rust_fmt"
+              ],
+              [
+                "inputs",
+                "rust/**/*.rs rust/**/Cargo.toml rust/**/Cargo.lock rust/rust-toolchain.toml rust-toolchain.toml"
               ],
               [
                 "title",
@@ -35427,6 +35489,32 @@
                 "blocked",
                 "the generated kernel vocab tables are stale or untracked; the check rewrote them, so commit the result."
               ]
+            ],
+            [
+              [
+                "name",
+                "release_consistency"
+              ],
+              [
+                "id",
+                "release_consistency"
+              ],
+              [
+                "title",
+                "release consistency, the version files, the changelog and the release workflow agree"
+              ],
+              [
+                "argv",
+                "bundle exec rspec spec/readme_version_spec.rb spec/hecks_client_version_spec.rb spec/changelog_planned_release_spec.rb spec/docs_stale_version_spec.rb spec/release_workflow_spec.rb"
+              ],
+              [
+                "script",
+                ""
+              ],
+              [
+                "blocked",
+                "a half-done release bump: the files a bump edits by hand disagree with each other; the failure names the spec."
+              ]
             ]
           ],
           "name": "GateCheck"
@@ -35523,6 +35611,20 @@
               [
                 "checks",
                 "rust_io"
+              ]
+            ],
+            [
+              [
+                "name",
+                "release"
+              ],
+              [
+                "env",
+                ""
+              ],
+              [
+                "checks",
+                "release_consistency"
               ]
             ],
             [
@@ -36014,6 +36116,75 @@
               "admits": null,
               "default": null,
               "list": false,
+              "name": "cron",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "timeout_minutes",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "name",
+                "promote"
+              ],
+              [
+                "cron",
+                ""
+              ],
+              [
+                "timeout_minutes",
+                "15"
+              ]
+            ],
+            [
+              [
+                "name",
+                "watch"
+              ],
+              [
+                "cron",
+                "17 * * * *"
+              ],
+              [
+                "timeout_minutes",
+                "10"
+              ]
+            ]
+          ],
+          "name": "LaneWorkflow"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
               "name": "crate",
               "optional": false,
               "pattern": null,
@@ -36049,6 +36220,16 @@
               "pattern": null,
               "relationship": null,
               "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "timeout_minutes",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
             }
           ],
           "closed_set": true,
@@ -36076,6 +36257,10 @@
               [
                 "runner",
                 "ubuntu-24.04"
+              ],
+              [
+                "timeout_minutes",
+                "40"
               ]
             ],
             [
@@ -36098,6 +36283,10 @@
               [
                 "runner",
                 "ubuntu-22.04-arm"
+              ],
+              [
+                "timeout_minutes",
+                "40"
               ]
             ]
           ],

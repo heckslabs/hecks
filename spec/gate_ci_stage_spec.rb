@@ -76,6 +76,24 @@ RSpec.describe "the ci gate stage" do
     end
   end
 
+  describe "the release stage" do
+    let(:ci_yml) { YAML.load_file(File.join(root, ".github/workflows/ci.yml")) }
+
+    it "holds the release_consistency check, which ci.yml's job of that name runs from the row", :aggregate_failures do
+      commands = ci_yml.dig("jobs", "release_consistency", "steps").filter_map { |step| step["run"] }
+
+      expect(stages.dig("release", "checks").map { |check| check["id"] }).to eq(["release_consistency"])
+      expect(commands).to eq(["bundle exec exe/hecks gate_run.gate! stage=release --wait"])
+    end
+
+    it "lists the five specs the job used to spell out", :aggregate_failures do
+      row = Hecks::Vocabulary.rows("GateCheck").find { |check| check["id"] == "release_consistency" }
+
+      expect(row["argv"].split.grep(%r{\Aspec/}).size).to eq(5)
+      expect(Hecks::Vocabulary.rows("RequiredCheck").map { |check| check["name"] }).to include("release_consistency")
+    end
+  end
+
   describe "the push path" do
     def ids(stage) = stages.dig(stage, "checks").map { |check| check["id"] }
 

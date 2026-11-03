@@ -43,7 +43,8 @@ module Hecks
         # @return [Array<String>] the job that promotes it
         def job(lane)
           name = lane["name"]
-          ["  promote_#{name}:", "    runs-on: ubuntu-latest", "    timeout-minutes: 15",
+          ["  promote_#{name}:", "    runs-on: ubuntu-latest",
+           "    timeout-minutes: #{Lanes.workflow_row("promote")["timeout_minutes"]}",
            *condition, "    steps:", *checkout_steps, *promote_step(name)]
         end
 

@@ -54,6 +54,14 @@ module Hecks
       # @return [Array<Hash{String => String}>] the `Lane` rows
       def lanes = Rows.all
 
+      # @param name [String] a `LaneWorkflow` row's name, `promote` or `watch`
+      # @return [Hash{String => String}] its schedule and job timeout
+      # @raise [SystemExit] when there is no such row
+      def workflow_row(name)
+        Hecks::Vocabulary.rows("LaneWorkflow").find { |row| row["name"] == name } ||
+          abort("lanes: no LaneWorkflow row named #{name}")
+      end
+
       # @param lane [Hash{String => String}] a guarded `Lane` row
       # @return [Hash] the ruleset GitHub is given for it
       def ruleset(lane) = Ruleset.build(lane)
