@@ -41,6 +41,18 @@ Hecks.behaviors "QualityControl" do
     expect refused: "only main is judged"
   end
 
+  test "Consider refuses a branch other than main" do
+    tests "Consider", on: "ImageRoll"
+    input commit: { value: "c" * 40 }, branch: { value: "feature" }, repo: { value: "heckslabs/embryonaut_platform" }
+    expect refused: "only main rolls"
+  end
+
+  test "Consider refuses a repository other than embryonaut_platform" do
+    tests "Consider", on: "ImageRoll"
+    input commit: { value: "c" * 40 }, branch: { value: "main" }, repo: { value: "heckslabs/other" }
+    expect refused: "only embryonaut_platform rolls"
+  end
+
   test "Request starts an idle roll once" do
     tests "Request", on: "ImageRoll"
     input commit: { value: "d" * 40 }, app: { value: "console" }
