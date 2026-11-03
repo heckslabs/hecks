@@ -1,0 +1,302 @@
+Hecks.bluebook "Hecks" do
+  domain_module "Candidate" do
+    vision "Main moves only by promotion of a green candidate: the push train queues a candidate, CI judges it, and main follows."
+
+    # The candidate gate (ADR 0181). While it is on, `SendTrain.board!` pushes local main's tip to the
+    # remote's `candidate` ref instead of main and records it (the sha, the base, the commits it
+    # carries); CI runs on that ref; a green candidate is fast-forwarded onto main, by the
+    # candidate workflow or by `Candidate.promote!` from here, and never by anything else; a red one
+    # never touches main and is cleared with `Candidate.reject!`, which keeps its commits on a
+    # `rejected/<sha>` branch, resets local main to the remote's, files one `red-<cause>` Work item
+    # per failing cause and names the coders whose commits it carried. One candidate is in flight at
+    # a time. The record of the candidate is a marker in the repository's git directory, read from
+    # every worktree; the truth is the remote's refs and CI, and an observation brings the record up
+    # to them. The gate itself is the repository's `git config hecks.candidateGate`, defaulting to the
+    # Hecks world's `gate "Candidate", enabled:` row, which ships off: `Candidate.enable!` turns it on
+    # and `Candidate.disable!` off, with no landing in between.
+    aggregate "Candidate" do
+      description "One request against the candidate gate: the candidate observed, promoted, rejected, or the gate switched; or refused."
+      created_by "Candidate.observe!"
+
+      attribute :run,        RunKey
+      attribute :sha,        Word,   optional: true
+      attribute :base,       Word,   optional: true
+      attribute :ci_run,     Word,   optional: true
+      attribute :jobs,       Report, optional: true
+      attribute :work_items, Report, optional: true
+      attribute :authors,    Report, optional: true
+      attribute :branch,     Word,   optional: true
+      attribute :setting,    Word,   optional: true
+      attribute :checkout,   Word,   optional: true
+      attribute :confirm,    Switch, optional: true
+      attribute :report,     Report, optional: true
+      attribute :refusal,    Report, optional: true
+      identified_by :run
+
+      value_object "RunKey" do
+        attribute :value, String, matches: :present
+      end
+
+      # A commit, a branch, a directory, a run id or a setting.
+      value_object "Word" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Report" do
+        attribute :value, String
+      end
+
+      value_object "Switch" do
+        attribute :value, Boolean
+      end
+
+      value_object "Document" do
+        attribute :text, String
+      end
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "red", "refused"
+        transition "Confirm" => "promoted", from: "requested"
+        transition "Fail"    => "red",      from: "requested"
+        transition "Wait"    => "running",  from: "requested"
+        transition "Settle"  => "idle",     from: "requested"
+        transition "Discard" => "rejected", from: "requested"
+        transition "Set"     => "switched", from: "requested"
+        transition "Decline" => "refused",  from: "requested"
+        mark :terminal, "promoted", "red", "running", "idle", "rejected", "switched", "refused"
+      end
+
+      command "Observe" do
+        role "Operator"
+        goal "Read the candidate on GitHub: promoted onto main, green and awaiting promotion, red with the failed jobs, or still running"
+
+        attribute :run,      RunKey, sets: true
+        attribute :checkout, Word, optional: true, sets: true
+
+        emits CandidateObserveRequested
+      end
+
+      # The candidate workflow promotes a green candidate by itself; this is the same move made from
+      # here when it did not, or when the workflow cannot push main.
+      command "Promote" do
+        role "Operator"
+        goal "Fast-forward the remote's main onto the green candidate from here, never forcing, when the candidate workflow did not"
+
+        attribute :run,      RunKey, sets: true
+        attribute :checkout, Word, optional: true, sets: true
+        attribute :confirm,  Switch, optional: true, sets: true
+
+        given("pushes main to the remote needs --confirm; without it this only reports") { confirm.value == true }
+
+        emits CandidatePromotionRequested
+      end
+
+      command "Reject" do
+        role "Operator"
+        goal "Clear a red candidate: keep its commits on rejected/<sha>, reset local main to the remote's, file one red-<cause> Work item per failing cause and name the coders it carried"
+
+        attribute :run,      RunKey, sets: true
+        attribute :checkout, Word, optional: true, sets: true
+        attribute :confirm,  Switch, optional: true, sets: true
+
+        given("moves local main needs --confirm; without it this only reports") { confirm.value == true }
+
+        emits CandidateRejectionRequested
+      end
+
+      command "Enable" do
+        role "Operator"
+        goal "Turn the candidate gate on for this repository: from now on the push train queues a candidate and main moves only by promotion"
+
+        attribute :run,      RunKey, sets: true
+        attribute :setting,  Word, default: "on", sets: true
+        attribute :checkout, Word, optional: true, sets: true
+        attribute :confirm,  Switch, optional: true, sets: true
+
+        given("changes how main is pushed needs --confirm; without it this only reports") { confirm.value == true }
+
+        emits CandidateGateSwitchRequested
+      end
+
+      command "Disable" do
+        role "Operator"
+        goal "Turn the candidate gate off for this repository: the push train pushes main as before"
+
+        attribute :run,      RunKey, sets: true
+        attribute :setting,  Word, default: "off", sets: true
+        attribute :checkout, Word, optional: true, sets: true
+        attribute :confirm,  Switch, optional: true, sets: true
+
+        given("changes how main is pushed needs --confirm; without it this only reports") { confirm.value == true }
+
+        emits CandidateGateSwitchRequested
+      end
+
+      command "Confirm" do
+        role "System"
+        goal "Record that the candidate was promoted onto main"
+
+        reference_to Candidate
+        attribute :sha,    Word, sets: true
+        attribute :ci_run, Word, optional: true, sets: true
+        attribute :report, Report, sets: true
+
+        emits CandidatePromoted
+      end
+
+      command "Fail" do
+        role "System"
+        goal "Record that CI failed on the candidate, naming the run and the failed jobs"
+
+        reference_to Candidate
+        attribute :sha,    Word, sets: true
+        attribute :ci_run, Word, optional: true, sets: true
+        attribute :jobs,   Report, optional: true, sets: true
+        attribute :report, Report, sets: true
+
+        emits CandidateRed
+      end
+
+      command "Wait" do
+        role "System"
+        goal "Record that the candidate is still being judged, or is green and awaiting promotion"
+
+        reference_to Candidate
+        attribute :sha,    Word, sets: true
+        attribute :report, Report, sets: true
+
+        emits CandidateWaiting
+      end
+
+      command "Settle" do
+        role "System"
+        goal "Record that there was no candidate to read"
+
+        reference_to Candidate
+        attribute :report, Report, sets: true
+
+        emits CandidateUnchanged
+      end
+
+      command "Discard" do
+        role "System"
+        goal "Record that the red candidate was rejected: the branch that keeps its commits, the Work items filed and the coders named"
+
+        reference_to Candidate
+        attribute :sha,        Word, sets: true
+        attribute :branch,     Word, sets: true
+        attribute :work_items, Report, optional: true, sets: true
+        attribute :authors,    Report, optional: true, sets: true
+        attribute :report,     Report, sets: true
+
+        emits CandidateRejected
+      end
+
+      command "Set" do
+        role "System"
+        goal "Record that the candidate gate was switched on or off"
+
+        reference_to Candidate
+        attribute :setting, Word, sets: true
+        attribute :report,  Report, sets: true
+
+        emits GateSwitched
+      end
+
+      command "Decline" do
+        role "System"
+        goal "Record why a request against the candidate was refused"
+
+        reference_to Candidate
+        attribute :refusal, Report, sets: true
+
+        emits CandidateDeclined
+      end
+
+      query "Status" do
+        description "Whether the gate is on, and the candidate: its sha, base, commits, state and CI run."
+        attribute :run, RunKey, optional: true
+        attribute :checkout, Word, optional: true
+        returns Document
+      end
+    end
+
+    policy "ObserveTheCandidateWhenRequested" do
+      on      "Candidate.CandidateObserveRequested"
+      ask     :look, with: { run: :run }
+    end
+
+    policy "PromoteTheCandidateWhenRequested" do
+      on      "Candidate.CandidatePromotionRequested"
+      ask     :forward, with: { run: :run }
+    end
+
+    policy "RejectTheCandidateWhenRequested" do
+      on      "Candidate.CandidateRejectionRequested"
+      ask     :clear, with: { run: :run }
+    end
+
+    policy "SwitchTheGateWhenRequested" do
+      on      "Candidate.CandidateGateSwitchRequested"
+      ask     :flip, with: { run: :run }
+    end
+
+    policy "RecordThePromotedCandidate" do
+      on      "Candidate.CandidateGateAnswered"
+      where   { outcome.value == "promoted" }
+      trigger Candidate::Confirm, with: { sha: :sha, ci_run: :ci_run, report: :report }
+    end
+
+    policy "RecordTheRedCandidate" do
+      on      "Candidate.CandidateGateAnswered"
+      where   { outcome.value == "red" }
+      trigger Candidate::Fail, with: { sha: :sha, ci_run: :ci_run, jobs: :jobs, report: :report }
+    end
+
+    policy "RecordTheWaitingCandidate" do
+      on      "Candidate.CandidateGateAnswered"
+      where   { outcome.value == "running" }
+      trigger Candidate::Wait, with: { sha: :sha, report: :report }
+    end
+
+    policy "RecordTheIdleGate" do
+      on      "Candidate.CandidateGateAnswered"
+      where   { outcome.value == "idle" }
+      trigger Candidate::Settle, with: { report: :report }
+    end
+
+    policy "RecordTheRejectedCandidate" do
+      on      "Candidate.CandidateGateAnswered"
+      where   { outcome.value == "rejected" }
+      trigger Candidate::Discard, with: { sha: :sha, branch: :branch, work_items: :work_items, authors: :authors,
+                                          report: :report }
+    end
+
+    policy "RecordTheSwitchedGate" do
+      on      "Candidate.CandidateGateAnswered"
+      where   { outcome.value == "switched" }
+      trigger Candidate::Set, with: { setting: :setting, report: :report }
+    end
+
+    policy "RecordTheRefusedCandidateRequest" do
+      on      "Candidate.CandidateGateRefused"
+      trigger Candidate::Decline, with: { refusal: :refusal }
+    end
+
+    # The MainIntegration saga's own CI observation reads the candidate's run while the gate is on
+    # and answers `candidate_passed` or `candidate_failed` (never `passed` or `failed`, which say
+    # main itself is green or red and move the red flag). Each is read again here as a candidate
+    # observation, keyed by the landed commit, so the candidate's record moves with the saga.
+    policy "ObserveTheCandidateWhenItsCiPasses" do
+      on      "Integration.ObserveAnswered"
+      where   { outcome.value == "candidate_passed" }
+      trigger Candidate::Observe, with: { run: :landed, checkout: :checkout }
+    end
+
+    policy "ObserveTheCandidateWhenItsCiFails" do
+      on      "Integration.ObserveAnswered"
+      where   { outcome.value == "candidate_failed" }
+      trigger Candidate::Observe, with: { run: :landed, checkout: :checkout }
+    end
+  end
+end
