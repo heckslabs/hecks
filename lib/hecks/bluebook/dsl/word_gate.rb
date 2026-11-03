@@ -43,11 +43,32 @@ module Hecks
         #
         # Returns the context the word was admitted under and the rows admitting it.
         def word_gate_admitted(keywords, context, word)
-          admitted = keywords.select { |row| word_gate_row?(row, context, word.to_s) }
+          index = word_gate_index(keywords)
+          name = word.to_s
+          admitted = index.fetch([context, name], [])
           return [context, admitted] unless admitted.empty?
 
-          type_admitted = keywords.select { |row| row[:context] == "Type" && row[:word] == word.to_s }
+          type_admitted = index.fetch(["Type", name], [])
           type_admitted.empty? ? [context, admitted] : ["Type", type_admitted]
+        end
+
+        # Rows keyed by [context, name], where name is a row's word or its `was` name. Built once
+        # per keyword table (the table is memoized by SyntaxBoot), in table order.
+        WORD_GATE_INDEXES = {}.compare_by_identity
+        WORD_GATE_INDEX_LOCK = Mutex.new
+        private_constant :WORD_GATE_INDEXES, :WORD_GATE_INDEX_LOCK
+
+        def word_gate_index(keywords)
+          WORD_GATE_INDEX_LOCK.synchronize do
+            WORD_GATE_INDEXES[keywords] ||= build_word_gate_index(keywords)
+          end
+        end
+
+        def build_word_gate_index(keywords)
+          keywords.each_with_object(Hash.new { |h, k| h[k] = [] }) do |row, index|
+            names = [row[:word], row[:was]].compact.map(&:to_s).uniq
+            names.each { |name| index[[row[:context], name]] << row }
+          end
         end
 
         def word_gate_row?(row, context, name)
