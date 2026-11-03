@@ -1,4 +1,10 @@
 {
+  "Governance": [
+    {
+      "from": "55c0fa",
+      "to": "deb08e"
+    }
+  ],
   "QualityControl": [
     {
       "from": "e6b119",

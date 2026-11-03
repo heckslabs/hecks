@@ -36,16 +36,16 @@ module Hecks
 
       # :nodoc:
       def valid_surface!(surface)
-        return if surface.nil? || SURFACES.include?(surface.to_s)
+        return if surface.nil? || Storehouse::SURFACES.include?(surface.to_s)
 
-        raise Runtime::TypeMismatch, "surface: #{surface.inspect} is not one of #{SURFACES.join(", ")}"
+        raise Runtime::TypeMismatch, "surface: #{surface.inspect} is not one of #{Storehouse::SURFACES.join(", ")}"
       end
 
       # :nodoc:
       def valid_source!(source)
-        return if source.nil? || SOURCE_TAGS.include?(source.to_s)
+        return if source.nil? || Storehouse::SOURCE_TAGS.include?(source.to_s)
 
-        raise Runtime::TypeMismatch, "source: #{source.inspect} is not one of #{SOURCE_TAGS.join(", ")}"
+        raise Runtime::TypeMismatch, "source: #{source.inspect} is not one of #{Storehouse::SOURCE_TAGS.join(", ")}"
       end
 
       # actor_id without role would silently bind nothing rather than a real

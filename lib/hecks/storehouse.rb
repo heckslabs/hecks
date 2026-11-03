@@ -24,14 +24,21 @@ module Hecks
   # module; what is here is what they share: the boot root, the alias table, and the checks on who
   # is calling.
   module Storehouse
-    # Optional on dispatch/query; omitted, source is recorded as nil rather
-    # than guessed.
-    SOURCE_TAGS = %w[process-manager operator hook sidequest-agent cascade daemon].freeze
+    # The closed lists a call is checked against are declared by Governance's `Call` aggregate and
+    # read from there the first time they are named, so no copy lives here: `SOURCE_TAGS` (who is
+    # calling; omitted, source is recorded as nil rather than guessed) and `SURFACES` (what made
+    # the call: a person at a shell, an agent over MCP, or the domain itself).
+    DECLARED_SETS = { SOURCE_TAGS: "Source", SURFACES: "Surface" }.freeze
 
-    # Which surface a call came in through, so the audit line says what made it: a person at a shell
-    # (`cli`), an agent over the MCP server (`mcp`), or the domain itself (`policy`, `saga`,
-    # `reaction`).
-    SURFACES = %w[cli mcp policy saga reaction].freeze
+    # Reads a declared list the first time its constant is named.
+    #
+    # @param name [Symbol] the constant looked up
+    # @return [Array<String>] the declared list, now held as the constant
+    def self.const_missing(name)
+      return super unless DECLARED_SETS.key?(name)
+
+      const_set(name, Framework.closed_set("Governance", "Call", DECLARED_SETS.fetch(name)))
+    end
 
     # The root every domain path resolves under; HECKS_STOREHOUSE_ROOT widens it.
     # Hecks.boot Kernel.loads Ruby files here, so an unconfined path is
