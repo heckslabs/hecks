@@ -3,7 +3,7 @@ require "tmpdir"
 require "hecks/hecks/adapters/red_flag_marker"
 require "hecks/hecks/adapters/red_flag_guard"
 
-# What a standing red flag refuses: any landing but a red row's fix, and any boarding but that
+# What a standing red flag refuses: any landing but a red Work item's fix, and any boarding but that
 # fix's tip.
 RSpec.describe Hecks::Adapters::RedFlagGuard do
   let(:dir) { Dir.mktmpdir("hecks-red-flag-guard") }
@@ -20,13 +20,13 @@ RSpec.describe Hecks::Adapters::RedFlagGuard do
     expect { guard.landing!("feature-x") }.not_to raise_error
   end
 
-  it "refuses a branch that is not a red row's fix, naming the flag" do
+  it "refuses a branch that is not a red Work item's fix, naming the flag" do
     flagged
 
     expect { guard.landing!("feature-x") }.to refused
   end
 
-  it "lets the fix of a red row land", :aggregate_failures do
+  it "lets the fix of a red Work item land", :aggregate_failures do
     flagged
 
     expect { guard.landing!("red-flag-stops-work") }.not_to raise_error
@@ -39,7 +39,7 @@ RSpec.describe Hecks::Adapters::RedFlagGuard do
     expect { guard.boarding!("cccccccccccc") }.to refused
   end
 
-  it "boards the tip a red row's fix landed at" do
+  it "boards the tip a red Work item's fix landed at" do
     flagged
     guard.landed("red-a", "cccccccccccc")
 

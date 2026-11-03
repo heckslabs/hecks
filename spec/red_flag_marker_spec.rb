@@ -10,7 +10,7 @@ require "hecks/hecks/adapters/red_flag_report"
 RSpec.describe Hecks::Adapters::RedFlagMarker do
   let(:dir) { Dir.mktmpdir("hecks-red-flag-spec") }
   let(:marker) { described_class.new(dir, clock: -> { Time.utc(2026, 11, 2, 12, 0, 0) }) }
-  let(:run) { { ci_run: "99", jobs: "rspec, fuzz", rows: "red-a" } }
+  let(:run) { { ci_run: "99", jobs: "rspec, fuzz", work_items: "red-a" } }
 
   after { FileUtils.remove_entry(dir) }
 

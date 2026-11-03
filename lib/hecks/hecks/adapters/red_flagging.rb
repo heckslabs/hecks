@@ -25,11 +25,11 @@ module Hecks
         @tune = tune
       end
 
-      # @param held [Hash] the `RedFlag` record: `commit`, `detail`, `rows`, `checkout`
+      # @param held [Hash] the `RedFlag` record: `commit`, `detail`, `work_items`, `checkout`
       # @return [Hash{Symbol => Hash}] `outcome:` (`raised` or `noted`) and the flag's facts
       def hoist(**held)
         detail = pick(held, :detail, :report).to_s
-        facts = { ci_run: detail[RUN_ID, 1], jobs: detail[JOBS, 1], rows: plain(held[:rows]) }
+        facts = { ci_run: detail[RUN_ID, 1], jobs: detail[JOBS, 1], work_items: plain(held[:work_items]) }
         state, flag = marker(held).raise!(commit: pick(held, :commit, :landed).to_s, run: facts)
         answer(state.to_s, flag, facts)
       end
@@ -75,8 +75,9 @@ module Hecks
 
       def answer(outcome, flag, facts)
         { outcome: { value: outcome }, flag: { value: flag["id"] }, commit: { value: flag["commit"].to_s },
-          ci_run: { value: facts[:ci_run].to_s }, jobs: { value: facts[:jobs].to_s }, rows: { value: facts[:rows].to_s },
-          session: { value: facts[:session].to_s }, taking: { value: facts[:taking].to_s } }
+          ci_run: { value: facts[:ci_run].to_s }, jobs: { value: facts[:jobs].to_s },
+          work_items: { value: facts[:work_items].to_s }, session: { value: facts[:session].to_s },
+          taking: { value: facts[:taking].to_s } }
       end
 
       def marker(held) = RedFlagMarker.new(git_dir(held), **@tune.slice(:clock))

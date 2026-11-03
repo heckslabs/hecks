@@ -1,9 +1,9 @@
-# The Tickets domain's settings. `work_limit` caps how many Work rows may be started at once:
+# The Tickets domain's settings. `work_limit` caps how many Work items may be started at once:
 # a start that would make one more is sent back to the plan, naming the cap, the count and the
 # holders. Without this line the cap is `Hecks::Adapters::WorkLimits::DEFAULT_CAP`, the same number.
 #
 # `frozen_shapes` (not `freeze`, which every Ruby object already answers) names the areas and aggregates whose persisted shape may not move: a brief tells its session
-# to commit and hold a change that moves one, and `Dispatch.Fill` starts no row in a frozen area.
+# to commit and hold a change that moves one, and `Dispatch.Fill` starts no Work item in a frozen area.
 # `dispatch_max_load` is the 1-minute load above which `Dispatch.Fill` starts no session (the CPU count
 # when absent). `session_environment` is what every dispatched session starts with: a shared cargo
 # target directory and a `nice` increment.

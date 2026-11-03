@@ -6,7 +6,7 @@ module Hecks
   module QualityControlCli
     class QaTick
       # The tick's push check, once per tick: `PushNudge.Check` files, revises or finishes the one
-      # `push-due` Work row from refs git already holds. It fetches, pushes and merges nothing.
+      # `push-due` Work item from refs git already holds. It fetches, pushes and merges nothing.
       module PushNudgeStep
         private
 

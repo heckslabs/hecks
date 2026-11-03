@@ -269,7 +269,7 @@ RSpec.describe Hecks::Adapters::GitLanding do
   end
 
   describe "the rival check" do
-    def holds(*area) = allow(Hecks::Adapters::StartedWork).to receive(:rows).and_return([{ key: "other", area: area }])
+    def holds(*area) = allow(Hecks::Adapters::StartedWork).to receive(:items).and_return([{ key: "other", area: area }])
 
     it "sees the old path of a rename", :aggregate_failures do
       rename_in_tree
