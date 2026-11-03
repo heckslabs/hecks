@@ -64,8 +64,9 @@ mid-rebase checkout. `LinkedTree.add!` runs it before cutting the branch and `la
 rebase; `landing.land!` refuses a branch behind `origin/main`. A harness-made worktree (`EnterWorktree`)
 is cut from `origin/main`, not local `main`: check `git merge-base --is-ancestor origin/main HEAD` and rebase.
 
-Push `main` by boarding the train (`send_train.board! --confirm`), other branches with `git push`. The pre-push hook (`.githooks/pre-push`: rspec, fuzzing,
-model_check, rubocop, CI attestation) runs on every push, so do not bypass it.
+Push `main` by boarding the train (`send_train.board! --confirm`), other branches with `git push`. The pre-push hook (`.githooks/pre-push`) runs the gate stage of the lane
+a push names (the `Lane` rows' `push_gate`, projected into `.githooks/pre-push.lanes`: `quick` for `main`, none for `stable`),
+so do not bypass it.
 A red main stands a **red flag** (`RedFlag`, `lib/hecks/hecks/redflag/redflag.bluebook`): a CI run of main that completes red raises it (`Integration.CiFailed`, or `exe/hecks RedFlag.sync! run.value=<id>`), and one that completes green lowers it. While it stands, `Landing` and `SendTrain` refuse by name (`main is red: flag <id>`) everything except the fix of a red-* Work item (exe/hecks tickets Work.undone lists them): a branch named for the Work item lands and its tip is the one commit the train boards. A session listens with `exe/hecks Operation.follow domain.value=Hecks aggregate.value=RedFlag from_now=true wait=600` (RedFlagRaised, RedFlagRunNoted, RedFlagCheckedIn, RedFlagCleared), says it helps with `exe/hecks RedFlag.check_in! run.value=<id> session.value=<name> taking.value=<Work item or cause>`, and resumes on RedFlagCleared; `exe/hecks RedFlag.status` prints the flag, the red time and who is helping. Everything else lands locally with landing.land! once the flag is down.
 
 ## Briefing a session

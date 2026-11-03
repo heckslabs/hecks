@@ -87,10 +87,11 @@ RSpec.describe "the ci gate stage" do
       expect(stages).not_to include("unguarded_push")
     end
 
-    it "runs the hook's default push as the quick stage and nothing else", :aggregate_failures do
+    it "runs the default push of main as the quick stage and nothing else", :aggregate_failures do
       hook = File.read(File.join(InMemoryDomain::ROOT, ".githooks/pre-push"))
+      main = Hecks::Vocabulary.rows("Lane").find { |lane| lane["name"] == "main" }
 
-      expect(hook).to include("' quick; then")
+      expect(main["push_gate"]).to eq("quick")
       expect(hook).not_to include("only=fuzzing")
     end
 

@@ -5376,6 +5376,9 @@ pub struct Lane {
     pub follows: &'static str,
     pub alert_after: &'static str,
     pub release_trailer: &'static str,
+    pub push_gate: &'static str,
+    pub full_gate: &'static str,
+    pub train: &'static str,
 }
 
 pub const LANE: &[Lane] = &[
@@ -5387,6 +5390,9 @@ pub const LANE: &[Lane] = &[
         follows: "",
         alert_after: "",
         release_trailer: "",
+        push_gate: "quick",
+        full_gate: "pre_push",
+        train: "yes",
     },
     Lane {
         name: "stable",
@@ -5396,6 +5402,9 @@ pub const LANE: &[Lane] = &[
         follows: "main",
         alert_after: "4",
         release_trailer: "Release-Approved-By",
+        push_gate: "",
+        full_gate: "",
+        train: "no",
     },
 ];
 
@@ -5430,6 +5439,18 @@ impl Lane {
                 "release_trailer".to_string(),
                 crate::kernel::Json::Str(self.release_trailer.to_string()),
             ),
+            (
+                "push_gate".to_string(),
+                crate::kernel::Json::Str(self.push_gate.to_string()),
+            ),
+            (
+                "full_gate".to_string(),
+                crate::kernel::Json::Str(self.full_gate.to_string()),
+            ),
+            (
+                "train".to_string(),
+                crate::kernel::Json::Str(self.train.to_string()),
+            ),
         ])
     }
 
@@ -5444,6 +5465,9 @@ impl Lane {
             "follows",
             "alert_after",
             "release_trailer",
+            "push_gate",
+            "full_gate",
+            "train",
         ]);
         if !unknown.is_empty() {
             let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
@@ -5459,6 +5483,9 @@ impl Lane {
                         "follows",
                         "alert_after",
                         "release_trailer",
+                        "push_gate",
+                        "full_gate",
+                        "train",
                     ],
                 }
                 .render_args(),
@@ -5502,6 +5529,21 @@ impl Lane {
                 "Lane.release_trailer expects String, got nil".to_string(),
             ));
         }
+        if matches!(v.get("push_gate"), None | Some(crate::kernel::Json::Null)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(
+                "Lane.push_gate expects String, got nil".to_string(),
+            ));
+        }
+        if matches!(v.get("full_gate"), None | Some(crate::kernel::Json::Null)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(
+                "Lane.full_gate expects String, got nil".to_string(),
+            ));
+        }
+        if matches!(v.get("train"), None | Some(crate::kernel::Json::Null)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(
+                "Lane.train expects String, got nil".to_string(),
+            ));
+        }
         for row in LANE {
             if v.get("name").and_then(crate::kernel::Json::as_str) == Some(row.name)
                 && v.get("guarded").and_then(crate::kernel::Json::as_str) == Some(row.guarded)
@@ -5513,6 +5555,9 @@ impl Lane {
                 && v.get("release_trailer")
                     .and_then(crate::kernel::Json::as_str)
                     == Some(row.release_trailer)
+                && v.get("push_gate").and_then(crate::kernel::Json::as_str) == Some(row.push_gate)
+                && v.get("full_gate").and_then(crate::kernel::Json::as_str) == Some(row.full_gate)
+                && v.get("train").and_then(crate::kernel::Json::as_str) == Some(row.train)
             {
                 return Ok(row.clone());
             }

@@ -90,6 +90,22 @@ RSpec.describe "the pre-push hook on main", :io do
     expect(push("refs/tags/v0")[2].success?).to be(true)
   end
 
+  it "runs nothing for a lane whose row names no gate, and does not ask for the train", :aggregate_failures do
+    _out, _err, status = push("HEAD:refs/heads/stable")
+
+    expect(status.success?).to be(true)
+    expect(push("HEAD:refs/heads/stable")[0]).not_to include("push train")
+  end
+
+  it "refuses to pass a push unchecked when the lane table is missing" do
+    FileUtils.cp_r(hooks, File.join(scratch, "hooks"))
+    FileUtils.rm(File.join(scratch, "hooks/pre-push.lanes"))
+    git("config", "core.hooksPath", File.join(scratch, "hooks"))
+    _out, err, status = push("main")
+
+    expect([status.success?, err]).to match([false, include("pre-push.lanes is missing")])
+  end
+
   it "is satisfied by the train's own carry" do
     git("push", "-q", "--no-verify", "origin", "main")
     commit("second")

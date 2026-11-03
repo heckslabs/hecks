@@ -35778,6 +35778,36 @@
               "pattern": null,
               "admits": null,
               "relationship": null
+            },
+            {
+              "name": "push_gate",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "full_gate",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "train",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -35813,6 +35843,18 @@
               [
                 "release_trailer",
                 ""
+              ],
+              [
+                "push_gate",
+                "quick"
+              ],
+              [
+                "full_gate",
+                "pre_push"
+              ],
+              [
+                "train",
+                "yes"
               ]
             ],
             [
@@ -35843,6 +35885,18 @@
               [
                 "release_trailer",
                 "Release-Approved-By"
+              ],
+              [
+                "push_gate",
+                ""
+              ],
+              [
+                "full_gate",
+                ""
+              ],
+              [
+                "train",
+                "no"
               ]
             ]
           ]

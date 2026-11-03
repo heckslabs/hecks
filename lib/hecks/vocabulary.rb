@@ -190,8 +190,8 @@ module Hecks
         {"type"=>"String", "strategy"=>"substring"}.freeze
       ].freeze,
       "Lane" => [
-        {"name"=>"main", "guarded"=>"no", "pushers"=>"anyone", "feeds"=>"", "follows"=>"", "alert_after"=>"", "release_trailer"=>""}.freeze,
-        {"name"=>"stable", "guarded"=>"yes", "pushers"=>"green", "feeds"=>"edge", "follows"=>"main", "alert_after"=>"4", "release_trailer"=>"Release-Approved-By"}.freeze
+        {"name"=>"main", "guarded"=>"no", "pushers"=>"anyone", "feeds"=>"", "follows"=>"", "alert_after"=>"", "release_trailer"=>"", "push_gate"=>"quick", "full_gate"=>"pre_push", "train"=>"yes"}.freeze,
+        {"name"=>"stable", "guarded"=>"yes", "pushers"=>"green", "feeds"=>"edge", "follows"=>"main", "alert_after"=>"4", "release_trailer"=>"Release-Approved-By", "push_gate"=>"", "full_gate"=>"", "train"=>"no"}.freeze
       ].freeze,
       "LanguageLimit" => [
         {"name"=>"reaction_depth", "value"=>"5"}.freeze,
