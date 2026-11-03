@@ -271,7 +271,7 @@ RSpec.describe "the red flag over a real CI cycle" do
 
     expect(flag).to be_nil
     expect(payload(events("RedFlagKicked").last).dig(:detail, :value)).to eq(bad)
-    expect(events("RedFlagCleared").size).to eq(1)
+    expect(payload(events("RedFlagCleared").last).dig(:flag, :value)).to eq("flag-#{bad[0, 10]}")
   end
 
   it "dispatches one coder on the Work item it files, and says so in the event", :aggregate_failures do
