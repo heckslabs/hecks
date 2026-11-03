@@ -45,6 +45,11 @@
   },
   {
     "kind": "query",
+    "id": "Governance::RoleAssignment.LiveScopedAssignmentsForActor",
+    "generated": true
+  },
+  {
+    "kind": "query",
     "id": "Governance::RoleTransition.Allowed",
     "generated": true
   },

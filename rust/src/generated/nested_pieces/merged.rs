@@ -1033,6 +1033,43 @@ pub const QUERIES: &[crate::kernel::QueryDef] = &[
                 comparator: crate::kernel::query_comparators::QueryComparator::Eq,
                 value: crate::kernel::QueryConditionValue::Null,
             },
+            crate::kernel::QueryCondition {
+                field: "starts_at",
+                comparator: crate::kernel::query_comparators::QueryComparator::Lte,
+                value: crate::kernel::QueryConditionValue::Arg("as_of"),
+            },
+        ],
+        reference_hop_conditions: &[],
+        order_by: None,
+        offset: None,
+        limit: None,
+        cursor: false,
+        authorization: None,
+    },
+    crate::kernel::QueryDef {
+        verb: "Governance::RoleAssignment.LiveScopedAssignmentsForActor",
+        aggregate: "Governance::RoleAssignment",
+        conditions: &[
+            crate::kernel::QueryCondition {
+                field: "actor_id",
+                comparator: crate::kernel::query_comparators::QueryComparator::Eq,
+                value: crate::kernel::QueryConditionValue::Arg("actor_id"),
+            },
+            crate::kernel::QueryCondition {
+                field: "scope",
+                comparator: crate::kernel::query_comparators::QueryComparator::Eq,
+                value: crate::kernel::QueryConditionValue::Arg("scope"),
+            },
+            crate::kernel::QueryCondition {
+                field: "ends_at",
+                comparator: crate::kernel::query_comparators::QueryComparator::Eq,
+                value: crate::kernel::QueryConditionValue::Null,
+            },
+            crate::kernel::QueryCondition {
+                field: "starts_at",
+                comparator: crate::kernel::query_comparators::QueryComparator::Lte,
+                value: crate::kernel::QueryConditionValue::Arg("as_of"),
+            },
         ],
         reference_hop_conditions: &[],
         order_by: None,
@@ -1082,6 +1119,11 @@ pub const QUERIES: &[crate::kernel::QueryDef] = &[
                 comparator: crate::kernel::query_comparators::QueryComparator::Eq,
                 value: crate::kernel::QueryConditionValue::Null,
             },
+            crate::kernel::QueryCondition {
+                field: "starts_at",
+                comparator: crate::kernel::query_comparators::QueryComparator::Lte,
+                value: crate::kernel::QueryConditionValue::Arg("as_of"),
+            },
         ],
         reference_hop_conditions: &[],
         order_by: None,
@@ -1120,6 +1162,33 @@ pub fn check_query_args(
                 )?
                 .check_invariants()?;
             }
+            if let Some(x) = args.get("as_of") {
+                crate::generated::governance::roleassignment::Timestamp::from_json(
+                    &x.coerce_single_field("value"),
+                )?
+                .check_invariants()?;
+            }
+            Ok(())
+        }
+        "Governance::RoleAssignment.LiveScopedAssignmentsForActor" => {
+            if let Some(x) = args.get("actor_id") {
+                crate::generated::governance::roleassignment::IdentityId::from_json(
+                    &x.coerce_single_field("value"),
+                )?
+                .check_invariants()?;
+            }
+            if let Some(x) = args.get("scope") {
+                crate::generated::governance::roleassignment::Scope::from_json(
+                    &x.coerce_single_field("value"),
+                )?
+                .check_invariants()?;
+            }
+            if let Some(x) = args.get("as_of") {
+                crate::generated::governance::roleassignment::Timestamp::from_json(
+                    &x.coerce_single_field("value"),
+                )?
+                .check_invariants()?;
+            }
             Ok(())
         }
         "Governance::RoleTransition.Allowed" => {
@@ -1146,6 +1215,12 @@ pub fn check_query_args(
             }
             if let Some(x) = args.get("to_role") {
                 crate::generated::governance::roletransition::RoleName::from_json(
+                    &x.coerce_single_field("value"),
+                )?
+                .check_invariants()?;
+            }
+            if let Some(x) = args.get("as_of") {
+                crate::generated::governance::roletransition::Timestamp::from_json(
                     &x.coerce_single_field("value"),
                 )?
                 .check_invariants()?;

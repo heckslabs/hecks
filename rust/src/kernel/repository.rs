@@ -195,11 +195,43 @@ pub fn row_json(id: String, record: super::Json) -> super::Json {
     super::Json::Object(fields)
 }
 
+/// The kernel's "now" as a UTC `Timestamp`, `YYYY-MM-DDTHH:MM:SSZ`. Text in that form sorts with
+/// the stored dates and date-times, so a grant that starts later compares greater (as Ruby's
+/// `GovernanceAuthorization.as_of_text` writes it).
+pub fn utc_now_text() -> String {
+    let secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |elapsed| elapsed.as_secs() as i64);
+    let (year, month, day) = civil_from_days(secs.div_euclid(86_400));
+    let rem = secs.rem_euclid(86_400);
+    format!(
+        "{year:04}-{month:02}-{day:02}T{:02}:{:02}:{:02}Z",
+        rem / 3600,
+        (rem % 3600) / 60,
+        rem % 60
+    )
+}
+
+/// Days since 1970-01-01 to a proleptic Gregorian (year, month, day), by Hinnant's algorithm.
+fn civil_from_days(days: i64) -> (i64, i64, i64) {
+    let z = days + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z.rem_euclid(146_097);
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let day = doy - (153 * mp + 2) / 5 + 1;
+    let month = if mp < 10 { mp + 3 } else { mp - 9 };
+    let year = yoe + era * 400 + i64::from(month <= 2);
+    (year, month, day)
+}
+
 /// True when `actor_id` holds `role` through a live assignment.
 ///
 /// Runs the bluebook-declared `live_assignments` query through `named_query::run`, which is what
-/// decides an assignment is live (Governance's `ends_at: nil`); `None`, or a verb missing from
-/// `queries`, holds no role. Ruby likewise ignores scope and `starts_at`.
+/// decides an assignment is live: not revoked (Governance's `ends_at: nil`) and started by the
+/// kernel's `as_of` (`starts_at` at or before now, compared as UTC text). `None`, or a verb missing
+/// from `queries`, holds no role. Scope is not on this path: the caller states none.
 pub fn holds_role_via(
     store: &impl AggregateScan,
     queries: &[super::QueryDef],
@@ -210,10 +242,10 @@ pub fn holds_role_via(
     let Some(def) = assignments.and_then(|verb| super::named_query::find(queries, verb)) else {
         return false;
     };
-    let args = super::Json::Object(vec![(
-        "actor_id".to_string(),
-        super::Json::Str(actor_id.to_string()),
-    )]);
+    let args = super::Json::Object(vec![
+        ("actor_id".to_string(), super::Json::Str(actor_id.to_string())),
+        ("as_of".to_string(), super::Json::Str(utc_now_text())),
+    ]);
     let Ok(rows) = super::named_query::run(store, def, &args, None) else {
         return false;
     };
@@ -822,5 +854,130 @@ mod json_cache_tests {
             .map(|(_, json)| json.clone())
             .collect();
         assert_eq!(second, vec![render(&10), render(&2)]);
+    }
+}
+
+#[cfg(test)]
+mod role_liveness_tests {
+    use super::{holds_role_via, AggregateScan};
+    use crate::kernel::named_query::{run, QueryCondition, QueryConditionValue, QueryDef};
+    use crate::kernel::query_comparators::QueryComparator;
+    use crate::kernel::Json;
+
+    struct Grants(Vec<(String, Json)>);
+
+    impl AggregateScan for Grants {
+        fn scan(&self, aggregate: &str) -> Option<Vec<(String, Json)>> {
+            (aggregate == "RoleAssignment").then(|| self.0.clone())
+        }
+    }
+
+    // The conditions `RoleAssignment.LiveAssignmentsForActor` and `LiveScopedAssignmentsForActor`
+    // declare in governance.bluebook, as codegen emits them.
+    const LIVE: &[QueryCondition] = &[
+        QueryCondition {
+            field: "actor_id",
+            comparator: QueryComparator::Eq,
+            value: QueryConditionValue::Arg("actor_id"),
+        },
+        QueryCondition {
+            field: "ends_at",
+            comparator: QueryComparator::Eq,
+            value: QueryConditionValue::Null,
+        },
+        QueryCondition {
+            field: "starts_at",
+            comparator: QueryComparator::Lte,
+            value: QueryConditionValue::Arg("as_of"),
+        },
+    ];
+    const LIVE_IN_SCOPE: &[QueryCondition] = &[
+        QueryCondition {
+            field: "actor_id",
+            comparator: QueryComparator::Eq,
+            value: QueryConditionValue::Arg("actor_id"),
+        },
+        QueryCondition {
+            field: "scope",
+            comparator: QueryComparator::Eq,
+            value: QueryConditionValue::Arg("scope"),
+        },
+        QueryCondition {
+            field: "ends_at",
+            comparator: QueryComparator::Eq,
+            value: QueryConditionValue::Null,
+        },
+        QueryCondition {
+            field: "starts_at",
+            comparator: QueryComparator::Lte,
+            value: QueryConditionValue::Arg("as_of"),
+        },
+    ];
+
+    fn def(verb: &'static str, conditions: &'static [QueryCondition]) -> QueryDef {
+        QueryDef {
+            verb,
+            aggregate: "RoleAssignment",
+            conditions,
+            reference_hop_conditions: &[],
+            order_by: None,
+            offset: None,
+            limit: None,
+            cursor: false,
+            authorization: None,
+        }
+    }
+
+    fn text(value: &str) -> Json {
+        Json::obj(vec![("value", Json::str(value.to_string()))])
+    }
+
+    // One RoleAssignment row, with `starts_at` and `scope` as the aggregate stores them.
+    fn grant(id: &str, role: &str, scope: &str, starts: &str) -> (String, Json) {
+        let record = Json::obj(vec![
+            ("actor_id", text("u-1")),
+            ("role_name", text(role)),
+            ("scope", text(scope)),
+            ("starts_at", text(starts)),
+            ("ends_at", Json::Null),
+        ]);
+        (id.to_string(), record)
+    }
+
+    fn holds(rows: Vec<(String, Json)>, role: &str) -> bool {
+        let verb = "RoleAssignment.LiveAssignmentsForActor";
+        holds_role_via(&Grants(rows), &[def(verb, LIVE)], Some(verb), "u-1", role)
+    }
+
+    fn scoped_args(scope: &str) -> Json {
+        Json::obj(vec![
+            ("actor_id", Json::str("u-1".to_string())),
+            ("scope", Json::str(scope.to_string())),
+            ("as_of", Json::str("2026-11-03T00:00:00Z".to_string())),
+        ])
+    }
+
+    #[test]
+    fn a_grant_started_in_the_past_counts() {
+        assert!(holds(vec![grant("g-1", "Teller", "Branch-1", "2026-01-01")], "Teller"));
+    }
+
+    #[test]
+    fn a_future_dated_grant_does_not_count_yet() {
+        assert!(!holds(vec![grant("g-2", "Teller", "Branch-1", "2099-01-01")], "Teller"));
+    }
+
+    #[test]
+    fn a_grant_for_another_scope_does_not_count_in_this_scope() {
+        let store = Grants(vec![grant("g-3", "Teller", "Branch-2", "2026-01-01")]);
+        let found = run(&store, &def("RoleAssignment.LiveScopedAssignmentsForActor", LIVE_IN_SCOPE), &scoped_args("Branch-1"), None).unwrap();
+        assert!(found.is_empty());
+    }
+
+    #[test]
+    fn a_future_dated_grant_for_this_scope_does_not_count_either() {
+        let store = Grants(vec![grant("g-4", "Teller", "Branch-1", "2099-01-01")]);
+        let found = run(&store, &def("RoleAssignment.LiveScopedAssignmentsForActor", LIVE_IN_SCOPE), &scoped_args("Branch-1"), None).unwrap();
+        assert!(found.is_empty());
     }
 }

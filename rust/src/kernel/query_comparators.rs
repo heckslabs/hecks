@@ -1,6 +1,8 @@
 // Matching logic for the generated `QueryComparator` enum (`vocab::QueryComparator`),
 // mirroring Ruby's `QuerySpecification::Common::Comparison#holds?`.
 
+use std::cmp::Ordering;
+
 use super::Json;
 
 pub use super::vocab::QueryComparator;
@@ -16,10 +18,10 @@ impl QueryComparator {
         match self {
             Self::Eq => held == want,
             Self::Ne => held != want,
-            Self::Gt => ordered(held, want) && as_f64(held) > as_f64(want),
-            Self::Gte => ordered(held, want) && as_f64(held) >= as_f64(want),
-            Self::Lt => ordered(held, want) && as_f64(held) < as_f64(want),
-            Self::Lte => ordered(held, want) && as_f64(held) <= as_f64(want),
+            Self::Gt => matches!(order(held, want), Some(Ordering::Greater)),
+            Self::Gte => matches!(order(held, want), Some(Ordering::Greater | Ordering::Equal)),
+            Self::Lt => matches!(order(held, want), Some(Ordering::Less)),
+            Self::Lte => matches!(order(held, want), Some(Ordering::Less | Ordering::Equal)),
             Self::In => members(want).iter().any(|member| member == &to_s(held)),
             Self::Contains => contains(held, want),
             // Needs a repository, so `filter_entries_cross_domain` calls `none_in_state_matches`
@@ -61,10 +63,17 @@ pub fn none_in_state_matches(
     true
 }
 
-/// gt/gte/lt/lte are numeric-only; anything else is silently false, never a refusal.
-const fn ordered(held: &Json, want: &Json) -> bool {
-    matches!(held, Json::Num(_, _) | Json::Float(_))
-        && matches!(want, Json::Num(_, _) | Json::Float(_))
+/// The order of two operands for gt/gte/lt/lte: numbers compare numerically, and two strings
+/// compare as text, which is how a UTC `Timestamp` orders (sealing admits only those). Anything
+/// else has no order, so the comparison is silently false, never a refusal.
+fn order(held: &Json, want: &Json) -> Option<Ordering> {
+    match (held, want) {
+        (Json::Str(a), Json::Str(b)) => Some(a.cmp(b)),
+        (Json::Num(_, _) | Json::Float(_), Json::Num(_, _) | Json::Float(_)) => {
+            as_f64(held).partial_cmp(&as_f64(want))
+        }
+        _ => None,
+    }
 }
 
 /// Only called after `ordered` has gated the comparison, so the NaN fallback is unreachable.

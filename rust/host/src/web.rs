@@ -569,7 +569,13 @@ async fn is_admin(store: &Store, wasm_path: &Path, domain_ir: &Value, identity_i
     else {
         return false;
     };
-    let args = json!({"actor_id": {"value": identity_id}});
+    // The live query also takes the instant the grant must have started by: now, as UTC text.
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    let as_of = crate::payments::keystore::utc_timestamp(now);
+    let args = json!({"actor_id": {"value": identity_id}, "as_of": {"value": as_of}});
     dispatch::query(store, wasm_path, &query, args)
         .await
         .is_ok_and(|answer| auth::holds_admin(&auth::answer_rows(&answer)))

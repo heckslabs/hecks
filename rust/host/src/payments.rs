@@ -13,7 +13,7 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 
-mod keystore;
+pub(crate) mod keystore;
 /// Which member roles may manage payments (`HECKS_PAYMENTS_MANAGER_ROLES`).
 pub mod roles;
 use keystore::{KeyStore, StoredDocument, StoredKeys};

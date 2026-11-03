@@ -409,11 +409,21 @@
         },
         {
           "name": "LiveAssignmentsForActor",
-          "description": "Every role an actor holds right now: assigned and not yet revoked.",
+          "description": "Every role an actor holds as of a moment: assigned, not yet revoked, and started by then.",
           "attributes": [
             {
               "name": "actor_id",
               "type": "IdentityId",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "as_of",
+              "type": "Timestamp",
               "list": false,
               "default": null,
               "optional": false,
@@ -432,6 +442,71 @@
               "field": "ends_at",
               "op": "eq",
               "value": "nil"
+            },
+            {
+              "field": "starts_at",
+              "op": "lte",
+              "value": ":as_of"
+            }
+          ],
+          "order_by": null,
+          "limit": null
+        },
+        {
+          "name": "LiveScopedAssignmentsForActor",
+          "description": "Every role an actor holds as of a moment over one scope: assigned, not yet revoked, started by then, and made for that scope.",
+          "attributes": [
+            {
+              "name": "actor_id",
+              "type": "IdentityId",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "scope",
+              "type": "Scope",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "as_of",
+              "type": "Timestamp",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "wheres": [
+            {
+              "field": "actor_id",
+              "op": "eq",
+              "value": ":actor_id"
+            },
+            {
+              "field": "scope",
+              "op": "eq",
+              "value": ":scope"
+            },
+            {
+              "field": "ends_at",
+              "op": "eq",
+              "value": "nil"
+            },
+            {
+              "field": "starts_at",
+              "op": "lte",
+              "value": ":as_of"
             }
           ],
           "order_by": null,
@@ -765,7 +840,7 @@
         },
         {
           "name": "LiveAllowed",
-          "description": "Every role transition granted for this exact pair and not yet revoked.",
+          "description": "Every role transition granted for this exact pair, not yet revoked, and started by a moment.",
           "attributes": [
             {
               "name": "from_role",
@@ -780,6 +855,16 @@
             {
               "name": "to_role",
               "type": "RoleName",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "as_of",
+              "type": "Timestamp",
               "list": false,
               "default": null,
               "optional": false,
@@ -803,6 +888,11 @@
               "field": "ends_at",
               "op": "eq",
               "value": "nil"
+            },
+            {
+              "field": "starts_at",
+              "op": "lte",
+              "value": ":as_of"
             }
           ],
           "order_by": null,
@@ -842,6 +932,11 @@
       "capability": "authorization",
       "key": "live_assignments",
       "verb": "RoleAssignment.LiveAssignmentsForActor"
+    },
+    {
+      "capability": "authorization",
+      "key": "live_scoped_assignments",
+      "verb": "RoleAssignment.LiveScopedAssignmentsForActor"
     },
     {
       "capability": "authorization",
