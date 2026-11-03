@@ -66,6 +66,7 @@ module Hecks
           ["Policy", "trigger"] => :trigger_impl,
           ["Policy", "ask"] => :ask_impl,
           ["Policy", "across"] => :across_impl,
+          ["Policy", "root"] => :root_impl,
           ["ProcessManager", "correlates_by"] => :correlates_by_impl,
           ["ProcessManager", "starts_on"] => :starts_on_impl,
           ["ProcessManager", "ends_on"] => :ends_on_impl,

@@ -14735,6 +14735,16 @@
           "admits": null,
           "default": null,
           "list": false,
+          "name": "root",
+          "optional": true,
+          "pattern": null,
+          "relationship": null,
+          "type": "PolicyText"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
           "name": "where",
           "optional": true,
           "pattern": null,
@@ -14859,6 +14869,16 @@
               "admits": null,
               "default": null,
               "list": false,
+              "name": "root",
+              "optional": true,
+              "pattern": null,
+              "relationship": null,
+              "type": "PolicyText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
               "name": "where",
               "optional": true,
               "pattern": null,
@@ -14971,6 +14991,15 @@
                 "name": "expect_undelivered"
               },
               "target": "expect_undelivered"
+            },
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "root"
+              },
+              "target": "root"
             },
             {
               "op": "set",
@@ -15514,6 +15543,36 @@
               [
                 "fills",
                 "for_each"
+              ]
+            ],
+            [
+              [
+                "word",
+                "root"
+              ],
+              [
+                "context",
+                "Policy"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "root"
+              ],
+              [
+                "calls",
+                "root_impl"
               ]
             ]
           ],

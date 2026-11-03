@@ -1493,6 +1493,7 @@
       "trigger_command": "Roster.Mark",
       "target_domain": null,
       "expect_undelivered": false,
+      "root": false,
       "where": null,
       "for_each": null,
       "with_spec": [
@@ -1509,6 +1510,7 @@
       "trigger_command": "Roster.Notice",
       "target_domain": null,
       "expect_undelivered": false,
+      "root": false,
       "where": null,
       "for_each": null,
       "with_spec": [
@@ -1522,6 +1524,7 @@
       "trigger_command": "Roster.Honor",
       "target_domain": null,
       "expect_undelivered": false,
+      "root": false,
       "where": "number.value == 1",
       "for_each": null,
       "with_spec": [
