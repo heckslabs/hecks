@@ -37,7 +37,6 @@ commands:
     project_ci_pipeline!          Project the CiWorkflows rows into their workflow files, or with check only compare them
     project_lanes!                Project the Lane rows into the rulesets and the promotion workflow, or with live compare GitHub's rulesets
     project_tools_doc!            Write the launcher forms of docs/tools.md from the RetiredScript rows, or with check only compare them
-    project_glossary!             Write a bluebook's Ubiquitous Language glossary into its domain's glossary folder, or with check only compare it
     decide_ci_gate!               Say whether this run's change touches what a CiGate row guards, as the gated job's detector
   KernelRun:
     One projection of the Rust kernel's capability enums, or one measure of their coverage.
@@ -80,18 +79,13 @@ commands:
     dispatch!                     Hand one brief to a background Claude session working in a directory
     check!                        Read the state a started session's job is in, and record it when it changed
     tidy!                         Remove the finished session of one run, unless it is unfinished or a person took it over
-  Message:
-    One message to a session or a work item: sent, read by those it reaches, and answered.
-    send!                         Send a message to a session, or to a work item so every session on it hears it
-    read!                         Record that a session has read a message
-    answer!                       Answer a message; the answer is a message of its own kind
   SessionSweep:
     One check of every started run's session: each change of state is recorded on its run.
     check_all!                    Check every run whose session was started and is not known to have ended (also: agent_run.check_all!)
   Dispatch:
-    One filling of the Work queue: the planned Work items that start a session now, and why each other waits.
-    fill!                         Choose the planned Work items that start a session now and, with confirm, start them; without it, say what would start
-    settle!                       Check the started sessions and finish the Work item of each that is done, or yield the Work item of one that stopped
+    One filling of the Work queue: the planned rows that start a session now, and why each other waits.
+    fill!                         Choose the planned Work rows that start a session now and, with confirm, start them; without it, say what would start
+    settle!                       Check the started sessions and finish the row of each that is done, or yield the row of one that stopped
   Revision:
     One commit made in a checkout, or declined with the reason: what it says and what it is on.
     make!                         Commit what is staged in a checkout under a message: never pushed, never amended, never onto main
@@ -187,17 +181,15 @@ commands:
     A running rust/host, and the version and era it last reported.
     check_era!                    Ask a running host which era it reports, and keep whether it is one that should be running
     recheck!                      Ask a host already checked which era it reports now
-  Pusher:
-    One request against the repository's pusher: assigned to a session, or a boarding refused for not being it.
-    assign!                       Name the session that is the only one allowed to board the push train, replacing the one before it
   QaQuiesce:
     One hold or release of the QA quiet marker: held, released, or refused.
     hold!                         Quiet QA for a mint window: every tick step refuses to start while the marker is fresh
     release!                      End a mint window: remove the QA quiet marker, which another owner's marker survives without force
   RedFlag:
-    One request against main's red flag: raised, noted, checked in to, lowered, or refused.
+    One request against main's red flag: raised, noted, checked in to, kicked, lowered, or refused.
     check_in!                     Say who is helping with the red flag and what they take (a red-* Work item or a cause), so nobody fixes the same thing twice
     sync!                         Read main's newest CI run on GitHub and raise or lower the red flag to match it
+    kick!                         Revert the push batch since the last green head off main as a red-main-* fix, finish it onto main, board it, file a red-* Work item for the batch and dispatch one coder to bring it back green
   PushRehearsal:
     One dry run of the push against local main: green or red per stage, or refused when it could not run.
     rehearse!                     Run the push's stages against local main without pushing, and say pass or fail for each
@@ -265,9 +257,6 @@ queries (nothing here changes anything):
     One check or fix of comment style, or one document written with its keys in order.
     report_comments         The Ruby comment violations, as summary tables, a list or JSON.
     report_rust_comments    The Rust comment violations, as summary tables, a list or JSON.
-  Message:
-    One message to a session or a work item: sent, read by those it reaches, and answered.
-    unread                  Every message sent and not yet read; the inbox script narrows it to one session.
   Workspace:
     A look at a checkout: its branch, what it changed and what it committed.
     status                  The checkout's branch, whether it is a linked worktree, where it stands against main and origin/main, and what is changed or untracked.
@@ -329,15 +318,11 @@ queries (nothing here changes anything):
     docs                    A domain's usage document, whole or for one aggregate.
     project_diagrams        A bluebook's Mermaid diagrams, as file names mapped to their text; nothing is written.
     glossary                A bluebook's Ubiquitous Language glossary, as file names mapped to their text; nothing is written.
-  Pusher:
-    One request against the repository's pusher: assigned to a session, or a boarding refused for not being it.
-    current                 The assigned pusher of the repository, or that none is assigned.
-    waiting                 Commits on local main the remote lacks: sha, author, landed branch, subject and files.
   QaQuiesce:
     One hold or release of the QA quiet marker: held, released, or refused.
     status                  Whether QA is quiesced: the marker's owner, reason and age, or that it is stale or absent.
   RedFlag:
-    One request against main's red flag: raised, noted, checked in to, lowered, or refused.
+    One request against main's red flag: raised, noted, checked in to, kicked, lowered, or refused.
     status                  Whether main is flagged: the flag, its commit, red time, failed jobs and who is helping.
   PushRehearsal:
     One dry run of the push against local main: green or red per stage, or refused when it could not run.
@@ -378,6 +363,6 @@ bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
   expression       The subset of regular Ruby a predicate is allowed to be — small enough that every target can…
 
   hecks <command> --help       what one command wants, and every way it refuses
-  hecks --all                  also list the 283 internal commands and queries
+  hecks --all                  also list the 282 internal commands and queries
   a command is called with its aggregate — Build.project_rust!
   exit status: 0 answered, 1 refused or failed, 2 a line it could not read
