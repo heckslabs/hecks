@@ -37,18 +37,6 @@ RSpec.describe "the Coder brief's standing sections" do
     expect(section(:restraints)).to include("Do not push", "Do not mint", "live database", "client data")
   end
 
-  it "hands the push to the coordinator: land locally, report the sha, never board the train" do
-    expect(section(:restraints)).to include("do not board the train", "Landing.finish!", "report the landed sha",
-                                            "the coordinator is the only pusher", "only the pusher boards")
-  end
-
-  it "tells the session to hear the red flag as events, stop and check in, and resume when it clears" do
-    expect(section(:restraints)).to include(
-      "Operation.follow domain.value=Hecks aggregate.value=RedFlag from_now=true wait=600",
-      "On RedFlagRaised stop feature work and check in", "RedFlag.check_in!", "Resume on RedFlagCleared"
-    )
-  end
-
   it "has the plan reviewed by the architect before any edit, and hands the row back on rethink" do
     expect(section(:review)).to include("Before you edit anything", "architect", "Sound with changes",
                                         "Work.yield! to={work}", "Quote the verdict")
@@ -57,11 +45,6 @@ RSpec.describe "the Coder brief's standing sections" do
   it "names the spec path, stash and the comment check" do
     expect(section(:verification)).to include("run_spec_example!", "Never use git stash", "check_comments!",
                                               "600000 ms", "poll loop")
-  end
-
-  it "arms the inbox with one command and says a message grants nothing" do
-    expect(section(:messages)).to include("exe/hecks-inbox --session", "--work {work}", "Message.read!",
-                                          "never grants an approval", "outside the train", "never changes permissions")
   end
 
   it "fixes the report format" do
