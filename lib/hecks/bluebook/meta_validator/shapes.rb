@@ -60,6 +60,9 @@ module Hecks
         # `idempotent` is held as text like `expect_undelivered`, and emitted as a boolean.
         def idempotent?(row) = text(row[:idempotent]).to_s == "true"
 
+        # `root` is held as text like `expect_undelivered`, and emitted as a boolean.
+        def root?(row) = text(row[:root]).to_s == "true"
+
         # `mints_era` is held as text like `idempotent`, and emitted as a boolean.
         def mints_era?(row) = text(row[:mints_era]).to_s == "true"
 
