@@ -47,9 +47,8 @@ RSpec.describe Hecks::Release::Runner, :aggregate_failures do
   after { FileUtils.remove_entry(root) }
 
   def release(input: "", **flags)
-    facts = described_class::Preflight::Facts.new(version: version, sha: sha)
     described_class.new(root: root, options: described_class::Options.new(**flags), commands: commands,
-                        facts: facts, input: StringIO.new(input), out: out, err: err, **pacing).call
+                        input: StringIO.new(input), out: out, err: err, **pacing).call
   end
 
   # The pause and clock the runner polls with: each pause is recorded, advances the clock, and
@@ -97,6 +96,66 @@ RSpec.describe Hecks::Release::Runner, :aggregate_failures do
   end
 
   describe "preflight" do
+    it "refuses off the release lane, naming the fix" do
+      commands.answer("git", "rev-parse", "--abbrev-ref", "HEAD", stdout: "feature\n")
+
+      expect(release(yes: true)).to eq(1)
+      expect(err.string).to include("on branch feature, not stable", "git checkout stable")
+      expect(commands.runs).to be_empty
+    end
+
+    it "refuses on main, which takes pushes with no gate" do
+      commands.answer("git", "rev-parse", "--abbrev-ref", "HEAD", stdout: "main\n")
+
+      expect(release(yes: true)).to eq(1)
+      expect(err.string).to include("on branch main, not stable")
+      expect(commands.runs).to be_empty
+    end
+
+    it "refuses when the release lane is behind its origin" do
+      commands.answer("git", "rev-parse", "origin/stable", stdout: "#{other_sha}\n")
+
+      expect(release(yes: true)).to eq(1)
+      expect(err.string).to include("is not origin/stable", "git pull --ff-only")
+      expect(commands.runs).to be_empty
+    end
+
+    it "fetches origin before comparing" do
+      release(yes: true, dry_run: true)
+
+      expect(commands.argvs).to include(%w[git fetch origin])
+    end
+
+    it "refuses a dirty working tree" do
+      commands.answer("git", "status", "--porcelain", stdout: " M lib/hecks/version.rb\n")
+
+      expect(release(yes: true)).to eq(1)
+      expect(err.string).to include("uncommitted changes")
+      expect(commands.runs).to be_empty
+    end
+
+    it "refuses when the client is at another version, in ReleaseGem's words" do
+      File.write(File.join(root, "packages/hecks-client/package.json"), JSON.generate("version" => "9.9.8"))
+
+      expect(release(yes: true)).to eq(1)
+      expect(err.string).to include("packages/hecks-client is at 9.9.8 but Hecks::VERSION is #{version}; bump the package first.")
+    end
+
+    it "refuses when the Rust host's release file is at another version" do
+      File.write(File.join(root, "rust/host/HECKS_RELEASE"), "9.9.8\n")
+
+      expect(release(yes: true)).to eq(1)
+      expect(err.string).to include("rust/host/HECKS_RELEASE says \"9.9.8\" but Hecks::VERSION is #{version}")
+    end
+
+    it "refuses when the changelog has no heading for the version" do
+      File.write(File.join(root, "CHANGELOG.md"), "# Changelog\n\n## [Unreleased]\n")
+
+      expect(release(yes: true)).to eq(1)
+      expect(err.string).to include("## [#{version}]")
+      expect(commands.runs).to be_empty
+    end
+
     it "refuses a missing tool, naming how to install it" do
       commands.answer("npm", "--version", success: false, stderr: "No such file or directory - npm")
 
@@ -641,6 +700,13 @@ RSpec.describe Hecks::Release::Runner, :aggregate_failures do
 
       expect(release(dry_run: true)).to eq(1)
       expect(File.exist?(built_gem)).to be(false)
+    end
+
+    it "still refuses on a failed preflight" do
+      commands.answer("git", "status", "--porcelain", stdout: "?? stray\n")
+
+      expect(release(dry_run: true)).to eq(1)
+      expect(err.string).to include("uncommitted changes")
     end
   end
 

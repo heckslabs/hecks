@@ -3,7 +3,6 @@
 require "json"
 require "open3"
 require "time"
-require "hecks/vocabulary"
 require "hecks/runtime/errors"
 
 module Hecks
@@ -14,17 +13,17 @@ module Hecks
     # its own. A cache hit restores in seconds and a miss regenerates the corpus, so a run where any
     # job spent the threshold on that one step is a miss.
     class CiReader
-      # Where the CiSpeed bluebook is read from when no booted registry is handed over.
-      BLUEBOOK_DIRECTORY = File.expand_path("..", __dir__)
+      # The step a job that materializes the generated Rust shows for its composite action.
+      GENERATED_RUST_STEP = "Run ./.github/actions/generated-rust"
+
+      # Seconds on that step beyond which the cache missed.
+      MISS_THRESHOLD_SECONDS = 60
 
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] unused
       # @param root [String, nil] the checkout `gh` runs in; this repository when nil
-      # @param registry [Runtime::Registry, nil] the booted registry whose CiSpeed bluebook declares
-      #   the cache-miss rule (`CacheMissRule`); this checkout's bluebook is read when nil
-      def initialize(aggregate: nil, settings: {}, root: nil, registry: nil)
+      def initialize(aggregate: nil, settings: {}, root: nil)
         @root = root || File.expand_path("../../../..", __dir__)
-        @registry = registry
       end
 
       # Reads remote CI's verdict on one commit of a repository's main. Every run GitHub reports
@@ -75,7 +74,7 @@ module Hecks
         JSON.parse(out)
       end
 
-      PASSING_JOB_CONCLUSIONS = Hecks::Vocabulary.fetch("PassingConclusion")
+      PASSING_JOB_CONCLUSIONS = %w[success skipped].freeze
       private_constant :PASSING_JOB_CONCLUSIONS
 
       # Everything up to the first line break.
@@ -130,21 +129,8 @@ module Hecks
       end
 
       def regenerating?(step)
-        step["name"] == miss_rule[:step] && step["startedAt"] && step["completedAt"] &&
-          seconds(step["startedAt"], step["completedAt"]) > miss_rule[:seconds]
-      end
-
-      # @return [Hash] the bluebook's `CacheMissRule` row: the step a job that materializes the
-      #   generated Rust shows for its composite action, and the seconds beyond which the cache missed
-      def miss_rule
-        @miss_rule ||= rows_of("CacheMissRule").first
-      end
-
-      # @return [Array<Hash>] the `member` rows of one value object of the CiSpeed bluebook
-      def rows_of(object)
-        bluebook = (@registry || Hecks.describe(BLUEBOOK_DIRECTORY)).bluebook("CiSpeed")
-        declared = bluebook.aggregates.flat_map(&:value_objects)
-        declared.find { |candidate| candidate.hecks_name == object }.members
+        step["name"] == GENERATED_RUST_STEP && step["startedAt"] && step["completedAt"] &&
+          seconds(step["startedAt"], step["completedAt"]) > MISS_THRESHOLD_SECONDS
       end
 
       def seconds(from, to)

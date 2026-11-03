@@ -2,7 +2,6 @@
 
 require "open3"
 require "json"
-require "hecks/vocabulary"
 require_relative "../../indifferent_key"
 
 module Hecks
@@ -16,8 +15,8 @@ module Hecks
       # All keywords are unused; the adapter takes no per-boot configuration.
       def initialize(aggregate: nil, settings: {}, root: nil); end
 
-      # Check-run conclusions that count as green: the language's `PassingConclusion` table.
-      PASSING = Hecks::Vocabulary.fetch("PassingConclusion")
+      # Check-run conclusions that count as green; `skipped` covers path-filtered workflows.
+      PASSING = %w[success neutral skipped].freeze
 
       # The GitHub Actions app. A promotion counts only the checks it reported: a check of the same
       # name posted by another app, a token or a person certifies nothing.

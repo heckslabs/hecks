@@ -541,12 +541,6 @@ Every bug still owed work — the open ledger, derived rather than maintained.
 
 Bugs that are logged, investigating, or paused, sorted by bug sequence, lowest first.
 
-#### Open named
-
-The open bugs carrying one name, such as main-red-rubocop: what a second log of the same red check looks for first.
-
-Bugs whose bug name is the name you give and that are logged, investigating, or paused, sorted by bug sequence, lowest first.
-
 #### Paused
 
 Real, unfixed, stopped on, each with what would move it. The only queue a ticket is ever raised from.
@@ -666,10 +660,6 @@ Always true: a bug says what should have happened.
 A whole number.
 
 Always true: an instant is not before the epoch.
-
-#### Mechanical fix
-
-One of rubocop.
 
 #### Next step
 
@@ -1223,8 +1213,6 @@ Take one green commit of embryonaut_platform's main into the image roll's chain.
 
 Needs a commit ([Commit ref](#commit-ref-2)), a branch ([Roll branch](#roll-branch)), and a repo ([Roll repo](#roll-repo)).
 
-Allowed only when: only main rolls; only embryonaut_platform rolls.
-
 Records [Roll considered](#roll-considered).
 
 #### Finish
@@ -1300,10 +1288,6 @@ Text.
 #### Commit ref
 
 Text that must follow a set format.
-
-#### Image input
-
-One of: file (path Dockerfile); file (path Gemfile); file (path Gemfile.lock); file (path lib/telemetry_ingress.rb); file (path lib/site_roster.rb); dir (path bluebook/); dir (path vendor/); dir (path deploy/console/); dir (path lib/telemetry_ingress/); dir (path lib/site_roster/); outside (path bluebook/translations/).
 
 #### Outcome
 
@@ -2191,7 +2175,7 @@ When [Release approved](#release-approved) happens, Release pr::release gh is as
 
 #### Release approver
 
-Text that must not be blank.
+One of Chris Young.
 
 #### Release branch
 
@@ -2203,7 +2187,7 @@ One of met, not_on_stable_head, checks_not_green, changelog_undated, or version_
 
 #### Release trailer
 
-Text that must not be blank.
+One of Release-Approved-By.
 
 #### Release version
 

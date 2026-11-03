@@ -1,4 +1,3 @@
-require_relative "../limit"
 require_relative "errors"
 require_relative "refusal_wording"
 require_relative "reaction_outcome"
@@ -32,7 +31,7 @@ module Hecks
       include Declarations
       include Planning
 
-      MAX_REACTION_DEPTH = Hecks::Limit.of("LanguageLimit", "reaction_depth")
+      MAX_REACTION_DEPTH = 5
 
       attr_reader :registry
 

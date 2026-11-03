@@ -28,12 +28,11 @@ Hecks.bluebook "Hecksagon" do
       invariant("an attachment comes from the gem or from vendor") { source == "gem" || source == "vendor" }
     end
 
-    # A driving adapter this hecksagon admits: `value` names one of `Ruby`, `Cli`, `Json`, `Mcp` or
-    # `Web`. A domain that declares none is open to all of them; one that declares any is reached
-    # through those and refused by the rest. Ruby's `Bluebook::Hecksagon::DRIVING_ADAPTERS` and the
-    # Rust parser's list copy these names; a spec holds the three equal.
+    # A driving adapter this hecksagon admits: `value` names one of `Ruby`, `Cli`, `Json` or `Mcp`.
+    # A domain that declares none is open to all of them; one that declares any is reached through
+    # those and refused by the rest.
     value_object "DrivingAdapter" do
-      attribute :value, String, one_of: %w[Ruby Cli Json Mcp Web]
+      attribute :value, String
       invariant("a driving adapter is named") { !value.to_s.empty? }
     end
 

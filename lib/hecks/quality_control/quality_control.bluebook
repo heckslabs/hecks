@@ -914,17 +914,6 @@ Hecks.bluebook "QualityControl" do
       transition "Regress"     => "investigating", from: ["fixed", "verified"]
       transition "Revisit"     => "investigating", from: "paused"
       mark :terminal, "withdrawn"
-      # The states the fix command takes a bug from. `Fix` itself moves only an investigating bug, so a
-      # logged one is investigated first (`Investigate` is the move that leads to it).
-      mark :auto_fixable, "logged", "investigating"
-    end
-
-    # The red-main checks a mechanical fixer exists for, so a bug logged for one is triaged
-    # `self_contained`; a red check named by no row is `bigger`, for the owner.
-    value_object "MechanicalFix" do
-      attribute :check, String
-
-      member check: "rubocop"
     end
 
     command "Log" do
@@ -1151,15 +1140,6 @@ Hecks.bluebook "QualityControl" do
 
     query "Open" do
       description "Every bug still owed work — the open ledger, derived rather than maintained."
-      where(status: { in: "logged,investigating,paused" })
-      order_by :sequence
-    end
-
-    # A red check already holding an open bug is not logged twice: the commit moved, the red did not.
-    query "OpenNamed" do
-      description "The open bugs carrying one name, such as main-red-rubocop: what a second log of the same red check looks for first."
-      attribute :name, BugName
-      where(name: :name)
       where(status: { in: "logged,investigating,paused" })
       order_by :sequence
     end
@@ -2377,17 +2357,15 @@ Hecks.bluebook "QualityControl" do
                                          "changelog_undated", "version_mismatch"]
     end
 
-    # The owner who approves each release PR. Who may approve is the `ReleaseOwner` rows of the Vocabulary
-    # bluebook, which `Hecks::Release::Approval` reads; this type carries a name, and the judge refuses a name
-    # that is not one of those rows.
+    # The owner who approves each release PR. The trailer line names this person; no other name is approved.
     value_object "ReleaseApprover" do
-      attribute :value, String, matches: :present
+      attribute :value, String, one_of: ["Chris Young"]
     end
 
-    # The commit-message trailer an approval writes: the `release_trailer` of the stable `Lane` row (Vocabulary),
-    # which `Hecks::Release::Approval` reads, so the check accepts what the policy writes.
+    # The commit-message trailer an approval writes. It is the `release_trailer` of the stable `Lane` row
+    # (Vocabulary), which `Hecks::Release::Approval` reads, so the check accepts what the policy writes.
     value_object "ReleaseTrailer" do
-      attribute :value, String, matches: :present
+      attribute :value, String, one_of: ["Release-Approved-By"]
     end
 
     # Opens the release PR for a version bump on a branch. The open is answered by the `ReleaseGh` port.
@@ -2758,27 +2736,6 @@ Hecks.bluebook "QualityControl" do
       attribute :value, String, pattern: '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$'
     end
 
-    # The console container's inputs, as the platform's Dockerfile copies them. `file` is one path, `dir`
-    # a prefix inside the image, `outside` a prefix inside an image directory that is still not part of
-    # it (the bluebook's translation edges move a box's data, so a person releases them). A changed path
-    # no row covers is infrastructure: default-deny, so a new top-level directory waits for a person.
-    value_object "ImageInput" do
-      attribute :kind, String
-      attribute :path, String
-
-      member kind: "file",    path: "Dockerfile"
-      member kind: "file",    path: "Gemfile"
-      member kind: "file",    path: "Gemfile.lock"
-      member kind: "file",    path: "lib/telemetry_ingress.rb"
-      member kind: "file",    path: "lib/site_roster.rb"
-      member kind: "dir",     path: "bluebook/"
-      member kind: "dir",     path: "vendor/"
-      member kind: "dir",     path: "deploy/console/"
-      member kind: "dir",     path: "lib/telemetry_ingress/"
-      member kind: "dir",     path: "lib/site_roster/"
-      member kind: "outside", path: "bluebook/translations/"
-    end
-
     # The changed paths of the commit, newline-separated, as the classifier read them.
     value_object "ChangedPaths" do
       attribute :value, String, default: ""
@@ -2793,10 +2750,6 @@ Hecks.bluebook "QualityControl" do
       attribute :commit, CommitRef
       attribute :branch, RollBranch
       attribute :repo,   RollRepo
-
-      # The classifier no longer refuses these: the command does, before the chain asks anything.
-      given("only main rolls") { branch.value == "main" }
-      given("only embryonaut_platform rolls") { repo.value == "heckslabs/embryonaut_platform" }
 
       emits "RollConsidered"
     end

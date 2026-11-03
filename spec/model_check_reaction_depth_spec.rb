@@ -1,6 +1,5 @@
 require "spec_helper"
 require "tempfile"
-require "hecks/bluebook/model_check"
 
 # model_check's finding for a reaction chain longer than the dispatcher's limit. A command's events
 # start policies, whose triggers and asks emit more events: a chain past the limit has its last
