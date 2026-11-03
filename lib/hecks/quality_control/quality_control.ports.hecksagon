@@ -38,7 +38,7 @@ Hecks.hecksagon "QualityControl" do
 
   # Bound by adapters/push_due_reader. It asks the rehearsal port's `Due` whether a push of local main
   # is due, applies the world's `push_nudge` thresholds, and answers the flags and numbers the
-  # bluebook's policies file the push-due Work item from.
+  # bluebook's policies file the push-due Work row from.
   QualityControl::PushNudge.port "PushDue" do
     asks "Read", to: PushNudge do
       attribute :nudge, NudgeKey

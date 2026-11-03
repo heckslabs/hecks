@@ -1185,7 +1185,7 @@ Hecks.bluebook "Bluebook" do
       member name: "event_pump", type: "Boolean",
              meaning: "Whether each `hecks quality_control sweep.tick` runs the event pump as its last step: each attached domain's policies react to the events past their cursors, and every refusal is named. false skips the step; `hecks quality_control event_pump.pump!` runs it regardless."
       member name: "push_nudge", type: "Boolean",
-             meaning: "Whether each `hecks quality_control sweep.tick` checks once whether a push of local main is due and files, revises or finishes the one `push-due` Work item; false skips the check. The thresholds are the QualityControl world's `push_nudge` setting."
+             meaning: "Whether each `hecks quality_control sweep.tick` checks once whether a push of local main is due and files, revises or finishes the one `push-due` Work row; false skips the check. The thresholds are the QualityControl world's `push_nudge` setting."
       member name: "quiesced", type: "Boolean",
              meaning: "Whether each `hecks quality_control sweep.tick` runs no step at all: every step prints `quiesced: skipped <step>` and the tick exits 0, so a mint window sees a quiet ledger. The setting is read once at the start of a tick; `hecks qa_quiesce.hold!` writes a marker file every step checks as well, which a tick already running notices before its next step."
       member name: "main_maintenance", type: "Boolean",
@@ -1344,24 +1344,6 @@ Hecks.bluebook "Bluebook" do
       member script: "qa_main_gate", section: "QualityControl", aggregate: "MainCheck", verb: "check_main"
       member script: "qa_fix_main_bug", section: "QualityControl", aggregate: "Bug", verb: "fix_and_land", passes: "--bug BUG#n"
       member script: "qa_concurrency_racer", section: "QualityControl", aggregate: "Sweep", verb: "race", note: "not user-facing; ProcessPool starts it"
-    end
-
-    # The terms of the tooling's own ubiquitous language, declared once so the bluebooks, the
-    # adapters behind their ports, the specs and the standing guides all say the same word for the
-    # same thing. `term` is the word, `aggregate` the bluebook aggregate whose instance it names,
-    # `meaning` what one is, and `never` the word that must not stand in for it: a storage word
-    # (what a store keeps the thing as) names where it lives, not what it is.
-    # spec/vocabulary_terms_spec.rb reads the rows and fails by file and line wherever the tooling
-    # says `<aggregate> <never>`.
-    value_object "Term" do
-      attribute :term,      String
-      attribute :aggregate, String
-      attribute :meaning,   String
-      attribute :never,     String
-
-      member term: "work item", aggregate: "Work",
-             meaning: "One planned, started or done piece of Work, keyed by its id: what the Tickets bluebook's Work aggregate holds, what a brief is composed for, what a branch is cut for and what a landing finishes.",
-             never: "row"
     end
 
     # Rust keywords (strict + reserved) a generated identifier must not

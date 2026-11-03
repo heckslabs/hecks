@@ -1,6 +1,6 @@
 require "spec_helper"
 
-# A started Work item claims the area it declares, and a start whose area overlaps another started
+# A started Work row claims the area it declares, and a start whose area overlaps another started
 # row's is sent back to the plan with the row and the path named. Each example boots its own
 # Memory domain, so no claim leaks into another.
 RSpec.describe "Work area claims" do
@@ -29,7 +29,7 @@ RSpec.describe "Work area claims" do
     expect(work["area"]).to eq(["lib/hecks/tickets"])
   end
 
-  it "sends back a start that overlaps a started work item, naming it and the path", :aggregate_failures do
+  it "sends back a start that overlaps a started row, naming the row and the path", :aggregate_failures do
     start("area/b", "lib/hecks/tickets")
     work = start("area/c", "lib/hecks/tickets/bluebook")
 

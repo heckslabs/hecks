@@ -111,7 +111,7 @@ module Hecks
         ["mint eras", "could not be read", first_line(e.message)]
       end
 
-      # How many Work items may be started at once, and whether the world or the default says.
+      # How many Work rows may be started at once, and whether the world or the default says.
       def work_cap(directory)
         registry = Hecks.describe(directory).registry
         declared = registry.world("Tickets")&.for_verb(WorkLimits::VERB)&.key?(:cap)

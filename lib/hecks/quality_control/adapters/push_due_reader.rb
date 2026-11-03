@@ -9,8 +9,8 @@ require "hecks/hecks/adapters/push_size"
 module Hecks
   module Adapters
     # The `PushDue` port's adapter for `PushNudge`: reads whether a push of local main is due and
-    # whether the `push-due` Work item is already open, and answers the flags and numbers the
-    # bluebook's policies file, revise or finish the Work item from.
+    # whether the `push-due` Work row is already open, and answers the flags and numbers the
+    # bluebook's policies file, revise or finish the row from.
     #
     # The git reading is `GitRehearsal#due`, called as it is: this class only parses the line it
     # answers and applies the thresholds. It fetches, pushes and merges nothing. The thresholds are
@@ -23,10 +23,10 @@ module Hecks
       # The world verb that carries the thresholds.
       VERB = PushSize::VERB
 
-      # The key of the one Work item.
+      # The key of the one Work row.
       WORK = "push-due"
 
-      # The title of the Work item.
+      # The title of the Work row.
       TITLE = "a push of main is due"
 
       AHEAD = /(\d+) commit\(s\) ahead/
@@ -71,7 +71,7 @@ module Hecks
           "urgent at #{limits[:urgent_commits]})"
       end
 
-      # The Work item's title, naming the size class once the commits ahead pass a threshold.
+      # The row's title, naming the size class once the commits ahead pass a threshold.
       def title(text, limits) = PushSize.title(TITLE, text[AHEAD, 1].to_i, limits)
 
       def first_line(text) = text[FIRST_LINE].strip
@@ -84,7 +84,7 @@ module Hecks
 
       def flag(value) = { value: value ? "yes" : "no" }
 
-      # Whether the push-due Work item is open now: planned or started.
+      # Whether the push-due row is open now: planned or started.
       def raised?
         sweep = Runtime::RowSweep.new(registry)
         aggregate = sweep.query_aggregate("Tickets", "Work", verb: "Work.Undone")

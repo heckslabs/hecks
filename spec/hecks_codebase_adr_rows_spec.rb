@@ -119,10 +119,7 @@ RSpec.describe "the Codebase rows of the ADR table" do
                      "--confirm it only rehearses the move"),
     AdrRow.new(script: "project_tools_doc", verbs: %w[project_tools_doc],
                note: "no bin script: it writes the launcher forms of docs/tools.md from the RetiredScript rows, " \
-                     "and like regenerate_corpus it only compares without --confirm"),
-    AdrRow.new(script: "project_glossary", verbs: %w[project_glossary],
-               note: "bin/project_glossary became Introspection.glossary, which only reads; this writes a " \
-                     "domain's committed glossary folder, and like regenerate_corpus it only compares without --confirm")
+                     "and like regenerate_corpus it only compares without --confirm")
   ].freeze
 
   # The maintainer aggregates of the evolve, check, test, build and release modules: each holds

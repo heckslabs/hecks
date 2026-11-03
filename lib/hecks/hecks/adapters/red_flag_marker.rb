@@ -11,7 +11,7 @@ module Hecks
     # repository sees the same flag and a spec's temporary repository never sees the owner's.
     #
     # The file holds the flag id, the main commit and CI run that raised it, the failed jobs, the
-    # red Work items, every later red run, who checked in and what they took, and the tip of the
+    # red Work rows, every later red run, who checked in and what they took, and the tip of the
     # last fix landed while the flag stood. Clearing removes the file.
     class RedFlagMarker
       # The marker's file name, in the common git directory.
@@ -34,7 +34,7 @@ module Hecks
       # Raises the flag, or records another red run on the standing one.
       #
       # @param commit [String] the main commit whose CI run was red
-      # @param run [Hash] `ci_run:`, `jobs:`, `work_items:` of that run
+      # @param run [Hash] `ci_run:`, `jobs:`, `rows:` of that run
       # @return [Array(Symbol, Hash)] `:raised` or `:noted`, and the flag
       def raise!(commit:, run:)
         flag = read
@@ -45,7 +45,7 @@ module Hecks
       end
 
       # @param session [String] who checks in
-      # @param taking [String] the Work item or cause they take
+      # @param taking [String] the Work row or cause they take
       # @return [Hash, nil] the flag after the check-in, or nil when none stands
       def check_in!(session:, taking:)
         flag = read
@@ -55,7 +55,7 @@ module Hecks
         write(flag)
       end
 
-      # Records the main tip a red Work item's fix landed at, so the train may board it.
+      # Records the main tip a red-row fix landed at, so the train may board it.
       #
       # @param tip [String] the commit main points at after the fix landed
       # @param branch [String] the fix's branch
@@ -86,8 +86,7 @@ module Hecks
       end
 
       def sighting(commit, run)
-        { "commit" => commit, "ci_run" => run[:ci_run].to_s, "jobs" => run[:jobs].to_s,
-          "work_items" => run[:work_items].to_s, "at" => stamp }
+        { "commit" => commit, "ci_run" => run[:ci_run].to_s, "jobs" => run[:jobs].to_s, "rows" => run[:rows].to_s, "at" => stamp }
       end
 
       def write(flag)

@@ -1,6 +1,6 @@
 require "spec_helper"
 
-# The brief a coder session reads: the Work item's outcome, the area it may edit, and the standing
+# The brief a coder session reads: the Work row's outcome, the area it may edit, and the standing
 # rules the Coder bluebook carries once. Each example boots its own Hecks domain.
 RSpec.describe "the Coder brief" do
   let(:coder_root) { File.join(InMemoryDomain::ROOT, "lib/hecks/coder") }

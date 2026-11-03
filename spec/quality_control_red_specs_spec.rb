@@ -1,7 +1,7 @@
 require "spec_helper"
 require "json"
 
-# A red run of main becomes one Work item per failing spec file, and a later settled run closes the
+# A red run of main becomes one Work row per failing spec file, and a later settled run closes the
 # rows it did not fail. `gh` is stubbed with a fake run payload, so nothing is read from GitHub,
 # and the Hecks domain boots in Memory, so no ledger is touched.
 RSpec.describe "red specs on main" do
@@ -46,7 +46,7 @@ RSpec.describe "red specs on main" do
 
   def work_keys = rows("tickets", "work.undone").map { |row| row["work"] }
 
-  it "files one Work item per failing spec file", :aggregate_failures do
+  it "files one Work row per failing spec file", :aggregate_failures do
     fake_run(jobs: red_jobs, failed: [%w[spec/lineage_spec.rb a], %w[spec/lineage_spec.rb b], %w[spec/dsl_coverage_spec.rb c]])
     read_run("1")
 
@@ -203,7 +203,7 @@ RSpec.describe "red specs on main" do
       expect(rows("quality_control", "red_spec.on_main").first).to include("last_run" => "3")
     end
 
-    it "files the Work item again" do
+    it "files the Work row again" do
       cycle
 
       expect(work_keys).to eq([lineage_key])

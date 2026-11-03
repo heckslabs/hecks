@@ -6,15 +6,14 @@ require_relative "console_capture"
 module Hecks
   module Adapters
     # What a standing red flag refuses. While the flag stands, nothing lands on main and nothing is
-    # boarded on the push train except a fix for a red Work item: a branch named for a `red-*` Work
-    # item
+    # boarded on the push train except a fix for a red Work row: a branch named for a `red-*` row
     # (with or without a `qa/` lead) lands and records its tip on the flag, and the train carries
     # only that tip. The refusal names the flag: `main is red: flag <id>`.
     class RedFlagGuard
-      # The Work items that say main is red are keyed with this prefix.
-      RED_WORK_ITEM = "red-"
+      # The Work rows that say main is red are keyed with this prefix.
+      RED_ROW = "red-"
 
-      # A branch lead the QA loop adds to a Work item's name.
+      # A branch lead the QA loop adds to a row's name.
       QA_LEAD = "qa/"
 
       # @param git_dir [String] the repository's common git directory
@@ -24,17 +23,16 @@ module Hecks
 
       # @param branch [String] the branch about to land on main
       # @return [void]
-      # @raise [ConsoleCapture::Failure] when a flag stands and the branch is not a red Work item's
-      #   fix
+      # @raise [ConsoleCapture::Failure] when a flag stands and the branch is not a red row's fix
       def landing!(branch)
         flag = @marker.read
         return unless flag
         return if fix?(branch)
 
-        raise ConsoleCapture::Failure, "#{refusal(flag)}; #{branch} is not a fix for a red-* Work item"
+        raise ConsoleCapture::Failure, "#{refusal(flag)}; #{branch} is not a fix for a red-* Work row"
       end
 
-      # Records that a red Work item's fix landed, so the train may carry main's new tip.
+      # Records that a red row's fix landed, so the train may carry main's new tip.
       #
       # @param branch [String] the fix's branch
       # @param tip [String] main's commit after the landing
@@ -51,12 +49,12 @@ module Hecks
         return unless flag
         return if flag["fix_tip"] && flag["fix_tip"] == boarded
 
-        raise ConsoleCapture::Failure, "#{refusal(flag)}; only the tip of a red-* Work item's fix is boarded"
+        raise ConsoleCapture::Failure, "#{refusal(flag)}; only the tip of a red-* row's fix is boarded"
       end
 
       private
 
-      def fix?(branch) = branch.to_s.delete_prefix(QA_LEAD).start_with?(RED_WORK_ITEM)
+      def fix?(branch) = branch.to_s.delete_prefix(QA_LEAD).start_with?(RED_ROW)
 
       def refusal(flag) = "main is red: flag #{flag["id"]}"
     end

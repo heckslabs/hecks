@@ -2515,7 +2515,7 @@ Hecks.bluebook "QualityControl" do
   # One spec file that is red on main, keyed `red-<spec path slug>`. A red run reports each failing
   # spec file; the first report opens the row and a later one only updates what it knew, so a spec
   # red for days is one row, and `since` is the day it first went red. A settled run that no longer
-  # fails the file clears it. Tickets mirrors it as a Work item for QA (`PlanWorkWhenSpecWentRed`, `FinishWorkWhenSpecWentGreen`).
+  # fails the file clears it. Tickets mirrors it as a Work row for QA (`PlanWorkWhenSpecWentRed`, `FinishWorkWhenSpecWentGreen`).
   aggregate "RedSpec" do
     description "One spec file that is red on main: how many examples fail, the first failure, the run that saw it last, and the day it first went red."
 
@@ -2551,7 +2551,7 @@ Hecks.bluebook "QualityControl" do
       attribute :value, String, default: ""
     end
 
-    # A line of the Work item the spec mirrors into.
+    # A line of the Work row the spec mirrors into.
     value_object "WorkLine" do
       attribute :value, String, matches: :present
     end
@@ -3244,12 +3244,12 @@ Hecks.bluebook "QualityControl" do
 
   # ---- The push nudge ----------------------------------------------------------------------------
   # Local main drifting ahead of origin/main is red that nobody sees. Each tick checks once whether a
-  # push is due and keeps ONE Work item, `push-due`, for QA: filed when the push is due beyond the
+  # push is due and keeps ONE Work row, `push-due`, for QA: filed when the push is due beyond the
   # world's thresholds, updated while it stays due, finished when it no longer is. The check reads
   # refs git already holds (`PushRehearsal.Due`); it never fetches, pushes or merges. Tickets turns the
-  # answer into the Work item (`PlanWorkWhenPushDue`, `ReviseWorkWhenPushStillDue`, `FinishWorkWhenPushSettled`).
+  # answer into the row (`PlanWorkWhenPushDue`, `ReviseWorkWhenPushStillDue`, `FinishWorkWhenPushSettled`).
   aggregate "PushNudge" do
-    description "One check of whether a push of local main is due: whether it is, whether the push-due Work item is already open, and the numbers."
+    description "One check of whether a push of local main is due: whether it is, whether the push-due Work row is already open, and the numbers."
 
     identified_by :nudge
 

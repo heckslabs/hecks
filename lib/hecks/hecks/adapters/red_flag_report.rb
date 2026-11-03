@@ -24,7 +24,7 @@ module Hecks
 
       # @return [String] the whole sentence, one line per fact
       def text
-        [headline, jobs_line, work_items_line, *helper_lines].compact.join("\n")
+        [headline, jobs_line, rows_line, *helper_lines].compact.join("\n")
       end
 
       # @return [String] the one-line form for a tile
@@ -40,9 +40,9 @@ module Hecks
         "failing jobs: #{jobs.join("; ")}" unless jobs.empty?
       end
 
-      def work_items_line
-        items = seen("work_items")
-        "red work items: #{items.join(", ")}" unless items.empty?
+      def rows_line
+        rows = seen("rows")
+        "red rows: #{rows.join(", ")}" unless rows.empty?
       end
 
       # The distinct, non-empty values of one field across the red runs.

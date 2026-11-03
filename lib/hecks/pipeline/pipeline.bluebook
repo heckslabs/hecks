@@ -1,11 +1,11 @@
-# Pipeline: one change's passage from a planned Work item to a release, declared as its own
-# aggregate instead of read off six other domains. A Passage is keyed by the Work item's key, which
+# Pipeline: one change's passage from a planned Work row to a release, declared as its own
+# aggregate instead of read off six other domains. A Passage is keyed by the Work row's key, which
 # is also the branch a landing finishes, so the events the other domains already emit can find it.
 # Every stage is advanced by a policy reacting to one of those events; nothing here asks the
 # outside anything.
 #
 #   Tickets   Work.WorkPlanned        -> Plan      (planned)
-#   Tickets   Work.WorkStarted        -> Dispatch  (dispatched), again for a Work item started again
+#   Tickets   Work.WorkStarted        -> Dispatch  (dispatched), again for a row started again
 #   Hecks     Landing.LandedWorkFound -> Land      (landed)
 #   Hecks     Integration.MainPushed  -> Push      (pushed), every landed passage at once
 #   Hecks     RedFlag.RedFlagRaised   -> Hold      (held), every pushed passage
@@ -19,7 +19,7 @@
 # its stage and gains the reason, so the board can show it in place.
 
 Hecks.bluebook "Pipeline" do
-  vision "Every change is one passage, from the Work item that planned it to the release that shipped it, and where each one stands is a fact the pipeline itself holds."
+  vision "Every change is one passage, from the Work row that planned it to the release that shipped it, and where each one stands is a fact the pipeline itself holds."
 
   supporting
 
@@ -37,7 +37,7 @@ Hecks.bluebook "Pipeline" do
     attribute :flag,    Word,     optional: true
     attribute :stalled, Reason,   optional: true
 
-    # The Work item's key, which the branch that lands it is named after.
+    # The Work row's key, which the branch that lands it is named after.
     value_object "ChangeKey" do
       attribute :value, String, matches: :present
       invariant("a passage is named by its change") { !value.to_s.empty? }
@@ -70,7 +70,7 @@ Hecks.bluebook "Pipeline" do
 
     command "Plan" do
       role "System"
-      goal "Open a passage for a Work item the moment it is planned"
+      goal "Open a passage for a Work row the moment it is planned"
 
       attribute :change, ChangeKey, sets: true
       attribute :title,  Title, optional: true, sets: true
@@ -78,7 +78,7 @@ Hecks.bluebook "Pipeline" do
       emits PassagePlanned
     end
 
-    # A Work item yielded or released goes back to the plan and starts again under another
+    # A Work row yielded or released goes back to the plan and starts again under another
     # session, so a dispatched passage takes the newer session rather than refusing it.
     command "Dispatch" do
       role "System"

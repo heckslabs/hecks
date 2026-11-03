@@ -3,12 +3,11 @@ require "fileutils"
 require "open3"
 require "tmpdir"
 
-# A landed branch finishes the Work item it was cut for: the one named by the whole branch name,
-# else
+# A landed branch finishes the Work row it was cut for: the row named by the whole branch name, else
 # by the name without a leading `qa/`. A landing with no open row does nothing, and a row already
 # done is left alone. The domain is in Memory; the repository is a throwaway one and the push
 # rehearsal is stubbed.
-RSpec.describe "a landing followed by its Work item" do
+RSpec.describe "a landing followed by its Work row" do
   let(:dir) { File.realpath(Dir.mktmpdir("hecks-landing-work")) }
   let(:repo) { File.join(dir, "main") }
   let(:stages) { instance_double(Hecks::Adapters::GitRehearsal::Stages, run: []) }

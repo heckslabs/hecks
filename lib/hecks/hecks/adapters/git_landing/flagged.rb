@@ -6,8 +6,7 @@ module Hecks
   module Adapters
     class GitLanding
       # What landing on main asks beyond any other landing: a base that is not behind origin, and
-      # no standing red flag unless the branch is a red Work item's fix. A fix that lands records
-      # its tip
+      # no standing red flag unless the branch is a red row's fix. A fix that lands records its tip
       # on the flag so the push train may board it. The including class answers `common_git_dir`,
       # `@git` and `refuse_stale_base`.
       module Flagged

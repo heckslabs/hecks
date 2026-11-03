@@ -3,7 +3,7 @@ require "json"
 require "hecks/hecks/adapters/git_rehearsal"
 require "hecks/quality_control/adapters/push_due_reader"
 
-# The QA tick's push check: one `push-due` Work item, filed when a push of local main is due beyond
+# The QA tick's push check: one `push-due` Work row, filed when a push of local main is due beyond
 # the thresholds, revised while it stays due and finished when it is not. The rehearsal adapter's
 # `Due` is stubbed with the line it answers, and the Hecks domain boots in Memory, so no git or
 # ledger is read.

@@ -5,34 +5,30 @@ require_relative "console_capture"
 
 module Hecks
   module Adapters
-    # The `LandedWork` port's adapter for `Tickets::Work`: finds the open work item a landed branch
-    # was
+    # The `LandedWork` port's adapter for `Tickets::Work`: finds the open step a landed branch was
     # cut for, so the bluebook can finish it.
     #
-    # A branch names its work item by the whole branch name, else by the name without a leading
-    # `qa/`
-    # (QA's branches carry that prefix, the work items they close do not). Only a `planned` or
-    # `started`
-    # work item is found; a branch with no work item, or one already done or dropped, is refused by
-    # name and
+    # A branch names its step by the whole branch name, else by the name without a leading `qa/`
+    # (QA's branches carry that prefix, the steps they close do not). Only a `planned` or `started`
+    # step is found; a branch with no step, or one already done or dropped, is refused by name and
     # the bluebook reacts to neither. It writes nothing.
     class LandedWork
-      # The prefix QA puts on a branch whose work item carries the bare name.
+      # The prefix QA puts on a branch whose step carries the bare name.
       QA_PREFIX = "qa/"
 
-      # @param registry [Runtime::Registry, nil] the booted registry whose Work items are read
+      # @param registry [Runtime::Registry, nil] the booted registry whose Work rows are read
       # @param aggregate [Object, nil] unused
       def initialize(registry: nil, aggregate: nil)
         @registry = registry
       end
 
       # @param held [Hash] the landing's `branch`
-      # @return [Hash{Symbol => Hash}] `branch:` the key of the open work item the branch names
-      # @raise [ConsoleCapture::Failure] when no open work item is named by the branch
+      # @return [Hash{Symbol => Hash}] `branch:` the key of the open step the branch names
+      # @raise [ConsoleCapture::Failure] when no open step is named by the branch
       def find_landed_work(**held)
         branch = plain(held[:branch]).to_s
         found = (candidates(branch) & open_keys).first
-        raise ConsoleCapture::Failure, "no open work item is named #{branch}" unless found
+        raise ConsoleCapture::Failure, "no open step is named #{branch}" unless found
 
         { branch: { value: found } }
       end
@@ -46,8 +42,8 @@ module Hecks
         return [] unless aggregate
 
         records = @registry.repository("Tickets", aggregate).all
-        records.select { |item| %w[planned started].include?(StartedWork.value(item, :status)) }
-               .map { |item| StartedWork.value(item, :work).to_s }
+        records.select { |row| %w[planned started].include?(StartedWork.value(row, :status)) }
+               .map { |row| StartedWork.value(row, :work).to_s }
       end
 
       def plain(argument) = argument.is_a?(Hash) ? argument[:value] : argument

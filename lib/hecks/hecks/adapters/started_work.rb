@@ -2,19 +2,18 @@
 
 module Hecks
   module Adapters
-    # The started `Tickets::Work` items of a booted registry, with the area each one claims. The
+    # The started `Tickets::Work` rows of a booted registry, with the area each one claims. The
     # `WorkAreas` and `Landing` adapters both read claims through this.
     module StartedWork
       module_function
 
-      # @param registry [Runtime::Registry, nil] the booted registry; nil reads no work items
-      # @return [Array<Hash{Symbol => Object}>] `key:` and `area:` (strings) of each started work
-      #   item
-      def items(registry)
+      # @param registry [Runtime::Registry, nil] the booted registry; nil reads no rows
+      # @return [Array<Hash{Symbol => Object}>] `key:` and `area:` (strings) of each started row
+      def rows(registry)
         aggregate = work_aggregate(registry)
         return [] unless aggregate
 
-        registry.repository("Tickets", aggregate).all.filter_map { |record| item(record) }
+        registry.repository("Tickets", aggregate).all.filter_map { |record| row(record) }
       end
 
       # @return [Object, nil] the Work aggregate, nil when no Tickets bluebook is booted
@@ -23,8 +22,8 @@ module Hecks
         bluebook&.aggregates&.find { |candidate| candidate.hecks_name == "Work" }
       end
 
-      # @return [Hash, nil] the work item's key and area, nil unless the work item is started
-      def item(record)
+      # @return [Hash, nil] the row's key and area, nil unless the row is started
+      def row(record)
         return unless value(record, :status) == "started"
 
         { key: value(record, :work).to_s, area: words(value(record, :area)) }
