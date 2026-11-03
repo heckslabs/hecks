@@ -1,3 +1,4 @@
+=== HECKS ===
 Hecks — What this install is, what version it runs, and whether its grammar cache can be trusted.
   hecks 7.1.0
 
