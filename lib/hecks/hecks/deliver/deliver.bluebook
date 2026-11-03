@@ -103,6 +103,10 @@ Hecks.bluebook "Hecks" do
         attribute :value, String
       end
 
+      value_object "CommitMessage" do
+        attribute :value, String, pattern: ".*[^ \\t\\n\\r].*"
+      end
+
       value_object "Report" do
         attribute :value, String
       end
@@ -120,12 +124,8 @@ Hecks.bluebook "Hecks" do
 
         attribute :run,      RunKey, sets: true
         attribute :checkout, Word, optional: true, sets: true
-        attribute :message,  Text, sets: true
+        attribute :message,  CommitMessage, sets: true
         attribute :paths,    Text, optional: true, sets: true
-
-        given("a commit says what it commits") do
-          message.value.to_s.strip != ""
-        end
 
         emits CommitRequested
       end
