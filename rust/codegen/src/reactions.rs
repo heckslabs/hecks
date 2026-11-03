@@ -32,7 +32,7 @@ pub fn emit_policy_table(
     let rows = local_policy_rows(domain_name, policies, aggregates);
     let table = exemplar.render(
         "policy_table",
-        &[("crate::kernel::PolicyRule { policy_name: \"tmpl_policy_name\", event_name: \"tmpl_event_name\", event_qualifier: None, target_verb: \"tmpl_target_verb\", for_each: None, for_each_key: None, with_spec: &[], where_expr: None },", rows.join("\n"))],
+        &[("crate::kernel::PolicyRule { policy_name: \"tmpl_policy_name\", event_name: \"tmpl_event_name\", event_qualifier: None, target_verb: \"tmpl_target_verb\", for_each: None, for_each_key: None, root: false, with_spec: &[], where_expr: None },", rows.join("\n"))],
     );
     if fns.is_empty() {
         table
@@ -101,12 +101,13 @@ fn local_policy_rows(domain_name: &str, policies: &[Json], aggregates: &[Json]) 
             let name = policy.get("name").map(Json::to_s).unwrap_or_default();
 
             Some(format!(
-                "    crate::kernel::PolicyRule {{ policy_name: {}, event_name: {}, event_qualifier: {qualifier_expr}, target_verb: {}, for_each: {}, for_each_key: {}, with_spec: {}, where_expr: {} }},",
+                "    crate::kernel::PolicyRule {{ policy_name: {}, event_name: {}, event_qualifier: {qualifier_expr}, target_verb: {}, for_each: {}, for_each_key: {}, root: {}, with_spec: {}, where_expr: {} }},",
                 naming::ruby_inspect_string(&name),
                 naming::ruby_inspect_string(&event_name),
                 naming::ruby_inspect_string(&target_verb),
                 fan_out_verb_expr(domain_name, policy),
                 fan_out_key_expr(policy, aggregates),
+                root_expr(policy),
                 with_spec_expr(policy),
                 where_expr(policy)
             ))
@@ -190,7 +191,7 @@ pub fn emit_merged_policy_table(exemplar: &Exemplar, sources: &[PolicySource]) -
 
     let table = exemplar.render(
         "policy_table",
-        &[("crate::kernel::PolicyRule { policy_name: \"tmpl_policy_name\", event_name: \"tmpl_event_name\", event_qualifier: None, target_verb: \"tmpl_target_verb\", for_each: None, for_each_key: None, with_spec: &[], where_expr: None },", rows.join("\n"))],
+        &[("crate::kernel::PolicyRule { policy_name: \"tmpl_policy_name\", event_name: \"tmpl_event_name\", event_qualifier: None, target_verb: \"tmpl_target_verb\", for_each: None, for_each_key: None, root: false, with_spec: &[], where_expr: None },", rows.join("\n"))],
     );
     if fns.is_empty() {
         table
@@ -613,6 +614,16 @@ fn addressing_key_for(command: &Json, aggregate_name: &str) -> Option<String> {
 }
 
 // `trigger ..., with:` bindings are already wire-rendered, so a Symbol keeps its leading colon.
+/// `root` is a flag the language holds as `true`, or as the boolean the IR carries; anything else is
+/// an ordinary reaction.
+fn root_expr(policy: &Json) -> &'static str {
+    match policy.get("root") {
+        Some(Json::Bool(true)) => "true",
+        Some(other) if other.to_s() == "true" => "true",
+        _ => "false",
+    }
+}
+
 fn with_spec_expr(policy: &Json) -> String {
     let pairs = match policy.get("with_spec") {
         Some(Json::Array(items)) => items.clone(),

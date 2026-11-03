@@ -269,6 +269,7 @@ pub const POLICIES: &[crate::kernel::PolicyRule] = &[crate::kernel::PolicyRule {
     target_verb: "Ledgerbook::Register.Note",
     for_each: None,
     for_each_key: None,
+    root: false,
     with_spec: &[("shelf", ":id")],
     where_expr: None,
 }];
