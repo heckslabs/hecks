@@ -1,3 +1,4 @@
+require_relative "../../limit"
 require_relative "lifecycle_checks"
 
 module Hecks
@@ -11,10 +12,10 @@ module Hecks
 
         # How much an aggregate may declare before it is reported: its commands, entities and
         # lifecycle states, counted together.
-        LARGE_AGGREGATE_LIMIT = 40
+        LARGE_AGGREGATE_LIMIT = Hecks::Limit.of("ModelCheckLimit", "large_aggregate_weight")
 
         # How many of the least-attached commands the message names.
-        SUGGESTED_COMMANDS = 3
+        SUGGESTED_COMMANDS = Hecks::Limit.of("ModelCheckLimit", "suggested_commands")
 
         # @param bluebook [Bluebook::Declaration] the assembled bluebook to check
         # @param limit [Integer] the weight an aggregate may reach before it is reported
