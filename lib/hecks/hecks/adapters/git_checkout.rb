@@ -114,7 +114,7 @@ module Hecks
       # The pickaxe argument for the commits that add or remove `text`, none when no text is named.
       def containing(text)
         return [] if text.nil?
-        raise ConsoleCapture::Failure, "#{text.inspect} is not text to look for" if text.empty? || text.match?(/[\n\0]/)
+        raise ConsoleCapture::Failure, "#{text.inspect} is not text to look for" if text.empty? || text.match?(NOT_ONE_LINE)
 
         ["-S#{text}"]
       end

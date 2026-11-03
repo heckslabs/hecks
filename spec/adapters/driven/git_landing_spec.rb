@@ -141,23 +141,28 @@ RSpec.describe "the Checkout and Landing adapters", :io do
     expect { checkout.history(checkout: { value: feature_tree }, range: "--all") }.to raise_error(Hecks::Runtime::NotFound)
   end
 
-  it "limits the commits to those that add or remove some text, or touch a path", :aggregate_failures do
+  def log(**held) = checkout.history(checkout: { value: feature_tree }, **held)[:text]
+
+  it "limits the commits to those that add or remove some text", :aggregate_failures do
     commit("second", dir: feature_tree, text: "a needle")
     commit("third", dir: feature_tree)
-    log = ->(**held) { checkout.history(checkout: { value: feature_tree }, **held)[:text] }
 
-    expect(log.call(containing: "needle")).to match(/\A\h+ second\n\z/)
-    expect(log.call(path: "third")).to match(/\A\h+ third\n\z/)
-    expect(log.call(containing: "needle", path: "third")).to eq("\n")
-    expect { log.call(path: "../first") }.to raise_error(Hecks::Runtime::NotFound)
-    expect { log.call(containing: "a\nb") }.to raise_error(Hecks::Runtime::NotFound)
+    expect(log(containing: "needle")).to match(/\A\h+ second\n\z/)
+    expect(log(containing: "needle", path: "third")).to eq("\n")
+  end
+
+  it "limits the commits to those that touch a path, and refuses a path or text it cannot take", :aggregate_failures do
+    commit("third", dir: feature_tree)
+
+    expect(log(path: "third")).to match(/\A\h+ third\n\z/)
+    expect { log(path: "../first") }.to raise_error(Hecks::Runtime::NotFound)
+    expect { log(containing: "a\nb") }.to raise_error(Hecks::Runtime::NotFound)
   end
 
   describe "copying a tree as it stood at a ref" do
-    let(:copier) { Hecks::Adapters::GitCopy.new }
-    let(:destination) { File.join(scratch, "copy") }
+    def destination = File.join(scratch, "copy")
 
-    def copy(**held) = copier.copy(checkout: { value: feature_tree }, **held)
+    def copy(**held) = Hecks::Adapters::GitCopy.new.copy(checkout: { value: feature_tree }, **held)
 
     it "writes a path, or the whole tree, into a new directory and reports it", :aggregate_failures do
       commit("second", dir: feature_tree, text: "two")
