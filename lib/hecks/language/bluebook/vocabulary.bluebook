@@ -769,6 +769,11 @@ Hecks.bluebook "Bluebook" do
     # the names), and CI skips a check whose name the note holds. A check not marked `yes` is never
     # skipped on a note's word, and a marked one must be in the `pre_push` stage, since a note may
     # only vouch for what the hook ran.
+    #
+    # `inputs` is the space-separated globs, under the checkout, of the files a check reads. The
+    # gate's memo (`Hecks::Tools::GateMemo`) reports a check as skipped when these files, with the
+    # command and the environment, hash as they did in its last green run; a glob is wide where the
+    # check reads a whole tree. Empty means the check is never skipped.
     value_object "GateCheck" do
       attribute :name, String
       attribute :id, String
@@ -778,39 +783,47 @@ Hecks.bluebook "Bluebook" do
       attribute :blocked, String
       attribute :runs_in, String
       attribute :attests, String
+      attribute :inputs, String
 
       member name: "rspec", id: "rspec",
+             inputs: "lib/**/* spec/**/* examples/**/* qa/**/* exe/**/* bin/**/* docs/**/* rust/**/* .github/**/* Gemfile Gemfile.lock *.gemspec .rubocop.yml .rubocop_todo.yml",
              title: "rspec (parallel)",
              runs_in: "ci",
              argv: "",
              script: "# Workers are grouped by this machine's own last timings, kept under the git directory\n# (shared by every worktree, never committed); the first run, with none, groups by file size and\n# writes the log.\nlog=\"$(git rev-parse --git-common-dir)/hecks_rspec_runtime.log\"\nif [ -f \"$log\" ]; then grouping=(--group-by runtime --runtime-log \"$log\" --allowed-missing 100); else grouping=(--group-by filesize); fi\nbundle exec parallel_rspec spec -n {workers} \"${grouping[@]}\" \\\n  -o \"--format progress --format ParallelTests::RSpec::RuntimeLogger --out $log\"\n",
              blocked: "the suite is red."
       member name: "fuzzing", id: "fuzzing",
+             inputs: "lib/**/* spec/**/* examples/**/* exe/**/* bin/**/* rust/**/* Gemfile Gemfile.lock *.gemspec qa/**/*",
              title: "spec/fuzzing, which the parallel run above excludes",
              argv: "bundle exec rspec spec/fuzzing --tag fuzzing",
              script: "",
              blocked: "spec/fuzzing is red."
       member name: "query_agreement", id: "query_agreement",
+             inputs: "lib/**/* spec/**/* examples/**/* qa/**/* exe/**/* bin/**/* docs/**/* rust/**/* .github/**/* Gemfile Gemfile.lock *.gemspec .rubocop.yml .rubocop_todo.yml",
              title: "adapter agreement, one declared query and every engine giving the same answer",
              argv: "bundle exec rspec spec/adapters/query_agreement_spec.rb --tag io",
              script: "",
              blocked: "the engines disagree about a declared query; one of them is wrong, and a self-consistent adapter spec cannot tell which."
       member name: "engine_agreement", id: "engine_agreement", attests: "yes",
+             inputs: "lib/**/* spec/**/* examples/**/* qa/**/* exe/**/* bin/**/* docs/**/* rust/**/* .github/**/* Gemfile Gemfile.lock *.gemspec .rubocop.yml .rubocop_todo.yml",
              title: "engine agreement, every declared comparator on both engines",
              argv: "bundle exec exe/hecks conformance_run.check_engine_agreement! --wait",
              script: "",
              blocked: "a comparator is missing a shared case or a cross-engine spec."
       member name: "shape_ledger", id: "shape_ledger",
+             inputs: "lib/**/*.rb lib/**/*.bluebook lib/**/*.hecksagon lib/**/*.world lib/**/*.json lib/**/*.adapter",
              title: "shape ledger, every bluebook's storage shape held by the ledger or reached by a translation edge",
              argv: "bundle exec exe/hecks conformance_run.check_shape_ledger! --wait",
              script: "",
              blocked: "a bluebook's storage shape moved with no translation edge from the shape the ledger holds; the failure prints the edge to commit. A change that only adds is settled in one step with `hecks conformance_run.check_shape_ledger! --confirm --additive --wait`, which writes the empty edge and moves the ledger; a change that renames or reshapes data needs rules first."
       member name: "model_check", id: "model_check", attests: "yes",
+             inputs: "lib/**/*.rb lib/**/*.bluebook lib/**/*.hecksagon lib/**/*.world examples/**/*",
              title: "model check, unreachable states, dead transitions and orphaned handlers",
              argv: "bundle exec exe/hecks ModelCheckRun.model_check! --wait",
              script: "",
              blocked: "the model checker found something."
       member name: "doc_coverage", id: "doc_coverage", attests: "yes",
+             inputs: "lib/**/* docs/implemented/reference/**/* Gemfile Gemfile.lock *.gemspec",
              title: "docs coverage, words with no running example",
              argv: "bundle exec exe/hecks conformance_run.measure_doc_coverage! --wait",
              script: "",
@@ -821,16 +834,19 @@ Hecks.bluebook "Bluebook" do
              script: "",
              blocked: "rubocop found an offense."
       member name: "codegen_drift", id: "codegen_drift",
+             inputs: "lib/**/* examples/**/* qa/**/* packages/**/* spec/fixtures/**/* spec/corpus/**/* exe/**/* bin/**/* rust/**/* Gemfile Gemfile.lock *.gemspec",
              title: "codegen drift, rust/src/generated/ must match a fresh regeneration",
              argv: "bundle exec exe/hecks regeneration_run.regenerate_corpus! --check --wait",
              script: "",
              blocked: "regenerating hits a diff. The whole generated tree is committed, so run `hecks regeneration_run.regenerate_corpus! --confirm` and commit what it changed."
       member name: "comment_style", id: "comment_style",
+             inputs: "lib/**/*.rb spec/**/*.rb docs/COMMENT_STYLE_GUIDE.md",
              title: "comment style, every comment under lib/hecks and spec against docs/COMMENT_STYLE_GUIDE.md",
              argv: "bundle exec exe/hecks style_run.check_comments! paths=lib/hecks spec --wait",
              script: "",
              blocked: "a comment breaks the style guide, such as a line past 100 characters; `hecks StyleRun.fix_comments!` rewrites the mechanical ones, and the rest are shortened by hand. CI runs this same check."
       member name: "comment_blocks", id: "comment_blocks",
+             inputs: "lib/**/*.rb spec/**/*.rb docs/COMMENT_STYLE_GUIDE.md examples/**/*.rb",
              title: "comment blocks, no run of comment lines past ADR 0075's cap",
              argv: "bundle exec exe/hecks style_run.check_comments! paths=lib,spec,examples only=long_block --wait",
              script: "",
@@ -846,16 +862,19 @@ Hecks.bluebook "Bluebook" do
              script: "",
              blocked: "a workflow step counts or waits for the items of a list call (artifacts, runs, jobs, issues, releases, pulls, commits) and reads only the first 30. Add --paginate and count the lines it prints, or filter the path with ?name=."
       member name: "secret_output", id: "secret_output",
+             inputs: "lib/**/* spec/spec_helper.rb spec/support/**/*.rb spec/secret_output_spec.rb",
              title: "secret output, no value a world hands an adapter as a secret reaches what a launcher prints",
              argv: "bundle exec rspec spec/secret_output_spec.rb",
              script: "",
              blocked: "a declared secret, or a database URL's password, reached a refusal, a note or a result. Hold it through `Hecks::Secrets` where the world hands it over, and print through a guarded stream."
       member name: "adapter_words", id: "adapter_words",
+             inputs: "lib/**/* spec/spec_helper.rb spec/support/**/*.rb spec/adapter_words_spec.rb",
              title: "adapter words, no domain name equal to a technology word the adapters are named for",
              argv: "bundle exec rspec spec/adapter_words_spec.rb",
              script: "",
              blocked: "a domain name (a module, aggregate, command or query) equals a technology word listed in lib/hecks/hecks/adapter_words.json. The failure names each one; rename the domain name, not the adapter."
       member name: "rust_fmt", id: "rust_fmt",
+             inputs: "rust/**/*.rs rust/**/Cargo.toml rust/**/Cargo.lock rust/rust-toolchain.toml rust-toolchain.toml",
              title: "rustfmt, every Rust crate laid out as `cargo fmt` would",
              argv: "",
              script: "# The main crate's generated modules are not committed, so cargo fmt would stop at a\n# missing file on a fresh checkout; its hand-written entry points are named instead.\nrustfmt --check --edition 2021 rust/src/main.rs rust/src/kernel/mod.rs rust/tests/*.rs\nfor crate in parser codegen lsp host web build; do\n  cargo fmt --check --manifest-path \"rust/$crate/Cargo.toml\"\ndone\n",
@@ -979,6 +998,11 @@ Hecks.bluebook "Bluebook" do
              argv: "",
              script: "bundle exec exe/hecks language_run.project_rust_vocabulary! --confirm --wait\ngit diff --exit-code -- rust/src/kernel/vocab/\nuntracked=\"$(git status --porcelain --untracked-files=all -- rust/src/kernel/vocab/)\"\nif [ -n \"$untracked\" ]; then\n  echo \"rust/src/kernel/vocab has uncommitted generated files:\" >&2\n  echo \"$untracked\" >&2\n  exit 1\nfi\n",
              blocked: "the generated kernel vocab tables are stale or untracked; the check rewrote them, so commit the result."
+      member name: "release_consistency", id: "release_consistency",
+             title: "release consistency, the version files, the changelog and the release workflow agree",
+             argv: "bundle exec rspec spec/readme_version_spec.rb spec/hecks_client_version_spec.rb spec/changelog_planned_release_spec.rb spec/docs_stale_version_spec.rb spec/release_workflow_spec.rb",
+             script: "",
+             blocked: "a half-done release bump: the files a bump edits by hand disagree with each other; the failure names the spec."
     end
 
     # The stages of the gate: the `checks` a stage runs, as a comma list of `GateCheck` names in
@@ -1001,7 +1025,10 @@ Hecks.bluebook "Bluebook" do
     # `ci-rust-io.yml` runs in its `rspec_rust_io` job, for a push that wants their answer first; no
     # hook or workflow runs it. `ci` is the checks `ci-checks.yml` runs, each step with
     # `hecks gate_run.gate! stage=ci only=<ids> --wait`; several of them write generated files and
-    # compare, so the stage is not meant to run whole in one checkout.
+    # compare, so the stage is not meant to run whole in one checkout. `release` is the one check
+    # `ci.yml` runs in its own `release_consistency` job (`gate_run.gate! stage=release`): it is a
+    # `RequiredCheck` with `runs: always`, so a release bump reruns it, and it lives outside `ci`
+    # because that stage is exactly what `ci-checks.yml` runs, which a bump inherits.
     value_object "GateStage" do
       attribute :name, String
       attribute :env, String
@@ -1011,6 +1038,7 @@ Hecks.bluebook "Bluebook" do
       member name: "ci_suite", env: "HECKS_ENVIRONMENT=memory HECKS_PROCESS_SPECS=1", checks: "rspec"
       member name: "quick", env: "HECKS_ENVIRONMENT=memory", checks: "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,adapter_words"
       member name: "rust_io", env: "CI=true HECKS_ENVIRONMENT=memory", checks: "rust_io"
+      member name: "release", env: "", checks: "release_consistency"
       member name: "ci", env: "", checks: "model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,generated_tree,rust_fmt,rust_clippy,lint_deploy_recipes,command_names,workflow_pagination,fuzz_1_of_3,fuzz_2_of_3,fuzz_3_of_3,fuzz_sqlite_1_of_3,fuzz_sqlite_2_of_3,fuzz_sqlite_3_of_3,fuzz_postgres_1_of_2,fuzz_postgres_2_of_2,fuzz_shards,vocabulary_drift,ci_gates,ci_pipeline,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift"
     end
 
@@ -1124,6 +1152,19 @@ Hecks.bluebook "Bluebook" do
       member name: "Chris Young"
     end
 
+    # The dials of the workflows `hecks project_lanes` writes for the lanes: `promote` (promote.yml,
+    # one job to a lane that follows another) and `watch` (lane-watch.yml, one job to a lane with an
+    # `alert_after`). `cron` is the schedule of a workflow that runs on one, empty for one that does
+    # not, and `timeout_minutes` is how long each of its jobs may run before GitHub stops it.
+    value_object "LaneWorkflow" do
+      attribute :name,            String
+      attribute :cron,            String
+      attribute :timeout_minutes, String
+
+      member name: "promote", cron: "", timeout_minutes: "15"
+      member name: "watch",   cron: "17 * * * *", timeout_minutes: "10"
+    end
+
     # A binary hecks builds once per change to its crate and publishes, so a client that needs the
     # same binary downloads it instead of compiling it (ADR 0110). `hecks regeneration_run.project_lanes!`
     # writes .github/workflows/publish-<name>.yml from each row; `Hecks::RustBuild::PrebuiltBinary`
@@ -1134,6 +1175,7 @@ Hecks.bluebook "Bluebook" do
     # `executable` is the Cargo binary and `target` the Rust triple it is built for. `runner` is the
     # GitHub-hosted image it is built on, pinned (never `-latest`) because a binary links the
     # runner's glibc and must run on every host that runs that image or a newer one.
+    # `timeout_minutes` is how long the build job may run before GitHub stops it.
     # The release is tagged `<name>-<key>` and carries `<executable>-<target>` and its `.sha256`.
     # A crate can have one row a target; a build takes the row for its crate and target. The arm64
     # host builds on Ubuntu 22.04 (glibc 2.35) so it runs in a Debian bookworm (glibc 2.36) image.
@@ -1143,11 +1185,12 @@ Hecks.bluebook "Bluebook" do
       attribute :executable, String
       attribute :target, String
       attribute :runner, String
+      attribute :timeout_minutes, String
 
       member name: "host", crate: "rust/host", executable: "bootstrap", target: "x86_64-unknown-linux-gnu",
-             runner: "ubuntu-24.04"
+             runner: "ubuntu-24.04", timeout_minutes: "40"
       member name: "host-arm64", crate: "rust/host", executable: "bootstrap", target: "aarch64-unknown-linux-gnu",
-             runner: "ubuntu-22.04-arm"
+             runner: "ubuntu-22.04-arm", timeout_minutes: "40"
     end
 
     # The dials of the hecks_qa loop: what each is called, the type of value it takes and what it
