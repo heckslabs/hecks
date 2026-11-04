@@ -314,6 +314,7 @@ queries (nothing here changes anything):
   Operation:
     One thing an operator ran against a domain, and how it ended.
     follow                  A domain's persisted event log past a cursor, for tailing it call by call.
+    feed                    The event tap past a sequence number, filtered by aggregate and event name.
   Introspection:
     A look at a booted domain, answered by the runtime without changing anything.
     ir                      The IR a domain's boot produces, as JSON: what golden specs pin and an era hashes.
