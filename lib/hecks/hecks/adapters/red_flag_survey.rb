@@ -12,9 +12,6 @@ module Hecks
       # The workflow whose run is read.
       WORKFLOW = "CI"
 
-      # Job conclusions that are not a failure.
-      CLEAN = %w[success skipped neutral].freeze
-
       # @param runner [#call, nil] takes `(argv, chdir:)` and answers `[ok, output]`
       # @param checkout [String] a directory in the repository
       def initialize(runner:, checkout:)
@@ -48,7 +45,7 @@ module Hecks
 
       def failed(id)
         jobs = gh("run", "view", id.to_s, "--json", "jobs").fetch("jobs", [])
-        names = jobs.reject { |job| CLEAN.include?(job["conclusion"].to_s) }.map { |job| job["name"] }
+        names = jobs.reject { |job| Hecks::CheckConclusion.clean?(job["conclusion"]) }.map { |job| job["name"] }
         names.empty? ? "none named" : names.join(", ")
       end
 

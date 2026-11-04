@@ -5368,6 +5368,167 @@ impl RequiredCheck {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct CheckConclusion {
+    pub name: &'static str,
+    pub certifies: &'static str,
+    pub clean: &'static str,
+    pub evidence: &'static str,
+    pub unfinished: &'static str,
+}
+
+pub const CHECK_CONCLUSION: &[CheckConclusion] = &[
+    CheckConclusion {
+        name: "success",
+        certifies: "yes",
+        clean: "yes",
+        evidence: "yes",
+        unfinished: "",
+    },
+    CheckConclusion {
+        name: "skipped",
+        certifies: "yes",
+        clean: "yes",
+        evidence: "",
+        unfinished: "yes",
+    },
+    CheckConclusion {
+        name: "neutral",
+        certifies: "",
+        clean: "yes",
+        evidence: "",
+        unfinished: "yes",
+    },
+    CheckConclusion {
+        name: "cancelled",
+        certifies: "",
+        clean: "",
+        evidence: "",
+        unfinished: "yes",
+    },
+    CheckConclusion {
+        name: "stale",
+        certifies: "",
+        clean: "",
+        evidence: "",
+        unfinished: "yes",
+    },
+    CheckConclusion {
+        name: "action_required",
+        certifies: "",
+        clean: "",
+        evidence: "",
+        unfinished: "yes",
+    },
+    CheckConclusion {
+        name: "",
+        certifies: "",
+        clean: "",
+        evidence: "",
+        unfinished: "yes",
+    },
+];
+
+impl CheckConclusion {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+            (
+                "name".to_string(),
+                crate::kernel::Json::Str(self.name.to_string()),
+            ),
+            (
+                "certifies".to_string(),
+                crate::kernel::Json::Str(self.certifies.to_string()),
+            ),
+            (
+                "clean".to_string(),
+                crate::kernel::Json::Str(self.clean.to_string()),
+            ),
+            (
+                "evidence".to_string(),
+                crate::kernel::Json::Str(self.evidence.to_string()),
+            ),
+            (
+                "unfinished".to_string(),
+                crate::kernel::Json::Str(self.unfinished.to_string()),
+            ),
+        ])
+    }
+
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        // `validate!`'s order: a name the set does not declare, then a field left out, then
+        // membership of the whole row.
+        let unknown = v.unknown_keys(&["name", "certifies", "clean", "evidence", "unfinished"]);
+        if !unknown.is_empty() {
+            let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
+            return Err(crate::kernel::Refusal::UnknownArgument(
+                crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+                    command: "CheckConclusion",
+                    unknown: &unknown,
+                    declared: &["name", "certifies", "clean", "evidence", "unfinished"],
+                }
+                .render_args(),
+            ));
+        }
+        if matches!(v.get("name"), None | Some(crate::kernel::Json::Null)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(
+                "CheckConclusion.name expects String, got nil".to_string(),
+            ));
+        }
+        if matches!(v.get("certifies"), None | Some(crate::kernel::Json::Null)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(
+                "CheckConclusion.certifies expects String, got nil".to_string(),
+            ));
+        }
+        if matches!(v.get("clean"), None | Some(crate::kernel::Json::Null)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(
+                "CheckConclusion.clean expects String, got nil".to_string(),
+            ));
+        }
+        if matches!(v.get("evidence"), None | Some(crate::kernel::Json::Null)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(
+                "CheckConclusion.evidence expects String, got nil".to_string(),
+            ));
+        }
+        if matches!(v.get("unfinished"), None | Some(crate::kernel::Json::Null)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(
+                "CheckConclusion.unfinished expects String, got nil".to_string(),
+            ));
+        }
+        for row in CHECK_CONCLUSION {
+            if v.get("name").and_then(crate::kernel::Json::as_str) == Some(row.name)
+                && v.get("certifies").and_then(crate::kernel::Json::as_str) == Some(row.certifies)
+                && v.get("clean").and_then(crate::kernel::Json::as_str) == Some(row.clean)
+                && v.get("evidence").and_then(crate::kernel::Json::as_str) == Some(row.evidence)
+                && v.get("unfinished").and_then(crate::kernel::Json::as_str) == Some(row.unfinished)
+            {
+                return Ok(row.clone());
+            }
+        }
+        // The refusal quotes the first column only, as Ruby's `refuse_non_member!` does.
+        let offered = v
+            .get("name")
+            .map(|offered| offered.inspect())
+            .unwrap_or_else(|| "nil".to_string());
+        Err(crate::kernel::Refusal::InvariantViolation(
+            crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
+                r#type: "CheckConclusion",
+                admitted: &[
+                    "success",
+                    "skipped",
+                    "neutral",
+                    "cancelled",
+                    "stale",
+                    "action_required",
+                    "",
+                ],
+                offered: offered.as_str(),
+            }
+            .render_args(),
+        ))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct Lane {
     pub name: &'static str,
     pub guarded: &'static str,

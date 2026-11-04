@@ -49,6 +49,15 @@ module Hecks
         {"name"=>"build-dependencies"}.freeze,
         {"name"=>"workspace"}.freeze
       ].freeze,
+      "CheckConclusion" => [
+        {"name"=>"success", "certifies"=>"yes", "clean"=>"yes", "evidence"=>"yes", "unfinished"=>""}.freeze,
+        {"name"=>"skipped", "certifies"=>"yes", "clean"=>"yes", "evidence"=>"", "unfinished"=>"yes"}.freeze,
+        {"name"=>"neutral", "certifies"=>"", "clean"=>"yes", "evidence"=>"", "unfinished"=>"yes"}.freeze,
+        {"name"=>"cancelled", "certifies"=>"", "clean"=>"", "evidence"=>"", "unfinished"=>"yes"}.freeze,
+        {"name"=>"stale", "certifies"=>"", "clean"=>"", "evidence"=>"", "unfinished"=>"yes"}.freeze,
+        {"name"=>"action_required", "certifies"=>"", "clean"=>"", "evidence"=>"", "unfinished"=>"yes"}.freeze,
+        {"name"=>"", "certifies"=>"", "clean"=>"", "evidence"=>"", "unfinished"=>"yes"}.freeze
+      ].freeze,
       "CiGate" => [
         {"name"=>"runtime_changed", "workflow"=>"ci.yml", "mode"=>"touches", "pattern"=>"^lib/hecks/runtime/", "push"=>"before_sha", "label"=>"does this change touch lib/hecks/runtime/**?"}.freeze,
         {"name"=>"release_only", "workflow"=>"ci.yml", "mode"=>"release_only", "pattern"=>"", "push"=>"before_sha", "label"=>"is this change only a release bump on a certified base?"}.freeze,

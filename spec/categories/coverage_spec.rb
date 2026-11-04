@@ -42,6 +42,7 @@ RSpec.describe "the category tests, covering every closed set", :aggregate_failu
                                "spec/adapters/driven/git_rehearsal_scope_spec.rb",
     "ReleaseFile"           => "release bookkeeping, held by spec/release/",
     "RequiredCheck"         => "release checks, held by spec/tools_lanes_spec.rb",
+    "CheckConclusion"       => "what a check conclusion means, held by spec/check_conclusion_spec.rb",
     "RetiredScript"         => "retired tooling, held by spec/bin_holds_no_script_spec.rb",
     "Term"                  => "the tooling's own words and the storage words that must not stand in for them, " \
                                "held by spec/vocabulary_terms_spec.rb",

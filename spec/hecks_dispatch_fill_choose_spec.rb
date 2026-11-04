@@ -1,0 +1,57 @@
+require "spec_helper"
+require "hecks/hecks/adapters/dispatching"
+
+# A `Dispatch.Fill` reaches its `Choose` ask through the `ChooseWhenFilling` policy, with the
+# request's `only` prefix. The whole Hecks domain boots in Memory, as the launcher boots it; the
+# `Dispatching` port is answered by the real adapter over stand-in work items, so no session starts.
+RSpec.describe "a filling, dispatched through its Choose ask" do
+  HECKS_DOMAIN = File.expand_path("../lib/hecks/hecks", __dir__).freeze
+
+  def item(key) = Hecks::Adapters::Dispatching::Plan::Item.new(key: key, title: key, detail: "", area: [key])
+
+  def dispatching(planned)
+    items = instance_double(Hecks::Adapters::Dispatching::WorkItems, planned: planned.map { |key| item(key) },
+                                                                    started: [], runs: {}, lessons: [])
+    Hecks::Adapters::Dispatching.new(settings: { load: -> { 1.5 }, cpus: 4, work_items: items })
+  end
+
+  def boot = Hecks.boot(HECKS_DOMAIN, environment: "memory", install_driving: false).registry
+
+  def fill(registry, planned, **args)
+    stand_in = dispatching(planned)
+    request = { run: { value: "run-1" }, repo: { value: "/repo" } }.merge(args)
+    Hecks::Runtime::AdapterLookup.standing_in(->(_port, _asked) { stand_in }) do
+      Hecks::Runtime::Dispatcher.new(registry).dispatch_flat("Hecks::Dispatch.Fill", **request)
+    end
+    registry
+  end
+
+  def events_named(registry, name) = registry.event_log.select { |event| event.name == name }
+
+  def report_of(registry)
+    payload = events_named(registry, "DispatchReported").last.payload
+    payload.fetch(:report).fetch(:value)
+  end
+
+  let(:planned) { %w[gap-a gap-b other] }
+
+  it "chooses only the planned work items whose key starts with the prefix", :aggregate_failures do
+    report = report_of(fill(boot, planned, only: { value: "gap-a" }))
+
+    expect(report).to include("would start gap-a")
+    expect(report).not_to include("gap-b", "other")
+  end
+
+  it "still chooses from every planned work item when no prefix is named", :aggregate_failures do
+    report = report_of(fill(boot, planned))
+
+    expect(report).to include("would start gap-a", "would start other")
+  end
+
+  it "is refused at no point: Choose answers and nothing is refused", :aggregate_failures do
+    registry = fill(boot, planned, only: { value: "gap-a" })
+
+    expect(events_named(registry, "DispatchRefused")).to be_empty
+    expect(events_named(registry, "DispatchReported")).not_to be_empty
+  end
+end
