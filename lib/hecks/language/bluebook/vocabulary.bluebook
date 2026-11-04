@@ -1054,16 +1054,14 @@ Hecks.bluebook "Bluebook" do
       member name: "release_consistency", runs: "always"
     end
 
-    # The branches a change travels along. `main` takes only pull requests that GitHub's merge
-    # queue has tested on top of it, so a red combination never lands; `stable` takes only what a
-    # `Promotion` moves onto it once every `CiGate` check is green on that commit.
+    # The branches a change travels along. `main` takes pushes with no gate; `stable` takes only
+    # what a `Promotion` moves onto it once every `CiGate` check is green on that commit.
     # hecks project_lanes writes each row's ruleset into .github/rulesets/<name>.json, and
     # `hecks PromotionRun.promote!` reads `follows` to know which lane a promotion fast-forwards.
     #
     # `guarded` says whether a ruleset restricts the branch. `pushers` says what it takes: `anyone`
-    # (any commit), `green` (only a commit on which every `RequiredCheck` has already passed,
-    # which is how a promotion moves the lane), or `queue` (only a squashed pull request the merge
-    # queue built on the lane and found green on every `RequiredCheck`). `feeds` is the tag that moves with the lane, or
+    # (any commit), or `green` (only a commit on which every `RequiredCheck` has already passed,
+    # which is how a promotion moves the lane). `feeds` is the tag that moves with the lane, or
     # empty when none does; `follows` is the lane a promotion draws from, or empty. `alert_after`
     # is the whole hours the lane may stand behind the lane it follows before `hecks
     # promotion_run.watch` files a finding, or empty for a lane that is never late.
@@ -1080,7 +1078,7 @@ Hecks.bluebook "Bluebook" do
       attribute :alert_after, String
       attribute :release_trailer, String
 
-      member name: "main",   guarded: "yes", pushers: "queue",  feeds: "",     follows: "",     alert_after: "",
+      member name: "main",   guarded: "no",  pushers: "anyone", feeds: "",     follows: "",     alert_after: "",
              release_trailer: ""
       member name: "stable", guarded: "yes", pushers: "green",  feeds: "edge", follows: "main", alert_after: "4",
              release_trailer: "Release-Approved-By"

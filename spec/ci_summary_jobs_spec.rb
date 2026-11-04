@@ -149,14 +149,12 @@ RSpec.describe ".github/workflows/ci.yml required-check wrappers" do
     on.is_a?(Hash) ? on : {}
   end
 
-  # `main` moves only through GitHub's merge queue (the `main` Lane row, pushers `queue`), and the
-  # queue waits for the RequiredChecks of each entry's own test. ci.yml carries every one of them,
-  # so it is the workflow the queue runs; without the trigger an entry waits on checks that never
-  # report. No other workflow reports a RequiredCheck, so none other starts a run per entry.
-  it "triggers on merge_group in ci.yml alone" do
+  # `main` takes pushes directly and `stable` is moved by promote.yml, so no workflow waits on a
+  # merge queue: a `merge_group` trigger would start runs for entries that do not exist.
+  it "has no merge_group trigger" do
     queued = workflow_files(".github/workflows/*.yml").select { |path| triggers_of(path).key?("merge_group") }
 
-    expect(queued.map { |path| File.basename(path) }).to eq(["ci.yml"])
+    expect(queued.map { |path| File.basename(path) }).to be_empty, "still trigger on merge_group"
   end
 
   # A commit is certified only by a check run of its own sha: the run of a main commit that is
