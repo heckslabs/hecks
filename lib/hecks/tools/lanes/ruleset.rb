@@ -45,10 +45,37 @@ module Hecks
             "bypass_actors" => [], "rules" => FIXED }
         end
 
+        # How a `queue` lane's merge queue builds and merges. Each entry is tested on top of the lane
+        # and every entry ahead of it, up to five at once, and merges only when all its checks pass,
+        # so a pull request that is green alone but red beside another never lands. A squash keeps
+        # one commit per pull request on the lane.
+        MERGE_QUEUE = { "type"       => "merge_queue",
+                        "parameters" => { "merge_method" => "SQUASH", "grouping_strategy" => "ALLGREEN",
+                                          "max_entries_to_build" => 5, "max_entries_to_merge" => 5,
+                                          "min_entries_to_merge" => 1, "min_entries_to_merge_wait_minutes" => 1,
+                                          "check_response_timeout_minutes" => 60 } }.freeze
+
+        # A `queue` lane moves only by a merged pull request. No review is required: the checks are
+        # the gate, so an agent's pull request can enter the queue as soon as it is opened.
+        PULL_REQUEST_PARAMETERS = {
+          "required_approving_review_count"   => 0,
+          "dismiss_stale_reviews_on_push"     => false,
+          "require_code_owner_review"         => false,
+          "require_last_push_approval"        => false,
+          "required_review_thread_resolution" => false,
+          "allowed_merge_methods"             => ["squash"]
+        }.freeze
+        PULL_REQUEST = { "type" => "pull_request", "parameters" => PULL_REQUEST_PARAMETERS }.freeze
+
         # @param lane [Hash{String => String}] a `Lane` row
-        # @return [Array<Hash>] the rules: the fixed ones, and the required checks of a `green` lane
+        # @return [Array<Hash>] the rules: the fixed ones; a `green` lane's required checks; and a
+        #   `queue` lane's pull request, merge queue and required checks
         def rules(lane)
-          lane["pushers"] == "green" ? [*FIXED, required_checks] : FIXED
+          case lane["pushers"]
+          when "green" then [*FIXED, required_checks]
+          when "queue" then [*FIXED, PULL_REQUEST, MERGE_QUEUE, required_checks]
+          else FIXED
+          end
         end
 
         # @return [Hash] the rule that a pushed commit has already passed every `RequiredCheck`
