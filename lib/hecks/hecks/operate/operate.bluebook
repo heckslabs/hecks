@@ -299,6 +299,20 @@ Hecks.bluebook "Hecks" do
         attribute :taken_at, String
       end
 
+      # One line of the event tap: its sequence number, aggregate and event name, and the line as JSON.
+      value_object "FeedEntry" do
+        attribute :seq,       Integer
+        attribute :aggregate, String
+        attribute :event,     String
+        attribute :payload,   String
+      end
+
+      # A feed's answer: the sequence number to pass back as `since`, and the lines past it.
+      value_object "FeedTail" do
+        attribute :cursor, Integer
+        attribute :events, list_of(FeedEntry)
+      end
+
       # One entry of a persisted event log; the payload is its JSON text, since a value object
       # holds no free-form map.
       value_object "FollowedEvent" do
@@ -322,6 +336,15 @@ Hecks.bluebook "Hecks" do
         attribute :wait,      Integer, optional: true
         attribute :interval,  Float,   optional: true
         returns Tail
+      end
+
+      query "Feed" do
+        description "The event tap past a sequence number, filtered by aggregate and event name. It reads the log only, so it boots nothing that acts; `names` is comma separated."
+        attribute :aggregate, String,  optional: true
+        attribute :since,     Integer, optional: true
+        attribute :names,     String,  optional: true
+        attribute :limit,     Integer, optional: true
+        returns FeedTail
       end
     end
 
