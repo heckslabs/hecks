@@ -25,8 +25,13 @@ name: CI
 # train queues local main's tip there, and candidate.yml fast-forwards main onto the commit once
 # this run is green. That move is made with the workflow token, so it starts no run of its own:
 # the checks recorded against the sha are the candidate run's, and promote.yml reads them.
+#
+# A `merge_group` run is the merge queue's test of a pull request on top of main and every entry
+# ahead of it (the `main` Lane row, pushers `queue`); main moves only when it is green. Path gates
+# diff it against the queue's base, as `regeneration_run.decide_ci_gate!` already does.
 on:
   pull_request:
+  merge_group:
   push:
     branches: [main, candidate]
   # Called by nightly-main.yml, which runs this same job set with attestation ignored
