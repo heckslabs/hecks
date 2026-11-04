@@ -378,6 +378,14 @@ Hecks.hecksagon "Hecks" do
       answers "SessionRemoved"
       refuses "RemoveRefused"
     end
+
+    # The operator's answer goes to the blocked session as the prompt of a resumed background session.
+    asks "Resume", to: AgentRun do
+      attribute :run, RunKey
+      attribute :answer, Brief
+      answers "AgentResumed"
+      refuses "ResumeRefused"
+    end
   end
 
   Hecks::SendTrain.port "Launcher" do

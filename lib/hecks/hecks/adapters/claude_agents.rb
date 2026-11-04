@@ -125,6 +125,20 @@ module Hecks
         { removed_at: { value: Time.now.utc.iso8601 } }
       end
 
+      # Answers a blocked session by resuming it in the run's directory, with the answer as its prompt.
+      #
+      # @param held [Hash] the `AgentRun` record: `session`, `repo`, and `answer`
+      # @return [Hash{Symbol => Hash}] `resumed_at:` when the resume was started, as an ISO 8601 string
+      # @raise [ConsoleCapture::Failure] when the command refuses
+      def resume(**held)
+        id = plain(held[:session])
+        result = @shell.capture(*niceness, @command, "--bg", "--resume", id, "--", plain(held[:answer]),
+                                env: @session.session_environment, chdir: plain(held[:repo]))
+        raise ConsoleCapture::Failure, "#{@command} resume #{id} refused: #{result.err.strip}" unless result.ok?
+
+        { resumed_at: { value: Time.now.utc.iso8601 } }
+      end
+
       private
 
       def agent_listing(repo, agent)
