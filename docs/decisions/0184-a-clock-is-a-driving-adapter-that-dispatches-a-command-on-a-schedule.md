@@ -70,8 +70,13 @@ Decided by the owner on 2026-11-04, each as recommended.
 
 1. **Trigger grammar.** Literals: `cron "0 2 * * *"` (a string), `every "1h"` (a duration
    literal), `at` an ISO-8601 time.
-2. **Single firing.** A Postgres advisory lock per clock name, taken for each firing. Sqlite and
-   Memory need their own single-process rule, not decided here.
+2. **Single firing.** A Postgres advisory lock per clock name, taken for each firing.
+   - **Sqlite:** each firing takes the database write lock (`BEGIN IMMEDIATE`). Replicas on the
+     same machine are safe. Replicas on different machines are refused at boot, because a local
+     Sqlite file is not shared between them.
+   - **Memory:** state lives inside one process, so replicas do not share a domain. A clock on
+     Memory is refused when more than one process is declared, and Memory is documented as
+     single-process.
 3. **Time zone.** `cron` runs in UTC unless the clock names a zone, e.g. `zone: "America/New_York"`.
 4. **Process layout.** One process per clock, one Procfile line each.
 5. **Host support.** A clock on a host with no long-lived process (Lambda, D1, the static
@@ -79,7 +84,7 @@ Decided by the owner on 2026-11-04, each as recommended.
 
 ## Open questions
 
-- Single firing on Sqlite and Memory: a single-process rule, or refuse clocks on those adapters.
+None outstanding.
 
 ## Verification status
 
