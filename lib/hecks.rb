@@ -86,9 +86,10 @@ module Hecks
     #
     # @param described [Runtime::Loader::Described] what `describe` answered
     # @param install_driving [Boolean] install the `Widget::Item.Add`-style facade
+    # @param read_only [Boolean] boot without the writes a boot makes; see `Runtime::Loader`
     # @return [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the domain's dispatcher
-    def boot_described(described, install_driving: true)
-      Assembly.boot_described(described, install_driving: install_driving)
+    def boot_described(described, install_driving: true, read_only: false)
+      Assembly.boot_described(described, install_driving: install_driving, read_only: read_only)
     end
 
     # Boots a domain from an explicit list of files (a `.bluebook`, its

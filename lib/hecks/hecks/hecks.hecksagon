@@ -64,6 +64,7 @@ Hecks.hecksagon "Hecks" do
     end
 
     answers_query "Follow"
+    answers_query "Feed"
   end
 
   Hecks::Operation.port "Terminal" do

@@ -64,10 +64,11 @@ module Hecks
       #
       # @param described [Runtime::Loader::Described] what `describe` answered
       # @param install_driving [Boolean] whether to install the Ruby facade constants
+      # @param read_only [Boolean] boot without the writes a boot makes; see `Runtime::Loader`
       # @return [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the dispatcher bound
       #   to the booted domain
-      def boot_described(described, install_driving: true)
-        Hecks.boot_described(described, install_driving: install_driving)
+      def boot_described(described, install_driving: true, read_only: false)
+        Hecks.boot_described(described, install_driving: install_driving, read_only: read_only)
       end
 
       # Loads only the given files of a domain; otherwise like `boot`. See `Hecks.boot_files`.

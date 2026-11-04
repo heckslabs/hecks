@@ -21,8 +21,14 @@ module Hecks
       # The world verb that switches the tap on.
       VERB = "event_log"
 
-      # Bytes after which the log moves to `<path>.1` and starts again.
+      # Bytes after which the log moves to `<path>.1`; older generations shift up one number.
       DEFAULT_MAX_BYTES = 5_000_000
+
+      # Rotated generations kept beside the live log. The oldest past this count is dropped.
+      KEPT = 5
+
+      # Bytes read from the end of a file to find its last line's sequence number.
+      TAIL_BYTES = 65_536
 
       # Switches the tap on for a registry whose Hecks world declares it.
       #
@@ -88,18 +94,52 @@ module Hecks
         "refused: #{record[:reason].to_s.slice(0, 160)}"
       end
 
+      # Appends one numbered line. A lock file serializes the processes that share the log, so each
+      # sequence number follows the last one written, across rotations and restarts.
       def write(line)
         @lock.synchronize do
           FileUtils.mkdir_p(File.dirname(@path))
-          rotate
-          File.open(@path, "a") { |file| file.puts(JSON.generate(line)) }
+          File.open("#{@path}.lock", File::RDWR | File::CREAT) do |lock|
+            lock.flock(File::LOCK_EX)
+            rotate
+            File.open(@path, "a") { |file| file.puts(JSON.generate(line.merge("seq" => next_seq))) }
+          end
         end
       rescue SystemCallError, IOError
         nil
       end
 
       def rotate
-        File.rename(@path, "#{@path}.1") if File.exist?(@path) && File.size(@path) >= @max_bytes
+        return unless File.exist?(@path) && File.size(@path) >= @max_bytes
+
+        (KEPT - 1).downto(1) { |n| shift_generation(n) }
+        File.rename(@path, "#{@path}.1")
+      end
+
+      def shift_generation(number)
+        from = "#{@path}.#{number}"
+        File.rename(from, "#{@path}.#{number + 1}") if File.exist?(from)
+      end
+
+      def next_seq = (last_seq || 0) + 1
+
+      # The sequence number of the newest line, from the live log or, just after a rotation, the
+      # generation it moved to.
+      def last_seq
+        [@path, "#{@path}.1"].each do |file|
+          seq = seq_at_end(file)
+          return seq if seq
+        end
+        nil
+      end
+
+      def seq_at_end(file)
+        return nil unless File.file?(file)
+
+        line = File.open(file) { |io| io.seek([io.size - TAIL_BYTES, 0].max) && io.read.split("\n").last }
+        line && JSON.parse(line)["seq"]
+      rescue JSON::ParserError
+        nil
       end
     end
   end

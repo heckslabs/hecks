@@ -9,6 +9,8 @@ require "hecks/tools/model_check"
 require "hecks/tools/smoke_test"
 require "hecks/tools/behaviors"
 require "hecks/tools/refresh_projections"
+require "hecks/runtime/event_feed"
+require_relative "in_process_operations/feeding"
 
 module Hecks
   module Adapters
@@ -22,6 +24,7 @@ module Hecks
     # something, or a run that fails, is refused with the report as its reason.
     module InProcessOperations
       include Tailing
+      include Feeding
 
       # The bluebooks `hecks model_check` sweep when no domain is named need a
       # checkout; an installed gem has none.

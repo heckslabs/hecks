@@ -97,6 +97,7 @@ Hecks.world "Hecks" do
                                 "package.digest" => "registry.digest",
                                 "package.release" => "registry.release" },
                        streams: %w[Follow],
+                       reads_tap: %w[Operation.Feed],
                        executable: "exe/hecks",
                        maintainer: %w[LanguageRun KernelRun ConformanceRun RegenerationRun GateRun StyleRun InspectionRun
                                       CodemodRun TestSuiteRun CorpusRun Server PublishingRun PromotionRun Release ScriptRun
