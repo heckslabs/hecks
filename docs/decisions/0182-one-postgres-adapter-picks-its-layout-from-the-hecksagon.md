@@ -4,10 +4,10 @@
 
 ## Context
 
-Revision support (era support, renamed in the 8.0 change list) lives in a second adapter,
-`PostgresEra` (`lib/hecks/adapters/driven/postgres_era.rb` and `postgres_era/`, about 5,000
-lines in roughly 60 files). The plain `Postgres` adapter (about 1,500 lines in 15 files) has
-no revision support. A domain opts into revisions by binding `postgres_era` instead of
+Revision support (era support, to be renamed in the 8.0 change list) lives in a second
+adapter, `PostgresEra` (`lib/hecks/adapters/driven/postgres_era.rb` and `postgres_era/`, about
+5,000 lines in roughly 60 files). The plain `Postgres` adapter (about 1,500 lines in 15 files)
+has no revision support. A domain opts into revisions by binding `postgres_era` instead of
 `postgres`.
 
 Two adapters for one database carry two costs: the `postgres_era` key is a second name a
@@ -16,13 +16,14 @@ with a difference in one place:
 
 | File | Plain | Revision | What differs |
 |---|---|---|---|
-| `events.rb` | 57 | 74 | Mostly naming; the revision version owns the `events` DDL and its index. |
-| `sagas.rb` | 72 | 78 | The revision version adds a `domain` column and owns the checkpoint DDL. |
+| `events.rb` | 57 | 74 | Naming and where the DDL runs. Same table and index in both; plain creates them in `ddl.rb` and `schema_builder.rb`. |
+| `sagas.rb` | 72 | 78 | Naming and where the DDL runs. Same table, columns and key in both. |
 | `dialect.rb` | 93 | 142 | A real storage difference: plain reads one column per attribute; revision reads a shared `state` jsonb blob through a head view. |
 | `journal.rb` | 173 | 173 (266 changed lines in diff) | A real semantic difference: the revision write path holds a write lock, appends and projects in one transaction, refuses writes for an unminted shape, and enforces the era fence. |
 
-The fork is not cosmetic. Two of the four files encode the storage layout, and the journal
-encodes revision rules in the write path. Those rules cannot live in an era-only directory.
+The fork is not cosmetic in two files. `dialect.rb` and `journal.rb` encode the storage layout
+and the revision rules in the write path, and those rules cannot live in an era-only
+directory. `events.rb` and `sagas.rb` differ only in naming over identical DDL.
 
 ## Decision
 
@@ -42,11 +43,11 @@ their top-level files) load only when the layout is revision. The shared pieces 
 Rules:
 
 1. **A domain that does not opt into revisions produces the same schema, and behaves the same,
-   as `Postgres` does today.** This is the compatibility bar.
+   as `Postgres` does today.** This is the compatibility bar. The `events` and `sagas` tables
+   already match, so the bar holds for them without change.
 2. **The setting is declared in the hecksagon, not in code.** Its name is decided in the 8.0
    change list after the revision rename is settled.
-3. **The `postgres_era` adapter key is removed in 8.0.** Whether it first answers with a
-   deprecation message is the owner's call; no other alias is kept, as with the chapter
+3. **The `postgres_era` adapter key is removed in 8.0.** No alias is kept, as with the chapter
    retirement.
 
 ## Alternatives considered
@@ -95,7 +96,8 @@ Other adapters, assessed against those needs:
   hold a lock across its statements. Minting would need redesign.
 - **`heki`, `local_storage`, `folder`:** not realistic. They have no transactions or locks, so
   the write lock and fence would have to be built from nothing.
-- **`lambda`:** depends on its backing store, so it inherits the answer for that store.
+- **`lambda`:** not assessed. Its answer would follow its backing store, which I have not
+  checked.
 
 The decision for 8.0 is to keep revisions Postgres-only. `sqlite` is the one to revisit, and
 only for a client that accepts an application-level fence in place of RLS.
@@ -120,22 +122,28 @@ Rules for them:
    domain believing it has revision history it does not have.
 2. **Outbox support is a separate decision, not part of this ADR.** The five adapters with no
    outbox run reactions inline with a boot warning (`warn_undurable_outbox!`). Whether a domain
-   with policies or process managers should refuse to boot on them, rather than warn, is an
-   owner decision and is listed as an open question below.
+   with policies or process managers should refuse to boot on them is listed as an open
+   question below.
 
 ## Open questions
 
-- Whether a domain with policies or process managers should refuse to boot on an adapter with
-  no outbox (`heki`, `d1`, `lambda`, `local_storage`, `folder`), instead of warning.
+Each has a proposed resolution. None is decided.
 
-- The setting's name and its place in the hecksagon grammar.
-- Whether `events` has the same columns in both layouts. The DDL differs (the revision
-  version adds an `aggregate` column and an index). Confirm before merging the two DDLs.
-- Whether a domain can change layout after it has data. The answer is probably no, and the
-  boot should refuse a change rather than migrate.
+1. **Refuse or warn on no outbox.** Proposed: refuse to boot when a domain declares policies or
+   process managers on `heki`, `d1`, `lambda`, `local_storage` or `folder`, unless the
+   hecksagon explicitly opts into inline reactions. Breaking, so it belongs in 8.0.
+2. **Setting name and grammar.** Proposed: `revisions true` in the hecksagon. This works only if
+   the Composer's `revisions` key is renamed to `saves` in the 8.0 list.
+3. **Changing layout after data exists.** Proposed: refuse at boot. Record the layout in a
+   metadata table on first boot and compare on every later boot. A migration tool can come
+   later, outside 8.0.
+4. **Removal of `postgres_era`.** Proposed: fail at boot with a message naming the replacement
+   (`postgres` plus `revisions true`). A loud, specific error is cheaper to diagnose than a
+   silent removal.
 
 ## Verification status
 
-This ADR is written from `diff` output on the four forked files and from line counts. I have
-not run the specs, and I have not read the boot path that picks an adapter. The table and
-revision layouts described above are the behaviour the diffs show, not a checked design.
+The table and revision DDL for `events` and `sagas` was read and matches. The `dialect.rb` and
+`journal.rb` differences come from reading the diffs and the code paths they touch. The specs
+were not run, and the boot path that selects an adapter was not read. Lambda's backing store
+was not checked.
