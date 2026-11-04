@@ -166,7 +166,7 @@ module Hecks
         {"type"=>"String", "strategy"=>"substring"}.freeze
       ].freeze,
       "Lane" => [
-        {"name"=>"main", "guarded"=>"no", "pushers"=>"anyone", "feeds"=>"", "follows"=>"", "alert_after"=>"", "release_trailer"=>""}.freeze,
+        {"name"=>"main", "guarded"=>"yes", "pushers"=>"queue", "feeds"=>"", "follows"=>"", "alert_after"=>"", "release_trailer"=>""}.freeze,
         {"name"=>"stable", "guarded"=>"yes", "pushers"=>"green", "feeds"=>"edge", "follows"=>"main", "alert_after"=>"4", "release_trailer"=>"Release-Approved-By"}.freeze
       ].freeze,
       "LoadOrder" => [
