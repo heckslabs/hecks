@@ -38,6 +38,7 @@ ledger = { "quality_control" => "qa/bluebook" }.fetch(ARGV.first, nil)
 ARGV.shift if ledger
 
 require "hecks"
+require "hecks/adapters/driving/read_only_question"
 # Every secret a world hands an adapter is masked in whatever this process prints.
 Hecks::Secrets.guard!
 
@@ -63,8 +64,11 @@ text, status, reason = Hecks::Adapters::Driving::CliRunner.usage(
   runtime: described, argv: ARGV, program: program
 )
 unless text
+  read_only = Hecks::Adapters::Driving::ReadOnlyQuestion.read_only?(
+    Hecks::Adapters::Driving::LauncherOptions.settings(described, "Hecks"), ARGV
+  )
   runtime = begin
-    Hecks::Adapters::Driving::LauncherOptions.quietly(hold: MEMORY_COMMANDS.include?(ARGV.first.to_s.chomp("!"))) { Hecks.boot_described(described, install_driving: false) }
+    Hecks::Adapters::Driving::LauncherOptions.quietly(hold: MEMORY_COMMANDS.include?(ARGV.first.to_s.chomp("!"))) { Hecks.boot_described(described, install_driving: false, read_only: read_only) }
   rescue StandardError => e
     abort "cannot open Hecks: #{e.message.strip}"
   end

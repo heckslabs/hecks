@@ -67,9 +67,11 @@ module Hecks
     #
     # @param described [Runtime::Loader::Described] what `describe` answered
     # @param install_driving [Boolean] install the `Widget::Item.Add`-style facade
+    # @param read_only [Boolean] boot without the writes a boot makes; see `Runtime::Loader`
     # @return [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the booted dispatcher
-    def boot_described(described, install_driving: true)
-      drive(Runtime::Loader.boot_described(described, event_tap: event_tap_override), install_driving)
+    def boot_described(described, install_driving: true, read_only: false)
+      drive(Runtime::Loader.boot_described(described, event_tap: event_tap_override, read_only: read_only),
+            install_driving)
     end
 
     # Boots exactly the named files. See `Runtime::Loader.boot_files`.
