@@ -5542,8 +5542,8 @@ pub struct Lane {
 pub const LANE: &[Lane] = &[
     Lane {
         name: "main",
-        guarded: "no",
-        pushers: "anyone",
+        guarded: "yes",
+        pushers: "queue",
         feeds: "",
         follows: "",
         alert_after: "",
