@@ -1,0 +1,213 @@
+Hecks.bluebook "Assurance" do
+  vision "A claim is only as good as the evidence behind it; this domain judges whether evidence satisfies a claim and what that permits."
+  core
+
+  # One engine for every kind of claim. Performance and compliance differ only in the
+  # claim's requirement, how its evidence is verified, and what its outcome governs.
+  # Verifiers live in the domain that owns the subject; this domain only consumes evidence.
+  #
+  # Outcomes are three, never two: a claim with no evidence, or evidence that cannot
+  # decide it, is "inconclusive", and inconclusive blocks release.
+
+  aggregate "Claim" do
+    description "One thing that must be true, the evidence recorded for it, and the outcome of judging that evidence."
+
+    identified_by :name
+
+    attribute :name,        ClaimName
+    attribute :subject,     Subject
+    attribute :requirement, Requirement
+    attribute :direction,   Direction
+    attribute :limit,       Limit
+    attribute :verified_by, Verifier
+    attribute :measured,    Measurement, optional: true
+    attribute :scope,       Scope,       optional: true
+    attribute :outcome,     Outcome,     default: { value: "inconclusive" }
+
+    value_object "ClaimName" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Subject" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Requirement" do
+      attribute :value, String, matches: :present
+    end
+
+    # "at_most" for ceilings (latency, error rate); "at_least" for floors (audit coverage).
+    value_object "Direction" do
+      attribute :value, String
+      invariant("a direction is at_most or at_least") { value == "at_most" || value == "at_least" }
+    end
+
+    value_object "Limit" do
+      attribute :value, Integer
+    end
+
+    value_object "Verifier" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Measurement" do
+      attribute :value, Integer
+    end
+
+    value_object "Scope" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Outcome" do
+      attribute :value, String
+      invariant("an outcome is satisfied, violated or inconclusive") do
+        value == "satisfied" || value == "violated" || value == "inconclusive"
+      end
+    end
+
+    command "Declare" do
+      role "Assurance author"
+      goal "State what must be true, how it is verified, and the limit it must meet"
+
+      attribute :name,        ClaimName
+      attribute :subject,     Subject
+      attribute :requirement, Requirement
+      attribute :direction,   Direction
+      attribute :limit,       Limit
+      attribute :verified_by, Verifier
+
+      sets :name
+      sets :subject
+      sets :requirement
+      sets :direction
+      sets :limit
+      sets :verified_by
+
+      emits "ClaimDeclared"
+    end
+
+    command "Record" do
+      role "Verifier"
+      goal "Attach an observation from the verification named on the claim, with its scope"
+
+      reference_to Claim
+      attribute :measured, Measurement
+      attribute :scope,    Scope
+
+      sets :measured
+      sets :scope
+
+      emits "EvidenceRecorded"
+    end
+
+    command "Satisfy" do
+      role "Verifier"
+      goal "Judge the recorded evidence as meeting the claim's limit"
+
+      reference_to Claim
+
+      given("a claim is judged only on evidence") { measured != nil }
+      given("the evidence meets the limit") do
+        (direction.value == "at_most" && measured.value <= limit.value) ||
+          (direction.value == "at_least" && measured.value >= limit.value)
+      end
+
+      sets :outcome, to: { value: "satisfied" }
+
+      emits "ClaimSatisfied"
+    end
+
+    command "Violate" do
+      role "Verifier"
+      goal "Judge the recorded evidence as failing the claim's limit"
+
+      reference_to Claim
+
+      given("a claim is judged only on evidence") { measured != nil }
+      given("the evidence fails the limit") do
+        (direction.value == "at_most" && measured.value > limit.value) ||
+          (direction.value == "at_least" && measured.value < limit.value)
+      end
+
+      sets :outcome, to: { value: "violated" }
+
+      emits "ClaimViolated"
+    end
+  end
+
+  aggregate "Deployment" do
+    description "A release decision that rests on a set of claims, held until every one is satisfied by its own evidence."
+
+    identified_by :name
+
+    attribute :name,      DeploymentName
+    attribute :required,   list_of(ClaimName)
+    attribute :satisfied,  list_of(ClaimName)
+    attribute :status,     Status, default: { value: "held" }
+
+    value_object "DeploymentName" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "ClaimName" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Status" do
+      attribute :value, String
+      invariant("a deployment is held or released") { value == "held" || value == "released" }
+    end
+
+    command "Open" do
+      role "Release owner"
+      goal "Open a release decision that will hold until its claims are satisfied"
+
+      attribute :name, DeploymentName
+
+      sets :name
+
+      emits "DeploymentOpened"
+    end
+
+    command "Require" do
+      role "Release owner"
+      goal "Name a claim this release depends on"
+
+      reference_to Deployment
+      attribute :claim, ClaimName
+
+      sets :required, append: :claim
+
+      emits "ClaimRequired"
+    end
+
+    # Fed by a Claim's ClaimSatisfied outcome. Wiring that feed (a policy from the Claim's
+    # events) belongs to the consuming context. Only satisfied outcomes are recorded here;
+    # a violated or inconclusive claim never arrives, so the release stays held.
+    command "Satisfied" do
+      role "Assurance author"
+      goal "Record that a required claim was satisfied by its own evidence"
+
+      reference_to Deployment
+      attribute :claim, ClaimName
+
+      sets :satisfied, append: :claim
+
+      emits "ClaimSatisfiedForRelease"
+    end
+
+    command "Release" do
+      role "Release owner"
+      goal "Permit the release once every required claim is satisfied"
+
+      reference_to Deployment
+
+      given("a release names at least one claim") { required.size >= 1 }
+      given("every required claim has been satisfied") { satisfied.size >= required.size }
+
+      sets :status, to: { value: "released" }
+
+      emits "DeploymentReleased"
+    end
+  end
+end
