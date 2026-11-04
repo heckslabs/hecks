@@ -25,19 +25,22 @@ module Hecks
       #   is one of these; empty keeps every name
       # @param limit [Integer] the most lines scanned in one read
       # @return [Hash{Symbol => Object}] `events:` the kept lines, `cursor:` the last sequence
-      #   number scanned, to pass as the next `since`
+      #   number scanned, to pass as the next `since`, `unnumbered:` how many lines carry no
+      #   sequence number. Those lines are counted, never returned as events or passed over by
+      #   the cursor, so a writer that predates numbering is visible rather than silent.
       def read(since: 0, aggregates: [], names: [], limit: 100)
-        scanned = with_lock { lines_after(since).first(limit) }
+        numbered, unnumbered = with_lock { split_lines }
+        scanned = numbered.select { |line| line["seq"] > since }.first(limit)
         kept = scanned.select { |line| keep?(line, aggregates, names) }
-        { events: kept, cursor: scanned.last&.fetch("seq") || since }
+        { events: kept, cursor: scanned.last&.fetch("seq") || since, unnumbered: unnumbered.size }
       end
 
       private
 
-      def lines_after(since)
-        generations.flat_map { |file| parse(file) }
-                   .select { |line| line["seq"].to_i > since }
-                   .sort_by { |line| line["seq"].to_i }
+      # The lines of every generation in sequence order, split into numbered and unnumbered.
+      def split_lines
+        numbered, unnumbered = generations.flat_map { |file| parse(file) }.partition { |line| line.key?("seq") }
+        [numbered.map { |line| line.merge("seq" => line["seq"].to_i) }.sort_by { |line| line["seq"] }, unnumbered]
       end
 
       def generations

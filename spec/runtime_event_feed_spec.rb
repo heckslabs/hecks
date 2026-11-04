@@ -54,6 +54,6 @@ RSpec.describe Hecks::Runtime::EventFeed do
 
   it "answers nothing for a log that does not exist" do
     expect(described_class.new(path: path).read)
-      .to eq({ events: [], cursor: 0 })
+      .to eq({ events: [], cursor: 0, unnumbered: 0 })
   end
 end
