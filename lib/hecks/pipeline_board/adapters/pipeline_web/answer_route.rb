@@ -17,7 +17,8 @@ module Hecks
         # @param path [String] the request path
         # @param headers [Hash{String => String}] the request headers, names downcased
         # @param allowed [Array<String>] the origins the board's own page is served from
-        # @return [Array(Integer, String), nil] the refusal's status and reason, or nil to read the body
+        # @return [Array(Integer, String), nil] the refusal's status and reason, or nil to read
+        #   the body
         def refusal(path, headers, allowed)
           return [404, "not found"] unless path == PATH
           return [403, "cross-origin request refused"] unless same_origin?(headers["origin"], allowed)
