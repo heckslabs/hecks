@@ -589,11 +589,18 @@ jobs:
         run: bundle exec exe/hecks regeneration_run.decide_ci_gate! gate=runtime_changed --wait
   # END GENERATED ci_gate runtime_changed
 
+  # The command's 30 seeds split over three runners, ten each from seeds 1, 11 and 21: the same
+  # seeds the default run covers, in a third of the wall time. One runner taking all 30 was the
+  # last job to finish on a run whose other jobs were certified.
   stress_concurrency:
     needs: runtime_changed
     if: needs.runtime_changed.outputs.touched == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        seed_start: [1, 11, 21]
 
     # Real Postgres: the serial-only spec (postgres_concurrent_dispatch_spec.rb) skips itself
     # without one, which would leave this job passing without applying the stress.
@@ -617,7 +624,9 @@ jobs:
         with:
           database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
 
-      # No arguments: the command's defaults are its recommended CI settings. It sets `CI=true` on
-      # its child rspec runs, so the `io: true` Postgres spec is included.
-      - name: hecks stress_concurrency
-        run: bundle exec exe/hecks test_suite_run.stress_concurrency! --wait
+      # Ten of the default 30 runs, from this leg's first seed; parallelism stays the machine's.
+      # It sets `CI=true` on its child rspec runs, so the `io: true` Postgres spec is included.
+      - name: hecks stress_concurrency (seeds ${{ matrix.seed_start }}+)
+        run: >-
+          bundle exec exe/hecks test_suite_run.stress_concurrency!
+          runs.value=10 seed_start.value=${{ matrix.seed_start }} --wait

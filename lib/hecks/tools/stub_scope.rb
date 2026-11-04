@@ -12,7 +12,7 @@ module Hecks
     # marker that names no finding. Removing the marker is what the fix does.
     #
     #   hecks ... script=stub_scope              # base defaults to origin/main
-    #   hecks ... script=stub_scope base=REF     # any other base
+    #   hecks ... script=stub_scope base=ref     # any other base
     module StubScope
       MARKER = %r{(?:#|//)\s*hecks-stub:(.*)\z}
 

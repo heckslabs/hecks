@@ -31,7 +31,8 @@ module Hecks
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] unused
       # @param root [String, nil] unused
-      # @param registry [Runtime::Registry, nil] the booted registry whose world holds the gate default
+      # @param registry [Runtime::Registry, nil] the booted registry whose world holds the gate
+      #   default
       def initialize(aggregate: nil, settings: {}, root: nil, registry: nil)
         @registry = registry
       end
