@@ -30,15 +30,9 @@ module Hecks
       # A job whose name says it runs specs.
       SPEC_JOB = /spec/i
 
-      # The one conclusion that clears a red spec: the job ran its specs and they passed.
-      PASSED = "success"
-
       # The branch and the event whose runs count: a push to main.
       BRANCH = "main"
       EVENT = "push"
-
-      # Job conclusions that are no verdict on the specs: the job did not run to an end.
-      UNFINISHED = [nil, "", "cancelled", "skipped", "neutral", "stale", "action_required"].freeze
 
       # What `gh run view --json` is asked for.
       JSON_FIELDS = "headSha,headBranch,event,createdAt,conclusion,jobs"
@@ -98,7 +92,13 @@ module Hecks
       # failure parsed from its log is not green: the run clears nothing.
       def settled?(view)
         jobs = spec_jobs(view)
-        jobs.any? && jobs.all? { |job| job["conclusion"] == PASSED }
+        jobs.any? && jobs.all? { |job| Hecks::CheckConclusion.evidence?(job["conclusion"]) }
+      end
+
+      # @param conclusion [String, nil] a spec job's conclusion
+      # @return [Boolean] whether the job already has a verdict on the specs, passed or unfinished
+      def evidence_or_unfinished?(conclusion)
+        Hecks::CheckConclusion.evidence?(conclusion) || Hecks::CheckConclusion.unfinished?(conclusion)
       end
 
       # A spec job that failed (or timed out) while the log named no failing example is reported as
@@ -106,7 +106,7 @@ module Hecks
       def report_unparsed(view, failures, seen)
         return unless failures.empty?
 
-        spec_jobs(view).reject { |job| UNFINISHED.include?(job["conclusion"]) || job["conclusion"] == PASSED }.each do |job|
+        spec_jobs(view).reject { |job| evidence_or_unfinished?(job["conclusion"]) }.each do |job|
           name = job["name"].to_s
           report(RunKeys.job(name), "job #{name}", ["#{name} #{job["conclusion"]}: no failing example in its log"], seen,
                  title: "spec job #{name} failed on main with no failing example parsed")

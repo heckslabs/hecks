@@ -14,9 +14,6 @@ module Hecks
         # The workflow whose run is read, as GitHub names it.
         WORKFLOW = "CI"
 
-        # Job conclusions that are not a failure.
-        CLEAN = %w[success skipped neutral].freeze
-
         # One run as read: its id, its verdict and the failed jobs.
         Run = Struct.new(:id, :verdict, :jobs, keyword_init: true) do
           # @return [String] the run id and verdict, and the failed jobs when red, in words
@@ -60,7 +57,7 @@ module Hecks
           return "" if id.empty?
 
           jobs = gh("run", "view", id, "--json", "jobs").fetch("jobs", [])
-          names = jobs.reject { |job| CLEAN.include?(job["conclusion"].to_s) }.map { |job| job["name"] }
+          names = jobs.reject { |job| Hecks::CheckConclusion.clean?(job["conclusion"]) }.map { |job| job["name"] }
           names.empty? ? "none named" : names.join(", ")
         end
 

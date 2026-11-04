@@ -35766,6 +35766,221 @@
           ]
         },
         {
+          "name": "CheckConclusion",
+          "attributes": [
+            {
+              "name": "name",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "certifies",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "clean",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "evidence",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "unfinished",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": true,
+          "members": [
+            [
+              [
+                "name",
+                "success"
+              ],
+              [
+                "certifies",
+                "yes"
+              ],
+              [
+                "clean",
+                "yes"
+              ],
+              [
+                "evidence",
+                "yes"
+              ],
+              [
+                "unfinished",
+                ""
+              ]
+            ],
+            [
+              [
+                "name",
+                "skipped"
+              ],
+              [
+                "certifies",
+                "yes"
+              ],
+              [
+                "clean",
+                "yes"
+              ],
+              [
+                "evidence",
+                ""
+              ],
+              [
+                "unfinished",
+                "yes"
+              ]
+            ],
+            [
+              [
+                "name",
+                "neutral"
+              ],
+              [
+                "certifies",
+                ""
+              ],
+              [
+                "clean",
+                "yes"
+              ],
+              [
+                "evidence",
+                ""
+              ],
+              [
+                "unfinished",
+                "yes"
+              ]
+            ],
+            [
+              [
+                "name",
+                "cancelled"
+              ],
+              [
+                "certifies",
+                ""
+              ],
+              [
+                "clean",
+                ""
+              ],
+              [
+                "evidence",
+                ""
+              ],
+              [
+                "unfinished",
+                "yes"
+              ]
+            ],
+            [
+              [
+                "name",
+                "stale"
+              ],
+              [
+                "certifies",
+                ""
+              ],
+              [
+                "clean",
+                ""
+              ],
+              [
+                "evidence",
+                ""
+              ],
+              [
+                "unfinished",
+                "yes"
+              ]
+            ],
+            [
+              [
+                "name",
+                "action_required"
+              ],
+              [
+                "certifies",
+                ""
+              ],
+              [
+                "clean",
+                ""
+              ],
+              [
+                "evidence",
+                ""
+              ],
+              [
+                "unfinished",
+                "yes"
+              ]
+            ],
+            [
+              [
+                "name",
+                ""
+              ],
+              [
+                "certifies",
+                ""
+              ],
+              [
+                "clean",
+                ""
+              ],
+              [
+                "evidence",
+                ""
+              ],
+              [
+                "unfinished",
+                "yes"
+              ]
+            ]
+          ]
+        },
+        {
           "name": "Lane",
           "attributes": [
             {
