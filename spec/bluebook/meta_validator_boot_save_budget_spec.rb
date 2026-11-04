@@ -37,8 +37,9 @@ RSpec.describe "grammar boot save budget" do
   it "does not dispatch more saves than a generous budget while booting the language's own grammar", :aggregate_failures do
     saves = saves_per_aggregate
 
-    # Diagnostic: when the budget is blown, name the busiest aggregates so the CI log shows which one grew.
-    busiest = saves.sort_by { |_name, count| -count }.first(12).map { |name, count| "#{name}=#{count}" }.join(", ")
+    # Diagnostic: when the budget is blown, name the busiest aggregates in the failure message.
+    busiest = saves.sort_by { |_name, count| -count }.first(12)
+                   .map { |name, count| "#{name}=#{count}" }.join(", ")
     expect(saves).not_to be_empty
     expect(saves.values.sum).to be < 9_000, "total saves #{saves.values.sum}; busiest: #{busiest}"
     expect(saves.values.max).to be < 7_500, "busiest aggregate #{saves.values.max}; busiest: #{busiest}"
