@@ -22,10 +22,9 @@ module Hecks
       WORKFLOW = ".github/workflows/promote.yml"
       WATCH_WORKFLOW = ".github/workflows/lane-watch.yml"
 
-      # What `pushers` may say: a lane that takes any commit, one that takes only a commit every
-      # `RequiredCheck` has passed, or one that takes only a pull request GitHub's merge queue has
-      # tested on top of the lane and found green on every `RequiredCheck`.
-      PUSHERS = %w[anyone green queue].freeze
+      # What `pushers` may say: a lane that takes any commit, or one that takes only a commit every
+      # `RequiredCheck` has passed.
+      PUSHERS = %w[anyone green].freeze
 
       module_function
 

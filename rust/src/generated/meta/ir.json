@@ -35851,11 +35851,11 @@
               ],
               [
                 "guarded",
-                "yes"
+                "no"
               ],
               [
                 "pushers",
-                "queue"
+                "anyone"
               ],
               [
                 "feeds",
