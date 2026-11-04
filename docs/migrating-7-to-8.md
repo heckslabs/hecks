@@ -19,12 +19,20 @@ Decisions are recorded in [ADR 0182](decisions/0182-one-postgres-adapter-picks-i
 "Era" is renamed to "revision" in Ruby constants, CLI verbs and messages. The names stored in
 your database do not change, so no data migration is needed.
 
-- **Constants:** `PostgresEra` → `PostgresRevision` (adapter class), `EraGuard` → `RevisionGuard`,
-  `EraCheck` → `RevisionCheck`, `EraResolution` → `RevisionResolution`, `EraStatus` →
-  `RevisionStatus`, `HeldEra` → `HeldRevision`, and the rest of the `Era*` family.
-- **CLI verbs:** `era.audit_translation` → `revision.audit_translation`, `era.reconcile` →
-  `revision.reconcile`, `era.reattest` → `revision.reattest`, and the rest of the `era.*` verbs.
+- **Constants:** `PostgresEra` → `PostgresRevision`; `Era` → `Revision`; `EraBoundary` →
+  `RevisionBoundary`; `EraCheck` → `RevisionCheck`; `EraGuard` → `RevisionGuard`;
+  `EraIntegrity` → `RevisionIntegrity`; `EraProjectionBackfill` → `RevisionProjectionBackfill`;
+  `EraReattest` → `RevisionReattest`; `EraResolution` → `RevisionResolution`; `EraResolver` →
+  `RevisionResolver`; `EraStatus` → `RevisionStatus`; `EraStore` → `RevisionStore`;
+  `EraTamper` → `RevisionTamper`; `CheckEra` → `CheckRevision`; `ExpectedEra` →
+  `ExpectedRevision`; `HeldEra` → `HeldRevision`; `QaEraMint` → `QaRevisionMint`.
+- **CLI verbs:** the verbs are generated from the framework bluebook's `Era` aggregate, so the
+  prefix changes with it: `hecks era.reattest!` → `hecks revision.reattest!`,
+  `era.hold_first!` → `revision.hold_first!`, and every other `era.*` verb, including
+  `era.audit_translation`, `era.compaction`, `era.reconcile_plan` and `era.scaffold_translation`.
   Find them with `grep -rn 'era\.' .`.
+- **Fixture and file names** such as `expected-era.header` and `hecks_fuzz_postgres_era.world`
+  are internal and may stay, but any that a client builds by hand must be listed here.
 - **Stored names are unchanged:** `hecks_eras`, `hecks_era_texts` and `hecks_current_era` keep
   their names.
 
@@ -58,8 +66,13 @@ Composer's timeline JSON must change the key.
 
 A domain with policies or process managers no longer boots on `heki`, `d1`, `lambda`,
 `local_storage` or `folder`. Either bind an adapter with an outbox (`postgres`, `sqlite` or
-`memory`), or opt in to inline reactions in the hecksagon. The opt-in's name is not decided yet
-and will be filled in here before release.
+`memory`), or opt in to inline reactions in the hecksagon:
+
+```ruby
+inline_reactions true
+```
+
+Reactions then run inline with the boot warning, as they do today.
 
 ## Not in 8.0
 
