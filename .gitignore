@@ -51,6 +51,8 @@ coverage/
 !.claude/skills/
 # The agents a coder session hands work to, such as the architect that reviews its plan, tracked for the same reason.
 !.claude/agents/
+# The PostToolUse hook that runs RuboCop on each edited Ruby file, shared by every clone.
+!.claude/hooks/
 # The repo's permission rules, shared by every clone: the deny list that keeps a coding session on the hecks binary.
 !.claude/settings.json
 # The restricted door the MCP-only agents start: its launcher, its sandbox profile, and the all-mode switch.
