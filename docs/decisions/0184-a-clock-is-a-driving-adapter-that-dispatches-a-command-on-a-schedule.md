@@ -64,17 +64,22 @@ end
 - **Hosts that cannot run a long-lived process** (Lambda, D1 or the static adapters) cannot run a
   clock as projected. A clock on such a domain is refused at boot, not silently dropped.
 
+## Decided
+
+Decided by the owner on 2026-11-04, each as recommended.
+
+1. **Trigger grammar.** Literals: `cron "0 2 * * *"` (a string), `every "1h"` (a duration
+   literal), `at` an ISO-8601 time.
+2. **Single firing.** A Postgres advisory lock per clock name, taken for each firing. Sqlite and
+   Memory need their own single-process rule, not decided here.
+3. **Time zone.** `cron` runs in UTC unless the clock names a zone, e.g. `zone: "America/New_York"`.
+4. **Process layout.** One process per clock, one Procfile line each.
+5. **Host support.** A clock on a host with no long-lived process (Lambda, D1, the static
+   adapters) refuses to boot, naming the host.
+
 ## Open questions
 
-1. **Grammar.** The example above is a sketch. Whether `cron` takes a string, whether `every`
-   takes a duration literal, and whether `at` takes an ISO time.
-2. **Single firing.** The lock or lease that prevents a double firing across replicas, and where
-   it is held. A Postgres advisory lock is one option; a lease row in the domain's database is
-   another.
-3. **Time zones.** Whether `cron` is evaluated in UTC or in a zone the hecksagon names.
-4. **Process file.** One process per clock, or one runner for all clocks in a domain.
-5. **Host support.** Whether a clock on a host with no long-lived process should be refused at
-   boot or run by the host's own scheduler, such as EventBridge.
+- Single firing on Sqlite and Memory: a single-process rule, or refuse clocks on those adapters.
 
 ## Verification status
 
