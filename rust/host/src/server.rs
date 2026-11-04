@@ -1257,7 +1257,7 @@ mod tests {
             mirrored: None,
             seal_every: None,
         };
-        let wasm = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../dist/checkout_fixture.wasm");
+        let wasm = crate::test_dist::dist_file("checkout_fixture.wasm");
         let host = Host::new(&client, &wasm, &config, &crate::lambda_client::NeverInvoker);
         let schedule = serde_json::json!({
             "verb": "CheckoutFixture::Event.Schedule",
