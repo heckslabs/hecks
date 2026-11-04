@@ -10,7 +10,7 @@ use std::collections::HashMap;
 pub const MAX_REACTION_DEPTH: usize = 5;
 
 /// The depth a reaction's own dispatch runs at: one deeper, or back at zero for a root reaction.
-fn reaction_depth(root: bool, depth: usize) -> usize {
+const fn reaction_depth(root: bool, depth: usize) -> usize {
     if root {
         0
     } else {
