@@ -1,3 +1,4 @@
+require "pg"
 require "hecks"
 require "hecks/adapters/driven/postgres_era"
 
