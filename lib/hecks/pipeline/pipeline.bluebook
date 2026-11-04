@@ -5,6 +5,7 @@
 # outside anything.
 #
 #   Tickets   Work.WorkPlanned        -> Plan      (planned)
+#   Tickets   Work.WorkReopened       -> Plan      (planned), a finished or dropped item planned again
 #   Tickets   Work.WorkStarted        -> Dispatch  (dispatched), again for a Work item started again
 #   Hecks     Landing.LandedWorkFound -> Land      (landed)
 #   Hecks     Integration.MainPushed  -> Push      (pushed), every landed passage at once
@@ -207,6 +208,11 @@ Hecks.bluebook "Pipeline" do
 
   policy "PlanWhenWorkPlanned" do
     on      "Work.WorkPlanned"
+    trigger Passage::Plan, with: { change: :work, title: :title }
+  end
+
+  policy "PlanWhenWorkReopened" do
+    on      "Work.WorkReopened"
     trigger Passage::Plan, with: { change: :work, title: :title }
   end
 
