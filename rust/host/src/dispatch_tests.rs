@@ -1411,6 +1411,31 @@ pub mod tests {
         );
     }
 
+    /// The Memory twin of the rollback test above: a commit that fails after its writes are
+    /// staged leaves no snapshot and no saga behind. Runs without Postgres.
+    #[tokio::test]
+    async fn memory_commit_failing_after_staging_leaves_no_snapshot_or_saga() {
+        let memory = crate::store::MemoryStore::new();
+        let client = crate::store::Store::memory(memory.clone());
+        let config = memory_config("Banking");
+        memory.inject_fault(crate::store::MemoryFault::AfterSagas);
+
+        let outcome = handle(
+            Host::new(&client, &wasm_path(), &config, &lambda_client::NeverInvoker),
+            "Banking::Customer.Register",
+            register("CUST-0901"),
+            None,
+        )
+        .await;
+        assert!(outcome.is_err(), "the injected commit failure should fail the invocation");
+
+        let unit = client.begin("Banking").await.unwrap();
+        let state = unit.load().await.unwrap();
+        unit.rollback().await.unwrap();
+        assert!(state.snapshot.is_none(), "a failed commit must not leave a snapshot");
+        assert!(state.sagas.is_empty(), "a failed commit must not leave a saga");
+    }
+
     #[tokio::test]
     async fn a_pre_existing_snapshot_without_the_sagas_backfilled_latch_forces_one_full_replay() {
         let client = scratch_db("rust_host_dispatch_test_10").await;
