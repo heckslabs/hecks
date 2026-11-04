@@ -2,9 +2,9 @@ require "spec_helper"
 
 # Guards the grammar boot against O(N^2) save cost: every dispatch touching a nested entity
 # re-saves its whole parent aggregate. Asserts a save count, which is deterministic on CI.
-# Budgets sit above the cold-boot measurement (~9,240 total, ~7,540 busiest aggregate), leaving headroom.
-# The caches are off while measuring: a warm disk cache answers verdicts with zero saves, so the count
-# would depend on what an earlier run left on disk.
+# Budgets sit above the cold-boot measurement (~9,240 total, ~7,540 busiest aggregate).
+# The caches are off while measuring: a warm disk cache answers verdicts with zero saves,
+# so the count would depend on what an earlier run left on disk.
 RSpec.describe "grammar boot save budget" do
   # `@grammar_registry` is process-global and memoized; it is restored afterwards so the forced
   # rebuild stays invisible to other specs (ir_golden_spec.rb compares against the first boot).
