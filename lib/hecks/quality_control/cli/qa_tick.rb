@@ -16,9 +16,9 @@ require_relative "qa_tick/quiesce_guard"
 module Hecks
   module QualityControlCli
     # The command behind `hecks quality_control sweep.tick`: one QA tick. It needs a clean tree,
-    # rebases on `origin/main`, then runs `QaPrCheck`, `QaSweep --all`, `QaGeneratedDomains
-    # --from-dials` and `QaMutate --from-dials`, then `QaMainGate` for the quick gate on main, and prints
-    # one report. The dials can turn the last three off.
+    # rebases on `origin/main`, then runs `QaPrCheck`, `QaSweep --all`,
+    # `QaGeneratedDomains --from-dials` and `QaMutate --from-dials`, then `QaMainGate` for the
+    # quick gate on main, and prints one report. The dials can turn the last three off.
     #
     # It exits 2 if any step found something, 1 if none did but a step errored or it refused, 0 if
     # all are clean. The step order is enforced here, not in prose. `QA_REPO_DIR` picks the

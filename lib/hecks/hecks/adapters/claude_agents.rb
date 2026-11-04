@@ -125,10 +125,12 @@ module Hecks
         { removed_at: { value: Time.now.utc.iso8601 } }
       end
 
-      # Answers a blocked session by resuming it in the run's directory, with the answer as its prompt.
+      # Answers a blocked session by resuming it in the run's directory, with the answer as its
+      # prompt.
       #
       # @param held [Hash] the `AgentRun` record: `session`, `repo`, and `answer`
-      # @return [Hash{Symbol => Hash}] `resumed_at:` when the resume was started, as an ISO 8601 string
+      # @return [Hash{Symbol => Hash}] `resumed_at:` when the resume was started, as an ISO 8601
+      #   string
       # @raise [ConsoleCapture::Failure] when the command refuses
       def resume(**held)
         id = plain(held[:session])

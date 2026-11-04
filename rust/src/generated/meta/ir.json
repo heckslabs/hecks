@@ -34698,7 +34698,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks style_run.check_comments! paths=lib/hecks spec --wait"
+                "bundle exec exe/hecks style_run.check_comments! paths=lib/hecks,spec --wait"
               ],
               [
                 "script",

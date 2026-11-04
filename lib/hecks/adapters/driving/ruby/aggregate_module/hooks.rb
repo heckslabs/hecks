@@ -132,10 +132,9 @@ module Hecks
             end
 
             # Answers what a method-missing call means: a bare call's attribute path, the world's
-            # record of
-            # a setting, a recorded binding (BOUND), or nothing to bind (UNBOUND).
+            # record of a setting, a recorded binding (`BOUND`), or nothing to bind (`UNBOUND`).
             #
-            # @return [Object] the answer, or BOUND or UNBOUND
+            # @return [Object] the answer, or `BOUND` or `UNBOUND`
             def bound_outcome(fqn, verb, args, kwargs, block)
               return Bluebook::DSL::AttributePath.new(fqn, [verb.to_s]) if bare_call?(args, kwargs, block)
 
