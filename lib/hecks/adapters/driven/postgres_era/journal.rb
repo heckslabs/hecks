@@ -115,8 +115,14 @@ module Hecks
         # @return [String, nil] the label of the era this boot reads, or nil when it cannot be read
         def held_label
           @lineage.eras.find { |era| era[:ordinal] == @era }&.fetch(:label, nil)
-        rescue PG::Error, Runtime::WiringError
+        rescue *unreadable_lineage_errors
           nil
+        end
+
+        # The errors that mean a lineage cannot be read. PG::Error is named only when the pg gem
+        # is loaded: a shard that never loads it must not raise NameError from the rescue itself.
+        def unreadable_lineage_errors
+          defined?(PG::Error) ? [PG::Error, Runtime::WiringError] : [Runtime::WiringError]
         end
 
         # @return [String, nil] this checkout's shape label, or nil for an aggregate with no owner
