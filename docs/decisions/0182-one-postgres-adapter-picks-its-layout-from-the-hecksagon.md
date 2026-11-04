@@ -45,8 +45,8 @@ Rules:
 1. **A domain that does not opt into revisions produces the same schema, and behaves the same,
    as `Postgres` does today.** This is the compatibility bar. The `events` and `sagas` tables
    already match, so the bar holds for them without change.
-2. **The setting is declared in the hecksagon, not in code.** Its name is decided in the 8.0
-   change list after the revision rename is settled.
+2. **The setting is declared in the hecksagon, not in code.** Its name is `revisions true`
+   (see the open questions).
 3. **The `postgres_era` adapter key is removed in 8.0.** No alias is kept, as with the chapter
    retirement.
 
@@ -127,19 +127,19 @@ Rules for them:
 
 ## Open questions
 
-Each has a proposed resolution. None is decided.
+Decided by the owner on 2026-11-04, each as recommended.
 
-1. **Refuse or warn on no outbox.** Proposed: refuse to boot when a domain declares policies or
+1. **Refuse or warn on no outbox. Decided: refuse.** Refuse to boot when a domain declares policies or
    process managers on `heki`, `d1`, `lambda`, `local_storage` or `folder`, unless the
    hecksagon explicitly opts into inline reactions. Breaking, so it belongs in 8.0.
-2. **Setting name and grammar.** Proposed: `revisions true` in the hecksagon. This works only if
+2. **Setting name and grammar. Decided: `revisions true` in the hecksagon.** This works only if
    the Composer's `revisions` key is renamed to `saves` in the 8.0 list.
-3. **Changing layout after data exists.** Proposed: refuse at boot. Record the layout in a
+3. **Changing layout after data exists. Decided: refuse at boot.** Record the layout in a
    metadata table on first boot and compare on every later boot. A migration tool can come
    later, outside 8.0.
-4. **Removal of `postgres_era`.** Proposed: fail at boot with a message naming the replacement
+4. **Removal of `postgres_era`. Decided: fail at boot with a message naming the replacement
    (`postgres` plus `revisions true`). A loud, specific error is cheaper to diagnose than a
-   silent removal.
+   silent removal.**
 
 ## Verification status
 
