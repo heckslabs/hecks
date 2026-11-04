@@ -60,7 +60,7 @@ Hecks.bluebook "PipelineBoard" do
 
     command "Serve" do
       role "Maintainer"
-      goal "Show the pipeline on a page at 127.0.0.1 until stopped; the page reads and writes nothing"
+      goal "Show the pipeline on a page at 127.0.0.1 until stopped; the page only reads, except that it may answer a blocked session"
 
       attribute :run,  RunKey, sets: true
       attribute :port, Port, default: 4747, sets: true

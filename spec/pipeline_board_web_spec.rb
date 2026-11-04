@@ -9,6 +9,7 @@ require "hecks/pipeline_board/adapters/pipeline_web"
 
 # The board's server over a real socket on an ephemeral port: it binds the loopback address only,
 # answers three GET routes and nothing else, pushes journal events in order, and writes nothing.
+# Its one write, `POST /api/answer`, is covered in pipeline_board_answer_spec.rb.
 RSpec.describe Hecks::Adapters::PipelineWeb do
   let(:dir) { Dir.mktmpdir("board-web") }
   let(:log) { File.join(dir, "events.jsonl") }
