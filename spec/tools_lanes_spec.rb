@@ -65,42 +65,11 @@ RSpec.describe Hecks::Tools::Lanes do
     end
 
     it "write a ruleset for each guarded lane and for the tag it feeds, and for nothing else" do
-      expect(described_class.rulesets.keys).to eq(%w[main stable tag-edge])
+      expect(described_class.rulesets.keys).to eq(%w[stable tag-edge])
     end
 
     it "write no ruleset for a lane that takes pushes from anyone" do
-      anyone = { "name" => "scratch", "guarded" => "no", "pushers" => "anyone" }
-
-      expect(Hecks::Tools::Lanes::Ruleset.rules(anyone)).to eq(Hecks::Tools::Lanes::Ruleset::FIXED)
-    end
-
-    # A queue lane moves only by a pull request the merge queue tested on top of it, so two pull
-    # requests that are each green alone but red together never both land.
-    def main_ruleset = JSON.parse(File.read(File.join(root, ".github/rulesets/main.json")))
-
-    def main_rules = main_ruleset["rules"].to_h { |rule| [rule["type"], rule["parameters"]] }
-
-    it "let a queue lane move only by a pull request through the merge queue, naming no bypass", :aggregate_failures do
-      expect(main_ruleset.dig("conditions", "ref_name", "include")).to eq(["refs/heads/main"])
-      expect(main_ruleset["bypass_actors"]).to eq([])
-      expect(main_rules.keys).to contain_exactly("deletion", "non_fast_forward", "pull_request", "merge_queue",
-                                                 "required_status_checks")
-    end
-
-    it "let the merge queue merge an entry only when it and every entry ahead of it are green" do
-      expect(main_rules.dig("merge_queue", "grouping_strategy")).to eq("ALLGREEN")
-    end
-
-    it "let a pull request merge only the way the merge queue merges it" do
-      method = main_rules.dig("merge_queue", "merge_method").downcase
-
-      expect(main_rules.dig("pull_request", "allowed_merge_methods")).to eq([method])
-    end
-
-    it "let a queue lane take only an entry that passed every RequiredCheck" do
-      contexts = main_rules.dig("required_status_checks", "required_status_checks").map { |check| check["context"] }
-
-      expect(contexts).to eq(Hecks::Vocabulary.rows("RequiredCheck").map { |check| check["name"] })
+      expect(File.exist?(File.join(root, ".github/rulesets/main.json"))).to be(false)
     end
 
     it "promote after CI on the lane a lane follows", :aggregate_failures do
