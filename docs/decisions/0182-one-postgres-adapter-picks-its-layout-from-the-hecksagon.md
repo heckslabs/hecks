@@ -73,6 +73,33 @@ Rules:
   - The existing `postgres_era` specs, run against the revision layout through `Postgres`.
   - The outbox specs against both layouts.
 
+## Why revisions are Postgres-only
+
+The revision layout depends on Postgres features that the other adapters do not have, and
+the guarantees depend on them:
+
+- **Row-level security** makes the journal append-only and fences out writes from superseded
+  revisions, enforced by the database (`provisioning.rb` enables and forces RLS on the
+  journal).
+- **Transaction-scoped advisory locks** serialize ordinal allocation and field-cache updates
+  (`head_writes.rb`, `resumable_backfill.rb`).
+- **`nextval()` sequences** assign journal ordinals inside that lock.
+- **jsonb path queries and views** read the shared state blob.
+
+Other adapters, assessed against those needs:
+
+- **`sqlite`:** feasible, with its single-writer lock standing in for advisory locks. Without
+  RLS, the append-only and fence rules move into application code, so anyone holding the file
+  can bypass them. A real loss of guarantee.
+- **`d1`:** hard. Its transactions are batches, not interactive, so the mint transaction cannot
+  hold a lock across its statements. Minting would need redesign.
+- **`heki`, `local_storage`, `folder`:** not realistic. They have no transactions or locks, so
+  the write lock and fence would have to be built from nothing.
+- **`lambda`:** depends on its backing store, so it inherits the answer for that store.
+
+The decision for 8.0 is to keep revisions Postgres-only. `sqlite` is the one to revisit, and
+only for a client that accepts an application-level fence in place of RLS.
+
 ## Other adapters
 
 The revision layout exists only in `postgres_era`. No other persistence adapter has it, so
