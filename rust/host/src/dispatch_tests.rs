@@ -303,7 +303,7 @@ pub mod tests {
     }
 
     pub fn wasm_path() -> std::path::PathBuf {
-        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../dist/banking.wasm")
+        crate::test_dist::dist_file("banking.wasm")
     }
 
     pub fn register(reference: &str) -> serde_json::Value {
@@ -1427,15 +1427,23 @@ pub mod tests {
             None,
         )
         .await;
-        let Err(error) = outcome else { panic!("the injected commit failure should fail the invocation") };
+        let Err(error) = outcome else {
+            panic!("the injected commit failure should fail the invocation")
+        };
         let message = format!("{error:#}");
         assert!(message.contains("injected write failure"), "{message}");
 
         let unit = client.begin("Banking").await.unwrap();
         let state = unit.load().await.unwrap();
         unit.rollback().await.unwrap();
-        assert!(state.snapshot.is_none(), "a failed commit must not leave a snapshot");
-        assert!(state.sagas.is_empty(), "a failed commit must not leave a saga");
+        assert!(
+            state.snapshot.is_none(),
+            "a failed commit must not leave a snapshot"
+        );
+        assert!(
+            state.sagas.is_empty(),
+            "a failed commit must not leave a saga"
+        );
     }
 
     /// A commit that fails while the snapshot is being staged leaves no snapshot behind, and the
@@ -1454,14 +1462,19 @@ pub mod tests {
             None,
         )
         .await;
-        let Err(error) = failed else { panic!("the injected snapshot failure should fail the invocation") };
+        let Err(error) = failed else {
+            panic!("the injected snapshot failure should fail the invocation")
+        };
         let message = format!("{error:#}");
         assert!(message.contains("injected write failure"), "{message}");
 
         let unit = client.begin("Banking").await.unwrap();
         let state = unit.load().await.unwrap();
         unit.rollback().await.unwrap();
-        assert!(state.snapshot.is_none(), "a failed commit must not leave a snapshot");
+        assert!(
+            state.snapshot.is_none(),
+            "a failed commit must not leave a snapshot"
+        );
 
         memory.clear_fault();
         let retried = handle(

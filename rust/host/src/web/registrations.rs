@@ -1378,7 +1378,7 @@ mod tests {
     }
 
     fn checkout_wasm_path() -> std::path::PathBuf {
-        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../dist/checkout_fixture.wasm")
+        crate::test_dist::dist_file("checkout_fixture.wasm")
     }
 
     async fn schedule_event(

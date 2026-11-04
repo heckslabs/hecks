@@ -1736,8 +1736,7 @@ mod tests {
     // is the derived one ("customers").
 
     fn banking_ir() -> Value {
-        let path =
-            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../dist/banking.ir.json");
+        let path = crate::test_dist::dist_file("banking.ir.json");
         serde_json::from_str(
             &std::fs::read_to_string(path)
                 .expect("hecks build_wasm writes banking.ir.json beside the wasm"),
