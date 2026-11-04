@@ -64,10 +64,11 @@ Rules:
 
 - **Breaking for `postgres_era` users.** Their hecksagons change in 8.0 (adapter key and the
   setting). A migration guide is needed.
-- **Schema and data.** Revision tables already exist for revision users. The change must not
-  rename or move them. The persisted-name check from the 8.0 list still applies: if a revision
-  table name carries the word "era," renaming it is a data migration, not a code change, and
-  that decision is separate from this ADR.
+- **Schema and data.** Revision tables already exist for revision users, and this ADR does not
+  move them. Stored names keep the word "era": `hecks_eras`, `hecks_era_texts` and
+  `hecks_current_era` (the last not confirmed as a table, view or column). Renaming a stored
+  name is a data migration, not a code change, so 8.0 renames only Ruby constants, CLI verbs
+  and messages. Stored names are renamed later, in a release of their own.
 - **Test plan.**
   - A plain-domain test that the schema and behaviour are unchanged, run against the table
     layout.
