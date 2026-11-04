@@ -90,6 +90,9 @@ fn policy_text(out: &mut String, policy: &ir::Policy) -> Result<(), String> {
             ))
         }
     }
+    if policy.root {
+        out.push_str("    root\n");
+    }
     out.push_str("  end\n");
     Ok(())
 }

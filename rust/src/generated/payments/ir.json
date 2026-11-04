@@ -796,6 +796,7 @@
       "trigger_command": "Payment.Succeed",
       "target_domain": null,
       "expect_undelivered": false,
+      "root": false,
       "where": null,
       "for_each": null,
       "with_spec": [
@@ -809,6 +810,7 @@
       "trigger_command": "Payment.Fail",
       "target_domain": null,
       "expect_undelivered": false,
+      "root": false,
       "where": null,
       "for_each": null,
       "with_spec": [

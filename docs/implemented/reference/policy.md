@@ -108,6 +108,7 @@ Hecks.bluebook "PolicyReference" do
     on       "RefAlertRaised"
     where    { severity.level >= 3 }
     for_each "RefCard.ForHolder"
+    root
     # THE ROW, AND NOTHING ELSE. `Block` takes only which card; the
     # alert's own `ref`/`holder`/`severity` are none of its business,
     # and without this projection they would ride along and be refused.
@@ -437,4 +438,27 @@ spelling is the FOREIGN one (`Account.Open`'s `reference_to Customer`,
 which is how the `Onboarding` saga opens an account), and it is what
 this merged unconditionally before — so every fan-out in the language
 was refused, per row, into the reaction log.
+
+## root
+
+<!-- generated:begin word=root -->
+`root` — fills `root`
+<!-- generated:end -->
+
+Marks a reaction as a root dispatch. A cascade counts how deep its reactions go and
+refuses one past the cap (`reaction depth 5 reached`), so a loop of policies cannot run
+forever. A `root` policy is never refused at the cap: its target runs at depth zero, and
+the cascade's own depth is restored when it returns. Reserve it for a reaction that must
+happen however deep the event was raised, such as a fault report that files a finding
+about the very cascade that faulted. It takes no argument, and a policy without it is an
+ordinary reaction.
+
+`BlockCardsOnSevereAlert` is root, so a severe alert blocks the holder's cards even when
+the alert was itself raised deep inside another cascade. The other policies on this page
+are ordinary:
+
+```ruby
+policies = runtime.registry.bluebook("PolicyReference").policies
+policies.select(&:root).map(&:name)  # => ["BlockCardsOnSevereAlert"]
+```
 

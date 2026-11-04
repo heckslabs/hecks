@@ -61,8 +61,8 @@ RSpec.describe "a policy's ask" do
   it "leaves a trigger policy's row exactly as it was" do
     row = Hecks::Projector::Exporter.call(registry).fetch("Errand").fetch(:policies).last
 
-    expect(row.keys).to eq(%i[name on_event trigger_command target_domain expect_undelivered where for_each
-                              with_spec where_ast])
+    expect(row.keys).to eq(%i[name on_event trigger_command target_domain expect_undelivered root where
+                              for_each with_spec where_ast])
   end
 
   def refusal_of(fixture)

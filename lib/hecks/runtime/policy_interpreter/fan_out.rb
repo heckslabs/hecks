@@ -74,10 +74,10 @@ module Hecks
         end
 
         def deliver_for_each_row(target, row_record, args, policy, event)
-          return depth_refusal(row_record) if @dispatcher.reaction_depth_reached?
+          return depth_refusal(row_record) if capped?(policy)
 
           # The row key is already merged by `trigger_args`, so a projection can name it.
-          row_sweep.deliver(row_record) { @dispatcher.reenter(target, **reaction_invocation(target, args, policy, event)) }
+          row_sweep.deliver(row_record) { reenter(policy, target, reaction_invocation(target, args, policy, event)) }
         end
       end
     end

@@ -14,8 +14,9 @@ module Hecks
         # Where the train's copy is.
         ROOT = File.join(Dir.home, ".claude", "hecks-train")
 
-        # The statuses of a boarding the remote holds: pushed now, or carried by an earlier push.
-        BOARDED = %w[pushed carried].freeze
+        # The statuses of a boarding the remote holds: pushed now, carried by an earlier push, or
+        # queued as the candidate while the gate is on (ADR 0181), where CI judges it.
+        BOARDED = %w[pushed carried queued].freeze
 
         # Where the launcher's JSON answer starts in what it printed.
         RECORD_START = /^\{/

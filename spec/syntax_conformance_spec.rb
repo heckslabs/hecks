@@ -148,6 +148,7 @@ RSpec.describe "the declared syntax" do
       attaches_to_impl:       "BluebookBuilder's own real implementation, called by GenericDispatch's calls:",
       provides_impl:          "BluebookBuilder's own real implementation, called by GenericDispatch's calls:",
       across_impl:            "PolicyBuilder's own real implementation, called by GenericDispatch's calls:",
+      root_impl:              "PolicyBuilder's own real implementation, called by GenericDispatch's calls:",
       provenance_impl:        "the owning builder's own real implementation, called by GenericDispatch's calls:",
       formerly_known_as_impl: "the owning builder's own real implementation, called by GenericDispatch's calls:",
       acknowledges_impl:      "AggregateBuilder's own real implementation, called by GenericDispatch's calls:",
