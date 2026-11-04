@@ -73,7 +73,33 @@ Rules:
   - The existing `postgres_era` specs, run against the revision layout through `Postgres`.
   - The outbox specs against both layouts.
 
+## Other adapters
+
+The revision layout exists only in `postgres_era`. No other persistence adapter has it, so
+this ADR changes nothing for them except where the setting is checked.
+
+| Adapter | Revisions | Outbox |
+|---|---|---|
+| `postgres` | no (table layout) | yes |
+| `postgres_era` | yes (revision layout) | yes |
+| `sqlite` | no | yes |
+| `memory` | no | yes |
+| `heki`, `d1`, `lambda`, `local_storage`, `folder` | no | no |
+
+Rules for them:
+
+1. **A revisions setting on an adapter with no revision layout is refused at boot,** naming the
+   adapter and the adapters that support it. It is not ignored. A silent ignore would leave a
+   domain believing it has revision history it does not have.
+2. **Outbox support is a separate decision, not part of this ADR.** The five adapters with no
+   outbox run reactions inline with a boot warning (`warn_undurable_outbox!`). Whether a domain
+   with policies or process managers should refuse to boot on them, rather than warn, is an
+   owner decision and is listed as an open question below.
+
 ## Open questions
+
+- Whether a domain with policies or process managers should refuse to boot on an adapter with
+  no outbox (`heki`, `d1`, `lambda`, `local_storage`, `folder`), instead of warning.
 
 - The setting's name and its place in the hecksagon grammar.
 - Whether `events` has the same columns in both layouts. The DDL differs (the revision
