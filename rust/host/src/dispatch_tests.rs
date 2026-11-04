@@ -1427,13 +1427,52 @@ pub mod tests {
             None,
         )
         .await;
-        assert!(outcome.is_err(), "the injected commit failure should fail the invocation");
+        let Err(error) = outcome else { panic!("the injected commit failure should fail the invocation") };
+        let message = format!("{error:#}");
+        assert!(message.contains("injected write failure"), "{message}");
 
         let unit = client.begin("Banking").await.unwrap();
         let state = unit.load().await.unwrap();
         unit.rollback().await.unwrap();
         assert!(state.snapshot.is_none(), "a failed commit must not leave a snapshot");
         assert!(state.sagas.is_empty(), "a failed commit must not leave a saga");
+    }
+
+    /// A commit that fails while the snapshot is being staged leaves no snapshot behind, and the
+    /// same command succeeds once the fault is cleared. Runs without Postgres.
+    #[tokio::test]
+    async fn memory_commit_failing_at_the_snapshot_leaves_none_and_retries_clean() {
+        let memory = crate::store::MemoryStore::new();
+        let client = crate::store::Store::memory(memory.clone());
+        let config = memory_config("Banking");
+        memory.inject_fault(crate::store::MemoryFault::Snapshot);
+
+        let failed = handle(
+            Host::new(&client, &wasm_path(), &config, &lambda_client::NeverInvoker),
+            "Banking::Customer.Register",
+            register("CUST-0902"),
+            None,
+        )
+        .await;
+        let Err(error) = failed else { panic!("the injected snapshot failure should fail the invocation") };
+        let message = format!("{error:#}");
+        assert!(message.contains("injected write failure"), "{message}");
+
+        let unit = client.begin("Banking").await.unwrap();
+        let state = unit.load().await.unwrap();
+        unit.rollback().await.unwrap();
+        assert!(state.snapshot.is_none(), "a failed commit must not leave a snapshot");
+
+        memory.clear_fault();
+        let retried = handle(
+            Host::new(&client, &wasm_path(), &config, &lambda_client::NeverInvoker),
+            "Banking::Customer.Register",
+            register("CUST-0902"),
+            None,
+        )
+        .await
+        .unwrap();
+        assert!(retried.accepted, "{:?}", retried.result);
     }
 
     #[tokio::test]
