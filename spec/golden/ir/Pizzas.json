@@ -886,6 +886,7 @@
       "for_each": null,
       "name": "OnPizzaPaymentReceived",
       "on_event": "Order.PizzaPaymentReceived",
+      "root": false,
       "target_domain": null,
       "trigger_command": "Order.Purchase",
       "where": null,

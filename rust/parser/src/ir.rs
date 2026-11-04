@@ -320,6 +320,8 @@ pub struct Policy {
     pub target_domain: Option<String>,
     // `across "X", expect_undelivered: true`; emitted as a boolean, `false` when not declared.
     pub expect_undelivered: bool,
+    // A bare `root` word: the reaction runs at reaction depth zero. Emitted as a boolean.
+    pub root: bool,
     // `where`/`for_each` (`PolicyBuilder`); named `where_clause`/`for_each_query` because `where`
     // is reserved. `policy_json` still emits the keys `where`/`for_each` and derives `where_ast`.
     pub where_clause: Option<String>,

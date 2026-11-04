@@ -587,6 +587,7 @@
       "ask": "sweep",
       "target_domain": null,
       "expect_undelivered": false,
+      "root": false,
       "where": null,
       "for_each": null,
       "with_spec": [
@@ -603,6 +604,7 @@
       "trigger_command": "BulkRun.Record",
       "target_domain": null,
       "expect_undelivered": false,
+      "root": false,
       "where": null,
       "for_each": null,
       "with_spec": [
@@ -619,6 +621,7 @@
       "trigger_command": "BulkRun.Decline",
       "target_domain": null,
       "expect_undelivered": false,
+      "root": false,
       "where": null,
       "for_each": null,
       "with_spec": [

@@ -60,6 +60,12 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
                                            "fuzzed idempotent command twice with the same arguments and compare " \
                                            "the record's state after the first delivery with the state after the " \
                                            "second",
+    "Policy#root"                       => "a root reaction runs its target at reaction depth zero, so a fault report " \
+                                           "is not refused at the cap (spec/policy_root_spec.rb holds the Ruby " \
+                                           "dispatcher to it); no fuzzed domain declares one, and the Rust kernel has " \
+                                           "no root reset yet. A property would build a cascade that reaches " \
+                                           "MAX_REACTION_DEPTH, end it in a root policy, and check the root " \
+                                           "reaction was delivered while an ordinary one at the same depth was refused",
     "ProcessManager#endings"            => "a saga ends on any of its declared endings (1a26fd7a6), and " \
                                            "sagas_rehydrate_cleanly only round-trips the saga's memory, so no property " \
                                            "drives a fuzzed saga to each ending. A property would advance a fuzzed saga " \

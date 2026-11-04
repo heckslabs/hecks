@@ -70,6 +70,8 @@ pub fn parse_body(
                 )?);
                 policy.expect_undelivered = super::named_flag(&gated.args, "expect_undelivered");
             }
+            // A bare word with no arguments: the reaction runs at reaction depth zero.
+            "root" => policy.root = true,
             // Same extraction as `parse::command`'s `given`/`ensures`; `where` has no description.
             "where" => {
                 let raw = super::source_body_text(file, lines, pos, &gated.call.opener)?;

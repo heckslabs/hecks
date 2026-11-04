@@ -241,6 +241,7 @@
       "trigger_command": "Filing.Open",
       "target_domain": "Registry",
       "expect_undelivered": false,
+      "root": false,
       "where": null,
       "for_each": null,
       "with_spec": [
@@ -261,6 +262,7 @@
       "trigger_command": "Filing.Open",
       "target_domain": "Registry",
       "expect_undelivered": false,
+      "root": false,
       "where": null,
       "for_each": null,
       "with_spec": [
@@ -274,6 +276,7 @@
       "trigger_command": "Filing.Open",
       "target_domain": "Registry",
       "expect_undelivered": false,
+      "root": false,
       "where": null,
       "for_each": null,
       "with_spec": [

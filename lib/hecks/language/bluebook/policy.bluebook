@@ -20,6 +20,10 @@ Hecks.bluebook "Bluebook" do
     # An `across` target this domain expects never to reach. ModelCheck treats the related findings
     # as expected, and fails a declaration whose target turns out to be known after all.
     attribute :expect_undelivered, PolicyText
+    # A reaction that runs as a root dispatch: it starts again at reaction depth zero rather than
+    # counting toward the cap, so a fault report is not refused for the cascade it reports on.
+    # Empty or "false" is an ordinary reaction.
+    attribute :root,            PolicyText, optional: true
     # The guard as text: only its extracted source runs (Ports::Extraction), never a live Proc.
     # Optional; most policies fire unconditionally.
     attribute :where,           PolicyText, optional: true
@@ -70,6 +74,7 @@ Hecks.bluebook "Bluebook" do
       attribute :ask,             PolicyText, optional: true
       attribute :target_domain,   PolicyText, optional: true
       attribute :expect_undelivered, PolicyText, optional: true
+      attribute :root,            PolicyText, optional: true
       attribute :where,           PolicyText, optional: true
       attribute :for_each,        PolicyText, optional: true
 
@@ -82,6 +87,7 @@ Hecks.bluebook "Bluebook" do
       sets :ask
       sets :target_domain
       sets :expect_undelivered
+      sets :root
       sets :where
       sets :for_each
       sets :position
@@ -120,6 +126,7 @@ Hecks.bluebook "Bluebook" do
       member word: "across",          context: "Policy",    body: "none", inner: "", opens: "",       fills: "target_domain", calls: "across_impl"
       member word: "where",           context: "Policy",    body: "source", inner: "", opens: "", fills: "where"
       member word: "for_each",        context: "Policy",    body: "none", inner: "", opens: "", fills: "for_each"
+      member word: "root",            context: "Policy",    body: "none", inner: "", opens: "", fills: "root", calls: "root_impl"
 
     end
 

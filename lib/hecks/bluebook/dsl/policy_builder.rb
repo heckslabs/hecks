@@ -86,6 +86,12 @@ module Hecks
           @expect_undelivered = expect_undelivered == true
         end
 
+        # Marks this reaction as a root dispatch: it runs at reaction depth zero, so a cascade that
+        # is already deep (a fault being reported) does not refuse it at the cap.
+        def root_impl
+          @root = true
+        end
+
         # Records the guard predicate that decides whether this policy applies to a triggering
         # event.
         #
@@ -144,8 +150,8 @@ module Hecks
 
         # What decides whether it fires, and what it hands over.
         def guard_fields
-          { expect_undelivered: @expect_undelivered || false, where: @where, for_each: @for_each,
-            with_spec: @with_spec || [] }
+          { expect_undelivered: @expect_undelivered || false, root: @root || false, where: @where,
+            for_each: @for_each, with_spec: @with_spec || [] }
         end
 
         # An ask resolves against the ports of the domain it is declared in, so `across` has

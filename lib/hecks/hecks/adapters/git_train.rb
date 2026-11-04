@@ -8,6 +8,8 @@ require_relative "git_train/reading"
 require_relative "git_train/bench"
 require_relative "git_train/local_branch"
 require_relative "git_train/carriage"
+require_relative "git_train/candidate_boarding"
+require_relative "candidate_gate"
 require_relative "git_train/survey"
 require_relative "git_train/settlement"
 require_relative "git_train/mint_step"
@@ -40,25 +42,27 @@ module Hecks
       # @param options [Hash] `mint:` the mint a boarding runs first (the Hecks domain's if none);
       #   `domain:` the launcher's Hecks domain directory the train's shape is read from (the one
       #   this code runs from by default); `registry:` the booted registry whose world names the
-      #   push size
+      #   push size and the candidate gate's default; `runner:` what runs `gh` for the gate's
+      #   tree match (a spec's fake GitHub)
       def initialize(aggregate: nil, settings: {}, root: nil, **options)
         @registry = options.delete(:registry)
         @mint = options.delete(:mint) || MintStep.new
         @domain = options.delete(:domain) || JournalStore::HeldMint::DOMAIN
+        @runner = options.delete(:runner)
         @git = Git.new
       end
 
       # Waits for the push ahead in the same repository, runs the Hecks mint, then carries the
-      # boarded commit.
+      # boarded commit: to the branch, or to the candidate ref while the gate is on (ADR 0181).
       #
       # @param held [Hash] the `SendTrain` record: `run`, `confirm`, `branch`, `remote`, `checkout`
       #   (a directory inside the repository; the current directory when none is named) and
       #   `full_gate` (the whole pre-push stage, which the hook reads as `hecks.fullGate`)
-      # @return [Hash{Symbol => Hash}] `outcome:`, `checkout:`, `boarded:` (the commit named at
-      #   boarding), `pushed:` and `report:`, which opens with what the mint did
+      # @return [Hash{Symbol => Hash}] `outcome:` (`pushed`, `carried` or `queued`), `checkout:`,
+      #   `boarded:` (the commit named at boarding), `pushed:` and `report:`, opened by the mint
       # @raise [ConsoleCapture::Failure] when the checkout is not a repository, the branch moved
-      #   since boarding, the train is not at the boarded commit, the branch and the remote's
-      #   conflict, or the push is refused
+      #   since boarding, the train is not at the boarded commit, the branch and the remote
+      #   conflict, a candidate is in flight, or the push is refused
       # @raise [Runtime::WiringError] when the mint refuses, before anything is pushed
       def carry(**held)
         @checkout = toplevel(plain(held[:checkout]) || Dir.pwd)
@@ -95,14 +99,23 @@ module Hecks
       end
 
       # Brings the branch up to its remote and settles the shape ledger, then carries the settled
-      # commit.
+      # commit: to the candidate ref while the candidate gate is on and main is boarded (ADR
+      # 0181), to the branch itself otherwise.
       def settle_and_carry(held, boarded)
         branch = branch_of(held)
         remote = remote_of(held)
         settled = Settlement.new(@git, @checkout, branch: branch, remote: remote).run(boarded)
-        carriage = Carriage.new(@git, @checkout, branch: branch, remote: remote, config: gate_config(held))
-        [carriage.carry(settled), settled]
+        [carrier(branch, remote, held).carry(settled), settled]
       end
+
+      def carrier(branch, remote, held)
+        config = gate_config(held)
+        return Carriage.new(@git, @checkout, branch: branch, remote: remote, config: config) unless gated?(branch)
+
+        CandidateBoarding.new(@git, @checkout, remote: remote, config: config, runner: @runner)
+      end
+
+      def gated?(branch) = branch == "main" && CandidateGate.new(@checkout, registry: @registry, git: @git).on?
 
       # What the push is, said before it is made: how many commits go and, past the world's
       # threshold, the size sentence. It only says; a push of any size is carried.

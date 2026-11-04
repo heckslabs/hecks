@@ -548,6 +548,7 @@
       "trigger_command": "Desk.Close",
       "target_domain": null,
       "expect_undelivered": false,
+      "root": false,
       "where": null,
       "for_each": null,
       "with_spec": [

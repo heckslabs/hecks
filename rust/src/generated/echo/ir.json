@@ -400,6 +400,7 @@
       "trigger_command": "Beacon.Ping",
       "target_domain": null,
       "expect_undelivered": false,
+      "root": false,
       "where": null,
       "for_each": null,
       "with_spec": [
@@ -413,6 +414,7 @@
       "trigger_command": "Lamp.Flicker",
       "target_domain": null,
       "expect_undelivered": false,
+      "root": false,
       "where": null,
       "for_each": null,
       "with_spec": [

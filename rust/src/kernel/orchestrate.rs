@@ -9,6 +9,15 @@ use std::collections::HashMap;
 
 pub const MAX_REACTION_DEPTH: usize = 5;
 
+/// The depth a reaction's own dispatch runs at: one deeper, or back at zero for a root reaction.
+const fn reaction_depth(root: bool, depth: usize) -> usize {
+    if root {
+        0
+    } else {
+        depth + 1
+    }
+}
+
 /// One `policy` block whose target lives in this domain.
 pub struct PolicyRule {
     pub policy_name: &'static str,
@@ -23,6 +32,9 @@ pub struct PolicyRule {
     /// Name each matched row's ID is minted under, resolved at codegen from the target command.
     /// The target command, not the aggregate name, decides it (`account` vs `account_id`).
     pub for_each_key: Option<&'static str>,
+    /// A root reaction: never refused at `MAX_REACTION_DEPTH`, and its own dispatch starts at depth
+    /// zero. Set by `root` in the policy; a fault report uses it.
+    pub root: bool,
     /// `trigger ..., with:` as `(argument_name, binding)` pairs; empty forwards the whole payload.
     /// A binding starting with ":" names a source field; any other is a rendered literal.
     pub with_spec: &'static [(&'static str, &'static str)],
@@ -783,7 +795,7 @@ impl<S: AggregateScan> Cascade<'_, S> {
                 Json::obj(fields)
             };
 
-            if depth >= MAX_REACTION_DEPTH {
+            if depth >= MAX_REACTION_DEPTH && !policy.root {
                 self.reaction_log.push(record(vec![
                     ("delivered", Json::Bool(false)),
                     (
@@ -839,7 +851,14 @@ impl<S: AggregateScan> Cascade<'_, S> {
                         policy.target_verb,
                         &tables,
                     );
-                    let outcome = self.run(policy.target_verb, &args, None, None, None, depth + 1);
+                    let outcome = self.run(
+                        policy.target_verb,
+                        &args,
+                        None,
+                        None,
+                        None,
+                        reaction_depth(policy.root, depth),
+                    );
                     match outcome {
                         Ok(()) => self
                             .reaction_log
@@ -856,7 +875,14 @@ impl<S: AggregateScan> Cascade<'_, S> {
             // No `with:`: the whole payload forwards verbatim. Reactions are system-triggered, so
             // no caller role, and only saga legs stamp a correlation.
             let args = trigger_args(policy, event, None, policy.target_verb, &tables);
-            let outcome = self.run(policy.target_verb, &args, None, None, None, depth + 1);
+            let outcome = self.run(
+                policy.target_verb,
+                &args,
+                None,
+                None,
+                None,
+                reaction_depth(policy.root, depth),
+            );
             match outcome {
                 Ok(()) => self
                     .reaction_log
@@ -1984,6 +2010,7 @@ mod tests {
             where_expr: None,
             for_each: None,
             for_each_key: None,
+            root: false,
             with_spec: &[("subject_key", ":id"), ("subject_kind", "\"box\"")],
         }
     }
@@ -2466,6 +2493,7 @@ mod tests {
             where_expr: None,
             for_each: None,
             for_each_key: None,
+            root: false,
             with_spec: &[],
         }];
         static CROSS_DOMAIN_POLICIES: &[CrossDomainPolicyRule] = &[];

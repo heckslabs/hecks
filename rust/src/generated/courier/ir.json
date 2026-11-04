@@ -210,6 +210,7 @@
       "trigger_command": "Run.Note",
       "target_domain": null,
       "expect_undelivered": false,
+      "root": false,
       "where": null,
       "for_each": null,
       "with_spec": [

@@ -16,26 +16,28 @@ module Hecks
         ask:                :ask,
         target_domain:      :target_domain,
         expect_undelivered: :expect_undelivered,
+        root:               :root,
         where:              :where,
         for_each:           :for_each,
         with_spec:          -> { with_spec.map { |key, value| [key.to_s, Bluebook.render_value(value)] } },
         where_ast:          -> { where_ast }
       )
 
-      attr_reader :name, :on_event, :trigger_command, :ask, :target_domain, :expect_undelivered, :where, :for_each, :with_spec
+      attr_reader :name, :on_event, :trigger_command, :ask, :target_domain, :expect_undelivered, :root, :where, :for_each, :with_spec
 
       # Aggregate, declared and deliberately off the wire
       # the wire format is a pinned contract, and it does not carry
       # where a policy was written before the builder hoisted it
       attr_accessor :aggregate
 
-      def initialize(name:, on_event: nil, trigger_command: nil, ask: nil, target_domain: nil, expect_undelivered: false, where: nil, for_each: nil, with_spec: [], aggregate: nil)
+      def initialize(name:, on_event: nil, trigger_command: nil, ask: nil, target_domain: nil, expect_undelivered: false, root: false, where: nil, for_each: nil, with_spec: [], aggregate: nil)
         @name = name.to_s
         @on_event = on_event
         @trigger_command = trigger_command
         @ask = ask
         @target_domain = target_domain
         @expect_undelivered = expect_undelivered.to_s == "true"
+        @root = root.to_s == "true"
         @where = where
         @for_each = for_each
         @with_spec = with_spec

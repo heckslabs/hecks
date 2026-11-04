@@ -371,6 +371,7 @@
       "for_each": null,
       "name": "HandOnWhenFinished",
       "on_event": "PartFinished",
+      "root": false,
       "target_domain": null,
       "trigger_command": "Parcel.Pack",
       "where": null,

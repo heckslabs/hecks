@@ -86,10 +86,11 @@ module Hecks
         end
 
         # @api private
-        # @return [String] what an executable launcher does before it boots, or nothing: it takes
-        #   the gems the checkout's Gemfile pins, and defaults Memory ones
+        # @return [String] what a launcher does before it boots: one beside a domain takes the gems
+        #   its project's Gemfile pins; an executable one takes the checkout's, and defaults Memory
+        #   ones
         def handoff_for(executable, memory_commands, site, ledgers)
-          return "" unless executable
+          return render(PROJECT_GEMS, up: site.up) unless executable
 
           render(PINNED_GEMS, up: site.up) + memory_default(Array(memory_commands)) + ledger_route(ledgers)
         end

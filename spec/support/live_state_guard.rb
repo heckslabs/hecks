@@ -1,5 +1,6 @@
 require "open3"
 require "hecks/hecks/adapters/red_flag_marker"
+require "hecks/hecks/adapters/candidate_marker"
 
 # Keeps every spec off the owner's live state beyond the ledger (`LiveLedgerGuard`): the event
 # tap (`~/.claude/hecks-dev/events.jsonl`, which the pipeline board reads) and the red flag in
@@ -32,6 +33,9 @@ module LiveStateGuard
 
   # @return [String] the checkout's own red flag
   def self.flag_path = File.join(git_dir, Hecks::Adapters::RedFlagMarker::FILE)
+
+  # @return [String] the checkout's own candidate record
+  def self.candidate_path = File.join(git_dir, Hecks::Adapters::CandidateMarker::FILE)
 
   # @param path [String] a git directory a marker is about to use
   # @return [Boolean] whether it is the checkout's own, or a worktree's under it
@@ -89,9 +93,10 @@ end
 
 Hecks::Runtime::EventTap.prepend(LiveStateGuard::TapRefusal)
 Hecks::Adapters::RedFlagMarker.prepend(LiveStateGuard::FlagRefusal)
+Hecks::Adapters::CandidateMarker.prepend(LiveStateGuard::FlagRefusal)
 
 RSpec.configure do |config|
-  watch = LiveStateGuard::Watch.new([LiveStateGuard.flag_path])
+  watch = LiveStateGuard::Watch.new([LiveStateGuard.flag_path, LiveStateGuard.candidate_path])
   config.around do |example|
     before = watch.snapshot
     example.run

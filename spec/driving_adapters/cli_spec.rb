@@ -136,4 +136,34 @@ RSpec.describe Hecks::Adapters::Driving::Cli do
         .to eq(reference: { value: "a=b" })
     end
   end
+
+  # A host hook hands its payload on stdin (ADR 0175): a value `@stdin:/pointer` reads that field,
+  # typed like any other value, so the hook needs no script of its own.
+  describe "reading a value from the JSON on stdin" do
+    def from(json, *pairs) = described_class.arguments(spec, pairs, input: StringIO.new(json))
+
+    it "reads the field a pointer names, typed by the projection" do
+      expect(from('{"turn": {"n": 7}, "ref": "A-1"}', "sequence.value=@stdin:/turn/n", "reference=@stdin:/ref"))
+        .to eq(sequence: { value: 7 }, reference: { value: "A-1" })
+    end
+
+    it "leaves an absent field out, so the command's own rules refuse it by name" do
+      expect(from('{"other": 1}', "reference=@stdin:/missing")).to eq({})
+    end
+
+    # A double with no allowed messages fails the example if anything reads it.
+    it "does not read stdin when no value asks for it" do
+      expect { described_class.arguments(spec, ["reference=A-1"], input: instance_double(IO)) }.not_to raise_error
+    end
+
+    it "refuses a document that is not JSON" do
+      expect { from("not json", "reference=@stdin:/ref") }
+        .to raise_error(Hecks::Runtime::NotFound, /stdin is not one JSON document/)
+    end
+
+    it "refuses a field that holds an object" do
+      expect { from('{"turn": {"n": 7}}', "reference=@stdin:/turn") }
+        .to raise_error(Hecks::Runtime::TypeMismatch, /reads an object from stdin/)
+    end
+  end
 end

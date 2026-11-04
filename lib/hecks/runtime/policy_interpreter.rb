@@ -104,12 +104,24 @@ module Hecks
       # may go.
       def fire(policy, event, target, record)
         return nil unless where_holds?(policy, event)
-        return depth_refusal(record) if @dispatcher.reaction_depth_reached?
+        return depth_refusal(record) if capped?(policy)
 
         args = trigger_args(policy, event)
         log_cross_domain(policy, target, args)
-        @dispatcher.reenter(target, **reaction_invocation(target, args, policy, event))
+        reenter(policy, target, reaction_invocation(target, args, policy, event))
         record.merge(delivered: true)
+      end
+
+      # A root reaction (`root` in the policy) is never refused at the depth cap: it starts again at
+      # depth zero, as a fault report must when the cascade it reports on is already deep.
+      def capped?(policy)
+        !policy.root && @dispatcher.reaction_depth_reached?
+      end
+
+      def reenter(policy, target, invocation)
+        return @dispatcher.reenter_root(target, **invocation) if policy.root
+
+        @dispatcher.reenter(target, **invocation)
       end
 
       # What an `across` policy hands the other domain, noted before the delivery is attempted.

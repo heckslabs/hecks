@@ -57,6 +57,9 @@ module Hecks
         # A flag held as text ("true"/"false"), emitted as a boolean.
         def expect_undelivered?(row) = text(row[:expect_undelivered]).to_s == "true"
 
+        # A policy's `root` flag, held as text like `expect_undelivered` and emitted as a boolean.
+        def root?(row) = text(row[:root]).to_s == "true"
+
         # `idempotent` is held as text like `expect_undelivered`, and emitted as a boolean.
         def idempotent?(row) = text(row[:idempotent]).to_s == "true"
 

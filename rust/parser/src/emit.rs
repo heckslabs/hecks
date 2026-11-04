@@ -921,6 +921,7 @@ fn policy_json(p: &ir::Policy) -> JsonValue {
             "expect_undelivered".to_string(),
             JsonValue::Bool(p.expect_undelivered),
         ),
+        ("root".to_string(), JsonValue::Bool(p.root)),
         (
             "where".to_string(),
             JsonValue::opt_str(p.where_clause.as_ref()),
