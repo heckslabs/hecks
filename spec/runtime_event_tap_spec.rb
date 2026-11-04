@@ -57,7 +57,18 @@ RSpec.describe Hecks::Runtime::EventTap do
     described_class.install(registry_with(world(path: path)))
     log << event
     expect(lines).to eq([{ "kind" => "event", "at" => "2026-11-02T10:00:00Z", "aggregate" => "Hecks::LinkedTree",
-                           "id" => "t1", "event" => "AddRequested" }])
+                           "id" => "t1", "event" => "AddRequested", "seq" => 1 }])
+  end
+
+  it "numbers each line with the next sequence" do
+    described_class.install(registry_with(world(path: path)))
+    2.times { log << event }
+    expect(lines.map { |line| line["seq"] }).to eq([1, 2])
+  end
+
+  it "continues the sequence after a restart" do
+    2.times { described_class.install(registry_with(world(path: path))).then { log << event } }
+    expect(lines.map { |line| line["seq"] }).to eq([1, 2])
   end
 
   it "writes names and outcomes but never a payload" do
@@ -82,6 +93,18 @@ RSpec.describe Hecks::Runtime::EventTap do
     described_class.install(registry_with(world(path: path, max_bytes: 200)))
     4.times { log << event }
     expect(File.exist?("#{path}.1")).to be(true)
+  end
+
+  it "keeps older generations instead of overwriting them" do
+    described_class.install(registry_with(world(path: path, max_bytes: 200)))
+    12.times { log << event }
+    expect(File.exist?("#{path}.2")).to be(true)
+  end
+
+  it "keeps the sequence unbroken across a rotation" do
+    described_class.install(registry_with(world(path: path, max_bytes: 200)))
+    12.times { log << event }
+    expect(lines.last["seq"]).to eq(12)
   end
 
   it "drops a write that fails instead of raising" do
