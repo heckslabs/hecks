@@ -103,6 +103,25 @@ RSpec.describe Hecks::Adapters::ClaudeAgents do
     end
   end
 
+  describe "#resume" do
+    def resume(**held) = adapter.resume(session: { value: "abc123" }, repo: { value: scratch }, **held)
+
+    it "resumes the session in the run's directory with the answer after --, and says when", :aggregate_failures do
+      result = resume(answer: { value: "--keep-going" })
+
+      expect(asked).to eq(["--bg", "--resume", "abc123", "--", "--keep-going"])
+      expect(File.read(File.join(scratch, "cwd")).strip).to eq(scratch)
+      expect(result.dig(:resumed_at, :value)).to match(/\A\d{4}-\d{2}-\d{2}T/)
+    end
+
+    it "refuses when the command refuses, saying why" do
+      install("#!/bin/sh\necho no such session >&2\nexit 1\n")
+
+      expect { resume(answer: { value: "x" }) }
+        .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /resume abc123 refused: no such session/)
+    end
+  end
+
   describe "#read_job" do
     let(:jobs) { File.join(scratch, "jobs") }
     let(:adapter) { described_class.new(settings: { command: stand_in, jobs: jobs, settle: 0 }) }
