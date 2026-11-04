@@ -283,8 +283,7 @@ async fn tenant(name: &str) -> Tenant {
             mirrored: None,
             seal_every: None,
         },
-        wasm: std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../dist/checkout_fixture.wasm"),
+        wasm: crate::test_dist::dist_file("checkout_fixture.wasm"),
         fake,
         platform,
         raw: None,

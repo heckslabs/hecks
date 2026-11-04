@@ -298,8 +298,7 @@ mod tests {
     #[tokio::test]
     async fn a_kernel_that_carries_the_bluebook_but_holds_no_rows_answers_some_empty() {
         let client = crate::dispatch_tests::tests::memory_store();
-        let wasm = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../dist/checkout_fixture.wasm");
+        let wasm = crate::test_dist::dist_file("checkout_fixture.wasm");
 
         let rows = kernel_rows(&client, &wasm)
             .await

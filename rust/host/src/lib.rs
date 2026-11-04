@@ -42,5 +42,7 @@ pub mod store;
 #[cfg(test)]
 mod store_conformance;
 #[cfg(test)]
+mod test_dist;
+#[cfg(test)]
 pub mod test_pg;
 pub mod web;

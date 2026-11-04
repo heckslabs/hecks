@@ -3071,11 +3071,8 @@ mod tests {
         let client = crate::dispatch_tests::tests::memory_store();
         let wasm = crate::dispatch_tests::tests::wasm_path();
         let ir: Value = serde_json::from_str(
-            &std::fs::read_to_string(
-                std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                    .join("../dist/banking.ir.json"),
-            )
-            .expect("hecks build_wasm writes banking.ir.json beside the wasm"),
+            &std::fs::read_to_string(crate::test_dist::dist_file("banking.ir.json"))
+                .expect("hecks build_wasm writes banking.ir.json beside the wasm"),
         )
         .expect("valid IR");
         let lineage = LineageConfig {
@@ -3118,11 +3115,8 @@ mod tests {
         let client = crate::dispatch_tests::tests::memory_store();
         let wasm = crate::dispatch_tests::tests::wasm_path();
         let ir: Value = serde_json::from_str(
-            &std::fs::read_to_string(
-                std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                    .join("../dist/banking.ir.json"),
-            )
-            .expect("hecks build_wasm writes banking.ir.json beside the wasm"),
+            &std::fs::read_to_string(crate::test_dist::dist_file("banking.ir.json"))
+                .expect("hecks build_wasm writes banking.ir.json beside the wasm"),
         )
         .expect("valid IR");
         let lineage = LineageConfig {
@@ -3172,8 +3166,7 @@ mod tests {
     async fn a_command_json_route_serves_its_schema_when_asked() {
         let client = crate::dispatch_tests::tests::memory_store();
         let wasm = crate::dispatch_tests::tests::wasm_path();
-        let ir_path =
-            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../dist/banking.ir.json");
+        let ir_path = crate::test_dist::dist_file("banking.ir.json");
         let ir: Value =
             serde_json::from_str(&std::fs::read_to_string(&ir_path).expect("banking.ir.json"))
                 .expect("valid IR");
