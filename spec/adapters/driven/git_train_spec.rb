@@ -47,7 +47,20 @@ RSpec.describe Hecks::Adapters::GitTrain, :io do
   # The Hecks mint a boarding runs first, answering that the shape did not move.
   def still_mint = instance_double(described_class::MintStep, run: "the Hecks shape f30dcb did not move")
 
-  def train = described_class.new(mint: still_mint)
+  # A fake `gh`: a PR opens, and auto-merge merges it at once, moving the remote's main
+  # as GitHub does.
+  def gh(argv, **)
+    case argv[1..2]
+    when %w[pr create] then [true, "https://github.test/work/pull/1\n"]
+    when %w[pr merge]
+      sha = git("ls-remote", "origin", "refs/heads/#{argv[3]}").split.first
+      git("push", "-q", "--no-verify", "origin", "#{sha}:refs/heads/main")
+      [true, ""]
+    else [false, "no PR"]
+    end
+  end
+
+  def train = described_class.new(mint: still_mint, runner: method(:gh))
 
   def carry = train.carry(checkout: { value: work })
 
@@ -94,27 +107,15 @@ RSpec.describe Hecks::Adapters::GitTrain, :io do
     expect(gate_config_after("third", full_gate: { value: true })).to eq("true")
   end
 
-  it "pushes the local branch and says how many commits went out", :aggregate_failures do
+  it "boards the commit as a pull request, and its merge moves main", :aggregate_failures do
     commit("second")
 
-    expect(carry).to include(outcome: { value: "pushed" }, pushed: { value: git("rev-parse", "main") })
+    expect(carry).to include(outcome: { value: "queued" }, boarded: { value: git("rev-parse", "main") })
     expect(git("rev-parse", "origin/main")).to eq(git("rev-parse", "main"))
   end
 
   it "rides on an earlier push that already carried the boarded commit" do
     expect(carry).to include(outcome: { value: "carried" }, boarded: { value: git("rev-parse", "main") })
-  end
-
-  # A pre-push hook that, on its first run only, lands a commit on the local branch the way another
-  # session does while the gate runs.
-  def land_during_first_push
-    hooks = File.join(scratch, "hooks")
-    FileUtils.mkdir_p(hooks)
-    hook = File.join(hooks, "pre-push")
-    File.write(hook, "#!/bin/sh\nunset GIT_DIR GIT_WORK_TREE\n[ -e #{scratch}/seen ] && exit 0\ntouch #{scratch}/seen\n" \
-                     "git -C #{work} commit -q --allow-empty -m landed\n")
-    FileUtils.chmod("+x", hook)
-    git("config", "core.hooksPath", hooks)
   end
 
   def carriage = described_class::Carriage.new(Hecks::Adapters::Git.new, work, branch: "main", remote: "origin")
@@ -133,15 +134,6 @@ RSpec.describe Hecks::Adapters::GitTrain, :io do
     boarded = git("rev-parse", "main")
 
     expect(carriage.carry(boarded)).to include(outcome: { value: "pushed" }, pushed: { value: boarded })
-    expect(git("rev-parse", "origin/main")).to eq(boarded)
-  end
-
-  it "leaves commits that landed while the gate ran unpushed, and names them", :aggregate_failures do
-    commit("second")
-    boarded = git("rev-parse", "main")
-    land_during_first_push
-
-    expect(carry).to include(pushed: { value: boarded }, report: { value: /1 commit\(s\) landed meanwhile and were not pushed/ })
     expect(git("rev-parse", "origin/main")).to eq(boarded)
   end
 
@@ -164,13 +156,13 @@ RSpec.describe Hecks::Adapters::GitTrain, :io do
     expect(git("rev-parse", "origin/main")).not_to eq(git("rev-parse", "main"))
   end
 
-  it "reports the boarded and pushed commits by name", :aggregate_failures do
+  it "reports the boarded commit and its pull request by name", :aggregate_failures do
     commit("second")
     head = git("rev-parse", "main")
     answer = carry
 
-    expect(answer).to include(boarded: { value: head }, pushed: { value: head })
-    expect(answer[:report][:value]).to include("boarded #{head[0, 9]}")
+    expect(answer).to include(boarded: { value: head })
+    expect(answer[:report][:value]).to include("boarded #{head[0, 9]}", "pull/1")
   end
 
   describe "the train's own shape" do
@@ -187,7 +179,8 @@ RSpec.describe Hecks::Adapters::GitTrain, :io do
     end
 
     def train_at_domain
-      described_class.new(mint: still_mint, domain: File.join(scratch, "train", "lib", "hecks", "hecks"))
+      described_class.new(mint: still_mint, runner: method(:gh),
+                          domain: File.join(scratch, "train", "lib", "hecks", "hecks"))
     end
 
     def newer_shape
@@ -210,7 +203,7 @@ RSpec.describe Hecks::Adapters::GitTrain, :io do
       train_worktree
       commit("code-only")
 
-      expect(train_at_domain.carry(checkout: { value: work })[:outcome]).to eq(value: "pushed")
+      expect(train_at_domain.carry(checkout: { value: work })[:outcome]).to eq(value: "queued")
     end
   end
 
@@ -218,7 +211,7 @@ RSpec.describe Hecks::Adapters::GitTrain, :io do
     commit("mine")
     push_elsewhere("theirs")
 
-    expect(carry[:outcome]).to eq(value: "pushed")
+    expect(carry[:outcome]).to eq(value: "queued")
     expect(File).to exist(File.join(work, "theirs"))
   end
 
@@ -240,7 +233,7 @@ RSpec.describe Hecks::Adapters::GitTrain, :io do
     commit("second")
 
     expect(carry[:report][:value])
-      .to start_with("pushing 1 commits\nthe Hecks shape f30dcb did not move, then boarded").and include("pushed")
+      .to start_with("pushing 1 commits\nthe Hecks shape f30dcb did not move, then boarded").and include("queued")
   end
 
   # A mint that refuses, as `HeldMint#answer` does, with its reason.

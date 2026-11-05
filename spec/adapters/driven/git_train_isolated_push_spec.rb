@@ -79,7 +79,20 @@ RSpec.describe Hecks::Adapters::GitTrain, :io do
 
   def mint = instance_double(described_class::MintStep, run: "the shape did not move")
 
-  def carry = described_class.new(mint: mint).carry(checkout: { value: work })
+  # A fake `gh`: a PR opens, and auto-merge merges it at once, moving the remote's main
+  # as GitHub does.
+  def gh(argv, **)
+    case argv[1..2]
+    when %w[pr create] then [true, "https://github.test/work/pull/1\n"]
+    when %w[pr merge]
+      sha = git("ls-remote", "origin", "refs/heads/#{argv[3]}").split.first
+      git("push", "-q", "--no-verify", "origin", "#{sha}:refs/heads/main")
+      [true, ""]
+    else [false, "no PR"]
+    end
+  end
+
+  def carry = described_class.new(mint: mint, runner: method(:gh)).carry(checkout: { value: work })
 
   def pushed_from = File.read(seen).lines.first.strip
 
@@ -98,7 +111,7 @@ RSpec.describe Hecks::Adapters::GitTrain, :io do
     hook("echo changed > #{work}/tracked\ncat tracked > #{seen}")
     boarded = git("rev-parse", "main")
 
-    expect(carry).to include(pushed: { value: boarded })
+    expect(carry).to include(outcome: { value: "queued" }, boarded: { value: boarded })
     expect(File.read(seen).strip).to eq("boarded")
     expect(File.read(File.join(work, "tracked")).strip).to eq("changed")
   end
@@ -127,14 +140,14 @@ RSpec.describe Hecks::Adapters::GitTrain, :io do
     landed, answer = land_while_pushing
 
     expect(landed).to eq(:landed)
-    expect(answer).to include(pushed: { value: boarded }, report: { value: /1 commit\(s\) landed meanwhile/ })
+    expect(answer).to include(outcome: { value: "queued" }, boarded: { value: boarded })
     expect(git("rev-parse", "origin/main")).to eq(boarded)
   end
 
   it "serializes two boards at once: the second waits, then finds its commit carried" do
     waited, first, second = board_twice
 
-    expect([waited, first[:outcome], second[:outcome]]).to eq([true, { value: "pushed" }, { value: "carried" }])
+    expect([waited, first[:outcome], second[:outcome]]).to eq([true, { value: "queued" }, { value: "carried" }])
   end
 
   it "refuses a commit the remote moved away from, by the diverged message, pushing nothing", :aggregate_failures do
