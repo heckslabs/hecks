@@ -46,7 +46,7 @@ module Hecks
         data = sections
         now = @now.call
         { generated_at: now.iso8601, roles: PipelineBoard::AgentRoles.of(data[:sessions], @roles),
-          stages: PipelineBoard::Strip.build(data, now),
+          reviews: PipelineBoard::AgentRoles.reviews, stages: PipelineBoard::Strip.build(data, now),
           metrics: PipelineBoard::Metrics.tiles(data.merge(push_limits: @push_limits, ci_health: @ci_health), now),
           ci_runs: data[:ci_runs], slowest_jobs: data[:slowest_jobs],
           open_work: data[:open_work], sessions: data[:sessions], events: data[:events], fanout: fanout(data) }

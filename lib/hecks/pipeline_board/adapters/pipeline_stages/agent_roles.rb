@@ -35,6 +35,20 @@ module Hecks
             { name: name, live: live }
           end
         end
+
+        # The architect's plan reviews, as the launcher reads them in the checkout that holds the
+        # live store, when the board is told where that is (PIPELINE_BOARD_LAUNCHER_ROOT).
+        #
+        # @return [Array<Hash>, Hash] each review's `work`, `verdict`, `findings`; or `{unknown:}`
+        def reviews
+          root = ENV.fetch("PIPELINE_BOARD_LAUNCHER_ROOT", "")
+          return [] if root.empty?
+
+          rows = Probe.json("exe/hecks", "agents", "PlanReview.reviews", chdir: root)
+          rows.map { |row| { work: row["work"].to_s, verdict: row["verdict"].to_s, findings: row["findings"].to_s } }
+        rescue Unavailable => e
+          { unknown: e.message }
+        end
       end
     end
   end
