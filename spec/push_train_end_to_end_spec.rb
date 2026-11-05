@@ -40,9 +40,28 @@ RSpec.describe "a push train boarding, from the mint to the announcement", :io d
     Hecks::Adapters::GitTrain::MintStep.new(mint: held)
   end
 
+  # A fake `gh`. A PR opens; auto-merge merges it at once (its checks are taken as green), and the
+  # merge moves the remote's main to the boarded commit, as GitHub's merge does.
+  def gh(argv, **)
+    case argv[1..2]
+    when %w[pr create] then [true, "https://github.test/depot/pull/1\n"]
+    when %w[pr merge] then merge!(argv[3]) && [true, ""]
+    when %w[pr view] then [true, JSON.generate(merged? ? { state: "MERGED", mergeCommit: { oid: @merged_sha } } : { state: "OPEN" })]
+    else [false, "unexpected #{argv.join(" ")}"]
+    end
+  end
+
+  def merge!(branch)
+    sha = PushTrainDepot.git(@work, "ls-remote", "origin", "refs/heads/#{branch}").split.first
+    PushTrainDepot.git(@work, "push", "--no-verify", "origin", "#{sha}:refs/heads/main")
+    @merged_sha = sha
+  end
+
+  def merged? = !@merged_sha.nil?
+
   def stub_adapters(reader)
     allow(Hecks::Adapters::GitTrain).to(receive(:new).and_wrap_original do |original, **kw|
-      original.call(**kw, mint: depot_mint(reader))
+      original.call(**kw, mint: depot_mint(reader), runner: method(:gh))
     end)
     allow(Hecks::Adapters::DesktopAlert).to receive(:new).and_return(alert)
     allow(Hecks::Adapters::GitLauncher).to receive(:new).and_return(launcher)
@@ -75,6 +94,15 @@ RSpec.describe "a push train boarding, from the mint to the announcement", :io d
     runtime.query("Depot::SendTrain.Outcome", run: { value: "push-1" }).first
   end
 
+  # Boards the commit as a PR, then watches the PR: the merge is what records the push.
+  def board_and_watch!
+    runtime = runtime()
+    board(runtime)
+    queued = runtime.query("Depot::SendTrain.Outcome", run: { value: "push-1" }).first
+    runtime.dispatch_flat("Depot::SendTrain.Watch", run: { value: "push-1" })
+    [queued, runtime.query("Depot::SendTrain.Outcome", run: { value: "push-1" }).first]
+  end
+
   def remote_head = PushTrainDepot.git(@work, "ls-remote", "origin", "refs/heads/main").split.first
 
   def local_head = PushTrainDepot.git(@work, "rev-parse", "main")
@@ -100,16 +128,17 @@ RSpec.describe "a push train boarding, from the mint to the announcement", :io d
   context "with a disposable ledger and a moved shape" do
     before { prepare(now: { extra: LANE }, disposable: true) }
 
-    it "boards, reports the ledger disposable, and records the push", :aggregate_failures do
-      outcome = board!
-      expect(outcome[:status]).to eq("pushed")
-      expect(outcome[:report][:value])
+    it "boards as a PR, reports the ledger disposable, and records the push once it merges", :aggregate_failures do
+      queued, outcome = board_and_watch!
+      expect(queued[:status]).to eq("queued")
+      expect(queued[:report][:value])
         .to start_with("pushing 1 commits\nthe Hecks ledger is disposable, so no mint is needed, then")
+      expect(outcome[:status]).to eq("pushed")
       expect([pushed?, era_count]).to eq([true, 1])
     end
 
-    it "refreshes the launcher and announces the deploy with the pushed commit", :aggregate_failures do
-      board!
+    it "refreshes the launcher and announces the deploy with the pushed commit, once it merges", :aggregate_failures do
+      board_and_watch!
       expect(launcher).to have_received(:refresh).with(pushed_commit)
       expect(alert).to have_received(:announce).with(pushed_commit)
     end
@@ -118,16 +147,17 @@ RSpec.describe "a push train boarding, from the mint to the announcement", :io d
   context "with a minting world and a shape that did not move" do
     before { prepare }
 
-    it "passes the mint straight through and records the push", :aggregate_failures do
-      outcome = board!
+    it "passes the mint straight through, queues the PR, and records the push once it merges", :aggregate_failures do
+      queued, outcome = board_and_watch!
+      expect(queued[:report][:value]).to start_with("pushing 1 commits\nthe Hecks shape").and include("did not move")
+      expect(queued[:status]).to eq("queued")
       expect(outcome[:status]).to eq("pushed")
-      expect(outcome[:report][:value]).to start_with("pushing 1 commits\nthe Hecks shape").and include("did not move")
-      expect(outcome[:report][:value]).to include("boarded #{local_head[0, 9]}", "pushed #{local_head[0, 9]}")
+      expect(outcome[:report][:value]).to include("merged as #{local_head[0, 9]}")
       expect([pushed?, era_count]).to eq([true, 1])
     end
 
-    it "refreshes the launcher and announces the deploy with the pushed commit", :aggregate_failures do
-      board!
+    it "refreshes the launcher and announces the deploy with the pushed commit, once it merges", :aggregate_failures do
+      board_and_watch!
       expect(launcher).to have_received(:refresh).with(pushed_commit)
       expect(alert).to have_received(:announce).with(pushed_commit)
     end

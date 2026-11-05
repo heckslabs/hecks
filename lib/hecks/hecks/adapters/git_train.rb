@@ -76,6 +76,19 @@ module Hecks
         end
       end
 
+      # Reads the pull request of a queued boarding. Merged, it names the merge commit as the pushed
+      # commit, and the saga records the push from it; open, it changes nothing.
+      #
+      # @param held [Hash] the `SendTrain` record: `boarded` (the commit queued) and `checkout`
+      # @return [Hash{Symbol => Hash}] `outcome:` `merged` (with `pushed:`) or `open`, and `report:`
+      # @raise [ConsoleCapture::Failure] when no boarding is queued, or `gh` cannot read its PR
+      def observe(**held)
+        boarded = plain(held[:boarded]) or raise ConsoleCapture::Failure, "no queued boarding to observe"
+        checkout = toplevel(plain(held[:checkout]) || Dir.pwd)
+        PullRequestBoarding::Observation.new(@runner, checkout).answer(boarded)
+          .merge(checkout: { value: checkout }, boarded: { value: boarded })
+      end
+
       # Lists every checkout under a directory whose default branch has commits its remote does
       # not, fetching each first.
       #

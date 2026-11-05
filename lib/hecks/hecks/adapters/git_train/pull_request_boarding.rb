@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "json"
 require_relative "reading"
 require_relative "bench"
 
@@ -8,11 +9,11 @@ module Hecks
     class GitTrain
       # One boarding of main as a pull request. The boarded commit goes to its own branch on the
       # remote, a PR into main is opened for it, and auto-merge is turned on so GitHub merges it
-      # once the required checks pass. The train never moves main itself, and the candidate ref is
-      # not used: the PR is the gate.
+      # once the required checks pass. The train never moves main itself.
       #
-      # A commit not built on the remote's main is refused by Bench before anything is pushed, and
-      # a commit main already carries is answered `carried` without a PR.
+      # The boarding is `queued` until the PR merges. `PullRequestBoarding::Observation` reads that
+      # PR; when it has merged, the merge commit is the pushed commit, and the saga records the push
+      # from it, which is what refreshes the launcher and announces the deploy.
       class PullRequestBoarding
         include Reading
 
@@ -50,6 +51,44 @@ module Hecks
           queued(boarded, branch, url)
         end
 
+        # Reads a queued boarding's PR. Open, it answers `open` and nothing else; merged, it answers
+        # `merged` with the merge commit as the pushed commit.
+        class Observation
+          # @param runner [#call] takes `(argv, chdir:)` and answers `[ok, output]` for `gh`
+          # @param checkout [String] the repository's top level
+          def initialize(runner, checkout)
+            @runner = runner
+            @checkout = checkout
+          end
+
+          # @param boarded [String] the commit the boarding queued
+          # @return [Hash{Symbol => Hash}] `outcome:` `merged` (with `pushed:`) or `open`, and `report:`
+          # @raise [ConsoleCapture::Failure] when `gh` cannot read the PR, or a merged PR names no commit
+          def answer(boarded)
+            branch = PullRequestBoarding.branch_for(boarded)
+            ok, output = @runner.call(["gh", "pr", "view", branch, "--json", "state,mergeCommit"], chdir: @checkout)
+            raise ConsoleCapture::Failure, "could not read the PR for #{branch}: #{output.to_s.strip}" unless ok
+
+            pr = JSON.parse(output.to_s)
+            return open_answer(branch, pr) unless pr["state"] == "MERGED"
+
+            merged(branch, pr.dig("mergeCommit", "oid"))
+          end
+
+          private
+
+          def open_answer(branch, pr)
+            { outcome: { value: "open" }, report: { value: "#{branch} is #{pr["state"].to_s.downcase}; not merged yet" } }
+          end
+
+          def merged(branch, merge)
+            raise ConsoleCapture::Failure, "#{branch} merged but gh named no merge commit" if merge.to_s.empty?
+
+            { outcome: { value: "merged" }, pushed: { value: merge },
+              report: { value: "#{branch} merged as #{merge[0, 9]}" } }
+          end
+        end
+
         private
 
         def fetch = read("fetch", "--quiet", @remote, "+refs/heads/main:refs/remotes/#{tracking}")
@@ -63,6 +102,7 @@ module Hecks
           raise ConsoleCapture::Failure, "main moved since boarding (boarded #{short(boarded)}, now #{short(now)}): board again"
         end
 
+        # Opens the PR, or finds the one a retried boarding already opened.
         def open_pr(branch, boarded)
           ok, output = @runner.call(
             ["gh", "pr", "create", "--base", "main", "--head", branch,
@@ -70,9 +110,14 @@ module Hecks
              "--body", "Boarded by the push train. Merges once the required checks pass."],
             chdir: @checkout
           )
-          raise ConsoleCapture::Failure, "could not open a PR for #{branch}: #{output.to_s.strip}" unless ok
+          return output.to_s.strip.lines.last.to_s.strip if ok
 
-          output.to_s.strip.lines.last.to_s.strip
+          existing(branch) || raise(ConsoleCapture::Failure, "could not open a PR for #{branch}: #{output.to_s.strip}")
+        end
+
+        def existing(branch)
+          ok, output = @runner.call(["gh", "pr", "view", branch, "--json", "url", "--jq", ".url"], chdir: @checkout)
+          ok ? output.to_s.strip : nil
         end
 
         def enable_auto_merge(branch)

@@ -757,6 +757,7 @@ Hecks.bluebook "Hecks" do
         transition "Queue" => "queued",  from: "requested"
         transition "Fault" => "faulted", from: "requested"
         transition "Summarize" => "surveyed", from: "requested"
+        transition "Merge" => "pushed", from: "queued"
         mark :terminal, "carried", "faulted", "pushed", "queued", "surveyed"
       end
 
@@ -850,6 +851,33 @@ Hecks.bluebook "Hecks" do
         emits BoardingQueued
       end
 
+      # A queued boarding's pull request merged: the merge commit is what reached main, so the push
+      # is recorded from it, and the launcher refresh and the deploy announcement follow.
+      command "Merge" do
+        role "System"
+        goal "Record that a queued boarding's pull request merged, and the commit that reached main"
+
+        reference_to SendTrain
+        attribute :checkout, Word, sets: true
+        attribute :boarded,  Word, sets: true
+        attribute :pushed,   Word, sets: true
+        attribute :commits,  Count, optional: true, sets: true
+        attribute :report,   Report, sets: true
+
+
+        emits BranchPushed
+      end
+
+      # Asks the train whether a queued boarding's pull request has merged. Nothing changes while it is open.
+      command "Watch" do
+        role "Operator"
+        goal "Look at each queued boarding's pull request, and record any that has merged"
+
+        reference_to SendTrain
+
+        emits ObserveRequested
+      end
+
       command "Fault" do
         role "System"
         goal "Record why a boarding could not push"
@@ -914,6 +942,17 @@ Hecks.bluebook "Hecks" do
     policy "RecordTheRefusedSurvey" do
       on      "SendTrain.SurveyRefused"
       trigger SendTrain::Fault, with: { refusal: :refusal }
+    end
+
+    policy "ObserveWhenAsked" do
+      on      "SendTrain.ObserveRequested"
+      ask     :observe, with: { run: :run }
+    end
+
+    policy "RecordTheMerge" do
+      on      "SendTrain.ObserveAnswered"
+      where   { outcome.value == "merged" }
+      trigger SendTrain::Merge, with: { checkout: :checkout, boarded: :boarded, pushed: :pushed, report: :report }
     end
 
     # Deploys stay by hand: a push that reached the remote says a deploy is ready, and nothing more.

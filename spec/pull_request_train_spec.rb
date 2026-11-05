@@ -37,6 +37,7 @@ RSpec.describe "the push train boarding main as a pull request", :io do
     return [false, "boom"] if gh_fails_on && argv[1..2] == gh_fails_on
 
     return [true, "https://github.test/heckslabs/hecks/pull/1\n"] if argv[1..2] == %w[pr create]
+    return [false, "no pull request found"] if argv[1..2] == %w[pr view]
 
     [true, ""]
   end
@@ -73,6 +74,39 @@ RSpec.describe "the push train boarding main as a pull request", :io do
   it "answers carried, opening no PR, when main already holds the commit", :aggregate_failures do
     expect(carry).to include(outcome: { value: "carried" })
     expect(gh_calls).to be_empty
+  end
+
+  describe "observing a queued boarding" do
+    let(:boarded) { "a" * 40 }
+    let(:branch) { Hecks::Adapters::GitTrain::PullRequestBoarding.branch_for(boarded) }
+
+    def observe(view)
+      runner = ->(argv, **) { argv[1..2] == %w[pr view] ? view : [false, "unexpected"] }
+      Hecks::Adapters::GitTrain::PullRequestBoarding::Observation.new(runner, work).answer(boarded)
+    end
+
+    it "answers open while the PR has not merged", :aggregate_failures do
+      answer = observe([true, JSON.generate(state: "OPEN", mergeCommit: nil)])
+      expect(answer[:outcome]).to eq({ value: "open" })
+      expect(answer).not_to include(:pushed)
+    end
+
+    it "answers merged with the merge commit as the pushed commit", :aggregate_failures do
+      merge = "b" * 40
+      answer = observe([true, JSON.generate(state: "MERGED", mergeCommit: { oid: merge })])
+      expect(answer).to include(outcome: { value: "merged" }, pushed: { value: merge })
+      expect(answer[:report][:value]).to include(branch, merge[0, 9])
+    end
+
+    it "refuses a merged PR that names no merge commit" do
+      expect { observe([true, JSON.generate(state: "MERGED", mergeCommit: nil)]) }
+        .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /named no merge commit/)
+    end
+
+    it "refuses when gh cannot read the PR" do
+      expect { observe([false, "no such PR"]) }
+        .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /could not read the PR/)
+    end
   end
 
   context "when gh cannot open the PR" do
