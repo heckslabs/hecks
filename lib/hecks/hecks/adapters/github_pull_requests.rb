@@ -16,10 +16,6 @@ module Hecks
       # A pull request number: digits only.
       NUMBER = /\A\d+\z/
 
-      # The timeline entries the `Timeline` query reports, as GitHub names them. The bluebook names
-      # the same kinds in its description; this set is the adapter's copy of them.
-      TIMELINE_KINDS = %w[merged auto_merge_enabled auto_merge_disabled closed reopened review_requested].freeze
-
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] unused
       # @param root [String, nil] unused
@@ -71,13 +67,12 @@ module Hecks
         { text: "#{status_lines(view).join("\n")}\n" }
       end
 
-      # Who merged one pull request, who turned auto-merge on or off, and who closed, reopened or
-      # was asked to review it, read from its timeline. Read-only: the only calls are `gh pr view`
-      # and a GET of the timeline.
+      # The timeline of one pull request: every entry GitHub recorded, as `kind`, `actor` and `at`
+      # rows, oldest first. The query's `where` picks the kinds it reports, so none are dropped
+      # here. Read-only: the only calls are `gh pr view` and a GET of the timeline.
       #
       # @param held [Hash] the query's arguments: `number` (required)
-      # @return [Array<Hash{Symbol => String}>] one `kind:`/`actor:`/`at:` row per reported entry,
-      #   oldest first
+      # @return [Array<Hash{Symbol => String}>] one `kind:`/`actor:`/`at:` row per timeline entry
       # @raise [ConsoleCapture::Failure] when no number is named, the number is not a pull request,
       #   or GitHub refuses
       def timeline(**held)
@@ -85,7 +80,7 @@ module Hecks
         gh!("pr", "view", number, "--json", "number")
         events = JSON.parse(gh!("api", "repos/{owner}/{repo}/issues/#{number}/timeline", "--paginate", "--slurp"))
 
-        events.flatten.select { |event| TIMELINE_KINDS.include?(event["event"]) }.map { |event| timeline_row(event) }
+        events.flatten.map { |event| timeline_row(event) }
       end
 
       private
