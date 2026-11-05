@@ -101,6 +101,39 @@ Hecks.bluebook "Hecks" do
       end
     end
 
+    # Shows the pipeline board from this domain's registry, so its wiring page carries every
+    # bluebook attached here. The board is PipelineBoard's: this aggregate only asks for it, and
+    # the PipelineBoard policy `ServeWhenBoardRequested` runs its `Serve` in this registry.
+    aggregate "Board" do
+      description "One pipeline board served from the Hecks registry, until it is stopped."
+
+      identified_by :run
+
+      attribute :run,  RunKey
+      attribute :port, Port, optional: true
+
+      value_object "RunKey" do
+        attribute :value, String, matches: :present
+      end
+
+      # A local port the board is served on.
+      value_object "Port" do
+        attribute :value, Integer, default: 4747
+
+        invariant("a port is 1024 to 65535") { value >= 1024 && value <= 65535 }
+      end
+
+      command "Serve" do
+        role "Maintainer"
+        goal "Show the pipeline board on 127.0.0.1 until stopped, with every bluebook attached to Hecks on its wiring page"
+
+        attribute :port, Port, default: 4747, sets: true
+        attribute :run,  RunKey, sets: true
+
+        emits BoardServeRequested
+      end
+    end
+
     policy "ExamineWhenPresentRequested" do
       on      "Server.PresentRequested"
       ask     :examine, with: { run: :run }

@@ -4,11 +4,16 @@ serve — Open something on a port until it is stopped: the Composer, a rendered
   hecks <Aggregate.query> [name=value …]       read something
 
 commands:
-  Server.present!             Serve the banking example's rendered forms and views on a local port until stopped
-  Server.compose!             Serve the Composer, a live bluebook editor over one domain directory, on a local port until stopped
-  Server.preview!             Serve one directory of static files, such as a website, on a local port until stopped
-  Server.serve_query_ir_mcp!  Serve the IR queries to an MCP client over stdio until it closes
-  Server.serve_mcp!           Serve the storehouse bus to an MCP client over stdio until it closes (also: mcp!)
+  Server:
+    One server opened on a checkout, until it is stopped.
+    present!             Serve the banking example's rendered forms and views on a local port until stopped
+    compose!             Serve the Composer, a live bluebook editor over one domain directory, on a local port until stopped
+    preview!             Serve one directory of static files, such as a website, on a local port until stopped
+    serve_query_ir_mcp!  Serve the IR queries to an MCP client over stdio until it closes
+    serve_mcp!           Serve the storehouse bus to an MCP client over stdio until it closes (also: mcp!)
+  Board:
+    One pipeline board served from the Hecks registry, until it is stopped.
+    serve!               Show the pipeline board on 127.0.0.1 until stopped, with every bluebook attached to Hecks on its wiring page
 
 queries (nothing here changes anything):
 
