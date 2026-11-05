@@ -260,9 +260,8 @@ adapter keeps every schema revision in its store, and any other adapter refuses 
 boot and names the adapters that can hold revisions (ADR 0182).
 
 ```ruby
-Hecks.hecksagon "Lending" do
-  revisions true
-end
+wiring = Hecks::Bluebook::Hecksagon.new(domain: "Lending", revisions: true)
+wiring.revisions?  # => true
 ```
 
 ## port
