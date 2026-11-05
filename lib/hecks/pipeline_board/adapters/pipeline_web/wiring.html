@@ -126,6 +126,11 @@ let domains = [], domainColour = new Map(), showBounds = true;
 const LINGER = 22000, LINGER_FADE = 14000;
 const dark = () => matchMedia("(prefers-color-scheme: dark)").matches && document.documentElement.dataset.theme !== "light" || document.documentElement.dataset.theme === "dark";
 function colourOf(domain) { const i = domainColour.get(domain); return i === undefined || i > 7 ? css("--muted") : SLOTS[dark() ? "dark" : "light"][i]; }
+// Each area (context) gets its own hue, spread around the wheel, so areas inside one domain read apart.
+function areaColour(key) {
+  const i = Math.max(0, contexts.indexOf(key)), n = Math.max(1, contexts.length);
+  return "hsl(" + Math.round(i * 360 / n) + " 60% " + (dark() ? "62%" : "42%") + ")";
+}
 
 function h(tag, attrs, ...kids) {
   const el = document.createElement(tag);
@@ -427,7 +432,7 @@ function separate(list) {
 const blink = (now) => reduceMotion || Math.sin(now / 140) > -0.3;
 function heatOf(id, now) { const p = pulses.get(id); return p && p > now ? Math.min(1, (p - now) / LINGER_FADE) : 0; }
 function drawBlock(b, now) {
-  const heat = Math.max(0, ...b.members.map((n) => heatOf(n.id, now))), colour = colourOf(b.d);
+  const heat = Math.max(0, ...b.members.map((n) => heatOf(n.id, now))), colour = areaColour(b.k);
   ctx.beginPath(); ctx.roundRect(b.x - b.w / 2, b.y - b.hgt / 2, b.w, b.hgt, 8);
   ctx.globalAlpha = 0.18 + 0.5 * heat; ctx.fillStyle = heat ? css("--series1") : colour; ctx.fill();
   ctx.globalAlpha = 1; ctx.lineWidth = heat ? 2 : 1.2; ctx.strokeStyle = heat ? css("--series1") : colour; ctx.stroke();
