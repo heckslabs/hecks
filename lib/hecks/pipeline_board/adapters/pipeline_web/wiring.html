@@ -583,7 +583,8 @@ $("zin").addEventListener("click", () => zoomCentre(1.4));
 $("zout").addEventListener("click", () => zoomCentre(1 / 1.4));
 canvas.addEventListener("mouseleave", () => { hover = null; cursor = null; });
 $("toggle").addEventListener("click", () => { const on = document.body.classList.toggle("tables-only"); $("toggle").setAttribute("aria-pressed", String(on)); $("toggle").textContent = on ? "Show diagram" : "Show table"; });
-$("replay").addEventListener("click", () => replay(backlog.slice(-12), false));
+// Replays the twelve most recent events the page has received, oldest first, not only the first ones.
+$("replay").addEventListener("click", () => replay(recent.slice(-12), false));
 $("bounds").addEventListener("click", () => { showBounds = !showBounds; $("bounds").setAttribute("aria-pressed", String(showBounds)); $("bounds").textContent = showBounds ? "Hide boundaries" : "Show boundaries"; });
 addEventListener("resize", () => { if (touched) size(); else fit(); });
 
