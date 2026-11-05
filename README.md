@@ -612,10 +612,16 @@ vendored [embryonaut bluebook](#embryonaut-bluebook):
 <!-- generated:begin id=corpus -->
 - **banking** — Customers hold accounts, accounts move money, and every movement is a transfer that can fail halfway. The domain that has to get it right twice — once in the rules, once in the recovery.
 - **chess** — A chess game: pieces with no life outside the board that holds them, a status that only ever moves one legal way at a time, and turn order and check enforced by declaration rather than a hand-written engine.
+- **command_defaults** — A trial starts with a run count the caller may leave out.
+- **command_list_argument** — Folders carrying labels.
 - **compliance** — Something elsewhere already acted to contain a risk; this domain tracks the human review that decides what happens next.
+- **copy_from_state** — A board records its own position, and a later move does not rewrite an earlier one.
 - **directory** — A staff directory: members once addressed by the name they walked in with, now by the email that actually identifies them one person to one row.
 - **embryonaut_vendoring_demo** — The smallest possible consumer of a vendored embryonaut bluebook: its own tiny aggregate (Gadget), attached beside a vendored package's own Widget (../vendor/embryonaut_bluebooks/widgets) through `attaches ... from: :vendor`, exercising the same dispatch-table merge a gem `attaches` already proves for Governance/Identity in examples/banking — see docs/decisions/0058 for what this domain exists to prove and what it deliberately does not.
+- **list_field_shape** — Items carrying a bag of tags.
+- **multi_role** — A help desk where tickets are opened by a customer or a sales rep and closed by an agent.
 - **order_deadline** — An order holds stock while it waits to be paid, and gives the stock back once it is overdue: time reaches the saga as a command an inbound clock may dispatch early, twice or late without changing the answer.
+- **parent_visibility** — Commands read parent facts without repeating them as inputs.
 - **pizzas** — Put toppings on a pizza and sell it to a customer.
 - **roster** — A crew roster: seats added one at a time, members enlisted, each seated once — the smallest domain whose every rule is a question asked of a LIST.
 <!-- generated:end -->
