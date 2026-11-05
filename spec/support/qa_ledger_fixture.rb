@@ -55,7 +55,7 @@ module QaLedgerFixture
     File.write(File.join(dir, "quality_control.world"), <<~RUBY)
       Hecks.world "QualityControl" do
         realm "QA"
-        persisted_by("PostgresEra") { database "#{url}" }
+        persisted_by("Postgres") { database "#{url}" }
       end
     RUBY
     File.write(File.join(dir, "governance.world"), InMemoryDomain.governance_postgres_era_world(url))
