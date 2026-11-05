@@ -198,6 +198,11 @@ Hecks.bluebook "Agents" do
       emits "HandedToPerson"
     end
 
+    query "Reviews" do
+      description "Every submission review, by Work item: the judgment once the reviewer has given it."
+      order_by :work
+    end
+
     policy "RealBugGoesToAPerson" do
       on      "SubmissionReview.SpecFailureJudged"
       where   { judgment.value == "real_bug" }
@@ -280,16 +285,16 @@ Hecks.bluebook "Agents" do
 
   # The release manager only recommends. Promotion stays a person's command, confirmed on the board.
   aggregate "PromotionRecommendation" do
-    description "A release manager's recommendation to promote one commit, with its reasons. It never promotes: the owner confirms."
+    description "A release manager's recommendation to promote one change once main is green on it, with its reasons. It never promotes: the owner confirms."
 
-    identified_by :commit
+    identified_by :change
 
-    attribute :commit, CommitRef
+    attribute :change, ChangeRef
     attribute :reasons, Reasons, optional: true
 
-    value_object "CommitRef" do
+    value_object "ChangeRef" do
       attribute :value, String, matches: :present
-      invariant("a recommendation names a commit") { !value.to_s.empty? }
+      invariant("a recommendation names a change") { !value.to_s.empty? }
     end
 
     value_object "Reasons" do
@@ -298,12 +303,17 @@ Hecks.bluebook "Agents" do
 
     command "Recommend" do
       role "System"
-      goal "Recommend promoting one green commit, with the reasons"
+      goal "Recommend promoting one green change, with the reasons"
 
-      attribute :commit, CommitRef, sets: true
+      attribute :change, ChangeRef, sets: true
       attribute :reasons, Reasons, sets: true
 
       emits "PromotionRecommended"
+    end
+
+    query "Recommendations" do
+      description "Every promotion the release manager recommends, by change, for the owner to confirm."
+      order_by :change
     end
   end
 end

@@ -1021,6 +1021,20 @@ end
 # it, and the plan review records it. The run's key is the Work item, so it names the review.
 Hecks.hecksagon "Agents" do
   subscribe "Hecks.JobRead"
+  subscribe "Coder.WorkSubmitted"
+  subscribe "Pipeline.PassageVerified"
+
+  # The coder hands in a branch: the reviewer is asked to judge it. The branch is named for the Work item.
+  translates "AskTheReviewerWhenWorkIsSubmitted" do
+    on Submission::WorkSubmitted
+    trigger SubmissionReview::Request, with: { work: :branch, hops: 1 }
+  end
+
+  # Main is green on a change: the release manager recommends promoting it. A person confirms.
+  translates "RecommendPromotionWhenVerified" do
+    on Passage::PassageVerified
+    trigger PromotionRecommendation::Recommend, with: { change: :change, reasons: "main is green on this change" }
+  end
 
   translates "RecordTheArchitectsVerdict" do
     on AgentRun::JobRead

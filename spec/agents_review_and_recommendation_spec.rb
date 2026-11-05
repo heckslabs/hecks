@@ -51,7 +51,7 @@ RSpec.describe "the Agents reviewer, recommendation and owner-only rule" do
 
   it "records a promotion recommendation without promoting" do
     expect do
-      Hecks::Agents::PromotionRecommendation.recommend!(commit: { value: "c841f1d" }, reasons: { value: "green" })
+      Hecks::Agents::PromotionRecommendation.recommend!(change: { value: "w-green" }, reasons: { value: "green" })
     end.not_to raise_error
   end
 
