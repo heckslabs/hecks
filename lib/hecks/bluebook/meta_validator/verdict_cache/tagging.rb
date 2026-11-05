@@ -22,6 +22,19 @@ module Hecks
             end
           end
 
+          # Whether `encode` can carry `obj`; a verdict holding a typed `Runtime::Value` (such as an
+          # aggregate's `created_by`) cannot be rebuilt from plain JSON, so it stays out of the file
+          # and is judged afresh, which is what a miss does anyway.
+          #
+          # @param obj [Object] a candidate for `encode`
+          # @return [Boolean]
+          def encodable?(obj)
+            encode(obj)
+            true
+          rescue ArgumentError
+            false
+          end
+
           # The classes JSON carries as they are, a string once its encoding is checked.
           SCALARS = [String, Integer, NilClass, TrueClass, FalseClass].freeze
 
