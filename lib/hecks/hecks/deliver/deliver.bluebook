@@ -1634,6 +1634,7 @@ Hecks.bluebook "Hecks" do
       query "Timeline" do
         description "Who merged a pull request, who turned auto-merge on or off, who closed, reopened or was asked to review it, and when: read from its timeline on GitHub, oldest first. Nothing is changed."
         attribute :number, Word
+        where(kind: { in: "merged,auto_merge_enabled,auto_merge_disabled,closed,reopened,review_requested" })
         returns list_of(TimelineEvent)
       end
     end

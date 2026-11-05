@@ -94,9 +94,11 @@ RSpec.describe Hecks::Adapters::GithubPullRequests do
   describe "#timeline" do
     def timeline_call = ["api", "repos/{owner}/{repo}/issues/42/timeline", "--paginate", "--slurp"]
 
-    def named_rows
-      [{ kind: "review_requested", actor: "chris", at: "2026-11-05T16:10:00Z" },
+    def raw_rows
+      [{ kind: "commented", actor: "bot", at: "2026-11-05T16:00:00Z" },
+       { kind: "review_requested", actor: "chris", at: "2026-11-05T16:10:00Z" },
        { kind: "auto_merge_enabled", actor: "chris", at: "2026-11-05T16:20:00Z" },
+       { kind: "labeled", actor: "bot", at: "2026-11-05T16:25:00Z" },
        { kind: "merged", actor: "gh-merger", at: "2026-11-05T16:35:49Z" }]
     end
 
@@ -115,8 +117,8 @@ RSpec.describe Hecks::Adapters::GithubPullRequests do
       replies[timeline_call] = [JSON.generate([page]), "", true]
     end
 
-    it "reports the named kinds with their actor and time, oldest first" do
-      expect(pulls.timeline(number: { value: "42" })).to eq(named_rows)
+    it "answers every timeline entry as a raw row, with its actor and time, oldest first, leaving the kinds to the where" do
+      expect(pulls.timeline(number: { value: "42" })).to eq(raw_rows)
     end
 
     it "makes only read calls, never a write", :aggregate_failures do
