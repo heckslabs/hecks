@@ -36,6 +36,8 @@ RSpec.describe "picking a commit onto a branch" do
   # main holds a.rb; side adds b.rb; work-a is cut from main in a worktree.
   before do
     git(repo, "init", "-q", "-b", "main")
+    git(repo, "config", "user.name", "Test")
+    git(repo, "config", "user.email", "t@example.com")
     commit_file(repo, "a.rb", "one\n", "base")
     git(repo, "checkout", "-q", "-b", "side")
     @timeline = commit_file(repo, "b.rb", "timeline\n", "Read the timeline")
