@@ -1,0 +1,11 @@
+{
+  "name": "list_field_shape-parity",
+  "note": "Placeholder: no steps yet. The parity check covers this example's bluebook; its scripted expectations are not written.",
+  "domain": "examples/list_field_shape",
+  "expectations": {},
+  "steps": [],
+  "expect": {
+    "refusals": [],
+    "instances": {}
+  }
+}

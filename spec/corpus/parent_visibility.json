@@ -1,0 +1,11 @@
+{
+  "name": "parent_visibility-parity",
+  "note": "Placeholder: no steps yet. The parity check covers this example's bluebook; its scripted expectations are not written.",
+  "domain": "examples/parent_visibility",
+  "expectations": {},
+  "steps": [],
+  "expect": {
+    "refusals": [],
+    "instances": {}
+  }
+}

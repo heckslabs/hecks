@@ -1,0 +1,11 @@
+{
+  "name": "multi_role-parity",
+  "note": "Placeholder: no steps yet. The parity check covers this example's bluebook; its scripted expectations are not written.",
+  "domain": "examples/multi_role",
+  "expectations": {},
+  "steps": [],
+  "expect": {
+    "refusals": [],
+    "instances": {}
+  }
+}

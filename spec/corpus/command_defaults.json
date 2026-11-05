@@ -1,0 +1,11 @@
+{
+  "name": "command_defaults-parity",
+  "note": "Placeholder: no steps yet. The parity check covers this example's bluebook; its scripted expectations are not written.",
+  "domain": "examples/command_defaults",
+  "expectations": {},
+  "steps": [],
+  "expect": {
+    "refusals": [],
+    "instances": {}
+  }
+}
