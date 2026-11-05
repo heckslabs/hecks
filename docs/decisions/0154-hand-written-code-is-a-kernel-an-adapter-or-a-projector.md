@@ -1,6 +1,7 @@
 # Hand-written code is a kernel, an adapter, or a projector
 
-**Status:** Proposed. Names a rule the repository mostly follows and the three places it does not:
+**Status:** Proposed; point 6 (the Rust-only direction is paused) SUPERSEDED by
+[0188](0188-one-kernel-and-ruby-is-the-front-end.md) (2026-11-05). Names a rule the repository mostly follows and the three places it does not:
 the Ruby runtime (`lib/hecks/runtime`), the host core (`rust/host/core`) and the generators
 (`rust/codegen`, `lib/hecks/projections`). Nothing here is built; the first step is the scan.
 Date: 2026-10-28.

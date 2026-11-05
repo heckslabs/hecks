@@ -2,7 +2,8 @@
 
 **Status:** Accepted (maintainer decision, 2026-09-14); Decision items 1, 2, 4, 5 and 6
 SUPERSEDED by [0086](0086-hecks-codegen-is-the-only-rust-generator.md)
-(2026-10-02). SUPERSEDES
+(2026-10-02); the Ruby generator's primacy SUPERSEDED by
+[0188](0188-one-kernel-and-ruby-is-the-front-end.md) (2026-11-05). SUPERSEDES
 [0054a](0054a-make-hecks-codegen-the-only-rust-generator.md) in full, as a
 direction: `hecks-codegen` does not become the only Rust generator, and
 `rust/project` is not retired. Restores
