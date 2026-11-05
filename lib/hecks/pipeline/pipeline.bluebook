@@ -256,4 +256,31 @@ Hecks.bluebook "Pipeline" do
     for_each "Passage.Promoted"
     trigger  Passage::Release, with: { change: :change }
   end
+
+  # A pull request a passage's branch is reviewed and merged through. The bluebook names the
+  # question it asks of the git host; an adapter answers it.
+  aggregate "PullRequest" do
+    description "A pull request a passage's branch goes through, read from the git host. An adapter answers Lookup; this bluebook never fetches."
+
+    identified_by :number
+
+    attribute :number, PullNumber
+
+    value_object "PullNumber" do
+      # The git host's number for a pull request in its repository.
+      attribute :value, String, matches: :present
+      invariant("a pull request has a number") { !value.to_s.empty? }
+    end
+
+    # The git host's answer for one pull request: its title, state, draft flag and merge status.
+    query "Lookup" do
+      description "One pull request as the git host reports it: title, state, draft flag, merge status and head branch. An adapter answers it; this bluebook never fetches."
+      attribute :number, PullNumber
+      returns Document
+    end
+
+    value_object "Document" do
+      attribute :text, String
+    end
+  end
 end
