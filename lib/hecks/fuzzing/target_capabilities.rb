@@ -14,6 +14,9 @@ module Hecks
 
       # A local assigned the bare literal on its own line; any other right-hand side is not one.
       POSTGRES_ERA_VARIABLE = /^\s*([a-z_]\w*)\s*=\s*"PostgresEra"\s*(?:#.*)?$/
+      # `persisted_by "Postgres"` in a file that also says `revisions true`: the revision layout.
+      POSTGRES_BINDING = /persisted_by\s*\(?\s*"Postgres"/
+      REVISIONS_SET = /^\s*revisions\s+true\b/
 
       # Captures the member a hecksagon attaches; authorization is read off its declaration.
       FRAMEWORK_ATTACHED = /attaches\s*\(?\s*"([^"]+)"/
@@ -135,7 +138,7 @@ module Hecks
       # @param text [String] the contents of one `.hecksagon` file
       # @return [Boolean] whether the file binds Postgres and keeps revisions
       def postgres_revisions_bound?(text)
-        text.match?(/persisted_by\s*\(?\s*"Postgres"/) && text.match?(/^\s*revisions\s+true\b/)
+        text.match?(POSTGRES_BINDING) && text.match?(REVISIONS_SET)
       end
 
       # Answers whether `text` passes a variable assigned `"PostgresEra"` to `persisted_by`.

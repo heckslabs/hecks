@@ -22,6 +22,7 @@ module Hecks
         end
 
         def refuse_revisions_on_other_adapter!(hecksagon)
+          refuse_postgres_era_binding!(hecksagon)
           return unless hecksagon.revisions?
 
           bluebook_ir = bluebook(hecksagon.domain)

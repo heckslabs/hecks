@@ -138,7 +138,6 @@ module Hecks
         def verify_hecksagon!(hecksagon)
           refuse_ungoverned_roles!(hecksagon)
           refuse_unknown_driving!(hecksagon)
-          refuse_postgres_era_binding!(hecksagon)
           refuse_revisions_on_other_adapter!(hecksagon)
           refuse_unwired_attachments!(hecksagon)
           refuse_bounded_without_acl!(hecksagon)
