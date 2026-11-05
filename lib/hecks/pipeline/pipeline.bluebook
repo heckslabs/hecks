@@ -44,9 +44,7 @@ Hecks.bluebook "Pipeline" do
       invariant("a passage is named by its change") { !value.to_s.empty? }
     end
 
-    value_object "Title" do
-      attribute :value, String
-    end
+    value_object "Title", String
 
     # A session id, a commit, or a red flag's id.
     value_object "Word" do

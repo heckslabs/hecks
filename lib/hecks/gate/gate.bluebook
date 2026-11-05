@@ -25,21 +25,13 @@ Hecks.bluebook "Gate" do
       invariant("a run names a commit") { !value.to_s.empty? }
     end
 
-    value_object "CheckName" do
-      attribute :value, String
-    end
+    value_object "CheckName", String
 
-    value_object "ExitCode" do
-      attribute :value, String
-    end
+    value_object "ExitCode", String
 
-    value_object "TreeState" do
-      attribute :value, String
-    end
+    value_object "TreeState", String
 
-    value_object "CheckCount" do
-      attribute :value, String
-    end
+    value_object "CheckCount", String
 
     # A run starts only on a clean tree, so the verdict is about the commit and nothing else.
     command "Start" do

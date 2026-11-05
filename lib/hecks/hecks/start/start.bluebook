@@ -29,9 +29,7 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, matches: :not_empty
       end
 
-      value_object "Switch" do
-        attribute :value, Boolean
-      end
+      value_object "Switch", Boolean
 
       # What a new domain is called, as its bluebook spells it: a capital and then letters and digits.
       value_object "DomainName" do
@@ -53,9 +51,7 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, matches: :not_empty
       end
 
-      value_object "Note" do
-        attribute :value, String
-      end
+      value_object "Note", String
 
       lifecycle :status, default: "requested" do
         mark :failure, "stopped"

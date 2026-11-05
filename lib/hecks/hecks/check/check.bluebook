@@ -51,13 +51,9 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, pattern: '^[a-z][a-z0-9_]*(,[a-z][a-z0-9_]*)*$'
       end
 
-      value_object "Switch" do
-        attribute :value, Boolean
-      end
+      value_object "Switch", Boolean
 
-      value_object "Report" do
-        attribute :value, String
-      end
+      value_object "Report", String
 
       value_object "CheckCount", String
 
@@ -205,13 +201,9 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, pattern: '^client$'
       end
 
-      value_object "Switch" do
-        attribute :value, Boolean
-      end
+      value_object "Switch", Boolean
 
-      value_object "Report" do
-        attribute :value, String
-      end
+      value_object "Report", String
 
       # How many domains the report examined, counted from its headers so a reader need not.
       value_object "Checked" do
@@ -433,13 +425,9 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, matches: :present
       end
 
-      value_object "Switch" do
-        attribute :value, Boolean
-      end
+      value_object "Switch", Boolean
 
-      value_object "Report" do
-        attribute :value, String
-      end
+      value_object "Report", String
 
       # Files or directories, comma separated.
       value_object "PathList" do
@@ -683,13 +671,9 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, matches: :present
       end
 
-      value_object "Switch" do
-        attribute :value, Boolean
-      end
+      value_object "Switch", Boolean
 
-      value_object "Report" do
-        attribute :value, String
-      end
+      value_object "Report", String
 
       # Files or directories, comma separated; lib when none is named.
       value_object "PathList" do
@@ -879,13 +863,9 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, matches: :not_empty
       end
 
-      value_object "Count" do
-        attribute :value, Integer
-      end
+      value_object "Count", Integer
 
-      value_object "Finding" do
-        attribute :value, String
-      end
+      value_object "Finding", String
 
       lifecycle :status, default: "requested" do
         mark :failure, "unproven"
