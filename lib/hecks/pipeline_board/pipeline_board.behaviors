@@ -1,0 +1,29 @@
+Hecks.behaviors "PipelineBoard" do
+  vision "The board serves one page, the page takes only the steps the ActionRule rows name, and a server that cannot open is refused."
+
+  # `pipeline_board.hecksagon` binds the aggregate to Memory and attaches Governance, so a boot of
+  # these files passes the memory-only guard and the role check.
+  loads "pipeline_board.bluebook", "pipeline_board.hecksagon", "pipeline_board.ports.hecksagon"
+
+  # No Web adapter is bound in a behaviors boot, so the Listen ask is refused: the board records
+  # that it could not open (`RefuseWhenRefused`). `Close` follows a server that ends, which needs
+  # the adapter, so the Web specs cover it.
+  test "Serve asks to listen on a local port, which a boot without the Web adapter refuses" do
+    tests "Serve", on: "PipelineBoard"
+    input run: { value: "board-1" }, port: { value: 4747 }
+    expect emits: ["ServeRequested", "ServerRefused", "BoardRefused"]
+  end
+
+  test "Serve refuses a port below 1024" do
+    tests "Serve", on: "PipelineBoard"
+    input run: { value: "board-1" }, port: { value: 80 }
+    expect refused: "a port is 1024 to 65535"
+  end
+
+  test "Act takes one step the page offers" do
+    tests "Act", on: "PipelineBoard"
+    setup "PipelineBoard::PipelineBoard.Serve", run: { value: "board-1" }, port: { value: 4747 }
+    input pipeline_board: "board-1", action: { value: "promote" }, confirm: true
+    expect emits: ["ActRequested"]
+  end
+end

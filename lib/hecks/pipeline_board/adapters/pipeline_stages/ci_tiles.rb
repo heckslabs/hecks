@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "tile_kit"
+require_relative "../rules"
 
 module Hecks
   module Adapters
@@ -10,21 +11,25 @@ module Hecks
       module CiTiles
         include TileKit
 
-        # The thresholds when the QualityControl world declares no `ci_health` line.
-        HEALTH_DEFAULTS = { wall_goal_minutes: 3, success_good: 80, success_fair: 50 }.freeze
+        # The settings the CI tiles read. The bluebook's `Setting` rows give their defaults, and the
+        # QualityControl world's `ci_health` line overrides them.
+        HEALTH_KEYS = %i[wall_goal_minutes success_good success_fair].freeze
+
+        # @return [Hash{Symbol => Integer}] the defaults the bluebook declares
+        def self.defaults = Rules.settings(*HEALTH_KEYS)
 
         # @param registry [Runtime::Registry, nil]
         # @return [Hash{Symbol => Integer}] the wall goal (minutes) and the success bands (percent)
         def self.health(registry)
           declared = registry&.world("QualityControl")&.for_verb("ci_health") || {}
-          HEALTH_DEFAULTS.merge(declared.slice(*HEALTH_DEFAULTS.keys)).transform_values { |v| Integer(v) }
+          defaults.merge(declared.slice(*HEALTH_KEYS)).transform_values { |v| Integer(v) }
         end
 
         # @param runs [Array<Hash>] CI runs, oldest first
         def success(runs, health)
           spec = { id: "success", label: "CI success", unit: "%", detail: "last #{runs.size} main runs" }
           built = windowed(spec, runs) { |list| success_rate(list) }
-          built.merge(state: band(built[:value], health[:success_good], health[:success_fair]))
+          built.merge(state: Rules.verdict("CI success", { value: built[:value] }, health))
         end
 
         def wall(runs, health)
@@ -33,7 +38,7 @@ module Hecks
           built = windowed(spec, runs.select { |run| run[:status] == "completed" }) do |list|
             median(list.map { |run| run[:wall_minutes] })
           end
-          built.merge(state: over(built[:value], health[:wall_goal_minutes]))
+          built.merge(state: Rules.verdict("CI wall", { value: built[:value] }, health))
         end
 
         def failed_head(runs)
@@ -41,7 +46,7 @@ module Hecks
           return unlisted(head) if head[:failed_jobs].nil?
 
           change = before && trend(before[:failed_jobs], head[:failed_jobs], "jobs", lower_is_better: true)
-          state = head[:failed_jobs].zero? ? "ok" : "failed"
+          state = Rules.verdict("Failed jobs on head", { failed_jobs: head[:failed_jobs] })
           tile("failed_head", "Failed jobs on head", head[:failed_jobs], "jobs",
                detail: "run #{head[:sha]}", trend: change, state: state)
         end
@@ -58,7 +63,7 @@ module Hecks
 
           green = runs.index { |run| run[:conclusion] == "success" }
           hours = green && ((now - finished(runs[green])) / 3600.0).round(1)
-          tile("red", "Main red for", hours, "h", state: "failed", detail: red_note(runs, green))
+          tile("red", "Main red for", hours, "h", state: Rules.verdict("Main red", {}), detail: red_note(runs, green))
         end
 
         # Names the last green commit and the first red one after it. The runs are newest first, so
@@ -95,20 +100,6 @@ module Hecks
           early, late = halves(list)
           change = trend(yield(early), yield(late), spec[:unit], lower_is_better: spec[:lower] || false)
           tile(spec[:id], spec[:label], yield(list), spec[:unit], detail: spec[:detail], trend: change)
-        end
-
-        def band(value, good, fair)
-          return "unknown" if value.nil?
-          return "ok" if value >= good
-
-          value >= fair ? "attention" : "failed"
-        end
-
-        def over(value, goal)
-          return "unknown" if value.nil?
-          return "ok" if value <= goal
-
-          value <= goal * 2 ? "attention" : "failed"
         end
       end
     end

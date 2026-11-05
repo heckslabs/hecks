@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "tile_kit"
+require_relative "../rules"
 
 module Hecks
   module Adapters
@@ -10,7 +11,6 @@ module Hecks
       module WorkTiles
         include TileKit
 
-        DEFAULT_CAP = 8
         DAY = 86_400
 
         # The push nudge comes from the QualityControl world's `push_nudge` setting, passed in.
@@ -18,9 +18,9 @@ module Hecks
           return unknown_tile("ahead", "Commits not pushed", local) unless readable?(local)
 
           age = hours_since(local[:oldest_unpushed], now)
-          over = local[:ahead] >= limits[:commits] || age >= limits[:hours]
+          state = Rules.verdict("Commits not pushed", { ahead: local[:ahead], age_hours: age }, limits)
           note = "oldest #{age} h; nudge at #{limits[:commits]} commits or #{limits[:hours]} h"
-          tile("ahead", "Commits not pushed", local[:ahead], "commits", state: over ? "attention" : "ok", detail: note)
+          tile("ahead", "Commits not pushed", local[:ahead], "commits", state: state, detail: note)
         end
 
         def working(data)
@@ -28,7 +28,7 @@ module Hecks
 
           alive, dispatched, blocked = counted(data[:sessions])
           fill = readable?(data[:fill]) ? data[:fill] : {}
-          cap = fill[:cap] || DEFAULT_CAP
+          cap = fill[:cap] || Rules.setting("session_cap")
           note = "#{alive} sessions alive, #{blocked} blocked on you; #{load_note(fill)}"
           tile("working", "Dispatched sessions", dispatched, "of #{cap}", state: pressure(dispatched, cap, blocked), detail: note)
         end
@@ -45,14 +45,17 @@ module Hecks
         end
 
         # Attention when the cap is reached or anyone is waiting on a person.
-        def pressure(busy, cap, blocked) = busy >= cap || blocked.positive? ? "attention" : "ok"
+        def pressure(dispatched, cap, blocked)
+          Rules.verdict("Dispatched sessions", { dispatched: dispatched, blocked: blocked }, session_cap: cap)
+        end
 
         # @param finished [Array<Hash>, Hash] the newest `WorkFinished` events, read by name from
         #   the journal, so a flood of other events cannot push them out of the window
         def throughput(finished, now)
           return unknown_tile("throughput", "Work finished", finished) unless finished.is_a?(Array)
 
-          done = finished.count { |event| now - Time.parse(event[:at]) < DAY }
+          window = Rules.setting("throughput_window_hours") * 3600
+          done = finished.count { |event| now - Time.parse(event[:at]) < window }
           tile("throughput", "Work finished", done, "items / 24 h", detail: "Work.WorkFinished events in the Tickets journal")
         end
 
