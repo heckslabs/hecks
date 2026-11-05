@@ -18,7 +18,7 @@ RSpec.describe "the full spec suite runs only in CI", :aggregate_failures do
 
   def limit = 25
 
-  # The repo's world sets no cap, so the capping examples declare one; `:no_cap` leaves the world as it is.
+  # The repo's world sets no cap, so the capping examples declare one; `:no_cap` leaves it unset.
   def declare_cap
     world = registry.world("Hecks")
     allow(world).to receive(:for_verb).and_call_original
