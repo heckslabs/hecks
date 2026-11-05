@@ -26,7 +26,7 @@ module Hecks
         # @param remote [String] the remote the branch is pushed to and the PR opened against
         # @param config [Array<String>] `-c name=value` words for the push, read by the hook
         # @param runner [#call] takes `(argv, chdir:)` and answers `[ok, output]` for `gh`
-        def initialize(git, checkout, remote:, config: [], runner:)
+        def initialize(git, checkout, remote:, runner:, config: [])
           @git = git
           @checkout = checkout
           @remote = remote
@@ -77,8 +77,8 @@ module Hecks
 
           private
 
-          def open_answer(branch, pr)
-            { outcome: { value: "open" }, report: { value: "#{branch} is #{pr["state"].to_s.downcase}; not merged yet" } }
+          def open_answer(branch, view)
+            { outcome: { value: "open" }, report: { value: "#{branch} is #{view["state"].to_s.downcase}; not merged yet" } }
           end
 
           def merged(branch, merge)
@@ -110,9 +110,15 @@ module Hecks
              "--body", "Boarded by the push train. Merges once the required checks pass."],
             chdir: @checkout
           )
-          return output.to_s.strip.lines.last.to_s.strip if ok
+          return url_from(output) if ok
 
           existing(branch) || raise(ConsoleCapture::Failure, "could not open a PR for #{branch}: #{output.to_s.strip}")
+        end
+
+        # `gh pr create` prints the PR's URL as its last line.
+        def url_from(output)
+          lines = output.to_s.strip.lines
+          lines.last.to_s.strip
         end
 
         def existing(branch)

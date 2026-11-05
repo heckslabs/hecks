@@ -53,7 +53,6 @@ spec/adapters/query_agreement_spec.rb
 spec/adapters/query_hop_agreement_spec.rb
 spec/adapters/sibling_value_object_query_spec.rb
 spec/bench_spec.rb
-spec/candidate_gate_train_spec.rb
 spec/categories/era_read_through_spec.rb
 spec/categories/write_atomicity_spec.rb
 spec/check_era_spec.rb

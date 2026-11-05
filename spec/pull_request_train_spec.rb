@@ -13,13 +13,12 @@ RSpec.describe "the push train boarding main as a pull request", :io do
   let(:work) { File.join(scratch, "work") }
   let(:gh_calls) { [] }
   let(:gh_fails_on) { nil }
-  let(:identity) do
-    { "GIT_AUTHOR_NAME" => "A", "GIT_AUTHOR_EMAIL" => "a@example.test",
-      "GIT_COMMITTER_NAME" => "A", "GIT_COMMITTER_EMAIL" => "a@example.test" }
-  end
+
+  IDENTITY = { "GIT_AUTHOR_NAME" => "A", "GIT_AUTHOR_EMAIL" => "a@example.test",
+               "GIT_COMMITTER_NAME" => "A", "GIT_COMMITTER_EMAIL" => "a@example.test" }.freeze
 
   def git(*args, dir: work)
-    out, err, status = Open3.capture3(identity, "git", *args, chdir: dir)
+    out, err, status = Open3.capture3(IDENTITY, "git", *args, chdir: dir)
     raise "git #{args.join(" ")} failed: #{err}" unless status.success?
 
     out.strip
@@ -60,15 +59,23 @@ RSpec.describe "the push train boarding main as a pull request", :io do
 
   after { FileUtils.remove_entry(scratch) }
 
-  it "pushes the commit to its own branch, opens a PR, and turns on auto-merge", :aggregate_failures do
+  def branch_for(commit) = Hecks::Adapters::GitTrain::PullRequestBoarding.branch_for(commit)
+
+  it "pushes the commit to its own branch and leaves main where it was", :aggregate_failures do
     commit("second")
     boarded = git("rev-parse", "main")
-    branch = Hecks::Adapters::GitTrain::PullRequestBoarding.branch_for(boarded)
 
     expect(carry).to include(outcome: { value: "queued" }, boarded: { value: boarded })
-    expect(remote("refs/heads/#{branch}")).to eq(boarded)
+    expect(remote("refs/heads/#{branch_for(boarded)}")).to eq(boarded)
     expect(remote("refs/heads/main")).to eq(git("rev-parse", "main~1"))
-    expect(gh_calls).to include(array_including("pr", "create"), array_including("pr", "merge", branch))
+  end
+
+  it "opens a PR and turns on auto-merge for that branch" do
+    commit("second")
+
+    carry
+    merged = array_including("pr", "merge", branch_for(git("rev-parse", "main")))
+    expect(gh_calls).to include(array_including("pr", "create"), merged)
   end
 
   it "answers carried, opening no PR, when main already holds the commit", :aggregate_failures do
@@ -77,8 +84,9 @@ RSpec.describe "the push train boarding main as a pull request", :io do
   end
 
   describe "observing a queued boarding" do
-    let(:boarded) { "a" * 40 }
-    let(:branch) { Hecks::Adapters::GitTrain::PullRequestBoarding.branch_for(boarded) }
+    def boarded = "a" * 40
+
+    def branch = Hecks::Adapters::GitTrain::PullRequestBoarding.branch_for(boarded)
 
     def observe(view)
       runner = ->(argv, **) { argv[1..2] == %w[pr view] ? view : [false, "unexpected"] }

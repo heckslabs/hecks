@@ -85,8 +85,8 @@ module Hecks
       def observe(**held)
         boarded = plain(held[:boarded]) or raise ConsoleCapture::Failure, "no queued boarding to observe"
         checkout = toplevel(plain(held[:checkout]) || Dir.pwd)
-        PullRequestBoarding::Observation.new(@runner, checkout).answer(boarded)
-          .merge(checkout: { value: checkout }, boarded: { value: boarded })
+        answer = PullRequestBoarding::Observation.new(@runner, checkout).answer(boarded)
+        answer.merge(checkout: { value: checkout }, boarded: { value: boarded })
       end
 
       # Lists every checkout under a directory whose default branch has commits its remote does
