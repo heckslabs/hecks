@@ -61,6 +61,7 @@ commands:
     One check or fix of comment style, or one document written with its keys in order.
     check_comments!               List every comment that breaks the Ruby style guide
     fix_comments!                 Rewrite the mechanical Ruby comment violations
+    shorten_value_objects!        Rewrite every bluebook value object block that only wraps one plain value as the shorthand
     write_comment_baseline!       Record every long comment block as tolerated, for lib/hecks unless paths are named
     check_comments_unchanged!     Prove an edit was comment-only: no file's code differs from the ref
     check_rust_comments!          List every comment that breaks the Rust style guide
@@ -284,6 +285,7 @@ queries (nothing here changes anything):
   ReviewRequest:
     One pull request opened or squash-merged on GitHub, and what GitHub answered.
     status                  The state of one pull request on GitHub: its number, state, URL and checks, as text.
+    timeline                Who merged a pull request, who turned auto-merge on or off, who closed, reopened or was asked to review it, and when: read from its timeline on GitHub, oldest first.
   LanguageRun:
     One change to the language's own tables, or one reading of where its words stand.
     word_status             Where every word of the language stands: the ones not simply admitted, and the renamed.

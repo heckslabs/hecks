@@ -25,6 +25,7 @@ commands:
     One check or fix of comment style, or one document written with its keys in order.
     check_comments!             List every comment that breaks the Ruby style guide
     fix_comments!               Rewrite the mechanical Ruby comment violations
+    shorten_value_objects!      Rewrite every bluebook value object block that only wraps one plain value as the shorthand
     write_comment_baseline!     Record every long comment block as tolerated, for lib/hecks unless paths are named
     check_comments_unchanged!   Prove an edit was comment-only: no file's code differs from the ref
     check_rust_comments!        List every comment that breaks the Rust style guide
@@ -62,6 +63,6 @@ bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
 
   hecks <command> --help       what one command wants, and every way it refuses
   hecks --all                  also list the 38 internal commands and queries
-  hecks --maintainer           also list the 446 commands and queries for working on hecks itself
+  hecks --maintainer           also list the 447 commands and queries for working on hecks itself
   a command is called with its aggregate — GateRun.gate!
   exit status: 0 answered, 1 refused or failed, 2 a line it could not read

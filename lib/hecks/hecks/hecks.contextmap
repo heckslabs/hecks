@@ -33,4 +33,13 @@ Hecks.context_map "Hecks" do
   relate "Hecks" => "QualityControl", as: :anti_corruption_layer
   # Hecks attaches QualityControl as well, so the pair also shares a kernel, which has no direction.
   relate "QualityControl" => "Hecks", as: :shared_kernel
+
+  # Agents' hecksagon translates the events of the Coder, Hecks and Pipeline bluebooks into its own
+  # commands (a submission asks the reviewer, a verified passage recommends a promotion), so none of
+  # their models reaches the Agents roster.
+  relate "Coder" => "Agents", as: :anti_corruption_layer
+  relate "Hecks" => "Agents", as: :anti_corruption_layer
+  # Hecks attaches Agents as well, so that pair also shares a kernel, which has no direction.
+  relate "Agents" => "Hecks", as: :shared_kernel
+  relate "Pipeline" => "Agents", as: :anti_corruption_layer
 end
