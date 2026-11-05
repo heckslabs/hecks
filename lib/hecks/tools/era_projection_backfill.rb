@@ -54,7 +54,7 @@ module Hecks
         adapter_name = Hecks::Ports::Persistence::BindingPolicy.resolve(registry, bluebook.name, first).adapter
         # Only a lineage-capable adapter holds eras — every other adapter has no held_projection
         # column to migrate.
-        unless lineage_capable?(registry, adapter_name)
+        unless lineage_capable?(registry, Runtime::RevisionCheck.revision_adapter(registry, bluebook.name, adapter_name))
           abort "#{bluebook.name} is bound to #{adapter_name}, which holds no eras — nothing to migrate."
         end
 

@@ -47,7 +47,7 @@ module Hecks
         end
 
         def refuse_unless_lineage_capable(registry, bluebook, adapter_name)
-          return if lineage_capable?(registry, adapter_name)
+          return if lineage_capable?(registry, Runtime::RevisionCheck.revision_adapter(registry, bluebook.name, adapter_name))
 
           abort "the audit reads a lineage journal; #{bluebook.name} is bound to #{adapter_name}, " \
                 "not PostgresEra"
