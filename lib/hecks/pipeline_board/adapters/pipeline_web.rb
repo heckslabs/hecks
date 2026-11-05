@@ -86,12 +86,12 @@ module Hecks
         { unknown: e.message }
       end
 
-      # Yields each event of the journal once and again when its reactions change, until the reader
-      # goes away.
+      # Yields each event of the journal once and again when its reactions change, and the state
+      # whenever it changes, until the reader goes away.
       #
-      # @yieldparam event [Hash] an event row, an `unknown` note or a heartbeat
+      # @yieldparam event [Hash] an event row, an `unknown` note, a `state` hash or a heartbeat
       def stream(&)
-        PipelineBoard::Stream.new(feed: @stages.method(:feed), interval: @interval).each(&)
+        PipelineBoard::Stream.new(feed: @stages.method(:feed), state: method(:state), interval: @interval).each(&)
       end
     end
   end

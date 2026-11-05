@@ -355,20 +355,27 @@ function renderEvents(events) {
   if (!seen.size) [...events].reverse().forEach((e) => putEvent(e, false));
 }
 
+function render(s) {
+  renderTiles(s.metrics); renderStrip(s.stages); renderCi(s.ci_runs, s.slowest_jobs);
+  renderWork(s.open_work); renderSessions(s.sessions); renderFan(s.fanout); renderEvents(s.events);
+  $("updated").textContent = "updated " + clock(s.generated_at);
+}
+// Asks for the state once, for the first paint and for browsers without EventSource.
 async function refresh() {
   try {
     const res = await fetch("/api/state", { cache: "no-store" });
-    const s = await res.json();
-    renderTiles(s.metrics); renderStrip(s.stages); renderCi(s.ci_runs, s.slowest_jobs);
-    renderWork(s.open_work); renderSessions(s.sessions); renderFan(s.fanout); renderEvents(s.events);
-    $("updated").textContent = "updated " + clock(s.generated_at);
+    render(await res.json());
   } catch (e) { $("updated").textContent = "update failed: " + e.message; }
 }
+// The server pushes the state whenever it changes, so the page renders what it is sent.
 function listen() {
-  if (!window.EventSource) { $("live").textContent = "stream: unsupported"; return; }
+  if (!window.EventSource) { $("live").textContent = "stream: unsupported"; setInterval(refresh, 10000); return; }
   const es = new EventSource("/api/events");
   es.onopen = () => { $("live").textContent = "stream: live"; };
   es.onerror = () => { $("live").textContent = "stream: reconnecting"; };
+  es.addEventListener("state", (m) => {
+    try { render(JSON.parse(m.data).state); } catch (e) { $("updated").textContent = "update failed: " + e.message; }
+  });
   es.addEventListener("board", (m) => { const ev = JSON.parse(m.data); if (ev.key) putEvent(ev, true); });
 }
 $("toggle").addEventListener("click", () => {
@@ -378,7 +385,7 @@ $("toggle").addEventListener("click", () => {
 $("ans-send").addEventListener("click", sendAnswer);
 $("ans-cancel").addEventListener("click", () => $("answer").close());
 $("ans-pick").addEventListener("change", showAnswer);
-refresh(); setInterval(refresh, 10000); listen();
+refresh(); listen();
 </script>
 </body>
 </html>

@@ -44,10 +44,14 @@ RSpec.describe Hecks::Adapters::PipelineWeb do
     socket
   end
 
+  # The next `board` event: the state push and other event names are skipped.
   def next_event(socket)
     Timeout.timeout(5) do
-      text = socket.gets.to_s until text.to_s.start_with?("data:")
-      JSON.parse(text.delete_prefix("data: "))
+      loop do
+        next unless socket.gets.to_s.start_with?("event: board")
+
+        return JSON.parse(socket.gets.to_s.delete_prefix("data: "))
+      end
     end
   end
 
@@ -110,6 +114,15 @@ RSpec.describe Hecks::Adapters::PipelineWeb do
     append("LandingRequested", "2026-11-02T10:00:00Z")
     open_stream.tap { |socket| next_event(socket) }.close
     expect(request("GET", "/api/state").code).to eq("200")
+  end
+
+  it "pushes the state on connect, as a state event, without a request" do
+    socket = open_stream
+    Timeout.timeout(5) { socket.gets until socket.gets.to_s.start_with?("event: state") }
+    body = JSON.parse(socket.gets.to_s.delete_prefix("data: "))
+    expect(body.dig("state", "stages").map { |row| row["name"] }).to eq(names)
+  ensure
+    socket&.close
   end
 
   it "writes nothing: the log and the directory are as the test left them" do
