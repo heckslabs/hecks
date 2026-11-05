@@ -320,7 +320,7 @@ function showAnswer() {
   const s = currentWaiting();
   const ctx = s.context || {};
   if (s.question || ctx.said) {
-    $("ans-key").replaceChildren(h("div", {}, s.name + (s.work_item ? " · work item " + s.work_item : "") + (s.repo ? " · " + s.repo : "")));
+    $("ans-key").replaceChildren(h("div", {}, (s.id ? "Session " + s.id + " · " : "") + s.name + (s.work_item ? " · work item " + s.work_item : "") + (s.repo ? " · " + s.repo : "")));
     const parts = [h("div", { class: "question" }, "Waiting on: " + (ctx.said || s.question))];
     if ((ctx.did || []).length) parts.push(h("div", { class: "did" }, h("b", {}, "Last steps: "), ctx.did.join(" → ")));
     if ((ctx.links || []).length) parts.push(h("div", { class: "did" }, h("b", {}, "Linked: "), ...ctx.links.map((l) => h("a", { href: l.href, target: "_blank", rel: "noopener" }, (l.kind || "link") + " " + l.id + "  "))));
@@ -343,7 +343,8 @@ async function sendAnswer() {
     const res = await fetch("/api/act", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: action, target: target, text: text }) });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(body.error || "HTTP " + res.status);
-    $("ans-text").value = ""; $("ans-status").textContent = "Sent. The session resumes with your answer.";
+    $("ans-text").value = "";
+    $("answer").close();
     refresh();
   } catch (e) { $("ans-status").textContent = "Not sent: " + e.message; }
   finally { send.disabled = false; }
@@ -376,9 +377,10 @@ function renderWork(work) {
   if (isUnknown(work)) return put("work", unknown(work));
   put("work", table(["Work item", "Status", "Area", "Claimed by", "Claimed at"], work.map((w) => [w.slug, w.status, (w.area || []).join(", ") || "-", w.claimed_by || "(nobody)", w.claimed_at || "-"])));
 }
+function sessionLabel(s) { return h("span", {}, s.name, " ", h("small", { class: "sid" }, s.id || "")); }
 function renderSessions(list) {
   if (isUnknown(list)) return put("sessions", unknown(list));
-  put("sessions", table(["Session", "Status", "Work item", "Started", "Detail"], list.map((s) => [s.name, [sessionBadge(s.status), " ", s.state], s.row || "-", clock(s.started), s.detail])));
+  put("sessions", table(["Session", "Status", "Work item", "Started", "Detail"], list.map((s) => [sessionLabel(s), [sessionBadge(s.status), " ", s.state], s.row || "-", clock(s.started), s.detail])));
   const rows = $("sessions").querySelectorAll("tbody tr");
   list.forEach((s, i) => {
     if (s.status !== "blocked") return;
@@ -397,7 +399,7 @@ function renderFan(fan) {
     return h("div", { class: "lane" }, h("div", { class: "tag" }, (GLYPH[s.status] || GLYPH.done).slice(0, 2) + s.name + (s.row ? " · " + s.row : "")),
       h("div", { class: "span " + s.status, style: "left:" + left + "%;width:" + width + "%", tip: s.name + " " + s.status + " " + clock(s.started) + " to " + (s.ended ? clock(s.ended) : "now") }));
   })), h("div", { class: "hours" }, h("span", {}, "-24 h"), h("span", {}, "-12 h"), h("span", {}, "now")));
-  put("lanetable", table(["Session", "Status", "Started", "Ended", "Work item"], sessions.map((s) => [s.name, s.status, clock(s.started), s.ended ? clock(s.ended) : "now", s.row || "-"])));
+  put("lanetable", table(["Session", "Status", "Started", "Ended", "Work item"], sessions.map((s) => [sessionLabel(s), s.status, clock(s.started), s.ended ? clock(s.ended) : "now", s.row || "-"])));
   const laneRows = $("lanetable").querySelectorAll("tbody tr");
   sessions.forEach((s, i) => {
     if (s.status !== "blocked" || !laneRows[i]) return;
