@@ -81,6 +81,18 @@ Hecks.bluebook "Agents" do
       attribute :value, Integer
     end
 
+    value_object "RoleRef" do
+      attribute :value, String
+    end
+
+    value_object "RepoPath" do
+      attribute :value, String
+    end
+
+    value_object "PlanText" do
+      attribute :value, String
+    end
+
     # A request is refused at the third hop, so a chain of reviews that ask for reviews stops by name.
     command "Request" do
       role "System"
@@ -88,6 +100,9 @@ Hecks.bluebook "Agents" do
 
       attribute :work, WorkKey, sets: true
       attribute :hops, HopCount, sets: true
+      attribute :role, RoleRef
+      attribute :repo, RepoPath
+      attribute :plan, PlanText
 
       given("the request is under the hop limit") { hops.value < 3 }
 
