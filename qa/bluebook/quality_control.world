@@ -26,6 +26,8 @@ Hecks.world "QualityControl" do
   # What the board calls healthy CI on main: the median wall time it aims for in minutes, and the
   # success rate, in percent, at which a CI tile is good and at which it is fair before it is poor.
   ci_health "PipelineBoard", wall_goal_minutes: 3, success_good: 80, success_fair: 50
+  # The agent roles the board pins at its top. Each wakes on demand; none may issue an owner decision.
+  agent_roles "PipelineBoard", roles: "orchestrator,architect,coder,reviewer,release_manager"
   # The rehearsal reads a throwaway copy of the ledger, named by an environment variable so the
   # file holds no connection string; the copy is made beforehand and is never this database.
   rehearsed_by("Postgres") do

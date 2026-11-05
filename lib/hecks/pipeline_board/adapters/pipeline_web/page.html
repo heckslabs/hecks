@@ -175,6 +175,7 @@ details.panel > .scroll, details.panel > .feed, details.panel > .strip, details.
     </div>
   </header>
 
+  <details class="panel" open><summary><h2 id="h-roles">Agents</h2></summary><div class="scroll" id="roles"></div></details>
   <details class="panel" open><summary data-tip="Everything that asks for a person: attention pills, failed stages and sessions blocked on a reply. Click a row to act on it"><h2 id="h-attn">Needs attention</h2></summary><div class="scroll" id="attention"></div></details>
   <details class="panel" open><summary data-tip="The architecture as a diagram: domains, aggregates and adapters. Click a block to open it; the switch shows the sequence of events instead"><h2 id="h-wiring">Wiring diagram</h2><small class="hint">drag to pan · use + and − to zoom · click a block to open it</small></summary><div class="switch"><button type="button" data-view="/wiring" aria-pressed="true">Wiring</button><button type="button" data-view="/sequence?small=1" aria-pressed="false">Sequence</button></div><iframe id="view" class="embed" src="/wiring" title="Wiring diagram"></iframe></details>
   <section aria-labelledby="h-tiles"><h2 id="h-tiles">Key metrics</h2><div class="tiles" id="tiles"></div></section>  <details class="panel" open><summary data-tip="Each stage of a change from planned to released. Click a stage that needs you to resolve it"><h2 id="h-strip">Pipeline</h2></summary><div class="strip" id="strip"></div></details>
@@ -369,6 +370,11 @@ $("resolve-copy").addEventListener("click", async () => {
   catch (e) { $("resolve-copy").textContent = "Copy failed"; }
 });
 
+// The agent roles, pinned at the top: each with how many of its sessions are live. A role never issues an owner decision.
+function renderRoles(roles) {
+  if (isUnknown(roles)) return put("roles", unknown(roles));
+  put("roles", table(["Role", "Live sessions"], roles.map((r) => [r.name, String(r.live)])));
+}
 function renderTiles(tiles) {
   put("tiles", tiles.map((t) => {
     const value = t.value === null || t.value === undefined ? "-" : t.value;
@@ -687,7 +693,7 @@ function replyNote(s) {
 function render(s) {
   lastState = s;
   renderTiles(s.metrics); renderAttention(s.metrics, s.stages, s.sessions); renderStrip(s.stages); renderCi(s.ci_runs, s.slowest_jobs);
-  renderWork(s.open_work); renderSessions(s.sessions); renderFan(s.fanout); renderEvents(s.events);
+  renderRoles(s.roles); renderWork(s.open_work); renderSessions(s.sessions); renderFan(s.fanout); renderEvents(s.events);
   $("updated").textContent = "updated " + clock(s.generated_at);
 }
 // Asks for the state once, for the first paint and for browsers without EventSource.
