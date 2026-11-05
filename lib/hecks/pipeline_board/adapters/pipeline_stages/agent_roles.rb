@@ -4,7 +4,7 @@ module Hecks
   module Adapters
     module PipelineBoard
       # The agent roles the board pins at its top: each role's name and how many of its sessions are
-      # live. The roles come from the QualityControl world's `agent_roles` line. A session belongs to
+      # live. The roles come from the Hecks world's `agent_roles` line. A session belongs to
       # a role when its name begins with the role's name.
       module AgentRoles
         module_function
@@ -16,11 +16,11 @@ module Hecks
           names.map(&:strip).reject(&:empty?)
         end
 
-        # @return [Hash] the `agent_roles` line of the QualityControl world, or nothing when it has none
+        # @return [Hash] the `agent_roles` line of the Hecks world, or nothing when it has none
         def world_settings(registry)
           return {} unless registry
 
-          world = registry.world("QualityControl")
+          world = registry.world("Hecks")
           world ? world.for_verb("agent_roles") : {}
         end
 

@@ -12,7 +12,7 @@ module Hecks
         include TileKit
 
         # The settings the CI tiles read. The bluebook's `Setting` rows give their defaults, and the
-        # QualityControl world's `ci_health` line overrides them.
+        # Hecks world's `ci_health` line overrides them.
         HEALTH_KEYS = %i[wall_goal_minutes success_good success_fair].freeze
 
         # @return [Hash{Symbol => Integer}] the defaults the bluebook declares
@@ -21,7 +21,7 @@ module Hecks
         # @param registry [Runtime::Registry, nil]
         # @return [Hash{Symbol => Integer}] the wall goal (minutes) and the success bands (percent)
         def self.health(registry)
-          declared = registry&.world("QualityControl")&.for_verb("ci_health") || {}
+          declared = registry&.world("Hecks")&.for_verb("ci_health") || {}
           defaults.merge(declared.slice(*HEALTH_KEYS)).transform_values { |v| Integer(v) }
         end
 

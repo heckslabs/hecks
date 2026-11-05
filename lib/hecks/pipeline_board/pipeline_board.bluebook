@@ -145,7 +145,7 @@ Hecks.bluebook "PipelineBoard" do
       member stage: "Session status", position: 5, measure: "",        op: "always", than: "",  scale: 1, state: "done"
     end
 
-    # A number a rule compares with. A QualityControl world's `ci_health` verb overrides the CI
+    # A number a rule compares with. The Hecks world's `ci_health` verb overrides the CI
     # ones; its `push_nudge` verb sets the push limits the unpushed-commits rule reads.
     value_object "Setting" do
       attribute :name,  String
