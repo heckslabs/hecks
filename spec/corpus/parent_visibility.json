@@ -1,11 +1,47 @@
 {
   "name": "parent_visibility-parity",
-  "note": "Placeholder: no steps yet. The parity check covers this example's bluebook; its scripted expectations are not written.",
+  "note": "parent_visibility: the example's commands replayed in order, with what the run recorded.",
   "domain": "examples/parent_visibility",
-  "expectations": {},
-  "steps": [],
+  "expectations": {
+    "events": 1
+  },
+  "steps": [
+    {
+      "verb": "Visibility::Meter.Install",
+      "args": {
+        "code": {
+          "value": "M1"
+        },
+        "reading": {
+          "value": 5
+        }
+      }
+    },
+    {
+      "verb": "Visibility::Meter.RaiseReading",
+      "args": {
+        "reading": {
+          "value": 9
+        }
+      }
+    }
+  ],
   "expect": {
-    "refusals": [],
-    "instances": {}
+    "refusals": [
+      {
+        "verb": "Visibility::Meter.RaiseReading",
+        "error": "RaiseReading acts on an existing Meter — pass code.value:"
+      }
+    ],
+    "instances": {
+      "Visibility::Meter#M1": {
+        "code": {
+          "value": "M1"
+        },
+        "reading": {
+          "value": 5
+        }
+      }
+    }
   }
 }

@@ -1,11 +1,37 @@
 {
   "name": "command_defaults-parity",
-  "note": "Placeholder: no steps yet. The parity check covers this example's bluebook; its scripted expectations are not written.",
+  "note": "command_defaults: the example's commands replayed in order, with what the run recorded.",
   "domain": "examples/command_defaults",
-  "expectations": {},
-  "steps": [],
+  "expectations": {
+    "events": 1
+  },
+  "steps": [
+    {
+      "verb": "CommandDefaults::Trial.Start",
+      "args": {
+        "ref": {
+          "value": "t1"
+        },
+        "label": {
+          "value": "first"
+        }
+      }
+    }
+  ],
   "expect": {
     "refusals": [],
-    "instances": {}
+    "instances": {
+      "CommandDefaults::Trial#t1": {
+        "ref": {
+          "value": "t1"
+        },
+        "rounds": {
+          "value": 30
+        },
+        "label": {
+          "value": "first"
+        }
+      }
+    }
   }
 }

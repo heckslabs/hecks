@@ -1,11 +1,59 @@
 {
   "name": "command_list_argument-parity",
-  "note": "Placeholder: no steps yet. The parity check covers this example's bluebook; its scripted expectations are not written.",
+  "note": "command_list_argument: the example's commands replayed in order, with what the run recorded.",
   "domain": "examples/command_list_argument",
-  "expectations": {},
-  "steps": [],
+  "expectations": {
+    "events": 1
+  },
+  "steps": [
+    {
+      "verb": "Binder::Folder.Open",
+      "args": {
+        "name": {
+          "value": "f1"
+        },
+        "labels": [
+          {
+            "value": "a"
+          },
+          {
+            "value": "b"
+          }
+        ]
+      }
+    },
+    {
+      "verb": "Binder::Folder.Relabel",
+      "args": {
+        "labels": [
+          {
+            "value": "c"
+          }
+        ]
+      }
+    }
+  ],
   "expect": {
-    "refusals": [],
-    "instances": {}
+    "refusals": [
+      {
+        "verb": "Binder::Folder.Relabel",
+        "error": "Relabel acts on an existing Folder — pass name.value:"
+      }
+    ],
+    "instances": {
+      "Binder::Folder#f1": {
+        "name": {
+          "value": "f1"
+        },
+        "labels": [
+          {
+            "value": "a"
+          },
+          {
+            "value": "b"
+          }
+        ]
+      }
+    }
   }
 }
