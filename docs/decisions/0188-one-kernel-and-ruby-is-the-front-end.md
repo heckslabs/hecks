@@ -55,11 +55,8 @@ Measured 2026-11-05 on the maintainer's machine, from a fresh worktree:
 | Cold `exe/hecks` (grammar boot) | 7.8 s wall |
 | Warm `exe/hecks` | 0.90 s wall, 0.40 s user |
 | Floor: `require "bundler/setup"` only | 0.35 s wall, 0.14 s user |
-| Committed generated Rust | about 257k lines |
-| Ruby runtime plus driven adapters | about 22k lines |
 | Dispatch p50, pizzas: in-process Ruby (Memory) vs warm Rust kernel over `--serve` | 186 us vs 12 us (about 15 times faster) |
 | Dispatch p50, banking: in-process Ruby (Memory) vs warm Rust kernel over `--serve` | 409 us vs 18 us (about 23 times faster) |
-| Ruby/Rust divergence fixes, 2026-10-06 to 2026-11-05 | 12 commits (method below) |
 
 Wall time on this run is noisier than the user time; `docs/cli-measures.md` holds the budget method
 (a ratio to the floor, five fresh processes).
@@ -74,14 +71,13 @@ commands/s), so read the ratio, not the digits. The gate in the Decision holds t
 for these two domains on the Memory store. It does not yet cover a Ruby-side callback channel,
 sessions, or domains with policies that ask; those are what the binding adds.
 
-**Divergence fixes.** Counted from `git log origin/main --since=2026-10-06` (1748 commits): 82 subjects
-or bodies match `parity|conformance|differential`, most of them CI and harness work, so that is not the
-count. The 12 are those whose subject says a Ruby/Rust divergence was closed, classified by hand from
-the subject alone (bodies unread): `9231a2536`, `f744a5134`, `a69051a52`, `6c343746d`, `d2e14f70c`,
-`a1f75fe4c`, `703c39396`, `2d2bfc365`, `d38e84dfc`, `59e05c82e`, `cb678e351`, `328d4900e`. It is a
-floor: a fix whose subject does not name the other runtime is missed, and `BUG#152` (`7db8f5029`) is
-one such. The QA findings in the tickets store were not read: a linked worktree resolves that store to
-Memory, so `Finding.open` answered empty there.
+**Divergence fixes.** No tally is kept here, since it goes stale; this is how to count it again. List
+`git log origin/main --since=<date>`, take the commits whose subject says a Ruby/Rust divergence was
+closed, and classify them by hand from the subject. A plain match on `parity|conformance|differential`
+is not the count, because most of what it finds is CI and harness work. The result is a floor: a fix
+whose subject does not name the other runtime is missed (`BUG#152`, `7db8f5029`, is one). The QA
+findings in the tickets store are the other source, and they must be read from the main checkout, since
+a linked worktree resolves that store to Memory and `Finding.open` answers empty there.
 
 ## Consequences
 
