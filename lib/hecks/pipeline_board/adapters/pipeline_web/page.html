@@ -125,6 +125,7 @@ a.linked { color: inherit; text-decoration: none; display: contents; }
 a.linked:hover .name, a.linked:focus-visible .name { text-decoration: underline; }
 .reply { margin-top: 4px; padding: 4px 6px; border-left: 3px solid var(--series1); background: var(--page); border-radius: 0 4px 4px 0; overflow-wrap: anywhere; }
 tr.sending td { background: rgba(234, 179, 8, .28); }
+.attn { padding: 6px 0; border-bottom: 1px solid var(--grid); }
 tr.clickable { cursor: pointer; } tr.clickable:hover, tr.clickable:focus-visible { background: var(--page); }
 .tables-only .chartview { display: none; } body:not(.tables-only) .tableview { display: none; }
 @media (max-width: 900px) {
@@ -161,6 +162,7 @@ details.panel > .scroll, details.panel > .feed, details.panel > .strip, details.
 
   <details class="panel" open><summary><h2 id="h-wiring">Wiring diagram</h2><small class="hint">drag to pan · use + and − to zoom · click a block to open it</small></summary><div class="switch"><button type="button" data-view="/wiring" aria-pressed="true">Wiring</button><button type="button" data-view="/sequence?small=1" aria-pressed="false">Sequence</button></div><iframe id="view" class="embed" src="/wiring" title="Wiring diagram"></iframe></details>
   <section aria-labelledby="h-tiles"><h2 id="h-tiles">Key metrics</h2><div class="tiles" id="tiles"></div></section>
+  <details class="panel" open><summary><h2 id="h-attn">Needs attention</h2></summary><div class="scroll" id="attention"></div></details>
   <details class="panel" open><summary><h2 id="h-strip">Pipeline</h2></summary><div class="strip" id="strip"></div></details>
   <details class="panel" open><summary><h2 id="h-ci">CI on main</h2></summary>
     <div class="grid2">
@@ -458,7 +460,20 @@ function renderCi(runs, slow) {
 }
 function renderWork(work) {
   if (isUnknown(work)) return put("work", unknown(work));
-  put("work", table(["Work item", "Status", "Area", "Claimed by", "Claimed at"], work.map((w) => [w.slug, w.status, (w.area || []).join(", ") || "-", w.claimed_by || "(nobody)", w.claimed_at || "-"])));
+  put("work", pager("work", ["Work item", "Status", "Area", "Claimed by", "Claimed at"], work.map((w) => [w.slug, w.status, (w.area || []).join(", ") || "-", w.claimed_by || "(nobody)", w.claimed_at || "-"]), 10));
+}
+// Everything that asks for a person: attention and failed pills, and sessions blocked on a reply.
+function renderAttention(metrics, stages, sessions) {
+  const items = [];
+  for (const t of metrics) if (needsAttention(t.state)) items.push({ label: t.label, state: t.state, detail: t.detail, act: () => resolve(t.label, t.detail) });
+  for (const s of stages) if (needsAttention(s.state)) items.push({ label: s.name, state: s.state, detail: s.detail, act: () => resolve(s.name, s.detail) });
+  for (const s of sessions) if (s.status === "blocked") items.push({ label: s.name + " " + s.id, state: "attention", detail: s.detail, act: () => openAnswer([{ id: s.id, name: s.name, run: s.run, repo: s.repo, work_item: s.work_item, question: s.detail, context: s.context, attach: s.attach }], s.id) });
+  if (!items.length) return put("attention", h("p", { class: "note" }, "Nothing needs attention."));
+  put("attention", items.map((it) => {
+    const row = h("div", { class: "attn clickable", tip: it.detail }, badge(it.state), " ", h("b", {}, it.label), " ", h("small", {}, it.detail));
+    answerable(row, it.act);
+    return row;
+  }));
 }
 function sessionLabel(s) { return h("span", {}, s.name, " ", h("small", { class: "sid" }, s.id || "")); }
 function renderSessions(list) {
@@ -542,7 +557,7 @@ function replyNote(s) {
 }
 function render(s) {
   lastState = s;
-  renderTiles(s.metrics); renderStrip(s.stages); renderCi(s.ci_runs, s.slowest_jobs);
+  renderTiles(s.metrics); renderAttention(s.metrics, s.stages, s.sessions); renderStrip(s.stages); renderCi(s.ci_runs, s.slowest_jobs);
   renderWork(s.open_work); renderSessions(s.sessions); renderFan(s.fanout); renderEvents(s.events);
   $("updated").textContent = "updated " + clock(s.generated_at);
 }
