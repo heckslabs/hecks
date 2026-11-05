@@ -59,11 +59,17 @@ module Hecks
         end
 
         def lead(data, runs)
-          times = data[:commit_times].to_h
-          spec = { id: "lead", label: "Commit to green CI", unit: "min", lower: true,
-                   detail: "landed to pushed is not recorded" }
-          windowed(spec, runs.select { |run| times[run[:sha]] }) do |list|
-            median(list.map { |run| (finished(run) - Time.parse(times[run[:sha]])) / 60.0 })
+          spec = { id: "lead", label: "Commit to green CI", unit: "min", lower: true, detail: "landed to green" }
+          windowed(spec, runs.select { |run| landed_at(data, run[:sha]) }) do |list|
+            median(list.map { |run| (finished(run) - Time.parse(landed_at(data, run[:sha]))) / 60.0 })
+          end
+        end
+
+        # How long a landed commit waited before the push that CI ran for it.
+        def carry(data, runs)
+          spec = { id: "carry", label: "Landed to pushed", unit: "min", lower: true, detail: "landed to the push" }
+          windowed(spec, runs.select { |run| run[:pushed] && landed_at(data, run[:sha]) }) do |list|
+            median(list.map { |run| (Time.parse(run[:pushed]) - Time.parse(landed_at(data, run[:sha]))) / 60.0 })
           end
         end
 
