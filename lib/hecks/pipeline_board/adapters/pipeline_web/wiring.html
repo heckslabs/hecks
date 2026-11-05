@@ -103,7 +103,6 @@ th { color: var(--ink2); font-size: 12px; }
     <canvas id="map" role="img" aria-label="Wiring diagram: policies between aggregates, ports and adapters, with live messages"></canvas>
     <div class="scroll" id="edgetable"></div>
   </section>
-  <section aria-labelledby="h-log"><h2 id="h-log">Messages</h2><ul class="log" id="log" aria-live="polite"></ul></section>
 </main>
 <div class="tip" id="tip" role="tooltip"></div>
 <aside class="panel" id="panel" hidden aria-label="Selected node">
@@ -545,7 +544,7 @@ function logLine(ev, reaction, kind) {
   const li = h("li", {}, h("time", {}, clock(ev.at)), (ev.aggregate || "") + " ", h("b", {}, ev.name));
   if (reaction) li.append(" → " + String(reaction.policy).split("::").pop() + (reaction.command ? " → " + reaction.command : ""),
     h("span", { class: "mark", style: "color:var(" + OUTCOME[kind][0] + ")" }, OUTCOME[kind][1]));
-  const log = $("log"); log.prepend(li); while (log.children.length > 60) log.lastChild.remove();
+  const log = $("log"); if (!log) return; log.prepend(li); while (log.children.length > 60) log.lastChild.remove();
 }
 let backlog = [], liveStarted = false;
 function listen() {
