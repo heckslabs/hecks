@@ -54,6 +54,7 @@ module Hecks
         program = PipelineBoard::Actions.program(action)
         stdin = action == "reply" ? "#{fields[:text]}\r" : nil
         @launcher.call(program, *argv, chdir: @launcher_root, stdin: stdin)
+        @snapshot.refresh_now if action == "reply"
         { ran: "#{program} #{argv.first}" }
       end
 

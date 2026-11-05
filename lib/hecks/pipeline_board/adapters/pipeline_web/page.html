@@ -389,7 +389,7 @@ async function sendAnswer() {
     const res = await fetch("/api/act", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: action, target: target, text: text }) });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(body.error || "HTTP " + res.status);
-    replies.set(s.id, { text: text, state: "sent" });
+    replies.delete(s.id);
     $("ans-text").value = "";
     $("answer").close();
     refresh();
