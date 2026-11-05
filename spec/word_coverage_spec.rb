@@ -184,11 +184,6 @@ RSpec.describe "every live DSL word, used somewhere real" do
     "convert (TranslationAggregate)"    => TRANSLATION_RULE_GAP,
     "rename (TranslationAggregate)"     => TRANSLATION_RULE_GAP,
     "retype (TranslationAggregate)"     => TRANSLATION_RULE_GAP,
-    "split (TranslationAggregate)"      =>
-                                           "no real translation edge splits one aggregate into another; the one that " \
-                                           "does is the invented fixture on docs/implemented/reference/" \
-                                           "translation_aggregate.md, and a real split would be a claim about a real " \
-                                           "aggregate's data this corpus does not make.",
     "handles (PortOperation)"           =>
                                            "binds one operation to one value of a command, so one command can be answered " \
                                            "by several operations. No port in this corpus answers a single command by value; " \
