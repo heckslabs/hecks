@@ -54,6 +54,8 @@ module Hecks
       tickets:      "lib/hecks/tickets/bluebook/*.bluebook",
       composer:     "lib/hecks/composer/bluebook/*.bluebook",
       tenancy:      "lib/hecks/tenancy/bluebook/*.bluebook",
+      gate:         "lib/hecks/gate/*.bluebook",
+      questions:    "lib/hecks/questions/*.bluebook",
       bulk:         "lib/hecks/bulk/bluebook/*.bluebook",
       sme:          "lib/hecks/sme/bluebook/*.bluebook",
       # The CI bluebooks keep their bluebook beside their hecksagon, not under a `bluebook/` folder.
