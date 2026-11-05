@@ -126,9 +126,9 @@ RSpec.describe Hecks::Adapters::ClaudeAgents do
     let(:jobs) { File.join(scratch, "jobs") }
     let(:adapter) { described_class.new(settings: { command: stand_in, jobs: jobs, settle: 0 }) }
 
-    def job(state, detail)
+    def job(state, detail, output = nil)
       FileUtils.mkdir_p(File.join(jobs, "abc123"))
-      File.write(File.join(jobs, "abc123", "state.json"), JSON.generate(state: state, detail: detail))
+      File.write(File.join(jobs, "abc123", "state.json"), JSON.generate({ state: state, detail: detail, output: output }.compact))
     end
 
     def read(**held) = adapter.read_job(session: { value: "abc123" }, repo: { value: scratch }, **held)
@@ -136,8 +136,28 @@ RSpec.describe Hecks::Adapters::ClaudeAgents do
     it "answers the job's state and detail, the held condition, and the directory with its slash" do
       job("blocked", "which branch?")
 
-      expect(read(condition: { value: "working" }))
-        .to eq(state: "blocked", detail: "which branch?", previous: "working", checkout: "#{scratch}/")
+      expect(read(condition: { value: "working" })).to include(state: "blocked", detail: "which branch?",
+                                                               previous: "working", checkout: "#{scratch}/")
+    end
+
+    it "reads the architect's verdict and findings off the closed job", :aggregate_failures do
+      job("done", "reviewed", { result: "Verdict: sound with changes. Rename the port." })
+
+      answer = read(agent: { value: "architect" })
+      expect(answer).to include(verdict: "changes", judgment: "")
+      expect(answer[:findings]).to include("Rename the port")
+    end
+
+    it "reads the reviewer's judgment off the closed job, and no verdict" do
+      job("done", "judged", { result: "One failure is a stale expectation." })
+
+      expect(read(agent: { value: "reviewer" })).to include(judgment: "stale_expectation", verdict: "")
+    end
+
+    it "reports no verdict or judgment for any other agent" do
+      job("done", "sound and a real bug", { result: "sound, real bug" })
+
+      expect(read(agent: { value: "coder" })).to include(verdict: "", judgment: "")
     end
 
     it "answers an empty previous state for a run that has recorded none" do
