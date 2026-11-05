@@ -56,13 +56,16 @@ RSpec.describe "the transactional outbox, against Postgres", :io do
     Kernel.load(InMemoryDomain::POSTGRES_ERA_ADAPTER)
   end
 
-  def boot_shop(adapter)
+  def boot_shop(adapter, revisions: false)
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
       load_postgres_stack
       Hecks.bluebook("Shop", &OUTBOX_PG_SHOP_DOMAIN)
-      hold_declared_era!(registry.bluebook("Shop"), url: OUTBOX_SPEC_DB) if adapter == "PostgresEra"
-      Hecks.hecksagon("Shop") { persisted_by adapter }
+      hold_declared_era!(registry.bluebook("Shop"), url: OUTBOX_SPEC_DB) if revisions
+      Hecks.hecksagon("Shop") do
+        persisted_by adapter
+        revisions true if revisions
+      end
       Hecks.world("Shop") { persisted_by(adapter) { database(OUTBOX_SPEC_DB) } }
     end
     registry.verify!
@@ -81,10 +84,10 @@ RSpec.describe "the transactional outbox, against Postgres", :io do
     runtime.registry.repository("Shop", runtime.registry.bluebook("Shop").aggregate("Order"))
   end
 
-  %w[Postgres PostgresEra].each do |adapter|
-    describe adapter do
-      let(:runtime) { boot_shop(adapter) }
-      let(:rebooted) { boot_shop(adapter) }
+  [["Postgres", false], ["Postgres with revisions", true]].each do |label, revisions|
+    describe label do
+      let(:runtime) { boot_shop("Postgres", revisions: revisions) }
+      let(:rebooted) { boot_shop("Postgres", revisions: revisions) }
 
       # A crash is not a StandardError, so nothing in the pipeline rescues it; stubbing
       # `message` on the target to raise Interrupt simulates the process vanishing mid-dispatch.
