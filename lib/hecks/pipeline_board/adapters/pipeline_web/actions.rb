@@ -9,14 +9,14 @@ module Hecks
       module Actions
         NEEDS = {
           "answer" => %i[target text], "reply" => %i[target text], "board_train" => [], "promote" => [],
-          "check_in" => %i[target session text]
+          "check_in" => %i[target session text], "delete" => %i[target]
         }.freeze
 
         # The program each step runs: the launcher, except a reply, which resumes a Claude session.
         PROGRAMS = { "reply" => "claude" }.freeze
 
         # The steps that move code: a push and a promotion run only once the page has asked twice.
-        CONFIRMS = %w[board_train promote].freeze
+        CONFIRMS = %w[board_train promote delete].freeze
 
         module_function
 
@@ -48,6 +48,7 @@ module Hecks
           case action
           when "answer" then ["AgentRun.answer!", "to=#{fields[:target]}", "answer.value=#{fields[:text]}", "--wait"]
           when "reply" then ["attach", fields[:attach].to_s]
+          when "delete" then ["AgentRun.tidy!", "to=#{fields[:target]}"]
           when "board_train" then ["SendTrain.board!", "--confirm"]
           when "promote" then ["PromotionRun.promote!", "lane=stable", "--confirm", "--wait"]
           when "check_in" then ["RedFlag.check_in!", "run.value=#{fields[:target]}", "session.value=#{fields[:session]}",

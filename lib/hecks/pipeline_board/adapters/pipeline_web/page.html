@@ -126,6 +126,8 @@ a.linked:hover .name, a.linked:focus-visible .name { text-decoration: underline;
 .reply { margin-top: 4px; padding: 4px 6px; border-left: 3px solid var(--series1); background: var(--page); border-radius: 0 4px 4px 0; overflow-wrap: anywhere; }
 tr.sending td { background: rgba(234, 179, 8, .28); }
 .attn { padding: 6px 0; border-bottom: 1px solid var(--grid); }
+button.del { font: inherit; font-size: 12px; margin-left: 8px; color: var(--ink); background: var(--surface); border: 1px solid var(--axis); border-radius: 6px; padding: 1px 8px; }
+button.del:disabled { opacity: .5; }
 ol.steps { margin: 4px 0 0 18px; padding: 0; }
 ol.steps li { padding: 3px 0; border-bottom: 1px solid var(--grid); overflow-wrap: anywhere; }
 tr.clickable { cursor: pointer; } tr.clickable:hover, tr.clickable:focus-visible { background: var(--page); }
@@ -476,6 +478,23 @@ function renderAttention(metrics, stages, sessions) {
   items.forEach((it, i) => { trs[i].classList.add("clickable"); trs[i].title = "Click to resolve or answer"; answerable(trs[i], it.act); });
 }
 function sessionLabel(s) { return h("span", {}, s.name, " ", h("small", { class: "sid" }, s.id || "")); }
+// Removes a finished dispatched session. The first click arms it; the second deletes, and the
+// bluebook refuses by name any session still working or waiting on a person.
+function addDelete(row, s) {
+  const button = h("button", { type: "button", class: "del" }, "Delete");
+  let armed = false;
+  button.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    if (!armed) { armed = true; button.textContent = "Confirm delete"; return; }
+    button.disabled = true;
+    const res = await fetch("/api/act", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "delete", target: s.run, confirm: true }) });
+    if (res.ok) return refresh();
+    armed = false; button.disabled = false;
+    button.textContent = "Not deleted";
+    button.title = (await res.text()).slice(0, 200);
+  });
+  row.cells[0].append(button);
+}
 function renderSessions(list) {
   if (isUnknown(list)) return put("sessions", unknown(list));
   put("sessions", table(["Session", "Status", "Work item", "Started", "Detail"], list.map((s) => [sessionLabel(s), [sessionBadge(s.status), " ", s.state], s.row || "-", clock(s.started), replyNote(s)])));
@@ -483,6 +502,7 @@ function renderSessions(list) {
   list.forEach((s, i) => {
     // A reply the server has not answered yet keeps its row highlighted.
     if (replies.get(s.id)?.state === "sending") rows[i].classList.add("sending");
+    if (s.run && (s.status === "done" || s.status === "failed")) addDelete(rows[i], s);
     if (s.status !== "blocked") return;
     rows[i].classList.add("clickable"); rows[i].title = "Click to answer";
     answerable(rows[i], () => openAnswer([{ id: s.id, name: s.name, run: s.run, repo: s.repo, work_item: s.work_item, question: s.detail, context: s.context, attach: s.attach }], s.id));
