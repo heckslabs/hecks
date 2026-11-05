@@ -160,7 +160,11 @@ module Hecks
 
       def start_arguments(held)
         agent = plain(held[:agent])
-        [*niceness, @command, *(agent ? ["--agent", agent] : []), "--bg", "--", plain(held[:brief])]
+        brief = plain(held[:brief])
+        # A pinned role's session is named after the role, so the board's role card and
+        # `claude agents` both show it under that role.
+        named = agent ? ["--name", "#{agent}: #{brief.to_s.slice(0, 60)}"] : []
+        [*niceness, @command, *(agent ? ["--agent", agent] : []), *named, "--bg", "--", brief]
       end
 
       def niceness = @session.nice ? ["nice", "-n", @session.nice.to_s] : []

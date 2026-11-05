@@ -80,7 +80,7 @@ RSpec.describe Hecks::Adapters::ClaudeAgents do
     it "starts it in the directory, with the agent, in the background, and the brief after --", :aggregate_failures do
       start(agent: { value: "miette" })
 
-      expect(asked).to eq(["--agent", "miette", "--bg", "--", "say ok"])
+      expect(asked).to eq(["--agent", "miette", "--name", "miette: say ok", "--bg", "--", "say ok"])
       expect(File.read(File.join(scratch, "cwd")).strip).to eq(scratch)
     end
 
