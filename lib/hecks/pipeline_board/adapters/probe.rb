@@ -31,7 +31,7 @@ module Hecks
 
         # The launcher's notices (boot warnings and the worktree's missing local files) come before
         # the refusal, so the reason is the first line that is not one of them.
-        NOTICE = /\A(\[hecks\]|hecks: this worktree lacks)/
+        NOTICE = /\A(\[hecks\]|hecks: this worktree lacks|.*: warning: )/
 
         # @return [String] the first line the command wrote to standard error that is not a notice
         def self.reason(err)
