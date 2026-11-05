@@ -249,6 +249,21 @@ wiring = Hecks::Bluebook::Hecksagon.new(domain: "Lending", driving: %w[Mcp Cli])
 [wiring.driven_by?("Mcp"), wiring.driven_by?("Json")]  # => [true, false]
 ```
 
+## revisions
+
+<!-- generated:begin word=revisions -->
+`revisions` — fills `revisions`
+<!-- generated:end -->
+
+Keeps schema revisions. It is for Postgres only: a hecksagon whose domain binds a Postgres
+adapter keeps every schema revision in its store, and any other adapter refuses the word at
+boot and names the adapters that can hold revisions (ADR 0182).
+
+```ruby
+wiring = Hecks::Bluebook::Hecksagon.new(domain: "Lending", revisions: true)
+wiring.revisions?  # => true
+```
+
 ## port
 
 <!-- generated:begin word=port -->

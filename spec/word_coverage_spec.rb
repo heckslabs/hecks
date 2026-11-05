@@ -95,6 +95,9 @@ RSpec.describe "every live DSL word, used somewhere real" do
   # entry is a verified finding, not an assumption. The check below
   # flags one as stale once the corpus grows to cover it.
   EXEMPT = {
+    "revisions (Hecksagon)"             =>
+                                           "Postgres-only, and no tracked parity corpus binds a Postgres adapter, so no " \
+                                           "corpus hecksagon sets it. The word is exercised by spec/hecksagon_revisions_spec.rb.",
     "runs (Adapter)"                    =>
                                            "the one real adapter that declares it is a wasm plugin shipped by a package " \
                                            "outside this corpus, and the word is exercised by its own spec " \

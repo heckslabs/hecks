@@ -51,6 +51,16 @@ module Hecks
           @driving            = []
           @bounded            = false
           @translates         = []
+          @revisions          = false
+        end
+
+        # Chooses the Postgres layout for this domain: `revisions true` keeps schema revisions,
+        # and leaving it out or `false` keeps the table layout (ADR 0182).
+        #
+        # @param on [Boolean] whether to keep revisions
+        # @return [void]
+        def revisions(on = true) # rubocop:disable Style/OptionalBooleanParameter -- the DSL writes `revisions true`
+          @revisions = on ? true : false
         end
 
         # Marks this bluebook as a bounded context; an attachment marks its bluebook bounded too.
@@ -124,7 +134,7 @@ module Hecks
         def build
           Hecksagon.new(domain: @domain, binds: @binds, subscriptions: @subscriptions,
                         attachments: @attachments, bounded: @bounded, translates: @translates,
-                        driving: @driving)
+                        driving: @driving, revisions: @revisions)
         end
 
         # Loads a bluebook the gem carries and records it as attached from the gem.
