@@ -135,19 +135,6 @@ Hecks.hecksagon "Hecks" do
     answers_query "Status"
   end
 
-  # The candidate gate (ADR 0181): the remote's candidate ref and main, GitHub's CI run of the
-  # candidate, the Work items a rejection files, and the repository's own switch.
-  Hecks::Candidate.port "Gating" do
-    %w[Look Forward Clear Flip].each do |step|
-      asks step, to: Candidate do
-        attribute :run, RunKey
-        answers "CandidateGateAnswered"
-        refuses "CandidateGateRefused"
-      end
-    end
-
-    answers_query "Status"
-  end
 
   Hecks::QaQuiesce.port "Quiescing" do
     asks "Mark", to: QaQuiesce do

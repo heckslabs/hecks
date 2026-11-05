@@ -9,9 +9,7 @@ require_relative "git_train/reading"
 require_relative "git_train/bench"
 require_relative "git_train/local_branch"
 require_relative "git_train/carriage"
-require_relative "git_train/candidate_boarding"
 require_relative "git_train/pull_request_boarding"
-require_relative "candidate_gate"
 require_relative "git_train/survey"
 require_relative "git_train/settlement"
 require_relative "git_train/mint_step"
@@ -44,8 +42,7 @@ module Hecks
       # @param options [Hash] `mint:` the mint a boarding runs first (the Hecks domain's if none);
       #   `domain:` the launcher's Hecks domain directory the train's shape is read from (the one
       #   this code runs from by default); `registry:` the booted registry whose world names the
-      #   push size and the candidate gate's default; `runner:` what runs `gh` for the gate's
-      #   tree match (a spec's fake GitHub)
+      #   push size; `runner:` what runs `gh` for the pull requests (a spec's fake GitHub)
       def initialize(aggregate: nil, settings: {}, root: nil, **options)
         @registry = options.delete(:registry)
         @mint = options.delete(:mint) || MintStep.new
@@ -66,7 +63,7 @@ module Hecks
       end
 
       # Waits for the push ahead in the same repository, runs the Hecks mint, then carries the
-      # boarded commit: to the branch, or to the candidate ref while the gate is on (ADR 0181).
+      # boarded commit: as a pull request into main, or to the branch itself for any other branch.
       #
       # @param held [Hash] the `SendTrain` record: `run`, `confirm`, `branch`, `remote`, `checkout`
       #   (a directory inside the repository; the current directory when none is named) and
@@ -75,7 +72,7 @@ module Hecks
       #   `boarded:` (the commit named at boarding), `pushed:` and `report:`, opened by the mint
       # @raise [ConsoleCapture::Failure] when the checkout is not a repository, the branch moved
       #   since boarding, the train is not at the boarded commit, the branch and the remote
-      #   conflict, a candidate is in flight, or the push is refused
+      #   conflict, or the push is refused
       # @raise [Runtime::WiringError] when the mint refuses, before anything is pushed
       def carry(**held)
         @checkout = toplevel(plain(held[:checkout]) || Dir.pwd)
