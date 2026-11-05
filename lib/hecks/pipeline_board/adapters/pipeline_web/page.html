@@ -263,7 +263,12 @@ function pager(id, head, rows, size) {
 
 function table(head, rows, numeric) {
   return h("table", {}, h("thead", {}, h("tr", {}, head.map((t, i) => h("th", { class: numeric && numeric.includes(i) ? "n" : "" }, t)))),
-    h("tbody", {}, rows.map((r) => h("tr", {}, r.map((c, i) => h("td", { class: numeric && numeric.includes(i) ? "n" : "" }, c))))));
+    h("tbody", {}, rows.map((r) => h("tr", { tip: rowTip(head, r) }, r.map((c, i) => h("td", { class: numeric && numeric.includes(i) ? "n" : "" }, c))))));
+}
+// Every row's hover: each column's name and its value, so a row reads in full without widening it.
+function rowTip(head, row) {
+  const text = (c) => (Array.isArray(c) ? c.map(text).join("") : c instanceof Node ? c.textContent : String(c ?? ""));
+  return row.map((c, i) => head[i] + ": " + text(c)).join("\n");
 }
 
 document.addEventListener("mouseover", (e) => {
