@@ -96,8 +96,9 @@ module InMemoryDomain
 
   GOVERNANCE_POSTGRES_ERA_HECKSAGON = <<~HECKSAGON.freeze
     Hecks.hecksagon "Governance" do
-      Governance::RoleAssignment.persisted_by("PostgresEra")
-      Governance::RoleTransition.persisted_by("PostgresEra")
+      revisions true
+      Governance::RoleAssignment.persisted_by("Postgres")
+      Governance::RoleTransition.persisted_by("Postgres")
     end
   HECKSAGON
 
@@ -108,7 +109,7 @@ module InMemoryDomain
   def self.governance_postgres_era_world(database_url)
     <<~RUBY
       Hecks.world "Governance" do
-        persisted_by("PostgresEra") { database "#{database_url}" }
+        persisted_by("Postgres") { database "#{database_url}" }
       end
     RUBY
   end

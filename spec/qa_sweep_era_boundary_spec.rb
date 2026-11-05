@@ -44,7 +44,8 @@ RSpec.describe "qa_sweep era_boundary", :io do
 
   ERA_BOUNDARY_TARGET_HECKSAGON = <<~RUBY.freeze
     Hecks.hecksagon "QaSweepRevisionBoundaryFixtureTarget" do
-      QaSweepRevisionBoundaryFixtureTarget::Widget.persisted_by("PostgresEra")
+      revisions true
+      QaSweepRevisionBoundaryFixtureTarget::Widget.persisted_by("Postgres")
     end
   RUBY
 
@@ -83,6 +84,8 @@ RSpec.describe "qa_sweep era_boundary", :io do
     File.write(File.join(@target_domain_dir, "fixture.bluebook"), ERA_BOUNDARY_TARGET_BLUEBOOK)
     File.write(File.join(@target_domain_dir, "fixture.hecksagon"), ERA_BOUNDARY_TARGET_HECKSAGON)
     File.write(File.join(@target_domain_dir, "fixture.world"), era_boundary_target_world)
+    File.write(File.join(@target_domain_dir, "governance.world"),
+               InMemoryDomain.governance_postgres_era_world("postgres://localhost/#{QA_SWEEP_ERA_BOUNDARY_TARGET_DATABASE}"))
     FileUtils.mkdir_p(File.join(@target_domain_dir, "translations"))
     File.write(File.join(@target_domain_dir, "translations", "1-fake.bluebook"), ERA_BOUNDARY_TARGET_TRANSLATION_EDGE)
     @target_domain_relpath =
