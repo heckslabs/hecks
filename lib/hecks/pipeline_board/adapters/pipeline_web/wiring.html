@@ -267,10 +267,14 @@ function scoot() {
 const scooted = (n) => Math.hypot(n.ox || 0, n.oy || 0) > 6;
 /* ---- when embedded in the board, the wheel scrolls the board, not this frame ---- */
 if (window.top !== window.self) {
-  // With Cmd or Ctrl held the wheel is the browser's own zoom, so it is left alone.
+  // Cmd or Ctrl with the wheel over the diagram zooms the diagram; a plain wheel scrolls the board.
   document.addEventListener("wheel", (e) => {
-    if (e.metaKey || e.ctrlKey) return;
     e.preventDefault();
+    if ((e.metaKey || e.ctrlKey) && e.target === canvas) {
+      const r = canvas.getBoundingClientRect();
+      zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-e.deltaY * 0.0015));
+      return;
+    }
     window.parent.scrollBy(e.deltaX, e.deltaY);
   }, { passive: false });
 }
