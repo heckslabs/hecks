@@ -12,7 +12,7 @@ module Hecks
       LABELS = {
         customer_supplier:    "U/S → D/C",
         conformist:           "U → D/CF",
-        anticorruption_layer: "U → D/ACL",
+        anti_corruption_layer: "U → D/ACL",
         open_host:            "U/OHS+PL → D",
         shared_kernel:        "SK",
         partnership:          "P"
