@@ -1684,6 +1684,22 @@ Hecks.bluebook "Hecks" do
         attribute :number, Word
         returns Document
       end
+
+      # One event on a pull request's timeline: its kind, the login that caused it, and when GitHub recorded it.
+      value_object "TimelineEvent" do
+        attribute :kind,  String
+        attribute :actor, String
+        attribute :at,    String
+      end
+
+      # Read-only. The kinds reported are merged, auto-merge enabled, auto-merge disabled, closed,
+      # reopened and review requested; any other timeline entry is left out. A number that is not a
+      # pull request is refused.
+      query "Timeline" do
+        description "Who merged a pull request, who turned auto-merge on or off, who closed, reopened or was asked to review it, and when: read from its timeline on GitHub, oldest first. Nothing is changed."
+        attribute :number, Word
+        returns list_of(TimelineEvent)
+      end
     end
 
     policy "CreatePullRequestWhenRequested" do
