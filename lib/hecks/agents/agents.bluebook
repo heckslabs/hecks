@@ -123,6 +123,11 @@ Hecks.bluebook "Agents" do
 
       emits "PlanReviewed"
     end
+
+    query "Reviews" do
+      description "Every plan review, by Work item: the verdict once the architect has answered."
+      order_by :work
+    end
   end
 
   # The reviewer's judgment of a failing spec: a real bug, or a stale expectation. A real bug is

@@ -56,6 +56,24 @@ RSpec.describe "a plan review request starting the architect's session" do
     expect(launch("agent_run.running").first.to_s).to include("w-start")
   end
 
+  def close_job(text)
+    state = { state: "done", detail: "reviewed", output: { result: text } }
+    File.write(File.join(scratch, "jobs", "stand-in-session", "state.json"), JSON.generate(state))
+    File.write(File.join(scratch, "sessions.json"), JSON.generate([{ id: "stand-in-session", state: "done" }]))
+  end
+
+  def verdict_reactions
+    @hecks.registry.reaction_log.select { |r| r[:policy] == "RecordTheArchitectsVerdict" }
+  end
+
+  it "records the verdict the session closed with on the review", :aggregate_failures do
+    request("w-verdict", 1)
+    close_job("Verdict: sound with changes. Revise the plan as the findings say.")
+    launch("agent_run.check!", "to=w-verdict", "--wait")
+    expect(verdict_reactions.map { |r| r[:delivered] }).to eq([true])
+    expect(launch("agents", "PlanReview.reviews").first.to_s).to include("w-verdict", "changes")
+  end
+
   it "starts no run for a request at the hop limit", :aggregate_failures do
     expect(request("w-stop", 3)).to include("under the hop limit")
     expect(launch("agent_run.running").first.to_s).not_to include("w-stop")
