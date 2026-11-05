@@ -18,10 +18,13 @@ module Hecks
 
         # @param command [Array<String>] the program and its arguments, never a shell string
         # @param chdir [String, nil] where it runs
+        # @param stdin [String, nil] what is written to its standard input, then closed
         # @return [String] standard output
         # @raise [Unavailable] when the program is missing, times out or exits non-zero
-        def self.run(*command, chdir: nil, seconds: TIMEOUT_SECONDS)
-          out, err, status = Timeout.timeout(seconds) { Open3.capture3(*command, chdir: chdir || Dir.pwd) }
+        def self.run(*command, chdir: nil, seconds: TIMEOUT_SECONDS, stdin: nil)
+          out, err, status = Timeout.timeout(seconds) do
+            Open3.capture3(*command, chdir: chdir || Dir.pwd, stdin_data: stdin.to_s)
+          end
           raise Unavailable, "#{command.first} #{command[1]}: #{reason(err)}" unless status.success?
 
           out

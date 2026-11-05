@@ -47,7 +47,7 @@ module Hecks
         def command(action, fields)
           case action
           when "answer" then ["AgentRun.answer!", "to=#{fields[:target]}", "answer.value=#{fields[:text]}", "--wait"]
-          when "reply" then ["-p", "--resume", fields[:resume].to_s, *permission_flags(fields[:permission]), fields[:text]]
+          when "reply" then ["attach", fields[:attach].to_s]
           when "board_train" then ["SendTrain.board!", "--confirm"]
           when "promote" then ["PromotionRun.promote!", "lane=stable", "--confirm", "--wait"]
           when "check_in" then ["RedFlag.check_in!", "run.value=#{fields[:target]}", "session.value=#{fields[:session]}",

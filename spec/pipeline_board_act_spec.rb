@@ -16,11 +16,14 @@ RSpec.describe "POST /api/act on the board" do
 
   after { server.stop }
 
+  def stdins = (@stdins ||= [])
+
   def stages = instance_double(Hecks::Adapters::PipelineStages, state: { stages: [] })
 
   def launcher
-    lambda do |*args, **|
+    lambda do |*args, **opts|
       sent << args
+      stdins << opts[:stdin]
       raise Hecks::Adapters::PipelineBoard::Unavailable, "launcher refused" if refuse
 
       ""
@@ -100,7 +103,7 @@ RSpec.describe "POST /api/act on the board" do
 
   context "when a blocked session has no run key and the page replies to it" do
     let(:sessions) do
-      [{ id: "s1", status: "blocked", resume: "resume-uuid", cwd: "/work/session", permission: "bypassPermissions" },
+      [{ id: "s1", status: "blocked", attach: "s1", resume: "resume-uuid", cwd: "/work/session" },
        { id: "s2", status: "done", resume: "other-uuid", cwd: "/work/other" }]
     end
 
@@ -109,7 +112,8 @@ RSpec.describe "POST /api/act on the board" do
     it "resumes the blocked session with the reply, in the session's own directory", :aggregate_failures do
       response = post("action" => "reply", "target" => "s1", "text" => "use staging")
       expect(response.code).to eq("200")
-      expect(sent).to eq([["claude", "-p", "--resume", "resume-uuid", "--permission-mode", "bypassPermissions", "use staging"]])
+      expect(sent).to eq([["claude", "attach", "s1"]])
+      expect(stdins).to eq(["use staging\r"])
     end
 
     it "refuses a session the board does not report as blocked, before anything runs", :aggregate_failures do

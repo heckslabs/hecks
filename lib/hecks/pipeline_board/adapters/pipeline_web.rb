@@ -31,7 +31,9 @@ module Hecks
         @launcher_root = ENV.fetch("PIPELINE_BOARD_LAUNCHER_ROOT", @root)
         @stages = settings[:stages] || PipelineStages.new(registry: registry, root: root)
         @wiring = settings[:wiring] || PipelineWiring.new(registry: registry)
-        @launcher = settings[:launcher] || ->(*args, chdir: @root) { PipelineBoard::Probe.run(*args, chdir: chdir, seconds: ACT_SECONDS) }
+        @launcher = settings[:launcher] || lambda do |*args, chdir: @root, stdin: nil|
+          PipelineBoard::Probe.run(*args, chdir: chdir, seconds: ACT_SECONDS, stdin: stdin)
+        end
         @interval = settings.fetch(:interval, 1.0)
         @snapshot = PipelineBoard::Snapshot.new(source: @stages.method(:state), background: settings.fetch(:background, true))
       end
@@ -50,7 +52,8 @@ module Hecks
         fields = resumable(fields) if action == "reply"
         argv = PipelineBoard::Actions.argv(action, fields, confirm: confirm)
         program = PipelineBoard::Actions.program(action)
-        @launcher.call(program, *argv, chdir: fields[:cwd] || @launcher_root)
+        stdin = action == "reply" ? "#{fields[:text]}\r" : nil
+        @launcher.call(program, *argv, chdir: @launcher_root, stdin: stdin)
         { ran: "#{program} #{argv.first}" }
       end
 
@@ -65,14 +68,14 @@ module Hecks
         row = blocked_session(fields[:target])
         raise PipelineBoard::Unavailable, "no resumable blocked session #{fields[:target]}" unless row
 
-        fields.merge(resume: row[:resume], cwd: row[:cwd], permission: row[:permission])
+        fields.merge(attach: row[:attach])
       end
 
       # @return [Hash, nil] the blocked session with this id, when it carries a resume id and a
       #   directory
       def blocked_session(id)
         Array(@snapshot.latest[:sessions]).find do |found|
-          found[:id] == id && found[:status] == "blocked" && found[:resume] && !found[:cwd].to_s.empty?
+          found[:id] == id && found[:status] == "blocked" && !found[:attach].to_s.empty?
         end
       end
 
