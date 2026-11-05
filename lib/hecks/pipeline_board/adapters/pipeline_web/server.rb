@@ -122,7 +122,7 @@ module Hecks
         def stream(socket)
           socket.write("HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nCache-Control: no-store\r\n" \
                        "Connection: close\r\n\r\n")
-          @app.stream { |event| socket.write("event: board\ndata: #{JSON.generate(event)}\n\n") }
+          @app.stream { |event| socket.write("event: #{event.key?(:state) ? "state" : "board"}\ndata: #{JSON.generate(event)}\n\n") }
         end
       end
     end

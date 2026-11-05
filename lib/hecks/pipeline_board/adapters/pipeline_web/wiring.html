@@ -281,7 +281,7 @@ addEventListener("mouseup", (e) => {
 
 /* ---- the sidebar: what a node declares, and what it is doing right now ---- */
 const recent = [];
-let selected = null, focusId = null, panelTimer = null, waiting = null;
+let selected = null, focusId = null, waiting = null;
 /* The stream sends an event again when its reactions settle, so a key is kept once, at its newest. */
 function remember(ev) {
   const i = recent.findIndex((held) => held.key === ev.key);
@@ -294,10 +294,9 @@ function touches(ev, n) {
 }
 function openPanel(n) {
   selected = n; waiting = null; $("panel").hidden = false; $("ptitle").textContent = n.label; renderPanel();
-  clearInterval(panelTimer); panelTimer = setInterval(renderPanel, 2000);
   try { history.replaceState(null, "", "#" + encodeURIComponent(n.id)); } catch (e) { /* history may be unavailable */ }
 }
-function closePanel() { selected = null; focusId = null; waiting = null; $("panel").hidden = true; $("focus").setAttribute("aria-pressed", "false"); clearInterval(panelTimer); try { history.replaceState(null, "", location.pathname); } catch (e) { /* ignore */ } }
+function closePanel() { selected = null; focusId = null; waiting = null; $("panel").hidden = true; $("focus").setAttribute("aria-pressed", "false"); try { history.replaceState(null, "", location.pathname); } catch (e) { /* ignore */ } }
 function section(title, ...kids) { return [h("h3", {}, title), ...kids]; }
 function nodeLink(id) { const n = byId.get(id); return h("button", { class: "link", type: "button", "data-id": id }, n ? n.label : id); }
 function renderPanel() {
@@ -526,7 +525,7 @@ function listen() {
   es.onerror = () => { $("live").textContent = "stream: reconnecting"; };
   es.addEventListener("board", (m) => {
     const ev = JSON.parse(m.data); if (!ev.key) return;
-    remember(ev);
+    remember(ev); if (selected) renderPanel();
     if (!liveStarted) { backlog.push(ev); clearTimeout(listen.t); listen.t = setTimeout(startLive, 600); } else fire(ev, true);
   });
 }
