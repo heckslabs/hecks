@@ -3,6 +3,7 @@
 require "json"
 require "time"
 require_relative "cache"
+require_relative "session_context"
 
 module Hecks
   module Adapters
@@ -62,7 +63,15 @@ module Hecks
         status = status_of(state, agent, age)
         { id: id, name: name_of(id, agent), status: status, state: state["state"].to_s,
           detail: state["detail"].to_s.slice(0, 140), started: stamp(agent, edges),
-          ended: ended_of(status, edges) }.merge(ran_of(id))
+          ended: ended_of(status, edges) }.merge(ran_of(id)).merge(context_of(status, state))
+      end
+
+      # What a blocked session waits on: its transcript's last words and steps, and the links its
+      # job lists (pull requests and the like). Other sessions carry nothing extra.
+      def context_of(status, state)
+        return {} unless status == "blocked"
+
+        { context: PipelineBoard::SessionContext.of(state["linkScanPath"].to_s).merge(links: Array(state["children"])) }
       end
 
       def ended_of(status, edges) = %w[busy blocked].include?(status) ? nil : edges.last
