@@ -261,6 +261,7 @@ Hecks.bluebook "Pipeline" do
   # question it asks of the git host; an adapter answers it.
   aggregate "PullRequest" do
     description "A pull request a passage's branch goes through, read from the git host. An adapter answers Lookup; this bluebook never fetches."
+    acknowledges :no_command_surface, "a pull request is read from the git host through its Lookup query; nothing here changes it"
 
     identified_by :number
 
