@@ -123,6 +123,7 @@ tr.clickable { cursor: pointer; } tr.clickable:hover, tr.clickable:focus-visible
   .node { margin-right: 0; min-height: 0; }
   .node:not(:last-child)::after { display: none; }
 }
+details.panel { margin: 0; } details.panel > summary { cursor: pointer; list-style: none; } details.panel > summary::-webkit-details-marker { display: none; } details.panel > summary h2 { display: inline-block; }
 </style>
 </head>
 <body>
@@ -139,28 +140,28 @@ tr.clickable { cursor: pointer; } tr.clickable:hover, tr.clickable:focus-visible
   </header>
 
   <section aria-labelledby="h-tiles"><h2 id="h-tiles">Key metrics</h2><div class="tiles" id="tiles"></div></section>
-  <section aria-labelledby="h-strip"><h2 id="h-strip">Pipeline</h2><div class="strip" id="strip"></div></section>
+  <details class="panel"><summary><h2 id="h-strip">Pipeline</h2></summary><div class="strip" id="strip"></div></details>
 
-  <section aria-labelledby="h-fan"><h2 id="h-fan">Fan-out</h2>
+  <details class="panel"><summary><h2 id="h-fan">Fan-out</h2></summary>
     <div class="grid2">
       <div><div class="legend" id="lanelegend"></div><div id="lanes" class="chartview"></div><div class="tableview scroll" id="lanetable"></div></div>
       <div><div id="meters"></div><div id="flags"></div><div id="fill"></div></div>
     </div>
     <div class="scroll" id="mapping"></div>
-  </section>
+  </details>
 
-  <section aria-labelledby="h-ci"><h2 id="h-ci">CI on main</h2>
+  <details class="panel"><summary><h2 id="h-ci">CI on main</h2></summary>
     <div class="grid2">
       <div><div class="label">Failed jobs per run, oldest to newest</div><div id="failedchart" class="chartview"></div><div class="tableview scroll" id="failedtable"></div></div>
       <div><div class="label">Wall minutes per run (goal 3)</div><div id="wallchart" class="chartview"></div><div class="tableview scroll" id="walltable"></div></div>
     </div>
     <h2 style="margin-top:14px">Slowest jobs of the last completed run</h2>
     <div id="slowchart" class="chartview"></div><div class="tableview scroll" id="slowtable"></div>
-  </section>
+  </details>
 
-  <section aria-labelledby="h-work"><h2 id="h-work">Open Work items</h2><div class="scroll" id="work"></div></section>
-  <section aria-labelledby="h-sess"><h2 id="h-sess">Sessions</h2><div class="scroll" id="sessions"></div></section>
-  <section aria-labelledby="h-ev"><h2 id="h-ev">Events and what answered them</h2><div class="feed" id="feed" aria-live="polite"></div></section>
+  <details class="panel"><summary><h2 id="h-work">Open Work items</h2></summary><div class="scroll" id="work"></div></details>
+  <details class="panel"><summary><h2 id="h-sess">Sessions</h2></summary><div class="scroll" id="sessions"></div></details>
+  <details class="panel"><summary><h2 id="h-ev">Events and what answered them</h2></summary><div class="feed" id="feed" aria-live="polite"></div></details>
 </main>
 <dialog id="resolve" aria-labelledby="resolve-title">
   <h2 id="resolve-title"></h2>

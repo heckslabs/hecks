@@ -50,10 +50,24 @@ module Hecks
       private
 
       def items
-        found = @standin || records_of("Tickets", "Work").map { |record| item(record) }
+        found = @standin || from_launcher || records_of("Tickets", "Work").map { |record| item(record) }
         raise PipelineBoard::Unavailable, EMPTY if found.empty?
 
         found
+      end
+
+      # The undone Work items as the launcher reads them in the checkout that holds the live
+      # store, when the board is told where that is (PIPELINE_BOARD_LAUNCHER_ROOT). Nil otherwise.
+      def from_launcher
+        root = ENV.fetch("PIPELINE_BOARD_LAUNCHER_ROOT", "")
+        return nil if root.empty?
+
+        PipelineBoard::Probe.json("exe/hecks", "tickets", "Work.undone", chdir: root).map { |row| launched(row) }
+      end
+
+      def launched(row)
+        { slug: row["work"].to_s, status: row["status"].to_s, title: row["title"].to_s,
+          area: StartedWork.words(row["area"]), claimed_by: row["claimed_by"].to_s, claimed_at: row["claimed_at"].to_s }
       end
 
       def item(record)
