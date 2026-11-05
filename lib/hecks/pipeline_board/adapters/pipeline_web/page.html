@@ -389,10 +389,20 @@ $("resolve-copy").addEventListener("click", async () => {
 function renderRoles(roles, reviews, work) {
   fillWork(work);
   if (isUnknown(roles)) put("roles", unknown(roles));
-  else put("roles", table(["Role", "Live sessions", "Last activity"], roles.map((r) => [r.name, String(r.live), r.last ? r.last.name + " · " + clock(r.last.at) : "none yet"])));
+  else put("roles", h("div", { class: "rolecards" }, ...roles.map(roleCard)));
   if (isUnknown(reviews)) return put("reviews", unknown(reviews));
   if (!reviews.length) return put("reviews", h("p", { class: "note" }, "No plan reviews yet."));
   put("reviews", table(["Work item", "Verdict", "Findings"], reviews.map((r) => [r.work, r.verdict || "waiting", findingsCell(r.findings)])));
+}
+// One role's panel: what it is working on now, and what it has completed.
+function roleCard(r) {
+  const line = (text) => h("div", { class: "note" }, text);
+  const now = (r.working || []).map((s) => line("▶ " + s.name + " - " + (s.detail || s.status)));
+  const done = (r.completed || []).map((s) => line("✓ " + s.name + " - " + (s.detail || "finished")));
+  const events = (r.handled || []).map((e) => line("• " + e.name + " · " + clock(e.at)));
+  const idle = now.length + done.length + events.length ? [] : [line("Nothing yet.")];
+  return h("details", { class: "rolecard", open: "" }, h("summary", {}, r.name + " (" + r.live + " working)"),
+    ...now, ...events, ...done, ...idle);
 }
 // The architect's findings: a short line, opening to the whole text.
 function findingsCell(text) {
