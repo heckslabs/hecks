@@ -67,7 +67,7 @@ module Hecks
 
       def launched(row)
         { slug: row["work"].to_s, status: row["status"].to_s, title: row["title"].to_s,
-          area: StartedWork.words(row["area"]), claimed_by: row["claimed_by"].to_s, claimed_at: row["claimed_at"].to_s }
+          area: Array(row["area"]).map(&:to_s), claimed_by: row["claimed_by"].to_s, claimed_at: row["claimed_at"].to_s }
       end
 
       def item(record)
