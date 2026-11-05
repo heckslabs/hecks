@@ -30,6 +30,29 @@ thread_local! {
     static FIXED_CLOCK: Cell<Option<i64>> = const { Cell::new(None) };
 }
 
+/// Asks the host for a fact the kernel cannot answer itself (host protocol, ADR 0189): the fact's
+/// name and the type of the attribute it fills in, the host's value out, `None` when it has none.
+pub type Asker = Box<dyn FnMut(&str, &str) -> Option<Json>>;
+
+thread_local! {
+    static ASKER: RefCell<Option<Asker>> = const { RefCell::new(None) };
+}
+
+/// Installs the host callback for the dispatches that follow on this thread, or clears it. With
+/// none installed an unknown fact is left unanswered, as before.
+pub fn set_asker(asker: Option<Asker>) {
+    ASKER.with(|a| *a.borrow_mut() = asker);
+}
+
+/// The host's answer to an unknown fact, when a callback is installed and the host has one.
+fn ask(need: &Need) -> Option<Json> {
+    ASKER.with(|a| {
+        a.borrow_mut()
+            .as_mut()
+            .and_then(|asker| asker(&need.fact, &need.attribute_type))
+    })
+}
+
 /// Reads a `{ name: [{fact, type}] }` table (an absent or malformed one reads as empty).
 fn parse_table(table: Option<&Json>) -> HashMap<String, Vec<Need>> {
     match table {
@@ -150,7 +173,8 @@ fn answer(need: &Need, occurred_at: Option<&str>) -> Option<Json> {
                 Json::obj(vec![("value", Json::int(answer))])
             })
         }
-        _ => None,
+        // Any other fact is the host's to give, when it offered to be asked.
+        _ => ask(need),
     }
 }
 
