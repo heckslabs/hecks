@@ -1025,6 +1025,6 @@ Hecks.hecksagon "Agents" do
   translates "RecordTheArchitectsVerdict" do
     on AgentRun::JobRead
     where { verdict != "" && previous != state }
-    trigger PlanReview::Answer, with: { work: :run, verdict: :verdict }
+    trigger PlanReview::Answer, with: { work: :run, verdict: :verdict, findings: :findings }
   end
 end

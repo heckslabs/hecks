@@ -84,7 +84,18 @@ module Hecks
       # @raise [ConsoleCapture::Failure] when the job's state cannot be read
       def read_job(**held)
         job = @jobs.state(plain(held[:session]))
-        { state: job["state"].to_s, detail: job["detail"].to_s, verdict: verdict_of(job, held) }.merge(run_facts(held))
+        { state: job["state"].to_s, detail: job["detail"].to_s }.merge(architect_facts(job, held), run_facts(held))
+      end
+
+      # The most of the architect's closing text a review keeps.
+      FINDINGS_LIMIT = 2000
+
+      # @return [Hash{Symbol => String}] the architect's `verdict` and its `findings` (its closing
+      #   text), both empty for any other agent
+      def architect_facts(job, held)
+        return { verdict: "", findings: "" } unless plain(held[:agent]).to_s == "architect"
+
+        { verdict: verdict_of(job), findings: job.dig("output", "result").to_s[0, FINDINGS_LIMIT] }
       end
 
       # @return [Hash{Symbol => String}] the run the job belongs to: its key, its last known
@@ -99,11 +110,8 @@ module Hecks
       VERDICT_WORDS = /\b(sound with changes|sound|rethink)\b/i
 
       # @param job [Hash] the job's state
-      # @param held [Hash] the `AgentRun` record: `agent`
       # @return [String] `sound`, `changes`, `rethink`, or empty
-      def verdict_of(job, held)
-        return "" unless plain(held[:agent]).to_s == "architect"
-
+      def verdict_of(job)
         closing = [job.dig("output", "result"), job["detail"]].compact.join(" ")
         word = closing[VERDICT_WORDS, 1].to_s.downcase
         word == "sound with changes" ? "changes" : word
