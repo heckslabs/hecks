@@ -730,7 +730,7 @@ Hecks.bluebook("Bad") { aggregate("Widget") { identified_by :id; acknowledges :n
 ```
 
 The allowance sits on the aggregate it excuses, not in a list kept apart from it. A
-`.contextmap` relationship takes the same word as `acknowledges:` for the findings about the
+`.contextmap` relationship takes the same word as `accepted_findings:` for the findings about the
 relationship itself.
 
 ## projects

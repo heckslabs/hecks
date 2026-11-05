@@ -9,7 +9,8 @@ module Hecks
     class JournalStore
       module Readings
         # What a boot of each bluebook under a domain directory would resolve, answered by
-        # `Runtime::EraStatus`, the resolution the boot itself records, against the database each
+        # `Runtime::RevisionStatus`, the resolution the boot itself records, against the database
+        # each
         # bluebook's own world declares. Both queries only read: the connection refuses writes.
         module BootStatus
           # Each bluebook's boot status: from its own database when it declares one, else from the
@@ -22,7 +23,7 @@ module Hecks
             answering do
               directory = plain(domain)
               registry = Hecks.describe(directory).registry
-              JSON.pretty_generate(with_ledger(directory, registry, Runtime::EraStatus.rows(registry, directory)))
+              JSON.pretty_generate(with_ledger(directory, registry, Runtime::RevisionStatus.rows(registry, directory)))
             end
           end
 
@@ -36,7 +37,7 @@ module Hecks
           def boot_resolution(domain:)
             answering do
               directory = plain(domain)
-              rows = Runtime::EraStatus.rows(Hecks.describe(directory).registry, directory)
+              rows = Runtime::RevisionStatus.rows(Hecks.describe(directory).registry, directory)
               JSON.pretty_generate({ "domain" => directory, "bluebooks" => rows })
             end
           end

@@ -25,17 +25,17 @@ module Hecks
 
         # What a boot of this bluebook would resolve, read from its own database over a connection
         # that can only read. The boot's `era_check!` records the same answer. See
-        # `LineageManager::EraResolution`.
+        # `LineageManager::RevisionResolution`.
         #
         # @param registry [Runtime::Registry] the loaded registry, for its translation edges
         # @param bluebook [Bluebook::Declaration] the bluebook as it stands
         # @param settings [Hash{Symbol, String => Object}] persistence settings; needs `database`
         # @param directory [String, nil] the domain's bluebook directory
-        # @return [LineageManager::EraResolution::Answer]
+        # @return [LineageManager::RevisionResolution::Answer]
         # @raise [Runtime::WiringError] if the database is unreachable or a held text was altered
         def era_status(registry:, bluebook:, settings:, directory: nil)
-          LineageManager::EraResolution.read(bluebook: bluebook, settings: settings,
-                                             translations: registry.translations, directory: directory)
+          LineageManager::RevisionResolution.read(bluebook: bluebook, settings: settings,
+                                                  translations: registry.translations, directory: directory)
         end
 
         # Reads one setting under either its Symbol or String spelling.

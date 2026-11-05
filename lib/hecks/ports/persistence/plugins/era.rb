@@ -29,8 +29,8 @@ module Hecks
           # @raise [Runtime::WiringError] if an aggregate's persistence binding is missing,
           #   ambiguous, or carries an unsupported role
           def contribute_boot_gates(registry, gates)
-            gates.register(:era_check, Runtime::EraCheck.method(:check_lineage!), phase: :pre_verify) if
-              Runtime::EraCheck.lineage_capable_registry?(registry)
+            gates.register(:era_check, Runtime::RevisionCheck.method(:check_lineage!), phase: :pre_verify) if
+              Runtime::RevisionCheck.lineage_capable_registry?(registry)
           end
         end
       end

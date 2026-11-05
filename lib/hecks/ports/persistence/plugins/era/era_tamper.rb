@@ -9,8 +9,8 @@ module Hecks
     # edited after freezing (detected elsewhere via a digest mismatch).
     #
     # Lives here, not under `Ports::Persistence`, because `project` below
-    # calls runtime DSL-execution machinery (`EraGuard`, `StorageShape`) directly.
-    module EraTamper
+    # calls runtime DSL-execution machinery (`RevisionGuard`, `StorageShape`) directly.
+    module RevisionTamper
       module_function
 
       # Words the boot refusal for a held era text whose digest does not match.
@@ -50,7 +50,7 @@ module Hecks
         file = Tempfile.new(["hecks-tamper-", ".bluebook"])
         file.write(text)
         file.flush
-        EraGuard.shadow_parse(text, file.path)
+        RevisionGuard.shadow_parse(text, file.path)
       ensure
         file&.close!
       end

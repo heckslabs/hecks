@@ -115,14 +115,15 @@ module Hecks
         def directory = held.directory
 
         # Which held era the subject's shape resolves to, and the verdict a mint from the latest one
-        # would reach, by the resolution a boot records (`LineageManager::EraResolution`). It reads
+        # would reach, by the resolution a boot records (`LineageManager::RevisionResolution`). It
+        # reads
         # only the eras it is handed.
         #
         # @param eras [Array<Hash>] the copy's held eras, oldest first: `label`, `held_text`
         # @yieldreturn [Integer] the copy's ledger watermark, read only when no held era matches
-        # @return [PostgresEra::LineageManager::EraResolution::Answer]
+        # @return [PostgresEra::LineageManager::RevisionResolution::Answer]
         def resolve(eras, &)
-          PostgresEra::LineageManager::EraResolution.resolve(
+          PostgresEra::LineageManager::RevisionResolution.resolve(
             eras: eras, bluebook: bluebook, translations: registry.translations, directory: directory, &
           )
         end

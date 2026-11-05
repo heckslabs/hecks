@@ -14,7 +14,7 @@ module Hecks
         # never derived, since the wiring cannot tell a co-owned model from one taken as given.
         IMPLEMENTS = {
           "customer_supplier" => %i[customer_supplier],
-          "acl"               => %i[anticorruption_layer],
+          "acl"               => %i[anti_corruption_layer],
           "shared_kernel"     => %i[conformist shared_kernel open_host],
           "subscription"      => %i[conformist customer_supplier open_host]
         }.freeze
@@ -150,7 +150,7 @@ module Hecks
         def conformist_translates_finding(edge)
           Finding.new(kind: :conformist_translates, severity: :warning, subject: edge_subject(edge),
                       message: "the map declares #{edge[:from]} a conformist of #{edge[:to]}, " \
-                               "yet it translates (#{edge[:via]}) — declare anticorruption_layer if so")
+                               "yet it translates (#{edge[:via]}) — declare anti_corruption_layer if so")
         end
       end
     end

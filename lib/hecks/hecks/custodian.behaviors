@@ -48,7 +48,7 @@ Hecks.behaviors "Custodian" do
   test "CheckEra keeps a host that cannot be reached as lost" do
     tests "CheckEra", on: "Host"
     input host: { value: "http://127.0.0.1:1" }, expected: { value: "eras.txt" }
-    expect emits: %w[EraCheckRequested HostRefused HostLost]
+    expect emits: %w[RevisionCheckRequested HostRefused HostLost]
   end
 
   test "CheckEra refuses an address that is not an http URL" do

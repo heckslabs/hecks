@@ -6,10 +6,10 @@ require_relative "../tools"
 module Hecks
   module Tools
     # Backfills `hecks_eras.held_projection` for rows that predate it, by calling the same path
-    # `EraStore#eras` already takes on boot, explicitly. Idempotent.
+    # `RevisionStore#eras` already takes on boot, explicitly. Idempotent.
     #
     #   hecks backfill_projections <domain path>
-    module EraProjectionBackfill
+    module RevisionProjectionBackfill
       module_function
 
       # Backfills the rows that carry no projection and prints how many it fixed.

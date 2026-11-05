@@ -39,7 +39,7 @@ RSpec.describe "shadow-parsing frozen era text against a legacy grammar" do
 
   # Shadow-parses `source` from a real file and yields the bluebook it reads.
   def shadow_parsed(name, source)
-    with_fixture(name, source) { |path| yield Hecks::Runtime::EraGuard.shadow_parse(source, path) }
+    with_fixture(name, source) { |path| yield Hecks::Runtime::RevisionGuard.shadow_parse(source, path) }
   end
 
   def eval_live(source, path)
@@ -141,7 +141,7 @@ RSpec.describe "shadow-parsing frozen era text against a legacy grammar" do
 
     it "still refuses the pre-ADR-0025 dot spelling of the same hop under shadow parse" do
       with_fixture("dotted_hop_shadow", DOTTED_HOP_SOURCE) do |path|
-        expect { Hecks::Runtime::EraGuard.shadow_parse(DOTTED_HOP_SOURCE, path) }
+        expect { Hecks::Runtime::RevisionGuard.shadow_parse(DOTTED_HOP_SOURCE, path) }
           .to raise_error(Hecks::Bluebook::DSL::Malformed, /client\.status.*never declares/m)
       end
     end

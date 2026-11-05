@@ -8,7 +8,7 @@ module Hecks
     class ContextMap
       # The relationship kinds a map may declare. `separate_ways` is not one: it is the absence
       # of a relationship, kept in {#separate_ways}.
-      KINDS = %i[customer_supplier conformist anticorruption_layer shared_kernel open_host
+      KINDS = %i[customer_supplier conformist anti_corruption_layer shared_kernel open_host
                  partnership].freeze
 
       # The kind of the derived edge that an `attaches` makes.

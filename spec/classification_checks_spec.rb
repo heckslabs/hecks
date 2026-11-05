@@ -44,11 +44,11 @@ RSpec.describe Hecks::Bluebook::ModelCheck::ClassificationChecks do
   end
 
   it "leaves a core context behind an anticorruption layer alone" do
-    expect(conforming_kinds(map_of(as: :anticorruption_layer))).to be_empty
+    expect(conforming_kinds(map_of(as: :anti_corruption_layer))).to be_empty
   end
 
   it "takes an acknowledgement of a core context that conforms on purpose" do
-    acknowledged = map_of(as: :conformist, acknowledges: { core_conforms: "Billing adopts the ledger's model as given" })
+    acknowledged = map_of(as: :conformist, accepted_findings: { core_conforms: "Billing adopts the ledger's model as given" })
     expect(conforming_kinds(acknowledged)).to be_empty
   end
 end

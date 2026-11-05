@@ -23,7 +23,7 @@ RSpec.describe Hecks::Adapters::MainMaintenance, "#mint watermark guard" do
   # A ledger at `live`, of which `own` rows above the rehearsed watermark are the run's record.
   def ledger(live:, own:)
     allow(commands).to receive_messages(auto_mint_facts: { watermark: live }, own_rows_after: own)
-    allow(Hecks::Adapters::QaEraMint).to receive(:disposable?).and_return(false)
+    allow(Hecks::Adapters::QaRevisionMint).to receive(:disposable?).and_return(false)
   end
 
   def mint

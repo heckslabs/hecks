@@ -8,7 +8,7 @@ module Hecks
       class Lineage
         # CRUD over `hecks_eras`/`hecks_era_texts`: era text
         # integrity, archiving, and once-only era naming.
-        module EraStore
+        module RevisionStore
           # Verifies each held text's digest before returning it; a missing digest is backfilled. A
           # reading lineage verifies without writing.
           def eras
@@ -44,7 +44,7 @@ module Hecks
             ordinal = row["ordinal"].to_i
             stored = row["held_digest"]
             if stored && stored != Digest::SHA256.hexdigest(row["held_text"])
-              raise Runtime::WiringError, Runtime::EraTamper.refusal(domain: @domain, ordinal: ordinal)
+              raise Runtime::WiringError, Runtime::RevisionTamper.refusal(domain: @domain, ordinal: ordinal)
             end
 
             era_from(row)

@@ -30,7 +30,7 @@ shop.contexts.map(&:team)  # => ["storefront"]
 ## relate
 
 <!-- generated:begin word=relate -->
-`relate key:, as:, published:, of:, acknowledges:` — fills `relationships`
+`relate key:, as:, published:, of:, accepted_findings:` — fills `relationships`
 
 | argument | kind | required | fills |
 |---|---|---|---|
@@ -38,25 +38,25 @@ shop.contexts.map(&:team)  # => ["storefront"]
 | `as:` | symbol | true | relationships |
 | `published:` | list | false | relationships |
 | `of:` | list | false | relationships |
-| `acknowledges:` | literal | false | relationships |
+| `accepted_findings:` | literal | false | relationships |
 <!-- generated:end -->
 
 `relate "Upstream" => "Downstream", as: :kind` declares that the upstream context supplies and the
 downstream one consumes. `published:` lists the upstream events a downstream may depend on,
-`of:` the names a shared kernel holds in common, and `acknowledges:` the findings about the
+`of:` the names a shared kernel holds in common, and `accepted_findings:` the findings about the
 relationship that it allows, each with the reason. A relationship can carry only a finding
 about itself: a coupling with no relationship, or one the map declares apart, is fixed by
 declaring the relationship and not by allowing the finding.
 
 An `attaches` already makes the attaching context a conformist of the attached one, so a map
 writes only what an attach cannot say. A bare conformist line that only an attach explains is
-reported as `redundant_relationship`, which `acknowledges:` can allow.
+reported as `redundant_relationship`, which `accepted_findings:` can allow.
 
 ```ruby
 shop = Hecks::Bluebook::DSL::ContextMapBuilder.build("Shop") do
   context "Billing"
   context "Ordering"
-  relate "Billing" => "Ordering", as: :conformist, acknowledges: { conformist_translates: "Ordering keeps its own words" }
+  relate "Billing" => "Ordering", as: :conformist, accepted_findings: { conformist_translates: "Ordering keeps its own words" }
 end
 shop.relationships.first.acknowledges?(:conformist_translates)  # => true
 ```

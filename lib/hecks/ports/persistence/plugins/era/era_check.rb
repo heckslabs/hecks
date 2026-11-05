@@ -11,7 +11,7 @@ module Hecks
   module Runtime
     # The boot-time era gate for lineage-capable adapters (Postgres today):
     # each capable adapter's own era_check! decides hold, recognize, mint, or refuse.
-    module EraCheck
+    module RevisionCheck
       module_function
 
       # Runs the era gate over every bluebook in a registry.

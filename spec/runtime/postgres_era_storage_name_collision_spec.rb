@@ -438,7 +438,7 @@ RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (do
     end
 
     # target.bluebook is TARGET_V2, the shape hecks_eras already holds,
-    # so EraResolver finds no drift when this multi-bluebook boot runs.
+    # so RevisionResolver finds no drift when this multi-bluebook boot runs.
     #
     # Pinned: pre-fix, Notes' era-1 self-mint (ensure_first_head!) would
     # drop and recompile the shared, unqualified note_head view back to

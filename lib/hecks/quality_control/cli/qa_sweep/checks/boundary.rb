@@ -45,7 +45,7 @@ module Hecks
           # Seedless, once per sweep: audits the target's own persisted lineage. Nothing to audit
           # is a note, not a finding.
           def era_boundary_check(domain_path)
-            result = Hecks::Fuzzing::EraBoundary.diverged_ancestor_writes(domain_path)
+            result = Hecks::Fuzzing::RevisionBoundary.diverged_ancestor_writes(domain_path)
             return unchecked_era_boundary(domain_path, result) unless result[:checked]
 
             divergences = era_boundary_divergences(result)

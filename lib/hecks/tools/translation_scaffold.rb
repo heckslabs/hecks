@@ -122,7 +122,7 @@ module Hecks
       #
       # @return [Integer] 0
       def hold_first_era(lineage, bluebook, directory, current_shape)
-        lineage.hold_first!(Hecks::Runtime::EraCheck.source_text_for(bluebook, directory),
+        lineage.hold_first!(Hecks::Runtime::RevisionCheck.source_text_for(bluebook, directory),
                             projection: current_shape)
         puts "#{bluebook.name} held era 1 just now — nothing to scaffold."
         0

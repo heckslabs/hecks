@@ -39,7 +39,7 @@ module Hecks
         # @return [Array(String, Boolean)] the minted era's label or the refusal, and whether it
         #   minted
         def mint_era(root, domain:, era:, request:, ledger: nil)
-          QaEraMint.call(root, domain: domain, era: era, request: request, ledger: ledger)
+          QaRevisionMint.call(root, domain: domain, era: era, request: request, ledger: ledger)
         end
 
         # The auto-mint rule's facts of one ledger: its live watermark, the edge and the shape diff.

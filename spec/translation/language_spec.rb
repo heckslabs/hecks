@@ -219,7 +219,7 @@ RSpec.describe "the translation language" do
     end
   end
 
-  describe "EraGuard with the new rule kinds" do
+  describe "RevisionGuard with the new rule kinds" do
     def eval_bluebook(registry, source, path)
       loading = Hecks::Ports::Loading.bootstrap
       Hecks.with_registry(registry) do
@@ -328,7 +328,8 @@ RSpec.describe "the translation language" do
       registry
     end
 
-    # Calls EraGuard's primitives directly over two in-memory registries, as CoverageCheck does.
+    # Calls RevisionGuard's primitives directly over two in-memory registries, as CoverageCheck
+    # does.
     def check_era!(source, translation_source: nil)
       held_bluebook = era_registry(GUARDED_V1, "guarded_v1.bluebook").bluebook("Guarded")
       drifted = era_registry(source, "guarded_v2.bluebook")
@@ -336,7 +337,7 @@ RSpec.describe "the translation language" do
 
       bluebook = drifted.bluebook("Guarded")
       bluebook.aggregates.each { |aggregate| guard_aggregate(drifted, bluebook, held_bluebook, aggregate) }
-      Hecks::Runtime::EraGuard.check_vanished_aggregates!(drifted, bluebook, held_bluebook)
+      Hecks::Runtime::RevisionGuard.check_vanished_aggregates!(drifted, bluebook, held_bluebook)
     end
 
     def guard_aggregate(drifted, bluebook, held_bluebook, aggregate)
@@ -346,7 +347,7 @@ RSpec.describe "the translation language" do
     end
 
     def refuse_gaps(bluebook, aggregate, held_aggregate, lineage)
-      guard = Hecks::Runtime::EraGuard
+      guard = Hecks::Runtime::RevisionGuard
       uncovered = guard.uncovered_attributes(aggregate, held_aggregate, lineage)
       guard.refuse_uncovered!(bluebook, aggregate, uncovered) unless uncovered.empty?
 

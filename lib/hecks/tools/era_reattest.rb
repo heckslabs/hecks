@@ -12,7 +12,7 @@ module Hecks
     # digest is tamper-evidence against drift, not against an adversary.
     #
     #   hecks reattest <domain> <era ordinal> [--accept]
-    module EraReattest
+    module RevisionReattest
       USAGE = "usage: hecks reattest <domain> <era ordinal> [--accept]"
 
       extend Reporting

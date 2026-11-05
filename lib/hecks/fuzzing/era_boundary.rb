@@ -4,7 +4,7 @@ module Hecks
   module Fuzzing
     # Checks a target's real, already-configured `PostgresEra` ledger for
     # ancestor eras still holding writes nobody has merged forward.
-    module EraBoundary
+    module RevisionBoundary
       module_function
 
       # `kind:` on a `checked: false` result distinguishes a target with no

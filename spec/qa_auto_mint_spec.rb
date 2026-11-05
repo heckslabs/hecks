@@ -93,7 +93,7 @@ RSpec.describe "the auto-mint rule" do
     before do
       stub_const("Hecks::Adapters::MainMaintenance::STRANDED_DIR", File.join(state_dir, "state"))
       allow(commands).to receive_messages(mint_era: ["label", true], own_rows_after: 0)
-      allow(Hecks::Adapters::QaEraMint).to receive(:disposable?).and_return(false)
+      allow(Hecks::Adapters::QaRevisionMint).to receive(:disposable?).and_return(false)
     end
 
     after { FileUtils.remove_entry(state_dir) }

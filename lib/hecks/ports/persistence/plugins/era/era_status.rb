@@ -4,10 +4,11 @@ require_relative "storage_shape"
 module Hecks
   module Runtime
     # What a boot would resolve for each bluebook a registry loaded, asked of the same adapter the
-    # boot's era gate asks (`EraCheck`), against the database each bluebook's own world declares.
+    # boot's era gate asks (`RevisionCheck`), against the database each bluebook's own world
+    # declares.
     # Nothing is minted, provisioned or recorded: an era-holding adapter answers over a connection
     # that can only read. A bluebook bound to an adapter that holds no eras answers `no_eras`.
-    module EraStatus
+    module RevisionStatus
       module_function
 
       # @param registry [Runtime::Registry] the loaded registry, as a boot loads it
@@ -28,8 +29,8 @@ module Hecks
       # @return [Hash] the row
       def row_for(registry, bluebook, directory)
         first = bluebook.aggregates.first
-        adapter = first && EraCheck.adapter_for(registry, bluebook.name, first)
-        return no_eras(bluebook, adapter || "nothing") unless adapter && EraCheck.lineage_capable?(registry, adapter)
+        adapter = first && RevisionCheck.adapter_for(registry, bluebook.name, first)
+        return no_eras(bluebook, adapter || "nothing") unless adapter && RevisionCheck.lineage_capable?(registry, adapter)
 
         settings = registry.binding_settings(bluebook.name, Ports::Persistence::VERB, adapter)
         registry.adapter_class(adapter).era_status(registry: registry, bluebook: bluebook, settings: settings,

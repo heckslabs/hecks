@@ -75,7 +75,7 @@ module Hecks
           # @raise [PG::Error] if Postgres refuses a statement
           def rehold!(ordinal, text, projection, hash)
             fresh = Digest::SHA256.hexdigest(text)
-            @db.exec(EraIntegrity::CREATE_ATTESTATIONS_SQL)
+            @db.exec(RevisionIntegrity::CREATE_ATTESTATIONS_SQL)
             record_attestation!(ordinal, raw_era(ordinal)&.fetch(:held_digest), fresh)
             @db.exec_params(REHOLD_SQL, [@domain, ordinal, text, fresh, JSON.generate(projection), hash,
                                          hash[0, Runtime::StorageShape::LABEL_LENGTH],

@@ -14,7 +14,7 @@ module Hecks
         # Boot-time era resolution. A boot reads: it reports the era its shape resolves to, and
         # writes nothing. The mint entry point (a settings `mint_request`) is the only path that
         # provisions the lineage or mints an era.
-        module EraResolver
+        module RevisionResolver
           # Whether this copy may mint when its world says nothing about it. False, so a copy that
           # was not told refuses, and only the copy that owns a database moves it. A mint also needs
           # the mint entry point's request (`mint_request` in the settings): a boot never mints.
@@ -64,11 +64,12 @@ module Hecks
             [true, "true"].include?(PostgresEra.setting(settings, :mint_eras, default: MINT_BY_DEFAULT))
           end
 
-          # Resolves the boot's shape through `EraResolution`, the answer every era tool reads, and
+          # Resolves the boot's shape through `RevisionResolution`, the answer every era tool reads,
+          # and
           # records it on the registry; a mint request on a shape no era holds mints instead.
           def resolve_era(context)
-            answer = EraResolution.resolve(eras: context.held_eras, bluebook: context.bluebook,
-                                           translations: context.translations, directory: context.directory) do
+            answer = RevisionResolution.resolve(eras: context.held_eras, bluebook: context.bluebook,
+                                                translations: context.translations, directory: context.directory) do
               context.watermark
             end
             return refuse_unheld!(context) if answer.status == "unheld"

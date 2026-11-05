@@ -11,7 +11,8 @@ module Hecks
       module Readings
         module MintPlan
           # The guards that need the store, in the order the mint runs them: the era resolution
-          # (`EraResolution`, the one answer a boot and a rehearsal read), the held-shape refusal,
+          # (`RevisionResolution`, the one answer a boot and a rehearsal read), the held-shape
+          # refusal,
           # then the edge guards, then the watermark.
           class Inspection
             LATER = %w[edge coverage audit].freeze
@@ -50,7 +51,7 @@ module Hecks
               raise Runtime::WiringError, "#{@held.domain_name} holds no era; hold the first era before a mint" if eras.empty?
 
               named = [*eras[0...-1], @held.named(eras.last)]
-              [eras, PostgresEra::LineageManager::EraResolution.resolve(
+              [eras, PostgresEra::LineageManager::RevisionResolution.resolve(
                 eras: named, bluebook: @held.bluebook, translations: @held.translations, directory: @held.directory
               ) { lineage.last_ordinal }]
             end

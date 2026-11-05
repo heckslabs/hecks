@@ -91,7 +91,7 @@ module Hecks
         # Declares a newly added, required attribute and the default existing records read
         # until a real value is written.
         #
-        # What `EraGuard.refuse_unsafe_addition!` requires before a non-optional attribute
+        # What `RevisionGuard.refuse_unsafe_addition!` requires before a non-optional attribute
         # with no default can boot.
         #
         # @param name [String, Symbol] the new attribute's name

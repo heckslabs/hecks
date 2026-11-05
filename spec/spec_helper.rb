@@ -102,7 +102,7 @@ module InMemoryDomain
   HECKSAGON
 
   # Sibling world PostgresEra needs once the hecksagon above binds it —
-  # EraCheck looks up registry.world("Governance"), not QualityControl's.
+  # RevisionCheck looks up registry.world("Governance"), not QualityControl's.
   # @param database_url [String] the same URL the consuming domain's world uses
   # @return [String] a `Hecks.world "Governance"` file body
   def self.governance_postgres_era_world(database_url)

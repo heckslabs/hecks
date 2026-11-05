@@ -32,19 +32,19 @@ module Hecks
 
         # Declares that `upstream => downstream` relate as `kind`. `published:` lists the upstream
         # events a downstream may depend on, `of:` the names a shared kernel holds in common, and
-        # `acknowledges:` the findings about the relationship it allows, each with its reason.
+        # `accepted_findings:` the findings about the relationship it allows, each with its reason.
         #
         # @raise [ArgumentError] unless exactly one `"Upstream" => "Downstream"` pair is given
         # @raise [Bluebook::DSL::Malformed] if an acknowledgement names a kind the relationship
         #   cannot carry, or gives no reason
-        def relate(as:, published: [], of: [], acknowledges: {}, **pair)
+        def relate(as:, published: [], of: [], accepted_findings: {}, **pair)
           raise ArgumentError, "relate takes one \"Upstream\" => \"Downstream\" pair" unless pair.size == 1
 
           upstream, downstream = pair.first
           @relationships << ContextMap::Relationship.new(
             upstream: upstream.to_s, downstream: downstream.to_s, kind: as,
             published: Array(published).map(&:to_s), shared: Array(of).map(&:to_s),
-            acknowledged: acknowledged_by("#{upstream} => #{downstream}", acknowledges)
+            acknowledged: acknowledged_by("#{upstream} => #{downstream}", accepted_findings)
           )
         end
 
@@ -61,8 +61,8 @@ module Hecks
         private
 
         # @return [Hash{Symbol=>String}] each acknowledged kind with its reason, once all pass
-        def acknowledged_by(owner, acknowledges)
-          acknowledges.to_h do |finding, reason|
+        def acknowledged_by(owner, accepted_findings)
+          accepted_findings.to_h do |finding, reason|
             kind = Acknowledgements.kind!(owner, finding, reason, among: Acknowledgements::RELATIONSHIP_KINDS)
             [kind, reason]
           end

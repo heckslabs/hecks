@@ -12,7 +12,7 @@ module Hecks
         # read from its held text only when that text is the whole domain, which it is when it
         # hashes to the era's stored hash; otherwise the era is refused by name. LineageManager
         # extends it, so each method is called on LineageManager.
-        module HeldEra
+        module HeldRevision
           # @param era [Hash] an era as `Lineage#eras` answers it: `projection` when its mint
           #   recorded one, `hash` once it is named, and `held_text`
           # @return [Hash] the storage shape the era holds

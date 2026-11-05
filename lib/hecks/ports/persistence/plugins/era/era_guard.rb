@@ -8,7 +8,7 @@ module Hecks
   module Runtime
     # Shape-drift coverage primitives (ADR 0032). Not a driver: callers own
     # walking a registry and reading/writing held snapshots; nothing here does either.
-    module EraGuard
+    module RevisionGuard
       extend ShapeDiff
 
       module_function

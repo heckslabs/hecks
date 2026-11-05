@@ -53,7 +53,7 @@ RSpec.describe "the era tools and a local overlay" do
     end
   end
 
-  [Hecks::Tools::TranslationScaffold, Hecks::Tools::EraReattest, Hecks::Tools::EraProjectionBackfill,
+  [Hecks::Tools::TranslationScaffold, Hecks::Tools::RevisionReattest, Hecks::Tools::RevisionProjectionBackfill,
    Hecks::Tools::TranslationAudit, Hecks::Tools::TailMerge].each do |tool|
     describe tool do
       it "sees the PostgresEra a local hecksagon names" do

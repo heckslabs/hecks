@@ -7,7 +7,7 @@ module Hecks
     # Compares a running host's reported era (`GET /version`) against an
     # allow-list file of eras that should be running, for use after a roll. It is the HTTP side of
     # `hecks check_era`, which the `HostHttp` adapter runs; the runtime never calls it.
-    module ExpectedEra
+    module ExpectedRevision
       # The host could not be reached, or did not answer with a `200`.
       class Unreachable < StandardError; end
 

@@ -103,7 +103,7 @@ module Hecks
         end
 
         # (ADR 0025) Whether frozen era text is currently being shadow-parsed
-        # by `EraGuard`. Judging it again here would refuse history whenever a
+        # by `RevisionGuard`. Judging it again here would refuse history whenever a
         # spelling it used gets removed from the live grammar.
         #
         # @return [Boolean]

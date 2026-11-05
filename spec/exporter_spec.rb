@@ -112,13 +112,13 @@ RSpec.describe Hecks::Projector::Exporter do
       expect(described_class.lineage(registry, "Pizzas")).to eq(capable_aggregates: [])
     end
 
-    it "agrees with Runtime::EraCheck's own capability predicates, not a re-derived rule", :aggregate_failures do
+    it "agrees with Runtime::RevisionCheck's own capability predicates, not a re-derived rule", :aggregate_failures do
       registry = registry_with_directory_bound_to_postgres
       member = registry.bluebooks.fetch("Directory").aggregate("Member")
-      adapter = Hecks::Runtime::EraCheck.adapter_for(registry, "Directory", member)
+      adapter = Hecks::Runtime::RevisionCheck.adapter_for(registry, "Directory", member)
 
       expect(adapter).to eq("PostgresEra")
-      expect(Hecks::Runtime::EraCheck.lineage_capable?(registry, adapter)).to be true
+      expect(Hecks::Runtime::RevisionCheck.lineage_capable?(registry, adapter)).to be true
     end
   end
 

@@ -75,7 +75,7 @@ module Hecks
 
           # Refuses a mint of a shape a held era already holds, by the match the boot resolves with.
           def refuse_held_shape!(context)
-            held = EraResolution.matching_era(context.held_eras, context.bluebook) or return
+            held = RevisionResolution.matching_era(context.held_eras, context.bluebook) or return
 
             raise Runtime::WiringError,
                   "cannot mint #{context.domain_name}: era #{held[:ordinal]} already holds the current shape"

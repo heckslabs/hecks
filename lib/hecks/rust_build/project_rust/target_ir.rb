@@ -92,7 +92,7 @@ module Hecks
         def add_edges_and_source(document)
           edges = Hecks::Projector::Exporter.translations(@registry).select { |edge| edge[:domain] == @domain_name }
           document[:translations] = shaped(edges)
-          document[:source_text] = Hecks::Runtime::EraCheck.source_text_for(
+          document[:source_text] = Hecks::Runtime::RevisionCheck.source_text_for(
             @registry.bluebooks.fetch(@domain_name), @bluebook_dir, registry: @registry
           )
         end

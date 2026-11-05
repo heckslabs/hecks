@@ -39,12 +39,12 @@ module Hecks
       end
 
       def held?(registry, name, bluebook)
-        Framework.members.key?(name) || Runtime::EraCheck.lineage_capable?(registry, adapter_of(registry, name, bluebook))
+        Framework.members.key?(name) || Runtime::RevisionCheck.lineage_capable?(registry, adapter_of(registry, name, bluebook))
       end
 
       def adapter_of(registry, name, bluebook)
         first = bluebook.aggregates.first
-        first ? Runtime::EraCheck.adapter_for(registry, name, first) : Ports::Persistence::DEFAULT_ADAPTER
+        first ? Runtime::RevisionCheck.adapter_for(registry, name, first) : Ports::Persistence::DEFAULT_ADAPTER
       end
     end
   end
