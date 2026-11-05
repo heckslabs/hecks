@@ -2,6 +2,18 @@ Hecks.adapter "Postgres" do
   port  "persistence"
   field :database
   field :schema
+  # The name this domain's history is held under until renamed: `formerly "Old"`. A storage fact.
+  field :formerly
+  # The role this copy connects as. Only the revision layout uses it, as the era write fence's role.
+  field :role
+  # Opt-in to boot over a superuser or BYPASSRLS role, which the era write fence cannot bite.
+  field :allow_superuser
+  # Whether this copy may migrate the database to a newer revision at boot. Unset follows the default.
+  field :mint_eras
+  # Declares the store a disposable tooling ledger, applied in place or archived per change.
+  field :disposable_ledger
+  # The commands whose own record an unminted boot may write, one name or a list.
+  field :mints_era
   # Rewrites every row of an aggregate in one statement.
   provides "set_transform"
 end
