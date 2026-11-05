@@ -1,0 +1,17 @@
+Hecks.behaviors "PipelineBoard" do
+  vision "The board serves one page, the page takes only the steps the ActionRule rows name, and a server that cannot open is refused."
+
+  # `pipeline_board.hecksagon` binds the aggregate to Memory and attaches Governance, so a boot of
+  # these files passes the memory-only guard and the role check.
+  loads "pipeline_board.bluebook", "pipeline_board.hecksagon", "pipeline_board.ports.hecksagon"
+
+  # Only a request the aggregate refuses before it asks to listen is stated here. A `Serve` that is
+  # accepted reaches the `Web` port, and a process that has loaded the `PipelineWeb` adapter (the
+  # Web, Act and rules specs do) would open a real server and block on it, so the `Serve` that
+  # opens, `Act` and `Close` are covered by those specs.
+  test "Serve refuses a port below 1024" do
+    tests "Serve", on: "PipelineBoard"
+    input run: { value: "board-1" }, port: { value: 80 }
+    expect refused: "a port is 1024 to 65535"
+  end
+end

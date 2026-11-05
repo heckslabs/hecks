@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "../rules"
+
 module Hecks
   module Adapters
     module PipelineBoard
@@ -60,7 +62,7 @@ module Hecks
         end
 
         def stale(item, world)
-          return [] unless world[:landed].include?(item[:slug]) && %w[planned started].include?(item[:status])
+          return [] unless world[:landed].include?(item[:slug]) && Rules.stale_statuses.include?(item[:status])
 
           [{ kind: "landed", detail: "#{item[:slug]} already landed but is still #{item[:status]}#{restart(item, world)}" }]
         end

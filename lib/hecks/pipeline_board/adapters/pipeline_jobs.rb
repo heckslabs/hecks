@@ -3,6 +3,7 @@
 require "json"
 require "time"
 require_relative "cache"
+require_relative "rules"
 require_relative "session_context"
 
 module Hecks
@@ -11,9 +12,6 @@ module Hecks
     # from each job's own `state.json` and `timeline.jsonl` and from `claude agents --json`. It
     # reads the job's state and never the ledger, and writes nothing.
     class PipelineJobs
-      WINDOW_SECONDS = 24 * 3600
-      FRESH_SECONDS = 600
-
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] `jobs_dir:` the directory of jobs, `agents:` a callable answering
       #   the parsed `claude agents --json`, `runs:` a callable answering session id =>
@@ -51,7 +49,7 @@ module Hecks
         id = File.basename(File.dirname(path))
         age = @now.call - File.mtime(path)
         agent = agents[id]
-        return if age > WINDOW_SECONDS && !agent
+        return if age > PipelineBoard::Rules.setting("session_window_hours") * 3600 && !agent
 
         build(id, JSON.parse(File.read(path)), agent, age, File.join(File.dirname(path), "timeline.jsonl"))
       rescue JSON::ParserError, SystemCallError
@@ -104,12 +102,17 @@ module Hecks
       # A session paused on a push or CI is still working, so it is shown busy, not blocked.
       def status_of(state, agent, age)
         word = live_state(state, agent)
-        fresh = age < FRESH_SECONDS
-        return "blocked" if blocked_state?(word, agent, fresh) && waiting_on_person?(state)
-        return "busy" if blocked_state?(word, agent, fresh) || busy?(word, agent, fresh)
-
-        %w[failed error].include?(word) ? "failed" : "done"
+        fresh = age < PipelineBoard::Rules.setting("session_fresh_seconds")
+        PipelineBoard::Rules.verdict("Session status", session_measures(state, agent, word, fresh))
       end
+
+      # What the `Session status` rows compare, as 1 or 0.
+      def session_measures(state, agent, word, fresh)
+        { waiting: flag(blocked_state?(word, agent, fresh)), needs: flag(waiting_on_person?(state)),
+          busy: flag(busy?(word, agent, fresh)), failed: flag(%w[failed error].include?(word)) }
+      end
+
+      def flag(condition) = condition ? 1 : 0
 
       # The job says it is blocked, and it is listed or recently written.
       def blocked_state?(word, agent, fresh) = word == "blocked" && (!agent.nil? || fresh)
