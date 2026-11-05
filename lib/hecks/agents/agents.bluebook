@@ -33,6 +33,7 @@ Hecks.bluebook "Agents" do
       role "Maintainer"
       goal "Declare a role and the judgment it owns"
 
+      attribute :name, RoleName, sets: true
       attribute :kind, RoleKind, sets: true
 
       emits "RoleDeclared"
@@ -44,6 +45,7 @@ Hecks.bluebook "Agents" do
       role "System"
       goal "Issue one command on behalf of a role, unless the command is an owner decision"
 
+      reference_to Role
       attribute :command, CommandName
 
       given("the command is not an owner decision") do
@@ -105,6 +107,102 @@ Hecks.bluebook "Agents" do
       end
 
       emits "PlanReviewed"
+    end
+  end
+
+  # The reviewer's judgment of a failing spec: a real bug, or a stale expectation. A real bug is
+  # never fixed by an agent on its own; it goes to a person.
+  aggregate "SubmissionReview" do
+    description "One judgment by the reviewer role of a submission's failing spec: asked as an event, answered with a verdict, and a real bug handed to a person."
+
+    identified_by :work
+
+    attribute :work, WorkKey
+    attribute :judgment, Judgment, optional: true
+    attribute :hops, HopCount, optional: true
+
+    value_object "WorkKey" do
+      attribute :value, String, matches: :present
+      invariant("a review names its Work item") { !value.to_s.empty? }
+    end
+
+    value_object "Judgment" do
+      attribute :value, String
+    end
+
+    value_object "HopCount" do
+      attribute :value, Integer
+    end
+
+    command "Request" do
+      role "System"
+      goal "Ask the reviewer to judge a submission's failing spec"
+
+      attribute :work, WorkKey, sets: true
+      attribute :hops, HopCount, sets: true
+
+      given("the request is under the hop limit") { hops.value < 3 }
+
+      emits "SubmissionReviewRequested"
+    end
+
+    command "Judge" do
+      role "System"
+      goal "Record whether the failing spec is a real bug or a stale expectation"
+
+      reference_to SubmissionReview
+      attribute :judgment, Judgment, sets: true
+
+      given("the judgment is one the reviewer gives") do
+        judgment.value == "real_bug" || judgment.value == "stale_expectation"
+      end
+
+      emits "SpecFailureJudged"
+    end
+
+    # A real bug is not fixed by an agent's say-so. A person looks at it.
+    command "HandToPerson" do
+      role "System"
+      goal "Hand a real bug to a person instead of letting an agent fix it"
+
+      reference_to SubmissionReview
+
+      emits "HandedToPerson"
+    end
+
+    policy "RealBugGoesToAPerson" do
+      on      "SubmissionReview.SpecFailureJudged"
+      where   { judgment.value == "real_bug" }
+      trigger SubmissionReview::HandToPerson
+    end
+  end
+
+  # The release manager only recommends. Promotion stays a person's command, confirmed on the board.
+  aggregate "PromotionRecommendation" do
+    description "A release manager's recommendation to promote one commit, with its reasons. It never promotes: the owner confirms."
+
+    identified_by :commit
+
+    attribute :commit, CommitRef
+    attribute :reasons, Reasons, optional: true
+
+    value_object "CommitRef" do
+      attribute :value, String, matches: :present
+      invariant("a recommendation names a commit") { !value.to_s.empty? }
+    end
+
+    value_object "Reasons" do
+      attribute :value, String
+    end
+
+    command "Recommend" do
+      role "System"
+      goal "Recommend promoting one green commit, with the reasons"
+
+      attribute :commit, CommitRef, sets: true
+      attribute :reasons, Reasons, sets: true
+
+      emits "PromotionRecommended"
     end
   end
 end
