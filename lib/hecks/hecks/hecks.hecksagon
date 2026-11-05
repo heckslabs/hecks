@@ -10,6 +10,7 @@ Hecks.hecksagon "Hecks" do
   # An architect review asked for by event starts a session through AgentRun (see
   # StartTheArchitectOnReviewRequest in the delegate bluebook).
   subscribe "Agents.PlanReviewRequested"
+  subscribe "Agents.PlanningRequested"
   # Persistence is not bound here, so the domain is in Memory. A copy opts in with a
   # hecks.local.hecksagon whose `persisted_by` the attached bluebooks inherit (ADR 0136).
 

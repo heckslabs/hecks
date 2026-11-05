@@ -180,6 +180,10 @@ details.panel > .scroll, details.panel > .feed, details.panel > .strip, details.
   </header>
 
   <details class="panel" open><summary><h2 id="h-roles">Agents</h2></summary><div class="scroll" id="roles"></div>
+    <div class="askform"><h3 class="sub">Ask the planner to plan a goal</h3>
+      <textarea id="plan-goal" rows="3" placeholder="The goal: what you want done"></textarea>
+      <div><button type="button" id="plan-send" data-tip="Starts the planner's session. It drafts a plan of Work items and asks you which options to take; it creates items only after you confirm">Ask the planner</button> <span id="plan-note" class="note"></span></div>
+    </div>
     <div class="askform"><h3 class="sub">Ask the architect to review a plan</h3>
       <select id="ask-work" aria-label="Work item to review"></select>
       <textarea id="ask-plan" rows="3" placeholder="The plan: what you will build, which files it touches, how it will be checked"></textarea>
@@ -405,6 +409,16 @@ function fillWork(work) {
   select.replaceChildren(...slugs.map((s) => h("option", { value: s }, s)));
   select.dataset.slugs = slugs.join("|");
   if (slugs.includes(chosen)) select.value = chosen;
+}
+// Gives the planner a goal; its session drafts a plan and asks, and creates Work items only after you confirm.
+async function askPlanner() {
+  const note = $("plan-note"), goal = $("plan-goal").value.trim();
+  if (!goal) { note.textContent = "Write the goal first."; return; }
+  $("plan-send").disabled = true; note.textContent = "asking…";
+  const res = await fetch("/api/act", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "plan", text: goal }) });
+  $("plan-send").disabled = false;
+  if (res.ok) { $("plan-goal").value = ""; note.textContent = "asked; the planner's session will ask you about options"; return refresh(); }
+  note.textContent = "not asked: " + (await res.text()).slice(0, 200);
 }
 // Raises the plan review request for the Work item chosen, with the plan written.
 async function askArchitect() {
@@ -776,6 +790,7 @@ $("toggle").addEventListener("click", () => {
 $("ans-send").addEventListener("click", sendAnswer);
 $("ans-yourcall").addEventListener("click", () => { $("ans-text").value = "your call"; sendAnswer(); });
 $("ask-send").addEventListener("click", askArchitect);
+$("plan-send").addEventListener("click", askPlanner);
 document.querySelectorAll(".switch button").forEach((b) => b.addEventListener("click", () => {
   $("view").src = b.dataset.view;
   document.querySelectorAll(".switch button").forEach((o) => o.setAttribute("aria-pressed", String(o === b)));

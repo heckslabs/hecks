@@ -65,6 +65,7 @@ module Hecks
         return [action, resumable(fields)] if action == "reply"
         return [action, discardable(fields)] if action == "discard"
         return [action, fields.merge(repo: @launcher_root)] if action == "review"
+        return [action, fields.merge(repo: @launcher_root, key: "plan-#{Time.now.to_i}")] if action == "plan"
 
         [action, fields]
       end

@@ -10,7 +10,7 @@ module Hecks
         NEEDS = {
           "answer" => %i[target text], "reply" => %i[target text], "board_train" => [], "promote" => [],
           "check_in" => %i[target session text], "delete" => %i[target], "discard" => %i[target condition],
-          "auto_reply" => %i[target], "review" => %i[target text]
+          "auto_reply" => %i[target], "review" => %i[target text], "plan" => %i[text]
         }.freeze
 
         # The program each step runs: the launcher, except a reply, which resumes a Claude session.
@@ -57,8 +57,15 @@ module Hecks
            "repo.value=#{fields[:repo]}", "plan.value=#{fields[:text]}", "--wait"]
         end
 
+        # A goal given to the planner: the request's key and the checkout come from the board.
+        def plan_argv(fields)
+          ["agents", "Planning.request!", "plan.value=#{fields[:key]}", "goal.value=#{fields[:text]}",
+           "role.value=planner", "repo.value=#{fields[:repo]}", "--wait"]
+        end
+
         # The steps built by a helper or fixed outright: the launcher's argument list for each.
         LOOKUP = {
+          "plan"        => ->(fields) { plan_argv(fields) },
           "board_train" => ->(_) { ["SendTrain.board!", "--confirm"] },
           "promote"     => ->(_) { ["PromotionRun.promote!", "lane=stable", "--confirm", "--wait"] },
           "check_in"    => ->(fields) { check_in_argv(fields) },

@@ -72,7 +72,7 @@ Hecks.world "Hecks" do
   # success rate, in percent, at which a CI tile is good and at which it is fair before it is poor.
   ci_health "PipelineBoard", wall_goal_minutes: 3, success_good: 80, success_fair: 50
   # The agent roles the board pins at its top. Each wakes on demand; none may issue an owner decision.
-  agent_roles "PipelineBoard", roles: "orchestrator,architect,coder,reviewer,release_manager"
+  agent_roles "PipelineBoard", roles: "planner,orchestrator,architect,coder,reviewer,release_manager"
   # The runtime appends one JSON line per event and per policy delivery here, so a reader such as the
   # PipelineBoard sees the domains that persist nothing (the push train runs in Memory). A client's
   # world declares no `event_log`, so a client writes no file. The file rotates at `max_bytes`.
