@@ -12,7 +12,7 @@ RSpec.describe "a plan review request starting the architect's session" do
     here=$(dirname "$0")
     if [ "$1" = "agents" ]; then cat "$here/sessions.json"; exit 0; fi
     if [ "$1" = "--agent" ] && [ "$2" = "hecks-probe-not-an-agent" ]; then
-      printf 'Available agents: architect, coder\\n'; exit 0
+      printf 'Available agents: architect, coder, planner\\n'; exit 0
     fi
     printf 'backgrounded · stand-in-session\\n'
   SH
@@ -72,6 +72,19 @@ RSpec.describe "a plan review request starting the architect's session" do
     launch("agent_run.check!", "to=w-verdict", "--wait")
     expect(verdict_reactions.map { |r| r[:delivered] }).to eq([true])
     expect(launch("agents", "PlanReview.reviews").first.to_s).to include("w-verdict", "changes", "Revise the plan")
+  end
+
+  it "starts the planner's run for a planning request, keyed by the request" do
+    launch("agents", "Planning.request!", "plan.value=p-1", "goal.value=plan the agents panel", "role.value=planner",
+           "repo.value=#{scratch}", "--wait")
+    expect(launch("agent_run.running").first.to_s).to include("p-1")
+  end
+
+  it "refuses a planning request that says nothing, and starts no run", :aggregate_failures do
+    out = launch("agents", "Planning.request!", "plan.value=p-2", "goal.value=", "role.value=planner",
+                 "repo.value=#{scratch}", "--wait").first.to_s
+    expect(out).to include("says something")
+    expect(launch("agent_run.running").first.to_s).not_to include("p-2")
   end
 
   it "starts no run for a request at the hop limit", :aggregate_failures do

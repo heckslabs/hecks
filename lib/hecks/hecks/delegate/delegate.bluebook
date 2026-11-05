@@ -544,6 +544,13 @@ Hecks.bluebook "Hecks" do
       trigger AgentRun::Dispatch, with: { run: :work, repo: :repo, brief: :plan, agent: :role }
     end
 
+    # A planning request starts the planner's session as a run keyed by the request, with the goal as
+    # its brief. The planner drafts a plan and asks; it creates Work items only once the owner says so.
+    policy "StartThePlannerOnPlanningRequest" do
+      on      "Planning.PlanningRequested"
+      trigger AgentRun::Dispatch, with: { run: :plan, repo: :repo, brief: :goal, agent: :role }
+    end
+
     # A session the board started by hand has no run to tidy, so it is removed on its own. The
     # rule is the same as Tidy's: only a finished session that waits on nobody goes.
     aggregate "PlainSession" do

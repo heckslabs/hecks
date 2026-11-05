@@ -210,6 +210,53 @@ Hecks.bluebook "Agents" do
     end
   end
 
+  # The planner. The owner gives it a goal; its session drafts a plan of Work items and asks which
+  # options to take. It creates items only after the owner confirms, so this aggregate only asks.
+  aggregate "Planning" do
+    description "One request to the planner role: a goal to turn into a plan of Work items, with the checkout it reads."
+
+    identified_by :plan
+
+    attribute :plan, PlanKey
+    attribute :goal, GoalText, optional: true
+
+    value_object "PlanKey" do
+      attribute :value, String, matches: :present
+      invariant("a planning request has a key") { !value.to_s.empty? }
+    end
+
+    value_object "GoalText" do
+      attribute :value, String
+    end
+
+    value_object "RoleRef" do
+      attribute :value, String
+    end
+
+    value_object "RepoPath" do
+      attribute :value, String
+    end
+
+    command "Request" do
+      role "Maintainer"
+      goal "Ask the planner to turn a goal into a plan of Work items"
+
+      attribute :plan, PlanKey, sets: true
+      attribute :goal, GoalText, sets: true
+      attribute :role, RoleRef
+      attribute :repo, RepoPath
+
+      given("the goal says something") { goal.value != "" }
+
+      emits "PlanningRequested"
+    end
+
+    query "Requests" do
+      description "Every planning request, by key."
+      order_by :plan
+    end
+  end
+
   # The orchestrator. Routing is a rule first: a Work item with no conflict is routed at once and no
   # agent is asked. Only a conflicting item asks for advice, and that ask carries the hop limit.
   aggregate "Routing" do
