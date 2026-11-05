@@ -5,6 +5,7 @@ require_relative "console_capture"
 require_relative "rust_workspace"
 require_relative "process_pool"
 require "hecks/rust_build"
+require "hecks/rust_build/prune"
 
 module Hecks
   module Adapters
@@ -131,6 +132,22 @@ module Hecks
       # @raise [ConsoleCapture::Failure] when a rule excuses nothing
       def audit(**_held)
         child(:coverage, ["--check-allowlist"])
+      end
+
+      # Frees disk Rust builds hold: the `target/` of worktrees git no longer lists, then the
+      # shared cache's artifacts unused for `days`. Runs in this process; it needs no toolchain.
+      #
+      # @param held [Hash] the `Build` record: `days` (14 when absent) and `dry_run`
+      # @return [Hash{Symbol => Hash}] `output:` the megabytes freed, or that would be
+      def prune(**held)
+        dry = plain(held[:dry_run]) == true
+        listing = `git -C #{RustBuild::ROOT} worktree list --porcelain`
+        live = listing.scan(/^worktree (.+)$/).flatten
+        dir = File.join(live.first, ".claude", "worktrees")
+        freed = File.directory?(dir) ? RustBuild::Prune.orphans(dir, live: live, dry_run: dry) : 0
+        freed += RustBuild::Prune.stale(Dir.glob(File.join(RustBuild::TargetDir.shared("*"))),
+                                        days: plain(held[:days]) || 14, dry_run: dry)
+        { output: { value: "#{dry ? "would free" : "freed"} #{freed / 1_048_576} MB" } }
       end
 
       # Builds the `hecks-parse` binary the parser specs run, in `rust/parser`.

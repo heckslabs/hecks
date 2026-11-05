@@ -543,6 +543,12 @@ Hecks.hecksagon "Hecks" do
       refuses "BuildRefused"
     end
 
+    asks "Prune", to: Build do
+      attribute :run, BuildKey
+      answers "BuildAnswered"
+      refuses "BuildRefused"
+    end
+
     asks "Parser", to: Build do
       attribute :run, BuildKey
       answers "BuildAnswered"
