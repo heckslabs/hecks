@@ -90,6 +90,9 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
 @keyframes flash { from { background: color-mix(in srgb, var(--series1) 28%, transparent); } to { background: transparent; } }
 @media (prefers-reduced-motion: reduce) { .ev.fresh { animation: none; border-color: var(--series1); } .spin { animation: none; } }
 .spin { display: inline-block; animation: spin 1.2s linear infinite; }
+.filters { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.filters button.filter { font: inherit; font-size: 12px; color: var(--ink2); background: var(--surface); border: 1px solid var(--axis); border-radius: 999px; padding: 2px 10px; }
+.filters button.filter[aria-pressed="true"] { color: var(--ink); border-color: var(--series1); }
 .loader { display: flex; align-items: center; gap: 8px; color: var(--ink2); font-size: 13px; padding: 12px 0; }
 .loader .bar { height: 8px; flex: 0 1 240px; border-radius: 4px; background: linear-gradient(90deg, var(--grid) 25%, var(--axis) 50%, var(--grid) 75%); background-size: 200% 100%; animation: shimmer 1.4s linear infinite; }
 @keyframes shimmer { to { background-position: -200% 0; } }
@@ -538,14 +541,40 @@ function addDelete(row, s) {
   });
   row.cells[0].append(button);
 }
-function renderSessions(list) {
-  if (isUnknown(list)) return put("sessions", unknown(list));
-  put("sessions", table(["Session", "Status", "Work item", "Started", "Detail"], list.map((s) => [sessionLabel(s), [sessionBadge(s.status), " ", s.state], s.row || "-", clock(s.started), replyNote(s)])));
+// The Sessions filter: which sessions the table shows. "Deletable" is the set Delete is offered for.
+let sessionFilter = "all";
+const SESSION_FILTERS = {
+  all: () => true,
+  blocked: (s) => s.status === "blocked",
+  working: (s) => s.status === "busy",
+  finished: (s) => s.status === "done" || s.status === "failed",
+  deletable: (s) => deletable(s)
+};
+// A session can be deleted when it finished, waits on nobody, and is not a deploy: a deploy's
+// session is kept until the deploy is confirmed, whatever the board's state says.
+function deletable(s) {
+  return (s.status === "done" || s.status === "failed") && !/\bdeploy\b/i.test((s.name || "") + " " + (s.detail || ""));
+}
+function filterBar() {
+  const bar = h("div", { class: "filters", role: "group", "aria-label": "Filter sessions" });
+  for (const name of Object.keys(SESSION_FILTERS)) {
+    const b = h("button", { type: "button", class: "filter", "aria-pressed": String(name === sessionFilter) }, name);
+    b.addEventListener("click", () => { sessionFilter = name; renderSessions(lastSessions); });
+    bar.append(b);
+  }
+  return bar;
+}
+let lastSessions = [];
+function renderSessions(all) {
+  if (isUnknown(all)) return put("sessions", unknown(all));
+  lastSessions = all;
+  const list = all.filter(SESSION_FILTERS[sessionFilter] || SESSION_FILTERS.all);
+  put("sessions", filterBar(), table(["Session", "Status", "Work item", "Started", "Detail"], list.map((s) => [sessionLabel(s), [sessionBadge(s.status), " ", s.state], s.row || "-", clock(s.started), replyNote(s)])));
   const rows = $("sessions").querySelectorAll("tbody tr");
   list.forEach((s, i) => {
     // A reply the server has not answered yet keeps its row highlighted.
     if (replies.get(s.id)?.state === "sending") rows[i].classList.add("sending");
-    if (s.status === "done" || s.status === "failed") addDelete(rows[i], s);
+    if (deletable(s)) addDelete(rows[i], s);
     if (s.status !== "blocked") return;
     rows[i].classList.add("clickable"); rows[i].title = "Click to answer";
     answerable(rows[i], () => openAnswer([{ id: s.id, name: s.name, run: s.run, repo: s.repo, work_item: s.work_item, question: s.detail, context: s.context, attach: s.attach }], s.id));
