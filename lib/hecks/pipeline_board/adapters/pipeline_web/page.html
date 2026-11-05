@@ -268,8 +268,35 @@ function table(head, rows, numeric) {
 // Every row's hover: each column's name and its value, so a row reads in full without widening it.
 function rowTip(head, row) {
   const text = (c) => (Array.isArray(c) ? c.map(text).join("") : c instanceof Node ? c.textContent : String(c ?? ""));
-  return row.map((c, i) => head[i] + ": " + text(c)).join("\n");
+  const values = row.map(text);
+  const lines = values.map((v, i) => head[i] + ": " + v);
+  // What a value means, for the words the board shows most, so a hover says what to do.
+  for (const v of values) if (MEANING[v.trim()]) lines.push("→ " + v.trim() + ": " + MEANING[v.trim()]);
+  return lines.join("\n");
 }
+// Plain-language meaning of the status words the tables show.
+const MEANING = {
+  blocked: "waiting on you; open it to answer",
+  working: "running now; nothing for you to do",
+  busy: "running now; nothing for you to do",
+  done: "finished; it can be removed once nobody needs it",
+  failed: "ended with an error; check its detail before retrying",
+  planned: "not started; the next dispatch can pick it up",
+  started: "claimed and running; see who holds it",
+  finished: "its session ended; it can be removed",
+  landed: "merged into main",
+  pushed: "on origin/main",
+  held: "a red flag holds it until main is green",
+  verified: "checked and ready to promote",
+  promoted: "moved to stable; release is next",
+  released: "shipped",
+  delivered: "the command ran and its reaction was applied",
+  refused: "the command's rules refused it; the reason is in its detail",
+  waiting: "a reaction is still to run",
+  ok: "within its goal",
+  attention: "needs a decision from you",
+  unknown: "the board cannot read this yet; see the reason in its detail"
+};
 
 document.addEventListener("mouseover", (e) => {
   const t = e.target.closest("[data-tip]");
