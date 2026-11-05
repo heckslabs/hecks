@@ -64,7 +64,7 @@ module Hecks
         row = blocked_session(fields[:target])
         raise PipelineBoard::Unavailable, "no resumable blocked session #{fields[:target]}" unless row
 
-        fields.merge(resume: row[:resume], cwd: row[:cwd])
+        fields.merge(resume: row[:resume], cwd: row[:cwd], permission: row[:permission])
       end
 
       # @return [Hash, nil] the blocked session with this id, when it carries a resume id and a
