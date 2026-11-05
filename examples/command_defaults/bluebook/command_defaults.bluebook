@@ -1,0 +1,27 @@
+# A command attribute's declared `default:` fills an argument the caller leaves out; an argument
+# the caller passes is kept, and an attribute with no default is still required.
+Hecks.bluebook "CommandDefaults" do
+  vision "A trial starts with a run count the caller may leave out."
+
+  aggregate "Trial" do
+    description "A trial that runs a number of times."
+    attribute :ref, Ref
+    attribute :rounds, Count, optional: true
+    attribute :label, Label, optional: true
+    identified_by :ref
+
+    value_object("Ref")   { attribute :value, String }
+    value_object("Count") { attribute :value, Integer }
+    value_object("Label") { attribute :value, String }
+
+    command "Start" do
+      attribute :ref, Ref
+      attribute :rounds, Count, default: 30
+      attribute :label, Label
+      sets :ref
+      sets :rounds
+      sets :label
+      emits "Started"
+    end
+  end
+end

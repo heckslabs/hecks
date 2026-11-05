@@ -1,0 +1,23 @@
+Hecks.behaviors "CommandDefaults" do
+  vision "Examples of a command's declared default filling an argument the caller leaves out."
+
+  loads "command_defaults.bluebook"
+
+  test "an omitted argument takes its declared default" do
+    tests "Start", on: "Trial"
+    input ref: { value: "a" }, label: { value: "x" }
+    expect rounds: 30
+  end
+
+  test "an argument the caller passes is kept" do
+    tests "Start", on: "Trial"
+    input ref: { value: "b" }, rounds: { value: 7 }, label: { value: "x" }
+    expect rounds: 7
+  end
+
+  test "an attribute with no default is still required" do
+    tests "Start", on: "Trial"
+    input ref: { value: "d" }
+    expect refused: "label"
+  end
+end
