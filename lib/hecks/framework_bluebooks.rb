@@ -16,7 +16,7 @@ module Hecks
   # block that merges into the attaching one) and `adapters/*.adapter` (the adapters binding them).
   module FrameworkBluebooks
     # Where attachable bluebooks live, relative to `lib/hecks/`.
-    GLOBS = %w[language/**/*.bluebook grammar/expression.bluebook tenancy/bluebook/*.bluebook
+    GLOBS = %w[language/**/*.bluebook grammar/expression.bluebook tenancy/bluebook/*.bluebook candidate/bluebook/*.bluebook
                deploy/bluebook/*.bluebook site/bluebook/*.bluebook rails_app/bluebook/*.bluebook tickets/bluebook/*.bluebook
                composer/bluebook/*.bluebook quality_control/*.bluebook fixer/*.bluebook coder/*.bluebook
                bulk/bluebook/*.bluebook ci_pipeline/*.bluebook pipeline_board/*.bluebook

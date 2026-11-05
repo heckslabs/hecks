@@ -1,0 +1,18 @@
+# The ports the Candidate domain declares, merged into every hecksagon that attaches it. The candidate
+# gate (ADR 0181) asks: the remote's candidate ref and main, GitHub's CI run of the candidate, the Work
+# items a rejection files, and the repository's own switch.
+Hecks.hecksagon "Candidate" do
+  attaches "Governance"
+
+  Candidate::Candidate.port "Gating" do
+    %w[Look Forward Clear Flip].each do |step|
+      asks step, to: Candidate do
+        attribute :run, RunKey
+        answers "CandidateGateAnswered"
+        refuses "CandidateGateRefused"
+      end
+    end
+
+    answers_query "Status"
+  end
+end

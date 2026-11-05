@@ -26,7 +26,7 @@ module Hecks
         PROMOTION = "hecks.candidatePromotion"
 
         # What a refusal for a candidate in flight ends with.
-        NEXT = "Candidate.observe! reads it; Candidate.reject! clears a red one"
+        NEXT = "candidate Candidate.observe! reads it; candidate Candidate.reject! clears a red one"
 
         # @param git [Git] the adapter every git call goes through
         # @param checkout [String] the repository's top level
@@ -121,7 +121,7 @@ module Hecks
 
         def queued_report(boarded, base, count)
           "candidate #{short(boarded)} queued on #{candidate}: #{count} commit(s) on #{short(base)}; CI runs there, " \
-            "and main moves when it is green (Candidate.observe! reads it)"
+            "and main moves when it is green (candidate Candidate.observe! reads it)"
         end
 
         # A tree CI already passed on goes straight to main, as a promotion.

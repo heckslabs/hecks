@@ -5,7 +5,7 @@ Hecks.hecksagon "Hecks" do
   # Expression, Tenancy, Deploy, Site, Tickets, Composer and QualityControl (the last three bring
   # their own ports), and Coder and Fixer, whose events Tickets and QualityControl react to.
   %w[Bluebook Hecksagon World Adapter Port Translation Expression Tenancy Deploy Site Tickets Composer QualityControl
-     Coder Fixer PipelineBoard Pipeline]
+     Coder Fixer PipelineBoard Pipeline Candidate]
     .each { |declaration| attaches declaration }
   # Persistence is not bound here, so the domain is in Memory. A copy opts in with a
   # hecks.local.hecksagon whose `persisted_by` the attached bluebooks inherit (ADR 0136).
@@ -129,19 +129,6 @@ Hecks.hecksagon "Hecks" do
     answers_query "Status"
   end
 
-  # The candidate gate (ADR 0181): the remote's candidate ref and main, GitHub's CI run of the
-  # candidate, the Work items a rejection files, and the repository's own switch.
-  Hecks::Candidate.port "Gating" do
-    %w[Look Forward Clear Flip].each do |step|
-      asks step, to: Candidate do
-        attribute :run, RunKey
-        answers "CandidateGateAnswered"
-        refuses "CandidateGateRefused"
-      end
-    end
-
-    answers_query "Status"
-  end
 
   Hecks::QaQuiesce.port "Quiescing" do
     asks "Mark", to: QaQuiesce do

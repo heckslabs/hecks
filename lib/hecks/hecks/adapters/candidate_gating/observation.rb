@@ -61,12 +61,12 @@ module Hecks
         def green(run)
           noted = @marker.note!("green", ci_run: run.id)
           said("running", noted, "candidate #{short(noted)} is green (#{run}): the candidate workflow promotes it; " \
-                                 "Candidate.promote! --confirm does it from here")
+                                 "candidate Candidate.promote! --confirm does it from here")
         end
 
         def red(run)
           noted = @marker.note!("red", ci_run: run.id, jobs: run.jobs)
-          said("red", noted, "candidate #{short(noted)} is red (#{run}): Candidate.reject! --confirm clears it")
+          said("red", noted, "candidate #{short(noted)} is red (#{run}): candidate Candidate.reject! --confirm clears it")
         end
 
         def idle(report) = { outcome: { value: "idle" }, report: { value: report }, checkout: { value: @checkout } }

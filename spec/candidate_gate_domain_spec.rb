@@ -75,9 +75,11 @@ RSpec.describe "the candidate gate through the Hecks domain" do
 
   def board = launch("SendTrain.board!", "run=b-#{SecureRandom.hex(4)}", "checkout.value=#{repo}", "--confirm", "--wait")
 
-  def observe = launch("Candidate.observe!", "run=o-#{SecureRandom.hex(4)}", "checkout.value=#{repo}", "--wait")
+  def observe = launch("candidate", "Candidate.observe!", "run=o-#{SecureRandom.hex(4)}", "checkout.value=#{repo}", "--wait")
 
-  def reject = launch("Candidate.reject!", "run=r-#{SecureRandom.hex(4)}", "checkout.value=#{repo}", "--confirm", "--wait")
+  def reject
+    launch("candidate", "Candidate.reject!", "run=r-#{SecureRandom.hex(4)}", "checkout.value=#{repo}", "--confirm", "--wait")
+  end
 
   def event(name) = @hecks.registry.event_log.reverse.find { |logged| logged.name == name }
 
@@ -129,7 +131,7 @@ RSpec.describe "the candidate gate through the Hecks domain" do
   end
 
   it "records the switch" do
-    launch("Candidate.disable!", "run=s-#{SecureRandom.hex(4)}", "checkout.value=#{repo}", "--confirm", "--wait")
+    launch("candidate", "Candidate.disable!", "run=s-#{SecureRandom.hex(4)}", "checkout.value=#{repo}", "--confirm", "--wait")
 
     expect(payload("GateSwitched")).to include(setting: { value: "off" })
   end
