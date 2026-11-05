@@ -95,6 +95,12 @@ Hecks.hecksagon "Hecks" do
       answers "SurveyAnswered"
       refuses "SurveyRefused"
     end
+
+    asks "Observe", to: SendTrain do
+      attribute :run, RunKey
+      answers "ObserveAnswered"
+      refuses "ObserveRefused"
+    end
   end
 
   # Where a boarding's outcome is recorded: the boarded checkout's own launcher records it in that
