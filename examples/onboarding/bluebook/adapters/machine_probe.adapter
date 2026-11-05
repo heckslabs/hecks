@@ -1,0 +1,6 @@
+# Binds the `Machine` port to `MachineProbe`, which answers the Onboarding probes from the machine itself.
+require_relative "machine_probe"
+
+Hecks.adapter "MachineProbe" do
+  port "Machine"
+end
