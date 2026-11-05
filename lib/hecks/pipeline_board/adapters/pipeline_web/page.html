@@ -537,6 +537,19 @@ function attentionTable(items) {
   return node;
 }
 function sessionLabel(s) { return h("span", {}, s.name, " ", h("small", { class: "sid" }, s.id || "")); }
+// Answers a blocked session's question on its own, for the kinds the board may answer.
+function addAutoReply(row, s) {
+  const button = h("button", { type: "button", class: "del", tip: "Answer this question on its own: " + (s.question_kind === "confirm" ? "yes" : "retry") }, "Auto reply");
+  button.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    button.disabled = true;
+    const res = await fetch("/api/act", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "auto_reply", target: s.id }) });
+    if (res.ok) return refresh();
+    button.disabled = false;
+    button.title = (await res.text()).slice(0, 200);
+  });
+  row.cells[0].append(button);
+}
 // Removes a finished dispatched session. The first click arms it; the second deletes, and the
 // bluebook refuses by name any session still working or waiting on a person.
 function addDelete(row, s) {
@@ -589,6 +602,7 @@ function renderSessions(all) {
     // A reply the server has not answered yet keeps its row highlighted.
     if (replies.get(s.id)?.state === "sending") rows[i].classList.add("sending");
     if (deletable(s)) addDelete(rows[i], s);
+    if (s.status === "blocked" && ["confirm", "retry"].includes(s.question_kind)) addAutoReply(rows[i], s);
     if (s.status !== "blocked") return;
     rows[i].classList.add("clickable"); rows[i].title = "Click to answer";
     answerable(rows[i], () => openAnswer([{ id: s.id, name: s.name, run: s.run, repo: s.repo, work_item: s.work_item, question: s.detail, context: s.context, attach: s.attach }], s.id));

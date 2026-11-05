@@ -9,7 +9,7 @@ module Hecks
       module Actions
         NEEDS = {
           "answer" => %i[target text], "reply" => %i[target text], "board_train" => [], "promote" => [],
-          "check_in" => %i[target session text], "delete" => %i[target], "discard" => %i[target condition]
+          "check_in" => %i[target session text], "delete" => %i[target], "discard" => %i[target condition], "auto_reply" => %i[target]
         }.freeze
 
         # The program each step runs: the launcher, except a reply, which resumes a Claude session.

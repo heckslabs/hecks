@@ -49,6 +49,10 @@ module Hecks
       # @return [Hash{Symbol => String}] `ran:` the launcher command the step ran
       # @raise [PipelineBoard::Unavailable] with why the step did not run
       def act(action:, fields:, confirm:)
+        if action == "auto_reply"
+          fields = auto_reply(fields)
+          action = "reply"
+        end
         fields = resumable(fields) if action == "reply"
         fields = discardable(fields) if action == "discard"
         argv = PipelineBoard::Actions.argv(action, fields, confirm: confirm)
@@ -84,6 +88,23 @@ module Hecks
         raise PipelineBoard::Unavailable, "no session #{fields[:target]} on the board" unless row
 
         fields.merge(condition: row[:state].to_s)
+      end
+
+      # The answers the board gives on its own, by the kind a session tagged its question with.
+      # Owner decisions have no kind here, so no answer is given for them.
+      AUTO_REPLIES = { "confirm" => "yes", "retry" => "retry" }.freeze
+
+      # @param fields [Hash{Symbol => String}] the request's fields, with `target` the session's id
+      # @return [Hash{Symbol => String}] `target` and the reply text for the session's question kind
+      # @raise [PipelineBoard::Unavailable] when the session is not blocked or its kind is not auto-answered
+      def auto_reply(fields)
+        row = blocked_session(fields[:target])
+        raise PipelineBoard::Unavailable, "no blocked session #{fields[:target]}" unless row
+
+        text = AUTO_REPLIES[row[:question_kind].to_s]
+        raise PipelineBoard::Unavailable, "#{row[:question_kind].to_s.empty? ? "no kind" : row[:question_kind]} is not auto-answered" unless text
+
+        { target: fields[:target], text: text }
       end
 
       # @return [Hash, nil] the blocked session with this id, when it carries a resume id and a

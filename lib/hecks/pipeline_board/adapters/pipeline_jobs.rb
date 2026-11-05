@@ -80,7 +80,8 @@ module Hecks
 
         { context: PipelineBoard::SessionContext.of(state["linkScanPath"].to_s).merge(context_extras(state)),
           resume: state.values_at("resumeSessionId", "sessionId").compact.first, cwd: state["cwd"].to_s,
-          permission: permission_of(state), attach: state["daemonShort"].to_s }
+          permission: permission_of(state), attach: state["daemonShort"].to_s,
+          question_kind: state["questionKind"].to_s }
       end
 
       # The links the job lists, and the git branch the session works on when it has its own worktree.
