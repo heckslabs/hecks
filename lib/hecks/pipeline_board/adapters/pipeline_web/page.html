@@ -403,7 +403,7 @@ function showAnswer() {
   if (s.question || ctx.said) {
     $("ans-key").replaceChildren(h("div", {}, (s.id ? "Session " + s.id + " · " : "") + s.name + (s.work_item ? " · work item " + s.work_item : "") + (s.repo ? " · " + s.repo : "")));
     const parts = [h("div", { class: "question md" }, h("div", { class: "label" }, "Waiting on you"), ...markdown(ctx.said || s.question))];
-    if ((ctx.did || []).length) parts.push(h("div", { class: "did" }, h("b", {}, "Last steps: "), ctx.did.join(" → ")));
+    if ((ctx.did || []).length) parts.push(h("details", { class: "did" }, h("summary", {}, "Last steps (" + ctx.did.length + ")"), h("div", {}, ctx.did.join(" → "))));
     if ((ctx.links || []).length) parts.push(h("div", { class: "did" }, h("b", {}, "Linked: "), ...ctx.links.map((l) => h("a", { href: l.href, target: "_blank", rel: "noopener" }, (l.kind || "link") + " " + l.id + "  "))));
     $("ans-question").replaceChildren(...parts);
   } else {
