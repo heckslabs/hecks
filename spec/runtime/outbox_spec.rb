@@ -354,11 +354,11 @@ RSpec.describe "the transactional outbox" do
       registry
     end
 
-    it "warns when a domain with reactions is bound to an adapter that has no outbox" do
+    it "refuses a domain with reactions bound to an adapter that has no outbox, naming the opt-in" do
       Dir.mktmpdir do |dir|
         registry = heki_registry(dir)
 
-        expect { registry.verify! }.to output(OUTBOX_HEKI_WARNING).to_stderr
+        expect { registry.verify! }.to raise_error(Hecks::Runtime::WiringError, /has no outbox.*inline_reactions true/)
       end
     end
 

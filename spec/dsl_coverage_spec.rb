@@ -103,9 +103,10 @@ RSpec.describe "the DSL surface is fully covered" do
       # own method lookup finds it directly — and is tested in spec/hecksagon_translates_spec.rb.
       # `attaches` is tested in spec/hecksagon_attaches_spec.rb, and `driven_by` in
       # spec/driving_adapters/driven_by_spec.rb. `revisions` is tested in
-      # spec/hecksagon_revisions_spec.rb.
+      # spec/hecksagon_revisions_spec.rb, and `inline_reactions` in
+      # spec/hecksagon_inline_reactions_spec.rb.
       %i[binds subscribe subscriptions port_impl attaches driven_by
-         attachments translates bounded method_missing revisions]
+         attachments translates bounded method_missing revisions inline_reactions]
     ],
     "ContextMapBuilder"           => [
       Hecks::Bluebook::DSL::ContextMapBuilder,

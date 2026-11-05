@@ -1683,6 +1683,18 @@ pub static KEYWORDS: &[KeywordRow] = &[
         disambiguator: "",
     },
     KeywordRow {
+        word: "inline_reactions",
+        context: "Hecksagon",
+        body: "none",
+        inner: "",
+        opens: "",
+        fills: "inline_reactions",
+        status: "admitted",
+        was: "",
+        resolves_via: "",
+        disambiguator: "",
+    },
+    KeywordRow {
         word: "port",
         context: "Hecksagon",
         body: "keywords",

@@ -264,6 +264,22 @@ wiring = Hecks::Bluebook::Hecksagon.new(domain: "Lending", revisions: true)
 wiring.revisions?  # => true
 ```
 
+## inline_reactions
+
+<!-- generated:begin word=inline_reactions -->
+`inline_reactions` — fills `inline_reactions`
+<!-- generated:end -->
+
+Lets reactions run on an adapter that keeps no outbox. A reaction is a policy or a process
+manager that fires on an event. An adapter with no outbox cannot guarantee the reaction runs
+after a crash, so boot refuses a hecksagon that declares reactions on one, unless it says
+`inline_reactions true` to accept reactions that run inline (ADR 0182).
+
+```ruby
+wiring = Hecks::Bluebook::Hecksagon.new(domain: "Lending", inline_reactions: true)
+wiring.inline_reactions?  # => true
+```
+
 ## port
 
 <!-- generated:begin word=port -->

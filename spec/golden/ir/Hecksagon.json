@@ -1391,6 +1391,16 @@
           "pattern": null,
           "relationship": null,
           "type": "RevisionsFlag"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "inline_reactions",
+          "optional": true,
+          "pattern": null,
+          "relationship": null,
+          "type": "InlineReactionsFlag"
         }
       ],
       "commands": [
@@ -1680,6 +1690,76 @@
 
           ],
           "name": "RevisionsFlag"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "ast": {
+                "left": {
+                  "cmp": {
+                    "equal": true,
+                    "less_than": false,
+                    "negated": false
+                  },
+                  "left": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "op": "compare",
+                  "right": {
+                    "op": "str",
+                    "value": "true"
+                  }
+                },
+                "op": "or",
+                "right": {
+                  "cmp": {
+                    "equal": true,
+                    "less_than": false,
+                    "negated": false
+                  },
+                  "left": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "op": "compare",
+                  "right": {
+                    "op": "str",
+                    "value": "false"
+                  }
+                }
+              },
+              "canonical": "value.to_s == \"true\" || value.to_s == \"false\"",
+              "description": "inline_reactions is true or false"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "InlineReactionsFlag"
         },
         {
           "attributes": [
@@ -2170,6 +2250,32 @@
               [
                 "fills",
                 "revisions"
+              ]
+            ],
+            [
+              [
+                "word",
+                "inline_reactions"
+              ],
+              [
+                "context",
+                "Hecksagon"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "inline_reactions"
               ]
             ],
             [

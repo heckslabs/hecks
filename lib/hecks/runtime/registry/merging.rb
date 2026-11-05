@@ -21,7 +21,10 @@ module Hecks
             [facet, (base.public_send(facet) + overlay.public_send(facet)).uniq]
           end
           Bluebook::Hecksagon.new(domain: base.domain, binds: base.binds + overlay.binds,
-                                  bounded: base.bounded? || overlay.bounded?, **lists)
+                                  bounded: base.bounded? || overlay.bounded?,
+                                  revisions: base.revisions? || overlay.revisions?,
+                                  inline_reactions: base.inline_reactions? || overlay.inline_reactions?,
+                                  **lists)
         end
 
         # Scalars (`realm`, `latest`, `default_database`, `default_adapter`): the overlay's

@@ -5,6 +5,8 @@ Hecks.hecksagon "Banking" do
   # Domain-level default: every aggregate inherits both binds.
   persisted_by "Heki"
   projected_by "SqliteProjection"
+  # An example corpus member: its reactions run inline, with no outbox to hold them.
+  inline_reactions true
 
   # Declarative only: records that Compliance emits this across the Lambda boundary.
   # A policy below does the reacting (ADR 0025).

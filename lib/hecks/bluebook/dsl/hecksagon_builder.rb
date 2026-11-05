@@ -52,6 +52,15 @@ module Hecks
           @bounded            = false
           @translates         = []
           @revisions          = false
+          @inline_reactions   = false
+        end
+
+        # Accepts in-process reactions on an adapter with no outbox, where a crash can lose them.
+        #
+        # @param on [Boolean] whether to accept in-process reactions
+        # @return [void]
+        def inline_reactions(on = true) # rubocop:disable Style/OptionalBooleanParameter -- the DSL writes `inline_reactions true`
+          @inline_reactions = on ? true : false
         end
 
         # Chooses the Postgres layout for this domain: `revisions true` keeps schema revisions,
@@ -134,7 +143,7 @@ module Hecks
         def build
           Hecksagon.new(domain: @domain, binds: @binds, subscriptions: @subscriptions,
                         attachments: @attachments, bounded: @bounded, translates: @translates,
-                        driving: @driving, revisions: @revisions)
+                        driving: @driving, revisions: @revisions, inline_reactions: @inline_reactions)
         end
 
         # Loads a bluebook the gem carries and records it as attached from the gem.

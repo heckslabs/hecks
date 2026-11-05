@@ -8,10 +8,16 @@ Hecks.bluebook "Hecksagon" do
     attribute :attachments,        list_of(Attachment)
     attribute :driving,            list_of(DrivingAdapter)
     attribute :revisions,          RevisionsFlag, optional: true
+    attribute :inline_reactions,   InlineReactionsFlag, optional: true
 
     value_object "RevisionsFlag" do
       attribute :value, String
       invariant("revisions is true or false") { value.to_s == "true" || value.to_s == "false" }
+    end
+
+    value_object "InlineReactionsFlag" do
+      attribute :value, String
+      invariant("inline_reactions is true or false") { value.to_s == "true" || value.to_s == "false" }
     end
 
     value_object "HecksagonName" do
@@ -113,6 +119,8 @@ Hecks.bluebook "Hecksagon" do
       # Chooses the Postgres layout: `revisions true` keeps schema revisions (the revision layout),
       # left out or `false` keeps the table layout. Read by the Postgres adapter at boot (ADR 0182).
       member word: "revisions",       context: "Hecksagon", body: "none", inner: "", opens: "", fills: "revisions"
+      # Accepts in-process reactions on an adapter with no outbox, where a crash can lose them (ADR 0182).
+      member word: "inline_reactions", context: "Hecksagon", body: "none", inner: "", opens: "", fills: "inline_reactions"
       member word: "port",            context: "Hecksagon",     body: "keywords", inner: "DomainPort",    opens: "DomainPort",    fills: "", calls: "port_impl"
       # A cross-domain reaction wired here rather than in the bluebook; reuses the Policy context.
       # No `calls:` — HecksagonBuilder#translates is an ordinary method, found before `word_gate`.

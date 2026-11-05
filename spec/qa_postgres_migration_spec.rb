@@ -27,6 +27,7 @@ RSpec.describe "hecks quality_control migrate_ledger_from_heki", :io do
 
     Hecks.hecksagon "QualityControl" do
       attaches "Governance"
+      inline_reactions true
 
       QualityControl::Target.persisted_by("Heki")
       QualityControl::Sweep.persisted_by("Heki")

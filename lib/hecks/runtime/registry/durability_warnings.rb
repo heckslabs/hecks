@@ -6,12 +6,41 @@ module Hecks
       module DurabilityWarnings
         # The durability warnings for one hecksagon, in the order boot prints them.
         def warn_durability!(hecksagon)
+          refuse_undurable_outbox!(hecksagon)
           warn_undurable_sagas!(hecksagon)
           warn_undurable_outbox!(hecksagon)
           warn_unwired_persistence!(hecksagon)
         end
 
         private
+
+        # A domain with policies or process managers on an adapter with no outbox refuses to boot,
+        # unless its hecksagon sets `inline_reactions true` (ADR 0182): a crash between a commit and
+        # its reaction would lose the reaction. Memory and the other outbox adapters pass.
+        def refuse_undurable_outbox!(hecksagon)
+          return if hecksagon.inline_reactions?
+
+          bind = undurable_reactions_bind(hecksagon)
+          return unless bind
+
+          raise WiringError,
+                "#{hecksagon.domain} declares policies or process managers, but its persistence adapter " \
+                "(#{bind.adapter}) has no outbox, so a crash would lose its reactions — bind Postgres, " \
+                "Sqlite or Memory, or write `inline_reactions true` in its hecksagon to accept that"
+        end
+
+        # The bind a domain's reactions run through when that adapter has no outbox, or nil.
+        def undurable_reactions_bind(hecksagon)
+          bluebook_ir = bluebook(hecksagon.domain)
+          return unless bluebook_ir && reactions_declared?(bluebook_ir)
+
+          anchor = bluebook_ir.aggregates.first or return
+          bind = Ports::Persistence::BindingPolicy.resolve(self, hecksagon.domain, anchor)
+          return if adapter_class(bind.adapter) <= Ports::Persistence::RemoteRuntime
+          return if repository(hecksagon.domain, anchor).outbox?
+
+          bind
+        end
 
         # A domain with policies/a process_manager but no outbox on its bound adapter
         # (`AppendOnly#outbox?`) runs reactions inline — lost on a crash between a

@@ -36,6 +36,7 @@ RSpec.describe "Banking across persistence adapters" do
   def declare_banking_hecksagon(adapter_name, projected)
     Hecks.hecksagon("Banking") do
       attaches "Governance"
+      inline_reactions true
       BANKING_AGGREGATES.each do |name|
         aggregate = Object.const_get("Banking::#{name}")
         aggregate.persisted_by(adapter_name)
