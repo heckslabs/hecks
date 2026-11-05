@@ -132,6 +132,8 @@ tr.sending td { background: rgba(234, 179, 8, .28); }
 .evcard { flex: 0 0 260px; scroll-snap-align: start; background: var(--surface); border: 1px solid var(--axis); border-radius: 10px; padding: 10px; font-size: 12px; display: flex; flex-direction: column; gap: 6px; }
 .evcard header { display: flex; justify-content: space-between; gap: 8px; }
 .evagg { color: var(--ink2); overflow-wrap: anywhere; }
+.evcard:hover { border-color: var(--series1); }
+.tip { white-space: pre-line; }
 .evreact { display: grid; grid-template-columns: 1fr; gap: 2px; padding: 4px 6px; border-left: 3px solid var(--axis); background: var(--page); border-radius: 4px; }
 .evreact i { color: var(--ink2); font-style: normal; }
 .evreact.delivered { border-left-color: var(--series1); }
@@ -577,12 +579,20 @@ function renderEvents(events) {
   renderEventCards([...events].slice(0, 40));
   if (!seen.size) [...events].reverse().forEach((e) => putEvent(e, false));
 }
+// The full context of one event for its hover: when, which aggregate instance, and every reaction.
+function eventTip(e) {
+  const lines = [e.name, "at " + clock(e.at), e.aggregate + (e.id ? " " + e.id : "")];
+  const reactions = e.reactions || [];
+  lines.push(reactions.length ? "reactions:" : "no reactions");
+  for (const r of reactions) lines.push("  " + r.policy + " → " + (r.command || "-") + " (" + r.outcome + ")");
+  return lines.join("\n");
+}
 // The newest events as a strip of cards that scrolls sideways, with the reactions each one caused.
 function renderEventCards(list) {
   const byOutcome = new Map();
   for (const e of list) for (const r of e.reactions || []) byOutcome.set(r.outcome, (byOutcome.get(r.outcome) || 0) + 1);
   const chips = [...byOutcome].map(([outcome, n]) => h("span", { class: "evchip " + outcome }, outcome + " " + n));
-  const cards = list.map((e) => h("article", { class: "evcard" },
+  const cards = list.map((e) => h("article", { class: "evcard", tip: eventTip(e) },
     h("header", {}, h("b", {}, e.name), h("small", {}, clock(e.at))),
     h("div", { class: "evagg" }, e.aggregate),
     (e.reactions || []).length
