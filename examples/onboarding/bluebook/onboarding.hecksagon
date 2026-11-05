@@ -1,0 +1,26 @@
+Hecks.hecksagon "Onboarding" do
+  Onboarding::Onboarding.persisted_by("Memory")
+
+  # The machine probes are questions the bluebook asks of the Machine port. Each answer event
+  # carries the probe's reading (Ruby major and minor, or the exit code of the probed command)
+  # and a policy hands it to the step it settles. No adapter answers them yet.
+  Onboarding::Onboarding.port "Machine" do
+    asks "ReadRubyVersion", to: Onboarding do
+      attribute :machine, MachineName
+      answers "RubyVersionRead"
+      refuses "RubyVersionUnreadable"
+    end
+
+    asks "FindHecksGem", to: Onboarding do
+      attribute :machine, MachineName
+      answers "HecksGemFound"
+      refuses "HecksGemMissing"
+    end
+
+    asks "ListLauncherCommands", to: Onboarding do
+      attribute :machine, MachineName
+      answers "LauncherListed"
+      refuses "LauncherRefused"
+    end
+  end
+end

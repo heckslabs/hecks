@@ -1,0 +1,28 @@
+{
+  "name": "onboarding-parity",
+  "note": "One request for a machine's onboarding: the first step of a first-run setup. The probes that read the machine are left out, so the script is the same on every checkout.",
+  "domain": "examples/onboarding",
+  "expectations": {
+    "events": 1
+  },
+  "steps": [
+    {
+      "verb": "Onboarding::Onboarding.RequestOnboarding",
+      "args": {
+        "machine": {
+          "value": "m1"
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [],
+    "instances": {
+      "Onboarding::Onboarding#m1": {
+        "machine": {
+          "value": "m1"
+        }
+      }
+    }
+  }
+}
