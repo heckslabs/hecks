@@ -28,6 +28,11 @@ RSpec.describe Hecks::RustBuild::TargetDir do
     expect(target_for(installed_copy)).to eq(File.join(cache, "hecks", "cargo-target", "host"))
   end
 
+  it "sends a linked git worktree's build to the shared cache" do
+    File.write(File.join(checkout, ".git"), "gitdir: /elsewhere/.git/worktrees/x\n")
+    expect(target_for(checkout)).to eq(File.join(cache, "hecks", "cargo-target", "host"))
+  end
+
   it "lets CARGO_TARGET_DIR override an installed copy" do
     expect(target_for(installed_copy, "CARGO_TARGET_DIR" => "/tmp/own")).to eq("/tmp/own")
   end
