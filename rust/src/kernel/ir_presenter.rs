@@ -109,7 +109,11 @@ impl IrPresenter {
         declared.extend(items(aggregate, "projected_fields").iter().filter_map(|p| {
             Some(Field {
                 name: p.get("name")?.as_str()?.to_string(),
-                type_name: p.get("type").and_then(Json::as_str).unwrap_or("String").to_string(),
+                type_name: p
+                    .get("type")
+                    .and_then(Json::as_str)
+                    .unwrap_or("String")
+                    .to_string(),
                 list: false,
             })
         }));
@@ -294,7 +298,10 @@ mod tests {
 
     #[test]
     fn a_single_field_value_object_answers_as_its_sole_field() {
-        assert_eq!(present(r#"{"name": {"value": "Margherita"}}"#), r#"{"name":"Margherita"}"#);
+        assert_eq!(
+            present(r#"{"name": {"value": "Margherita"}}"#),
+            r#"{"name":"Margherita"}"#
+        );
     }
 
     #[test]
@@ -316,8 +323,14 @@ mod tests {
     #[test]
     fn a_name_declared_with_two_types_unwraps_by_the_keys_it_fits() {
         assert_eq!(present(r#"{"amount": {"value": 2}}"#), r#"{"amount":2}"#);
-        assert_eq!(present(r#"{"amount": {"cents": 300}}"#), r#"{"amount":300}"#);
-        assert_eq!(present(r#"{"amount": {"other": 1}}"#), r#"{"amount":{"other":1}}"#);
+        assert_eq!(
+            present(r#"{"amount": {"cents": 300}}"#),
+            r#"{"amount":300}"#
+        );
+        assert_eq!(
+            present(r#"{"amount": {"other": 1}}"#),
+            r#"{"amount":{"other":1}}"#
+        );
     }
 
     #[test]
