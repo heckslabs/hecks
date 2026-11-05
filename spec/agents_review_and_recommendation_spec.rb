@@ -23,7 +23,10 @@ RSpec.describe "the Agents reviewer, recommendation and owner-only rule" do
 
   let(:review) { Hecks::Agents::SubmissionReview }
 
-  def request(hops, work = "w1") = review.request!(work: { value: work }, hops: { value: hops })
+  def request(hops, commit = "c1")
+    review.request!(submission: { value: commit }, work: { value: "w1" }, hops: { value: hops },
+                    role: { value: "reviewer" }, repo: { value: "/tmp" }, brief: { value: "w1" })
+  end
 
   it "accepts a review request under the hop limit" do
     expect { request(2) }.not_to raise_error

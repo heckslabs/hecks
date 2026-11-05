@@ -274,9 +274,7 @@ Hecks.bluebook "Pipeline" do
       invariant("a pull request has a number") { !value.to_s.empty? }
     end
 
-    value_object "PullState" do
-      attribute :value, String
-    end
+    value_object "PullState", String
 
     # What the git host last reported for a pull request: open, merged or closed.
     command "Note" do

@@ -1,47 +1,14 @@
 require "spec_helper"
-require "fileutils"
-require "json"
-require "tmpdir"
+require_relative "support/stand_in_claude"
 
 # A plan review asked for by event starts the architect's session through AgentRun. A stand-in
 # `claude` names its agents and starts a session, so no real session runs: the spec shows the
 # request becomes a run keyed by the Work item, and a request past the hop limit starts nothing.
 RSpec.describe "a plan review request starting the architect's session" do
-  STAND_IN = <<~SH.freeze
-    #!/bin/sh
-    here=$(dirname "$0")
-    if [ "$1" = "agents" ]; then cat "$here/sessions.json"; exit 0; fi
-    if [ "$1" = "--agent" ] && [ "$2" = "hecks-probe-not-an-agent" ]; then
-      printf 'Available agents: architect, coder, planner\\n'; exit 0
-    fi
-    printf 'backgrounded · stand-in-session\\n'
-  SH
+  include_context "with a stand-in claude"
 
   before(:all) do
     @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
-  end
-
-  let(:scratch) { File.realpath(Dir.mktmpdir("architect-start")) }
-
-  around do |example|
-    env = ENV.to_h.slice("PATH", "HOME")
-    File.write(File.join(scratch, "claude"), STAND_IN)
-    File.chmod(0o755, File.join(scratch, "claude"))
-    File.write(File.join(scratch, "sessions.json"), JSON.generate([{ id: "stand-in-session", state: "working" }]))
-    FileUtils.mkdir_p(File.join(scratch, "jobs", "stand-in-session"))
-    File.write(File.join(scratch, "jobs", "stand-in-session", "state.json"), JSON.generate(state: "working"))
-    ENV["PATH"] = "#{scratch}:#{env["PATH"]}"
-    ENV["HOME"] = scratch
-    example.run
-  ensure
-    ENV.update(env)
-    FileUtils.rm_rf(scratch)
-  end
-
-  before do
-    allow(Hecks::Adapters::ClaudeAgents).to(receive(:new).and_wrap_original do |original, **context|
-      original.call(**context, settings: { jobs: File.join(scratch, "jobs"), settle: 0 })
-    end)
   end
 
   def launch(*argv) = Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, argv: argv, program: "hecks")
@@ -72,6 +39,25 @@ RSpec.describe "a plan review request starting the architect's session" do
     launch("agent_run.check!", "to=w-verdict", "--wait")
     expect(verdict_reactions.map { |r| r[:delivered] }).to eq([true])
     expect(launch("agents", "PlanReview.reviews").first.to_s).to include("w-verdict", "changes", "Revise the plan")
+  end
+
+  def submit(branch, commit)
+    launch("coder", "Submission.submit!", "branch.value=#{branch}", "sha.value=#{commit}", "--wait")
+  end
+
+  def reactions(policy) = @hecks.registry.reaction_log.select { |r| r[:policy] == policy }
+
+  it "starts the reviewer's run for a submission, keyed by its commit" do
+    submit("w-rev", "abc9001")
+    expect(launch("agent_run.running").first.to_s).to include("abc9001")
+  end
+
+  it "records the reviewer's judgment, and hands a real bug to a person", :aggregate_failures do
+    submit("w-bug", "abc9002")
+    close_job("The failing spec is a real_bug: the code is wrong.")
+    launch("agent_run.check!", "to=abc9002", "--wait")
+    expect(launch("agents", "SubmissionReview.reviews").first.to_s).to include("abc9002", "real_bug")
+    expect(reactions("RealBugGoesToAPerson").last[:delivered]).to be(true)
   end
 
   it "starts the planner's run for a planning request, keyed by the request" do
