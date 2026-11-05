@@ -173,12 +173,12 @@ RSpec.describe Hecks::Fuzzing::RevisionBoundary, :aggregate_failures, :io do
     db = PG.connect(dbname: ERA_BOUNDARY_SPEC_DATABASE)
     state = JSON.generate(cost: { "cents" => 5 }, kind: { "label" => "biz" })
     ordinal = db.exec_params(
-      "INSERT INTO hecks_journal_era_boundary_fixture (era, aggregate, aggregate_id, operation, state) " \
+      "INSERT INTO hecks_journal_revision_boundary_fixture (era, aggregate, aggregate_id, operation, state) " \
       "VALUES (1, 'widget', $1, 'save', $2) RETURNING ordinal",
       ["w9", state]
     )[0]["ordinal"]
     # Domain-qualified table name (ADR 0059).
-    db.exec_params("INSERT INTO era_boundary_fixture_widget_head_snapshot_1 (id, ordinal, state) VALUES ($1, $2, $3)",
+    db.exec_params("INSERT INTO revision_boundary_fixture_widget_head_snapshot_1 (id, ordinal, state) VALUES ($1, $2, $3)",
                    ["w9", ordinal, state])
     db.close
   end

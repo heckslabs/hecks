@@ -206,7 +206,7 @@ module Hecks
         # @raise [Runtime::WiringError] if the connection is refused or a held text was altered
         def resolution
           PostgresEra::LineageManager::RevisionResolution.read(bluebook: bluebook, settings: settings,
-                                                          translations: translations, directory: directory)
+                                                               translations: translations, directory: directory)
         end
 
         # The eras a lineage holds, without provisioning anything: none when the lineage tables do

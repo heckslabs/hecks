@@ -328,7 +328,8 @@ RSpec.describe "the translation language" do
       registry
     end
 
-    # Calls RevisionGuard's primitives directly over two in-memory registries, as CoverageCheck does.
+    # Calls RevisionGuard's primitives directly over two in-memory registries, as CoverageCheck
+    # does.
     def check_era!(source, translation_source: nil)
       held_bluebook = era_registry(GUARDED_V1, "guarded_v1.bluebook").bluebook("Guarded")
       drifted = era_registry(source, "guarded_v2.bluebook")

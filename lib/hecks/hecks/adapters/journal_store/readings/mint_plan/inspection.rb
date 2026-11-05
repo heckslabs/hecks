@@ -11,7 +11,8 @@ module Hecks
       module Readings
         module MintPlan
           # The guards that need the store, in the order the mint runs them: the era resolution
-          # (`RevisionResolution`, the one answer a boot and a rehearsal read), the held-shape refusal,
+          # (`RevisionResolution`, the one answer a boot and a rehearsal read), the held-shape
+          # refusal,
           # then the edge guards, then the watermark.
           class Inspection
             LATER = %w[edge coverage audit].freeze

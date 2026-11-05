@@ -25,7 +25,8 @@ RSpec.describe "the QA ledger's disposable worlds" do
   end
 
   it "answers a mint of the ledger as disposable, without opening a connection", :aggregate_failures do
-    expect(Hecks::Adapters::QaRevisionMint.call(ledger, domain: "QualityControl", era: 14, request: { confirm: true }, ledger: ledger))
+    expect(Hecks::Adapters::QaRevisionMint.call(ledger, domain: "QualityControl", era: 14, request: { confirm: true },
+ledger: ledger))
       .to eq([Hecks::Adapters::QaRevisionMint::DISPOSABLE, false])
     expect(Hecks::Adapters::QaRevisionMint::DISPOSABLE).to start_with("disposable, no mint needed")
   end

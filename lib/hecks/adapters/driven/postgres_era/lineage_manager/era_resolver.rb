@@ -64,11 +64,12 @@ module Hecks
             [true, "true"].include?(PostgresEra.setting(settings, :mint_eras, default: MINT_BY_DEFAULT))
           end
 
-          # Resolves the boot's shape through `RevisionResolution`, the answer every era tool reads, and
+          # Resolves the boot's shape through `RevisionResolution`, the answer every era tool reads,
+          # and
           # records it on the registry; a mint request on a shape no era holds mints instead.
           def resolve_era(context)
             answer = RevisionResolution.resolve(eras: context.held_eras, bluebook: context.bluebook,
-                                           translations: context.translations, directory: context.directory) do
+                                                translations: context.translations, directory: context.directory) do
               context.watermark
             end
             return refuse_unheld!(context) if answer.status == "unheld"

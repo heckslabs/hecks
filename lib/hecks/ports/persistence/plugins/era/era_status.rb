@@ -4,7 +4,8 @@ require_relative "storage_shape"
 module Hecks
   module Runtime
     # What a boot would resolve for each bluebook a registry loaded, asked of the same adapter the
-    # boot's era gate asks (`RevisionCheck`), against the database each bluebook's own world declares.
+    # boot's era gate asks (`RevisionCheck`), against the database each bluebook's own world
+    # declares.
     # Nothing is minted, provisioned or recorded: an era-holding adapter answers over a connection
     # that can only read. A bluebook bound to an adapter that holds no eras answers `no_eras`.
     module RevisionStatus

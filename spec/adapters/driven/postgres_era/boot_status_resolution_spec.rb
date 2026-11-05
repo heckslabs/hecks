@@ -10,7 +10,8 @@ require_relative "../../../support/mint_request_support"
 require_relative "../../../support/first_era_hold"
 require_relative "../../../../lib/hecks/hecks/adapters/journal_store"
 
-# The boot and the boot status resolve through one resolution (`LineageManager::RevisionResolution`):
+# The boot and the boot status resolve through one resolution
+# (`LineageManager::RevisionResolution`):
 # against the same database they name the same status and the same era for current, unminted,
 # behind and superseded shapes; the status reads the database and writes nothing to it; and a
 # domain that declares a database is answered from it, not from its committed `shapes.json`.

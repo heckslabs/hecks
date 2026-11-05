@@ -35,7 +35,7 @@ module Hecks
         # @raise [Runtime::WiringError] if the database is unreachable or a held text was altered
         def era_status(registry:, bluebook:, settings:, directory: nil)
           LineageManager::RevisionResolution.read(bluebook: bluebook, settings: settings,
-                                             translations: registry.translations, directory: directory)
+                                                  translations: registry.translations, directory: directory)
         end
 
         # Reads one setting under either its Symbol or String spelling.
