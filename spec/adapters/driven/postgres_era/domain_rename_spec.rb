@@ -174,7 +174,9 @@ RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter", :
     end
 
     it "refuses a mint request the same way, before it provisions anything", :aggregate_failures do
-      expect { check!(NEW_SOURCE, mint: true) }.to raise_error(Hecks::Runtime::WiringError, /schema_revision\.rename_domain first/)
+      expect do
+        check!(NEW_SOURCE, mint: true)
+      end.to raise_error(Hecks::Runtime::WiringError, /schema_revision\.rename_domain first/)
       expect(presence(journal_name("NewName"))).to eq([false])
       expect(count_in("hecks_eras", "OldName")).to eq("1")
     end
