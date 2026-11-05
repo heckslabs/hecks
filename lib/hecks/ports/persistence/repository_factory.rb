@@ -26,6 +26,7 @@ module Hecks
         # @raise [ArgumentError] on an unknown option
         def build(registry, domain, aggregate, bind, **)
           opts = BuildOptions.new(**)
+          bind = layout_bind(registry, domain, bind)
           settings = adapter_settings(registry, domain, aggregate, bind, opts.settings_verb)
           adapter = registry.adapter_class(bind.adapter).new(aggregate: aggregate, settings: settings, root: registry.root)
           repository = AppendOnly.new(CodecBoundary.guard!(adapter))
@@ -33,6 +34,21 @@ module Hecks
           # projected state in the same transaction as the journal row, so a
           # boot-time replay through `project` has nothing left to fix up.
           opts.recover && !repository.capabilities.include?(:atomic_append) ? repository.recover! : repository
+        end
+
+        # A `Postgres` bind in a hecksagon that sets `revisions` builds the revision layout, which
+        # is the `PostgresEra` adapter until the layout is extracted (ADR 0182, delegation step).
+        # Every other bind is returned unchanged.
+        #
+        # @param registry [Runtime::Registry] the booted registry
+        # @param domain [String, Symbol] the domain the aggregate belongs to
+        # @param bind [Bluebook::Bind] the bind as the hecksagon declared it
+        # @return [Bluebook::Bind] the bind the adapter is built and configured under
+        def layout_bind(registry, domain, bind)
+          return bind unless bind.adapter.to_s == "Postgres" && registry.hecksagon(domain)&.revisions?
+
+          Bluebook::Bind.new(aggregate: bind.aggregate, verb: bind.verb, adapter: "PostgresEra",
+                             role: bind.role)
         end
 
         # Checks the bind against the registry and gathers the settings its adapter is built with.
