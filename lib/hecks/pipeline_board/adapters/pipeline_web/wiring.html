@@ -497,6 +497,16 @@ function drawParticles(now) {
 
 /* ---- messages ---- */
 function outcomeKind(text) { return /deliver/.test(text) ? "ok" : /refus|fail/.test(text) ? "bad" : "wait"; }
+// A message that reaches a port answers through the adapter bound to it: the binding lights, a
+// particle travels port to adapter, and the adapter pulses like an aggregate that has just acted.
+function lightAdapters(port, kind, now) {
+  for (const e of edges.filter((x) => x.kind === "adapter" && x.from === port.id)) {
+    const adapter = byId.get(e.to); if (!adapter) continue;
+    e.lit = { until: now + LINGER, token: OUTCOME[kind][0] };
+    pulses.set(adapter.id, now + LINGER);
+    particles.push({ from: port, to: adapter, kind, text: port.label, start: now + 150, ms: reduceMotion ? 1 : 1400 });
+  }
+}
 function fire(ev, animate) {
   const now = performance.now(), node = byId.get(ev.aggregate);
   if (node && animate) pulses.set(node.id, now + LINGER);
@@ -507,6 +517,7 @@ function fire(ev, animate) {
     for (const e of edges.filter((x) => x.label === bare)) {
       const a = byId.get(e.from), b = byId.get(e.to);
       if (a && b && animate) { particles.push({ from: a, to: b, kind, text: ev.name, start: now + 150, ms: reduceMotion ? 1 : 1400 }); e.lit = { until: now + LINGER, token: OUTCOME[kind][0] }; }
+      if (b && b.kind === "port" && animate) lightAdapters(b, kind, now);
     }
     logLine(ev, r, kind);
   }
