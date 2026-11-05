@@ -9,6 +9,7 @@ require_relative "pipeline_tickets"
 require_relative "pipeline_jobs"
 require_relative "pipeline_journal"
 require_relative "../../hecks/adapters/push_size"
+require_relative "pipeline_stages/agent_roles"
 require_relative "pipeline_fill"
 require_relative "pipeline_stages/gather"
 require_relative "pipeline_stages/strip"
@@ -43,7 +44,8 @@ module Hecks
       def state
         data = sections
         now = @now.call
-        { generated_at: now.iso8601, stages: PipelineBoard::Strip.build(data, now),
+        { generated_at: now.iso8601, roles: PipelineBoard::AgentRoles.of(data[:sessions], @roles),
+          stages: PipelineBoard::Strip.build(data, now),
           metrics: PipelineBoard::Metrics.tiles(data.merge(push_limits: @push_limits, ci_health: @ci_health), now),
           ci_runs: data[:ci_runs], slowest_jobs: data[:slowest_jobs],
           open_work: data[:open_work], sessions: data[:sessions], events: data[:events], fanout: fanout(data) }
@@ -58,6 +60,7 @@ module Hecks
       def wire(readers, registry)
         @push_limits = Hecks::Adapters::PushSize.thresholds(registry)
         @ci_health = PipelineBoard::CiTiles.health(registry)
+        @roles = PipelineBoard::AgentRoles.declared(registry)
         @github = readers.fetch(:github) { PipelineGitHub.new(root: @root) }
         @git = readers.fetch(:git) { PipelineGit.new(root: @root) }
         @journal = readers.fetch(:journal) { PipelineJournal.new(root: @root) }
