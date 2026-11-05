@@ -56,11 +56,13 @@ Hecks.bluebook "Onboarding" do
       mark :terminal, "checks_run"
     end
 
-    # Names the machine and asks for its Ruby version; CheckRuby then opens the record.
+    # Opens the record for the machine and asks for its Ruby version; CheckRuby then settles it.
     command "RequestOnboarding", from: "fresh" do
       goal "Ask for a machine's Ruby version to start its onboarding"
 
       attribute :machine, MachineName
+
+      sets :machine
 
       emits "OnboardingRequested"
     end
@@ -83,19 +85,17 @@ Hecks.bluebook "Onboarding" do
       emits "LauncherCheckRequested"
     end
 
-    # The first step opens the record for the machine; later steps act on it.
+    # Every step acts on the record RequestOnboarding opened.
     command "CheckRuby", from: "fresh" do
-      goal "Read the machine's Ruby version and open the onboarding for it"
+      goal "Check the machine's Ruby version"
 
-      attribute :machine, MachineName
+      reference_to Onboarding
       attribute :major,   RubyMajor
       attribute :minor,   RubyMinor
 
       given("Ruby is at least 3.2, as hecks.gemspec requires") do
         major.value > 3 || (major.value == 3 && minor.value >= 2)
       end
-
-      sets :machine
 
       emits "RubyChecked"
     end
@@ -184,7 +184,7 @@ Hecks.bluebook "Onboarding" do
   end
   policy "OpenWhenRubyRead" do
     on      "Onboarding.RubyVersionRead"
-    trigger Onboarding::CheckRuby, with: { machine: :machine, major: :major, minor: :minor }
+    trigger Onboarding::CheckRuby, with: { onboarding: :machine, major: :major, minor: :minor }
   end
 
   policy "InstallWhenGemFound" do
