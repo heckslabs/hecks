@@ -46,7 +46,8 @@ module MintPlanShop
   def write_domain(dir, text, url:, world_lines: "mint_eras true")
     FileUtils.mkdir_p(File.join(dir, "bluebook"))
     File.write(File.join(dir, "bluebook/ledger.bluebook"), text)
-    File.write(File.join(dir, "bluebook/ledger.hecksagon"), %(Hecks.hecksagon "Ledger" do\n  persisted_by "Postgres"\n  revisions true\nend\n))
+    File.write(File.join(dir, "bluebook/ledger.hecksagon"),
+               %(Hecks.hecksagon "Ledger" do\n  persisted_by "Postgres"\n  revisions true\nend\n))
     File.write(File.join(dir, "bluebook/ledger.world"), world(url, world_lines))
   end
 
