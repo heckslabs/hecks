@@ -28,6 +28,14 @@ RSpec.describe Hecks::RustBuild::Prune do
     expect(File.exist?(old)).to be(true)
   end
 
+  it "removes the targets inside the worktrees it is given and no others" do
+    done = touch(File.join(dir, "done", "rust", "host", "target", "a"))
+    open_one = touch(File.join(dir, "open", "rust", "target", "a"))
+    expect(described_class.targets_of([File.join(dir, "done")])).to eq(10)
+    expect(File.exist?(done)).to be(false)
+    expect(File.exist?(open_one)).to be(true)
+  end
+
   it "removes the target of a worktree git no longer lists" do
     gone = touch(File.join(dir, "gone", "rust", "target", "a"))
     kept = touch(File.join(dir, "kept", "rust", "target", "a"))

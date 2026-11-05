@@ -32,8 +32,16 @@ module Hecks
       def orphans(worktrees_dir, live:, dry_run: false)
         Dir.children(worktrees_dir).map { |n| File.join(worktrees_dir, n) }
            .reject { |dir| live.include?(dir) }
-           .flat_map { |dir| Dir.glob(File.join(dir, "rust", "{,host/}target")) }
-           .sum { |path| remove(path, dry_run) }
+           .then { |dirs| targets_of(dirs, dry_run: dry_run) }
+      end
+
+      # Deletes the `target/` inside each given worktree (a build is rebuilt on demand, so this
+      # loses no work; the caller names only worktrees whose branch already landed).
+      # @param worktrees [Array<String>] worktree directories
+      # @return [Integer] bytes freed (or that would be)
+      def targets_of(worktrees, dry_run: false)
+        worktrees.flat_map { |dir| Dir.glob(File.join(dir, "rust", "{,*/}target")) }
+                 .sum { |path| remove(path, dry_run) }
       end
 
       # @return [Integer] bytes the path held
