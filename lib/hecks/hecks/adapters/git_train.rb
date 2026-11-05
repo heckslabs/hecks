@@ -9,6 +9,7 @@ require_relative "git_train/bench"
 require_relative "git_train/local_branch"
 require_relative "git_train/carriage"
 require_relative "git_train/candidate_boarding"
+require_relative "git_train/pull_request_boarding"
 require_relative "candidate_gate"
 require_relative "git_train/survey"
 require_relative "git_train/settlement"
@@ -99,8 +100,8 @@ module Hecks
       end
 
       # Brings the branch up to its remote and settles the shape ledger, then carries the settled
-      # commit: to the candidate ref while the candidate gate is on and main is boarded (ADR
-      # 0181), to the branch itself otherwise.
+      # commit: as a pull request into main when main is boarded (a branch, a PR, auto-merge once
+      # the checks pass), to the branch itself otherwise.
       def settle_and_carry(held, boarded)
         branch = branch_of(held)
         remote = remote_of(held)
@@ -110,12 +111,10 @@ module Hecks
 
       def carrier(branch, remote, held)
         config = gate_config(held)
-        return Carriage.new(@git, @checkout, branch: branch, remote: remote, config: config) unless gated?(branch)
+        return Carriage.new(@git, @checkout, branch: branch, remote: remote, config: config) unless branch == "main"
 
-        CandidateBoarding.new(@git, @checkout, remote: remote, config: config, runner: @runner)
+        PullRequestBoarding.new(@git, @checkout, remote: remote, config: config, runner: @runner)
       end
-
-      def gated?(branch) = branch == "main" && CandidateGate.new(@checkout, registry: @registry, git: @git).on?
 
       # What the push is, said before it is made: how many commits go and, past the world's
       # threshold, the size sentence. It only says; a push of any size is carried.
