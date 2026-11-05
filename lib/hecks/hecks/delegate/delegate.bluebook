@@ -380,6 +380,14 @@ Hecks.bluebook "Hecks" do
 
         emits DispatchDeclined
       end
+
+      query "Preview" do
+        description "What a filling would start now and why each other waits, read without filling: the same report as `Fill`, with no record and no start."
+        attribute :repo,           Directory, optional: true
+        attribute :budget_minutes, Minutes, optional: true
+        attribute :only,           Prefix, optional: true
+        returns Document
+      end
     end
 
     policy "ChooseWhenFilling" do

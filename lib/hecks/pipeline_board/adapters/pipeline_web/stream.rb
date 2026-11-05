@@ -49,7 +49,7 @@ module Hecks
           return unless @state
 
           current = @state.call
-          digest = Digest::SHA1.hexdigest(JSON.generate(current.reject { |key, _| key == :generated_at }))
+          digest = Digest::SHA1.hexdigest(JSON.generate(current.except(:generated_at)))
           return if digest == @state_digest
 
           @state_digest = digest

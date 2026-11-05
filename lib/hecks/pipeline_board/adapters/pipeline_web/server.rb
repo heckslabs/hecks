@@ -119,10 +119,16 @@ module Hecks
 
         def headers(head) = head.map { |key, value| "#{key}: #{value}\r\n" }.join
 
+        # One server-sent event: a `state` push or a `board` event, each a JSON line.
+        def sse(event)
+          name = event.key?(:state) ? "state" : "board"
+          "event: #{name}\ndata: #{JSON.generate(event)}\n\n"
+        end
+
         def stream(socket)
           socket.write("HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nCache-Control: no-store\r\n" \
                        "Connection: close\r\n\r\n")
-          @app.stream { |event| socket.write("event: #{event.key?(:state) ? "state" : "board"}\ndata: #{JSON.generate(event)}\n\n") }
+          @app.stream { |event| socket.write(sse(event)) }
         end
       end
     end
