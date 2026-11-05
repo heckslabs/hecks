@@ -30,6 +30,12 @@ Hecks.bluebook "Hecks" do
         returns Document
       end
 
+      query "Strays" do
+        description "What each untracked or changed path in the checkout is: a stale copy of a file main deleted, a linked worktree sitting inside it (dirty or clean, pushed or not), a tracked file with uncommitted changes, or unknown."
+        attribute :checkout, Place, optional: true
+        returns Document
+      end
+
       query "Changes" do
         description "What the checkout changed since a ref (main by default): the diffstat, or the paths alone."
         attribute :checkout,   Place,   optional: true
@@ -464,6 +470,8 @@ Hecks.bluebook "Hecks" do
       attribute :onto,     Word,   optional: true
       attribute :from,     RunKey, optional: true
       attribute :landed,   Word,   optional: true
+      attribute :path,     Word,   optional: true
+      attribute :holding,  Word,   optional: true
       attribute :reason,   Report, optional: true
       attribute :report,   Report, optional: true
       attribute :refusal,  Report, optional: true
@@ -489,11 +497,13 @@ Hecks.bluebook "Hecks" do
         transition "Record"  => "landed",  from: "requested"
         transition "Clear"   => "retired", from: "requested"
         transition "Dispose" => "discarded", from: "requested"
+        transition "Shelve"  => "set_aside", from: "requested"
+        transition "Withhold" => "refused", from: "requested"
         transition "Spare"   => "refused", from: "requested"
         transition "Refuse"  => "refused", from: "requested"
         transition "Decline" => "refused", from: "requested"
         transition "Convoy"  => "convoyed", from: "requested"
-        mark :terminal, "landed", "refused", "retired", "discarded", "convoyed"
+        mark :terminal, "landed", "refused", "retired", "discarded", "convoyed", "set_aside"
       end
 
       command "Land" do
@@ -607,6 +617,45 @@ Hecks.bluebook "Hecks" do
         emits DiscardRequested
       end
 
+      # A stray in the checkout that blocks a landing is moved out, never deleted: an untracked file or
+      # directory with nothing tracked inside it, or a clean linked worktree whose commits are all on main
+      # or a remote. `Workspace.strays` says which paths those are.
+      command "SetAside" do
+        role "Operator"
+        goal "Move an untracked path, or a clean pushed linked worktree, out of a checkout into a holding directory, never deleting it"
+
+        attribute :run,      RunKey, sets: true
+        attribute :checkout, Word, optional: true, sets: true
+        attribute :path,     Word, sets: true
+        attribute :holding,  Word, optional: true, sets: true
+        attribute :confirm,  Switch, optional: true, sets: true
+
+        given("a set-aside names the path to move") { path.value.to_s.strip != "" }
+        given("moves the path out of the checkout needs --confirm; without it this only reports") { confirm.value == true }
+
+        emits SetAsideRequested
+      end
+
+      command "Shelve" do
+        role "System"
+        goal "Record where a stray was moved to"
+
+        reference_to Landing
+        attribute :report, Report, sets: true
+
+        emits StraySetAside
+      end
+
+      command "Withhold" do
+        role "System"
+        goal "Record why a stray was left where it is"
+
+        reference_to Landing
+        attribute :refusal, Report, sets: true
+
+        emits StrayKept
+      end
+
       command "Dispose" do
         role "System"
         goal "Record that the worktree and its branch were discarded, with the tip they were at"
@@ -718,6 +767,21 @@ Hecks.bluebook "Hecks" do
     policy "DiscardWhenAsked" do
       on      "Landing.DiscardRequested"
       ask     :drop_branch, with: { run: :run }
+    end
+
+    policy "SetAsideWhenAsked" do
+      on      "Landing.SetAsideRequested"
+      ask     :move_aside, with: { run: :run }
+    end
+
+    policy "RecordTheSetAside" do
+      on      "Landing.SetAsideAnswered"
+      trigger Landing::Shelve, with: { report: :report }
+    end
+
+    policy "RecordTheKeptStray" do
+      on      "Landing.SetAsideRefused"
+      trigger Landing::Withhold, with: { refusal: :refusal }
     end
 
     policy "RecordTheDiscard" do

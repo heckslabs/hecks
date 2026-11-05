@@ -7,6 +7,20 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+### Changed
+
+- **Editing a domain built in the language no longer discards the grammar table or the other bluebooks' verdicts.** The grammar table and the verdict file were named by a digest of every file under `lib/` outside the consumer trees, so a one-line edit to the Hecks domain's own bluebooks (`lib/hecks/hecks`, `tickets`, `pipeline` and the other applied trees, `VerdictCache::APPLIED_TREES`) re-judged everything on the next launch. They are now named by `VerdictCache.language_digest`, which leaves those trees out; each verdict is still keyed by its bluebook's IR, so only the edited bluebook is judged again. The help cache and the MCP guide cache keep keying on the full `code_digest`. `spec/syntax_boot_key_spec.rb` fails if a tree on the list ever loads Ruby before the table is built, or loads anything but adapters while the Hecks domain is described.
+
+### Fixed
+
+- **The verdict file was never written for a domain with a `created_by`.** A verdict holding a typed value (an aggregate's `created_by`) could not be encoded, so the whole write was dropped without a word and every launch after an edit judged every bluebook afresh. The verdicts that can be encoded are now stored and the rest are judged each time, as a miss always was.
+
+### Added
+
+- **The kernel's `--serve` stream is a host protocol with versions, sessions and callbacks (ADR 0189).** A connection may open with `{"hello": {"protocols": [1], "callbacks": true, "needs": {...}}}` and gets the agreed version and its features; `{"open": "name"}` and `{"close": "name"}` make and drop sessions, each with its own store, and a step names one with `"session"`. While a dispatch runs the kernel may write a `callback` frame asking the host for a fact a command `needs` and the caller left out, and goes on when the host answers. A refusal is `{"ok": false, "error": ...}` as before, and a stream that sends no `hello` behaves as it did. `Hecks::RustBuild::KernelClient` is the Ruby client; `spec/rust_build_kernel_client_spec.rb` pins it against the pizzas kernel.
+
+- **`Workspace.strays` says what each untracked or changed path in a checkout is, and `Landing.set_aside!` moves one out of the way.** A dirty checkout used to refuse a landing with a list of paths and nothing more. `hecks Workspace.strays checkout.value=<dir>` now names each one: a stale copy of a file `main` deleted (with the commit that removed it, whether the copy equals its last version, and the `git show` that recovers it), a linked worktree sitting inside the checkout (its branch or head, clean or dirty, and how many of its commits are on no `main` or remote ref), a tracked file with uncommitted changes, or unknown. `hecks Landing.set_aside! path.value=<path> [holding.value=<dir>] --confirm` moves an untracked file or directory, or a clean linked worktree whose commits are all on `main` or a remote, into a holding directory (the job's `tmp`, else `~/.claude/set-aside`) and prints the command that puts it back. It never deletes, and it refuses a tracked path, a path with unsaved work, a worktree with unpushed commits, the directory the process stands in, and anything outside the checkout or inside `.git`. The refusal of a landing from a dirty tree now counts the untracked and changed paths and names `Workspace.strays`. The adapter is `GitStrays`, behind the `Reading` and `Worktrees` ports.
+
 ## [7.1.0] - 2026-11-02
 
 ### Added

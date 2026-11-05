@@ -18,6 +18,8 @@ Hecks.bluebook "Hecks" do
       attribute :prebuilt, Switch,     optional: true
       attribute :seeds,    Count,      optional: true
       attribute :steps,    Count,      optional: true
+      attribute :days,     Count,      optional: true
+      attribute :dry_run,  Switch,     optional: true
       attribute :output,   Report,     optional: true
       attribute :refusal,  Report,     optional: true
       identified_by :run
@@ -113,6 +115,19 @@ Hecks.bluebook "Hecks" do
 
 
         emits WasmBuildRequested
+      end
+
+      # Frees disk the Rust builds hold: the `target/` of worktrees git no longer lists, and the
+      # shared cache's artifacts unused for `days` (14 when absent). `dry_run` only reports.
+      command "PruneRust" do
+        role "Operator"
+        goal "Free the disk Rust builds hold, in gone worktrees and stale cache"
+
+        attribute :run,     BuildKey, sets: true
+        attribute :days,    Count, optional: true, sets: true
+        attribute :dry_run, Switch, optional: true, sets: true
+
+        emits RustPruneRequested
       end
 
       command "BuildParser" do
@@ -252,6 +267,11 @@ Hecks.bluebook "Hecks" do
     policy "BuildParserWhenRequested" do
       on      "Build.ParserBuildRequested"
       ask     :parser, with: { run: :run }
+    end
+
+    policy "PruneWhenRequested" do
+      on      "Build.RustPruneRequested"
+      ask     :prune, with: { run: :run }
     end
 
     policy "BuildHostWhenRequested" do

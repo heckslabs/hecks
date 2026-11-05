@@ -4,9 +4,17 @@
 # events the tooling recorded. The bluebook names the questions and never fetches, shells out or
 # opens a file.
 #
-# The one command is `Serve`. It opens the page on 127.0.0.1 and answers `GET /` and
-# `GET /api/state` until it is stopped; no command is reachable from the page, so the board only
-# reads. A read that fails answers `unknown: <reason>` for its stage and leaves the others alone.
+# The commands are `Serve` and `Act`. `Serve` opens the page on 127.0.0.1 and answers `GET /` and
+# `GET /api/state` until it is stopped. `Act` is the page's one way to change anything: `POST
+# /api/act` runs one of the steps in the `ActionRule` rows (answer a blocked session, reply, check
+# in, tidy, discard, board a train, promote), and a step that moves code runs only once confirmed.
+# Every other request only reads. A read that fails answers `unknown: <reason>` for its stage and
+# leaves the others alone.
+#
+# What the board says is decided here, not in its adapters. The `Verdict` rows say which state a
+# stage or a tile is in, the `Setting` rows hold the numbers those rules compare with, the
+# `Finding` rows name what the fan-out can flag, and the `ActionRule` rows say what each step needs
+# and what it runs. The adapters read the rows and fetch, shape and draw; they decide nothing.
 #
 #   exe/hecks PipelineBoard.serve! port.value=4747 --wait
 #
@@ -54,6 +62,149 @@ Hecks.bluebook "PipelineBoard" do
       attribute :value, Integer, default: 20
     end
 
+    # One condition of a rule that names a state. Rows of one `stage` that share a `position` are
+    # one rule: every condition must hold. The rules of a stage are tried in `position` order and
+    # the first that holds names the state; `always` holds for any reading. `measure` names a number
+    # the adapter read; `than` is a number or the name of a `Setting` (or a push limit); `scale`
+    # multiplies it. `missing` holds when the adapter could not read the measure.
+    value_object "Verdict" do
+      attribute :stage,    String
+      attribute :position, Integer
+      attribute :measure,  String
+      attribute :op,       String
+      attribute :than,     String
+      attribute :scale,    Integer, default: 1
+      attribute :state,    String
+
+      # ---- the strip: one stage each, left to right ----
+      member stage: "Red flag",   position: 1, measure: "",             op: "always",  than: "",  scale: 1, state: "failed"
+
+      member stage: "Work items", position: 1, measure: "started",      op: ">",       than: "0", scale: 1, state: "working"
+      member stage: "Work items", position: 2, measure: "",             op: "always",  than: "",  scale: 1, state: "ok"
+
+      member stage: "Sessions",   position: 1, measure: "blocked",      op: ">",       than: "0", scale: 1, state: "attention"
+      member stage: "Sessions",   position: 2, measure: "busy",         op: ">",       than: "0", scale: 1, state: "working"
+      member stage: "Sessions",   position: 3, measure: "",             op: "always",  than: "",  scale: 1, state: "ok"
+
+      member stage: "Local main", position: 1, measure: "ahead",        op: ">",       than: "0", scale: 1, state: "attention"
+      member stage: "Local main", position: 2, measure: "",             op: "always",  than: "",  scale: 1, state: "ok"
+
+      member stage: "Train",      position: 1, measure: "not_pushed",   op: ">",       than: "0", scale: 1, state: "attention"
+      member stage: "Train",      position: 2, measure: "",             op: "always",  than: "",  scale: 1, state: "ok"
+
+      member stage: "CI",         position: 1, measure: "running",      op: ">",       than: "0", scale: 1, state: "working"
+      member stage: "CI",         position: 2, measure: "unsuccessful", op: ">",       than: "0", scale: 1, state: "failed"
+      member stage: "CI",         position: 3, measure: "",             op: "always",  than: "",  scale: 1, state: "ok"
+
+      member stage: "Promote",    position: 1, measure: "behind",       op: ">",       than: "0", scale: 1, state: "attention"
+      member stage: "Promote",    position: 2, measure: "",             op: "always",  than: "",  scale: 1, state: "ok"
+
+      member stage: "Release",    position: 1, measure: "unpublished",  op: ">",       than: "0", scale: 1, state: "attention"
+      member stage: "Release",    position: 2, measure: "",             op: "always",  than: "",  scale: 1, state: "ok"
+
+      # ---- the metric tiles ----
+      # The share of CI runs that succeeded: good from `success_good`, fair from `success_fair`.
+      member stage: "CI success", position: 1, measure: "value",        op: "missing", than: "",  scale: 1, state: "unknown"
+      member stage: "CI success", position: 2, measure: "value",        op: ">=",      than: "success_good", scale: 1, state: "ok"
+      member stage: "CI success", position: 3, measure: "value",        op: ">=",      than: "success_fair", scale: 1, state: "attention"
+      member stage: "CI success", position: 4, measure: "",             op: "always",  than: "",  scale: 1, state: "failed"
+
+      # The median wall: within the goal is ok, within twice the goal needs attention.
+      member stage: "CI wall",    position: 1, measure: "value",        op: "missing", than: "",  scale: 1, state: "unknown"
+      member stage: "CI wall",    position: 2, measure: "value",        op: "<=",      than: "wall_goal_minutes", scale: 1, state: "ok"
+      member stage: "CI wall",    position: 3, measure: "value",        op: "<=",      than: "wall_goal_minutes", scale: 2, state: "attention"
+      member stage: "CI wall",    position: 4, measure: "",             op: "always",  than: "",  scale: 1, state: "failed"
+
+      # Main is red for as long as the latest run is not green; the tile is only built then.
+      member stage: "Main red",   position: 1, measure: "",             op: "always",  than: "",  scale: 1, state: "failed"
+
+      member stage: "Failed jobs on head", position: 1, measure: "failed_jobs", op: ">", than: "0", scale: 1, state: "failed"
+      member stage: "Failed jobs on head", position: 2, measure: "",    op: "always",  than: "",  scale: 1, state: "ok"
+
+      # Unpushed commits nudge at the QualityControl world's push limits (`commits`, `hours`).
+      member stage: "Commits not pushed", position: 1, measure: "ahead",     op: ">=",     than: "commits", scale: 1, state: "attention"
+      member stage: "Commits not pushed", position: 2, measure: "age_hours", op: ">=",     than: "hours",   scale: 1, state: "attention"
+      member stage: "Commits not pushed", position: 3, measure: "",          op: "always", than: "",        scale: 1, state: "ok"
+
+      # Dispatched sessions press at the cap, or when any session waits on a person.
+      member stage: "Dispatched sessions", position: 1, measure: "dispatched", op: ">=",     than: "session_cap", scale: 1, state: "attention"
+      member stage: "Dispatched sessions", position: 2, measure: "blocked",    op: ">",      than: "0",           scale: 1, state: "attention"
+      member stage: "Dispatched sessions", position: 3, measure: "",           op: "always", than: "",            scale: 1, state: "ok"
+
+      # ---- a session's status, from what its job and `claude agents` say ----
+      # `waiting` is 1 when the job says blocked and is listed or recently written; `needs` is 1
+      # when the job set `needs`, which is how it says it waits on a person. A session paused on a
+      # push or CI is still working, so it is busy, not blocked.
+      member stage: "Session status", position: 1, measure: "waiting", op: ">",      than: "0", scale: 1, state: "blocked"
+      member stage: "Session status", position: 1, measure: "needs",   op: ">",      than: "0", scale: 1, state: "blocked"
+      member stage: "Session status", position: 2, measure: "waiting", op: ">",      than: "0", scale: 1, state: "busy"
+      member stage: "Session status", position: 3, measure: "busy",    op: ">",      than: "0", scale: 1, state: "busy"
+      member stage: "Session status", position: 4, measure: "failed",  op: ">",      than: "0", scale: 1, state: "failed"
+      member stage: "Session status", position: 5, measure: "",        op: "always", than: "",  scale: 1, state: "done"
+    end
+
+    # A number a rule compares with. A QualityControl world's `ci_health` verb overrides the CI
+    # ones; its `push_nudge` verb sets the push limits the unpushed-commits rule reads.
+    value_object "Setting" do
+      attribute :name,  String
+      attribute :value, Integer
+
+      member name: "wall_goal_minutes",       value: 3
+      member name: "success_good",            value: 80
+      member name: "success_fair",            value: 50
+      member name: "session_cap",             value: 8
+      member name: "throughput_window_hours", value: 24
+      member name: "session_fresh_seconds",   value: 600
+      member name: "session_window_hours",    value: 24
+    end
+
+    # What the fan-out can flag on a Work item.
+    value_object "Finding" do
+      attribute :kind,  String
+      attribute :means, String
+
+      member kind: "unclaimed", means: "a session runs on a Work item that has no claimed_by"
+      member kind: "duplicate", means: "more than one session runs on one Work item"
+      member kind: "overlap",   means: "another session works an area that is a path-prefix of this item's area, or the reverse"
+      member kind: "landed",    means: "the item already landed but is still planned or started"
+    end
+
+    # The statuses a landed Work item should no longer have.
+    value_object "StaleStatus" do
+      attribute :status, String
+
+      member status: "planned"
+      member status: "started"
+    end
+
+    # A step the page may take. `needs` are the fields it must send, `confirm` is `yes` for a step
+    # that moves code or deletes, `program` is what runs it and `argv` is the command, with
+    # `{field}` filled from the request. A step runs only when every field it needs is present.
+    value_object "ActionRule" do
+      attribute :action,  String
+      attribute :needs,   String
+      attribute :confirm, String
+      attribute :program, String
+      attribute :argv,    String
+
+      member action: "answer",      needs: "target text",          confirm: "no",  program: "exe/hecks", argv: "AgentRun.answer! to={target} answer.value={text} --wait"
+      member action: "reply",       needs: "target text",          confirm: "no",  program: "claude",    argv: "attach {attach}"
+      member action: "auto_reply",  needs: "target",               confirm: "no",  program: "exe/hecks", argv: ""
+      member action: "board_train", needs: "",                     confirm: "yes", program: "exe/hecks", argv: "SendTrain.board! --confirm"
+      member action: "promote",     needs: "",                     confirm: "yes", program: "exe/hecks", argv: "PromotionRun.promote! lane=stable --confirm --wait"
+      member action: "check_in",    needs: "target session text",  confirm: "no",  program: "exe/hecks", argv: "RedFlag.check_in! run.value={target} session.value={session} taking.value={text}"
+      member action: "delete",      needs: "target",               confirm: "yes", program: "exe/hecks", argv: "AgentRun.tidy! to={target}"
+      member action: "discard",     needs: "target condition",     confirm: "yes", program: "exe/hecks", argv: "PlainSession.remove! to={target} condition.value={condition}"
+      member action: "review",      needs: "target text",          confirm: "no",  program: "exe/hecks", argv: "agents PlanReview.request! work.value={target} hops.value=1 role.value=architect repo.value={repo} plan.value={text} --wait"
+      member action: "plan",        needs: "text",                 confirm: "no",  program: "exe/hecks", argv: "agents Planning.request! plan.value={key} goal.value={text} role.value=planner repo.value={repo} --wait"
+      member action: "settle",      needs: "target",               confirm: "no",  program: "exe/hecks", argv: "agents PromotionRecommendation.settle! to={target} --wait"
+    end
+
+    # A step from `ActionRule`.
+    value_object "ActionName" do
+      attribute :value, String, matches: :present
+    end
+
     lifecycle :status, default: "requested" do
       mark :failure, "refused"
       mark :terminal, "closed", "refused"
@@ -63,12 +214,23 @@ Hecks.bluebook "PipelineBoard" do
 
     command "Serve" do
       role "Maintainer"
-      goal "Show the pipeline on a page at 127.0.0.1 until stopped; the page only reads, except that it may answer a blocked session"
+      goal "Show the pipeline on a page at 127.0.0.1 until stopped; the page reads, and changes something only through Act"
 
       attribute :run,  RunKey, sets: true
       attribute :port, Port, default: 4747, sets: true
 
       emits ServeRequested
+    end
+
+    command "Act" do
+      role "Maintainer"
+      goal "Take one step the page offers, from the ActionRule rows: it runs once its fields are sent and, for a step that moves code or deletes, once it is confirmed"
+
+      reference_to PipelineBoard
+      attribute :action,  ActionName
+      attribute :confirm, Boolean, default: false
+
+      emits ActRequested
     end
 
     command "Close" do
@@ -149,6 +311,6 @@ Hecks.bluebook "PipelineBoard" do
 
   policy "RefuseWhenRefused" do
     on      "PipelineBoard.ServerRefused"
-    trigger PipelineBoard::Refuse, with: { last: :last }
+    trigger PipelineBoard::Refuse, with: { last: :refusal }
   end
 end
