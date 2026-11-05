@@ -47,10 +47,18 @@ module Hecks
           return running_red(latest) unless latest[:status] == "completed"
           return tile("red", "Main red for", 0, "h", detail: "main is green") if latest[:conclusion] == "success"
 
-          green = runs.reverse.find { |run| run[:conclusion] == "success" }
-          hours = green && ((now - finished(green)) / 3600.0).round(1)
-          note = green ? "since #{green[:sha]} went green" : "no green run in the window"
-          tile("red", "Main red for", hours, "h", state: "failed", detail: note)
+          green = runs.index { |run| run[:conclusion] == "success" }
+          hours = green && ((now - finished(runs[green])) / 3600.0).round(1)
+          tile("red", "Main red for", hours, "h", state: "failed", detail: red_note(runs, green))
+        end
+
+        # Names the last green commit and the first red one after it. The runs are newest first, so
+        # the first red is the run just before the green one in the list.
+        def red_note(runs, green)
+          return "no green run in the window" unless green
+          return "last green #{runs[green][:sha]}" if green.zero?
+
+          "last green #{runs[green][:sha]}, first red #{runs[green - 1][:sha]}"
         end
 
         # The run is still going, so it has no verdict yet: the tile says so rather than red.
