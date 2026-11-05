@@ -835,11 +835,10 @@ Hecks.bluebook "Hecks" do
         emits CarriedByEarlierPush
       end
 
-      # The candidate gate is on (ADR 0181): the boarded commit went to the remote's candidate ref,
-      # where CI judges it, and main moves only once that run is green.
+      # The boarded commit is a pull request into main, which GitHub merges once its checks pass.
       command "Queue" do
         role "System"
-        goal "Record that a boarding was queued as the candidate, for CI to judge before main moves"
+        goal "Record that a boarding was queued as a pull request, for CI to judge before main moves"
 
         reference_to SendTrain
         attribute :checkout, Word, sets: true
@@ -1390,21 +1389,6 @@ Hecks.bluebook "Hecks" do
     policy "RecordTheFailedCi" do
       on      "Integration.ObserveAnswered"
       where   { outcome.value == "failed" }
-      trigger Integration::Red, with: { landed: :landed, report: :report }
-    end
-
-    # While the candidate gate is on (ADR 0181) the observation reads the candidate's run and says
-    # so by name, so the run ends green or red as it does for main while the red flag, which hears
-    # `passed` and `failed`, stays where it is: a red candidate is not a red main.
-    policy "RecordThePassedCandidateCi" do
-      on      "Integration.ObserveAnswered"
-      where   { outcome.value == "candidate_passed" }
-      trigger Integration::Green, with: { landed: :landed, report: :report }
-    end
-
-    policy "RecordTheFailedCandidateCi" do
-      on      "Integration.ObserveAnswered"
-      where   { outcome.value == "candidate_failed" }
       trigger Integration::Red, with: { landed: :landed, report: :report }
     end
 
