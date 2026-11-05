@@ -13,6 +13,8 @@ Hecks.bluebook "Gate" do
     attribute :run, RunKey
     attribute :commit, CommitRef
     attribute :first_failure, CheckName, optional: true
+    attribute :expected, CheckCount, optional: true
+    attribute :recorded, CheckCount, optional: true
 
     value_object "RunKey" do
       attribute :value, String, matches: :present
@@ -35,6 +37,10 @@ Hecks.bluebook "Gate" do
       attribute :value, String
     end
 
+    value_object "CheckCount" do
+      attribute :value, String
+    end
+
     # A run starts only on a clean tree, so the verdict is about the commit and nothing else.
     command "Start" do
       role "Operator"
@@ -42,6 +48,7 @@ Hecks.bluebook "Gate" do
 
       attribute :commit, CommitRef
       attribute :tree, TreeState
+      attribute :expected, CheckCount, sets: true
 
       given("the tree is clean") { tree.value == "clean" }
 
@@ -55,6 +62,7 @@ Hecks.bluebook "Gate" do
 
       attribute :check, CheckName
       attribute :exit_code, ExitCode
+      attribute :recorded, CheckCount, sets: true
 
       emits "CheckRecorded"
     end
@@ -78,6 +86,7 @@ Hecks.bluebook "Gate" do
       goal "Give a green verdict while no check has failed"
 
       given("no check failed") { first_failure.value.to_s == "" }
+      given("every expected check was recorded") { recorded.value == expected.value }
 
       emits "Greened"
     end
