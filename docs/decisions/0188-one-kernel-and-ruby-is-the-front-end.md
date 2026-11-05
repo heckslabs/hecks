@@ -57,10 +57,31 @@ Measured 2026-11-05 on the maintainer's machine, from a fresh worktree:
 | Floor: `require "bundler/setup"` only | 0.35 s wall, 0.14 s user |
 | Committed generated Rust | about 257k lines |
 | Ruby runtime plus driven adapters | about 22k lines |
+| Dispatch p50, pizzas: in-process Ruby (Memory) vs warm Rust kernel over `--serve` | 186 us vs 12 us (about 15 times faster) |
+| Dispatch p50, banking: in-process Ruby (Memory) vs warm Rust kernel over `--serve` | 409 us vs 18 us (about 23 times faster) |
+| Ruby/Rust divergence fixes, 2026-10-06 to 2026-11-05 | 12 commits (method below) |
 
 Wall time on this run is noisier than the user time; `docs/cli-measures.md` holds the budget method
-(a ratio to the floor, five fresh processes). Parity-bug count and authoring-loop dispatch latency are
-not yet measured and are the first two readings of step 0.
+(a ratio to the floor, five fresh processes).
+
+**Dispatch latency.** Read with `hecks FuzzRun.bench!` (`lib/hecks/bench`): targets `ruby:memory` and
+`rust`, domains pizzas and banking, 200 warm-up and 1000 timed cycles per run, median of 5 fresh boots,
+on an Apple M3 Pro with Ruby 3.3.7 (YJIT off) at `3b2e6f3d3`. The Rust timing includes two pipe
+crossings and a JSON parse per step (the pipe floor was 5 to 7 us); the client is Ruby, so the Ruby
+side of that crossing is inside the number. The machine was busy (load average 13.7 before, 12.5
+after), the first runs were slower, and the Rust range across runs was wide (pizzas 27.8k to 66.3k
+commands/s), so read the ratio, not the digits. The gate in the Decision holds today by a wide margin
+for these two domains on the Memory store. It does not yet cover a Ruby-side callback channel,
+sessions, or domains with policies that ask; those are what the binding adds.
+
+**Divergence fixes.** Counted from `git log origin/main --since=2026-10-06` (1748 commits): 82 subjects
+or bodies match `parity|conformance|differential`, most of them CI and harness work, so that is not the
+count. The 12 are those whose subject says a Ruby/Rust divergence was closed, classified by hand from
+the subject alone (bodies unread): `9231a2536`, `f744a5134`, `a69051a52`, `6c343746d`, `d2e14f70c`,
+`a1f75fe4c`, `703c39396`, `2d2bfc365`, `d38e84dfc`, `59e05c82e`, `cb678e351`, `328d4900e`. It is a
+floor: a fix whose subject does not name the other runtime is missed, and `BUG#152` (`7db8f5029`) is
+one such. The QA findings in the tickets store were not read: a linked worktree resolves that store to
+Memory, so `Finding.open` answered empty there.
 
 ## Consequences
 
