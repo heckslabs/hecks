@@ -60,8 +60,8 @@ fi
 # checks_static job runs, so a style break is caught before the push, not after the PR's CI.
 if [ -n "$PUSHED_REFS" ]; then
   if ! printf '%s\n' "$PUSHED_REFS" | awk '$3 == "refs/heads/main" || $3 == "refs/heads/candidate" { found = 1 } END { exit !found }'; then
-    printf '[pre-push] no pushed ref is main or candidate — running the comment-style checks only.\n\n'
-    if ! bundle exec ruby -Ilib -e 'require "hecks/tools"; Hecks::Tools.script("gate", ARGV)' quick only=comment_style,comment_blocks; then
+    printf '[pre-push] no pushed ref is main or candidate — running the quick stage (rubocop, comment style, shape ledger).\n\n'
+    if ! bundle exec ruby -Ilib -e 'require "hecks/tools"; Hecks::Tools.script("gate", ARGV)' quick; then
       printf '\n[pre-push] BLOCKED by comment style. Fix it, or push with --no-verify and say why.\n\n'
       exit 1
     fi
