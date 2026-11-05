@@ -66,6 +66,7 @@ Hecks.bluebook "Agents" do
 
     attribute :work, WorkKey
     attribute :verdict, Verdict, optional: true
+    attribute :findings, FindingsText, optional: true
     attribute :hops, HopCount, optional: true
 
     value_object "WorkKey" do
@@ -74,6 +75,11 @@ Hecks.bluebook "Agents" do
     end
 
     value_object "Verdict" do
+      attribute :value, String
+    end
+
+    # The architect's closing text: the findings behind the verdict, kept with it.
+    value_object "FindingsText" do
       attribute :value, String
     end
 
@@ -116,6 +122,7 @@ Hecks.bluebook "Agents" do
 
       reference_to PlanReview
       attribute :verdict, Verdict, sets: true
+      attribute :findings, FindingsText, optional: true, sets: true
 
       given("the verdict is one the architect gives") do
         verdict.value == "sound" || verdict.value == "changes" || verdict.value == "rethink"

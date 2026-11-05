@@ -71,7 +71,7 @@ RSpec.describe "a plan review request starting the architect's session" do
     close_job("Verdict: sound with changes. Revise the plan as the findings say.")
     launch("agent_run.check!", "to=w-verdict", "--wait")
     expect(verdict_reactions.map { |r| r[:delivered] }).to eq([true])
-    expect(launch("agents", "PlanReview.reviews").first.to_s).to include("w-verdict", "changes")
+    expect(launch("agents", "PlanReview.reviews").first.to_s).to include("w-verdict", "changes", "Revise the plan")
   end
 
   it "starts no run for a request at the hop limit", :aggregate_failures do
