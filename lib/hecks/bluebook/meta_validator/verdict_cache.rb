@@ -15,8 +15,8 @@ module Hecks
       #
       # Only bluebook verdicts live here; `Assembly.call` still runs every boot
       # and a miss judges as a cold process does. The file name carries a digest
-      # of the judging code (`lib/` outside `CONSUMER_TREES`, the Ruby and Hecks
-      # versions, `FORMAT`); each entry is keyed by the bluebook IR's SHA-256.
+      # of the judging code (`language_digest`); each entry is keyed by the bluebook
+      # IR's SHA-256, so editing one domain re-judges only that bluebook.
       # The file is tagged JSON, never `Marshal`, read only from a private,
       # user-owned directory: a forged "no refusals" entry would skip validation.
       #
@@ -38,6 +38,17 @@ module Hecks
         CONSUMER_TREES = %r{\A/hecks/(?:bench|cli|codemod|deploy|doc|adapters/driving|fuzzing|projections|
                             quality_control|release)(?:/|\.rb\z)}x
 
+        # The subtrees of `lib/` that are domains built in the language, not the language: each
+        # holds bluebooks and the adapters behind their ports, and `require "hecks"` loads none of
+        # their Ruby. The grammar table is built from the grammar files by code outside these
+        # trees, and a verdict is a function of that code and the bluebook's own IR, so an edit here
+        # leaves both as they were (`language_digest`). Paths are relative to `lib/hecks`;
+        # `spec/syntax_boot_key_spec.rb` fails if the table is built after any of these trees' Ruby
+        # is loaded, or if describing the Hecks domain loads Ruby from them that is not an adapter.
+        APPLIED_TREES = %r{\A/hecks/(?:hecks|tickets|pipeline|pipeline_board|gate|questions|coder|
+                           catcher|ci_pipeline|ci_speed|ci_workflows|fixer|site|sme|tenancy|
+                           rails_app)(?:/|\.rb\z)}x
+
         # Files older than this that do not match the current code digest are
         # pruned on write.
         STALE_AFTER = 60 * 60
@@ -55,7 +66,7 @@ module Hecks
         # The file the current code's verdicts live in.
         #
         # @return [String] an absolute path
-        def path = File.join(dir, "verdicts-#{code_digest}.json")
+        def path = File.join(dir, "verdicts-#{language_digest}.json")
 
         # A digest of everything that decides a verdict: each file under
         # `lib/` outside `CONSUMER_TREES` (path and bytes), the Ruby and Hecks
@@ -64,29 +75,42 @@ module Hecks
         # code was loaded.
         #
         # @return [String] a hex SHA-256
-        def code_digest = @code_digest ||= digest_of(File.expand_path("../../..", __dir__))
+        def code_digest = @code_digest ||= digest_of(lib_root)
+
+        # A digest of the language alone: `code_digest` without the `APPLIED_TREES`, so editing a
+        # domain built in the language (a bluebook or an adapter under them) keeps the grammar
+        # table a process built, which is the longest step of a cold boot.
+        # Computed once per process.
+        #
+        # @return [String] a hex SHA-256
+        def language_digest = @language_digest ||= digest_of(lib_root, skip: [CONSUMER_TREES, APPLIED_TREES])
 
         # The digest `code_digest` reports, for any tree.
         #
         # @param lib [String] the directory whose files decide a verdict
+        # @param skip [Array<Regexp>] the subtrees, as paths below `lib`, that stay out of it
         # @return [String] a hex SHA-256 over `FORMAT`, the versions and every
         #   file's relative path and bytes, in sorted order
-        def digest_of(lib)
+        def digest_of(lib, skip: [CONSUMER_TREES])
           state = Digest::SHA256.new
           state << "#{FORMAT}\0#{ruby_series}\0#{Hecks::VERSION}\0"
-          judging_files(lib).each do |file|
+          judging_files(lib, skip: skip).each do |file|
             state << file.delete_prefix(lib) << "\0" << File.binread(file) << "\0"
           end
           state.hexdigest
         end
 
         # @param lib [String] the directory whose files decide a verdict
-        # @return [Array<String>] every file under it outside `CONSUMER_TREES`, sorted
-        def judging_files(lib)
+        # @param skip [Array<Regexp>] the subtrees, as paths below `lib`, that stay out
+        # @return [Array<String>] every file under it outside `skip`, sorted
+        def judging_files(lib, skip: [CONSUMER_TREES])
           Dir.glob(File.join(lib, "**", "*"), File::FNM_DOTMATCH).sort.select do |file|
-            File.file?(file) && !file.delete_prefix(lib).match?(CONSUMER_TREES)
+            File.file?(file) && skip.none? { |tree| file.delete_prefix(lib).match?(tree) }
           end
         end
+
+        # @return [String] the directory of the gem's Ruby, whose files the digests cover
+        def lib_root = File.expand_path("../../..", __dir__)
 
         # Loads the stored verdicts, once per process; later calls return an
         # empty hash so a caller that resets its own memo re-judges for real.
@@ -115,6 +139,8 @@ module Hecks
           return unless enabled?
 
           entries[key] = held
+          return unless encodable?(held)
+
           @dirty = true
           register_exit_flush
         end
@@ -127,8 +153,9 @@ module Hecks
           return unless @dirty && enabled?
 
           @dirty = false
-          encoded = encode(entries)
-          return unless decode(encoded) == entries
+          storable = entries.select { |_key, held| encodable?(held) }
+          encoded = encode(storable)
+          return unless decode(encoded) == storable
 
           write(JSON.generate({ "format" => FORMAT, "entries" => encoded }, max_nesting: false))
           prune
@@ -144,6 +171,7 @@ module Hecks
           @dirty = false
           @entries = nil
           @code_digest = nil
+          @language_digest = nil
         end
 
         # @return [Hash{String => Hash}] every verdict this process knows

@@ -83,11 +83,12 @@ module Hecks
 
           def disk_cache_key(declarations)
             names = declarations.map { |name, _bluebook| name }
-            Digest::SHA256.hexdigest("#{names.join(",")}:#{grammar_content_digest}:#{VerdictCache.code_digest}")
+            Digest::SHA256.hexdigest("#{names.join(",")}:#{grammar_content_digest}:#{VerdictCache.language_digest}")
           end
 
-          # The key also carries `VerdictCache.code_digest` (all of `lib/`), so an
-          # edit to Ruby that builds or judges the grammar misses too.
+          # The key also carries `VerdictCache.language_digest` (`lib/` outside the consumer and
+          # applied trees), so an edit to Ruby that builds or judges the grammar misses too, while
+          # an edit to a domain built in the language (such as the Hecks domain) does not.
           #
           # Covers every bluebook's grammar files, not just the core ones —
           # coarser than strictly necessary, but under-covering this set would
