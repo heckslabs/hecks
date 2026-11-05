@@ -2,15 +2,15 @@
 
 require "socket"
 require "json"
-require_relative "answer_route"
+require_relative "act_route"
 
 module Hecks
   module Adapters
     module PipelineBoard
       # A small HTTP/1.1 server on the loopback address and nothing else. It answers three GET paths
       # (`/`, `/api/state`, `/api/events`) and refuses everything else. The one write it takes is
-      # `POST /api/answer`, a JSON body of `run` and `answer` that the app passes to its `answer`,
-      # which runs `AgentRun.answer!` and nothing else. It serves one request per connection, and
+      # `POST /api/act`, a JSON body naming one step the app passes to its `act`, which runs that
+      # step's launcher command and nothing else. It serves one request per connection, and
       # `/api/events` holds its connection open as a Server-Sent Events stream.
       class Server
         HOST = "127.0.0.1"
@@ -82,7 +82,7 @@ module Hecks
         end
 
         def answer(socket, verb, path, headers)
-          return post(socket, path, headers) if verb == "POST" && path == AnswerRoute::PATH
+          return post(socket, path, headers) if verb == "POST" && path == ActRoute::PATH
           return reply(socket, 405, "text/plain", "method not allowed", "Allow" => "GET") unless verb == "GET"
           return reply(socket, 404, "text/plain", "not found") unless ROUTES.include?(path)
 
@@ -100,14 +100,14 @@ module Hecks
           end
         end
 
-        # The one write the board takes: `POST /api/answer`, judged by {AnswerRoute} before its body
-        # is read. The origins allowed are the board's own, on 127.0.0.1 or localhost.
+        # The one write the board takes: `POST /api/act`, judged by {ActRoute} before its body is
+        # read. The origins allowed are the board's own, on 127.0.0.1 or localhost.
         def post(socket, path, headers)
           origins = ["http://#{@address}:#{@port}", "http://localhost:#{@port}"]
-          refused = AnswerRoute.refusal(path, headers, origins)
+          refused = ActRoute.refusal(path, headers, origins)
           return reply(socket, refused[0], "text/plain", refused[1]) if refused
 
-          status, body = AnswerRoute.submit(@app, socket.read(AnswerRoute.length_of(headers)).to_s)
+          status, body = ActRoute.submit(@app, socket.read(ActRoute.length_of(headers)).to_s)
           reply(socket, status, "application/json", JSON.generate(body))
         end
 

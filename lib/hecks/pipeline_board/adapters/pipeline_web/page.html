@@ -311,7 +311,7 @@ async function sendAnswer() {
   if (!text) { $("ans-status").textContent = "Write an answer first."; return; }
   send.disabled = true; $("ans-status").textContent = "Sending…";
   try {
-    const res = await fetch("/api/answer", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ run: s.run, answer: text }) });
+    const res = await fetch("/api/act", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "answer", target: s.run, text: text }) });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(body.error || "HTTP " + res.status);
     $("ans-text").value = ""; $("ans-status").textContent = "Sent. The session resumes with your answer.";

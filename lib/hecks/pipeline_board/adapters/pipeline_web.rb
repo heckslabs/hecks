@@ -2,6 +2,7 @@
 
 require_relative "pipeline_stages"
 require_relative "pipeline_wiring"
+require_relative "pipeline_web/actions"
 require_relative "pipeline_web/server"
 require_relative "pipeline_web/stream"
 require_relative "pipeline_web/snapshot"
@@ -10,41 +11,44 @@ module Hecks
   module Adapters
     # The `Web` port's adapter: opens the board on 127.0.0.1 and answers `GET /`, `GET /api/state`
     # and the `GET /api/events` stream until it is stopped. Every answer is read from
-    # {PipelineStages}; the one write is `POST /api/answer`, which runs `AgentRun.answer!` through
+    # {PipelineStages}; the one write is `POST /api/act`, which runs one step from {Actions} through
     # the launcher and nothing else.
     class PipelineWeb
       PAGE = File.expand_path("pipeline_web/page.html", __dir__)
       WIRING_PAGE = File.expand_path("pipeline_web/wiring.html", __dir__)
       SEQUENCE_PAGE = File.expand_path("pipeline_web/sequence.html", __dir__)
       DEFAULT_PORT = 4747
-      ANSWER_SECONDS = 60
+      ACT_SECONDS = 120
 
       # @param registry [Runtime::Registry, nil] handed to the readers
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] `stages:` stands in for {PipelineStages}, `interval:` is the seconds
-      #   between looks at the journal on a stream, `answerer:` a callable taking the launcher's
+      #   between looks at the journal on a stream, `launcher:` a callable taking the launcher's
       #   arguments and answering its standard output (it stands in for the launcher)
       # @param root [String, nil] the checkout the readers and the launcher run in
       def initialize(registry: nil, aggregate: nil, settings: {}, root: nil)
         @root = root || Dir.pwd
         @stages = settings[:stages] || PipelineStages.new(registry: registry, root: root)
         @wiring = settings[:wiring] || PipelineWiring.new(registry: registry)
-        @answerer = settings[:answerer] || ->(*args) { PipelineBoard::Probe.run(*args, chdir: @root, seconds: ANSWER_SECONDS) }
+        @launcher = settings[:launcher] || ->(*args) { PipelineBoard::Probe.run(*args, chdir: @root, seconds: ACT_SECONDS) }
         @interval = settings.fetch(:interval, 1.0)
         @snapshot = PipelineBoard::Snapshot.new(source: @stages.method(:state), background: settings.fetch(:background, true))
       end
 
-      # Sends a blocked session its answer by running `AgentRun.answer!` through the launcher, which
-      # resumes the session with it. The command refuses an answer to a session that is not blocked
-      # on a person, or one that says nothing; its refusal comes back as the reason.
+      # Runs one step the page asked for, through the launcher. The launcher's own command refuses
+      # what it should (an answer to a session not blocked on a person, a push without confirm);
+      # its refusal
+      # comes back as the reason.
       #
-      # @param run [String] the AgentRun's key
-      # @param answer [String] what the session is told
-      # @return [Hash{Symbol => Boolean}] `answered:` true once the command has run
-      # @raise [PipelineBoard::Unavailable] with the command's refusal
-      def answer(run:, answer:)
-        @answerer.call("exe/hecks", "AgentRun.answer!", "to=#{run}", "answer.value=#{answer}", "--wait")
-        { answered: true }
+      # @param action [String] a step from {Actions}
+      # @param fields [Hash{Symbol => String}] the step's fields
+      # @param confirm [Boolean] whether the page confirmed the step
+      # @return [Hash{Symbol => String}] `ran:` the launcher command the step ran
+      # @raise [PipelineBoard::Unavailable] with why the step did not run
+      def act(action:, fields:, confirm:)
+        argv = PipelineBoard::Actions.argv(action, fields, confirm: confirm)
+        @launcher.call("exe/hecks", *argv)
+        { ran: argv.first }
       end
 
       # Serves the board until interrupted.
