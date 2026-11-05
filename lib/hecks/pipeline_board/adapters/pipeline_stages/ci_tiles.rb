@@ -41,13 +41,21 @@ module Hecks
           unknown_tile("failed_head", "Failed jobs on head", { unknown: "GitHub would not list the jobs of #{head[:sha]}" })
         end
 
+        # A run still going has no verdict yet, so the tile says it is running rather than red.
         def red_for(runs, now)
-          return tile("red", "Main red for", 0, "h", detail: "main is green") if runs.last[:conclusion] == "success"
+          latest = runs.last
+          return running_red(latest) unless latest[:status] == "completed"
+          return tile("red", "Main red for", 0, "h", detail: "main is green") if latest[:conclusion] == "success"
 
           green = runs.reverse.find { |run| run[:conclusion] == "success" }
           hours = green && ((now - finished(green)) / 3600.0).round(1)
           note = green ? "since #{green[:sha]} went green" : "no green run in the window"
           tile("red", "Main red for", hours, "h", state: "failed", detail: note)
+        end
+
+        # The run is still going, so it has no verdict yet: the tile says so rather than red.
+        def running_red(latest)
+          unknown_tile("red", "Main red for", { unknown: "CI is still running on #{latest[:sha]}" })
         end
 
         def lead(data, runs)
