@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "git_worktrees"
+require_relative "git_strays"
 
 module Hecks
   module Adapters
@@ -42,6 +43,16 @@ module Hecks
           lines << (changed.empty? ? "clean" : "changed:") << changed.map { |line| "  #{line}" }
           lines.flatten.join("\n")
         end
+      end
+
+      # What each untracked or changed path is: a stale copy of a file `main` deleted, a linked
+      # worktree sitting inside the checkout, a tracked file with uncommitted changes, or unknown.
+      #
+      # @param held [Hash] `checkout`
+      # @return [Hash{Symbol => String}] `text:` one tab-separated line per path, or `no strays`
+      # @raise [Runtime::NotFound] when the checkout is not a repository
+      def strays(**held)
+        answering(held) { GitStrays.new(@git, @checkout).report }
       end
 
       # What a checkout changed since a ref: the diffstat, or the paths alone.

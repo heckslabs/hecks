@@ -7,6 +7,10 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+### Added
+
+- **`Workspace.strays` says what each untracked or changed path in a checkout is, and `Landing.set_aside!` moves one out of the way.** A dirty checkout used to refuse a landing with a list of paths and nothing more. `hecks Workspace.strays checkout.value=<dir>` now names each one: a stale copy of a file `main` deleted (with the commit that removed it, whether the copy equals its last version, and the `git show` that recovers it), a linked worktree sitting inside the checkout (its branch or head, clean or dirty, and how many of its commits are on no `main` or remote ref), a tracked file with uncommitted changes, or unknown. `hecks Landing.set_aside! path.value=<path> [holding.value=<dir>] --confirm` moves an untracked file or directory, or a clean linked worktree whose commits are all on `main` or a remote, into a holding directory (the job's `tmp`, else `~/.claude/set-aside`) and prints the command that puts it back. It never deletes, and it refuses a tracked path, a path with unsaved work, a worktree with unpushed commits, the directory the process stands in, and anything outside the checkout or inside `.git`. The refusal of a landing from a dirty tree now counts the untracked and changed paths and names `Workspace.strays`. The adapter is `GitStrays`, behind the `Reading` and `Worktrees` ports.
+
 ## [7.1.0] - 2026-11-02
 
 ### Added

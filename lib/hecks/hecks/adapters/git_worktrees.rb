@@ -65,6 +65,15 @@ module Hecks
       # The paths git lists as changed or untracked in a tree, one porcelain line each.
       def dirty(dir = @checkout) = read("status", "--porcelain", dir: dir).lines.map(&:rstrip)
 
+      # The refusal for a tree that holds unsaved work: the paths, how many are untracked and how
+      # many are tracked files with changes, and the query that says what each one is.
+      def unsaved_refusal(dir, changed)
+        untracked, tracked = changed.partition { |line| line.start_with?("??") }
+        counts = "#{untracked.size} untracked, #{tracked.size} changed"
+        "#{dir} holds uncommitted work: #{changed.join(", ")} (#{counts}); " \
+          "run `hecks Workspace.strays checkout.value=#{dir}` to see what each is"
+      end
+
       def ref(name)
         return name if name.to_s.match?(GitRefs::REF_PATTERN)
 
