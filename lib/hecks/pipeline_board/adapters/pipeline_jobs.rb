@@ -94,15 +94,29 @@ module Hecks
       def name_of(id, agent) = (agent && agent["name"]) || id
 
       # A session is `blocked` when its job says so and it is still alive: it waits on a person.
+      # A session that claude agents lists reports its own live state, which is current even while
+      # its state file still says blocked from before a reply. The file decides only when unlisted.
+      # A session is blocked only when it waits on a person, which its job says by setting `needs`.
+      # A session paused on a push or CI is still working, so it is shown busy, not blocked.
       def status_of(state, agent, age)
+        word = live_state(state, agent)
         fresh = age < FRESH_SECONDS
-        return "blocked" if state["state"] == "blocked" && (agent || fresh)
-        return "busy" if busy?(state, agent, fresh)
+        return "blocked" if blocked_state?(word, agent, fresh) && waiting_on_person?(state)
+        return "busy" if blocked_state?(word, agent, fresh) || busy?(word, agent, fresh)
 
-        %w[failed error].include?(state["state"]) ? "failed" : "done"
+        %w[failed error].include?(word) ? "failed" : "done"
       end
 
-      def busy?(state, agent, fresh) = (agent && agent["status"] == "busy") || (state["state"] == "working" && fresh)
+      # The job says it is blocked, and it is listed or recently written.
+      def blocked_state?(word, agent, fresh) = word == "blocked" && (!agent.nil? || fresh)
+
+      def waiting_on_person?(state) = !state["needs"].to_s.strip.empty?
+
+      def live_state(state, agent)
+        (agent && agent["state"]) || state["state"].to_s
+      end
+
+      def busy?(word, agent, fresh) = (agent && agent["status"] == "busy") || (word == "working" && fresh)
 
       def stamp(agent, edges)
         agent ? Time.at(agent["startedAt"].to_i / 1000).utc.iso8601 : edges.first
