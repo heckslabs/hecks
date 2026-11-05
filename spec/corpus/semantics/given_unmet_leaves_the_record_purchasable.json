@@ -1,0 +1,200 @@
+{
+  "domain": "examples/pizzas",
+  "spec": [
+    "C1.3",
+    "C2.4",
+    "C8.2"
+  ],
+  "note": "Purchase refuses a pizza with no toppings and then an underpayment, each as an unmet given; neither refusal changes the record, so the right payment on the same pizza still sells it.",
+  "steps": [
+    {
+      "verb": "Pizzas::Order.CreatePizza",
+      "args": {
+        "name": {
+          "value": "bare"
+        },
+        "pizza": {
+          "price_cents": {
+            "cents": 900
+          },
+          "size": {
+            "value": "small"
+          }
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Order.Purchase",
+      "args": {
+        "name": "bare",
+        "amount": {
+          "cents": 900
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Order.CreatePizza",
+      "args": {
+        "name": {
+          "value": "short"
+        },
+        "pizza": {
+          "price_cents": {
+            "cents": 1200
+          },
+          "size": {
+            "value": "large"
+          }
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Order.AddTopping",
+      "args": {
+        "name": "short",
+        "topping": {
+          "value": "Basil"
+        },
+        "amount": {
+          "value": 1
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Order.Purchase",
+      "args": {
+        "name": "short",
+        "amount": {
+          "cents": 500
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Order.Purchase",
+      "args": {
+        "name": "short",
+        "amount": {
+          "cents": 1200
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+      {
+        "verb": "Pizzas::Order.Purchase",
+        "error": "Purchase refused — a pizza needs at least one topping",
+        "kind": "GivenNotMet"
+      },
+      {
+        "verb": "Pizzas::Order.Purchase",
+        "error": "Purchase refused — the payment covers the price",
+        "kind": "GivenNotMet"
+      }
+    ],
+    "instances": {
+      "Pizzas::Order#bare": {
+        "name": {
+          "value": "bare"
+        },
+        "pizza": {
+          "price_cents": {
+            "cents": 900
+          },
+          "size": {
+            "value": "small"
+          }
+        },
+        "toppings": [
+
+        ],
+        "customer_name": null,
+        "status": "available"
+      },
+      "Pizzas::Order#short": {
+        "name": {
+          "value": "short"
+        },
+        "pizza": {
+          "price_cents": {
+            "cents": 1200
+          },
+          "size": {
+            "value": "large"
+          }
+        },
+        "toppings": [
+          {
+            "name": "Basil",
+            "amount": 1
+          }
+        ],
+        "customer_name": null,
+        "status": "sold"
+      }
+    },
+    "events": [
+      {
+        "name": "PizzaCreated",
+        "aggregate": "Pizzas::Order",
+        "id": "bare",
+        "payload": {
+          "name": {
+            "value": "bare"
+          },
+          "pizza": {
+            "price_cents": {
+              "cents": 900
+            },
+            "size": {
+              "value": "small"
+            }
+          }
+        }
+      },
+      {
+        "name": "PizzaCreated",
+        "aggregate": "Pizzas::Order",
+        "id": "short",
+        "payload": {
+          "name": {
+            "value": "short"
+          },
+          "pizza": {
+            "price_cents": {
+              "cents": 1200
+            },
+            "size": {
+              "value": "large"
+            }
+          }
+        }
+      },
+      {
+        "name": "ToppingAdded",
+        "aggregate": "Pizzas::Order",
+        "id": "short",
+        "payload": {
+          "name": "short",
+          "topping": {
+            "value": "Basil"
+          },
+          "amount": {
+            "value": 1
+          }
+        }
+      },
+      {
+        "name": "PizzaPurchased",
+        "aggregate": "Pizzas::Order",
+        "id": "short",
+        "payload": {
+          "name": "short",
+          "amount": {
+            "cents": 1200
+          }
+        }
+      }
+    ]
+  }
+}

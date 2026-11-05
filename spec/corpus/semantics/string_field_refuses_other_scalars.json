@@ -1,0 +1,106 @@
+{
+  "domain": "examples/pizzas",
+  "spec": [
+    "C3.7",
+    "C3.8",
+    "C8.2"
+  ],
+  "note": "A String-typed value-object field refuses an integer, a float, a boolean and a list as TypeMismatch, so no pizza is created under a non-string name.",
+  "steps": [
+    {
+      "verb": "Pizzas::Order.CreatePizza",
+      "args": {
+        "name": {
+          "value": 123
+        },
+        "pizza": {
+          "price_cents": {
+            "cents": 1000
+          },
+          "size": {
+            "value": "small"
+          }
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Order.CreatePizza",
+      "args": {
+        "name": {
+          "value": 1.5
+        },
+        "pizza": {
+          "price_cents": {
+            "cents": 1000
+          },
+          "size": {
+            "value": "small"
+          }
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Order.CreatePizza",
+      "args": {
+        "name": {
+          "value": true
+        },
+        "pizza": {
+          "price_cents": {
+            "cents": 1000
+          },
+          "size": {
+            "value": "small"
+          }
+        }
+      }
+    },
+    {
+      "verb": "Pizzas::Order.CreatePizza",
+      "args": {
+        "name": {
+          "value": [
+            "a"
+          ]
+        },
+        "pizza": {
+          "price_cents": {
+            "cents": 1000
+          },
+          "size": {
+            "value": "small"
+          }
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+      {
+        "verb": "Pizzas::Order.CreatePizza",
+        "error": "PizzaName.value expects String, got 123",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Pizzas::Order.CreatePizza",
+        "error": "PizzaName.value expects String, got 1.5",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Pizzas::Order.CreatePizza",
+        "error": "PizzaName.value expects String, got true",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Pizzas::Order.CreatePizza",
+        "error": "PizzaName.value expects String, got [\"a\"]",
+        "kind": "TypeMismatch"
+      }
+    ],
+    "instances": {
+    },
+    "events": [
+
+    ]
+  }
+}

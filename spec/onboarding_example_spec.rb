@@ -65,15 +65,17 @@ RSpec.describe "the Onboarding example" do
   end
 
   describe "the six steps" do
+    # The runtime resolves the probe by constant, so the flow loads it before it boots.
+    before do
+      load_probe
+      machine("ruby" => ["3.4.1", ok], "gem" => ["true", ok], "hecks" => ["commands", ok])
+      app
+    end
+
     let(:app) { Hecks.boot(dir, environment: "memory") }
     let(:status) { -> { Onboarding::Onboarding.all.map(&:status) } }
 
     def step(verb, with = {}) = app.dispatch("Onboarding::Onboarding.#{verb}", to: "m1", with: with)
-
-    before do
-      machine("ruby" => ["3.4.1", ok], "gem" => ["true", ok], "hecks" => ["commands", ok])
-      app
-    end
 
     # Runs the steps in order, up to and including the named one.
     def walk_to(last)

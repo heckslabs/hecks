@@ -44,7 +44,8 @@ it, except for one law they must uphold (C8.4).
   typed. (fixtures: `refusal_order.json`, `absent_argument_refused.json`)
 - **C1.3 (settled)** Within one step, rules are checked in declaration
   order and the first failure refuses; later rules of that step are not
-  evaluated. (fixture: `given_first_failure_wins.json`)
+  evaluated. (fixtures: `given_first_failure_wins.json`,
+  `given_unmet_leaves_the_record_purchasable.json`)
 
 ## §2 Rules and name resolution
 
@@ -155,7 +156,9 @@ it, except for one law they must uphold (C8.4).
   *command* boundary's: a query's declared argument types name the
   argument for callers and generators, never a runtime shape —
   comparison unwraps both sides itself — so a query argument is not
-  type-checked here. (fixture: `bare_argument_type_refused.json`)
+  type-checked here. (fixtures: `bare_argument_type_refused.json`,
+  `string_field_refuses_other_scalars.json` — the value-object field
+  case, where both runtimes refuse every non-string)
 
 ## §4 Effects
 
