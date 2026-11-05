@@ -1,0 +1,33 @@
+Hecks.behaviors "Desk" do
+  vision "Examples of a command run by several roles, any one of which may run it."
+
+  loads "multi_role.bluebook"
+
+  test "a caller holding the first role may run the command" do
+    tests "Open", on: "Ticket"
+    as "Customer"
+    input number: { value: "T-1" }
+    expect emits: ["TicketOpened"]
+  end
+
+  test "a caller holding another of the roles may run the command" do
+    tests "Open", on: "Ticket"
+    as "Sales Rep"
+    input number: { value: "T-2" }
+    expect emits: ["TicketOpened"]
+  end
+
+  test "a caller holding none of the roles is refused, naming them all" do
+    tests "Open", on: "Ticket"
+    as "Viewer"
+    input number: { value: "T-9" }
+    expect refused: "Open refused — role: Customer or Sales Rep, and the caller stated Viewer"
+  end
+
+  test "a command with one role still refuses a caller holding another" do
+    tests "Close", on: "Ticket"
+    as "Customer"
+    input number: { value: "T-1" }
+    expect refused: "Close refused — role: Agent, and the caller stated Customer"
+  end
+end

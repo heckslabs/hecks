@@ -8,8 +8,11 @@ require_relative "../../support/postgres_probe"
 # Postgres (behind `:io`) give the same outcomes for the same sequence. `PROPERTY_SEEDS` sets
 # how many seeds each domain is replayed under.
 RSpec.describe "every domain's stores", :aggregate_failures do
+  # A domain binds its store through its hecksagon (CLAUDE.md), so one without a hecksagon has no
+  # store to bind to SQLite and is left out.
   def self.domains
-    Hecks::Corpus.members(:example).map(&:path).sort + [File.join(InMemoryDomain::ROOT, "spec/fixtures/refusal_kinds")]
+    (Hecks::Corpus.members(:example).map(&:path).sort + [File.join(InMemoryDomain::ROOT, "spec/fixtures/refusal_kinds")])
+      .select { |dir| Dir[File.join(dir, "**", "*.hecksagon")].any? }
   end
 
   def self.seeds = 1..Integer(ENV.fetch("PROPERTY_SEEDS", "2"))

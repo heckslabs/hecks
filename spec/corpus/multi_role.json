@@ -1,0 +1,41 @@
+{
+  "name": "multi_role-parity",
+  "note": "multi_role: the example's commands replayed in order, with what the run recorded.",
+  "domain": "examples/multi_role",
+  "expectations": {
+    "events": 1
+  },
+  "steps": [
+    {
+      "verb": "Desk::Ticket.Open",
+      "args": {
+        "number": {
+          "value": "T1"
+        }
+      }
+    },
+    {
+      "verb": "Desk::Ticket.Close",
+      "args": {
+        "number": {
+          "value": "T1"
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+      {
+        "verb": "Desk::Ticket.Close",
+        "error": "Close creates a Ticket that already exists — number.value \"T1\""
+      }
+    ],
+    "instances": {
+      "Desk::Ticket#T1": {
+        "number": {
+          "value": "T1"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,53 @@
+Hecks.behaviors "Shelving" do
+  vision "Examples of a value object's list_of field holding an Array of its element type, or nothing."
+
+  loads "list_field_shape.bluebook"
+
+  test "a list field takes an Array of the element type" do
+    tests "Make", on: "Item"
+    input key: { value: "k-1" }, bag: { heard: "a", tags: %w[x y], counts: [1] }
+    expect ok: true
+  end
+
+  test "a list field may be left out" do
+    tests "Make", on: "Item"
+    input key: { value: "k-2" }, bag: { heard: "a" }
+    expect ok: true
+  end
+
+  test "a list field may be nil" do
+    tests "Make", on: "Item"
+    input key: { value: "k-3" }, bag: { heard: "a", tags: nil }
+    expect ok: true
+  end
+
+  test "a lone string is refused where a list of strings is declared" do
+    tests "Make", on: "Item"
+    input key: { value: "k-4" }, bag: { heard: "a", tags: "x" }
+    expect refused: "Bag.tags expects list_of(String), got \"x\""
+  end
+
+  test "a lone integer is refused where a list of integers is declared" do
+    tests "Make", on: "Item"
+    input key: { value: "k-5" }, bag: { heard: "a", counts: 3 }
+    expect refused: "Bag.counts expects list_of(Integer)"
+  end
+
+  test "a Hash is refused where a list is declared" do
+    tests "Make", on: "Item"
+    input key: { value: "k-6" }, bag: { heard: "a", tags: { a: 1 } }
+    expect refused: "Bag.tags"
+  end
+
+  test "each string element is checked as a string" do
+    tests "Make", on: "Item"
+    input key: { value: "k-7" }, bag: { heard: "a", tags: [1] }
+    expect refused: "Bag.tags expects String"
+  end
+
+  test "each integer element is checked as an integer" do
+    tests "Make", on: "Item"
+    input key: { value: "k-8" }, bag: { heard: "a", counts: ["1"] }
+    expect refused: "Bag.counts"
+  end
+end

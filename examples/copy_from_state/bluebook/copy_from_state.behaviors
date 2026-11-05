@@ -1,0 +1,34 @@
+Hecks.behaviors "Snapshots" do
+  vision "Examples of a mutation copying the record's own state into an appended element or onto another field."
+
+  loads "copy_from_state.bluebook"
+
+  test "Record copies the ply onto last_ply and asks the caller for nothing" do
+    tests "Record", on: "Board"
+    setup "Create", label: { value: "b" }
+    setup "Place", board: "b", id: "p1", square: { file: 1 }
+    input board: "b"
+    expect last_ply: 0, ply: 1
+  end
+
+  test "a given refuses a repeat while the pieces stand elsewhere than any recorded position" do
+    tests "ClaimRepeat", on: "Board"
+    setup "Create", label: { value: "b" }
+    setup "Place", board: "b", id: "p1", square: { file: 1 }
+    setup "Record", board: "b"
+    setup "MovePiece", board: "b", id: "p1", to: { file: 2 }
+    input board: "b"
+    expect refused: "some earlier position has every piece where it stands now"
+  end
+
+  test "a given quantifies over the snapshot's own list once the pieces return" do
+    tests "ClaimRepeat", on: "Board"
+    setup "Create", label: { value: "b" }
+    setup "Place", board: "b", id: "p1", square: { file: 1 }
+    setup "Record", board: "b"
+    setup "MovePiece", board: "b", id: "p1", to: { file: 2 }
+    setup "MovePiece", board: "b", id: "p1", to: { file: 1 }
+    input board: "b"
+    expect emits: ["RepeatClaimed"]
+  end
+end

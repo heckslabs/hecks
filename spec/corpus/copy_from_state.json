@@ -1,0 +1,34 @@
+{
+  "name": "copy_from_state-parity",
+  "note": "copy_from_state: the example's commands replayed in order, with what the run recorded.",
+  "domain": "examples/copy_from_state",
+  "expectations": {
+    "events": 1
+  },
+  "steps": [
+    {
+      "verb": "Snapshots::Board.Create",
+      "args": {
+        "label": {
+          "value": "b1"
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [],
+    "instances": {
+      "Snapshots::Board#b1": {
+        "label": {
+          "value": "b1"
+        },
+        "ply": {
+          "value": 0
+        },
+        "last_ply": null,
+        "pieces": [],
+        "positions": []
+      }
+    }
+  }
+}

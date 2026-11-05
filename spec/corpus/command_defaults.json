@@ -1,0 +1,37 @@
+{
+  "name": "command_defaults-parity",
+  "note": "command_defaults: the example's commands replayed in order, with what the run recorded.",
+  "domain": "examples/command_defaults",
+  "expectations": {
+    "events": 1
+  },
+  "steps": [
+    {
+      "verb": "CommandDefaults::Trial.Start",
+      "args": {
+        "ref": {
+          "value": "t1"
+        },
+        "label": {
+          "value": "first"
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [],
+    "instances": {
+      "CommandDefaults::Trial#t1": {
+        "ref": {
+          "value": "t1"
+        },
+        "rounds": {
+          "value": 30
+        },
+        "label": {
+          "value": "first"
+        }
+      }
+    }
+  }
+}
