@@ -2,18 +2,22 @@
 
 require "socket"
 require "json"
+require_relative "answer_route"
 
 module Hecks
   module Adapters
     module PipelineBoard
       # A small HTTP/1.1 server on the loopback address and nothing else. It answers three GET paths
-      # (`/`, `/api/state`, `/api/events`) and refuses everything else, so no command and no write
-      # is reachable through it. It serves one request per connection, and `/api/events` holds its
-      # connection open as a Server-Sent Events stream.
+      # (`/`, `/api/state`, `/api/events`) and refuses everything else. The one write it takes is
+      # `POST /api/answer`, a JSON body of `run` and `answer` that the app passes to its `answer`,
+      # which runs `AgentRun.answer!` and nothing else. It serves one request per connection, and
+      # `/api/events` holds its connection open as a Server-Sent Events stream.
       class Server
         HOST = "127.0.0.1"
         ROUTES = %w[/ /api/state /api/events /wiring /api/wiring /sequence].freeze
-        STATUS = { 200 => "OK", 404 => "Not Found", 405 => "Method Not Allowed" }.freeze
+        STATUS = { 200 => "OK", 400 => "Bad Request", 403 => "Forbidden", 404 => "Not Found",
+                   405 => "Method Not Allowed", 415 => "Unsupported Media Type",
+                   422 => "Unprocessable Entity" }.freeze
 
         # @return [Integer] the port the server is bound to
         attr_reader :port
@@ -22,7 +26,7 @@ module Hecks
         attr_reader :address
 
         # @param port [Integer] 0 binds a free port
-        # @param app [#page, #state, #stream] what answers the three routes
+        # @param app [#page, #state, #stream, #answer] what answers the routes
         def initialize(port:, app:)
           @listener = TCPServer.new(HOST, port)
           bound = @listener.local_address
@@ -59,8 +63,8 @@ module Hecks
         def serve(socket)
           @open << socket
           verb, target = socket.gets.to_s.split
-          nil while (line = socket.gets) && line != "\r\n"
-          answer(socket, verb, target.to_s.split("?").first)
+          headers = read_headers(socket)
+          answer(socket, verb, target.to_s.split("?").first, headers)
         rescue SystemCallError, IOError
           nil
         ensure
@@ -68,7 +72,17 @@ module Hecks
           @open.delete(socket)
         end
 
-        def answer(socket, verb, path)
+        def read_headers(socket)
+          headers = {}
+          while (line = socket.gets) && line != "\r\n"
+            key, value = line.split(":", 2)
+            headers[key.to_s.downcase] = value.to_s.strip
+          end
+          headers
+        end
+
+        def answer(socket, verb, path, headers)
+          return post(socket, path, headers) if verb == "POST" && path == AnswerRoute::PATH
           return reply(socket, 405, "text/plain", "method not allowed", "Allow" => "GET") unless verb == "GET"
           return reply(socket, 404, "text/plain", "not found") unless ROUTES.include?(path)
 
@@ -84,6 +98,17 @@ module Hecks
           when "/api/wiring" then reply(socket, 200, "application/json", JSON.generate(@app.wiring))
           else stream(socket)
           end
+        end
+
+        # The one write the board takes: `POST /api/answer`, judged by {AnswerRoute} before its body
+        # is read. The origins allowed are the board's own, on 127.0.0.1 or localhost.
+        def post(socket, path, headers)
+          origins = ["http://#{@address}:#{@port}", "http://localhost:#{@port}"]
+          refused = AnswerRoute.refusal(path, headers, origins)
+          return reply(socket, refused[0], "text/plain", refused[1]) if refused
+
+          status, body = AnswerRoute.submit(@app, socket.read(AnswerRoute.length_of(headers)).to_s)
+          reply(socket, status, "application/json", JSON.generate(body))
         end
 
         def reply(socket, status, type, body, extra = {})

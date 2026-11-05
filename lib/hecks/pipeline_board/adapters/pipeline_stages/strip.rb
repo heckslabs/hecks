@@ -45,13 +45,24 @@ module Hecks
           row("Work items", started.positive? ? "working" : "ok", "#{planned}/#{started}/#{done}", "planned / started / done")
         end
 
+        # The Sessions row also names the sessions blocked on a person (`blocked`), so the page can
+        # open an answer prompt for each: its run key, repo, work item and the question it waits on.
         def sessions(list)
           return unknown("Sessions", list) unless list.is_a?(Array)
 
-          busy = list.count { |s| s[:status] == "busy" }
-          blocked = list.count { |s| s[:status] == "blocked" }
-          note = "#{busy} busy, #{blocked} blocked on you, of #{list.size} in the last day"
-          row("Sessions", session_state(busy, blocked), busy + blocked, note)
+          session_row(list.size, list.count { |s| s[:status] == "busy" }, list.select { |s| s[:status] == "blocked" })
+        end
+
+        def session_row(total, busy, waiting)
+          note = "#{busy} busy, #{waiting.size} blocked on you, of #{total} in the last day"
+          row("Sessions", session_state(busy, waiting.size), busy + waiting.size, note)
+            .merge(blocked: waiting.map { |s| waiting_on(s) })
+        end
+
+        # The fields an answer prompt shows. The question is the job's own detail, when it has one.
+        def waiting_on(session)
+          { id: session[:id], name: session[:name], run: session[:run], repo: session[:repo],
+            work_item: session[:work_item], question: session[:detail] }
         end
 
         # Attention while anyone waits on a person, working while anyone works, else ok.

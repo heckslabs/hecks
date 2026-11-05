@@ -41,7 +41,9 @@ module Hecks
     # One dispatch or query call: the booted domain, what it is asked, and who is asking.
     Request = Struct.new(:runtime, :bluebook, :name, :summary, :args, :source, :dry_run, :role, :actor_id,
                          :surface, keyword_init: true) do
-      # @return [String, nil] the name of the bluebook the call asks, or nil when none is booted
+      # The name of the bluebook the call asks about.
+      #
+      # @return [String, nil] the name, or nil when none is booted
       def bluebook_name = bluebook&.name
     end
 

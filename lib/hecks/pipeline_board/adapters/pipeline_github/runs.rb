@@ -10,9 +10,6 @@ module Hecks
       module PipelineRuns
         RUN_FIELDS = "databaseId,headSha,startedAt,updatedAt,conclusion,status"
 
-        # Conclusions of a completed run that holds no failed job, so its jobs are never fetched.
-        CLEAN = %w[success skipped].freeze
-
         private
 
         def rows(limit)
@@ -31,7 +28,7 @@ module Hecks
         # instead of counting zero).
         def failed_jobs(run)
           return counted(run) unless run["status"] == "completed"
-          return 0 if CLEAN.include?(run["conclusion"])
+          return 0 if Hecks::CheckConclusion.certifies?(run["conclusion"])
 
           @settled.fetch(run["databaseId"]) { counted(run) }
         rescue PipelineBoard::Unavailable

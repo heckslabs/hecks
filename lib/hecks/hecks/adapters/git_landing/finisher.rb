@@ -7,8 +7,7 @@ require_relative "../shell"
 module Hecks
   module Adapters
     class GitLanding
-      # The steps before a landing that an agent used to run by hand: refuse unsaved work, rebase
-      # the
+      # The steps before a landing that an agent runs by hand: refuse unsaved work, rebase the
       # branch onto local `main`, and run the quick gate in the branch's worktree.
       #
       # Each step refuses by name at the first failure, with the reason, and leaves the branch as it

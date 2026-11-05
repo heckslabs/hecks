@@ -34722,7 +34722,7 @@
               ],
               [
                 "argv",
-                "bundle exec exe/hecks style_run.check_comments! paths=lib/hecks spec --wait"
+                "bundle exec exe/hecks style_run.check_comments! paths=lib/hecks,spec --wait"
               ],
               [
                 "script",
@@ -35789,6 +35789,221 @@
             ]
           ],
           "name": "RequiredCheck"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "name",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "certifies",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "clean",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "evidence",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "unfinished",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "name",
+                "success"
+              ],
+              [
+                "certifies",
+                "yes"
+              ],
+              [
+                "clean",
+                "yes"
+              ],
+              [
+                "evidence",
+                "yes"
+              ],
+              [
+                "unfinished",
+                ""
+              ]
+            ],
+            [
+              [
+                "name",
+                "skipped"
+              ],
+              [
+                "certifies",
+                "yes"
+              ],
+              [
+                "clean",
+                "yes"
+              ],
+              [
+                "evidence",
+                ""
+              ],
+              [
+                "unfinished",
+                "yes"
+              ]
+            ],
+            [
+              [
+                "name",
+                "neutral"
+              ],
+              [
+                "certifies",
+                ""
+              ],
+              [
+                "clean",
+                "yes"
+              ],
+              [
+                "evidence",
+                ""
+              ],
+              [
+                "unfinished",
+                "yes"
+              ]
+            ],
+            [
+              [
+                "name",
+                "cancelled"
+              ],
+              [
+                "certifies",
+                ""
+              ],
+              [
+                "clean",
+                ""
+              ],
+              [
+                "evidence",
+                ""
+              ],
+              [
+                "unfinished",
+                "yes"
+              ]
+            ],
+            [
+              [
+                "name",
+                "stale"
+              ],
+              [
+                "certifies",
+                ""
+              ],
+              [
+                "clean",
+                ""
+              ],
+              [
+                "evidence",
+                ""
+              ],
+              [
+                "unfinished",
+                "yes"
+              ]
+            ],
+            [
+              [
+                "name",
+                "action_required"
+              ],
+              [
+                "certifies",
+                ""
+              ],
+              [
+                "clean",
+                ""
+              ],
+              [
+                "evidence",
+                ""
+              ],
+              [
+                "unfinished",
+                "yes"
+              ]
+            ],
+            [
+              [
+                "name",
+                ""
+              ],
+              [
+                "certifies",
+                ""
+              ],
+              [
+                "clean",
+                ""
+              ],
+              [
+                "evidence",
+                ""
+              ],
+              [
+                "unfinished",
+                "yes"
+              ]
+            ]
+          ],
+          "name": "CheckConclusion"
         },
         {
           "attributes": [

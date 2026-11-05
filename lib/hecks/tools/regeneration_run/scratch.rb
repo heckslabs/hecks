@@ -16,8 +16,8 @@ module Hecks
                            "compare. It is committed: restore it from git, or run " \
                            "`hecks regeneration_run.regenerate_corpus! --confirm`, then the check."
 
-        # A scratch crate: copies of the generated tree and Cargo.toml, all `hecks build.project_rust!`
-        # writes.
+        # A scratch crate: copies of the generated tree and Cargo.toml, all
+        # `hecks build.project_rust!` writes.
         #
         # @param root [String] the checkout
         # @return [String] the scratch directory

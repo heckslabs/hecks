@@ -100,6 +100,16 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
 .live { font-size: 12px; }
 .tip { position: fixed; pointer-events: none; background: var(--ink); color: var(--surface); padding: 4px 8px; border-radius: 6px; font-size: 12px; z-index: 10; display: none; max-width: 280px; }
 .unknown-note { color: var(--ink2); font-style: italic; }
+.clickable { cursor: pointer; }
+.clickable:hover { outline: 2px solid var(--warning); outline-offset: 1px; }
+.node.clickable:hover { outline-offset: 0; }
+dialog#answer { width: min(34rem, 92vw); border: 1px solid var(--axis); border-radius: 10px; background: var(--surface); color: var(--ink); padding: 16px; }
+dialog#answer::backdrop { background: rgba(0,0,0,.35); }
+dialog#answer textarea { width: 100%; font: inherit; color: var(--ink); background: var(--page); border: 1px solid var(--axis); border-radius: 6px; padding: 6px 8px; resize: vertical; }
+dialog#answer select { font: inherit; color: var(--ink); background: var(--page); border: 1px solid var(--axis); border-radius: 6px; padding: 3px 6px; max-width: 100%; margin-bottom: 8px; }
+dialog#answer .question { border-left: 4px solid var(--warning); padding: 4px 8px; margin: 8px 0; background: var(--page); border-radius: 0 6px 6px 0; overflow-wrap: anywhere; }
+dialog#answer .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; }
+dialog#answer .status { min-height: 1.4em; font-size: 12px; color: var(--ink2); margin-top: 6px; }
 .tables-only .chartview { display: none; } body:not(.tables-only) .tableview { display: none; }
 @media (max-width: 900px) {
   .strip { grid-template-columns: 1fr; gap: 10px; }
@@ -145,6 +155,21 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
   <section aria-labelledby="h-sess"><h2 id="h-sess">Sessions</h2><div class="scroll" id="sessions"></div></section>
   <section aria-labelledby="h-ev"><h2 id="h-ev">Events and what answered them</h2><div class="feed" id="feed" aria-live="polite"></div></section>
 </main>
+<dialog id="answer" aria-labelledby="ans-title">
+  <form method="dialog" id="ans-form">
+    <h2 id="ans-title">Answer a blocked session</h2>
+    <select id="ans-pick" aria-label="Blocked session"></select>
+    <div id="ans-key" class="unknown-note"></div>
+    <div id="ans-question"></div>
+    <label for="ans-text" class="unknown-note">Your answer</label>
+    <textarea id="ans-text" rows="4"></textarea>
+    <div class="status" id="ans-status" aria-live="polite"></div>
+    <div class="actions">
+      <button type="button" id="ans-cancel">Cancel</button>
+      <button type="button" id="ans-send">Send</button>
+    </div>
+  </form>
+</dialog>
 <div class="tip" id="tip" role="tooltip"></div>
 <script>
 "use strict";
@@ -194,8 +219,59 @@ function renderTiles(tiles) {
   }));
 }
 function renderStrip(stages) {
-  put("strip", stages.map((s) => h("div", { class: "node", tip: s.name + ": " + s.detail },
-    h("div", { class: "name" }, s.name), h("div", { class: "count" }, s.count), badge(s.state), h("div", { class: "detail" }, s.detail))));
+  put("strip", stages.map((s) => {
+    const waiting = Array.isArray(s.blocked) ? s.blocked : [];
+    const node = h("div", { class: "node" + (waiting.length ? " clickable" : ""), tip: s.name + ": " + s.detail + (waiting.length ? " (click to answer)" : "") },
+      h("div", { class: "name" }, s.name), h("div", { class: "count" }, s.count), badge(s.state), h("div", { class: "detail" }, s.detail));
+    if (waiting.length) answerable(node, () => openAnswer(waiting, waiting[0].id));
+    return node;
+  }));
+}
+/* Opens an answer prompt from a click or from Enter and Space on the keyboard. */
+function answerable(el, open) {
+  el.tabIndex = 0;
+  el.addEventListener("click", open);
+  el.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } });
+}
+/* The answer prompt. `waitingList` holds the blocked sessions it may answer; the select picks one. */
+let waitingList = [];
+function openAnswer(list, pickId) {
+  waitingList = list;
+  const pick = $("ans-pick");
+  pick.replaceChildren(...list.map((s, i) => h("option", { value: String(i) }, s.name + (s.work_item ? " · " + s.work_item : ""))));
+  pick.value = String(Math.max(0, list.findIndex((s) => s.id === pickId)));
+  pick.hidden = list.length < 2;
+  $("ans-text").value = "";
+  showAnswer();
+  $("answer").showModal();
+  $("ans-text").focus();
+}
+function currentWaiting() { return waitingList[Number($("ans-pick").value)] || waitingList[0]; }
+function showAnswer() {
+  const s = currentWaiting();
+  if (s.question) {
+    $("ans-key").replaceChildren();
+    $("ans-question").replaceChildren(h("div", { class: "question" }, "Waiting on: " + s.question));
+  } else {
+    $("ans-question").replaceChildren();
+    $("ans-key").replaceChildren("Run " + (s.run || "(no run key)") + (s.repo ? " in " + s.repo : ""));
+  }
+  $("ans-send").disabled = !s.run;
+  $("ans-status").textContent = s.run ? "" : "This session has no AgentRun key, so the board cannot answer it.";
+}
+async function sendAnswer() {
+  const s = currentWaiting(), text = $("ans-text").value.trim(), send = $("ans-send");
+  if (!s || !s.run) return;
+  if (!text) { $("ans-status").textContent = "Write an answer first."; return; }
+  send.disabled = true; $("ans-status").textContent = "Sending…";
+  try {
+    const res = await fetch("/api/answer", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ run: s.run, answer: text }) });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || "HTTP " + res.status);
+    $("ans-text").value = ""; $("ans-status").textContent = "Sent. The session resumes with your answer.";
+    refresh();
+  } catch (e) { $("ans-status").textContent = "Not sent: " + e.message; }
+  finally { send.disabled = false; }
 }
 function columns(rows, pick, label, second) {
   const max = Math.max(1, ...rows.map(pick));
@@ -237,6 +313,12 @@ function renderFan(fan) {
       h("div", { class: "span " + s.status, style: "left:" + left + "%;width:" + width + "%", tip: s.name + " " + s.status + " " + clock(s.started) + " to " + (s.ended ? clock(s.ended) : "now") }));
   })), h("div", { class: "hours" }, h("span", {}, "-24 h"), h("span", {}, "-12 h"), h("span", {}, "now")));
   put("lanetable", table(["Session", "Status", "Started", "Ended", "Work item"], sessions.map((s) => [s.name, s.status, clock(s.started), s.ended ? clock(s.ended) : "now", s.row || "-"])));
+  const laneRows = $("lanetable").querySelectorAll("tbody tr");
+  sessions.forEach((s, i) => {
+    if (s.status !== "blocked" || !laneRows[i]) return;
+    laneRows[i].classList.add("clickable");
+    answerable(laneRows[i], () => openAnswer([{ id: s.id, name: s.name, run: s.run, repo: s.repo, work_item: s.work_item, question: s.detail }], s.id));
+  });
   const fill = fan.fill, ok = fill && !isUnknown(fill), cap = ok ? fill.cap : 8;
   const alive = sessions.filter((s) => s.status === "busy" || s.status === "blocked"), busy = alive.filter((s) => s.row).length;
   put("meters", h("div", {}, h("div", {}, "Dispatched sessions: " + busy + " of " + cap + " (" + alive.length + " alive, " + alive.filter((s) => s.status === "blocked").length + " blocked on you)"), h("div", { class: "meter" }, h("div", { style: "width:" + Math.min(100, 100 * busy / cap) + "%" })),
@@ -293,6 +375,9 @@ $("toggle").addEventListener("click", () => {
   const on = document.body.classList.toggle("tables-only");
   $("toggle").setAttribute("aria-pressed", String(on)); $("toggle").textContent = on ? "Show charts" : "Show tables";
 });
+$("ans-send").addEventListener("click", sendAnswer);
+$("ans-cancel").addEventListener("click", () => $("answer").close());
+$("ans-pick").addEventListener("change", showAnswer);
 refresh(); setInterval(refresh, 10000); listen();
 </script>
 </body>
