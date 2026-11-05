@@ -1,0 +1,57 @@
+Hecks.bluebook "Agents" do
+  vision "Each agent role does one judgment step and talks to the others only through events; no role may take an owner decision."
+
+  namespace "Hecks::Agents"
+
+  supporting
+
+  # One role the pipeline may wake on demand. The owner-only commands are never issued by a role.
+  aggregate "Role" do
+    description "A named agent role: the judgment it owns, and the commands it may issue. A role wakes when a request event arrives and ends after it answers."
+
+    identified_by :name
+
+    attribute :name, RoleName
+    attribute :kind, RoleKind, optional: true
+
+    value_object "RoleName" do
+      attribute :value, String, matches: :present
+      invariant("a role has a name") { !value.to_s.empty? }
+    end
+
+    value_object "RoleKind" do
+      attribute :value, String
+    end
+
+    value_object "CommandName" do
+      attribute :value, String
+    end
+
+    # Declares a role. Its kind says which judgment it owns: orchestrator, architect, coder,
+    # reviewer or release manager.
+    command "Declare" do
+      role "Maintainer"
+      goal "Declare a role and the judgment it owns"
+
+      attribute :kind, RoleKind, sets: true
+
+      emits "RoleDeclared"
+    end
+
+    # A role asks to issue a command. Owner decisions (promotion, release, push, delete, merge) are
+    # refused for every role: those go to a person.
+    command "Issue" do
+      role "System"
+      goal "Issue one command on behalf of a role, unless the command is an owner decision"
+
+      attribute :command, CommandName
+
+      given("the command is not an owner decision") do
+        command.value != "promote" && command.value != "release" && command.value != "push" &&
+          command.value != "delete" && command.value != "merge"
+      end
+
+      emits "CommandIssued"
+    end
+  end
+end
