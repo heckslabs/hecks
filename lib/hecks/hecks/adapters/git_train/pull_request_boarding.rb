@@ -37,8 +37,9 @@ module Hecks
         # @param boarded [String] the commit to carry, which local main must still name
         # @return [Hash{Symbol => Hash}] `outcome:` `queued` (a PR is open and set to auto-merge) or
         #   `carried` (main already carries the commit), with `boarded:` and `report:`
-        # @raise [ConsoleCapture::Failure] when main moved since boarding, the commit is not built on
-        #   the remote's main, the push is refused, or `gh` cannot open or auto-merge the PR
+        # @raise [ConsoleCapture::Failure] when main moved since boarding, the commit is not
+        #   built on the remote's main, the push is refused, or `gh` cannot open or auto-merge
+        #   the PR
         def carry(boarded)
           fetch
           moved_since!(boarded)
@@ -62,8 +63,10 @@ module Hecks
           end
 
           # @param boarded [String] the commit the boarding queued
-          # @return [Hash{Symbol => Hash}] `outcome:` `merged` (with `pushed:`) or `open`, and `report:`
-          # @raise [ConsoleCapture::Failure] when `gh` cannot read the PR, or a merged PR names no commit
+          # @return [Hash{Symbol => Hash}] `outcome:` `merged` (with `pushed:`) or `open`,
+          #   and `report:`
+          # @raise [ConsoleCapture::Failure] when `gh` cannot read the PR, or a merged PR names
+          #   no commit
           def answer(boarded)
             branch = PullRequestBoarding.branch_for(boarded)
             ok, output = @runner.call(["gh", "pr", "view", branch, "--json", "state,mergeCommit"], chdir: @checkout)

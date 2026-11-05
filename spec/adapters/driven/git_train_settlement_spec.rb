@@ -39,7 +39,8 @@ RSpec.describe Hecks::Adapters::GitTrain, :io do
   # The Hecks mint a boarding runs first, answering that the shape did not move.
   def still_mint = instance_double(described_class::MintStep, run: "the Hecks shape f30dcb did not move")
 
-  # A fake `gh`: a PR opens, and auto-merge merges it at once, moving the remote's main as GitHub does.
+  # A fake `gh`: a PR opens, and auto-merge merges it at once, moving the remote's main as
+  # GitHub does.
   def gh(argv, **)
     case argv[1..2]
     when %w[pr create] then [true, "https://github.test/work/pull/1\n"]

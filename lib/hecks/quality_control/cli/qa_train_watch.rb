@@ -7,7 +7,7 @@ module Hecks
     # The command behind the QA tick's train watch: boots the Hecks domain and asks each queued
     # boarding's pull request whether it has merged (`Watch`). A merged one records its push, which
     # refreshes the launcher and announces the deploy; an open one changes nothing. The boardings
-    # are read from the store the push train and the tick share (a copy opts in with its local files).
+    # are read from the store the push train and the tick share (a copy opts in with local files).
     class QaTrainWatch
       EXIT_OK = 0
       EXIT_ERROR = 1
