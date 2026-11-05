@@ -125,8 +125,17 @@ module Hecks
       def postgres_era_bound?(domain_path)
         Dir.glob(File.join(domain_path, "**", "*.hecksagon")).any? do |path|
           text = File.read(path)
-          text.match?(POSTGRES_ERA_BINDING) || postgres_era_variable_bound?(text)
+          text.match?(POSTGRES_ERA_BINDING) || postgres_revisions_bound?(text) ||
+            postgres_era_variable_bound?(text)
         end
+      end
+
+      # Answers whether `text` binds Postgres with `revisions true`, the revision layout (ADR 0182).
+      #
+      # @param text [String] the contents of one `.hecksagon` file
+      # @return [Boolean] whether the file binds Postgres and keeps revisions
+      def postgres_revisions_bound?(text)
+        text.match?(/persisted_by\s*\(?\s*"Postgres"/) && text.match?(/^\s*revisions\s+true\b/)
       end
 
       # Answers whether `text` passes a variable assigned `"PostgresEra"` to `persisted_by`.

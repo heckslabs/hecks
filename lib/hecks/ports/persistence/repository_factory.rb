@@ -26,9 +26,10 @@ module Hecks
         # @raise [ArgumentError] on an unknown option
         def build(registry, domain, aggregate, bind, **)
           opts = BuildOptions.new(**)
-          bind = layout_bind(registry, domain, bind)
+          # Settings are read under the name the world declares; only the class follows the layout.
           settings = adapter_settings(registry, domain, aggregate, bind, opts.settings_verb)
-          adapter = registry.adapter_class(bind.adapter).new(aggregate: aggregate, settings: settings, root: registry.root)
+          layout = layout_bind(registry, domain, bind)
+          adapter = registry.adapter_class(layout.adapter).new(aggregate: aggregate, settings: settings, root: registry.root)
           repository = AppendOnly.new(CodecBoundary.guard!(adapter))
           # `:atomic_append` (PostgresEra) means `append` already committed the
           # projected state in the same transaction as the journal row, so a

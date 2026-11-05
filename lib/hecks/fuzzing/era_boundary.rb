@@ -35,8 +35,11 @@ module Hecks
         "#{bluebook.name} is bound to #{adapter_name}, not PostgresEra" unless adapter_name == "PostgresEra"
       end
 
+      # The adapter a domain's revisions live in: `Postgres` with `revisions true` is the revision
+      # layout, which the audit reads as `PostgresEra` (ADR 0182).
       def bound_adapter(registry, bluebook)
-        Hecks::Ports::Persistence::BindingPolicy.resolve(registry, bluebook.name, bluebook.aggregates.first).adapter
+        adapter = Hecks::Ports::Persistence::BindingPolicy.resolve(registry, bluebook.name, bluebook.aggregates.first).adapter
+        adapter == "Postgres" && registry.hecksagon(bluebook.name)&.revisions? ? "PostgresEra" : adapter
       end
 
       # Counts the writes each ancestor era holds that were never merged forward.
