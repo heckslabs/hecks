@@ -7,19 +7,19 @@ Date: 2026-11-05.
 
 ## Context
 
-Hecks has two hand-written kernels. The Ruby runtime (`lib/hecks/runtime`, about 13.5k lines, plus about
-9k lines of driven adapters) and the Rust kernel (`rust/src/kernel`, about 13.5k lines) both run
-bluebooks, and every semantic change lands twice. `check_conformance` and the differential fuzzer exist to
+Hecks has two hand-written kernels. The Ruby runtime (`lib/hecks/runtime`, with its driven adapters) and
+the Rust kernel (`rust/src/kernel`) both run bluebooks, and every semantic change lands twice. `check_conformance` and the differential fuzzer exist to
 catch the drift between them.
 
 The Rust side adds three costs of its own:
 
-1. About 257k lines of generated Rust are committed (`rust/src/generated`), and the kernel still reaches
-   them through `generated::active` (typed structs, `ENTITY_QUERIES`, `check_query_args`, `present`).
+1. A large body of generated Rust is committed (`rust/src/generated`), many times the size of the kernel
+   itself, and the kernel still reaches it through `generated::active` (typed structs, `ENTITY_QUERIES`,
+   `check_query_args`, `present`).
 2. The host core re-implements the kernel's evaluator (`rust/host/core/src/expr_json.rs`). ADR 0149 records
    that the two evaluators have already disagreed.
-3. The host's drivers (web, api, payments, auth, about 57k lines) are compiled in, not behind sandboxed
-   ports.
+3. The host's drivers (web, api, payments, auth), a body of code larger than the kernel, are compiled in,
+   not behind sandboxed ports.
 
 ADR 0010's tiebreaker role is already superseded by `docs/semantics` and the frozen corpus; both
 runtimes answer to the corpus. ADR 0154 names the Ruby runtime a second hand-written kernel and leaves the
@@ -82,11 +82,11 @@ a linked worktree resolves that store to Memory and `Finding.open` answers empty
 ## Consequences
 
 - Every semantic change is made once.
-- About 257k lines of generated code, most of `rust/codegen`, and the per-domain `dist/*.wasm` builds
+- The committed generated code, most of `rust/codegen`, and the per-domain `dist/*.wasm` builds
   leave the repository once the kernel interprets IR.
-- Roughly 477 specs and `packages/hecks-rails` boot the Ruby runtime today and move to the binding.
+- Many specs, and `packages/hecks-rails`, boot the Ruby runtime today and move to the binding.
 - The live Ruby oracle goes away; the corpus and the differential fuzzer must carry its weight first.
-- `postgres_era` (about 4.8k lines) is the riskiest move, because eras are minted by both runtimes
+- `postgres_era`, the largest single adapter, is the riskiest move, because eras are minted by both runtimes
   (ADR 0029, 0030, 0036, 0079). It goes last.
 
 ## Rejected alternatives
