@@ -121,6 +121,7 @@ pre.cmd { background: var(--page); border: 1px solid var(--axis); border-radius:
 .clickable { cursor: pointer; }
 a.linked { color: inherit; text-decoration: none; display: contents; }
 a.linked:hover .name, a.linked:focus-visible .name { text-decoration: underline; }
+.reply { margin-top: 4px; padding: 4px 6px; border-left: 3px solid var(--series1); background: var(--page); border-radius: 0 4px 4px 0; overflow-wrap: anywhere; }
 tr.clickable { cursor: pointer; } tr.clickable:hover, tr.clickable:focus-visible { background: var(--page); }
 .tables-only .chartview { display: none; } body:not(.tables-only) .tableview { display: none; }
 @media (max-width: 900px) {
@@ -380,17 +381,20 @@ async function sendAnswer() {
   if (!s || !(s.run || s.id)) return;
   if (!text) { $("ans-status").textContent = "Write an answer first."; return; }
   send.disabled = true; $("ans-status").textContent = "Sending…";
+  replies.set(s.id, { text: text, state: "sending" });
+  if (lastState) renderSessions(lastState.sessions);
   try {
     // A session with an AgentRun is answered through it; any other blocked session is replied to directly.
     const action = s.run ? "answer" : "reply", target = s.run || s.id;
     const res = await fetch("/api/act", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: action, target: target, text: text }) });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(body.error || "HTTP " + res.status);
+    replies.set(s.id, { text: text, state: "sent" });
     $("ans-text").value = "";
     $("answer").close();
     refresh();
-  } catch (e) { $("ans-status").textContent = "Not sent: " + e.message; }
-  finally { send.disabled = false; }
+  } catch (e) { replies.set(s.id, { text: text, state: "not sent: " + e.message }); $("ans-status").textContent = "Not sent: " + e.message; }
+  finally { send.disabled = false; if (lastState) renderSessions(lastState.sessions); }
 }
 // A chart or table cell that opens the run on GitHub when the run carries its URL.
 function linked(url, node) {
@@ -423,7 +427,7 @@ function renderWork(work) {
 function sessionLabel(s) { return h("span", {}, s.name, " ", h("small", { class: "sid" }, s.id || "")); }
 function renderSessions(list) {
   if (isUnknown(list)) return put("sessions", unknown(list));
-  put("sessions", table(["Session", "Status", "Work item", "Started", "Detail"], list.map((s) => [sessionLabel(s), [sessionBadge(s.status), " ", s.state], s.row || "-", clock(s.started), s.detail])));
+  put("sessions", table(["Session", "Status", "Work item", "Started", "Detail"], list.map((s) => [sessionLabel(s), [sessionBadge(s.status), " ", s.state], s.row || "-", clock(s.started), replyNote(s)])));
   const rows = $("sessions").querySelectorAll("tbody tr");
   list.forEach((s, i) => {
     if (s.status !== "blocked") return;
@@ -485,7 +489,16 @@ function renderEvents(events) {
   if (!seen.size) [...events].reverse().forEach((e) => putEvent(e, false));
 }
 
+let lastState = null;
+// Replies the user sent, shown at once in the session row: sending, sent, or why it was not sent.
+const replies = new Map();
+function replyNote(s) {
+  const r = replies.get(s.id);
+  if (!r) return s.detail;
+  return h("span", {}, s.detail || "", h("div", { class: "reply" }, h("b", {}, "You: "), r.text, h("small", {}, " · " + r.state)));
+}
 function render(s) {
+  lastState = s;
   renderTiles(s.metrics); renderStrip(s.stages); renderCi(s.ci_runs, s.slowest_jobs);
   renderWork(s.open_work); renderSessions(s.sessions); renderFan(s.fanout); renderEvents(s.events);
   $("updated").textContent = "updated " + clock(s.generated_at);
