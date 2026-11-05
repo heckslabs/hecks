@@ -71,7 +71,8 @@ module Hecks
       def context_of(status, state)
         return {} unless status == "blocked"
 
-        { context: PipelineBoard::SessionContext.of(state["linkScanPath"].to_s).merge(links: Array(state["children"])) }
+        { context: PipelineBoard::SessionContext.of(state["linkScanPath"].to_s).merge(links: Array(state["children"])),
+          resume: state.values_at("resumeSessionId", "sessionId").compact.first, cwd: state["cwd"].to_s }
       end
 
       def ended_of(status, edges) = %w[busy blocked].include?(status) ? nil : edges.last

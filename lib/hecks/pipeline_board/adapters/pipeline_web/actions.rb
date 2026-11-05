@@ -8,8 +8,12 @@ module Hecks
       # page can take these steps and no others.
       module Actions
         NEEDS = {
-          "answer" => %i[target text], "board_train" => [], "promote" => [], "check_in" => %i[target session text]
+          "answer" => %i[target text], "reply" => %i[target text], "board_train" => [], "promote" => [],
+          "check_in" => %i[target session text]
         }.freeze
+
+        # The program each step runs: the launcher, except a reply, which resumes a Claude session.
+        PROGRAMS = { "reply" => "claude" }.freeze
 
         # The steps that move code: a push and a promotion run only once the page has asked twice.
         CONFIRMS = %w[board_train promote].freeze
@@ -33,9 +37,14 @@ module Hecks
           command(action, fields)
         end
 
+        # @param action [String] a known step
+        # @return [String] the program the step runs
+        def program(action) = PROGRAMS.fetch(action, "exe/hecks")
+
         def command(action, fields)
           case action
           when "answer" then ["AgentRun.answer!", "to=#{fields[:target]}", "answer.value=#{fields[:text]}", "--wait"]
+          when "reply" then ["-p", "--resume", fields[:resume].to_s, fields[:text]]
           when "board_train" then ["SendTrain.board!", "--confirm"]
           when "promote" then ["PromotionRun.promote!", "lane=stable", "--confirm", "--wait"]
           when "check_in" then ["RedFlag.check_in!", "run.value=#{fields[:target]}", "session.value=#{fields[:session]}",

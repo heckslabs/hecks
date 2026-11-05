@@ -19,7 +19,7 @@ RSpec.describe "POST /api/act on the board" do
   def stages = instance_double(Hecks::Adapters::PipelineStages, state: { stages: [] })
 
   def launcher
-    lambda do |*args|
+    lambda do |*args, **|
       sent << args
       raise Hecks::Adapters::PipelineBoard::Unavailable, "launcher refused" if refuse
 
@@ -96,5 +96,26 @@ RSpec.describe "POST /api/act on the board" do
     page = Net::HTTP.get(URI("http://127.0.0.1:#{server.port}/"))
     expect(page).to include("/api/act")
     expect(page).not_to include("/api/answer")
+  end
+
+  context "when a blocked session has no run key and the page replies to it" do
+    let(:sessions) do
+      [{ id: "s1", status: "blocked", resume: "resume-uuid", cwd: "/work/session" },
+       { id: "s2", status: "done", resume: "other-uuid", cwd: "/work/other" }]
+    end
+
+    def stages = instance_double(Hecks::Adapters::PipelineStages, state: { stages: [], sessions: sessions })
+
+    it "resumes the blocked session with the reply, in the session's own directory", :aggregate_failures do
+      response = post("action" => "reply", "target" => "s1", "text" => "use staging")
+      expect(response.code).to eq("200")
+      expect(sent).to eq([["claude", "-p", "--resume", "resume-uuid", "use staging"]])
+    end
+
+    it "refuses a session the board does not report as blocked, before anything runs", :aggregate_failures do
+      response = post("action" => "reply", "target" => "s2", "text" => "hi")
+      expect(response.code).to eq("422")
+      expect(sent).to be_empty
+    end
   end
 end
