@@ -37,6 +37,7 @@ section { background: var(--surface); border: 1px solid var(--border); border-ra
 .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--ink2); margin-bottom: 8px; }
 .scroller { overflow: auto; max-height: 76vh; border: 1px solid var(--grid); border-radius: 8px; background: var(--page); position: relative; }
 .lanes { position: sticky; top: 0; z-index: 2; display: flex; background: var(--surface); border-bottom: 1px solid var(--axis); min-width: max-content; }
+body.small .lane { font-size: 10px; } body.small .lane span { font-size: 9px; }
 .lane { width: 150px; flex: 0 0 150px; padding: 6px 6px 4px; text-align: center; font-size: 12px; border-right: 1px solid var(--grid); overflow-wrap: anywhere; }
 .lane b { display: block; font-weight: 600; color: var(--ink); }
 .lane span { color: var(--ink2); font-size: 11px; }
@@ -80,6 +81,9 @@ const css = (name) => getComputedStyle(document.documentElement).getPropertyValu
 const SLOTS = { light: ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"],
                 dark: ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300", "#9085e9", "#e66767"] };
 const dark = () => matchMedia("(prefers-color-scheme: dark)").matches && document.documentElement.dataset.theme !== "light" || document.documentElement.dataset.theme === "dark";
+const SMALL = new URLSearchParams(location.search).has("small");
+const TEXT_PX = SMALL ? 9 : 11;
+document.body.classList.toggle("small", SMALL);
 const LANE = matchMedia("(max-width: 700px)").matches ? 110 : 150, ROW = 30, TOP = 10;
 const OUTCOME = { ok: ["--good", "✓"], wait: ["--warning", "▲"], bad: ["--critical", "✕"] };
 const canvas = $("seq"), ctx = canvas.getContext("2d");
@@ -139,7 +143,7 @@ function render() {
 }
 function drawRow(row, y, now) {
   const a = laneOf.get(row.from), b = row.to ? laneOf.get(row.to) : null, fresh = Math.max(0, 1 - (now - row.fresh) / 2400);
-  ctx.font = "11px system-ui, sans-serif"; ctx.fillStyle = css("--muted"); ctx.textAlign = "left"; ctx.fillText(clock(row.at), 4, y + 4);
+  ctx.font = TEXT_PX + "px system-ui, sans-serif"; ctx.fillStyle = css("--muted"); ctx.textAlign = "left"; ctx.fillText(clock(row.at), 4, y + 4);
   if (!b) {
     ctx.fillStyle = css("--ink2"); ctx.fillRect(a.x - 4, y - 4, 8, 8);
     ctx.fillStyle = css("--ink2"); ctx.fillText(row.event, a.x + 10, y + 4); return;
@@ -154,7 +158,7 @@ function drawRow(row, y, now) {
   ctx.globalAlpha = 1; ctx.lineWidth = 1;
   const text = mark + " " + row.event + " → " + row.policy + (row.command ? " → " + row.command.split("::").pop() : "");
   const left = Math.min(a.x, b.x) + 8, maxW = Math.max(Math.abs(b.x - a.x) - 16, 150);
-  ctx.font = "11px system-ui, sans-serif"; ctx.fillStyle = css("--ink"); ctx.textAlign = "left";
+  ctx.font = TEXT_PX + "px system-ui, sans-serif"; ctx.fillStyle = css("--ink"); ctx.textAlign = "left";
   ctx.fillText(fit(text, maxW), left, y - 2);
 }
 function head(x, y, dir) { ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - dir * 7, y - 4); ctx.lineTo(x - dir * 7, y + 4); ctx.closePath(); ctx.fill(); }
