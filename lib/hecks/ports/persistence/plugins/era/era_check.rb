@@ -62,6 +62,11 @@ module Hecks
         adapter.to_s == "Postgres" && registry.hecksagon(domain)&.revisions? ? "PostgresEra" : adapter
       end
 
+      # Whether a domain's bound adapter keeps eras, reading `Postgres` with revisions as the revision layout.
+      def lineage_capable_for?(registry, domain, adapter)
+        lineage_capable?(registry, revision_adapter(registry, domain, adapter))
+      end
+
       def lineage_capable_registry?(registry)
         registry.bluebooks.each_value.any? do |bluebook|
           first = bluebook.aggregates.first

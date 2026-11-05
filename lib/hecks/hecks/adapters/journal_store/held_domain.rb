@@ -99,13 +99,8 @@ module Hecks
           @adapter_name = Ports::Persistence::BindingPolicy.resolve(registry, @bluebook.name, first).adapter
         end
 
-        # Whether the store the domain is bound to keeps eras (`RevisionCheck`'s own question).
-        #
-        # @return [Boolean] true when the adapter is lineage capable
-        def capable?
-          Runtime::RevisionCheck.lineage_capable?(registry,
-                                                  Runtime::RevisionCheck.revision_adapter(registry, bluebook.name, adapter_name))
-        end
+        # Whether the bound store keeps eras, as `RevisionCheck` answers it.
+        def capable? = Runtime::RevisionCheck.lineage_capable_for?(registry, bluebook.name, adapter_name)
 
         # Explains, as a refusal, why a domain has no eras.
         #
