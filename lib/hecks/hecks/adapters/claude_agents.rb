@@ -84,8 +84,29 @@ module Hecks
       # @raise [ConsoleCapture::Failure] when the job's state cannot be read
       def read_job(**held)
         job = @jobs.state(plain(held[:session]))
-        { state: job["state"].to_s, detail: job["detail"].to_s, previous: plain(held[:condition]).to_s,
-          checkout: File.join(plain(held[:repo]).to_s, "") }
+        { state: job["state"].to_s, detail: job["detail"].to_s, verdict: verdict_of(job, held) }.merge(run_facts(held))
+      end
+
+      # @return [Hash{Symbol => String}] the run the job belongs to: its key, its last known
+      #   condition, and its directory with a trailing slash
+      def run_facts(held)
+        { previous: plain(held[:condition]).to_s, checkout: File.join(plain(held[:repo]).to_s, ""),
+          run: plain(held[:run]).to_s }
+      end
+
+      # The architect's verdict as the job's closing text states it, or empty for any other agent or
+      # a text that names none. The words are `sound`, `sound with changes` and `rethink`.
+      VERDICT_WORDS = /\b(sound with changes|sound|rethink)\b/i
+
+      # @param job [Hash] the job's state
+      # @param held [Hash] the `AgentRun` record: `agent`
+      # @return [String] `sound`, `changes`, `rethink`, or empty
+      def verdict_of(job, held)
+        return "" unless plain(held[:agent]).to_s == "architect"
+
+        closing = [job.dig("output", "result"), job["detail"]].compact.join(" ")
+        word = closing[VERDICT_WORDS, 1].to_s.downcase
+        word == "sound with changes" ? "changes" : word
       end
 
       # Waits the settling time, then reads the job as {#read_job} does: a session that dies at

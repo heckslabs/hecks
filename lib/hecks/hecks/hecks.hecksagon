@@ -1029,3 +1029,15 @@ Hecks.hecksagon "QualityControl" do
                                                           watermark: :watermark, rehearsal_verdict: "would_mint" }
   end
 end
+
+# The architect's session closes with a verdict, which the adapter reads off the job: JobRead carries
+# it, and the plan review records it. The run's key is the Work item, so it names the review.
+Hecks.hecksagon "Agents" do
+  subscribe "Hecks.JobRead"
+
+  translates "RecordTheArchitectsVerdict" do
+    on AgentRun::JobRead
+    where { verdict != "" && previous != state }
+    trigger PlanReview::Answer, with: { work: :run, verdict: :verdict }
+  end
+end
