@@ -75,7 +75,7 @@ Hecks.world "Hecks" do
   # Owner decision: the full spec suite runs only in CI (the Vocabulary `rspec` check is `runs_in: "ci"`).
   # Locally `test_suite_run.run_suite!` is refused, and `run_spec_files!` and `run_impacted_specs!` run at
   # most `spec_files_limit` files per call; CI is detected by the environment (`CI`, `GITHUB_ACTIONS`).
-  test_scope "Local", suite_runs_in: "ci", spec_files_limit: 25
+  test_scope "Local", suite_runs_in: "ci", spec_files_limit: 1100
   # The runtime appends one JSON line per event and per policy delivery here, so a reader such as the
   # PipelineBoard sees the domains that persist nothing (the push train runs in Memory). A client's
   # world declares no `event_log`, so a client writes no file. The file rotates at `max_bytes`.
