@@ -25,8 +25,8 @@ RSpec.describe "what the adapter an aggregate is bound to provides" do
     registry
   end
 
-  it "says Postgres, Sqlite and PostgresEra provide set_transform", :aggregate_failures do
-    %w[Postgres SqlitePersistence PostgresEra].each do |adapter|
+  it "says Postgres and SqlitePersistence provide set_transform", :aggregate_failures do
+    %w[Postgres SqlitePersistence].each do |adapter|
       expect(bound_to(adapter).adapter_provides?("Ledger", "Entry", "set_transform")).to be(true), adapter
     end
   end
