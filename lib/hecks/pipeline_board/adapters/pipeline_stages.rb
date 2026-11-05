@@ -3,6 +3,7 @@
 require "json"
 require "time"
 require_relative "probe"
+require_relative "rules"
 require_relative "pipeline_github"
 require_relative "pipeline_git"
 require_relative "pipeline_tickets"
@@ -56,6 +57,7 @@ module Hecks
       private
 
       def wire(readers, registry)
+        PipelineBoard::Rules.use(registry)
         @push_limits = Hecks::Adapters::PushSize.thresholds(registry)
         @ci_health = PipelineBoard::CiTiles.health(registry)
         @github = readers.fetch(:github) { PipelineGitHub.new(root: @root) }
