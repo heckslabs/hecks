@@ -36776,7 +36776,7 @@
               ],
               [
                 "meaning",
-                "Whether the main-maintenance chain's reconcile writes after its plan (`Era.Reconcile` with confirm); false leaves the reconcile a dry run that writes nothing."
+                "Whether the main-maintenance chain's reconcile writes after its plan (`SchemaRevision.Reconcile` with confirm); false leaves the reconcile a dry run that writes nothing."
               ]
             ]
           ],
@@ -37199,7 +37199,7 @@
               ],
               [
                 "aggregate",
-                "Era"
+                "SchemaRevision"
               ],
               [
                 "verb",
@@ -37217,7 +37217,7 @@
               ],
               [
                 "aggregate",
-                "Era"
+                "SchemaRevision"
               ],
               [
                 "verb",
@@ -37235,7 +37235,7 @@
               ],
               [
                 "aggregate",
-                "Era"
+                "SchemaRevision"
               ],
               [
                 "verb",
@@ -37253,7 +37253,7 @@
               ],
               [
                 "aggregate",
-                "Era"
+                "SchemaRevision"
               ],
               [
                 "verb",
@@ -37271,7 +37271,7 @@
               ],
               [
                 "aggregate",
-                "Era"
+                "SchemaRevision"
               ],
               [
                 "verb",
@@ -37289,7 +37289,7 @@
               ],
               [
                 "aggregate",
-                "Era"
+                "SchemaRevision"
               ],
               [
                 "verb",
@@ -37307,7 +37307,7 @@
               ],
               [
                 "aggregate",
-                "Era"
+                "SchemaRevision"
               ],
               [
                 "verb",
@@ -37599,7 +37599,7 @@
               ],
               [
                 "aggregate",
-                "Era"
+                "SchemaRevision"
               ],
               [
                 "verb",

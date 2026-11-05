@@ -52,21 +52,21 @@ RSpec.describe "the Custodian rows of the ADR command table" do
                      verb: "smoke_http"),
     CustodianRow.new(script: "check_era", aggregate: "Host", name: "CheckEra",
                      verb: "check_era"),
-    CustodianRow.new(script: "merge_tail", aggregate: "Era", name: "MergeTail",
+    CustodianRow.new(script: "merge_tail", aggregate: "SchemaRevision", name: "MergeTail",
                      verb: "merge_tail"),
-    CustodianRow.new(script: "reattest_era", aggregate: "Era", name: "Reattest",
+    CustodianRow.new(script: "reattest_era", aggregate: "SchemaRevision", name: "Reattest",
                      verb: "reattest"),
-    CustodianRow.new(script: "backfill_era_projections", aggregate: "Era", name: "BackfillProjections",
+    CustodianRow.new(script: "backfill_era_projections", aggregate: "SchemaRevision", name: "BackfillProjections",
                      verb: "backfill_projections"),
-    CustodianRow.new(script: "scaffold_translation", aggregate: "Era", name: "ScaffoldTranslation",
+    CustodianRow.new(script: "scaffold_translation", aggregate: "SchemaRevision", name: "ScaffoldTranslation",
                      verb: "scaffold_translation"),
-    CustodianRow.new(script: "translation_audit", aggregate: "Era", name: "AuditTranslation",
+    CustodianRow.new(script: "translation_audit", aggregate: "SchemaRevision", name: "AuditTranslation",
                      verb: "audit_translation"),
-    CustodianRow.new(script: "compact", aggregate: "Era", name: "Compact",
+    CustodianRow.new(script: "compact", aggregate: "SchemaRevision", name: "Compact",
                      verb: "compact"),
-    CustodianRow.new(script: "heki_compact", aggregate: "Era", name: "CompactHeki",
+    CustodianRow.new(script: "heki_compact", aggregate: "SchemaRevision", name: "CompactHeki",
                      verb: "compact_heki"),
-    CustodianRow.new(script: "(new)", aggregate: "Era", name: "HoldFirst",
+    CustodianRow.new(script: "(new)", aggregate: "SchemaRevision", name: "HoldFirst",
                      verb: "hold_first"),
     CustodianRow.new(script: "vendor_bluebook", aggregate: "Package", name: "Vendor",
                      verb: "vendor"),
@@ -131,7 +131,7 @@ RSpec.describe "the Custodian rows of the ADR command table" do
   end
 
   it "gives every Custodian aggregate at least one row", :aggregate_failures do
-    custodian = %w[Introspection ModelCheckRun Operation Host Era Package Launch Server Build FuzzRun]
+    custodian = %w[Introspection ModelCheckRun Operation Host SchemaRevision Package Launch Server Build FuzzRun]
 
     expect(custodian - CUSTODIAN_ROWS.map(&:aggregate)).to be_empty
     expect(CUSTODIAN_ROWS.map(&:aggregate) - custodian).to be_empty
