@@ -10,21 +10,29 @@ module Hecks
       module CiTiles
         include TileKit
 
-        GOAL_MINUTES = 3
+        # The thresholds when the QualityControl world declares no `ci_health` line.
+        HEALTH_DEFAULTS = { wall_goal_minutes: 3, success_good: 80, success_fair: 50 }.freeze
 
-        # @param runs [Array<Hash>] CI runs, oldest first
-        def success(runs)
-          spec = { id: "success", label: "CI success", unit: "%", detail: "last #{runs.size} main runs" }
-          built = windowed(spec, runs) { |list| success_rate(list) }
-          built.merge(state: band(built[:value], 80, 50))
+        # @param registry [Runtime::Registry, nil]
+        # @return [Hash{Symbol => Integer}] the wall goal in minutes and the success bands in percent
+        def self.health(registry)
+          declared = registry&.world("QualityControl")&.for_verb("ci_health") || {}
+          HEALTH_DEFAULTS.merge(declared.slice(*HEALTH_DEFAULTS.keys)).transform_values { |v| Integer(v) }
         end
 
-        def wall(runs)
-          spec = { id: "wall", label: "Median CI wall", unit: "min", lower: true, detail: "goal #{GOAL_MINUTES} min" }
+        # @param runs [Array<Hash>] CI runs, oldest first
+        def success(runs, health)
+          spec = { id: "success", label: "CI success", unit: "%", detail: "last #{runs.size} main runs" }
+          built = windowed(spec, runs) { |list| success_rate(list) }
+          built.merge(state: band(built[:value], health[:success_good], health[:success_fair]))
+        end
+
+        def wall(runs, health)
+          spec = { id: "wall", label: "Median CI wall", unit: "min", lower: true, detail: "goal #{health[:wall_goal_minutes]} min" }
           built = windowed(spec, runs.select { |run| run[:status] == "completed" }) do |list|
             median(list.map { |run| run[:wall_minutes] })
           end
-          built.merge(state: over(built[:value], GOAL_MINUTES))
+          built.merge(state: over(built[:value], health[:wall_goal_minutes]))
         end
 
         def failed_head(runs)

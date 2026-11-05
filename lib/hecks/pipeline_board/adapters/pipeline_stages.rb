@@ -44,7 +44,7 @@ module Hecks
         data = sections
         now = @now.call
         { generated_at: now.iso8601, stages: PipelineBoard::Strip.build(data, now),
-          metrics: PipelineBoard::Metrics.tiles(data.merge(push_limits: @push_limits), now), ci_runs: data[:ci_runs], slowest_jobs: data[:slowest_jobs],
+          metrics: PipelineBoard::Metrics.tiles(data.merge(push_limits: @push_limits, ci_health: @ci_health), now), ci_runs: data[:ci_runs], slowest_jobs: data[:slowest_jobs],
           open_work: data[:open_work], sessions: data[:sessions], events: data[:events], fanout: fanout(data) }
       end
 
@@ -56,6 +56,7 @@ module Hecks
 
       def wire(readers, registry)
         @push_limits = Hecks::Adapters::PushSize.thresholds(registry)
+        @ci_health = PipelineBoard::CiTiles.health(registry)
         @github = readers.fetch(:github) { PipelineGitHub.new(root: @root) }
         @git = readers.fetch(:git) { PipelineGit.new(root: @root) }
         @journal = readers.fetch(:journal) { PipelineJournal.new(root: @root) }
