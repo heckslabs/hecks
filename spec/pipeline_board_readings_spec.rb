@@ -15,17 +15,18 @@ RSpec.describe "PipelineBoard readings" do
 
   after { FileUtils.rm_rf(dir) }
 
-  def job(id, state)
+  def job(id, state, needs: nil)
     FileUtils.mkdir_p(File.join(dir, id))
-    File.write(File.join(dir, id, "state.json"), JSON.generate("state" => state, "detail" => "waiting"))
+    File.write(File.join(dir, id, "state.json"),
+               JSON.generate({ "state" => state, "detail" => "waiting", "needs" => needs }.compact))
   end
 
   def sessions(agents)
     Hecks::Adapters::PipelineJobs.new(settings: { jobs_dir: dir, agents: -> { agents }, now: -> { Time.now } }).rows
   end
 
-  it "reads a live job whose state is blocked as blocked, not done" do
-    job("s1", "blocked")
+  it "reads a live job that waits on a person as blocked, not done" do
+    job("s1", "blocked", needs: "confirm the retry")
     live = sessions([{ "id" => "s1", "name" => "s1", "status" => "idle", "startedAt" => 1 }])
     expect(live.first).to include(status: "blocked", ended: nil)
   end

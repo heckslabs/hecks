@@ -18,10 +18,13 @@ module Hecks
 
         # @param command [Array<String>] the program and its arguments, never a shell string
         # @param chdir [String, nil] where it runs
+        # @param stdin [String, nil] what is written to its standard input, then closed
         # @return [String] standard output
         # @raise [Unavailable] when the program is missing, times out or exits non-zero
-        def self.run(*command, chdir: nil, seconds: TIMEOUT_SECONDS)
-          out, err, status = Timeout.timeout(seconds) { Open3.capture3(*command, chdir: chdir || Dir.pwd) }
+        def self.run(*command, chdir: nil, seconds: TIMEOUT_SECONDS, stdin: nil)
+          out, err, status = Timeout.timeout(seconds) do
+            Open3.capture3(*command, chdir: chdir || Dir.pwd, stdin_data: stdin.to_s)
+          end
           raise Unavailable, "#{command.first} #{command[1]}: #{reason(err)}" unless status.success?
 
           out
@@ -29,10 +32,14 @@ module Hecks
         rescue Timeout::Error then raise Unavailable, "#{command.first} did not answer in #{seconds}s"
         end
 
-        # @return [String] the first line the command wrote to standard error
+        # The launcher's notices (boot warnings and the worktree's missing local files) come before
+        # the refusal, so the reason is the first line that is not one of them.
+        NOTICE = /\A(\[hecks\]|hecks: this worktree lacks|.*: warning: )/
+
+        # @return [String] the first line the command wrote to standard error that is not a notice
         def self.reason(err)
-          first = err.lines.first
-          first.to_s.strip
+          lines = err.lines.map(&:strip).reject(&:empty?)
+          (lines.find { |line| !NOTICE.match?(line) } || lines.first).to_s
         end
 
         # @return [Object] the JSON the command printed
