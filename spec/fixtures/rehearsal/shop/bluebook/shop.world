@@ -1,7 +1,7 @@
 Hecks.world "Shop" do
   realm "Fixtures"
 
-  persisted_by("PostgresEra") do
+  persisted_by("Postgres") do
     database ENV.fetch("SHOP_DATABASE_URL", "postgres://localhost/shop_fixture")
   end
 
