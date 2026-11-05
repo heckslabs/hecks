@@ -537,6 +537,13 @@ Hecks.bluebook "Hecks" do
       trigger AgentRun::Retain, with: { refusal: :refusal }
     end
 
+    # A plan review asked for by event starts the named role's session as a run, keyed by the Work
+    # item, with the plan as its brief.
+    policy "StartTheRoleOnReviewRequest" do
+      on      "PlanReview.PlanReviewRequested"
+      trigger AgentRun::Dispatch, with: { run: :work, repo: :repo, brief: :plan, agent: :role }
+    end
+
     # A session the board started by hand has no run to tidy, so it is removed on its own. The
     # rule is the same as Tidy's: only a finished session that waits on nobody goes.
     aggregate "PlainSession" do

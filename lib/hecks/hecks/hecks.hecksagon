@@ -5,8 +5,11 @@ Hecks.hecksagon "Hecks" do
   # Expression, Tenancy, Deploy, Site, Tickets, Composer and QualityControl (the last three bring
   # their own ports), and Coder and Fixer, whose events Tickets and QualityControl react to.
   %w[Bluebook Hecksagon World Adapter Port Translation Expression Tenancy Deploy Site Tickets Composer QualityControl
-     Coder Fixer PipelineBoard Pipeline]
+     Coder Fixer PipelineBoard Pipeline Agents]
     .each { |declaration| attaches declaration }
+  # An architect review asked for by event starts a session through AgentRun (see
+  # StartTheArchitectOnReviewRequest in the delegate bluebook).
+  subscribe "Agents.PlanReviewRequested"
   # Persistence is not bound here, so the domain is in Memory. A copy opts in with a
   # hecks.local.hecksagon whose `persisted_by` the attached bluebooks inherit (ADR 0136).
 

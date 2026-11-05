@@ -18,7 +18,10 @@ RSpec.describe "the Agents plan review" do
 
   before { boot_agents }
 
-  def request(hops) = review.request!(work: { value: "w1" }, hops: { value: hops })
+  def request(hops)
+    review.request!(work: { value: "w1" }, hops: { value: hops }, role: { value: "architect" },
+                    repo: { value: "/tmp" }, plan: { value: "a plan" })
+  end
 
   it "accepts a request under the hop limit" do
     expect { request(2) }.not_to raise_error
