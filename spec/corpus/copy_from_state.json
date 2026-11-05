@@ -1,0 +1,14 @@
+{
+  "name": "copy_from_state-parity",
+  "note": "One board created, accepted.",
+  "domain": "examples/copy_from_state",
+  "expectations": {
+    "events": 1
+  },
+  "steps": [
+    {
+      "verb": "Snapshots::Board.Create",
+      "args": { "label": { "value": "b-1" } }
+    }
+  ]
+}

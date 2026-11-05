@@ -1,0 +1,14 @@
+{
+  "name": "list_field_shape-parity",
+  "note": "One item made with a bag of lists, accepted.",
+  "domain": "examples/list_field_shape",
+  "expectations": {
+    "events": 1
+  },
+  "steps": [
+    {
+      "verb": "Shelving::Item.Make",
+      "args": { "key": { "value": "k-1" }, "bag": { "heard": "h", "tags": ["a"], "counts": [1] } }
+    }
+  ]
+}

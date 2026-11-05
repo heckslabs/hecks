@@ -1,0 +1,14 @@
+{
+  "name": "command_list_argument-parity",
+  "note": "One folder opened with a list of labels, accepted.",
+  "domain": "examples/command_list_argument",
+  "expectations": {
+    "events": 1
+  },
+  "steps": [
+    {
+      "verb": "Binder::Folder.Open",
+      "args": { "name": { "value": "f-1" }, "labels": [{ "value": "red" }] }
+    }
+  ]
+}

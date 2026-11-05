@@ -1,0 +1,3 @@
+Hecks.hecksagon "Visibility" do
+  persisted_by "Memory"
+end

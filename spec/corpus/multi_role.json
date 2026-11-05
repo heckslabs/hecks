@@ -1,0 +1,14 @@
+{
+  "name": "multi_role-parity",
+  "note": "One ticket opened, accepted.",
+  "domain": "examples/multi_role",
+  "expectations": {
+    "events": 1
+  },
+  "steps": [
+    {
+      "verb": "Desk::Ticket.Open",
+      "args": { "number": { "value": "T-1" } }
+    }
+  ]
+}

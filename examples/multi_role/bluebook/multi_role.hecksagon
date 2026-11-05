@@ -1,0 +1,10 @@
+Hecks.hecksagon "Desk" do
+  # Role declarations only enforce access once Governance can check them.
+  attaches "Governance"
+  Desk::Ticket.persisted_by("Memory")
+end
+
+Hecks.hecksagon "Governance" do
+  Governance::RoleAssignment.persisted_by("Memory")
+  Governance::RoleTransition.persisted_by("Memory")
+end

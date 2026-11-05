@@ -1,0 +1,3 @@
+Hecks.hecksagon "Snapshots" do
+  persisted_by "Memory"
+end

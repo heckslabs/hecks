@@ -1,0 +1,14 @@
+{
+  "name": "command_defaults-parity",
+  "note": "One trial started with its rounds defaulted, accepted.",
+  "domain": "examples/command_defaults",
+  "expectations": {
+    "events": 1
+  },
+  "steps": [
+    {
+      "verb": "CommandDefaults::Trial.Start",
+      "args": { "ref": { "value": "t-1" }, "label": { "value": "first" } }
+    }
+  ]
+}

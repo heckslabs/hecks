@@ -1,0 +1,14 @@
+{
+  "name": "parent_visibility-parity",
+  "note": "One meter installed, accepted.",
+  "domain": "examples/parent_visibility",
+  "expectations": {
+    "events": 1
+  },
+  "steps": [
+    {
+      "verb": "Visibility::Meter.Install",
+      "args": { "code": { "value": "m-1" }, "reading": { "value": 1 } }
+    }
+  ]
+}
