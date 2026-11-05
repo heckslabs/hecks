@@ -1,8 +1,8 @@
 # One kernel runs bluebooks, and Ruby is the front end
 
-**Status:** Proposed. Supersedes, once accepted: ADR 0010 (Ruby is the reference implementation), ADR 0054b
-(the Ruby generator stays primary), and point 6 of ADR 0154 (the Rust-only direction is paused). Nothing
-here is built; step 0 is this record and the baseline below.
+**Status:** Accepted. The owner accepted it on 2026-11-05. It supersedes ADR 0010 (Ruby is the reference
+implementation), ADR 0054b (the Ruby generator stays primary), and point 6 of ADR 0154 (the Rust-only
+direction is paused). Nothing here is built; step 0 is this record and the baseline below.
 Date: 2026-11-05.
 
 ## Context
