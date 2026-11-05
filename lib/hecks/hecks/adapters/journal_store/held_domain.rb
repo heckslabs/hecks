@@ -102,7 +102,10 @@ module Hecks
         # Whether the store the domain is bound to keeps eras (`RevisionCheck`'s own question).
         #
         # @return [Boolean] true when the adapter is lineage capable
-        def capable? = Runtime::RevisionCheck.lineage_capable?(registry, Runtime::RevisionCheck.revision_adapter(registry, bluebook.name, adapter_name))
+        def capable?
+          Runtime::RevisionCheck.lineage_capable?(registry,
+                                                  Runtime::RevisionCheck.revision_adapter(registry, bluebook.name, adapter_name))
+        end
 
         # Explains, as a refusal, why a domain has no eras.
         #
