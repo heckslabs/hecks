@@ -59,7 +59,7 @@ module Hecks
         #
         # @param on [Boolean] whether to keep revisions
         # @return [void]
-        def revisions(on = true)
+        def revisions(on = true) # rubocop:disable Style/OptionalBooleanParameter -- the DSL writes `revisions true`
           @revisions = on ? true : false
         end
 

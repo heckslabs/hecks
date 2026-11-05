@@ -1381,6 +1381,16 @@
           "pattern": null,
           "relationship": null,
           "type": "DrivingAdapter"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "revisions",
+          "optional": true,
+          "pattern": null,
+          "relationship": null,
+          "type": "RevisionsFlag"
         }
       ],
       "commands": [
@@ -1601,6 +1611,76 @@
 
       ],
       "value_objects": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+            {
+              "ast": {
+                "left": {
+                  "cmp": {
+                    "equal": true,
+                    "less_than": false,
+                    "negated": false
+                  },
+                  "left": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "op": "compare",
+                  "right": {
+                    "op": "str",
+                    "value": "true"
+                  }
+                },
+                "op": "or",
+                "right": {
+                  "cmp": {
+                    "equal": true,
+                    "less_than": false,
+                    "negated": false
+                  },
+                  "left": {
+                    "op": "to_s",
+                    "receiver": {
+                      "op": "lookup",
+                      "path": [
+                        "value"
+                      ]
+                    }
+                  },
+                  "op": "compare",
+                  "right": {
+                    "op": "str",
+                    "value": "false"
+                  }
+                }
+              },
+              "canonical": "value.to_s == \"true\" || value.to_s == \"false\"",
+              "description": "revisions is true or false"
+            }
+          ],
+          "members": [
+
+          ],
+          "name": "RevisionsFlag"
+        },
         {
           "attributes": [
             {
@@ -2064,6 +2144,32 @@
               [
                 "fills",
                 "driving"
+              ]
+            ],
+            [
+              [
+                "word",
+                "revisions"
+              ],
+              [
+                "context",
+                "Hecksagon"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "revisions"
               ]
             ],
             [

@@ -4,6 +4,13 @@ module Hecks
       # Warns, never refuses, when a domain's reactions or sagas would not survive a crash.
       # Mixed into {Verification}.
       module DurabilityWarnings
+        # The durability warnings for one hecksagon, in the order boot prints them.
+        def warn_durability!(hecksagon)
+          warn_undurable_sagas!(hecksagon)
+          warn_undurable_outbox!(hecksagon)
+          warn_unwired_persistence!(hecksagon)
+        end
+
         private
 
         # A domain with policies/a process_manager but no outbox on its bound adapter

@@ -1,6 +1,7 @@
 require_relative "../../bluebook/hecksagon"
 require_relative "../adapter_namespace"
 require_relative "hecksagon_rules"
+require_relative "revisions_rule"
 require_relative "ask_verification"
 require_relative "query_verification"
 require_relative "plugin_query_verification"
@@ -15,6 +16,7 @@ module Hecks
       # port's verb, and every world default is usable. `verify!` runs it all at boot.
       module Verification
         include HecksagonRules
+        include RevisionsRule
         include AskVerification
         include QueryVerification
         include PluginQueryVerification
@@ -140,9 +142,7 @@ module Hecks
           refuse_unwired_attachments!(hecksagon)
           refuse_bounded_without_acl!(hecksagon)
           hecksagon.binds.each { |bind| verify_bind!(hecksagon, bind) }
-          warn_undurable_sagas!(hecksagon)
-          warn_undurable_outbox!(hecksagon)
-          warn_unwired_persistence!(hecksagon)
+          warn_durability!(hecksagon)
         end
 
         def verify_bind!(hecksagon, bind)

@@ -37,25 +37,6 @@ module Hecks
                 "adapter answers to — the adapters are #{Bluebook::Hecksagon::DRIVING_ADAPTERS.join(", ")}"
         end
 
-        # `revisions true` keeps schema revisions in Postgres only; on any other adapter it would
-        # silently keep none, so the boot refuses it and names the adapters that can hold them.
-        REVISIONS_ADAPTERS = %w[Postgres PostgresEra].freeze
-
-        def refuse_revisions_on_other_adapter!(hecksagon)
-          return unless hecksagon.revisions?
-
-          bluebook_ir = bluebook(hecksagon.domain)
-          anchor = bluebook_ir&.aggregates&.first
-          return unless anchor
-
-          bind = Ports::Persistence::BindingPolicy.resolve(self, hecksagon.domain, anchor)
-          return if REVISIONS_ADAPTERS.include?(bind.adapter.to_s)
-
-          raise WiringError,
-                "#{hecksagon.domain} sets revisions, but its persistence adapter is #{bind.adapter} — " \
-                "revisions need one of #{REVISIONS_ADAPTERS.join(", ")}"
-        end
-
         # `attaches` loads a bounded context; the consumer must declare the sibling hecksagon
         # that is its ACL (Governance/Identity/Privacy already do). A vendored package only
         # loads its `.bluebook` files, so persistence, Governance and the `translates` ACL live

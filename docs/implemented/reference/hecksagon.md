@@ -249,6 +249,14 @@ wiring = Hecks::Bluebook::Hecksagon.new(domain: "Lending", driving: %w[Mcp Cli])
 [wiring.driven_by?("Mcp"), wiring.driven_by?("Json")]  # => [true, false]
 ```
 
+## revisions
+
+<!-- generated:begin word=revisions -->
+`revisions` — fills `revisions`
+<!-- generated:end -->
+
+<!-- TODO: document this word -->
+
 ## port
 
 <!-- generated:begin word=port -->
