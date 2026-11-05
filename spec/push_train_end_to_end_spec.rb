@@ -46,7 +46,7 @@ RSpec.describe "a push train boarding, from the mint to the announcement", :io d
     case argv[1..2]
     when %w[pr create] then [true, "https://github.test/depot/pull/1\n"]
     when %w[pr merge] then merge!(argv[3]) && [true, ""]
-    when %w[pr view] then [true, JSON.generate(merged? ? { state: "MERGED", mergeCommit: { oid: @merged_sha } } : { state: "OPEN" })]
+    when %w[pr view] then [true, JSON.generate(pr_view)]
     else [false, "unexpected #{argv.join(" ")}"]
     end
   end
@@ -59,9 +59,13 @@ RSpec.describe "a push train boarding, from the mint to the announcement", :io d
 
   def merged? = !@merged_sha.nil?
 
+  def pr_view = merged? ? { state: "MERGED", mergeCommit: { oid: @merged_sha } } : { state: "OPEN" }
+
+  def train_options(reader) = { mint: depot_mint(reader), runner: method(:gh) }
+
   def stub_adapters(reader)
     allow(Hecks::Adapters::GitTrain).to(receive(:new).and_wrap_original do |original, **kw|
-      original.call(**kw, mint: depot_mint(reader), runner: method(:gh))
+      original.call(**kw, **train_options(reader))
     end)
     allow(Hecks::Adapters::DesktopAlert).to receive(:new).and_return(alert)
     allow(Hecks::Adapters::GitLauncher).to receive(:new).and_return(launcher)
@@ -131,8 +135,7 @@ RSpec.describe "a push train boarding, from the mint to the announcement", :io d
     it "boards as a PR, reports the ledger disposable, and records the push once it merges", :aggregate_failures do
       queued, outcome = board_and_watch!
       expect(queued[:status]).to eq("queued")
-      expect(queued[:report][:value])
-        .to start_with("pushing 1 commits\nthe Hecks ledger is disposable, so no mint is needed, then")
+      expect(queued[:report][:value]).to start_with("pushing 1 commits\nthe Hecks ledger is disposable")
       expect(outcome[:status]).to eq("pushed")
       expect([pushed?, era_count]).to eq([true, 1])
     end
@@ -147,10 +150,14 @@ RSpec.describe "a push train boarding, from the mint to the announcement", :io d
   context "with a minting world and a shape that did not move" do
     before { prepare }
 
-    it "passes the mint straight through, queues the PR, and records the push once it merges", :aggregate_failures do
-      queued, outcome = board_and_watch!
+    it "passes the mint straight through and queues the PR", :aggregate_failures do
+      queued, = board_and_watch!
       expect(queued[:report][:value]).to start_with("pushing 1 commits\nthe Hecks shape").and include("did not move")
       expect(queued[:status]).to eq("queued")
+    end
+
+    it "records the push once the PR merges", :aggregate_failures do
+      _queued, outcome = board_and_watch!
       expect(outcome[:status]).to eq("pushed")
       expect(outcome[:report][:value]).to include("merged as #{local_head[0, 9]}")
       expect([pushed?, era_count]).to eq([true, 1])

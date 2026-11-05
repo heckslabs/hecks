@@ -758,7 +758,7 @@ Hecks.bluebook "Hecks" do
         transition "Fault" => "faulted", from: "requested"
         transition "Summarize" => "surveyed", from: "requested"
         transition "Merge" => "pushed", from: "queued"
-        mark :terminal, "carried", "faulted", "pushed", "queued", "surveyed"
+        mark :terminal, "carried", "faulted", "pushed", "surveyed"
       end
 
       command "Board" do
