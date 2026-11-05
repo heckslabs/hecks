@@ -1,25 +1,25 @@
 # One kernel runs bluebooks, and Ruby is the front end
 
-**Status:** Proposed. Supersedes, once accepted: ADR 0010 (Ruby is the reference implementation), ADR 0054b
-(the Ruby generator stays primary), and point 6 of ADR 0154 (the Rust-only direction is paused). Nothing
-here is built; step 0 is this record and the baseline below.
+**Status:** Accepted. The owner accepted it on 2026-11-05. It supersedes ADR 0010 (Ruby is the reference
+implementation), ADR 0054b (the Ruby generator stays primary), and point 6 of ADR 0154 (the Rust-only
+direction is paused). Nothing here is built; step 0 is this record and the baseline below.
 Date: 2026-11-05.
 
 ## Context
 
-Hecks has two hand-written kernels. The Ruby runtime (`lib/hecks/runtime`, about 13.5k lines, plus about
-9k lines of driven adapters) and the Rust kernel (`rust/src/kernel`, about 13.5k lines) both run
-bluebooks, and every semantic change lands twice. `check_conformance` and the differential fuzzer exist to
+Hecks has two hand-written kernels. The Ruby runtime (`lib/hecks/runtime`, with its driven adapters) and
+the Rust kernel (`rust/src/kernel`) both run bluebooks, and every semantic change lands twice. `check_conformance` and the differential fuzzer exist to
 catch the drift between them.
 
 The Rust side adds three costs of its own:
 
-1. About 257k lines of generated Rust are committed (`rust/src/generated`), and the kernel still reaches
-   them through `generated::active` (typed structs, `ENTITY_QUERIES`, `check_query_args`, `present`).
+1. A large body of generated Rust is committed (`rust/src/generated`), many times the size of the kernel
+   itself, and the kernel still reaches it through `generated::active` (typed structs, `ENTITY_QUERIES`,
+   `check_query_args`, `present`).
 2. The host core re-implements the kernel's evaluator (`rust/host/core/src/expr_json.rs`). ADR 0149 records
    that the two evaluators have already disagreed.
-3. The host's drivers (web, api, payments, auth, about 57k lines) are compiled in, not behind sandboxed
-   ports.
+3. The host's drivers (web, api, payments, auth), a body of code larger than the kernel, are compiled in,
+   not behind sandboxed ports.
 
 ADR 0010's tiebreaker role is already superseded by `docs/semantics` and the frozen corpus; both
 runtimes answer to the corpus. ADR 0154 names the Ruby runtime a second hand-written kernel and leaves the
@@ -55,21 +55,38 @@ Measured 2026-11-05 on the maintainer's machine, from a fresh worktree:
 | Cold `exe/hecks` (grammar boot) | 7.8 s wall |
 | Warm `exe/hecks` | 0.90 s wall, 0.40 s user |
 | Floor: `require "bundler/setup"` only | 0.35 s wall, 0.14 s user |
-| Committed generated Rust | about 257k lines |
-| Ruby runtime plus driven adapters | about 22k lines |
+| Dispatch p50, pizzas: in-process Ruby (Memory) vs warm Rust kernel over `--serve` | 186 us vs 12 us (about 15 times faster) |
+| Dispatch p50, banking: in-process Ruby (Memory) vs warm Rust kernel over `--serve` | 409 us vs 18 us (about 23 times faster) |
 
 Wall time on this run is noisier than the user time; `docs/cli-measures.md` holds the budget method
-(a ratio to the floor, five fresh processes). Parity-bug count and authoring-loop dispatch latency are
-not yet measured and are the first two readings of step 0.
+(a ratio to the floor, five fresh processes).
+
+**Dispatch latency.** Read with `hecks FuzzRun.bench!` (`lib/hecks/bench`): targets `ruby:memory` and
+`rust`, domains pizzas and banking, 200 warm-up and 1000 timed cycles per run, median of 5 fresh boots,
+on an Apple M3 Pro with Ruby 3.3.7 (YJIT off) at `3b2e6f3d3`. The Rust timing includes two pipe
+crossings and a JSON parse per step (the pipe floor was 5 to 7 us); the client is Ruby, so the Ruby
+side of that crossing is inside the number. The machine was busy (load average 13.7 before, 12.5
+after), the first runs were slower, and the Rust range across runs was wide (pizzas 27.8k to 66.3k
+commands/s), so read the ratio, not the digits. The gate in the Decision holds today by a wide margin
+for these two domains on the Memory store. It does not yet cover a Ruby-side callback channel,
+sessions, or domains with policies that ask; those are what the binding adds.
+
+**Divergence fixes.** No tally is kept here, since it goes stale; this is how to count it again. List
+`git log origin/main --since=<date>`, take the commits whose subject says a Ruby/Rust divergence was
+closed, and classify them by hand from the subject. A plain match on `parity|conformance|differential`
+is not the count, because most of what it finds is CI and harness work. The result is a floor: a fix
+whose subject does not name the other runtime is missed (`BUG#152`, `7db8f5029`, is one). The QA
+findings in the tickets store are the other source, and they must be read from the main checkout, since
+a linked worktree resolves that store to Memory and `Finding.open` answers empty there.
 
 ## Consequences
 
 - Every semantic change is made once.
-- About 257k lines of generated code, most of `rust/codegen`, and the per-domain `dist/*.wasm` builds
+- The committed generated code, most of `rust/codegen`, and the per-domain `dist/*.wasm` builds
   leave the repository once the kernel interprets IR.
-- Roughly 477 specs and `packages/hecks-rails` boot the Ruby runtime today and move to the binding.
+- Many specs, and `packages/hecks-rails`, boot the Ruby runtime today and move to the binding.
 - The live Ruby oracle goes away; the corpus and the differential fuzzer must carry its weight first.
-- `postgres_era` (about 4.8k lines) is the riskiest move, because eras are minted by both runtimes
+- `postgres_era`, the largest single adapter, is the riskiest move, because eras are minted by both runtimes
   (ADR 0029, 0030, 0036, 0079). It goes last.
 
 ## Rejected alternatives

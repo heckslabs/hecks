@@ -1,6 +1,8 @@
 # Ruby is the reference implementation; other runtimes validate against it, continuously
 
-**Status:** Accepted — implemented; TIEBREAKER ROLE SUPERSEDED by
+**Status:** Accepted — implemented; SUPERSEDED by
+[0188](0188-one-kernel-and-ruby-is-the-front-end.md) (2026-11-05): one Rust kernel runs bluebooks and
+Ruby is the front end. Before that, TIEBREAKER ROLE SUPERSEDED by
 `docs/semantics/bluebook-semantics.md` + `spec/corpus/semantics/`
 (the clause-numbered semantics and its frozen corpus are the reference
 for MEANING now; Ruby remains the reference IMPLEMENTATION, and both
