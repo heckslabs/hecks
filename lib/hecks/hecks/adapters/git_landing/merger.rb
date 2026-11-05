@@ -55,7 +55,7 @@ module Hecks
 
         def integrate(dir, before)
           changed = dirty(dir)
-          raise ConsoleCapture::Failure, "#{dir} holds uncommitted work: #{changed.join(", ")}" unless changed.empty?
+          raise ConsoleCapture::Failure, unsaved_refusal(dir, changed) unless changed.empty?
 
           outcome = ancestor?(before, branch_tip(@branch)) ? fast_forward(dir) : merge_commit(dir)
           [outcome, read("rev-parse", "HEAD", dir: dir)]

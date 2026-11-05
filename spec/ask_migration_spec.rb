@@ -10,7 +10,7 @@ RSpec.describe "policies migrated to ask" do
     AnalyseWhenRequested RecordTheClean RecordTheFlag PinWhenVendored PinWhenRevendored RecordThePinning
     RecordTheRefusedPin TagWhenReleased RecordTheTag RecordTheRefusedTag WriteWhenRequested ScaffoldWhenRequested
     ProjectRailsWhenRequested ConverseWhenRequested ServeWhenMcpRequested RecordTheLaunch RecordTheStoppedLaunch
-    GenerateWhenRequested CompileWasmWhenRequested BuildParserWhenRequested BuildHostWhenRequested
+    GenerateWhenRequested CompileWasmWhenRequested BuildParserWhenRequested PruneWhenRequested BuildHostWhenRequested
     CompileBrowserWasmWhenRequested ConformWhenRequested ReplayWhenRequested AuditWhenRequested RecordTheBuild
     RecordTheFault SweepWhenRequested MutateWhenRequested MeasureWhenRequested RecordTheSweep RecordTheFinding
   ].freeze
