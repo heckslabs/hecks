@@ -161,14 +161,14 @@ details.panel > .scroll, details.panel > .feed, details.panel > .strip, details.
     <div class="meta">
       <span id="updated">loading</span>
       <span class="live" id="live">stream: connecting</span>
-      <button id="toggle" type="button" aria-pressed="false">Show tables</button>
+      <button id="toggle" type="button" aria-pressed="false" data-tip="Switch between the diagrams and plain tables">Show tables</button>
     </div>
   </header>
 
-  <details class="panel" open><summary><h2 id="h-attn">Needs attention</h2></summary><div class="scroll" id="attention"></div></details>
-  <details class="panel" open><summary><h2 id="h-wiring">Wiring diagram</h2><small class="hint">drag to pan · use + and − to zoom · click a block to open it</small></summary><div class="switch"><button type="button" data-view="/wiring" aria-pressed="true">Wiring</button><button type="button" data-view="/sequence?small=1" aria-pressed="false">Sequence</button></div><iframe id="view" class="embed" src="/wiring" title="Wiring diagram"></iframe></details>
-  <section aria-labelledby="h-tiles"><h2 id="h-tiles">Key metrics</h2><div class="tiles" id="tiles"></div></section>  <details class="panel" open><summary><h2 id="h-strip">Pipeline</h2></summary><div class="strip" id="strip"></div></details>
-  <details class="panel" open><summary><h2 id="h-ci">CI on main</h2></summary>
+  <details class="panel" open><summary data-tip="Everything that asks for a person: attention pills, failed stages and sessions blocked on a reply. Click a row to act on it"><h2 id="h-attn">Needs attention</h2></summary><div class="scroll" id="attention"></div></details>
+  <details class="panel" open><summary data-tip="The architecture as a diagram: domains, aggregates and adapters. Click a block to open it; the switch shows the sequence of events instead"><h2 id="h-wiring">Wiring diagram</h2><small class="hint">drag to pan · use + and − to zoom · click a block to open it</small></summary><div class="switch"><button type="button" data-view="/wiring" aria-pressed="true">Wiring</button><button type="button" data-view="/sequence?small=1" aria-pressed="false">Sequence</button></div><iframe id="view" class="embed" src="/wiring" title="Wiring diagram"></iframe></details>
+  <section aria-labelledby="h-tiles"><h2 id="h-tiles">Key metrics</h2><div class="tiles" id="tiles"></div></section>  <details class="panel" open><summary data-tip="Each stage of a change from planned to released. Click a stage that needs you to resolve it"><h2 id="h-strip">Pipeline</h2></summary><div class="strip" id="strip"></div></details>
+  <details class="panel" open><summary data-tip="Recent CI runs on main, and the slowest jobs of the last completed run"><h2 id="h-ci">CI on main</h2></summary>
     <div class="grid2">
       <div><div class="label">Failed jobs per run, oldest to newest</div><div id="failedchart" class="chartview"></div><div class="tableview scroll" id="failedtable"></div></div>
       <div><div class="label">Wall minutes per run (goal 3)</div><div id="wallchart" class="chartview"></div><div class="tableview scroll" id="walltable"></div></div>
@@ -176,9 +176,9 @@ details.panel > .scroll, details.panel > .feed, details.panel > .strip, details.
     <h2 style="margin-top:14px">Slowest jobs of the last completed run</h2>
     <div id="slowchart" class="chartview"></div><div class="tableview scroll" id="slowtable"></div>
   </details>
-  <details class="panel" open><summary><h2 id="h-sess">Sessions</h2></summary><div class="scroll" id="sessions"></div></details>
+  <details class="panel" open><summary data-tip="Claude sessions dispatched or started by hand: their status, work item and what they are doing. Click a blocked session to answer it"><h2 id="h-sess">Sessions</h2></summary><div class="scroll" id="sessions"></div></details>
 
-  <details class="panel"><summary><h2 id="h-fan">Fan-out</h2></summary>
+  <details class="panel"><summary data-tip="How the work fans out across sessions: lanes, who is running what, and what the dispatcher would start next"><h2 id="h-fan">Fan-out</h2></summary>
     <div class="grid2">
       <div><div class="legend" id="lanelegend"></div><div id="lanes" class="chartview"></div><div class="tableview scroll" id="lanetable"></div></div>
       <div><div id="meters"></div><div id="flags"></div><div id="fill"></div></div>
@@ -187,8 +187,8 @@ details.panel > .scroll, details.panel > .feed, details.panel > .strip, details.
 
   
 
-  <details class="panel"><summary><h2 id="h-work">Work items</h2></summary><div class="scroll" id="work"></div><h2 class="sub">Work by session</h2><div class="scroll" id="mapping"></div></details>
-  <details class="panel"><summary><h2 id="h-ev">Events</h2></summary><div class="feed" id="feed" aria-live="polite"></div></details>
+  <details class="panel"><summary data-tip="Open Work items and which session holds each one"><h2 id="h-work">Work items</h2></summary><div class="scroll" id="work"></div><h2 class="sub">Work by session</h2><div class="scroll" id="mapping"></div></details>
+  <details class="panel"><summary data-tip="Each event the pipeline heard, and the reactions it caused. Hover a row for its full context"><h2 id="h-ev">Events</h2></summary><div class="feed" id="feed" aria-live="polite"></div></details>
 </main>
 <dialog id="resolve" aria-labelledby="resolve-title">
   <h2 id="resolve-title"></h2>
@@ -197,7 +197,7 @@ details.panel > .scroll, details.panel > .feed, details.panel > .strip, details.
   <p id="resolve-changes" class="unknown-note"></p>
   <pre id="resolve-cmd" class="cmd"></pre>
   <p id="resolve-status" class="status" aria-live="polite"></p>
-  <div class="actions"><button type="button" id="resolve-run">Run</button><button type="button" id="resolve-copy">Copy command</button><button type="button" id="resolve-close">Close</button></div>
+  <div class="actions"><button type="button" id="resolve-run" data-tip="Run the fix on this board, after a second click">Run</button><button type="button" id="resolve-copy" data-tip="Copy the fix command to the clipboard">Copy command</button><button type="button" id="resolve-close" data-tip="Close without doing anything">Close</button></div>
 </dialog>
 <dialog id="answer" aria-labelledby="ans-title">
   <form method="dialog" id="ans-form">
@@ -209,8 +209,8 @@ details.panel > .scroll, details.panel > .feed, details.panel > .strip, details.
     <textarea id="ans-text" rows="4"></textarea>
     <div class="status" id="ans-status" aria-live="polite"></div>
     <div class="actions">
-      <button type="button" id="ans-cancel">Cancel</button>
-      <button type="button" id="ans-send">Send</button>
+      <button type="button" id="ans-cancel" data-tip="Close without sending">Cancel</button>
+      <button type="button" id="ans-send" data-tip="Send your answer to the session (Enter sends, Shift+Enter adds a line)">Send</button>
     </div>
   </form>
 </dialog>
