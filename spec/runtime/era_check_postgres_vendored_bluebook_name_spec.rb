@@ -54,21 +54,23 @@ RSpec.describe "PostgresEra era-1 minting for a vendored bluebook named unlike i
       attaches "Governance"
       attaches "note", from: :vendor
 
-      persisted_by "PostgresEra"
+      persisted_by "Postgres"
+      revisions true
     end
 
     Hecks.hecksagon "Notes" do
       attaches "Governance"
 
-      persisted_by "PostgresEra"
+      persisted_by "Postgres"
+      revisions true
     end
 
     Hecks.hecksagon "Note" do
     end
 
     Hecks.hecksagon "Governance" do
-      Governance::RoleAssignment.persisted_by("PostgresEra")
-      Governance::RoleTransition.persisted_by("PostgresEra")
+      Governance::RoleAssignment.persisted_by("Postgres")
+      Governance::RoleTransition.persisted_by("Postgres")
     end
   HECKSAGON
 
@@ -76,7 +78,7 @@ RSpec.describe "PostgresEra era-1 minting for a vendored bluebook named unlike i
 
   def world_text
     %w[Target Notes Governance].map do |declaration|
-      "Hecks.world \"#{declaration}\" do\n  persisted_by(\"PostgresEra\") do\n    database \"#{owner_url}\"\n  end\nend\n"
+      "Hecks.world \"#{declaration}\" do\n  persisted_by(\"Postgres\") do\n    database \"#{owner_url}\"\n  end\nend\n"
     end.join("\n")
   end
 

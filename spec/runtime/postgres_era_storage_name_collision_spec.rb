@@ -80,18 +80,20 @@ RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (do
       attaches "Governance"
       attaches "notes", from: :vendor
 
-      persisted_by "PostgresEra"
+      persisted_by "Postgres"
+      revisions true
     end
 
     Hecks.hecksagon "Notes" do
       attaches "Governance"
 
-      persisted_by "PostgresEra"
+      persisted_by "Postgres"
+      revisions true
     end
 
     Hecks.hecksagon "Governance" do
-      Governance::RoleAssignment.persisted_by("PostgresEra")
-      Governance::RoleTransition.persisted_by("PostgresEra")
+      Governance::RoleAssignment.persisted_by("Postgres")
+      Governance::RoleTransition.persisted_by("Postgres")
     end
   HECKSAGON
 
@@ -121,12 +123,13 @@ RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (do
     Hecks.hecksagon "Custodian" do
       attaches "Governance"
 
-      persisted_by "PostgresEra"
+      persisted_by "Postgres"
+      revisions true
     end
 
     Hecks.hecksagon "Governance" do
-      Governance::RoleAssignment.persisted_by("PostgresEra")
-      Governance::RoleTransition.persisted_by("PostgresEra")
+      Governance::RoleAssignment.persisted_by("Postgres")
+      Governance::RoleTransition.persisted_by("Postgres")
     end
   HECKSAGON
 
@@ -148,7 +151,7 @@ RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (do
   def world_for(declaration)
     <<~WORLD
       Hecks.world "#{declaration}" do
-        persisted_by("PostgresEra") do
+        persisted_by("Postgres") do
           database "#{owner_url}"
           mint_eras true
         end
