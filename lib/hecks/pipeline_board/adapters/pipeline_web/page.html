@@ -114,6 +114,8 @@ dialog#resolve { width: min(34rem, 92vw); border: 1px solid var(--axis); border-
 dialog#resolve::backdrop { background: rgba(0,0,0,.35); }
 pre.cmd { background: var(--page); border: 1px solid var(--axis); border-radius: 6px; padding: 8px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .clickable { cursor: pointer; }
+a.linked { color: inherit; text-decoration: none; display: contents; }
+a.linked:hover .name, a.linked:focus-visible .name { text-decoration: underline; }
 tr.clickable { cursor: pointer; } tr.clickable:hover, tr.clickable:focus-visible { background: var(--page); }
 .tables-only .chartview { display: none; } body:not(.tables-only) .tableview { display: none; }
 @media (max-width: 900px) {
@@ -317,10 +319,14 @@ async function sendAnswer() {
   } catch (e) { $("ans-status").textContent = "Not sent: " + e.message; }
   finally { send.disabled = false; }
 }
+// A chart or table cell that opens the run on GitHub when the run carries its URL.
+function linked(url, node) {
+  return url ? h("a", { href: url, target: "_blank", rel: "noopener", class: "linked" }, node) : node;
+}
 function columns(rows, pick, label, second) {
   const max = Math.max(1, ...rows.map(pick));
-  const cols = rows.map((r) => h("div", { class: "col", tip: r.sha + " " + (r.conclusion || r.status) + ": " + label(r) },
-    h("div", { class: "val" }, String(pick(r))), h("div", { class: "bar" + (second ? " second" : ""), style: "height:" + Math.round(100 * pick(r) / max) + "%" })));
+  const cols = rows.map((r) => linked(r.url, h("div", { class: "col", tip: r.sha + " " + (r.conclusion || r.status) + ": " + label(r) },
+    h("div", { class: "val" }, String(pick(r))), h("div", { class: "bar" + (second ? " second" : ""), style: "height:" + Math.round(100 * pick(r) / max) + "%" }))));
   return [h("div", { class: "cols" }, cols), h("div", { class: "xlabels" }, rows.map((r) => h("span", {}, r.sha.slice(0, 4))))];
 }
 function renderCi(runs, slow) {
@@ -328,14 +334,14 @@ function renderCi(runs, slow) {
   else {
     put("failedchart", columns(runs, (r) => r.failed_jobs || 0, (r) => (r.failed_jobs === null ? "failed jobs unknown" : r.failed_jobs + " failed jobs")));
     put("wallchart", columns(runs, (r) => r.wall_minutes, (r) => r.wall_minutes + " min", true));
-    put("failedtable", table(["Run", "Started", "Conclusion", "Failed jobs"], runs.map((r) => [r.sha, clock(r.started), r.conclusion || r.status, r.failed_jobs === null ? "?" : r.failed_jobs]), [3]));
-    put("walltable", table(["Run", "Wall minutes"], runs.map((r) => [r.sha, r.wall_minutes]), [1]));
+    put("failedtable", table(["Run", "Started", "Conclusion", "Failed jobs"], runs.map((r) => [linked(r.url, r.sha), clock(r.started), r.conclusion || r.status, r.failed_jobs === null ? "?" : r.failed_jobs]), [3]));
+    put("walltable", table(["Run", "Wall minutes"], runs.map((r) => [linked(r.url, r.sha), r.wall_minutes]), [1]));
   }
   if (isUnknown(slow)) { put("slowchart", unknown(slow)); put("slowtable", unknown(slow)); return; }
   const max = Math.max(1, ...slow.map((j) => j.minutes));
-  put("slowchart", slow.map((j) => h("div", { class: "hbar", tip: j.name + ": " + j.minutes + " min (" + j.conclusion + ")" },
-    h("div", { class: "name" }, j.name), h("div", { class: "track" }, h("div", { class: "fill", style: "width:" + Math.round(100 * j.minutes / max) + "%" })), h("div", {}, j.minutes + " min"))));
-  put("slowtable", table(["Job", "Minutes", "Conclusion"], slow.map((j) => [j.name, j.minutes, j.conclusion]), [1]));
+  put("slowchart", slow.map((j) => linked(j.url, h("div", { class: "hbar", tip: j.name + ": " + j.minutes + " min (" + j.conclusion + ")" },
+    h("div", { class: "name" }, j.name), h("div", { class: "track" }, h("div", { class: "fill", style: "width:" + Math.round(100 * j.minutes / max) + "%" })), h("div", {}, j.minutes + " min")))));
+  put("slowtable", table(["Job", "Minutes", "Conclusion"], slow.map((j) => [linked(j.url, j.name), j.minutes, j.conclusion]), [1]));
 }
 function renderWork(work) {
   if (isUnknown(work)) return put("work", unknown(work));
