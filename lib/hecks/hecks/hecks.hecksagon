@@ -345,6 +345,15 @@ Hecks.hecksagon "Hecks" do
 
   # The outside an agent run reaches: it finds the directory and the agents, starts the background
   # session, and reports the state its job is in. The state is judged in the bluebook, not here.
+  # The Sessions port removes a plain session with `claude rm`, once the bluebook has allowed it.
+  Hecks::PlainSession.port "Sessions" do
+    asks "Discard", to: PlainSession do
+      attribute :session, SessionId
+      answers "PlainSessionRemoved"
+      refuses "PlainSessionRefused"
+    end
+  end
+
   Hecks::AgentRun.port "Agents" do
     asks "Locate", to: AgentRun do
       attribute :run, RunKey

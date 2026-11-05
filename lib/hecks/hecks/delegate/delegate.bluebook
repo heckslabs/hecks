@@ -536,5 +536,42 @@ Hecks.bluebook "Hecks" do
       on      "AgentRun.RemoveRefused"
       trigger AgentRun::Retain, with: { refusal: :refusal }
     end
+
+    # A session the board started by hand has no run to tidy, so it is removed on its own. The
+    # rule is the same as Tidy's: only a finished session that waits on nobody goes.
+    aggregate "PlainSession" do
+      description "A Claude session started outside a dispatched run, which the operator may remove once it is finished. The Sessions port removes it."
+
+      identified_by :session
+
+      attribute :session, SessionId
+
+      value_object "SessionId" do
+        attribute :value, String, matches: :present
+        invariant("a session has an id") { !value.to_s.empty? }
+      end
+
+      value_object "SessionCondition" do
+        attribute :value, String
+      end
+
+      command "Remove" do
+        role "Operator"
+        goal "Remove a finished session that waits on nobody"
+
+        attribute :condition, SessionCondition
+
+        given("the session ended done or stopped: a working or blocked session is kept") do
+          condition.value == "done" || condition.value == "stopped"
+        end
+
+        emits "RemoveRequested"
+      end
+
+      policy "RemoveWhenAsked" do
+        on      "PlainSession.RemoveRequested"
+        ask     :discard, with: { session: :session }
+      end
+    end
   end
 end
