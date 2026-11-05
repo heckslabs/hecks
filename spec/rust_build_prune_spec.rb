@@ -14,33 +14,58 @@ RSpec.describe Hecks::RustBuild::Prune do
     path
   end
 
-  it "removes only artifacts older than the cutoff and reports the bytes" do
-    old = touch(File.join(dir, "debug", "deps", "old.rlib"), age_days: 30)
-    fresh = touch(File.join(dir, "debug", "deps", "new.rlib"))
-    expect(described_class.stale([dir], days: 14)).to eq(10)
-    expect(File.exist?(old)).to be(false)
-    expect(File.exist?(fresh)).to be(true)
+  describe ".stale" do
+    let!(:old) { touch(File.join(dir, "debug", "deps", "old.rlib"), age_days: 30) }
+    let!(:fresh) { touch(File.join(dir, "debug", "deps", "new.rlib")) }
+
+    it "reports the bytes of the artifacts older than the cutoff" do
+      expect(described_class.stale([dir], days: 14)).to eq(10)
+    end
+
+    it "deletes the old artifact" do
+      described_class.stale([dir], days: 14)
+      expect(File.exist?(old)).to be(false)
+    end
+
+    it "keeps the fresh artifact" do
+      described_class.stale([dir], days: 14)
+      expect(File.exist?(fresh)).to be(true)
+    end
+
+    it "deletes nothing on a dry run" do
+      described_class.stale([dir], days: 14, dry_run: true)
+      expect(File.exist?(old)).to be(true)
+    end
   end
 
-  it "leaves everything alone on a dry run" do
-    old = touch(File.join(dir, "debug", "deps", "old.rlib"), age_days: 30)
-    expect(described_class.stale([dir], days: 14, dry_run: true)).to eq(10)
-    expect(File.exist?(old)).to be(true)
+  describe ".targets_of" do
+    let!(:done) { touch(File.join(dir, "done", "rust", "host", "target", "a")) }
+    let!(:open_one) { touch(File.join(dir, "open", "rust", "target", "a")) }
+
+    it "removes the targets inside the worktrees it is given" do
+      described_class.targets_of([File.join(dir, "done")])
+      expect(File.exist?(done)).to be(false)
+    end
+
+    it "leaves the other worktrees' targets" do
+      described_class.targets_of([File.join(dir, "done")])
+      expect(File.exist?(open_one)).to be(true)
+    end
   end
 
-  it "removes the targets inside the worktrees it is given and no others" do
-    done = touch(File.join(dir, "done", "rust", "host", "target", "a"))
-    open_one = touch(File.join(dir, "open", "rust", "target", "a"))
-    expect(described_class.targets_of([File.join(dir, "done")])).to eq(10)
-    expect(File.exist?(done)).to be(false)
-    expect(File.exist?(open_one)).to be(true)
-  end
+  describe ".orphans" do
+    let!(:gone) { touch(File.join(dir, "gone", "rust", "target", "a")) }
+    let!(:kept) { touch(File.join(dir, "kept", "rust", "target", "a")) }
+    let(:live) { [File.join(dir, "kept")] }
 
-  it "removes the target of a worktree git no longer lists" do
-    gone = touch(File.join(dir, "gone", "rust", "target", "a"))
-    kept = touch(File.join(dir, "kept", "rust", "target", "a"))
-    expect(described_class.orphans(dir, live: [File.join(dir, "kept")])).to eq(10)
-    expect(File.exist?(gone)).to be(false)
-    expect(File.exist?(kept)).to be(true)
+    it "removes the target of a worktree git does not list" do
+      described_class.orphans(dir, live: live)
+      expect(File.exist?(gone)).to be(false)
+    end
+
+    it "keeps the target of a listed worktree" do
+      described_class.orphans(dir, live: live)
+      expect(File.exist?(kept)).to be(true)
+    end
   end
 end

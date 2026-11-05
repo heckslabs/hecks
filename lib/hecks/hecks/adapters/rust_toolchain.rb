@@ -134,20 +134,14 @@ module Hecks
         child(:coverage, ["--check-allowlist"])
       end
 
-      # Frees disk Rust builds hold: the `target/` of worktrees git no longer lists, then the
-      # shared cache's artifacts unused for `days`. Runs in this process; it needs no toolchain.
+      # Frees disk Rust builds hold: the `target/` of worktrees that are gone or merged, then the
+      # shared cache's stale artifacts. Runs in this process; it needs no toolchain.
       #
       # @param held [Hash] the `Build` record: `days` (14 when absent) and `dry_run`
       # @return [Hash{Symbol => Hash}] `output:` the megabytes freed, or that would be
       def prune(**held)
         dry = plain(held[:dry_run]) == true
-        listing = IO.popen(["git", "-C", RustBuild::ROOT, "worktree", "list", "--porcelain"], &:read)
-        live = listing.scan(/^worktree (.+)$/).flatten
-        dir = File.join(live.first, ".claude", "worktrees")
-        freed = File.directory?(dir) ? RustBuild::Prune.orphans(dir, live: live, dry_run: dry) : 0
-        freed += RustBuild::Prune.targets_of(merged_worktrees(listing, live.first), dry_run: dry)
-        freed += RustBuild::Prune.stale(Dir.glob(File.join(RustBuild::TargetDir.shared("*"))),
-                                        days: plain(held[:days]) || 14, dry_run: dry)
+        freed = RustBuild::Prune.run(days: plain(held[:days]) || RustBuild::Prune::DAYS, dry_run: dry)
         { output: { value: "#{dry ? "would free" : "freed"} #{freed / 1_048_576} MB" } }
       end
 
@@ -218,19 +212,6 @@ module Hecks
         (self.class.runner || RustBuild).capture(TOOLS.fetch(ask), argv, env: space.environment)
       rescue RustWorkspace::Unavailable => e
         raise ConsoleCapture::Failure, e.message
-      end
-
-      # The linked worktrees whose branch is already merged into the main checkout's branch; the
-      # main checkout, the worktree this runs in and any locked (live agent) worktree are never named.
-      def merged_worktrees(listing, main)
-        merged = IO.popen(["git", "-C", main, "branch", "--format=%(refname:short)", "--merged", "main"], &:read).split
-        listing.split(/\n\n+/).filter_map do |block|
-          path = block[/^worktree (.+)$/, 1]
-          branch = block[%r{^branch refs/heads/(.+)$}, 1]
-          next if block.match?(/^locked/) || RustBuild::ROOT.start_with?(path.to_s)
-
-          path if branch && path != main && merged.include?(branch)
-        end
       end
 
       def message_of(result)

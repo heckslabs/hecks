@@ -11,7 +11,8 @@ module Hecks
     # directory, so a build there goes to one shared cache instead: each revision reuses the last
     # one's compiled dependencies, and the output is kept once rather than once per revision.
     # A linked git worktree shares that same cache: agents keep dozens of worktrees, and a `target/`
-    # in each one multiplied the build output by the worktree count. The main checkout keeps its own.
+    # in each one multiplied the build output by the worktree count. The main checkout keeps its
+    # own.
     # `CARGO_TARGET_DIR` overrides all of these.
     module TargetDir
       module_function
@@ -32,7 +33,7 @@ module Hecks
       end
 
       # @param root [String] a hecks copy's directory
-      # @return [Boolean] whether the copy is a linked git worktree (its `.git` is a file, not a directory)
+      # @return [Boolean] whether the copy is a linked git worktree (its `.git` is a file)
       def worktree?(root)
         File.file?(File.join(root, ".git"))
       end
