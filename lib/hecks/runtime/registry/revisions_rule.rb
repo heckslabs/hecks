@@ -10,6 +10,17 @@ module Hecks
 
         private
 
+        # `PostgresEra` is no longer a bindable adapter (ADR 0182): the revision layout is
+        # `Postgres` with `revisions true`. The class stays, so the era tools can still reach it.
+        def refuse_postgres_era_binding!(hecksagon)
+          bound = hecksagon.binds.find { |bind| bind.adapter.to_s == "PostgresEra" }
+          return unless bound
+
+          raise WiringError,
+                "#{hecksagon.domain} binds PostgresEra, which is no longer an adapter — bind Postgres " \
+                "and write `revisions true` in the hecksagon for the same layout"
+        end
+
         def refuse_revisions_on_other_adapter!(hecksagon)
           return unless hecksagon.revisions?
 
