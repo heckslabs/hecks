@@ -49,7 +49,7 @@ module Hecks
           when "answer" then ["AgentRun.answer!", "to=#{fields[:target]}", "answer.value=#{fields[:text]}", "--wait"]
           when "reply" then ["attach", fields[:attach].to_s]
           when "delete" then ["AgentRun.tidy!", "to=#{fields[:target]}"]
-          when "discard" then ["PlainSession.remove!", "session.value=#{fields[:target]}", "condition.value=#{fields[:condition]}"]
+          when "discard" then ["PlainSession.remove!", "to=#{fields[:target]}", "condition.value=#{fields[:condition]}"]
           when "board_train" then ["SendTrain.board!", "--confirm"]
           when "promote" then ["PromotionRun.promote!", "lane=stable", "--confirm", "--wait"]
           when "check_in" then ["RedFlag.check_in!", "run.value=#{fields[:target]}", "session.value=#{fields[:session]}",
