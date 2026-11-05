@@ -1,6 +1,6 @@
 # Main moves only by promotion of a green candidate
 
-**Status:** Accepted, shipped off. Date: 2026-11-03. Owner decision after the reds of
+**Status:** Superseded by ADR 0187 (2026-11-05): `main` moves by pull request, and the candidate gate is removed. Date: 2026-11-03. Owner decision after the reds of
 2026-11-02 and 2026-11-03: "this isn't working then" and "yes dispatch the gate". Work item
 `candidate-gate`.
 
