@@ -180,7 +180,7 @@ runtime.registry.adapters["dispatch_memory"].port  # => "dispatch_entry"
 | `to:` | text | true | to |
 <!-- generated:end -->
 
-Opens a translation — how this domain's own stored data moves from one pinned era to the next, aggregate by aggregate. Unlike the other four file kinds, this one has no dedicated extension; the real convention (`hecks era.scaffold_translation`, `hecks deploy Recipe.project!`) is a `translations/*.bluebook` file, deliberately excluded from the ordinary boot-time load so an unresolved edge cannot silently participate in it. Never runs against a live registry; it is read by an era-diff tool as a plan, not dispatched. See the Translation reference page for the words inside.
+Opens a translation — how this domain's own stored data moves from one pinned era to the next, aggregate by aggregate. Unlike the other four file kinds, this one has no dedicated extension; the real convention (`hecks schema_revision.scaffold_translation`, `hecks deploy Recipe.project!`) is a `translations/*.bluebook` file, deliberately excluded from the ordinary boot-time load so an unresolved edge cannot silently participate in it. Never runs against a live registry; it is read by an era-diff tool as a plan, not dispatched. See the Translation reference page for the words inside.
 
 Read back the same way any other file's own declaration is:
 

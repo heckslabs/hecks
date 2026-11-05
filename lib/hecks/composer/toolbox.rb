@@ -20,8 +20,8 @@ module Hecks
       LINE_BREAK = /[\r\n]/
 
       ERA_QUERIES = {
-        shape: "introspection.shape", scaffold_translation: "era.scaffold_translation",
-        audit_translation: "era.audit_translation", compaction: "era.compaction"
+        shape: "introspection.shape", scaffold_translation: "schema_revision.scaffold_translation",
+        audit_translation: "schema_revision.audit_translation", compaction: "schema_revision.compaction"
       }.freeze
 
       # @return [Toolbox] a toolbox that boots the Hecks bluebook on first use

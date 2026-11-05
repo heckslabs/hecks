@@ -7,7 +7,7 @@ require_relative "edge_files"
 
 module Hecks
   module Translation
-    # Plans `Era.Reconcile` for one domain: the one edge that leads its latest held era to the
+    # Plans `SchemaRevision.Reconcile` for a domain: the edge that leads its latest held era to the
     # current shape, the edge files that edge supersedes, and the named reason a plan is refused.
     #
     # Planning reads the held labels, the loaded edges and the edge files, and writes nothing;

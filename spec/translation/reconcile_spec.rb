@@ -3,7 +3,7 @@ require "tmpdir"
 require "fileutils"
 require "hecks/ports/persistence/plugins/era"
 
-# The planner behind `Era.Reconcile`: which edge a domain's latest held era needs, which edge files
+# The planner behind `SchemaRevision.Reconcile`: the edge a latest era needs, and which files
 # that edge supersedes, and the refusal that names an earlier era the change would strand. Every
 # case runs on a temporary directory of edge files and on edges built in memory; no database is
 # touched.

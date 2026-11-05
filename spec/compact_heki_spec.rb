@@ -2,7 +2,7 @@ require "tmpdir"
 require "fileutils"
 require "hecks/hecks/adapters/journal_store/compaction"
 
-# `hecks compact_heki` (Era.CompactHeki) through the compaction it runs, against on-disk
+# `hecks compact_heki` (SchemaRevision.CompactHeki) through the compaction it runs, against on-disk
 # fixtures: a Heki aggregate with no `projected_by` (safe to compact) and examples/banking
 # (refused, since a projection worker reads the full journal).
 RSpec.describe "hecks compact_heki" do

@@ -130,7 +130,7 @@ module Hecks
       "#{name} moved with no edge. A change that only adds needs no edge file: settle it in one step " \
         "with `hecks conformance_run.check_shape_ledger! --confirm --additive --wait`, which the boot and " \
         "the mint treat as an implicit empty edge from #{from} to #{now}. Data that is renamed or reshaped " \
-        "needs rules: `hecks era.scaffold_translation domain.value=<directory>` writes them, reading " \
+        "needs rules: `hecks schema_revision.scaffold_translation domain.value=<directory>` writes them, reading " \
         "the eras from the database the domain's own world names."
     end
 

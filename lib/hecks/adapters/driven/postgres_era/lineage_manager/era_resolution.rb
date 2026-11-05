@@ -171,7 +171,7 @@ module Hecks
 
           # The sentence a status row gives for its status.
           module Reasons
-            REMEDY = "write an edge (`era.scaffold_translation`) and mint it with the release mint".freeze
+            REMEDY = "write an edge (`schema_revision.scaffold_translation`) and mint it with the release mint".freeze
 
             module_function
 

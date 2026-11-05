@@ -42,13 +42,13 @@ answers `--help`. A `|` inside a form is escaped as `\|` in the cell.
 | `hecks operation.smoke_test! [<subject>]` | `bin/smoke_test` |
 | `hecks operation.smoke_http! [<url>] path= [header=] [scheme=] [payload=] [payload_file=] [health_path=] [state_path=]` | `bin/smoke_http` |
 | `hecks host.check_era! <host> expected= [timeout=]` | `bin/check_era` |
-| `hecks era.merge_tail! <domain> [winners=] --confirm` | `bin/merge_tail` |
-| `hecks era.reattest! <domain> era= --confirm` | `bin/reattest_era` |
-| `hecks era.backfill_projections! <domain>` | `bin/backfill_era_projections` |
-| `hecks era.scaffold_translation <domain>` | `bin/scaffold_translation` |
-| `hecks era.audit_translation <domain>` | `bin/translation_audit` |
-| `hecks era.compact! <domain> [aggregates=] --confirm` | `bin/compact` |
-| `hecks era.compact_heki! <domain> [aggregates=] --confirm` | `bin/heki_compact` |
+| `hecks schema_revision.merge_tail! <domain> [winners=] --confirm` | `bin/merge_tail` |
+| `hecks schema_revision.reattest! <domain> era= --confirm` | `bin/reattest_era` |
+| `hecks schema_revision.backfill_projections! <domain>` | `bin/backfill_era_projections` |
+| `hecks schema_revision.scaffold_translation <domain>` | `bin/scaffold_translation` |
+| `hecks schema_revision.audit_translation <domain>` | `bin/translation_audit` |
+| `hecks schema_revision.compact! <domain> [aggregates=] --confirm` | `bin/compact` |
+| `hecks schema_revision.compact_heki! <domain> [aggregates=] --confirm` | `bin/heki_compact` |
 | `hecks package.vendor! <package> [from=] [root=] (waits: a refusal exits 1 with its reason on stderr)` | `bin/vendor_bluebook` |
 | `hecks launch.project_cli! [<domains>]` | `bin/project_cli` |
 | `hecks mcp! [--stdio]` | `bin/hecks_mcp_door` |
@@ -62,7 +62,7 @@ answers `--help`. A `|` inside a form is escaped as `\|` in the cell.
 | `hecks fuzz_run.fuzz! [<domain>] [seeds=] [steps=] [workers=] [adapter=] [shard=] [list_shards=] [--persist-regressions]` | `bin/fuzz` |
 | `hecks fuzz_run.generate_sequence <domain> [seed=] [steps=] [adversarial=]` | `bin/generate` |
 | `hecks fuzz_run.bench! [<domains>] [targets=] [iterations=] [warmup=] [runs=] [rust_binary=] [format=] [output=]` | `bin/bench` |
-| `hecks fuzz_run.mutate! <domain> [seeds=] [steps=] [budget=]`; `hecks era.hold_first! <domain> --confirm` | (new: no `bin/` script) |
+| `hecks fuzz_run.mutate! <domain> [seeds=] [steps=] [budget=]`; `hecks schema_revision.hold_first! <domain> --confirm` | (new: no `bin/` script) |
 <!-- generated:end tools -->
 
 ## Deploy, for clients

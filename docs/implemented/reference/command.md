@@ -293,7 +293,7 @@ adding to one. It is carried on the IR as a boolean.
 
 Declares that this command's own record may be written through a boot whose shape no era holds
 yet. A boot like that refuses every write by name, so the command that mints the Hecks domain's
-held era could not persist its request without this. `Era.MintHeld` says `mints_era true`; the
+held era could not persist its request without this. `SchemaRevision.MintHeld` says `mints_era true`; the
 journal lets that one record through and refuses every other write from the same boot, and a
 superseded boot refuses the record too. It is carried on the IR as a boolean, `false` when not
 declared.

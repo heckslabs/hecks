@@ -5,7 +5,7 @@ Hecks.adapter "PostgresEra" do
   field :database
   field :role
   field :schema
-  # The name this domain's history is held under until `era.rename_domain` moves it: `formerly "Old"`.
+  # The name this domain's history is held under until `schema_revision.rename_domain` moves it: `formerly "Old"`.
   # A storage fact, so the world says it and the bluebook's `formerly_known_as` is the fallback.
   field :formerly
   # Opt-in to boot over a superuser or BYPASSRLS role, which the era write fence cannot

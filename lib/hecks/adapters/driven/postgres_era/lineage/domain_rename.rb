@@ -8,7 +8,7 @@ module Hecks
       class Lineage
         # The domain rename bridge: moves a domain's journal, sequence, partitions and lineage
         # rows from its `formerly_known_as` name to the current one. Only the rename entry point
-        # (`Era.RenameDomain`) moves them; a boot or a provisioning that finds the move pending
+        # (`SchemaRevision.RenameDomain`) moves them; a boot or provisioning that finds it pending
         # refuses by name (`refuse_pending_rename!`), so no history starts fresh beside the old.
         module DomainRename
           include DomainRenameState
@@ -59,8 +59,8 @@ module Hecks
 
             raise Runtime::WiringError,
                   "cannot boot #{@domain}: its history is held under the former name #{@formerly_known_as} " \
-                  "and #{@domain} holds none; rename the domain with era.rename_domain first " \
-                  "(`hecks era.rename_domain! domain=<domain directory> --confirm`)"
+                  "and #{@domain} holds none; rename the domain with schema_revision.rename_domain first " \
+                  "(`hecks schema_revision.rename_domain! domain=<domain directory> --confirm`)"
           end
 
           private

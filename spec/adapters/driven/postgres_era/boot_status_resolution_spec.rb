@@ -141,7 +141,7 @@ RSpec.describe "the boot status and the boot resolving through one resolution", 
                %(Hecks.world "Ledger" do\n  persisted_by("PostgresEra") do\n    database "#{url}"\n  end\nend\n))
   end
 
-  # The `Era.BootStatus` row for Ledger, for a domain whose ledger claims its shape is current.
+  # The `SchemaRevision.BootStatus` row for Ledger, for a domain whose ledger says it is current.
   def boot_status_row(source, database:)
     Dir.mktmpdir do |root|
       dir = domain_dir(root, source, ledger_source: source, database: database)

@@ -10,7 +10,7 @@ module Hecks
   module Adapters
     class JournalStore
       # The facts the journal store reports about a change before it is made, for the rules of
-      # Custodian's `Era.Permit` to hold against. Nothing here writes: an examination reads the
+      # `SchemaRevision.Permit` to hold against. Nothing here writes: an examination reads the
       # domain and its journal and answers numbers and yes-or-no.
       module Examination
         # What every fact is until an examination finds otherwise.
@@ -21,7 +21,7 @@ module Hecks
 
         # Examines the domain a change was asked for.
         #
-        # @param held [Hash] the `Era` record: `operation`, `domain`, and whichever of `winners`,
+        # @param held [Hash] the record: `operation`, `domain`, and whichever of `winners`,
         #   `era` and `aggregates` the request carried
         # @return [Hash{Symbol => Hash}] every fact, as `{ value: x }`, and the request's own
         #   `operation`, which the reactions to the examination read

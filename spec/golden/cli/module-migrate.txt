@@ -4,7 +4,7 @@ migrate — Move a store between shapes.
   hecks <Aggregate.query> [name=value …]       read something
 
 commands:
-  Era:
+  SchemaRevision:
     One change to a domain's journal of eras, and how it ended: a store's upkeep.
     hold_first!            Hold the first era of a domain that holds none, as its first boot would
     rename_domain!         Move a renamed domain's held eras and journal from its former name to its current name
@@ -21,12 +21,12 @@ commands:
     request!               Rehearse a domain's next era against the copy of its data its world names, say whether a mint would go through, and print the whole outcome
 
 queries (nothing here changes anything):
-  Era:
+  SchemaRevision:
     One change to a domain's journal of eras, and how it ended: a store's upkeep.
     scaffold_translation  The edge file that would lead the latest held era to the current shape.
     audit_translation     The audit of the edge that leads the latest held era to the current shape.
     compose_translation   The one edge write_translation would write, and the stale edges it would delete.
-    reconcile_plan        The dry run of Era.Reconcile: per domain, the held era, the current shape, the edge it would write, the edges it would delete, and the verdict.
+    reconcile_plan        The dry run of SchemaRevision.Reconcile: per domain, the held era, the current shape, the edge it would write, the edges it would delete, and the verdict.
     attestation           An era's held text as it now stands, and whether it still matches its digest.
     compaction            What compacting the domain's journals would delete, without deleting it.
     boot_status           The boot status of each bluebook under a domain directory: current, behind by a recorded implicit move, superseded, or unminted, with the held and current labels and the reason; read from its own database when it declares one, else from the committed ledger.
@@ -58,5 +58,5 @@ bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
   hecks <command> --help       what one command wants, and every way it refuses
   hecks --all                  also list the 20 internal commands and queries
   hecks --maintainer           also list the 458 commands and queries for working on hecks itself
-  a command is called with its aggregate — Era.hold_first!
+  a command is called with its aggregate — SchemaRevision.hold_first!
   exit status: 0 answered, 1 refused or failed, 2 a line it could not read

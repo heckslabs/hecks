@@ -19,9 +19,9 @@ RSpec.describe "the Hecks domain's committed world names" do
     expect(hecks.aggregates.map(&:former_name).compact).to be_empty
   end
 
-  it "names Era.MintHeld as the command an unminted boot may write" do
+  it "names SchemaRevision.MintHeld as the command an unminted boot may write" do
     settings = registry.binding_settings("Hecks", "persisted_by", "PostgresEra")
-    expect(Hecks::Ports::Persistence::MintDoor.names(settings)).to eq(["Era.MintHeld"])
+    expect(Hecks::Ports::Persistence::MintDoor.names(settings)).to eq(["SchemaRevision.MintHeld"])
   end
 
   it "agrees with the bluebook, which no longer says mints_era" do
