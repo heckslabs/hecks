@@ -258,6 +258,10 @@ commit must pass as `RequiredCheck` rows beside them.
   push `main` directly. A push of a feature branch runs the gate's `quick` stage: shape ledger,
   RuboCop (which also reads every changed Ruby file for syntax errors), comment style, secret output,
   adapter words.
+  Feature branches are different: the train only lands `main`. To queue an open feature PR,
+  mark it ready and run `gh pr merge <number> --auto` once its checks are green; GitHub's merge
+  queue then merges it. Check `gh pr view <number> --json mergeStateStatus` first: CLEAN means
+  ready, and BLOCKED with pending checks means wait.
   `hecks gate_run.gate! stage=quick --wait` runs it by hand and is worth running before every
   commit. Everything slower (fuzzing, the engine and model checks, command names, workflow
   pagination, the spec suite, the push-chain specs) runs after the push, in CI and the nightly run,
