@@ -1,0 +1,199 @@
+Hecks.bluebook "Onboarding" do
+  vision "First-run setup of Hecks on one fresh machine: six steps, each refused until the one before it completed."
+
+  aggregate "Onboarding" do
+    description "One first-run setup of Hecks on one machine, from the Ruby check to the first model check."
+
+    identified_by :machine
+
+    attribute :machine, MachineName
+
+    value_object "MachineName" do
+      attribute :value, String
+      invariant("a machine is named") { !value.to_s.empty? }
+    end
+
+    value_object "RubyMajor" do
+      attribute :value, Integer
+    end
+
+    value_object "RubyMinor" do
+      attribute :value, Integer
+    end
+
+    # Process exit status of a launcher or gem command: 0 is success, anything else is a refusal.
+    value_object "ExitCode" do
+      attribute :value, Integer
+    end
+
+    value_object "DomainName" do
+      attribute :value, String
+    end
+
+    # `init` writes a domain from a template; `interview` asks the questions first.
+    value_object "ScaffoldVia" do
+      attribute :value, String, one_of: ["init", "interview"]
+    end
+
+    # Outcome of a check run: `clean` when it reported no findings, otherwise `failed`.
+    value_object "CheckOutcome" do
+      attribute :value, String, one_of: ["clean", "failed"]
+    end
+
+    value_object "StageName" do
+      attribute :value, String
+    end
+
+    # Each step is a transition, so a step asked for before its predecessor is refused by the
+    # lifecycle; the status names the last step completed.
+    lifecycle :status, default: "fresh" do
+      transition "CheckRuby"      => "ruby_checked",     from: "fresh"
+      transition "InstallGem"     => "gem_installed",    from: "ruby_checked"
+      transition "CheckLauncher"  => "launcher_checked", from: "gem_installed"
+      transition "OpenExample"    => "example_opened",   from: "launcher_checked"
+      transition "ScaffoldDomain" => "domain_scaffolded", from: "example_opened"
+      transition "RunChecks"      => "checks_run",       from: "domain_scaffolded"
+      mark :terminal, "checks_run"
+    end
+
+    # Names the machine and asks for its Ruby version; CheckRuby then opens the record.
+    command "RequestOnboarding", from: "fresh" do
+      goal "Ask for a machine's Ruby version to start its onboarding"
+
+      attribute :machine, MachineName
+
+      emits "OnboardingRequested"
+    end
+
+    # The gem and launcher probes start from a request of their own, so one chain of reactions
+    # never runs past the reaction depth limit.
+    command "RequestGemCheck", from: "ruby_checked" do
+      goal "Ask whether the hecks gem is installed"
+
+      reference_to Onboarding
+
+      emits "GemCheckRequested"
+    end
+
+    command "RequestLauncherCheck", from: "gem_installed" do
+      goal "Ask whether the hecks launcher answers"
+
+      reference_to Onboarding
+
+      emits "LauncherCheckRequested"
+    end
+
+    # The first step opens the record for the machine; later steps act on it.
+    command "CheckRuby", from: "fresh" do
+      goal "Read the machine's Ruby version and open the onboarding for it"
+
+      attribute :machine, MachineName
+      attribute :major,   RubyMajor
+      attribute :minor,   RubyMinor
+
+      given("Ruby is at least 3.2, as hecks.gemspec requires") do
+        major.value > 3 || (major.value == 3 && minor.value >= 2)
+      end
+
+      sets :machine
+
+      emits "RubyChecked"
+    end
+
+    command "InstallGem", from: "ruby_checked" do
+      goal "Install the hecks gem with gem install hecks"
+
+      reference_to Onboarding
+      attribute :exit_code, ExitCode
+
+      given("gem install hecks exits 0") { exit_code.value == 0 }
+
+      emits "GemInstalled"
+    end
+
+    command "CheckLauncher", from: "gem_installed" do
+      goal "Confirm the hecks launcher lists its commands"
+
+      reference_to Onboarding
+      attribute :exit_code, ExitCode
+
+      # 0 answered; 1 refused and 2 unreadable both stop the step.
+      given("the launcher answered with exit 0") { exit_code.value == 0 }
+
+      emits "LauncherChecked"
+    end
+
+    command "OpenExample", from: "launcher_checked" do
+      goal "Open the bundled pizzas domain in the console"
+
+      reference_to Onboarding
+      attribute :exit_code, ExitCode
+      attribute :domain,    DomainName
+
+      given("hecks console! exits 0") { exit_code.value == 0 }
+      given("the bundled pizzas domain is the one open") { domain.value == "Pizzas" }
+
+      emits "ExampleOpened"
+    end
+
+    command "ScaffoldDomain", from: "example_opened" do
+      goal "Scaffold a new domain with hecks init, or with hecks interview"
+
+      reference_to Onboarding
+      attribute :via,       ScaffoldVia
+      attribute :exit_code, ExitCode
+
+      given("the scaffold command exits 0") { exit_code.value == 0 }
+
+      emits "DomainScaffolded"
+    end
+
+    command "RunChecks", from: "domain_scaffolded" do
+      goal "Run the model check and the smoke test on the new domain"
+
+      reference_to Onboarding
+      attribute :model_check, CheckOutcome
+      attribute :smoke_test,  CheckOutcome
+
+      given("the model check is clean") { model_check.value == "clean" }
+      given("the smoke test is clean")  { smoke_test.value == "clean" }
+
+      emits "ChecksPassed"
+    end
+
+    # Lists the onboardings at one stage. What is left for a machine is the transition out of
+    # its status.
+    query "AtStage" do
+      attribute :stage, StageName
+      where(status: :stage)
+    end
+  end
+  policy "ReadRubyWhenRequested" do
+    on  "Onboarding.OnboardingRequested"
+    ask :read_ruby_version, with: { machine: :machine }
+  end
+
+  policy "FindGemWhenRequested" do
+    on  "Onboarding.GemCheckRequested"
+    ask :find_hecks_gem, with: { machine: :machine }
+  end
+
+  policy "ListLauncherWhenRequested" do
+    on  "Onboarding.LauncherCheckRequested"
+    ask :list_launcher_commands, with: { machine: :machine }
+  end
+  policy "OpenWhenRubyRead" do
+    on      "Onboarding.RubyVersionRead"
+    trigger Onboarding::CheckRuby, with: { machine: :machine, major: :major, minor: :minor }
+  end
+
+  policy "InstallWhenGemFound" do
+    on      "Onboarding.HecksGemFound"
+    trigger Onboarding::InstallGem, with: { onboarding: :machine, exit_code: :exit_code }
+  end
+
+  policy "CheckLauncherWhenListed" do
+    on      "Onboarding.LauncherListed"
+    trigger Onboarding::CheckLauncher, with: { onboarding: :machine, exit_code: :exit_code }
+  end
+end
