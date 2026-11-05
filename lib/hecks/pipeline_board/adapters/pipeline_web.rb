@@ -64,6 +64,7 @@ module Hecks
         return ["reply", auto_reply(fields)] if action == "auto_reply"
         return [action, resumable(fields)] if action == "reply"
         return [action, discardable(fields)] if action == "discard"
+        return [action, fields.merge(repo: @launcher_root)] if action == "review"
 
         [action, fields]
       end

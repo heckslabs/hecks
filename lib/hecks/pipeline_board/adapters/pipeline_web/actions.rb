@@ -10,7 +10,7 @@ module Hecks
         NEEDS = {
           "answer" => %i[target text], "reply" => %i[target text], "board_train" => [], "promote" => [],
           "check_in" => %i[target session text], "delete" => %i[target], "discard" => %i[target condition],
-          "auto_reply" => %i[target]
+          "auto_reply" => %i[target], "review" => %i[target text]
         }.freeze
 
         # The program each step runs: the launcher, except a reply, which resumes a Claude session.
@@ -50,21 +50,29 @@ module Hecks
            "taking.value=#{fields[:text]}"]
         end
 
-        # The steps that take no field from the page: the launcher's argument list for each.
-        FIXED = {
-          "board_train" => ["SendTrain.board!", "--confirm"],
-          "promote"     => ["PromotionRun.promote!", "lane=stable", "--confirm", "--wait"]
+        # A plan review asked of the architect by event: the Work item, the plan, and the checkout
+        # the session works in, which the board names itself and never takes from the page.
+        def review_argv(fields)
+          ["agents", "PlanReview.request!", "work.value=#{fields[:target]}", "hops.value=1", "role.value=architect",
+           "repo.value=#{fields[:repo]}", "plan.value=#{fields[:text]}", "--wait"]
+        end
+
+        # The steps built by a helper or fixed outright: the launcher's argument list for each.
+        LOOKUP = {
+          "board_train" => ->(_) { ["SendTrain.board!", "--confirm"] },
+          "promote"     => ->(_) { ["PromotionRun.promote!", "lane=stable", "--confirm", "--wait"] },
+          "check_in"    => ->(fields) { check_in_argv(fields) },
+          "review"      => ->(fields) { review_argv(fields) }
         }.freeze
 
         def command(action, fields)
-          return FIXED[action] if FIXED.key?(action)
+          return LOOKUP[action].call(fields) if LOOKUP.key?(action)
 
           case action
           when "answer" then ["AgentRun.answer!", "to=#{fields[:target]}", "answer.value=#{fields[:text]}", "--wait"]
           when "reply" then ["attach", fields[:attach].to_s]
           when "delete" then ["AgentRun.tidy!", "to=#{fields[:target]}"]
           when "discard" then ["PlainSession.remove!", "to=#{fields[:target]}", "condition.value=#{fields[:condition]}"]
-          when "check_in" then check_in_argv(fields)
           end
         end
       end
