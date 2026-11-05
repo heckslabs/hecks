@@ -54,4 +54,57 @@ Hecks.bluebook "Agents" do
       emits "CommandIssued"
     end
   end
+
+  # The architect's review of a plan, asked by event instead of by prose. The Work key is the
+  # correlation id; each request carries a hop count so a review that asks another review stops.
+  aggregate "PlanReview" do
+    description "One review of a Work item's plan by the architect role: asked as an event, answered with a verdict, and refused past the hop limit."
+
+    identified_by :work
+
+    attribute :work, WorkKey
+    attribute :verdict, Verdict, optional: true
+    attribute :hops, HopCount, optional: true
+
+    value_object "WorkKey" do
+      attribute :value, String, matches: :present
+      invariant("a review names its Work item") { !value.to_s.empty? }
+    end
+
+    value_object "Verdict" do
+      attribute :value, String
+    end
+
+    value_object "HopCount" do
+      attribute :value, Integer
+    end
+
+    # A request is refused at the third hop, so a chain of reviews that ask for reviews stops by name.
+    command "Request" do
+      role "System"
+      goal "Ask the architect to review one Work item's plan"
+
+      attribute :work, WorkKey, sets: true
+      attribute :hops, HopCount, sets: true
+
+      given("the request is under the hop limit") { hops.value < 3 }
+
+      emits "PlanReviewRequested"
+    end
+
+    # The architect answers with a verdict: sound, changes, or rethink.
+    command "Answer" do
+      role "System"
+      goal "Record the architect's verdict on the plan"
+
+      reference_to PlanReview
+      attribute :verdict, Verdict, sets: true
+
+      given("the verdict is one the architect gives") do
+        verdict.value == "sound" || verdict.value == "changes" || verdict.value == "rethink"
+      end
+
+      emits "PlanReviewed"
+    end
+  end
 end
