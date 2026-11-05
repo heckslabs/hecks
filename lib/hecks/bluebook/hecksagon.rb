@@ -86,7 +86,8 @@ module Hecks
         attachments:   -> { attachments.map(&:to_h) },
         driving:       -> { driving.map(&:to_s) },
         bounded:       :bounded?,
-        translates:    -> { translates.map(&:to_s) }
+        translates:    -> { translates.map(&:to_s) },
+        revisions:     :revisions?
       )
 
       attr_reader :domain, :binds, :subscriptions, :attachments, :translates, :driving
@@ -96,7 +97,8 @@ module Hecks
 
       # Every optional keyword and what it holds when the declaration omits it.
       FIELD_DEFAULTS = {
-        binds: [], subscriptions: [], attachments: [], bounded: false, translates: [], driving: []
+        binds: [], subscriptions: [], attachments: [], bounded: false, translates: [], driving: [],
+        revisions: false
       }.freeze
 
       # @param domain [String, Symbol] the domain this hecksagon wires
@@ -109,13 +111,20 @@ module Hecks
       #   (consumer-owned; `attaches` marks attached bluebooks bounded on the registry instead)
       # @param translates [Array<String>] names of `translates` ACL blocks declared here
       # @param driving [Array<String>] the driving adapters `driven_by` admits; empty admits all
+      # @param revisions [Boolean] whether the Postgres adapter keeps the revision layout
       def initialize(domain:, **given)
         KeywordFields.assign(self, KeywordFields.fill(given, FIELD_DEFAULTS))
         @domain             = domain.to_s
         @bounded            = @bounded ? true : false
         @translates         = Array(@translates).map(&:to_s)
         @driving            = Array(@driving).map(&:to_s)
+        @revisions          = @revisions ? true : false
       end
+
+      # Says whether this hecksagon chose the revision layout for its Postgres adapter.
+      #
+      # @return [Boolean] whether `revisions true` was declared
+      def revisions? = @revisions
 
       # Says whether this hecksagon marked its own bluebook `bounded`.
       #

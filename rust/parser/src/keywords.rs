@@ -1671,6 +1671,18 @@ pub static KEYWORDS: &[KeywordRow] = &[
         disambiguator: "",
     },
     KeywordRow {
+        word: "revisions",
+        context: "Hecksagon",
+        body: "none",
+        inner: "",
+        opens: "",
+        fills: "revisions",
+        status: "admitted",
+        was: "",
+        resolves_via: "",
+        disambiguator: "",
+    },
+    KeywordRow {
         word: "port",
         context: "Hecksagon",
         body: "keywords",
