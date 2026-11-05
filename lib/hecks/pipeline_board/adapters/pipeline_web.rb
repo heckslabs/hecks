@@ -50,6 +50,7 @@ module Hecks
       # @raise [PipelineBoard::Unavailable] with why the step did not run
       def act(action:, fields:, confirm:)
         fields = resumable(fields) if action == "reply"
+        fields = discardable(fields) if action == "discard"
         argv = PipelineBoard::Actions.argv(action, fields, confirm: confirm)
         program = PipelineBoard::Actions.program(action)
         stdin = action == "reply" ? "#{fields[:text]}\r" : nil
@@ -70,6 +71,19 @@ module Hecks
         raise PipelineBoard::Unavailable, "no resumable blocked session #{fields[:target]}" unless row
 
         fields.merge(attach: row[:attach])
+      end
+
+      # A discard names the session's own state, read from the board, never from the page; the
+      # bluebook refuses a state it does not allow.
+      #
+      # @param fields [Hash{Symbol => String}] the request's fields, with `target` the session's id
+      # @return [Hash{Symbol => String}] the fields with `condition` set to the session's state
+      # @raise [PipelineBoard::Unavailable] when no session with that id is on the board
+      def discardable(fields)
+        row = Array(@snapshot.latest[:sessions]).find { |found| found[:id] == fields[:target] }
+        raise PipelineBoard::Unavailable, "no session #{fields[:target]} on the board" unless row
+
+        fields.merge(condition: row[:state].to_s)
       end
 
       # @return [Hash, nil] the blocked session with this id, when it carries a resume id and a

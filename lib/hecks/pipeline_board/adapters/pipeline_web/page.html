@@ -520,7 +520,7 @@ function addDelete(row, s) {
     e.stopPropagation();
     if (!armed) { armed = true; button.textContent = "Confirm delete"; return; }
     button.disabled = true;
-    const res = await fetch("/api/act", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "delete", target: s.run, confirm: true }) });
+    const res = await fetch("/api/act", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: s.run ? "delete" : "discard", target: s.run || s.id, confirm: true }) });
     if (res.ok) return refresh();
     armed = false; button.disabled = false;
     button.textContent = "Not deleted";
@@ -535,7 +535,7 @@ function renderSessions(list) {
   list.forEach((s, i) => {
     // A reply the server has not answered yet keeps its row highlighted.
     if (replies.get(s.id)?.state === "sending") rows[i].classList.add("sending");
-    if (s.run && (s.status === "done" || s.status === "failed")) addDelete(rows[i], s);
+    if (s.status === "done" || s.status === "failed") addDelete(rows[i], s);
     if (s.status !== "blocked") return;
     rows[i].classList.add("clickable"); rows[i].title = "Click to answer";
     answerable(rows[i], () => openAnswer([{ id: s.id, name: s.name, run: s.run, repo: s.repo, work_item: s.work_item, question: s.detail, context: s.context, attach: s.attach }], s.id));
