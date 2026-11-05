@@ -155,3 +155,4 @@ spec/support/persistence_adapter_examples.rb
 spec/tenant_isolation_fuzz_spec.rb
 spec/tenant_isolation_spec.rb
 spec/translation/split_postgres_head_spec.rb
+spec/pull_request_train_spec.rb

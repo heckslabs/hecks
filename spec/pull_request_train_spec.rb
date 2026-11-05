@@ -14,11 +14,11 @@ RSpec.describe "the push train boarding main as a pull request", :io do
   let(:gh_calls) { [] }
   let(:gh_fails_on) { nil }
 
-  IDENTITY = { "GIT_AUTHOR_NAME" => "A", "GIT_AUTHOR_EMAIL" => "a@example.test",
-               "GIT_COMMITTER_NAME" => "A", "GIT_COMMITTER_EMAIL" => "a@example.test" }.freeze
+  PR_TRAIN_GIT_IDENTITY = { "GIT_AUTHOR_NAME" => "A", "GIT_AUTHOR_EMAIL" => "a@example.test",
+                            "GIT_COMMITTER_NAME" => "A", "GIT_COMMITTER_EMAIL" => "a@example.test" }.freeze
 
   def git(*args, dir: work)
-    out, err, status = Open3.capture3(IDENTITY, "git", *args, chdir: dir)
+    out, err, status = Open3.capture3(PR_TRAIN_GIT_IDENTITY, "git", *args, chdir: dir)
     raise "git #{args.join(" ")} failed: #{err}" unless status.success?
 
     out.strip
