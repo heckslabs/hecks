@@ -1,7 +1,7 @@
 require "hecks"
 require_relative "../../support/postgres_probe"
 
-# A domain whose PostgresEra binding is not committed (the Hecks domain: its persistence lives in
+# A domain whose revisions binding is not committed (the Hecks domain: its persistence lives in
 # gitignored local files) still names its mint command in the committed world, at the top level:
 # `minting commands: ["Era.MintHeld"]`. The binding's settings carry it with any list the
 # persistence block gives, so the adapter reads one answer.
@@ -11,6 +11,7 @@ RSpec.describe "mints_era in the world" do
       Hecks.with_registry(registry) do
         Kernel.load(InMemoryDomain::EXTRACTION_PORT)
         Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+        Kernel.load(File.expand_path("../../../lib/hecks/adapters/driven/postgres.adapter", __dir__))
         Kernel.load(File.expand_path("../../../lib/hecks/adapters/driven/postgres_era.adapter", __dir__))
         Hecks.world("Ledger", &world_block)
       end
@@ -18,20 +19,20 @@ RSpec.describe "mints_era in the world" do
   end
 
   def names(registry)
-    Hecks::Ports::Persistence::MintDoor.names(registry.binding_settings("Ledger", "persisted_by", "PostgresEra"))
+    Hecks::Ports::Persistence::MintDoor.names(registry.binding_settings("Ledger", "persisted_by", "Postgres"))
   end
 
   let(:both) do
     proc do
       minting commands: ["Era.MintHeld"]
-      persisted_by("PostgresEra") do
+      persisted_by("Postgres") do
         database "postgres://x@localhost/ledger"
         mints_era "Maintenance.MintEra"
       end
     end
   end
 
-  it "reaches a PostgresEra binding the world's persistence block does not mention" do
+  it "reaches a revisions binding the world's persistence block does not mention" do
     expect(names(registry_with { minting commands: ["Era.MintHeld"] })).to eq(["Era.MintHeld"])
   end
 
