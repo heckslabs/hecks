@@ -70,8 +70,8 @@ module Hecks
       end
 
       # @param body [Hash] `path`
-      # @return [Hash] `revisions`, newest first (see {Session#timeline})
-      def timeline(body) = { revisions: @session.timeline(body.fetch("path")) }
+      # @return [Hash] `saves`, newest first (see {Session#timeline})
+      def timeline(body) = { saves: @session.timeline(body.fetch("path")) }
 
       # @param _body [Hash] unused
       # @return [Hash] `catalog` of Hecks's commands and queries (see {Toolbox#catalog})

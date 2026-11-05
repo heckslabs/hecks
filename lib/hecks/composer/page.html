@@ -656,10 +656,10 @@
   async function loadTimeline() {
     const path = state.open;
     if (!path) return;
-    const { revisions } = await api("POST", "timeline", { path });
+    const { saves } = await api("POST", "timeline", { path });
     const box = $("timelineView");
-    if (!revisions.length) { box.textContent = "Nothing saved for this file yet. Save it to start its timeline."; return; }
-    box.replaceChildren(...revisions.map((rev) => {
+    if (!saves.length) { box.textContent = "Nothing saved for this file yet. Save it to start its timeline."; return; }
+    box.replaceChildren(...saves.map((rev) => {
       const row = Object.assign(document.createElement("div"), { className: "rev" });
       const load = Object.assign(document.createElement("button"), { textContent: "Load into editor" });
       load.onclick = () => { state.docs[path].setValue(rev.text ?? ""); changed(); };

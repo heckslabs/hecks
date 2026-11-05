@@ -82,10 +82,10 @@ RSpec.describe "the Composer's lower panels", :io do
 
   it "keeps each saved file's text in a timeline, newest first", :aggregate_failures do
     2.times { |n| save("Hecks.bluebook \"Ledger\" do\n  # #{n}\nend\n") }
-    revisions = post("timeline", path: "ledger.bluebook")["revisions"]
+    saves = post("timeline", path: "ledger.bluebook")["saves"]
 
-    expect(revisions.size).to eq(2)
-    expect(revisions.first["text"]).to include("# 1")
+    expect(saves.size).to eq(2)
+    expect(saves.first["text"]).to include("# 1")
   end
 
   it "lists Hecks's commands and queries, marking the ones that change things as guarded", :aggregate_failures do

@@ -190,7 +190,7 @@ RSpec.describe "the Composer's agent", :io do
       ask("add a Refund command")
       path = JSON.generate(path: "ledger.bluebook")
 
-      expect(body(request.post("/composer/timeline", input: path))["revisions"].first["text"]).to include("Refund")
+      expect(body(request.post("/composer/timeline", input: path))["saves"].first["text"]).to include("Refund")
     end
 
     it "keeps the conversation for the page to show" do
