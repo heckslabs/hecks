@@ -4,6 +4,10 @@
 Hecks.hecksagon "PipelineBoard" do
   attaches "Governance"
   persisted_by "Memory"
+
+  # The Hecks domain's `Board.Serve` emits BoardServeRequested in the Hecks registry, which holds
+  # every attached bluebook: ServeWhenBoardRequested reacts by running Serve there.
+  subscribe "Hecks.BoardServeRequested"
 end
 
 # The anti-corruption layer for Governance, which the bluebook's roles are checked against.

@@ -9,6 +9,11 @@
 # reads. A read that fails answers `unknown: <reason>` for its stage and leaves the others alone.
 #
 #   exe/hecks PipelineBoard.serve! port.value=4747 --wait
+#
+# From the Hecks domain, `Board.serve` asks for the same board through `ServeWhenBoardRequested`. It
+# runs in the Hecks registry, so the wiring page shows every bluebook attached to Hecks.
+#
+#   exe/hecks Board.serve! port.value=4747 --wait
 
 Hecks.bluebook "PipelineBoard" do
   vision "The pipeline from a Work item to a release is read live, stage by stage, and shown with the real events it emitted."
@@ -125,6 +130,13 @@ Hecks.bluebook "PipelineBoard" do
       attribute :limit, Limit, optional: true
       returns Document
     end
+  end
+
+  # The Hecks domain's `Board.Serve` asks for the board. Its registry holds every attached bluebook,
+  # so the page this runs shows them all; the Serve command above then does the rest.
+  policy "ServeWhenBoardRequested" do
+    on      "Board.BoardServeRequested"
+    trigger PipelineBoard::Serve, with: { run: :run, port: :port }
   end
 
   policy "ListenWhenServed" do
