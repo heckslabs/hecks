@@ -126,20 +126,7 @@ a.linked:hover .name, a.linked:focus-visible .name { text-decoration: underline;
 .reply { margin-top: 4px; padding: 4px 6px; border-left: 3px solid var(--series1); background: var(--page); border-radius: 0 4px 4px 0; overflow-wrap: anywhere; }
 tr.sending td { background: rgba(234, 179, 8, .28); }
 .attn { padding: 6px 0; border-bottom: 1px solid var(--grid); }
-.evchips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
-.evchip { font-size: 11px; border: 1px solid var(--axis); border-radius: 999px; padding: 1px 8px; color: var(--ink2); }
-.evstrip { display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 8px; }
-.evcard { flex: 0 0 260px; scroll-snap-align: start; background: var(--surface); border: 1px solid var(--axis); border-radius: 10px; padding: 10px; font-size: 12px; display: flex; flex-direction: column; gap: 6px; }
-.evcard header { display: flex; justify-content: space-between; gap: 8px; }
-.evagg { color: var(--ink2); overflow-wrap: anywhere; }
-.evcard:hover { border-color: var(--series1); }
 .tip { white-space: pre-line; }
-.evreact { display: grid; grid-template-columns: 1fr; gap: 2px; padding: 4px 6px; border-left: 3px solid var(--axis); background: var(--page); border-radius: 4px; }
-.evreact i { color: var(--ink2); font-style: normal; }
-.evreact.delivered { border-left-color: var(--series1); }
-.evreact.refused { border-left-color: var(--warning); }
-.evchip.delivered { border-color: var(--series1); }
-.evchip.refused { border-color: var(--warning); }
 button.del { font: inherit; font-size: 12px; margin-left: 8px; color: var(--ink); background: var(--surface); border: 1px solid var(--axis); border-radius: 6px; padding: 1px 8px; }
 button.del:disabled { opacity: .5; }
 ol.steps { margin: 4px 0 0 18px; padding: 0; }
@@ -201,7 +188,7 @@ details.panel > .scroll, details.panel > .feed, details.panel > .strip, details.
   
 
   <details class="panel"><summary><h2 id="h-work">Work items</h2></summary><div class="scroll" id="work"></div><h2 class="sub">Work by session</h2><div class="scroll" id="mapping"></div></details>
-  <details class="panel"><summary><h2 id="h-ev">Events</h2></summary><div id="evcards"></div><div class="feed" id="feed" aria-live="polite"></div></details>
+  <details class="panel"><summary><h2 id="h-ev">Events</h2></summary><div class="feed" id="feed" aria-live="polite"></div></details>
 </main>
 <dialog id="resolve" aria-labelledby="resolve-title">
   <h2 id="resolve-title"></h2>
@@ -566,7 +553,7 @@ function chainOf(ev) {
 }
 function putEvent(ev, fresh) {
   if (!ev.key) return;
-  const card = h("div", { class: "ev" + (fresh ? " fresh" : "") }, h("div", { class: "head" },
+  const card = h("div", { class: "ev" + (fresh ? " fresh" : ""), tip: eventTip(ev) }, h("div", { class: "head" },
     h("span", { class: "time" }, clock(ev.at)), h("span", { class: "name" }, ev.name), h("span", { class: "agg" }, (ev.aggregate || "") + "#" + (ev.id || "")),
     h("span", { class: "agg" }, ev.source === "tap" ? "event log" : "journal")), chainOf(ev));
   const old = seen.get(ev.key), feed = $("feed");
@@ -575,8 +562,7 @@ function putEvent(ev, fresh) {
   while (feed.children.length > 80) { const last = feed.lastChild; for (const [k, v] of seen) if (v === last) seen.delete(k); last.remove(); }
 }
 function renderEvents(events) {
-  if (isUnknown(events)) { put("evcards", unknown(events)); return put("feed", unknown(events)); }
-  renderEventCards([...events].slice(0, 40));
+  if (isUnknown(events)) return put("feed", unknown(events));
   if (!seen.size) [...events].reverse().forEach((e) => putEvent(e, false));
 }
 // The full context of one event for its hover: when, which aggregate instance, and every reaction.
@@ -586,19 +572,6 @@ function eventTip(e) {
   lines.push(reactions.length ? "reactions:" : "no reactions");
   for (const r of reactions) lines.push("  " + r.policy + " → " + (r.command || "-") + " (" + r.outcome + ")");
   return lines.join("\n");
-}
-// The newest events as a strip of cards that scrolls sideways, with the reactions each one caused.
-function renderEventCards(list) {
-  const byOutcome = new Map();
-  for (const e of list) for (const r of e.reactions || []) byOutcome.set(r.outcome, (byOutcome.get(r.outcome) || 0) + 1);
-  const chips = [...byOutcome].map(([outcome, n]) => h("span", { class: "evchip " + outcome }, outcome + " " + n));
-  const cards = list.map((e) => h("article", { class: "evcard", tip: eventTip(e) },
-    h("header", {}, h("b", {}, e.name), h("small", {}, clock(e.at))),
-    h("div", { class: "evagg" }, e.aggregate),
-    (e.reactions || []).length
-      ? e.reactions.map((r) => h("div", { class: "evreact " + r.outcome }, h("span", {}, r.policy), h("code", {}, r.command || "-"), h("i", {}, r.outcome)))
-      : h("div", { class: "evagg" }, "no reactions")));
-  put("evcards", h("div", { class: "evchips" }, chips), h("div", { class: "evstrip" }, cards));
 }
 
 let lastState = null;
