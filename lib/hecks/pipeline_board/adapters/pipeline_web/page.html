@@ -166,8 +166,10 @@ tr.clickable { cursor: pointer; } tr.clickable:hover, tr.clickable:focus-visible
   <h2 id="resolve-title"></h2>
   <div id="resolve-detail"></div>
   <p id="resolve-note" class="unknown-note"></p>
+  <p id="resolve-changes" class="unknown-note"></p>
   <pre id="resolve-cmd" class="cmd"></pre>
-  <div class="actions"><button type="button" id="resolve-copy">Copy command</button><button type="button" id="resolve-close">Close</button></div>
+  <p id="resolve-status" class="status" aria-live="polite"></p>
+  <div class="actions"><button type="button" id="resolve-run">Run</button><button type="button" id="resolve-copy">Copy command</button><button type="button" id="resolve-close">Close</button></div>
 </dialog>
 <dialog id="answer" aria-labelledby="ans-title">
   <form method="dialog" id="ans-form">
@@ -224,24 +226,44 @@ document.addEventListener("mouseover", (e) => {
 
 // What resolves each attention pill, by its label. A pill with no entry names its cause only.
 const FIX = {
-  "Local main": { cmd: "hecks send_train.board! --confirm", note: "Local main has commits origin lacks. Boarding the train pushes them." },
-  "Train": { cmd: "hecks send_train.board! --confirm", note: "The last pushed commit is not on origin. Boarding the train pushes it." },
-  "Commits not pushed": { cmd: "hecks send_train.board! --confirm", note: "Boarding the train pushes the commits waiting on origin." },
-  "Promote": { cmd: "hecks promotion_run.promote! lane=stable --confirm --wait", note: "Stable is behind main. This fast-forwards it onto the newest commit every required check passed on." },
+  "Local main": { act: "board_train", cmd: "hecks send_train.board! --confirm", note: "Local main has commits origin lacks. Boarding the train pushes them.",
+    changes: "Pushes the commits on local main that origin lacks to origin/main. A CI run starts on the pushed commit; nothing else changes." },
+  "Train": { act: "board_train", cmd: "hecks send_train.board! --confirm", note: "The last pushed commit is not on origin. Boarding the train pushes it.",
+    changes: "Pushes the boarded commit to origin/main. A CI run starts on it; nothing else changes." },
+  "Commits not pushed": { act: "board_train", cmd: "hecks send_train.board! --confirm", note: "Boarding the train pushes the commits waiting on origin.",
+    changes: "Pushes the commits waiting on origin to origin/main. A CI run starts on the newest one." },
+  "Promote": { act: "promote", cmd: "hecks promotion_run.promote! lane=stable --confirm --wait", note: "Stable is behind main. This fast-forwards it onto the newest commit every required check passed on.",
+    changes: "Moves origin/stable forward to the newest commit every required check passed on. Stable is what clients pin; a bad commit reaches them once it moves." },
   "Release": { note: "Publishing is the owner's decision. The version bump needs a Release-Approved-By line, and only the owner adds it." },
   "Dispatched sessions": { note: "Sessions are at the cap or waiting on a person. Answer a blocked session from the Sessions table." },
   "Work items": { note: "Work is held at the cap or waiting on a person. Answer a blocked session from the Sessions table." },
   "Sessions": { note: "Sessions are waiting on a person. Click the blocked session to answer it." }
 };
+let runAction = null, armed = false;
 function resolve(label, detail) {
   const fix = FIX[label] || {};
   $("resolve-title").textContent = label;
   $("resolve-detail").textContent = detail || "";
   $("resolve-note").textContent = fix.note || "No command resolves this from the board. Read the detail and act in the checkout.";
+  $("resolve-changes").textContent = fix.changes ? "What it changes: " + fix.changes : "";
   $("resolve-cmd").textContent = fix.cmd || "";
   $("resolve-cmd").hidden = !fix.cmd; $("resolve-copy").hidden = !fix.cmd;
+  runAction = fix.act || null; armed = false;
+  $("resolve-run").hidden = !runAction; $("resolve-run").textContent = "Run";
+  $("resolve-status").textContent = "";
   $("resolve").showModal();
 }
+// A step that moves code takes two clicks: the first arms it, the second runs it with confirm.
+$("resolve-run").addEventListener("click", async () => {
+  if (!armed) { armed = true; $("resolve-run").textContent = "Click again to run"; return; }
+  $("resolve-run").disabled = true; $("resolve-status").textContent = "Running…";
+  try {
+    const res = await fetch("/api/act", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: runAction, confirm: true }) });
+    const body = await res.json();
+    $("resolve-status").textContent = res.ok ? "Ran " + body.ran + "." : "Not run: " + (body.error || "HTTP " + res.status);
+  } catch (e) { $("resolve-status").textContent = "Not run: " + e.message; }
+  finally { $("resolve-run").disabled = false; armed = false; $("resolve-run").textContent = "Run"; }
+});
 $("resolve-close").addEventListener("click", () => $("resolve").close());
 $("resolve-copy").addEventListener("click", async () => {
   try { await navigator.clipboard.writeText($("resolve-cmd").textContent); $("resolve-copy").textContent = "Copied"; }
