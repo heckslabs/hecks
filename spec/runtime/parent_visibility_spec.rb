@@ -12,9 +12,8 @@ RSpec.describe "lexical parent state and explicit disambiguation" do
   before { runtime.dispatch("Visibility::Meter.Install", with: { code: "m-1", reading: { value: 10 } }) }
 
   it "reads the payload's reading in the execution plan when it shadows parent state" do
-    result = runtime.dispatch("Visibility::Meter.RaiseReading", to: "m-1", with: { reading: { value: 12 } })
+    plan = runtime.dispatch("Visibility::Meter.RaiseReading", to: "m-1", with: { reading: { value: 12 } }).execution_plan
 
-    expect(result.execution_plan.payload_read_set).to include(:reading)
-    expect(result.execution_plan.read_set).to include(:reading)
+    expect([plan.payload_read_set, plan.read_set]).to all(include(:reading))
   end
 end
