@@ -134,6 +134,9 @@ tr.clickable { cursor: pointer; } tr.clickable:hover, tr.clickable:focus-visible
 details.panel { margin: 0; } details.panel > summary .hint { color: var(--ink2); font-size: 12px; text-transform: none; letter-spacing: 0; }
 .switch { display: flex; gap: 6px; margin-bottom: 8px; }
 .switch button[aria-pressed="true"] { border-color: var(--series1); color: var(--series1); }
+.pager { display: flex; align-items: center; gap: 10px; margin-top: 6px; font-size: 12px; color: var(--ink2); }
+.pager button { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--axis); border-radius: 6px; padding: 2px 8px; }
+.pager button:disabled { opacity: .4; }
 iframe.embed { display: block; width: 100%; height: 88vh; min-height: 640px; border: 0; border-radius: 8px; background: var(--page); }
 details.panel { border: 1px solid var(--axis); border-radius: 10px; background: var(--surface); margin: 0 0 8px; }
 details.panel > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 10px; }
@@ -234,6 +237,24 @@ function sessionBadge(status) {
 function isUnknown(x) { return x && !Array.isArray(x) && typeof x === "object" && "unknown" in x; }
 function unknown(x) { return h("p", { class: "unknown-note" }, "unknown: " + x.unknown); }
 function clock(iso) { if (!iso) return "-"; const d = new Date(iso); return isNaN(d) ? String(iso) : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }); }
+// A table shown one page at a time; the page is kept across refreshes.
+const pages = new Map();
+function pager(id, head, rows, size) {
+  const count = Math.max(1, Math.ceil(rows.length / size));
+  const at = Math.min(pages.get(id) || 0, count - 1);
+  const step = (to) => { pages.set(id, to); put(id, pager(id, head, rows, size)); };
+  const prev = h("button", { type: "button" }, "‹ Prev");
+  const next = h("button", { type: "button" }, "Next ›");
+  prev.disabled = at === 0;
+  next.disabled = at >= count - 1;
+  prev.addEventListener("click", () => step(at - 1));
+  next.addEventListener("click", () => step(at + 1));
+  const from = rows.length ? at * size + 1 : 0;
+  const to = Math.min(rows.length, (at + 1) * size);
+  return h("div", {}, table(head, rows.slice(at * size, (at + 1) * size)),
+    h("div", { class: "pager" }, prev, h("span", {}, from + "–" + to + " of " + rows.length), next));
+}
+
 function table(head, rows, numeric) {
   return h("table", {}, h("thead", {}, h("tr", {}, head.map((t, i) => h("th", { class: numeric && numeric.includes(i) ? "n" : "" }, t)))),
     h("tbody", {}, rows.map((r) => h("tr", {}, r.map((c, i) => h("td", { class: numeric && numeric.includes(i) ? "n" : "" }, c))))));
@@ -475,7 +496,10 @@ function renderFan(fan) {
   put("flags", fan.flags.length ? fan.flags.map((f) => h("div", { class: "flag" }, badge("attention"), " ", h("b", {}, f.kind), " ", f.work_item + ": " + f.detail)) : h("div", {}, badge("ok"), " no disagreements between work items and sessions"));
   put("fill", ok ? [h("h2", { style: "margin-top:10px" }, "Dispatch.Fill dry run: would start " + fill.would_start.length),
     table(["Work item", "Result"], fill.would_start.map((w) => [w.slug, "would start"]).concat(fill.skipped.map((w) => [w.slug, "skipped: " + w.reason])))] : unknown(fill || { unknown: "none" }));
-  put("mapping", table(["Work item", "Status", "Claimed by", "Claimed at", "Sessions", "Flags"], fan.rows.map((r) => [r.slug, r.status, r.claimed_by || "(nobody)", r.claimed_at || "-", r.sessions.join(", ") || "-", r.flags.map((f) => f.kind).join(", ") || "-"])));
+  // Claimed items first, then the rest; each row says who holds it and what is wrong with it.
+  const claimedFirst = (r) => (r.claimed_by || r.sessions.length ? 0 : 1);
+  const mapRows = [...fan.rows].sort((a, b) => claimedFirst(a) - claimedFirst(b) || a.slug.localeCompare(b.slug));
+  put("mapping", pager("mapping", ["Work item", "Status", "Claimed by", "Claimed at", "Sessions", "Flags"], mapRows.map((r) => [r.slug, r.status, r.claimed_by || (r.sessions.length ? "unclaimed" : "-"), r.claimed_at || "-", r.sessions.join(", ") || "-", r.flags.map((f) => f.detail).join("; ") || "-"]), 10));
 }
 
 const seen = new Map();
