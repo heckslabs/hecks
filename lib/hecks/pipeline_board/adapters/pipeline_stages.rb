@@ -8,6 +8,8 @@ require_relative "pipeline_git"
 require_relative "pipeline_tickets"
 require_relative "pipeline_jobs"
 require_relative "pipeline_journal"
+require_relative "pipeline_disk"
+require_relative "pipeline_stages/disk_tiles"
 require_relative "../../hecks/adapters/push_size"
 require_relative "pipeline_stages/agent_roles"
 require_relative "pipeline_fill"
@@ -44,12 +46,11 @@ module Hecks
       def state
         data = sections
         now = @now.call
-        { generated_at: now.iso8601, roles: PipelineBoard::AgentRoles.of(data[:sessions], @roles),
-          reviews: PipelineBoard::AgentRoles.reviews,
-          recommendations: PipelineBoard::AgentRoles.recommendations, stages: PipelineBoard::Strip.build(data, now),
-          metrics: PipelineBoard::Metrics.tiles(data.merge(push_limits: @push_limits, ci_health: @ci_health), now),
+        { generated_at: now.iso8601, stages: PipelineBoard::Strip.build(data, now),
+          metrics: PipelineBoard::Metrics.tiles(data.merge(@limits), now),
           ci_runs: data[:ci_runs], slowest_jobs: data[:slowest_jobs],
-          open_work: data[:open_work], sessions: data[:sessions], events: data[:events], fanout: fanout(data) }
+          open_work: data[:open_work], sessions: data[:sessions], events: data[:events],
+          fanout: fanout(data) }.merge(agents(data))
       end
 
       # @return [Array<Hash>, Hash] the newest events with the policies that reacted, or
@@ -58,10 +59,16 @@ module Hecks
 
       private
 
+      # The thresholds the tiles judge against, read from the Hecks world once.
+      def read_limits(registry)
+        { push_limits: Hecks::Adapters::PushSize.thresholds(registry), ci_health: PipelineBoard::CiTiles.health(registry),
+          disk_health: PipelineBoard::DiskTiles.health(registry) }
+      end
+
       def wire(readers, registry)
-        @push_limits = Hecks::Adapters::PushSize.thresholds(registry)
-        @ci_health = PipelineBoard::CiTiles.health(registry)
+        @limits = read_limits(registry)
         @roles = PipelineBoard::AgentRoles.declared(registry)
+        @disk = readers.fetch(:disk) { PipelineDisk.new(root: @root) }
         @github = readers.fetch(:github) { PipelineGitHub.new(root: @root) }
         @git = readers.fetch(:git) { PipelineGit.new(root: @root) }
         @journal = readers.fetch(:journal) { PipelineJournal.new(root: @root) }
@@ -72,6 +79,13 @@ module Hecks
       def wire_work(readers, registry)
         @tickets = readers.fetch(:tickets) { PipelineTickets.new(registry: registry) }
         @jobs = readers.fetch(:jobs) { PipelineJobs.new(settings: { runs: -> { guard { @tickets.runs } } }) }
+      end
+
+      # The pinned agents panel: each role with its live sessions and last event, and the open
+      # plan reviews and promotion recommendations.
+      def agents(data)
+        { roles: PipelineBoard::AgentRoles.of(data[:sessions], @roles, data[:events]),
+          reviews: PipelineBoard::AgentRoles.reviews, recommendations: PipelineBoard::AgentRoles.recommendations }
       end
 
       def sections

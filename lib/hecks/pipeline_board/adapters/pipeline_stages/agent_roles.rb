@@ -24,16 +24,36 @@ module Hecks
           world ? world.for_verb("agent_roles") : {}
         end
 
+        # The events each role raises or answers, so its row can say what it last did. The names are
+        # the events of the Agents bluebook, and of the Coder's `WorkSubmitted` for the coder.
+        ROLE_EVENTS = {
+          "planner"         => %w[PlanningRequested],
+          "orchestrator"    => %w[WorkChecked WorkRouted DispatchAdviceRequested],
+          "architect"       => %w[PlanReviewRequested PlanReviewed],
+          "coder"           => %w[WorkSubmitted],
+          "reviewer"        => %w[SubmissionReviewRequested SpecFailureJudged HandedToPerson],
+          "release_manager" => %w[PromotionRecommended PromotionSettled]
+        }.freeze
+
         # @param sessions [Array<Hash>, Hash] the board's sessions, or `{unknown:}`
         # @param names [Array<String>] the declared roles
-        # @return [Array<Hash>, Hash] `name` and `live` for each role, or `{unknown:}`
-        def of(sessions, names)
+        # @param events [Array<Hash>, Hash] the newest events first, or `{unknown:}`
+        # @return [Array<Hash>, Hash] `name`, `live` and `last` for each role, or `{unknown:}`
+        def of(sessions, names, events = [])
           return { unknown: "the sessions could not be read" } unless sessions.is_a?(Array)
 
           names.map do |name|
             live = sessions.count { |s| s[:name].to_s.start_with?(name) && %w[busy blocked].include?(s[:status]) }
-            { name: name, live: live }
+            { name: name, live: live, last: last_of(name, events) }
           end
+        end
+
+        # @return [Hash, nil] the newest event the role handles, as `name`, `at` and `id`, or nil
+        def last_of(role, events)
+          return nil unless events.is_a?(Array)
+
+          event = events.find { |found| ROLE_EVENTS.fetch(role, []).include?(found[:name]) }
+          event && { name: event[:name], at: event[:at], id: event[:id] }
         end
 
         # The architect's plan reviews, as the launcher reads them in the checkout that holds the

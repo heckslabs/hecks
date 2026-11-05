@@ -389,7 +389,7 @@ $("resolve-copy").addEventListener("click", async () => {
 function renderRoles(roles, reviews, work) {
   fillWork(work);
   if (isUnknown(roles)) put("roles", unknown(roles));
-  else put("roles", table(["Role", "Live sessions"], roles.map((r) => [r.name, String(r.live)])));
+  else put("roles", table(["Role", "Live sessions", "Last activity"], roles.map((r) => [r.name, String(r.live), r.last ? r.last.name + " · " + clock(r.last.at) : "none yet"])));
   if (isUnknown(reviews)) return put("reviews", unknown(reviews));
   if (!reviews.length) return put("reviews", h("p", { class: "note" }, "No plan reviews yet."));
   put("reviews", table(["Work item", "Verdict", "Findings"], reviews.map((r) => [r.work, r.verdict || "waiting", findingsCell(r.findings)])));
