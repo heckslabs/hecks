@@ -406,6 +406,7 @@ function showAnswer() {
     $("ans-key").replaceChildren(h("div", {}, (s.id ? "Session " + s.id + " · " : "") + s.name + (s.work_item ? " · work item " + s.work_item : "") + (s.repo ? " · " + s.repo : "")));
     const parts = [h("div", { class: "question md" }, h("div", { class: "label" }, "Waiting on you"), ...markdown(ctx.said || s.question))];
     if ((ctx.did || []).length) parts.push(h("details", { class: "did" }, h("summary", {}, "Last steps (" + ctx.did.length + ")"), h("ol", { class: "steps" }, ctx.did.map((d) => h("li", {}, d)))));
+    if (ctx.branch) parts.push(h("div", { class: "did" }, h("b", {}, "Branch: "), h("code", {}, ctx.branch)));
     if ((ctx.links || []).length) parts.push(h("details", { class: "did" }, h("summary", {}, "Linked (" + ctx.links.length + ")"), h("ul", { class: "steps" }, ctx.links.map((l) => h("li", {}, h("a", { href: l.href, target: "_blank", rel: "noopener" }, (l.kind || "link") + " " + l.id))))));
     $("ans-question").replaceChildren(...parts);
   } else {

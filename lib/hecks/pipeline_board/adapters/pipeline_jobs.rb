@@ -78,10 +78,13 @@ module Hecks
       def context_of(status, state)
         return {} unless status == "blocked"
 
-        { context: PipelineBoard::SessionContext.of(state["linkScanPath"].to_s).merge(links: Array(state["children"])),
+        { context: PipelineBoard::SessionContext.of(state["linkScanPath"].to_s).merge(context_extras(state)),
           resume: state.values_at("resumeSessionId", "sessionId").compact.first, cwd: state["cwd"].to_s,
           permission: permission_of(state), attach: state["daemonShort"].to_s }
       end
+
+      # The links the job lists, and the git branch the session works on when it has its own worktree.
+      def context_extras(state) = { links: Array(state["children"]), branch: state["worktreeBranch"].to_s }
 
       def ended_of(status, edges) = %w[busy blocked].include?(status) ? nil : edges.last
 
