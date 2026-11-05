@@ -2,6 +2,7 @@
 
 require "time"
 require_relative "ci_tiles"
+require_relative "../../../hecks/adapters/push_size"
 require_relative "work_tiles"
 
 module Hecks
