@@ -4,6 +4,9 @@
 # before moving on. A broken RuboCop setup warns and never blocks an edit.
 set -u
 
+# Hooks run with a minimal PATH; the rbenv shims hold bundle and rubocop.
+export PATH="$HOME/.rbenv/shims:/opt/homebrew/bin:/usr/local/bin:$PATH"
+
 input="$(cat)"
 file="$(printf '%s' "$input" | jq -r '.tool_input.file_path // empty')"
 [ -n "$file" ] || exit 0
