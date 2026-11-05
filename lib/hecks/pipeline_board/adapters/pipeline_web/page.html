@@ -259,6 +259,8 @@ function unknown(x) {
   return h("p", { class: "unknown-note" }, "unknown: " + x.unknown);
 }
 function clock(iso) { if (!iso) return "-"; const d = new Date(iso); return isNaN(d) ? String(iso) : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }); }
+// A panel title with its count, so the number is visible even when the panel is collapsed.
+function setTitle(id, name, count) { const el = $(id); if (el) el.textContent = name + " (" + count + ")"; }
 // A table shown one page at a time; the page is kept across refreshes.
 const pages = new Map();
 function pager(id, head, rows, size) {
@@ -513,6 +515,7 @@ function renderCi(runs, slow) {
 }
 function renderWork(work) {
   if (isUnknown(work)) return put("work", unknown(work));
+  setTitle("h-work", "Work items", work.length);
   put("work", pager("work", ["Work item", "Status", "Area", "Claimed by", "Claimed at"], work.map((w) => [w.slug, w.status, (w.area || []).join(", ") || "-", w.claimed_by || "(nobody)", w.claimed_at || "-"]), 10));
 }
 // Everything that asks for a person: attention and failed pills, and sessions blocked on a reply.
@@ -522,6 +525,7 @@ function renderAttention(metrics, stages, sessions) {
     ["Pipeline stages", stages.filter((s) => needsAttention(s.state)).map((s) => ({ kind: "Stage", item: s.name, state: s.state, value: "-", detail: s.detail, since: "-", act: () => resolve(s.name, s.detail) }))],
     ["Sessions waiting on you", sessions.filter((s) => s.status === "blocked").map((s) => ({ kind: "Session", item: s.name + " " + (s.id || ""), state: "attention", value: s.work_item || s.row || "-", detail: s.detail, since: clock(s.started), act: () => openAnswer([{ id: s.id, name: s.name, run: s.run, repo: s.repo, work_item: s.work_item, question: s.detail, context: s.context, attach: s.attach }], s.id) }))]
   ].filter(([, items]) => items.length);
+  setTitle("h-attn", "Needs attention", groups.reduce((n, [, items]) => n + items.length, 0));
   if (!groups.length) return put("attention", h("p", { class: "note" }, "Nothing needs attention."));
   put("attention", groups.map(([title, items]) => h("div", { class: "attn-group" }, h("h3", { class: "sub" }, title + " (" + items.length + ")"), attentionTable(items))));
 }
@@ -578,6 +582,7 @@ function renderSessions(all) {
   if (isUnknown(all)) return put("sessions", unknown(all));
   lastSessions = all;
   const list = all.filter(SESSION_FILTERS[sessionFilter] || SESSION_FILTERS.all);
+  setTitle("h-sess", "Sessions", list.length);
   put("sessions", filterBar(), table(["Session", "Status", "Work item", "Started", "Detail"], list.map((s) => [sessionLabel(s), [sessionBadge(s.status), " ", s.state], s.row || "-", clock(s.started), replyNote(s)])));
   const rows = $("sessions").querySelectorAll("tbody tr");
   list.forEach((s, i) => {
@@ -643,6 +648,7 @@ function putEvent(ev, fresh) {
 }
 function renderEvents(events) {
   if (isUnknown(events)) return put("feed", unknown(events));
+  setTitle("h-ev", "Events", events.length);
   if (!seen.size) [...events].reverse().forEach((e) => putEvent(e, false));
 }
 // The full context of one event for its hover: when, which aggregate instance, and every reaction.
