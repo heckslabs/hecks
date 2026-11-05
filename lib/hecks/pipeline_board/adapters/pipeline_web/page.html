@@ -328,16 +328,18 @@ function showAnswer() {
     $("ans-question").replaceChildren();
     $("ans-key").replaceChildren("Run " + (s.run || "(no run key)") + (s.repo ? " in " + s.repo : ""));
   }
-  $("ans-send").disabled = !s.run;
-  $("ans-status").textContent = s.run ? "" : "This session has no AgentRun key, so the board cannot answer it.";
+  $("ans-send").disabled = !(s.run || s.id);
+  $("ans-status").textContent = (s.run || s.id) ? "" : "This session cannot be answered from the board.";
 }
 async function sendAnswer() {
   const s = currentWaiting(), text = $("ans-text").value.trim(), send = $("ans-send");
-  if (!s || !s.run) return;
+  if (!s || !(s.run || s.id)) return;
   if (!text) { $("ans-status").textContent = "Write an answer first."; return; }
   send.disabled = true; $("ans-status").textContent = "Sending…";
   try {
-    const res = await fetch("/api/act", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "answer", target: s.run, text: text }) });
+    // A session with an AgentRun is answered through it; any other blocked session is replied to directly.
+    const action = s.run ? "answer" : "reply", target = s.run || s.id;
+    const res = await fetch("/api/act", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: action, target: target, text: text }) });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(body.error || "HTTP " + res.status);
     $("ans-text").value = ""; $("ans-status").textContent = "Sent. The session resumes with your answer.";

@@ -30,7 +30,7 @@ module Hecks
         @root = root || Dir.pwd
         @stages = settings[:stages] || PipelineStages.new(registry: registry, root: root)
         @wiring = settings[:wiring] || PipelineWiring.new(registry: registry)
-        @launcher = settings[:launcher] || ->(*args) { PipelineBoard::Probe.run(*args, chdir: @root, seconds: ACT_SECONDS) }
+        @launcher = settings[:launcher] || ->(*args, chdir: @root) { PipelineBoard::Probe.run(*args, chdir: chdir, seconds: ACT_SECONDS) }
         @interval = settings.fetch(:interval, 1.0)
         @snapshot = PipelineBoard::Snapshot.new(source: @stages.method(:state), background: settings.fetch(:background, true))
       end
@@ -46,9 +46,33 @@ module Hecks
       # @return [Hash{Symbol => String}] `ran:` the launcher command the step ran
       # @raise [PipelineBoard::Unavailable] with why the step did not run
       def act(action:, fields:, confirm:)
+        fields = resumable(fields) if action == "reply"
         argv = PipelineBoard::Actions.argv(action, fields, confirm: confirm)
-        @launcher.call("exe/hecks", *argv)
-        { ran: argv.first }
+        program = PipelineBoard::Actions.program(action)
+        @launcher.call(program, *argv, chdir: fields[:cwd] || @root)
+        { ran: "#{program} #{argv.first}" }
+      end
+
+      # A reply resumes the blocked session the page named, in the session's own directory. The
+      # board takes the session's id and directory from its own state, never from the page, and
+      # refuses a session it does not report as blocked.
+      #
+      # @param fields [Hash{Symbol => String}] the request's fields, with `target` the session's id
+      # @return [Hash{Symbol => String}] the fields with the session's resume id and directory
+      # @raise [PipelineBoard::Unavailable] when the session is not blocked or cannot be resumed
+      def resumable(fields)
+        row = blocked_session(fields[:target])
+        raise PipelineBoard::Unavailable, "no resumable blocked session #{fields[:target]}" unless row
+
+        fields.merge(resume: row[:resume], cwd: row[:cwd])
+      end
+
+      # @return [Hash, nil] the blocked session with this id, when it carries a resume id and a
+      #   directory
+      def blocked_session(id)
+        Array(@snapshot.latest[:sessions]).find do |found|
+          found[:id] == id && found[:status] == "blocked" && found[:resume] && !found[:cwd].to_s.empty?
+        end
       end
 
       # Serves the board until interrupted.
