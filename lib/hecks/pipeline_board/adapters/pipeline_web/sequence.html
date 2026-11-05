@@ -127,11 +127,15 @@ function take(ev) {
 function shown(row) { return !filter || row.from.startsWith(filter + "::") || (row.to || "").startsWith(filter + "::"); }
 
 /* ---- drawing ---- */
+addEventListener("resize", () => render());
 function render() {
   const visible = rows.filter(shown);
   for (const row of visible) { lane(row.from); if (row.to) lane(row.to); }
-  const dpr = devicePixelRatio || 1, width = Math.max(TOP * 2 + lanes.length * LANE, $("scroller").clientWidth), height = TOP + visible.length * ROW + 20;
-  canvas.style.width = width + "px"; canvas.style.height = height + "px"; canvas.width = width * dpr; canvas.height = height * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const dpr = devicePixelRatio || 1, width = TOP * 2 + lanes.length * LANE, height = TOP + visible.length * ROW + 20;
+  // Zoom to fit: the whole diagram is drawn at the panel width, and the lane headers shrink by the same factor.
+  const fit = Math.min(1, $("scroller").clientWidth / width) || 1;
+  $("lanes").style.zoom = fit;
+  canvas.style.width = width * fit + "px"; canvas.style.height = height * fit + "px"; canvas.width = width * fit * dpr; canvas.height = height * fit * dpr; ctx.setTransform(dpr * fit, 0, 0, dpr * fit, 0, 0);
   ctx.clearRect(0, 0, width, height);
   for (const l of lanes) { ctx.strokeStyle = colourOf(l.domain); ctx.globalAlpha = 0.45; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.moveTo(l.x, 0); ctx.lineTo(l.x, height); ctx.stroke(); }
   ctx.setLineDash([]); ctx.globalAlpha = 1;
