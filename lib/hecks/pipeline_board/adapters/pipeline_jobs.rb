@@ -66,13 +66,21 @@ module Hecks
           ended: ended_of(status, edges) }.merge(ran_of(id)).merge(context_of(status, state))
       end
 
+      # The permission mode a session was launched with, from its respawn flags, or nil when none.
+      def permission_of(state)
+        flags = Array(state["respawnFlags"])
+        index = flags.index("--permission-mode")
+        index && flags[index + 1]
+      end
+
       # What a blocked session waits on: its transcript's last words and steps, and the links its
       # job lists (pull requests and the like). Other sessions carry nothing extra.
       def context_of(status, state)
         return {} unless status == "blocked"
 
         { context: PipelineBoard::SessionContext.of(state["linkScanPath"].to_s).merge(links: Array(state["children"])),
-          resume: state.values_at("resumeSessionId", "sessionId").compact.first, cwd: state["cwd"].to_s }
+          resume: state.values_at("resumeSessionId", "sessionId").compact.first, cwd: state["cwd"].to_s,
+          permission: permission_of(state) }
       end
 
       def ended_of(status, edges) = %w[busy blocked].include?(status) ? nil : edges.last
