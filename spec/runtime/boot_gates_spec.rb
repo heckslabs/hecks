@@ -89,9 +89,7 @@ RSpec.describe Hecks::Runtime::BootGates do
     def postgres_era_registry
       boot_registry do
         load_memory_ports
-        Kernel.load(InMemoryDomain::PRISM_ADAPTER)
-        Kernel.load(InMemoryDomain::POSTGRES_ADAPTER)
-        Kernel.load(InMemoryDomain::POSTGRES_ERA_ADAPTER)
+        [InMemoryDomain::PRISM_ADAPTER, InMemoryDomain::POSTGRES_ADAPTER, InMemoryDomain::POSTGRES_ERA_ADAPTER].each { |file| Kernel.load(file) }
         Kernel.load(File.join(InMemoryDomain::ROOT, "examples/directory/bluebook/directory.bluebook"))
         Hecks.hecksagon("Directory") do
           Directory::Member.persisted_by("Postgres")

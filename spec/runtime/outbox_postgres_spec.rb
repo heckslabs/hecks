@@ -62,14 +62,18 @@ RSpec.describe "the transactional outbox, against Postgres", :io do
       load_postgres_stack
       Hecks.bluebook("Shop", &OUTBOX_PG_SHOP_DOMAIN)
       hold_declared_era!(registry.bluebook("Shop"), url: OUTBOX_SPEC_DB) if revisions
-      Hecks.hecksagon("Shop") do
-        persisted_by adapter
-        revisions true if revisions
-      end
-      Hecks.world("Shop") { persisted_by(adapter) { database(OUTBOX_SPEC_DB) } }
+      shop_wiring(adapter, revisions)
     end
     registry.verify!
     Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
+  end
+
+  def shop_wiring(adapter, revisions)
+    Hecks.hecksagon("Shop") do
+      persisted_by adapter
+      revisions true if revisions
+    end
+    Hecks.world("Shop") { persisted_by(adapter) { database(OUTBOX_SPEC_DB) } }
   end
 
   def place(runtime, number)
