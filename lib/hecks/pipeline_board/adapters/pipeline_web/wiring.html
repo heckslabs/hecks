@@ -265,7 +265,12 @@ function scoot() {
   }
 }
 const scooted = (n) => Math.hypot(n.ox || 0, n.oy || 0) > 6;
-/* ---- zoom with the wheel around the cursor, pan by dragging, or use the buttons ---- */
+/* ---- when embedded in the board, the wheel scrolls the board, not this frame ---- */
+if (window.top !== window.self) {
+  document.addEventListener("wheel", (e) => { e.preventDefault(); window.parent.scrollBy(e.deltaX, e.deltaY); }, { passive: false });
+}
+
+/* ---- pan by dragging, or use the buttons to zoom ---- */
 function zoomAt(mx, my, k) { view.x = mx - (mx - view.x) * k; view.y = my - (my - view.y) * k; view.s *= k; touched = true; }
 function zoomCentre(k) { const r = canvas.getBoundingClientRect(); zoomAt(r.width / 2, r.height / 2, k); }
 let drag = null;
