@@ -143,6 +143,20 @@ Hecks.behaviors "Custodian" do
     expect refused: "pushes the branch to origin needs --confirm; without it this only reports"
   end
 
+  test "Publish refuses a remote name of main, which is never published" do
+    tests "Publish", on: "LinkedTree"
+    input run: { value: "evening" }, checkout: { value: "/tmp/hecks-behaviors-absent/checkout" },
+          branch: { value: "work-a" }, as: { value: "main" }, confirm: { value: true }
+    expect refused: "publishes under a remote name other than main, never main"
+  end
+
+  test "Publish refuses a remote name git cannot hold" do
+    tests "Publish", on: "LinkedTree"
+    input run: { value: "evening" }, checkout: { value: "/tmp/hecks-behaviors-absent/checkout" },
+          branch: { value: "work-a" }, as: { value: "work a;rm" }, confirm: { value: true }
+    expect refused: "the remote name holds only letters, digits, dots, dashes, underscores and slashes"
+  end
+
   test "Rebase refuses main, which is never rebased" do
     tests "Rebase", on: "LinkedTree"
     input run: { value: "evening" }, checkout: { value: "/tmp/hecks-behaviors-absent/checkout" },

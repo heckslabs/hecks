@@ -158,6 +158,7 @@ Hecks.bluebook "Hecks" do
       attribute :confirm,  Switch, optional: true
       attribute :onto,     Word,   optional: true
       attribute :resolve,  Resolution, optional: true
+      attribute :as,       Word,   optional: true
       identified_by :run
 
       value_object "RunKey" do
@@ -264,19 +265,29 @@ Hecks.bluebook "Hecks" do
         emits AddDeclined
       end
 
-      # A push of a worktree's branch to origin, under its own name, so a pull request can be opened from it. It
-      # never pushes main and never forces; a branch with no commits to publish is refused by the git port.
+      # A push of a worktree's branch to origin, so a pull request can be opened from it. It lands under the
+      # branch's own name unless `as` names another remote branch. It never pushes main, never publishes under
+      # the name main, never forces; a branch with no commits to publish is refused by the git port.
       command "Publish" do
         role "Operator"
-        goal "Push a worktree's branch to origin, so a pull request can be opened from it; never main, never forced"
+        goal "Push a worktree's branch to origin, under its own name or the name `as` gives, so a pull request can be opened from it; never main, never forced"
 
         attribute :run,      RunKey, sets: true
         attribute :checkout, Word, optional: true, sets: true
         attribute :branch,   Word, sets: true
+        attribute :as,       Word, optional: true, sets: true
         attribute :confirm,  Switch, optional: true, sets: true
 
         given("publishes a branch other than main, never main") do
           branch.value != "main"
+        end
+
+        given("publishes under a remote name other than main, never main") do
+          as.value.to_s != "main"
+        end
+
+        given("the remote name holds only letters, digits, dots, dashes, underscores and slashes") do
+          as.value.to_s.empty? || as.value.match?(/\A[A-Za-z0-9._\/-]+\z/)
         end
 
         given("pushes the branch to origin needs --confirm; without it this only reports") { confirm.value == true }
