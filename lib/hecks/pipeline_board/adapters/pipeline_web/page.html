@@ -523,7 +523,7 @@ function renderAttention(metrics, stages, sessions) {
     ["Sessions waiting on you", sessions.filter((s) => s.status === "blocked").map((s) => ({ kind: "Session", item: s.name + " " + (s.id || ""), state: "attention", value: s.work_item || s.row || "-", detail: s.detail, since: clock(s.started), act: () => openAnswer([{ id: s.id, name: s.name, run: s.run, repo: s.repo, work_item: s.work_item, question: s.detail, context: s.context, attach: s.attach }], s.id) }))]
   ].filter(([, items]) => items.length);
   if (!groups.length) return put("attention", h("p", { class: "note" }, "Nothing needs attention."));
-  put("attention", groups.map(([title, items]) => h("div", { class: "attn-group" }, h("h3", { class: "sub" }, title), attentionTable(items))));
+  put("attention", groups.map(([title, items]) => h("div", { class: "attn-group" }, h("h3", { class: "sub" }, title + " (" + items.length + ")"), attentionTable(items))));
 }
 // One group of attention rows; each row opens its resolve or answer dialog.
 function attentionTable(items) {
