@@ -67,6 +67,11 @@ module Hecks
         lineage_capable?(registry, revision_adapter(registry, domain, adapter))
       end
 
+      # The adapter class that holds a domain's eras: the revision layout where it is set (ADR 0182).
+      def revision_class(registry, bluebook, adapter)
+        registry.adapter_class(revision_adapter(registry, bluebook.name, adapter))
+      end
+
       def lineage_capable_registry?(registry)
         registry.bluebooks.each_value.any? do |bluebook|
           first = bluebook.aggregates.first
@@ -195,12 +200,12 @@ module Hecks
         return unless first
 
         adapter_name = adapter_for(registry, bluebook.name, first)
-        return unless lineage_capable?(registry, adapter_name)
+        return unless lineage_capable_for?(registry, bluebook.name, adapter_name)
 
         refuse_missing_source!(bluebook, directory) unless current_text
 
         settings = registry.binding_settings(bluebook.name, Ports::Persistence::VERB, adapter_name)
-        registry.adapter_class(adapter_name).era_check!(
+        revision_class(registry, bluebook, adapter_name).era_check!(
           registry: registry, bluebook: bluebook, current_text: current_text, settings: settings,
           directory: directory
         )

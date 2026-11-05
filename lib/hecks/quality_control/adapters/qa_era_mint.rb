@@ -81,7 +81,7 @@ module Hecks
       def mint!(held, settings)
         text = Runtime::RevisionCheck.source_text_for(held.bluebook, held.directory, registry: held.registry) ||
                Runtime::RevisionCheck.refuse_missing_source!(held.bluebook, held.directory)
-        held.registry.adapter_class(held.adapter_name).era_check!(
+        Runtime::RevisionCheck.revision_class(held.registry, held.bluebook, held.adapter_name).era_check!(
           registry: held.registry, bluebook: held.bluebook, current_text: text, settings: settings,
           directory: held.directory
         )
