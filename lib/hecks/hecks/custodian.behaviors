@@ -143,6 +143,34 @@ Hecks.behaviors "Custodian" do
     expect refused: "pushes the branch to origin needs --confirm; without it this only reports"
   end
 
+  test "Rebase refuses main, which is never rebased" do
+    tests "Rebase", on: "LinkedTree"
+    input run: { value: "evening" }, checkout: { value: "/tmp/hecks-behaviors-absent/checkout" },
+          branch: { value: "main" }
+    expect refused: "rebases a branch other than main, never main"
+  end
+
+  test "Rebase refuses a base that is the branch itself" do
+    tests "Rebase", on: "LinkedTree"
+    input run: { value: "evening" }, checkout: { value: "/tmp/hecks-behaviors-absent/checkout" },
+          branch: { value: "work-a" }, onto: { value: "work-a" }
+    expect refused: "rebases onto a base other than the branch itself"
+  end
+
+  test "Rebase refuses a resolve that names a side other than ours or theirs" do
+    tests "Rebase", on: "LinkedTree"
+    input run: { value: "evening" }, checkout: { value: "/tmp/hecks-behaviors-absent/checkout" },
+          branch: { value: "work-a" }, resolve: { value: "lib/a.rb=both" }
+    expect refused: "resolve names each path as path=ours or path=theirs"
+  end
+
+  test "Rebase declines a checkout that is not there, and records nothing rebased" do
+    tests "Rebase", on: "LinkedTree"
+    input run: { value: "evening" }, checkout: { value: "/tmp/hecks-behaviors-absent/checkout" },
+          branch: { value: "work-a" }
+    expect emits: %w[RebaseRequested RebaseRefused BranchRebaseDeclined]
+  end
+
   test "Dispatch keeps a directory that is not there as a declined run" do
     tests "Dispatch", on: "AgentRun"
     input run: { value: "evening" }, repo: { value: "/tmp/hecks-behaviors-absent/repo" }, brief: { value: "say ok" }

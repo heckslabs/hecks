@@ -32,7 +32,7 @@ module Hecks
         # change of state.
         DENIED_ARGUMENTS = %w[
           adapter answer artifact bluebook brief claimed confirm expected force from gem_only header health_path host live
-          no_wait npm_local npm_only output path payload payload_file port prebuilt remote row rust_binary
+          no_wait npm_local npm_only output path payload payload_file port prebuilt remote resolve row rust_binary
           scheme stage_dir state_path stdio url write
         ].freeze
 

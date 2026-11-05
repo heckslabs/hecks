@@ -156,6 +156,8 @@ Hecks.bluebook "Hecks" do
       attribute :report,   Report, optional: true
       attribute :refusal,  Report, optional: true
       attribute :confirm,  Switch, optional: true
+      attribute :onto,     Word,   optional: true
+      attribute :resolve,  Resolution, optional: true
       identified_by :run
 
       value_object "RunKey" do
@@ -175,6 +177,11 @@ Hecks.bluebook "Hecks" do
         attribute :value, Boolean
       end
 
+      # Comma-separated `path=ours` or `path=theirs` pairs: the side each conflicted path takes.
+      value_object "Resolution" do
+        attribute :value, String
+      end
+
       lifecycle :status, default: "requested" do
         mark :failure, "declined"
         transition "Record"  => "opened",   from: "requested"
@@ -183,7 +190,9 @@ Hecks.bluebook "Hecks" do
         transition "PullDeclined" => "declined", from: "requested"
         transition "Published"    => "published", from: "requested"
         transition "PublishDeclined" => "declined", from: "requested"
-        mark :terminal, "opened", "declined", "pulled", "published"
+        transition "Rebased"      => "rebased",   from: "requested"
+        transition "RebaseDeclined" => "declined", from: "requested"
+        mark :terminal, "opened", "declined", "pulled", "published", "rebased"
       end
 
       command "Add" do
@@ -295,6 +304,50 @@ Hecks.bluebook "Hecks" do
 
         emits BranchPublishDeclined
       end
+
+      # A rebase of a worktree's branch onto a base, by the `Rebasing` port. It never rebases main, never
+      # onto the branch itself, never forces and never discards uncommitted work. A conflict stops it with
+      # nothing changed and names every conflicted path, unless `resolve` names the side each path takes;
+      # in a rebase `ours` is the base and `theirs` is the branch's own commit being replayed.
+      command "Rebase" do
+        role "Operator"
+        goal "Rebase a branch onto a base, or report the files that conflict and stop with nothing changed"
+
+        attribute :run,      RunKey, sets: true
+        attribute :checkout, Word, optional: true, sets: true
+        attribute :branch,   Word, sets: true
+        attribute :onto,     Word, default: "origin/main", sets: true
+        attribute :resolve,  Resolution, optional: true, sets: true
+
+        given("rebases a branch other than main, never main") { branch.value != "main" }
+        given("rebases onto a base other than the branch itself") { onto.value != branch.value }
+        given("resolve names each path as path=ours or path=theirs") do
+          resolve.value.to_s.empty? || resolve.value.split(",").all? { |pair| pair.match?(/\A[^=, \t]+=(ours|theirs)\z/) }
+        end
+
+        emits RebaseRequested
+      end
+
+      command "Rebased" do
+        role "System"
+        goal "Record the sha a branch stands on once it is rebased"
+
+        reference_to LinkedTree
+        attribute :sha,    Word,   sets: true
+        attribute :report, Report, sets: true
+
+        emits BranchRebased
+      end
+
+      command "RebaseDeclined" do
+        role "System"
+        goal "Record why a branch could not be rebased"
+
+        reference_to LinkedTree
+        attribute :refusal, Report, sets: true
+
+        emits BranchRebaseDeclined
+      end
     end
 
     policy "AddWorktreeWhenRequested" do
@@ -310,6 +363,21 @@ Hecks.bluebook "Hecks" do
     policy "PublishBranchWhenRequested" do
       on      "LinkedTree.BranchPublishRequested"
       ask     :push, with: { run: :run }
+    end
+
+    policy "RebaseWhenRequested" do
+      on      "LinkedTree.RebaseRequested"
+      ask     :replay, with: { run: :run }
+    end
+
+    policy "RecordTheRebase" do
+      on      "LinkedTree.RebaseAnswered"
+      trigger LinkedTree::Rebased, with: { sha: :sha, report: :report }
+    end
+
+    policy "DeclineTheRebase" do
+      on      "LinkedTree.RebaseRefused"
+      trigger LinkedTree::RebaseDeclined, with: { refusal: :refusal }
     end
 
     policy "RecordThePublish" do

@@ -36,6 +36,7 @@ export HECKS_ENVIRONMENT
 # from a remote-tracking branch. Pushed refs arrive on stdin, not in $1/$2.
 TAG_SKIP_INELIGIBLE="$WORKDIR/tag_skip_ineligible"
 PUSHED_REFS=$(cat)
+
 if [ -n "$PUSHED_REFS" ]; then
   printf '%s\n' "$PUSHED_REFS" | while IFS=' ' read -r local_ref local_oid _remote_ref _remote_oid; do
     case "$local_ref" in
