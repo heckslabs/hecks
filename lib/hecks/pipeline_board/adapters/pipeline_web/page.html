@@ -470,6 +470,12 @@ $("toggle").addEventListener("click", () => {
   $("toggle").setAttribute("aria-pressed", String(on)); $("toggle").textContent = on ? "Show charts" : "Show tables";
 });
 $("ans-send").addEventListener("click", sendAnswer);
+// Enter sends the answer; Shift+Enter starts a new line. A composing (IME) Enter is left alone.
+$("ans-text").addEventListener("keydown", (e) => {
+  if (e.key !== "Enter" || e.shiftKey || e.isComposing) return;
+  e.preventDefault();
+  if (!$("ans-send").disabled) sendAnswer();
+});
 $("ans-cancel").addEventListener("click", () => $("answer").close());
 $("ans-pick").addEventListener("change", showAnswer);
 refresh(); listen();
