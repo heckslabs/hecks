@@ -1,0 +1,74 @@
+Hecks.behaviors "Binder" do
+  vision "Examples of a command's list_of argument holding an Array, with one element allowed only to append and remove."
+
+  loads "command_list_argument.bluebook"
+
+  test "a list argument takes an Array" do
+    tests "Open", on: "Folder"
+    input name: { value: "f-1" }, labels: [{ value: "a" }, { value: "b" }]
+    expect ok: true
+  end
+
+  test "a list argument takes an empty Array" do
+    tests "Open", on: "Folder"
+    input name: { value: "f-2" }, labels: []
+    expect ok: true
+  end
+
+  test "a list_of(String) argument takes an Array" do
+    tests "Note", on: "Folder"
+    setup "Open", name: { value: "f-3" }, labels: []
+    input folder: "f-3", words: %w[a b]
+    expect emits: ["Noted"]
+  end
+
+  test "a lone scalar is refused, naming the argument and the expected list" do
+    tests "Open", on: "Folder"
+    input name: { value: "f-4" }, labels: "a"
+    expect refused: "Open.labels expects list_of(Label), got \"a\""
+  end
+
+  test "a lone value object is refused where a list is declared" do
+    tests "Open", on: "Folder"
+    input name: { value: "f-5" }, labels: { value: "a" }
+    expect refused: "Open.labels"
+  end
+
+  test "a lone scalar is refused for a list_of(String) argument" do
+    tests "Note", on: "Folder"
+    setup "Open", name: { value: "f-6" }, labels: []
+    input folder: "f-6", words: "a,b"
+    expect refused: "Note.words expects list_of(String), got \"a,b\""
+  end
+
+  test "a lone scalar is refused on a command that only sets the list" do
+    tests "Relabel", on: "Folder"
+    setup "Open", name: { value: "f-7" }, labels: []
+    input folder: "f-7", labels: "b"
+    expect refused: "Relabel.labels expects list_of(Label)"
+  end
+
+  test "a plain set of the list from a lone scalar is refused" do
+    tests "Replace", on: "Folder"
+    setup "Open", name: { value: "f-8" }, labels: []
+    input folder: "f-8", only: "x"
+    expect refused: "labels expects list_of(Label), got \"x\""
+  end
+
+  test "append takes a single element" do
+    tests "Attach", on: "Folder"
+    setup "Open", name: { value: "f-9" }, labels: []
+    setup "Attach", folder: "f-9", label: "x"
+    input folder: "f-9", label: "y"
+    expect emits: ["Attached"]
+  end
+
+  test "remove takes a single element" do
+    tests "Detach", on: "Folder"
+    setup "Open", name: { value: "f-10" }, labels: []
+    setup "Attach", folder: "f-10", label: "x"
+    setup "Attach", folder: "f-10", label: "y"
+    input folder: "f-10", label: "x"
+    expect emits: ["Detached"]
+  end
+end
