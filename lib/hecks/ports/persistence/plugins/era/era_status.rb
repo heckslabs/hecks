@@ -30,10 +30,11 @@ module Hecks
       def row_for(registry, bluebook, directory)
         first = bluebook.aggregates.first
         adapter = first && RevisionCheck.adapter_for(registry, bluebook.name, first)
-        return no_eras(bluebook, adapter || "nothing") unless adapter && RevisionCheck.lineage_capable?(registry, adapter)
+        layout = adapter && RevisionCheck.revision_adapter(registry, bluebook.name, adapter)
+        return no_eras(bluebook, adapter || "nothing") unless layout && RevisionCheck.lineage_capable?(registry, layout)
 
         settings = registry.binding_settings(bluebook.name, Ports::Persistence::VERB, adapter)
-        registry.adapter_class(adapter).era_status(registry: registry, bluebook: bluebook, settings: settings,
+        registry.adapter_class(layout).era_status(registry: registry, bluebook: bluebook, settings: settings,
                                                    directory: directory).to_row
       end
 

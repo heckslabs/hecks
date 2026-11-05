@@ -20,7 +20,7 @@ RSpec.describe "the held mint of a disposable ledger" do
     held_mint_class.new(directory: "unused", reader: ->(_dir) { facts }, minter: ->(*call) { minter_calls << call })
   end
 
-  # A copy of the shop fixture whose world adds `line` to its PostgresEra block.
+  # A copy of the shop fixture whose world adds `line` to its Postgres block.
   def shop_declaring(line)
     @scratch = Dir.mktmpdir("held-mint-disposable")
     directory = File.join(@scratch, "bluebook")

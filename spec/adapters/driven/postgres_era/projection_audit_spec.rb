@@ -69,9 +69,10 @@ RSpec.describe "the stored projection checked against the era's hash", :io do
       dir = File.join(root, "bluebook")
       FileUtils.mkdir_p(dir)
       File.write(File.join(dir, "audited.bluebook"), source("cost"))
-      File.write(File.join(dir, "audited.hecksagon"), %(Hecks.hecksagon "Audited" do\n  persisted_by "PostgresEra"\nend\n))
+      File.write(File.join(dir, "audited.hecksagon"), %(Hecks.hecksagon "Audited" do\n  persisted_by "Postgres"
+  revisions true\nend\n))
       File.write(File.join(dir, "audited.world"),
-                 %(Hecks.world "Audited" do\n  persisted_by("PostgresEra") do\n    database "#{url}"\n  end\nend\n))
+                 %(Hecks.world "Audited" do\n  persisted_by("Postgres") do\n    database "#{url}"\n  end\nend\n))
       yield dir
     end
   end
