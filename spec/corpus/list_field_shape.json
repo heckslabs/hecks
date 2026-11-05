@@ -1,0 +1,48 @@
+{
+  "name": "list_field_shape-parity",
+  "note": "list_field_shape: the example's commands replayed in order, with what the run recorded.",
+  "domain": "examples/list_field_shape",
+  "expectations": {
+    "events": 1
+  },
+  "steps": [
+    {
+      "verb": "Shelving::Item.Make",
+      "args": {
+        "key": {
+          "value": "k1"
+        },
+        "bag": {
+          "heard": "x",
+          "tags": [
+            "a"
+          ],
+          "counts": [
+            1,
+            2
+          ]
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [],
+    "instances": {
+      "Shelving::Item#k1": {
+        "key": {
+          "value": "k1"
+        },
+        "bag": {
+          "heard": "x",
+          "tags": [
+            "a"
+          ],
+          "counts": [
+            1,
+            2
+          ]
+        }
+      }
+    }
+  }
+}
