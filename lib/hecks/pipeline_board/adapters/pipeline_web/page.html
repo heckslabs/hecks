@@ -110,6 +110,7 @@ dialog#answer select { font: inherit; color: var(--ink); background: var(--page)
 dialog#answer .question { border-left: 4px solid var(--warning); padding: 4px 8px; margin: 8px 0; background: var(--page); border-radius: 0 6px 6px 0; overflow-wrap: anywhere; }
 dialog#answer .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; }
 dialog#answer .status { min-height: 1.4em; font-size: 12px; color: var(--ink2); margin-top: 6px; }
+tr.clickable { cursor: pointer; } tr.clickable:hover, tr.clickable:focus-visible { background: var(--page); }
 .tables-only .chartview { display: none; } body:not(.tables-only) .tableview { display: none; }
 @media (max-width: 900px) {
   .strip { grid-template-columns: 1fr; gap: 10px; }
@@ -300,6 +301,12 @@ function renderWork(work) {
 function renderSessions(list) {
   if (isUnknown(list)) return put("sessions", unknown(list));
   put("sessions", table(["Session", "Status", "Work item", "Started", "Detail"], list.map((s) => [s.name, [sessionBadge(s.status), " ", s.state], s.row || "-", clock(s.started), s.detail])));
+  const rows = $("sessions").querySelectorAll("tbody tr");
+  list.forEach((s, i) => {
+    if (s.status !== "blocked") return;
+    rows[i].classList.add("clickable"); rows[i].title = "Click to answer";
+    answerable(rows[i], () => openAnswer([{ id: s.id, name: s.name, run: s.run, repo: s.repo, work_item: s.work_item, question: s.detail }], s.id));
+  });
 }
 function renderFan(fan) {
   if (isUnknown(fan)) { for (const id of ["lanes", "meters", "flags", "fill", "mapping", "lanetable"]) put(id, unknown(fan)); return; }
