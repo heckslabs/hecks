@@ -80,14 +80,15 @@ module Hecks
       include Behaviour::Hecksagon
 
       emits_ir(
-        domain:        :domain,
-        binds:         many(:binds),
-        subscriptions: -> { subscriptions.map(&:to_s) },
-        attachments:   -> { attachments.map(&:to_h) },
-        driving:       -> { driving.map(&:to_s) },
-        bounded:       :bounded?,
-        translates:    -> { translates.map(&:to_s) },
-        revisions:     :revisions?
+        domain:           :domain,
+        binds:            many(:binds),
+        subscriptions:    -> { subscriptions.map(&:to_s) },
+        attachments:      -> { attachments.map(&:to_h) },
+        driving:          -> { driving.map(&:to_s) },
+        bounded:          :bounded?,
+        translates:       -> { translates.map(&:to_s) },
+        revisions:        :revisions?,
+        inline_reactions: :inline_reactions?
       )
 
       attr_reader :domain, :binds, :subscriptions, :attachments, :translates, :driving
@@ -98,7 +99,7 @@ module Hecks
       # Every optional keyword and what it holds when the declaration omits it.
       FIELD_DEFAULTS = {
         binds: [], subscriptions: [], attachments: [], bounded: false, translates: [], driving: [],
-        revisions: false
+        revisions: false, inline_reactions: false
       }.freeze
 
       # @param domain [String, Symbol] the domain this hecksagon wires
@@ -119,7 +120,13 @@ module Hecks
         @translates         = Array(@translates).map(&:to_s)
         @driving            = Array(@driving).map(&:to_s)
         @revisions          = @revisions ? true : false
+        @inline_reactions   = @inline_reactions ? true : false
       end
+
+      # Says whether this hecksagon accepts in-process reactions on an adapter with no outbox.
+      #
+      # @return [Boolean] whether `inline_reactions true` was declared
+      def inline_reactions? = @inline_reactions
 
       # Says whether this hecksagon chose the revision layout for its Postgres adapter.
       #
