@@ -465,15 +465,13 @@ function renderWork(work) {
 // Everything that asks for a person: attention and failed pills, and sessions blocked on a reply.
 function renderAttention(metrics, stages, sessions) {
   const items = [];
-  for (const t of metrics) if (needsAttention(t.state)) items.push({ label: t.label, state: t.state, detail: t.detail, act: () => resolve(t.label, t.detail) });
-  for (const s of stages) if (needsAttention(s.state)) items.push({ label: s.name, state: s.state, detail: s.detail, act: () => resolve(s.name, s.detail) });
-  for (const s of sessions) if (s.status === "blocked") items.push({ label: s.name + " " + s.id, state: "attention", detail: s.detail, act: () => openAnswer([{ id: s.id, name: s.name, run: s.run, repo: s.repo, work_item: s.work_item, question: s.detail, context: s.context, attach: s.attach }], s.id) });
+  for (const t of metrics) if (needsAttention(t.state)) items.push({ kind: "Metric", item: t.label, state: t.state, value: (t.value ?? "-") + (t.unit || ""), detail: t.detail, since: "-", act: () => resolve(t.label, t.detail) });
+  for (const s of stages) if (needsAttention(s.state)) items.push({ kind: "Stage", item: s.name, state: s.state, value: "-", detail: s.detail, since: "-", act: () => resolve(s.name, s.detail) });
+  for (const s of sessions) if (s.status === "blocked") items.push({ kind: "Session", item: s.name + " " + (s.id || ""), state: "attention", value: s.work_item || s.row || "-", detail: s.detail, since: clock(s.started), act: () => openAnswer([{ id: s.id, name: s.name, run: s.run, repo: s.repo, work_item: s.work_item, question: s.detail, context: s.context, attach: s.attach }], s.id) });
   if (!items.length) return put("attention", h("p", { class: "note" }, "Nothing needs attention."));
-  put("attention", items.map((it) => {
-    const row = h("div", { class: "attn clickable", tip: it.detail }, badge(it.state), " ", h("b", {}, it.label), " ", h("small", {}, it.detail));
-    answerable(row, it.act);
-    return row;
-  }));
+  put("attention", table(["Kind", "Item", "State", "Value", "Detail", "Since"], items.map((it) => [it.kind, it.item, badge(it.state), it.value, it.detail, it.since])));
+  const trs = $("attention").querySelectorAll("tbody tr");
+  items.forEach((it, i) => { trs[i].classList.add("clickable"); trs[i].title = "Click to resolve or answer"; answerable(trs[i], it.act); });
 }
 function sessionLabel(s) { return h("span", {}, s.name, " ", h("small", { class: "sid" }, s.id || "")); }
 function renderSessions(list) {
