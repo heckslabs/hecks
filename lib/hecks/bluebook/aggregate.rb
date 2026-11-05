@@ -29,7 +29,7 @@ module Hecks
         invariants:        -> { invariants.map { |rule| Expression::AstJson.rule_row(rule) } },
         # The named `given`s a referencing command's resolved `givens` entry came from.
         preconditions:     -> { preconditions.map { |rule| Expression::AstJson.rule_row(rule) } },
-        # Not folded into `attributes`: EraGuard::ShapeDiff walks those, and a record predating
+        # Not folded into `attributes`: RevisionGuard::ShapeDiff walks those, and a record predating
         # `projects` is expected to lack this field until the rebuild sweep runs.
         projected_fields:  lambda {
           projected_fields.map do |field|

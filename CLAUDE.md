@@ -251,22 +251,13 @@ The branches are data: the `Lane` rows of the Vocabulary bluebook
 (`lib/hecks/language/bluebook/vocabulary.bluebook`), with the checks a
 commit must pass as `RequiredCheck` rows beside them.
 
-- **The candidate gate (ADR 0181), off until the coordinator turns it on.** While `git config
-  hecks.candidateGate` is true (`exe/hecks Candidate.enable! --confirm`; `Candidate.disable!`
-  turns it off), `send_train.board!` pushes local `main`'s tip to `refs/heads/candidate`, not to
-  `main`, CI runs there, and `main` moves only by a fast-forward onto a candidate every check
-  passed on: `candidate.yml` makes it on GitHub and `Candidate.promote! --confirm` from a
-  checkout. One candidate is in flight at a time (a second boarding is refused by name). A red
-  candidate never touches `main`: `Candidate.observe!` reads it and `Candidate.reject! --confirm`
-  keeps its commits on `rejected/<sha>`, resets local `main` to `origin/main` and files one
-  `red-<cause>` Work item per failing cause. `Candidate.status` prints the gate and the candidate.
-  A push of `main` outside a promotion is refused (`main moves only by promotion of a green
-  candidate`); the owner's `HECKS_OWNER_PUSH` still passes.
-- **`main` has no guard.** Agents land work on it with `hecks landing.land! --confirm`
-  (fast-forward or merge commit, never squashed) and then
-  `hecks send_train.board! --confirm`; do not open a pull request for it. A push of `main` runs
-  the gate's `quick` stage and nothing else, seconds long: shape ledger, RuboCop (which also reads
-  every changed Ruby file for syntax errors), comment style, secret output, adapter words.
+- **Work reaches `main` through a pull request.** Agents land work with
+  `hecks landing.land! --confirm` (fast-forward or merge commit, never squashed) and then
+  `hecks send_train.board! --confirm`, which opens the PR (branch `train/main-<sha>`, auto-merge on)
+  for GitHub to merge once its required checks pass. Do not open a PR for `main` by hand, and do not
+  push `main` directly. A push of a feature branch runs the gate's `quick` stage: shape ledger,
+  RuboCop (which also reads every changed Ruby file for syntax errors), comment style, secret output,
+  adapter words.
   `hecks gate_run.gate! stage=quick --wait` runs it by hand and is worth running before every
   commit. Everything slower (fuzzing, the engine and model checks, command names, workflow
   pagination, the spec suite, the push-chain specs) runs after the push, in CI and the nightly run,

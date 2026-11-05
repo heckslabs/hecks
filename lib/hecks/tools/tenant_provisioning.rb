@@ -154,7 +154,7 @@ module Hecks
       end
 
       def hold_first_era(domain)
-        text = Hecks::Runtime::EraCheck.source_text_for(domain.bluebook, domain.directory, registry: domain.registry)
+        text = Hecks::Runtime::RevisionCheck.source_text_for(domain.bluebook, domain.directory, registry: domain.registry)
         domain.writing do |lineage|
           next if lineage.eras.any?
 

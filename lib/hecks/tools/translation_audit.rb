@@ -75,7 +75,7 @@ module Hecks
       #
       # @return [Integer] the exit status, 0
       def hold_first_era(session)
-        session.lineage.hold_first!(Hecks::Runtime::EraCheck.source_text_for(session.bluebook, session.directory),
+        session.lineage.hold_first!(Hecks::Runtime::RevisionCheck.source_text_for(session.bluebook, session.directory),
                                     projection: Hecks::Runtime::StorageShape.project(session.bluebook))
         puts "#{session.bluebook_name} held era 1 just now — no edge to audit."
         session.close

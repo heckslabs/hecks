@@ -31,7 +31,7 @@ module Hecks
             Finding.new(kind: :core_conforms, severity: :warning,
                         subject: "#{relationship.downstream} <- #{relationship.upstream}",
                         message: "#{relationship.downstream} is core but conforms to #{relationship.upstream}; " \
-                                 "the core model should translate what it receives (an anticorruption_layer)")
+                                 "the core model should translate what it receives (an anti_corruption_layer)")
           end
         end
 

@@ -61,7 +61,7 @@ module Hecks
         # idempotently. `resolved_eras`, `superseded_eras` and `unminted_eras` are eager, not lazy,
         # so no two
         # dispatching threads race to create them; all writes still happen at boot,
-        # single-threaded (EraResolver.check!).
+        # single-threaded (RevisionResolver.check!).
         @declared     = Declarations.empty
         # Ruby-only logs and the saga instances, which an `@saga_mutex` guards.
         @state        = RuntimeState.fresh

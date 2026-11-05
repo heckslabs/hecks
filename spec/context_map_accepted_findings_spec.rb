@@ -17,7 +17,7 @@ RSpec.describe Hecks::Bluebook::DSL::ContextMapBuilder do
   def kinds(declared, *edges) = Hecks::Bluebook::ModelCheck.context_map_findings(declared, edges).map(&:kind)
 
   def acknowledging(kind, as: :conformist, **rest)
-    map_of(as: as, acknowledges: { kind => "the supplier's model is ours too" }, **rest)
+    map_of(as: as, accepted_findings: { kind => "the supplier's model is ours too" }, **rest)
   end
 
   it "holds the acknowledgement on the relationship" do
@@ -53,7 +53,7 @@ RSpec.describe Hecks::Bluebook::DSL::ContextMapBuilder do
   end
 
   it "refuses an acknowledgement without a reason" do
-    expect { map_of(as: :conformist, acknowledges: { conformist_translates: "" }) }
+    expect { map_of(as: :conformist, accepted_findings: { conformist_translates: "" }) }
       .to raise_error(Hecks::Bluebook::DSL::Malformed, /without a reason/)
   end
 end

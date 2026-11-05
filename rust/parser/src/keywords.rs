@@ -7345,7 +7345,7 @@ pub static ARGUMENTS: &[ArgumentRow] = &[
         keyword: "relate",
         context: "ContextMap",
         at: "",
-        named: "acknowledges",
+        named: "accepted_findings",
         kind: "literal",
         required: "false",
         fills: "relationships",

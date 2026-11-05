@@ -17,7 +17,7 @@ module Hecks
         #   on its translation edge or recorded implicit move.
         # - `unminted`: no era holds the current shape, and no mint from the latest one would go
         #   ahead.
-        module EraResolution
+        module RevisionResolution
           # What a resolution concludes. `resolved` is the era the boot reads (nil when `unheld`),
           # `latest` the latest held era, `verdict` the mint decision from the latest era (nil
           # unless the shape is `behind` or `unminted`), and `held_count` how many eras are held.

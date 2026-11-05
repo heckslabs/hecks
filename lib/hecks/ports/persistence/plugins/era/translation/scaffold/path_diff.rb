@@ -5,7 +5,7 @@ module Hecks
       # and how a type signature is compared.
       module PathDiff
         # Held paths that need explaining: vanished attributes, and members that vanished or
-        # changed type inside a kept attribute — the set EraGuard demands coverage for.
+        # changed type inside a kept attribute — the set RevisionGuard demands coverage for.
         # Returns each path (dotted for a member) valued by its type signature.
         def vanished_paths(held_attrs, current_attrs, retyped) = unmatched_paths(held_attrs, current_attrs, retyped)
 

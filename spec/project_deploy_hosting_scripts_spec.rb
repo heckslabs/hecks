@@ -440,14 +440,14 @@ RSpec.describe "hecks deploy project — Fargate hosting scripts", :io do
       files = files_of(pinned_world)
       require "hecks/tools/expected_era"
 
-      expect(Hecks::Tools::ExpectedEra.parse(files["expected-era"])).to eq(["aaa111", "bbb222"])
+      expect(Hecks::Tools::ExpectedRevision.parse(files["expected-era"])).to eq(["aaa111", "bbb222"])
       expect(files["expected-era"]).to include("Changing the era on a roll")
     end
 
     it "lists no era when none is set, so a host is only checked to report one" do
       require "hecks/tools/expected_era"
 
-      expect(Hecks::Tools::ExpectedEra.parse(files_of(opted_in)["expected-era"])).to eq([])
+      expect(Hecks::Tools::ExpectedRevision.parse(files_of(opted_in)["expected-era"])).to eq([])
     end
   end
 end

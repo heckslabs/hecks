@@ -312,7 +312,7 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
                          "held era texts are storage facts; restore the original text, or reset the data".freeze
 
   # Every edit reaches the same generic wording: telling cosmetic from shape edits would need
-  # boot to re-parse held era text, so EraTamper.refusal does not.
+  # boot to re-parse held era text, so RevisionTamper.refusal does not.
   context "with the held text of era 1 edited" do
     before { check!(V1_SOURCE) }
 
@@ -432,7 +432,7 @@ RSpec.describe "lineage in the PostgresEra adapter", :io do
       RUBY
     end
 
-    it "refuses an edge that does not cover the whole diff, in EraGuard's own words" do
+    it "refuses an edge that does not cover the whole diff, in RevisionGuard's own words" do
       expect { check!(V2_SOURCE, translation_source: partial_edge) }
         .to raise_error(Hecks::Runtime::WiringError, UNEXPLAINED_LEGACY_NOTE)
     end

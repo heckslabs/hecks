@@ -46,7 +46,7 @@ RSpec.describe "the era check at boot" do
 
   def check!(root, source, translation_source: nil)
     registry, domain_dir = load_domain(root, source, translation_source: translation_source)
-    Hecks::Runtime::EraCheck.check!(registry, domain_dir)
+    Hecks::Runtime::RevisionCheck.check!(registry, domain_dir)
     registry
   end
 
@@ -70,7 +70,7 @@ RSpec.describe "the era check at boot" do
   def verdict(text, **stored) = Hecks::Translation::Reattest.verdict(text: text, stored_hash: nil, **stored)
 
   def source_text_for(name, directory)
-    Hecks::Runtime::EraCheck.source_text_for(Struct.new(:name).new(name), directory)
+    Hecks::Runtime::RevisionCheck.source_text_for(Struct.new(:name).new(name), directory)
   end
 
   # The production container runs with no locale, so the default external encoding is us-ASCII.

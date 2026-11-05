@@ -84,7 +84,7 @@ module Hecks
         file = Tempfile.new(["hecks-reattest-", ".bluebook"])
         file.write(source)
         file.flush
-        Runtime::EraGuard.shadow_parse(source, file.path)
+        Runtime::RevisionGuard.shadow_parse(source, file.path)
       rescue StandardError, SyntaxError
         nil
       ensure

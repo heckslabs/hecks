@@ -54,7 +54,7 @@ RSpec.describe "the label a resolution gives a held era", :io do
   end
 
   def resolution
-    Hecks::Adapters::PostgresEra::LineageManager::EraResolution.read(
+    Hecks::Adapters::PostgresEra::LineageManager::RevisionResolution.read(
       bluebook: full_bluebook, settings: { database: url }, translations: []
     )
   end

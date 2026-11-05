@@ -61,13 +61,27 @@ RSpec.describe Hecks::Adapters::PushRecorder, :io do
   def still_mint = instance_double(Hecks::Adapters::GitTrain::MintStep, run: "the Hecks shape did not move")
 
   # Two commits pushed by the train, then the pushed run recorded as the policy asks for it.
+  # A fake `gh`: a PR opens, and auto-merge merges it at once, moving the remote's main
+  # as GitHub does.
+  def gh(argv, **)
+    case argv[1..2]
+    when %w[pr create] then [true, "https://github.test/work/pull/1\n"]
+    when %w[pr merge]
+      sha = git("ls-remote", "origin", "refs/heads/#{argv[3]}").split.first
+      git("push", "-q", "--no-verify", "origin", "#{sha}:refs/heads/main")
+      [true, ""]
+    else [false, "no PR"]
+    end
+  end
+
   def push_and_record
     commit("second")
     commit("third")
-    answer = Hecks::Adapters::GitTrain.new(mint: still_mint).carry(checkout: { value: work })
-    held = answer.merge(run: { value: "push-1" }, status: "pushed", branch: { value: "main" })
+    answer = Hecks::Adapters::GitTrain.new(mint: still_mint, runner: method(:gh)).carry(checkout: { value: work })
+    # The merge is the push: the boarded commit is what reached main.
+    held = answer.merge(pushed: answer[:boarded], run: { value: "push-1" }, status: "pushed", branch: { value: "main" })
     described_class.new(settings: { launcher: launcher }).record_outcome(**held)
-    answer
+    held
   end
 
   def recorded

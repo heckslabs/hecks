@@ -4,7 +4,7 @@ require "hecks/ports/persistence/plugins/era"
 # A stored shape holds every attribute type as its string; a declared bluebook may hold an object
 # that prints as the same string. The era guard reads a pair as the same type when they print the
 # same, and as a retype when they do not.
-RSpec.describe Hecks::Runtime::EraGuard, ".uncovered_attributes type representations" do
+RSpec.describe Hecks::Runtime::RevisionGuard, ".uncovered_attributes type representations" do
   let(:attribute) { Struct.new(:name, :type) }
   let(:container) do
     Struct.new(:name, :attributes) do

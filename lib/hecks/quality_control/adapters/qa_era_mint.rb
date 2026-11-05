@@ -8,7 +8,7 @@ module Hecks
     # of the ledger the QA world names runs once with the mint command's request. The world keeps
     # `mint_eras false`; this one check's settings carry `mint_eras true` and the request, which is
     # the one-mint permission the world's comment describes.
-    module QaEraMint
+    module QaRevisionMint
       # The ledger's bluebook directory, under the repository root.
       LEDGER = "qa/bluebook"
 
@@ -79,8 +79,8 @@ module Hecks
       #
       # @return [Integer, nil] the ordinal minted, or nil when nothing minted
       def mint!(held, settings)
-        text = Runtime::EraCheck.source_text_for(held.bluebook, held.directory, registry: held.registry) ||
-               Runtime::EraCheck.refuse_missing_source!(held.bluebook, held.directory)
+        text = Runtime::RevisionCheck.source_text_for(held.bluebook, held.directory, registry: held.registry) ||
+               Runtime::RevisionCheck.refuse_missing_source!(held.bluebook, held.directory)
         held.registry.adapter_class(held.adapter_name).era_check!(
           registry: held.registry, bluebook: held.bluebook, current_text: text, settings: settings,
           directory: held.directory

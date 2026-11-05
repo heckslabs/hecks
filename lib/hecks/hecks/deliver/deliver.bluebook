@@ -825,7 +825,8 @@ Hecks.bluebook "Hecks" do
         transition "Queue" => "queued",  from: "requested"
         transition "Fault" => "faulted", from: "requested"
         transition "Summarize" => "surveyed", from: "requested"
-        mark :terminal, "carried", "faulted", "pushed", "queued", "surveyed"
+        transition "Merge" => "pushed", from: "queued"
+        mark :terminal, "carried", "faulted", "pushed", "surveyed"
       end
 
       command "Board" do
@@ -902,11 +903,10 @@ Hecks.bluebook "Hecks" do
         emits CarriedByEarlierPush
       end
 
-      # The candidate gate is on (ADR 0181): the boarded commit went to the remote's candidate ref,
-      # where CI judges it, and main moves only once that run is green.
+      # The boarded commit is a pull request into main, which GitHub merges once its checks pass.
       command "Queue" do
         role "System"
-        goal "Record that a boarding was queued as the candidate, for CI to judge before main moves"
+        goal "Record that a boarding was queued as a pull request, for CI to judge before main moves"
 
         reference_to SendTrain
         attribute :checkout, Word, sets: true
@@ -916,6 +916,33 @@ Hecks.bluebook "Hecks" do
 
 
         emits BoardingQueued
+      end
+
+      # A queued boarding's pull request merged: the merge commit is what reached main, so the push
+      # is recorded from it, and the launcher refresh and the deploy announcement follow.
+      command "Merge" do
+        role "System"
+        goal "Record that a queued boarding's pull request merged, and the commit that reached main"
+
+        reference_to SendTrain
+        attribute :checkout, Word, sets: true
+        attribute :boarded,  Word, sets: true
+        attribute :pushed,   Word, sets: true
+        attribute :commits,  Count, optional: true, sets: true
+        attribute :report,   Report, sets: true
+
+
+        emits BranchPushed
+      end
+
+      # Asks the train whether a queued boarding's pull request has merged. Nothing changes while it is open.
+      command "Watch" do
+        role "Operator"
+        goal "Look at each queued boarding's pull request, and record any that has merged"
+
+        reference_to SendTrain
+
+        emits ObserveRequested
       end
 
       command "Fault" do
@@ -933,6 +960,13 @@ Hecks.bluebook "Hecks" do
         description "How one boarding ended: pushed, carried by an earlier push, or why it failed."
         attribute :run, RunKey
         where(run: :run)
+        order_by :run
+      end
+
+      # The boardings whose pull request has not merged yet: what `Watch` checks on each QA tick.
+      query "Queued" do
+        description "Every boarding queued as a pull request, oldest key first; `Watch` records any that merged."
+        where(status: "queued")
         order_by :run
       end
     end
@@ -982,6 +1016,17 @@ Hecks.bluebook "Hecks" do
     policy "RecordTheRefusedSurvey" do
       on      "SendTrain.SurveyRefused"
       trigger SendTrain::Fault, with: { refusal: :refusal }
+    end
+
+    policy "ObserveWhenAsked" do
+      on      "SendTrain.ObserveRequested"
+      ask     :observe, with: { run: :run }
+    end
+
+    policy "RecordTheMerge" do
+      on      "SendTrain.ObserveAnswered"
+      where   { outcome.value == "merged" }
+      trigger SendTrain::Merge, with: { checkout: :checkout, boarded: :boarded, pushed: :pushed, report: :report }
     end
 
     # Deploys stay by hand: a push that reached the remote says a deploy is ready, and nothing more.
@@ -1412,21 +1457,6 @@ Hecks.bluebook "Hecks" do
     policy "RecordTheFailedCi" do
       on      "Integration.ObserveAnswered"
       where   { outcome.value == "failed" }
-      trigger Integration::Red, with: { landed: :landed, report: :report }
-    end
-
-    # While the candidate gate is on (ADR 0181) the observation reads the candidate's run and says
-    # so by name, so the run ends green or red as it does for main while the red flag, which hears
-    # `passed` and `failed`, stays where it is: a red candidate is not a red main.
-    policy "RecordThePassedCandidateCi" do
-      on      "Integration.ObserveAnswered"
-      where   { outcome.value == "candidate_passed" }
-      trigger Integration::Green, with: { landed: :landed, report: :report }
-    end
-
-    policy "RecordTheFailedCandidateCi" do
-      on      "Integration.ObserveAnswered"
-      where   { outcome.value == "candidate_failed" }
       trigger Integration::Red, with: { landed: :landed, report: :report }
     end
 

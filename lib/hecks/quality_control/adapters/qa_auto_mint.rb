@@ -54,7 +54,7 @@ module Hecks
       #
       # @return [String]
       def ledger_for(root, requested)
-        requested.to_s.empty? ? File.join(root, QaEraMint::LEDGER) : requested
+        requested.to_s.empty? ? File.join(root, QaRevisionMint::LEDGER) : requested
       end
 
       # The checkout a minted ledger's branch lands in: `root` for the QualityControl ledger, else
@@ -80,7 +80,7 @@ module Hecks
       # @raise [Runtime::WiringError] if the ledger is disposable
       def mintable_ledger_for(root, requested)
         ledger = ledger_for(root, requested)
-        raise Runtime::WiringError, QaEraMint::DISPOSABLE if QaEraMint.disposable?(ledger)
+        raise Runtime::WiringError, QaRevisionMint::DISPOSABLE if QaRevisionMint.disposable?(ledger)
 
         ledger
       end

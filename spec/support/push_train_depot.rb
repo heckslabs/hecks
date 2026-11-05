@@ -9,8 +9,8 @@ module PushTrainDepot
   HECKS = File.expand_path("../../lib/hecks/hecks", __dir__)
 
   # The push policies the depot declares, in the order a boarding reaches them.
-  POLICIES = %w[CarryWhenBoarded RecordThePush RecordTheRide RecordTheRefusedPush
-                KeepTheLauncherCurrent AnnounceWhenPushed].freeze
+  POLICIES = %w[CarryWhenBoarded RecordThePush RecordTheRide RecordTheQueuedBoarding RecordTheRefusedPush
+                ObserveWhenAsked RecordTheMerge KeepTheLauncherCurrent AnnounceWhenPushed].freeze
 
   # The ports the push train asks.
   PORTS = %w[Train Alerts Launcher].freeze
@@ -78,7 +78,7 @@ module PushTrainDepot
     db = Hecks::Adapters::PostgresEra.connect_for("Depot", { database: url })
     lineage = Hecks::Adapters::PostgresEra::Lineage.new(db, "Depot")
     lineage.ensure_base!
-    lineage.hold_first!(Hecks::Runtime::EraCheck.source_text_for(bluebook, dir),
+    lineage.hold_first!(Hecks::Runtime::RevisionCheck.source_text_for(bluebook, dir),
                         projection: Hecks::Runtime::StorageShape.project(bluebook))
     lineage.provision_first_era!(bluebook.aggregates)
   ensure

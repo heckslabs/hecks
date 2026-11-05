@@ -66,6 +66,9 @@ th { color: var(--ink2); font-size: 12px; }
 .panel .mark { font-weight: 600; }
 .panel .states span { display: inline-block; border: 1px solid var(--axis); border-radius: 4px; padding: 1px 6px; margin: 2px 4px 2px 0; font-size: 12px; }
 .panel .link { background: none; border: none; color: var(--series1); padding: 0; cursor: pointer; text-decoration: underline; }
+.panel .ev button.re { display: block; width: 100%; text-align: left; background: none; border: none; border-radius: 0; color: var(--ink2); font: inherit; font-size: 12px; padding: 2px 0 2px 14px; cursor: pointer; }
+.panel .ev button.re:hover { color: var(--ink); text-decoration: underline; }
+.panel .facts li small { color: var(--muted); }
 @media (max-width: 700px) { canvas { height: 460px; } }
 </style>
 </head>
@@ -278,7 +281,7 @@ addEventListener("mouseup", (e) => {
 
 /* ---- the sidebar: what a node declares, and what it is doing right now ---- */
 const recent = [];
-let selected = null, focusId = null, panelTimer = null;
+let selected = null, focusId = null, panelTimer = null, waiting = null;
 /* The stream sends an event again when its reactions settle, so a key is kept once, at its newest. */
 function remember(ev) {
   const i = recent.findIndex((held) => held.key === ev.key);
@@ -290,15 +293,16 @@ function touches(ev, n) {
   return stem ? (ev.reactions || []).some((r) => String(r.command).includes(stem)) : false;
 }
 function openPanel(n) {
-  selected = n; $("panel").hidden = false; $("ptitle").textContent = n.label; renderPanel();
+  selected = n; waiting = null; $("panel").hidden = false; $("ptitle").textContent = n.label; renderPanel();
   clearInterval(panelTimer); panelTimer = setInterval(renderPanel, 2000);
   try { history.replaceState(null, "", "#" + encodeURIComponent(n.id)); } catch (e) { /* history may be unavailable */ }
 }
-function closePanel() { selected = null; focusId = null; $("panel").hidden = true; $("focus").setAttribute("aria-pressed", "false"); clearInterval(panelTimer); try { history.replaceState(null, "", location.pathname); } catch (e) { /* ignore */ } }
+function closePanel() { selected = null; focusId = null; waiting = null; $("panel").hidden = true; $("focus").setAttribute("aria-pressed", "false"); clearInterval(panelTimer); try { history.replaceState(null, "", location.pathname); } catch (e) { /* ignore */ } }
 function section(title, ...kids) { return [h("h3", {}, title), ...kids]; }
 function nodeLink(id) { const n = byId.get(id); return h("button", { class: "link", type: "button", "data-id": id }, n ? n.label : id); }
 function renderPanel() {
   const n = selected; if (!n) return;
+  if (waiting) { $("pbody").replaceChildren(...waitingBody()); return; }
   const d = n.details || {}, now = Date.now(), mine = recent.filter((ev) => touches(ev, n)), tenMin = mine.filter((ev) => now - Date.parse(ev.at) < 600000);
   const outcomes = mine.flatMap((ev) => ev.reactions || []), refused = outcomes.filter((r) => /refus|fail/.test(r.outcome || "")).length;
   const last = mine.map((ev) => ev.at).sort().pop();
@@ -312,13 +316,45 @@ function renderPanel() {
       h("span", {}, h("b", { style: refused ? "color:var(--critical)" : "" }, String(refused)), "refused"),
       h("span", {}, h("b", {}, last ? clock(last) : "—"), "last seen")),
       h("ul", {}, mine.slice(-12).reverse().map((ev) => h("li", { class: "ev" }, h("time", {}, clock(ev.at)), h("b", {}, ev.name), " ", h("small", {}, ev.aggregate.split("::").pop() + "#" + String(ev.id).slice(0, 8)),
-        (ev.reactions || []).map((r) => { const k = outcomeKind(r.outcome || ""); return h("span", { class: "re" }, h("span", { class: "mark", style: "color:var(" + OUTCOME[k][0] + ")" }, OUTCOME[k][1].slice(0, 1)), " " + String(r.policy).split("::").pop() + (r.command ? " → " + String(r.command).split("::").pop() : "")); }))))),
+        (ev.reactions || []).map((r) => reactionRow(ev, r)))))),
   ];
   if (n.kind === "aggregate") body.push(...declaredAggregate(d));
   if (n.kind === "port") body.push(...section("Operations", h("ul", {}, (d.operations || []).map((o) => h("li", {}, h("b", {}, o.name), " ", h("small", {}, o.direction), o.answers ? " answers " + o.answers : "", o.refuses ? ", refuses " + o.refuses : "")))));
   if (n.kind === "adapter") body.push(...section("Binds", h("ul", {}, h("li", {}, "port ", h("b", {}, d.port || "")), (d.fields || []).length ? h("li", {}, "settings: " + d.fields.join(", ")) : null)));
   body.push(...wiringOf(n));
   $("pbody").replaceChildren(...body.flat().filter(Boolean));
+}
+/* A reaction in the sidebar. A waiting one is a button that opens its read-only detail; the rest are labels. */
+function reactionRow(ev, r) {
+  const k = outcomeKind(r.outcome || ""), label = String(r.policy).split("::").pop() + (r.command ? " → " + String(r.command).split("::").pop() : "");
+  const mark = h("span", { class: "mark", style: "color:var(" + OUTCOME[k][0] + ")" }, OUTCOME[k][1].slice(0, 1));
+  if (k !== "wait") return h("span", { class: "re" }, mark, " " + label);
+  const pill = h("button", { class: "re", type: "button", "aria-label": "Waiting: " + label + ". Open the details" }, mark, " " + label);
+  pill.addEventListener("click", () => showWaiting(ev, r));
+  return pill;
+}
+/* The read-only view of one waiting reaction. It holds a snapshot and reads the newest copy of the event while it is still held. */
+function showWaiting(ev, r) { waiting = { key: ev.key, policy: r.policy, command: r.command, ev, r }; renderPanel(); }
+function waitingBody() {
+  const live = recent.find((ev) => ev.key === waiting.key) || waiting.ev;
+  const r = (live.reactions || []).find((x) => x.policy === waiting.policy && x.command === waiting.command) || waiting.r;
+  const back = h("button", { type: "button" }, "Back to " + (selected ? selected.label : "node"));
+  back.addEventListener("click", () => { waiting = null; renderPanel(); });
+  const fact = (label, value) => h("li", {}, h("small", {}, label), h("br"), value);
+  return [
+    h("div", {}, back),
+    ...section("Waiting reaction"),
+    h("p", { class: "desc" }, "Read only. Nothing here changes state."),
+    h("ul", { class: "facts" },
+      fact("Policy", String(r.policy)),
+      fact("Command it reached", r.command ? String(r.command) : "none"),
+      fact("Outcome", r.outcome ? String(r.outcome) : "no outcome recorded"),
+      fact("Event it answered", String(live.name)),
+      fact("Aggregate", String(live.aggregate || "")),
+      fact("Event id", String(live.id || "")),
+      fact("Event at", live.at ? clock(live.at) + " (" + live.at + ")" : "")),
+    (r.emitted || []).length ? section("Emitted after", h("ul", {}, r.emitted.map((name) => h("li", {}, String(name))))) : null,
+  ].flat().filter(Boolean);
 }
 function declaredAggregate(d) {
   const out = [];
