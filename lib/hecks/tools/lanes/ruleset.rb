@@ -45,8 +45,9 @@ module Hecks
             "bypass_actors" => [], "rules" => FIXED }
         end
 
-        # How a `queue` lane's merge queue builds and merges. Each entry is tested on top of the lane
-        # and every entry ahead of it, up to five at once, and merges only when all its checks pass,
+        # How a `queue` lane's merge queue builds and merges. Each entry is tested on top of the
+        # lane and every entry ahead of it, up to five at once, and merges only when all its checks
+        # pass,
         # so a pull request that is green alone but red beside another never lands. A squash keeps
         # one commit per pull request on the lane.
         MERGE_QUEUE = { "type"       => "merge_queue",

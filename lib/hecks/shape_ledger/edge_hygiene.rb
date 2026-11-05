@@ -4,7 +4,7 @@ require "json"
 
 module Hecks
   module ShapeLedger
-    # Finds the translation edges that no longer earn their file; it deletes nothing. The graph is
+    # Finds the translation edges that do not earn their file; it deletes nothing. The graph is
     # a bluebook's edge files plus its recorded implicit moves, aimed at the current shape. A file
     # is:
     #

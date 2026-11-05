@@ -55,4 +55,4 @@ smoke-after-deploy:
 # Compares the era a live host reports at GET /version with expected-era.
 check-era:
 	@test -n "$(URL)" || { echo "usage: make check-era URL=https://host.example"; exit 1; }
-	HECKS_ENVIRONMENT=memory $(HECKS) host.check_era host="$(URL)" expected=expected-era --wait
+	HECKS_ENVIRONMENT=memory $(HECKS) host.check_era! host="$(URL)" expected=expected-era --wait

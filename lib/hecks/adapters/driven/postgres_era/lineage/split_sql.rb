@@ -30,9 +30,9 @@ module Hecks
             nil
           end
 
-          # The target's tail from its source's held-era rows: the source is chained through the
-          # edges
-          # before the split edge, so the split reads the shape it declares its fields in.
+          # The target's tail from its source's held-era rows: the source is chained
+          # through the edges that lead into the split edge, so the split reads the shape it
+          # declares its fields in.
           def split_tail_sql(names, edges)
             found = split_into(names, edges)
             return nil unless found
