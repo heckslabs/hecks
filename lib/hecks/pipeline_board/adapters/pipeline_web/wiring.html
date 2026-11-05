@@ -281,7 +281,19 @@ addEventListener("mouseup", (e) => {
 
 /* ---- the sidebar: what a node declares, and what it is doing right now ---- */
 const recent = [];
-let selected = null, focusId = null, waiting = null;
+let selected = null, focusId = null, waiting = null, traced = null;
+// The chain a port or adapter sits in: the aggregates whose policies ask its port, the port, and its adapters.
+function traceOf(n) {
+  const port = n.kind === "port" ? n : n.kind === "adapter" ? edges.find((e) => e.kind === "adapter" && e.to === n.id) : null;
+  const pid = port ? (port.id || port.from) : null;
+  if (!pid) return null;
+  const ids = new Set([pid]);
+  for (const e of edges) {
+    if (e.kind === "ask" && e.to === pid) ids.add(e.from);
+    if (e.kind === "adapter" && e.from === pid) ids.add(e.to);
+  }
+  return ids;
+}
 /* The stream sends an event again when its reactions settle, so a key is kept once, at its newest. */
 function remember(ev) {
   const i = recent.findIndex((held) => held.key === ev.key);
@@ -293,10 +305,10 @@ function touches(ev, n) {
   return stem ? (ev.reactions || []).some((r) => String(r.command).includes(stem)) : false;
 }
 function openPanel(n) {
-  selected = n; waiting = null; $("panel").hidden = false; $("ptitle").textContent = n.label; renderPanel();
+  selected = n; waiting = null; traced = n.kind === "port" || n.kind === "adapter" ? traceOf(n) : null; $("panel").hidden = false; $("ptitle").textContent = n.label; renderPanel();
   try { history.replaceState(null, "", "#" + encodeURIComponent(n.id)); } catch (e) { /* history may be unavailable */ }
 }
-function closePanel() { selected = null; focusId = null; waiting = null; $("panel").hidden = true; $("focus").setAttribute("aria-pressed", "false"); try { history.replaceState(null, "", location.pathname); } catch (e) { /* ignore */ } }
+function closePanel() { selected = null; focusId = null; waiting = null; traced = null; $("panel").hidden = true; $("focus").setAttribute("aria-pressed", "false"); try { history.replaceState(null, "", location.pathname); } catch (e) { /* ignore */ } }
 function section(title, ...kids) { return [h("h3", {}, title), ...kids]; }
 function nodeLink(id) { const n = byId.get(id); return h("button", { class: "link", type: "button", "data-id": id }, n ? n.label : id); }
 function renderPanel() {
@@ -320,6 +332,7 @@ function renderPanel() {
   if (n.kind === "aggregate") body.push(...declaredAggregate(d));
   if (n.kind === "port") body.push(...section("Operations", h("ul", {}, (d.operations || []).map((o) => h("li", {}, h("b", {}, o.name), " ", h("small", {}, o.direction), o.answers ? " answers " + o.answers : "", o.refuses ? ", refuses " + o.refuses : "")))));
   if (n.kind === "adapter") body.push(...section("Binds", h("ul", {}, h("li", {}, "port ", h("b", {}, d.port || "")), (d.fields || []).length ? h("li", {}, "settings: " + d.fields.join(", ")) : null)));
+  if (traced) body.push(...section("Traced through", h("ul", {}, [...traced].filter((id) => id !== n.id).map((id) => h("li", {}, nodeLink(id))))));
   body.push(...wiringOf(n));
   $("pbody").replaceChildren(...body.flat().filter(Boolean));
 }
@@ -429,7 +442,8 @@ function drawEdges(now) {
     const a = byId.get(e.from), b = byId.get(e.to); if (!a || !b) continue;
     const ca = blocks.get(keyOf(a)), cb = blocks.get(keyOf(b));
     if (ca && ca === cb) continue;
-    if (!ca && !cb) { strokeEdge(anchor(a), anchor(b), a === b, e.lit, 1, colourOf(a.domain), now, focusId && e.from !== focusId && e.to !== focusId); continue; }
+    const outside = (focusId && e.from !== focusId && e.to !== focusId) || (traced && !(traced.has(e.from) && traced.has(e.to)));
+    if (!ca && !cb) { strokeEdge(anchor(a), anchor(b), a === b, e.lit, 1, colourOf(a.domain), now, outside); continue; }
     if (e.kind === "adapter" && cb) continue;
     const key = (ca ? ca.k : a.id) + "|" + (cb ? cb.k : b.id), held = bundles.get(key) || { from: anchor(a), to: anchor(b), count: 0, lit: null, colour: colourOf(a.domain) };
     held.count++; if (e.lit && e.lit.until > now && (!held.lit || e.lit.until > held.lit.until)) held.lit = e.lit;
