@@ -122,7 +122,7 @@ module Hecks
 
       def mint_wording(declared)
         require "hecks/adapters/driven/postgres_era"
-        default = PostgresEra::LineageManager::EraResolver::MINT_BY_DEFAULT
+        default = PostgresEra::LineageManager::RevisionResolver::MINT_BY_DEFAULT
         [true, "true"].include?(declared.fetch(:mint_eras, default)) ? "allowed" : "refused"
       end
 

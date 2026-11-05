@@ -1,6 +1,6 @@
 module Hecks
   module Runtime
-    module EraGuard
+    module RevisionGuard
       # Structural signature and diff of aggregate shapes, computed from the IR alone
       # (no file I/O), so the Postgres mint path can call it too.
       module ShapeDiff

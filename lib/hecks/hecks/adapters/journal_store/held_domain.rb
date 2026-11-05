@@ -99,10 +99,10 @@ module Hecks
           @adapter_name = Ports::Persistence::BindingPolicy.resolve(registry, @bluebook.name, first).adapter
         end
 
-        # Whether the store the domain is bound to keeps eras (`EraCheck`'s own question).
+        # Whether the store the domain is bound to keeps eras (`RevisionCheck`'s own question).
         #
         # @return [Boolean] true when the adapter is lineage capable
-        def capable? = Runtime::EraCheck.lineage_capable?(registry, adapter_name)
+        def capable? = Runtime::RevisionCheck.lineage_capable?(registry, adapter_name)
 
         # Explains, as a refusal, why a domain has no eras.
         #
@@ -150,7 +150,7 @@ module Hecks
         # @return [String] the text
         # @raise [Runtime::NotFound] if no file declares the bluebook
         def source_text
-          Runtime::EraCheck.source_text_for(bluebook, directory) or
+          Runtime::RevisionCheck.source_text_for(bluebook, directory) or
             raise Runtime::NotFound, "no file under #{directory} declares #{bluebook.name}"
         end
 
@@ -200,12 +200,12 @@ module Hecks
         end
 
         # What a boot of the held bluebook would resolve, read from its database over a connection
-        # that only reads: the resolution the boot records (`LineageManager::EraResolution`).
+        # that only reads: the resolution the boot records (`LineageManager::RevisionResolution`).
         #
-        # @return [PostgresEra::LineageManager::EraResolution::Answer]
+        # @return [PostgresEra::LineageManager::RevisionResolution::Answer]
         # @raise [Runtime::WiringError] if the connection is refused or a held text was altered
         def resolution
-          PostgresEra::LineageManager::EraResolution.read(bluebook: bluebook, settings: settings,
+          PostgresEra::LineageManager::RevisionResolution.read(bluebook: bluebook, settings: settings,
                                                           translations: translations, directory: directory)
         end
 

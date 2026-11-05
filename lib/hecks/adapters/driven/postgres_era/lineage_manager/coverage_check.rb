@@ -14,7 +14,7 @@ module Hecks
           # Refuses a mint whose translation edge leaves any part of the shape change unexplained.
           #
           # Every vanished or retyped path in the held-to-current diff must be explained and every
-          # held aggregate claimed; the refusal is EraGuard's own, byte for byte.
+          # held aggregate claimed; the refusal is RevisionGuard's own, byte for byte.
           #
           # @param registry [Runtime::Registry] where translations may claim a held aggregate
           # @param bluebook [Bluebook::Declaration] the domain as currently declared
@@ -26,7 +26,7 @@ module Hecks
             bluebook.aggregates.each do |aggregate|
               check_aggregate_coverage!(bluebook, aggregate, held_bluebook, edge)
             end
-            Runtime::EraGuard.check_vanished_aggregates!(registry, bluebook, held_bluebook)
+            Runtime::RevisionGuard.check_vanished_aggregates!(registry, bluebook, held_bluebook)
           end
 
           # Refuses an identity change, an uncovered path or an unsafe addition in one aggregate.
@@ -43,11 +43,11 @@ module Hecks
             return unless held_aggregate
 
             check_identity_unchanged!(bluebook, aggregate, held_aggregate, rules)
-            uncovered = Runtime::EraGuard.uncovered_attributes(aggregate, held_aggregate, rules)
-            Runtime::EraGuard.refuse_uncovered!(bluebook, aggregate, uncovered) unless uncovered.empty?
+            uncovered = Runtime::RevisionGuard.uncovered_attributes(aggregate, held_aggregate, rules)
+            Runtime::RevisionGuard.refuse_uncovered!(bluebook, aggregate, uncovered) unless uncovered.empty?
 
-            unsafe = Runtime::EraGuard.unsafe_additions(aggregate, held_aggregate, rules)
-            Runtime::EraGuard.refuse_unsafe_addition!(bluebook, aggregate, unsafe) unless unsafe.empty?
+            unsafe = Runtime::RevisionGuard.unsafe_additions(aggregate, held_aggregate, rules)
+            Runtime::RevisionGuard.refuse_unsafe_addition!(bluebook, aggregate, unsafe) unless unsafe.empty?
           end
 
           # Refuses a mint that changes an aggregate's identity paths without declaring a `rekey`.

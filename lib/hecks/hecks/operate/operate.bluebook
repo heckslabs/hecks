@@ -469,7 +469,7 @@ Hecks.bluebook "Hecks" do
         sets :expected
         sets :timeout
 
-        emits EraCheckRequested
+        emits RevisionCheckRequested
       end
 
   command "Recheck" do
@@ -540,7 +540,7 @@ Hecks.bluebook "Hecks" do
     end
 
     policy "FetchWhenChecked" do
-      on      "Host.EraCheckRequested"
+      on      "Host.RevisionCheckRequested"
       ask     :fetch, with: { host: :host }
     end
 

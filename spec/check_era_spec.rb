@@ -9,7 +9,7 @@ require "hecks/tools/check_era"
 # bare TCPServer on an ephemeral port: it answers one canned response per
 # connection and records what was requested.
 RSpec.describe "the era check", :io do
-  def era_check = Hecks::Tools::ExpectedEra
+  def era_check = Hecks::Tools::ExpectedRevision
 
   # A stub host answering every request with `status` and `body`.
   class CheckEraStubHost
@@ -64,9 +64,9 @@ RSpec.describe "the era check", :io do
 
   def assess(url, list, timeout: 2) = Hecks::Tools::CheckEra.assess(url, list, timeout: timeout)
 
-  def unreachable = Hecks::Tools::ExpectedEra::Unreachable
+  def unreachable = Hecks::Tools::ExpectedRevision::Unreachable
 
-  def bad_response = Hecks::Tools::ExpectedEra::BadResponse
+  def bad_response = Hecks::Tools::ExpectedRevision::BadResponse
 
   # Assesses a host reporting `reported_era` against an allow-list file holding `list_text`.
   def assessed(list_text, reported_era = "199b08")

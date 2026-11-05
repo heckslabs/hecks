@@ -118,7 +118,7 @@ Resources:
           # domain's own declared name, known at generation time the
           # same way DBName/HECKS_WASM_PATH already are. HECKS_ERA is
           # "1" because that's what a FRESH database always gets:
-          # PostgresEra::LineageManager::EraResolver#check! mints era 1
+          # PostgresEra::LineageManager::RevisionResolver#check! mints era 1
           # unconditionally the first time any Ruby process boots
           # against an empty `hecks_eras` (era_resolver.rb's own
           # `held.empty?` branch) — deterministic, not guessed. `make

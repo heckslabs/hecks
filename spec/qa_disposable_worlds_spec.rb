@@ -16,7 +16,7 @@ RSpec.describe "the QA ledger's disposable worlds" do
   end
 
   it "reads the setting as declared for the ledger the QA bundle boots" do
-    expect(Hecks::Adapters::QaEraMint.disposable?(ledger)).to be(true)
+    expect(Hecks::Adapters::QaRevisionMint.disposable?(ledger)).to be(true)
   end
 
   it "shows it in hecks config, from the world" do
@@ -25,9 +25,9 @@ RSpec.describe "the QA ledger's disposable worlds" do
   end
 
   it "answers a mint of the ledger as disposable, without opening a connection", :aggregate_failures do
-    expect(Hecks::Adapters::QaEraMint.call(ledger, domain: "QualityControl", era: 14, request: { confirm: true }, ledger: ledger))
-      .to eq([Hecks::Adapters::QaEraMint::DISPOSABLE, false])
-    expect(Hecks::Adapters::QaEraMint::DISPOSABLE).to start_with("disposable, no mint needed")
+    expect(Hecks::Adapters::QaRevisionMint.call(ledger, domain: "QualityControl", era: 14, request: { confirm: true }, ledger: ledger))
+      .to eq([Hecks::Adapters::QaRevisionMint::DISPOSABLE, false])
+    expect(Hecks::Adapters::QaRevisionMint::DISPOSABLE).to start_with("disposable, no mint needed")
   end
 
   it "refuses the Maintenance mint of the ledger by that answer, before any rule reads it" do

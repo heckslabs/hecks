@@ -132,10 +132,10 @@ RSpec.describe "the Maintenance mint of the QA ledger", :io do
   end
 
   it "the entry point mints only with a matching would_mint verdict and watermark", :aggregate_failures do
-    expect(Hecks::Adapters::QaEraMint.call(@root, domain: "Ledger", era: 2, request: request(verdict: "would_refuse")))
+    expect(Hecks::Adapters::QaRevisionMint.call(@root, domain: "Ledger", era: 2, request: request(verdict: "would_refuse")))
       .to match([/rehearsal's verdict was would_refuse, not would_mint/, false])
     expect(era_count).to eq(1)
-    expect(Hecks::Adapters::QaEraMint.call(@root, domain: "Ledger", era: 2, request: request))
+    expect(Hecks::Adapters::QaRevisionMint.call(@root, domain: "Ledger", era: 2, request: request))
       .to eq([label_of(shape("amount")), true])
   end
 

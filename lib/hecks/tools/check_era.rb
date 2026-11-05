@@ -8,7 +8,7 @@ module Hecks
       # What a check found.
       #
       # @!attribute [r] verdict
-      #   @return [Tools::ExpectedEra::Verdict] the era compared with the list
+      #   @return [Tools::ExpectedRevision::Verdict] the era compared with the list
       # @!attribute [r] version
       #   @return [String] the gem version the host reports, empty when it reports none
       # @!attribute [r] line
@@ -24,17 +24,17 @@ module Hecks
       # @param timeout [Numeric] seconds allowed for connecting and for reading
       # @return [Finding] the comparison, whether or not the era is listed
       # @raise [Errno::ENOENT, Errno::EACCES] if the file cannot be read
-      # @raise [Tools::ExpectedEra::Unreachable] if the host cannot be reached
-      # @raise [Tools::ExpectedEra::BadResponse] if it answers no era
+      # @raise [Tools::ExpectedRevision::Unreachable] if the host cannot be reached
+      # @raise [Tools::ExpectedRevision::BadResponse] if it answers no era
       def assess(url, file, timeout:)
-        expected = Tools::ExpectedEra
+        expected = Tools::ExpectedRevision
         allowed  = expected.parse(File.read(file))
         document = expected.fetch_version(url, timeout: timeout)
         verdict  = expected.verdict(document.fetch("era"), allowed)
         Finding.new(verdict, document.fetch("version"), sentence(verdict, file))
       end
 
-      # @param verdict [Tools::ExpectedEra::Verdict] the comparison
+      # @param verdict [Tools::ExpectedRevision::Verdict] the comparison
       # @param file [String] the allow-list file, named in the sentence
       # @return [String] the one line that says what the comparison found
       def sentence(verdict, file)

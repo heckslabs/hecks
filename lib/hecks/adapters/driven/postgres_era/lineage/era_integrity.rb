@@ -8,7 +8,7 @@ module Hecks
       class Lineage
         # Era text integrity: each held text is verified against its stored digest before use,
         # and a drifted digest is resolved only by an append-only attestation.
-        module EraIntegrity
+        module RevisionIntegrity
           # The DDL for the append-only attestation record.
           CREATE_ATTESTATIONS_SQL = <<~SQL.freeze
             CREATE TABLE IF NOT EXISTS hecks_attestations (
@@ -51,7 +51,7 @@ module Hecks
             digest = Digest::SHA256.hexdigest(text)
             store_missing_digest!(ordinal, digest) if stored_digest.nil?
             unless stored_digest.nil? || stored_digest == digest
-              raise Runtime::WiringError, Runtime::EraTamper.refusal(domain: @domain, ordinal: ordinal)
+              raise Runtime::WiringError, Runtime::RevisionTamper.refusal(domain: @domain, ordinal: ordinal)
             end
 
             backfill_frozen_facts!(ordinal, text, stored_projection_json, stored_hash)
@@ -65,7 +65,7 @@ module Hecks
             archive_text!(ordinal, text)
             return if stored_projection_json || stored_hash.nil?
 
-            projection = Runtime::EraTamper.project(text)
+            projection = Runtime::RevisionTamper.project(text)
             return unless projection && Runtime::ProjectedBluebook.new(projection).mint_hash == stored_hash
 
             @db.exec_params(
