@@ -62,7 +62,15 @@ module Hecks
         status = status_of(state, agent, age)
         { id: id, name: name_of(id, agent), status: status, state: state["state"].to_s,
           detail: state["detail"].to_s.slice(0, 140), started: stamp(agent, edges),
-          ended: %w[busy blocked].include?(status) ? nil : edges.last, work_item: @runs.call.dig(id, :work_item).to_s }
+          ended: ended_of(status, edges) }.merge(ran_of(id))
+      end
+
+      def ended_of(status, edges) = %w[busy blocked].include?(status) ? nil : edges.last
+
+      # The AgentRun behind a session: its work item, run key and repo, empty when none is known.
+      def ran_of(id)
+        ran = @runs.call.fetch(id, {})
+        { work_item: ran[:work_item].to_s, run: ran[:run].to_s, repo: ran[:repo].to_s }
       end
 
       def name_of(id, agent) = (agent && agent["name"]) || id

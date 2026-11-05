@@ -101,6 +101,22 @@ RSpec.describe Hecks::Adapters::Dispatching do
     end
   end
 
+  # A filling held to a key prefix chooses only the planned work items whose key starts with it.
+  describe "held to a prefix" do
+    let(:planned) { [[item("gap-a", "lib/a"), item("gap-b", "lib/b"), item("other", "lib/c")]] }
+
+    it "chooses only the work items whose key starts with it", :aggregate_failures do
+      text = report(work_items: planned, record: { repo: "/repo", only: { value: "gap-a" } })
+
+      expect(text).to include("would start gap-a")
+      expect(text).not_to include("gap-b", "other")
+    end
+
+    it "chooses from every planned work item when none is named" do
+      expect(report(work_items: planned, record: { repo: "/repo" })).to include("would start gap-a", "would start other")
+    end
+  end
+
   describe "with confirm" do
     let(:held) do
       { work_items: [[item("a", "lib/a")], [item("s", "lib/s")]], record: { repo: "/repo", confirm: { value: true } } }

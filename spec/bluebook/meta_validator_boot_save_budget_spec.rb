@@ -2,7 +2,9 @@ require "spec_helper"
 
 # Guards the grammar boot against O(N^2) save cost: every dispatch touching a nested entity
 # re-saves its whole parent aggregate. Asserts a save count, which is deterministic on CI.
-# Budgets sit above the measured ~6,300 total and ~5,300 busiest aggregate, leaving headroom.
+# Budgets sit above the cold-boot measurement (~9,240 total, ~7,540 busiest aggregate).
+# The caches are off while measuring: a warm disk cache answers verdicts with zero saves,
+# so the count would depend on what an earlier run left on disk.
 RSpec.describe "grammar boot save budget" do
   # `@grammar_registry` is process-global and memoized; it is restored afterwards so the forced
   # rebuild stays invisible to other specs (ir_golden_spec.rb compares against the first boot).
@@ -16,6 +18,16 @@ RSpec.describe "grammar boot save budget" do
     yield
   ensure
     saved&.each { |ivar, value| validator.instance_variable_set(ivar, value) }
+  end
+
+  # @return [Hash{String => Integer}] how many saves each aggregate took while the grammar booted
+  def with_cold_caches
+    keys = %w[HECKS_VERDICT_CACHE HECKS_SYNTAX_BOOT_CACHE]
+    saved = keys.to_h { |key| [key, ENV.fetch(key, nil)] }
+    keys.each { |key| ENV[key] = "off" }
+    yield
+  ensure
+    saved&.each { |key, value| ENV[key] = value }
   end
 
   # @return [Hash{String => Integer}] how many saves each aggregate took while the grammar booted
@@ -40,10 +52,10 @@ RSpec.describe "grammar boot save budget" do
   end
 
   it "does not dispatch more saves than a generous budget while booting the language's own grammar", :aggregate_failures do
-    saves = saves_per_aggregate
+    saves = with_cold_caches { saves_per_aggregate }
 
     expect(saves).not_to be_empty
-    expect(saves.values.sum).to be < 9_000, "total saves #{saves.values.sum}; busiest: #{busiest(saves)}"
-    expect(saves.values.max).to be < 7_500, "busiest aggregate #{saves.values.max}; busiest: #{busiest(saves)}"
+    expect(saves.values.sum).to be < 10_500, "total saves #{saves.values.sum}; busiest: #{busiest(saves)}"
+    expect(saves.values.max).to be < 8_500, "busiest aggregate #{saves.values.max}; busiest: #{busiest(saves)}"
   end
 end

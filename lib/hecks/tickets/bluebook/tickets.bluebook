@@ -256,6 +256,12 @@ Hecks.bluebook "Tickets" do
       where(status: "accepted")
       order_by :adr
     end
+
+    query "Drafted" do
+      description "Every decision record still in draft, not yet accepted or superseded."
+      where(status: "draft")
+      order_by :adr
+    end
   end
 
   # A work item: one planned, started or done piece of Work, keyed by its id and held under the

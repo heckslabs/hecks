@@ -39,8 +39,18 @@ module Hecks
           QuerySpecification::Common::NullPolicy.sql_order(query_expression(order_by.field), order_by.direction, policy)
         end
 
+        # SQLite has no boolean type and the driver refuses one as a bound value, so a true or false
+        # binds as 1 or 0, the way the column stores it.
+        def sqlite_bind(value)
+          case value
+          when true then 1
+          when false then 0
+          else value
+          end
+        end
+
         def execute_query(sql, binds)
-          @db.execute(sql, binds).map { |row| Runtime::Instance.new(aggregate: @aggregate, id: row["id"], state: decode(row)) }
+          @db.execute(sql, binds.map { |value| sqlite_bind(value) }).map { |row| Runtime::Instance.new(aggregate: @aggregate, id: row["id"], state: decode(row)) }
         end
 
         def quote_ident(name)

@@ -3,6 +3,7 @@ require_relative "hecks/version"
 # vocabulary.bluebook. Plain data, required first, because some of
 # them are read while a bluebook is still being parsed.
 require_relative "hecks/vocabulary"
+require_relative "hecks/check_conclusion"
 require_relative "hecks/rendering"
 require_relative "hecks/secrets"
 require_relative "hecks/naming"

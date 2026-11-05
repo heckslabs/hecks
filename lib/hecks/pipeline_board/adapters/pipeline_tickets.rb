@@ -62,7 +62,10 @@ module Hecks
           claimed_at: field(record, :claimed_at).to_s }
       end
 
-      def run_item(run) = { work_item: field(run, :brief).to_s[WORK_ITEM_LINE, 1].to_s, status: field(run, :status).to_s }
+      def run_item(run)
+        { work_item: field(run, :brief).to_s[WORK_ITEM_LINE, 1].to_s, status: field(run, :status).to_s,
+          run: field(run, :run).to_s, repo: field(run, :repo).to_s }
+      end
 
       def records_of(domain, name)
         bluebook = @registry&.bluebook(domain)

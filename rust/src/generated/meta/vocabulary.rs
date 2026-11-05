@@ -4801,7 +4801,7 @@ pub const GATE_CHECK: &[GateCheck] = &[
     GateCheck { name: "doc_coverage", id: "doc_coverage", title: "docs coverage, words with no running example", argv: "bundle exec exe/hecks conformance_run.measure_doc_coverage! --wait", script: "", blocked: "the language ships something undocumented; write the missing sections and examples.", runs_in: "" },
     GateCheck { name: "rubocop", id: "rubocop", title: "rubocop, the static style and correctness gate", argv: "bundle exec rubocop -c .rubocop.yml", script: "", blocked: "rubocop found an offense.", runs_in: "" },
     GateCheck { name: "codegen_drift", id: "codegen_drift", title: "codegen drift, rust/src/generated/ must match a fresh regeneration", argv: "bundle exec exe/hecks regeneration_run.regenerate_corpus! --check --wait", script: "", blocked: "regenerating hits a diff. The whole generated tree is committed, so run `hecks regeneration_run.regenerate_corpus! --confirm` and commit what it changed.", runs_in: "" },
-    GateCheck { name: "comment_style", id: "comment_style", title: "comment style, every comment under lib/hecks and spec against docs/COMMENT_STYLE_GUIDE.md", argv: "bundle exec exe/hecks style_run.check_comments! paths=lib/hecks spec --wait", script: "", blocked: "a comment breaks the style guide, such as a line past 100 characters; `hecks StyleRun.fix_comments!` rewrites the mechanical ones, and the rest are shortened by hand. CI runs this same check.", runs_in: "" },
+    GateCheck { name: "comment_style", id: "comment_style", title: "comment style, every comment under lib/hecks and spec against docs/COMMENT_STYLE_GUIDE.md", argv: "bundle exec exe/hecks style_run.check_comments! paths=lib/hecks,spec --wait", script: "", blocked: "a comment breaks the style guide, such as a line past 100 characters; `hecks StyleRun.fix_comments!` rewrites the mechanical ones, and the rest are shortened by hand. CI runs this same check.", runs_in: "" },
     GateCheck { name: "comment_blocks", id: "comment_blocks", title: "comment blocks, no run of comment lines past ADR 0075's cap", argv: "bundle exec exe/hecks style_run.check_comments! paths=lib,spec,examples only=long_block --wait", script: "", blocked: "a comment block ran past the cap; shorten it.", runs_in: "" },
     GateCheck { name: "command_names", id: "command_names", title: "command names, every launcher name a workflow, hook, gate row, spec or guide invokes still resolves", argv: "bundle exec exe/hecks conformance_run.check_command_names! --wait", script: "", blocked: "a file invokes a launcher name the launcher no longer accepts (a renamed command, or a write without its !), so what runs it runs nothing. The failure names each file:line and the nearest valid name. Mark an invocation that is shown and not run with `dead-name-check: skip` on its line or the one before, a fence with `skip`, `historical` or `illustrative` after its language, or a whole page with `dead-name-check: skip-file` in its first lines.", runs_in: "" },
     GateCheck { name: "workflow_pagination", id: "workflow_pagination", title: "workflow pagination, no step counts or waits for GitHub list items from the first page alone", argv: "bundle exec exe/hecks conformance_run.check_workflow_pagination! --wait", script: "", blocked: "a workflow step counts or waits for the items of a list call (artifacts, runs, jobs, issues, releases, pulls, commits) and reads only the first 30. Add --paginate and count the lines it prints, or filter the path with ?name=.", runs_in: "" },
@@ -5359,6 +5359,167 @@ impl RequiredCheck {
                     "rspec_rust_host",
                     "rspec_fuzzing",
                     "release_consistency",
+                ],
+                offered: offered.as_str(),
+            }
+            .render_args(),
+        ))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct CheckConclusion {
+    pub name: &'static str,
+    pub certifies: &'static str,
+    pub clean: &'static str,
+    pub evidence: &'static str,
+    pub unfinished: &'static str,
+}
+
+pub const CHECK_CONCLUSION: &[CheckConclusion] = &[
+    CheckConclusion {
+        name: "success",
+        certifies: "yes",
+        clean: "yes",
+        evidence: "yes",
+        unfinished: "",
+    },
+    CheckConclusion {
+        name: "skipped",
+        certifies: "yes",
+        clean: "yes",
+        evidence: "",
+        unfinished: "yes",
+    },
+    CheckConclusion {
+        name: "neutral",
+        certifies: "",
+        clean: "yes",
+        evidence: "",
+        unfinished: "yes",
+    },
+    CheckConclusion {
+        name: "cancelled",
+        certifies: "",
+        clean: "",
+        evidence: "",
+        unfinished: "yes",
+    },
+    CheckConclusion {
+        name: "stale",
+        certifies: "",
+        clean: "",
+        evidence: "",
+        unfinished: "yes",
+    },
+    CheckConclusion {
+        name: "action_required",
+        certifies: "",
+        clean: "",
+        evidence: "",
+        unfinished: "yes",
+    },
+    CheckConclusion {
+        name: "",
+        certifies: "",
+        clean: "",
+        evidence: "",
+        unfinished: "yes",
+    },
+];
+
+impl CheckConclusion {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        crate::kernel::Json::Object(vec![
+            (
+                "name".to_string(),
+                crate::kernel::Json::Str(self.name.to_string()),
+            ),
+            (
+                "certifies".to_string(),
+                crate::kernel::Json::Str(self.certifies.to_string()),
+            ),
+            (
+                "clean".to_string(),
+                crate::kernel::Json::Str(self.clean.to_string()),
+            ),
+            (
+                "evidence".to_string(),
+                crate::kernel::Json::Str(self.evidence.to_string()),
+            ),
+            (
+                "unfinished".to_string(),
+                crate::kernel::Json::Str(self.unfinished.to_string()),
+            ),
+        ])
+    }
+
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        // `validate!`'s order: a name the set does not declare, then a field left out, then
+        // membership of the whole row.
+        let unknown = v.unknown_keys(&["name", "certifies", "clean", "evidence", "unfinished"]);
+        if !unknown.is_empty() {
+            let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
+            return Err(crate::kernel::Refusal::UnknownArgument(
+                crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+                    command: "CheckConclusion",
+                    unknown: &unknown,
+                    declared: &["name", "certifies", "clean", "evidence", "unfinished"],
+                }
+                .render_args(),
+            ));
+        }
+        if matches!(v.get("name"), None | Some(crate::kernel::Json::Null)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(
+                "CheckConclusion.name expects String, got nil".to_string(),
+            ));
+        }
+        if matches!(v.get("certifies"), None | Some(crate::kernel::Json::Null)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(
+                "CheckConclusion.certifies expects String, got nil".to_string(),
+            ));
+        }
+        if matches!(v.get("clean"), None | Some(crate::kernel::Json::Null)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(
+                "CheckConclusion.clean expects String, got nil".to_string(),
+            ));
+        }
+        if matches!(v.get("evidence"), None | Some(crate::kernel::Json::Null)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(
+                "CheckConclusion.evidence expects String, got nil".to_string(),
+            ));
+        }
+        if matches!(v.get("unfinished"), None | Some(crate::kernel::Json::Null)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(
+                "CheckConclusion.unfinished expects String, got nil".to_string(),
+            ));
+        }
+        for row in CHECK_CONCLUSION {
+            if v.get("name").and_then(crate::kernel::Json::as_str) == Some(row.name)
+                && v.get("certifies").and_then(crate::kernel::Json::as_str) == Some(row.certifies)
+                && v.get("clean").and_then(crate::kernel::Json::as_str) == Some(row.clean)
+                && v.get("evidence").and_then(crate::kernel::Json::as_str) == Some(row.evidence)
+                && v.get("unfinished").and_then(crate::kernel::Json::as_str) == Some(row.unfinished)
+            {
+                return Ok(row.clone());
+            }
+        }
+        // The refusal quotes the first column only, as Ruby's `refuse_non_member!` does.
+        let offered = v
+            .get("name")
+            .map(|offered| offered.inspect())
+            .unwrap_or_else(|| "nil".to_string());
+        Err(crate::kernel::Refusal::InvariantViolation(
+            crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
+                r#type: "CheckConclusion",
+                admitted: &[
+                    "success",
+                    "skipped",
+                    "neutral",
+                    "cancelled",
+                    "stale",
+                    "action_required",
+                    "",
                 ],
                 offered: offered.as_str(),
             }

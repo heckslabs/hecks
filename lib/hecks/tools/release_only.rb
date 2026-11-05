@@ -19,8 +19,6 @@ module Hecks
     #
     # Every case that cannot be confirmed answers "not a release bump", so the suite runs.
     module ReleaseOnly
-      GREEN = %w[success skipped].freeze
-
       # The `+` or `-` that opens an added or removed line of a diff.
       CHANGE_MARK = /\A[+-]/
 
@@ -55,7 +53,7 @@ module Hecks
       def certified?(runs, required: Hecks::Vocabulary.rows("RequiredCheck"))
         latest = latest_runs(runs)
         inherited = required.reject { |row| row["runs"] == "always" }.map { |row| row.fetch("name") }
-        inherited.all? { |name| GREEN.include?(latest[name].to_h["conclusion"]) }
+        inherited.all? { |name| Hecks::CheckConclusion.certifies?(latest[name].to_h["conclusion"]) }
       end
 
       # @return [Hash{String => Hash}] each check's most recently started run

@@ -74,9 +74,6 @@ module Hecks
         JSON.parse(out)
       end
 
-      PASSING_JOB_CONCLUSIONS = %w[success skipped].freeze
-      private_constant :PASSING_JOB_CONCLUSIONS
-
       # Everything up to the first line break.
       FIRST_LINE = /[^\n]*/
       private_constant :FIRST_LINE
@@ -85,7 +82,7 @@ module Hecks
       def failing_jobs(run, slug)
         return [] if run["conclusion"] == "success"
 
-        failed = jobs_of(run, slug).reject { |job| PASSING_JOB_CONCLUSIONS.include?(job["conclusion"]) }
+        failed = jobs_of(run, slug).reject { |job| Hecks::CheckConclusion.certifies?(job["conclusion"]) }
         failed.empty? ? [run.fetch("workflowName")] : failed.map { |job| job.fetch("name") }
       end
 

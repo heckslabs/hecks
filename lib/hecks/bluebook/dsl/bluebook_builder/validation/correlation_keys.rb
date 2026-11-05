@@ -10,7 +10,7 @@ module Hecks
 
             # A bare name (`correlates_by Message`) naming an aggregate of this bluebook means
             # that aggregate's identity, `"Message.id"`. Any other bare name is refused here,
-            # with the message the builder used to give. Runs before the other correlation
+            # with the message the builder gives. Runs before the other correlation
             # checks, so they only ever see the dotted form.
             def resolve_bare_correlation_keys!(bluebook)
               bluebook.process_managers.each do |process_manager|

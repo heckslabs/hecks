@@ -132,7 +132,7 @@ module Hecks
         origins[aggregate.name] = origin
       end
 
-      # Builds the composed aggregates: one per aggregate that was renamed or carries field rules.
+      # Builds the composed aggregates: one per aggregate that is renamed or carries field rules.
       def composed_aggregates(origins, ruled)
         origins.filter_map do |name, origin|
           source = ruled[origin]

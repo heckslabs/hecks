@@ -820,7 +820,7 @@ Hecks.bluebook "Bluebook" do
              blocked: "regenerating hits a diff. The whole generated tree is committed, so run `hecks regeneration_run.regenerate_corpus! --confirm` and commit what it changed."
       member name: "comment_style", id: "comment_style",
              title: "comment style, every comment under lib/hecks and spec against docs/COMMENT_STYLE_GUIDE.md",
-             argv: "bundle exec exe/hecks style_run.check_comments! paths=lib/hecks spec --wait",
+             argv: "bundle exec exe/hecks style_run.check_comments! paths=lib/hecks,spec --wait",
              script: "",
              blocked: "a comment breaks the style guide, such as a line past 100 characters; `hecks StyleRun.fix_comments!` rewrites the mechanical ones, and the rest are shortened by hand. CI runs this same check."
       member name: "comment_blocks", id: "comment_blocks",
@@ -1052,6 +1052,34 @@ Hecks.bluebook "Bluebook" do
       member name: "rspec_rust_host"
       member name: "rspec_fuzzing"
       member name: "release_consistency", runs: "always"
+    end
+
+    # The conclusion words GitHub gives a check run or a job, and what each one means to a reader.
+    # Each flag is `yes` or empty, and a conclusion missing from the table is a failure.
+    #
+    # `certifies` says the conclusion lets a check stand in for a passed one when a release inherits a
+    # certified base (ADR 0107), and when a pipeline run is counted green. `clean` says the conclusion
+    # is no failure for a run or a list of checks, and it is what the promotion gate counts a check
+    # by; it is wider than `certifies` because `neutral` is clean but does not certify. `evidence` says the job ran and its specs passed,
+    # the only conclusion that clears a red spec. `unfinished` says the job did not run to an end,
+    # so it is no verdict on the specs. An empty name is a check that has not concluded yet.
+    #
+    # The adapters that read these rows are the pipeline board, the CI speed reader, the candidate
+    # gating and red-flag surveys, the QualityControl run and check readers, and the release gate.
+    value_object "CheckConclusion" do
+      attribute :name,       String
+      attribute :certifies,  String
+      attribute :clean,      String
+      attribute :evidence,   String
+      attribute :unfinished, String
+
+      member name: "success",         certifies: "yes", clean: "yes", evidence: "yes", unfinished: ""
+      member name: "skipped",         certifies: "yes", clean: "yes", evidence: "",    unfinished: "yes"
+      member name: "neutral",         certifies: "",    clean: "yes", evidence: "",    unfinished: "yes"
+      member name: "cancelled",       certifies: "",    clean: "",    evidence: "",    unfinished: "yes"
+      member name: "stale",           certifies: "",    clean: "",    evidence: "",    unfinished: "yes"
+      member name: "action_required", certifies: "",    clean: "",    evidence: "",    unfinished: "yes"
+      member name: "",                certifies: "",    clean: "",    evidence: "",    unfinished: "yes"
     end
 
     # The branches a change travels along. `main` takes only pull requests that GitHub's merge

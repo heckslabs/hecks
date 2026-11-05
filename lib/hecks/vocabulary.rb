@@ -49,6 +49,15 @@ module Hecks
         {"name"=>"build-dependencies"}.freeze,
         {"name"=>"workspace"}.freeze
       ].freeze,
+      "CheckConclusion" => [
+        {"name"=>"success", "certifies"=>"yes", "clean"=>"yes", "evidence"=>"yes", "unfinished"=>""}.freeze,
+        {"name"=>"skipped", "certifies"=>"yes", "clean"=>"yes", "evidence"=>"", "unfinished"=>"yes"}.freeze,
+        {"name"=>"neutral", "certifies"=>"", "clean"=>"yes", "evidence"=>"", "unfinished"=>"yes"}.freeze,
+        {"name"=>"cancelled", "certifies"=>"", "clean"=>"", "evidence"=>"", "unfinished"=>"yes"}.freeze,
+        {"name"=>"stale", "certifies"=>"", "clean"=>"", "evidence"=>"", "unfinished"=>"yes"}.freeze,
+        {"name"=>"action_required", "certifies"=>"", "clean"=>"", "evidence"=>"", "unfinished"=>"yes"}.freeze,
+        {"name"=>"", "certifies"=>"", "clean"=>"", "evidence"=>"", "unfinished"=>"yes"}.freeze
+      ].freeze,
       "CiGate" => [
         {"name"=>"runtime_changed", "workflow"=>"ci.yml", "mode"=>"touches", "pattern"=>"^lib/hecks/runtime/", "push"=>"before_sha", "label"=>"does this change touch lib/hecks/runtime/**?"}.freeze,
         {"name"=>"release_only", "workflow"=>"ci.yml", "mode"=>"release_only", "pattern"=>"", "push"=>"before_sha", "label"=>"is this change only a release bump on a certified base?"}.freeze,
@@ -124,7 +133,7 @@ module Hecks
         {"name"=>"doc_coverage", "id"=>"doc_coverage", "title"=>"docs coverage, words with no running example", "argv"=>"bundle exec exe/hecks conformance_run.measure_doc_coverage! --wait", "script"=>"", "blocked"=>"the language ships something undocumented; write the missing sections and examples."}.freeze,
         {"name"=>"rubocop", "id"=>"rubocop", "title"=>"rubocop, the static style and correctness gate", "argv"=>"bundle exec rubocop -c .rubocop.yml", "script"=>"", "blocked"=>"rubocop found an offense."}.freeze,
         {"name"=>"codegen_drift", "id"=>"codegen_drift", "title"=>"codegen drift, rust/src/generated/ must match a fresh regeneration", "argv"=>"bundle exec exe/hecks regeneration_run.regenerate_corpus! --check --wait", "script"=>"", "blocked"=>"regenerating hits a diff. The whole generated tree is committed, so run `hecks regeneration_run.regenerate_corpus! --confirm` and commit what it changed."}.freeze,
-        {"name"=>"comment_style", "id"=>"comment_style", "title"=>"comment style, every comment under lib/hecks and spec against docs/COMMENT_STYLE_GUIDE.md", "argv"=>"bundle exec exe/hecks style_run.check_comments! paths=lib/hecks spec --wait", "script"=>"", "blocked"=>"a comment breaks the style guide, such as a line past 100 characters; `hecks StyleRun.fix_comments!` rewrites the mechanical ones, and the rest are shortened by hand. CI runs this same check."}.freeze,
+        {"name"=>"comment_style", "id"=>"comment_style", "title"=>"comment style, every comment under lib/hecks and spec against docs/COMMENT_STYLE_GUIDE.md", "argv"=>"bundle exec exe/hecks style_run.check_comments! paths=lib/hecks,spec --wait", "script"=>"", "blocked"=>"a comment breaks the style guide, such as a line past 100 characters; `hecks StyleRun.fix_comments!` rewrites the mechanical ones, and the rest are shortened by hand. CI runs this same check."}.freeze,
         {"name"=>"comment_blocks", "id"=>"comment_blocks", "title"=>"comment blocks, no run of comment lines past ADR 0075's cap", "argv"=>"bundle exec exe/hecks style_run.check_comments! paths=lib,spec,examples only=long_block --wait", "script"=>"", "blocked"=>"a comment block ran past the cap; shorten it."}.freeze,
         {"name"=>"command_names", "id"=>"command_names", "title"=>"command names, every launcher name a workflow, hook, gate row, spec or guide invokes still resolves", "argv"=>"bundle exec exe/hecks conformance_run.check_command_names! --wait", "script"=>"", "blocked"=>"a file invokes a launcher name the launcher no longer accepts (a renamed command, or a write without its !), so what runs it runs nothing. The failure names each file:line and the nearest valid name. Mark an invocation that is shown and not run with `dead-name-check: skip` on its line or the one before, a fence with `skip`, `historical` or `illustrative` after its language, or a whole page with `dead-name-check: skip-file` in its first lines."}.freeze,
         {"name"=>"workflow_pagination", "id"=>"workflow_pagination", "title"=>"workflow pagination, no step counts or waits for GitHub list items from the first page alone", "argv"=>"bundle exec exe/hecks conformance_run.check_workflow_pagination! --wait", "script"=>"", "blocked"=>"a workflow step counts or waits for the items of a list call (artifacts, runs, jobs, issues, releases, pulls, commits) and reads only the first 30. Add --paginate and count the lines it prints, or filter the path with ?name=."}.freeze,

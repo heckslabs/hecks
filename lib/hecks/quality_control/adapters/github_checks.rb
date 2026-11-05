@@ -15,9 +15,6 @@ module Hecks
       # All keywords are unused; the adapter takes no per-boot configuration.
       def initialize(aggregate: nil, settings: {}, root: nil); end
 
-      # Check-run conclusions that count as green; `skipped` covers path-filtered workflows.
-      PASSING = %w[success neutral skipped].freeze
-
       # The GitHub Actions app. A promotion counts only the checks it reported: a check of the same
       # name posted by another app, a token or a person certifies nothing.
       GITHUB_ACTIONS_APP_ID = 15_368
@@ -38,7 +35,7 @@ module Hecks
       def run(commit:, **)
         sha = valid_sha(commit)
         runs = settled_runs(sha)
-        failing = runs.reject { |run| PASSING.include?(run["conclusion"]) }
+        failing = runs.reject { |run| Hecks::CheckConclusion.clean?(run["conclusion"]) }
         raise failure_message(failing, runs, sha) unless failing.empty?
 
         { summary: { value: "#{runs.length} checks, all green (#{sha[0, 7]})" } }
@@ -92,7 +89,7 @@ module Hecks
         return :missing unless run
         return :pending unless run["status"] == "completed"
 
-        PASSING.include?(run["conclusion"]) ? :passed : :failed
+        Hecks::CheckConclusion.clean?(run["conclusion"]) ? :passed : :failed
       end
 
       # Accepts a materialized value hash with symbol or string keys, or a bare string.

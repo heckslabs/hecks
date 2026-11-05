@@ -28,7 +28,7 @@ module Hecks
       #
       # @param _held [Hash] the `Drain` record: `run`; unused
       # @return [Hash{Symbol => Object}] `lines:` one Hash per call, with `call_id` and the
-      #   fields in {FIELDS}; `through:` the number of spool lines consumed so far
+      #   fields in `FIELDS`; `through:` the number of spool lines consumed so far
       # @raise [SystemCallError] when the spool or the cursor exists and cannot be read
       def read(**_held)
         done = @cursor.position

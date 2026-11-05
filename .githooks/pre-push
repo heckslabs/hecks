@@ -56,10 +56,15 @@ if [ -n "$PUSHED_REFS" ]; then
 fi
 
 # The hook gates `main` and the candidate ref the push train queues on (ADR 0181). A push that
-# names neither (a feature branch, a note) skips every check, the style checks included.
+# names neither (a feature branch, a note) runs only the comment-style checks: the same two CI's
+# checks_static job runs, so a style break is caught before the push, not after the PR's CI.
 if [ -n "$PUSHED_REFS" ]; then
   if ! printf '%s\n' "$PUSHED_REFS" | awk '$3 == "refs/heads/main" || $3 == "refs/heads/candidate" { found = 1 } END { exit !found }'; then
-    printf '[pre-push] no pushed ref is main or candidate — skipping all checks.\n\n'
+    printf '[pre-push] no pushed ref is main or candidate — running the comment-style checks only.\n\n'
+    if ! bundle exec ruby -Ilib -e 'require "hecks/tools"; Hecks::Tools.script("gate", ARGV)' quick only=comment_style,comment_blocks; then
+      printf '\n[pre-push] BLOCKED by comment style. Fix it, or push with --no-verify and say why.\n\n'
+      exit 1
+    fi
     exit 0
   fi
 fi

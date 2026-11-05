@@ -25,6 +25,10 @@ RSpec.describe "Pipeline passages" do
 
   def yield_row(work) = run("tickets", "Work.yield!", "to=#{work}", "reason.value=area overlaps")
 
+  def finish(work) = run("tickets", "Work.finish!", "to=#{work}")
+
+  def reopen(work) = run("tickets", "Work.reopen!", "to=#{work}", "title.value=Reopened #{work}")
+
   def rows(query) = JSON.parse(launch("pipeline", "Passage.#{query}").first)
 
   def passage(change) = rows("in_flight").find { |row| row["change"] == change }
@@ -84,5 +88,13 @@ RSpec.describe "Pipeline passages" do
     advance("p-moved", "stall", "stalled.value=no session for 3 h")
     advance("p-moved", "land")
     expect(passage("p-moved")).to include("stalled" => "", "stage" => "landed")
+  end
+
+  it "leaves an open passage where it stands when its Work item is reopened", :aggregate_failures do
+    plan("p-open-reopen")
+    start("p-open-reopen")
+    finish("p-open-reopen")
+    reopen("p-open-reopen")
+    expect(passage("p-open-reopen")).to include("stage" => "dispatched", "session" => "s1")
   end
 end

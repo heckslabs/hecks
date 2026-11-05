@@ -45,6 +45,7 @@ module DoctestNames
     dsl-work-slices.md
     event-storming-policies.md
     future-features.md
+    migrating-7-to-8.md
     fuzzer-property-expansion-plan.md
     HECKS_IMPLEMENTATION_PLAN.md
     migrating-2-to-3.md

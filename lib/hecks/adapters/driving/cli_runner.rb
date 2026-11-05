@@ -72,7 +72,8 @@ module Hecks
         def call(runtime:, argv:, program: "hecks run", usage_log: false, err: $stderr)
           level, argv = split_verbosity(argv)
           return [Verbosity::CONFLICT, USAGE] if level == :conflict
-          return if argv.first == "resume" && argv[1] # a resume that names a run runs a saga: it needs a booted domain
+          # A resume that names a run runs a saga, so it needs a booted domain.
+          return if argv.first == "resume" && argv[1]
 
           with_verbosity(level) { answer_line(runtime, argv, program, usage_log, err) }
         rescue Interrupt
