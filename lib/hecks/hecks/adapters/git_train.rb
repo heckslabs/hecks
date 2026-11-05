@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "open3"
 require_relative "git"
 require_relative "console_capture"
 require_relative "push_size"
@@ -9,6 +10,7 @@ require_relative "git_train/bench"
 require_relative "git_train/local_branch"
 require_relative "git_train/carriage"
 require_relative "git_train/candidate_boarding"
+require_relative "git_train/pull_request_boarding"
 require_relative "candidate_gate"
 require_relative "git_train/survey"
 require_relative "git_train/settlement"
@@ -48,8 +50,19 @@ module Hecks
         @registry = options.delete(:registry)
         @mint = options.delete(:mint) || MintStep.new
         @domain = options.delete(:domain) || JournalStore::HeldMint::DOMAIN
-        @runner = options.delete(:runner)
+        @runner = options.delete(:runner) || method(:run_command)
         @git = Git.new
+      end
+
+      # Runs a command (`gh`, for the pull requests) in a directory: its success and its output.
+      # The default runner: the train reaches GitHub through the same `gh` the operator uses.
+      #
+      # @param argv [Array<String>] the command and its arguments
+      # @param chdir [String] the directory it runs in
+      # @return [Array(Boolean, String)] whether it succeeded, and its output and error
+      def run_command(argv, chdir:)
+        out, err, status = Open3.capture3(*argv, chdir: chdir)
+        [status.success?, "#{out}#{err}"]
       end
 
       # Waits for the push ahead in the same repository, runs the Hecks mint, then carries the
@@ -73,6 +86,19 @@ module Hecks
           minted = @mint.run(run: plain(held[:run]), confirm: plain(held[:confirm]))
           after_mint(minted, boarded, settle_and_carry(held, boarded), size)
         end
+      end
+
+      # Reads the pull request of a queued boarding. Merged, it names the merge commit as the pushed
+      # commit, and the saga records the push from it; open, it changes nothing.
+      #
+      # @param held [Hash] the `SendTrain` record: `boarded` (the commit queued) and `checkout`
+      # @return [Hash{Symbol => Hash}] `outcome:` `merged` (with `pushed:`) or `open`, and `report:`
+      # @raise [ConsoleCapture::Failure] when no boarding is queued, or `gh` cannot read its PR
+      def observe(**held)
+        boarded = plain(held[:boarded]) or raise ConsoleCapture::Failure, "no queued boarding to observe"
+        checkout = toplevel(plain(held[:checkout]) || Dir.pwd)
+        answer = PullRequestBoarding::Observation.new(@runner, checkout).answer(boarded)
+        answer.merge(checkout: { value: checkout }, boarded: { value: boarded })
       end
 
       # Lists every checkout under a directory whose default branch has commits its remote does
@@ -99,8 +125,8 @@ module Hecks
       end
 
       # Brings the branch up to its remote and settles the shape ledger, then carries the settled
-      # commit: to the candidate ref while the candidate gate is on and main is boarded (ADR
-      # 0181), to the branch itself otherwise.
+      # commit: as a pull request into main when main is boarded (a branch, a PR, auto-merge once
+      # the checks pass), to the branch itself otherwise.
       def settle_and_carry(held, boarded)
         branch = branch_of(held)
         remote = remote_of(held)
@@ -110,12 +136,10 @@ module Hecks
 
       def carrier(branch, remote, held)
         config = gate_config(held)
-        return Carriage.new(@git, @checkout, branch: branch, remote: remote, config: config) unless gated?(branch)
+        return Carriage.new(@git, @checkout, branch: branch, remote: remote, config: config) unless branch == "main"
 
-        CandidateBoarding.new(@git, @checkout, remote: remote, config: config, runner: @runner)
+        PullRequestBoarding.new(@git, @checkout, remote: remote, config: config, runner: @runner)
       end
-
-      def gated?(branch) = branch == "main" && CandidateGate.new(@checkout, registry: @registry, git: @git).on?
 
       # What the push is, said before it is made: how many commits go and, past the world's
       # threshold, the size sentence. It only says; a push of any size is carried.

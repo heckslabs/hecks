@@ -57,12 +57,9 @@ Hecks.bluebook "CiPipeline" do
     end
 
     # The events the projector writes under `on:`. `schedule` is not here: its cron text is not
-    # expressible yet, so the scheduled workflows stay hand-written. `push_candidate` is a push of
-    # the candidate ref the push train queues on, and `ci_completed_candidate` the completion of
-    # the `CI` workflow on it (ADR 0181).
+    # expressible yet, so the scheduled workflows stay hand-written.
     value_object "Trigger" do
-      attribute :value, String, one_of: %w[push_main push_candidate ci_completed_candidate pull_request workflow_call
-                                           workflow_dispatch]
+      attribute :value, String, one_of: %w[push_main pull_request workflow_call workflow_dispatch]
     end
 
     value_object "SecretName" do
