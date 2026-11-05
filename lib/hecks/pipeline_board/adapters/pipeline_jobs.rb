@@ -80,7 +80,7 @@ module Hecks
 
         { context: PipelineBoard::SessionContext.of(state["linkScanPath"].to_s).merge(links: Array(state["children"])),
           resume: state.values_at("resumeSessionId", "sessionId").compact.first, cwd: state["cwd"].to_s,
-          permission: permission_of(state) }
+          permission: permission_of(state), attach: state["daemonShort"].to_s }
       end
 
       def ended_of(status, edges) = %w[busy blocked].include?(status) ? nil : edges.last

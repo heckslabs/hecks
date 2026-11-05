@@ -328,8 +328,9 @@ function showAnswer() {
     $("ans-question").replaceChildren();
     $("ans-key").replaceChildren("Run " + (s.run || "(no run key)") + (s.repo ? " in " + s.repo : ""));
   }
-  $("ans-send").disabled = !(s.run || s.id);
-  $("ans-status").textContent = (s.run || s.id) ? "" : "This session cannot be answered from the board.";
+  const attachOnly = !s.run && !!s.attach;
+  $("ans-send").disabled = attachOnly || !(s.run || s.id);
+  $("ans-status").textContent = attachOnly ? "This session is running in the background. Answer it in the session: claude attach " + s.attach : (s.run || s.id) ? "" : "This session cannot be answered from the board.";
 }
 async function sendAnswer() {
   const s = currentWaiting(), text = $("ans-text").value.trim(), send = $("ans-send");
@@ -382,7 +383,7 @@ function renderSessions(list) {
   list.forEach((s, i) => {
     if (s.status !== "blocked") return;
     rows[i].classList.add("clickable"); rows[i].title = "Click to answer";
-    answerable(rows[i], () => openAnswer([{ id: s.id, name: s.name, run: s.run, repo: s.repo, work_item: s.work_item, question: s.detail, context: s.context }], s.id));
+    answerable(rows[i], () => openAnswer([{ id: s.id, name: s.name, run: s.run, repo: s.repo, work_item: s.work_item, question: s.detail, context: s.context, attach: s.attach }], s.id));
   });
 }
 function renderFan(fan) {
@@ -401,7 +402,7 @@ function renderFan(fan) {
   sessions.forEach((s, i) => {
     if (s.status !== "blocked" || !laneRows[i]) return;
     laneRows[i].classList.add("clickable");
-    answerable(laneRows[i], () => openAnswer([{ id: s.id, name: s.name, run: s.run, repo: s.repo, work_item: s.work_item, question: s.detail, context: s.context }], s.id));
+    answerable(laneRows[i], () => openAnswer([{ id: s.id, name: s.name, run: s.run, repo: s.repo, work_item: s.work_item, question: s.detail, context: s.context, attach: s.attach }], s.id));
   });
   const fill = fan.fill, ok = fill && !isUnknown(fill), cap = ok ? fill.cap : 8;
   const alive = sessions.filter((s) => s.status === "busy" || s.status === "blocked"), busy = alive.filter((s) => s.row).length;
