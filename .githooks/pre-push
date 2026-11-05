@@ -36,6 +36,16 @@ export HECKS_ENVIRONMENT
 # from a remote-tracking branch. Pushed refs arrive on stdin, not in $1/$2.
 TAG_SKIP_INELIGIBLE="$WORKDIR/tag_skip_ineligible"
 PUSHED_REFS=$(cat)
+
+# Git sends one line per ref it pushes. Empty stdin names no ref at all, so the hook cannot tell
+# whether main is among them. Refuse by name rather than guess: the main guard below would refuse
+# with a message about the train, which is the wrong reason for a push that names no branch.
+if [ -z "$PUSHED_REFS" ]; then
+  printf '[pre-push] git sent no pushed refs on stdin, so this hook cannot tell whether main is being pushed; refusing.\n' >&2
+  printf '[pre-push] Push a named ref (git push origin <branch>). --no-verify skips the hook; say why.\n' >&2
+  exit 1
+fi
+
 if [ -n "$PUSHED_REFS" ]; then
   printf '%s\n' "$PUSHED_REFS" | while IFS=' ' read -r local_ref local_oid _remote_ref _remote_oid; do
     case "$local_ref" in
