@@ -20,12 +20,12 @@ RSpec.describe "the Hecks domain's committed world names" do
   end
 
   it "names Era.MintHeld as the command an unminted boot may write" do
-    settings = registry.binding_settings("Hecks", "persisted_by", "PostgresEra")
+    settings = registry.binding_settings("Hecks", "persisted_by", "Postgres")
     expect(Hecks::Ports::Persistence::MintDoor.names(settings)).to eq(["Era.MintHeld"])
   end
 
   it "agrees with the bluebook, which no longer says mints_era" do
-    settings = registry.binding_settings("Hecks", "persisted_by", "PostgresEra")
+    settings = registry.binding_settings("Hecks", "persisted_by", "Postgres")
     expect { Hecks::Ports::Persistence::MintDoor.check!(hecks, settings) }.not_to raise_error
   end
 end

@@ -74,7 +74,7 @@ RSpec.describe "rehearsing a domain's next era" do
   # The shop's own hecksagon binds only Order, so Widget is bound in an overlay or nowhere.
   def bind_only_order
     File.write(File.join(shop, "bluebook", "shop.hecksagon"),
-               "Hecks.hecksagon \"Shop\" do\n  Shop::Order.persisted_by \"PostgresEra\"\nend\n")
+               "Hecks.hecksagon \"Shop\" do\n  Shop::Order.persisted_by \"Postgres\"\n  revisions true\nend\n")
   end
 
   def limits_of(record) = record["unchecked"].map { |limit| limit["what"] }
@@ -283,7 +283,7 @@ RSpec.describe "rehearsing a domain's next era" do
 
     it "boots when the overlay that carries the binds is the one loaded", :aggregate_failures, :process do
       bind_only_order
-      overlay("production", "Hecks.hecksagon \"Shop\" do\n  Shop::Widget.persisted_by \"PostgresEra\"\nend\n")
+      overlay("production", "Hecks.hecksagon \"Shop\" do\n  Shop::Widget.persisted_by \"Postgres\"\n  revisions true\nend\n")
 
       expect(verdict_of(rehearse)).to eq("would_mint")
     end
