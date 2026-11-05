@@ -54,7 +54,8 @@ module Hecks
         def timed(job)
           return unless job["startedAt"] && job["completedAt"]
 
-          { name: job["name"], minutes: minutes(job["startedAt"], job["completedAt"]), conclusion: job["conclusion"].to_s }
+          { name: job["name"], minutes: minutes(job["startedAt"], job["completedAt"]), conclusion: job["conclusion"].to_s,
+            url: job["url"] }
         end
 
         def minutes(from, upto)
