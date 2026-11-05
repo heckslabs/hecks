@@ -734,6 +734,11 @@ Hecks.bluebook "Hecks" do
       ask     :examine, with: { run: :run }
     end
 
+    policy "ExamineWhenShortenValueObjectsRequested" do
+      on      "StyleRun.ShortenValueObjectsRequested"
+      ask     :examine, with: { run: :run }
+    end
+
     policy "ExamineWhenWriteCommentBaselineRequested" do
       on      "StyleRun.WriteCommentBaselineRequested"
       ask     :examine, with: { run: :run }

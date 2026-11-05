@@ -1,9 +1,12 @@
 require "spec_helper"
+require_relative "support/stand_in_claude"
 
 # The roles hand work to each other through pipeline events: a coder's submission asks the reviewer,
 # and a verified passage makes the release manager recommend promotion. Each reaction is seen in the
 # reaction log, and what it made is read back through the roles' queries.
 RSpec.describe "the agents handing work to each other" do
+  include_context "with a stand-in claude"
+
   before(:all) do
     @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
   end

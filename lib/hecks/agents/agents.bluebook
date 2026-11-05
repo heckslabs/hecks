@@ -19,13 +19,9 @@ Hecks.bluebook "Agents" do
       invariant("a role has a name") { !value.to_s.empty? }
     end
 
-    value_object "RoleKind" do
-      attribute :value, String
-    end
+    value_object "RoleKind", String
 
-    value_object "CommandName" do
-      attribute :value, String
-    end
+    value_object "CommandName", String
 
     # Declares a role. Its kind says which judgment it owns: orchestrator, architect, coder,
     # reviewer or release manager.
@@ -74,30 +70,18 @@ Hecks.bluebook "Agents" do
       invariant("a review names its Work item") { !value.to_s.empty? }
     end
 
-    value_object "Verdict" do
-      attribute :value, String
-    end
+    value_object "Verdict", String
 
     # The architect's closing text: the findings behind the verdict, kept with it.
-    value_object "FindingsText" do
-      attribute :value, String
-    end
+    value_object "FindingsText", String
 
-    value_object "HopCount" do
-      attribute :value, Integer
-    end
+    value_object "HopCount", Integer
 
-    value_object "RoleRef" do
-      attribute :value, String
-    end
+    value_object "RoleRef", String
 
-    value_object "RepoPath" do
-      attribute :value, String
-    end
+    value_object "RepoPath", String
 
-    value_object "PlanText" do
-      attribute :value, String
-    end
+    value_object "PlanText", String
 
     # A request is refused at the third hop, so a chain of reviews that ask for reviews stops by name.
     command "Request" do
@@ -142,31 +126,41 @@ Hecks.bluebook "Agents" do
   aggregate "SubmissionReview" do
     description "One judgment by the reviewer role of a submission's failing spec: asked as an event, answered with a verdict, and a real bug handed to a person."
 
-    identified_by :work
+    identified_by :submission
 
-    attribute :work, WorkKey
+    attribute :submission, SubmissionRef
+    attribute :work, WorkKey, optional: true
     attribute :judgment, Judgment, optional: true
     attribute :hops, HopCount, optional: true
 
-    value_object "WorkKey" do
+    # The commit the coder submitted: the review's key, and the key of the reviewer's run.
+    value_object "SubmissionRef" do
       attribute :value, String, matches: :present
-      invariant("a review names its Work item") { !value.to_s.empty? }
+      invariant("a review names the commit it judges") { !value.to_s.empty? }
     end
 
-    value_object "Judgment" do
-      attribute :value, String
-    end
+    value_object "WorkKey", String
 
-    value_object "HopCount" do
-      attribute :value, Integer
-    end
+    value_object "Judgment", String
+
+    value_object "HopCount", Integer
+
+    value_object "RoleRef", String
+
+    value_object "RepoPath", String
+
+    value_object "BriefText", String
 
     command "Request" do
       role "System"
       goal "Ask the reviewer to judge a submission's failing spec"
 
+      attribute :submission, SubmissionRef, sets: true
       attribute :work, WorkKey, sets: true
       attribute :hops, HopCount, sets: true
+      attribute :role, RoleRef
+      attribute :repo, RepoPath
+      attribute :brief, BriefText
 
       given("the request is under the hop limit") { hops.value < 3 }
 
@@ -199,8 +193,8 @@ Hecks.bluebook "Agents" do
     end
 
     query "Reviews" do
-      description "Every submission review, by Work item: the judgment once the reviewer has given it."
-      order_by :work
+      description "Every submission review, by commit: the judgment once the reviewer has given it."
+      order_by :submission
     end
 
     policy "RealBugGoesToAPerson" do
@@ -225,17 +219,11 @@ Hecks.bluebook "Agents" do
       invariant("a planning request has a key") { !value.to_s.empty? }
     end
 
-    value_object "GoalText" do
-      attribute :value, String
-    end
+    value_object "GoalText", String
 
-    value_object "RoleRef" do
-      attribute :value, String
-    end
+    value_object "RoleRef", String
 
-    value_object "RepoPath" do
-      attribute :value, String
-    end
+    value_object "RepoPath", String
 
     command "Request" do
       role "Maintainer"
@@ -273,13 +261,9 @@ Hecks.bluebook "Agents" do
       invariant("a routing names its Work item") { !value.to_s.empty? }
     end
 
-    value_object "Conflict" do
-      attribute :value, String
-    end
+    value_object "Conflict", String
 
-    value_object "HopCount" do
-      attribute :value, Integer
-    end
+    value_object "HopCount", Integer
 
     # `conflict` is "yes" when the item spans several areas or overlaps another session's.
     command "Check" do
@@ -344,9 +328,7 @@ Hecks.bluebook "Agents" do
       invariant("a recommendation names a change") { !value.to_s.empty? }
     end
 
-    value_object "Reasons" do
-      attribute :value, String
-    end
+    value_object "Reasons", String
 
     lifecycle :status, default: "recommended" do
       transition "Settle" => "settled", from: "recommended"

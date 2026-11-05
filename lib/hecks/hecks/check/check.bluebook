@@ -59,9 +59,7 @@ Hecks.bluebook "Hecks" do
         attribute :value, String
       end
 
-      value_object "CheckCount" do
-        attribute :value, String
-      end
+      value_object "CheckCount", String
 
       lifecycle :status, default: "requested" do
         mark :failure, "faulted"
@@ -505,6 +503,19 @@ Hecks.bluebook "Hecks" do
         sets :operation, to: "fix_comments"
 
         emits FixCommentsRequested
+      end
+
+      command "ShortenValueObjects" do
+        role "Maintainer"
+        goal "Rewrite every bluebook value object block that only wraps one plain value as the shorthand"
+
+        attribute :paths,   PathList, optional: true, sets: true
+        attribute :run,     RunKey, sets: true
+        attribute :confirm, Switch, optional: true, sets: true
+
+        sets :operation, to: "shorten_value_objects"
+
+        emits ShortenValueObjectsRequested
       end
 
       command "WriteCommentBaseline" do

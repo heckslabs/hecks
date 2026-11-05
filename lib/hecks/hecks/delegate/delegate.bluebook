@@ -546,6 +546,13 @@ Hecks.bluebook "Hecks" do
 
     # A planning request starts the planner's session as a run keyed by the request, with the goal as
     # its brief. The planner drafts a plan and asks; it creates Work items only once the owner says so.
+    # A submission review starts the reviewer's session as a run keyed by the submitted commit, so it
+    # never collides with the architect's run for the same Work item. The brief names the branch.
+    policy "StartTheReviewerOnReviewRequest" do
+      on      "SubmissionReview.SubmissionReviewRequested"
+      trigger AgentRun::Dispatch, with: { run: :submission, repo: :repo, brief: :brief, agent: :role }
+    end
+
     policy "StartThePlannerOnPlanningRequest" do
       on      "Planning.PlanningRequested"
       trigger AgentRun::Dispatch, with: { run: :plan, repo: :repo, brief: :goal, agent: :role }
@@ -565,9 +572,7 @@ Hecks.bluebook "Hecks" do
         invariant("a session has an id") { !value.to_s.empty? }
       end
 
-      value_object "SessionCondition" do
-        attribute :value, String
-      end
+      value_object "SessionCondition", String
 
       command "Remove" do
         role "Operator"

@@ -84,7 +84,8 @@ module Hecks
       # @raise [ConsoleCapture::Failure] when the job's state cannot be read
       def read_job(**held)
         job = @jobs.state(plain(held[:session]))
-        { state: job["state"].to_s, detail: job["detail"].to_s }.merge(architect_facts(job, held), run_facts(held))
+        { state: job["state"].to_s, detail: job["detail"].to_s }.merge(architect_facts(job, held), reviewer_facts(job, held),
+                                                                       run_facts(held))
       end
 
       # The most of the architect's closing text a review keeps.
@@ -96,6 +97,18 @@ module Hecks
         return { verdict: "", findings: "" } unless plain(held[:agent]).to_s == "architect"
 
         { verdict: verdict_of(job), findings: job.dig("output", "result").to_s[0, FINDINGS_LIMIT] }
+      end
+
+      # The reviewer's judgment as its closing text states it: `real_bug` or `stale_expectation`.
+      JUDGMENT_WORDS = /\b(real[ _]bug|stale[ _]expectation)\b/i
+
+      # @return [Hash{Symbol => String}] the reviewer's `judgment`, empty for any other agent or a
+      #   text that names none
+      def reviewer_facts(job, held)
+        return { judgment: "" } unless plain(held[:agent]).to_s == "reviewer"
+
+        closing = [job.dig("output", "result"), job["detail"]].compact.join(" ")
+        { judgment: closing[JUDGMENT_WORDS, 1].to_s.downcase.tr(" ", "_") }
       end
 
       # @return [Hash{Symbol => String}] the run the job belongs to: its key, its last known
