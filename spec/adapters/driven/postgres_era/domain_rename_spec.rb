@@ -10,7 +10,7 @@ require_relative "../../../support/mint_request_support"
 require_relative "../../../support/thread_parking"
 
 # `formerly_known_as`: a rename moves a held domain's history to its new name, through the rename
-# entry point (`Lineage#rename_domain!`, which `Era.RenameDomain` applies). A boot under the new
+# A domain with its own former name, renamed by `SchemaRevision.RenameDomain`.
 # name until the rename refuses by name and writes nothing.
 # Runs only when a Postgres server is reachable (support/postgres_probe.rb).
 RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter", :io do
@@ -108,7 +108,7 @@ RSpec.describe "domain rename (formerly_known_as) in the PostgresEra adapter", :
     registry
   end
 
-  # Moves the history held under the source's former name to its name, as `Era.RenameDomain` applies
+  # Moves the history held under the former name, as `SchemaRevision.RenameDomain` applies
   # it, on the owner's connection. Answers the count of eras moved.
   def rename!(source)
     bluebook = load_registry(source).bluebooks.values.first

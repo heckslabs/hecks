@@ -29,10 +29,11 @@ RSpec.describe "the Hecks command table through the launcher" do
     operation.smoke_test operation.smoke_http operation.outcome operation.failed
     operation.follow host.check_era host.recheck host.standing
     host.drifted send_train.board send_train.outcome landing.land landing.train landing.retire landing.discard landing.outcome
-    landing.unlanded workspace.status workspace.changes workspace.history era.hold_first era.merge_tail era.reattest
-    era.backfill_projections era.compact era.compact_heki
-    era.settlement era.abandoned era.scaffold_translation era.audit_translation
-    era.attestation era.compaction package.vendor package.revendor
+    landing.unlanded workspace.status workspace.changes workspace.history
+    schema_revision.hold_first schema_revision.merge_tail schema_revision.reattest
+    schema_revision.backfill_projections schema_revision.compact schema_revision.compact_heki
+    schema_revision.settlement schema_revision.abandoned schema_revision.scaffold_translation schema_revision.audit_translation
+    schema_revision.attestation schema_revision.compaction package.vendor package.revendor
     package.pinning package.unpinned package.verify package.digest package.check package.release
     operation.bootstrap_admin launch.project_cli server.serve_mcp
     launch.ended launch.stopped build.project_rust build.build_wasm
@@ -420,7 +421,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     end
   end
 
-  describe "the Era verbs" do
+  describe "the SchemaRevision verbs" do
     HEKI_FIXTURE = File.join(InMemoryDomain::ROOT, "spec/fixtures/heki_compact_fixture/bluebook").freeze
     BANKING_EXAMPLE = File.join(InMemoryDomain::ROOT, "examples/banking/bluebook").freeze
 
@@ -435,7 +436,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     }.freeze
 
     def settlement_of(run)
-      JSON.parse(run_verb("era.settlement", run).first).first
+      JSON.parse(run_verb("schema_revision.settlement", run).first).first
     end
 
     def banking_copy
@@ -465,14 +466,15 @@ RSpec.describe "the Hecks command table through the launcher" do
     def unconfirmed_attempt(verb)
       run = "unconfirmed-#{verb.split(".").last}"
       out, status = run_verb(verb, @shelf, "run=#{run}")
-      { status: status, out: out, recorded: run_verb("era.settlement", run).first.include?("unconfirmed") }
+      { status: status, out: out, recorded: run_verb("schema_revision.settlement", run).first.include?("unconfirmed") }
     end
 
     it "refuses every change that changes something until it is confirmed, and records nothing", :aggregate_failures do
-      %w[era.hold_first era.merge_tail era.compact era.compact_heki].each do |verb|
+      %w[schema_revision.hold_first schema_revision.merge_tail schema_revision.compact
+         schema_revision.compact_heki].each do |verb|
         expect(unconfirmed_attempt("#{verb}!")).to include(status: 1, out: include("is confirmed"), recorded: false)
       end
-      expect(run_verb("era.reattest!", @shelf, "era=1", "run=unconfirmed-reattest").last).to eq(1)
+      expect(run_verb("schema_revision.reattest!", @shelf, "era=1", "run=unconfirmed-reattest").last).to eq(1)
     end
 
     describe "reattest, once the journal store has examined the era's text" do
@@ -495,7 +497,7 @@ RSpec.describe "the Hecks command table through the launcher" do
       end
 
       def reattest(run)
-        out, = run_verb("era.reattest!", @shelf, "era=1", "run=#{run}", "--confirm")
+        out, = run_verb("schema_revision.reattest!", @shelf, "era=1", "run=#{run}", "--confirm")
         JSON.parse(out).fetch("refused_reactions", []).map { |reaction| reaction.fetch("reason") }
       end
 
@@ -513,7 +515,7 @@ RSpec.describe "the Hecks command table through the launcher" do
         expect(reattest("attest-2"))
           .to eq(["Permit refused — the held text no longer matches its digest: there is nothing to re-attest"])
         expect([settlement_of("attest-2").fetch("status"), @applied]).to eq(["refused", 0])
-        expect(listed("era.abandoned", "run")).to include("attest-2")
+        expect(listed("schema_revision.abandoned", "run")).to include("attest-2")
       end
 
       it "refuses an edited text that does not load as a bluebook", :aggregate_failures do
@@ -535,11 +537,11 @@ RSpec.describe "the Hecks command table through the launcher" do
     it "previews a compaction before anything is confirmed" do
       target = seeded_heki("heki-preview")
 
-      expect(run_verb("era.compaction", target).first).to include("DRY RUN gadget: would discard 3 journal entries")
+      expect(run_verb("schema_revision.compaction", target).first).to include("DRY RUN gadget: would discard 3 journal entries")
     end
 
     it "compacts once confirmed, and keeps what was done", :aggregate_failures do
-      out, status = run_verb("era.compact_heki!", seeded_heki("heki-compact"), "run=compact-1", "--confirm")
+      out, status = run_verb("schema_revision.compact_heki!", seeded_heki("heki-compact"), "run=compact-1", "--confirm")
 
       expect([status, JSON.parse(out).fetch("events")]).to eq([0, ["HekiCompactionRequested"]])
       row = settlement_of("compact-1")
@@ -548,12 +550,12 @@ RSpec.describe "the Hecks command table through the launcher" do
     end
 
     it "does not compact a journal a projection reads, and says why beside the request", :aggregate_failures do
-      out, status = run_verb("era.compact_heki!", banking_copy, "run=compact-2", "--confirm")
+      out, status = run_verb("schema_revision.compact_heki!", banking_copy, "run=compact-2", "--confirm")
 
       expect(status).to eq(0)
       expect(JSON.parse(out).fetch("refused_reactions").first).to include(UNREAD_JOURNAL_REFUSAL)
       expect(settlement_of("compact-2").fetch("status")).to eq("refused")
-      expect(listed("era.abandoned", "run")).to include("compact-2")
+      expect(listed("schema_revision.abandoned", "run")).to include("compact-2")
     end
 
     context "when `apply` is asked for a run its gate refused" do
@@ -565,7 +567,7 @@ RSpec.describe "the Hecks command table through the launcher" do
         allow(Hecks::Adapters::JournalStore).to receive(:new).and_wrap_original do |original, *args, **kwargs|
           original.call(*args, **kwargs).tap { |store| allow(store).to receive(:examine).and_return(found) }
         end
-        run_verb("era.compact_heki!", seeded_heki("heki-apply-#{SecureRandom.hex(3)}"), "run=apply-1", "--confirm")
+        run_verb("schema_revision.compact_heki!", seeded_heki("heki-apply-#{SecureRandom.hex(3)}"), "run=apply-1", "--confirm")
         @size = File.size(journal)
       end
 
@@ -574,7 +576,7 @@ RSpec.describe "the Hecks command table through the launcher" do
       end
 
       it "does not make the change anyway", :aggregate_failures do
-        run_verb("era.apply!", "to=apply-1", "run=apply-1")
+        run_verb("schema_revision.apply!", "to=apply-1", "run=apply-1")
 
         expect(@size).to be_positive
         expect(File.size(journal)).to eq(@size)
@@ -583,23 +585,23 @@ RSpec.describe "the Hecks command table through the launcher" do
     end
 
     it "keeps a domain that is not there as a refused change, with the reason", :aggregate_failures do
-      run_verb("era.compact!", File.join(@dir, "nowhere"), "run=compact-3", "--confirm")
+      run_verb("schema_revision.compact!", File.join(@dir, "nowhere"), "run=compact-3", "--confirm")
 
       row = settlement_of("compact-3")
       expect(row.fetch("status")).to eq("refused")
       expect(row["refusal"]).to include("no such domain")
-      expect(listed("era.abandoned", "run")).to include("compact-3")
+      expect(listed("schema_revision.abandoned", "run")).to include("compact-3")
     end
 
     it "words a domain that holds no era as an answer, and never holds one to answer", :aggregate_failures do
-      out, status = run_verb("era.audit_translation", @shelf)
+      out, status = run_verb("schema_revision.audit_translation", @shelf)
 
       expect(status).to eq(1)
       expect(out).to include("Shelf is bound to Memory, which holds no eras")
     end
 
     it "takes winners as id:old,id:new and refuses a malformed list", :aggregate_failures do
-      out, status = run_verb("era.merge_tail!", @shelf, "run=merge-1", "winners=a1", "--confirm")
+      out, status = run_verb("schema_revision.merge_tail!", @shelf, "run=merge-1", "winners=a1", "--confirm")
 
       expect(status).to eq(1)
       expect(out).to include("must match")

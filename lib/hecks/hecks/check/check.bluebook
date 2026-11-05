@@ -926,7 +926,7 @@ Hecks.bluebook "Hecks" do
 
     # A compaction is applied only once the head it would erase is sealed.
     policy "CaptureWhenCompactionPermitted" do
-      on      "Era.EraPermitted"
+      on      "SchemaRevision.SchemaRevisionPermitted"
       where do
         operation.value == "compact" || operation.value == "compact_heki"
       end
@@ -934,18 +934,18 @@ Hecks.bluebook "Hecks" do
     end
 
     policy "RecordTheSeal" do
-      on      "Era.HeadCaptured"
+      on      "SchemaRevision.HeadCaptured"
       trigger Seal::Record, with: { run: :run, domain: :domain, through: :through, head: :head, previous: :previous }
     end
 
     policy "CompactWhenSealed" do
-      on      "Era.HeadCaptured"
+      on      "SchemaRevision.HeadCaptured"
       ask     :apply, with: { run: :run }
     end
 
     policy "AbandonWhenNotSealed" do
-      on      "Era.CaptureRefused"
-      trigger Era::Abandon, with: { refusal: :refusal }
+      on      "SchemaRevision.CaptureRefused"
+      trigger SchemaRevision::Abandon, with: { refusal: :refusal }
     end
 
     policy "WalkWhenVerificationRequested" do

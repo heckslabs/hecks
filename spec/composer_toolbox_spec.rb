@@ -68,7 +68,7 @@ RSpec.describe Hecks::Composer::Toolbox do
   end
 
   it "gives the help text of a verb" do
-    expect(toolbox.help(kind: "query", verb: "era.audit_translation")).not_to be_empty
+    expect(toolbox.help(kind: "query", verb: "schema_revision.audit_translation")).not_to be_empty
   end
 
   it "reads the four era queries of a workspace", :aggregate_failures do

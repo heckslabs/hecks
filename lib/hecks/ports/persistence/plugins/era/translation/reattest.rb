@@ -11,7 +11,7 @@ module Hecks
       module_function
 
       # Says how an edited era text stands against the shape the era was frozen with, without
-      # refusing anything: the facts `Era.Permit`'s givens hold, and what `shape_guard!` raises on.
+      # refusing anything: the `SchemaRevision.Permit` givens hold, and `shape_guard!`'s refusals.
       #
       # @param text [String] the held era's bluebook source as it now stands
       # @param stored_hash [String, nil] the era's minted shape hash (SHA-256 hex); nil if unnamed

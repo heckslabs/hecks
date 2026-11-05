@@ -1221,7 +1221,7 @@ Hecks.bluebook "Bluebook" do
       member name: "main_maintenance", type: "Boolean",
              meaning: "Whether each `hecks quality_control sweep.tick` runs the main-maintenance chain after the main-check step: the quick gate on main, the reconcile plan, and the push through the train when origin is behind. false skips the chain."
       member name: "maintenance_confirm", type: "Boolean",
-             meaning: "Whether the main-maintenance chain's reconcile writes after its plan (`Era.Reconcile` with confirm); false leaves the reconcile a dry run that writes nothing."
+             meaning: "Whether the main-maintenance chain's reconcile writes after its plan (`SchemaRevision.Reconcile` with confirm); false leaves the reconcile a dry run that writes nothing."
     end
 
     # What each retired `bin/` script became in hecks 3.0.0 (ADR 0080, section 7): one row per
@@ -1266,13 +1266,13 @@ Hecks.bluebook "Bluebook" do
       member script: "smoke_test", section: "Custodian", aggregate: "Operation", verb: "smoke_test"
       member script: "smoke_http", section: "Custodian", aggregate: "Operation", verb: "smoke_http"
       member script: "check_era", section: "Custodian", aggregate: "Host", verb: "check_era"
-      member script: "merge_tail", section: "Custodian", aggregate: "Era", verb: "merge_tail"
-      member script: "reattest_era", section: "Custodian", aggregate: "Era", verb: "reattest"
-      member script: "backfill_era_projections", section: "Custodian", aggregate: "Era", verb: "backfill_projections"
-      member script: "scaffold_translation", section: "Custodian", aggregate: "Era", verb: "scaffold_translation"
-      member script: "translation_audit", section: "Custodian", aggregate: "Era", verb: "audit_translation"
-      member script: "compact", section: "Custodian", aggregate: "Era", verb: "compact"
-      member script: "heki_compact", section: "Custodian", aggregate: "Era", verb: "compact_heki"
+      member script: "merge_tail", section: "Custodian", aggregate: "SchemaRevision", verb: "merge_tail"
+      member script: "reattest_era", section: "Custodian", aggregate: "SchemaRevision", verb: "reattest"
+      member script: "backfill_era_projections", section: "Custodian", aggregate: "SchemaRevision", verb: "backfill_projections"
+      member script: "scaffold_translation", section: "Custodian", aggregate: "SchemaRevision", verb: "scaffold_translation"
+      member script: "translation_audit", section: "Custodian", aggregate: "SchemaRevision", verb: "audit_translation"
+      member script: "compact", section: "Custodian", aggregate: "SchemaRevision", verb: "compact"
+      member script: "heki_compact", section: "Custodian", aggregate: "SchemaRevision", verb: "compact_heki"
       member script: "vendor_bluebook", section: "Custodian", aggregate: "Package", verb: "vendor", note: "waits: a refusal exits 1 with its reason on stderr"
       member script: "project_cli", section: "Custodian", aggregate: "Launch", verb: "project_cli"
       member script: "hecks_mcp_door", section: "Custodian", aggregate: "Server", verb: "serve_mcp"
@@ -1288,7 +1288,7 @@ Hecks.bluebook "Bluebook" do
       member script: "generate", section: "Custodian", aggregate: "FuzzRun", verb: "generate_sequence"
       member script: "bench", section: "Custodian", aggregate: "FuzzRun", verb: "bench"
       member script: "(new)", section: "Custodian", aggregate: "FuzzRun", verb: "mutate"
-      member script: "(new)", section: "Custodian", aggregate: "Era", verb: "hold_first"
+      member script: "(new)", section: "Custodian", aggregate: "SchemaRevision", verb: "hold_first"
       member script: "project_deploy", section: "Deploy", aggregate: "Recipe", verb: "project"
       member script: "lint_deploy_recipes", section: "Deploy", aggregate: "MakefileCheck", verb: "lint"
       member script: "deploy_template_diff", section: "Deploy", aggregate: "TemplateComparison", verb: "diff"

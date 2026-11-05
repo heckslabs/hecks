@@ -3,7 +3,7 @@ require_relative "../../support/postgres_probe"
 
 # A domain whose PostgresEra binding is not committed (the Hecks domain: its persistence lives in
 # gitignored local files) still names its mint command in the committed world, at the top level:
-# `minting commands: ["Era.MintHeld"]`. The binding's settings carry it with any list the
+# `minting commands: ["SchemaRevision.MintHeld"]`. The binding's settings carry it with any list the
 # persistence block gives, so the adapter reads one answer.
 RSpec.describe "mints_era in the world" do
   def registry_with(&world_block)
@@ -23,7 +23,7 @@ RSpec.describe "mints_era in the world" do
 
   let(:both) do
     proc do
-      minting commands: ["Era.MintHeld"]
+      minting commands: ["SchemaRevision.MintHeld"]
       persisted_by("PostgresEra") do
         database "postgres://x@localhost/ledger"
         mints_era "Maintenance.MintEra"
@@ -32,11 +32,11 @@ RSpec.describe "mints_era in the world" do
   end
 
   it "reaches a PostgresEra binding the world's persistence block does not mention" do
-    expect(names(registry_with { minting commands: ["Era.MintHeld"] })).to eq(["Era.MintHeld"])
+    expect(names(registry_with { minting commands: ["SchemaRevision.MintHeld"] })).to eq(["SchemaRevision.MintHeld"])
   end
 
   it "joins the names the persistence block gives" do
-    expect(names(registry_with(&both))).to contain_exactly("Era.MintHeld", "Maintenance.MintEra")
+    expect(names(registry_with(&both))).to contain_exactly("SchemaRevision.MintHeld", "Maintenance.MintEra")
   end
 
   it "adds nothing when the world names no command" do

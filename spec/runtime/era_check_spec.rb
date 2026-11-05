@@ -164,7 +164,7 @@ RSpec.describe "the era check at boot" do
                       /no longer projects to the shape frozen for era 1.*retroactively redefine what era 1 meant/m)
   end
 
-  describe "the shape verdict `Era.Permit`'s givens hold, which never raises" do
+  describe "the shape verdict `SchemaRevision.Permit`'s givens hold, which never raises" do
     it "answers every way an edited text can stand against a frozen projection", :aggregate_failures do
       projection = shaped_projection(root)
 

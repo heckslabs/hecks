@@ -50,7 +50,7 @@ module Hecks
         def refuse_unminted!
           raise Runtime::WiringError,
                 "cannot boot #{@domain}: no era held; the database is unminted, so run the mint entry " \
-                "point (`hecks era.hold_first! <domain directory> --confirm`) to provision and hold the first era"
+                "point (`hecks schema_revision.hold_first! <domain directory> --confirm`) to provision and hold the first era"
         end
       end
     end
