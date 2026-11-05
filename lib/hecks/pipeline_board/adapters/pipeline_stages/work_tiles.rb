@@ -10,17 +10,16 @@ module Hecks
       module WorkTiles
         include TileKit
 
-        NUDGE_COMMITS = 15
-        NUDGE_HOURS = 6
         DEFAULT_CAP = 8
         DAY = 86_400
 
-        def ahead(local, now)
+        # The push nudge comes from the QualityControl world's `push_nudge` setting, passed in.
+        def ahead(local, now, limits)
           return unknown_tile("ahead", "Commits not pushed", local) unless readable?(local)
 
           age = hours_since(local[:oldest_unpushed], now)
-          over = local[:ahead] >= NUDGE_COMMITS || age >= NUDGE_HOURS
-          note = "oldest #{age} h; nudge at #{NUDGE_COMMITS} commits or #{NUDGE_HOURS} h"
+          over = local[:ahead] >= limits[:commits] || age >= limits[:hours]
+          note = "oldest #{age} h; nudge at #{limits[:commits]} commits or #{limits[:hours]} h"
           tile("ahead", "Commits not pushed", local[:ahead], "commits", state: over ? "attention" : "ok", detail: note)
         end
 

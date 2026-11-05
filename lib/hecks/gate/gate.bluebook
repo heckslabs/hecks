@@ -1,0 +1,101 @@
+Hecks.bluebook "Gate" do
+  vision "A commit is green only when every quick-gate check passed on it, and a red verdict names the first check that failed."
+
+  supporting
+
+  # One quick-gate run over one commit. The checks and their exit codes are facts the run records;
+  # the verdict is the bluebook's judgment, not the script's.
+  aggregate "Run" do
+    description "One quick-gate run over one commit: its checks' exit codes, and the verdict they give."
+
+    identified_by :run
+
+    attribute :run, RunKey
+    attribute :commit, CommitRef
+    attribute :first_failure, CheckName, optional: true
+    attribute :expected, CheckCount, optional: true
+    attribute :recorded, CheckCount, optional: true
+
+    value_object "RunKey" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "CommitRef" do
+      attribute :value, String, matches: :present
+      invariant("a run names a commit") { !value.to_s.empty? }
+    end
+
+    value_object "CheckName" do
+      attribute :value, String
+    end
+
+    value_object "ExitCode" do
+      attribute :value, String
+    end
+
+    value_object "TreeState" do
+      attribute :value, String
+    end
+
+    value_object "CheckCount" do
+      attribute :value, String
+    end
+
+    # A run starts only on a clean tree, so the verdict is about the commit and nothing else.
+    command "Start" do
+      role "Operator"
+      goal "Begin the quick gate on one commit of a clean tree"
+
+      attribute :commit, CommitRef
+      attribute :tree, TreeState
+      attribute :expected, CheckCount, sets: true
+
+      given("the tree is clean") { tree.value == "clean" }
+
+      emits "Started"
+    end
+
+    # One check's exit code. Recorded whether it passed or not, so the record is complete.
+    command "Record" do
+      role "System"
+      goal "Record one check's exit code"
+
+      attribute :check, CheckName
+      attribute :exit_code, ExitCode
+      attribute :recorded, CheckCount, sets: true
+
+      emits "CheckRecorded"
+    end
+
+    # The first check that failed names the run's verdict. Only the first is kept: a later failure
+    # does not replace it, so the verdict always names the check that went red first.
+    command "Redden" do
+      role "System"
+      goal "Give a red verdict, naming the first check that failed"
+
+      attribute :first_failure, CheckName, sets: true
+
+      given("no earlier check failed") { first_failure.value.to_s != "" }
+
+      emits "Reddened"
+    end
+
+    # Green only while nothing has failed. A run with a failed check can never be greened.
+    command "Greenlight" do
+      role "System"
+      goal "Give a green verdict while no check has failed"
+
+      given("no check failed") { first_failure.value.to_s == "" }
+      given("every expected check was recorded") { recorded.value == expected.value }
+
+      emits "Greened"
+    end
+
+    # A non-zero exit code turns the run red, naming that check.
+    policy "RedWhenACheckFails" do
+      on      "Run.CheckRecorded"
+      where   { exit_code.value != "0" }
+      trigger Run::Redden, with: { first_failure: :check }
+    end
+  end
+end
