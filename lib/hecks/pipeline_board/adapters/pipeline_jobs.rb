@@ -61,7 +61,7 @@ module Hecks
       def build(id, state, agent, age, timeline)
         edges = edges_of(timeline)
         status = status_of(state, agent, age)
-        { id: id, name: name_of(id, agent), status: status, state: state["state"].to_s,
+        { id: id, name: name_of(id, agent), status: status, state: live_state(state, agent),
           detail: state["detail"].to_s.slice(0, 140), started: stamp(agent, edges),
           ended: ended_of(status, edges) }.merge(ran_of(id)).merge(context_of(status, state))
       end

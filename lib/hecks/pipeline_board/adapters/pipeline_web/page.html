@@ -88,7 +88,9 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
 .ev { border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; }
 .ev.fresh { animation: flash 2.4s ease-out; }
 @keyframes flash { from { background: color-mix(in srgb, var(--series1) 28%, transparent); } to { background: transparent; } }
-@media (prefers-reduced-motion: reduce) { .ev.fresh { animation: none; border-color: var(--series1); } }
+@media (prefers-reduced-motion: reduce) { .ev.fresh { animation: none; border-color: var(--series1); } .spin { animation: none; } }
+.spin { display: inline-block; animation: spin 1.2s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
 .ev .head { display: flex; gap: 10px; flex-wrap: wrap; align-items: baseline; }
 .ev .time { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 12px; }
 .ev .name { font-weight: 600; }
@@ -210,7 +212,10 @@ function h(tag, attrs, ...kids) {
   return el;
 }
 function put(id, ...kids) { const el = $(id); el.replaceChildren(...kids.flat()); }
-function badge(state) { return h("span", { class: "badge " + state }, ICON[state] || "?", " ", WORD[state] || state); }
+function badge(state) {
+  const icon = state === "working" ? h("span", { class: "spin" }, ICON[state]) : ICON[state] || "?";
+  return h("span", { class: "badge " + state }, icon, " ", WORD[state] || state);
+}
 /* A blocked session is waiting on a person: amber, not green. */
 function sessionBadge(status) {
   if (status === "blocked") return h("span", { class: "badge attention" }, ICON.attention, " blocked");
