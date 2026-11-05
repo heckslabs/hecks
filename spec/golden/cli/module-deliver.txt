@@ -64,6 +64,7 @@ queries (nothing here changes anything):
   ReviewRequest:
     One pull request opened or squash-merged on GitHub, and what GitHub answered.
     status    The state of one pull request on GitHub: its number, state, URL and checks, as text.
+    timeline  Who merged a pull request, who turned auto-merge on or off, who closed, reopened or was asked to review it, and when: read from its timeline on GitHub, oldest first.
 
 bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
   deploy           Generate, check and compare deploy recipes, project OIDC manifests and provision tenants.
