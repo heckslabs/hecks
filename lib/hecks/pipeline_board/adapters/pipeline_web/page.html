@@ -131,7 +131,8 @@ tr.clickable { cursor: pointer; } tr.clickable:hover, tr.clickable:focus-visible
   .node { margin-right: 0; min-height: 0; }
   .node:not(:last-child)::after { display: none; }
 }
-details.panel { margin: 0; } details.panel { border: 1px solid var(--axis); border-radius: 10px; background: var(--surface); margin: 0 0 8px; }
+details.panel { margin: 0; } iframe.embed { display: block; width: 100%; height: 520px; border: 0; border-radius: 8px; background: var(--page); }
+details.panel { border: 1px solid var(--axis); border-radius: 10px; background: var(--surface); margin: 0 0 8px; }
 details.panel > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 10px; }
 details.panel[open] > summary { border-bottom: 1px solid var(--axis); border-radius: 10px 10px 0 0; }
 details.panel > summary::before { content: "\25B8"; color: var(--ink2); display: inline-block; transition: transform .15s; }
@@ -153,6 +154,7 @@ details.panel > .scroll, details.panel > .feed, details.panel > .strip, details.
     </div>
   </header>
 
+  <details class="panel" open><summary><h2 id="h-wiring">Wiring diagram</h2></summary><iframe class="embed" src="/wiring" title="Wiring diagram"></iframe></details>
   <section aria-labelledby="h-tiles"><h2 id="h-tiles">Key metrics</h2><div class="tiles" id="tiles"></div></section>
   <details class="panel" open><summary><h2 id="h-strip">Pipeline</h2></summary><div class="strip" id="strip"></div></details>
   <details class="panel" open><summary><h2 id="h-sess">Sessions</h2></summary><div class="scroll" id="sessions"></div></details>
