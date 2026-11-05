@@ -495,7 +495,9 @@ const replies = new Map();
 function replyNote(s) {
   const r = replies.get(s.id);
   if (!r) return s.detail;
-  return h("span", {}, s.detail || "", h("div", { class: "reply" }, h("b", {}, "You: "), r.text, h("small", {}, " · " + r.state)));
+  // Only a failed send says anything about the reply; the session's status is always the server's.
+  const failed = r.state.startsWith("not sent");
+  return h("span", {}, s.detail || "", h("div", { class: "reply" }, h("b", {}, "You: "), r.text, failed ? h("small", {}, " · " + r.state) : ""));
 }
 function render(s) {
   lastState = s;
