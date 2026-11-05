@@ -101,7 +101,7 @@ module Hecks
 
       # @param fields [Hash{Symbol => String}] the request's fields, with `target` the session's id
       # @return [Hash{Symbol => String}] `target` and the reply text for the session's question kind
-      # @raise [PipelineBoard::Unavailable] when the session is not blocked or its kind is unanswered
+      # @raise [PipelineBoard::Unavailable] when the session is not blocked or has no answer kind
       def auto_reply(fields)
         row = blocked_session(fields[:target])
         raise PipelineBoard::Unavailable, "no blocked session #{fields[:target]}" unless row
