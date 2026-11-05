@@ -29,7 +29,8 @@ module Hecks
         end
 
         def self.work(data, now)
-          [ahead(data[:local], now, data.fetch(:push_limits, Hecks::Adapters::PushSize::DEFAULTS)), working(data), throughput(data[:finished], now), release(data[:release], now)]
+          limits = data.fetch(:push_limits, Hecks::Adapters::PushSize::DEFAULTS)
+          [ahead(data[:local], now, limits), working(data), throughput(data[:finished], now), release(data[:release], now)]
         end
       end
     end

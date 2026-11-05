@@ -84,7 +84,7 @@ module Hecks
           question_kind: state["questionKind"].to_s }
       end
 
-      # The links the job lists, and the git branch the session works on when it has its own worktree.
+      # The links the job lists, and the git branch the session works on in its own worktree.
       def context_extras(state) = { links: Array(state["children"]), branch: state["worktreeBranch"].to_s }
 
       def ended_of(status, edges) = %w[busy blocked].include?(status) ? nil : edges.last

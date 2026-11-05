@@ -49,18 +49,23 @@ module Hecks
       # @return [Hash{Symbol => String}] `ran:` the launcher command the step ran
       # @raise [PipelineBoard::Unavailable] with why the step did not run
       def act(action:, fields:, confirm:)
-        if action == "auto_reply"
-          fields = auto_reply(fields)
-          action = "reply"
-        end
-        fields = resumable(fields) if action == "reply"
-        fields = discardable(fields) if action == "discard"
+        action, fields = prepared(action, fields)
         argv = PipelineBoard::Actions.argv(action, fields, confirm: confirm)
         program = PipelineBoard::Actions.program(action)
         stdin = action == "reply" ? "#{fields[:text]}\r" : nil
         @launcher.call(program, *argv, chdir: @launcher_root, stdin: stdin)
         @snapshot.refresh_now if action == "reply"
         { ran: "#{program} #{argv.first}" }
+      end
+
+      # The step the page asked for, with the fields the launcher needs. An auto reply becomes a
+      # reply; a reply and a discard read the session's own record first.
+      def prepared(action, fields)
+        return ["reply", auto_reply(fields)] if action == "auto_reply"
+        return [action, resumable(fields)] if action == "reply"
+        return [action, discardable(fields)] if action == "discard"
+
+        [action, fields]
       end
 
       # A reply resumes the blocked session the page named, in the session's own directory. The
@@ -96,13 +101,14 @@ module Hecks
 
       # @param fields [Hash{Symbol => String}] the request's fields, with `target` the session's id
       # @return [Hash{Symbol => String}] `target` and the reply text for the session's question kind
-      # @raise [PipelineBoard::Unavailable] when the session is not blocked or its kind is not auto-answered
+      # @raise [PipelineBoard::Unavailable] when the session is not blocked or its kind is unanswered
       def auto_reply(fields)
         row = blocked_session(fields[:target])
         raise PipelineBoard::Unavailable, "no blocked session #{fields[:target]}" unless row
 
         text = AUTO_REPLIES[row[:question_kind].to_s]
-        raise PipelineBoard::Unavailable, "#{row[:question_kind].to_s.empty? ? "no kind" : row[:question_kind]} is not auto-answered" unless text
+        kind = row[:question_kind].to_s.empty? ? "no kind" : row[:question_kind]
+        raise PipelineBoard::Unavailable, "#{kind} is not auto-answered" unless text
 
         { target: fields[:target], text: text }
       end

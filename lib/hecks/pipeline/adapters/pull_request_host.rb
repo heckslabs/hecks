@@ -19,7 +19,7 @@ module Hecks
       # @param number [Hash, Integer, String] the pull request's number
       # @return [Hash] `text:` the pull request as JSON
       def lookup(number:)
-        value = number.is_a?(Hash) ? (number[:value] || number["value"]) : number
+        value = number.is_a?(Hash) ? number.transform_keys(&:to_s)["value"] : number
         { text: PipelineBoard::Probe.run("gh", "pr", "view", value.to_s, "--json", FIELDS, chdir: @root) }
       end
     end

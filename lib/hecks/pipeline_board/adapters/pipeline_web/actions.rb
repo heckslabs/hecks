@@ -9,7 +9,8 @@ module Hecks
       module Actions
         NEEDS = {
           "answer" => %i[target text], "reply" => %i[target text], "board_train" => [], "promote" => [],
-          "check_in" => %i[target session text], "delete" => %i[target], "discard" => %i[target condition], "auto_reply" => %i[target]
+          "check_in" => %i[target session text], "delete" => %i[target], "discard" => %i[target condition],
+          "auto_reply" => %i[target]
         }.freeze
 
         # The program each step runs: the launcher, except a reply, which resumes a Claude session.
@@ -44,16 +45,26 @@ module Hecks
         # The mode a resumed session keeps: the one it was launched with, when the board knows it.
         def permission_flags(mode) = mode.to_s.empty? ? [] : ["--permission-mode", mode]
 
+        def check_in_argv(fields)
+          ["RedFlag.check_in!", "run.value=#{fields[:target]}", "session.value=#{fields[:session]}",
+           "taking.value=#{fields[:text]}"]
+        end
+
+        # The steps that take no field from the page: the launcher's argument list for each.
+        FIXED = {
+          "board_train" => ["SendTrain.board!", "--confirm"],
+          "promote"     => ["PromotionRun.promote!", "lane=stable", "--confirm", "--wait"]
+        }.freeze
+
         def command(action, fields)
+          return FIXED[action] if FIXED.key?(action)
+
           case action
           when "answer" then ["AgentRun.answer!", "to=#{fields[:target]}", "answer.value=#{fields[:text]}", "--wait"]
           when "reply" then ["attach", fields[:attach].to_s]
           when "delete" then ["AgentRun.tidy!", "to=#{fields[:target]}"]
           when "discard" then ["PlainSession.remove!", "to=#{fields[:target]}", "condition.value=#{fields[:condition]}"]
-          when "board_train" then ["SendTrain.board!", "--confirm"]
-          when "promote" then ["PromotionRun.promote!", "lane=stable", "--confirm", "--wait"]
-          when "check_in" then ["RedFlag.check_in!", "run.value=#{fields[:target]}", "session.value=#{fields[:session]}",
-                                "taking.value=#{fields[:text]}"]
+          when "check_in" then check_in_argv(fields)
           end
         end
       end

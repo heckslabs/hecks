@@ -37,7 +37,7 @@ module Hecks
 
       private
 
-      def plain(value) = value.is_a?(Hash) ? (value[:value] || value["value"]).to_s : value.to_s
+      def plain(value) = value.is_a?(Hash) ? value.transform_keys(&:to_s)["value"].to_s : value.to_s
     end
   end
 end
