@@ -105,7 +105,7 @@ module Hecks
       # says so or the default does.
       def mint_eras(directory)
         registry = Hecks.describe(directory).registry
-        declared = registry.binding_settings(registry.first_domain_name, Ports::Persistence::VERB, "PostgresEra")
+        declared = registry.binding_settings(registry.first_domain_name, Ports::Persistence::VERB, "Postgres")
         ["mint eras", mint_wording(declared), declared.key?(:mint_eras) ? "world" : "default"]
       rescue StandardError => e
         ["mint eras", "could not be read", first_line(e.message)]

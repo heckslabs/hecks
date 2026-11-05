@@ -4,7 +4,7 @@
 # It is the same database quality_control.world names, so one ledger holds both, and it is disposable
 # the same way (see quality_control.world).
 Hecks.world "Governance" do
-  persisted_by("PostgresEra") do
+  persisted_by("Postgres") do
     database "postgres://hecks_qa@localhost/hecks_quality_control"
     disposable_ledger true
   end

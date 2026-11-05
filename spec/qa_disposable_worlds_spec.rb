@@ -10,7 +10,7 @@ RSpec.describe "the QA ledger's disposable worlds" do
   %w[quality_control fixer governance].each do |name|
     it "declares disposable_ledger true in #{name}.world", :aggregate_failures do
       text = File.read(File.join(ledger, "#{name}.world"))
-      block = text[/persisted_by\("PostgresEra"\) do\n(.*?)\n  end/m, 1]
+      block = text[/persisted_by\("Postgres"\) do\n(.*?)\n  end/m, 1]
       expect(block).to match(/^\s*disposable_ledger true$/)
     end
   end

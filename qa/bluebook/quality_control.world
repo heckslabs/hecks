@@ -10,7 +10,7 @@ Hecks.world "QualityControl" do
   # that aggregate's rows to a dated `<domain>_<aggregate>_archived_<UTC>` table (listed in
   # `hecks_ledger_archives`) and starts it empty. A Maintenance mint of this world answers that no
   # mint is needed.
-  persisted_by("PostgresEra") do
+  persisted_by("Postgres") do
     database "postgres://hecks_qa@localhost/hecks_quality_control"
     mint_eras false
     # The mint command's own record is the one write an unminted boot is let make: the mint starts
