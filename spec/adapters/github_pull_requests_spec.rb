@@ -90,4 +90,54 @@ RSpec.describe Hecks::Adapters::GithubPullRequests do
       )
     end
   end
+
+  describe "#timeline" do
+    def timeline_call = ["api", "repos/{owner}/{repo}/issues/42/timeline", "--paginate", "--slurp"]
+
+    def named_rows
+      [{ kind: "review_requested", actor: "chris", at: "2026-11-05T16:10:00Z" },
+       { kind: "auto_merge_enabled", actor: "chris", at: "2026-11-05T16:20:00Z" },
+       { kind: "merged", actor: "gh-merger", at: "2026-11-05T16:35:49Z" }]
+    end
+
+    let(:page) do
+      [
+        { "event" => "commented", "actor" => { "login" => "bot" }, "created_at" => "2026-11-05T16:00:00Z" },
+        { "event" => "review_requested", "actor" => { "login" => "chris" }, "created_at" => "2026-11-05T16:10:00Z" },
+        { "event" => "auto_merge_enabled", "actor" => { "login" => "chris" }, "created_at" => "2026-11-05T16:20:00Z" },
+        { "event" => "labeled", "actor" => { "login" => "bot" }, "created_at" => "2026-11-05T16:25:00Z" },
+        { "event" => "merged", "actor" => { "login" => "gh-merger" }, "created_at" => "2026-11-05T16:35:49Z" }
+      ]
+    end
+
+    before do
+      replies[["pr", "view", "42", "--json", "number"]] = ["{\"number\":42}\n", "", true]
+      replies[timeline_call] = [JSON.generate([page]), "", true]
+    end
+
+    it "reports the named kinds with their actor and time, oldest first" do
+      expect(pulls.timeline(number: { value: "42" })).to eq(named_rows)
+    end
+
+    it "makes only read calls, never a write", :aggregate_failures do
+      pulls.timeline(number: { value: "42" })
+
+      expect(calls).to eq([["pr", "view", "42", "--json", "number"], timeline_call])
+      expect(calls.flatten.join(" ")).not_to match(/merge|edit|close|reopen|--admin|-X|POST|PATCH|PUT|DELETE/)
+    end
+
+    it "refuses a number that is not a pull request, and reads no timeline", :aggregate_failures do
+      replies[["pr", "view", "7", "--json", "number"]] = ["", "no pull requests found with number 7", false]
+
+      expect { pulls.timeline(number: { value: "7" }) }
+        .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /no pull requests found/)
+      expect(calls).to eq([["pr", "view", "7", "--json", "number"]])
+    end
+
+    it "refuses a number that gh would read as an option", :aggregate_failures do
+      expect { pulls.timeline(number: { value: "--admin" }) }
+        .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /not a number/)
+      expect(calls).to be_empty
+    end
+  end
 end

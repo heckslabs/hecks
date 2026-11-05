@@ -16,6 +16,10 @@ module Hecks
       # A pull request number: digits only.
       NUMBER = /\A\d+\z/
 
+      # The timeline entries the `Timeline` query reports, as GitHub names them. The bluebook names
+      # the same kinds in its description; this set is the adapter's copy of them.
+      TIMELINE_KINDS = %w[merged auto_merge_enabled auto_merge_disabled closed reopened review_requested].freeze
+
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] unused
       # @param root [String, nil] unused
@@ -67,7 +71,28 @@ module Hecks
         { text: "#{status_lines(view).join("\n")}\n" }
       end
 
+      # Who merged one pull request, who turned auto-merge on or off, and who closed, reopened or
+      # was asked to review it, read from its timeline. Read-only: the only calls are `gh pr view`
+      # and a GET of the timeline.
+      #
+      # @param held [Hash] the query's arguments: `number` (required)
+      # @return [Array<Hash{Symbol => String}>] one `kind:`/`actor:`/`at:` row per reported entry,
+      #   oldest first
+      # @raise [ConsoleCapture::Failure] when no number is named, the number is not a pull request,
+      #   or GitHub refuses
+      def timeline(**held)
+        number = pull_request_number(held[:number], "read")
+        gh!("pr", "view", number, "--json", "number")
+        events = JSON.parse(gh!("api", "repos/{owner}/{repo}/issues/#{number}/timeline", "--paginate", "--slurp"))
+
+        events.flatten.select { |event| TIMELINE_KINDS.include?(event["event"]) }.map { |event| timeline_row(event) }
+      end
+
       private
+
+      def timeline_row(event)
+        { kind: event["event"].to_s, actor: event.dig("actor", "login").to_s, at: event["created_at"].to_s }
+      end
 
       def plain(argument) = argument.is_a?(Hash) ? argument[:value] : argument
 
