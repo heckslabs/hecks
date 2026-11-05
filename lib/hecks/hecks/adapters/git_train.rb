@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "open3"
 require_relative "git"
 require_relative "console_capture"
 require_relative "push_size"
@@ -49,8 +50,19 @@ module Hecks
         @registry = options.delete(:registry)
         @mint = options.delete(:mint) || MintStep.new
         @domain = options.delete(:domain) || JournalStore::HeldMint::DOMAIN
-        @runner = options.delete(:runner)
+        @runner = options.delete(:runner) || method(:run_command)
         @git = Git.new
+      end
+
+      # Runs a command (`gh`, for the pull requests) in a directory: its success and its output.
+      # The default runner: the train reaches GitHub through the same `gh` the operator uses.
+      #
+      # @param argv [Array<String>] the command and its arguments
+      # @param chdir [String] the directory it runs in
+      # @return [Array(Boolean, String)] whether it succeeded, and its output and error
+      def run_command(argv, chdir:)
+        out, err, status = Open3.capture3(*argv, chdir: chdir)
+        [status.success?, "#{out}#{err}"]
       end
 
       # Waits for the push ahead in the same repository, runs the Hecks mint, then carries the
