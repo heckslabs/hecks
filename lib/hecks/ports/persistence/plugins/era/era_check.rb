@@ -57,12 +57,17 @@ module Hecks
       #   lineage-capable adapter; false for an empty registry or one with no such binding
       # @raise [Runtime::WiringError] if a first aggregate's persistence binding is missing,
       #   ambiguous, or carries an unsupported role
+      # `Postgres` with `revisions true` is the revision layout, which is lineage-capable (ADR 0182).
+      def revision_adapter(registry, domain, adapter)
+        adapter.to_s == "Postgres" && registry.hecksagon(domain)&.revisions? ? "PostgresEra" : adapter
+      end
+
       def lineage_capable_registry?(registry)
         registry.bluebooks.each_value.any? do |bluebook|
           first = bluebook.aggregates.first
           next false unless first
 
-          lineage_capable?(registry, adapter_for(registry, bluebook.name, first))
+          lineage_capable?(registry, revision_adapter(registry, bluebook.name, adapter_for(registry, bluebook.name, first)))
         end
       end
 

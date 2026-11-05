@@ -90,9 +90,13 @@ RSpec.describe Hecks::Runtime::BootGates do
       boot_registry do
         load_memory_ports
         Kernel.load(InMemoryDomain::PRISM_ADAPTER)
+        Kernel.load(InMemoryDomain::POSTGRES_ADAPTER)
         Kernel.load(InMemoryDomain::POSTGRES_ERA_ADAPTER)
         Kernel.load(File.join(InMemoryDomain::ROOT, "examples/directory/bluebook/directory.bluebook"))
-        Kernel.load(File.join(InMemoryDomain::ROOT, "examples/directory/bluebook/directory.hecksagon"))
+        Hecks.hecksagon("Directory") do
+          Directory::Member.persisted_by("Postgres")
+          revisions true
+        end
       end
     end
 
@@ -111,7 +115,7 @@ RSpec.describe Hecks::Runtime::BootGates do
       expect(gates.registered?(:era_check)).to be false
     end
 
-    it "registers :era_check for a domain with an aggregate bound to a lineage-capable adapter (PostgresEra), " \
+    it "registers :era_check for a domain with an aggregate bound to a lineage-capable adapter (Postgres with revisions), " \
        "needing no live database" do
       # `lineage_capable?` keeps `require "pg"` lazy, so no live Postgres is needed here.
       require InMemoryDomain::ERA_PLUGIN
