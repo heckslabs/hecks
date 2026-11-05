@@ -7,6 +7,14 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+### Changed
+
+- **Editing a domain built in the language no longer discards the grammar table or the other bluebooks' verdicts.** The grammar table and the verdict file were named by a digest of every file under `lib/` outside the consumer trees, so a one-line edit to the Hecks domain's own bluebooks (`lib/hecks/hecks`, `tickets`, `pipeline` and the other applied trees, `VerdictCache::APPLIED_TREES`) re-judged everything on the next launch. They are now named by `VerdictCache.language_digest`, which leaves those trees out; each verdict is still keyed by its bluebook's IR, so only the edited bluebook is judged again. The help cache and the MCP guide cache keep keying on the full `code_digest`. `spec/syntax_boot_key_spec.rb` fails if a tree on the list ever loads Ruby before the table is built, or loads anything but adapters while the Hecks domain is described.
+
+### Fixed
+
+- **The verdict file was never written for a domain with a `created_by`.** A verdict holding a typed value (an aggregate's `created_by`) could not be encoded, so the whole write was dropped without a word and every launch after an edit judged every bluebook afresh. The verdicts that can be encoded are now stored and the rest are judged each time, as a miss always was.
+
 ## [7.1.0] - 2026-11-02
 
 ### Added
