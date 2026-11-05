@@ -16,7 +16,16 @@ RSpec.describe "the full spec suite runs only in CI", :aggregate_failures do
 
   def domain_dir = File.join(InMemoryDomain::ROOT, "lib/hecks/hecks")
 
-  def limit = registry.world("Hecks").for_verb("test_scope")[:spec_files_limit]
+  def limit = 25
+
+  # The repo's world sets no cap, so the capping examples declare one; `:no_cap` leaves the world as it is.
+  def declare_cap
+    world = registry.world("Hecks")
+    allow(world).to receive(:for_verb).and_call_original
+    allow(world).to receive(:for_verb).with("test_scope").and_wrap_original do |original, *args|
+      original.call(*args).merge(spec_files_limit: limit)
+    end
+  end
 
   def failure = Hecks::Adapters::ConsoleCapture::Failure
 
@@ -51,9 +60,10 @@ RSpec.describe "the full spec suite runs only in CI", :aggregate_failures do
     FileUtils.rm_rf(folder)
   end
 
-  before do
+  before do |example|
     runner = instance_double(codebase::TestRunner, run_paths: "1 example, 0 failures", outcome: [0, "1 example, 0 failures"])
     allow(codebase::TestRunner).to receive(:new).and_return(runner)
+    declare_cap unless example.metadata[:no_cap]
   end
 
   describe "the rows" do
@@ -116,6 +126,10 @@ RSpec.describe "the full spec suite runs only in CI", :aggregate_failures do
   end
 
   describe "run_spec_files!" do
+    it "runs any number of spec files when the world sets no limit", :no_cap do
+      expect(refusal("run_spec_files", files: { value: spec_files(limit + 5) })).to be_nil
+    end
+
     it "runs a call at the limit" do
       expect(refusal("run_spec_files", files: { value: spec_files(limit) })).to be_nil
     end
