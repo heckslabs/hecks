@@ -197,6 +197,7 @@ Hecks.bluebook "PipelineBoard" do
       member action: "check_in",    needs: "target session text",  confirm: "no",  program: "exe/hecks", argv: "RedFlag.check_in! run.value={target} session.value={session} taking.value={text}"
       member action: "review",      needs: "target text",          confirm: "no",  program: "exe/hecks", argv: "agents PlanReview.request! work.value={target} hops.value=1 role.value=architect repo.value={repo} plan.value={text} --wait"
       member action: "plan",        needs: "text",                 confirm: "no",  program: "exe/hecks", argv: "agents Planning.request! plan.value={key} goal.value={text} role.value=planner repo.value={repo} --wait"
+      member action: "settle",      needs: "target",               confirm: "no",  program: "exe/hecks", argv: "agents PromotionRecommendation.settle! to={target} --wait"
       member action: "delete",      needs: "target",               confirm: "yes", program: "exe/hecks", argv: "AgentRun.tidy! to={target}"
       member action: "discard",     needs: "target condition",     confirm: "yes", program: "exe/hecks", argv: "PlainSession.remove! to={target} condition.value={condition}"
     end

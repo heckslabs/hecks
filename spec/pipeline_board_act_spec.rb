@@ -54,6 +54,12 @@ RSpec.describe "POST /api/act on the board" do
     expect(sent.first).to include("agents", "Planning.request!", "goal.value=plan the agents panel", "role.value=planner")
   end
 
+  it "settles a promotion recommendation through the Agents domain", :aggregate_failures do
+    response = post("action" => "settle", "target" => "w-green")
+    expect(response.code).to eq("200")
+    expect(sent).to eq([["exe/hecks", "agents", "PromotionRecommendation.settle!", "to=w-green", "--wait"]])
+  end
+
   it "runs a board train once the page confirms it" do
     post("action" => "board_train", "confirm" => true)
     expect(sent).to eq([["exe/hecks", "SendTrain.board!", "--confirm"]])

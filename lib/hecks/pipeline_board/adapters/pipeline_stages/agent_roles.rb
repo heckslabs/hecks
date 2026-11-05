@@ -41,11 +41,28 @@ module Hecks
         #
         # @return [Array<Hash>, Hash] each review's `work`, `verdict`, `findings`; or `{unknown:}`
         def reviews
+          launched("PlanReview.reviews") do |row|
+            { work: row["work"].to_s, verdict: row["verdict"].to_s, findings: row["findings"].to_s }
+          end
+        end
+
+        # The promotions the release manager recommends that the owner has not settled.
+        #
+        # @return [Array<Hash>, Hash] each recommendation's `change` and `reasons`, or `{unknown:}`
+        def recommendations
+          launched("PromotionRecommendation.open") do |row|
+            { change: row["change"].to_s, reasons: row["reasons"].to_s }
+          end
+        end
+
+        # @param query [String] an Agents query, as the launcher names it
+        # @yieldparam row [Hash] one answer row
+        # @return [Array<Hash>, Hash] the block's result for each row, or `{unknown:}`
+        def launched(query, &)
           root = ENV.fetch("PIPELINE_BOARD_LAUNCHER_ROOT", "")
           return [] if root.empty?
 
-          rows = Probe.json("exe/hecks", "agents", "PlanReview.reviews", chdir: root)
-          rows.map { |row| { work: row["work"].to_s, verdict: row["verdict"].to_s, findings: row["findings"].to_s } }
+          Probe.json("exe/hecks", "agents", query, chdir: root).map(&)
         rescue Unavailable => e
           { unknown: e.message }
         end

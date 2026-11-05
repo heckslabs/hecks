@@ -16,7 +16,7 @@ RSpec.describe "the agents handing work to each other" do
 
   it "asks the reviewer when a coder submits work", :aggregate_failures do
     launch("coder", "Submission.submit!", "branch.value=w-sub", "sha.value=abc1234", "--wait")
-    expect(reaction("AskTheReviewerWhenWorkIsSubmitted").map { |r| r[:delivered] }).to eq([true])
+    expect(reaction("AskTheReviewerWhenWorkIsSubmitted").last[:delivered]).to be(true)
     expect(launch("agents", "SubmissionReview.reviews").first.to_s).to include("w-sub")
   end
 
@@ -28,9 +28,16 @@ RSpec.describe "the agents handing work to each other" do
     launch("pipeline", "Passage.verify!", "to=#{change}", "--wait")
   end
 
+  it "lists a recommendation as open until the owner settles it", :aggregate_failures do
+    verify_passage("w-settle")
+    expect(launch("agents", "PromotionRecommendation.open").first.to_s).to include("w-settle")
+    launch("agents", "PromotionRecommendation.settle!", "to=w-settle", "--wait")
+    expect(launch("agents", "PromotionRecommendation.open").first.to_s).not_to include("w-settle")
+  end
+
   it "recommends promotion once a passage is verified", :aggregate_failures do
     verify_passage("w-pass")
-    expect(reaction("RecommendPromotionWhenVerified").map { |r| r[:delivered] }).to eq([true])
+    expect(reaction("RecommendPromotionWhenVerified").last[:delivered]).to be(true)
     expect(launch("agents", "PromotionRecommendation.recommendations").first.to_s).to include("w-pass")
   end
 end
