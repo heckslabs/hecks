@@ -24,6 +24,7 @@ commands:
     One build of a domain for the Rust host, or a check of that build against Ruby.
     project_rust!                 Generate a domain's Rust source for the Rust host
     build_wasm!                   Compile a domain to a WASI module a runtime such as wasmtime can run
+    prune_rust!                   Free the disk Rust builds hold, in gone worktrees and stale cache
     build_parser!                 Build the hecks-parse binary the bluebook parser specs run, from rust/parser
     build_host!                   Build the Rust host for a domain, with its wasm and IR, ready to copy into an image
     build_browser_wasm!           Compile a domain to an ES module a browser can import
@@ -379,6 +380,6 @@ bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
   expression       The subset of regular Ruby a predicate is allowed to be — small enough that every target can…
 
   hecks <command> --help       what one command wants, and every way it refuses
-  hecks --all                  also list the 296 internal commands and queries
+  hecks --all                  also list the 297 internal commands and queries
   a command is called with its aggregate — Build.project_rust!
   exit status: 0 answered, 1 refused or failed, 2 a line it could not read
