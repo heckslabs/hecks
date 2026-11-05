@@ -45,6 +45,15 @@ module Hecks
         { report: { value: lines.join("\n") } }
       end
 
+      # Says which planned work items would start now and why each other waits, without starting
+      # any of them. It reads the same plan `choose` reads, so it never writes and never launches.
+      #
+      # @param held [Hash] the query's `repo`, `budget_minutes` and `only` (the key prefix)
+      # @return [Hash{Symbol => String}] `text:` the report, one line per work item
+      def preview(**held)
+        { text: "#{report_lines(plan_for(prefix(held))).join("\n")}\n" }
+      end
+
       # Checks every started session and settles the work item of each that ended: done finishes it.
       #
       # @param held [Hash] the `Dispatch` record: `repo`

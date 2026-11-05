@@ -116,11 +116,15 @@ RSpec.describe Hecks::Adapters::PipelineWeb do
     expect(request("GET", "/api/state").code).to eq("200")
   end
 
+  def state_pushed(socket)
+    Timeout.timeout(5) { loop { break if socket.gets.to_s.start_with?("event: state") } }
+    JSON.parse(socket.gets.to_s.delete_prefix("data: "))
+  end
+
   it "pushes the state on connect, as a state event, without a request" do
+    append("LandingRequested", "2026-11-02T10:00:00Z")
     socket = open_stream
-    Timeout.timeout(5) { socket.gets until socket.gets.to_s.start_with?("event: state") }
-    body = JSON.parse(socket.gets.to_s.delete_prefix("data: "))
-    expect(body.dig("state", "stages").map { |row| row["name"] }).to eq(names)
+    expect(state_pushed(socket).dig("state", "stages").map { |row| row["name"] }).to eq(names)
   ensure
     socket&.close
   end

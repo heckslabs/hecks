@@ -336,6 +336,8 @@ Hecks.hecksagon "Hecks" do
       answers "DispatchReported"
       refuses "DispatchRefused"
     end
+
+    answers_query "Preview"
   end
 
   # The outside an agent run reaches: it finds the directory and the agents, starts the background

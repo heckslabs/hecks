@@ -54,4 +54,22 @@ RSpec.describe "a filling, dispatched through its Choose ask" do
     expect(events_named(registry, "DispatchRefused")).to be_empty
     expect(events_named(registry, "DispatchReported")).not_to be_empty
   end
+
+  # A `Dispatch.Preview` answers the report a filling would give, read from the same plan and
+  # launching nothing: its lines are the lines a dry filling reports.
+  describe "previewing a filling" do
+    it "reports which planned work items would start, with the prefix applied", :aggregate_failures do
+      text = dispatching(planned).preview(repo: { value: "/repo" }, only: { value: "gap-a" })[:text]
+
+      expect(text).to include("would start gap-a")
+      expect(text).not_to include("gap-b", "other")
+    end
+
+    it "answers the lines a dry filling reports" do
+      stand_in = dispatching(planned)
+      filling = stand_in.choose(run: { value: "run-1" }, repo: { value: "/repo" })[:report][:value]
+
+      expect(stand_in.preview(repo: { value: "/repo" })[:text]).to eq("#{filling}\n")
+    end
+  end
 end
