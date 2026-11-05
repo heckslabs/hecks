@@ -1,0 +1,7 @@
+# Binds the `Sessions` port to `ClaudeSessions`, which removes a plain session with `claude rm`.
+# Required by name, not relative, so a copy of this directory shares the one implementation loaded.
+require "hecks/hecks/adapters/claude_sessions"
+
+Hecks.adapter "ClaudeSessions" do
+  port "Sessions"
+end

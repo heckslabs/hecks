@@ -15,7 +15,8 @@ module Hecks
     # client's world declares nothing, so a client writes no file. The boot may hand in an
     # override for a process no hecks command runs (a spec run, and the children it starts): a
     # path replaces the world's, and an empty value switches the tap off, so a spec never writes
-    # the owner's log. The log holds names, identities and outcomes, never payloads. A write
+    # the owner's log. The log holds names, identities and outcomes, the few link keys of `LINKS`
+    # (short identifiers that tie one record to another) and nothing else of a payload. A write
     # that fails is dropped: logging never refuses a command.
     class EventTap
       # The world verb that switches the tap on.
@@ -26,6 +27,13 @@ module Hecks
 
       # Rotated generations kept beside the live log. The oldest past this count is dropped.
       KEPT = 5
+
+      # Payload keys that tie one record to another: a landed or pushed sha, a branch, a Work item's
+      # slug. Only these payload values reach the log.
+      LINKS = %w[branch landed boarded pushed commit ci_run work].freeze
+
+      # Characters kept of one link value; a longer value is cut.
+      LINK_WIDTH = 80
 
       # Bytes read from the end of a file to find its last line's sequence number.
       TAIL_BYTES = 65_536
@@ -72,7 +80,8 @@ module Hecks
       # @return [void]
       def event(event)
         write("kind" => "event", "at" => event.occurred_at, "aggregate" => event.aggregate,
-              "id" => event.id.to_s, "event" => event.name)
+              "id" => event.id.to_s, "event" => event.name, "correlation" => correlation_of(event),
+              "links" => links_of(event.payload))
       end
 
       # Appends one line for a policy delivery: which policy reacted to which event, the command it
@@ -87,6 +96,26 @@ module Hecks
       end
 
       private
+
+      # The saga correlation of an event, its keys and values as short text.
+      def correlation_of(event)
+        (event.correlation || {}).to_h.to_h { |key, value| [key.to_s, link_text(value)] }
+      end
+
+      # The link keys of a payload, each value short and redacted; any other key is dropped.
+      def links_of(payload)
+        held = (payload || {}).to_h.transform_keys(&:to_sym)
+        LINKS.each_with_object({}) do |key, links|
+          text = held.key?(key.to_sym) ? link_text(held[key.to_sym]) : ""
+          links[key] = text unless text.empty?
+        end
+      end
+
+      # A payload value, plain or wrapped as `{value: ...}`, as text of at most `LINK_WIDTH` chars.
+      def link_text(value)
+        text = value.is_a?(Hash) ? value.transform_keys(&:to_sym)[:value] : value
+        Secrets.redact(text.to_s)[0, LINK_WIDTH]
+      end
 
       def outcome(record)
         return "delivered" if record[:delivered]

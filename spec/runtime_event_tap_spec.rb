@@ -57,7 +57,7 @@ RSpec.describe Hecks::Runtime::EventTap do
     described_class.install(registry_with(world(path: path)))
     log << event
     expect(lines).to eq([{ "kind" => "event", "at" => "2026-11-02T10:00:00Z", "aggregate" => "Hecks::LinkedTree",
-                           "id" => "t1", "event" => "AddRequested", "seq" => 1 }])
+                           "id" => "t1", "event" => "AddRequested", "correlation" => {}, "links" => {}, "seq" => 1 }])
   end
 
   it "numbers each line with the next sequence" do
@@ -75,6 +75,24 @@ RSpec.describe Hecks::Runtime::EventTap do
     described_class.install(registry_with(world(path: path)))
     log << event
     expect(File.read(path)).not_to include("secret")
+  end
+
+  it "writes the link keys of a payload and nothing else of it" do
+    described_class.install(registry_with(world(path: path)))
+    log << linked_event
+    expect(File.read(path).scan(%r{feature/x|hidden})).to eq(["feature/x"])
+  end
+
+  it "writes the saga correlation beside the event" do
+    described_class.install(registry_with(world(path: path)))
+    log << linked_event
+    expect(JSON.parse(File.read(path).lines.first)["correlation"]).to eq("landed.value" => "a1b2c3d")
+  end
+
+  def linked_event
+    Hecks::Runtime::Event.new(name: "BranchLanded", aggregate: "Hecks::Landing", id: "l1",
+                              payload: { branch: { value: "feature/x" }, landed: "a1b2c3d", hidden: "hidden" },
+                              occurred_at: "2026-11-02T10:00:00Z", correlation: { "landed.value" => "a1b2c3d" })
   end
 
   it "writes one line for each policy delivery, with the command it reached and its outcome" do

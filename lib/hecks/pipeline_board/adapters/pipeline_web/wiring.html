@@ -77,7 +77,6 @@ th { color: var(--ink2); font-size: 12px; }
   <header>
     <h1>Pipeline Wiring</h1>
     <div class="meta">
-      <a href="/">Board</a><a href="/sequence">Sequence</a>
       <span id="count">loading the wiring</span>
       <span id="live">stream: connecting</span>
       <button id="zout" type="button" aria-label="Zoom out">&minus;</button>
@@ -97,13 +96,12 @@ th { color: var(--ink2); font-size: 12px; }
       <span><b style="color:var(--warning)">&#9650;</b> waiting</span>
       <span><b style="color:var(--critical)">&#10005;</b> refused</span>
       <span>a line rests in its domain's colour, lights in the outcome's colour when a message crosses it, and fades over 20 s</span>
-      <span>each context is one block with its aggregate count; click a block to open it, click its name to close it; scroll to zoom (zooming in opens everything), drag to pan; packed shapes move aside under the pointer, and a click opens the sidebar</span>
+      <span>each context is one block with its aggregate count; click a block to open it, click its name to close it; use + and − to zoom (zooming in opens everything), drag to pan; packed shapes move aside under the pointer, and a click opens the sidebar</span>
     </div>
     <div class="legend" id="domains"></div>
     <canvas id="map" role="img" aria-label="Wiring diagram: policies between aggregates, ports and adapters, with live messages"></canvas>
     <div class="scroll" id="edgetable"></div>
   </section>
-  <section aria-labelledby="h-log"><h2 id="h-log">Messages</h2><ul class="log" id="log" aria-live="polite"></ul></section>
 </main>
 <div class="tip" id="tip" role="tooltip"></div>
 <aside class="panel" id="panel" hidden aria-label="Selected node">
@@ -126,6 +124,11 @@ let domains = [], domainColour = new Map(), showBounds = true;
 const LINGER = 22000, LINGER_FADE = 14000;
 const dark = () => matchMedia("(prefers-color-scheme: dark)").matches && document.documentElement.dataset.theme !== "light" || document.documentElement.dataset.theme === "dark";
 function colourOf(domain) { const i = domainColour.get(domain); return i === undefined || i > 7 ? css("--muted") : SLOTS[dark() ? "dark" : "light"][i]; }
+// Each area (context) gets its own hue, spread around the wheel, so areas inside one domain read apart.
+function areaColour(key) {
+  const i = Math.max(0, contexts.indexOf(key)), n = Math.max(1, contexts.length);
+  return "hsl(" + Math.round(i * 360 / n) + " 60% " + (dark() ? "62%" : "42%") + ")";
+}
 
 function h(tag, attrs, ...kids) {
   const el = document.createElement(tag);
@@ -262,11 +265,24 @@ function scoot() {
   }
 }
 const scooted = (n) => Math.hypot(n.ox || 0, n.oy || 0) > 6;
-/* ---- zoom with the wheel around the cursor, pan by dragging, or use the buttons ---- */
+/* ---- when embedded in the board, the wheel scrolls the board, not this frame ---- */
+if (window.top !== window.self) {
+  // Cmd or Ctrl with the wheel over the diagram zooms the diagram; a plain wheel scrolls the board.
+  document.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    if ((e.metaKey || e.ctrlKey) && e.target === canvas) {
+      const r = canvas.getBoundingClientRect();
+      zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-e.deltaY * 0.0015));
+      return;
+    }
+    window.parent.scrollBy(e.deltaX, e.deltaY);
+  }, { passive: false });
+}
+
+/* ---- pan by dragging, or use the buttons to zoom ---- */
 function zoomAt(mx, my, k) { view.x = mx - (mx - view.x) * k; view.y = my - (my - view.y) * k; view.s *= k; touched = true; }
 function zoomCentre(k) { const r = canvas.getBoundingClientRect(); zoomAt(r.width / 2, r.height / 2, k); }
 let drag = null;
-canvas.addEventListener("wheel", (e) => { e.preventDefault(); const r = canvas.getBoundingClientRect(); zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-e.deltaY * 0.0015)); }, { passive: false });
 canvas.addEventListener("mousedown", (e) => { drag = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y, moved: false }; });
 addEventListener("mousemove", (e) => { if (!drag) return; drag.moved = true; view.x = drag.vx + e.clientX - drag.x; view.y = drag.vy + e.clientY - drag.y; touched = true; });
 addEventListener("mouseup", (e) => {
@@ -281,7 +297,19 @@ addEventListener("mouseup", (e) => {
 
 /* ---- the sidebar: what a node declares, and what it is doing right now ---- */
 const recent = [];
-let selected = null, focusId = null, panelTimer = null, waiting = null;
+let selected = null, focusId = null, waiting = null, traced = null;
+// The chain a port or adapter sits in: the aggregates whose policies ask its port, the port, and its adapters.
+function traceOf(n) {
+  const port = n.kind === "port" ? n : n.kind === "adapter" ? edges.find((e) => e.kind === "adapter" && e.to === n.id) : null;
+  const pid = port ? (port.id || port.from) : null;
+  if (!pid) return null;
+  const ids = new Set([pid]);
+  for (const e of edges) {
+    if (e.kind === "ask" && e.to === pid) ids.add(e.from);
+    if (e.kind === "adapter" && e.from === pid) ids.add(e.to);
+  }
+  return ids;
+}
 /* The stream sends an event again when its reactions settle, so a key is kept once, at its newest. */
 function remember(ev) {
   const i = recent.findIndex((held) => held.key === ev.key);
@@ -293,11 +321,10 @@ function touches(ev, n) {
   return stem ? (ev.reactions || []).some((r) => String(r.command).includes(stem)) : false;
 }
 function openPanel(n) {
-  selected = n; waiting = null; $("panel").hidden = false; $("ptitle").textContent = n.label; renderPanel();
-  clearInterval(panelTimer); panelTimer = setInterval(renderPanel, 2000);
+  selected = n; waiting = null; traced = n.kind === "port" || n.kind === "adapter" ? traceOf(n) : null; $("panel").hidden = false; $("ptitle").textContent = n.label; renderPanel();
   try { history.replaceState(null, "", "#" + encodeURIComponent(n.id)); } catch (e) { /* history may be unavailable */ }
 }
-function closePanel() { selected = null; focusId = null; waiting = null; $("panel").hidden = true; $("focus").setAttribute("aria-pressed", "false"); clearInterval(panelTimer); try { history.replaceState(null, "", location.pathname); } catch (e) { /* ignore */ } }
+function closePanel() { selected = null; focusId = null; waiting = null; traced = null; $("panel").hidden = true; $("focus").setAttribute("aria-pressed", "false"); try { history.replaceState(null, "", location.pathname); } catch (e) { /* ignore */ } }
 function section(title, ...kids) { return [h("h3", {}, title), ...kids]; }
 function nodeLink(id) { const n = byId.get(id); return h("button", { class: "link", type: "button", "data-id": id }, n ? n.label : id); }
 function renderPanel() {
@@ -321,6 +348,7 @@ function renderPanel() {
   if (n.kind === "aggregate") body.push(...declaredAggregate(d));
   if (n.kind === "port") body.push(...section("Operations", h("ul", {}, (d.operations || []).map((o) => h("li", {}, h("b", {}, o.name), " ", h("small", {}, o.direction), o.answers ? " answers " + o.answers : "", o.refuses ? ", refuses " + o.refuses : "")))));
   if (n.kind === "adapter") body.push(...section("Binds", h("ul", {}, h("li", {}, "port ", h("b", {}, d.port || "")), (d.fields || []).length ? h("li", {}, "settings: " + d.fields.join(", ")) : null)));
+  if (traced) body.push(...section("Traced through", h("ul", {}, [...traced].filter((id) => id !== n.id).map((id) => h("li", {}, nodeLink(id))))));
   body.push(...wiringOf(n));
   $("pbody").replaceChildren(...body.flat().filter(Boolean));
 }
@@ -415,7 +443,7 @@ function separate(list) {
 const blink = (now) => reduceMotion || Math.sin(now / 140) > -0.3;
 function heatOf(id, now) { const p = pulses.get(id); return p && p > now ? Math.min(1, (p - now) / LINGER_FADE) : 0; }
 function drawBlock(b, now) {
-  const heat = Math.max(0, ...b.members.map((n) => heatOf(n.id, now))), colour = colourOf(b.d);
+  const heat = Math.max(0, ...b.members.map((n) => heatOf(n.id, now))), colour = areaColour(b.k);
   ctx.beginPath(); ctx.roundRect(b.x - b.w / 2, b.y - b.hgt / 2, b.w, b.hgt, 8);
   ctx.globalAlpha = 0.18 + 0.5 * heat; ctx.fillStyle = heat ? css("--series1") : colour; ctx.fill();
   ctx.globalAlpha = 1; ctx.lineWidth = heat ? 2 : 1.2; ctx.strokeStyle = heat ? css("--series1") : colour; ctx.stroke();
@@ -430,7 +458,8 @@ function drawEdges(now) {
     const a = byId.get(e.from), b = byId.get(e.to); if (!a || !b) continue;
     const ca = blocks.get(keyOf(a)), cb = blocks.get(keyOf(b));
     if (ca && ca === cb) continue;
-    if (!ca && !cb) { strokeEdge(anchor(a), anchor(b), a === b, e.lit, 1, colourOf(a.domain), now, focusId && e.from !== focusId && e.to !== focusId); continue; }
+    const outside = (focusId && e.from !== focusId && e.to !== focusId) || (traced && !(traced.has(e.from) && traced.has(e.to)));
+    if (!ca && !cb) { strokeEdge(anchor(a), anchor(b), a === b, e.lit, 1, colourOf(a.domain), now, outside); continue; }
     if (e.kind === "adapter" && cb) continue;
     const key = (ca ? ca.k : a.id) + "|" + (cb ? cb.k : b.id), held = bundles.get(key) || { from: anchor(a), to: anchor(b), count: 0, lit: null, colour: colourOf(a.domain) };
     held.count++; if (e.lit && e.lit.until > now && (!held.lit || e.lit.until > held.lit.until)) held.lit = e.lit;
@@ -498,6 +527,16 @@ function drawParticles(now) {
 
 /* ---- messages ---- */
 function outcomeKind(text) { return /deliver/.test(text) ? "ok" : /refus|fail/.test(text) ? "bad" : "wait"; }
+// A message that reaches a port answers through the adapter bound to it: the binding lights, a
+// particle travels port to adapter, and the adapter pulses like an aggregate that has just acted.
+function lightAdapters(port, kind, now) {
+  for (const e of edges.filter((x) => x.kind === "adapter" && x.from === port.id)) {
+    const adapter = byId.get(e.to); if (!adapter) continue;
+    e.lit = { until: now + LINGER, token: OUTCOME[kind][0] };
+    pulses.set(adapter.id, now + LINGER);
+    particles.push({ from: port, to: adapter, kind, text: port.label, start: now + 150, ms: reduceMotion ? 1 : 1400 });
+  }
+}
 function fire(ev, animate) {
   const now = performance.now(), node = byId.get(ev.aggregate);
   if (node && animate) pulses.set(node.id, now + LINGER);
@@ -508,6 +547,7 @@ function fire(ev, animate) {
     for (const e of edges.filter((x) => x.label === bare)) {
       const a = byId.get(e.from), b = byId.get(e.to);
       if (a && b && animate) { particles.push({ from: a, to: b, kind, text: ev.name, start: now + 150, ms: reduceMotion ? 1 : 1400 }); e.lit = { until: now + LINGER, token: OUTCOME[kind][0] }; }
+      if (b && b.kind === "port" && animate) lightAdapters(b, kind, now);
     }
     logLine(ev, r, kind);
   }
@@ -517,7 +557,7 @@ function logLine(ev, reaction, kind) {
   const li = h("li", {}, h("time", {}, clock(ev.at)), (ev.aggregate || "") + " ", h("b", {}, ev.name));
   if (reaction) li.append(" → " + String(reaction.policy).split("::").pop() + (reaction.command ? " → " + reaction.command : ""),
     h("span", { class: "mark", style: "color:var(" + OUTCOME[kind][0] + ")" }, OUTCOME[kind][1]));
-  const log = $("log"); log.prepend(li); while (log.children.length > 60) log.lastChild.remove();
+  const log = $("log"); if (!log) return; log.prepend(li); while (log.children.length > 60) log.lastChild.remove();
 }
 let backlog = [], liveStarted = false;
 function listen() {
@@ -526,7 +566,7 @@ function listen() {
   es.onerror = () => { $("live").textContent = "stream: reconnecting"; };
   es.addEventListener("board", (m) => {
     const ev = JSON.parse(m.data); if (!ev.key) return;
-    remember(ev);
+    remember(ev); if (selected) renderPanel();
     if (!liveStarted) { backlog.push(ev); clearTimeout(listen.t); listen.t = setTimeout(startLive, 600); } else fire(ev, true);
   });
 }
@@ -554,7 +594,8 @@ $("zin").addEventListener("click", () => zoomCentre(1.4));
 $("zout").addEventListener("click", () => zoomCentre(1 / 1.4));
 canvas.addEventListener("mouseleave", () => { hover = null; cursor = null; });
 $("toggle").addEventListener("click", () => { const on = document.body.classList.toggle("tables-only"); $("toggle").setAttribute("aria-pressed", String(on)); $("toggle").textContent = on ? "Show diagram" : "Show table"; });
-$("replay").addEventListener("click", () => replay(backlog.slice(-12), false));
+// Replays the twelve most recent events the page has received, oldest first, not only the first ones.
+$("replay").addEventListener("click", () => replay(recent.slice(-12), false));
 $("bounds").addEventListener("click", () => { showBounds = !showBounds; $("bounds").setAttribute("aria-pressed", String(showBounds)); $("bounds").textContent = showBounds ? "Hide boundaries" : "Show boundaries"; });
 addEventListener("resize", () => { if (touched) size(); else fit(); });
 

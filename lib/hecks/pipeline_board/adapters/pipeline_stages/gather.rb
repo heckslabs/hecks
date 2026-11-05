@@ -17,7 +17,8 @@ module Hecks
           open_work: [:tickets, :open_work, :query], counts: %i[tickets counts plain],
           landed: %i[tickets landed_branches plain], sessions: [:jobs, :sessions, :query],
           red_flag: %i[git red_flag plain], fill: %i[fill preview plain], events: [:journal, :recent, :plain, 40],
-          finished: [:journal, :named, :plain, "WorkFinished", 200]
+          finished: [:journal, :named, :plain, "WorkFinished", 200],
+          landed_times: %i[journal landed_times plain]
         }.freeze
 
         private

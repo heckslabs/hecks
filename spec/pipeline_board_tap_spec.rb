@@ -32,6 +32,13 @@ RSpec.describe Hecks::Adapters::PipelineJournal do
     expect(board.recent.map { |row| row[:aggregate] }.uniq).to eq(["Hecks::SendTrain"])
   end
 
+  it "passes the link keys and the saga correlation of an event through to its row", :aggregate_failures do
+    write(line(kind: "event", at: "2026-11-02T10:00:00Z", aggregate: "Hecks::Landing", id: "l1", event: "BranchLanded",
+               links: { landed: "a1b2c3d" }, correlation: { "landed.value" => "a1b2c3d" }))
+    row = board.recent.find { |found| found[:name] == "BranchLanded" }
+    expect(row).to include(links: { "landed" => "a1b2c3d" }, correlation: { "landed.value" => "a1b2c3d" })
+  end
+
   it "attaches the policy delivery to the event it answered", :aggregate_failures do
     send_train_log
     row = board.recent.find { |found| found[:name] == "BoardRequested" }

@@ -9,7 +9,7 @@ require "hecks/pipeline_board/adapters/pipeline_web"
 
 # The board's server over a real socket on an ephemeral port: it binds the loopback address only,
 # answers three GET routes and nothing else, pushes journal events in order, and writes nothing.
-# Its one write, `POST /api/answer`, is covered in pipeline_board_answer_spec.rb.
+# Its one write, `POST /api/act`, is covered in pipeline_board_act_spec.rb.
 RSpec.describe Hecks::Adapters::PipelineWeb do
   let(:dir) { Dir.mktmpdir("board-web") }
   let(:log) { File.join(dir, "events.jsonl") }
@@ -44,10 +44,14 @@ RSpec.describe Hecks::Adapters::PipelineWeb do
     socket
   end
 
+  # The next `board` event: the state push and other event names are skipped.
   def next_event(socket)
     Timeout.timeout(5) do
-      text = socket.gets.to_s until text.to_s.start_with?("data:")
-      JSON.parse(text.delete_prefix("data: "))
+      loop do
+        next unless socket.gets.to_s.start_with?("event: board")
+
+        return JSON.parse(socket.gets.to_s.delete_prefix("data: "))
+      end
     end
   end
 
@@ -110,6 +114,19 @@ RSpec.describe Hecks::Adapters::PipelineWeb do
     append("LandingRequested", "2026-11-02T10:00:00Z")
     open_stream.tap { |socket| next_event(socket) }.close
     expect(request("GET", "/api/state").code).to eq("200")
+  end
+
+  def state_pushed(socket)
+    Timeout.timeout(5) { loop { break if socket.gets.to_s.start_with?("event: state") } }
+    JSON.parse(socket.gets.to_s.delete_prefix("data: "))
+  end
+
+  it "pushes the state on connect, as a state event, without a request" do
+    append("LandingRequested", "2026-11-02T10:00:00Z")
+    socket = open_stream
+    expect(state_pushed(socket).dig("state", "stages").map { |row| row["name"] }).to eq(names)
+  ensure
+    socket&.close
   end
 
   it "writes nothing: the log and the directory are as the test left them" do

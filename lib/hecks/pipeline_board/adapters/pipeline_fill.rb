@@ -1,20 +1,15 @@
 # frozen_string_literal: true
 
-require "json"
 require_relative "cache"
 
 module Hecks
   module Adapters
-    # Reads `Dispatch.Fill` as a dry run: which planned Work items it would start and which it skips
-    # and
-    # why, plus the load and cap it saw. It never passes `confirm`, so nothing starts.
+    # Reads `Dispatch.Preview`: which planned Work items a filling would start, and which it skips
+    # and why, plus the load and cap it saw. A query, so it writes no record and starts nothing.
     class PipelineFill
       HEADER = /\Aload ([\d.]+) \(limit ([\d.]+), (\d+) cpus\); cap (\d+), (\d+) started/
       WOULD = /\Awould start (\S+): (.*)\z/
       SKIPPED = /\A(\S+) skipped: (.*)\z/
-
-      # The JSON document the launcher prints, after any log lines.
-      JSON_BODY = /\{.*\}/m
 
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] `runner:` stands in for the launcher (a callable taking the
@@ -36,10 +31,7 @@ module Hecks
       private
 
       def report
-        out = @runner.call("exe/hecks", "Dispatch.Fill!", "repo.value=#{@root}", "budget_minutes.value=30", "--wait")
-        JSON.parse(out[JSON_BODY].to_s).dig("state", "report").to_s
-      rescue JSON::ParserError
-        raise PipelineBoard::Unavailable, "Dispatch.Fill printed no report"
+        @runner.call("exe/hecks", "Dispatch.Preview", "repo.value=#{@root}", "budget_minutes.value=30").to_s
       end
 
       def parse(text)

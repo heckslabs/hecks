@@ -10,21 +10,30 @@ module Hecks
       module CiTiles
         include TileKit
 
-        GOAL_MINUTES = 3
+        # The thresholds when the QualityControl world declares no `ci_health` line.
+        HEALTH_DEFAULTS = { wall_goal_minutes: 3, success_good: 80, success_fair: 50 }.freeze
 
-        # @param runs [Array<Hash>] CI runs, oldest first
-        def success(runs)
-          spec = { id: "success", label: "CI success", unit: "%", detail: "last #{runs.size} main runs" }
-          built = windowed(spec, runs) { |list| success_rate(list) }
-          built.merge(state: band(built[:value], 80, 50))
+        # @param registry [Runtime::Registry, nil]
+        # @return [Hash{Symbol => Integer}] the wall goal (minutes) and the success bands (percent)
+        def self.health(registry)
+          declared = registry&.world("QualityControl")&.for_verb("ci_health") || {}
+          HEALTH_DEFAULTS.merge(declared.slice(*HEALTH_DEFAULTS.keys)).transform_values { |v| Integer(v) }
         end
 
-        def wall(runs)
-          spec = { id: "wall", label: "Median CI wall", unit: "min", lower: true, detail: "goal #{GOAL_MINUTES} min" }
+        # @param runs [Array<Hash>] CI runs, oldest first
+        def success(runs, health)
+          spec = { id: "success", label: "CI success", unit: "%", detail: "last #{runs.size} main runs" }
+          built = windowed(spec, runs) { |list| success_rate(list) }
+          built.merge(state: band(built[:value], health[:success_good], health[:success_fair]))
+        end
+
+        def wall(runs, health)
+          spec = { id: "wall", label: "Median CI wall", unit: "min", lower: true,
+                   detail: "goal #{health[:wall_goal_minutes]} min" }
           built = windowed(spec, runs.select { |run| run[:status] == "completed" }) do |list|
             median(list.map { |run| run[:wall_minutes] })
           end
-          built.merge(state: over(built[:value], GOAL_MINUTES))
+          built.merge(state: over(built[:value], health[:wall_goal_minutes]))
         end
 
         def failed_head(runs)
@@ -47,10 +56,18 @@ module Hecks
           return running_red(latest) unless latest[:status] == "completed"
           return tile("red", "Main red for", 0, "h", detail: "main is green") if latest[:conclusion] == "success"
 
-          green = runs.reverse.find { |run| run[:conclusion] == "success" }
-          hours = green && ((now - finished(green)) / 3600.0).round(1)
-          note = green ? "since #{green[:sha]} went green" : "no green run in the window"
-          tile("red", "Main red for", hours, "h", state: "failed", detail: note)
+          green = runs.index { |run| run[:conclusion] == "success" }
+          hours = green && ((now - finished(runs[green])) / 3600.0).round(1)
+          tile("red", "Main red for", hours, "h", state: "failed", detail: red_note(runs, green))
+        end
+
+        # Names the last green commit and the first red one after it. The runs are newest first, so
+        # the first red is the run just before the green one in the list.
+        def red_note(runs, green)
+          return "no green run in the window" unless green
+          return "last green #{runs[green][:sha]}" if green.zero?
+
+          "last green #{runs[green][:sha]}, first red #{runs[green - 1][:sha]}"
         end
 
         # The run is still going, so it has no verdict yet: the tile says so rather than red.
@@ -59,11 +76,17 @@ module Hecks
         end
 
         def lead(data, runs)
-          times = data[:commit_times].to_h
-          spec = { id: "lead", label: "Commit to green CI", unit: "min", lower: true,
-                   detail: "landed to pushed is not recorded" }
-          windowed(spec, runs.select { |run| times[run[:sha]] }) do |list|
-            median(list.map { |run| (finished(run) - Time.parse(times[run[:sha]])) / 60.0 })
+          spec = { id: "lead", label: "Commit to green CI", unit: "min", lower: true, detail: "landed to green" }
+          windowed(spec, runs.select { |run| landed_at(data, run[:sha]) }) do |list|
+            median(list.map { |run| (finished(run) - Time.parse(landed_at(data, run[:sha]))) / 60.0 })
+          end
+        end
+
+        # How long a landed commit waited before the push that CI ran for it.
+        def carry(data, runs)
+          spec = { id: "carry", label: "Landed to pushed", unit: "min", lower: true, detail: "landed to the push" }
+          windowed(spec, runs.select { |run| run[:pushed] && landed_at(data, run[:sha]) }) do |list|
+            median(list.map { |run| (Time.parse(run[:pushed]) - Time.parse(landed_at(data, run[:sha]))) / 60.0 })
           end
         end
 

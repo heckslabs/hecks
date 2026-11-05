@@ -34,6 +34,18 @@ module Hecks
 
       # @param limit [Hash, Integer, nil] how many events (40 when none is named)
       # @return [Hash{Symbol => String}] `text:` the events as JSON, newest first
+      # The first time each landed sha was recorded, from the tapped `BranchLanded` rows.
+      #
+      # @return [Hash{String => String}] the sha (seven characters) to the time it was landed
+      def landed_times
+        recent(200).reverse.each_with_object({}) do |row, times|
+          sha = (row[:links] || {})["landed"].to_s[0, 7]
+          times[sha] ||= row[:at] if row[:name] == "BranchLanded" && !sha.empty?
+        end
+      rescue PipelineBoard::Unavailable
+        {}
+      end
+
       def events(limit: nil)
         { text: JSON.generate(recent(limit.is_a?(Hash) ? limit[:value] : limit)) }
       end

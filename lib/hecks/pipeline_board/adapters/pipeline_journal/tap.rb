@@ -47,7 +47,8 @@ module Hecks
 
         def event_row(data, index)
           { key: "tap:#{data["at"]}:#{data["aggregate"]}:#{data["id"]}:#{data["event"]}:#{index}", source: "tap",
-            at: data["at"], aggregate: data["aggregate"], id: data["id"], name: data["event"], reactions: inline(data) }
+            at: data["at"], aggregate: data["aggregate"], id: data["id"], name: data["event"], reactions: inline(data),
+            links: data["links"].to_h, correlation: data["correlation"].to_h }
         end
 
         def inline(data) = data["policy"] ? [reaction(data)] : []

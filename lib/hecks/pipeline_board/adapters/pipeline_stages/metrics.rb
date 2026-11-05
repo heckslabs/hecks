@@ -2,6 +2,7 @@
 
 require "time"
 require_relative "ci_tiles"
+require_relative "../../../hecks/adapters/push_size"
 require_relative "work_tiles"
 
 module Hecks
@@ -24,11 +25,13 @@ module Hecks
         end
 
         def self.ci(data, runs, now)
-          [success(runs), wall(runs), failed_head(runs), red_for(runs, now), lead(data, runs)]
+          health = data.fetch(:ci_health, CiTiles::HEALTH_DEFAULTS)
+          [success(runs, health), wall(runs, health), failed_head(runs), red_for(runs, now), lead(data, runs), carry(data, runs)]
         end
 
         def self.work(data, now)
-          [ahead(data[:local], now), working(data), throughput(data[:finished], now), release(data[:release], now)]
+          limits = data.fetch(:push_limits, Hecks::Adapters::PushSize::DEFAULTS)
+          [ahead(data[:local], now, limits), working(data), throughput(data[:finished], now), release(data[:release], now)]
         end
       end
     end
