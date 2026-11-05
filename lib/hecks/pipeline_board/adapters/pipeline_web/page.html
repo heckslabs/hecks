@@ -110,6 +110,10 @@ dialog#answer select { font: inherit; color: var(--ink); background: var(--page)
 dialog#answer .question { border-left: 4px solid var(--warning); padding: 4px 8px; margin: 8px 0; background: var(--page); border-radius: 0 6px 6px 0; overflow-wrap: anywhere; }
 dialog#answer .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; }
 dialog#answer .status { min-height: 1.4em; font-size: 12px; color: var(--ink2); margin-top: 6px; }
+dialog#resolve { width: min(34rem, 92vw); border: 1px solid var(--axis); border-radius: 10px; background: var(--surface); color: var(--ink); padding: 16px; }
+dialog#resolve::backdrop { background: rgba(0,0,0,.35); }
+pre.cmd { background: var(--page); border: 1px solid var(--axis); border-radius: 6px; padding: 8px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.clickable { cursor: pointer; }
 tr.clickable { cursor: pointer; } tr.clickable:hover, tr.clickable:focus-visible { background: var(--page); }
 .tables-only .chartview { display: none; } body:not(.tables-only) .tableview { display: none; }
 @media (max-width: 900px) {
@@ -156,6 +160,13 @@ tr.clickable { cursor: pointer; } tr.clickable:hover, tr.clickable:focus-visible
   <section aria-labelledby="h-sess"><h2 id="h-sess">Sessions</h2><div class="scroll" id="sessions"></div></section>
   <section aria-labelledby="h-ev"><h2 id="h-ev">Events and what answered them</h2><div class="feed" id="feed" aria-live="polite"></div></section>
 </main>
+<dialog id="resolve" aria-labelledby="resolve-title">
+  <h2 id="resolve-title"></h2>
+  <div id="resolve-detail"></div>
+  <p id="resolve-note" class="unknown-note"></p>
+  <pre id="resolve-cmd" class="cmd"></pre>
+  <div class="actions"><button type="button" id="resolve-copy">Copy command</button><button type="button" id="resolve-close">Close</button></div>
+</dialog>
 <dialog id="answer" aria-labelledby="ans-title">
   <form method="dialog" id="ans-form">
     <h2 id="ans-title">Answer a blocked session</h2>
@@ -209,22 +220,54 @@ document.addEventListener("mouseover", (e) => {
   tip.style.left = Math.min(e.clientX + 12, innerWidth - 290) + "px"; tip.style.top = (e.clientY + 14) + "px";
 });
 
+// What resolves each attention pill, by its label. A pill with no entry names its cause only.
+const FIX = {
+  "Local main": { cmd: "hecks send_train.board! --confirm", note: "Local main has commits origin lacks. Boarding the train pushes them." },
+  "Train": { cmd: "hecks send_train.board! --confirm", note: "The last pushed commit is not on origin. Boarding the train pushes it." },
+  "Commits not pushed": { cmd: "hecks send_train.board! --confirm", note: "Boarding the train pushes the commits waiting on origin." },
+  "Promote": { cmd: "hecks promotion_run.promote! lane=stable --confirm --wait", note: "Stable is behind main. This fast-forwards it onto the newest commit every required check passed on." },
+  "Release": { note: "Publishing is the owner's decision. The version bump needs a Release-Approved-By line, and only the owner adds it." },
+  "Dispatched sessions": { note: "Sessions are at the cap or waiting on a person. Answer a blocked session from the Sessions table." },
+  "Work items": { note: "Work is held at the cap or waiting on a person. Answer a blocked session from the Sessions table." },
+  "Sessions": { note: "Sessions are waiting on a person. Click the blocked session to answer it." }
+};
+function resolve(label, detail) {
+  const fix = FIX[label] || {};
+  $("resolve-title").textContent = label;
+  $("resolve-detail").textContent = detail || "";
+  $("resolve-note").textContent = fix.note || "No command resolves this from the board. Read the detail and act in the checkout.";
+  $("resolve-cmd").textContent = fix.cmd || "";
+  $("resolve-cmd").hidden = !fix.cmd; $("resolve-copy").hidden = !fix.cmd;
+  $("resolve").showModal();
+}
+$("resolve-close").addEventListener("click", () => $("resolve").close());
+$("resolve-copy").addEventListener("click", async () => {
+  try { await navigator.clipboard.writeText($("resolve-cmd").textContent); $("resolve-copy").textContent = "Copied"; }
+  catch (e) { $("resolve-copy").textContent = "Copy failed"; }
+});
+
 function renderTiles(tiles) {
   put("tiles", tiles.map((t) => {
     const value = t.value === null || t.value === undefined ? "-" : t.value;
     const tr = t.trend ? h("div", { class: "trend" }, (t.trend.delta > 0 ? "▲ +" : t.trend.delta < 0 ? "▼ " : "= ") + t.trend.delta + " " + t.trend.unit,
       t.trend.better === null ? " flat" : t.trend.better ? " better" : " worse", " vs earlier half") : null;
-    return h("div", { class: "tile", tip: t.label + ": " + t.detail },
+    const el = h("div", { class: "tile" + (needsAttention(t.state) ? " clickable" : ""), tip: t.label + ": " + t.detail },
       h("div", { class: "label" }, t.label), h("div", { class: "num" }, String(value), h("span", { class: "unit" }, t.unit)),
       badge(t.state), tr, h("div", { class: "note" }, t.detail));
+    if (needsAttention(t.state)) answerable(el, () => resolve(t.label, t.detail));
+    return el;
   }));
 }
+// A pill that asks for action: attention, or failed.
+function needsAttention(state) { return state === "attention" || state === "failed"; }
 function renderStrip(stages) {
   put("strip", stages.map((s) => {
     const waiting = Array.isArray(s.blocked) ? s.blocked : [];
-    const node = h("div", { class: "node" + (waiting.length ? " clickable" : ""), tip: s.name + ": " + s.detail + (waiting.length ? " (click to answer)" : "") },
+    const clickable = waiting.length || needsAttention(s.state);
+    const node = h("div", { class: "node" + (clickable ? " clickable" : ""), tip: s.name + ": " + s.detail + (waiting.length ? " (click to answer)" : needsAttention(s.state) ? " (click to resolve)" : "") },
       h("div", { class: "name" }, s.name), h("div", { class: "count" }, s.count), badge(s.state), h("div", { class: "detail" }, s.detail));
     if (waiting.length) answerable(node, () => openAnswer(waiting, waiting[0].id));
+    else if (needsAttention(s.state)) answerable(node, () => resolve(s.name, s.detail));
     return node;
   }));
 }
