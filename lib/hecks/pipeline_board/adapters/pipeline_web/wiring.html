@@ -267,7 +267,12 @@ function scoot() {
 const scooted = (n) => Math.hypot(n.ox || 0, n.oy || 0) > 6;
 /* ---- when embedded in the board, the wheel scrolls the board, not this frame ---- */
 if (window.top !== window.self) {
-  document.addEventListener("wheel", (e) => { e.preventDefault(); window.parent.scrollBy(e.deltaX, e.deltaY); }, { passive: false });
+  // With Cmd or Ctrl held the wheel is the browser's own zoom, so it is left alone.
+  document.addEventListener("wheel", (e) => {
+    if (e.metaKey || e.ctrlKey) return;
+    e.preventDefault();
+    window.parent.scrollBy(e.deltaX, e.deltaY);
+  }, { passive: false });
 }
 
 /* ---- pan by dragging, or use the buttons to zoom ---- */
