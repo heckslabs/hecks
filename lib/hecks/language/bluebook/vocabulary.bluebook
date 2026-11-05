@@ -1072,14 +1072,18 @@ Hecks.bluebook "Bluebook" do
       attribute :clean,      String
       attribute :evidence,   String
       attribute :unfinished, String
+      attribute :failed,     String
 
-      member name: "success",         certifies: "yes", clean: "yes", evidence: "yes", unfinished: ""
-      member name: "skipped",         certifies: "yes", clean: "yes", evidence: "",    unfinished: "yes"
-      member name: "neutral",         certifies: "",    clean: "yes", evidence: "",    unfinished: "yes"
-      member name: "cancelled",       certifies: "",    clean: "",    evidence: "",    unfinished: "yes"
-      member name: "stale",           certifies: "",    clean: "",    evidence: "",    unfinished: "yes"
-      member name: "action_required", certifies: "",    clean: "",    evidence: "",    unfinished: "yes"
-      member name: "",                certifies: "",    clean: "",    evidence: "",    unfinished: "yes"
+      member name: "success",         certifies: "yes", clean: "yes", evidence: "yes", unfinished: "", failed: ""
+      member name: "skipped",         certifies: "yes", clean: "yes", evidence: "",    unfinished: "yes", failed: ""
+      member name: "neutral",         certifies: "",    clean: "yes", evidence: "",    unfinished: "yes", failed: ""
+      member name: "cancelled",       certifies: "",    clean: "",    evidence: "",    unfinished: "yes", failed: "yes"
+      member name: "stale",           certifies: "",    clean: "",    evidence: "",    unfinished: "yes", failed: ""
+      member name: "action_required", certifies: "",    clean: "",    evidence: "",    unfinished: "yes", failed: ""
+      member name: "",                certifies: "",    clean: "",    evidence: "",    unfinished: "yes", failed: ""
+      member name: "failure", certifies: "", clean: "", evidence: "", unfinished: "", failed: "yes"
+      member name: "timed_out", certifies: "", clean: "", evidence: "", unfinished: "", failed: "yes"
+      member name: "startup_failure", certifies: "", clean: "", evidence: "", unfinished: "", failed: "yes"
     end
 
     # The branches a change travels along. `main` takes only pull requests that GitHub's merge

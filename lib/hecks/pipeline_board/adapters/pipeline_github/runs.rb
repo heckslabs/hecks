@@ -37,7 +37,7 @@ module Hecks
 
         def counted(run) = jobs_of(run["databaseId"]).count { |job| failed?(job) }
 
-        def failed?(job) = %w[failure timed_out cancelled startup_failure].include?(job["conclusion"])
+        def failed?(job) = Hecks::CheckConclusion.failed?(job["conclusion"])
 
         def jobs_of(id) = read("run", "view", id.to_s, "--json", "jobs")["jobs"] || []
 

@@ -46,7 +46,7 @@ module Hecks
         def success_rate(list)
           return nil if list.empty?
 
-          (100.0 * list.count { |run| run[:conclusion] == "success" } / list.size).round
+          (100.0 * list.count { |run| Hecks::CheckConclusion.certifies?(run[:conclusion]) } / list.size).round
         end
 
         # @return [Time] when a run ended: its start plus its wall time

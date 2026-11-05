@@ -5374,6 +5374,7 @@ pub struct CheckConclusion {
     pub clean: &'static str,
     pub evidence: &'static str,
     pub unfinished: &'static str,
+    pub failed: &'static str,
 }
 
 pub const CHECK_CONCLUSION: &[CheckConclusion] = &[
@@ -5383,6 +5384,7 @@ pub const CHECK_CONCLUSION: &[CheckConclusion] = &[
         clean: "yes",
         evidence: "yes",
         unfinished: "",
+        failed: "",
     },
     CheckConclusion {
         name: "skipped",
@@ -5390,6 +5392,7 @@ pub const CHECK_CONCLUSION: &[CheckConclusion] = &[
         clean: "yes",
         evidence: "",
         unfinished: "yes",
+        failed: "",
     },
     CheckConclusion {
         name: "neutral",
@@ -5397,6 +5400,7 @@ pub const CHECK_CONCLUSION: &[CheckConclusion] = &[
         clean: "yes",
         evidence: "",
         unfinished: "yes",
+        failed: "",
     },
     CheckConclusion {
         name: "cancelled",
@@ -5404,6 +5408,7 @@ pub const CHECK_CONCLUSION: &[CheckConclusion] = &[
         clean: "",
         evidence: "",
         unfinished: "yes",
+        failed: "yes",
     },
     CheckConclusion {
         name: "stale",
@@ -5411,6 +5416,7 @@ pub const CHECK_CONCLUSION: &[CheckConclusion] = &[
         clean: "",
         evidence: "",
         unfinished: "yes",
+        failed: "",
     },
     CheckConclusion {
         name: "action_required",
@@ -5418,6 +5424,7 @@ pub const CHECK_CONCLUSION: &[CheckConclusion] = &[
         clean: "",
         evidence: "",
         unfinished: "yes",
+        failed: "",
     },
     CheckConclusion {
         name: "",
@@ -5425,6 +5432,31 @@ pub const CHECK_CONCLUSION: &[CheckConclusion] = &[
         clean: "",
         evidence: "",
         unfinished: "yes",
+        failed: "",
+    },
+    CheckConclusion {
+        name: "failure",
+        certifies: "",
+        clean: "",
+        evidence: "",
+        unfinished: "",
+        failed: "yes",
+    },
+    CheckConclusion {
+        name: "timed_out",
+        certifies: "",
+        clean: "",
+        evidence: "",
+        unfinished: "",
+        failed: "yes",
+    },
+    CheckConclusion {
+        name: "startup_failure",
+        certifies: "",
+        clean: "",
+        evidence: "",
+        unfinished: "",
+        failed: "yes",
     },
 ];
 
@@ -5451,20 +5483,38 @@ impl CheckConclusion {
                 "unfinished".to_string(),
                 crate::kernel::Json::Str(self.unfinished.to_string()),
             ),
+            (
+                "failed".to_string(),
+                crate::kernel::Json::Str(self.failed.to_string()),
+            ),
         ])
     }
 
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         // `validate!`'s order: a name the set does not declare, then a field left out, then
         // membership of the whole row.
-        let unknown = v.unknown_keys(&["name", "certifies", "clean", "evidence", "unfinished"]);
+        let unknown = v.unknown_keys(&[
+            "name",
+            "certifies",
+            "clean",
+            "evidence",
+            "unfinished",
+            "failed",
+        ]);
         if !unknown.is_empty() {
             let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
             return Err(crate::kernel::Refusal::UnknownArgument(
                 crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
                     command: "CheckConclusion",
                     unknown: &unknown,
-                    declared: &["name", "certifies", "clean", "evidence", "unfinished"],
+                    declared: &[
+                        "name",
+                        "certifies",
+                        "clean",
+                        "evidence",
+                        "unfinished",
+                        "failed",
+                    ],
                 }
                 .render_args(),
             ));
@@ -5494,12 +5544,18 @@ impl CheckConclusion {
                 "CheckConclusion.unfinished expects String, got nil".to_string(),
             ));
         }
+        if matches!(v.get("failed"), None | Some(crate::kernel::Json::Null)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(
+                "CheckConclusion.failed expects String, got nil".to_string(),
+            ));
+        }
         for row in CHECK_CONCLUSION {
             if v.get("name").and_then(crate::kernel::Json::as_str) == Some(row.name)
                 && v.get("certifies").and_then(crate::kernel::Json::as_str) == Some(row.certifies)
                 && v.get("clean").and_then(crate::kernel::Json::as_str) == Some(row.clean)
                 && v.get("evidence").and_then(crate::kernel::Json::as_str) == Some(row.evidence)
                 && v.get("unfinished").and_then(crate::kernel::Json::as_str) == Some(row.unfinished)
+                && v.get("failed").and_then(crate::kernel::Json::as_str) == Some(row.failed)
             {
                 return Ok(row.clone());
             }
@@ -5520,6 +5576,9 @@ impl CheckConclusion {
                     "stale",
                     "action_required",
                     "",
+                    "failure",
+                    "timed_out",
+                    "startup_failure",
                 ],
                 offered: offered.as_str(),
             }

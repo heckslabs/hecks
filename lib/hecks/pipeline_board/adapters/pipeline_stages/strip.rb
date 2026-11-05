@@ -101,7 +101,7 @@ module Hecks
         def ci_state(run)
           return "working" unless run[:status] == "completed"
 
-          run[:conclusion] == "success" ? "ok" : "failed"
+          Hecks::CheckConclusion.certifies?(run[:conclusion]) ? "ok" : "failed"
         end
 
         def promote(stable)

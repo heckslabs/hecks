@@ -42,9 +42,11 @@ module Hecks
         end
 
         def red_for(runs, now)
-          return tile("red", "Main red for", 0, "h", detail: "main is green") if runs.last[:conclusion] == "success"
+          if Hecks::CheckConclusion.certifies?(runs.last[:conclusion])
+            return tile("red", "Main red for", 0, "h", detail: "main is green")
+          end
 
-          green = runs.reverse.find { |run| run[:conclusion] == "success" }
+          green = runs.reverse.find { |run| Hecks::CheckConclusion.certifies?(run[:conclusion]) }
           hours = green && ((now - finished(green)) / 3600.0).round(1)
           note = green ? "since #{green[:sha]} went green" : "no green run in the window"
           tile("red", "Main red for", hours, "h", state: "failed", detail: note)

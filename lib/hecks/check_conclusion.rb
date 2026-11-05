@@ -12,6 +12,10 @@ module Hecks
     # @return [Boolean] whether a run or a list of checks with this conclusion is no failure
     def self.clean?(conclusion) = flag?(conclusion, "clean")
 
+    # @param conclusion [String, nil] the conclusion GitHub reports
+    # @return [Boolean] whether the check failed: a red run, a timeout or a cancelled job
+    def self.failed?(conclusion) = flag?(conclusion, "failed")
+
     # @param conclusion [String, nil] the conclusion of a spec job
     # @return [Boolean] whether the job ran its specs and they passed
     def self.evidence?(conclusion) = flag?(conclusion, "evidence")

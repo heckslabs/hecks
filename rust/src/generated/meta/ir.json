@@ -35817,6 +35817,16 @@
               "pattern": null,
               "admits": null,
               "relationship": null
+            },
+            {
+              "name": "failed",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -35844,6 +35854,10 @@
               [
                 "unfinished",
                 ""
+              ],
+              [
+                "failed",
+                ""
               ]
             ],
             [
@@ -35866,6 +35880,10 @@
               [
                 "unfinished",
                 "yes"
+              ],
+              [
+                "failed",
+                ""
               ]
             ],
             [
@@ -35888,6 +35906,10 @@
               [
                 "unfinished",
                 "yes"
+              ],
+              [
+                "failed",
+                ""
               ]
             ],
             [
@@ -35909,6 +35931,10 @@
               ],
               [
                 "unfinished",
+                "yes"
+              ],
+              [
+                "failed",
                 "yes"
               ]
             ],
@@ -35932,6 +35958,10 @@
               [
                 "unfinished",
                 "yes"
+              ],
+              [
+                "failed",
+                ""
               ]
             ],
             [
@@ -35954,6 +35984,10 @@
               [
                 "unfinished",
                 "yes"
+              ],
+              [
+                "failed",
+                ""
               ]
             ],
             [
@@ -35975,6 +36009,88 @@
               ],
               [
                 "unfinished",
+                "yes"
+              ],
+              [
+                "failed",
+                ""
+              ]
+            ],
+            [
+              [
+                "name",
+                "failure"
+              ],
+              [
+                "certifies",
+                ""
+              ],
+              [
+                "clean",
+                ""
+              ],
+              [
+                "evidence",
+                ""
+              ],
+              [
+                "unfinished",
+                ""
+              ],
+              [
+                "failed",
+                "yes"
+              ]
+            ],
+            [
+              [
+                "name",
+                "timed_out"
+              ],
+              [
+                "certifies",
+                ""
+              ],
+              [
+                "clean",
+                ""
+              ],
+              [
+                "evidence",
+                ""
+              ],
+              [
+                "unfinished",
+                ""
+              ],
+              [
+                "failed",
+                "yes"
+              ]
+            ],
+            [
+              [
+                "name",
+                "startup_failure"
+              ],
+              [
+                "certifies",
+                ""
+              ],
+              [
+                "clean",
+                ""
+              ],
+              [
+                "evidence",
+                ""
+              ],
+              [
+                "unfinished",
+                ""
+              ],
+              [
+                "failed",
                 "yes"
               ]
             ]
