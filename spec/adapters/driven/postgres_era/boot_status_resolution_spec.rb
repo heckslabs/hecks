@@ -136,9 +136,10 @@ RSpec.describe "the boot status and the boot resolving through one resolution", 
   def mint_hash_of(source) = Hecks::Runtime::StorageShape.mint_hash(load_registry(source).bluebooks.values.first)
 
   def write_wiring(dir)
-    File.write(File.join(dir, "ledger.hecksagon"), %(Hecks.hecksagon "Ledger" do\n  persisted_by "PostgresEra"\nend\n))
+    File.write(File.join(dir, "ledger.hecksagon"), %(Hecks.hecksagon "Ledger" do\n  persisted_by "Postgres"
+  revisions true\nend\n))
     File.write(File.join(dir, "ledger.world"),
-               %(Hecks.world "Ledger" do\n  persisted_by("PostgresEra") do\n    database "#{url}"\n  end\nend\n))
+               %(Hecks.world "Ledger" do\n  persisted_by("Postgres") do\n    database "#{url}"\n  end\nend\n))
   end
 
   # The `Era.BootStatus` row for Ledger, for a domain whose ledger claims its shape is current.

@@ -63,9 +63,10 @@ RSpec.describe "the label a resolution gives a held era", :io do
     FileUtils.mkdir_p(dir)
     File.write(File.join(dir, "ledger.bluebook"), full_source)
     File.write(File.join(dir, "shapes.json"), JSON.generate("Ledger" => full_hash))
-    File.write(File.join(dir, "ledger.hecksagon"), %(Hecks.hecksagon "Ledger" do\n  persisted_by "PostgresEra"\nend\n))
+    File.write(File.join(dir, "ledger.hecksagon"), %(Hecks.hecksagon "Ledger" do\n  persisted_by "Postgres"
+  revisions true\nend\n))
     File.write(File.join(dir, "ledger.world"),
-               %(Hecks.world "Ledger" do\n  persisted_by("PostgresEra") do\n    database "#{url}"\n  end\nend\n))
+               %(Hecks.world "Ledger" do\n  persisted_by("Postgres") do\n    database "#{url}"\n  end\nend\n))
   end
 
   def status_row
