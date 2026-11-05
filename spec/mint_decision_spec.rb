@@ -101,7 +101,7 @@ module MintDecisionSupport
   def resolve_for(held_text, current_text, directory: nil)
     ctx = Ctx.new(registry, declared(current_text), held_era(held_text).merge(hash: "aaaaaa"),
                   label_of(current_text), "Ledger", 2, directory)
-    Object.new.extend(Manager, Manager::HeldEra, Manager::Minter, Manager::CoverageCheck).resolve_edge!(ctx)
+    Object.new.extend(Manager, Manager::HeldRevision, Manager::Minter, Manager::CoverageCheck).resolve_edge!(ctx)
   end
 
   # Runs the mint's own check over a lineage that moves between its decision and its write.
@@ -111,7 +111,7 @@ module MintDecisionSupport
       role: nil, directory: directory, latest: held_era(ledger_text).merge(hash: "aaaaaa"),
       mint_permitted: true, mint_request: Manager::MintRequest.new(confirm: true, verdict: "would_mint", watermark: 1)
     )
-    Object.new.extend(Manager, Manager::HeldEra, Manager::Minter, Manager::CoverageCheck).mint!(context)
+    Object.new.extend(Manager, Manager::HeldRevision, Manager::Minter, Manager::CoverageCheck).mint!(context)
   end
 
   def rename_verdict = decide(ledger_text, renamed_current, recorded: recorded_to(renamed_current))

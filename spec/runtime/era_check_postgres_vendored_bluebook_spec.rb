@@ -118,7 +118,7 @@ RSpec.describe "PostgresEra era-1 minting for a second bluebook in a multi-blueb
   end
 
   # Target's directory holds exactly one `.bluebook` file — the single-file
-  # shape `EraCheck.source_text_for`'s fallback special-cases. The
+  # shape `RevisionCheck.source_text_for`'s fallback special-cases. The
   # `attaches "Governance"` calls only satisfy the role-authorization
   # boot gate and are unrelated to the bug this pins.
   def write_domain(dir)

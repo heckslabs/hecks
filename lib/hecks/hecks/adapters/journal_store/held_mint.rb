@@ -12,7 +12,7 @@ module Hecks
       #
       # It reads the domain's facts through the shared mint decision (`QaAutoMint.facts`, which
       # runs `MintDecision.decide_latest`), refuses by name whatever the decision does not allow,
-      # and mints through `QaEraMint`, the mint transaction the QualityControl ledger uses. The
+      # and mints through `QaRevisionMint`, the mint transaction the QualityControl ledger uses. The
       # reader and the minter are injected so a spec runs with no database.
       class HeldMint
         # The Hecks domain's bluebook directory, the one a checkout boots.
@@ -28,7 +28,7 @@ module Hecks
         #   holds no eras (Memory, the default); `disposable: true` alone for a world that
         #   declares `disposable_ledger true`; else `held` (the count of held eras), and when any
         #   are held, `next_era`, `status` (the boot's resolution,
-        #   `LineageManager::EraResolution`), `watermark`, `from`, `to` and `verdict` (see
+        #   `LineageManager::RevisionResolution`), `watermark`, `from`, `to` and `verdict` (see
         #   `QaAutoMint.facts`)
         def self.read(directory)
           domain = HeldDomain.open(directory, mode: :translated)
@@ -46,7 +46,7 @@ module Hecks
         #
         # @return [Array(String, Boolean)] the minted label or the refusal, and whether it minted
         def self.mint(era, request)
-          QaEraMint.call(DOMAIN, domain: NAME, era: era, request: request, ledger: DOMAIN)
+          QaRevisionMint.call(DOMAIN, domain: NAME, era: era, request: request, ledger: DOMAIN)
         end
 
         # @param directory [String] the bluebook directory a mint is for

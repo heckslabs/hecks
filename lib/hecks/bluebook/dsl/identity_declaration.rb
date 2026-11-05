@@ -77,7 +77,7 @@ module Hecks
         def build_identity_value_object(type_name, definition)
           ValueObjectBuilder.build(type_name, owner_value_objects: identity_pool, &definition)
         rescue NameError => e
-          # Must raise Malformed: EraGuard.shadow_parse retries frozen text only on
+          # Must raise Malformed: RevisionGuard.shadow_parse retries frozen text only on
           # Malformed, and a bare identifier in an old block form raises NameError here.
           raise Malformed,
                 "#{@name}.identified_by do ... end could not be read as a value-object " \
@@ -107,7 +107,7 @@ module Hecks
           @identity_fields_pending = targets
         end
 
-        # Parses the spellings frozen era text uses, for `EraGuard.shadow_parse`.
+        # Parses the spellings frozen era text uses, for `RevisionGuard.shadow_parse`.
         def legacy_identified_by(*targets, as:, &path)
           return legacy_identity_target(targets, as, path) if targets.first
 

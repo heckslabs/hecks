@@ -9,9 +9,9 @@ require "json"
 require_relative "../support/mint_request_support"
 require_relative "../support/first_era_hold"
 
-# `Hecks::Fuzzing::EraBoundary` against a real diverged write: file-based domain loading,
+# `Hecks::Fuzzing::RevisionBoundary` against a real diverged write: file-based domain loading,
 # `BindingPolicy` resolution and `.world` settings reach the answer `hecks merge_tail` reports.
-RSpec.describe Hecks::Fuzzing::EraBoundary, :aggregate_failures, :io do
+RSpec.describe Hecks::Fuzzing::RevisionBoundary, :aggregate_failures, :io do
   include MintRequestSupport
   include FirstEraHold
 
@@ -20,7 +20,7 @@ RSpec.describe Hecks::Fuzzing::EraBoundary, :aggregate_failures, :io do
   # Prefixed names: constants assigned inside `RSpec.describe` land on `Object`, so a
   # generic `V1_SOURCE` would clobber another spec's.
   ERA_BOUNDARY_V1_SOURCE = <<~BLUEBOOK.freeze
-    Hecks.bluebook "EraBoundaryFixture" do
+    Hecks.bluebook "RevisionBoundaryFixture" do
       aggregate "Widget" do
         identified_by :kind
 
@@ -39,7 +39,7 @@ RSpec.describe Hecks::Fuzzing::EraBoundary, :aggregate_failures, :io do
   BLUEBOOK
 
   ERA_BOUNDARY_V2_SOURCE = <<~BLUEBOOK.freeze
-    Hecks.bluebook "EraBoundaryFixture" do
+    Hecks.bluebook "RevisionBoundaryFixture" do
       aggregate "Widget" do
         identified_by :kind
 
@@ -58,7 +58,7 @@ RSpec.describe Hecks::Fuzzing::EraBoundary, :aggregate_failures, :io do
   BLUEBOOK
 
   ERA_BOUNDARY_EDGE_SOURCE = <<~RUBY.freeze
-    Hecks.data_translation("EraBoundaryFixture", from: FROM_LABEL, to: TO_LABEL) do
+    Hecks.data_translation("RevisionBoundaryFixture", from: FROM_LABEL, to: TO_LABEL) do
       aggregate("Widget") do
         rename :cost, to: :amount
       end
@@ -125,7 +125,7 @@ RSpec.describe Hecks::Fuzzing::EraBoundary, :aggregate_failures, :io do
 
   # Holds era 1 from the V1 source, as the mint entry point does, then verifies it by a boot.
   def hold_v1!
-    hold_first_era!(url: database_url, domain: "EraBoundaryFixture", source: ERA_BOUNDARY_V1_SOURCE)
+    hold_first_era!(url: database_url, domain: "RevisionBoundaryFixture", source: ERA_BOUNDARY_V1_SOURCE)
     check!(ERA_BOUNDARY_V1_SOURCE)
   end
 
@@ -133,7 +133,7 @@ RSpec.describe Hecks::Fuzzing::EraBoundary, :aggregate_failures, :io do
     registry = hold_v1!
     aggregate = registry.bluebooks.values.first.aggregate("Widget")
     adapter = Hecks::Adapters::PostgresEra.new(aggregate: aggregate,
-                                               settings:  { database: database_url, domain: "EraBoundaryFixture" })
+                                               settings:  { database: database_url, domain: "RevisionBoundaryFixture" })
     instance = Hecks::Runtime::Instance.new(
       aggregate: aggregate, id: id, state: { cost: { "cents" => 100 }, kind: { "label" => "biz" } }
     )
@@ -150,15 +150,15 @@ RSpec.describe Hecks::Fuzzing::EraBoundary, :aggregate_failures, :io do
 
   def hecksagon_source(adapter)
     <<~RUBY
-      Hecks.hecksagon "EraBoundaryFixture" do
-        EraBoundaryFixture::Widget.persisted_by("#{adapter}")
+      Hecks.hecksagon "RevisionBoundaryFixture" do
+        RevisionBoundaryFixture::Widget.persisted_by("#{adapter}")
       end
     RUBY
   end
 
   def world_source
     <<~RUBY
-      Hecks.world "EraBoundaryFixture" do
+      Hecks.world "RevisionBoundaryFixture" do
         persisted_by("PostgresEra") do
           database "#{database_url}"
           mint_eras true
@@ -173,12 +173,12 @@ RSpec.describe Hecks::Fuzzing::EraBoundary, :aggregate_failures, :io do
     db = PG.connect(dbname: ERA_BOUNDARY_SPEC_DATABASE)
     state = JSON.generate(cost: { "cents" => 5 }, kind: { "label" => "biz" })
     ordinal = db.exec_params(
-      "INSERT INTO hecks_journal_era_boundary_fixture (era, aggregate, aggregate_id, operation, state) " \
+      "INSERT INTO hecks_journal_revision_boundary_fixture (era, aggregate, aggregate_id, operation, state) " \
       "VALUES (1, 'widget', $1, 'save', $2) RETURNING ordinal",
       ["w9", state]
     )[0]["ordinal"]
     # Domain-qualified table name (ADR 0059).
-    db.exec_params("INSERT INTO era_boundary_fixture_widget_head_snapshot_1 (id, ordinal, state) VALUES ($1, $2, $3)",
+    db.exec_params("INSERT INTO revision_boundary_fixture_widget_head_snapshot_1 (id, ordinal, state) VALUES ($1, $2, $3)",
                    ["w9", ordinal, state])
     db.close
   end

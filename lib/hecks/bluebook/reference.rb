@@ -41,7 +41,7 @@ module Hecks
       def inspect = "#<Reference #{@target_name}>"
 
       # Value equality on the target; `declared_in` is excluded so references parsed from
-      # separate reads compare equal (EraGuard's shape diff depends on it).
+      # separate reads compare equal (RevisionGuard's shape diff depends on it).
       #
       # @param other [Object] the value to compare against
       # @return [Boolean] whether `other` is a `Reference` to the same target

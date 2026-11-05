@@ -5,7 +5,7 @@ require "pg"
 # A boot never grants a role: the grant is a catalog write, so it belongs to the mint entry point,
 # which grants the role on the era it mints. Postgres collaborators are doubled, so no live database
 # is needed. Pins that no settings spelling of `role` reaches `grant_role!` from a boot.
-RSpec.describe "Hecks::Adapters::PostgresEra::LineageManager::EraResolver — role on boot" do
+RSpec.describe "Hecks::Adapters::PostgresEra::LineageManager::RevisionResolver — role on boot" do
   let(:held) { [{ ordinal: 1, label: "abc123", projection: {}, held_text: %(Hecks.bluebook "Widgets" do end) }] }
   let(:lineage) do
     instance_double(Hecks::Adapters::PostgresEra::Lineage, check_fence_applies!: nil, ensure_base!: nil,

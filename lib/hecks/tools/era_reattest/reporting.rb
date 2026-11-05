@@ -4,7 +4,7 @@ require_relative "../../tools"
 
 module Hecks
   module Tools
-    module EraReattest
+    module RevisionReattest
       # What the re-attestation says to the person running it.
       module Reporting
         # @return [Integer] 0

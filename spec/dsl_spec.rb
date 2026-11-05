@@ -707,7 +707,7 @@ RSpec.describe "the DSL surface" do
 
     it "then_set is gone — sets is the word now (ADR 0025 reverts the rename)" do
       # `then_set` is reachable only as frozen era text through
-      # EraGuard.shadow_parse (Syntax::Keyword carries it as `was:`), never
+      # RevisionGuard.shadow_parse (Syntax::Keyword carries it as `was:`), never
       # as live syntax.
       expect { build_command("Spelled2") { then_set :balance, increment: :amount } }
         .to raise_error(Malformed, "Do's then_set is gone — sets is the word now")
@@ -1832,7 +1832,7 @@ RSpec.describe "the DSL surface" do
 
     # Frozen era text using the value-object form passes through the
     # explicit shadow boundary directly at the DSL layer — the same
-    # mechanism `EraGuard.shadow_parse` wraps its eval in.
+    # mechanism `RevisionGuard.shadow_parse` wraps its eval in.
     describe "identified_by ValueObject while shadow-parsing" do
       def legacy(&)
         Hecks::Bluebook::MetaValidator.while_shadow_parsing(&)

@@ -49,7 +49,7 @@ RSpec.describe "an era held from a domain split into module folders", :io do
     Dir.mktmpdir do |dir|
       write_domain(dir)
       bluebook = Hecks.describe(dir).registry.bluebooks["Ledger"]
-      hold!(Hecks::Runtime::EraCheck.source_text_for(bluebook, dir), bluebook)
+      hold!(Hecks::Runtime::RevisionCheck.source_text_for(bluebook, dir), bluebook)
     end
   end
 
