@@ -10,12 +10,11 @@ RSpec.describe "a command's list_of argument" do
     Hecks.boot_files([path], install_driving: false)
   end
 
-  it "keeps the single-element form for the append and remove effects", :aggregate_failures do
+  it "keeps the single-element form for the append and remove effects" do
     runtime.dispatch("Binder::Folder.Open", with: { name: { value: "f" }, labels: [] })
-    id = "f"
-    runtime.dispatch("Binder::Folder.Attach", to: id, with: { label: "x" })
-    two = runtime.dispatch("Binder::Folder.Attach", to: id, with: { label: "y" })
-    one = runtime.dispatch("Binder::Folder.Detach", to: id, with: { label: "x" })
+    runtime.dispatch("Binder::Folder.Attach", to: "f", with: { label: "x" })
+    two = runtime.dispatch("Binder::Folder.Attach", to: "f", with: { label: "y" })
+    one = runtime.dispatch("Binder::Folder.Detach", to: "f", with: { label: "x" })
 
     expect([two, one].map { |result| result.state[:labels].size }).to eq([2, 1])
   end
