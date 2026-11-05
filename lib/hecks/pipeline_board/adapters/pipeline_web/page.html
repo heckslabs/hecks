@@ -317,9 +317,13 @@ function openAnswer(list, pickId) {
 function currentWaiting() { return waitingList[Number($("ans-pick").value)] || waitingList[0]; }
 function showAnswer() {
   const s = currentWaiting();
-  if (s.question) {
-    $("ans-key").replaceChildren();
-    $("ans-question").replaceChildren(h("div", { class: "question" }, "Waiting on: " + s.question));
+  const ctx = s.context || {};
+  if (s.question || ctx.said) {
+    $("ans-key").replaceChildren(h("div", {}, s.name + (s.work_item ? " · work item " + s.work_item : "") + (s.repo ? " · " + s.repo : "")));
+    const parts = [h("div", { class: "question" }, "Waiting on: " + (ctx.said || s.question))];
+    if ((ctx.did || []).length) parts.push(h("div", { class: "did" }, h("b", {}, "Last steps: "), ctx.did.join(" → ")));
+    if ((ctx.links || []).length) parts.push(h("div", { class: "did" }, h("b", {}, "Linked: "), ...ctx.links.map((l) => h("a", { href: l.href, target: "_blank", rel: "noopener" }, (l.kind || "link") + " " + l.id + "  "))));
+    $("ans-question").replaceChildren(...parts);
   } else {
     $("ans-question").replaceChildren();
     $("ans-key").replaceChildren("Run " + (s.run || "(no run key)") + (s.repo ? " in " + s.repo : ""));
@@ -376,7 +380,7 @@ function renderSessions(list) {
   list.forEach((s, i) => {
     if (s.status !== "blocked") return;
     rows[i].classList.add("clickable"); rows[i].title = "Click to answer";
-    answerable(rows[i], () => openAnswer([{ id: s.id, name: s.name, run: s.run, repo: s.repo, work_item: s.work_item, question: s.detail }], s.id));
+    answerable(rows[i], () => openAnswer([{ id: s.id, name: s.name, run: s.run, repo: s.repo, work_item: s.work_item, question: s.detail, context: s.context }], s.id));
   });
 }
 function renderFan(fan) {
@@ -395,7 +399,7 @@ function renderFan(fan) {
   sessions.forEach((s, i) => {
     if (s.status !== "blocked" || !laneRows[i]) return;
     laneRows[i].classList.add("clickable");
-    answerable(laneRows[i], () => openAnswer([{ id: s.id, name: s.name, run: s.run, repo: s.repo, work_item: s.work_item, question: s.detail }], s.id));
+    answerable(laneRows[i], () => openAnswer([{ id: s.id, name: s.name, run: s.run, repo: s.repo, work_item: s.work_item, question: s.detail, context: s.context }], s.id));
   });
   const fill = fan.fill, ok = fill && !isUnknown(fill), cap = ok ? fill.cap : 8;
   const alive = sessions.filter((s) => s.status === "busy" || s.status === "blocked"), busy = alive.filter((s) => s.row).length;
