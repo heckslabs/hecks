@@ -28,6 +28,7 @@ module Hecks
       # @param root [String, nil] the checkout the readers and the launcher run in
       def initialize(registry: nil, aggregate: nil, settings: {}, root: nil)
         @root = root || Dir.pwd
+        @launcher_root = ENV.fetch("PIPELINE_BOARD_LAUNCHER_ROOT", @root)
         @stages = settings[:stages] || PipelineStages.new(registry: registry, root: root)
         @wiring = settings[:wiring] || PipelineWiring.new(registry: registry)
         @launcher = settings[:launcher] || ->(*args, chdir: @root) { PipelineBoard::Probe.run(*args, chdir: chdir, seconds: ACT_SECONDS) }
@@ -49,7 +50,7 @@ module Hecks
         fields = resumable(fields) if action == "reply"
         argv = PipelineBoard::Actions.argv(action, fields, confirm: confirm)
         program = PipelineBoard::Actions.program(action)
-        @launcher.call(program, *argv, chdir: fields[:cwd] || @root)
+        @launcher.call(program, *argv, chdir: fields[:cwd] || @launcher_root)
         { ran: "#{program} #{argv.first}" }
       end
 
