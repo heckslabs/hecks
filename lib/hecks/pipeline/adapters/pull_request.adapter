@@ -1,0 +1,7 @@
+# Binds the `Host` port to `PullRequestHost`, which answers `PullRequest`'s `Lookup` from the pull
+# request GitHub reports.
+require "hecks/pipeline/adapters/pull_request_host"
+
+Hecks.adapter "PullRequestHost" do
+  port "Host"
+end

@@ -18,6 +18,7 @@ module Hecks
           @every = every
           @background = background
           @lock = Mutex.new
+          @wake = Queue.new
         end
 
         # Starts the reading thread when the snapshot is a background one.
@@ -25,6 +26,13 @@ module Hecks
         def start
           @thread = Thread.new { refresh_forever } if @background
           self
+        end
+
+        # Reads the state again now, rather than at the next interval, so a change the board just
+        # made (a reply) shows at once.
+        # @return [void]
+        def refresh_now
+          @wake << :now if @background
         end
 
         # Stops the reading thread.
@@ -43,7 +51,7 @@ module Hecks
           loop do
             held = @source.call
             @lock.synchronize { @held = held }
-            sleep @every
+            @wake.pop(timeout: @every)
           end
         end
 
