@@ -7,6 +7,10 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+### Added
+
+- **The kernel's `--serve` stream is a host protocol with versions, sessions and callbacks (ADR 0189).** A connection may open with `{"hello": {"protocols": [1], "callbacks": true, "needs": {...}}}` and gets the agreed version and its features; `{"open": "name"}` and `{"close": "name"}` make and drop sessions, each with its own store, and a step names one with `"session"`. While a dispatch runs the kernel may write a `callback` frame asking the host for a fact a command `needs` and the caller left out, and goes on when the host answers. A refusal is `{"ok": false, "error": ...}` as before, and a stream that sends no `hello` behaves as it did. `Hecks::RustBuild::KernelClient` is the Ruby client; `spec/rust_build_kernel_client_spec.rb` pins it against the pizzas kernel.
+
 ## [7.1.0] - 2026-11-02
 
 ### Added
