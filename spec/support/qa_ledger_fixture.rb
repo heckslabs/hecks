@@ -27,17 +27,18 @@ module QaLedgerFixture
 
     Hecks.hecksagon "QualityControl" do
       attaches "Governance"
+      revisions true
 
-      QualityControl::Target.persisted_by("PostgresEra")
-      QualityControl::Sweep.persisted_by("PostgresEra")
-      QualityControl::Bug.persisted_by("PostgresEra")
-      QualityControl::Angle.persisted_by("PostgresEra")
-      QualityControl::Ticket.persisted_by("PostgresEra")
-      QualityControl::Patch.persisted_by("PostgresEra")
-      QualityControl::Improvement.persisted_by("PostgresEra")
-      QualityControl::DailyQuota.persisted_by("PostgresEra")
-      QualityControl::Clearance.persisted_by("PostgresEra")
-      QualityControl::MainCheck.persisted_by("PostgresEra")
+      QualityControl::Target.persisted_by("Postgres")
+      QualityControl::Sweep.persisted_by("Postgres")
+      QualityControl::Bug.persisted_by("Postgres")
+      QualityControl::Angle.persisted_by("Postgres")
+      QualityControl::Ticket.persisted_by("Postgres")
+      QualityControl::Patch.persisted_by("Postgres")
+      QualityControl::Improvement.persisted_by("Postgres")
+      QualityControl::DailyQuota.persisted_by("Postgres")
+      QualityControl::Clearance.persisted_by("Postgres")
+      QualityControl::MainCheck.persisted_by("Postgres")
     end
   RUBY
 
