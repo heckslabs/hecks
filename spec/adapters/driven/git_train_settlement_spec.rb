@@ -39,7 +39,20 @@ RSpec.describe Hecks::Adapters::GitTrain, :io do
   # The Hecks mint a boarding runs first, answering that the shape did not move.
   def still_mint = instance_double(described_class::MintStep, run: "the Hecks shape f30dcb did not move")
 
-  def train = described_class.new(mint: still_mint)
+  # A fake `gh`: a PR opens, and auto-merge merges it at once, moving the remote's main as
+  # GitHub does.
+  def gh(argv, **)
+    case argv[1..2]
+    when %w[pr create] then [true, "https://github.test/work/pull/1\n"]
+    when %w[pr merge]
+      sha = git("ls-remote", "origin", "refs/heads/#{argv[3]}").split.first
+      git("push", "-q", "--no-verify", "origin", "#{sha}:refs/heads/main")
+      [true, ""]
+    else [false, "no PR"]
+    end
+  end
+
+  def train = described_class.new(mint: still_mint, runner: method(:gh))
 
   def carry = train.carry(checkout: { value: work })
 
@@ -59,7 +72,7 @@ RSpec.describe Hecks::Adapters::GitTrain, :io do
     commit("local-only")
     push_elsewhere("remote-only")
 
-    expect(carry[:outcome]).to eq(value: "pushed")
+    expect(carry[:outcome]).to eq(value: "queued")
     expect(git("log", "--format=%s", "origin/main", dir: work)).to include("local-only", "remote-only")
     expect(git("rev-parse", "HEAD", dir: work)).to eq(git("rev-parse", "origin/main", dir: work))
   end
@@ -76,7 +89,7 @@ RSpec.describe Hecks::Adapters::GitTrain, :io do
   it "carries a branch that is ahead only, without rebasing it", :aggregate_failures do
     commit("local-only")
 
-    expect(carry[:outcome]).to eq(value: "pushed")
+    expect(carry[:outcome]).to eq(value: "queued")
     expect(git("rev-parse", "HEAD", dir: work)).to eq(git("rev-parse", "origin/main", dir: work))
   end
 

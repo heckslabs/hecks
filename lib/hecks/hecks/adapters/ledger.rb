@@ -26,7 +26,7 @@ module Hecks
 
       # Seals every chained journal of a domain at its present end.
       #
-      # @param held [Hash] the `Era` record of a compaction: `domain`
+      # @param held [Hash] the `SchemaRevision` record of a compaction: `domain`
       # @return [Hash{Symbol => Hash}] `domain:` as asked, `through:` the entries sealed in all,
       #   `head:` one digest for the journals' sealed heads and `previous:` the same for the seals
       #   before them

@@ -316,7 +316,7 @@ RSpec.describe "the CiPipeline projection of ci-rspec.yml" do
     it "refuses a trigger that is not a member, listing the members" do
       change("Trigger", workflow: "ci-rspec.yml")[:event] = "on_full_moon"
 
-      members = "push_main, push_candidate, ci_completed_candidate, pull_request, workflow_call"
+      members = "push_main, pull_request, workflow_call"
 
       expect { read }.to be_refused(/has event "on_full_moon"; an event is one of #{members}/)
     end

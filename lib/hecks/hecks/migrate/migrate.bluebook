@@ -2,7 +2,7 @@ Hecks.bluebook "Hecks" do
   domain_module "Migrate" do
     vision "Move a store between shapes."
 
-    aggregate "Era" do
+    aggregate "SchemaRevision" do
       description "One change to a domain's journal of eras, and how it ended: a store's upkeep."
 
       acknowledges :key_by_value, "the domain's path, and Introspection declares queries only, so it holds no records and a reference would be refused on every write",
@@ -92,8 +92,8 @@ Hecks.bluebook "Hecks" do
       end
 
       # The seven requests. Each records what was asked and names its operation; the journal store
-      # then examines the domain and reports facts (`EraExamined`), `Permit` holds the rules that need
-      # those facts, and only an admitted change is made (`EraChanged`). A change that changes
+      # then examines the domain and reports facts (`SchemaRevisionExamined`), `Permit` holds the rules that need
+      # those facts, and only an admitted change is made (`SchemaRevisionChanged`). A change that changes
       # something needs an explicit `--confirm`.
       command "HoldFirst" do
         role "Operator"
@@ -107,7 +107,7 @@ Hecks.bluebook "Hecks" do
 
         sets :operation, to: "hold_first"
 
-        emits FirstEraRequested
+        emits FirstSchemaRevisionRequested
       end
 
       # Moves the history a domain held under its `formerly_known_as` name to its current name, in one
@@ -263,7 +263,7 @@ Hecks.bluebook "Hecks" do
         role "System"
         goal "Let a change through only when what was found in the journal allows it"
 
-        reference_to Era
+        reference_to SchemaRevision
         attribute :capable,            Switch, sets: true
         attribute :held,               Count, sets: true
         attribute :forks,              Count, sets: true
@@ -307,29 +307,29 @@ Hecks.bluebook "Hecks" do
         end
 
 
-        emits EraPermitted
+        emits SchemaRevisionPermitted
       end
 
       command "Settle" do
         role "System"
         goal "Record that the admitted change was made, and what it did"
 
-        reference_to Era
+        reference_to SchemaRevision
         attribute :report, Report, sets: true
 
 
-        emits EraSettled
+        emits SchemaRevisionSettled
       end
 
       command "Abandon" do
         role "System"
         goal "Record that the change was refused, or could not be made, and why"
 
-        reference_to Era
+        reference_to SchemaRevision
         attribute :refusal, Report, sets: true
 
 
-        emits EraAbandoned
+        emits SchemaRevisionAbandoned
       end
 
       query "Settlement" do
@@ -374,7 +374,7 @@ Hecks.bluebook "Hecks" do
       # The dry run of `Reconcile`: each domain's held era, current shape, edge it would write, edges it
       # would delete, and the verdict, written nowhere.
       query "ReconcilePlan" do
-        description "The dry run of Era.Reconcile: per domain, the held era, the current shape, the edge " \
+        description "The dry run of SchemaRevision.Reconcile: per domain, the held era, the current shape, the edge " \
                     "it would write, the edges it would delete, and the verdict."
         attribute :domain, DomainPath, optional: true
         returns Document
@@ -464,61 +464,61 @@ Hecks.bluebook "Hecks" do
       end
     end
 
-    policy "ExamineWhenFirstEraRequested" do
-      on      "Era.FirstEraRequested"
+    policy "ExamineWhenFirstSchemaRevisionRequested" do
+      on      "SchemaRevision.FirstSchemaRevisionRequested"
       ask     :examine, with: { run: :run }
     end
 
     policy "ExamineWhenDomainRenameRequested" do
-      on      "Era.DomainRenameRequested"
+      on      "SchemaRevision.DomainRenameRequested"
       ask     :examine, with: { run: :run }
     end
 
     policy "ExamineWhenTailMergeRequested" do
-      on      "Era.TailMergeRequested"
+      on      "SchemaRevision.TailMergeRequested"
       ask     :examine, with: { run: :run }
     end
 
     policy "ExamineWhenReattestRequested" do
-      on      "Era.ReattestRequested"
+      on      "SchemaRevision.ReattestRequested"
       ask     :examine, with: { run: :run }
     end
 
     policy "ExamineWhenBackfillRequested" do
-      on      "Era.BackfillRequested"
+      on      "SchemaRevision.BackfillRequested"
       ask     :examine, with: { run: :run }
     end
 
     policy "ExamineWhenCompactionRequested" do
-      on      "Era.CompactionRequested"
+      on      "SchemaRevision.CompactionRequested"
       ask     :examine, with: { run: :run }
     end
 
     policy "ExamineWhenHekiCompactionRequested" do
-      on      "Era.HekiCompactionRequested"
+      on      "SchemaRevision.HekiCompactionRequested"
       ask     :examine, with: { run: :run }
     end
 
     policy "ExamineWhenTranslationRequested" do
-      on      "Era.TranslationRequested"
+      on      "SchemaRevision.TranslationRequested"
       ask     :examine, with: { run: :run }
     end
 
     policy "ExamineWhenReconcileRequested" do
-      on      "Era.ReconcileRequested"
+      on      "SchemaRevision.ReconcileRequested"
       ask     :examine, with: { run: :run }
     end
 
     # The held mint is answered by the journal store: `Minted` when the shape moved and the mint ran, or
     # when it did not move (`no_change`); `MintRefused` otherwise, with the reason named.
     policy "MintWhenHeldRequested" do
-      on      "Era.HeldMintRequested"
+      on      "SchemaRevision.HeldMintRequested"
       ask     :mint, with: { run: :run }
     end
 
     policy "PermitWhenExamined" do
-      on      "Era.EraExamined"
-      trigger Era::Permit, with: {
+      on      "SchemaRevision.SchemaRevisionExamined"
+      trigger SchemaRevision::Permit, with: {
         capable: :capable, held: :held, forks: :forks, contested: :contested,
         bound: :bound, candidates: :candidates,
         drifted: :drifted, loadable: :loadable, shape_kept: :shape_kept, operation: :operation
@@ -529,7 +529,7 @@ Hecks.bluebook "Hecks" do
     # it holds the same rules negated, so an examined change that is not let through is abandoned
     # rather than left `requested`.
     policy "AbandonWhenNotPermitted" do
-      on      "Era.EraExamined"
+      on      "SchemaRevision.SchemaRevisionExamined"
       where do
         (!capable.value && operation.value != "compact" && operation.value != "compact_heki") ||
           (operation.value == "hold_first" && held.value != 0) ||
@@ -540,12 +540,12 @@ Hecks.bluebook "Hecks" do
           (operation.value == "reattest" && (!drifted.value || !loadable.value || !shape_kept.value)) ||
           (operation.value == "write_translation" && held.value == 0)
       end
-      trigger Era::Abandon, with: { refusal: "the journal's facts do not admit this change" }
+      trigger SchemaRevision::Abandon, with: { refusal: "the journal's facts do not admit this change" }
     end
 
     # A compaction waits for its seal (ledger.bluebook); every other change is applied at once.
     policy "ChangeWhenPermitted" do
-      on      "Era.EraPermitted"
+      on      "SchemaRevision.SchemaRevisionPermitted"
       where do
         operation.value != "compact" && operation.value != "compact_heki"
       end
@@ -553,18 +553,18 @@ Hecks.bluebook "Hecks" do
     end
 
     policy "RecordTheChange" do
-      on      "Era.EraChanged"
-      trigger Era::Settle, with: { report: :report }
+      on      "SchemaRevision.SchemaRevisionChanged"
+      trigger SchemaRevision::Settle, with: { report: :report }
     end
 
     policy "RecordTheRefusedChange" do
-      on      "Era.EraRefused"
-      trigger Era::Abandon, with: { refusal: :refusal }
+      on      "SchemaRevision.SchemaRevisionRefused"
+      trigger SchemaRevision::Abandon, with: { refusal: :refusal }
     end
 
     # Ledger: a journal that proves it was not rewritten. A seal records the head a journal chain has,
     # kept beside the journal itself; an Audit recomputes the chain from the seals and compares. Compaction
-    # is the one sanctioned way rows leave a journal, so it seals first: the capture is one ask on the Era
+    # is the one sanctioned way rows leave a journal, so it seals first: the capture is one ask on the SchemaRevision
     # being changed (the reaction depth is bounded, so the seal cannot be a chain of its own), and a
     # compaction whose head cannot be captured is abandoned, not applied.
 

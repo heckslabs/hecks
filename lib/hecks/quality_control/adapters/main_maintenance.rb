@@ -10,7 +10,7 @@ require_relative "qa_auto_mint"
 module Hecks
   module Adapters
     # The `MainMaintenance` port adapter: the bodies of the steps a maintenance run asks for. `gate`
-    # runs the quick gate on local main through `QaMainGate`; `reconcile` runs `Era.Reconcile`'s
+    # runs the quick gate on main via `QaMainGate`; `reconcile` runs `SchemaRevision.Reconcile`'s
     # read-only
     # plan and writes only when the `maintenance_confirm` dial is true; `push` moves the push
     # train's
@@ -64,18 +64,18 @@ module Hecks
                  "--wait")
         end
 
-        # The read-only dry run of `Era.Reconcile`.
+        # The read-only dry run of `SchemaRevision.Reconcile`.
         #
         # @return [Array(String, Boolean)] the plan's output and whether it exited 0
         def reconcile_plan(root)
-          launch(root, root, "query", "era.reconcile_plan")
+          launch(root, root, "query", "schema_revision.reconcile_plan")
         end
 
         # Writes the reconciliation, confirmed, for one run.
         #
         # @return [Array(String, Boolean)]
         def reconcile_write(root, run)
-          launch(root, root, "era.reconcile!", "run.value=#{run}", "confirm.value=true", "--wait")
+          launch(root, root, "schema_revision.reconcile!", "run.value=#{run}", "confirm.value=true", "--wait")
         end
 
         # Moves the train checkout to a commit, detached, and sends the branch through the train

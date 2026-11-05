@@ -9,7 +9,7 @@ module Hecks
   module Adapters
     # The `Journal` port's adapter: answers `Events` with the newest events the tooling recorded
     # and, for each, the policies that reacted, what became of the delivery and the command it
-    # reached. The persisted stores are read by the same reader `era.event_trace` uses, opened
+    # reached. The persisted stores are read by `schema_revision.event_trace`, opened
     # read-only; an opt-in local event log (`events.jsonl`) is tailed for the domains that persist
     # nothing. The board writes to neither.
     class PipelineJournal

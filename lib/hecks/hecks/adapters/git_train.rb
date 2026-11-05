@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "open3"
 require_relative "git"
 require_relative "console_capture"
 require_relative "push_size"
@@ -8,8 +9,7 @@ require_relative "git_train/reading"
 require_relative "git_train/bench"
 require_relative "git_train/local_branch"
 require_relative "git_train/carriage"
-require_relative "git_train/candidate_boarding"
-require_relative "candidate_gate"
+require_relative "git_train/pull_request_boarding"
 require_relative "git_train/survey"
 require_relative "git_train/settlement"
 require_relative "git_train/mint_step"
@@ -42,18 +42,28 @@ module Hecks
       # @param options [Hash] `mint:` the mint a boarding runs first (the Hecks domain's if none);
       #   `domain:` the launcher's Hecks domain directory the train's shape is read from (the one
       #   this code runs from by default); `registry:` the booted registry whose world names the
-      #   push size and the candidate gate's default; `runner:` what runs `gh` for the gate's
-      #   tree match (a spec's fake GitHub)
+      #   push size; `runner:` what runs `gh` for the pull requests (a spec's fake GitHub)
       def initialize(aggregate: nil, settings: {}, root: nil, **options)
         @registry = options.delete(:registry)
         @mint = options.delete(:mint) || MintStep.new
         @domain = options.delete(:domain) || JournalStore::HeldMint::DOMAIN
-        @runner = options.delete(:runner)
+        @runner = options.delete(:runner) || method(:run_command)
         @git = Git.new
       end
 
+      # Runs a command (`gh`, for the pull requests) in a directory: its success and its output.
+      # The default runner: the train reaches GitHub through the same `gh` the operator uses.
+      #
+      # @param argv [Array<String>] the command and its arguments
+      # @param chdir [String] the directory it runs in
+      # @return [Array(Boolean, String)] whether it succeeded, and its output and error
+      def run_command(argv, chdir:)
+        out, err, status = Open3.capture3(*argv, chdir: chdir)
+        [status.success?, "#{out}#{err}"]
+      end
+
       # Waits for the push ahead in the same repository, runs the Hecks mint, then carries the
-      # boarded commit: to the branch, or to the candidate ref while the gate is on (ADR 0181).
+      # boarded commit: as a pull request into main, or to the branch itself for any other branch.
       #
       # @param held [Hash] the `SendTrain` record: `run`, `confirm`, `branch`, `remote`, `checkout`
       #   (a directory inside the repository; the current directory when none is named) and
@@ -62,7 +72,7 @@ module Hecks
       #   `boarded:` (the commit named at boarding), `pushed:` and `report:`, opened by the mint
       # @raise [ConsoleCapture::Failure] when the checkout is not a repository, the branch moved
       #   since boarding, the train is not at the boarded commit, the branch and the remote
-      #   conflict, a candidate is in flight, or the push is refused
+      #   conflict, or the push is refused
       # @raise [Runtime::WiringError] when the mint refuses, before anything is pushed
       def carry(**held)
         @checkout = toplevel(plain(held[:checkout]) || Dir.pwd)
@@ -73,6 +83,19 @@ module Hecks
           minted = @mint.run(run: plain(held[:run]), confirm: plain(held[:confirm]))
           after_mint(minted, boarded, settle_and_carry(held, boarded), size)
         end
+      end
+
+      # Reads the pull request of a queued boarding. Merged, it names the merge commit as the pushed
+      # commit, and the saga records the push from it; open, it changes nothing.
+      #
+      # @param held [Hash] the `SendTrain` record: `boarded` (the commit queued) and `checkout`
+      # @return [Hash{Symbol => Hash}] `outcome:` `merged` (with `pushed:`) or `open`, and `report:`
+      # @raise [ConsoleCapture::Failure] when no boarding is queued, or `gh` cannot read its PR
+      def observe(**held)
+        boarded = plain(held[:boarded]) or raise ConsoleCapture::Failure, "no queued boarding to observe"
+        checkout = toplevel(plain(held[:checkout]) || Dir.pwd)
+        answer = PullRequestBoarding::Observation.new(@runner, checkout).answer(boarded)
+        answer.merge(checkout: { value: checkout }, boarded: { value: boarded })
       end
 
       # Lists every checkout under a directory whose default branch has commits its remote does
@@ -99,8 +122,8 @@ module Hecks
       end
 
       # Brings the branch up to its remote and settles the shape ledger, then carries the settled
-      # commit: to the candidate ref while the candidate gate is on and main is boarded (ADR
-      # 0181), to the branch itself otherwise.
+      # commit: as a pull request into main when main is boarded (a branch, a PR, auto-merge once
+      # the checks pass), to the branch itself otherwise.
       def settle_and_carry(held, boarded)
         branch = branch_of(held)
         remote = remote_of(held)
@@ -110,12 +133,10 @@ module Hecks
 
       def carrier(branch, remote, held)
         config = gate_config(held)
-        return Carriage.new(@git, @checkout, branch: branch, remote: remote, config: config) unless gated?(branch)
+        return Carriage.new(@git, @checkout, branch: branch, remote: remote, config: config) unless branch == "main"
 
-        CandidateBoarding.new(@git, @checkout, remote: remote, config: config, runner: @runner)
+        PullRequestBoarding.new(@git, @checkout, remote: remote, config: config, runner: @runner)
       end
-
-      def gated?(branch) = branch == "main" && CandidateGate.new(@checkout, registry: @registry, git: @git).on?
 
       # What the push is, said before it is made: how many commits go and, past the world's
       # threshold, the size sentence. It only says; a push of any size is carried.

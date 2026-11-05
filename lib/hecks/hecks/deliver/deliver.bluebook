@@ -156,6 +156,8 @@ Hecks.bluebook "Hecks" do
       attribute :report,   Report, optional: true
       attribute :refusal,  Report, optional: true
       attribute :confirm,  Switch, optional: true
+      attribute :onto,     Word,   optional: true
+      attribute :resolve,  Resolution, optional: true
       identified_by :run
 
       value_object "RunKey" do
@@ -175,6 +177,11 @@ Hecks.bluebook "Hecks" do
         attribute :value, Boolean
       end
 
+      # Comma-separated `path=ours` or `path=theirs` pairs: the side each conflicted path takes.
+      value_object "Resolution" do
+        attribute :value, String
+      end
+
       lifecycle :status, default: "requested" do
         mark :failure, "declined"
         transition "Record"  => "opened",   from: "requested"
@@ -183,7 +190,9 @@ Hecks.bluebook "Hecks" do
         transition "PullDeclined" => "declined", from: "requested"
         transition "Published"    => "published", from: "requested"
         transition "PublishDeclined" => "declined", from: "requested"
-        mark :terminal, "opened", "declined", "pulled", "published"
+        transition "Rebased"      => "rebased",   from: "requested"
+        transition "RebaseDeclined" => "declined", from: "requested"
+        mark :terminal, "opened", "declined", "pulled", "published", "rebased"
       end
 
       command "Add" do
@@ -295,6 +304,50 @@ Hecks.bluebook "Hecks" do
 
         emits BranchPublishDeclined
       end
+
+      # A rebase of a worktree's branch onto a base, by the `Rebasing` port. It never rebases main, never
+      # onto the branch itself, never forces and never discards uncommitted work. A conflict stops it with
+      # nothing changed and names every conflicted path, unless `resolve` names the side each path takes;
+      # in a rebase `ours` is the base and `theirs` is the branch's own commit being replayed.
+      command "Rebase" do
+        role "Operator"
+        goal "Rebase a branch onto a base, or report the files that conflict and stop with nothing changed"
+
+        attribute :run,      RunKey, sets: true
+        attribute :checkout, Word, optional: true, sets: true
+        attribute :branch,   Word, sets: true
+        attribute :onto,     Word, default: "origin/main", sets: true
+        attribute :resolve,  Resolution, optional: true, sets: true
+
+        given("rebases a branch other than main, never main") { branch.value != "main" }
+        given("rebases onto a base other than the branch itself") { onto.value != branch.value }
+        given("resolve names each path as path=ours or path=theirs") do
+          resolve.value.to_s.empty? || resolve.value.split(",").all? { |pair| pair.match?(/\A[^=, \t]+=(ours|theirs)\z/) }
+        end
+
+        emits RebaseRequested
+      end
+
+      command "Rebased" do
+        role "System"
+        goal "Record the sha a branch stands on once it is rebased"
+
+        reference_to LinkedTree
+        attribute :sha,    Word,   sets: true
+        attribute :report, Report, sets: true
+
+        emits BranchRebased
+      end
+
+      command "RebaseDeclined" do
+        role "System"
+        goal "Record why a branch could not be rebased"
+
+        reference_to LinkedTree
+        attribute :refusal, Report, sets: true
+
+        emits BranchRebaseDeclined
+      end
     end
 
     policy "AddWorktreeWhenRequested" do
@@ -310,6 +363,21 @@ Hecks.bluebook "Hecks" do
     policy "PublishBranchWhenRequested" do
       on      "LinkedTree.BranchPublishRequested"
       ask     :push, with: { run: :run }
+    end
+
+    policy "RebaseWhenRequested" do
+      on      "LinkedTree.RebaseRequested"
+      ask     :replay, with: { run: :run }
+    end
+
+    policy "RecordTheRebase" do
+      on      "LinkedTree.RebaseAnswered"
+      trigger LinkedTree::Rebased, with: { sha: :sha, report: :report }
+    end
+
+    policy "DeclineTheRebase" do
+      on      "LinkedTree.RebaseRefused"
+      trigger LinkedTree::RebaseDeclined, with: { refusal: :refusal }
     end
 
     policy "RecordThePublish" do
@@ -757,7 +825,8 @@ Hecks.bluebook "Hecks" do
         transition "Queue" => "queued",  from: "requested"
         transition "Fault" => "faulted", from: "requested"
         transition "Summarize" => "surveyed", from: "requested"
-        mark :terminal, "carried", "faulted", "pushed", "queued", "surveyed"
+        transition "Merge" => "pushed", from: "queued"
+        mark :terminal, "carried", "faulted", "pushed", "surveyed"
       end
 
       command "Board" do
@@ -834,11 +903,10 @@ Hecks.bluebook "Hecks" do
         emits CarriedByEarlierPush
       end
 
-      # The candidate gate is on (ADR 0181): the boarded commit went to the remote's candidate ref,
-      # where CI judges it, and main moves only once that run is green.
+      # The boarded commit is a pull request into main, which GitHub merges once its checks pass.
       command "Queue" do
         role "System"
-        goal "Record that a boarding was queued as the candidate, for CI to judge before main moves"
+        goal "Record that a boarding was queued as a pull request, for CI to judge before main moves"
 
         reference_to SendTrain
         attribute :checkout, Word, sets: true
@@ -848,6 +916,33 @@ Hecks.bluebook "Hecks" do
 
 
         emits BoardingQueued
+      end
+
+      # A queued boarding's pull request merged: the merge commit is what reached main, so the push
+      # is recorded from it, and the launcher refresh and the deploy announcement follow.
+      command "Merge" do
+        role "System"
+        goal "Record that a queued boarding's pull request merged, and the commit that reached main"
+
+        reference_to SendTrain
+        attribute :checkout, Word, sets: true
+        attribute :boarded,  Word, sets: true
+        attribute :pushed,   Word, sets: true
+        attribute :commits,  Count, optional: true, sets: true
+        attribute :report,   Report, sets: true
+
+
+        emits BranchPushed
+      end
+
+      # Asks the train whether a queued boarding's pull request has merged. Nothing changes while it is open.
+      command "Watch" do
+        role "Operator"
+        goal "Look at each queued boarding's pull request, and record any that has merged"
+
+        reference_to SendTrain
+
+        emits ObserveRequested
       end
 
       command "Fault" do
@@ -865,6 +960,13 @@ Hecks.bluebook "Hecks" do
         description "How one boarding ended: pushed, carried by an earlier push, or why it failed."
         attribute :run, RunKey
         where(run: :run)
+        order_by :run
+      end
+
+      # The boardings whose pull request has not merged yet: what `Watch` checks on each QA tick.
+      query "Queued" do
+        description "Every boarding queued as a pull request, oldest key first; `Watch` records any that merged."
+        where(status: "queued")
         order_by :run
       end
     end
@@ -914,6 +1016,17 @@ Hecks.bluebook "Hecks" do
     policy "RecordTheRefusedSurvey" do
       on      "SendTrain.SurveyRefused"
       trigger SendTrain::Fault, with: { refusal: :refusal }
+    end
+
+    policy "ObserveWhenAsked" do
+      on      "SendTrain.ObserveRequested"
+      ask     :observe, with: { run: :run }
+    end
+
+    policy "RecordTheMerge" do
+      on      "SendTrain.ObserveAnswered"
+      where   { outcome.value == "merged" }
+      trigger SendTrain::Merge, with: { checkout: :checkout, boarded: :boarded, pushed: :pushed, report: :report }
     end
 
     # Deploys stay by hand: a push that reached the remote says a deploy is ready, and nothing more.
@@ -1344,21 +1457,6 @@ Hecks.bluebook "Hecks" do
     policy "RecordTheFailedCi" do
       on      "Integration.ObserveAnswered"
       where   { outcome.value == "failed" }
-      trigger Integration::Red, with: { landed: :landed, report: :report }
-    end
-
-    # While the candidate gate is on (ADR 0181) the observation reads the candidate's run and says
-    # so by name, so the run ends green or red as it does for main while the red flag, which hears
-    # `passed` and `failed`, stays where it is: a red candidate is not a red main.
-    policy "RecordThePassedCandidateCi" do
-      on      "Integration.ObserveAnswered"
-      where   { outcome.value == "candidate_passed" }
-      trigger Integration::Green, with: { landed: :landed, report: :report }
-    end
-
-    policy "RecordTheFailedCandidateCi" do
-      on      "Integration.ObserveAnswered"
-      where   { outcome.value == "candidate_failed" }
       trigger Integration::Red, with: { landed: :landed, report: :report }
     end
 

@@ -38,7 +38,7 @@ RSpec.describe Hecks::Tools::ToolsDoc do
   end
 
   it "shows a switch as a flag, bare for --confirm, and leaves out the minted run key", :aggregate_failures do
-    expect(forms.fetch("merge_tail")).to eq("hecks era.merge_tail! <domain> [winners=] --confirm")
+    expect(forms.fetch("merge_tail")).to eq("hecks schema_revision.merge_tail! <domain> [winners=] --confirm")
     expect(forms.values.join(" ")).not_to match(/(?<![a-z_])run=/)
   end
 

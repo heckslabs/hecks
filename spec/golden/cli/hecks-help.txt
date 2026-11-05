@@ -43,13 +43,6 @@ commands:
     One projection of the Rust kernel's capability enums, or one measure of their coverage.
     project_kernel_capabilities!  Project the capability enums the hand-written Rust kernel is matched against
     measure_kernel_coverage!      Check that every capability the grammar admits has its hand-written kernel file
-  Candidate:
-    One request against the candidate gate: the candidate observed, promoted, rejected, or the gate switched; or refused.
-    observe!                      Read the candidate on GitHub: promoted onto main, green and awaiting promotion, red with the failed jobs, or still running
-    promote!                      Fast-forward the remote's main onto the green candidate from here, never forcing, when the candidate workflow did not
-    reject!                       Clear a red candidate: keep its commits on rejected/<sha>, reset local main to the remote's, file one red-<cause> Work item per failing cause and name the coders it carried
-    enable!                       Turn the candidate gate on for this repository: from now on the push train queues a candidate and main moves only by promotion
-    disable!                      Turn the candidate gate off for this repository: the push train pushes main as before
   GateRun:
     One run of a stage's checks: every check of the stage, or the ones named.
     gate!                         Run every check of a stage, or the ones named, and keep whether the gate is green
@@ -103,6 +96,7 @@ commands:
     add!                          Open a linked worktree on a new branch from main, never on main itself
     pull_main!                    Bring local main up to date with origin/main: fetch, fast-forward when behind, rebase its unpushed commits when diverged, refusing a dirty or mid-rebase checkout
     publish!                      Push a worktree's branch to origin, so a pull request can be opened from it; never main, never forced
+    rebase!                       Rebase a branch onto a base, or report the files that conflict and stop with nothing changed
   Landing:
     One branch landed on local main, or one worktree retired: done, or refused with the reason.
     land!                         Merge a worktree's branch onto local main: fast-forward when it can be, a merge commit when main moved, never forced, never pushed
@@ -114,6 +108,7 @@ commands:
     One push of a checkout's branch, taken in turn: carried by an earlier push, pushed, or refused.
     board!                        Push this checkout's branch once the push ahead of it lands, unless that push already carried it
     survey!                       List every checkout under a directory whose branch has commits its remote does not
+    watch!                        Look at each queued boarding's pull request, and record any that has merged
   PushOutcome:
     How one boarding of the push train ended, as the boarded checkout records it: pushed, carried or faulted.
     record!                       Record how one boarding of the push train ended, in the checkout that boarded it
@@ -161,7 +156,7 @@ commands:
     One named one-off script the checkout runs, planned or applied; the body is a tool.
     plan_script!                  Show what a named one-off script would change, writing nothing
     apply_script!                 Carry out a named one-off script's changes, only when confirmed
-  Era:
+  SchemaRevision:
     One change to a domain's journal of eras, and how it ended: a store's upkeep.
     hold_first!                   Hold the first era of a domain that holds none, as its first boot would
     rename_domain!                Move a renamed domain's held eras and journal from its former name to its current name
@@ -265,9 +260,6 @@ queries (nothing here changes anything):
     ir_constructs           The structural diff of each IR construct from its meta-domain.
     ir_duplicates           The rules declared more than once across the corpus.
     ir_impact               Which propagation touchpoints of a construct's field already show it.
-  Candidate:
-    One request against the candidate gate: the candidate observed, promoted, rejected, or the gate switched; or refused.
-    status                  Whether the gate is on, and the candidate: its sha, base, commits, state and CI run.
   StyleRun:
     One check or fix of comment style, or one document written with its keys in order.
     report_comments         The Ruby comment violations, as summary tables, a list or JSON.
@@ -298,12 +290,12 @@ queries (nothing here changes anything):
     read_source             The numbered lines of one file of the checkout, whole or from one line to another.
     outline                 What a file declares, by line: each construct of a bluebook, each definition of Ruby.
     declaration             Where a named construct is declared across the corpus, as path:from-to, with its text on request.
-  Era:
+  SchemaRevision:
     One change to a domain's journal of eras, and how it ended: a store's upkeep.
     scaffold_translation    The edge file that would lead the latest held era to the current shape.
     audit_translation       The audit of the edge that leads the latest held era to the current shape.
     compose_translation     The one edge write_translation would write, and the stale edges it would delete.
-    reconcile_plan          The dry run of Era.Reconcile: per domain, the held era, the current shape, the edge it would write, the edges it would delete, and the verdict.
+    reconcile_plan          The dry run of SchemaRevision.Reconcile: per domain, the held era, the current shape, the edge it would write, the edges it would delete, and the verdict.
     attestation             An era's held text as it now stands, and whether it still matches its digest.
     compaction              What compacting the domain's journals would delete, without deleting it.
     boot_status             The boot status of each bluebook under a domain directory: current, behind by a recorded implicit move, superseded, or unminted, with the held and current labels and the reason; read from its own database when it declares one, else from the committed ledger.
@@ -379,6 +371,6 @@ bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
   expression       The subset of regular Ruby a predicate is allowed to be — small enough that every target can…
 
   hecks <command> --help       what one command wants, and every way it refuses
-  hecks --all                  also list the 297 internal commands and queries
+  hecks --all                  also list the 292 internal commands and queries
   a command is called with its aggregate — Build.project_rust!
   exit status: 0 answered, 1 refused or failed, 2 a line it could not read

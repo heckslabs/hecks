@@ -38,16 +38,14 @@ module Hecks
         # @param local [String] the commit to push
         # @param tracking [String] the remote-tracking branch, just fetched
         # @param base [String] the ref the commit must be built on; the tracking branch by default
-        # @param force [Boolean] whether the remote's branch is moved even when it is not an
-        #   ancestor of the commit: only the candidate ref, a scratch pointer, is pushed so
         # @return [String, Symbol] the commit pushed, or `:moved` when the remote's branch moved
         # @raise [ConsoleCapture::Failure] when the commit is not built on the base, or the push is
         #   refused
-        def push(local, tracking, base: tracking, force: false)
+        def push(local, tracking, base: tracking)
           Dir.mktmpdir("hecks-push-train") do |scratch|
             bench = File.join(scratch, "bench")
             read("worktree", "add", "--quiet", "--detach", bench, local)
-            push_from(bench, local, base, "#{"+" if force}#{local}:refs/heads/#{@branch}")
+            push_from(bench, local, base, "#{local}:refs/heads/#{@branch}")
           ensure
             @git.capture("worktree", "remove", "--force", bench, chdir: @checkout) if bench
           end

@@ -171,9 +171,9 @@ Hecks reads almost no environment variables for you to set, and none for a datab
   every edge against the records it migrates, and refuses one that would lose data), and
   `--confirm` alone rewrites the ledger once an edge you wrote covers the move. A change that
   renames or reshapes data needs
-  rules, which `exe/hecks era.scaffold_translation domain.value=<directory>` writes from a
+  rules, which `exe/hecks schema_revision.scaffold_translation domain.value=<directory>` writes from a
   database that holds the eras (name it for that one command with `HECKS_DATABASE=<url>`); then
-  check them with `era.audit_translation`. CI runs the same ledger check as part of `checks`.
+  check them with `schema_revision.audit_translation`. CI runs the same ledger check as part of `checks`.
 - **Only the copy that owns a database migrates it.** A boot that finds a newer storage shape
   mints the next era, which every older checkout of that database is then refused until it
   catches up. `mint_eras true` or `false` in the world's `persisted_by("PostgresEra")` block, or in

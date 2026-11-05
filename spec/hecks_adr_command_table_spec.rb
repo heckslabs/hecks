@@ -10,7 +10,7 @@ require "spec_helper"
 RSpec.describe "the ADR 0080 command table, every row" do
   # One command of the table, read from the RetiredScript rows of the Vocabulary bluebook, where the
   # table is declared once. `verb` is the command's snake name; every command is called by its
-  # aggregate (`era.merge_tail`). Custodian and Codebase rows live in the Hecks bluebook, the other
+  # aggregate (`schema_revision.merge_tail`). Custodian and Codebase rows are in the Hecks bluebook.
   # sections in the bluebook of their own name.
   TableRow = Struct.new(:script, :section, :aggregate, :verb, keyword_init: true) do
     def declaration = %w[Custodian Codebase].include?(section) ? "Hecks" : section
