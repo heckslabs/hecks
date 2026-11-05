@@ -34,9 +34,9 @@ module Hecks
         # The state a stage or tile is in, by its first rule that holds.
         #
         # @param stage [String] the `stage` of the `Verdict` rows
-        # @param measures [Hash{Symbol => Numeric, nil}] what the adapter read; nil is "could not read"
-        # @param limits [Hash{Symbol => Numeric}] numbers that outrank the `Setting` rows, such as the
-        #   QualityControl world's push limits
+        # @param measures [Hash{Symbol => Numeric, nil}] what was read; nil is unreadable
+        # @param limits [Hash{Symbol => Numeric}] numbers that outrank the `Setting` rows, such as
+        #   the QualityControl world's push limits
         # @return [String] the state word, `unknown` when no rule holds
         def verdict(stage, measures, limits = {})
           rules = rows("Verdict").select { |row| row[:stage] == stage }.group_by { |row| row[:position] }
@@ -61,7 +61,7 @@ module Hecks
         def finding_kinds = rows("Finding").map { |row| row[:kind] }
 
         # @param action [String]
-        # @return [Hash, nil] the `ActionRule` row, its `needs` as symbols and `confirm` as a boolean
+        # @return [Hash, nil] the `ActionRule` row, `needs` as symbols, `confirm` boolean
         def action(action)
           row = rows("ActionRule").find { |candidate| candidate[:action] == action }
           row&.merge(needs: row[:needs].split.map(&:to_sym), confirm: row[:confirm] == "yes")

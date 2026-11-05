@@ -123,7 +123,7 @@ Hecks.bluebook "PipelineBoard" do
       member stage: "Failed jobs on head", position: 1, measure: "failed_jobs", op: ">", than: "0", scale: 1, state: "failed"
       member stage: "Failed jobs on head", position: 2, measure: "",    op: "always",  than: "",  scale: 1, state: "ok"
 
-      # Unpushed commits nudge at the push limits the QualityControl world sets (`commits`, `hours`).
+      # Unpushed commits nudge at the QualityControl world's push limits (`commits`, `hours`).
       member stage: "Commits not pushed", position: 1, measure: "ahead",     op: ">=",     than: "commits", scale: 1, state: "attention"
       member stage: "Commits not pushed", position: 2, measure: "age_hours", op: ">=",     than: "hours",   scale: 1, state: "attention"
       member stage: "Commits not pushed", position: 3, measure: "",          op: "always", than: "",        scale: 1, state: "ok"
