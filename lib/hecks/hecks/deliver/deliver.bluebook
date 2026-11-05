@@ -895,6 +895,13 @@ Hecks.bluebook "Hecks" do
         where(run: :run)
         order_by :run
       end
+
+      # The boardings whose pull request has not merged yet: what `Watch` checks on each QA tick.
+      query "Queued" do
+        description "Every boarding queued as a pull request, oldest key first; `Watch` records any that merged."
+        where(status: "queued")
+        order_by :run
+      end
     end
 
     # A boarding is carried by the train, which runs its steps in order while it holds the line: the
