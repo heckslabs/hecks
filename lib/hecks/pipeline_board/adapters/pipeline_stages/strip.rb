@@ -61,8 +61,9 @@ module Hecks
 
         # The fields an answer prompt shows. The question is the job's own detail, when it has one.
         def waiting_on(session)
-          { id: session[:id], name: session[:name], run: session[:run], repo: session[:repo], context: session[:context], attach: session[:attach],
-            work_item: session[:work_item], question: session[:detail] }
+          { id: session[:id], name: session[:name], run: session[:run], repo: session[:repo],
+            context: session[:context], attach: session[:attach], work_item: session[:work_item],
+            question: session[:detail] }
         end
 
         # Attention while anyone waits on a person, working while anyone works, else ok.

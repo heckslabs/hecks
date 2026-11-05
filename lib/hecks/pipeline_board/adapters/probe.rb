@@ -29,7 +29,7 @@ module Hecks
         rescue Timeout::Error then raise Unavailable, "#{command.first} did not answer in #{seconds}s"
         end
 
-        # The launcher's own notices (boot warnings and the worktree's missing local files) come before
+        # The launcher's notices (boot warnings and the worktree's missing local files) come before
         # the refusal, so the reason is the first line that is not one of them.
         NOTICE = /\A(\[hecks\]|hecks: this worktree lacks|.*: warning: )/
 
