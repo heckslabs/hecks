@@ -42,10 +42,34 @@ module Hecks
         def of(sessions, names, events = [])
           return { unknown: "the sessions could not be read" } unless sessions.is_a?(Array)
 
-          names.map do |name|
-            live = sessions.count { |s| s[:name].to_s.start_with?(name) && %w[busy blocked].include?(s[:status]) }
-            { name: name, live: live, last: last_of(name, events) }
-          end
+          names.map { |name| card(name, sessions, events) }
+        end
+
+        # @return [Hash] one role's card: its live count, last event, the sessions working now and
+        #   the work it has completed (finished sessions and events it handled, newest first)
+        def card(name, sessions, events)
+          mine = sessions.select { |s| s[:name].to_s.start_with?(name) }
+          { name: name, last: last_of(name, events), handled: handled(name, events) }.merge(shown(mine))
+        end
+
+        # @return [Hash] the live count, the sessions working now and the three newest finished
+        def shown(mine)
+          working = mine.select { |s| %w[busy blocked].include?(s[:status]) }
+          finished = mine.select { |s| s[:status] == "done" }.first(3)
+          { live: working.size, working: working.map { |s| brief(s) }, completed: finished.map { |s| brief(s) } }
+        end
+
+        # @return [Hash] a session as the card shows it: its name, status and what it reported
+        def brief(session)
+          { id: session[:id], name: session[:name], status: session[:status], detail: session[:detail].to_s.slice(0, 160) }
+        end
+
+        # @return [Array<Hash>] the five newest events the role handled, as `name`, `at` and `id`
+        def handled(role, events)
+          return [] unless events.is_a?(Array)
+
+          mine = events.select { |found| ROLE_EVENTS.fetch(role, []).include?(found[:name]) }
+          mine.first(5).map { |found| found.slice(:name, :at, :id) }
         end
 
         # @return [Hash, nil] the newest event the role handles, as `name`, `at` and `id`, or nil
