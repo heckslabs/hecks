@@ -333,6 +333,7 @@ Hecks.hecksagon "Hecks" do
     end
 
     answers_query "Status"
+    answers_query "Timeline"
   end
 
   # The outside a filling of the queue reaches: the Work items, the machine's load and the freeze.
