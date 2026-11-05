@@ -90,6 +90,10 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
 @keyframes flash { from { background: color-mix(in srgb, var(--series1) 28%, transparent); } to { background: transparent; } }
 @media (prefers-reduced-motion: reduce) { .ev.fresh { animation: none; border-color: var(--series1); } .spin { animation: none; } }
 .spin { display: inline-block; animation: spin 1.2s linear infinite; }
+.loader { display: flex; align-items: center; gap: 8px; color: var(--ink2); font-size: 13px; padding: 12px 0; }
+.loader .bar { height: 8px; flex: 0 1 240px; border-radius: 4px; background: linear-gradient(90deg, var(--grid) 25%, var(--axis) 50%, var(--grid) 75%); background-size: 200% 100%; animation: shimmer 1.4s linear infinite; }
+@keyframes shimmer { to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .loader .bar { animation: none; } }
 @keyframes spin { to { transform: rotate(360deg); } }
 .ev .head { display: flex; gap: 10px; flex-wrap: wrap; align-items: baseline; }
 .ev .time { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 12px; }
@@ -241,7 +245,13 @@ function sessionBadge(status) {
   return badge(status === "busy" ? "working" : status === "failed" ? "failed" : "ok");
 }
 function isUnknown(x) { return x && !Array.isArray(x) && typeof x === "object" && "unknown" in x; }
-function unknown(x) { return h("p", { class: "unknown-note" }, "unknown: " + x.unknown); }
+// A read still in flight shows a loading bar; a read that failed shows why.
+function unknown(x) {
+  if (String(x.unknown).startsWith("the first read")) {
+    return h("div", { class: "loader", role: "status", "aria-live": "polite" }, h("span", { class: "spin" }, "◔"), h("span", {}, "loading"), h("span", { class: "bar" }));
+  }
+  return h("p", { class: "unknown-note" }, "unknown: " + x.unknown);
+}
 function clock(iso) { if (!iso) return "-"; const d = new Date(iso); return isNaN(d) ? String(iso) : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }); }
 // A table shown one page at a time; the page is kept across refreshes.
 const pages = new Map();
