@@ -401,20 +401,20 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
-  Hecks::Era.port "JournalStore" do
-    asks "Examine", to: Era do
+  Hecks::SchemaRevision.port "JournalStore" do
+    asks "Examine", to: SchemaRevision do
       attribute :run, RunKey
-      answers "EraExamined"
-      refuses "EraRefused"
+      answers "SchemaRevisionExamined"
+      refuses "SchemaRevisionRefused"
     end
 
-    asks "Apply", to: Era do
+    asks "Apply", to: SchemaRevision do
       attribute :run, RunKey
-      answers "EraChanged"
-      refuses "EraRefused"
+      answers "SchemaRevisionChanged"
+      refuses "SchemaRevisionRefused"
     end
 
-    asks "Mint", to: Era do
+    asks "Mint", to: SchemaRevision do
       attribute :run, RunKey
       answers "Minted"
       refuses "MintRefused"
@@ -434,8 +434,8 @@ Hecks.hecksagon "Hecks" do
     answers_query "ProjectionAudit"
   end
 
-  Hecks::Era.port "Ledger" do
-    asks "Capture", to: Era do
+  Hecks::SchemaRevision.port "Ledger" do
+    asks "Capture", to: SchemaRevision do
       attribute :run, RunKey
       answers "HeadCaptured"
       refuses "CaptureRefused"
@@ -951,7 +951,7 @@ Hecks.hecksagon "Hecks" do
 
   # Queries answered from outside the domain. The bluebook declares the question and the value
   # object its answer takes (`returns`) and never says who answers it; each `answers_query` here
-  # binds it to the port's adapter. The queries on the ports above (Follow, the Era readings,
+  # binds it to the port's adapter. The queries on the ports above (Follow, the SchemaRevision readings,
   # WordStatus and the rest) are bound the same way.
   Hecks::Introspection.port "DomainRuntime" do
     answers_query "Ir"

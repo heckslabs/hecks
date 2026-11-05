@@ -10,9 +10,9 @@ require_relative "../git"
 module Hecks
   module Adapters
     class JournalStore
-      # The changes the journal store makes once `Era.Permit` has let one through.
+      # The changes the journal store makes once `SchemaRevision.Permit` has let one through.
       #
-      # The rules that need no database are `given`s of the Era commands, including that a
+      # The rules that need no DB are `given`s of the SchemaRevision commands, including that a
       # re-attested text differs from its digest and keeps the era's shape. What stays here is what
       # only the database can enforce: the connection's write fence, the per-domain advisory lock
       # and its timeout, the append-only re-attestation, the audit that rolls a merge back, the
@@ -20,9 +20,9 @@ module Hecks
       module Changes
         # Makes the change the record asks for.
         #
-        # A change is made only for a record `Era.Permit` admitted, whichever way `apply` is asked.
+        # Only a record `SchemaRevision.Permit` admitted is changed, however `apply` is asked.
         #
-        # @param held [Hash] the `Era` record
+        # @param held [Hash] the `SchemaRevision` record
         # @return [Hash{Symbol => Hash}] `report:` what was done, as the script said it
         # @raise [Runtime::WiringError] if the record was not admitted, or the database or an
         #   era's own guard refuses the change
@@ -109,7 +109,7 @@ module Hecks
         rescue Runtime::WiringError => e
           raise Runtime::WiringError, "#{domain.domain_name}: stopped at a row that isn't merely legacy — " \
                                       "it fails its own integrity check: #{e.message} — resolve that first " \
-                                      "(`hecks era.reattest!`), then run this again for the remaining rows."
+                                      "(`hecks schema_revision.reattest!`), then run this again for the remaining rows."
         end
 
         def missing_projections(lineage)

@@ -93,7 +93,7 @@ module Hecks
           def refuse_unheld!(context)
             raise Runtime::WiringError,
                   "cannot boot #{context.domain_name}: no era held; run the mint entry point " \
-                  "(`hecks era.hold_first! <domain directory> --confirm`) to hold the first era"
+                  "(`hecks schema_revision.hold_first! <domain directory> --confirm`) to hold the first era"
           end
 
           # Records what the resolution answered and writes nothing. A superseded era (an old

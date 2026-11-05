@@ -212,7 +212,7 @@ Hecks.world "Hecks" do
   stored_as Revision: "commit", Workspace: "checkout"
 
   # commands whose own record an unminted boot may write, for a binding kept in local files
-  minting commands: ["Era.MintHeld"]
+  minting commands: ["SchemaRevision.MintHeld"]
 
   persisted_by("PostgresEra") do
     formerly "Old"                        # the name this domain's history is held under

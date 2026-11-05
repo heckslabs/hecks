@@ -3,7 +3,7 @@ require "digest"
 require "json"
 require_relative "../../../lib/hecks/hecks/adapters/journal_store"
 
-# The facts JournalStore reports about a held era's text, for `Era.Permit`'s re-attestation givens.
+# The facts JournalStore reports about a held era's text, for `SchemaRevision.Permit`'s givens.
 # No database is needed: the era is the row `raw_era` would have read.
 RSpec.describe Hecks::Adapters::JournalStore::Examination do
   subject(:store) { Hecks::Adapters::JournalStore.new }

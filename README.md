@@ -49,7 +49,7 @@ These terms make up the model.
 - **Era** is one numbered version of a domain's shape, with declared
   translations between versions. It is not a Rails-style migration: a
   migration is a script you write and run against the database, while a
-  translation is a declaration that `hecks era.audit_translation` replays
+  translation is a declaration that `hecks schema_revision.audit_translation` replays
   against real records before boot, and boot refuses a shape change that has
   none. Eras are tracked by the `PostgresEra` adapter (and the Rust host's Postgres store).
 

@@ -8,7 +8,7 @@ module Hecks
       module Readings
         module MintPlan
           # The command line that runs the mint the plan found would go ahead: the Hecks domain's
-          # `Era.mint_held!`, or the ledger's `Maintenance.mint_era!`. Whatever the run supplies
+          # `SchemaRevision.mint_held!`, or `Maintenance.mint_era!`. Whatever the run supplies
           # is a `<placeholder>`; the rest is read from the store. `--confirm` is added when the
           # auto-mint rule (`QaAutoMint.held_reason`) holds the mint for the owner.
           class CommandLine
@@ -33,7 +33,7 @@ module Hecks
             private
 
             def held_line
-              "exe/hecks Era.mint_held! run.value=<run-id> rehearsal_verdict.value=#{@verdict.verdict} " \
+              "exe/hecks SchemaRevision.mint_held! run.value=<run-id> rehearsal_verdict.value=#{@verdict.verdict} " \
                 "watermark.value=#{@watermark} --confirm"
             end
 

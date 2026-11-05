@@ -9,7 +9,7 @@ require_relative "../../../support/era_registry_loading"
 require_relative "../../../support/first_era_hold"
 require_relative "../../../../lib/hecks/hecks/adapters/journal_store"
 
-# `Era.ProjectionAudit` recomputes the hash of each era's stored projection and compares it with
+# `SchemaRevision.ProjectionAudit` recomputes each era's stored projection hash and compares it with
 # the era's stored hash; the boot resolution marks an era where they disagree with a warning, and
 # still resolves. Both only read.
 RSpec.describe "the stored projection checked against the era's hash", :io do

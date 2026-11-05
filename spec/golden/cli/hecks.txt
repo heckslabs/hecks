@@ -156,7 +156,7 @@ commands:
     One named one-off script the checkout runs, planned or applied; the body is a tool.
     plan_script!                  Show what a named one-off script would change, writing nothing
     apply_script!                 Carry out a named one-off script's changes, only when confirmed
-  Era:
+  SchemaRevision:
     One change to a domain's journal of eras, and how it ended: a store's upkeep.
     hold_first!                   Hold the first era of a domain that holds none, as its first boot would
     rename_domain!                Move a renamed domain's held eras and journal from its former name to its current name
@@ -287,12 +287,12 @@ queries (nothing here changes anything):
     read_source             The numbered lines of one file of the checkout, whole or from one line to another.
     outline                 What a file declares, by line: each construct of a bluebook, each definition of Ruby.
     declaration             Where a named construct is declared across the corpus, as path:from-to, with its text on request.
-  Era:
+  SchemaRevision:
     One change to a domain's journal of eras, and how it ended: a store's upkeep.
     scaffold_translation    The edge file that would lead the latest held era to the current shape.
     audit_translation       The audit of the edge that leads the latest held era to the current shape.
     compose_translation     The one edge write_translation would write, and the stale edges it would delete.
-    reconcile_plan          The dry run of Era.Reconcile: per domain, the held era, the current shape, the edge it would write, the edges it would delete, and the verdict.
+    reconcile_plan          The dry run of SchemaRevision.Reconcile: per domain, the held era, the current shape, the edge it would write, the edges it would delete, and the verdict.
     attestation             An era's held text as it now stands, and whether it still matches its digest.
     compaction              What compacting the domain's journals would delete, without deleting it.
     boot_status             The boot status of each bluebook under a domain directory: current, behind by a recorded implicit move, superseded, or unminted, with the held and current labels and the reason; read from its own database when it declares one, else from the committed ledger.

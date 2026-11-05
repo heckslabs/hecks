@@ -6,7 +6,7 @@ module Hecks
     class Registry
       # The names a world gives to what is stored: `stored_as Revision: "commit"` (the table or key
       # an aggregate's rows sit under) at the world's top level, and `formerly "Old"` in a
-      # persistence block (the name a domain's history is held under until `era.rename_domain`).
+      # persistence block (the name a domain's history is held under until renamed).
       # These are storage facts, so the world says them and the bluebook does not. The bluebook's
       # `formerly_known_as` still works as a fallback; it warns once, naming the replacement,
       # and must agree with the world when both are given.

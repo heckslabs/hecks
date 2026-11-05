@@ -19,7 +19,7 @@ through.
 **Example: compact a journal the store has already projected**
 
 ```sh
-hecks Era.compact! domain.value=examples/banking
+hecks SchemaRevision.compact! domain.value=examples/banking
 ```
 
 Without `confirm.value=true` it names what it would delete and deletes nothing.
@@ -27,7 +27,7 @@ Without `confirm.value=true` it names what it would delete and deletes nothing.
 **Example: see what compacting would delete**
 
 ```sh
-hecks Era.compaction domain.value=examples/banking
+hecks SchemaRevision.compaction domain.value=examples/banking
 ```
 
 Reads the journal and reports what compacting would remove, without removing it.
