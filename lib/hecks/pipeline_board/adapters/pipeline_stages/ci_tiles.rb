@@ -16,7 +16,7 @@ module Hecks
         # @param registry [Runtime::Registry, nil]
         # @return [Hash{Symbol => Integer}] the wall goal (minutes) and the success bands (percent)
         def self.health(registry)
-          declared = registry&.world("QualityControl")&.for_verb("ci_health") || {}
+          declared = registry&.world("Hecks")&.for_verb("ci_health") || {}
           HEALTH_DEFAULTS.merge(declared.slice(*HEALTH_DEFAULTS.keys)).transform_values { |v| Integer(v) }
         end
 

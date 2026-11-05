@@ -585,7 +585,13 @@ const SESSION_FILTERS = {
 // A session can be deleted when it finished, waits on nobody, and is not a deploy: a deploy's
 // session is kept until the deploy is confirmed, whatever the board's state says.
 function deletable(s) {
-  return (s.status === "done" || s.status === "failed") && !/\bdeploy\b/i.test((s.name || "") + " " + (s.detail || ""));
+  const finished = s.status === "done" || s.status === "failed";
+  return finished && !/\bdeploy\b/i.test((s.name || "") + " " + (s.detail || "")) && !pinnedRole(s);
+}
+// A pinned agent role's session is never offered for Delete: its name starts with a declared role.
+function pinnedRole(s) {
+  const roles = lastState && Array.isArray(lastState.roles) ? lastState.roles : [];
+  return roles.some((r) => (s.name || "").startsWith(r.name));
 }
 function filterBar() {
   const bar = h("div", { class: "filters", role: "group", "aria-label": "Filter sessions" });
