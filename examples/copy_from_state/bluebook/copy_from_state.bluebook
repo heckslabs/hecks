@@ -1,0 +1,78 @@
+# `state(:field)` as a mutation source: copies the record's own value into an appended
+# element or onto another field (a bare Symbol always names a command argument).
+Hecks.bluebook "Snapshots" do
+  vision "A board records its own position, and a later move does not rewrite an earlier one."
+
+  aggregate "Board" do
+    description "A board of pieces that remembers the positions it has stood in."
+    attribute :label,     Label
+    attribute :ply,       Ply
+    attribute :last_ply,  Ply, optional: true
+    attribute :pieces,    list_of(Piece)
+    attribute :positions, list_of(Position)
+    identified_by :label
+
+    value_object("Label")   { attribute :value, String }
+    value_object("PieceId") { attribute :value, String }
+    value_object("Ply")     { attribute :value, Integer }
+    value_object("Square")  { attribute :file, Integer }
+
+    # One snapshot: the ply and the aggregate's piece entities, held by a value object.
+    value_object "Position" do
+      attribute :ply,    Ply
+      attribute :pieces, list_of(Piece)
+    end
+
+    entity "Piece" do
+      attribute :id,     PieceId
+      attribute :square, Square
+      identified_by :id
+
+      command "Move" do
+        attribute :to, Square
+        sets :square, to: :to
+        emits "PieceMoved"
+      end
+    end
+
+    command "Create" do
+      attribute :label, Label
+      sets :label
+      sets :ply, to: { value: 0 }
+      emits "BoardCreated"
+    end
+
+    command "Place" do
+      reference_to Board
+      attribute :id,     PieceId
+      attribute :square, Square
+      sets :pieces, append: { id: :id, square: :square }
+      emits "PiecePlaced"
+    end
+
+    command "MovePiece" do
+      reference_to Board
+      attribute :id, PieceId
+      attribute :to, Square
+      delegates_to "Piece.Move", with: { id: :id, to: :to }
+    end
+
+    # Declares no argument; reads two fields off the record.
+    command "Record" do
+      reference_to Board
+      sets :positions, append: { ply: state(:ply), pieces: state(:pieces) }
+      sets :last_ply, to: state(:ply)
+      sets :ply, increment: { value: 1 }
+      emits "PositionRecorded"
+    end
+
+    command "ClaimRepeat" do
+      goal "The current pieces stood exactly so at an earlier recorded ply"
+      reference_to Board
+      given("some earlier position has every piece where it stands now") do
+        positions.any? { |p| pieces.all? { |k| p.pieces.any? { |s| s.id == k.id && s.square.file == k.square.file } } }
+      end
+      emits "RepeatClaimed"
+    end
+  end
+end

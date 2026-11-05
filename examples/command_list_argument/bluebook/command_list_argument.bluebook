@@ -1,0 +1,54 @@
+# A command's own `list_of` argument is an Array whatever its element type: a lone scalar is
+# refused. `append:`/`remove:` take one element by design, coerced against the aggregate's own list.
+Hecks.bluebook "Binder" do
+  vision "Folders carrying labels."
+
+  aggregate "Folder" do
+    description "A folder."
+    value_object("FolderName") { attribute :value, String }
+    value_object("Label") { attribute :value, String }
+    identified_by FolderName, as: :name
+    attribute :labels, list_of(Label)
+
+    command "Open" do
+      attribute :name, FolderName
+      attribute :labels, list_of(Label)
+      sets :labels
+      emits Opened
+    end
+
+    command "Relabel" do
+      reference_to Folder
+      attribute :labels, list_of(Label)
+      sets :labels
+      emits Relabeled
+    end
+
+    command "Note" do
+      reference_to Folder
+      attribute :words, list_of(String)
+      emits Noted
+    end
+
+    command "Attach" do
+      reference_to Folder
+      attribute :label, String
+      sets :labels, append: { value: :label }
+      emits Attached
+    end
+
+    command "Replace" do
+      reference_to Folder
+      attribute :only, String
+      sets :labels, to: :only
+      emits Replaced
+    end
+
+    command "Detach" do
+      reference_to Folder
+      attribute :label, String
+      sets :labels, remove: :label
+      emits Detached
+    end
+  end
+end
