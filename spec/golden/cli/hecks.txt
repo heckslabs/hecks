@@ -97,10 +97,11 @@ commands:
     make!                         Commit what is staged in a checkout under a message: never pushed, never amended, never onto main
   LinkedTree:
     A linked worktree opened on a new branch from main, or declined with the reason.
-    add!                          Open a linked worktree on a new branch from main, never on main itself
+    add!                          Open a linked worktree on a new branch from main (or from a base named), never on main itself
     pull_main!                    Bring local main up to date with origin/main: fetch, fast-forward when behind, rebase its unpushed commits when diverged, refusing a dirty or mid-rebase checkout
     publish!                      Push a worktree's branch to origin, so a pull request can be opened from it; never main, never forced
     rebase!                       Rebase a branch onto a base, or report the files that conflict and stop with nothing changed
+    pick!                         Apply one commit's change onto a worktree's branch, or report the files that conflict and stop with nothing changed
   Landing:
     One branch landed on local main, or one worktree retired: done, or refused with the reason.
     land!                         Merge a worktree's branch onto local main: fast-forward when it can be, a merge commit when main moved, never forced, never pushed
