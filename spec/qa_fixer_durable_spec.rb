@@ -44,7 +44,8 @@ RSpec.describe "the Fixer's durable attempts", :io do
       Hecks.hecksagon "Fixer" do
         attaches "Governance"
         persisted_by "Memory"
-        Fixer::Attempt.persisted_by("PostgresEra")
+        Fixer::Attempt.persisted_by("Postgres")
+        revisions true
       end
 
       Hecks.hecksagon "Governance" do
@@ -56,7 +57,7 @@ RSpec.describe "the Fixer's durable attempts", :io do
   def fixture_world
     <<~RUBY
       Hecks.world "Fixer" do
-        persisted_by("PostgresEra") do
+        persisted_by("Postgres") do
           database "#{FencedOwner.url(FIXER_DURABLE_DB)}"
           mint_eras false
         end
@@ -107,7 +108,7 @@ RSpec.describe "the Fixer's durable attempts", :io do
     hecksagon = File.read(File.join(FIXER_QA_BLUEBOOK, "quality_control.hecksagon"))
     world = File.read(File.join(FIXER_QA_BLUEBOOK, "fixer.world"))
 
-    expect(hecksagon).to include(%(Fixer::Attempt.persisted_by("PostgresEra")))
+    expect(hecksagon).to include(%(Fixer::Attempt.persisted_by("Postgres")))
     expect(world).to include("postgres://hecks_qa@localhost/hecks_fixer")
   end
 end

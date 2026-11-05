@@ -7,7 +7,7 @@ Hecks.world "Fixer" do
   # write-fence (row-level security), so the boot refuses one.
   # `mint_eras` is off and `disposable_ledger` is on: a changed shape is applied by the boot itself
   # (additive in place, breaking archived), with no era, mint or edge. See quality_control.world.
-  persisted_by("PostgresEra") do
+  persisted_by("Postgres") do
     database "postgres://hecks_qa@localhost/hecks_fixer"
     mint_eras false
     disposable_ledger true

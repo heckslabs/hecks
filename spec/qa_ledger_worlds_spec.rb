@@ -10,7 +10,7 @@ RSpec.describe "the QA ledger's world files" do
   def self.postgres_era_domains
     Dir[File.join(LEDGER_DIR, "*.hecksagon")].flat_map do |path|
       text = File.read(path)
-      next [] unless text.include?('persisted_by("PostgresEra")')
+      next [] unless text.include?('persisted_by("Postgres")') && text.include?('revisions true')
 
       text.scan(/Hecks\.hecksagon\s+"([^"]+)"/).flatten
     end
@@ -21,7 +21,7 @@ RSpec.describe "the QA ledger's world files" do
                                          .find { |text| text.include?(%(Hecks.world "#{domain}")) }
   end
 
-  it "finds the domains that bind PostgresEra" do
+  it "finds the domains that keep revisions on Postgres" do
     expect(self.class.postgres_era_domains).to include("QualityControl", "Governance")
   end
 
