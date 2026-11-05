@@ -35,8 +35,18 @@ pub fn run(input: &str) -> String {
             .ok()
             .and_then(|whole| whole.get("present").cloned())
             .unwrap_or(Json::Null);
-        return super::present::present_answer(answer, crate::generated::active::present)
-            .to_json_string();
+        // An `"ir"` key (one domain's canonical IR, or an array) is interpreted at run time;
+        // without it the generated router answers, until the rest of `generated::active` goes.
+        let presented = match parsed.get("ir") {
+            Some(ir) => {
+                let presenter = super::ir_presenter::IrPresenter::from_ir(ir);
+                super::present::present_answer(answer, &|aggregate, state| {
+                    presenter.present(aggregate, state)
+                })
+            }
+            None => super::present::present_answer(answer, &crate::generated::active::present),
+        };
+        return presented.to_json_string();
     }
 
     // Optional `"needs"`: which commands need which outside facts (ADR 0081), passed by the host.

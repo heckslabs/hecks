@@ -8,8 +8,9 @@
 
 use super::Json;
 
-/// The generated router's shape: one `"Domain::Aggregate"` state in, its bare shape out.
-pub type Presenter = fn(&str, Json) -> Json;
+/// A presenter's shape: one `"Domain::Aggregate"` state in, its bare shape out. The generated
+/// router and the IR-interpreted one (`ir_presenter`) both fit it.
+pub type Presenter<'a> = &'a dyn Fn(&str, Json) -> Json;
 
 /// Returns `answer` with its `instances`, event payloads and declared query rows presented
 /// through `present`; every other key passes through verbatim.
@@ -116,7 +117,7 @@ mod tests {
     }
 
     fn present(text: &str) -> String {
-        present_answer(Json::parse(text).unwrap(), shop_present).to_json_string()
+        present_answer(Json::parse(text).unwrap(), &shop_present).to_json_string()
     }
 
     #[test]
@@ -220,6 +221,16 @@ mod pizzas_tests {
             text(items(&presented, "queries")[0].get("rows")),
             r#"[{"id":"Margherita","name":"Margherita","pizza":{"price_cents":1200,"size":"large"},"toppings":[{"name":"basil","amount":2}],"customer_name":"Ann","status":"sold"}]"#
         );
+    }
+
+    // The IR-interpreted presenter answers byte for byte what the generated router answers.
+    #[test]
+    fn the_interpreted_presenter_answers_what_the_generated_router_answers() {
+        let answer = run(STEPS);
+        let generated = run(&format!(r#"{{"present":{answer}}}"#));
+        let ir = include_str!("../generated/pizzas/ir.json");
+        let interpreted = run(&format!(r#"{{"present":{answer},"ir":{ir}}}"#));
+        assert_eq!(interpreted, generated);
     }
 
     #[test]
