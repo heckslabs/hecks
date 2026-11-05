@@ -322,22 +322,16 @@ Hecks.bluebook "Coder" do
       invariant("a brief states an outcome") { !value.to_s.empty? }
     end
 
-    value_object "BriefDetail" do
-      attribute :value, String
-    end
+    value_object "BriefDetail", String
 
     # One path or module name the session may edit.
     value_object "AreaWord" do
       attribute :value, String, matches: :present
     end
 
-    value_object "BriefRules" do
-      attribute :value, String
-    end
+    value_object "BriefRules", String
 
-    value_object "BriefVerification" do
-      attribute :value, String
-    end
+    value_object "BriefVerification", String
 
     # The brief a coder session reads for the next planned Work item: the Brief keyed by that item.
     query "For" do

@@ -4,9 +4,9 @@ require "fileutils"
 require "json"
 require "tmpdir"
 
-# A spec that starts agent runs gets a stand-in `claude` first, so it can never start a real session.
-# The stand-in names the agents the roles use, lists one session, and starts nothing. The job's state
-# and the session list sit in `scratch`; `HOME` and `PATH` point there for the example.
+# A spec that starts agent runs gets a stand-in `claude` first, so it can never start a real
+# session. The stand-in names the agents the roles use, lists one session, and starts nothing. The
+# job's state and the session list sit in `scratch`; `HOME` and `PATH` point there for the example.
 STAND_IN_CLAUDE = <<~SH
   #!/bin/sh
   here=$(dirname "$0")

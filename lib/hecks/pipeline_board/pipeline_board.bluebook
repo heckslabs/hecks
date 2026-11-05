@@ -42,9 +42,7 @@ Hecks.bluebook "PipelineBoard" do
     end
 
     # Why a server ended or was refused.
-    value_object "Reason" do
-      attribute :value, String
-    end
+    value_object "Reason", String
 
     # A JSON document: the results of a query, or `unknown: <reason>` for a read that failed.
     value_object "Document" do

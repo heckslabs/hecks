@@ -74,17 +74,13 @@ Hecks.bluebook "Hecks" do
       end
 
       # Whether the host build may download a published binary instead of compiling it.
-      value_object "Switch" do
-        attribute :value, Boolean
-      end
+      value_object "Switch", Boolean
 
       value_object "CodegenName" do
         attribute :value, String, pattern: '^(ruby|rust)$'
       end
 
-      value_object "Report" do
-        attribute :value, String
-      end
+      value_object "Report", String
 
       lifecycle :status, default: "requested" do
         mark :failure, "faulted"
