@@ -10,7 +10,8 @@ module Hecks
         NEEDS = {
           "answer" => %i[target text], "reply" => %i[target text], "board_train" => [], "promote" => [],
           "check_in" => %i[target session text], "delete" => %i[target], "discard" => %i[target condition],
-          "auto_reply" => %i[target], "review" => %i[target text], "plan" => %i[text]
+          "auto_reply" => %i[target], "review" => %i[target text], "plan" => %i[text],
+          "settle" => %i[target]
         }.freeze
 
         # The program each step runs: the launcher, except a reply, which resumes a Claude session.
@@ -66,6 +67,7 @@ module Hecks
         # The steps built by a helper or fixed outright: the launcher's argument list for each.
         LOOKUP = {
           "plan"        => ->(fields) { plan_argv(fields) },
+          "settle"      => ->(fields) { ["agents", "PromotionRecommendation.settle!", "to=#{fields[:target]}", "--wait"] },
           "board_train" => ->(_) { ["SendTrain.board!", "--confirm"] },
           "promote"     => ->(_) { ["PromotionRun.promote!", "lane=stable", "--confirm", "--wait"] },
           "check_in"    => ->(fields) { check_in_argv(fields) },

@@ -588,15 +588,41 @@ function renderWork(work) {
   put("work", pager("work", ["Work item", "Status", "Area", "Claimed by", "Claimed at"], work.map((w) => [w.slug, w.status, (w.area || []).join(", ") || "-", w.claimed_by || "(nobody)", w.claimed_at || "-"]), 10));
 }
 // Everything that asks for a person: attention and failed pills, and sessions blocked on a reply.
-function renderAttention(metrics, stages, sessions) {
+function renderAttention(metrics, stages, sessions, recommendations) {
+  const recs = Array.isArray(recommendations) ? recommendations : [];
   const groups = [
     ["Metrics", metrics.filter((t) => needsAttention(t.state)).map((t) => ({ kind: "Metric", item: t.label, state: t.state, value: (t.value ?? "-") + (t.unit || ""), detail: t.detail, since: "-", act: () => resolve(t.label, t.detail) }))],
     ["Pipeline stages", stages.filter((s) => needsAttention(s.state)).map((s) => ({ kind: "Stage", item: s.name, state: s.state, value: "-", detail: s.detail, since: "-", act: () => resolve(s.name, s.detail) }))],
     ["Sessions waiting on you", sessions.filter((s) => s.status === "blocked").map((s) => ({ kind: "Session", item: s.name + " " + (s.id || ""), state: "attention", value: s.work_item || s.row || "-", detail: s.detail, since: clock(s.started), act: () => openAnswer([{ id: s.id, name: s.name, run: s.run, repo: s.repo, work_item: s.work_item, question: s.detail, context: s.context, attach: s.attach }], s.id) }))]
   ].filter(([, items]) => items.length);
-  setTitle("h-attn", "Needs attention", groups.reduce((n, [, items]) => n + items.length, 0));
-  if (!groups.length) return put("attention", h("p", { class: "note" }, "Nothing needs attention."));
+  setTitle("h-attn", "Needs attention", groups.reduce((n, [, items]) => n + items.length, recs.length));
+  if (!groups.length && !recs.length) return put("attention", h("p", { class: "note" }, "Nothing needs attention."));
   put("attention", groups.map(([title, items]) => h("div", { class: "attn-group" }, h("h3", { class: "sub" }, title + " (" + items.length + ")"), attentionTable(items))));
+  if (recs.length) $("attention").append(recommendationGroup(recs));
+}
+// The release manager's recommendations: Promote asks twice and runs the promotion; Dismiss settles.
+function recommendationGroup(recs) {
+  const rows = recs.map((r) => [r.change, r.reasons || "-", recommendationButtons(r)]);
+  const title = h("h3", { class: "sub" }, "Promotions to confirm (" + recs.length + ")");
+  return h("div", { class: "attn-group" }, title, table(["Change", "Why", ""], rows));
+}
+async function postAct(body) {
+  const res = await fetch("/api/act", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  return res.ok;
+}
+function recommendationButtons(r) {
+  const promote = h("button", { type: "button", class: "del", tip: "Runs the promotion of stable to the newest green commit, after a second click" }, "Promote");
+  const dismiss = h("button", { type: "button", class: "del", tip: "Set the recommendation aside without promoting" }, "Dismiss");
+  let armed = false;
+  promote.addEventListener("click", async () => {
+    if (!armed) { armed = true; promote.textContent = "Confirm promote"; return; }
+    promote.disabled = true;
+    if (await postAct({ action: "promote", confirm: true })) await postAct({ action: "settle", target: r.change });
+    else { armed = false; promote.disabled = false; promote.textContent = "Not promoted"; return; }
+    refresh();
+  });
+  dismiss.addEventListener("click", async () => { await postAct({ action: "settle", target: r.change }); refresh(); });
+  return h("span", {}, promote, dismiss);
 }
 // One group of attention rows; each row opens its resolve or answer dialog.
 function attentionTable(items) {
@@ -761,7 +787,7 @@ function replyNote(s) {
 }
 function render(s) {
   lastState = s;
-  renderTiles(s.metrics); renderAttention(s.metrics, s.stages, s.sessions); renderStrip(s.stages); renderCi(s.ci_runs, s.slowest_jobs);
+  renderTiles(s.metrics); renderAttention(s.metrics, s.stages, s.sessions, s.recommendations); renderStrip(s.stages); renderCi(s.ci_runs, s.slowest_jobs);
   renderRoles(s.roles, s.reviews, s.open_work); renderWork(s.open_work); renderSessions(s.sessions); renderFan(s.fanout); renderEvents(s.events);
   $("updated").textContent = "updated " + clock(s.generated_at);
 }

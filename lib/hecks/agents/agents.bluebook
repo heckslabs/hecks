@@ -348,6 +348,10 @@ Hecks.bluebook "Agents" do
       attribute :value, String
     end
 
+    lifecycle :status, default: "recommended" do
+      transition "Settle" => "settled", from: "recommended"
+    end
+
     command "Recommend" do
       role "System"
       goal "Recommend promoting one green change, with the reasons"
@@ -358,8 +362,24 @@ Hecks.bluebook "Agents" do
       emits "PromotionRecommended"
     end
 
+    # The owner has dealt with it: promoted the change, or set the recommendation aside.
+    command "Settle" do
+      role "Maintainer"
+      goal "Settle a recommendation once the owner has promoted the change or set it aside"
+
+      reference_to PromotionRecommendation
+
+      emits "PromotionSettled"
+    end
+
     query "Recommendations" do
-      description "Every promotion the release manager recommends, by change, for the owner to confirm."
+      description "Every promotion the release manager recommends, by change, settled or not."
+      order_by :change
+    end
+
+    query "Open" do
+      description "The recommendations still waiting on the owner, by change."
+      where(status: "recommended")
       order_by :change
     end
   end
