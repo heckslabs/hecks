@@ -174,7 +174,7 @@ details.panel > .scroll, details.panel > .feed, details.panel > .strip, details.
 
   <details class="panel" open><summary data-tip="Everything that asks for a person: attention pills, failed stages and sessions blocked on a reply. Click a row to act on it"><h2 id="h-attn">Needs attention</h2></summary><div class="scroll" id="attention"></div></details>
   <details class="panel" open><summary data-tip="The architecture as a diagram: domains, aggregates and adapters. Click a block to open it; the switch shows the sequence of events instead"><h2 id="h-wiring">Wiring diagram</h2><small class="hint">drag to pan · use + and − to zoom · click a block to open it</small></summary><div class="switch"><button type="button" data-view="/wiring" aria-pressed="true">Wiring</button><button type="button" data-view="/sequence?small=1" aria-pressed="false">Sequence</button></div><iframe id="view" class="embed" src="/wiring" title="Wiring diagram"></iframe></details>
-  <section aria-labelledby="h-tiles"><h2 id="h-tiles">Key metrics</h2><div class="tiles" id="tiles"></div><div id="metricattn"></div></section>  <details class="panel" open><summary data-tip="Each stage of a change from planned to released. Click a stage that needs you to resolve it"><h2 id="h-strip">Pipeline</h2></summary><div class="strip" id="strip"></div></details>
+  <section aria-labelledby="h-tiles"><h2 id="h-tiles">Key metrics</h2><div class="tiles" id="tiles"></div></section>  <details class="panel" open><summary data-tip="Each stage of a change from planned to released. Click a stage that needs you to resolve it"><h2 id="h-strip">Pipeline</h2></summary><div class="strip" id="strip"></div></details>
   <details class="panel" open><summary data-tip="Recent CI runs on main, and the slowest jobs of the last completed run"><h2 id="h-ci">CI on main</h2></summary>
     <div class="grid2">
       <div><div class="label">Failed jobs per run, oldest to newest</div><div id="failedchart" class="chartview"></div><div class="tableview scroll" id="failedtable"></div></div>
@@ -515,11 +515,10 @@ function renderWork(work) {
 // Everything that asks for a person: attention and failed pills, and sessions blocked on a reply.
 function renderAttention(metrics, stages, sessions) {
   const groups = [
+    ["Metrics", metrics.filter((t) => needsAttention(t.state)).map((t) => ({ kind: "Metric", item: t.label, state: t.state, value: (t.value ?? "-") + (t.unit || ""), detail: t.detail, since: "-", act: () => resolve(t.label, t.detail) }))],
     ["Pipeline stages", stages.filter((s) => needsAttention(s.state)).map((s) => ({ kind: "Stage", item: s.name, state: s.state, value: "-", detail: s.detail, since: "-", act: () => resolve(s.name, s.detail) }))],
     ["Sessions waiting on you", sessions.filter((s) => s.status === "blocked").map((s) => ({ kind: "Session", item: s.name + " " + (s.id || ""), state: "attention", value: s.work_item || s.row || "-", detail: s.detail, since: clock(s.started), act: () => openAnswer([{ id: s.id, name: s.name, run: s.run, repo: s.repo, work_item: s.work_item, question: s.detail, context: s.context, attach: s.attach }], s.id) }))]
   ].filter(([, items]) => items.length);
-  const metricRows = metrics.filter((t) => needsAttention(t.state)).map((t) => ({ kind: "Metric", item: t.label, state: t.state, value: (t.value ?? "-") + (t.unit || ""), detail: t.detail, since: "-", act: () => resolve(t.label, t.detail) }));
-  put("metricattn", metricRows.length ? attentionTable(metricRows) : "");
   if (!groups.length) return put("attention", h("p", { class: "note" }, "Nothing needs attention."));
   put("attention", groups.map(([title, items]) => h("div", { class: "attn-group" }, h("h3", { class: "sub" }, title), attentionTable(items))));
 }
