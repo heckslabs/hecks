@@ -27,6 +27,8 @@ Hecks.bluebook "Hecks" do
       attribute :checkout,  Switch, optional: true
       attribute :report,    Report, optional: true
       attribute :refusal,   Report, optional: true
+      attribute :expected,  CheckCount, optional: true
+      attribute :recorded,  CheckCount, optional: true
       identified_by :run
 
       value_object "RunKey" do
@@ -54,6 +56,10 @@ Hecks.bluebook "Hecks" do
       end
 
       value_object "Report" do
+        attribute :value, String
+      end
+
+      value_object "CheckCount" do
         attribute :value, String
       end
 
@@ -97,7 +103,12 @@ Hecks.bluebook "Hecks" do
 
         reference_to GateRun
         attribute :report, Report, sets: true
+        attribute :expected, CheckCount, sets: true
+        attribute :recorded, CheckCount, sets: true
 
+        # A green verdict needs at least one check expected, and every expected check recorded.
+        given("the run expected at least one check") { expected.value.to_s != "0" }
+        given("every expected check was recorded") { recorded.value == expected.value }
 
         emits GateCompleted
       end
@@ -150,7 +161,7 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordGateOutcome" do
       on      "GateRun.GateAnswered"
-      trigger GateRun::Complete, with: { report: :report }
+      trigger GateRun::Complete, with: { report: :report, expected: :expected, recorded: :recorded }
     end
 
     policy "RecordGateFault" do
