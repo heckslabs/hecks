@@ -51,6 +51,12 @@ module Hecks
 
         # @return [Time] when a run ended: its start plus its wall time
         def finished(run) = Time.parse(run[:started]) + (run[:wall_minutes].to_f * 60)
+
+        # @return [String, nil] when a sha was landed, else when its commit was made
+        def landed_at(data, sha)
+          landed = data[:landed_times].is_a?(Hash) ? data[:landed_times][sha] : nil
+          landed || (data[:commit_times].is_a?(Hash) ? data[:commit_times][sha] : nil)
+        end
       end
     end
   end

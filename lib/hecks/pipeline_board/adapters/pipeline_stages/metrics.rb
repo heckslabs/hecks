@@ -24,7 +24,7 @@ module Hecks
         end
 
         def self.ci(data, runs, now)
-          [success(runs), wall(runs), failed_head(runs), red_for(runs, now), lead(data, runs)]
+          [success(runs), wall(runs), failed_head(runs), red_for(runs, now), lead(data, runs), carry(data, runs)]
         end
 
         def self.work(data, now)
