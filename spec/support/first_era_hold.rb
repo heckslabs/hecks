@@ -39,7 +39,7 @@ module FirstEraHold
     held = Hecks::Adapters::JournalStore::HeldDomain.open(directory, mode: :bare)
     held.registry.apply_world_names!
     held.registry.bluebooks.each_value do |bluebook|
-      source = Hecks::Runtime::EraCheck.source_text_for(bluebook, held.directory, registry: held.registry)
+      source = Hecks::Runtime::RevisionCheck.source_text_for(bluebook, held.directory, registry: held.registry)
       hold_bluebook_era!(url, bluebook, source, schema)
     end
   end

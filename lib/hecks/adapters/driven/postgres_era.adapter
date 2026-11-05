@@ -13,7 +13,7 @@ Hecks.adapter "PostgresEra" do
   field :allow_superuser
   # Whether this copy may migrate the database to a newer storage shape at boot, by minting the
   # next era through a translation edge. `false` refuses; unset follows
-  # `LineageManager::EraResolver::MINT_BY_DEFAULT`; see `Refusals#refuse_unpermitted_mint!`.
+  # `LineageManager::RevisionResolver::MINT_BY_DEFAULT`; see `Refusals#refuse_unpermitted_mint!`.
   field :mint_eras
   # Declares the store a disposable tooling ledger: a shape change needs no era, edge or mint, an
   # additive one is applied in place, any other archives the aggregate's rows under a dated name

@@ -3,14 +3,14 @@ require_relative "best_effort"
 
 module Hecks
   module Runtime
-    # The capability idiom for multi-tenant hosting — mirrors EraCheck's
+    # The capability idiom for multi-tenant hosting — mirrors RevisionCheck's
     # own `lineage_capable?`, one level over.
     module TenantCheck
       module_function
 
       # One ungoverned adapter sharing state across two tenant boots is a
       # real data leak, so this is checked with the same severity
-      # EraCheck/refuse_ungoverned_roles! already hold their own gates to.
+      # RevisionCheck/refuse_ungoverned_roles! already hold their own gates to.
       def refuse_unless_tenant_capable!(registry, domain)
         bluebook = registry.bluebook(domain)
         return unless bluebook
@@ -35,7 +35,7 @@ module Hecks
           "or keep #{domain} single-tenant."
       end
 
-      # Same defensive shape as EraCheck#lineage_capable? — a class that
+      # Same defensive shape as RevisionCheck#lineage_capable? — a class that
       # doesn't respond at all, or whose lookup raises, is false, not an error.
       def tenant_capable?(registry, adapter_name)
         BestEffort.call(false) do

@@ -44,8 +44,8 @@ module Hecks
       #   `mismatch`) and `report:` (the sentence `hecks check_era` prints)
       # @raise [ArgumentError] if no allow-list file or timeout was given
       # @raise [Errno::ENOENT] if the allow-list file cannot be read
-      # @raise [Tools::ExpectedEra::Unreachable] if the host cannot be reached
-      # @raise [Tools::ExpectedEra::BadResponse] if it answers no era
+      # @raise [Tools::ExpectedRevision::Unreachable] if the host cannot be reached
+      # @raise [Tools::ExpectedRevision::BadResponse] if it answers no era
       def fetch(**held)
         file = required(held[:expected], "no allow-list file to compare the era with")
         timeout = required(held[:timeout], "no timeout to wait for the host with")

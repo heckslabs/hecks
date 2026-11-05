@@ -13,7 +13,7 @@ Hecks.bluebook "Shaped" do
     identified_by :number
 
     # Explicit `as:` because a bare `reference_to` names itself differently under
-    # EraGuard.shadow_parse (`customer_id`) than live (`customer`), which reads as shape
+    # RevisionGuard.shadow_parse (`customer_id`) than live (`customer`), which reads as shape
     # drift (ADR 0025).
     reference_to Customer, as: :customer
 

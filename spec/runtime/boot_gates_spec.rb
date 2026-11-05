@@ -116,7 +116,7 @@ RSpec.describe Hecks::Runtime::BootGates do
       # `lineage_capable?` keeps `require "pg"` lazy, so no live Postgres is needed here.
       require InMemoryDomain::ERA_PLUGIN
 
-      expect(Hecks::Runtime::EraCheck.lineage_capable_registry?(postgres_era_registry)).to be true
+      expect(Hecks::Runtime::RevisionCheck.lineage_capable_registry?(postgres_era_registry)).to be true
     end
   end
 end

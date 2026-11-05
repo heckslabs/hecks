@@ -14,11 +14,11 @@ module Hecks
       # PostgresEra's era gate: mints the next era when an edge covers the drift, else refuses.
       # Era names are hashed once at mint time and stored in hecks_eras, never reconstructed.
       module LineageManager
-        extend EraResolver
+        extend RevisionResolver
         extend Minter
         extend MergeCoordinator
         extend CoverageCheck
-        extend HeldEra
+        extend HeldRevision
 
         module_function
 
@@ -107,7 +107,7 @@ module Hecks
           file = Tempfile.new(["hecks-era-", ".bluebook"])
           file.write(source)
           file.flush
-          Runtime::EraGuard.shadow_parse(source, file.path)
+          Runtime::RevisionGuard.shadow_parse(source, file.path)
         ensure
           file&.close!
         end

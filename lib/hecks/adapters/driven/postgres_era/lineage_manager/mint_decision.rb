@@ -63,7 +63,7 @@ module Hecks
           end
 
           # A held era as the decision reads it: with `declaration`, the storage shape it holds as a
-          # bluebook view (LineageManager::HeldEra). Its held text is not read.
+          # bluebook view (LineageManager::HeldRevision). Its held text is not read.
           #
           # @param era [Hash] an era as `Lineage#eras` answers it
           # @return [Hash] the era with `declaration`, a `Runtime::ProjectedBluebook`

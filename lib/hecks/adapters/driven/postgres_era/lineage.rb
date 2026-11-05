@@ -21,8 +21,8 @@ module Hecks
       # era, with each aggregate's head derived from it rather than stored.
       class Lineage
         include Provisioning
-        include EraStore
-        include EraIntegrity
+        include RevisionStore
+        include RevisionIntegrity
         include MintTransaction
         include TailMerge
         include ResumableBackfill

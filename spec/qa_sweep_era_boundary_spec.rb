@@ -16,7 +16,7 @@ RSpec.describe "qa_sweep era_boundary", :io do
   # `MODE_REQUIREMENTS[:era_boundary]` gates eligibility on a PostgresEra binding and a
   # `translations/*.bluebook` file; the file's content is never read by the mode.
   ERA_BOUNDARY_TARGET_BLUEBOOK = <<~RUBY.freeze
-    Hecks.bluebook "QaSweepEraBoundaryFixtureTarget" do
+    Hecks.bluebook "QaSweepRevisionBoundaryFixtureTarget" do
       vision "A trivially well-behaved sweep target, authored only to prove qa_sweep's era_boundary mode reaches a real PostgresEra-bound domain, never this repository's own live, actively-changing QA corpus."
 
       aggregate "Widget" do
@@ -43,8 +43,8 @@ RSpec.describe "qa_sweep era_boundary", :io do
   RUBY
 
   ERA_BOUNDARY_TARGET_HECKSAGON = <<~RUBY.freeze
-    Hecks.hecksagon "QaSweepEraBoundaryFixtureTarget" do
-      QaSweepEraBoundaryFixtureTarget::Widget.persisted_by("PostgresEra")
+    Hecks.hecksagon "QaSweepRevisionBoundaryFixtureTarget" do
+      QaSweepRevisionBoundaryFixtureTarget::Widget.persisted_by("PostgresEra")
     end
   RUBY
 
@@ -52,7 +52,7 @@ RSpec.describe "qa_sweep era_boundary", :io do
   # so the write-fence setup the ledger fixture needs is unnecessary.
   def era_boundary_target_world
     <<~RUBY
-      Hecks.world "QaSweepEraBoundaryFixtureTarget" do
+      Hecks.world "QaSweepRevisionBoundaryFixtureTarget" do
         persisted_by("PostgresEra") do
           database "postgres://localhost/#{QA_SWEEP_ERA_BOUNDARY_TARGET_DATABASE}"
           allow_superuser true
@@ -62,7 +62,7 @@ RSpec.describe "qa_sweep era_boundary", :io do
   end
 
   ERA_BOUNDARY_TARGET_TRANSLATION_EDGE = <<~RUBY.freeze
-    Hecks.data_translation("QaSweepEraBoundaryFixtureTarget", from: "aaaaaaaa", to: "bbbbbbbb") do
+    Hecks.data_translation("QaSweepRevisionBoundaryFixtureTarget", from: "aaaaaaaa", to: "bbbbbbbb") do
       aggregate("Widget") do
         rename :reference, to: :reference
       end
