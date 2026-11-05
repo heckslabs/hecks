@@ -224,6 +224,9 @@ commands:
     preview!                      Serve one directory of static files, such as a website, on a local port until stopped
     serve_query_ir_mcp!           Serve the IR queries to an MCP client over stdio until it closes
     serve_mcp!                    Serve the storehouse bus to an MCP client over stdio until it closes (also: mcp!)
+  Board:
+    One pipeline board served from the Hecks registry, until it is stopped.
+    serve!                        Show the pipeline board on 127.0.0.1 until stopped, with every bluebook attached to Hecks on its wiring page
   Launch:
     A way into the framework opened for a project: its launchers, or an MCP server.
     project_cli!                  Write a command-line launcher beside each domain of this project
