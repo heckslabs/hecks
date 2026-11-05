@@ -1,0 +1,47 @@
+Hecks.bluebook "Questions" do
+  vision "What a blocked session asks of the operator, tagged by kind, and which kinds the board may answer without a person."
+  namespace "Hecks::Questions"
+
+  supporting
+
+  # What a blocked session may ask of the operator. A session tags each question with one kind,
+  # and the kind decides whether the board may answer it without a person.
+  aggregate "SessionQuestion" do
+    description "A question a session asks the operator while blocked, tagged with its kind. Only kinds marked auto may be answered without a person."
+
+    identified_by :question
+
+    attribute :question, SessionQuestionRef
+    attribute :kind, SessionQuestionTag, optional: true
+
+    value_object "SessionQuestionRef" do
+      attribute :value, String, matches: :present
+    end
+
+    # The kinds the board knows. A question with no kind is never auto-answered.
+    value_object "SessionQuestionTag" do
+      attribute :value, String
+    end
+
+    command "Classify" do
+      role "System"
+      goal "Tag one question with its kind, so the board knows whether it may answer it"
+
+      attribute :kind, SessionQuestionTag, sets: true
+
+      given("the kind is one the board knows") { kind.value == "confirm" || kind.value == "choose" || kind.value == "retry" }
+
+      emits "QuestionClassified"
+    end
+
+    # Owner decisions are never auto-answered: a promotion, a release, a push, a delete, or a merge.
+    command "MarkOwnerOnly" do
+      role "System"
+      goal "Mark a question the owner must answer, so no rule may answer it"
+
+      attribute :kind, SessionQuestionTag, sets: true
+
+      emits "QuestionMarkedOwnerOnly"
+    end
+  end
+end

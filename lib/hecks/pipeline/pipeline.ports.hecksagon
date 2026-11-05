@@ -1,0 +1,8 @@
+# The ports Pipeline declares, for every hecksagon that attaches the bluebook. The bluebook names
+# the question it asks of the git host and never says how it is answered; an adapter binds the port.
+Hecks.hecksagon "Pipeline" do
+  # The git host answers one pull request's facts. GitHub through `gh` is the adapter behind it.
+  Pipeline::PullRequest.port "Host" do
+    answers_query "Lookup"
+  end
+end

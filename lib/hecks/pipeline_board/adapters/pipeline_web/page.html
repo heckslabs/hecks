@@ -51,7 +51,7 @@ section { background: var(--surface); border: 1px solid var(--border); border-ra
 .node .name { font-size: 12px; color: var(--ink2); }
 .node .count { font-size: 22px; font-weight: 600; overflow-wrap: anywhere; }
 .node .detail { font-size: 12px; color: var(--ink2); overflow-wrap: anywhere; }
-.badge { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; padding: 1px 7px; border-radius: 999px; color: var(--on-fill); }
+.badge { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; line-height: 1.3; padding: 1px 7px; border-radius: 999px; color: var(--on-fill); white-space: nowrap; width: max-content; }
 .badge.ok { background: var(--good); } .badge.attention { background: var(--warning); color: var(--on-warning); }
 .badge.failed { background: var(--critical); } .badge.working { background: var(--series1); }
 .badge.unknown { background: transparent; color: var(--ink2); border: 1px dashed var(--muted); }
@@ -88,7 +88,16 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
 .ev { border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; }
 .ev.fresh { animation: flash 2.4s ease-out; }
 @keyframes flash { from { background: color-mix(in srgb, var(--series1) 28%, transparent); } to { background: transparent; } }
-@media (prefers-reduced-motion: reduce) { .ev.fresh { animation: none; border-color: var(--series1); } }
+@media (prefers-reduced-motion: reduce) { .ev.fresh { animation: none; border-color: var(--series1); } .spin { animation: none; } }
+.spin { display: inline-block; animation: spin 1.2s linear infinite; }
+.filters { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.filters button.filter { font: inherit; font-size: 12px; color: var(--ink2); background: var(--surface); border: 1px solid var(--axis); border-radius: 999px; padding: 2px 10px; }
+.filters button.filter[aria-pressed="true"] { color: var(--ink); border-color: var(--series1); }
+.loader { display: flex; align-items: center; gap: 8px; color: var(--ink2); font-size: 13px; padding: 12px 0; }
+.loader .bar { height: 8px; flex: 0 1 240px; border-radius: 4px; background: linear-gradient(90deg, var(--grid) 25%, var(--axis) 50%, var(--grid) 75%); background-size: 200% 100%; animation: shimmer 1.4s linear infinite; }
+@keyframes shimmer { to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .loader .bar { animation: none; } }
+@keyframes spin { to { transform: rotate(360deg); } }
 .ev .head { display: flex; gap: 10px; flex-wrap: wrap; align-items: baseline; }
 .ev .time { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 12px; }
 .ev .name { font-weight: 600; }
@@ -107,15 +116,52 @@ dialog#answer { width: min(34rem, 92vw); border: 1px solid var(--axis); border-r
 dialog#answer::backdrop { background: rgba(0,0,0,.35); }
 dialog#answer textarea { width: 100%; font: inherit; color: var(--ink); background: var(--page); border: 1px solid var(--axis); border-radius: 6px; padding: 6px 8px; resize: vertical; }
 dialog#answer select { font: inherit; color: var(--ink); background: var(--page); border: 1px solid var(--axis); border-radius: 6px; padding: 3px 6px; max-width: 100%; margin-bottom: 8px; }
+dialog#answer .md p { margin: 0 0 8px; } dialog#answer .md ul { margin: 0 0 8px; padding-left: 20px; }
+dialog#answer .md code { font-family: ui-monospace, Menlo, monospace; font-size: 12px; background: var(--surface); padding: 1px 4px; border-radius: 4px; }
+dialog#answer .md pre.code { background: var(--surface); border: 1px solid var(--axis); border-radius: 6px; padding: 8px; margin: 0 0 8px; overflow-x: auto; }
+dialog#answer .md pre.code code { background: none; padding: 0; white-space: pre; display: block; }
+dialog#answer .label { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--ink2); margin-bottom: 4px; }
 dialog#answer .question { border-left: 4px solid var(--warning); padding: 4px 8px; margin: 8px 0; background: var(--page); border-radius: 0 6px 6px 0; overflow-wrap: anywhere; }
 dialog#answer .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; }
 dialog#answer .status { min-height: 1.4em; font-size: 12px; color: var(--ink2); margin-top: 6px; }
+dialog#resolve { width: min(34rem, 92vw); border: 1px solid var(--axis); border-radius: 10px; background: var(--surface); color: var(--ink); padding: 16px; }
+dialog#resolve::backdrop { background: rgba(0,0,0,.35); }
+pre.cmd { background: var(--page); border: 1px solid var(--axis); border-radius: 6px; padding: 8px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.clickable { cursor: pointer; }
+a.linked { color: inherit; text-decoration: none; display: contents; }
+a.linked:hover .name, a.linked:focus-visible .name { text-decoration: underline; }
+.reply { margin-top: 4px; padding: 4px 6px; border-left: 3px solid var(--series1); background: var(--page); border-radius: 0 4px 4px 0; overflow-wrap: anywhere; }
+tr.sending td { background: rgba(234, 179, 8, .28); }
+.attn { padding: 6px 0; border-bottom: 1px solid var(--grid); }
+.attn-group { background: var(--page); border: 1px solid var(--axis); border-left: 4px solid var(--warning); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; }
+.attn-group:last-child { margin-bottom: 0; }
+.attn-group h3.sub { margin: 0 0 6px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.tip { white-space: pre-line; }
+button.del { font: inherit; font-size: 12px; margin-left: 8px; color: var(--ink); background: var(--surface); border: 1px solid var(--axis); border-radius: 6px; padding: 1px 8px; }
+button.del:disabled { opacity: .5; }
+ol.steps { margin: 4px 0 0 18px; padding: 0; }
+ol.steps li { padding: 3px 0; border-bottom: 1px solid var(--grid); overflow-wrap: anywhere; }
+tr.clickable { cursor: pointer; } tr.clickable:hover, tr.clickable:focus-visible { background: var(--page); }
 .tables-only .chartview { display: none; } body:not(.tables-only) .tableview { display: none; }
 @media (max-width: 900px) {
   .strip { grid-template-columns: 1fr; gap: 10px; }
   .node { margin-right: 0; min-height: 0; }
   .node:not(:last-child)::after { display: none; }
 }
+details.panel { margin: 0; } details.panel > summary .hint { color: var(--ink2); font-size: 12px; text-transform: none; letter-spacing: 0; }
+.switch { display: flex; gap: 6px; margin-bottom: 8px; }
+.switch button[aria-pressed="true"] { border-color: var(--series1); color: var(--series1); }
+.pager { display: flex; align-items: center; gap: 10px; margin-top: 6px; font-size: 12px; color: var(--ink2); }
+.pager button { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--axis); border-radius: 6px; padding: 2px 8px; }
+.pager button:disabled { opacity: .4; }
+iframe.embed { display: block; width: 100%; height: 88vh; min-height: 640px; border: 0; border-radius: 8px; background: var(--page); }
+details.panel { border: 1px solid var(--axis); border-radius: 10px; background: var(--surface); margin: 0 0 8px; }
+details.panel > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 10px; }
+details.panel[open] > summary { border-bottom: 1px solid var(--axis); border-radius: 10px 10px 0 0; }
+details.panel > summary::before { content: "\25B8"; color: var(--ink2); display: inline-block; transition: transform .15s; }
+details.panel[open] > summary::before { transform: rotate(90deg); }
+details.panel > summary:hover { background: var(--page); }
+details.panel > .scroll, details.panel > .feed, details.panel > .strip, details.panel > div:not(summary) { padding: 10px 14px; } details.panel > summary::-webkit-details-marker { display: none; } details.panel > summary h2 { display: inline-block; margin: 0; line-height: 1; }
 </style>
 </head>
 <body>
@@ -123,38 +169,46 @@ dialog#answer .status { min-height: 1.4em; font-size: 12px; color: var(--ink2); 
   <header>
     <h1>Pipeline Board</h1>
     <div class="meta">
-      <a href="/wiring">Wiring diagram</a>
-      <a href="/sequence">Sequence</a>
       <span id="updated">loading</span>
       <span class="live" id="live">stream: connecting</span>
-      <button id="toggle" type="button" aria-pressed="false">Show tables</button>
+      <button id="toggle" type="button" aria-pressed="false" data-tip="Switch between the diagrams and plain tables">Show tables</button>
     </div>
   </header>
 
-  <section aria-labelledby="h-tiles"><h2 id="h-tiles">Key metrics</h2><div class="tiles" id="tiles"></div></section>
-  <section aria-labelledby="h-strip"><h2 id="h-strip">Pipeline</h2><div class="strip" id="strip"></div></section>
-
-  <section aria-labelledby="h-fan"><h2 id="h-fan">Fan-out</h2>
-    <div class="grid2">
-      <div><div class="legend" id="lanelegend"></div><div id="lanes" class="chartview"></div><div class="tableview scroll" id="lanetable"></div></div>
-      <div><div id="meters"></div><div id="flags"></div><div id="fill"></div></div>
-    </div>
-    <div class="scroll" id="mapping"></div>
-  </section>
-
-  <section aria-labelledby="h-ci"><h2 id="h-ci">CI on main</h2>
+  <details class="panel" open><summary data-tip="Everything that asks for a person: attention pills, failed stages and sessions blocked on a reply. Click a row to act on it"><h2 id="h-attn">Needs attention</h2></summary><div class="scroll" id="attention"></div></details>
+  <details class="panel" open><summary data-tip="The architecture as a diagram: domains, aggregates and adapters. Click a block to open it; the switch shows the sequence of events instead"><h2 id="h-wiring">Wiring diagram</h2><small class="hint">drag to pan · use + and − to zoom · click a block to open it</small></summary><div class="switch"><button type="button" data-view="/wiring" aria-pressed="true">Wiring</button><button type="button" data-view="/sequence?small=1" aria-pressed="false">Sequence</button></div><iframe id="view" class="embed" src="/wiring" title="Wiring diagram"></iframe></details>
+  <section aria-labelledby="h-tiles"><h2 id="h-tiles">Key metrics</h2><div class="tiles" id="tiles"></div></section>  <details class="panel" open><summary data-tip="Each stage of a change from planned to released. Click a stage that needs you to resolve it"><h2 id="h-strip">Pipeline</h2></summary><div class="strip" id="strip"></div></details>
+  <details class="panel" open><summary data-tip="Recent CI runs on main, and the slowest jobs of the last completed run"><h2 id="h-ci">CI on main</h2></summary>
     <div class="grid2">
       <div><div class="label">Failed jobs per run, oldest to newest</div><div id="failedchart" class="chartview"></div><div class="tableview scroll" id="failedtable"></div></div>
       <div><div class="label">Wall minutes per run (goal 3)</div><div id="wallchart" class="chartview"></div><div class="tableview scroll" id="walltable"></div></div>
     </div>
     <h2 style="margin-top:14px">Slowest jobs of the last completed run</h2>
     <div id="slowchart" class="chartview"></div><div class="tableview scroll" id="slowtable"></div>
-  </section>
+  </details>
+  <details class="panel" open><summary data-tip="Claude sessions dispatched or started by hand: their status, work item and what they are doing. Click a blocked session to answer it"><h2 id="h-sess">Sessions</h2></summary><div class="scroll" id="sessions"></div></details>
 
-  <section aria-labelledby="h-work"><h2 id="h-work">Open Work items</h2><div class="scroll" id="work"></div></section>
-  <section aria-labelledby="h-sess"><h2 id="h-sess">Sessions</h2><div class="scroll" id="sessions"></div></section>
-  <section aria-labelledby="h-ev"><h2 id="h-ev">Events and what answered them</h2><div class="feed" id="feed" aria-live="polite"></div></section>
+  <details class="panel"><summary data-tip="How the work fans out across sessions: lanes, who is running what, and what the dispatcher would start next"><h2 id="h-fan">Fan-out</h2></summary>
+    <div class="grid2">
+      <div><div class="legend" id="lanelegend"></div><div id="lanes" class="chartview"></div><div class="tableview scroll" id="lanetable"></div></div>
+      <div><div id="meters"></div><div id="flags"></div><div id="fill"></div></div>
+    </div>
+  </details>
+
+  
+
+  <details class="panel"><summary data-tip="Open Work items and which session holds each one"><h2 id="h-work">Work items</h2></summary><div class="scroll" id="work"></div><h2 class="sub">Work by session</h2><div class="scroll" id="mapping"></div></details>
+  <details class="panel"><summary data-tip="Each event the pipeline heard, and the reactions it caused. Hover a row for its full context"><h2 id="h-ev">Events</h2></summary><div class="feed" id="feed" aria-live="polite"></div></details>
 </main>
+<dialog id="resolve" aria-labelledby="resolve-title">
+  <h2 id="resolve-title"></h2>
+  <div id="resolve-detail"></div>
+  <p id="resolve-note" class="unknown-note"></p>
+  <p id="resolve-changes" class="unknown-note"></p>
+  <pre id="resolve-cmd" class="cmd"></pre>
+  <p id="resolve-status" class="status" aria-live="polite"></p>
+  <div class="actions"><button type="button" id="resolve-run" data-tip="Run the fix on this board, after a second click">Run</button><button type="button" id="resolve-copy" data-tip="Copy the fix command to the clipboard">Copy command</button><button type="button" id="resolve-close" data-tip="Close without doing anything">Close</button></div>
+</dialog>
 <dialog id="answer" aria-labelledby="ans-title">
   <form method="dialog" id="ans-form">
     <h2 id="ans-title">Answer a blocked session</h2>
@@ -165,8 +219,8 @@ dialog#answer .status { min-height: 1.4em; font-size: 12px; color: var(--ink2); 
     <textarea id="ans-text" rows="4"></textarea>
     <div class="status" id="ans-status" aria-live="polite"></div>
     <div class="actions">
-      <button type="button" id="ans-cancel">Cancel</button>
-      <button type="button" id="ans-send">Send</button>
+      <button type="button" id="ans-cancel" data-tip="Close without sending">Cancel</button>
+      <button type="button" id="ans-send" data-tip="Send your answer to the session (Enter sends, Shift+Enter adds a line)">Send</button>
     </div>
   </form>
 </dialog>
@@ -187,19 +241,80 @@ function h(tag, attrs, ...kids) {
   return el;
 }
 function put(id, ...kids) { const el = $(id); el.replaceChildren(...kids.flat()); }
-function badge(state) { return h("span", { class: "badge " + state }, ICON[state] || "?", " ", WORD[state] || state); }
+function badge(state) {
+  const icon = state === "working" ? h("span", { class: "spin" }, ICON[state]) : ICON[state] || "?";
+  return h("span", { class: "badge " + state }, icon, " ", WORD[state] || state);
+}
 /* A blocked session is waiting on a person: amber, not green. */
 function sessionBadge(status) {
   if (status === "blocked") return h("span", { class: "badge attention" }, ICON.attention, " blocked");
   return badge(status === "busy" ? "working" : status === "failed" ? "failed" : "ok");
 }
 function isUnknown(x) { return x && !Array.isArray(x) && typeof x === "object" && "unknown" in x; }
-function unknown(x) { return h("p", { class: "unknown-note" }, "unknown: " + x.unknown); }
+// A read still in flight shows a loading bar; a read that failed shows why.
+function unknown(x) {
+  if (String(x.unknown).startsWith("the first read")) {
+    return h("div", { class: "loader", role: "status", "aria-live": "polite" }, h("span", { class: "spin" }, "◔"), h("span", {}, "loading"), h("span", { class: "bar" }));
+  }
+  return h("p", { class: "unknown-note" }, "unknown: " + x.unknown);
+}
 function clock(iso) { if (!iso) return "-"; const d = new Date(iso); return isNaN(d) ? String(iso) : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }); }
+// A panel title with its count, so the number is visible even when the panel is collapsed.
+function setTitle(id, name, count) { const el = $(id); if (el) el.textContent = name + " (" + count + ")"; }
+// A table shown one page at a time; the page is kept across refreshes.
+const pages = new Map();
+function pager(id, head, rows, size) {
+  const count = Math.max(1, Math.ceil(rows.length / size));
+  const at = Math.min(pages.get(id) || 0, count - 1);
+  const step = (to) => { pages.set(id, to); put(id, pager(id, head, rows, size)); };
+  const prev = h("button", { type: "button" }, "‹ Prev");
+  const next = h("button", { type: "button" }, "Next ›");
+  prev.disabled = at === 0;
+  next.disabled = at >= count - 1;
+  prev.addEventListener("click", () => step(at - 1));
+  next.addEventListener("click", () => step(at + 1));
+  const from = rows.length ? at * size + 1 : 0;
+  const to = Math.min(rows.length, (at + 1) * size);
+  return h("div", {}, table(head, rows.slice(at * size, (at + 1) * size)),
+    h("div", { class: "pager" }, prev, h("span", {}, from + "–" + to + " of " + rows.length), next));
+}
+
 function table(head, rows, numeric) {
   return h("table", {}, h("thead", {}, h("tr", {}, head.map((t, i) => h("th", { class: numeric && numeric.includes(i) ? "n" : "" }, t)))),
-    h("tbody", {}, rows.map((r) => h("tr", {}, r.map((c, i) => h("td", { class: numeric && numeric.includes(i) ? "n" : "" }, c))))));
+    h("tbody", {}, rows.map((r) => h("tr", { tip: rowTip(head, r) }, r.map((c, i) => h("td", { class: numeric && numeric.includes(i) ? "n" : "" }, c))))));
 }
+// Every row's hover: each column's name and its value, so a row reads in full without widening it.
+function rowTip(head, row) {
+  const text = (c) => (Array.isArray(c) ? c.map(text).join("") : c instanceof Node ? c.textContent : String(c ?? ""));
+  const values = row.map(text);
+  const lines = values.map((v, i) => head[i] + ": " + v);
+  // What a value means, for the words the board shows most, so a hover says what to do.
+  for (const v of values) if (MEANING[v.trim()]) lines.push("→ " + v.trim() + ": " + MEANING[v.trim()]);
+  return lines.join("\n");
+}
+// Plain-language meaning of the status words the tables show.
+const MEANING = {
+  blocked: "waiting on you; open it to answer",
+  working: "running now; nothing for you to do",
+  busy: "running now; nothing for you to do",
+  done: "finished; it can be removed once nobody needs it",
+  failed: "ended with an error; check its detail before retrying",
+  planned: "not started; the next dispatch can pick it up",
+  started: "claimed and running; see who holds it",
+  finished: "its session ended; it can be removed",
+  landed: "merged into main",
+  pushed: "on origin/main",
+  held: "a red flag holds it until main is green",
+  verified: "checked and ready to promote",
+  promoted: "moved to stable; release is next",
+  released: "shipped",
+  delivered: "the command ran and its reaction was applied",
+  refused: "the command's rules refused it; the reason is in its detail",
+  waiting: "a reaction is still to run",
+  ok: "within its goal",
+  attention: "needs a decision from you",
+  unknown: "the board cannot read this yet; see the reason in its detail"
+};
 
 document.addEventListener("mouseover", (e) => {
   const t = e.target.closest("[data-tip]");
@@ -208,22 +323,74 @@ document.addEventListener("mouseover", (e) => {
   tip.style.left = Math.min(e.clientX + 12, innerWidth - 290) + "px"; tip.style.top = (e.clientY + 14) + "px";
 });
 
+// What resolves each attention pill, by its label. A pill with no entry names its cause only.
+const FIX = {
+  "Local main": { act: "board_train", cmd: "hecks send_train.board! --confirm", note: "Local main has commits origin lacks. Boarding the train pushes them.",
+    changes: "Pushes the commits on local main that origin lacks to origin/main. A CI run starts on the pushed commit; nothing else changes." },
+  "Train": { act: "board_train", cmd: "hecks send_train.board! --confirm", note: "The last pushed commit is not on origin. Boarding the train pushes it.",
+    changes: "Pushes the boarded commit to origin/main. A CI run starts on it; nothing else changes." },
+  "Commits not pushed": { act: "board_train", cmd: "hecks send_train.board! --confirm", note: "Boarding the train pushes the commits waiting on origin.",
+    changes: "Pushes the commits waiting on origin to origin/main. A CI run starts on the newest one." },
+  "Promote": { act: "promote", cmd: "hecks promotion_run.promote! lane=stable --confirm --wait", note: "Stable is behind main. This fast-forwards it onto the newest commit every required check passed on.",
+    changes: "Moves origin/stable forward to the newest commit every required check passed on. Stable is what clients pin; a bad commit reaches them once it moves." },
+  "Release": { note: "Publishing is the owner's decision. The version bump needs a Release-Approved-By line, and only the owner adds it." },
+  "Dispatched sessions": { note: "Sessions are at the cap or waiting on a person. Answer a blocked session from the Sessions table." },
+  "Work items": { note: "Work is held at the cap or waiting on a person. Answer a blocked session from the Sessions table." },
+  "Sessions": { note: "Sessions are waiting on a person. Click the blocked session to answer it." }
+};
+let runAction = null, armed = false;
+function resolve(label, detail) {
+  const fix = FIX[label] || {};
+  $("resolve-title").textContent = label;
+  $("resolve-detail").textContent = detail || "";
+  $("resolve-note").textContent = fix.note || "No command resolves this from the board. Read the detail and act in the checkout.";
+  $("resolve-changes").textContent = fix.changes ? "What it changes: " + fix.changes : "";
+  $("resolve-cmd").textContent = fix.cmd || "";
+  $("resolve-cmd").hidden = !fix.cmd; $("resolve-copy").hidden = !fix.cmd;
+  runAction = fix.act || null; armed = false;
+  $("resolve-run").hidden = !runAction; $("resolve-run").textContent = "Run";
+  $("resolve-status").textContent = "";
+  $("resolve").showModal();
+}
+// A step that moves code takes two clicks: the first arms it, the second runs it with confirm.
+$("resolve-run").addEventListener("click", async () => {
+  if (!armed) { armed = true; $("resolve-run").textContent = "Click again to run"; return; }
+  $("resolve-run").disabled = true; $("resolve-status").textContent = "Running…";
+  try {
+    const res = await fetch("/api/act", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: runAction, confirm: true }) });
+    const body = await res.json();
+    $("resolve-status").textContent = res.ok ? "Ran " + body.ran + "." : "Not run: " + (body.error || "HTTP " + res.status);
+  } catch (e) { $("resolve-status").textContent = "Not run: " + e.message; }
+  finally { $("resolve-run").disabled = false; armed = false; $("resolve-run").textContent = "Run"; }
+});
+$("resolve-close").addEventListener("click", () => $("resolve").close());
+$("resolve-copy").addEventListener("click", async () => {
+  try { await navigator.clipboard.writeText($("resolve-cmd").textContent); $("resolve-copy").textContent = "Copied"; }
+  catch (e) { $("resolve-copy").textContent = "Copy failed"; }
+});
+
 function renderTiles(tiles) {
   put("tiles", tiles.map((t) => {
     const value = t.value === null || t.value === undefined ? "-" : t.value;
     const tr = t.trend ? h("div", { class: "trend" }, (t.trend.delta > 0 ? "▲ +" : t.trend.delta < 0 ? "▼ " : "= ") + t.trend.delta + " " + t.trend.unit,
       t.trend.better === null ? " flat" : t.trend.better ? " better" : " worse", " vs earlier half") : null;
-    return h("div", { class: "tile", tip: t.label + ": " + t.detail },
+    const el = h("div", { class: "tile" + (needsAttention(t.state) ? " clickable" : ""), tip: t.label + ": " + t.detail },
       h("div", { class: "label" }, t.label), h("div", { class: "num" }, String(value), h("span", { class: "unit" }, t.unit)),
       badge(t.state), tr, h("div", { class: "note" }, t.detail));
+    if (needsAttention(t.state)) answerable(el, () => resolve(t.label, t.detail));
+    return el;
   }));
 }
+// A pill that asks for action: attention, or failed.
+function needsAttention(state) { return state === "attention" || state === "failed"; }
 function renderStrip(stages) {
   put("strip", stages.map((s) => {
     const waiting = Array.isArray(s.blocked) ? s.blocked : [];
-    const node = h("div", { class: "node" + (waiting.length ? " clickable" : ""), tip: s.name + ": " + s.detail + (waiting.length ? " (click to answer)" : "") },
+    const clickable = waiting.length || needsAttention(s.state);
+    const node = h("div", { class: "node" + (clickable ? " clickable" : ""), tip: s.name + ": " + s.detail + (waiting.length ? " (click to answer)" : needsAttention(s.state) ? " (click to resolve)" : "") },
       h("div", { class: "name" }, s.name), h("div", { class: "count" }, s.count), badge(s.state), h("div", { class: "detail" }, s.detail));
     if (waiting.length) answerable(node, () => openAnswer(waiting, waiting[0].id));
+    else if (needsAttention(s.state)) answerable(node, () => resolve(s.name, s.detail));
     return node;
   }));
 }
@@ -246,37 +413,90 @@ function openAnswer(list, pickId) {
   $("answer").showModal();
   $("ans-text").focus();
 }
+// Markdown for the answer dialog, built as DOM nodes (never raw HTML): paragraphs, bullet lists,
+// **bold**, `inline code` and fenced code blocks, which keep their line breaks and monospace type.
+function inlineMd(text) {
+  const nodes = [], re = /(`[^`\n]+`|\*\*[^*\n]+\*\*)/g;
+  let last = 0, m;
+  while ((m = re.exec(text))) {
+    if (m.index > last) nodes.push(text.slice(last, m.index));
+    const t = m[0];
+    nodes.push(t.startsWith("`") ? h("code", {}, t.slice(1, -1)) : h("b", {}, t.slice(2, -2)));
+    last = re.lastIndex;
+  }
+  if (last < text.length) nodes.push(text.slice(last));
+  return nodes;
+}
+function markdown(text) {
+  const out = [], lines = String(text || "").split("\n");
+  let para = [], list = null;
+  const flush = () => { if (para.length) { out.push(h("p", {}, ...inlineMd(para.join(" ")))); para = []; } };
+  const endList = () => { if (list) { out.push(h("ul", {}, ...list)); list = null; } };
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (line.trim().startsWith("```")) {
+      flush(); endList();
+      const lang = line.trim().slice(3).trim(), code = [];
+      for (i++; i < lines.length && !lines[i].trim().startsWith("```"); i++) code.push(lines[i]);
+      out.push(h("pre", { class: "code", "data-lang": lang }, h("code", {}, code.join("\n"))));
+    } else if (/^\s*[-*] /.test(line)) {
+      flush(); list = list || [];
+      list.push(h("li", {}, ...inlineMd(line.replace(/^\s*[-*] /, ""))));
+    } else if (line.trim() === "") {
+      flush(); endList();
+    } else {
+      endList(); para.push(line.trim());
+    }
+  }
+  flush(); endList();
+  return out;
+}
 function currentWaiting() { return waitingList[Number($("ans-pick").value)] || waitingList[0]; }
 function showAnswer() {
   const s = currentWaiting();
-  if (s.question) {
-    $("ans-key").replaceChildren();
-    $("ans-question").replaceChildren(h("div", { class: "question" }, "Waiting on: " + s.question));
+  const ctx = s.context || {};
+  if (s.question || ctx.said) {
+    $("ans-key").replaceChildren(h("div", {}, (s.id ? "Session " + s.id + " · " : "") + s.name + (s.work_item ? " · work item " + s.work_item : "") + (s.repo ? " · " + s.repo : "")));
+    const parts = [h("div", { class: "question md" }, h("div", { class: "label" }, "Waiting on you"), ...markdown(ctx.said || s.question))];
+    if ((ctx.did || []).length) parts.push(h("details", { class: "did" }, h("summary", {}, "Last steps (" + ctx.did.length + ")"), h("ol", { class: "steps" }, ctx.did.map((d) => h("li", {}, d)))));
+    if (ctx.branch) parts.push(h("div", { class: "did" }, h("b", {}, "Branch: "), h("code", {}, ctx.branch)));
+    if ((ctx.links || []).length) parts.push(h("details", { class: "did" }, h("summary", {}, "Linked (" + ctx.links.length + ")"), h("ul", { class: "steps" }, ctx.links.map((l) => h("li", {}, h("a", { href: l.href, target: "_blank", rel: "noopener" }, (l.kind || "link") + " " + l.id))))));
+    $("ans-question").replaceChildren(...parts);
   } else {
     $("ans-question").replaceChildren();
     $("ans-key").replaceChildren("Run " + (s.run || "(no run key)") + (s.repo ? " in " + s.repo : ""));
   }
-  $("ans-send").disabled = !s.run;
-  $("ans-status").textContent = s.run ? "" : "This session has no AgentRun key, so the board cannot answer it.";
+  $("ans-send").disabled = !(s.run || s.id || s.attach);
+  $("ans-status").textContent = (s.run || s.id || s.attach) ? "" : "This session cannot be answered from the board.";
 }
 async function sendAnswer() {
   const s = currentWaiting(), text = $("ans-text").value.trim(), send = $("ans-send");
-  if (!s || !s.run) return;
+  if (!s || !(s.run || s.id)) return;
   if (!text) { $("ans-status").textContent = "Write an answer first."; return; }
   send.disabled = true; $("ans-status").textContent = "Sending…";
+  replies.set(s.id, { text: text, state: "sending" });
+  if (lastState) renderSessions(lastState.sessions);
   try {
-    const res = await fetch("/api/answer", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ run: s.run, answer: text }) });
+    // A session with an AgentRun is answered through it; any other blocked session is replied to directly.
+    const action = s.run ? "answer" : "reply", target = s.run || s.id;
+    const res = await fetch("/api/act", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: action, target: target, text: text }) });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(body.error || "HTTP " + res.status);
-    $("ans-text").value = ""; $("ans-status").textContent = "Sent. The session resumes with your answer.";
+    replies.delete(s.id);
+    $("ans-text").value = "";
+    $("answer").close();
     refresh();
-  } catch (e) { $("ans-status").textContent = "Not sent: " + e.message; }
-  finally { send.disabled = false; }
+  } catch (e) { replies.set(s.id, { text: text, state: "not sent: " + e.message }); $("ans-status").textContent = "Not sent: " + e.message; }
+  finally { send.disabled = false; if (lastState) renderSessions(lastState.sessions); }
+}
+// A chart or table cell that opens the run on GitHub when the run carries its URL.
+function linked(url, node) {
+  return url ? h("a", { href: url, target: "_blank", rel: "noopener", class: "linked" }, node) : node;
 }
 function columns(rows, pick, label, second) {
   const max = Math.max(1, ...rows.map(pick));
-  const cols = rows.map((r) => h("div", { class: "col", tip: r.sha + " " + (r.conclusion || r.status) + ": " + label(r) },
-    h("div", { class: "val" }, String(pick(r))), h("div", { class: "bar" + (second ? " second" : ""), style: "height:" + Math.round(100 * pick(r) / max) + "%" })));
+  const cols = rows.map((r) => linked(r.url, h("div", { class: "col", tip: r.sha + " " + (r.conclusion || r.status) + ": " + label(r) },
+    h("div", { class: "val" }, String(pick(r))), h("div", { class: "bar" + (second ? " second" : ""), style: "height:" + Math.round(100 * pick(r) / max) + "%" }))));
   return [h("div", { class: "cols" }, cols), h("div", { class: "xlabels" }, rows.map((r) => h("span", {}, r.sha.slice(0, 4))))];
 }
 function renderCi(runs, slow) {
@@ -284,22 +504,109 @@ function renderCi(runs, slow) {
   else {
     put("failedchart", columns(runs, (r) => r.failed_jobs || 0, (r) => (r.failed_jobs === null ? "failed jobs unknown" : r.failed_jobs + " failed jobs")));
     put("wallchart", columns(runs, (r) => r.wall_minutes, (r) => r.wall_minutes + " min", true));
-    put("failedtable", table(["Run", "Started", "Conclusion", "Failed jobs"], runs.map((r) => [r.sha, clock(r.started), r.conclusion || r.status, r.failed_jobs === null ? "?" : r.failed_jobs]), [3]));
-    put("walltable", table(["Run", "Wall minutes"], runs.map((r) => [r.sha, r.wall_minutes]), [1]));
+    put("failedtable", table(["Run", "Started", "Conclusion", "Failed jobs"], runs.map((r) => [linked(r.url, r.sha), clock(r.started), r.conclusion || r.status, r.failed_jobs === null ? "?" : r.failed_jobs]), [3]));
+    put("walltable", table(["Run", "Wall minutes"], runs.map((r) => [linked(r.url, r.sha), r.wall_minutes]), [1]));
   }
   if (isUnknown(slow)) { put("slowchart", unknown(slow)); put("slowtable", unknown(slow)); return; }
   const max = Math.max(1, ...slow.map((j) => j.minutes));
-  put("slowchart", slow.map((j) => h("div", { class: "hbar", tip: j.name + ": " + j.minutes + " min (" + j.conclusion + ")" },
-    h("div", { class: "name" }, j.name), h("div", { class: "track" }, h("div", { class: "fill", style: "width:" + Math.round(100 * j.minutes / max) + "%" })), h("div", {}, j.minutes + " min"))));
-  put("slowtable", table(["Job", "Minutes", "Conclusion"], slow.map((j) => [j.name, j.minutes, j.conclusion]), [1]));
+  put("slowchart", slow.map((j) => linked(j.url, h("div", { class: "hbar", tip: j.name + ": " + j.minutes + " min (" + j.conclusion + ")" },
+    h("div", { class: "name" }, j.name), h("div", { class: "track" }, h("div", { class: "fill", style: "width:" + Math.round(100 * j.minutes / max) + "%" })), h("div", {}, j.minutes + " min")))));
+  put("slowtable", table(["Job", "Minutes", "Conclusion"], slow.map((j) => [linked(j.url, j.name), j.minutes, j.conclusion]), [1]));
 }
 function renderWork(work) {
   if (isUnknown(work)) return put("work", unknown(work));
-  put("work", table(["Work item", "Status", "Area", "Claimed by", "Claimed at"], work.map((w) => [w.slug, w.status, (w.area || []).join(", ") || "-", w.claimed_by || "(nobody)", w.claimed_at || "-"])));
+  setTitle("h-work", "Work items", work.length);
+  put("work", pager("work", ["Work item", "Status", "Area", "Claimed by", "Claimed at"], work.map((w) => [w.slug, w.status, (w.area || []).join(", ") || "-", w.claimed_by || "(nobody)", w.claimed_at || "-"]), 10));
 }
-function renderSessions(list) {
-  if (isUnknown(list)) return put("sessions", unknown(list));
-  put("sessions", table(["Session", "Status", "Work item", "Started", "Detail"], list.map((s) => [s.name, [sessionBadge(s.status), " ", s.state], s.row || "-", clock(s.started), s.detail])));
+// Everything that asks for a person: attention and failed pills, and sessions blocked on a reply.
+function renderAttention(metrics, stages, sessions) {
+  const groups = [
+    ["Metrics", metrics.filter((t) => needsAttention(t.state)).map((t) => ({ kind: "Metric", item: t.label, state: t.state, value: (t.value ?? "-") + (t.unit || ""), detail: t.detail, since: "-", act: () => resolve(t.label, t.detail) }))],
+    ["Pipeline stages", stages.filter((s) => needsAttention(s.state)).map((s) => ({ kind: "Stage", item: s.name, state: s.state, value: "-", detail: s.detail, since: "-", act: () => resolve(s.name, s.detail) }))],
+    ["Sessions waiting on you", sessions.filter((s) => s.status === "blocked").map((s) => ({ kind: "Session", item: s.name + " " + (s.id || ""), state: "attention", value: s.work_item || s.row || "-", detail: s.detail, since: clock(s.started), act: () => openAnswer([{ id: s.id, name: s.name, run: s.run, repo: s.repo, work_item: s.work_item, question: s.detail, context: s.context, attach: s.attach }], s.id) }))]
+  ].filter(([, items]) => items.length);
+  setTitle("h-attn", "Needs attention", groups.reduce((n, [, items]) => n + items.length, 0));
+  if (!groups.length) return put("attention", h("p", { class: "note" }, "Nothing needs attention."));
+  put("attention", groups.map(([title, items]) => h("div", { class: "attn-group" }, h("h3", { class: "sub" }, title + " (" + items.length + ")"), attentionTable(items))));
+}
+// One group of attention rows; each row opens its resolve or answer dialog.
+function attentionTable(items) {
+  const node = table(["Kind", "Item", "State", "Value", "Detail", "Since"], items.map((it) => [it.kind, it.item, badge(it.state), it.value, it.detail, it.since]));
+  const trs = node.querySelectorAll("tbody tr");
+  items.forEach((it, i) => { trs[i].classList.add("clickable"); trs[i].title = "Click to resolve or answer"; answerable(trs[i], it.act); });
+  return node;
+}
+function sessionLabel(s) { return h("span", {}, s.name, " ", h("small", { class: "sid" }, s.id || "")); }
+// Answers a blocked session's question on its own, for the kinds the board may answer.
+function addAutoReply(row, s) {
+  const button = h("button", { type: "button", class: "del", tip: "Answer this question on its own: " + (s.question_kind === "confirm" ? "yes" : "retry") }, "Auto reply");
+  button.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    button.disabled = true;
+    const res = await fetch("/api/act", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "auto_reply", target: s.id }) });
+    if (res.ok) return refresh();
+    button.disabled = false;
+    button.title = (await res.text()).slice(0, 200);
+  });
+  row.cells[0].append(button);
+}
+// Removes a finished dispatched session. The first click arms it; the second deletes, and the
+// bluebook refuses by name any session still working or waiting on a person.
+function addDelete(row, s) {
+  const button = h("button", { type: "button", class: "del" }, "Delete");
+  let armed = false;
+  button.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    if (!armed) { armed = true; button.textContent = "Confirm delete"; return; }
+    button.disabled = true;
+    const res = await fetch("/api/act", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: s.run ? "delete" : "discard", target: s.run || s.id, confirm: true }) });
+    if (res.ok) return refresh();
+    armed = false; button.disabled = false;
+    button.textContent = "Not deleted";
+    button.title = (await res.text()).slice(0, 200);
+  });
+  row.cells[0].append(button);
+}
+// The Sessions filter: which sessions the table shows. "Deletable" is the set Delete is offered for.
+let sessionFilter = "all";
+const SESSION_FILTERS = {
+  all: () => true,
+  blocked: (s) => s.status === "blocked",
+  working: (s) => s.status === "busy",
+  finished: (s) => s.status === "done" || s.status === "failed",
+  deletable: (s) => deletable(s)
+};
+// A session can be deleted when it finished, waits on nobody, and is not a deploy: a deploy's
+// session is kept until the deploy is confirmed, whatever the board's state says.
+function deletable(s) {
+  return (s.status === "done" || s.status === "failed") && !/\bdeploy\b/i.test((s.name || "") + " " + (s.detail || ""));
+}
+function filterBar() {
+  const bar = h("div", { class: "filters", role: "group", "aria-label": "Filter sessions" });
+  for (const name of Object.keys(SESSION_FILTERS)) {
+    const b = h("button", { type: "button", class: "filter", "aria-pressed": String(name === sessionFilter) }, name);
+    b.addEventListener("click", () => { sessionFilter = name; renderSessions(lastSessions); });
+    bar.append(b);
+  }
+  return bar;
+}
+let lastSessions = [];
+function renderSessions(all) {
+  if (isUnknown(all)) return put("sessions", unknown(all));
+  lastSessions = all;
+  const list = all.filter(SESSION_FILTERS[sessionFilter] || SESSION_FILTERS.all);
+  setTitle("h-sess", "Sessions", list.length);
+  put("sessions", filterBar(), table(["Session", "Status", "Work item", "Started", "Detail"], list.map((s) => [sessionLabel(s), [sessionBadge(s.status), " ", s.state], s.row || "-", clock(s.started), replyNote(s)])));
+  const rows = $("sessions").querySelectorAll("tbody tr");
+  list.forEach((s, i) => {
+    // A reply the server has not answered yet keeps its row highlighted.
+    if (replies.get(s.id)?.state === "sending") rows[i].classList.add("sending");
+    if (deletable(s)) addDelete(rows[i], s);
+    if (s.status === "blocked" && ["confirm", "retry"].includes(s.question_kind)) addAutoReply(rows[i], s);
+    if (s.status !== "blocked") return;
+    rows[i].classList.add("clickable"); rows[i].title = "Click to answer";
+    answerable(rows[i], () => openAnswer([{ id: s.id, name: s.name, run: s.run, repo: s.repo, work_item: s.work_item, question: s.detail, context: s.context, attach: s.attach }], s.id));
+  });
 }
 function renderFan(fan) {
   if (isUnknown(fan)) { for (const id of ["lanes", "meters", "flags", "fill", "mapping", "lanetable"]) put(id, unknown(fan)); return; }
@@ -312,12 +619,12 @@ function renderFan(fan) {
     return h("div", { class: "lane" }, h("div", { class: "tag" }, (GLYPH[s.status] || GLYPH.done).slice(0, 2) + s.name + (s.row ? " · " + s.row : "")),
       h("div", { class: "span " + s.status, style: "left:" + left + "%;width:" + width + "%", tip: s.name + " " + s.status + " " + clock(s.started) + " to " + (s.ended ? clock(s.ended) : "now") }));
   })), h("div", { class: "hours" }, h("span", {}, "-24 h"), h("span", {}, "-12 h"), h("span", {}, "now")));
-  put("lanetable", table(["Session", "Status", "Started", "Ended", "Work item"], sessions.map((s) => [s.name, s.status, clock(s.started), s.ended ? clock(s.ended) : "now", s.row || "-"])));
+  put("lanetable", table(["Session", "Status", "Started", "Ended", "Work item"], sessions.map((s) => [sessionLabel(s), s.status, clock(s.started), s.ended ? clock(s.ended) : "now", s.row || "-"])));
   const laneRows = $("lanetable").querySelectorAll("tbody tr");
   sessions.forEach((s, i) => {
     if (s.status !== "blocked" || !laneRows[i]) return;
     laneRows[i].classList.add("clickable");
-    answerable(laneRows[i], () => openAnswer([{ id: s.id, name: s.name, run: s.run, repo: s.repo, work_item: s.work_item, question: s.detail }], s.id));
+    answerable(laneRows[i], () => openAnswer([{ id: s.id, name: s.name, run: s.run, repo: s.repo, work_item: s.work_item, question: s.detail, context: s.context, attach: s.attach }], s.id));
   });
   const fill = fan.fill, ok = fill && !isUnknown(fill), cap = ok ? fill.cap : 8;
   const alive = sessions.filter((s) => s.status === "busy" || s.status === "blocked"), busy = alive.filter((s) => s.row).length;
@@ -326,7 +633,10 @@ function renderFan(fan) {
   put("flags", fan.flags.length ? fan.flags.map((f) => h("div", { class: "flag" }, badge("attention"), " ", h("b", {}, f.kind), " ", f.work_item + ": " + f.detail)) : h("div", {}, badge("ok"), " no disagreements between work items and sessions"));
   put("fill", ok ? [h("h2", { style: "margin-top:10px" }, "Dispatch.Fill dry run: would start " + fill.would_start.length),
     table(["Work item", "Result"], fill.would_start.map((w) => [w.slug, "would start"]).concat(fill.skipped.map((w) => [w.slug, "skipped: " + w.reason])))] : unknown(fill || { unknown: "none" }));
-  put("mapping", table(["Work item", "Status", "Claimed by", "Claimed at", "Sessions", "Flags"], fan.rows.map((r) => [r.slug, r.status, r.claimed_by || "(nobody)", r.claimed_at || "-", r.sessions.join(", ") || "-", r.flags.map((f) => f.kind).join(", ") || "-"])));
+  // Claimed items first, then the rest; each row says who holds it and what is wrong with it.
+  const claimedFirst = (r) => (r.claimed_by || r.sessions.length ? 0 : 1);
+  const mapRows = [...fan.rows].sort((a, b) => claimedFirst(a) - claimedFirst(b) || a.slug.localeCompare(b.slug));
+  put("mapping", pager("mapping", ["Work item", "Status", "Claimed by", "Claimed at", "Sessions", "Flags"], mapRows.map((r) => [r.slug, r.status, r.claimed_by || (r.sessions.length ? "unclaimed" : "-"), r.claimed_at || "-", r.sessions.join(", ") || "-", r.flags.map((f) => f.detail).join("; ") || "-"]), 10));
 }
 
 const seen = new Map();
@@ -342,7 +652,7 @@ function chainOf(ev) {
 }
 function putEvent(ev, fresh) {
   if (!ev.key) return;
-  const card = h("div", { class: "ev" + (fresh ? " fresh" : "") }, h("div", { class: "head" },
+  const card = h("div", { class: "ev" + (fresh ? " fresh" : ""), tip: eventTip(ev) }, h("div", { class: "head" },
     h("span", { class: "time" }, clock(ev.at)), h("span", { class: "name" }, ev.name), h("span", { class: "agg" }, (ev.aggregate || "") + "#" + (ev.id || "")),
     h("span", { class: "agg" }, ev.source === "tap" ? "event log" : "journal")), chainOf(ev));
   const old = seen.get(ev.key), feed = $("feed");
@@ -352,23 +662,50 @@ function putEvent(ev, fresh) {
 }
 function renderEvents(events) {
   if (isUnknown(events)) return put("feed", unknown(events));
+  setTitle("h-ev", "Events", events.length);
   if (!seen.size) [...events].reverse().forEach((e) => putEvent(e, false));
 }
+// The full context of one event for its hover: when, which aggregate instance, and every reaction.
+function eventTip(e) {
+  const lines = [e.name, "at " + clock(e.at), e.aggregate + (e.id ? " " + e.id : "")];
+  const reactions = e.reactions || [];
+  lines.push(reactions.length ? "reactions:" : "no reactions");
+  for (const r of reactions) lines.push("  " + r.policy + " → " + (r.command || "-") + " (" + r.outcome + ")");
+  return lines.join("\n");
+}
 
+let lastState = null;
+// Replies the user sent, shown at once in the session row: sending, sent, or why it was not sent.
+const replies = new Map();
+function replyNote(s) {
+  const r = replies.get(s.id);
+  if (!r) return s.detail;
+  // Only a failed send says anything about the reply; the session's status is always the server's.
+  const failed = r.state.startsWith("not sent");
+  return h("span", {}, s.detail || "", h("div", { class: "reply" }, h("b", {}, "You: "), r.text, failed ? h("small", {}, " · " + r.state) : ""));
+}
+function render(s) {
+  lastState = s;
+  renderTiles(s.metrics); renderAttention(s.metrics, s.stages, s.sessions); renderStrip(s.stages); renderCi(s.ci_runs, s.slowest_jobs);
+  renderWork(s.open_work); renderSessions(s.sessions); renderFan(s.fanout); renderEvents(s.events);
+  $("updated").textContent = "updated " + clock(s.generated_at);
+}
+// Asks for the state once, for the first paint and for browsers without EventSource.
 async function refresh() {
   try {
     const res = await fetch("/api/state", { cache: "no-store" });
-    const s = await res.json();
-    renderTiles(s.metrics); renderStrip(s.stages); renderCi(s.ci_runs, s.slowest_jobs);
-    renderWork(s.open_work); renderSessions(s.sessions); renderFan(s.fanout); renderEvents(s.events);
-    $("updated").textContent = "updated " + clock(s.generated_at);
+    render(await res.json());
   } catch (e) { $("updated").textContent = "update failed: " + e.message; }
 }
+// The server pushes the state whenever it changes, so the page renders what it is sent.
 function listen() {
-  if (!window.EventSource) { $("live").textContent = "stream: unsupported"; return; }
+  if (!window.EventSource) { $("live").textContent = "stream: unsupported"; setInterval(refresh, 10000); return; }
   const es = new EventSource("/api/events");
   es.onopen = () => { $("live").textContent = "stream: live"; };
   es.onerror = () => { $("live").textContent = "stream: reconnecting"; };
+  es.addEventListener("state", (m) => {
+    try { render(JSON.parse(m.data).state); } catch (e) { $("updated").textContent = "update failed: " + e.message; }
+  });
   es.addEventListener("board", (m) => { const ev = JSON.parse(m.data); if (ev.key) putEvent(ev, true); });
 }
 $("toggle").addEventListener("click", () => {
@@ -376,9 +713,19 @@ $("toggle").addEventListener("click", () => {
   $("toggle").setAttribute("aria-pressed", String(on)); $("toggle").textContent = on ? "Show charts" : "Show tables";
 });
 $("ans-send").addEventListener("click", sendAnswer);
+document.querySelectorAll(".switch button").forEach((b) => b.addEventListener("click", () => {
+  $("view").src = b.dataset.view;
+  document.querySelectorAll(".switch button").forEach((o) => o.setAttribute("aria-pressed", String(o === b)));
+}));
+// Enter sends the answer; Shift+Enter starts a new line. A composing (IME) Enter is left alone.
+$("ans-text").addEventListener("keydown", (e) => {
+  if (e.key !== "Enter" || e.shiftKey || e.isComposing) return;
+  e.preventDefault();
+  if (!$("ans-send").disabled) sendAnswer();
+});
 $("ans-cancel").addEventListener("click", () => $("answer").close());
 $("ans-pick").addEventListener("change", showAnswer);
-refresh(); setInterval(refresh, 10000); listen();
+refresh(); listen();
 </script>
 </body>
 </html>

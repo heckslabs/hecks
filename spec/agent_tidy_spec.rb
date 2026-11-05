@@ -98,11 +98,12 @@ RSpec.describe "AgentRun.Tidy through the Agents port" do
     expect(removed).to be_empty
   end
 
-  it "refuses a session that stopped rather than finishing, and removes nothing", :aggregate_failures do
+  it "removes a session that stopped, as a finished one is, since the bluebook says done or stopped", :aggregate_failures do
+    transcript(user("say ok"), tool_result)
     finished_run("t-stopped", "stopped")
 
-    expect(refusal("t-stopped")).to include("ended done")
-    expect(removed).to be_empty
+    expect(refusal("t-stopped")).not_to include("ended")
+    expect(removed).to eq(["stand-in-session"])
   end
 
   it "refuses a run that was never dispatched, and removes nothing", :aggregate_failures do
