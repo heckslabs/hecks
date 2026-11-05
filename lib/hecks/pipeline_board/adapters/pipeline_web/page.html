@@ -132,7 +132,8 @@ tr.clickable { cursor: pointer; } tr.clickable:hover, tr.clickable:focus-visible
   .node:not(:last-child)::after { display: none; }
 }
 details.panel { margin: 0; } details.panel > summary .hint { color: var(--ink2); font-size: 12px; text-transform: none; letter-spacing: 0; }
-iframe.embed.seq { height: 60vh; min-height: 380px; }
+.switch { display: flex; gap: 6px; margin-bottom: 8px; }
+.switch button[aria-pressed="true"] { border-color: var(--series1); color: var(--series1); }
 iframe.embed { display: block; width: 100%; height: 88vh; min-height: 640px; border: 0; border-radius: 8px; background: var(--page); }
 details.panel { border: 1px solid var(--axis); border-radius: 10px; background: var(--surface); margin: 0 0 8px; }
 details.panel > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 10px; }
@@ -156,7 +157,7 @@ details.panel > .scroll, details.panel > .feed, details.panel > .strip, details.
     </div>
   </header>
 
-  <details class="panel" open><summary><h2 id="h-wiring">Wiring diagram</h2><small class="hint">drag to pan · use + and − to zoom · click a block to open it</small></summary><iframe class="embed" src="/wiring" title="Wiring diagram"></iframe></details>
+  <details class="panel" open><summary><h2 id="h-wiring">Wiring diagram</h2><small class="hint">drag to pan · use + and − to zoom · click a block to open it</small></summary><div class="switch"><button type="button" data-view="/wiring" aria-pressed="true">Wiring</button><button type="button" data-view="/sequence?small=1" aria-pressed="false">Sequence</button></div><iframe id="view" class="embed" src="/wiring" title="Wiring diagram"></iframe></details>
   <section aria-labelledby="h-tiles"><h2 id="h-tiles">Key metrics</h2><div class="tiles" id="tiles"></div></section>
   <details class="panel" open><summary><h2 id="h-strip">Pipeline</h2></summary><div class="strip" id="strip"></div></details>
   <details class="panel" open><summary><h2 id="h-sess">Sessions</h2></summary><div class="scroll" id="sessions"></div></details>
@@ -180,7 +181,6 @@ details.panel > .scroll, details.panel > .feed, details.panel > .strip, details.
   <details class="panel"><summary><h2 id="h-work">Work items</h2></summary><div class="scroll" id="work"></div></details>
   <details class="panel"><summary><h2 id="h-map">Work by session</h2></summary><div class="scroll" id="mapping"></div></details>
   <details class="panel"><summary><h2 id="h-ev">Events</h2></summary><div class="feed" id="feed" aria-live="polite"></div></details>
-  <details class="panel"><summary><h2 id="h-seqd">Sequence</h2><small class="hint">every event and the policy that heard it, in order</small></summary><iframe class="embed seq" src="/sequence?small=1" title="Sequence diagram"></iframe></details>
 </main>
 <dialog id="resolve" aria-labelledby="resolve-title">
   <h2 id="resolve-title"></h2>
@@ -544,6 +544,10 @@ $("toggle").addEventListener("click", () => {
   $("toggle").setAttribute("aria-pressed", String(on)); $("toggle").textContent = on ? "Show charts" : "Show tables";
 });
 $("ans-send").addEventListener("click", sendAnswer);
+document.querySelectorAll(".switch button").forEach((b) => b.addEventListener("click", () => {
+  $("view").src = b.dataset.view;
+  document.querySelectorAll(".switch button").forEach((o) => o.setAttribute("aria-pressed", String(o === b)));
+}));
 // Enter sends the answer; Shift+Enter starts a new line. A composing (IME) Enter is left alone.
 $("ans-text").addEventListener("keydown", (e) => {
   if (e.key !== "Enter" || e.shiftKey || e.isComposing) return;
