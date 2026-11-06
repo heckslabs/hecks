@@ -61,10 +61,9 @@ button:focus-visible, .node:focus-visible, .card:focus-visible, textarea:focus-v
 .node { cursor: pointer; }
 .node rect.box { fill: var(--surface); stroke: var(--axis); }
 .node.busy rect.box { stroke: var(--signal); stroke-width: 1.5; }
-.node rect.code { fill: var(--grid); }
-.node.busy rect.code { fill: var(--signal); }
-.node text.code { font: 600 12px var(--mono); fill: var(--ink2); }
-.node.busy text.code { fill: #fff; }
+.node rect.code { fill: var(--role, var(--grid)); }
+.node rect.box { stroke-width: 1; }
+.node text.code { font: 600 12px var(--mono); fill: #fff; }
 .node text.name { font: 600 13px var(--body); fill: var(--ink); }
 .node text.stat { font: 400 11px var(--mono); fill: var(--ink2); }
 .node.busy text.stat { fill: var(--signal); }
@@ -99,12 +98,16 @@ svg.focusing .edge.lit, svg.focusing .node.lit { opacity: 1; }
   padding: 2px 2px 10px; scrollbar-width: thin; }
 .cards > .card { flex: 0 0 min(320px, 86vw); scroll-snap-align: start; }
 .cards > .unknown { flex: 1; }
-.card { border: 1px solid var(--border); border-radius: 10px; background: var(--surface); padding: 12px 14px; display: grid; gap: 10px; align-content: start; }
+/* Each role's own colour, on its card, map node and tags; state keeps blue and amber. */
+[data-role="planner"] { --role: #7c3aed; } [data-role="orchestrator"] { --role: #0f8f84; }
+[data-role="architect"] { --role: #b5179e; } [data-role="coder"] { --role: #15803d; }
+[data-role="reviewer"] { --role: #d02752; } [data-role="release_manager"] { --role: #0e7490; }
+.card { border-top: 3px solid var(--role, var(--axis)) !important;
+  border: 1px solid var(--border); border-radius: 10px; background: var(--surface); padding: 12px 14px; display: grid; gap: 10px; align-content: start; }
 .card.busy { border-color: color-mix(in srgb, var(--signal) 55%, var(--border)); box-shadow: 0 0 0 3px var(--signal-soft); }
 .card.lit { border-color: var(--signal); }
 .card header { display: flex; align-items: center; gap: 10px; }
-.card .code { font: 600 12px var(--mono); width: 34px; height: 34px; display: grid; place-items: center; border-radius: 8px; background: var(--grid); color: var(--ink2); flex: none; }
-.card.busy .code { background: var(--signal); color: #fff; }
+.card .code { font: 600 12px var(--mono); width: 34px; height: 34px; display: grid; place-items: center; border-radius: 8px; background: var(--role, var(--grid)); color: #fff; flex: none; }
 .card .title { font-weight: 600; } .card .sub { font-size: 12px; color: var(--ink2); }
 .pill { margin-left: auto; font: 600 11px var(--mono); border-radius: 999px; padding: 2px 8px; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; color: var(--ink2); border: 1px solid var(--axis); }
 .pill.busy { color: var(--signal); border-color: var(--signal); background: var(--signal-soft); }
@@ -146,6 +149,7 @@ svg.focusing .edge.lit, svg.focusing .node.lit { opacity: 1; }
 .route { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; }
 .tag { font: 600 11px var(--mono); padding: 1px 6px; border-radius: 4px; background: var(--grid); color: var(--ink2); }
 .tag.you { background: var(--you-soft); color: var(--you); }
+.tag[data-role] { background: var(--role); color: #fff; }
 .route .arr { color: var(--muted); }
 .route .what { color: var(--ink2); overflow-wrap: anywhere; }
 .hop .evn { font: 500 11px var(--mono); color: var(--ink2); }
@@ -453,7 +457,7 @@ function renderWaiting(sessions) {
   const list = Array.isArray(sessions) ? sessions.filter((s) => s.status === "blocked") : [];
   for (const id of replies.keys()) if (!list.some((s) => s.id === id)) replies.delete(id);
   $("waiting").hidden = list.length === 0;
-  const tag = (role) => h("span", { class: "tag you", "data-tip": ROLES[role] ? ROLES[role].name : "a session started by hand" },
+  const tag = (role) => h("span", { class: "tag you", "data-role": ROLES[role] ? role : null, "data-tip": ROLES[role] ? ROLES[role].name : "a session started by hand" },
     (ROLES[role] && ROLES[role].code) || "S");
   $("asks").replaceChildren(...list.map((s) => {
     const mine = replies.get(s.id);
@@ -503,7 +507,7 @@ function card(r) {
 function renderWire() {
   const hops = [...heard.values()].sort((a, b) => (a.at < b.at ? 1 : -1)).slice(0, 40);
   if (!hops.length) return $("wire").replaceChildren(h("p", { class: "idle" }, "No handoffs heard yet. They appear here as the roles hand work on."));
-  const tag = (k) => h("span", { class: "tag" + (k === "you" ? " you" : "") }, CODES[k] || k);
+  const tag = (k) => h("span", { class: "tag" + (k === "you" ? " you" : ""), "data-role": ROLES[k] ? k : null }, CODES[k] || k);
   $("wire").replaceChildren(...hops.map((e) => {
     const [from, to] = EDGES[e.name];
     const row = h("div", { class: "hop" + (e.fresh ? " fresh" : "") }, h("time", { datetime: e.at }, clock(e.at)),

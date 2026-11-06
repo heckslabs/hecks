@@ -140,6 +140,12 @@ tr.clickable { cursor: pointer; } tr.clickable:hover, tr.clickable:focus-visible
   .node { margin-right: 0; min-height: 0; }
   .node:not(:last-child)::after { display: none; }
 }
+details.panel > summary .sum { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--ink2); min-width: 0; }
+details.panel > summary .sum b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+details.panel > summary .sum .attention, details.panel > summary .sum .attention b { color: var(--warning); }
+details.panel > summary .sum .failed, details.panel > summary .sum .failed b { color: var(--critical); }
+details.panel > summary .sum .working b { color: var(--series1); }
+details.panel > summary .sum .ok b { color: var(--good-text); }
 nav.pages { display: flex; gap: 14px; margin-right: auto; font-size: 13px; font-weight: 600; }
 details.panel { margin: 0; } details.panel > summary .hint { color: var(--ink2); font-size: 12px; text-transform: none; letter-spacing: 0; }
 .pager { display: flex; align-items: center; gap: 10px; margin-top: 6px; font-size: 12px; color: var(--ink2); }
@@ -156,11 +162,13 @@ details.panel > .scroll, details.panel > .feed, details.panel > .strip, details.
 .agentstrip h2 { margin: 0; }
 .agentstrip .roles { display: flex; flex-wrap: wrap; gap: 6px; }
 .agentstrip a.role { display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px 2px 3px; border: 1px solid var(--axis); border-radius: 999px; color: var(--ink2); text-decoration: none; font-size: 12px; }
-.agentstrip a.role .code { font: 600 10px ui-monospace, Menlo, monospace; padding: 2px 5px; border-radius: 999px; background: var(--grid); }
+[data-role="planner"] { --role: #7c3aed; } [data-role="orchestrator"] { --role: #0f8f84; }
+[data-role="architect"] { --role: #b5179e; } [data-role="coder"] { --role: #15803d; }
+[data-role="reviewer"] { --role: #d02752; } [data-role="release_manager"] { --role: #0e7490; }
+.agentstrip a.role .code { font: 600 10px ui-monospace, Menlo, monospace; padding: 2px 5px; border-radius: 999px; background: var(--role, var(--grid)); color: #fff; }
 .agentstrip a.role .rname { color: var(--ink); text-transform: capitalize; }
-.agentstrip a.role.busy { border-color: var(--series1); } .agentstrip a.role.busy .code { background: var(--series1); color: var(--on-fill); } .agentstrip a.role.busy .rnote { color: var(--series1); }
-.agentstrip a.role.blocked { border-color: var(--warning); } .agentstrip a.role.blocked .code { background: var(--warning); color: var(--on-warning); }
-.agentstrip a.role:hover { background: var(--page); }
+.agentstrip a.role.busy { border-color: var(--series1); } .agentstrip a.role.busy .rnote { color: var(--series1); }
+.agentstrip a.role.blocked { border-color: var(--warning); } .agentstrip a.role:hover { background: var(--page); }
 .agentstrip a.open { margin-left: auto; font-size: 13px; font-weight: 600; }
 </style>
 </head>
@@ -178,9 +186,9 @@ details.panel > .scroll, details.panel > .feed, details.panel > .strip, details.
 
   <section class="agentstrip" aria-labelledby="h-roles"><h2 id="h-roles">Agents</h2><div class="roles" id="roles"></div>
     <a class="open" href="/agents" data-tip="Who hands work to whom, each role's sessions, plan reviews, and the forms that ask the planner and the architect">Open the Agents page →</a></section>
-  <details class="panel" open><summary data-tip="Everything that asks for a person: attention pills, failed stages and sessions blocked on a reply. Click a row to act on it"><h2 id="h-attn">Needs attention</h2></summary><div class="scroll" id="attention"></div></details>
-  <section aria-labelledby="h-tiles"><h2 id="h-tiles">Key metrics</h2><div class="tiles" id="tiles"></div></section>  <details class="panel" open><summary data-tip="Each stage of a change from planned to released. Click a stage that needs you to resolve it"><h2 id="h-strip">Pipeline</h2></summary><div class="strip" id="strip"></div></details>
-  <details class="panel" open><summary data-tip="Recent CI runs on main, and the slowest jobs of the last completed run"><h2 id="h-ci">CI on main</h2></summary>
+  <details class="panel" open><summary data-tip="Everything that asks for a person: attention pills, failed stages and sessions blocked on a reply. Click a row to act on it"><h2 id="h-attn">Needs attention</h2><span class="sum" id="sum-attn"></span></summary><div class="scroll" id="attention"></div></details>
+  <section aria-labelledby="h-tiles"><h2 id="h-tiles">Key metrics</h2><div class="tiles" id="tiles"></div></section>  <details class="panel" open><summary data-tip="Each stage of a change from planned to released. Click a stage that needs you to resolve it"><h2 id="h-strip">Pipeline</h2><span class="sum" id="sum-strip"></span></summary><div class="strip" id="strip"></div></details>
+  <details class="panel" open><summary data-tip="Recent CI runs on main, and the slowest jobs of the last completed run"><h2 id="h-ci">CI on main</h2><span class="sum" id="sum-ci"></span></summary>
     <div class="grid2">
       <div><div class="label">Failed jobs per run, oldest to newest</div><div id="failedchart" class="chartview"></div><div class="tableview scroll" id="failedtable"></div></div>
       <div><div class="label">Wall minutes per run (goal 3)</div><div id="wallchart" class="chartview"></div><div class="tableview scroll" id="walltable"></div></div>
@@ -188,9 +196,9 @@ details.panel > .scroll, details.panel > .feed, details.panel > .strip, details.
     <h2 style="margin-top:14px">Slowest jobs of the last completed run</h2>
     <div id="slowchart" class="chartview"></div><div class="tableview scroll" id="slowtable"></div>
   </details>
-  <details class="panel" open><summary data-tip="Claude sessions dispatched or started by hand: their status, work item and what they are doing. Click a blocked session to answer it"><h2 id="h-sess">Sessions</h2></summary><div class="scroll" id="sessions"></div></details>
+  <details class="panel" id="sessions-panel"><summary data-tip="Claude sessions dispatched or started by hand: their status, work item and what they are doing. Click a blocked session to answer it"><h2 id="h-sess">Sessions</h2><span class="sum" id="sum-sess"></span></summary><div class="scroll" id="sessions"></div></details>
 
-  <details class="panel"><summary data-tip="How the work fans out across sessions: lanes, who is running what, and what the dispatcher would start next"><h2 id="h-fan">Fan-out</h2></summary>
+  <details class="panel"><summary data-tip="How the work fans out across sessions: lanes, who is running what, and what the dispatcher would start next"><h2 id="h-fan">Fan-out</h2><span class="sum" id="sum-fan"></span></summary>
     <div class="grid2">
       <div><div class="legend" id="lanelegend"></div><div id="lanes" class="chartview"></div><div class="tableview scroll" id="lanetable"></div></div>
       <div><div id="meters"></div><div id="flags"></div><div id="fill"></div></div>
@@ -199,8 +207,8 @@ details.panel > .scroll, details.panel > .feed, details.panel > .strip, details.
 
   
 
-  <details class="panel"><summary data-tip="Open Work items and which session holds each one"><h2 id="h-work">Work items</h2></summary><div class="scroll" id="work"></div><h2 class="sub">Work by session</h2><div class="scroll" id="mapping"></div></details>
-  <details class="panel"><summary data-tip="Each event the pipeline heard, and the reactions it caused. Hover a row for its full context"><h2 id="h-ev">Events</h2></summary><div class="feed" id="feed" aria-live="polite"></div></details>
+  <details class="panel"><summary data-tip="Open Work items and which session holds each one"><h2 id="h-work">Work items</h2><span class="sum" id="sum-work"></span></summary><div class="scroll" id="work"></div><h2 class="sub">Work by session</h2><div class="scroll" id="mapping"></div></details>
+  <details class="panel"><summary data-tip="Each event the pipeline heard, and the reactions it caused. Hover a row for its full context"><h2 id="h-ev">Events</h2><span class="sum" id="sum-ev"></span></summary><div class="feed" id="feed" aria-live="polite"></div></details>
 </main>
 <dialog id="resolve" aria-labelledby="resolve-title">
   <h2 id="resolve-title"></h2>
@@ -249,6 +257,19 @@ function unknown(x) {
 }
 function clock(iso) { if (!iso) return "-"; const d = new Date(iso); return isNaN(d) ? String(iso) : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }); }
 // A panel title with its count, so the number is visible even when the panel is collapsed.
+// A panel's header line: what it holds at a glance, so it can stay collapsed. Each part is a
+// string, or [text, tone, lead]: the tone (ok, working, attention, failed) colours it, and the
+// lead is the bold part (the first word when none is given).
+function summarize(key, parts) {
+  const el = $("sum-" + key);
+  if (!el) return;
+  el.replaceChildren(...parts.filter(Boolean).map((part) => {
+    const [text, tone, lead] = Array.isArray(part) ? part : [part, ""];
+    if (lead) return h("span", { class: tone || "" }, h("b", {}, lead), text);
+    const m = String(text).match(/^(\S+)(.*)$/s);
+    return h("span", { class: tone || "" }, m ? h("b", {}, m[1]) : "", m ? m[2] : text);
+  }));
+}
 function setTitle(id, name, count) { const el = $(id); if (el) el.textContent = name + " (" + count + ")"; }
 // A table shown one page at a time; the page is kept across refreshes.
 const pages = new Map();
@@ -376,7 +397,7 @@ function renderRoles(roles) {
     const blocked = (r.working || []).filter((s) => s.status === "blocked").length;
     const state = blocked ? " blocked" : r.live > 0 ? " busy" : "";
     const note = blocked ? blocked + " waiting on you" : r.live > 0 ? r.live + " working" : "idle";
-    return h("a", { class: "role" + state, href: "/agents", tip: r.name + ": " + note },
+    return h("a", { class: "role" + state, href: "/agents", "data-role": r.name, tip: r.name + ": " + note },
       h("span", { class: "code" }, ROLE_CODES[r.name] || r.name.slice(0, 2).toUpperCase()), h("span", { class: "rname" }, r.name.replace("_", " ")),
       h("span", { class: "rnote" }, note));
   }));
@@ -396,6 +417,8 @@ function renderTiles(tiles) {
 // A pill that asks for action: attention, or failed.
 function needsAttention(state) { return state === "attention" || state === "failed"; }
 function renderStrip(stages) {
+  const off = stages.filter((s) => s.state !== "ok");
+  summarize("strip", off.length ? off.map((s) => [": " + s.detail, s.state, s.name]) : [["all " + stages.length + " stages ok", "ok"]]);
   put("strip", stages.map((s) => {
     const waiting = Array.isArray(s.blocked) ? s.blocked : [];
     const clickable = waiting.length || needsAttention(s.state);
@@ -432,6 +455,14 @@ function columns(rows, pick, label, second) {
   return [h("div", { class: "cols" }, cols), h("div", { class: "xlabels" }, rows.map((r) => h("span", {}, r.sha.slice(0, 4))))];
 }
 function renderCi(runs, slow) {
+  const last = Array.isArray(runs) && runs.length ? runs[runs.length - 1] : null;
+  const green = last && last.conclusion === "success";
+  const top = Array.isArray(slow) && slow.length ? slow[0] : null;
+  summarize("ci", last ? [
+    [(last.conclusion || last.status) + " on " + last.sha + " at " + clock(last.started), green ? "ok" : last.conclusion ? "failed" : "working"],
+    [last.wall_minutes + " min wall (goal 3)", last.wall_minutes > 3 ? "attention" : "ok"],
+    last.failed_jobs ? [last.failed_jobs + " failed jobs", "failed"] : null,
+    top && top.minutes + " min slowest: " + (top.name.length > 48 ? top.name.slice(0, 47) + "…" : top.name)] : [isUnknown(runs) ? "unknown: " + runs.unknown : "no runs yet"]);
   if (isUnknown(runs)) { for (const id of ["failedchart", "wallchart", "failedtable", "walltable"]) put(id, unknown(runs)); }
   else {
     put("failedchart", columns(runs, (r) => r.failed_jobs || 0, (r) => (r.failed_jobs === null ? "failed jobs unknown" : r.failed_jobs + " failed jobs")));
@@ -446,8 +477,12 @@ function renderCi(runs, slow) {
   put("slowtable", table(["Job", "Minutes", "Conclusion"], slow.map((j) => [linked(j.url, j.name), j.minutes, j.conclusion]), [1]));
 }
 function renderWork(work) {
-  if (isUnknown(work)) return put("work", unknown(work));
+  if (isUnknown(work)) { summarize("work", [["unknown: " + work.unknown, "attention"]]); return put("work", unknown(work)); }
   setTitle("h-work", "Work items", work.length);
+  const counted = (status) => work.filter((w) => w.status === status).length;
+  const nextUp = work.find((w) => w.status === "planned");
+  summarize("work", [counted("planned") + " planned", [counted("started") + " started", counted("started") ? "working" : ""],
+    nextUp && "next: " + nextUp.slug]);
   put("work", pager("work", ["Work item", "Status", "Area", "Claimed by", "Claimed at"], work.map((w) => [w.slug, w.status, (w.area || []).join(", ") || "-", w.claimed_by || "(nobody)", w.claimed_at || "-"]), 10));
 }
 // Everything that asks for a person: attention and failed pills, and sessions blocked on a reply.
@@ -459,6 +494,12 @@ function renderAttention(metrics, stages, sessions, recommendations) {
     ["Sessions waiting on you", sessions.filter((s) => s.status === "blocked").map((s) => ({ kind: "Session", item: s.name + " " + (s.id || ""), state: "attention", value: s.work_item || s.row || "-", detail: s.detail, since: clock(s.started), act: () => openAnswer([{ id: s.id, name: s.name, run: s.run, repo: s.repo, work_item: s.work_item, question: s.detail, context: s.context, attach: s.attach }], s.id) }))]
   ].filter(([, items]) => items.length);
   setTitle("h-attn", "Needs attention", groups.reduce((n, [, items]) => n + items.length, recs.length));
+  const sized = Object.fromEntries(groups.map(([title, items]) => [title, items.length]));
+  summarize("attn", !groups.length && !recs.length ? [["nothing needs you", "ok"]] : [
+    sized["Sessions waiting on you"] && [sized["Sessions waiting on you"] + " waiting on you", "attention"],
+    sized["Pipeline stages"] && [sized["Pipeline stages"] + " stages: " + stages.filter((s) => needsAttention(s.state)).map((s) => s.name).join(", "), "attention"],
+    sized["Metrics"] && [sized["Metrics"] + " metrics: " + metrics.filter((m) => needsAttention(m.state)).map((m) => m.label).join(", "), "attention"],
+    recs.length && [recs.length + " promotion" + (recs.length > 1 ? "s" : "") + " to settle", "attention"]]);
   if (!groups.length && !recs.length) return put("attention", h("p", { class: "note" }, "Nothing needs attention."));
   put("attention", groups.map(([title, items]) => h("div", { class: "attn-group" }, h("h3", { class: "sub" }, title + " (" + items.length + ")"), attentionTable(items))));
   if (recs.length) $("attention").append(recommendationGroup(recs));
@@ -562,6 +603,9 @@ function renderSessions(all) {
   lastSessions = all;
   const list = all.filter(SESSION_FILTERS[sessionFilter] || SESSION_FILTERS.all);
   setTitle("h-sess", "Sessions", list.length);
+  const by = (status) => all.filter((s) => s.status === status).length;
+  summarize("sess", [by("busy") && [by("busy") + " working", "working"], by("blocked") && [by("blocked") + " waiting on you", "attention"],
+    by("failed") && [by("failed") + " failed", "failed"], by("done") + " done", all.filter(deletable).length + " deletable"]);
   const at = pageOf("sessions", list.length, SESSION_PAGE);
   const shown = list.slice(at * SESSION_PAGE, (at + 1) * SESSION_PAGE);
   put("sessions", filterBar(), table(["Session", "Status", "Work item", "Started", "Detail"], shown.map((s) => [sessionLabel(s), [sessionBadge(s.status), " ", s.state], s.row || "-", clock(s.started), replyNote(s)])),
@@ -579,6 +623,10 @@ function renderSessions(all) {
 }
 function renderFan(fan) {
   if (isUnknown(fan)) { for (const id of ["lanes", "meters", "flags", "fill", "mapping", "lanetable"]) put(id, unknown(fan)); return; }
+  const slots = fan.fill && !isUnknown(fan.fill) ? fan.fill : {}, next = (slots.would_start || [])[0], flagged = (fan.flags || []).length;
+  summarize("fan", [slots.cap !== undefined && slots.started + " of " + slots.cap + " started",
+    slots.load !== undefined && [slots.load + " load of " + slots.limit, slots.load >= slots.limit ? "attention" : ""],
+    flagged && [flagged + " flags", "attention"], next ? "next: " + next.slug : "nothing waiting to start"]);
   const sessions = fan.sessions.filter((s) => s.started), now = Date.now(), span = 24 * 3600 * 1000, start = now - span;
   const GLYPH = { busy: "◔ busy", blocked: "▲ blocked on you", done: "✓ done", failed: "✕ failed" };
   put("lanelegend", Object.keys(GLYPH).map((k) => h("span", {}, h("i", { class: "swatch span " + k }), GLYPH[k])));
@@ -630,6 +678,9 @@ function putEvent(ev, fresh) {
   while (feed.children.length > 80) { const last = feed.lastChild; for (const [k, v] of seen) if (v === last) seen.delete(k); last.remove(); }
 }
 function renderEvents(events) {
+  const newest = Array.isArray(events) && events.length ? events[0] : null;
+  summarize("ev", newest ? [clock(newest.at) + " newest: " + newest.name + " · " + newest.aggregate,
+    events.filter((e) => (e.reactions || []).some((r) => r.outcome === "refused")).length + " refused"] : ["none heard yet"]);
   if (isUnknown(events)) return put("feed", unknown(events));
   setTitle("h-ev", "Events", events.length);
   if (!seen.size) [...events].reverse().forEach((e) => putEvent(e, false));
@@ -681,6 +732,10 @@ $("toggle").addEventListener("click", () => {
   const on = document.body.classList.toggle("tables-only");
   $("toggle").setAttribute("aria-pressed", String(on)); $("toggle").textContent = on ? "Show charts" : "Show tables";
 });
+// The Sessions panel starts collapsed; a link to #h-sess (the Agents page's "more in Sessions") opens it.
+const openSessionsFromHash = () => { if (location.hash === "#h-sess") $("sessions-panel").open = true; };
+addEventListener("hashchange", openSessionsFromHash);
+openSessionsFromHash();
 refresh(); listen();
 </script>
 </body>

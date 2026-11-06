@@ -151,6 +151,10 @@ RSpec.describe Hecks::Adapters::PipelineWiring do
       expect(page).to include('pageBar("sessions", at, list.length, SESSION_PAGE')
     end
 
+    it "shows the board's Sessions panel collapsed until it is opened" do
+      expect(File.read(Hecks::Adapters::PipelineWeb::PAGE)).to include('<details class="panel" id="sessions-panel"><summary')
+    end
+
     it "links the board's Agents strip to the agents' page" do
       expect(File.read(Hecks::Adapters::PipelineWeb::PAGE)).to include('href="/agents"')
     end
