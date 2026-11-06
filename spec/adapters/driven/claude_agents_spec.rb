@@ -114,16 +114,29 @@ RSpec.describe Hecks::Adapters::ClaudeAgents do
   describe "#resume" do
     def resume(**held) = adapter.resume(session: { value: "abc123" }, repo: { value: scratch }, **held)
 
-    it "resumes the session in the run's directory with the answer after --, and says when", :aggregate_failures do
+    before { listing({ "id" => "abc123", "sessionId" => "abc123-0000-full" }) }
+
+    it "resumes the session by its full id in the run's directory, with the answer after --", :aggregate_failures do
       result = resume(answer: { value: "--keep-going" })
 
-      expect(asked).to eq(["--bg", "--resume", "abc123", "--", "--keep-going"])
+      expect(asked).to eq(["--bg", "--resume", "abc123-0000-full", "--", "--keep-going"])
       expect(File.read(File.join(scratch, "cwd")).strip).to eq(scratch)
       expect(result.dig(:resumed_at, :value)).to match(/\A\d{4}-\d{2}-\d{2}T/)
     end
 
+    it "resumes the session with the run's agent" do
+      resume(answer: { value: "go on" }, agent: { value: "orchestrator" })
+      expect(asked).to eq(["--agent", "orchestrator", "--bg", "--resume", "abc123-0000-full", "--", "go on"])
+    end
+
+    it "refuses a session that is not listed, and starts nothing" do
+      listing({ "id" => "other", "sessionId" => "other-full" })
+      expect { resume(answer: { value: "x" }) }.to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /no session abc123/)
+    end
+
     it "refuses when the command refuses, saying why" do
-      install("#!/bin/sh\necho no such session >&2\nexit 1\n")
+      install("#!/bin/sh\nif [ \"$1\" = agents ]; then cat \"$(dirname \"$0\")/sessions.json\"; exit 0; fi\n" \
+              "echo no such session >&2\nexit 1\n")
 
       expect { resume(answer: { value: "x" }) }
         .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /resume abc123 refused: no such session/)
