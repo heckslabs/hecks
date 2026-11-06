@@ -833,4 +833,18 @@ Hecks.bluebook "Tickets" do
     on      "Lesson.LessonSighted"
     trigger Sighting::Record, with: { sighting: :sighting, kind: :kind, run: :run, commit: :commit }
   end
+
+  read_model "WorkByStatus" do
+    description "How many work items stand in each status."
+    include Work
+    group_by :status
+    count
+  end
+
+  read_model "FindingsByStatus" do
+    description "How many findings stand in each status."
+    include Finding
+    group_by :status
+    count
+  end
 end
