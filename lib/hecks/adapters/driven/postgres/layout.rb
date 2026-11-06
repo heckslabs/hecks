@@ -7,11 +7,14 @@ module Hecks
       # adapter forwards each storage call to its layout, so a second layout can take the same
       # calls without the adapter changing shape.
       module Layout
-        # The storage calls a layout answers. Connection, schema and dialect helpers stay on the
+        # The storage and connection calls a layout answers. Schema and dialect helpers stay on the
         # adapter: every layout shares them.
         STORAGE = %i[
           append entries events events_for record_event find all count project reset! save
-          delete atomic_put execute_query decode
+          delete atomic_put execute_query decode query
+          transaction transaction_status exec exec_params pg_exec pg_exec_params backend_pid
+          reconnect! dead? close disown! dispatch_claim dispatch_applied? outbox_claim outbox_enqueue
+          outbox_settle outbox_rows outbox_row_from insert_outbox_row create_outbox_table!
         ].freeze
 
         # Runs the adapter's own implementation of a storage call, skipping the forwarding

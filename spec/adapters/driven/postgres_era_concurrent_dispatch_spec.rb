@@ -38,16 +38,25 @@ RSpec.describe "concurrent dispatch against one PostgresEra-backed aggregate", :
     Hecks.with_registry(registry) do
       load_ports
       ConcurrencyGapDomain.declare("EraConcurrencyGap", vision: ERA_GAP_VISION)
-      Hecks.hecksagon("EraConcurrencyGap") { EraConcurrencyGap::Account.persisted_by("PostgresEra") }
-      Hecks.world("EraConcurrencyGap") { persisted_by("PostgresEra") { database(ERA_CONCURRENCY_DATABASE) } }
+      declare_revision_wiring
     end
 
     registry.verify!
     Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
   end
 
+  # The Account binds Postgres with revisions, so its store is the revision layout.
+  def declare_revision_wiring
+    Hecks.hecksagon("EraConcurrencyGap") do
+      revisions true
+      EraConcurrencyGap::Account.persisted_by("Postgres")
+    end
+    Hecks.world("EraConcurrencyGap") { persisted_by("Postgres") { database(ERA_CONCURRENCY_DATABASE) } }
+  end
+
   def load_ports
     MemoryPorts.load!
+    Kernel.load(InMemoryDomain::POSTGRES_ADAPTER)
     Kernel.load(InMemoryDomain::POSTGRES_ERA_ADAPTER)
   end
 
@@ -86,7 +95,7 @@ RSpec.describe "concurrent dispatch against one PostgresEra-backed aggregate", :
     fork do
       close.each(&:close)
       dispatcher = boot
-      gate_first_lock(account_repository(dispatcher).adapter, **gate_opts)
+      gate_first_lock(account_repository(dispatcher).adapter.layout.store, **gate_opts)
       outcome_write.write("#{label}:#{debit_outcome(dispatcher)}\n")
       outcome_write.close
     end

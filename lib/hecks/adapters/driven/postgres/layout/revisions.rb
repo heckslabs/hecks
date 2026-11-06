@@ -14,6 +14,17 @@ module Hecks
             @store = PostgresEra.new(aggregate: aggregate, settings: settings, root: root)
           end
 
+          # The revision store, which owns the lineage and the write lock.
+          #
+          # @return [PostgresEra] the store the calls are answered with
+          attr_reader :store
+
+          # Runs a block under the revision store's cross-process write lock.
+          #
+          # @yield the block to run while the lock is held
+          # @return [Object] the block's value
+          def with_write_lock(&) = @store.with_write_lock(&)
+
           # The capabilities the revision store implements natively.
           #
           # @return [Array<Symbol>] the store's own persistence capabilities
@@ -21,7 +32,7 @@ module Hecks
 
           STORAGE.each do |name|
             define_method(name) do |*args, **kwargs, &block|
-              @store.public_send(name, *args, **kwargs, &block)
+              @store.__send__(name, *args, **kwargs, &block)
             end
           end
         end

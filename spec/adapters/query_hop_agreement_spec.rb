@@ -6,7 +6,7 @@ require_relative "../support/first_era_hold"
 require "pg"
 
 # Whether a cross-aggregate hop query answers correctly on the SQL adapters
-# (Sqlite, Postgres, PostgresEra).
+# (Sqlite, Postgres, Postgres with revisions).
 #
 # It does: `Runtime::ReferenceHop.apply` folds the hop into a local `in:` clause inside
 # `QueryInterpreter#call`, so `SqlQueryBuilder#query_expression` never sees an "owner/field" name.
@@ -53,7 +53,7 @@ RSpec.describe "cross-aggregate hop queries answer correctly on real SQL adapter
   def declare_hop_world(adapter, sqlite_root)
     case adapter
     when "Postgres" then Hecks.world("HopChain") { persisted_by("Postgres") { database HOP_AGREEMENT_DB } }
-    when "PostgresEra" then declare_era_hop_world
+    when "PostgresRevisions" then declare_era_hop_world
     when "Sqlite" then declare_sqlite_hop_world(sqlite_root)
     end
   end
@@ -62,7 +62,7 @@ RSpec.describe "cross-aggregate hop queries answer correctly on real SQL adapter
     # `allow_superuser`: PostgresEra refuses to boot as a superuser (its write-fence is row-level
     # security), and the fence is not under test.
     Hecks.world("HopChain") do
-      persisted_by("PostgresEra") do
+      persisted_by("Postgres") do
         database HOP_AGREEMENT_DB
         allow_superuser true
       end
@@ -77,15 +77,23 @@ RSpec.describe "cross-aggregate hop queries answer correctly on real SQL adapter
     Kernel.load(InMemoryDomain::PERSISTENCE_PORT)
     Kernel.load(InMemoryDomain::EXTRACTION_PORT)
     Kernel.load(InMemoryDomain::MEMORY_ADAPTER) # Node stays Memory-bound either way, see below
-    Kernel.load(InMemoryDomain::POSTGRES_ADAPTER) if adapter == "Postgres"
-    Kernel.load(InMemoryDomain::POSTGRES_ERA_ADAPTER) if adapter == "PostgresEra"
+    Kernel.load(InMemoryDomain::POSTGRES_ADAPTER) if adapter.start_with?("Postgres")
+    Kernel.load(InMemoryDomain::POSTGRES_ERA_ADAPTER) if adapter == "PostgresRevisions"
     Kernel.load(File.join(InMemoryDomain::ROOT, "lib/hecks/adapters/driven/sqlite.adapter")) if adapter == "Sqlite"
     Kernel.load(InMemoryDomain::PRISM_ADAPTER)
     Kernel.load(HOP_CHAIN_AGREEMENT)
   end
 
-  def declare_hop_hecksagon(bind_name)
+  def hecksagon_bind(adapter)
+    return "SqlitePersistence" if adapter == "Sqlite"
+    return "Postgres" if adapter == "PostgresRevisions"
+
+    adapter
+  end
+
+  def declare_hop_hecksagon(bind_name, revisions: false)
     Hecks.hecksagon("HopChain") do
+      revisions true if revisions
       HopChain::Client.persisted_by(bind_name)
       HopChain::Engagement.persisted_by(bind_name)
       HopChain::Proposal.persisted_by(bind_name)
@@ -102,7 +110,7 @@ RSpec.describe "cross-aggregate hop queries answer correctly on real SQL adapter
     Hecks.with_registry(registry) do
       load_hop_ports(adapter)
       # `SqlitePersistence` is the registered port-binding name, not the bare `Sqlite` class.
-      declare_hop_hecksagon(adapter == "Sqlite" ? "SqlitePersistence" : adapter)
+      declare_hop_hecksagon(hecksagon_bind(adapter), revisions: adapter == "PostgresRevisions")
       declare_hop_world(adapter, sqlite_root)
     end
 
@@ -184,8 +192,8 @@ RSpec.describe "cross-aggregate hop queries answer correctly on real SQL adapter
     it_behaves_like "hop queries answer correctly"
   end
 
-  describe "PostgresEra" do
-    let(:runtime) { boot_hop_chain(adapter: "PostgresEra") }
+  describe "Postgres with revisions" do
+    let(:runtime) { boot_hop_chain(adapter: "PostgresRevisions") }
 
     before do
       skip "no reachable local Postgres — set up a local server to run this spec" unless postgres_available?

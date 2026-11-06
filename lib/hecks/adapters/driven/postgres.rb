@@ -129,6 +129,8 @@ module Hecks
         @settings  = settings
         if settings[:revisions]
           @layout = Layout::Revisions.new(aggregate: aggregate, settings: settings, root: root)
+          # Only a revision layout takes the cross-process write lock; `AppendOnly` checks for it.
+          define_singleton_method(:with_write_lock) { |&block| @layout.with_write_lock(&block) }
         else
           open_table_layout(aggregate, settings)
         end
