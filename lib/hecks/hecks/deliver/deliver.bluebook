@@ -107,13 +107,9 @@ Hecks.bluebook "Hecks" do
       end
 
       # What a commit says, and which paths it stages first, separated by spaces.
-      value_object "Text" do
-        attribute :value, String
-      end
+      value_object "Text", String
 
-      value_object "Report" do
-        attribute :value, String
-      end
+      value_object "Report", String
 
       lifecycle :status, default: "requested" do
         mark :failure, "declined"
@@ -187,18 +183,12 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, matches: :present
       end
 
-      value_object "Report" do
-        attribute :value, String
-      end
+      value_object "Report", String
 
-      value_object "Switch" do
-        attribute :value, Boolean
-      end
+      value_object "Switch", Boolean
 
       # Comma-separated `path=ours` or `path=theirs` pairs: the side each conflicted path takes.
-      value_object "Resolution" do
-        attribute :value, String
-      end
+      value_object "Resolution", String
 
       lifecycle :status, default: "requested" do
         mark :failure, "declined"
@@ -508,9 +498,7 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, matches: :present
       end
 
-      value_object "Report" do
-        attribute :value, String
-      end
+      value_object "Report", String
 
       value_object "Document" do
         attribute :text, String
@@ -880,13 +868,9 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, matches: :present
       end
 
-      value_object "Report" do
-        attribute :value, String
-      end
+      value_object "Report", String
 
-      value_object "Switch" do
-        attribute :value, Boolean
-      end
+      value_object "Switch", Boolean
 
       # How many commits the branch held that the remote did not, as the boarding began.
       value_object "Count" do
@@ -1177,9 +1161,7 @@ Hecks.bluebook "Hecks" do
         invariant("a count is not negative") { !value.negative? }
       end
 
-      value_object "Line" do
-        attribute :value, String
-      end
+      value_object "Line", String
 
       command "Record" do
         role "Operator"
@@ -1290,13 +1272,9 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, matches: :present
       end
 
-      value_object "Report" do
-        attribute :value, String
-      end
+      value_object "Report", String
 
-      value_object "Switch" do
-        attribute :value, Boolean
-      end
+      value_object "Switch", Boolean
 
       lifecycle :status, default: "requested" do
         mark :failure, "failed", "refused", "red"
@@ -1570,9 +1548,7 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, matches: :present
       end
 
-      value_object "Report" do
-        attribute :value, String
-      end
+      value_object "Report", String
 
       value_object "Document" do
         attribute :text, String

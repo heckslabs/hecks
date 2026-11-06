@@ -26,9 +26,7 @@ Hecks.bluebook "Translation" do
 
     # `convert` values and `backfill` defaults are open-ended literals, so they are held as
     # unvalidated text, like `provenance` (`LiteralText`, aggregate.bluebook).
-    value_object "TranslationLiteralText" do
-      attribute :value, String
-    end
+    value_object "TranslationLiteralText", String
 
     command "Declare" do
       role "Deployment"

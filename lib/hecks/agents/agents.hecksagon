@@ -1,0 +1,12 @@
+# The Agents bluebook, bound so it boots standing alone (a behaviors or model_check boot of this
+# directory). It persists in Memory like every tooling domain, and declares no port: a role's session
+# is started by the Hecks domain's AgentRun, which hears the request events.
+Hecks.hecksagon "Agents" do
+  attaches "Governance"
+  persisted_by "Memory"
+end
+
+# The anti-corruption layer for Governance, which the bluebook's roles are checked against.
+Hecks.hecksagon "Governance" do
+  persisted_by "Memory"
+end

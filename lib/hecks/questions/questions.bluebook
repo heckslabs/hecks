@@ -19,9 +19,7 @@ Hecks.bluebook "Questions" do
     end
 
     # The kinds the board knows. A question with no kind is never auto-answered.
-    value_object "SessionQuestionTag" do
-      attribute :value, String
-    end
+    value_object "SessionQuestionTag", String
 
     command "Classify" do
       role "System"

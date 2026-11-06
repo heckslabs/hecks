@@ -436,9 +436,7 @@ Hecks.bluebook "Hecks" do
       end
 
       # Whether each distinct finding's minimized repro is also kept under `spec/corpus/regressions/`.
-      value_object "RegressionSwitch" do
-        attribute :value, Boolean
-      end
+      value_object "RegressionSwitch", Boolean
 
       # One share of a sweep, as `I/N`: shard I of N, which sweeps only its own domains so that N
       # jobs together sweep every domain once. The sweep refuses an I past N.
@@ -463,9 +461,7 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, matches: :not_empty
       end
 
-      value_object "Report" do
-        attribute :value, String
-      end
+      value_object "Report", String
 
       lifecycle :status, default: "requested" do
         mark :failure, "halted"
