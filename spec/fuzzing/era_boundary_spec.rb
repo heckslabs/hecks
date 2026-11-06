@@ -144,7 +144,7 @@ RSpec.describe Hecks::Fuzzing::RevisionBoundary, :aggregate_failures, :io do
   # need not match the current era: the module reads `hecks_eras`/the journal, never a shape hash.
   def write_fixture_files!(root, bluebook_source)
     File.write(File.join(root, "fixture.bluebook"), bluebook_source)
-    File.write(File.join(root, "fixture.hecksagon"), hecksagon_source("PostgresEra"))
+    File.write(File.join(root, "fixture.hecksagon"), hecksagon_source("Postgres"))
     File.write(File.join(root, "fixture.world"), world_source)
   end
 
@@ -159,7 +159,7 @@ RSpec.describe Hecks::Fuzzing::RevisionBoundary, :aggregate_failures, :io do
   def world_source
     <<~RUBY
       Hecks.world "RevisionBoundaryFixture" do
-        persisted_by("PostgresEra") do
+        persisted_by("Postgres") do
           database "#{database_url}"
           mint_eras true
           allow_superuser true

@@ -71,7 +71,7 @@ RSpec.describe "hecks quality_control migrate_ledger_from_heki", :io do
     File.write(File.join(@pg_dir, "quality_control.world"), <<~WORLD)
       Hecks.world "QualityControl" do
         realm "QA"
-        persisted_by("PostgresEra") do
+        persisted_by("Postgres") do
           database "#{url}"
         end
       end
@@ -79,7 +79,7 @@ RSpec.describe "hecks quality_control migrate_ledger_from_heki", :io do
     File.write(File.join(@pg_dir, "governance.world"), InMemoryDomain.governance_postgres_era_world(url))
     File.write(File.join(@pg_dir, "fixer.world"), <<~WORLD)
       Hecks.world "Fixer" do
-        persisted_by("PostgresEra") { database "#{url}" }
+        persisted_by("Postgres") { database "#{url}" }
       end
     WORLD
 
