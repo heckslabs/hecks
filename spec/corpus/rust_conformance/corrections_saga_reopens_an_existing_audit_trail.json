@@ -1,0 +1,228 @@
+{
+  "domain": "qa/stress_domains/corrections",
+  "note": "QA sweep SW-corrections-1793425649 (differential, seed 2). Two `Ledger.Entry.Amend` on the same ledger in one run: the first `EntryAmended` starts `CorrectionWatch`, which opens and flags the AuditTrail and ends; the second `EntryAmended` starts a fresh instance for the same correlation, whose `AuditTrail.Open` dispatch must be refused AlreadyExists (the trail is there) and logged `delivered: false` with that reason — not swallowed by a saga dispatch key that two distinct events on one aggregate within one second shared. No second `AuditTrailOpened`, and the trail stays `flagged`.",
+  "steps": [
+    {
+      "verb": "Corrections::Ledger.Open",
+      "args": {
+        "reference": {
+          "value": "L3"
+        }
+      }
+    },
+    {
+      "verb": "Corrections::Ledger.Record",
+      "args": {
+        "reference": {
+          "value": "L3"
+        },
+        "amount": {
+          "cents": 1
+        }
+      }
+    },
+    {
+      "verb": "Corrections::Ledger.Entry.Amend",
+      "args": {
+        "reference": {
+          "value": "L3"
+        },
+        "sequence": {
+          "value": 1
+        },
+        "amount": {
+          "cents": 1
+        }
+      }
+    },
+    {
+      "verb": "Corrections::Ledger.Entry.Amend",
+      "args": {
+        "reference": {
+          "value": "L3"
+        },
+        "sequence": {
+          "value": 1
+        },
+        "amount": {
+          "cents": 1
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+
+    ],
+    "instances": {
+      "Corrections::Ledger#L3": {
+        "reference": {
+          "value": "L3"
+        },
+        "entries": [
+          {
+            "amount": {
+              "cents": 1
+            },
+            "sequence": {
+              "value": 1
+            }
+          }
+        ]
+      },
+      "Corrections::AuditTrail#L3": {
+        "reference": {
+          "value": "L3"
+        },
+        "status": "flagged"
+      }
+    },
+    "events": [
+      {
+        "name": "LedgerOpened",
+        "aggregate": "Corrections::Ledger",
+        "id": "L3",
+        "payload": {
+          "reference": {
+            "value": "L3"
+          }
+        }
+      },
+      {
+        "name": "EntryRecorded",
+        "aggregate": "Corrections::Ledger",
+        "id": "L3",
+        "payload": {
+          "reference": {
+            "value": "L3"
+          },
+          "amount": {
+            "cents": 1
+          }
+        }
+      },
+      {
+        "name": "EntryAmended",
+        "aggregate": "Corrections::Ledger",
+        "id": "L3",
+        "payload": {
+          "reference": {
+            "value": "L3"
+          },
+          "sequence": {
+            "value": 1
+          },
+          "amount": {
+            "cents": 1
+          }
+        }
+      },
+      {
+        "name": "AuditTrailOpened",
+        "aggregate": "Corrections::AuditTrail",
+        "id": "L3",
+        "payload": {
+          "reference": {
+            "value": "L3"
+          }
+        }
+      },
+      {
+        "name": "AuditTrailFlagged",
+        "aggregate": "Corrections::AuditTrail",
+        "id": "L3",
+        "payload": {
+        }
+      },
+      {
+        "name": "EntryAmended",
+        "aggregate": "Corrections::Ledger",
+        "id": "L3",
+        "payload": {
+          "reference": {
+            "value": "L3"
+          },
+          "sequence": {
+            "value": 1
+          },
+          "amount": {
+            "cents": 1
+          }
+        }
+      }
+    ],
+    "queries": [
+
+    ],
+    "sagas": [
+      {
+        "process_manager": "CorrectionWatch",
+        "on": "EntryAmended",
+        "instance": "L3",
+        "born": true,
+        "state": "flagging"
+      },
+      {
+        "process_manager": "CorrectionWatch",
+        "on": "EntryAmended",
+        "instance": "L3",
+        "advanced": true,
+        "from": "flagging",
+        "to": "flagging"
+      },
+      {
+        "process_manager": "CorrectionWatch",
+        "on": "AuditTrailOpened",
+        "instance": "L3",
+        "advanced": true,
+        "from": "flagging",
+        "to": "flagging"
+      },
+      {
+        "process_manager": "CorrectionWatch",
+        "on": "AuditTrailFlagged",
+        "instance": "L3",
+        "ended": true
+      },
+      {
+        "process_manager": "CorrectionWatch",
+        "instance": "L3",
+        "dispatch": "AuditTrail.Flag",
+        "delivered": true
+      },
+      {
+        "process_manager": "CorrectionWatch",
+        "instance": "L3",
+        "dispatch": "AuditTrail.Open",
+        "delivered": true
+      },
+      {
+        "process_manager": "CorrectionWatch",
+        "on": "EntryAmended",
+        "instance": "L3",
+        "born": true,
+        "state": "flagging"
+      },
+      {
+        "process_manager": "CorrectionWatch",
+        "on": "EntryAmended",
+        "instance": "L3",
+        "advanced": true,
+        "from": "flagging",
+        "to": "flagging"
+      },
+      {
+        "process_manager": "CorrectionWatch",
+        "instance": "L3",
+        "dispatch": "AuditTrail.Open",
+        "delivered": true
+      }
+    ],
+    "dry_runs": [
+
+    ],
+    "reactions": [
+
+    ]
+  }
+}
