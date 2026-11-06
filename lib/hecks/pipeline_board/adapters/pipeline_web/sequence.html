@@ -175,6 +175,7 @@ function listen() {
   boardStream({
     open: () => { $("live").textContent = "stream: live"; },
     error: () => { $("live").textContent = "stream: reconnecting"; },
+    pause: () => { $("live").textContent = "stream: paused"; },
     board: (ev) => {
     if (!ev.key) return;
     if (!liveStarted) { backlog.push(ev); clearTimeout(listen.t); listen.t = setTimeout(startLive, 600); } else { take(ev); dirty = true; }
