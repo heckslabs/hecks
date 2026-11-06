@@ -65,7 +65,7 @@ RSpec.describe "the category tests, covering every closed set", :aggregate_failu
     "Memory"            => "spec/fuzzing/properties/every_domain_spec.rb",
     "SqlitePersistence" => "spec/fuzzing/properties/every_domain_spec.rb",
     "Postgres"          => "spec/fuzzing/properties/every_domain_spec.rb",
-    "PostgresEra"       => "spec/categories/era_read_through_spec.rb",
+    "Postgres"          => "spec/categories/era_read_through_spec.rb",
     "Heki"              => "spec/ports/persistence_contract_spec.rb",
     "D1"                => "spec/ports/persistence_contract_spec.rb"
   }.freeze

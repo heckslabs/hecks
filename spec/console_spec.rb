@@ -38,7 +38,7 @@ RSpec.describe "Hecks::Tools::Console" do
 
     expect(status).to be_success, stderr
     expect(stdout).to include("RESULT=sold/PizzaPurchased")
-    expect(stderr).not_to include("PostgresEra")
+    expect(stderr).not_to include("Postgres with revisions")
   end
 
   it "still boots an explicit domain directory as that directory is wired", :aggregate_failures, :process do
