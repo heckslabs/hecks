@@ -51,12 +51,22 @@ module Hecks
 
         # @param finished [Array<Hash>, Hash] the newest `WorkFinished` events, read by name from
         #   the journal, so a flood of other events cannot push them out of the window
-        def throughput(finished, now)
+        # @param open_work [Array<Hash>, Hash] the open Work items, planned ones among them
+        def throughput(finished, open_work, now)
           return unknown_tile("throughput", "Work finished", finished) unless finished.is_a?(Array)
 
           window = Rules.setting("throughput_window_hours") * 3600
           done = finished.count { |event| now - Time.parse(event[:at]) < window }
-          tile("throughput", "Work finished", done, "items / 24 h", detail: "Work.WorkFinished events in the Tickets journal")
+          planned = open_work.is_a?(Array) ? open_work.count { |work| work[:status] == "planned" } : nil
+          state = Rules.verdict("Work finished", { finished: done, planned: planned })
+          tile("throughput", "Work finished", done, "items / 24 h", state: state, detail: finished_note(finished, planned))
+        end
+
+        # When the newest Work item finished, and how many still wait in the plan.
+        def finished_note(finished, planned)
+          last = finished.first && "last #{finished.first[:at].to_s.sub("T", " ").delete_suffix("Z")} UTC"
+          waiting = planned && "#{planned} planned"
+          [last || "none finished yet", waiting].compact.join("; ")
         end
 
         def release(release, now)
