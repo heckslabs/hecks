@@ -21,7 +21,7 @@ RSpec.describe "the Agents orchestrator routing" do
   let(:routing) { Hecks::Agents::Routing }
 
   def check(conflict, hops: 1)
-    routing.check!(work: { value: "w1" }, conflict: { value: conflict }, hops: { value: hops })
+    routing.check!(work: { value: "w1" }, conflict: { value: conflict }, hops: { value: hops }, advice: { value: "a-w1" })
   end
 
   def fired
