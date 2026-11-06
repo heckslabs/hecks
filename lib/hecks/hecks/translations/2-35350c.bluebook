@@ -1,4 +1,14 @@
 # The 7.0 renames move the shape's names and no field: Workspace, Revision, SendTrain and ReviewRequest
 # keep their stored tables (storage_name uses the former name) and their fields, so no row is rewritten.
+# Each renamed aggregate names the one it replaces (`was`), so an era held under the old name still
+# resolves to the same table when the reader walks back through this edge.
 Hecks.data_translation "Hecks", from: "c16350", to: "35350c" do
+  aggregate "SendTrain", was: "PushTrain" do
+  end
+  aggregate "Workspace", was: "Checkout" do
+  end
+  aggregate "Revision", was: "Commit" do
+  end
+  aggregate "ReviewRequest", was: "PullRequest" do
+  end
 end
