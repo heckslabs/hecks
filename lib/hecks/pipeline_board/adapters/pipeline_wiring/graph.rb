@@ -72,7 +72,31 @@ module Hecks
           aggregate.respond_to?(:ports) ? aggregate.ports.map { |port| port.name.to_s } : []
         end
 
-        def aggregate_id(domain, aggregate) = aggregate.to_s.empty? ? "" : "#{domain}::#{aggregate.split("::").last}"
+        # An aggregate named without its domain belongs to the policy's own domain when that domain
+        # declares it, else to the domain that does: a translation hears and reaches across domains.
+        def aggregate_id(domain, aggregate)
+          name = bare(aggregate)
+          name.empty? ? "" : "#{owner_of(domain, name)}::#{name}"
+        end
+
+        def owner_of(domain, name)
+          return domain if declares?(domain, name)
+
+          domains.find { |other| declares?(other, name) } || domain
+        end
+
+        def domains = @domains ||= @registry.bluebooks.keys.map(&:to_s)
+
+        def declares?(domain, name)
+          book = @registry.bluebooks[domain]
+          book ? book.aggregates.any? { |aggregate| bare(aggregate.hecks_name) == name } : false
+        end
+
+        # The last segment of a `Domain::Aggregate` name.
+        def bare(name)
+          segments = name.to_s.split("::")
+          segments.last.to_s
+        end
 
         def link(from, to, label, kind)
           return unless to
