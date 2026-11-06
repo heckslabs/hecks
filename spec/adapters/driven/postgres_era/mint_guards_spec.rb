@@ -6,7 +6,8 @@ require_relative "../../../support/fenced_owner"
 require_relative "../../../support/era_registry_loading"
 require_relative "../../../support/mint_request_support"
 
-# The mint guards of PostgresRevision's era check, on a disposable database: a boot never mints, and a
+# The mint guards of PostgresRevision's era check, on a disposable database: a boot never mints,
+# and a
 # mint needs a confirmed would_mint rehearsal at the watermark it read. Each refusal names why.
 RSpec.describe "mint guards in the PostgresRevision era check", :io do
   include EraRegistryLoading

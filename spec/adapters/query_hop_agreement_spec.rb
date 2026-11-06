@@ -59,7 +59,8 @@ RSpec.describe "cross-aggregate hop queries answer correctly on real SQL adapter
   end
 
   def declare_era_hop_world
-    # `allow_superuser`: PostgresRevision refuses to boot as a superuser (its write-fence is row-level
+    # `allow_superuser`: PostgresRevision refuses to boot as a superuser (its write-fence is
+    # row-level
     # security), and the fence is not under test.
     Hecks.world("HopChain") do
       persisted_by("Postgres") do

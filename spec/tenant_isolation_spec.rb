@@ -204,7 +204,8 @@ RSpec.describe "multitenancy: one boot per tenant, one shared route table" do
     end
 
     # The aggregate's table in tenant_bloom's own schema, found by its `_head` suffix
-    # (Lineage#head_view): the catalog has no ordering, and PostgresRevision's bookkeeping tables each
+    # (Lineage#head_view): the catalog has no ordering, and PostgresRevision's bookkeeping tables
+    # each
     # hold a legitimate row.
     def bloom_head_table(direct)
       tables = direct.exec("SELECT table_name FROM information_schema.tables WHERE table_schema = 'tenant_bloom'")

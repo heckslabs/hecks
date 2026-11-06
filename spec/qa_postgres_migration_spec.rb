@@ -8,7 +8,8 @@ require "fileutils"
 require_relative "support/qa_lib_cli"
 
 # Round trip of `hecks quality_control migrate_ledger_from_heki`: boots the QualityControl bluebook
-# under a Heki binding, then under PostgresRevision on a scratch database, both from temp-dir copies.
+# under a Heki binding, then under PostgresRevision on a scratch database, both from temp-dir
+# copies.
 #
 # Data is generated through real command dispatch so it matches what the ledger produces.
 # Examples call `run_migrate` themselves (idempotent) because order is random; the dry-run

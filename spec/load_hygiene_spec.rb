@@ -36,7 +36,8 @@ RSpec.describe "load hygiene", :io do
                          "#{colliding.map { |name, files| "  #{name}: #{files.uniq.join(", ")}" }.join("\n")}"
   end
 
-  # ADR 0033: a domain bound to a lazily-loaded plugin (PostgresRevision) must boot in a fresh process.
+  # ADR 0033: a domain bound to a lazily-loaded plugin (PostgresRevision) must boot in a fresh
+  # process.
   # spec_helper already requires the era plugin, so an in-process boot cannot see it unloaded.
   it "boots a domain bound to a lazily-loaded persistence plugin (PostgresRevision) with nothing pre-required" do
     _out, err, status = capture_ruby("require 'hecks'; Hecks.boot(#{File.join(ROOT_DIR, "examples/pizzas").inspect})")

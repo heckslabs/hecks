@@ -6,7 +6,8 @@ require_relative "support/scratch_postgres"
 
 # A query argument whose value does not match its declared type is refused with TypeMismatch
 # before any store is read, worded as a command argument of that type is. Memory and
-# PostgresRevision refuse the same query the same way; the parity example at the bottom holds them to it.
+# PostgresRevision refuse the same query the same way; the parity example at the bottom holds them
+# to it.
 RSpec.describe "a query argument of the wrong shape" do
   QUERY_ARGUMENT_SHAPE_DB = "hecks_query_argument_shape_spec".freeze
 

@@ -2,7 +2,8 @@ require "hecks"
 require "hecks/ports/persistence/plugins/era"
 require_relative "support/qa_tick_fixture"
 
-# `hecks quality_control tick` run as a real subprocess against a disposable PostgresRevision ledger and
+# `hecks quality_control tick` run as a real subprocess against a disposable PostgresRevision
+# ledger and
 # a throwaway repository with its own bare `origin`. Own database: `hecks_qa_tick_dirty_tree_spec`.
 RSpec.describe "hecks quality_control tick", :io do
   include_context "with a qa_tick fixture", "hecks_qa_tick_dirty_tree_spec"

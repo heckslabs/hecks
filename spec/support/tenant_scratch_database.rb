@@ -15,7 +15,8 @@ module TenantScratchDatabase
   def with_scratch_database(name)
     scratch = "#{name}_#{SecureRandom.hex(3)}"
     drop_scratch_database(scratch, create: true)
-    # Both tenants boot as a non-superuser owner; PostgresRevision refuses superusers (fenced_owner.rb).
+    # Both tenants boot as a non-superuser owner; PostgresRevision refuses superusers
+    # (fenced_owner.rb).
     FencedOwner.own!(scratch)
     yield scratch
   ensure

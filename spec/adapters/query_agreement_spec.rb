@@ -3,7 +3,8 @@ require "hecks/ports/persistence/plugins/era"
 require "tmpdir"
 require_relative "../support/postgres_probe"
 require_relative "../support/first_era_hold"
-# `pg` is required explicitly; the adapter only requires it lazily in `PostgresRevision.connect_for`.
+# `pg` is required explicitly; the adapter only requires it lazily in
+# `PostgresRevision.connect_for`.
 require "pg"
 
 # Differential gate: Memory, Sqlite and Postgres must agree on the same declared query over the

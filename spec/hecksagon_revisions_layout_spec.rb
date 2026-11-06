@@ -1,6 +1,7 @@
 require "spec_helper"
 
-# A `Postgres` bind in a hecksagon that sets `revisions` is built with the revision layout (ADR 0182).
+# A `Postgres` bind in a hecksagon that sets `revisions` is built with the revision layout (ADR
+# 0182).
 # The choice is read from the registry's hecksagon, so the spec stands in a registry that answers
 # only that, and never connects to a database.
 RSpec.describe "revisions, choosing the Postgres layout" do

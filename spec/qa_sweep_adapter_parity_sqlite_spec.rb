@@ -12,7 +12,8 @@ require "pathname"
 RSpec.describe "qa_sweep adapter_parity_sqlite", :io do
   QA_SWEEP_ADAPTER_PARITY_SQLITE_DATABASE = "hecks_qa_sweep_adapter_parity_sqlite_spec".freeze
 
-  # Same widget as the shared fixture, bound to Memory to show no PostgresRevision binding is needed.
+  # Same widget as the shared fixture, bound to Memory to show no PostgresRevision binding is
+  # needed.
   ADAPTER_PARITY_SQLITE_TARGET_BLUEBOOK = <<~RUBY.freeze
     Hecks.bluebook "QaSweepAdapterParitySqliteFixtureTarget" do
       vision "A trivially well-behaved sweep target, authored only to prove qa_sweep's adapter_parity_sqlite mode reaches an ordinary, non-PostgresRevision-bound domain, never this repository's own live, actively-changing QA corpus."

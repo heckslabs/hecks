@@ -8,7 +8,8 @@ require_relative "support/scratch_postgres"
 require_relative "support/fenced_owner"
 require_relative "support/first_era_hold"
 
-# The Fixer's attempts on a disposable PostgresRevision database, booted from a fixture copy of the Fixer
+# The Fixer's attempts on a disposable PostgresRevision database, booted from a fixture copy of the
+# Fixer
 # domain whose world names that database. Each boot runs in its own process, so an attempt written
 # by one process is read by a fresh one, which is what the QA event pump depends on. The real ledger
 # and its hecks_fixer database are never touched.

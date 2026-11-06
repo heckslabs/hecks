@@ -4,7 +4,8 @@ require "open3"
 # A scratch domain, Depot, that holds the Hecks push train's own declarations: the `SendTrain`
 # aggregate and the push policies, cut from `deliver.bluebook`, and the Train, Alerts and Launcher
 # ports, cut from `hecks.hecksagon`. It is split across files the way the Hecks domain is, a
-# top-level file and a `deliver` module folder, and persisted by Postgres with revisions on a scratch database.
+# top-level file and a `deliver` module folder, and persisted by Postgres with revisions on a
+# scratch database.
 module PushTrainDepot
   HECKS = File.expand_path("../../lib/hecks/hecks", __dir__)
 
@@ -39,7 +40,8 @@ module PushTrainDepot
     %(Hecks.bluebook "Depot" do\n  domain_module "Deliver" do\n#{aggregate}\n#{policies.join("\n")}  end\nend\n)
   end
 
-  # @return [String] the hecksagon: persisted by PostgresRevision, governed (its commands declare roles),
+  # @return [String] the hecksagon: persisted by PostgresRevision, governed (its commands declare
+  # roles),
   #   with the push train's ports
   def self.hecksagon_source
     ports = PORTS.map { |name| block(hecksagon_lines, %(  Hecks::SendTrain.port "#{name}" do)) }

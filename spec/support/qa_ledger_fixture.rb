@@ -50,7 +50,8 @@ module QaLedgerFixture
   def self.write_files(dir, database)
     File.write(File.join(dir, "quality_control.hecksagon"), HECKSAGON)
     File.write(File.join(dir, "context_map.hecksagon"), InMemoryDomain::GOVERNANCE_POSTGRES_ERA_HECKSAGON)
-    # PostgresRevision refuses to boot as a superuser; connect as the role `QaLedgerRole` provisions.
+    # PostgresRevision refuses to boot as a superuser; connect as the role `QaLedgerRole`
+    # provisions.
     url = QaLedgerRole.url(database)
     File.write(File.join(dir, "quality_control.world"), <<~RUBY)
       Hecks.world "QualityControl" do
