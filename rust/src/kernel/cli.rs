@@ -21,6 +21,34 @@ use crate::generated::active::check_query_args;
 
 use crate::generated::active::ENTITY_QUERIES;
 
+type IrQueries = Option<&'static super::ir_queries::IrQueries>;
+
+/// The entity query `question` names: from the IR when one was sent and covers it.
+fn entity_query(ir: IrQueries, question: &str) -> Option<&'static named_query::EntityQueryDef> {
+    use super::ir_queries::Lookup;
+    match ir.map(|queries| queries.entity(question)) {
+        Some(Lookup::Found(def)) => Some(def),
+        Some(Lookup::Missing) => None,
+        _ => named_query::find_entity(ENTITY_QUERIES, question),
+    }
+}
+
+/// The aggregate query `question` names: from the IR when one was sent and covers it.
+fn named_query_def(ir: IrQueries, question: &str) -> Option<&'static named_query::QueryDef> {
+    use super::ir_queries::Lookup;
+    match ir.map(|queries| queries.named(question)) {
+        Some(Lookup::Found(def)) => Some(def),
+        Some(Lookup::Missing) => None,
+        _ => named_query::find(QUERIES, question),
+    }
+}
+
+/// A query's argument gate: read from the IR when it covers the query, else the generated one.
+fn check_args(ir: IrQueries, question: &str, args: &Json) -> Result<(), Refusal> {
+    ir.and_then(|queries| queries.check_args(question, args))
+        .unwrap_or_else(|| check_query_args(question, args))
+}
+
 pub fn run(input: &str) -> String {
     let parsed = match Json::parse(input) {
         Ok(v) => v,
@@ -59,6 +87,9 @@ pub fn run(input: &str) -> String {
     let Some(steps) = parsed.get("steps").and_then(Json::as_array) else {
         return error_output("expected a top-level {\"steps\": [...]} object");
     };
+    // An `"ir"` key (one domain's canonical IR, or an array) has the declared queries and their
+    // argument gates read from it; without it `generated::active` answers.
+    let ir_queries = parsed.get("ir").map(super::ir_queries::for_ir);
 
     // Optional `"seed"`: prior state as `"instances"` emits it, so a host need not replay history.
     let mut store = match parsed.get("seed") {
@@ -159,10 +190,10 @@ pub fn run(input: &str) -> String {
                 // Entity-query rows are already `{ parent_key => id }.merge(element)`; the
                 // reference twin is the same engine.
                 // `reference_interpret` delegates to the same `entity_rows`).
-                Json::Str(question) if question.contains("::") && named_query::find_entity(ENTITY_QUERIES, question).is_some() => {
+                Json::Str(question) if question.contains("::") && entity_query(ir_queries, question).is_some() => {
                     // reason: the match guard above only admits a `question` that resolves.
                     #[allow(clippy::expect_used)]
-                    let def = named_query::find_entity(ENTITY_QUERIES, question).expect("matched by the guard above");
+                    let def = entity_query(ir_queries, question).expect("matched by the guard above");
                     match named_query::run_entity(&store, def, args) {
                         Ok(rows) => {
                             query_results.push(answered_entry(question, offered, Json::Array(rows), true));
@@ -173,8 +204,8 @@ pub fn run(input: &str) -> String {
                         }
                     }
                 }
-                Json::Str(question) if question.contains("::") => match named_query::find(QUERIES, question) {
-                    Some(def) => match check_query_args(question, args).and_then(|()| named_query::run(&store, def, args, caller_role)) {
+                Json::Str(question) if question.contains("::") => match named_query_def(ir_queries, question) {
+                    Some(def) => match check_args(ir_queries, question, args).and_then(|()| named_query::run(&store, def, args, caller_role)) {
                         Ok(entries) => {
                             let rows = Json::Array(entries.into_iter().map(|(id, record)| repository::row_json(id, record)).collect());
                             // The reference twin is `rows`: one compiled path (named_query.rs).
