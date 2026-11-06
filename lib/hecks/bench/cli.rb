@@ -8,14 +8,14 @@ module Hecks
     # Lives in `lib/` so a spec can drive it without shelling out.
     module CLI
       # The defaults `hecks bench` runs with when no flag says otherwise.
-      DEFAULTS = { domains: %w[pizzas banking], targets: Suite::TARGETS, warmup: 200, iterations: 1000,
+      DEFAULTS = { domains: %w[pizzas banking], targets: Suite::DEFAULT_TARGETS, warmup: 200, iterations: 1000,
                    runs: 3 }.freeze
 
       # Each flag: which hash its value lands in (`:values` for the configuration, `:extras` for
       # the output choices), the key it sets, and its `OptionParser` arguments.
       FLAGS = [
-        [:values, :domains, ["--domain NAMES", Array, "pizzas, banking (default: both)"]],
-        [:values, :targets, ["--targets NAMES", Array, "#{Suite::TARGETS.join(", ")} (default: all)"]],
+        [:values, :domains, ["--domain NAMES", Array, "pizzas, banking (default: both), needs-fact, cascade (the gate extras)"]],
+        [:values, :targets, ["--targets NAMES", Array, "#{Suite::TARGETS.join(", ")} (default: all but rust:client, the gate)"]],
         [:values, :iterations, ["--iterations N", Integer, "timed cycles per run (default #{DEFAULTS[:iterations]})"]],
         [:values, :warmup, ["--warmup N", Integer, "discarded cycles before timing (default #{DEFAULTS[:warmup]})"]],
         [:values, :runs, ["--runs N", Integer, "fresh boots per target, median reported (default #{DEFAULTS[:runs]})"]],
