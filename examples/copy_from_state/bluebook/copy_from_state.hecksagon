@@ -1,0 +1,3 @@
+Hecks.hecksagon "Snapshots" do
+  Snapshots::Board.persisted_by("Memory")
+end
