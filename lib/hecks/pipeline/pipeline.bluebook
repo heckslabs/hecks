@@ -255,6 +255,27 @@ Hecks.bluebook "Pipeline" do
     trigger  Passage::Release, with: { change: :change }
   end
 
+  read_model "PassagesByStage" do
+    description "How many passages stand at each stage of the pipeline."
+    include Passage
+    group_by :stage
+    count
+  end
+
+  read_model "StalledPassages" do
+    description "Every passage marked as stalled, with its stage and the reason."
+    include Passage
+    where(stalled: { ne: "" })
+    group_by :stage, :change
+  end
+
+  read_model "HeldPassages" do
+    description "Every passage held after its push, sorted by the flag that holds it."
+    include Passage
+    where(stage: "held")
+    group_by :flag, :change
+  end
+
   # A pull request a passage's branch is reviewed and merged through. The bluebook names the
   # question it asks of the git host; an adapter answers it.
   aggregate "PullRequest" do

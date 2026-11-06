@@ -38,6 +38,22 @@ RSpec.describe "PipelineBoard readings" do
     expect(kind_of("Which branch should I use?")).to eq("")
   end
 
+  # A blocked job's state names what it needs and the reply Claude Code suggests for it.
+  def context_with(state)
+    FileUtils.mkdir_p(File.join(dir, "r"))
+    File.write(File.join(dir, "r", "state.json"), JSON.generate({ "state" => "blocked", "detail" => "waiting" }.merge(state)))
+    sessions([{ "id" => "r", "name" => "r", "status" => "idle", "startedAt" => 1 }]).first[:context]
+  end
+
+  it "carries a blocked session's needs and suggested reply to the answer prompt" do
+    found = context_with("needs" => " tell me when the merge is done ", "suggestedReply" => "the merge is finished, go ahead")
+    expect(found).to include(needs: "tell me when the merge is done", suggested: "the merge is finished, go ahead")
+  end
+
+  it "carries an empty suggestion when Claude Code offered none" do
+    expect(context_with("needs" => "pick a branch")).to include(suggested: "")
+  end
+
   it "reads a live job that waits on a person as blocked, not done" do
     job("s1", "blocked", needs: "confirm the retry")
     live = sessions([{ "id" => "s1", "name" => "s1", "status" => "idle", "startedAt" => 1 }])
@@ -60,9 +76,26 @@ RSpec.describe "PipelineBoard readings" do
     journal.named("WorkFinished", 200)
   end
 
-  def throughput(finished)
-    tiles = Hecks::Adapters::PipelineBoard::Metrics.tiles({ ci_runs: { unknown: "x" }, finished: finished }, now)
+  def throughput(finished, open_work = [])
+    data = { ci_runs: { unknown: "x" }, finished: finished, open_work: open_work }
+    tiles = Hecks::Adapters::PipelineBoard::Metrics.tiles(data, now)
     tiles.find { |tile| tile[:id] == "throughput" }
+  end
+
+  it "asks for attention when nothing finished in the day while Work items wait in the plan" do
+    stale = finished(["2026-10-31T19:00:00Z"])
+    expect(throughput(stale, [{ status: "planned" }, { status: "started" }]))
+      .to include(value: 0, state: "attention", detail: "last 2026-10-31 19:00:00 UTC; 1 planned")
+  end
+
+  it "stays ok with nothing finished when nothing waits in the plan" do
+    expect(throughput([], [{ status: "started" }])).to include(value: 0, state: "ok", detail: "none finished yet; 0 planned")
+  end
+
+  it "lets a journal that cannot be read raise, so the board shows unknown instead of zero" do
+    trace = ->(_count, _event) { raise Hecks::Adapters::PipelineBoard::Unavailable, "journal: no store" }
+    journal = Hecks::Adapters::PipelineJournal.new(settings: { trace: trace, tap: File.join(dir, "none.jsonl"), ttl: 0 })
+    expect { journal.named("WorkFinished", 200) }.to raise_error(Hecks::Adapters::PipelineBoard::Unavailable, /no store/)
   end
 
   it "counts the day's finished work from the events of that name, not from the recent window" do
