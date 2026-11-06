@@ -9,7 +9,7 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ### Changed
 
-- **Behavior change: the `postgres_era` adapter key is removed (ADR 0182).** The revision layout is the `postgres` adapter with `revisions true` in the hecksagon. A binding of `postgres_era` refuses at boot and names that replacement. Stored data is not moved; the layout is recorded on first boot. The Ruby class is `Hecks::Adapters::PostgresRevision`. See `docs/migrating-7-to-8.md` for the full list of renamed constants and CLI verbs.
+- **Behavior change: the `postgres_era` adapter key is removed (ADR 0182).** The revision layout is the `postgres` adapter with `revisions true` in the hecksagon. A binding of `postgres_era` refuses at boot and names that replacement. Stored data is not moved; a plain `postgres` binding over a database that holds the domain's revisions is refused, and a `revisions true` binding over a table-layout database is refused. The Ruby class is `Hecks::Adapters::PostgresRevision`. See `docs/migrating-7-to-8.md` for the full list of renamed constants and CLI verbs.
 
 ## [7.1.0] - 2026-11-02
 

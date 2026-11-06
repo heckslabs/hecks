@@ -44,6 +44,7 @@ spec/adapters/driven/postgres_era/transform_restore_spec.rb
 spec/adapters/driven/postgres_era/unminted_boot_spec.rb
 spec/adapters/driven/postgres_era_concurrent_dispatch_spec.rb
 spec/adapters/driven/postgres_era_spec.rb
+spec/adapters/driven/postgres_layout_mismatch_spec.rb
 spec/adapters/driven/postgres_spec.rb
 spec/adapters/driven/process_pool_spec.rb
 spec/adapters/driven/push_recorder_spec.rb

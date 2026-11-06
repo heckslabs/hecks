@@ -30,7 +30,9 @@ revisions true
 ```
 
 Boot refuses a binding of `postgres_era` and names this replacement. Stored data is not moved;
-the layout is recorded on first boot and a later mismatch is refused.
+nothing records the layout, but the boot checks it: a plain `postgres` binding over a database that
+holds the domain's revisions is refused, and a `revisions true` binding over a table-layout database
+is refused.
 
 The Ruby class that holds the revision layout is `Hecks::Adapters::PostgresRevision`. If your code
 names the old class `PostgresEra`, change it to `PostgresRevision`.

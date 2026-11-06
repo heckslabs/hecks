@@ -3,6 +3,7 @@ require "json"
 require_relative "sql_query_builder"
 require_relative "postgres/schema_builder"
 require_relative "postgres/name_guard"
+require_relative "postgres/layout_guard"
 require_relative "postgres/codec"
 require_relative "postgres/dialect"
 require_relative "postgres/events"
@@ -31,6 +32,7 @@ module Hecks
       include SqlQueryBuilder
       include SchemaBuilder
       include NameGuard
+      include LayoutGuard
       include Codec
       include Repository
       include Journal
@@ -147,6 +149,7 @@ module Hecks
         # settings gives no domain (e.g. a directly-instantiated adapter).
         @domain = settings.fetch(:domain) { aggregate.storage_name }.to_s
         refuse_orphaned_rows!
+        refuse_revision_database!
         create_tables!
       end
 
