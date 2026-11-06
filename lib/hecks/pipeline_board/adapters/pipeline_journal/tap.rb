@@ -29,6 +29,20 @@ module Hecks
           []
         end
 
+        # Every logged event of the given names, read from the whole file rather than its tail, so an
+        # event that is rarely raised is not pushed out by the traffic after it.
+        #
+        # @param names [Array<String>] bare event names
+        # @return [Array<Hash>] the matching events as board rows, oldest first
+        def named(names)
+          return [] unless File.file?(@path)
+
+          found = File.foreach(@path).select { |line| names.any? { |name| line.include?("\"#{name}\"") } }
+          link(parse(found)).select { |row| names.include?(bare(row[:name])) }
+        rescue SystemCallError
+          []
+        end
+
         private
 
         def parse(lines) = lines.filter_map { |line| decode(line) }
