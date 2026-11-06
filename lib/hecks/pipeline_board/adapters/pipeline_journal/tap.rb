@@ -30,8 +30,8 @@ module Hecks
           []
         end
 
-        # Every logged event of the given names, read from the whole file rather than its tail, so an
-        # event that is rarely raised is not pushed out by the traffic after it.
+        # Every logged event of the given names, read from the whole file rather than its tail, so
+        # an event that is rarely raised is not pushed out by the traffic after it.
         #
         # @param names [Array<String>] bare event names
         # @return [Array<Hash>] the matching events as board rows, oldest first
@@ -42,7 +42,8 @@ module Hecks
 
         private
 
-        # The log's files, oldest first: the rotated generations the runtime's tap keeps, then the live one.
+        # The log's files, oldest first: the rotated generations the runtime's tap keeps, then the
+        # live one.
         def generations
           rotated = (1..Hecks::Runtime::EventTap::KEPT).map { |n| "#{@path}.#{n}" }
           (rotated.reverse + [@path]).select { |file| File.file?(file) }
