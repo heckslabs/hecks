@@ -1,3 +1,5 @@
+require_relative "../layout"
+
 module Hecks
   module Adapters
     class Postgres
