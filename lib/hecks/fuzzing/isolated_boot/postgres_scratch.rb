@@ -115,6 +115,7 @@ module Hecks
         # database exist, or wait out the moment the template database is busy and look again.
         # Creates `schema` in `database` when it is not there yet, and keeps what it holds.
         def ensure_schema!(database, schema)
+          require "pg"
           db = PG.connect(dbname: database)
           db.exec("CREATE SCHEMA IF NOT EXISTS #{db.quote_ident(schema)}")
           db.close
