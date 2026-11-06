@@ -1,0 +1,4 @@
+Hecks.hecksagon "QaSweepAllFixtureTarget" do
+  revisions true
+  QaSweepAllFixtureTarget::Widget.persisted_by("Postgres")
+end

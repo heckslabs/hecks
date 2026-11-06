@@ -15,6 +15,7 @@ module Hecks
         # A `persisted_by` bind naming its adapter as a literal or a local, on one line only:
         # a newline ends the statement, and the next one must stay.
         PERSISTED_BY_BIND = /persisted_by[ \t]*\(?[ \t]*(?:"[^"]+"|[a-z_]\w*)[ \t]*\)?/
+        REVISIONS_SET = /^\s*revisions\s+true\b/
 
         # Replaces every `.world` in the copy with one that declares only `default_adapter`,
         # so an aggregate left unbound by its hecksagon still falls back to `adapter_name`.
@@ -113,6 +114,8 @@ module Hecks
         def rewrite_bindings!(copy, adapter_name)
           Dir.glob(File.join(copy, "**", "*.hecksagon")).each do |path|
             lines = File.readlines(path).grep_v(PROJECTED_BY_BIND)
+            # `revisions` belongs to a Postgres bind only; another adapter would refuse it at boot.
+            lines = lines.grep_v(REVISIONS_SET) unless adapter_name == "Postgres"
             File.write(path, lines.join.gsub(PERSISTED_BY_BIND, "persisted_by(\"#{adapter_name}\")"))
           end
         end
