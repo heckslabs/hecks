@@ -10,6 +10,7 @@ require_relative "git_train/bench"
 require_relative "git_train/local_branch"
 require_relative "git_train/carriage"
 require_relative "git_train/pull_request_boarding"
+require_relative "git_train/pr_queue"
 require_relative "git_train/survey"
 require_relative "git_train/settlement"
 require_relative "git_train/mint_step"
@@ -91,6 +92,18 @@ module Hecks
       # @param held [Hash] the `SendTrain` record: `boarded` (the commit queued) and `checkout`
       # @return [Hash{Symbol => Hash}] `outcome:` `merged` (with `pushed:`) or `open`, and `report:`
       # @raise [ConsoleCapture::Failure] when no boarding is queued, or `gh` cannot read its PR
+      # Queues the pull request of a queued boarding for merge, when GitHub reports it clean.
+      #
+      # @param held [Hash] the `SendTrain` record: `boarded` (the commit queued) and `checkout`
+      # @return [Hash{Symbol => Hash}] `outcome:` `queued` or `refused`, and `report:`
+      # @raise [ConsoleCapture::Failure] when no boarding is queued, or `gh` cannot read its PR
+      def merge_when_clean(**held)
+        boarded = plain(held[:boarded]) or raise ConsoleCapture::Failure, "no queued boarding to queue"
+        checkout = toplevel(plain(held[:checkout]) || Dir.pwd)
+        answer = PrQueue.new(@runner, checkout).answer(boarded)
+        answer.merge(checkout: { value: checkout }, boarded: { value: boarded })
+      end
+
       def observe(**held)
         boarded = plain(held[:boarded]) or raise ConsoleCapture::Failure, "no queued boarding to observe"
         checkout = toplevel(plain(held[:checkout]) || Dir.pwd)

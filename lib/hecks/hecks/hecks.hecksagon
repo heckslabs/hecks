@@ -101,6 +101,12 @@ Hecks.hecksagon "Hecks" do
       answers "ObserveAnswered"
       refuses "ObserveRefused"
     end
+
+    asks "MergeWhenClean", to: SendTrain do
+      attribute :run, RunKey
+      answers "MergeWhenCleanAnswered"
+      refuses "MergeWhenCleanRefused"
+    end
   end
 
   # Where a boarding's outcome is recorded: the boarded checkout's own launcher records it in that

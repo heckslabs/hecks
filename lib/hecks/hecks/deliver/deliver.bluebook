@@ -945,6 +945,17 @@ Hecks.bluebook "Hecks" do
         emits ObserveRequested
       end
 
+      # Queues a queued boarding's pull request to merge, once GitHub reports it clean. Anything
+      # else is refused with the reason, and nothing changes.
+      command "RequestMerge" do
+        role "Operator"
+        goal "Queue a queued boarding's pull request to merge, once its checks have passed"
+
+        reference_to SendTrain
+
+        emits RequestMergeRequested
+      end
+
       command "Fault" do
         role "System"
         goal "Record why a boarding could not push"
@@ -1021,6 +1032,11 @@ Hecks.bluebook "Hecks" do
     policy "ObserveWhenAsked" do
       on      "SendTrain.ObserveRequested"
       ask     :observe, with: { run: :run }
+    end
+
+    policy "RequestMergeWhenAsked" do
+      on      "SendTrain.RequestMergeRequested"
+      ask     :merge_when_clean, with: { run: :run }
     end
 
     policy "RecordTheMerge" do
