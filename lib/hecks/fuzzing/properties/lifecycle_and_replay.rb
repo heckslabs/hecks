@@ -77,7 +77,8 @@ module Hecks
         #
         # @param domain_path [String] the domain directory to boot, such as `"examples/pizzas"`
         # @param steps [Array<Hash>] the step list to replay twice
-        # @param adapter [Symbol] persistence adapter (`:memory`, `:postgres`, or `:postgres_revision`)
+        # @param adapter [Symbol] persistence adapter (`:memory`, `:postgres`, or
+        #   `:postgres_revision`)
         # @return [true, String] true, or a message naming the step count that diverged
         def replay_is_deterministic(domain_path, steps, adapter: :memory)
           first  = Replay.call(domain_path, steps, adapter: adapter)
