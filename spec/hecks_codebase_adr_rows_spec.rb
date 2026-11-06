@@ -38,7 +38,6 @@ RSpec.describe "the Codebase rows of the ADR table" do
     AdrRow.new(script: "regen_codegen_domains", verbs: %w[regenerate_corpus]),
     AdrRow.new(script: "standardize_comments",
                verbs:  %w[report_comments check_comments fix_comments write_comment_baseline check_comments_unchanged]),
-    AdrRow.new(script: "shorten_value_objects", verbs: %w[shorten_value_objects]),
     AdrRow.new(script: "standardize_comments_rust",
                verbs:  %w[report_rust_comments check_rust_comments fix_rust_comments]),
     AdrRow.new(script: "canonicalise", verbs: %w[canonicalise]),
