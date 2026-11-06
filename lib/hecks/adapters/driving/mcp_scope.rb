@@ -41,7 +41,9 @@ module Hecks
         # passes them on only when each resolves, symlinks followed, inside `Storehouse::BOOT_ROOT`,
         # and holds no colon: `host:repo` and `https://host/x` would otherwise pass as relative
         # paths.
-        PATH_ARGUMENTS = %w[checkout destination dir directory domain domains file files fixture paths repo root script].freeze
+        PATH_ARGUMENTS = %w[
+          checkout destination dir directory domain domains file files fixture holding paths repo root script
+        ].freeze
 
         # Argument names whose values are git refs: plain names only, so a value cannot read as an
         # option to git.
@@ -80,9 +82,7 @@ module Hecks
           @allowed_commands = allowed_commands&.dup&.freeze
         end
 
-        def restricted?
-          !@allowed_domains.nil?
-        end
+        def restricted? = !@allowed_domains.nil?
 
         def commands_mode?
           !@allowed_commands.nil?

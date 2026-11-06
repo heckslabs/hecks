@@ -1,0 +1,29 @@
+# A command may name several roles, any one of which may run it: `role "Customer", "Sales Rep"`.
+# A caller holding any of them is let through; one holding none is refused, the roles named.
+Hecks.bluebook "Desk" do
+  vision "A help desk where tickets are opened by a customer or a sales rep and closed by an agent."
+
+  aggregate "Ticket" do
+    description "A support ticket."
+    identified_by :number
+    attribute :number, TicketNumber
+
+    value_object "TicketNumber" do
+      attribute :value, String
+    end
+
+    command "Open" do
+      role "Customer", "Sales Rep"
+      attribute :number, TicketNumber
+      sets :number
+      emits "TicketOpened"
+    end
+
+    command "Close" do
+      role "Agent"
+      attribute :number, TicketNumber
+      sets :number
+      emits "TicketClosed"
+    end
+  end
+end

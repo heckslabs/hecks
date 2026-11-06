@@ -10,7 +10,10 @@ module Hecks
     # bundler checkout of a git revision) sits under `Gem.path`, where every new revision is a new
     # directory, so a build there goes to one shared cache instead: each revision reuses the last
     # one's compiled dependencies, and the output is kept once rather than once per revision.
-    # `CARGO_TARGET_DIR` overrides both.
+    # A linked git worktree shares that same cache: agents keep dozens of worktrees, and a `target/`
+    # in each one multiplied the build output by the worktree count. The main checkout keeps its
+    # own.
+    # `CARGO_TARGET_DIR` overrides all of these.
     module TargetDir
       module_function
 
@@ -19,7 +22,7 @@ module Hecks
       # @return [String] the directory Cargo writes the crate's output to
       def for(crate_dir, root: ROOT)
         ENV.fetch("CARGO_TARGET_DIR") do
-          installed?(root) ? shared(File.basename(crate_dir)) : File.join(crate_dir, "target")
+          installed?(root) || worktree?(root) ? shared(File.basename(crate_dir)) : File.join(crate_dir, "target")
         end
       end
 
@@ -27,6 +30,12 @@ module Hecks
       # @return [Boolean] whether the copy is installed under one of RubyGems' directories
       def installed?(root)
         Gem.path.any? { |dir| File.expand_path(root).start_with?(File.join(File.expand_path(dir), "")) }
+      end
+
+      # @param root [String] a hecks copy's directory
+      # @return [Boolean] whether the copy is a linked git worktree (its `.git` is a file)
+      def worktree?(root)
+        File.file?(File.join(root, ".git"))
       end
 
       # @param name [String] the crate's name

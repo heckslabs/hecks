@@ -172,6 +172,7 @@ Hecks.hecksagon "Hecks" do
 
   Hecks::Workspace.port "Reading" do
     answers_query "Status"
+    answers_query "Strays"
     answers_query "Changes"
     answers_query "History"
   end
@@ -267,6 +268,12 @@ Hecks.hecksagon "Hecks" do
       attribute :run, RunKey
       answers "DiscardAnswered"
       refuses "DiscardRefused"
+    end
+
+    asks "MoveAside", to: Landing do
+      attribute :run, RunKey
+      answers "SetAsideAnswered"
+      refuses "SetAsideRefused"
     end
 
     answers_query "Unlanded"
@@ -549,6 +556,12 @@ Hecks.hecksagon "Hecks" do
     end
 
     asks "BrowserWasm", to: Build do
+      attribute :run, BuildKey
+      answers "BuildAnswered"
+      refuses "BuildRefused"
+    end
+
+    asks "Prune", to: Build do
       attribute :run, BuildKey
       answers "BuildAnswered"
       refuses "BuildRefused"

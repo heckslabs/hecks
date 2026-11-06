@@ -341,6 +341,12 @@ Hecks.behaviors "Custodian" do
     expect refused: "must match"
   end
 
+  test "PruneRust refuses a build that is not named" do
+    tests "PruneRust", on: "Build"
+    input run: { value: "" }
+    expect refused: "must match"
+  end
+
   test "BuildHost refuses a target that is not a triple" do
     tests "BuildHost", on: "Build"
     input domain: { value: "examples/pizzas" }, run: { value: "host" }, target: { value: "arm64" }

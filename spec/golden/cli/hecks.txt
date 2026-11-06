@@ -24,6 +24,7 @@ commands:
     One build of a domain for the Rust host, or a check of that build against Ruby.
     project_rust!                 Generate a domain's Rust source for the Rust host
     build_wasm!                   Compile a domain to a WASI module a runtime such as wasmtime can run
+    prune_rust!                   Free the disk Rust builds hold, in gone worktrees and stale cache
     build_parser!                 Build the hecks-parse binary the bluebook parser specs run, from rust/parser
     build_host!                   Build the Rust host for a domain, with its wasm and IR, ready to copy into an image
     build_browser_wasm!           Compile a domain to an ES module a browser can import
@@ -108,6 +109,7 @@ commands:
     train!                        Hold the front place in the landing line and land every ready branch behind it, in ticket order
     retire!                       Remove a merged worktree and delete its branch, unless it holds uncommitted work or commits main lacks
     discard!                      Remove a worktree and delete its branch even though main lacks its commits, for a stated reason: refused for a protected branch, a worktree in use, or uncommitted work
+    set_aside!                    Move an untracked path, or a clean pushed linked worktree, out of a checkout into a holding directory, never deleting it
   SendTrain:
     One push of a checkout's branch, taken in turn: carried by an earlier push, pushed, or refused.
     board!                        Push this checkout's branch once the push ahead of it lands, unless that push already carried it
@@ -274,6 +276,7 @@ queries (nothing here changes anything):
   Workspace:
     A look at a checkout: its branch, what it changed and what it committed.
     status                  The checkout's branch, whether it is a linked worktree, where it stands against main and origin/main, and what is changed or untracked.
+    strays                  What each untracked or changed path in the checkout is: a stale copy of a file main deleted, a linked worktree sitting inside it (dirty or clean, pushed or not), a tracked file with uncommitted changes, or unknown.
     changes                 What the checkout changed since a ref (main by default): the diffstat, or the paths alone.
     history                 The commits in a range, newest first (the last 20 when none is named).
     settings                What this copy resolves for each setting that can come from a variable, its own world or a default, and which one supplied it. (also: config)
@@ -379,6 +382,6 @@ bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
   expression       The subset of regular Ruby a predicate is allowed to be — small enough that every target can…
 
   hecks <command> --help       what one command wants, and every way it refuses
-  hecks --all                  also list the 296 internal commands and queries
+  hecks --all                  also list the 300 internal commands and queries
   a command is called with its aggregate — Build.project_rust!
   exit status: 0 answered, 1 refused or failed, 2 a line it could not read

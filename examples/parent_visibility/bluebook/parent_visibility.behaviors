@@ -1,0 +1,19 @@
+Hecks.behaviors "Visibility" do
+  vision "Examples of a command comparing its payload against the parent's stored state."
+
+  loads "parent_visibility.bluebook"
+
+  test "a payload name shadows parent state while the command sets the new value" do
+    tests "RaiseReading", on: "Meter"
+    setup "Install", code: "m-1", reading: { value: 10 }
+    input meter: "m-1", reading: { value: 12 }
+    expect reading: 12
+  end
+
+  test "an explicit parent. in a given still reads the stored reading" do
+    tests "RaiseReading", on: "Meter"
+    setup "Install", code: "m-1", reading: { value: 10 }
+    input meter: "m-1", reading: { value: 9 }
+    expect refused: "new reading is higher"
+  end
+end
