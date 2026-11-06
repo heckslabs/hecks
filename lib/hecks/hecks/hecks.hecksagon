@@ -180,6 +180,8 @@ Hecks.hecksagon "Hecks" do
     answers_query "Strays"
     answers_query "Changes"
     answers_query "History"
+    answers_query "Stashes"
+    answers_query "DanglingCommits"
   end
 
   Hecks::Workspace.port "Settings" do
