@@ -148,6 +148,12 @@ RSpec.describe Hecks::Adapters::ClaudeAgents do
       expect(answer[:findings]).to include("Rename the port")
     end
 
+    it "takes the verdict from the Verdict line, not from a word elsewhere in the text" do
+      job("done", "reviewed", { result: "Verdict: rethink\nThe plan is sound in parts, but the ports are wrong." })
+
+      expect(read(agent: { value: "architect" })).to include(verdict: "rethink")
+    end
+
     it "reads the reviewer's judgment off the closed job, and no verdict" do
       job("done", "judged", { result: "One failure is a stale expectation." })
 
