@@ -43,6 +43,16 @@ module Hecks
           @registry.repository("Hecks", aggregate).all.to_h { |run| [field(run, :run).to_s, state(run)] }
         end
 
+        # @return [Hash{String => String}] each agent run's session id with the run's key, for the
+        #   runs that started a session
+        def run_sessions
+          aggregate = find("Hecks", "AgentRun")
+          return {} unless aggregate
+
+          runs = @registry.repository("Hecks", aggregate).all
+          runs.to_h { |run| [field(run, :session).to_s, field(run, :run).to_s] }.reject { |session, _| session.empty? }
+        end
+
         private
 
         def red?(item) = item.key.start_with?(RED) || (item.key == "push-due" && item.title.start_with?(PushSize::URGENT))

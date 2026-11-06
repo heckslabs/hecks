@@ -45,8 +45,7 @@ RSpec.describe "a write that crashes before it commits, on every store", :aggreg
     expect(changed_by_crash(:postgres) & STORE_PARTS).to be_empty
   end
 
-  it "leaves the record, journal and outbox unwritten on Memory",
-     pending: "Memory#transaction only yields, so a crash after save keeps the record and its journal entry" do
+  it "leaves the record, journal and outbox unwritten on Memory" do
     expect(changed_by_crash(:memory) & STORE_PARTS).to be_empty
   end
 

@@ -458,27 +458,33 @@ Hecks.bluebook "Hecks" do
     end
 
     # A job's state becomes an event only when it differs from the state the run last recorded
-    # (`previous`), so a check that finds nothing new records nothing.
+    # (`previous`), so a check that finds nothing new records nothing. Each is a root: a job read
+    # right after a start sits past the reaction cap, and recording what the session is doing begins
+    # its own chain, so a session that is working, or died at once, is never refused at the cap.
     policy "RecordTheWorkingSession" do
       on      "AgentRun.JobRead"
+      root
       where   { state == "working" && previous != state }
       trigger AgentRun::Work, with: { condition: :state, checkout: :checkout }
     end
 
     policy "RecordTheBlockedSession" do
       on      "AgentRun.JobRead"
+      root
       where   { state == "blocked" && previous != state }
       trigger AgentRun::Block, with: { condition: :state, detail: :detail, checkout: :checkout }
     end
 
     policy "RecordTheEndedSession" do
       on      "AgentRun.JobRead"
+      root
       where   { (state == "done" || state == "stopped") && previous != state }
       trigger AgentRun::Finish, with: { condition: :state, detail: :detail, checkout: :checkout }
     end
 
     policy "RecordTheFailedSession" do
       on      "AgentRun.JobRead"
+      root
       where   { state == "failed" && previous != state }
       trigger AgentRun::Fail, with: { condition: :state, detail: :detail, checkout: :checkout }
     end
@@ -595,6 +601,89 @@ Hecks.bluebook "Hecks" do
         on      "PlainSession.RemoveRequested"
         ask     :discard, with: { session: :session }
       end
+    end
+
+    # Clearing away finished sessions in one cleanup. A session is safe to remove when it is not
+    # working or waiting on a person and its own worktree holds nothing `claude rm` would lose; the
+    # port looks (the session list, each worktree's files and commits) and removes with a plain
+    # `claude rm`, never `--discard-unpushed`. The `Removable` query is the same reading with no
+    # removal, so what a cleanup would do is seen first. Removing one session on its own stays with
+    # `AgentRun.Tidy` and `PlainSession.Remove`.
+    aggregate "SessionCleanup" do
+      description "One cleanup of the Claude sessions, run sessions and plain ones: those safe to remove are removed, the others are kept with the reason."
+
+      attribute :run,   CleanupName
+      attribute :confirm, Confirmation, optional: true
+      attribute :report,  Summary, optional: true
+      attribute :refusal, Summary, optional: true
+      identified_by :run
+
+      value_object "CleanupName" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Confirmation", Boolean
+
+      value_object "Summary", String
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "refused"
+        transition "Record"  => "cleaned",   from: "requested"
+        transition "Decline" => "refused", from: "requested"
+        mark :terminal, "cleaned", "refused"
+      end
+
+      command "RemoveSafe" do
+        role "Operator"
+        goal "Remove every session that is safe to remove and report each one kept with the reason; refused without confirm"
+
+        attribute :run,   CleanupName, sets: true
+        attribute :confirm, Confirmation, optional: true, sets: true
+
+        given("the cleanup was confirmed: it removes sessions") { confirm.value == true }
+
+        emits CleanupRequested
+      end
+
+      command "Record" do
+        role "System"
+        goal "Record which sessions the cleanup removed and which it kept"
+
+        reference_to SessionCleanup
+        attribute :report, Summary, sets: true
+
+        emits CleanupRecorded
+      end
+
+      command "Decline" do
+        role "System"
+        goal "Record why the sessions could not be cleaned"
+
+        reference_to SessionCleanup
+        attribute :refusal, Summary, sets: true
+
+        emits CleanupDeclined
+      end
+
+      query "Removable" do
+        description "Every Claude session, run or plain, with whether it is safe to remove and, when not, why: it is working, waits on a person, or its own worktree has uncommitted files or commits origin lacks. Reads only."
+        returns Document
+      end
+    end
+
+    policy "CleanWhenAsked" do
+      on      "SessionCleanup.CleanupRequested"
+      ask     :clean, with: { run: :run }
+    end
+
+    policy "RecordTheCleanup" do
+      on      "SessionCleanup.CleanupReported"
+      trigger SessionCleanup::Record, with: { report: :report }
+    end
+
+    policy "RecordTheDeclinedCleanup" do
+      on      "SessionCleanup.CleanupRefused"
+      trigger SessionCleanup::Decline, with: { refusal: :refusal }
     end
   end
 end

@@ -81,6 +81,7 @@ spec/hecks_deploy_roll_spec.rb
 spec/hecks_deploy_smoke_run_spec.rb
 spec/hecks_journal_survives_spec.rb
 spec/installed_gem_smoke_spec.rb
+spec/kernel_engine_twin_spec.rb
 spec/launcher_text_real_tree_spec.rb
 spec/load_hygiene_lib_1_spec.rb
 spec/load_hygiene_lib_2_spec.rb

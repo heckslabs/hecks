@@ -394,6 +394,18 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  # The Cleaning port lists the Claude sessions, looks in each one's own worktree, and removes the
+  # safe ones with `claude rm`; whether a cleanup may run is the bluebook's.
+  Hecks::SessionCleanup.port "Cleaning" do
+    asks "Clean", to: SessionCleanup do
+      attribute :run, CleanupName
+      answers "CleanupReported"
+      refuses "CleanupRefused"
+    end
+
+    answers_query "Removable"
+  end
+
   Hecks::AgentRun.port "Agents" do
     asks "Locate", to: AgentRun do
       attribute :run, RunKey
