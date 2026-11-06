@@ -12,6 +12,7 @@ Hecks.hecksagon "Hecks" do
   subscribe "Agents.PlanReviewRequested"
   subscribe "Agents.PlanningRequested"
   subscribe "Agents.SubmissionReviewRequested"
+  subscribe "Agents.DispatchAdviceRequested"
   # Persistence is not bound here, so the domain is in Memory. A copy opts in with a
   # hecks.local.hecksagon whose `persisted_by` the attached bluebooks inherit (ADR 0136).
 
@@ -244,6 +245,16 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  # Applying one commit onto a worktree's branch: the git port cherry-picks it and answers the sha, or refuses
+  # with the conflicted files and aborts, so nothing is left half-applied.
+  Hecks::LinkedTree.port "Picking" do
+    asks "Apply", to: LinkedTree do
+      attribute :run, RunKey
+      answers "PickAnswered"
+      refuses "PickRefused"
+    end
+  end
+
   Hecks::Landing.port "Worktrees" do
     asks "Merge", to: Landing do
       attribute :run, RunKey
@@ -351,6 +362,7 @@ Hecks.hecksagon "Hecks" do
     end
 
     answers_query "Status"
+    answers_query "Timeline"
   end
 
   # The outside a filling of the queue reaches: the Work items, the machine's load and the freeze.
@@ -1073,7 +1085,10 @@ Hecks.hecksagon "Agents" do
   # Main is green on a change: the release manager recommends promoting it. A person confirms.
   translates "RecommendPromotionWhenVerified" do
     on Passage::PassageVerified
-    trigger PromotionRecommendation::Recommend, with: { change: :change, reasons: "main is green on this change" }
+    trigger PromotionRecommendation::Recommend,
+            with: { change: :change, reasons: "main is green on this change", role: "release_manager", repo: ".",
+                    brief: "Main is green on this change. Recommend promote, revert or fix forward, with reasons. " \
+                           "Only recommend: the owner confirms any promotion on the board." }
   end
 
   translates "RecordTheArchitectsVerdict" do

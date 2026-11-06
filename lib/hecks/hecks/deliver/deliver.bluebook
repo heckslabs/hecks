@@ -232,6 +232,8 @@ Hecks.bluebook "Hecks" do
       attribute :confirm,  Switch, optional: true
       attribute :onto,     Word,   optional: true
       attribute :resolve,  Resolution, optional: true
+      attribute :base,     Word,   optional: true
+      attribute :commit,   Word,   optional: true
       identified_by :run
 
       value_object "RunKey" do
@@ -260,17 +262,20 @@ Hecks.bluebook "Hecks" do
         transition "PublishDeclined" => "declined", from: "requested"
         transition "Rebased"      => "rebased",   from: "requested"
         transition "RebaseDeclined" => "declined", from: "requested"
-        mark :terminal, "opened", "declined", "pulled", "published", "rebased"
+        transition "Picked"      => "picked",    from: "requested"
+        transition "PickDeclined" => "declined", from: "requested"
+        mark :terminal, "opened", "declined", "pulled", "published", "rebased", "picked"
       end
 
       command "Add" do
         role "Operator"
-        goal "Open a linked worktree on a new branch from main, never on main itself"
+        goal "Open a linked worktree on a new branch from main (or from a base named), never on main itself"
 
         attribute :run,      RunKey, sets: true
         attribute :checkout, Word, optional: true, sets: true
         attribute :branch,   Word, sets: true
         attribute :path,     Word, optional: true, sets: true
+        attribute :base,     Word, default: "main", sets: true
 
         given("a worktree is opened on a branch other than main") do
           branch.value.to_s.strip != "" && branch.value.to_s.strip != "main"
@@ -416,6 +421,43 @@ Hecks.bluebook "Hecks" do
 
         emits BranchRebaseDeclined
       end
+
+      # Applies one commit's change onto a worktree's branch, by the `Picking` port. It never picks onto main,
+      # never forces and never discards uncommitted work. A conflict stops it with nothing changed and names
+      # every conflicted path; it is never resolved silently.
+      command "Pick" do
+        role "Operator"
+        goal "Apply one commit's change onto a worktree's branch, or report the files that conflict and stop with nothing changed"
+
+        attribute :run,    RunKey, sets: true
+        attribute :branch, Word, sets: true
+        attribute :commit, Word, sets: true
+
+        given("picks onto a branch other than main, never main") { branch.value != "main" }
+
+        emits PickRequested
+      end
+
+      command "Picked" do
+        role "System"
+        goal "Record the sha a branch stands on once a commit is picked onto it"
+
+        reference_to LinkedTree
+        attribute :sha,    Word,   sets: true
+        attribute :report, Report, sets: true
+
+        emits CommitPicked
+      end
+
+      command "PickDeclined" do
+        role "System"
+        goal "Record why a commit could not be picked onto a branch"
+
+        reference_to LinkedTree
+        attribute :refusal, Report, sets: true
+
+        emits CommitPickDeclined
+      end
     end
 
     policy "AddWorktreeWhenRequested" do
@@ -436,6 +478,21 @@ Hecks.bluebook "Hecks" do
     policy "RebaseWhenRequested" do
       on      "LinkedTree.RebaseRequested"
       ask     :replay, with: { run: :run }
+    end
+
+    policy "PickWhenRequested" do
+      on      "LinkedTree.PickRequested"
+      ask     :apply, with: { run: :run }
+    end
+
+    policy "RecordThePick" do
+      on      "LinkedTree.PickAnswered"
+      trigger LinkedTree::Picked, with: { sha: :sha, report: :report }
+    end
+
+    policy "DeclineThePick" do
+      on      "LinkedTree.PickRefused"
+      trigger LinkedTree::PickDeclined, with: { refusal: :refusal }
     end
 
     policy "RecordTheRebase" do
@@ -1729,6 +1786,23 @@ Hecks.bluebook "Hecks" do
         description "The state of one pull request on GitHub: its number, state, URL and checks, as text."
         attribute :number, Word
         returns Document
+      end
+
+      # One event on a pull request's timeline: its kind, the login that caused it, and when GitHub recorded it.
+      value_object "TimelineEvent" do
+        attribute :kind,  String
+        attribute :actor, String
+        attribute :at,    String
+      end
+
+      # Read-only. The kinds reported are merged, auto-merge enabled, auto-merge disabled, closed,
+      # reopened and review requested; any other timeline entry is left out. A number that is not a
+      # pull request is refused.
+      query "Timeline" do
+        description "Who merged a pull request, who turned auto-merge on or off, who closed, reopened or was asked to review it, and when: read from its timeline on GitHub, oldest first. Nothing is changed."
+        attribute :number, Word
+        where(kind: { in: "merged,auto_merge_enabled,auto_merge_disabled,closed,reopened,review_requested" })
+        returns list_of(TimelineEvent)
       end
     end
 

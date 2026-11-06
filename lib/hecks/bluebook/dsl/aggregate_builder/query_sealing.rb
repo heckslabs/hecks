@@ -19,8 +19,18 @@ module Hecks
           # must name one of the query's own arguments; else engines disagree or match nothing.
           def seal_query_targets
             query_surfaces.each do |owner, fields, lifecycle, queries|
-              queries.each { |query| seal_query(QueryScope.new(owner, query, fields, lifecycle)) }
+              queries.each { |query| seal_query(query_scope(owner, query, fields, lifecycle)) }
             end
+          end
+
+          # A query that returns a value object is answered by a port, and its where clauses filter
+          # the rows that port returns, so they read that value object's fields. A stored query's
+          # clauses read the owner's own.
+          def query_scope(owner, query, fields, lifecycle)
+            value_object = query.returns && declared_value_object(query.returns_name)
+            return QueryScope.new(owner, query, value_object.attributes, nil, query.returns_name) if value_object
+
+            QueryScope.new(owner, query, fields, lifecycle)
           end
 
           def seal_query(scope)

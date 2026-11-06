@@ -42,7 +42,8 @@ RSpec.describe "AgentRun.Answer through the Agents port" do
 
   # The session as `claude agents` lists it, and its job's state, both in `state`.
   def sessions(state)
-    File.write(File.join(scratch, "sessions.json"), JSON.generate([{ id: "stand-in-session", state: state }]))
+    listed = { id: "stand-in-session", sessionId: "stand-in-session-0000-full", state: state }
+    File.write(File.join(scratch, "sessions.json"), JSON.generate([listed]))
     FileUtils.mkdir_p(File.join(scratch, "jobs", "stand-in-session"))
     File.write(File.join(scratch, "jobs", "stand-in-session", "state.json"), JSON.generate(state: state))
   end
@@ -77,6 +78,7 @@ RSpec.describe "AgentRun.Answer through the Agents port" do
     out = JSON.parse(answer("a-blocked", "use the staging branch"))
 
     expect(out.dig("state", "answered_at")).not_to be_nil
-    expect(File.read(resume_args).split("\n")).to eq(["--bg", "--resume", "stand-in-session", "--", "use the staging branch"])
+    resumed = ["--bg", "--resume", "stand-in-session-0000-full", "--", "use the staging branch"]
+    expect(File.read(resume_args).split("\n")).to eq(resumed)
   end
 end

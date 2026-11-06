@@ -23,6 +23,10 @@ RSpec.describe "a plan review request starting the architect's session" do
     expect(launch("agent_run.running").first.to_s).to include("w-start")
   end
 
+  it "reads the new session without a reaction refused at the depth cap" do
+    expect(request("w-depth", 1)).not_to include("reaction depth")
+  end
+
   def close_job(text)
     state = { state: "done", detail: "reviewed", output: { result: text } }
     File.write(File.join(scratch, "jobs", "stand-in-session", "state.json"), JSON.generate(state))
