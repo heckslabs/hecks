@@ -180,14 +180,17 @@ Hecks.bluebook "PipelineBoard" do
     # A step the page may take. `needs` are the fields it must send, `confirm` is `yes` for a step
     # that moves code or deletes, `program` is what runs it and `argv` is the command, with
     # `{field}` filled from the request. A step runs only when every field it needs is present.
+    # `before` is a launcher command that runs first when it is not empty: an answer first checks
+    # the run, so the run records the state the job is in and the answer's own rule can hold.
     value_object "ActionRule" do
       attribute :action,  String
       attribute :needs,   String
       attribute :confirm, String
       attribute :program, String
       attribute :argv,    String
+      attribute :before,  String, default: ""
 
-      member action: "answer",      needs: "target text",          confirm: "no",  program: "exe/hecks", argv: "AgentRun.answer! to={target} answer.value={text} --wait"
+      member action: "answer",      needs: "target text",          confirm: "no",  program: "exe/hecks", argv: "AgentRun.answer! to={target} answer.value={text} --wait", before: "AgentRun.check! to={target} --wait"
       member action: "reply",       needs: "target text",          confirm: "no",  program: "claude",    argv: "attach {attach}"
       member action: "auto_reply",  needs: "target",               confirm: "no",  program: "exe/hecks", argv: ""
       member action: "board_train", needs: "",                     confirm: "yes", program: "exe/hecks", argv: "SendTrain.board! --confirm"

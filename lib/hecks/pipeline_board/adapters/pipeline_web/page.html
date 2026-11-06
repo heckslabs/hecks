@@ -487,15 +487,16 @@ function openAnswer(list, pickId) {
 // Markdown for the answer dialog, built as DOM nodes (never raw HTML): paragraphs, bullet lists,
 // **bold**, `inline code` and fenced code blocks, which keep their line breaks and monospace type.
 function inlineMd(text) {
-  const nodes = [], re = /(`[^`\n]+`|\*\*[^*\n]+\*\*)/g;
+  const nodes = [], re = /(`[^`\n]+`|\*\*(?:[^*\n]|\*(?!\*))+\*\*)/g;
   let last = 0, m;
   while ((m = re.exec(text))) {
     if (m.index > last) nodes.push(text.slice(last, m.index));
     const t = m[0];
-    nodes.push(t.startsWith("`") ? h("code", {}, t.slice(1, -1)) : h("b", {}, t.slice(2, -2)));
+    nodes.push(t.startsWith("`") ? h("code", {}, t.slice(1, -1)) : h("b", {}, ...inlineMd(t.slice(2, -2))));
     last = re.lastIndex;
   }
-  if (last < text.length) nodes.push(text.slice(last));
+  // A marker left without its pair (a cut-off line) is dropped, not shown.
+  if (last < text.length) nodes.push(text.slice(last).replace(/\*\*|`/g, ""));
   return nodes;
 }
 function markdown(text) {
