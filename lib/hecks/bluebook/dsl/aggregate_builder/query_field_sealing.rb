@@ -4,9 +4,12 @@ module Hecks
       class AggregateBuilder
         # The query being sealed, with the shape it asks about: its owner's label, the owner's
         # attributes and its lifecycle.
-        QueryScope = Struct.new(:owner, :query, :fields, :lifecycle) do
+        QueryScope = Struct.new(:owner, :query, :fields, :lifecycle, :shape) do
           # @return [String] how a refusal names this query: `Owner.QueryName`
           def label = "#{owner}.#{query.hecks_name}"
+
+          # @return [String] the record or value object whose fields the query's clauses read
+          def shape_name = shape || owner
 
           # @return [Symbol, String, nil] the owner's lifecycle state field, or `nil` without one
           def lifecycle_field = lifecycle&.field
@@ -60,7 +63,7 @@ module Hecks
 
           def refuse_undeclared_query_field!(scope, field)
             raise Malformed,
-                  "#{scope.label} asks about #{field}, which #{scope.owner} " \
+                  "#{scope.label} asks about #{field}, which #{scope.shape_name} " \
                   "never declares — a query over a field that does not exist " \
                   "matches nothing and refuses nothing"
           end
