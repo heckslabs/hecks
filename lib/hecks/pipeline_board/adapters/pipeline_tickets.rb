@@ -12,6 +12,8 @@ module Hecks
     class PipelineTickets
       DONE = %w[done dropped].freeze
       WORK_ITEM_LINE = /^(?:WORK ITEM|ROW):\s*(\S+)/
+      # How long the runs read stays good: the jobs reader asks for them once per session.
+      RUNS_TTL = 20
       EMPTY = "the Tickets store holds no Work items here (Memory); run the board from the main checkout"
 
       # @param registry [Runtime::Registry, nil] the booted registry whose work items are read
@@ -36,7 +38,21 @@ module Hecks
       # @return [Hash{String => Hash}] each AgentRun's session id with its `work_item` (named on the
       #   first line of its brief) and `status`
       def runs
-        records_of("Hecks", "AgentRun").to_h { |run| [field(run, :session).to_s, run_item(run)] }
+        return @runs_held[:value] if @runs_held && Time.now - @runs_held[:at] < RUNS_TTL
+
+        @runs_held = { at: Time.now, value: run_records.to_h { |run| [field(run, :session).to_s, run_item(run)] } }
+        @runs_held[:value]
+      end
+
+      # The AgentRun records: the launcher's running and finished runs when the board is told where
+      # the live store is, else the booted registry's.
+      def run_records
+        root = ENV.fetch("PIPELINE_BOARD_LAUNCHER_ROOT", "")
+        return records_of("Hecks", "AgentRun") if root.empty?
+
+        %w[AgentRun.running AgentRun.tidyable].flat_map do |query|
+          PipelineBoard::Probe.json("exe/hecks", query, chdir: root).map { |row| row.transform_keys(&:to_sym) }
+        end
       end
 
       # @return [Array<String>] the branches the Landing records say were merged onto main, with any
