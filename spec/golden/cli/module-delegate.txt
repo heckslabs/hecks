@@ -9,7 +9,7 @@ commands:
     dispatch!   Hand one brief to a background Claude session working in a directory
     check!      Read the state a started session's job is in, and record it when it changed
     tidy!       Remove the finished session of one run, unless it is still working, waiting on a person, or taken over
-    answer!     Answer the question a blocked session is waiting on by resuming it with the answer
+    answer!     Answer a session that is working or blocked by resuming it with the answer
   SessionSweep:
     One check of every started run's session: each change of state is recorded on its run.
     check_all!  Check every run whose session was started and is not known to have ended (also: agent_run.check_all!)
