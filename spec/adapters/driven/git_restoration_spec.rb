@@ -4,8 +4,8 @@ require "spec_helper"
 require "tmpdir"
 require "hecks/hecks/adapters/git_restoration"
 
-# Putting back the changed files that already match origin/main, and only those. The repository is a
-# real one in a temporary directory; its `origin/main` is a commit the working files are compared to.
+# Putting back the changed files that already match origin/main, and only those. The repository is
+# a real one in a temporary directory; its `origin/main` is a commit the files are compared to.
 RSpec.describe Hecks::Adapters::GitRestoration do
   let(:dir) { File.realpath(Dir.mktmpdir("restoration")) }
   let(:adapter) { described_class.new }
