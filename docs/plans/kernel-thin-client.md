@@ -133,6 +133,19 @@ deciding whether 2 is needed.
 **D. Where the Ruby `Event` comes from.** Rebuild `Runtime::Event` from the answer's JSON (recommended:
 the logs and subscribers stay Ruby), or hand callers the Hash. The first keeps subscribers working.
 
+## Decisions (owner said "your call" on 2026-11-05; my recommendations taken)
+
+- **A.** Nested dispatch: adapters that only read return data and the kernel dispatches the follow-up;
+  those that dispatch (`row_sweeper`) get one nested step while a callback is open. Until slice 6
+  lands, the client refuses a nested dispatch by name.
+- **B.** Persistence: Memory only through the kernel now; other domains stay on the Ruby engine.
+  Kernel-held state with a Ruby-written journal is the design to carry into ADR 0188 step 6.
+- **C.** One child process per Ruby process. Slice 2 measures boot cost before a daemon is considered.
+- **D.** Rebuild `Runtime::Event` objects from the answer so logs and subscribers stay Ruby.
+
+These are my choices taken on the owner's "your call", not yet in an ADR. Slices 6 and 7 still need
+their ADR before implementation.
+
 ## Risks
 
 - **Slice 1 is a proof, not the product.** It uses a feature-built binary and pizzas alone, so it
