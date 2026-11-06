@@ -3,6 +3,7 @@
 require "json"
 require "time"
 require_relative "probe"
+require_relative "rules"
 require_relative "pipeline_github"
 require_relative "pipeline_git"
 require_relative "pipeline_tickets"
@@ -66,6 +67,7 @@ module Hecks
       end
 
       def wire(readers, registry)
+        PipelineBoard::Rules.use(registry)
         @limits = read_limits(registry)
         @roles = PipelineBoard::AgentRoles.declared(registry)
         @disk = readers.fetch(:disk) { PipelineDisk.new(root: @root) }

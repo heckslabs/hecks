@@ -2,6 +2,7 @@
 
 require_relative "git_worktrees"
 require_relative "git_main_pull"
+require_relative "git_landing/sheltering"
 require_relative "git_landing/merger"
 require_relative "git_landing/tidy"
 require_relative "git_landing/rivals"
@@ -21,6 +22,7 @@ module Hecks
       include GitWorktrees
       include GitMainPull
       include Flagged
+      include Sheltering
 
       # Accepts the arguments every driven adapter is built with; only the registry and the
       # overrides are kept.
@@ -65,8 +67,7 @@ module Hecks
       def convene(**held)
         settle(held)
         onto = plain(held[:onto]) || "main"
-        land = ->(checkout, branch, target) { land_for(checkout, branch, target) }
-        said = lineup.convoy(@git, @checkout, onto: onto, land: land)
+        said = lineup.convoy(@git, @checkout, onto: onto, land: method(:land_for))
         { outcome: { value: "trained" }, checkout: { value: primary.path }, branch: { value: "train" }, report: { value: said } }
       end
 
@@ -189,7 +190,7 @@ module Hecks
       def refuse_unsaved(branch)
         tree = worktree_on(branch)
         changed = tree ? dirty(tree.path) : []
-        raise ConsoleCapture::Failure, "#{tree.path} holds uncommitted work: #{changed.join(", ")}" unless changed.empty?
+        raise ConsoleCapture::Failure, unsaved_refusal(tree.path, changed) unless changed.empty?
       end
 
       def branches = read("for-each-ref", "--format=%(refname:short)", "refs/heads").split("\n")
