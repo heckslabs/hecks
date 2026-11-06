@@ -32,4 +32,9 @@ Hecks.context_map "Hecks" do
   relate "Hecks" => "QualityControl", as: :anti_corruption_layer
   # Hecks attaches QualityControl as well, so the pair also shares a kernel, which has no direction.
   relate "QualityControl" => "Hecks", as: :shared_kernel
+
+  # Pipeline's hecksagon translates Delegate's `SessionFinished` into its own `Review`, so the run's
+  # model stays out of the Passage; Pipeline is attached as well, so the pair also shares a kernel.
+  relate "Hecks" => "Pipeline", as: :anti_corruption_layer
+  relate "Pipeline" => "Hecks", as: :shared_kernel
 end

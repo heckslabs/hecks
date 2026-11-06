@@ -7,9 +7,9 @@
 #   Tickets   Work.WorkPlanned        -> Plan      (planned)
 #   Tickets   Work.WorkReopened       -> Plan      (planned), a finished or dropped item planned again
 #   Tickets   Work.WorkStarted        -> Dispatch  (dispatched), again for a Work item started again
-#   Pipeline  Passage.PassagePlanned  -> AgentRun.Dispatch (the architect reviews the plan)
+#   Pipeline  Passage.PassagePlanned  carries the architect's brief (title, detail, area); no run starts yet
 #   Hecks     AgentRun.SessionFinished -> Review   (the architect's report; the stage is unchanged)
-#             Both seams are `translates` in hecks.hecksagon, where Pipeline and Delegate meet.
+#             The seam is a `translates` in hecks.hecksagon, where Pipeline and Delegate meet.
 #   Hecks     Landing.LandedWorkFound -> Land      (landed)
 #   Hecks     Integration.MainPushed  -> Push      (pushed), every landed passage at once
 #   Hecks     RedFlag.RedFlagRaised   -> Hold      (held), every pushed passage
@@ -41,6 +41,7 @@ Hecks.bluebook "Pipeline" do
     attribute :flag,    Word,     optional: true
     attribute :stalled, Reason,   optional: true
     attribute :verdict, Report,   optional: true
+    attribute :brief,   Detail,   optional: true
 
     # The Work item's key, which the branch that lands it is named after.
     value_object "ChangeKey" do
@@ -55,6 +56,11 @@ Hecks.bluebook "Pipeline" do
     # A session id, a commit, or a red flag's id.
     value_object "Word" do
       attribute :value, String, matches: :present
+    end
+
+    # Free text from the Work item or the brief built from it.
+    value_object "Detail" do
+      attribute :value, String, default: ""
     end
 
     # What the architect reported about the plan, as the session wrote it.
@@ -84,6 +90,11 @@ Hecks.bluebook "Pipeline" do
 
       attribute :change, ChangeKey, sets: true
       attribute :title,  Title, optional: true, sets: true
+      attribute :detail, Detail, optional: true
+      attribute :area,   list_of(Word), optional: true
+
+      # What the architect is asked, built from the item's title, detail and area.
+      sets :brief, to: "Review the plan for {change}: {title}. {detail} Area: {area}"
 
       emits PassagePlanned
     end
@@ -228,12 +239,12 @@ Hecks.bluebook "Pipeline" do
 
   policy "PlanWhenWorkPlanned" do
     on      "Work.WorkPlanned"
-    trigger Passage::Plan, with: { change: :work, title: :title }
+    trigger Passage::Plan, with: { change: :work, title: :title, detail: :detail, area: :area }
   end
 
   policy "PlanWhenWorkReopened" do
     on      "Work.WorkReopened"
-    trigger Passage::Plan, with: { change: :work, title: :title }
+    trigger Passage::Plan, with: { change: :work, title: :title, detail: :detail, area: :area }
   end
 
   policy "DispatchWhenWorkStarted" do
