@@ -99,5 +99,17 @@ RSpec.describe Hecks::Adapters::PipelineWiring do
     it "has no external URL in the sequence page" do
       expect(File.read(Hecks::Adapters::PipelineWeb::SEQUENCE_PAGE)).not_to match(%r{https?://|//cdn|@import})
     end
+
+    it "serves the agents' page at /agents" do
+      expect(fetch("/agents").body).to include("Pipeline Agents")
+    end
+
+    it "has no external URL in the agents' page" do
+      expect(File.read(Hecks::Adapters::PipelineWeb::AGENTS_PAGE)).not_to match(%r{https?://|//cdn|@import})
+    end
+
+    it "links the board's Agents strip to the agents' page" do
+      expect(File.read(Hecks::Adapters::PipelineWeb::PAGE)).to include('href="/agents"')
+    end
   end
 end

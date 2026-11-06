@@ -1,0 +1,534 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pipeline Agents</title>
+<style>
+/* The Agents page: one map of who hands work to whom, one card per role, the handoffs heard, and the ask forms. */
+:root {
+  color-scheme: light;
+  --page: #f6f7f8; --surface: #fdfdfd; --ink: #0d1116; --ink2: #4d5560; --muted: #868d96;
+  --grid: #e3e6ea; --axis: #c4c9d0; --border: rgba(13,17,22,.10);
+  --signal: #2a78d6; --signal-soft: rgba(42,120,214,.14);
+  --you: #b37a00; --you-soft: rgba(250,178,25,.16);
+  --good: #0a8f0a; --serious: #c45a30; --critical: #d03b3b;
+  --body: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0b0d10; --surface: #14171b; --ink: #eef0f2; --ink2: #b9c0c8; --muted: #7d858f;
+    --grid: #22272d; --axis: #343a42; --border: rgba(255,255,255,.09);
+    --signal: #4b9bf0; --signal-soft: rgba(75,155,240,.16);
+    --you: #f4b42a; --you-soft: rgba(244,180,42,.14);
+    --good: #2bbf4b; --serious: #ec835a; --critical: #ef5a5a;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0b0d10; --surface: #14171b; --ink: #eef0f2; --ink2: #b9c0c8; --muted: #7d858f;
+  --grid: #22272d; --axis: #343a42; --border: rgba(255,255,255,.09);
+  --signal: #4b9bf0; --signal-soft: rgba(75,155,240,.16);
+  --you: #f4b42a; --you-soft: rgba(244,180,42,.14);
+  --good: #2bbf4b; --serious: #ec835a; --critical: #ef5a5a;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--ink); font: 14px/1.5 var(--body); }
+main { max-width: 1280px; margin: 0 auto; padding: 16px; display: grid; gap: 16px; }
+header.top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 18px; }
+h1 { font-size: 20px; font-weight: 600; margin: 0; }
+h2 { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ink2); margin: 0; }
+a { color: var(--signal); }
+.meta { margin-left: auto; display: flex; gap: 12px; font-size: 12px; color: var(--ink2); }
+.note { color: var(--muted); font-size: 12px; }
+.totals { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--ink2); }
+.totals b { font-family: var(--mono); color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+.totals .live b { color: var(--signal); } .totals .you b { color: var(--you); }
+
+.map { position: relative; margin: 0; border: 1px solid var(--axis); border-radius: 12px; overflow-x: auto;
+  background: radial-gradient(circle at 1px 1px, var(--grid) 1px, transparent 1.2px) 0 0 / 20px 20px, var(--page); }
+.map svg { display: block; width: 100%; min-width: 900px; height: auto; color: var(--ink); }
+.chipbtn { font: 500 12px var(--body); color: var(--ink2); background: var(--surface); border: 1px solid var(--axis); border-radius: 999px; padding: 2px 10px; cursor: pointer; }
+.chipbtn[aria-pressed="true"] { color: var(--ink); border-color: var(--signal); }
+button:focus-visible, .node:focus-visible, .card:focus-visible, textarea:focus-visible, select:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
+
+.bar rect { fill: var(--surface); stroke: var(--axis); }
+.bar.you rect { fill: var(--you-soft); stroke: var(--you); }
+.bar text { font: 600 12px var(--body); fill: var(--ink); }
+.bar text.sub { font: 400 11px var(--body); fill: var(--ink2); }
+.node { cursor: pointer; }
+.node rect.box { fill: var(--surface); stroke: var(--axis); }
+.node.busy rect.box { stroke: var(--signal); stroke-width: 1.5; }
+.node rect.code { fill: var(--grid); }
+.node.busy rect.code { fill: var(--signal); }
+.node text.code { font: 600 12px var(--mono); fill: var(--ink2); }
+.node.busy text.code { fill: #fff; }
+.node text.name { font: 600 13px var(--body); fill: var(--ink); }
+.node text.stat { font: 400 11px var(--mono); fill: var(--ink2); }
+.node.busy text.stat { fill: var(--signal); }
+.node.blocked rect.box { stroke: var(--you); } .node.blocked text.stat { fill: var(--you); }
+.node .ring { fill: none; stroke: var(--signal); stroke-width: 1.5; opacity: 0; }
+.node.busy .ring { animation: ring 2.4s ease-out infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes ring { 0% { opacity: .55; transform: scale(1); } 100% { opacity: 0; transform: scale(1.18, 1.5); } }
+.edge path.line { fill: none; stroke: var(--axis); stroke-width: 1.5; }
+.edge.asks path.line { stroke: var(--you); }
+.edge.informs path.line { stroke-dasharray: 3 4; }
+.edge.hot path.line { stroke: var(--signal); stroke-width: 2; }
+.edge.asks.hot path.line { stroke: var(--you); }
+.edge path.flow { fill: none; stroke: var(--signal); stroke-width: 2.5; stroke-dasharray: 2 14; stroke-linecap: round; opacity: 0; }
+.edge.hot path.flow { opacity: 1; animation: flow 1.1s linear infinite; }
+.edge.asks.hot path.flow { stroke: var(--you); }
+@keyframes flow { to { stroke-dashoffset: -16; } }
+.edge text { font: 500 11px var(--mono); fill: var(--ink2); paint-order: stroke; stroke: var(--page); stroke-width: 4px; stroke-linejoin: round; }
+.edge.hot text { fill: var(--signal); } .edge.asks text { fill: var(--you); }
+.edge .hit { fill: none; stroke: transparent; stroke-width: 14; cursor: help; }
+.arrow-ink { fill: var(--axis); } .arrow-you { fill: var(--you); }
+svg.focusing .edge, svg.focusing .node { opacity: .18; transition: opacity .2s; }
+svg.focusing .edge.lit, svg.focusing .node.lit { opacity: 1; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 12px; color: var(--ink2); padding: 10px 14px; border-top: 1px solid var(--border); background: var(--surface); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { display: inline-block; width: 22px; border-top: 2px solid var(--axis); }
+.legend i.hot { border-color: var(--signal); } .legend i.you { border-color: var(--you); } .legend i.dash { border-top-style: dashed; }
+
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; align-items: start; }
+.card { border: 1px solid var(--border); border-radius: 10px; background: var(--surface); padding: 12px 14px; display: grid; gap: 10px; align-content: start; }
+.card.busy { border-color: color-mix(in srgb, var(--signal) 55%, var(--border)); box-shadow: 0 0 0 3px var(--signal-soft); }
+.card.lit { border-color: var(--signal); }
+.card header { display: flex; align-items: center; gap: 10px; }
+.card .code { font: 600 12px var(--mono); width: 34px; height: 34px; display: grid; place-items: center; border-radius: 8px; background: var(--grid); color: var(--ink2); flex: none; }
+.card.busy .code { background: var(--signal); color: #fff; }
+.card .title { font-weight: 600; } .card .sub { font-size: 12px; color: var(--ink2); }
+.pill { margin-left: auto; font: 600 11px var(--mono); border-radius: 999px; padding: 2px 8px; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; color: var(--ink2); border: 1px solid var(--axis); }
+.pill.busy { color: var(--signal); border-color: var(--signal); background: var(--signal-soft); }
+.pill.blocked { color: var(--you); border-color: var(--you); background: var(--you-soft); }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.pill.busy .dot { animation: blink 1.6s ease-in-out infinite; }
+@keyframes blink { 50% { opacity: .25; } }
+.io { display: grid; grid-template-columns: 44px 1fr; gap: 4px 8px; font-size: 11px; align-items: baseline; }
+.io .k { color: var(--muted); text-transform: uppercase; letter-spacing: .05em; font-size: 10px; }
+.io .v { display: flex; flex-wrap: wrap; gap: 4px; }
+.ev { font: 500 11px var(--mono); padding: 1px 6px; border-radius: 4px; background: var(--page); border: 1px solid var(--border); color: var(--ink2); }
+.ev.you { color: var(--you); border-color: color-mix(in srgb, var(--you) 45%, transparent); }
+.list { display: grid; gap: 6px; }
+.list h3 { margin: 0; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.sess { display: grid; gap: 3px; font-size: 12px; }
+.sess .n { font-family: var(--mono); overflow-wrap: anywhere; }
+.sess .d { color: var(--ink2); overflow-wrap: anywhere; }
+.sess .n, .sess .d { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.sess.blocked .n { color: var(--you); }
+.track { height: 3px; border-radius: 2px; background: var(--grid); overflow: hidden; }
+.track > div { height: 100%; width: 40%; background: linear-gradient(90deg, transparent, var(--signal), transparent); animation: scan 1.8s ease-in-out infinite; }
+.sess.blocked .track > div { width: 100%; animation: none; background: var(--you); opacity: .6; }
+@keyframes scan { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+.done { display: flex; gap: 6px; font-size: 12px; color: var(--ink2); overflow-wrap: anywhere; }
+.done::before { content: "\2713"; color: var(--good); font-weight: 600; }
+.more { font-size: 12px; }
+.idle { font-size: 12px; color: var(--muted); font-style: italic; }
+
+.two { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 900px) { .two { grid-template-columns: 1fr; } }
+.block { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; background: var(--surface); display: grid; gap: 8px; align-content: start; }
+.block > header { display: flex; align-items: center; gap: 8px; }
+.wire { display: grid; max-height: 520px; overflow: auto; }
+.hop { display: grid; grid-template-columns: 62px 1fr auto; gap: 10px; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--grid); font-size: 12px; }
+.hop:last-child { border-bottom: 0; }
+.hop.fresh { animation: fresh 2.4s ease-out; }
+@keyframes fresh { from { background: var(--signal-soft); } to { background: transparent; } }
+.hop time { font-family: var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.route { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; }
+.tag { font: 600 11px var(--mono); padding: 1px 6px; border-radius: 4px; background: var(--grid); color: var(--ink2); }
+.tag.you { background: var(--you-soft); color: var(--you); }
+.route .arr { color: var(--muted); }
+.route .what { color: var(--ink2); overflow-wrap: anywhere; }
+.hop .evn { font: 500 11px var(--mono); color: var(--ink2); }
+.ask { display: grid; gap: 6px; }
+.ask label { font-size: 12px; font-weight: 600; }
+.ask textarea, .ask select { font: inherit; color: var(--ink); background: var(--page); border: 1px solid var(--axis); border-radius: 6px; padding: 6px 8px; resize: vertical; width: 100%; }
+.ask .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.send { font: 600 12px var(--body); color: #fff; background: var(--signal); border: 0; border-radius: 6px; padding: 5px 12px; cursor: pointer; }
+.send:disabled { opacity: .5; }
+.verdicts { display: grid; gap: 8px; }
+.verdict { display: grid; grid-template-columns: auto 1fr; gap: 4px 8px; align-items: baseline; font-size: 12px; }
+.vchip { font: 600 11px var(--mono); border-radius: 999px; padding: 1px 8px; border: 1px solid; white-space: nowrap; }
+.vchip.sound { color: var(--good); } .vchip.changes { color: var(--signal); } .vchip.rethink { color: var(--serious); }
+.vchip.waiting { color: var(--muted); border-style: dashed; }
+.verdict .w { font-family: var(--mono); overflow-wrap: anywhere; }
+.verdict details { grid-column: 2; color: var(--ink2); }
+.verdict summary { cursor: pointer; overflow-wrap: anywhere; }
+.verdict .full { white-space: pre-wrap; margin-top: 4px; padding: 6px 8px; background: var(--page); border-radius: 6px; overflow-wrap: anywhere; }
+.unknown { color: var(--ink2); font-style: italic; }
+.tip { position: fixed; pointer-events: none; z-index: 9; background: var(--ink); color: var(--surface); font-size: 12px; padding: 6px 9px; border-radius: 6px; max-width: 320px; white-space: pre-line; display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .node.busy .ring, .edge.hot path.flow, .pill.busy .dot, .track > div, .hop.fresh { animation: none; }
+  .track > div { width: 100%; opacity: .5; background: var(--signal); }
+}
+</style>
+</head>
+<body>
+<main>
+  <header class="top">
+    <h1>Agents</h1>
+    <a href="/">← Pipeline Board</a>
+    <div class="meta"><span id="updated">loading</span><span id="live">stream: connecting</span></div>
+  </header>
+  <div class="totals" id="totals"></div>
+
+  <figure class="map">
+    <svg id="comms" viewBox="0 0 1280 510" role="img" aria-label="How the roles hand work on. You ask the planner and the architect. The planner gives the orchestrator Work items. The orchestrator routes work to coders, or asks you when two items conflict. A coder's submission asks the reviewer, and a real bug goes to you. Landed work goes to the pipeline. A verified passage makes the release manager recommend promotion, and you settle it.">
+      <defs>
+        <marker id="a-ink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" class="arrow-ink"/></marker>
+        <marker id="a-you" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" class="arrow-you"/></marker>
+      </defs>
+      <g class="bar you"><rect x="20" y="20" width="1240" height="52" rx="10"/>
+        <text x="40" y="43">You</text><text class="sub" x="40" y="60">the owner: answers, settles, decides</text></g>
+      <g class="bar"><rect x="20" y="440" width="1240" height="50" rx="10"/>
+        <text x="40" y="462">Pipeline</text><text class="sub" x="40" y="479">local main → origin → verified → released</text></g>
+
+      <g class="edge" data-edge="you-planner" data-ends="you planner" data-tip="You → Planner&#10;PlanningRequested&#10;You give the planner a goal; it drafts Work items and asks before creating them.">
+        <path class="line" d="M110 72 V264" marker-end="url(#a-ink)"/><path class="flow" d="M110 72 V264"/><path class="hit" d="M110 72 V264"/>
+        <text x="118" y="170">PlanningRequested</text></g>
+      <g class="edge" data-edge="planner-orchestrator" data-ends="planner orchestrator" data-tip="Planner → Orchestrator&#10;WorkChecked&#10;Each new Work item is checked for conflicts before it is routed.">
+        <path class="line" d="M190 300 H262" marker-end="url(#a-ink)"/><path class="flow" d="M190 300 H262"/><path class="hit" d="M190 300 H262"/>
+        <text x="226" y="290" text-anchor="middle">Work</text></g>
+      <g class="edge" data-edge="orchestrator-coder" data-ends="orchestrator coder" data-tip="Orchestrator → Coder&#10;WorkRouted · policy RouteWhenNoConflict&#10;No conflict: a coder session is dispatched.">
+        <path class="line" d="M425 300 H557" marker-end="url(#a-ink)"/><path class="flow" d="M425 300 H557"/><path class="hit" d="M425 300 H557"/>
+        <text x="491" y="290" text-anchor="middle">WorkRouted</text></g>
+      <g class="edge asks" data-edge="orchestrator-you" data-ends="orchestrator you" data-tip="Orchestrator → You&#10;DispatchAdviceRequested · policy AskAdviceWhenConflict&#10;Two Work items touch the same files; you choose the order.">
+        <path class="line" d="M345 264 V75" marker-end="url(#a-you)"/><path class="flow" d="M345 264 V75"/><path class="hit" d="M345 264 V75"/>
+        <text x="353" y="244">DispatchAdviceRequested</text></g>
+      <g class="edge" data-edge="you-architect" data-ends="you architect" data-tip="You → Architect&#10;PlanReviewRequested&#10;You ask for a review of the plan for one Work item.">
+        <path class="line" d="M490 72 V139" marker-end="url(#a-ink)"/><path class="flow" d="M490 72 V139"/><path class="hit" d="M490 72 V139"/>
+        <text x="482" y="110" text-anchor="end">PlanReviewRequested</text></g>
+      <g class="edge asks" data-edge="architect-you" data-ends="architect you" data-tip="Architect → You&#10;PlanReviewed&#10;Verdict: sound, sound with changes, or rethink.">
+        <path class="line" d="M520 139 V75" marker-end="url(#a-you)"/><path class="flow" d="M520 139 V75"/><path class="hit" d="M520 139 V75"/>
+        <text x="528" y="110">PlanReviewed</text></g>
+      <g class="edge informs" data-edge="architect-coder" data-ends="architect coder" data-tip="Architect ⇢ Coder&#10;No event: the verdict is kept on the Work item the coder then builds.">
+        <path class="line" d="M560 208 L612 264" marker-end="url(#a-ink)"/><path class="hit" d="M560 208 L612 264"/>
+        <text x="596" y="232">verdict on the item</text></g>
+      <g class="edge" data-edge="coder-reviewer" data-ends="coder reviewer" data-tip="Coder → Reviewer&#10;WorkSubmitted → SubmissionReviewRequested&#10;policy AskTheReviewerWhenWorkIsSubmitted">
+        <path class="line" d="M720 300 H817" marker-end="url(#a-ink)"/><path class="flow" d="M720 300 H817"/><path class="hit" d="M720 300 H817"/>
+        <text x="768" y="290" text-anchor="middle">WorkSubmitted</text></g>
+      <g class="edge asks" data-edge="reviewer-you" data-ends="reviewer you" data-tip="Reviewer → You&#10;HandedToPerson · policy RealBugGoesToAPerson&#10;A spec failure judged a real bug comes to you.">
+        <path class="line" d="M900 264 V75" marker-end="url(#a-you)"/><path class="flow" d="M900 264 V75"/><path class="hit" d="M900 264 V75"/>
+        <text x="908" y="200">HandedToPerson</text></g>
+      <g class="edge" data-edge="coder-pipeline" data-ends="coder pipeline" data-tip="Coder → Pipeline&#10;PassageLanded&#10;Finished work lands on local main; the coordinator pushes it.">
+        <path class="line" d="M640 336 V437" marker-end="url(#a-ink)"/><path class="flow" d="M640 336 V437"/><path class="hit" d="M640 336 V437"/>
+        <text x="648" y="392">PassageLanded</text></g>
+      <g class="edge" data-edge="pipeline-release_manager" data-ends="pipeline release_manager" data-tip="Pipeline → Release manager&#10;PassageVerified · policy RecommendPromotionWhenVerified">
+        <path class="line" d="M1115 440 V339" marker-end="url(#a-ink)"/><path class="flow" d="M1115 440 V339"/><path class="hit" d="M1115 440 V339"/>
+        <text x="1107" y="392" text-anchor="end">PassageVerified</text></g>
+      <g class="edge asks" data-edge="release_manager-you" data-ends="release_manager you" data-tip="Release manager → You&#10;PromotionRecommended&#10;A verified change it thinks is ready to promote.">
+        <path class="line" d="M1110 264 V75" marker-end="url(#a-you)"/><path class="flow" d="M1110 264 V75"/><path class="hit" d="M1110 264 V75"/>
+        <text x="1102" y="130" text-anchor="end">PromotionRecommended</text></g>
+      <g class="edge" data-edge="you-release_manager" data-ends="you release_manager" data-tip="You → Release manager&#10;PromotionSettled&#10;You promote it, or leave it. Releases stay your call.">
+        <path class="line" d="M1150 72 V264" marker-end="url(#a-ink)"/><path class="flow" d="M1150 72 V264"/><path class="hit" d="M1150 72 V264"/>
+        <text x="1158" y="170">PromotionSettled</text></g>
+
+      <g class="node" data-role="planner" tabindex="0">
+        <rect class="ring" x="30" y="267" width="160" height="66" rx="10"/><rect class="box" x="30" y="267" width="160" height="66" rx="10"/>
+        <rect class="code" x="42" y="283" width="34" height="34" rx="7"/><text class="code" x="59" y="304" text-anchor="middle">PL</text>
+        <text class="name" x="86" y="296">Planner</text><text class="stat" x="86" y="314"></text></g>
+      <g class="node" data-role="orchestrator" tabindex="0">
+        <rect class="ring" x="265" y="267" width="160" height="66" rx="10"/><rect class="box" x="265" y="267" width="160" height="66" rx="10"/>
+        <rect class="code" x="277" y="283" width="34" height="34" rx="7"/><text class="code" x="294" y="304" text-anchor="middle">OR</text>
+        <text class="name" x="321" y="296">Orchestrator</text><text class="stat" x="321" y="314"></text></g>
+      <g class="node" data-role="architect" tabindex="0">
+        <rect class="ring" x="420" y="142" width="160" height="66" rx="10"/><rect class="box" x="420" y="142" width="160" height="66" rx="10"/>
+        <rect class="code" x="432" y="158" width="34" height="34" rx="7"/><text class="code" x="449" y="179" text-anchor="middle">AR</text>
+        <text class="name" x="476" y="171">Architect</text><text class="stat" x="476" y="189"></text></g>
+      <g class="node" data-role="coder" tabindex="0">
+        <rect class="ring" x="560" y="267" width="160" height="66" rx="10"/><rect class="box" x="560" y="267" width="160" height="66" rx="10"/>
+        <rect class="code" x="572" y="283" width="34" height="34" rx="7"/><text class="code" x="589" y="304" text-anchor="middle">CO</text>
+        <text class="name" x="616" y="296">Coder</text><text class="stat" x="616" y="314"></text></g>
+      <g class="node" data-role="reviewer" tabindex="0">
+        <rect class="ring" x="820" y="267" width="160" height="66" rx="10"/><rect class="box" x="820" y="267" width="160" height="66" rx="10"/>
+        <rect class="code" x="832" y="283" width="34" height="34" rx="7"/><text class="code" x="849" y="304" text-anchor="middle">RV</text>
+        <text class="name" x="876" y="296">Reviewer</text><text class="stat" x="876" y="314"></text></g>
+      <g class="node" data-role="release_manager" tabindex="0">
+        <rect class="ring" x="1050" y="267" width="180" height="66" rx="10"/><rect class="box" x="1050" y="267" width="180" height="66" rx="10"/>
+        <rect class="code" x="1062" y="283" width="34" height="34" rx="7"/><text class="code" x="1079" y="304" text-anchor="middle">RM</text>
+        <text class="name" x="1106" y="296">Release manager</text><text class="stat" x="1106" y="314"></text></g>
+    </svg>
+    <figcaption class="legend">
+      <span><i></i>event between roles</span>
+      <span><i class="hot"></i>fired in the last 30 min, moving</span>
+      <span><i class="you"></i>asks you</span>
+      <span><i class="dash"></i>no event, shared data</span>
+      <span class="note">Click a role to see only its lines. Hover a line for its event and policy.</span>
+      <button type="button" class="chipbtn" id="clear" aria-pressed="false" style="margin-left:auto">Show all</button>
+    </figcaption>
+  </figure>
+
+  <div class="cards" id="cards"></div>
+
+  <div class="two">
+    <section class="block" aria-labelledby="h-wire">
+      <header><h2 id="h-wire">Handoffs</h2><span class="note" style="margin-left:auto">newest first, as the board hears them</span></header>
+      <div class="wire" id="wire" aria-live="polite"></div>
+    </section>
+    <section class="block" aria-labelledby="h-ask">
+      <header><h2 id="h-ask">Ask a role</h2></header>
+      <form class="ask" id="plan-form">
+        <label for="plan-goal">Give the planner a goal</label>
+        <textarea id="plan-goal" rows="2" placeholder="What you want done"></textarea>
+        <div class="row"><button class="send" type="submit" id="plan-send">Ask the planner</button><span class="note" id="plan-note">It drafts Work items and asks you before creating them.</span></div>
+      </form>
+      <form class="ask" id="review-form">
+        <label for="ask-work">Ask the architect to review a plan</label>
+        <select id="ask-work"></select>
+        <textarea id="ask-plan" rows="2" placeholder="What you will build, which files it touches, how it is checked"></textarea>
+        <div class="row"><button class="send" type="submit" id="ask-send">Ask the architect</button><span class="note" id="ask-note">The verdict appears below.</span></div>
+      </form>
+      <h2 style="margin-top:6px">Plan reviews</h2>
+      <div class="verdicts" id="reviews"></div>
+    </section>
+  </div>
+</main>
+<div class="tip" id="tip" role="tooltip"></div>
+<script>
+const $ = (id) => document.getElementById(id);
+function h(tag, attrs, ...kids) {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) if (v !== null && v !== undefined && v !== false) n.setAttribute(k, v);
+  for (const k of kids.flat(Infinity)) if (k !== null && k !== undefined && k !== false) n.append(k);
+  return n;
+}
+const isUnknown = (v) => v && !Array.isArray(v) && typeof v === "object" && "unknown" in v;
+const clock = (at) => (at ? new Date(at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "-");
+
+// Each role's short code, its name, and the events it hears and sends; `you` marks one that asks a person.
+const ROLES = {
+  planner: { code: "PL", name: "Planner", hears: ["PlanningRequested"], says: ["WorkChecked"] },
+  orchestrator: { code: "OR", name: "Orchestrator", hears: ["WorkChecked"], says: ["WorkRouted", "DispatchAdviceRequested!"] },
+  architect: { code: "AR", name: "Architect", hears: ["PlanReviewRequested"], says: ["PlanReviewed!"] },
+  coder: { code: "CO", name: "Coder", hears: ["WorkRouted"], says: ["WorkSubmitted", "PassageLanded"] },
+  reviewer: { code: "RV", name: "Reviewer", hears: ["SubmissionReviewRequested"], says: ["SpecFailureJudged", "HandedToPerson!"] },
+  release_manager: { code: "RM", name: "Release manager", hears: ["PassageVerified"], says: ["PromotionRecommended!"] }
+};
+// Which map line each event travels: from, to. The names are the Agents and Pipeline bluebooks' events.
+const EDGES = {
+  PlanningRequested: ["you", "planner"], WorkChecked: ["planner", "orchestrator"], WorkRouted: ["orchestrator", "coder"],
+  DispatchAdviceRequested: ["orchestrator", "you"], PlanReviewRequested: ["you", "architect"], PlanReviewed: ["architect", "you"],
+  WorkSubmitted: ["coder", "reviewer"], SubmissionReviewRequested: ["coder", "reviewer"], HandedToPerson: ["reviewer", "you"],
+  PassageLanded: ["coder", "pipeline"], PassageVerified: ["pipeline", "release_manager"],
+  PromotionRecommended: ["release_manager", "you"], PromotionSettled: ["you", "release_manager"]
+};
+const CODES = { you: "You", pipeline: "Pipeline", ...Object.fromEntries(Object.entries(ROLES).map(([k, r]) => [k, r.code])) };
+const HOT_MS = 30 * 60 * 1000;
+
+// Every handoff heard since the page opened, by key, newest first when shown.
+const heard = new Map();
+function hear(e, fresh) {
+  if (!e || !EDGES[e.name]) return false;
+  const key = e.key || [e.at, e.name, e.id].join(":");
+  if (heard.has(key)) return false;
+  heard.set(key, { ...e, key, fresh });
+  return true;
+}
+
+let state = null;
+function render(s) {
+  state = s;
+  (Array.isArray(s.events) ? s.events : []).forEach((e) => hear(e, false));
+  const roles = Array.isArray(s.roles) ? s.roles : [];
+  renderTotals(roles, s.sessions);
+  renderMap(roles, s.generated_at);
+  renderCards(s.roles);
+  renderWire();
+  fillWork(s.open_work);
+  renderReviews(s.reviews);
+  $("updated").textContent = "updated " + clock(s.generated_at);
+}
+
+function renderTotals(roles, sessions) {
+  const working = new Set(roles.flatMap((r) => (r.working || []).map((w) => w.id)));
+  const blocked = roles.flatMap((r) => r.working || []).filter((w) => w.status === "blocked");
+  const finished = roles.reduce((n, r) => n + (r.completed || []).length, 0);
+  const hot = [...heard.values()].filter(isHot).length;
+  $("totals").replaceChildren(
+    h("span", { class: "live" }, h("b", {}, String(working.size)), " working"),
+    h("span", { class: blocked.length ? "you" : "" }, h("b", {}, String(new Set(blocked.map((b) => b.id)).size)), " waiting on you"),
+    h("span", {}, h("b", {}, String(finished)), " finished recently"),
+    h("span", {}, h("b", {}, String(hot)), " handoffs in the last 30 min"));
+}
+
+const isHot = (e) => state && Date.parse(state.generated_at) - Date.parse(e.at) < HOT_MS;
+
+// The map is fixed; the page only marks busy roles and lines whose event fired lately.
+function renderMap(roles, now) {
+  const svg = $("comms");
+  for (const r of roles) {
+    const node = svg.querySelector('.node[data-role="' + r.name + '"]');
+    if (!node) continue;
+    const done = (r.completed || []).length;
+    const blocked = (r.working || []).filter((w) => w.status === "blocked").length;
+    node.classList.toggle("busy", r.live > 0);
+    node.classList.toggle("blocked", blocked > 0);
+    node.querySelector("text.stat").textContent = blocked ? "● " + r.live + " working · " + blocked + " waiting" : r.live > 0 ? "● " + r.live + " working" : "idle" + (done ? " · " + done + " done" : "");
+    node.dataset.tip = ROLES[r.name] ? ROLES[r.name].name + "\n" + r.live + " working · " + done + " finished" + (r.last ? "\nLast: " + r.last.name + " at " + clock(r.last.at) : "") : r.name;
+  }
+  const last = {};
+  for (const e of heard.values()) {
+    const id = EDGES[e.name].join("-");
+    if (!last[id] || e.at > last[id].at) last[id] = e;
+  }
+  svg.querySelectorAll(".edge[data-edge]").forEach((g) => {
+    const e = last[g.dataset.edge];
+    g.classList.toggle("hot", Boolean(e && isHot(e)));
+    const base = g.dataset.base || (g.dataset.base = g.dataset.tip);
+    g.dataset.tip = base + (e ? "\nLast: " + clock(e.at) : "\nNot heard since the page opened");
+  });
+}
+
+const evChip = (name) => h("span", { class: "ev" + (name.endsWith("!") ? " you" : "") }, name.replace(/!$/, ""));
+
+function renderCards(roles) {
+  if (isUnknown(roles)) return $("cards").replaceChildren(h("p", { class: "unknown" }, "Roles unknown: " + roles.unknown));
+  $("cards").replaceChildren(...roles.map(card));
+  if (focused) markFocus(focused);
+}
+
+function card(r) {
+  const meta = ROLES[r.name] || { code: r.name.slice(0, 2).toUpperCase(), name: r.name, hears: [], says: [] };
+  const working = r.working || [], done = r.completed || [];
+  const blocked = working.filter((w) => w.status === "blocked").length;
+  const busy = working.length > 0;
+  const session = (w) => h("div", { class: "sess" + (w.status === "blocked" ? " blocked" : ""), "data-tip": w.name + "\n" + (w.detail || w.status) },
+    h("span", { class: "n" }, w.name + (w.status === "blocked" ? " · waiting on you" : "")),
+    h("span", { class: "d" }, w.detail || w.status), h("div", { class: "track" }, h("div")));
+  return h("article", { class: "card" + (busy ? " busy" : ""), "data-role": r.name, tabindex: "0" },
+    h("header", {}, h("span", { class: "code" }, meta.code),
+      h("div", {}, h("div", { class: "title" }, meta.name),
+        h("div", { class: "sub" }, r.last ? "last: " + r.last.name + " · " + clock(r.last.at) : done.length + " finished recently")),
+      h("span", { class: "pill" + (blocked ? " blocked" : busy ? " busy" : "") }, h("span", { class: "dot" }),
+        blocked ? blocked + " waiting on you" : busy ? working.length + " working" : "idle")),
+    h("div", { class: "io" }, h("span", { class: "k" }, "hears"), h("span", { class: "v" }, meta.hears.map(evChip)),
+      h("span", { class: "k" }, "says"), h("span", { class: "v" }, meta.says.map(evChip))),
+    busy ? h("div", { class: "list" }, h("h3", {}, "Now"), working.slice(0, 3).map(session),
+      working.length > 3 ? h("a", { class: "more", href: "/#h-sess" }, "+ " + (working.length - 3) + " more in Sessions") : null) : null,
+    done.length ? h("div", { class: "list" }, h("h3", {}, "Finished"), done.slice(0, 3).map((d) => h("div", { class: "done" }, h("span", {}, d.detail || d.name))))
+      : busy ? null : h("div", { class: "idle" }, "Nothing yet. Waiting for " + meta.hears.join(", ") + "."));
+}
+
+function renderWire() {
+  const hops = [...heard.values()].sort((a, b) => (a.at < b.at ? 1 : -1)).slice(0, 40);
+  if (!hops.length) return $("wire").replaceChildren(h("p", { class: "idle" }, "No handoffs heard yet. They appear here as the roles hand work on."));
+  const tag = (k) => h("span", { class: "tag" + (k === "you" ? " you" : "") }, CODES[k] || k);
+  $("wire").replaceChildren(...hops.map((e) => {
+    const [from, to] = EDGES[e.name];
+    const row = h("div", { class: "hop" + (e.fresh ? " fresh" : "") }, h("time", { datetime: e.at }, clock(e.at)),
+      h("div", { class: "route" }, tag(from), h("span", { class: "arr" }, "→"), tag(to), h("span", { class: "what" }, e.id ? String(e.id).slice(0, 40) : "")),
+      h("span", { class: "evn" }, e.name));
+    e.fresh = false;
+    return row;
+  }));
+}
+
+// The Work items a review may be asked for; the chosen one is kept across refreshes.
+function fillWork(work) {
+  const select = $("ask-work");
+  if (isUnknown(work) || !Array.isArray(work)) return;
+  const slugs = work.map((w) => w.slug);
+  if (slugs.join("|") === select.dataset.slugs) return;
+  const chosen = select.value;
+  select.replaceChildren(...slugs.map((s) => h("option", { value: s }, s)));
+  select.dataset.slugs = slugs.join("|");
+  if (slugs.includes(chosen)) select.value = chosen;
+}
+
+// One line of the findings, without the verdict line or markdown marks; the full text opens below it.
+function firstLine(text) {
+  const lines = text.split("\n").map((l) => l.replace(/[*_`#>]/g, "").replace(/^verdict:\s*(sound with changes|sound|rethink)[.:]?\s*/i, "").trim());
+  return (lines.find((l) => l && !/^findings:?$/i.test(l)) || "Findings").slice(0, 140);
+}
+function renderReviews(reviews) {
+  if (isUnknown(reviews)) return $("reviews").replaceChildren(h("p", { class: "unknown" }, "Reviews unknown: " + reviews.unknown));
+  if (!Array.isArray(reviews) || !reviews.length) return $("reviews").replaceChildren(h("p", { class: "idle" }, "No plan reviews yet."));
+  const open = new Set([...$("reviews").querySelectorAll("details[open]")].map((d) => d.dataset.work));
+  $("reviews").replaceChildren(...reviews.map((r) => {
+    const verdict = r.verdict || "waiting";
+    const label = verdict === "changes" ? "sound with changes" : verdict;
+    return h("div", { class: "verdict" }, h("span", { class: "vchip " + verdict }, label), h("span", { class: "w" }, r.work),
+      r.findings ? h("details", { "data-work": r.work, open: open.has(r.work) ? "" : null }, h("summary", {}, firstLine(r.findings)), h("div", { class: "full" }, r.findings))
+        : h("span", { class: "note", style: "grid-column:2" }, "The architect has not answered yet."));
+  }));
+}
+
+// Focus: one role lights its own lines and card; everything else dims. A second click clears it.
+let focused = null;
+function markFocus(role) {
+  const svg = $("comms"), on = Boolean(role);
+  svg.classList.toggle("focusing", on);
+  $("clear").setAttribute("aria-pressed", String(on));
+  const lit = [...svg.querySelectorAll(".edge")].filter((e) => on && e.dataset.ends.split(" ").includes(role));
+  svg.querySelectorAll(".edge").forEach((e) => e.classList.toggle("lit", lit.includes(e)));
+  const near = new Set([role, ...lit.flatMap((e) => e.dataset.ends.split(" "))]);
+  svg.querySelectorAll(".node").forEach((n) => n.classList.toggle("lit", on && near.has(n.dataset.role)));
+  document.querySelectorAll(".card").forEach((c) => c.classList.toggle("lit", on && c.dataset.role === role));
+}
+function focus(role) { focused = focused === role ? null : role; markFocus(focused); }
+document.addEventListener("click", (e) => {
+  const t = e.target.closest(".node, .card");
+  if (t && !e.target.closest("a, details")) focus(t.dataset.role);
+});
+document.addEventListener("keydown", (e) => {
+  const t = e.target.closest && e.target.closest(".node, .card");
+  if (t && (e.key === "Enter" || e.key === " ") && e.target === t) { e.preventDefault(); focus(t.dataset.role); }
+});
+$("clear").addEventListener("click", () => { focused = null; markFocus(null); });
+
+const tip = $("tip");
+document.addEventListener("mouseover", (e) => {
+  const t = e.target.closest("[data-tip]");
+  if (!t) { tip.style.display = "none"; return; }
+  tip.textContent = t.dataset.tip; tip.style.display = "block";
+});
+document.addEventListener("mousemove", (e) => {
+  if (tip.style.display !== "block") return;
+  tip.style.left = Math.min(e.clientX + 14, innerWidth - 330) + "px"; tip.style.top = (e.clientY + 14) + "px";
+});
+
+async function act(body, note, button, done) {
+  button.disabled = true; note.textContent = "asking…";
+  try {
+    const res = await fetch("/api/act", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    if (res.ok) { done(); return refresh(); }
+    note.textContent = "not asked: " + (await res.text()).slice(0, 200);
+  } catch (e) { note.textContent = "not asked: " + e.message; }
+  finally { button.disabled = false; }
+}
+// Gives the planner a goal; its session drafts a plan and asks, and creates Work items only after you confirm.
+$("plan-form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const goal = $("plan-goal").value.trim(), note = $("plan-note");
+  if (!goal) { note.textContent = "Write the goal first."; return; }
+  act({ action: "plan", text: goal }, note, $("plan-send"), () => { $("plan-goal").value = ""; note.textContent = "asked; the planner's session will ask you about options"; });
+});
+// Raises the plan review request for the Work item chosen, with the plan written.
+$("review-form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const work = $("ask-work").value, plan = $("ask-plan").value.trim(), note = $("ask-note");
+  if (!work || !plan) { note.textContent = "Pick a Work item and write the plan."; return; }
+  act({ action: "review", target: work, text: plan }, note, $("ask-send"), () => { $("ask-plan").value = ""; note.textContent = "asked; the verdict appears below"; });
+});
+
+async function refresh() {
+  try { render(await (await fetch("/api/state", { cache: "no-store" })).json()); }
+  catch (e) { $("updated").textContent = "update failed: " + e.message; }
+}
+function listen() {
+  if (!window.EventSource) { $("live").textContent = "stream: unsupported"; setInterval(refresh, 10000); return; }
+  const es = new EventSource("/api/events");
+  es.onopen = () => { $("live").textContent = "stream: live"; };
+  es.onerror = () => { $("live").textContent = "stream: reconnecting"; };
+  es.addEventListener("state", (m) => { try { render(JSON.parse(m.data).state); } catch (e) { $("updated").textContent = "update failed: " + e.message; } });
+  es.addEventListener("board", (m) => {
+    if (hear(JSON.parse(m.data), true) && state) { renderMap(state.roles || [], state.generated_at); renderWire(); }
+  });
+}
+refresh(); listen();
+</script>
+</body>
+</html>

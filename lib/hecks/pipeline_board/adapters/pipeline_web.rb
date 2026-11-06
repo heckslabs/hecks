@@ -17,6 +17,7 @@ module Hecks
       PAGE = File.expand_path("pipeline_web/page.html", __dir__)
       WIRING_PAGE = File.expand_path("pipeline_web/wiring.html", __dir__)
       SEQUENCE_PAGE = File.expand_path("pipeline_web/sequence.html", __dir__)
+      AGENTS_PAGE = File.expand_path("pipeline_web/agents.html", __dir__)
       DEFAULT_PORT = 4747
       ACT_SECONDS = 120
 
@@ -164,6 +165,9 @@ module Hecks
 
       # @return [String] the sequence diagram's page
       def sequence_page = File.read(SEQUENCE_PAGE)
+
+      # @return [String] the agents' page: who hands work to whom, and what each role is doing
+      def agents_page = File.read(AGENTS_PAGE)
 
       # @return [Hash] the wiring graph (`nodes` and `edges`), or `{unknown: reason}`
       def wiring
