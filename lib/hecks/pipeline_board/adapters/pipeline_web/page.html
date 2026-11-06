@@ -133,6 +133,10 @@ a.linked:hover .name, a.linked:focus-visible .name { text-decoration: underline;
 .reply { margin-top: 4px; padding: 4px 6px; border-left: 3px solid var(--series1); background: var(--page); border-radius: 0 4px 4px 0; overflow-wrap: anywhere; }
 tr.sending td { background: rgba(234, 179, 8, .28); }
 .attn { padding: 6px 0; border-bottom: 1px solid var(--grid); }
+.askform { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; padding: 10px 12px; border: 1px solid var(--axis); border-radius: 8px; }
+.askform h3.sub { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.askform select, .askform textarea { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--axis); border-radius: 6px; padding: 4px 8px; }
+.askform button { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--axis); border-radius: 6px; padding: 3px 10px; }
 .attn-group { background: var(--page); border: 1px solid var(--axis); border-left: 4px solid var(--warning); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; }
 .attn-group:last-child { margin-bottom: 0; }
 .attn-group h3.sub { margin: 0 0 6px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
@@ -175,6 +179,17 @@ details.panel > .scroll, details.panel > .feed, details.panel > .strip, details.
     </div>
   </header>
 
+  <details class="panel" open><summary><h2 id="h-roles">Agents</h2></summary><div class="scroll" id="roles"></div>
+    <div class="askform"><h3 class="sub">Ask the planner to plan a goal</h3>
+      <textarea id="plan-goal" rows="3" placeholder="The goal: what you want done"></textarea>
+      <div><button type="button" id="plan-send" data-tip="Starts the planner's session. It drafts a plan of Work items and asks you which options to take; it creates items only after you confirm">Ask the planner</button> <span id="plan-note" class="note"></span></div>
+    </div>
+    <div class="askform"><h3 class="sub">Ask the architect to review a plan</h3>
+      <select id="ask-work" aria-label="Work item to review"></select>
+      <textarea id="ask-plan" rows="3" placeholder="The plan: what you will build, which files it touches, how it will be checked"></textarea>
+      <div><button type="button" id="ask-send" data-tip="Raises a plan review request; the architect's session starts and its verdict appears in the list below">Ask the architect</button> <span id="ask-note" class="note"></span></div>
+    </div>
+    <div class="scroll" id="reviews"></div></details>
   <details class="panel" open><summary data-tip="Everything that asks for a person: attention pills, failed stages and sessions blocked on a reply. Click a row to act on it"><h2 id="h-attn">Needs attention</h2></summary><div class="scroll" id="attention"></div></details>
   <details class="panel" open><summary data-tip="The architecture as a diagram: domains, aggregates and adapters. Click a block to open it; the switch shows the sequence of events instead"><h2 id="h-wiring">Wiring diagram</h2><small class="hint">drag to pan · use + and − to zoom · click a block to open it</small></summary><div class="switch"><button type="button" data-view="/wiring" aria-pressed="true">Wiring</button><button type="button" data-view="/sequence?small=1" aria-pressed="false">Sequence</button></div><iframe id="view" class="embed" src="/wiring" title="Wiring diagram"></iframe></details>
   <section aria-labelledby="h-tiles"><h2 id="h-tiles">Key metrics</h2><div class="tiles" id="tiles"></div></section>  <details class="panel" open><summary data-tip="Each stage of a change from planned to released. Click a stage that needs you to resolve it"><h2 id="h-strip">Pipeline</h2></summary><div class="strip" id="strip"></div></details>
@@ -220,6 +235,7 @@ details.panel > .scroll, details.panel > .feed, details.panel > .strip, details.
     <div class="status" id="ans-status" aria-live="polite"></div>
     <div class="actions">
       <button type="button" id="ans-cancel" data-tip="Close without sending">Cancel</button>
+      <button type="button" id="ans-yourcall" hidden data-tip="Hand the choice back to the agent: sends &quot;your call&quot;">Your call</button>
       <button type="button" id="ans-send" data-tip="Send your answer to the session (Enter sends, Shift+Enter adds a line)">Send</button>
     </div>
   </form>
@@ -369,6 +385,61 @@ $("resolve-copy").addEventListener("click", async () => {
   catch (e) { $("resolve-copy").textContent = "Copy failed"; }
 });
 
+// The agent roles, pinned at the top: each with how many of its sessions are live. A role never issues an owner decision.
+function renderRoles(roles, reviews, work) {
+  fillWork(work);
+  if (isUnknown(roles)) put("roles", unknown(roles));
+  else put("roles", h("div", { class: "rolecards" }, ...roles.map(roleCard)));
+  if (isUnknown(reviews)) return put("reviews", unknown(reviews));
+  if (!reviews.length) return put("reviews", h("p", { class: "note" }, "No plan reviews yet."));
+  put("reviews", table(["Work item", "Verdict", "Findings"], reviews.map((r) => [r.work, r.verdict || "waiting", findingsCell(r.findings)])));
+}
+// One role's panel: what it is working on now, and what it has completed.
+function roleCard(r) {
+  const line = (text) => h("div", { class: "note" }, text);
+  const now = (r.working || []).map((s) => line("▶ " + s.name + " - " + (s.detail || s.status)));
+  const done = (r.completed || []).map((s) => line("✓ " + s.name + " - " + (s.detail || "finished")));
+  const events = (r.handled || []).map((e) => line("• " + e.name + " · " + clock(e.at)));
+  const idle = now.length + done.length + events.length ? [] : [line("Nothing yet.")];
+  return h("details", { class: "rolecard", open: "" }, h("summary", {}, r.name + " (" + r.live + " working)"),
+    ...now, ...events, ...done, ...idle);
+}
+// The architect's findings: a short line, opening to the whole text.
+function findingsCell(text) {
+  if (!text) return "-";
+  return h("details", {}, h("summary", {}, text.slice(0, 100)), h("div", {}, text));
+}
+// The Work items a review may be asked for; the chosen one is kept across refreshes.
+function fillWork(work) {
+  const select = $("ask-work");
+  if (!select || isUnknown(work)) return;
+  const slugs = work.map((w) => w.slug);
+  if (slugs.join("|") === select.dataset.slugs) return;
+  const chosen = select.value;
+  select.replaceChildren(...slugs.map((s) => h("option", { value: s }, s)));
+  select.dataset.slugs = slugs.join("|");
+  if (slugs.includes(chosen)) select.value = chosen;
+}
+// Gives the planner a goal; its session drafts a plan and asks, and creates Work items only after you confirm.
+async function askPlanner() {
+  const note = $("plan-note"), goal = $("plan-goal").value.trim();
+  if (!goal) { note.textContent = "Write the goal first."; return; }
+  $("plan-send").disabled = true; note.textContent = "asking…";
+  const res = await fetch("/api/act", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "plan", text: goal }) });
+  $("plan-send").disabled = false;
+  if (res.ok) { $("plan-goal").value = ""; note.textContent = "asked; the planner's session will ask you about options"; return refresh(); }
+  note.textContent = "not asked: " + (await res.text()).slice(0, 200);
+}
+// Raises the plan review request for the Work item chosen, with the plan written.
+async function askArchitect() {
+  const note = $("ask-note"), plan = $("ask-plan").value.trim(), work = $("ask-work").value;
+  if (!work || !plan) { note.textContent = "Pick a Work item and write the plan."; return; }
+  $("ask-send").disabled = true; note.textContent = "asking…";
+  const res = await fetch("/api/act", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "review", target: work, text: plan }) });
+  $("ask-send").disabled = false;
+  if (res.ok) { $("ask-plan").value = ""; note.textContent = "asked; the verdict appears below"; return refresh(); }
+  note.textContent = "not asked: " + (await res.text()).slice(0, 200);
+}
 function renderTiles(tiles) {
   put("tiles", tiles.map((t) => {
     const value = t.value === null || t.value === undefined ? "-" : t.value;
@@ -452,6 +523,13 @@ function markdown(text) {
   return out;
 }
 function currentWaiting() { return waitingList[Number($("ans-pick").value)] || waitingList[0]; }
+// Whether a question offers several solutions: two or more list items, or words that say so.
+const CHOICE_ITEM = /^\s*(?:[-*•]|\d+[.)]|\(?[a-d][.)])\s+\S/gm;
+const CHOICE_WORDS = /\b(options?|alternatives?|approach(?:es)?|which (?:one|do you|would you))\b/i;
+function offersChoices(text) {
+  const t = String(text || "");
+  return (t.match(CHOICE_ITEM) || []).length >= 2 || CHOICE_WORDS.test(t);
+}
 function showAnswer() {
   const s = currentWaiting();
   const ctx = s.context || {};
@@ -467,6 +545,7 @@ function showAnswer() {
     $("ans-key").replaceChildren("Run " + (s.run || "(no run key)") + (s.repo ? " in " + s.repo : ""));
   }
   $("ans-send").disabled = !(s.run || s.id || s.attach);
+  $("ans-yourcall").hidden = $("ans-send").disabled || !offersChoices(ctx.said || s.question);
   $("ans-status").textContent = (s.run || s.id || s.attach) ? "" : "This session cannot be answered from the board.";
 }
 async function sendAnswer() {
@@ -519,15 +598,41 @@ function renderWork(work) {
   put("work", pager("work", ["Work item", "Status", "Area", "Claimed by", "Claimed at"], work.map((w) => [w.slug, w.status, (w.area || []).join(", ") || "-", w.claimed_by || "(nobody)", w.claimed_at || "-"]), 10));
 }
 // Everything that asks for a person: attention and failed pills, and sessions blocked on a reply.
-function renderAttention(metrics, stages, sessions) {
+function renderAttention(metrics, stages, sessions, recommendations) {
+  const recs = Array.isArray(recommendations) ? recommendations : [];
   const groups = [
     ["Metrics", metrics.filter((t) => needsAttention(t.state)).map((t) => ({ kind: "Metric", item: t.label, state: t.state, value: (t.value ?? "-") + (t.unit || ""), detail: t.detail, since: "-", act: () => resolve(t.label, t.detail) }))],
     ["Pipeline stages", stages.filter((s) => needsAttention(s.state)).map((s) => ({ kind: "Stage", item: s.name, state: s.state, value: "-", detail: s.detail, since: "-", act: () => resolve(s.name, s.detail) }))],
     ["Sessions waiting on you", sessions.filter((s) => s.status === "blocked").map((s) => ({ kind: "Session", item: s.name + " " + (s.id || ""), state: "attention", value: s.work_item || s.row || "-", detail: s.detail, since: clock(s.started), act: () => openAnswer([{ id: s.id, name: s.name, run: s.run, repo: s.repo, work_item: s.work_item, question: s.detail, context: s.context, attach: s.attach }], s.id) }))]
   ].filter(([, items]) => items.length);
-  setTitle("h-attn", "Needs attention", groups.reduce((n, [, items]) => n + items.length, 0));
-  if (!groups.length) return put("attention", h("p", { class: "note" }, "Nothing needs attention."));
+  setTitle("h-attn", "Needs attention", groups.reduce((n, [, items]) => n + items.length, recs.length));
+  if (!groups.length && !recs.length) return put("attention", h("p", { class: "note" }, "Nothing needs attention."));
   put("attention", groups.map(([title, items]) => h("div", { class: "attn-group" }, h("h3", { class: "sub" }, title + " (" + items.length + ")"), attentionTable(items))));
+  if (recs.length) $("attention").append(recommendationGroup(recs));
+}
+// The release manager's recommendations: Promote asks twice and runs the promotion; Dismiss settles.
+function recommendationGroup(recs) {
+  const rows = recs.map((r) => [r.change, r.reasons || "-", recommendationButtons(r)]);
+  const title = h("h3", { class: "sub" }, "Promotions to confirm (" + recs.length + ")");
+  return h("div", { class: "attn-group" }, title, table(["Change", "Why", ""], rows));
+}
+async function postAct(body) {
+  const res = await fetch("/api/act", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  return res.ok;
+}
+function recommendationButtons(r) {
+  const promote = h("button", { type: "button", class: "del", tip: "Runs the promotion of stable to the newest green commit, after a second click" }, "Promote");
+  const dismiss = h("button", { type: "button", class: "del", tip: "Set the recommendation aside without promoting" }, "Dismiss");
+  let armed = false;
+  promote.addEventListener("click", async () => {
+    if (!armed) { armed = true; promote.textContent = "Confirm promote"; return; }
+    promote.disabled = true;
+    if (await postAct({ action: "promote", confirm: true })) await postAct({ action: "settle", target: r.change });
+    else { armed = false; promote.disabled = false; promote.textContent = "Not promoted"; return; }
+    refresh();
+  });
+  dismiss.addEventListener("click", async () => { await postAct({ action: "settle", target: r.change }); refresh(); });
+  return h("span", {}, promote, dismiss);
 }
 // One group of attention rows; each row opens its resolve or answer dialog.
 function attentionTable(items) {
@@ -579,7 +684,13 @@ const SESSION_FILTERS = {
 // A session can be deleted when it finished, waits on nobody, and is not a deploy: a deploy's
 // session is kept until the deploy is confirmed, whatever the board's state says.
 function deletable(s) {
-  return (s.status === "done" || s.status === "failed") && !/\bdeploy\b/i.test((s.name || "") + " " + (s.detail || ""));
+  const finished = s.status === "done" || s.status === "failed";
+  return finished && !/\bdeploy\b/i.test((s.name || "") + " " + (s.detail || "")) && !pinnedRole(s);
+}
+// A pinned agent role's session is never offered for Delete: its name starts with a declared role.
+function pinnedRole(s) {
+  const roles = lastState && Array.isArray(lastState.roles) ? lastState.roles : [];
+  return roles.some((r) => (s.name || "").startsWith(r.name));
 }
 function filterBar() {
   const bar = h("div", { class: "filters", role: "group", "aria-label": "Filter sessions" });
@@ -686,8 +797,8 @@ function replyNote(s) {
 }
 function render(s) {
   lastState = s;
-  renderTiles(s.metrics); renderAttention(s.metrics, s.stages, s.sessions); renderStrip(s.stages); renderCi(s.ci_runs, s.slowest_jobs);
-  renderWork(s.open_work); renderSessions(s.sessions); renderFan(s.fanout); renderEvents(s.events);
+  renderTiles(s.metrics); renderAttention(s.metrics, s.stages, s.sessions, s.recommendations); renderStrip(s.stages); renderCi(s.ci_runs, s.slowest_jobs);
+  renderRoles(s.roles, s.reviews, s.open_work); renderWork(s.open_work); renderSessions(s.sessions); renderFan(s.fanout); renderEvents(s.events);
   $("updated").textContent = "updated " + clock(s.generated_at);
 }
 // Asks for the state once, for the first paint and for browsers without EventSource.
@@ -713,6 +824,9 @@ $("toggle").addEventListener("click", () => {
   $("toggle").setAttribute("aria-pressed", String(on)); $("toggle").textContent = on ? "Show charts" : "Show tables";
 });
 $("ans-send").addEventListener("click", sendAnswer);
+$("ans-yourcall").addEventListener("click", () => { $("ans-text").value = "your call"; sendAnswer(); });
+$("ask-send").addEventListener("click", askArchitect);
+$("plan-send").addEventListener("click", askPlanner);
 document.querySelectorAll(".switch button").forEach((b) => b.addEventListener("click", () => {
   $("view").src = b.dataset.view;
   document.querySelectorAll(".switch button").forEach((o) => o.setAttribute("aria-pressed", String(o === b)));
