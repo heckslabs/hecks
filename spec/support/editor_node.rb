@@ -51,7 +51,7 @@ module EditorNode
 
   # Copies the transformed client into the sandbox's node_modules.
   # Node 24 reads a `.ts` file as CommonJS unless a `package.json` in its directory says `module`,
-  # which the shipped CMS does (see its `package.json.tmpl`).
+  # which the shipped editor package does ("type": "module" in its `package.json.tmpl`).
   def write_module_marker(dir)
     write(File.join(dir, "package.json"), "{\"type\": \"module\"}\n")
   end
