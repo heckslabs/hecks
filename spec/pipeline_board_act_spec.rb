@@ -24,7 +24,8 @@ RSpec.describe "POST /api/act on the board" do
     lambda do |*args, **opts|
       sent << args
       stdins << opts[:stdin]
-      raise Hecks::Adapters::PipelineBoard::Unavailable, "launcher refused" if refuse
+      raise Hecks::Adapters::PipelineBoard::Unavailable, "launcher refused" if refuse == true
+      raise Hecks::Adapters::PipelineBoard::Unavailable, "no such run" if refuse == :check && args.include?("AgentRun.check!")
 
       ""
     end
@@ -39,7 +40,24 @@ RSpec.describe "POST /api/act on the board" do
   it "answers a blocked session through AgentRun.answer!, with the answer as its text", :aggregate_failures do
     response = post("action" => "answer", "target" => "run-1", "text" => "use staging")
     expect(response.code).to eq("200")
-    expect(sent).to eq([["exe/hecks", "AgentRun.answer!", "to=run-1", "answer.value=use staging", "--wait"]])
+    expect(sent.last).to eq(["exe/hecks", "AgentRun.answer!", "to=run-1", "answer.value=use staging", "--wait"])
+  end
+
+  it "checks the run before it answers, so the run holds the job's own state", :aggregate_failures do
+    post("action" => "answer", "target" => "run-1", "text" => "use staging")
+    expect(sent.first).to eq(["exe/hecks", "AgentRun.check!", "to=run-1", "--wait"])
+    expect(sent.size).to eq(2)
+  end
+
+  context "when the check is refused" do
+    let(:refuse) { :check }
+
+    it "does not answer, and says the session could not be checked", :aggregate_failures do
+      response = post("action" => "answer", "target" => "run-1", "text" => "use staging")
+      expect(response.code).to eq("422")
+      expect(JSON.parse(response.body)["error"]).to include("could not be checked first: no such run")
+      expect(sent.map { |args| args[1] }).to eq(["AgentRun.check!"])
+    end
   end
 
   it "runs a board train once the page confirms it" do

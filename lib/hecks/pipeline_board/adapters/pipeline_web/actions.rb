@@ -31,6 +31,14 @@ module Hecks
           rule[:argv].split.map { |word| filled(word, fields) }
         end
 
+        # @param action [String] a known step
+        # @param fields [Hash{Symbol => String}] the request's fields
+        # @return [Array<String>, nil] the launcher's arguments for the command the step runs first
+        def before(action, fields)
+          words = Rules.action(action)[:before].to_s.split
+          words.map { |word| filled(word, fields) } unless words.empty?
+        end
+
         def check(action, rule, fields, confirm)
           missing = rule[:needs].reject { |name| fields[name].is_a?(String) }
           raise PipelineBoard::Unavailable, "#{action} needs #{missing.join(", ")}" unless missing.empty?
