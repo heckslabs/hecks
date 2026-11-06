@@ -458,27 +458,33 @@ Hecks.bluebook "Hecks" do
     end
 
     # A job's state becomes an event only when it differs from the state the run last recorded
-    # (`previous`), so a check that finds nothing new records nothing.
+    # (`previous`), so a check that finds nothing new records nothing. Each is a root: a job read
+    # right after a start sits past the reaction cap, and recording what the session is doing begins
+    # its own chain, so a session that is working, or died at once, is never refused at the cap.
     policy "RecordTheWorkingSession" do
       on      "AgentRun.JobRead"
+      root
       where   { state == "working" && previous != state }
       trigger AgentRun::Work, with: { condition: :state, checkout: :checkout }
     end
 
     policy "RecordTheBlockedSession" do
       on      "AgentRun.JobRead"
+      root
       where   { state == "blocked" && previous != state }
       trigger AgentRun::Block, with: { condition: :state, detail: :detail, checkout: :checkout }
     end
 
     policy "RecordTheEndedSession" do
       on      "AgentRun.JobRead"
+      root
       where   { (state == "done" || state == "stopped") && previous != state }
       trigger AgentRun::Finish, with: { condition: :state, detail: :detail, checkout: :checkout }
     end
 
     policy "RecordTheFailedSession" do
       on      "AgentRun.JobRead"
+      root
       where   { state == "failed" && previous != state }
       trigger AgentRun::Fail, with: { condition: :state, detail: :detail, checkout: :checkout }
     end
