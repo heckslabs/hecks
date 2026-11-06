@@ -15,6 +15,10 @@ module Hecks
       # Where bluebooks are looked for when no path is named.
       DEFAULT_PATHS = %w[lib qa examples].freeze
 
+      # Examples the Rust parser holds as pending: its parity spec expects each to fail the way its
+      # pending feature does, and in the shorthand they failed earlier, so they stay in block form.
+      HELD = %w[examples/list_field_shape examples/multi_role examples/onboarding].freeze
+
       module_function
 
       # @param paths [Array<String>] files or folders, relative to `root`; the defaults when empty
@@ -47,7 +51,14 @@ module Hecks
       # @return [Array<String>] every `.bluebook` file under the paths, sorted
       def bluebooks(paths, root)
         named = paths.empty? ? DEFAULT_PATHS : paths
-        named.flat_map { |path| Dir.glob(File.join(root, path, "**", "*.bluebook")) + single(path, root) }.uniq.sort
+        found = named.flat_map { |path| Dir.glob(File.join(root, path, "**", "*.bluebook")) + single(path, root) }
+        found.uniq.sort.reject { |file| held?(file, root) }
+      end
+
+      # @return [Boolean] whether the file sits in an example held in block form
+      def held?(file, root)
+        relative = file.delete_prefix("#{root}/")
+        HELD.any? { |folder| relative.start_with?("#{folder}/") }
       end
 
       # @return [Array<String>] the path itself when it names one bluebook file
