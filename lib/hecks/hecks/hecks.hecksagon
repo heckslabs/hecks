@@ -204,6 +204,14 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  Hecks::Restoration.port "Restoring" do
+    asks "Restore", to: Restoration do
+      attribute :run, RunKey
+      answers "RestoreAnswered"
+      refuses "RestoreRefused"
+    end
+  end
+
   Hecks::LinkedTree.port "WorktreeAdding" do
     asks "Create", to: LinkedTree do
       attribute :run, RunKey
