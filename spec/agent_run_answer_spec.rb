@@ -11,7 +11,11 @@ RSpec.describe "AgentRun.Answer through the Agents port" do
     #!/bin/sh
     here=$(dirname "$0")
     if [ "$1" = "agents" ]; then cat "$here/sessions.json"; exit 0; fi
-    if [ "$2" = "--resume" ]; then printf '%s\\n' "$@" > "$here/resume.args"; exit 0; fi
+    if [ "$1" = "stop" ]; then echo "$2" >> "$here/stopped"; exit 0; fi
+    if [ "$2" = "--resume" ]; then
+      printf '%s\\n' "$@" > "$here/resume.args"; echo resumed >> "$here/resumes"
+      printf 'backgrounded · resumed-session\\n'; exit 0
+    fi
     printf 'backgrounded · stand-in-session\\n'
   SH
 
@@ -42,7 +46,8 @@ RSpec.describe "AgentRun.Answer through the Agents port" do
 
   # The session as `claude agents` lists it, and its job's state, both in `state`.
   def sessions(state)
-    File.write(File.join(scratch, "sessions.json"), JSON.generate([{ id: "stand-in-session", state: state }]))
+    listing = [{ id: "stand-in-session", sessionId: "stand-in-full", state: state }]
+    File.write(File.join(scratch, "sessions.json"), JSON.generate(listing))
     FileUtils.mkdir_p(File.join(scratch, "jobs", "stand-in-session"))
     File.write(File.join(scratch, "jobs", "stand-in-session", "state.json"), JSON.generate(state: state))
   end
@@ -77,6 +82,38 @@ RSpec.describe "AgentRun.Answer through the Agents port" do
     out = JSON.parse(answer("a-blocked", "use the staging branch"))
 
     expect(out.dig("state", "answered_at")).not_to be_nil
-    expect(File.read(resume_args).split("\n")).to eq(["--bg", "--resume", "stand-in-session", "--", "use the staging branch"])
+    expect(File.read(resume_args).split("\n")).to eq(["--bg", "--resume", "stand-in-full", "--", "use the staging branch"])
+  end
+
+  # The resumed job's own state, which the run follows once it holds the new session.
+  def new_job(state)
+    FileUtils.mkdir_p(File.join(scratch, "jobs", "resumed-session"))
+    File.write(File.join(scratch, "jobs", "resumed-session", "state.json"), JSON.generate(state: state))
+  end
+
+  def run_state(run) = JSON.parse(launch("agent_run.check!", "to=#{run}", "--wait").first.to_s)["state"]
+
+  it "follows the new job: the run holds its session, leaves blocked, and the old job is stopped", :aggregate_failures do
+    started_run("a-follow", "blocked")
+    state = JSON.parse(answer("a-follow", "go on"))["state"]
+
+    expect(state).to include("session" => "resumed-session", "condition" => "working")
+    expect(File.read(File.join(scratch, "stopped")).split("\n")).to eq(["stand-in-session"])
+  end
+
+  it "reads the new job on later checks, not the old one", :aggregate_failures do
+    started_run("a-later", "blocked")
+    answer("a-later", "go on")
+    new_job("done")
+
+    expect(run_state("a-later")).to include("session" => "resumed-session", "condition" => "done")
+  end
+
+  it "refuses a second answer while the resumed job works, and forks nothing more", :aggregate_failures do
+    started_run("a-twice", "blocked")
+    answer("a-twice", "first")
+
+    expect(answer("a-twice", "second")).to include("blocked on a person")
+    expect(File.read(File.join(scratch, "resumes")).split("\n").size).to eq(1)
   end
 end

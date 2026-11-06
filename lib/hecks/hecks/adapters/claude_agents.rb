@@ -12,6 +12,41 @@ require_relative "dispatching/settings"
 
 module Hecks
   module Adapters
+    # Runs the `claude --bg --resume` of an answer and stops the job it forked from. A resume
+    # starts a new background job, so the old blocked job is stopped once the command has named
+    # the new one; a refusal to stop leaves the old job listed and does not undo the answer.
+    class ClaudeResumption
+      # @param command [String] the program that resumes and stops sessions
+      # @param shell [Shell] runs it
+      def initialize(command, shell)
+        @command = command
+        @shell = shell
+      end
+
+      # @param id [String] the blocked job's id
+      # @param arguments [Array<String>] the resume command line
+      # @param env [Hash] the environment the session runs in
+      # @param chdir [String] the run's directory
+      # @return [Hash{Symbol => Hash}] `resumed_at:` and `session:` the new job's id, read from the
+      #   `backgrounded` line the command prints
+      # @raise [ConsoleCapture::Failure] when the command refuses or names no new session
+      def call(id, arguments, env:, chdir:)
+        result = @shell.capture(*arguments, env: env, chdir: chdir)
+        raise ConsoleCapture::Failure, "#{@command} resume #{id} refused: #{result.err.strip}" unless result.ok?
+
+        fresh = named(id, result)
+        @shell.capture(@command, "stop", id) unless fresh == id
+        { resumed_at: { value: Time.now.utc.iso8601 }, session: { value: fresh } }
+      end
+
+      private
+
+      def named(id, result)
+        result.out[ClaudeAgents::SESSION_ID, 1] ||
+          raise(ConsoleCapture::Failure, "#{@command} resume #{id} named no new session: #{result.out.strip}")
+      end
+    end
+
     # The `Agents` port's adapter for `AgentRun`: finds the directory a session will work in and the
     # agents `claude` lists there, starts a background Claude session with the `claude` command,
     # and reads the state its job is in.
@@ -165,18 +200,19 @@ module Hecks
       # Answers a blocked session by resuming it in the run's directory, with the answer as its
       # prompt. The run holds the short id `claude agents` shows; `--resume` takes only the full
       # session id, and given a short one it opens a new session waiting on its picker instead.
+      # A resume starts a new background job forked from the transcript; once the command has named
+      # it, the old blocked job is stopped, and the new id is answered for the run to follow.
       #
       # @param held [Hash] the `AgentRun` record: `session`, `repo`, `answer`, and `agent` if named
       # @return [Hash{Symbol => Hash}] `resumed_at:` when the resume was started, as an ISO 8601
-      #   string
-      # @raise [ConsoleCapture::Failure] when the session is not listed or the command refuses
+      #   string, and `session:` the new job's id, read from the `backgrounded` line the command
+      #   prints, as {#start} does
+      # @raise [ConsoleCapture::Failure] when the session is not listed, the command refuses or it
+      #   names no new session (the old job is then left as it was)
       def resume(**held)
         id = plain(held[:session])
-        result = @shell.capture(*resume_arguments(full_session_id(id), held),
-                                env: @session.session_environment, chdir: plain(held[:repo]))
-        raise ConsoleCapture::Failure, "#{@command} resume #{id} refused: #{result.err.strip}" unless result.ok?
-
-        { resumed_at: { value: Time.now.utc.iso8601 } }
+        ClaudeResumption.new(@command, @shell).call(id, resume_arguments(full_session_id(id), held),
+                                                    env: @session.session_environment, chdir: plain(held[:repo]))
       end
 
       private

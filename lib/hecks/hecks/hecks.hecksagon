@@ -429,6 +429,7 @@ Hecks.hecksagon "Hecks" do
     end
 
     # The operator's answer goes to the blocked session as the prompt of a resumed background session.
+    # That is a new job: the ask answers its `session`, and the port stops the old blocked job.
     asks "Resume", to: AgentRun do
       attribute :run, RunKey
       attribute :answer, Brief

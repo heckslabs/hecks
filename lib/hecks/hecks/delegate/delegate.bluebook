@@ -204,8 +204,9 @@ Hecks.bluebook "Hecks" do
         emits AgentRunRetained
       end
 
-      # Answers the question a blocked session waits on: its answer is sent as a resumed background
-      # session's prompt, so the session carries on under the same ID.
+      # Answers the question a blocked session waits on: its answer is the prompt of a resumed
+      # background session, a new job forked from the old one's transcript. The run follows that
+      # new job (`Answered` sets its session and leaves `blocked`), and the port stops the old one.
       command "Answer", from: "started" do
         role "Operator"
         goal "Answer the question a blocked session is waiting on by resuming it with the answer"
@@ -221,10 +222,12 @@ Hecks.bluebook "Hecks" do
 
       command "Answered" do
         role "System"
-        goal "Record when the session was resumed with the answer"
+        goal "Record when the session was resumed with the answer, the new session, and that it works"
 
         reference_to AgentRun
         attribute :answered_at, Moment, sets: true
+        attribute :session,     SessionId, sets: true
+        attribute :condition,   Condition, sets: true
 
         emits AgentRunAnswered
       end
@@ -508,7 +511,7 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheAnswer" do
       on      "AgentRun.AgentResumed"
-      trigger AgentRun::Answered, with: { answered_at: :resumed_at }
+      trigger AgentRun::Answered, with: { answered_at: :resumed_at, session: :session, condition: "working" }
     end
 
     policy "RecordTheRefusedAnswer" do

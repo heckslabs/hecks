@@ -12,6 +12,7 @@ RSpec.describe Hecks::Adapters::ClaudeAgents do
     #!/bin/sh
     here=$(dirname "$0")
     if [ "$1" = "agents" ]; then cat "$here/sessions.json"; exit 0; fi
+    if [ "$1" = "stop" ]; then printf '%s\\n' "$@" > "$here/stopped"; exit 0; fi
     printf '%s\\n' "$@" > "$here/argv"
     pwd -P > "$here/cwd"
     printf 'backgrounded · session-id-abc123\\n  claude agents    list sessions\\n  claude stop session-id-abc123    stop this session\\n'
@@ -122,6 +123,18 @@ RSpec.describe Hecks::Adapters::ClaudeAgents do
       expect(asked).to eq(["--bg", "--resume", "abc123-0000-full", "--", "--keep-going"])
       expect(File.read(File.join(scratch, "cwd")).strip).to eq(scratch)
       expect(result.dig(:resumed_at, :value)).to match(/\A\d{4}-\d{2}-\d{2}T/)
+    end
+
+    it "answers the new job's id and stops the old blocked job", :aggregate_failures do
+      expect(resume(answer: { value: "go on" })[:session]).to eq({ value: "session-id-abc123" })
+      expect(File.read(File.join(scratch, "stopped")).split("\n")).to eq(%w[stop abc123])
+    end
+
+    it "refuses a resume that names no new job, and stops nothing", :aggregate_failures do
+      install("#!/bin/sh\nif [ \"$1\" = agents ]; then cat \"$(dirname \"$0\")/sessions.json\"; exit 0; fi\nexit 0\n")
+
+      expect { resume(answer: { value: "x" }) }.to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /named no new session/)
+      expect(File.exist?(File.join(scratch, "stopped"))).to be(false)
     end
 
     it "resumes the session with the run's agent" do
