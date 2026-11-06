@@ -18,6 +18,7 @@ module Hecks
       WIRING_PAGE = File.expand_path("pipeline_web/wiring.html", __dir__)
       SEQUENCE_PAGE = File.expand_path("pipeline_web/sequence.html", __dir__)
       AGENTS_PAGE = File.expand_path("pipeline_web/agents.html", __dir__)
+      DIAGRAMS_PAGE = File.expand_path("pipeline_web/diagrams.html", __dir__)
       STREAM_SCRIPT = File.expand_path("pipeline_web/stream.js", __dir__)
       ANSWER_SCRIPT = File.expand_path("pipeline_web/answer.js", __dir__)
       DEFAULT_PORT = 4747
@@ -170,6 +171,9 @@ module Hecks
 
       # @return [String] the agents' page: who hands work to whom, and what each role is doing
       def agents_page = File.read(AGENTS_PAGE)
+
+      # @return [String] the diagrams' page: the wiring and sequence diagrams, one at a time
+      def diagrams_page = File.read(DIAGRAMS_PAGE)
 
       # @return [String] the script every page loads to share one event stream per browser
       def stream_script = File.read(STREAM_SCRIPT)

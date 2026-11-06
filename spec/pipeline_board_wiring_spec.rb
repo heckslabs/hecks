@@ -133,6 +133,18 @@ RSpec.describe Hecks::Adapters::PipelineWiring do
       end
     end
 
+    it "serves the diagrams' page at /diagrams, showing the wiring and the sequence", :aggregate_failures do
+      body = fetch("/diagrams").body
+      expect(body).to include("Pipeline Diagrams")
+      expect(body).to include('src: "/wiring"', 'src: "/sequence"')
+    end
+
+    it "links the board to the diagrams' page instead of embedding them", :aggregate_failures do
+      page = File.read(Hecks::Adapters::PipelineWeb::PAGE)
+      expect(page).to include('href="/diagrams"')
+      expect(page).not_to include("<iframe")
+    end
+
     it "links the board's Agents strip to the agents' page" do
       expect(File.read(Hecks::Adapters::PipelineWeb::PAGE)).to include('href="/agents"')
     end

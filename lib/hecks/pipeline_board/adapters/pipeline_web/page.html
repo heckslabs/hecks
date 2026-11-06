@@ -140,13 +140,11 @@ tr.clickable { cursor: pointer; } tr.clickable:hover, tr.clickable:focus-visible
   .node { margin-right: 0; min-height: 0; }
   .node:not(:last-child)::after { display: none; }
 }
+nav.pages { display: flex; gap: 14px; margin-right: auto; font-size: 13px; font-weight: 600; }
 details.panel { margin: 0; } details.panel > summary .hint { color: var(--ink2); font-size: 12px; text-transform: none; letter-spacing: 0; }
-.switch { display: flex; gap: 6px; margin-bottom: 8px; }
-.switch button[aria-pressed="true"] { border-color: var(--series1); color: var(--series1); }
 .pager { display: flex; align-items: center; gap: 10px; margin-top: 6px; font-size: 12px; color: var(--ink2); }
 .pager button { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--axis); border-radius: 6px; padding: 2px 8px; }
 .pager button:disabled { opacity: .4; }
-iframe.embed { display: block; width: 100%; height: 88vh; min-height: 640px; border: 0; border-radius: 8px; background: var(--page); }
 details.panel { border: 1px solid var(--axis); border-radius: 10px; background: var(--surface); margin: 0 0 8px; }
 details.panel > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 10px; }
 details.panel[open] > summary { border-bottom: 1px solid var(--axis); border-radius: 10px 10px 0 0; }
@@ -170,17 +168,17 @@ details.panel > .scroll, details.panel > .feed, details.panel > .strip, details.
 <main>
   <header>
     <h1>Pipeline Board</h1>
+    <nav class="pages" aria-label="Board pages"><a href="/agents">Agents</a><a href="/diagrams" data-tip="The wiring and sequence diagrams, on their own page">Diagrams</a></nav>
     <div class="meta">
       <span id="updated">loading</span>
       <span class="live" id="live">stream: connecting</span>
-      <button id="toggle" type="button" aria-pressed="false" data-tip="Switch between the diagrams and plain tables">Show tables</button>
+      <button id="toggle" type="button" aria-pressed="false" data-tip="Switch between the charts and plain tables">Show tables</button>
     </div>
   </header>
 
   <section class="agentstrip" aria-labelledby="h-roles"><h2 id="h-roles">Agents</h2><div class="roles" id="roles"></div>
     <a class="open" href="/agents" data-tip="Who hands work to whom, each role's sessions, plan reviews, and the forms that ask the planner and the architect">Open the Agents page →</a></section>
   <details class="panel" open><summary data-tip="Everything that asks for a person: attention pills, failed stages and sessions blocked on a reply. Click a row to act on it"><h2 id="h-attn">Needs attention</h2></summary><div class="scroll" id="attention"></div></details>
-  <details class="panel" open><summary data-tip="The architecture as a diagram: domains, aggregates and adapters. Click a block to open it; the switch shows the sequence of events instead"><h2 id="h-wiring">Wiring diagram</h2><small class="hint">drag to pan · use + and − to zoom · click a block to open it</small></summary><div class="switch"><button type="button" data-view="/wiring" aria-pressed="true">Wiring</button><button type="button" data-view="/sequence?small=1" aria-pressed="false">Sequence</button></div><iframe id="view" class="embed" src="/wiring" title="Wiring diagram"></iframe></details>
   <section aria-labelledby="h-tiles"><h2 id="h-tiles">Key metrics</h2><div class="tiles" id="tiles"></div></section>  <details class="panel" open><summary data-tip="Each stage of a change from planned to released. Click a stage that needs you to resolve it"><h2 id="h-strip">Pipeline</h2></summary><div class="strip" id="strip"></div></details>
   <details class="panel" open><summary data-tip="Recent CI runs on main, and the slowest jobs of the last completed run"><h2 id="h-ci">CI on main</h2></summary>
     <div class="grid2">
@@ -669,10 +667,6 @@ $("toggle").addEventListener("click", () => {
   const on = document.body.classList.toggle("tables-only");
   $("toggle").setAttribute("aria-pressed", String(on)); $("toggle").textContent = on ? "Show charts" : "Show tables";
 });
-document.querySelectorAll(".switch button").forEach((b) => b.addEventListener("click", () => {
-  $("view").src = b.dataset.view;
-  document.querySelectorAll(".switch button").forEach((o) => o.setAttribute("aria-pressed", String(o === b)));
-}));
 refresh(); listen();
 </script>
 </body>

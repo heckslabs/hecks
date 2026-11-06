@@ -24,6 +24,7 @@ module Hecks
           "/wiring"     => [HTML_TYPE, :wiring_page],
           "/sequence"   => [HTML_TYPE, :sequence_page],
           "/agents"     => [HTML_TYPE, :agents_page],
+          "/diagrams"   => [HTML_TYPE, :diagrams_page],
           "/stream.js"  => [SCRIPT_TYPE, :stream_script],
           "/answer.js"  => [SCRIPT_TYPE, :answer_script],
           "/api/state"  => [JSON_TYPE, :state],
