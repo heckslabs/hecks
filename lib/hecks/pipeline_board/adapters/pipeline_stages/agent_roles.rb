@@ -101,25 +101,18 @@ module Hecks
           { work: run[:run].to_s, verdict: ArchitectVerdict.of(closing), findings: closing.strip[0, 2000] }
         end
 
-        # The promotions the release manager recommends that the owner has not settled.
+        # The promotions the release manager recommends that the owner has not settled: each change
+        # whose newest promotion event is a `PromotionRecommended`. The events come from the journal
+        # and the event log, because the process that raised them has ended. The log keeps no
+        # payload, so the reasons are blank.
         #
+        # @param events [Array<Hash>, Hash] promotion events, newest first, or `{unknown:}`
         # @return [Array<Hash>, Hash] each recommendation's `change` and `reasons`, or `{unknown:}`
-        def recommendations
-          launched("PromotionRecommendation.open") do |row|
-            { change: row["change"].to_s, reasons: row["reasons"].to_s }
-          end
-        end
+        def recommendations(events)
+          return events unless events.is_a?(Array)
 
-        # @param query [String] an Agents query, as the launcher names it
-        # @yieldparam row [Hash] one answer row
-        # @return [Array<Hash>, Hash] the block's result for each row, or `{unknown:}`
-        def launched(query, &)
-          root = ENV.fetch("PIPELINE_BOARD_LAUNCHER_ROOT", "")
-          return [] if root.empty?
-
-          Probe.json("exe/hecks", "agents", query, chdir: root).map(&)
-        rescue Unavailable => e
-          { unknown: e.message }
+          open = events.uniq { |found| found[:id] }.select { |found| found[:name].to_s.end_with?("PromotionRecommended") }
+          open.map { |found| { change: found[:id].to_s, reasons: "" } }.sort_by { |row| row[:change] }
         end
       end
     end
