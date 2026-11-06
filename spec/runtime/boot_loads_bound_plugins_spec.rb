@@ -56,6 +56,7 @@ RSpec.describe "Booting a domain bound to a lazily loaded persistence plugin" do
     write_domain_file("bluebook", BOUND_PLUGIN_TARGET_BLUEBOOK)
     write_domain_file("hecksagon", <<~HECKSAGON)
       Hecks.hecksagon "Target" do
+        #{"revisions true" if adapter == "Postgres"}
         persisted_by "#{adapter}"
       end
     HECKSAGON
@@ -114,7 +115,7 @@ RSpec.describe "Booting a domain bound to a lazily loaded persistence plugin" do
   def run_after_load(probe) = run_fresh("#{loaded_registry_script}\n#{probe}")
 
   it "loads the era plugin when a hecksagon binds PostgresEra", :process do
-    write_domain(adapter: "PostgresEra", database: "postgres:///never_connected")
+    write_domain(adapter: "Postgres", database: "postgres:///never_connected")
 
     expect(run_after_load(ERA_PLUGIN_PROBE)).to eq("before" => false, "after" => true)
   end
@@ -168,7 +169,7 @@ RSpec.describe "Booting a domain bound to a lazily loaded persistence plugin" do
     end
 
     it "registers the era gates and boots without the application requiring the plugin", :aggregate_failures do
-      write_domain(adapter: "PostgresEra", database: FencedOwner.url(database))
+      write_domain(adapter: "Postgres", database: FencedOwner.url(database))
       hold_domain_eras!(directory: File.join(scratch, "bluebook"), url: FencedOwner.url(database))
 
       seen = run_fresh(full_boot_script)

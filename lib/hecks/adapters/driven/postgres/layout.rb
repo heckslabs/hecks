@@ -56,6 +56,10 @@ module Hecks
       # @return [Class] the revision store class
       def self.revision_store_class = Layout::Revisions.store_class
 
+      def self.prepare_hecksagon(hecksagon)
+        revision_store_class if hecksagon.revisions?
+      end
+
       # The layout the adapter's storage calls are forwarded to.
       #
       # @return [Layout::Table] the table layout, bound to this adapter

@@ -65,9 +65,17 @@ module Hecks
           bound   = registry.hecksagons.each_value.flat_map { |hecksagon| hecksagon.binds.map(&:adapter) }
           default = registry.worlds.each_value.filter_map(&:default_adapter)
           (bound + default).each { |name| load_adapter(registry, name) }
+          registry.hecksagons.each_value { |hecksagon| prepare_hecksagon(registry, hecksagon) }
         end
 
         private
+
+        def prepare_hecksagon(registry, hecksagon)
+          hecksagon.binds.each do |bind|
+            klass = load_adapter(registry, bind.adapter.to_s)
+            klass.prepare_hecksagon(hecksagon) if klass.respond_to?(:prepare_hecksagon)
+          end
+        end
 
         def load_adapter(registry, name)
           registry.adapter_class(name)
