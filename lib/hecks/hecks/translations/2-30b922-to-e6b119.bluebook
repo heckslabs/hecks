@@ -1,0 +1,6 @@
+# The held QualityControl era 30b922 to the framework shape e6b119. The chain 30b922 -> c4f690 -> 1a873a
+# -> e6b119 adds optional fields only (the Maintenance aggregate, the optional review fields, the
+# CI and roll events), so every held row answers each new field with its default. One composed edge
+# replaces the chain for boot.
+Hecks.data_translation "QualityControl", from: "30b922", to: "e6b119" do
+end

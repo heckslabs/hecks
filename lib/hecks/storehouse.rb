@@ -138,16 +138,26 @@ module Hecks
     def audited(request, tool)
       started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       outcome = yield
-      bluebook = request.bluebook
-      record!(bluebook.name, tool: tool, verb: outcome[:verb], outcome: outcome,
-                             duration_ms: elapsed_ms(started), **audit_fields(request))
+      record_answer(request, tool, outcome, started)
       outcome.except(:verb)
     rescue *refusal_classes => e
       outcome = refused(e, summary: request.summary)
-      asked_of = request.bluebook
-      record!(asked_of&.name, tool: tool, outcome: outcome, refusal: refusal_kind(e),
-                              duration_ms: elapsed_ms(started), **audit_fields(request))
+      record_refusal(request, tool, outcome, e, started)
       outcome
+    end
+
+    # Writes the audit line for an answered call.
+    # :nodoc:
+    def record_answer(request, tool, outcome, started)
+      record!(request.bluebook.name, tool: tool, verb: outcome[:verb], outcome: outcome,
+                                     duration_ms: elapsed_ms(started), **audit_fields(request))
+    end
+
+    # Writes the audit line for a refused call.
+    # :nodoc:
+    def record_refusal(request, tool, outcome, error, started)
+      record!(request.bluebook&.name, tool: tool, outcome: outcome, refusal: refusal_kind(error),
+                                     duration_ms: elapsed_ms(started), **audit_fields(request))
     end
 
     # Whole milliseconds since `started`, a CLOCK_MONOTONIC reading.
