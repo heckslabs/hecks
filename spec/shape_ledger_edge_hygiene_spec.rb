@@ -1,4 +1,5 @@
 require "spec_helper"
+require "hecks/shape_ledger"
 require "tmpdir"
 require "fileutils"
 

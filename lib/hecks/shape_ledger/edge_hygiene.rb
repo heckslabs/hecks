@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "json"
+require_relative "../ports/persistence/plugins/era/translation/edge_files"
 
 module Hecks
   module ShapeLedger

@@ -1,4 +1,5 @@
 require "spec_helper"
+require "hecks/shape_ledger"
 require "hecks/ports/persistence/plugins/era"
 require_relative "../support/memory_ports"
 
