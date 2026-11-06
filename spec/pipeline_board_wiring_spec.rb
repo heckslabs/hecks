@@ -150,6 +150,18 @@ RSpec.describe Hecks::Adapters::PipelineWiring do
       end
     end
 
+    it "settles the release manager's recommendations from the card, with the buttons the board shares", :aggregate_failures do
+      agents = File.read(Hecks::Adapters::PipelineWeb::AGENTS_PAGE)
+      expect(agents).to include("boardAnswer.recommendationButtons(r, refresh)", "Promotions to confirm", "state.recommendations")
+      expect(File.read(Hecks::Adapters::PipelineWeb::PAGE)).to include("boardAnswer.recommendationButtons(r, refresh)")
+    end
+
+    it "keeps the promote and settle calls in the shared script, not in either page", :aggregate_failures do
+      expect(fetch("/answer.js").body).to include('action: "promote", confirm: true', 'action: "settle"', "Confirm promote")
+      pages = %w[PAGE AGENTS_PAGE].map { |name| File.read(Hecks::Adapters::PipelineWeb.const_get(name)) }
+      expect(pages).to all(satisfy { |page| !page.include?('action: "settle"') })
+    end
+
     it "serves the diagrams' page at /diagrams, showing the wiring and the sequence", :aggregate_failures do
       body = fetch("/diagrams").body
       expect(body).to include("Pipeline Diagrams")

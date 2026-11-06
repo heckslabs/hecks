@@ -189,6 +189,9 @@ svg.focusing .edge.lit, svg.focusing .node.lit { opacity: 1; }
 .answer-btn { font: 600 12px var(--body); color: #111; background: var(--you); border: 0; border-radius: 6px; padding: 4px 12px; cursor: pointer; white-space: nowrap; }
 .answer-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 .sess .answer-btn { justify-self: start; margin-top: 2px; }
+.sess button.del { font: 12px var(--body); margin-right: 6px; color: var(--ink); background: var(--surface); border: 1px solid var(--axis);
+  border-radius: 6px; padding: 1px 8px; cursor: pointer; }
+.sess button.del:disabled { opacity: .5; }
 @media (max-width: 700px) { .ask-row { grid-template-columns: minmax(0, 1fr) auto; } .ask-row .q { grid-column: 1 / -1; } }
 .tip { position: fixed; pointer-events: none; z-index: 9; background: var(--ink); color: var(--surface); font-size: 12px; padding: 6px 9px; border-radius: 6px; max-width: 320px; white-space: pre-line; display: none; }
 @media (prefers-reduced-motion: reduce) {
@@ -428,7 +431,7 @@ function renderMap(roles, now) {
     const node = svg.querySelector('.node[data-role="' + r.name + '"]');
     if (!node) continue;
     const done = (r.completed || []).length;
-    const blocked = (r.working || []).filter((w) => w.status === "blocked").length;
+    const blocked = (r.working || []).filter((w) => w.status === "blocked").length + (r.name === "release_manager" ? openRecommendations().length : 0);
     node.classList.toggle("busy", r.live > 0);
     node.classList.toggle("blocked", blocked > 0);
     node.querySelector("text.stat").textContent = r.live > 0 ? "● " + r.live + " working" : "idle" + (done ? " · " + done + " done" : "");
@@ -511,10 +514,17 @@ function renderCards(roles) {
   if (focused) markFocus(focused);
 }
 
+// The release manager's open promotion recommendations, settled with the board's shared buttons.
+const openRecommendations = () => (state && Array.isArray(state.recommendations) ? state.recommendations : []);
+const recommendation = (r) => h("div", { class: "sess blocked", "data-recommendation": r.change },
+  h("span", { class: "n" }, r.change + " · waiting on you"), h("span", { class: "d" }, r.reasons || "-"),
+  boardAnswer.recommendationButtons(r, refresh));
+
 function card(r) {
   const meta = ROLES[r.name] || { code: r.name.slice(0, 2).toUpperCase(), name: r.name, hears: [], says: [] };
   const working = r.working || [], done = r.completed || [];
-  const blocked = working.filter((w) => w.status === "blocked").length;
+  const recs = r.name === "release_manager" ? openRecommendations() : [];
+  const blocked = working.filter((w) => w.status === "blocked").length + recs.length;
   const busy = working.length > 0;
   const session = (w) => h("div", { class: "sess" + (w.status === "blocked" ? " blocked" : ""), "data-tip": w.name + "\n" + (w.detail || w.status) },
     h("span", { class: "n" }, w.name + (w.status === "blocked" ? " · waiting on you" : "")),
@@ -530,6 +540,7 @@ function card(r) {
       h("span", { class: "k" }, "says"), h("span", { class: "v" }, meta.says.map(evChip))),
     busy ? h("div", { class: "list" }, h("h3", {}, "Now"), working.slice(0, 3).map(session),
       working.length > 3 ? h("a", { class: "more", href: "/#h-sess" }, "+ " + (working.length - 3) + " more in Sessions") : null) : null,
+    recs.length ? h("div", { class: "list" }, h("h3", {}, "Promotions to confirm"), recs.map(recommendation)) : null,
     done.length ? h("div", { class: "list" }, h("h3", {}, "Finished"), done.slice(0, 3).map((d) => h("div", { class: "done" }, h("span", {}, d.detail || d.name))))
       : busy ? null : h("div", { class: "idle" }, "Nothing yet. Waiting for " + meta.hears.join(", ") + "."));
 }

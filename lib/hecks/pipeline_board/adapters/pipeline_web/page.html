@@ -510,24 +510,8 @@ function recommendationGroup(recs) {
   const title = h("h3", { class: "sub" }, "Promotions to confirm (" + recs.length + ")");
   return h("div", { class: "attn-group" }, title, table(["Change", "Why", ""], rows));
 }
-async function postAct(body) {
-  const res = await fetch("/api/act", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-  return res.ok;
-}
-function recommendationButtons(r) {
-  const promote = h("button", { type: "button", class: "del", tip: "Runs the promotion of stable to the newest green commit, after a second click" }, "Promote");
-  const dismiss = h("button", { type: "button", class: "del", tip: "Set the recommendation aside without promoting" }, "Dismiss");
-  let armed = false;
-  promote.addEventListener("click", async () => {
-    if (!armed) { armed = true; promote.textContent = "Confirm promote"; return; }
-    promote.disabled = true;
-    if (await postAct({ action: "promote", confirm: true })) await postAct({ action: "settle", target: r.change });
-    else { armed = false; promote.disabled = false; promote.textContent = "Not promoted"; return; }
-    refresh();
-  });
-  dismiss.addEventListener("click", async () => { await postAct({ action: "settle", target: r.change }); refresh(); });
-  return h("span", {}, promote, dismiss);
-}
+// The buttons live in the shared prompt script (/answer.js), so the agents' page settles the same way.
+function recommendationButtons(r) { return boardAnswer.recommendationButtons(r, refresh); }
 // One group of attention rows; each row opens its resolve or answer dialog.
 function attentionTable(items) {
   const node = table(["Kind", "Item", "State", "Value", "Detail", "Since"], items.map((it) => [it.kind, it.item, badge(it.state), it.value, it.detail, it.since]));
