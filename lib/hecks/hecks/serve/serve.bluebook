@@ -97,6 +97,13 @@ Hecks.bluebook "Hecks" do
 
         emits McpRequested
       end
+
+    query "Ended" do
+      description "How one served command ended: its status, and what it said or why it stopped."
+      attribute :run, RunKey
+      where(run: :run)
+      order_by :run
+    end
     end
 
     policy "ExamineWhenPresentRequested" do
