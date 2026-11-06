@@ -64,11 +64,30 @@ module Hecks
       private
 
       def stop(entry)
-        return if STOPPED_STATES.include?(entry["state"].to_s)
+        unless STOPPED_STATES.include?(entry["state"].to_s)
+          name = entry.fetch("id", entry["sessionId"]).to_s
+          @shell.capture(@command, "stop", name)
+          settle(name)
+        end
+        await_exit(entry["pid"])
+      end
 
-        name = entry.fetch("id", entry["sessionId"]).to_s
-        @shell.capture(@command, "stop", name)
-        settle(name)
+      # Waits until the session's process is gone: the listing reads stopped before it exits, and
+      # a resume sent meanwhile is answered with a copy. Gives up after the patience.
+      def await_exit(pid)
+        return unless pid.is_a?(Integer)
+
+        deadline = Time.now + @patience
+        sleep(@pause) while alive?(pid) && Time.now < deadline
+      end
+
+      def alive?(pid)
+        Process.kill(0, pid)
+        true
+      rescue Errno::ESRCH
+        false
+      rescue Errno::EPERM
+        true
       end
 
       # Waits until the listing shows the session stopped: a resume sent while it runs is answered

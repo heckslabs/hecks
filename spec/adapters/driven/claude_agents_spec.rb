@@ -125,7 +125,12 @@ RSpec.describe Hecks::Adapters::ClaudeAgents do
         if [ -f "$here/stopped" ] && [ "$n" -ge 2 ]; then sed 's/"state":"[a-z]*"/"state":"stopped"/' "$here/sessions.json"; else cat "$here/sessions.json"; fi
         exit 0
       fi
-      if [ "$1" = "stop" ]; then echo "$2" >> "$here/stopped"; echo 0 > "$here/polls"; exit 0; fi
+      if [ "$1" = "stop" ]; then
+        echo "$2" >> "$here/stopped"; echo 0 > "$here/polls"
+        if [ -f "$here/pid" ]; then (sleep 0.8; kill "$(cat "$here/pid")") >/dev/null 2>&1 & fi
+        exit 0
+      fi
+      if [ -f "$here/pid" ] && kill -0 "$(cat "$here/pid")" 2>/dev/null; then touch "$here/copy"; fi
       printf '%s\\n' "$@" > "$here/argv"
       pwd -P > "$here/cwd"
       env | grep '^CLAUDE' | sort > "$here/claude_env"
@@ -208,6 +213,24 @@ RSpec.describe Hecks::Adapters::ClaudeAgents do
 
       expect(result).to include(session: { value: "abc123" })
       expect(File.read(File.join(scratch, "polls")).to_i).to be >= 3
+    end
+
+    # A process standing for the session's, listed with its pid; the stand-in kills it 0.8s after
+    # `stop`, long after the listing reads stopped, and starts a copy for a resume while it lives.
+    def session_process
+      pid = Process.spawn("sleep", "30")
+      Process.detach(pid)
+      File.write(File.join(scratch, "pid"), pid.to_s)
+      listing({ "id" => "abc123", "sessionId" => "abc123-0000-full", "state" => "blocked", "pid" => pid })
+      pid
+    end
+
+    it "waits for the session's process to exit after the listing reads stopped", :aggregate_failures do
+      pid = session_process
+      result = resume(answer: { value: "go on" })
+
+      expect(result).to include(session: { value: "abc123" })
+      expect { Process.kill(0, pid) }.to raise_error(Errno::ESRCH)
     end
 
     it "follows the id the CLI backgrounded when it differs from the run's, whatever the note says" do
