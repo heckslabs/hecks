@@ -553,8 +553,11 @@ async function sendAnswer() {
   const s = currentWaiting(), text = $("ans-text").value.trim(), send = $("ans-send");
   if (!s || !(s.run || s.id)) return;
   if (!text) { $("ans-status").textContent = "Write an answer first."; return; }
-  send.disabled = true; $("ans-status").textContent = "Sending…";
+  // The dialog closes at once: the launcher takes seconds to answer, and the session row shows the
+  // reply in yellow while it is sent, then clears it, or says "not sent" with the reason.
   replies.set(s.id, { text: text, state: "sending" });
+  $("ans-text").value = ""; $("ans-status").textContent = "";
+  $("answer").close();
   if (lastState) renderSessions(lastState.sessions);
   try {
     // A session with an AgentRun is answered through it; any other blocked session is replied to directly.
@@ -563,10 +566,8 @@ async function sendAnswer() {
     const body = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(body.error || "HTTP " + res.status);
     replies.delete(s.id);
-    $("ans-text").value = "";
-    $("answer").close();
     refresh();
-  } catch (e) { replies.set(s.id, { text: text, state: "not sent: " + e.message }); $("ans-status").textContent = "Not sent: " + e.message; }
+  } catch (e) { replies.set(s.id, { text: text, state: "not sent: " + e.message }); }
   finally { send.disabled = false; if (lastState) renderSessions(lastState.sessions); }
 }
 // A chart or table cell that opens the run on GitHub when the run carries its URL.
