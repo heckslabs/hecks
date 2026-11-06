@@ -1,7 +1,7 @@
 Hecks.world "Directory" do
   realm "Examples"
 
-  persisted_by("PostgresEra") do
+  persisted_by("Postgres") do
     database "postgres://localhost/hecks_directory"
     # a local example run as your shell's default (usually superuser)
     # Postgres user — see examples/pizzas/bluebook/pizzas.world's own

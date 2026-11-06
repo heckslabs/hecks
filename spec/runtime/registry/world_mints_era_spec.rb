@@ -12,7 +12,7 @@ RSpec.describe "mints_era in the world" do
         Kernel.load(InMemoryDomain::EXTRACTION_PORT)
         Kernel.load(InMemoryDomain::PRISM_ADAPTER)
         Kernel.load(File.expand_path("../../../lib/hecks/adapters/driven/postgres.adapter", __dir__))
-        Kernel.load(File.expand_path("../../../lib/hecks/adapters/driven/postgres_era.adapter", __dir__))
+        Kernel.load(File.expand_path("../../../lib/hecks/adapters/driven/postgres.adapter", __dir__))
         Hecks.world("Ledger", &world_block)
       end
     end

@@ -8,7 +8,7 @@ module Hecks
       class DomainLoader
         # The port and adapter declarations every domain load needs, relative to `lib/hecks`.
         FRAMEWORK_FILES = %w[ports/persistence.port ports/extraction.port adapters/driven/memory.adapter
-                             adapters/driven/prism.adapter adapters/driven/postgres_era.adapter].freeze
+                             adapters/driven/prism.adapter adapters/driven/postgres.adapter].freeze
 
         # A `runs` line in an `.adapter` file: the adapter is a wasm plugin.
         RUNS_LINE = /^\s*runs\s/

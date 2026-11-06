@@ -6,23 +6,11 @@ module Hecks
       module RevisionsRule
         # `revisions true` keeps schema revisions in Postgres only; on any other adapter it would
         # silently keep none, so the boot refuses it and names the adapters that can hold them.
-        REVISIONS_ADAPTERS = %w[Postgres PostgresEra].freeze
+        REVISIONS_ADAPTERS = %w[Postgres].freeze
 
         private
 
-        # `PostgresEra` is not a bindable adapter (ADR 0182): the revision layout is
-        # `Postgres` with `revisions true`. The class stays, so the era tools can still reach it.
-        def refuse_postgres_era_binding!(hecksagon)
-          bound = hecksagon.binds.find { |bind| bind.adapter.to_s == "PostgresEra" }
-          return unless bound
-
-          raise WiringError,
-                "#{hecksagon.domain} binds PostgresEra, which is not an adapter — bind Postgres " \
-                "and write `revisions true` in the hecksagon for the same layout"
-        end
-
         def refuse_revisions_on_other_adapter!(hecksagon)
-          refuse_postgres_era_binding!(hecksagon)
           return unless hecksagon.revisions?
 
           bluebook_ir = bluebook(hecksagon.domain)

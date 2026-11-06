@@ -51,6 +51,11 @@ module Hecks
         end
       end
 
+      # The class that holds the revision layout, which the era tools reach through the adapter.
+      #
+      # @return [Class] the revision store class
+      def self.revision_store_class = Layout::Revisions.store_class
+
       # The layout the adapter's storage calls are forwarded to.
       #
       # @return [Layout::Table] the table layout, bound to this adapter

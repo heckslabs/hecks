@@ -1,4 +1,5 @@
 Hecks.hecksagon "Compliance" do
+  revisions true
   # Every command here declares `role "Compliance officer"` — only real
   # access control once Governance can check it against something (S8).
   # A genuine standalone deploy (this domain's own Lambda, per this
@@ -7,7 +8,7 @@ Hecks.hecksagon "Compliance" do
   attaches "Governance"
 
   # NO PER-AGGREGATE BINDS — compliance.world's own `default_adapter
-  # "PostgresEra"` binds every aggregate this hecksagon leaves out, so
+  # "Postgres"` binds every aggregate this hecksagon leaves out, so
   # Review persists there without a line of its own.
 end
 

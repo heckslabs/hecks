@@ -8,12 +8,12 @@ module Hecks
       # Matches the `[features]` table only, so `[package] name = "rust"` never reads as a feature.
       FEATURES_TABLE = /^\[features\](?:\n(?!\[).*)*$/
 
-      # Both spellings: aggregate-scoped `.persisted_by("PostgresEra")` and the bare
-      # domain-level `persisted_by "PostgresEra"`.
-      POSTGRES_ERA_BINDING = /persisted_by\s*\(?\s*"PostgresEra"/
+      # Both spellings: aggregate-scoped `.persisted_by("Postgres")` and the bare
+      # domain-level `persisted_by "Postgres"`.
+      POSTGRES_ERA_BINDING = /persisted_by\s*\(?\s*"Postgres"/
 
       # A local assigned the bare literal on its own line; any other right-hand side is not one.
-      POSTGRES_ERA_VARIABLE = /^\s*([a-z_]\w*)\s*=\s*"PostgresEra"\s*(?:#.*)?$/
+      POSTGRES_ERA_VARIABLE = /^\s*([a-z_]\w*)\s*=\s*"Postgres"\s*(?:#.*)?$/
       # `persisted_by "Postgres"` in a file that also says `revisions true`: the revision layout.
       POSTGRES_BINDING = /persisted_by\s*\(?\s*"Postgres"/
       REVISIONS_SET = /^\s*revisions\s+true\b/
@@ -121,7 +121,7 @@ module Hecks
       end
 
       # Answers whether any `.hecksagon` under `domain_path` binds PostgresEra,
-      # by literal name or through a local variable assigned `"PostgresEra"`.
+      # by literal name or through a local variable assigned `"Postgres"`.
       #
       # @param domain_path [String] filesystem path to the target domain's directory
       # @return [Boolean] whether a PostgresEra `persisted_by` binding is found
@@ -141,7 +141,7 @@ module Hecks
         text.match?(POSTGRES_BINDING) && text.match?(REVISIONS_SET)
       end
 
-      # Answers whether `text` passes a variable assigned `"PostgresEra"` to `persisted_by`.
+      # Answers whether `text` passes a variable assigned `"Postgres"` to `persisted_by`.
       #
       # @param text [String] the contents of one `.hecksagon` file
       # @return [Boolean] whether some `persisted_by` call names such a variable

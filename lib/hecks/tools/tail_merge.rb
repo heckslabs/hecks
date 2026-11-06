@@ -84,7 +84,7 @@ module Hecks
       def lineage_settings(registry, bluebook)
         first = bluebook.aggregates.first or abort "#{bluebook.name} declares no aggregates"
         adapter_name = Hecks::Ports::Persistence::BindingPolicy.resolve(registry, bluebook.name, first).adapter
-        unless lineage_capable?(registry, Runtime::RevisionCheck.revision_adapter(registry, bluebook.name, adapter_name))
+        unless lineage_capable?(registry, Runtime::RevisionCheck.layout_class(registry, bluebook.name, adapter_name))
           abort "a tail-merge needs a lineage journal; #{bluebook.name} is bound to #{adapter_name}, " \
                 "not PostgresEra"
         end
@@ -92,8 +92,8 @@ module Hecks
         registry.binding_settings(bluebook.name, Hecks::Ports::Persistence::VERB, adapter_name)
       end
 
-      def lineage_capable?(registry, adapter_name)
-        adapter_class = registry.adapter_class(adapter_name)
+      def lineage_capable?(_registry, adapter_name)
+        adapter_class = adapter_name
         adapter_class.respond_to?(:lineage_capable?) && adapter_class.lineage_capable?
       rescue StandardError
         false

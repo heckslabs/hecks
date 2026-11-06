@@ -100,7 +100,7 @@ module Hecks
 
       def adapter_name(adapter)
         name = unwrap(adapter)
-        name.nil? || name.to_s.empty? ? "PostgresEra" : name
+        name.nil? || name.to_s.empty? ? "Postgres" : name
       end
     end
   end

@@ -57,7 +57,7 @@ module Hecks
           require "pg"
           require_owned_scratch!(database, schema)
 
-          rewrite_bindings!(copy, "PostgresEra")
+          rewrite_bindings!(copy, "Postgres")
           ensure_postgres_era_schema!(database: database, schema: schema)
 
           write_worlds!(copy, "hecks_fuzz_postgres_era.world") do |name|
@@ -85,8 +85,8 @@ module Hecks
         def postgres_era_world(name, database, schema, disposable: true)
           <<~WORLD
             Hecks.world "#{name}" do
-              default_adapter "PostgresEra"
-              persisted_by("PostgresEra") do
+              default_adapter "Postgres"
+              persisted_by("Postgres") do
                 database "#{database}"
                 schema "#{schema}"
                 allow_superuser true

@@ -80,7 +80,7 @@ module Hecks
         def refuse_unqualified_parity
           return unless @persistence_parity_mode && !@active_modes.include?(:persistence_parity)
 
-          abort "target #{@target_reference.inspect} (#{@target_path}) declares no persisted_by(\"PostgresEra\") " \
+          abort "target #{@target_reference.inspect} (#{@target_path}) declares no persisted_by(\"Postgres\") " \
                 "binding in its own .hecksagon (capabilities: #{@capabilities.join(",")}) — " \
                 "--persistence-parity has nothing to compare Memory against for this domain. " \
                 "examples/directory is the known example that qualifies."

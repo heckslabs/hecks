@@ -66,7 +66,7 @@ module Hecks
         first = bluebook.aggregates.first or abort "#{bluebook.name} declares no aggregates"
         adapter_name = Hecks::Ports::Persistence::BindingPolicy.resolve(registry, bluebook.name, first).adapter
         # Only a lineage-capable adapter holds era texts.
-        unless lineage_capable?(registry, Runtime::RevisionCheck.revision_adapter(registry, bluebook.name, adapter_name))
+        unless lineage_capable?(registry, Runtime::RevisionCheck.layout_class(registry, bluebook.name, adapter_name))
           abort "#{bluebook.name} is bound to #{adapter_name}, which holds no eras — " \
                 "there is no frozen text to re-attest."
         end
@@ -75,8 +75,8 @@ module Hecks
         ensured_lineage(bluebook, settings)
       end
 
-      def lineage_capable?(registry, adapter_name)
-        adapter_class = registry.adapter_class(adapter_name)
+      def lineage_capable?(_registry, adapter_name)
+        adapter_class = adapter_name
         adapter_class.respond_to?(:lineage_capable?) && adapter_class.lineage_capable?
       rescue StandardError
         false

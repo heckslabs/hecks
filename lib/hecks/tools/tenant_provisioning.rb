@@ -55,7 +55,7 @@ module Hecks
       # @return [Hash{Symbol => String}] `domain`, `realm`, `schema`, `database` and `adapter`
       # @raise [SystemExit] when a required flag is missing
       def parse(argv)
-        options = { adapter: "PostgresEra" }
+        options = { adapter: "Postgres" }
         OptionParser.new do |parser|
           %i[domain realm schema database adapter].each do |flag|
             parser.on("--#{flag}=NAME") { |v| options[flag] = v }

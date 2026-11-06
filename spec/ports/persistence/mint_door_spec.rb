@@ -146,7 +146,7 @@ RSpec.describe "the mints_era binding" do
     end
 
     it "declares the mints_era field, so a world may set it" do
-      path = File.expand_path("../../../lib/hecks/adapters/driven/postgres_era.adapter", __dir__)
+      path = File.expand_path("../../../lib/hecks/adapters/driven/postgres.adapter", __dir__)
       expect(File.read(path)).to include("field :mints_era")
     end
   end

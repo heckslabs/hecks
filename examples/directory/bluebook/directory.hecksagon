@@ -1,3 +1,4 @@
 Hecks.hecksagon "Directory" do
-  Directory::Member.persisted_by("PostgresEra")
+  revisions true
+  Directory::Member.persisted_by("Postgres")
 end

@@ -25,9 +25,7 @@ module Hecks
         "Heki"              => { world: ['default_adapter "Heki"', 'persisted_by("Heki") { dir "data" }'],
                     local_data: true, server: false },
         "Postgres"          => { world: ['default_adapter "Postgres"', POSTGRES_URL],
-                        local_data: false, server: true },
-        "PostgresEra"       => { world: ['default_adapter "PostgresEra"', POSTGRES_URL],
-                           local_data: false, server: true }
+                                 local_data: false, server: true }
       }.freeze
 
       # What `init` binds a stub to when no adapter is named: it needs no server and keeps its data.
@@ -115,7 +113,7 @@ module Hecks
       # @api private
       def world(name, snake, adapter)
         lines = ADAPTERS.fetch(adapter).fetch(:world).map { |line| "  #{format(line, snake: snake)}" }
-        note = adapter == "PostgresEra" ? "  # PostgresEra refuses a superuser role; use an ordinary one in the URL.\n" : ""
+        note = adapter == "Postgres" ? "  # Postgres refuses a superuser role; use an ordinary one in the URL.\n" : ""
         "Hecks.world \"#{name}\" do\n  realm \"#{name}\"\n#{note}#{lines.join("\n")}\nend\n"
       end
 

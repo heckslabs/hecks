@@ -38,7 +38,7 @@ module Hecks
         adapter_name = Hecks::Ports::Persistence::BindingPolicy.resolve(registry, bluebook.name, first).adapter
         # Eras belong to the adapters that can carry data across them. An edge scaffolded for an
         # adapter that cannot apply it would be a document nothing will ever run.
-        unless lineage_capable?(registry, Runtime::RevisionCheck.revision_adapter(registry, bluebook.name, adapter_name))
+        unless lineage_capable?(registry, Runtime::RevisionCheck.layout_class(registry, bluebook.name, adapter_name))
           abort "#{bluebook.name} is bound to #{adapter_name}, which holds no eras — " \
                 "a translation edge is only applied by a lineage-capable adapter. " \
                 "Bind PostgresEra, or change the shape and its stored data by hand."
@@ -46,8 +46,8 @@ module Hecks
         adapter_name
       end
 
-      def lineage_capable?(registry, adapter_name)
-        adapter_class = registry.adapter_class(adapter_name)
+      def lineage_capable?(_registry, adapter_name)
+        adapter_class = adapter_name
         adapter_class.respond_to?(:lineage_capable?) && adapter_class.lineage_capable?
       rescue StandardError
         false

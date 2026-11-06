@@ -19,7 +19,7 @@ module Hecks
         reason = unaudited_reason(registry, bluebook)
         return not_applicable(reason) if reason
 
-        audit(registry, bluebook, "PostgresEra")
+        audit(registry, bluebook, "Postgres")
       rescue StandardError => e
         # A refused connection or malformed `.world` settings is not the
         # same as nothing to audit, so this reports `:error`, never the
@@ -32,14 +32,14 @@ module Hecks
         return "#{bluebook.name} declares no aggregates" unless bluebook.aggregates.first
 
         adapter_name = bound_adapter(registry, bluebook)
-        "#{bluebook.name} is bound to #{adapter_name}, not PostgresEra" unless adapter_name == "PostgresEra"
+        "#{bluebook.name} is bound to #{adapter_name}, not PostgresEra" unless adapter_name == "Postgres"
       end
 
       # The adapter a domain's revisions live in: `Postgres` with `revisions true` is the revision
       # layout, which the audit reads as `PostgresEra` (ADR 0182).
       def bound_adapter(registry, bluebook)
         adapter = Hecks::Ports::Persistence::BindingPolicy.resolve(registry, bluebook.name, bluebook.aggregates.first).adapter
-        adapter == "Postgres" && registry.hecksagon(bluebook.name)&.revisions? ? "PostgresEra" : adapter
+        adapter == "Postgres" && registry.hecksagon(bluebook.name)&.revisions? ? "Postgres" : adapter
       end
 
       # Counts the writes each ancestor era holds that were never merged forward.

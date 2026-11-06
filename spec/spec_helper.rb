@@ -58,7 +58,8 @@ module InMemoryDomain
   LOCAL_STORAGE_ADAPTER = File.join(ROOT, "lib/hecks/adapters/driven/local_storage.adapter")
   PRISM_ADAPTER    = File.join(ROOT, "lib/hecks/adapters/driven/prism.adapter")
   POSTGRES_ADAPTER = File.join(ROOT, "lib/hecks/adapters/driven/postgres.adapter")
-  POSTGRES_ERA_ADAPTER = File.join(ROOT, "lib/hecks/adapters/driven/postgres_era.adapter")
+  # The revision layout is declared by the same adapter file as the table layout (ADR 0182).
+  POSTGRES_ERA_ADAPTER = POSTGRES_ADAPTER
   # ADR 0033 — the era/lineage plugin is not core-required; a spec that binds
   # PostgresEra must `require "hecks/ports/persistence/plugins/era"` itself,
   # same as any other consumer would.

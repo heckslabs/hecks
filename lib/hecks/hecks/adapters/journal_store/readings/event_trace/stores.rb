@@ -12,7 +12,7 @@ module Hecks
           # named but cannot be opened, so the trace can say why it has nothing to show.
           class Stores
             SQLITE = %w[Sqlite SqlitePersistence].freeze
-            POSTGRES = %w[PostgresEra].freeze
+            POSTGRES = %w[Postgres].freeze
 
             # One place events are kept: `kind` is `:sqlite`, `:postgres` or `:none`.
             Store = Struct.new(:kind, :adapter, :key, :name, :settings)

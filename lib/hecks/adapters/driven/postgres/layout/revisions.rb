@@ -19,6 +19,11 @@ module Hecks
           # @return [PostgresEra] the store the calls are answered with
           attr_reader :store
 
+          # The class the revision layout builds its store from.
+          #
+          # @return [Class] the revision store class
+          def self.store_class = PostgresEra
+
           # Runs a block under the revision store's cross-process write lock.
           #
           # @yield the block to run while the lock is held

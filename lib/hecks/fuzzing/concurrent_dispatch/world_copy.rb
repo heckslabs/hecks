@@ -19,7 +19,7 @@ module Hecks
             copy = File.join(tmp, File.basename(domain_path))
             IsolatedBoot.copy_dereferencing(domain_path, copy)
             FileUtils.rm_rf(File.join(copy, "data"))
-            IsolatedBoot.rewrite_bindings!(copy, "PostgresEra")
+            IsolatedBoot.rewrite_bindings!(copy, "Postgres")
             write_postgres_era_world!(copy, database: database, schema: schema)
             yield copy
           end
@@ -54,7 +54,7 @@ module Hecks
         def postgres_era_world(name, database, schema)
           <<~WORLD
             Hecks.world "#{name}" do
-              persisted_by("PostgresEra") do
+              persisted_by("Postgres") do
                 database "#{database}"
                 schema "#{schema}"
                 allow_superuser true
