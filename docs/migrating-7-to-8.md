@@ -1,9 +1,10 @@
 # Migrating from Hecks 7.x to 8.0
 
-**Status: final for the Postgres layout change (ADR 0182).** This page lists what that change
-breaks. The other 8.0 breaks listed at the end are not part of this change and are not yet
-written up; this page does not promise them. The [CHANGELOG](../CHANGELOG.md) entry for 8.0.0
-carries the release wording.
+**Status: draft, covering only the Postgres layout change (ADR 0182) on this branch.** It is not
+the 8.0.0 migration guide. The context-map, Composer and reaction items from the earlier 8.0 plan
+are not implemented on this branch (`inline_reactions` and the Composer's `saves` key do not exist
+in the code), so this page does not describe them. The [CHANGELOG](../CHANGELOG.md) entry is the
+release record for this change.
 Decisions are recorded in [ADR 0182](decisions/0182-one-postgres-adapter-picks-its-layout-from-the-hecksagon.md).
 
 ## Do these first
