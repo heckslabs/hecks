@@ -32,6 +32,8 @@ module Hecks
       board:     "lib/hecks/pipeline_board",
       # The Pipeline domain: one passage per change, moved by the other domains' events.
       pipeline:  "lib/hecks/pipeline",
+      # The Agents domain: the roles a session can be started for, and the requests that start one.
+      agents:    "lib/hecks/agents",
       # The Catcher domain: raw actions seen outside any declared command, kept, judged and acted
       # on.
       catcher:   "lib/hecks/catcher",

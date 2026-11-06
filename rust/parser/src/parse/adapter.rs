@@ -9,7 +9,8 @@ use crate::ruby_value::{self, Value};
 
 /// Parses every top-level `adapter` block of one `.adapter` file, in file order.
 ///
-/// A top-level line that is exactly `require "path"` is plain Ruby, not grammar, and is skipped;
+/// A top-level line that is exactly `require "path"` or `require_relative "path"` is plain Ruby,
+/// not grammar, and is skipped;
 /// any other top-level word goes through the normal gates and refuses there.
 pub fn parse_file(path: &str, source: &str) -> ParseResult<Vec<ir::Adapter>> {
     let joined = lex::join_continuations(source);
@@ -40,9 +41,12 @@ pub fn parse_file(path: &str, source: &str) -> ParseResult<Vec<ir::Adapter>> {
     Ok(adapters)
 }
 
-/// `require` followed by exactly one double-quoted string, nothing else.
+/// `require` or `require_relative` followed by exactly one double-quoted string, nothing else.
 fn is_require_line(text: &str) -> bool {
-    let Some(rest) = text.strip_prefix("require ") else {
+    let Some(rest) = text
+        .strip_prefix("require ")
+        .or_else(|| text.strip_prefix("require_relative "))
+    else {
         return false;
     };
     let rest = rest.trim();
