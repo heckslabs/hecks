@@ -37,6 +37,8 @@ module Hecks
       # The Catcher domain: raw actions seen outside any declared command, kept, judged and acted
       # on.
       catcher:   "lib/hecks/catcher",
+      # The Agents domain: the roles that work a change, each handing off through a command.
+      agents:    "lib/hecks/agents",
       # A package vendored via `attaches ... from: :vendor` — nested inside the
       # consuming example's own checkout, not this gem's own framework/bluebook/.
       vendored:  "examples/*/vendor/embryonaut_bluebooks/*"

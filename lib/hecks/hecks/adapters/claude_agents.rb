@@ -6,6 +6,7 @@ require "time"
 require_relative "console_capture"
 require_relative "claude_transcript"
 require_relative "claude_jobs"
+require_relative "architect_verdict"
 require_relative "claude_agent_list"
 require_relative "dispatching/settings"
 
@@ -96,7 +97,13 @@ module Hecks
       def architect_facts(job, held)
         return { verdict: "", findings: "" } unless plain(held[:agent]).to_s == "architect"
 
-        { verdict: verdict_of(job), findings: job.dig("output", "result").to_s[0, FINDINGS_LIMIT] }
+        text = closing_text(job, held)
+        { verdict: ArchitectVerdict.of(text), findings: text[0, FINDINGS_LIMIT] }
+      end
+
+      # @return [String] what the architect wrote last (the timeline's tail) with the job's summary
+      def closing_text(job, held)
+        [@jobs.closing(plain(held[:session])), job.dig("output", "result"), job["detail"]].compact.join("\n")
       end
 
       # The reviewer's judgment as its closing text states it: `real_bug` or `stale_expectation`.
@@ -116,18 +123,6 @@ module Hecks
       def run_facts(held)
         { previous: plain(held[:condition]).to_s, checkout: File.join(plain(held[:repo]).to_s, ""),
           run: plain(held[:run]).to_s }
-      end
-
-      # The architect's verdict as the job's closing text states it, or empty for any other agent or
-      # a text that names none. The words are `sound`, `sound with changes` and `rethink`.
-      VERDICT_WORDS = /\b(sound with changes|sound|rethink)\b/i
-
-      # @param job [Hash] the job's state
-      # @return [String] `sound`, `changes`, `rethink`, or empty
-      def verdict_of(job)
-        closing = [job.dig("output", "result"), job["detail"]].compact.join(" ")
-        word = closing[VERDICT_WORDS, 1].to_s.downcase
-        word == "sound with changes" ? "changes" : word
       end
 
       # Waits the settling time, then reads the job as {#read_job} does: a session that dies at
@@ -202,8 +197,11 @@ module Hecks
 
       def start_arguments(held)
         agent = plain(held[:agent])
-        [*niceness, @command, *(agent ? ["--agent", agent] : []), "--bg", "--", plain(held[:brief])]
+        [*niceness, @command, *(agent ? ["--agent", agent] : []), "--bg", "--", briefed(plain(held[:brief]), agent)]
       end
+
+      # @return [String] the brief, with the verdict format added for the architect
+      def briefed(brief, agent) = agent == "architect" ? "#{brief}#{ArchitectVerdict::REQUEST}" : brief.to_s
 
       def niceness = @session.nice ? ["nice", "-n", @session.nice.to_s] : []
 
