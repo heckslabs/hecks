@@ -549,109 +549,110 @@ fn tables() -> Tables<'static> {
 /// Saga instances by (saga, correlation id), as `serve` keeps them across steps.
 type SagaMap = HashMap<(String, String), SagaInstance>;
 
-/// `--serve` mode: one JSON step per stdin line, one answer per stdout line, store kept across
-/// lines. Beyond `verb` it takes `dry_run`, `snapshot`, `restore` and `instances` steps.
-pub fn serve(input: impl std::io::BufRead, mut output: impl std::io::Write) {
-    let mut store = Store::new();
-    let mut sagas = SagaMap::new();
-    let mut reaction_log: Vec<Json> = Vec::new();
-    let mut saga_log: Vec<Json> = Vec::new();
-    let mut snapshot: Option<(Store, SagaMap)> = None;
-    let ok = || Json::obj(vec![("ok", Json::Bool(true))]);
+/// What one `--serve` session keeps across steps: the store, the saga instances, the logs a
+/// dispatch appends to, and the snapshot a `restore` step returns to.
+pub(super) struct Session {
+    store: Store,
+    sagas: SagaMap,
+    reaction_log: Vec<Json>,
+    saga_log: Vec<Json>,
+    snapshot: Option<(Store, SagaMap)>,
+}
 
-    for line in input.lines() {
-        let Ok(line) = line else { break };
-        if line.trim().is_empty() {
-            continue;
-        }
-        let answer = match Json::parse(&line) {
-            Err(e) => Json::obj(vec![
-                ("ok", Json::Bool(false)),
-                ("error", Json::str(format!("invalid JSON: {e}"))),
-            ]),
-            Ok(step) => {
-                let empty_args = Json::Object(vec![]);
-                let args = step.get("args").unwrap_or(&empty_args);
-                let caller_role = step.get("role").and_then(Json::as_str);
-                let caller_actor_id = step.get("actor_id").and_then(Json::as_str);
-                let occurred_at = step.get("occurred_at").and_then(Json::as_str);
-                if step.get("snapshot").is_some() {
-                    snapshot = Some((store.clone(), sagas.clone()));
-                    ok()
-                } else if step.get("restore").is_some() {
-                    match &snapshot {
-                        Some((s, g)) => {
-                            store = s.clone();
-                            sagas.clone_from(g);
-                            ok()
-                        }
-                        None => Json::obj(vec![
-                            ("ok", Json::Bool(false)),
-                            ("error", Json::str("no snapshot to restore")),
-                        ]),
-                    }
-                } else if step.get("instances").is_some() {
-                    Json::obj(vec![
-                        ("ok", Json::Bool(true)),
-                        ("instances", Json::Object(store.instances())),
-                    ])
-                } else if let Some(verb) = step.get("dry_run").and_then(Json::as_str) {
-                    dry_run(
-                        &store,
-                        verb,
-                        &dry_run_command_input(args),
-                        caller_role,
-                        caller_actor_id,
-                        occurred_at,
-                    )
-                } else if let Some(verb) = step.get("verb").and_then(Json::as_str) {
-                    let mut events: Vec<Event> = Vec::new();
-                    let outcome = orchestrate(
-                        &mut store,
-                        dispatch_by_name,
-                        tables(),
-                        &mut sagas,
-                        verb,
-                        command_input(&step, args),
-                        caller_role,
-                        caller_actor_id,
-                        None,
-                        occurred_at,
-                        0,
-                        &mut events,
-                        &mut Vec::new(),
-                        &mut Vec::new(),
-                        &mut reaction_log,
-                        &mut saga_log,
-                    );
-                    match outcome {
-                        Ok(()) => Json::obj(vec![
-                            ("ok", Json::Bool(true)),
-                            (
-                                "events",
-                                Json::Array(events.iter().map(event_to_json).collect()),
-                            ),
-                        ]),
-                        Err(refusal) => Json::obj(vec![
-                            ("ok", Json::Bool(false)),
-                            ("error", Json::str(refusal.to_string())),
-                        ]),
-                    }
-                } else {
-                    Json::obj(vec![
-                        ("ok", Json::Bool(false)),
-                        (
-                            "error",
-                            Json::str("step needs verb, dry_run, snapshot, restore, or instances"),
-                        ),
-                    ])
-                }
-            }
-        };
-        if writeln!(output, "{}", answer.to_json_string()).is_err() || output.flush().is_err() {
-            break;
+impl Session {
+    pub(super) fn new() -> Self {
+        Self {
+            store: Store::new(),
+            sagas: SagaMap::new(),
+            reaction_log: Vec::new(),
+            saga_log: Vec::new(),
+            snapshot: None,
         }
     }
+
+    /// Answers one step: a `verb` dispatch, or `dry_run`, `snapshot`, `restore` or `instances`.
+    /// A refusal is `{"ok": false, "error": ...}` (ADR 0186).
+    pub(super) fn handle(&mut self, step: &Json) -> Json {
+        let ok = || Json::obj(vec![("ok", Json::Bool(true))]);
+        let empty_args = Json::Object(vec![]);
+        let args = step.get("args").unwrap_or(&empty_args);
+        let caller_role = step.get("role").and_then(Json::as_str);
+        let caller_actor_id = step.get("actor_id").and_then(Json::as_str);
+        let occurred_at = step.get("occurred_at").and_then(Json::as_str);
+        if step.get("snapshot").is_some() {
+            self.snapshot = Some((self.store.clone(), self.sagas.clone()));
+            ok()
+        } else if step.get("restore").is_some() {
+            match &self.snapshot {
+                Some((s, g)) => {
+                    self.store = s.clone();
+                    self.sagas.clone_from(g);
+                    ok()
+                }
+                None => refusal_answer("no snapshot to restore"),
+            }
+        } else if step.get("instances").is_some() {
+            Json::obj(vec![
+                ("ok", Json::Bool(true)),
+                ("instances", Json::Object(self.store.instances())),
+            ])
+        } else if let Some(verb) = step.get("dry_run").and_then(Json::as_str) {
+            dry_run(
+                &self.store,
+                verb,
+                &dry_run_command_input(args),
+                caller_role,
+                caller_actor_id,
+                occurred_at,
+            )
+        } else if let Some(verb) = step.get("verb").and_then(Json::as_str) {
+            let mut events: Vec<Event> = Vec::new();
+            let outcome = orchestrate(
+                &mut self.store,
+                dispatch_by_name,
+                tables(),
+                &mut self.sagas,
+                verb,
+                command_input(step, args),
+                caller_role,
+                caller_actor_id,
+                None,
+                occurred_at,
+                0,
+                &mut events,
+                &mut Vec::new(),
+                &mut Vec::new(),
+                &mut self.reaction_log,
+                &mut self.saga_log,
+            );
+            match outcome {
+                Ok(()) => Json::obj(vec![
+                    ("ok", Json::Bool(true)),
+                    (
+                        "events",
+                        Json::Array(events.iter().map(event_to_json).collect()),
+                    ),
+                ]),
+                Err(refusal) => refusal_answer(&refusal.to_string()),
+            }
+        } else {
+            refusal_answer("step needs verb, dry_run, snapshot, restore, or instances")
+        }
+    }
+}
+
+/// `{"ok": false, "error": message}`, the one shape of a refusal on every surface (ADR 0186).
+pub(super) fn refusal_answer(message: &str) -> Json {
+    Json::obj(vec![
+        ("ok", Json::Bool(false)),
+        ("error", Json::str(message.to_string())),
+    ])
+}
+
+/// `--serve` mode: the host protocol over a line-framed stream (ADR 0189). Steps with no
+/// `session` run in the connection's default session, so the bare one-step-per-line use holds.
+pub fn serve<R: std::io::BufRead + 'static, W: std::io::Write + 'static>(input: R, output: W) {
+    super::serve::serve(input, output);
 }
 
 fn run_filter(store: &Store, filter: &Json) -> Result<Vec<Json>, Refusal> {
