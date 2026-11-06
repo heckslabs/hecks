@@ -32,7 +32,7 @@ Boot refuses a binding of `postgres_era` and names this replacement. Stored data
 the layout is recorded on first boot and a later mismatch is refused.
 
 The Ruby class that holds the revision layout is `Hecks::Adapters::PostgresRevision`. If your code
-names `Hecks::Adapters::PostgresEra`, change it to `PostgresRevision`.
+names the old class `PostgresEra`, change it to `PostgresRevision`.
 
 Sweep and benchmark labels change with it: `persistence_parity`, `concurrency` and the bench
 target `ruby:postgres_era` now read `postgres_revision` in their capability lists and output.

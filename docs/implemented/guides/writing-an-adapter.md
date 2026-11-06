@@ -355,7 +355,7 @@ rescue StandardError
 end
 ```
 
-`Hecks::Adapters::PostgresEra` declares `def self.lineage_capable? = true`;
+`Hecks::Adapters::PostgresRevision` declares `def self.lineage_capable? = true`;
 plain `Postgres` and the other adapters do not.
 Memory and Heki simply do not implement the class method at all, and
 the check treats that the same as answering false:
