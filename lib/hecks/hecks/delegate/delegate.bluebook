@@ -224,6 +224,7 @@ Hecks.bluebook "Hecks" do
 
         reference_to AgentRun
         attribute :answered_at, Moment, sets: true
+        attribute :session,     SessionId, sets: true
 
         emits AgentRunAnswered
       end
@@ -513,7 +514,7 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheAnswer" do
       on      "AgentRun.AgentResumed"
-      trigger AgentRun::Answered, with: { answered_at: :resumed_at }
+      trigger AgentRun::Answered, with: { answered_at: :resumed_at, session: :session }
     end
 
     policy "RecordTheRefusedAnswer" do

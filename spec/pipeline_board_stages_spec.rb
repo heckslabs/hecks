@@ -26,11 +26,12 @@ RSpec.describe Hecks::Adapters::PipelineStages do
 
   def readers(overrides = {})
     work = repo_one_ahead(base)
-    { github: Hecks::Adapters::PipelineGitHub.new(settings: { gh: gh, ttl: 0 }),
-      git: Hecks::Adapters::PipelineGit.new(root: work, settings: { train: work, ttl: 0 }),
+    { github:  Hecks::Adapters::PipelineGitHub.new(settings: { gh: gh, ttl: 0 }),
+      git:     Hecks::Adapters::PipelineGit.new(root: work, settings: { train: work, ttl: 0 }),
       tickets: Hecks::Adapters::PipelineTickets.new(settings: { work_items: work_items, landings: [] }),
-      jobs: jobs_reader, journal: instance_double(Hecks::Adapters::PipelineJournal, recent: [], named: [], landed_times: {}),
-      fill: fill_reader }.merge(overrides)
+      jobs:    jobs_reader,
+      journal: instance_double(Hecks::Adapters::PipelineJournal, recent: [], named: [], landed_times: {}, promotions: []),
+      fill:    fill_reader }.merge(overrides)
   end
 
   def board(overrides = {})

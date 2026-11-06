@@ -6,6 +6,7 @@ require "time"
 require_relative "console_capture"
 require_relative "claude_transcript"
 require_relative "claude_jobs"
+require_relative "claude_resumption"
 require_relative "architect_verdict"
 require_relative "claude_agent_list"
 require_relative "dispatching/settings"
@@ -162,21 +163,18 @@ module Hecks
         { removed_at: { value: Time.now.utc.iso8601 } }
       end
 
-      # Answers a blocked session by resuming it in the run's directory, with the answer as its
-      # prompt. The run holds the short id `claude agents` shows; `--resume` takes only the full
-      # session id, and given a short one it opens a new session waiting on its picker instead.
+      # Answers a session by waking it in place under its own id (see {ClaudeResumption}). The run
+      # holds the short id `claude agents` shows; `--resume` takes only the full session id.
       #
-      # @param held [Hash] the `AgentRun` record: `session`, `repo`, `answer`, and `agent` if named
-      # @return [Hash{Symbol => Hash}] `resumed_at:` when the resume was started, as an ISO 8601
-      #   string
+      # @param held [Hash] the `AgentRun` record: `session`, `repo` and `answer`
+      # @return [Hash{Symbol => Object}] `resumed_at:` when the resume was started, as an ISO 8601
+      #   string; `session:` the id the run follows, its own unless the CLI started a copy; and
+      #   `note:` what the CLI said of that copy, when it did
       # @raise [ConsoleCapture::Failure] when the session is not listed or the command refuses
       def resume(**held)
         id = plain(held[:session])
-        result = @shell.capture(*resume_arguments(full_session_id(id), held),
-                                env: @session.session_environment, chdir: plain(held[:repo]))
-        raise ConsoleCapture::Failure, "#{@command} resume #{id} refused: #{result.err.strip}" unless result.ok?
-
-        { resumed_at: { value: Time.now.utc.iso8601 } }
+        ClaudeResumption.new(@command, @shell, nice: niceness)
+                        .call(id, listed(id), plain(held[:answer]), env: @session.session_environment, chdir: plain(held[:repo]))
       end
 
       private
@@ -194,18 +192,6 @@ module Hecks
 
         found = JSON.parse(listing.out).find { |entry| [entry["id"], entry["sessionId"]].include?(id) }
         found || raise(ConsoleCapture::Failure, "no session #{id} is listed")
-      end
-
-      # The id `--resume` takes: the listed session's full `sessionId`.
-      def full_session_id(id)
-        full = listed(id)["sessionId"].to_s
-        full.empty? ? raise(ConsoleCapture::Failure, "session #{id} is listed with no full session id") : full
-      end
-
-      # The session keeps its agent when resumed, so the answer is read with the role's definition.
-      def resume_arguments(full, held)
-        agent = plain(held[:agent])
-        [*niceness, @command, *(agent ? ["--agent", agent] : []), "--bg", "--resume", full, "--", plain(held[:answer])]
       end
 
       def start_arguments(held)

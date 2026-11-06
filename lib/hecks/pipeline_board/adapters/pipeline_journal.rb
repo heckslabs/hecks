@@ -15,6 +15,8 @@ module Hecks
     class PipelineJournal
       include PipelineBoard::Chain
 
+      PROMOTION_EVENTS = %w[PromotionRecommended PromotionSettled].freeze
+
       DEFAULT_DOMAIN = "lib/hecks/hecks"
 
       # Where the opt-in event log is written when a world turns it on.
@@ -62,6 +64,17 @@ module Hecks
         found.sort_by { |row| row[:at].to_s }.reverse.first(count)
       end
 
+      # The promotion events, from the persisted stores and the whole event log, so a recommendation
+      # raised in another process is seen here. Memory keeps none across processes.
+      #
+      # @return [Array<Hash>] `PromotionRecommended` and `PromotionSettled` rows, newest first
+      def promotions
+        logged = @tap.named(PROMOTION_EVENTS)
+        stored = PROMOTION_EVENTS.flat_map { |event| stored_named(event) }
+        found = (logged + stored).uniq { |row| [row[:name], row[:id], row[:at]] }
+        found.sort_by { |row| row[:at].to_s }.reverse
+      end
+
       # @param event [String] a bare event name, such as `WorkFinished`
       # @param count [Integer] how many of the newest to read
       # @return [Array<Hash>] the newest events of that name in the journal stores, newest first
@@ -72,6 +85,12 @@ module Hecks
       end
 
       private
+
+      def stored_named(event)
+        named(event, 200)
+      rescue PipelineBoard::Unavailable
+        []
+      end
 
       def journal(count)
         @cache.fetch([:trace, count]) { chained(@trace.call(count, nil)) }
