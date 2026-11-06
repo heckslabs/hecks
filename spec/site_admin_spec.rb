@@ -220,6 +220,7 @@ RSpec.describe "the admin sign-in module" do
       texts.filter_map do |name, text|
         file = File.join(dir, File.basename(name))
         File.write(file, text)
+        File.write(File.join(dir, "package.json"), "{\"type\": \"module\"}\n")
         _out, err, status = Open3.capture3({ "NODE_NO_WARNINGS" => "1" }, "node", *flags, "--check", file)
         "#{name}: #{err}" unless status.success?
       end

@@ -39,6 +39,7 @@ module EditorNode
   def run(files, scenario = EDITOR_NODE_SCENARIO, env: {}, extra: {})
     Dir.mktmpdir("cms_editor_node") do |dir|
       install_client(dir)
+      write_module_marker(dir)
       written = files.transform_keys { |name| "editor/#{name}" }
       written.merge(extra, "scenario.mjs" => scenario).each { |name, text| write(File.join(dir, name), text) }
       out, err, status = Open3.capture3(ENVIRONMENT.merge(env), "node", File.join(dir, "scenario.mjs"))
@@ -49,6 +50,12 @@ module EditorNode
   end
 
   # Copies the transformed client into the sandbox's node_modules.
+  # Node 24 reads a `.ts` file as CommonJS unless a `package.json` in its directory says `module`,
+  # which the shipped CMS does (see its `package.json.tmpl`).
+  def write_module_marker(dir)
+    write(File.join(dir, "package.json"), "{\"type\": \"module\"}\n")
+  end
+
   def install_client(dir)
     modules = File.join(dir, "node_modules/@hecks/client")
     FileUtils.mkdir_p(File.dirname(modules))
