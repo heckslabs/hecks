@@ -49,32 +49,59 @@ fn check_args(ir: IrQueries, question: &str, args: &Json) -> Result<(), Refusal>
         .unwrap_or_else(|| check_query_args(question, args))
 }
 
-pub fn run(input: &str) -> String {
-    let parsed = match Json::parse(input) {
-        Ok(v) => v,
-        Err(e) => return error_output(&format!("invalid JSON on stdin: {e}")),
-    };
+/// What a serve session holds once the host has sent the domain IR: the queries and the presenter,
+/// built once, so a run that carries no `"ir"` is answered from them (ADR 0188 step 3, ADR 0189).
+pub(super) struct SessionIr {
+    queries: &'static super::ir_queries::IrQueries,
+    presenter: super::ir_presenter::IrPresenter,
+}
 
-    // `{"present": answer}`: a run's answer in the bare shape a caller reads (single-field value
-    // objects as their sole field); no step runs, and stored state stays wrapped.
-    // Parsed again keeping number text, so a Float the answer carries is written back unchanged.
+impl SessionIr {
+    /// Reads one domain's IR, or an array of them.
+    pub(super) fn from_ir(ir: &Json) -> Self {
+        Self {
+            queries: super::ir_queries::for_ir(ir),
+            presenter: super::ir_presenter::IrPresenter::from_ir(ir),
+        }
+    }
+}
+
+/// `{"present": answer}`: a run's answer in the bare shape a caller reads (single-field value
+/// objects as their sole field); no step runs, and stored state stays wrapped.
+/// Parsed again keeping number text, so a Float the answer carries is written back unchanged.
+fn present_run(parsed: &Json, input: &str, session: Option<&SessionIr>) -> String {
+    let answer = Json::parse_keeping_number_text(input)
+        .ok()
+        .and_then(|whole| whole.get("present").cloned())
+        .unwrap_or(Json::Null);
+    // An `"ir"` key (one domain's canonical IR, or an array) is interpreted for this run, else the
+    // session's IR answers; with neither the generated router does, until `generated::active` goes.
+    let presented = match (parsed.get("ir"), session) {
+        (Some(ir), _) => {
+            let presenter = super::ir_presenter::IrPresenter::from_ir(ir);
+            super::present::present_answer(answer, &|aggregate, state| {
+                presenter.present(aggregate, state)
+            })
+        }
+        (None, Some(held)) => super::present::present_answer(answer, &|aggregate, state| {
+            held.presenter.present(aggregate, state)
+        }),
+        (None, None) => super::present::present_answer(answer, &crate::generated::active::present),
+    };
+    presented.to_json_string()
+}
+
+pub fn run(input: &str) -> String {
+    match Json::parse(input) {
+        Ok(parsed) => run_parsed(&parsed, input, None),
+        Err(e) => error_output(&format!("invalid JSON on stdin: {e}")),
+    }
+}
+
+/// Answers a run already parsed from `input`: the session's IR answers a run that carries none.
+pub(super) fn run_parsed(parsed: &Json, input: &str, session: Option<&SessionIr>) -> String {
     if parsed.get("present").is_some() {
-        let answer = Json::parse_keeping_number_text(input)
-            .ok()
-            .and_then(|whole| whole.get("present").cloned())
-            .unwrap_or(Json::Null);
-        // An `"ir"` key (one domain's canonical IR, or an array) is interpreted at run time;
-        // without it the generated router answers, until the rest of `generated::active` goes.
-        let presented = match parsed.get("ir") {
-            Some(ir) => {
-                let presenter = super::ir_presenter::IrPresenter::from_ir(ir);
-                super::present::present_answer(answer, &|aggregate, state| {
-                    presenter.present(aggregate, state)
-                })
-            }
-            None => super::present::present_answer(answer, &crate::generated::active::present),
-        };
-        return presented.to_json_string();
+        return present_run(parsed, input, session);
     }
 
     // Optional `"needs"`: which commands need which outside facts (ADR 0081), passed by the host.
@@ -87,9 +114,12 @@ pub fn run(input: &str) -> String {
     let Some(steps) = parsed.get("steps").and_then(Json::as_array) else {
         return error_output("expected a top-level {\"steps\": [...]} object");
     };
-    // An `"ir"` key (one domain's canonical IR, or an array) has the declared queries and their
-    // argument gates read from it; without it `generated::active` answers.
-    let ir_queries = parsed.get("ir").map(super::ir_queries::for_ir);
+    // An `"ir"` key (one domain's canonical IR, or an array), else the session's, has the declared
+    // queries and their argument gates read from it; with neither `generated::active` answers.
+    let ir_queries = match parsed.get("ir") {
+        Some(ir) => Some(super::ir_queries::for_ir(ir)),
+        None => session.map(|held| held.queries),
+    };
 
     // Optional `"seed"`: prior state as `"instances"` emits it, so a host need not replay history.
     let mut store = match parsed.get("seed") {

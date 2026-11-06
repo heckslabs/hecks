@@ -6,7 +6,7 @@
 //! The kernel does no I/O of its own (ADR 0012); this loop is the one place that touches the
 //! stream, and the kernel proper only calls the `needs::Asker` it is given.
 
-use super::cli::{refusal_answer, Session};
+use super::cli::{refusal_answer, run_parsed, Session, SessionIr};
 use super::{needs, Json};
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
@@ -36,10 +36,10 @@ impl<R: BufRead, W: Write> Wire<R, W> {
         }
     }
 
-    /// Writes one frame and flushes it; `false` when the host is gone.
-    fn write(&self, frame: &Json) -> bool {
+    /// Writes one frame, already JSON text, and flushes it; `false` when the host is gone.
+    fn write(&self, frame: &str) -> bool {
         let mut output = self.output.borrow_mut();
-        writeln!(output, "{}", frame.to_json_string()).is_ok() && output.flush().is_ok()
+        writeln!(output, "{frame}").is_ok() && output.flush().is_ok()
     }
 }
 
@@ -48,6 +48,7 @@ struct Connection {
     default: Session,
     named: HashMap<String, Session>,
     callbacks: bool,
+    ir: Option<SessionIr>,
 }
 
 pub fn serve<R: BufRead + 'static, W: Write + 'static>(input: R, output: W) {
@@ -60,19 +61,26 @@ pub fn serve<R: BufRead + 'static, W: Write + 'static>(input: R, output: W) {
         default: Session::new(),
         named: HashMap::new(),
         callbacks: false,
+        ir: None,
     };
     while let Some(line) = wire.read() {
         if line.trim().is_empty() {
             continue;
         }
         let answer = match Json::parse(&line) {
-            Err(e) => refusal_answer(&format!("invalid JSON: {e}")),
-            Ok(message) => route(&wire, &mut connection, &message),
+            Err(e) => refusal_answer(&format!("invalid JSON: {e}")).to_json_string(),
+            Ok(message) if is_run(&message) => run_message(&connection, &message, &line),
+            Ok(message) => route(&wire, &mut connection, &message).to_json_string(),
         };
         if !wire.write(&answer) {
             break;
         }
     }
+}
+
+/// A `{"steps": [...]}` or `{"present": ...}` message: a whole run, as `cli::run` takes it.
+fn is_run(message: &Json) -> bool {
+    message.get("steps").is_some() || message.get("present").is_some()
 }
 
 fn route<R: BufRead + 'static, W: Write + 'static>(
@@ -82,6 +90,9 @@ fn route<R: BufRead + 'static, W: Write + 'static>(
 ) -> Json {
     if let Some(hello) = message.get("hello") {
         return negotiate(hello, connection);
+    }
+    if let Some(load) = message.get("load") {
+        return load_ir(connection, load);
     }
     if let Some(name) = message.get("open") {
         return open(connection, name);
@@ -111,6 +122,23 @@ fn route<R: BufRead + 'static, W: Write + 'static>(
     answer
 }
 
+/// `{"load": {"ir": ...}}`: the domain IR for the rest of the connection. The queries and the
+/// presenter are built now, so a run that follows carries no `"ir"` and pays no reading of it.
+fn load_ir(connection: &mut Connection, load: &Json) -> Json {
+    let Some(ir) = load.get("ir") else {
+        return refusal_answer("load needs an ir");
+    };
+    connection.ir = Some(SessionIr::from_ir(ir));
+    Json::obj(vec![("ok", Json::Bool(true))])
+}
+
+/// A run message answered as `cli::run` would answer it, from the connection's IR when the message
+/// carries none. The answer is the run's own JSON text, written as it is (an error is
+/// `{"error": ...}`).
+fn run_message(connection: &Connection, message: &Json, line: &str) -> String {
+    run_parsed(message, line, connection.ir.as_ref())
+}
+
 /// `{"hello": {"protocols": [1], "callbacks": true, "needs": {...}}}`: picks the highest version
 /// both ends speak, installs the tables of needed facts and defaults, and records whether the
 /// host will answer callbacks. A client that names no version is taken to speak version 1.
@@ -137,6 +165,9 @@ fn negotiate(hello: &Json, connection: &mut Connection) -> Json {
     needs::install(hello.get("needs"));
     needs::install_queries(hello.get("query_needs"));
     needs::install_defaults(hello.get("defaults"));
+    if let Some(ir) = hello.get("ir") {
+        connection.ir = Some(SessionIr::from_ir(ir));
+    }
     connection.callbacks = matches!(hello.get("callbacks"), Some(Json::Bool(true)));
     Json::obj(vec![
         ("ok", Json::Bool(true)),
@@ -190,7 +221,7 @@ fn asker<R: BufRead + 'static, W: Write + 'static>(
                 ("verb", Json::str(verb.clone())),
             ]),
         )]);
-        if !wire.write(&frame) {
+        if !wire.write(&frame.to_json_string()) {
             return None;
         }
         let reply = Json::parse(&wire.read()?).ok()?;
