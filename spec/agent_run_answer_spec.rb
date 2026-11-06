@@ -63,7 +63,7 @@ RSpec.describe "AgentRun.Answer through the Agents port" do
     started_run("a-working", "working")
 
     expect(answer("a-working", "yes")).to include("answered_at")
-    expect(File.read(resume_args).split("\n")).to eq(["--bg", "--resume", "stand-in-session", "--", "yes"])
+    expect(File.read(resume_args).split("\n")).to eq(["--bg", "--resume", "stand-in-session-0000-full", "--", "yes"])
   end
 
   it "refuses an answer that says nothing, and resumes nothing", :aggregate_failures do
