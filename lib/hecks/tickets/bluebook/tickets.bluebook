@@ -494,6 +494,12 @@ Hecks.bluebook "Tickets" do
       returns Document
     end
 
+    # Answered by the WorkLimits port from the `iteration_watch` setting, the event logs and the clock.
+    query "Bloat" do
+      description "Every started step that is bloated: the same step failed attempts times in a row for one reason, more than wait_minutes spent waiting, or past over_budget times its budget; each line names the rule and the numbers."
+      returns Document
+    end
+
     query "Under" do
       description "Every step of the plan one decision carries, in plan order."
       attribute :adr, String

@@ -11,7 +11,7 @@ RSpec.describe "hecks quality_control tick while quiesced", :aggregate_failures 
   let(:tick) { Hecks::QualityControlCli::QaTick.new(root: dir, env: {}) }
   let(:ran) { [] }
   let(:steps) do
-    %w[pr_check sweep generated_domains mutation main_check push_nudge event_pump]
+    %w[pr_check sweep generated_domains mutation main_check push_nudge bloat_watch event_pump]
   end
 
   before do
@@ -35,7 +35,7 @@ RSpec.describe "hecks quality_control tick while quiesced", :aggregate_failures 
     expect { results = run_all }.not_to output(/quiesced/).to_stdout
 
     expect(results.map(&:exit_code).uniq).to eq([0])
-    expect(ran.size).to eq(7)
+    expect(ran.size).to eq(8)
   end
 
   it "skips each step with the message and exit 0 while held, and runs them again after release" do

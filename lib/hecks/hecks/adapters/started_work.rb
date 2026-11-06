@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "time"
+
 module Hecks
   module Adapters
     # The started `Tickets::Work` rows of a booted registry, with the area each one claims. The
@@ -26,6 +28,16 @@ module Hecks
         registry.repository("Tickets", aggregate).all.filter_map { |record| budgeted_row(record) }
       end
 
+      # @param registry [Runtime::Registry, nil] the booted registry; nil reads no rows
+      # @return [Array<Hash{Symbol => Object}>] every started row: `key:`, `claimed_by:`, `claimed_at:` (a
+      #   Time, nil when the claim time is missing or unreadable) and `budget_minutes:` (0 when none)
+      def claimed(registry)
+        aggregate = work_aggregate(registry)
+        return [] unless aggregate
+
+        registry.repository("Tickets", aggregate).all.filter_map { |record| claimed_row(record) }
+      end
+
       # @return [Object, nil] the Work aggregate, nil when no Tickets bluebook is booted
       def work_aggregate(registry)
         bluebook = registry&.bluebook("Tickets")
@@ -47,6 +59,21 @@ module Hecks
 
         { key: value(record, :work).to_s, claimed_by: value(record, :claimed_by).to_s,
           claimed_at: claimed.to_s, budget_minutes: Integer(minutes) }
+      end
+
+      # @return [Hash, nil] the row's claim and budget, nil unless it is started
+      def claimed_row(record)
+        return unless value(record, :status) == "started"
+
+        { key: value(record, :work).to_s, claimed_by: value(record, :claimed_by).to_s,
+          claimed_at: moment(value(record, :claimed_at)), budget_minutes: value(record, :budget_minutes).to_i }
+      end
+
+      # @return [Time, nil] the instant an ISO 8601 string names, nil when it names none
+      def moment(text)
+        Time.iso8601(text.to_s)
+      rescue ArgumentError
+        nil
       end
 
       # @return [Array<String>] the areas of a list of Word values

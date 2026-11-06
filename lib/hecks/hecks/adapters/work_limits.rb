@@ -4,11 +4,12 @@ require "time"
 require_relative "started_work"
 require_relative "console_capture"
 require_relative "../../ports/clock"
+require_relative "iteration_watch"
 
 module Hecks
   module Adapters
     # The `WorkLimits` port's adapter for `Tickets::Work`: the concurrency cap on started rows and
-    # the list of started rows that outlived their time budget.
+    # the lists of started rows that outlived their time budget or are bloated.
     #
     # It reads the other Work rows from the registry it is built with, the cap from the Tickets
     # world's `work_limit` setting, and the time from the registry's clock port. It decides nothing
@@ -60,6 +61,15 @@ module Hecks
         now = Ports::Clock.now(@registry)
         lines = StartedWork.budgeted(@registry).filter_map { |row| late_line(row, now) }
         { text: lines.join("\n") }
+      end
+
+      # The started rows that are bloated: stuck in repeated failures of one step, waiting too long or
+      # past their budget. Reads the world's `iteration_watch` setting, the event logs and the clock.
+      #
+      # @param _held [Hash] unused
+      # @return [Hash{Symbol => String}] `text:` one line per breach, empty when none is
+      def bloat(**_held)
+        { text: IterationWatch.new(@registry).breaches.map(&:line).join("\n") }
       end
 
       private

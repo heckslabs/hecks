@@ -3,6 +3,7 @@
 require "etc"
 require_relative "../work_limits"
 require_relative "../shell"
+require_relative "../iteration_watch"
 
 module Hecks
   module Adapters
@@ -63,6 +64,9 @@ module Hecks
           dir = declared(SESSION)[:cargo_target_dir]
           dir ? { "CARGO_TARGET_DIR" => File.expand_path(dir.to_s) } : {}
         end
+
+        # @return [IterationWatch::Setting::Limits] when a started row is bloated, as the brief tells its session
+        def iteration = IterationWatch::Setting.read(@registry)
 
         # @return [Integer, nil] the `nice` increment for a session's processes, nil for none
         def nice = declared(SESSION)[:nice]

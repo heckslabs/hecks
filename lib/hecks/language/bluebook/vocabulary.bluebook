@@ -1184,6 +1184,8 @@ Hecks.bluebook "Bluebook" do
              meaning: "Whether each `hecks quality_control sweep.tick` runs the event pump as its last step: each attached domain's policies react to the events past their cursors, and every refusal is named. false skips the step; `hecks quality_control event_pump.pump!` runs it regardless."
       member name: "push_nudge", type: "Boolean",
              meaning: "Whether each `hecks quality_control sweep.tick` checks once whether a push of local main is due and files, revises or finishes the one `push-due` Work row; false skips the check. The thresholds are the QualityControl world's `push_nudge` setting."
+      member name: "bloat_watch", type: "Boolean",
+             meaning: "Whether each `hecks quality_control sweep.tick` runs `Dispatch.Watch` once with confirm: a started Work row that is bloated (the Tickets world's `iteration_watch` setting) has its session stopped, when it can be, and yields to the plan with the rule as the reason. false skips the step."
       member name: "quiesced", type: "Boolean",
              meaning: "Whether each `hecks quality_control sweep.tick` runs no step at all: every step prints `quiesced: skipped <step>` and the tick exits 0, so a mint window sees a quiet ledger. The setting is read once at the start of a tick; `hecks qa_quiesce.hold!` writes a marker file every step checks as well, which a tick already running notices before its next step."
       member name: "main_maintenance", type: "Boolean",

@@ -42,7 +42,9 @@ module Hecks
                         detail: field(record, :detail).to_s, area: StartedWork.words(field(record, :area)))
         end
 
-        def state(run) = { status: field(run, :status).to_s, condition: field(run, :condition).to_s }
+        def state(run)
+          { status: field(run, :status).to_s, condition: field(run, :condition).to_s, session: field(run, :session).to_s }
+        end
 
         def step(record) = field(record, :step) || Float::INFINITY
 

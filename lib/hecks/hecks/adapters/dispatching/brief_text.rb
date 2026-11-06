@@ -22,15 +22,25 @@ module Hecks
         # @param area [Array<String>] the areas the session may edit
         # @param held [Array<String>] a line for each area another started row holds
         # @param frozen [Array<String>] the areas and aggregates whose shape may not move
+        # @param budget [Integer, nil] the row's time budget in minutes, for `{budget}`
+        # @param watch [IterationWatch::Setting::Limits, nil] the limits, for `{attempts}` and `{wait_minutes}`
         # @return [String] the whole text
-        def render(key, area: [], held: [], frozen: [])
+        def render(key, area: [], held: [], frozen: [], budget: nil, watch: nil)
           parts = [first_line, labelled("Detail", plain("detail")), labelled("Area", area.join(", "))]
           parts += SECTIONS.map { |name| plain(name) }
           parts += [listed("coordination", held), listed("freeze", frozen)]
-          joined(parts).gsub("{work}", key)
+          filled(joined(parts).gsub("{work}", key), budget, watch)
         end
 
         private
+
+        # The numbers the restraints name come from the settings, never from this text.
+        def filled(text, budget, watch)
+          return text unless watch
+
+          text.gsub("{attempts}", watch.attempts.to_s).gsub("{wait_minutes}", watch.wait_minutes.to_s)
+              .gsub("{budget}", (budget || watch.default_budget_minutes).to_s)
+        end
 
         def labelled(label, text) = text.empty? ? nil : "#{label}: #{text}"
 

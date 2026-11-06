@@ -245,6 +245,21 @@ Hecks.bluebook "Hecks" do
         emits SettleRequested
       end
 
+      # A started row that is bloated (`Work.bloat`: the same step failed again and again, too much waiting,
+      # past its budget) is not given another round. Without `confirm` this lists the rows and what would be
+      # done; with it the session is stopped, when it can be, and the row yields to the plan with the rule as
+      # the reason, so the stuck step is visible and a fresh session or the owner decides.
+      command "Watch" do
+        role "Operator"
+        goal "List the started Work rows that are bloated and, with confirm, stop each session and yield its row with the rule as the reason"
+
+        attribute :run,     DispatchKey, sets: true
+        attribute :repo,    Directory, sets: true
+        attribute :confirm, Switch, optional: true, sets: true
+
+        emits DispatchWatchRequested
+      end
+
       command "Record" do
         role "System"
         goal "Record what the filling or settling did"
@@ -274,6 +289,11 @@ Hecks.bluebook "Hecks" do
     policy "ConcludeWhenSettling" do
       on      "Dispatch.SettleRequested"
       ask     :conclude, with: { run: :run }
+    end
+
+    policy "InspectWhenWatching" do
+      on      "Dispatch.DispatchWatchRequested"
+      ask     :inspect_iterations, with: { run: :run }
     end
 
     policy "RecordTheDispatch" do

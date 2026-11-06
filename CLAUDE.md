@@ -190,7 +190,13 @@ impacted specs through the launcher. Branch worktrees from local `main`, never `
 and `status` quiet QA for a mint; `Dispatch.Fill` starts sessions for planned Work rows and
 `Dispatch.Settle` finishes the rows of sessions that ended (`delegate/delegate.bluebook`); a landed
 branch finishes the Work row of the same name (or the same name without a leading `qa/`). The Tickets
-world's `work_limit`, `frozen_shapes` and `session_environment` bound and equip those sessions. The
+world's `work_limit`, `frozen_shapes` and `session_environment` bound and equip those sessions.
+**Bloat:** a started Work row is bloated when it keeps going round the same step. The Tickets world's
+`iteration_watch` sets the three limits: `attempts` (failures of one step in a row for one reason),
+`wait_minutes` (total time waiting) and `over_budget` (a multiple of `budget_minutes`, or
+`default_budget_minutes` when a row has none). `Work.bloat` lists the rows with the rule and the numbers;
+`Dispatch.Watch` is a dry run until `confirm`, then stops the session and yields the row with
+`bloat: <rule>`; the QA tick runs it once; every brief states the same limits. The
 gate checks `command_names`, `workflow_pagination` and `meta_domain_coverage` keep the names in docs,
 workflows and guides resolvable, lists paged and the meta-domain covered.
 

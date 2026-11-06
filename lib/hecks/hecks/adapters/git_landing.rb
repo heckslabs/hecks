@@ -45,7 +45,7 @@ module Hecks
         onto = plain(held[:onto]) || "main"
         raise ConsoleCapture::Failure, "#{branch} is the branch to land onto" if branch == onto
 
-        lineup.stand(branch, onto: onto, checkout: @checkout) { |note| land_alone(branch, onto, note) }
+        lineup.stand(branch, onto: onto, checkout: @checkout) { |note, waited| land_alone(branch, onto, note, waited) }
       end
 
       # Takes the front place in the line and lands every branch whose landing is waiting behind
@@ -131,11 +131,13 @@ module Hecks
         @checkout = mine
       end
 
-      def land_alone(branch, onto, note)
+      def land_alone(branch, onto, note, waited = nil)
         refuse_unsaved(branch)
         refuse_rival(branch, onto)
         said = tidy(Merger.new(@git, @checkout, branch: branch, onto: onto).land, branch, onto)
-        note ? said.merge(report: { value: "#{said[:report][:value]}; #{note}" }) : said
+        return said unless note
+
+        said.merge(report: { value: "#{said[:report][:value]}; #{note}" }, waited_seconds: { value: waited.to_i })
       end
 
       def common_git_dir = read("rev-parse", "--path-format=absolute", "--git-common-dir")

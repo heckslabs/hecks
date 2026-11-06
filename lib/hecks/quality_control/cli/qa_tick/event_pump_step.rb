@@ -2,6 +2,7 @@
 
 require_relative "../qa_event_pump"
 require_relative "push_nudge_step"
+require_relative "bloat_watch_step"
 
 module Hecks
   module QualityControlCli
@@ -10,6 +11,7 @@ module Hecks
       # on the events its cursors have not yet read.
       module EventPumpStep
         include PushNudgeStep
+        include BloatWatchStep
 
         private
 

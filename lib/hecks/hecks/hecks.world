@@ -44,7 +44,7 @@
 #
 # **landing** `stale_minutes` is how long a landing's ticket may go without a heartbeat before the next one treats
 # it as abandoned and removes it (30 when absent); `wait_minutes` is how long a landing waits for its turn in the
-# line before it gives up (40 when absent); `shell_lock` names a lock directory an older brief makes by hand,
+# line before it gives up (15 when absent); `shell_lock` names a lock directory an older brief makes by hand,
 # which a landing honours as the holder while it exists. Landings run one at a time, first come first served.
 Hecks.world "Hecks" do
   realm "Hecks"
@@ -56,7 +56,7 @@ Hecks.world "Hecks" do
   # shape no era holds yet. This domain's PostgresEra binding lives in uncommitted local files, so the
   # name is said here, where every copy reads it.
   minting commands: ["Era.MintHeld"]
-  landing "Queue", stale_minutes: 30, wait_minutes: 40
+  landing "Queue", stale_minutes: 30, wait_minutes: 15
   launcher "Launcher", run_keys: true,
                        settled: %w[package.vendor package.revendor package.release
                                   operation.bootstrap_admin smoke_run.run

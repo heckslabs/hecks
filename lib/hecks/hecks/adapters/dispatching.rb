@@ -6,6 +6,9 @@ require_relative "dispatching/rows"
 require_relative "dispatching/plan"
 require_relative "dispatching/launcher"
 require_relative "dispatching/settler"
+require_relative "dispatching/watcher"
+require_relative "iteration_watch"
+require_relative "claude_agents"
 
 module Hecks
   module Adapters
@@ -46,7 +49,19 @@ module Hecks
         { report: { value: lines.empty? ? "nothing to settle" : lines.join("\n") } }
       end
 
+      # Lists the started rows that are bloated and, with `confirm`, stops each session and yields its row.
+      #
+      # @param held [Hash] the `Dispatch` record: `repo`, `confirm`
+      # @return [Hash{Symbol => Hash}] `report:` one block of lines for each bloated row
+      def inspect_iterations(**held)
+        breaches = @standins[:breaches] || IterationWatch.new(@registry).breaches
+        watcher = Watcher.new(breaches, rows.runs, launcher_for(held), stopper: stopper)
+        { report: { value: watcher.call(confirm: plain(held[:confirm]) == true).join("\n") } }
+      end
+
       private
+
+      def stopper = @standins[:stopper] || ->(session) { ClaudeAgents.new(registry: @registry).stop(session: session) }
 
       def rows = @standins[:rows] || Rows.new(@registry)
 
@@ -75,7 +90,8 @@ module Hecks
         launcher = launcher_for(held)
         minutes = plain(held[:budget_minutes]) || Settings::BUDGET_MINUTES
         plan.chosen.each_with_index.map do |row, index|
-          launcher.launch(row, held: holding(plan, index), frozen: machine.frozen, minutes: minutes)
+          launcher.launch(row, held: holding(plan, index), frozen: machine.frozen, minutes: minutes,
+                          watch: machine.iteration)
         end
       end
 

@@ -20,7 +20,7 @@ module Hecks
       # `locks`, `mine`, `gate`).
       class Lineup
         # The minutes a landing waits for its turn, when no setting names another.
-        DEFAULT_WAIT_MINUTES = 40
+        DEFAULT_WAIT_MINUTES = 15
 
         # @param git_dir [String] the main checkout's git directory
         # @param setting [Hash, nil] the world's `landing` setting
@@ -41,12 +41,13 @@ module Hecks
         # @param checkout [String] the worktree it lands from
         # @yieldparam note [String, nil] what the wait was: the place, the holder, what was
         #   superseded
+        # @yieldparam waited [Integer] whole seconds the wait lasted
         # @return [Hash] the landing answer
         # @raise [ConsoleCapture::Failure] when the wait runs out, or the train refused the branch
         def stand(branch, onto:, checkout:)
           ticket = @line.join(branch, checkout: checkout, onto: onto, ready: true)
           turn = waiting(ticket).run
-          turn.verdict ? carried(turn) : yield(turn.note)
+          turn.verdict ? carried(turn) : yield(turn.note, turn.waited)
         rescue Waiting::Expired => e
           raise ConsoleCapture::Failure, "queue busy: #{branch} is not landed: #{e.message}; land again when the line clears"
         ensure

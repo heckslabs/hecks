@@ -36428,6 +36428,20 @@
             [
               [
                 "name",
+                "bloat_watch"
+              ],
+              [
+                "type",
+                "Boolean"
+              ],
+              [
+                "meaning",
+                "Whether each `hecks quality_control sweep.tick` runs `Dispatch.Watch` once with confirm: a started Work row that is bloated (the Tickets world's `iteration_watch` setting) has its session stopped, when it can be, and yields to the plan with the rule as the reason. false skips the step."
+              ]
+            ],
+            [
+              [
+                "name",
                 "quiesced"
               ],
               [

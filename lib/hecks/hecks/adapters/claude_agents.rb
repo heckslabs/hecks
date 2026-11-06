@@ -101,6 +101,19 @@ module Hecks
         { removed_at: { value: Time.now.utc.iso8601 } }
       end
 
+      # Stops a running session with `claude stop`, leaving it listed so its state can be read.
+      #
+      # @param held [Hash] the `AgentRun` record: `session`
+      # @return [Hash{Symbol => Object}] `stopped:` the session that was stopped
+      # @raise [ConsoleCapture::Failure] when the command refuses
+      def stop(**held)
+        id = plain(held[:session])
+        result = @shell.capture(@command, "stop", id)
+        raise ConsoleCapture::Failure, "#{@command} stop #{id} refused: #{result.err.strip}" unless result.ok?
+
+        { stopped: { value: id } }
+      end
+
       private
 
       def listed(id)

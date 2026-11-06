@@ -232,6 +232,12 @@ Hecks.hecksagon "Hecks" do
       answers "DispatchReported"
       refuses "DispatchRefused"
     end
+
+    asks "InspectIterations", to: Dispatch do
+      attribute :run, DispatchKey
+      answers "DispatchReported"
+      refuses "DispatchRefused"
+    end
   end
 
   # The outside an agent run reaches: it finds the directory, starts the background session, and

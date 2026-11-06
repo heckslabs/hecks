@@ -296,10 +296,17 @@ Hecks.bluebook "Hecks" do
       attribute :landed,   Word,   optional: true
       attribute :report,   Report, optional: true
       attribute :refusal,  Report, optional: true
+      attribute :waited_seconds, Seconds, optional: true
       identified_by :run
 
       value_object "RunKey" do
         attribute :value, String, matches: :present
+      end
+
+      # How long the landing stood in the queue and behind a lock, in whole seconds: what the report says as
+      # `waited 12m 3s`, kept as a number so the waiting of a Work row can be summed.
+      value_object "Seconds" do
+        attribute :value, Integer
       end
 
       # A branch, a directory or a commit.
@@ -389,6 +396,7 @@ Hecks.bluebook "Hecks" do
         attribute :landed, Word, sets: true
         attribute :report, Report, sets: true
         attribute :checkout, Word, optional: true, sets: true
+        attribute :waited_seconds, Seconds, optional: true, sets: true
 
         emits BranchLanded
       end
@@ -469,7 +477,8 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheLanding" do
       on      "Landing.MergeAnswered"
-      trigger Landing::Record, with: { branch: :branch, landed: :landed, report: :report, checkout: :checkout }
+      trigger Landing::Record, with: { branch: :branch, landed: :landed, report: :report, checkout: :checkout,
+                                  waited_seconds: :waited_seconds }
     end
 
     policy "RunTheTrain" do

@@ -49,6 +49,8 @@ reclaimed and named), and exits with the precedence across both:
 
 Once per tick (the `push_nudge` dial) it also runs `PushNudge.check!`: when local main is ahead of origin/main past the QualityControl world's `push_nudge` thresholds (20 commits, 24 hours, or a red last rehearsal on the current main) it files, revises or finishes the one `push-due` Work row from refs git already holds; it never fetches, pushes or merges, so a `push-due` row in `work.undone` is the cue to push through the train.
 
+Once per tick (the `bloat_watch` dial) it also runs `Dispatch.watch! confirm.value=true`: a started Work row that is bloated per the Tickets world's `iteration_watch` setting (the same step failed `attempts` times in a row for one reason, more than `wait_minutes` spent waiting, or past `over_budget` times its budget) has its session stopped with `claude stop`, when it can be (otherwise the line says `cannot stop: tell the owner`), and yields to `planned` with `bloat: <rule>` as the reason. A yielded row in `work.undone` with that reason is the cue to look at what is stuck, not to retry it. `exe/hecks tickets work.bloat` lists the rows and `exe/hecks Dispatch.watch! repo.value=<checkout> --wait` is the dry run.
+
 - **0 — clean.** Relay the summary. Nothing to dispatch.
 - **1 — operational error, nothing found.** Read the actual message(s);
   fix the real problem or report it. Nothing to dispatch per target.

@@ -30,10 +30,11 @@ module Hecks
         # @param held [Array<String>] a line for each area another started row holds
         # @param frozen [Array<String>] the frozen areas and aggregates
         # @param minutes [Integer] the time budget of the row
+        # @param watch [IterationWatch::Setting::Limits, nil] the limits the brief names
         # @return [String] one line: the session started, or why the row went back to the plan
-        def launch(row, held:, frozen:, minutes:)
+        def launch(row, held:, frozen:, minutes:, watch: nil)
           step(row, "start", start_argv(row, minutes))
-          text = BriefText.new(composed(row)).render(row.key, area: row.area, held: held, frozen: frozen)
+          text = BriefText.new(composed(row)).render(row.key, area: row.area, held: held, frozen: frozen, budget: minutes, watch: watch)
           step(row, "dispatch", dispatch_argv(row, text))
           "started #{row.key}"
         rescue ConsoleCapture::Failure => e

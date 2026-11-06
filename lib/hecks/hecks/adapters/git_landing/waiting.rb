@@ -24,7 +24,9 @@ module Hecks
         # @!attribute [r] note
         #   @return [String, nil] a sentence for the report: the wait, the place and what was
         # superseded
-        Turn = Struct.new(:verdict, :note)
+        # @!attribute [r] waited
+        #   @return [Integer] whole seconds the wait lasted
+        Turn = Struct.new(:verdict, :note, :waited)
 
         # @param line [Line] the line
         # @param ticket [Ticket] the ticket waiting
@@ -47,7 +49,7 @@ module Hecks
           events = Thread::Queue.new
           mailbox = Thread.new { events << [:verdict, @ticket.verdict] }
           verdict = await(events)
-          verdict ? Turn.new(verdict, note) : front
+          verdict ? Turn.new(verdict, note, seconds) : front
         ensure
           mailbox&.kill
         end
@@ -60,7 +62,7 @@ module Hecks
           raise Expired, "waited #{waited} for the shell lock or an older landing" unless cleared
 
           @line.promote(@ticket)
-          Turn.new(nil, note)
+          Turn.new(nil, note, seconds)
         end
 
         def await(events)
@@ -103,8 +105,10 @@ module Hecks
           "#{@notes.join("; ")}; waited #{waited}"
         end
 
+        def seconds = (clock - @started).round
+
         def waited
-          seconds = (clock - @started).round
+          seconds = self.seconds
           seconds < 120 ? "#{seconds}s" : "#{seconds / 60}m #{seconds % 60}s"
         end
 

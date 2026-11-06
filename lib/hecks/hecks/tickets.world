@@ -2,6 +2,10 @@
 # a start that would make one more is sent back to the plan, naming the cap, the count and the
 # holders. Without this line the cap is `Hecks::Adapters::WorkLimits::DEFAULT_CAP`, the same number.
 #
+# `iteration_watch` is what makes a started row bloated: `attempts` failures of one step in a row for one
+# reason, `wait_minutes` spent waiting in total, or `over_budget` times its budget (`default_budget_minutes`
+# when it has none). `Work.bloat` lists them and `Dispatch.Watch` stops the session and yields the row.
+#
 # `frozen_shapes` (not `freeze`, which every Ruby object already answers) names the areas and aggregates whose persisted shape may not move: a brief tells its session
 # to commit and hold a change that moves one, and `Dispatch.Fill` starts no row in a frozen area.
 # `dispatch_max_load` is the 1-minute load above which `Dispatch.Fill` starts no session (the CPU count
@@ -9,6 +13,7 @@
 # target directory and a `nice` increment.
 Hecks.world "Tickets" do
   work_limit "WorkLimits", cap: 8
+  iteration_watch "Work", attempts: 3, wait_minutes: 15, over_budget: 1.5, default_budget_minutes: 45
   frozen_shapes "PersistedShapes", areas: []
   session_environment "Sessions", cargo_target_dir: "~/.cache/hecks/cargo-target", nice: 15
 end
