@@ -276,6 +276,73 @@ Hecks.bluebook "Pipeline" do
     group_by :flag, :change
   end
 
+  # The record of what happened to each change, one Entry per passage per event. A Timeline is not
+  # a Passage's history: a Passage holds where a change stands now, and an Entry is a fact that
+  # stays true after the change moves on. Entries are only ever added, never changed or removed, and
+  # an Entry is keyed by its change and the event that caused it, so one event that reaches N
+  # passages (a push carrying N landed changes) records N Entries. The moment is read from that
+  # source event; nothing here asks a clock. The name keeps this apart from the pull-request
+  # Timeline query in deliver.bluebook.
+  aggregate "Timeline" do
+    description "Append-only Entry rows, one per change per pipeline event, each naming its kind, the event that caused it and when that event happened."
+    created_by "Timeline.record!"
+
+    identified_by :change, :source
+
+    attribute :change, ChangeKey
+    attribute :kind,   Kind
+    attribute :source, Source
+    attribute :at,     Moment
+
+    # The Work item's key, as a Passage names its change.
+    value_object "ChangeKey" do
+      attribute :value, String, matches: :present
+      invariant("an entry is about one change") { !value.to_s.empty? }
+    end
+
+    # What happened to the change: the stage it reached, or the mark it gained.
+    value_object "Kind" do
+      attribute :value, String,
+                one_of: %w[planned reopened dispatched landed pushed held verified promoted released stalled finished dropped]
+      invariant("an entry's kind is planned, reopened, dispatched, landed, pushed, held, verified, promoted, released, stalled, finished or dropped") do
+        value == "planned" || value == "reopened" || value == "dispatched" || value == "landed" ||
+          value == "pushed" || value == "held" || value == "verified" || value == "promoted" ||
+          value == "released" || value == "stalled" || value == "finished" || value == "dropped"
+      end
+    end
+
+    # The event that caused the entry, named by its domain, aggregate, event and id.
+    value_object "Source" do
+      attribute :value, String, matches: :present
+      invariant("an entry names the event that caused it") { !value.to_s.empty? }
+    end
+
+    # When the source event happened, copied from it.
+    value_object "Moment" do
+      attribute :value, String, matches: :present
+      invariant("an entry carries the time of its source event") { !value.to_s.empty? }
+    end
+
+    command "Record" do
+      role "System"
+      goal "Append one entry for a change at the moment its source event happened"
+
+      attribute :change, ChangeKey, sets: true
+      attribute :kind,   Kind, sets: true
+      attribute :source, Source, sets: true
+      attribute :at,     Moment, sets: true
+
+      emits EntryRecorded
+    end
+
+    query "ForChange" do
+      description "Every entry of one change, in the order it happened."
+      attribute :change, ChangeKey
+      where(change: :change)
+      order_by :at
+    end
+  end
+
   # A pull request a passage's branch is reviewed and merged through. The bluebook names the
   # question it asks of the git host; an adapter answers it.
   aggregate "PullRequest" do
