@@ -145,6 +145,12 @@ RSpec.describe Hecks::Adapters::PipelineWiring do
       expect(page).not_to include("<iframe")
     end
 
+    it "pages the board's sessions, keeping each row's controls", :aggregate_failures do
+      page = File.read(Hecks::Adapters::PipelineWeb::PAGE)
+      expect(page).to include("const SESSION_PAGE = 15;")
+      expect(page).to include('pageBar("sessions", at, list.length, SESSION_PAGE')
+    end
+
     it "links the board's Agents strip to the agents' page" do
       expect(File.read(Hecks::Adapters::PipelineWeb::PAGE)).to include('href="/agents"')
     end

@@ -229,7 +229,7 @@ function h(tag, attrs, ...kids) {
   for (const kid of kids.flat()) if (kid !== null && kid !== undefined) el.append(kid.nodeType ? kid : String(kid));
   return el;
 }
-function put(id, ...kids) { const el = $(id); el.replaceChildren(...kids.flat()); }
+function put(id, ...kids) { const el = $(id); el.replaceChildren(...kids.flat().filter((kid) => kid !== null && kid !== undefined)); }
 function badge(state) {
   const icon = state === "working" ? h("span", { class: "spin" }, ICON[state]) : ICON[state] || "?";
   return h("span", { class: "badge " + state }, icon, " ", WORD[state] || state);
@@ -253,19 +253,28 @@ function setTitle(id, name, count) { const el = $(id); if (el) el.textContent = 
 // A table shown one page at a time; the page is kept across refreshes.
 const pages = new Map();
 function pager(id, head, rows, size) {
-  const count = Math.max(1, Math.ceil(rows.length / size));
-  const at = Math.min(pages.get(id) || 0, count - 1);
-  const step = (to) => { pages.set(id, to); put(id, pager(id, head, rows, size)); };
+  const at = pageOf(id, rows.length, size);
+  return h("div", {}, table(head, rows.slice(at * size, (at + 1) * size)),
+    pageBar(id, at, rows.length, size, () => put(id, pager(id, head, rows, size))));
+}
+// The page a table is on, kept inside the pages its rows now fill.
+function pageOf(id, total, size) {
+  const at = Math.min(pages.get(id) || 0, Math.max(1, Math.ceil(total / size)) - 1);
+  pages.set(id, at);
+  return at;
+}
+// Prev and Next under a paged table, and which rows it shows; `redraw` shows the page chosen.
+function pageBar(id, at, total, size, redraw) {
+  const count = Math.max(1, Math.ceil(total / size));
+  const step = (to) => { pages.set(id, to); redraw(); };
   const prev = h("button", { type: "button" }, "‹ Prev");
   const next = h("button", { type: "button" }, "Next ›");
   prev.disabled = at === 0;
   next.disabled = at >= count - 1;
   prev.addEventListener("click", () => step(at - 1));
   next.addEventListener("click", () => step(at + 1));
-  const from = rows.length ? at * size + 1 : 0;
-  const to = Math.min(rows.length, (at + 1) * size);
-  return h("div", {}, table(head, rows.slice(at * size, (at + 1) * size)),
-    h("div", { class: "pager" }, prev, h("span", {}, from + "–" + to + " of " + rows.length), next));
+  const from = total ? at * size + 1 : 0;
+  return h("div", { class: "pager" }, prev, h("span", {}, from + "–" + Math.min(total, (at + 1) * size) + " of " + total), next);
 }
 
 function table(head, rows, numeric) {
@@ -540,20 +549,25 @@ function filterBar() {
   const bar = h("div", { class: "filters", role: "group", "aria-label": "Filter sessions" });
   for (const name of Object.keys(SESSION_FILTERS)) {
     const b = h("button", { type: "button", class: "filter", "aria-pressed": String(name === sessionFilter) }, name);
-    b.addEventListener("click", () => { sessionFilter = name; renderSessions(lastSessions); });
+    b.addEventListener("click", () => { sessionFilter = name; pages.set("sessions", 0); renderSessions(lastSessions); });
     bar.append(b);
   }
   return bar;
 }
 let lastSessions = [];
+// The sessions shown at once; the rest are a page away, under the table.
+const SESSION_PAGE = 15;
 function renderSessions(all) {
   if (isUnknown(all)) return put("sessions", unknown(all));
   lastSessions = all;
   const list = all.filter(SESSION_FILTERS[sessionFilter] || SESSION_FILTERS.all);
   setTitle("h-sess", "Sessions", list.length);
-  put("sessions", filterBar(), table(["Session", "Status", "Work item", "Started", "Detail"], list.map((s) => [sessionLabel(s), [sessionBadge(s.status), " ", s.state], s.row || "-", clock(s.started), replyNote(s)])));
+  const at = pageOf("sessions", list.length, SESSION_PAGE);
+  const shown = list.slice(at * SESSION_PAGE, (at + 1) * SESSION_PAGE);
+  put("sessions", filterBar(), table(["Session", "Status", "Work item", "Started", "Detail"], shown.map((s) => [sessionLabel(s), [sessionBadge(s.status), " ", s.state], s.row || "-", clock(s.started), replyNote(s)])),
+    list.length > SESSION_PAGE ? pageBar("sessions", at, list.length, SESSION_PAGE, () => renderSessions(lastSessions)) : null);
   const rows = $("sessions").querySelectorAll("tbody tr");
-  list.forEach((s, i) => {
+  shown.forEach((s, i) => {
     // A reply the server has not answered yet keeps its row highlighted.
     if (replies.get(s.id)?.state === "sending") rows[i].classList.add("sending");
     if (deletable(s)) addDelete(rows[i], s);
