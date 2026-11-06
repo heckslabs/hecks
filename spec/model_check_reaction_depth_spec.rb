@@ -1,4 +1,5 @@
 require "spec_helper"
+require "hecks/bluebook/model_check"
 require "tempfile"
 
 # model_check's finding for a reaction chain longer than the dispatcher's limit. A command's events

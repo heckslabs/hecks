@@ -1,4 +1,5 @@
 require "spec_helper"
+require "hecks/bluebook/model_check"
 require "tempfile"
 
 # model_check's three words about `ask` (ADR 0100): an ask no declared ask answers is an error, a
