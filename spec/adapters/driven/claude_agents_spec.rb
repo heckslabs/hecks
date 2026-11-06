@@ -162,6 +162,12 @@ RSpec.describe Hecks::Adapters::ClaudeAgents do
       expect(read(agent: { value: "architect" })).to include(verdict: "rethink")
     end
 
+    it "reads a Verdict line the architect set in bold or with a closing period" do
+      job("done", "reviewed", { result: "Findings follow.\n**Verdict: sound with changes.** Rename the port." })
+
+      expect(read(agent: { value: "architect" })).to include(verdict: "changes")
+    end
+
     # The job's timeline, whose last entry keeps only the tail of what the session wrote.
     def timeline(text)
       entry = { at: "t", state: "done", detail: "reviewed", text: text }

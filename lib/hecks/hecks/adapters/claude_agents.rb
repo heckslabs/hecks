@@ -130,7 +130,7 @@ module Hecks
 
       # The line the architect's definition asks every closing message to end with; the last one
       # wins over a verdict word appearing elsewhere in the text.
-      VERDICT_LINE = /^\s*verdict:\s*(sound with changes|sound|rethink)\b/i
+      VERDICT_LINE = /^[\s*_`>#-]*verdict:\s*[*_`]*(sound with changes|sound|rethink)\b/i
 
       # The format the verdict reader expects, stated in the brief. The job keeps only the tail of
       # what the architect wrote last, so the verdict goes on the last line.
