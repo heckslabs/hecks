@@ -1,0 +1,26 @@
+{
+  "studio-desk": {
+    "key": "9fcb2c3d3b86dd7ba85380edae655ad2f05d16f1d36baa4c81683e449dba3381.png",
+    "alt": "The studio desk with final layouts spread out"
+  },
+  "harbour-light": {
+    "key": "9e10fc1b0f849c71625256e81fd3bbbe53a2fcd79845bf964ebf6beede956c39.png",
+    "alt": "Morning light over the harbour, seen from the studio window"
+  },
+  "type-specimen": {
+    "key": "0d155bcf9fee3c65b56141c3cf7ed7fd4fbd55887f33f444f719eb97323e3b1a.png",
+    "alt": "A type specimen set at signage size"
+  },
+  "workshop-wall": {
+    "key": "b00e7d7d073579f2512c738a4c6775888c5a9499871e0726eb29600812d3baef.png",
+    "alt": "The studio wall covered in rough ideas"
+  },
+  "sketchbook": {
+    "key": "7d7c3bf92c95ae21076e5bce14e5ab41efb03b99e068a51a0b64b32d93051aa4.png",
+    "alt": "An open sketchbook with a sign design"
+  },
+  "finch-mark": {
+    "key": "a53fe84d50095d5dca52622249e6b6d46ace07030bd61160e670e7db07bf0982.png",
+    "alt": "The Marlow and Finch mark on a studio door"
+  }
+}

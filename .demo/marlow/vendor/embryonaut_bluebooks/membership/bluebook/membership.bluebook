@@ -1,0 +1,117 @@
+Hecks.bluebook "Membership" do
+  vision "A small, reusable admission capability: who may sign in to a consuming project's own admin surface, and what role they hold once they do — so a consuming project never has to invent its own Member-shaped aggregate just to make the generic hecks Google-OAuth flow (rust/host's own web.rs auth_route/google_callback, auth.rs's own provision) work. Deliberately generalized from EmbryonautFoundersApp::Member and EmbryonautPlatform::PlatformOperator, both of which independently reinvented this exact shape before this package existed."
+  supporting
+
+  # WHAT THIS CHAPTER ANSWERS FOR EVERY DOMAIN THAT ATTACHES IT. rust/host's
+  # Google-OAuth provision/member_rows, and Registry#membership_provider_for,
+  # read these three verbs from here rather than an env var naming the
+  # aggregate (HECKS_MEMBERSHIP_AGGREGATE). Same declared-not-named shape
+  # Governance's own `provides "authorization"` already is.
+  provides "membership",
+           admit:  "Person.Admit",
+           grant:  "Person.GrantAccess",
+           people: "Person.All"
+
+  aggregate "Person" do
+    description "One admitted person — admission and access-grant are two separate steps, same discipline every prior ad-hoc version of this shape already held to: equity/cap-table concepts, if a consuming project has them, live on ITS OWN aggregate (e.g. EmbryonautFoundersApp::Member), never here. This aggregate answers exactly one question: who may sign in, and with what role."
+
+    identified_by :email
+
+    attribute :email,       Email
+    attribute :name,        PersonName
+    attribute :role,        Role,       optional: true
+    attribute :identity_id, IdentityId, optional: true
+
+    value_object "Email" do
+      attribute :value, String
+      invariant("an email is present") { !value.to_s.empty? }
+    end
+
+    value_object "PersonName" do
+      attribute :value, String
+      invariant("a person is named") { !value.to_s.empty? }
+    end
+
+    # OPEN-ENDED, NOT one_of — unlike EmbryonautFoundersApp::Member's own
+    # closed Admin/Member set (which only ever needed to distinguish
+    # those two roles for ONE specific app), this package is vendored
+    # into projects with genuinely different role vocabularies
+    # (Lifeadelics' own "Admin"; a future client's own "Editor"/
+    # "Viewer"). A consuming project that wants a closed set validates
+    # it on ITS OWN wiring layer (a `.hecksagon`-level given, or simply
+    # by only ever calling GrantAccess with roles it itself offers in a
+    # picker) — this package stays as open as Governance::RoleAssignment
+    # itself already is about role_name.
+    value_object "Role" do
+      attribute :value, String
+      invariant("a role is named") { !value.to_s.empty? }
+    end
+
+    value_object "IdentityId" do
+      attribute :value, String
+      invariant("an identity id is present") { !value.to_s.empty? }
+    end
+
+    command "Admit" do
+      role "Admin"
+      goal "Recognize a new person as someone who may eventually sign in"
+
+      attribute :email, Email
+      attribute :name,  PersonName
+
+      sets :email
+      sets :name
+
+      emits "PersonAdmitted"
+    end
+
+    # GATED TO "Admin", NOT the role being granted — granting access is
+    # a more privileged act than merely holding it, same reasoning every
+    # prior version of this shape (Member::GrantAccess,
+    # PlatformOperator::GrantAccess) already held to.
+    command "GrantAccess" do
+      role "Admin"
+      goal "Let an admitted person sign in, holding a named role"
+
+      reference_to Person
+      attribute :role, Role
+
+      sets :role
+
+      emits "PersonAccessGranted"
+    end
+
+    # DISPATCHED BY THE APP ITSELF the moment a person's first real
+    # Google sign-in mints their Identity — rust/host's own auth::
+    # provision, role "System" matching every other app-triggered
+    # (not human-triggered) dispatch in this ecosystem.
+    command "LinkIdentity" do
+      role "System"
+      goal "Attach the real Identity a person's first Google sign-in minted"
+
+      reference_to Person
+      attribute :identity_id, IdentityId
+
+      sets :identity_id
+
+      emits "PersonIdentityLinked"
+    end
+
+    # READ BY rust/host's own auth::member_rows — the generic /admin/
+    # members-equivalent listing ("who's admitted, who's been granted a
+    # role, who's linked yet"), the same three facts
+    # EmbryonautAccessControl.all_people/PlatformOperatorAccessControl.
+    # all_people already expose today, generalized here so a consuming
+    # project's own admin UI never has to hand-roll this query either.
+    query "All" do
+      description "Every admitted person, alphabetically by name."
+      order_by "name.value"
+    end
+
+    query "ByIdentityId" do
+      description "The person a live session's own identity_id resolves back to."
+      attribute :identity_id, IdentityId
+      where(identity_id: :identity_id)
+    end
+  end
+end

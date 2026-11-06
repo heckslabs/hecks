@@ -1,0 +1,200 @@
+{
+  "ir_version": 1,
+  "name": "MarlowFinch",
+  "version": null,
+  "vision": "The Marlow & Finch studio site: posts, pages, pictures and their schedule.",
+  "classification": null,
+  "formerly_known_as": null,
+  "namespace": null,
+  "aggregates": [
+    {
+      "name": "Desk",
+      "description": "A desk in the newsroom.",
+      "identified_by": [
+        "name.value"
+      ],
+      "attributes": [
+        {
+          "name": "name",
+          "type": "DeskName",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "DeskName",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "OpenDesk",
+          "role": "Admin",
+          "goal": "Open a desk",
+          "references": null,
+          "attributes": [
+            {
+              "name": "name",
+              "type": "DeskName",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+
+          ],
+          "emits": [
+            "DeskOpened"
+          ],
+          "from": null,
+          "provenance": null
+        }
+      ],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "lifecycle": null,
+      "entities": [
+
+      ],
+      "queries": [
+
+      ],
+      "ports": [
+
+      ],
+      "provenance": null
+    }
+  ],
+  "read_models": [
+
+  ],
+  "policies": [
+
+  ],
+  "process_managers": [
+
+  ],
+  "attaches_to": [
+
+  ],
+  "provides": [
+
+  ],
+  "canonical_form": [
+    {
+      "strategy": "collapse_whitespace",
+      "source_token": "",
+      "replacement": "",
+      "boundary": "none",
+      "position": "1"
+    },
+    {
+      "strategy": "replace",
+      "source_token": ".length",
+      "replacement": ".size",
+      "boundary": "word",
+      "position": "2"
+    },
+    {
+      "strategy": "scale_call",
+      "source_token": "days",
+      "replacement": "86400",
+      "boundary": "word",
+      "position": "3"
+    },
+    {
+      "strategy": "scale_call",
+      "source_token": "hours",
+      "replacement": "3600",
+      "boundary": "word",
+      "position": "4"
+    },
+    {
+      "strategy": "scale_call",
+      "source_token": "minutes",
+      "replacement": "60",
+      "boundary": "word",
+      "position": "5"
+    }
+  ],
+  "lineage": {
+    "capable_aggregates": [
+
+    ]
+  },
+  "persistence": {
+    "aggregates": [
+      {
+        "name": "Desk",
+        "storage_name": "desk",
+        "adapter": "Postgres"
+      }
+    ]
+  },
+  "authorization": {
+    "provider": "Governance",
+    "grant": "Governance::RoleAssignment.Assign",
+    "assignments": "Governance::RoleAssignment.AssignmentsForActor",
+    "assignment_aggregate": "Governance::RoleAssignment"
+  },
+  "membership": {
+    "provider": "Membership",
+    "admit": "Membership::Person.Admit",
+    "grant": "Membership::Person.GrantAccess",
+    "people": "Membership::Person.All",
+    "aggregate": "Membership::Person"
+  },
+  "identity": {
+    "provider": "Identity",
+    "register": "Identity::Identity.Register",
+    "link": "Identity::ExternalIdentifier.Link",
+    "resolve": "Identity::ExternalIdentifier.ResolvedBy"
+  },
+  "translations": [
+
+  ],
+  "source_text": "Hecks.bluebook \"MarlowFinch\" do\n  vision \"The Marlow & Finch studio site: posts, pages, pictures and their schedule.\"\n\n  aggregate \"Desk\" do\n    description \"A desk in the newsroom.\"\n    identified_by :name\n\n    value_object \"DeskName\" do\n      attribute :value, String\n    end\n\n    attribute :name, DeskName\n\n    command \"OpenDesk\" do\n      role \"Admin\"\n      goal \"Open a desk\"\n      attribute :name, DeskName\n      emits \"DeskOpened\"\n    end\n  end\nend\n"
+}

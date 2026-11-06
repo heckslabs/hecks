@@ -1,0 +1,49 @@
+Hecks.hecksagon "MarlowFinch" do
+  attaches "Governance"
+  attaches "Identity"
+  persisted_by "Postgres"
+end
+
+Hecks.hecksagon "Governance" do
+end
+
+Hecks.hecksagon "Membership" do
+  attaches "Governance"
+  attaches "membership", from: :vendor
+  persisted_by "Postgres"
+end
+
+Hecks.hecksagon "Publishing" do
+  attaches "Governance"
+  attaches "publishing", from: :vendor
+  persisted_by "Postgres"
+end
+
+Hecks.hecksagon "Documents" do
+  attaches "Governance"
+  attaches "documents", from: :vendor
+  persisted_by "Postgres"
+end
+
+Hecks.hecksagon "Pictures" do
+  attaches "Governance"
+  attaches "pictures", from: :vendor
+  persisted_by "Postgres"
+end
+
+Hecks.hecksagon "Discovery" do
+  attaches "Governance"
+  attaches "discovery", from: :vendor
+  persisted_by "Postgres"
+end
+
+Hecks.hecksagon "Schedule" do
+  attaches "Governance"
+  attaches "schedule", from: :vendor
+  persisted_by "Postgres"
+end
+
+Hecks.hecksagon "Identity" do
+  attaches "Governance"
+  persisted_by "Postgres"
+end

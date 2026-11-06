@@ -1,0 +1,6 @@
+package: membership
+version: 1.0.0
+tag: membership-v1.0.0
+commit: 01fd4eb37f048e90b7bac1d1964817bf4d3c798e
+digest: 6a372dff7a75d1fad6115bfb139e8a9372746466d4455bb3ebe5712093ae332f
+shape: Membership fcf9cf

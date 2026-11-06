@@ -1,0 +1,21 @@
+Hecks.bluebook "MarlowFinch" do
+  vision "The Marlow & Finch studio site: posts, pages, pictures and their schedule."
+
+  aggregate "Desk" do
+    description "A desk in the newsroom."
+    identified_by :name
+
+    value_object "DeskName" do
+      attribute :value, String
+    end
+
+    attribute :name, DeskName
+
+    command "OpenDesk" do
+      role "Admin"
+      goal "Open a desk"
+      attribute :name, DeskName
+      emits "DeskOpened"
+    end
+  end
+end

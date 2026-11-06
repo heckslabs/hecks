@@ -1,0 +1,102 @@
+# The text of a post or a page, as its own bounded context: a document keyed `<kind>:<slug>` that holds
+# a body and a draft of it, with the commands that save, publish and discard the draft. It knows
+# nothing of the chapter that holds the post; the key is the only link.
+Hecks.bluebook "Documents" do
+  vision "The text a small newsroom writes."
+  core
+
+  aggregate "Document" do
+    description "The text of one post or page, with the draft being written beside it."
+
+    identified_by :key
+
+    value_object "DocumentKey" do
+      attribute :value, String, pattern: '^(post|page):[a-z0-9-]+$'
+    end
+
+    value_object "Mark" do
+      attribute :name, String
+    end
+
+    value_object "Span" do
+      attribute :text,  String
+      attribute :marks, list_of(Mark)
+      attribute :href,  String, optional: true
+    end
+
+    value_object "Item" do
+      attribute :spans,     list_of(Span)
+      attribute :depth,     Integer, optional: true
+      attribute :list_kind, String, optional: true
+    end
+
+    value_object "Block" do
+      attribute :kind,      String
+      attribute :level,     Integer, optional: true
+      attribute :align,     String, optional: true
+      attribute :indent,    Integer, optional: true
+      attribute :spans,     list_of(Span)
+      attribute :items,     list_of(Item)
+      attribute :media_ref, String, optional: true
+      attribute :alt,       String, optional: true
+      attribute :caption,   String, optional: true
+    end
+
+    value_object "Body" do
+      attribute :blocks, list_of(Block)
+    end
+
+    attribute :key,        DocumentKey
+    attribute :body,       Body
+    attribute :draft_body, Body, optional: true
+
+    command "Begin" do
+      role "Editor"
+      goal "Start the text of a post or a page"
+
+      attribute :key,  DocumentKey
+      attribute :body, Body
+
+      emits "DocumentBegun"
+    end
+
+    command "SaveDraft" do
+      role "Editor"
+      goal "Keep an edit aside until it is promoted"
+      reference_to Document
+
+      attribute :draft_body, Body
+
+      sets :draft_body
+
+      emits "DocumentDraftSaved"
+    end
+
+    command "PublishDraft" do
+      role "Editor"
+      goal "Promote the saved edit to the text"
+      reference_to Document
+
+      attribute :nothing, Body, optional: true
+
+      given("an edit is saved") { draft_body.set? }
+      sets :body, to: state(:draft_body)
+      sets :draft_body, to: :nothing
+
+      emits "DocumentDraftPublished"
+    end
+
+    command "DiscardDraft" do
+      role "Editor"
+      goal "Throw the saved edit away"
+      reference_to Document
+
+      attribute :nothing, Body, optional: true
+
+      given("an edit is saved") { draft_body.set? }
+      sets :draft_body, to: :nothing
+
+      emits "DocumentDraftDiscarded"
+    end
+  end
+end
