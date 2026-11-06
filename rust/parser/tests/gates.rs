@@ -949,7 +949,7 @@ fn world_scalars_last_call_wins_and_default_database_is_only_a_flag() {
     assert!(flat.contains("\"realm\": \"Examples\""), "got: {out}");
     assert!(flat.contains("\"latest\": \"v1\""), "got: {out}");
     assert!(
-        flat.contains("\"default_adapter\": \"PostgresRevision\""),
+        flat.contains("\"default_adapter\": \"Postgres\""),
         "got: {out}"
     );
     assert!(flat.contains("\"default_database\": true"), "got: {out}");

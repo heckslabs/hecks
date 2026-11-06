@@ -93,14 +93,14 @@ mod tests {
     #[test]
     fn fact_keeps_only_persisted_by_bindings_and_the_defaults() {
         let entry = parsed(
-            r#"{"domain":"C","default_adapter":"PostgresRevision","default_database":true,"bindings":[
-              {"verb":"persisted_by","adapter":"PostgresRevision","settings":["allow_superuser"]},
+            r#"{"domain":"C","default_adapter":"Postgres","default_database":true,"bindings":[
+              {"verb":"persisted_by","adapter":"Postgres","settings":["allow_superuser"]},
               {"verb":"deployed_to","adapter":"AwsLambda","settings":["region"]}]}"#,
         );
         let got = fact(Some(&entry));
         assert_eq!(
             got.get("default_adapter").and_then(Json::as_str),
-            Some("PostgresRevision")
+            Some("Postgres")
         );
         assert_eq!(got.get("persistence").map(|p| p.each().len()), Some(1));
         assert!(matches!(
