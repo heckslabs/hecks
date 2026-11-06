@@ -17,7 +17,7 @@ RSpec.describe CommandCatcher do
       expect(described_class.shape("hecks domain build | tee out.log")).to eq("hecks domain build")
     end
 
-    it "skips leading env assignments" do
+    it "skips leading env assignments", :aggregate_failures do
       expect(described_class.shape("RAILS_ENV=test bin/rspec")).to be_nil
       expect(described_class.shape("FOO=1 make deploy")).to eq("make deploy")
     end
@@ -32,17 +32,20 @@ RSpec.describe CommandCatcher do
       { "session_id" => session, "tool_input" => { "command" => command }, "tool_response" => { "exit_code" => code } }
     end
 
-    it "proposes a shape seen in 3 calls across 2 sessions with success" do
+    # The candidates proposed after recording each [command, session] pair, in a fresh log.
+    def recorded_candidates(*calls)
       Dir.mktmpdir do |dir|
         log = File.join(dir, "calls.jsonl")
-        described_class.record(payload("hecks domain build a", session: "s1"), log: log)
-        described_class.record(payload("hecks domain build b", session: "s1"), log: log)
-        described_class.record(payload("hecks domain build c", session: "s2"), log: log)
-
-        found = described_class.candidates(described_class.load_rows(log))
-        expect(found.map { |c| c[:shape] }).to eq(["hecks domain build <arg>"])
-        expect(found.first).to include(count: 3, sessions: 2, success: 1.0)
+        calls.each { |command, session| described_class.record(payload(command, session: session), log: log) }
+        described_class.candidates(described_class.load_rows(log))
       end
+    end
+
+    it "proposes a shape seen in 3 calls across 2 sessions with success", :aggregate_failures do
+      found = recorded_candidates(["hecks domain build a.bluebook", "s1"], ["hecks domain build b.bluebook", "s1"],
+                                  ["hecks domain build c.bluebook", "s2"])
+      expect(found.map { |c| c[:shape] }).to eq(["hecks domain build <arg>"])
+      expect(found.first).to include(count: 3, sessions: 2, success: 1.0)
     end
 
     it "drops shapes that mostly fail" do
@@ -67,14 +70,15 @@ RSpec.describe CommandCatcher do
   end
 
   describe ".proposal" do
-    it "renders a command block without the example text" do
-      text = described_class.proposal(
-        { shape: "bundle exec rspec <arg>", count: 3, sessions: 2, success: 1.0 },
-        aggregate: "Transfer"
-      )
-      expect(text).to include('command "BundleExecRspec" do')
-      expect(text).to include('goal "Run `bundle exec rspec <arg>`"')
-      expect(text).to include('aggregate "Transfer"')
+    def transfer_proposal
+      candidate = { shape: "bundle exec rspec <arg>", count: 3, sessions: 2, success: 1.0 }
+      described_class.proposal(candidate, aggregate: "Transfer")
+    end
+
+    it "renders a command block without the example text", :aggregate_failures do
+      expect(transfer_proposal).to include('command "BundleExecRspec" do')
+      expect(transfer_proposal).to include('goal "Run `bundle exec rspec <arg>`"')
+      expect(transfer_proposal).to include('aggregate "Transfer"')
     end
   end
 end
