@@ -137,7 +137,9 @@ function render() {
   for (const row of visible) { lane(row.from); if (row.to) lane(row.to); }
   const dpr = devicePixelRatio || 1, width = TOP * 2 + lanes.length * LANE + LABEL_ROOM, height = TOP + visible.length * ROW + 20;
   // Zoom to fit: the whole diagram is drawn at the panel width, and the lane headers shrink by the same factor.
-  const fit = Math.min(1, $("scroller").clientWidth / width) || 1;
+  // The fit is taken on the lanes alone: the room past the last lane for labels scrolls sideways
+  // rather than shrinking every lane.
+  const fit = Math.min(1, $("scroller").clientWidth / (width - LABEL_ROOM)) || 1;
   $("lanes").style.zoom = fit;
   canvas.style.width = width * fit + "px"; canvas.style.height = height * fit + "px"; canvas.width = width * fit * dpr; canvas.height = height * fit * dpr; ctx.setTransform(dpr * fit, 0, 0, dpr * fit, 0, 0);
   ctx.clearRect(0, 0, width, height);
