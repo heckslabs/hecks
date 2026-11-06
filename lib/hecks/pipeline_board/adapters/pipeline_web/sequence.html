@@ -38,7 +38,7 @@ section { background: var(--surface); border: 1px solid var(--border); border-ra
 .scroller { overflow: auto; max-height: 76vh; border: 1px solid var(--grid); border-radius: 8px; background: var(--page); position: relative; }
 .lanes { position: sticky; top: 0; z-index: 2; display: flex; background: var(--surface); border-bottom: 1px solid var(--axis); min-width: max-content; }
 body.small .lane { font-size: 10px; } body.small .lane span { font-size: 9px; }
-.lane { width: 150px; flex: 0 0 150px; padding: 6px 6px 4px; text-align: center; font-size: 12px; border-right: 1px solid var(--grid); overflow-wrap: anywhere; }
+.lane { width: 150px; flex: 0 0 150px; padding: 6px 6px 4px; text-align: center; font-size: 12px; border-right: 1px solid var(--grid); overflow-wrap: break-word; }
 .lane b { display: block; font-weight: 600; color: var(--ink); }
 .lane span { color: var(--ink2); font-size: 11px; }
 .lane i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: middle; margin-right: 4px; }
@@ -85,6 +85,8 @@ const SMALL = new URLSearchParams(location.search).has("small");
 const TEXT_PX = SMALL ? 9 : 11;
 document.body.classList.toggle("small", SMALL);
 const LANE = matchMedia("(max-width: 700px)").matches ? 110 : 150, ROW = 30, TOP = 10;
+// Room past the last lifeline, so a label on the last lane is not cut at the canvas edge.
+const LABEL_ROOM = 260;
 const OUTCOME = { ok: ["--good", "✓"], wait: ["--warning", "▲"], bad: ["--critical", "✕"] };
 const canvas = $("seq"), ctx = canvas.getContext("2d");
 let graph = { nodes: [], edges: [] }, byId = new Map(), domainSlot = new Map();
@@ -99,6 +101,8 @@ function h(tag, attrs, ...kids) {
 }
 function clock(iso) { const d = new Date(iso); return isNaN(d) ? "" : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }); }
 function colourOf(domain) { const i = domainSlot.get(domain); return i === undefined || i > 7 ? css("--muted") : SLOTS[dark() ? "dark" : "light"][i]; }
+// A lane name may wrap only between its words: PromotionRecommendation breaks after Promotion.
+function wordBreaks(name) { return name.replace(/([a-z0-9])([A-Z])/g, "$1​$2"); }
 function contextOf(id) { const n = byId.get(id); return n ? (n.context ? n.domain + " / " + n.context : n.domain) : id.split("::")[0]; }
 
 /* ---- lifelines appear the first time an aggregate speaks or is spoken to ---- */
@@ -107,7 +111,7 @@ function lane(id) {
   const domain = id.split("::")[0], label = id.split("::").pop();
   const entry = { id, domain, label, context: contextOf(id), x: TOP + lanes.length * LANE + LANE / 2 };
   lanes.push(entry); laneOf.set(id, entry);
-  $("lanes").append(h("div", { class: "lane" }, h("b", {}, h("i", { style: "background:" + colourOf(domain) }), label), h("span", {}, entry.context)));
+  $("lanes").append(h("div", { class: "lane" }, h("b", {}, h("i", { style: "background:" + colourOf(domain) }), wordBreaks(label)), h("span", {}, entry.context)));
   return entry;
 }
 function outcomeKind(text) { return /deliver/.test(text) ? "ok" : /refus|fail/.test(text) ? "bad" : "wait"; }
@@ -132,7 +136,7 @@ addEventListener("resize", () => render());
 function render() {
   const visible = rows.filter(shown);
   for (const row of visible) { lane(row.from); if (row.to) lane(row.to); }
-  const dpr = devicePixelRatio || 1, width = TOP * 2 + lanes.length * LANE, height = TOP + visible.length * ROW + 20;
+  const dpr = devicePixelRatio || 1, width = TOP * 2 + lanes.length * LANE + LABEL_ROOM, height = TOP + visible.length * ROW + 20;
   // Zoom to fit: the whole diagram is drawn at the panel width, and the lane headers shrink by the same factor.
   const fit = Math.min(1, $("scroller").clientWidth / width) || 1;
   $("lanes").style.zoom = fit;
@@ -150,7 +154,7 @@ function drawRow(row, y, now) {
   ctx.font = TEXT_PX + "px system-ui, sans-serif"; ctx.fillStyle = css("--muted"); ctx.textAlign = "left"; ctx.fillText(clock(row.at), 4, y + 4);
   if (!b) {
     ctx.fillStyle = css("--ink2"); ctx.fillRect(a.x - 4, y - 4, 8, 8);
-    ctx.fillStyle = css("--ink2"); ctx.fillText(row.event, a.x + 10, y + 4); return;
+    ctx.fillStyle = css("--ink2"); ctx.fillText(fit(row.event, roomRight(a.x + 10)), a.x + 10, y + 4); return;
   }
   const [token, mark] = OUTCOME[row.kind], colour = css(token);
   ctx.strokeStyle = colour; ctx.fillStyle = colour; ctx.lineWidth = 1.5 + fresh * 1.5; ctx.globalAlpha = 0.7 + 0.3 * fresh;
@@ -161,12 +165,20 @@ function drawRow(row, y, now) {
   }
   ctx.globalAlpha = 1; ctx.lineWidth = 1;
   const text = mark + " " + row.event + " → " + row.policy + (row.command ? " → " + row.command.split("::").pop() : "");
-  const left = Math.min(a.x, b.x) + 8, maxW = Math.max(Math.abs(b.x - a.x) - 16, 150);
+  // Each message has its own row, so its label may run on past the lanes it joins, to the canvas edge.
+  const left = (a === b ? a.x + 26 : Math.min(a.x, b.x) + 8), maxW = roomRight(left);
   ctx.font = TEXT_PX + "px system-ui, sans-serif"; ctx.fillStyle = css("--ink"); ctx.textAlign = "left";
   ctx.fillText(fit(text, maxW), left, y - 2);
 }
 function head(x, y, dir) { ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - dir * 7, y - 4); ctx.lineTo(x - dir * 7, y + 4); ctx.closePath(); ctx.fill(); }
-function fit(text, maxW) { while (text.length > 8 && ctx.measureText(text).width > maxW) text = text.slice(0, -2); return text.length < 8 ? text : text; }
+// The width a label has from x to the canvas's right edge.
+function roomRight(x) { return TOP * 2 + lanes.length * LANE + LABEL_ROOM - x - 6; }
+// Shortens a label to its width, ending it with … so a cut label shows it was cut.
+function fit(text, maxW) {
+  if (ctx.measureText(text).width <= maxW) return text;
+  while (text.length > 4 && ctx.measureText(text + "…").width > maxW) text = text.slice(0, -1);
+  return text + "…";
+}
 
 /* ---- stream ---- */
 let backlog = [], liveStarted = false, dirty = false;
