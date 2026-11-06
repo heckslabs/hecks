@@ -38,6 +38,22 @@ RSpec.describe "PipelineBoard readings" do
     expect(kind_of("Which branch should I use?")).to eq("")
   end
 
+  # A blocked job's state names what it needs and the reply Claude Code suggests for it.
+  def context_with(state)
+    FileUtils.mkdir_p(File.join(dir, "r"))
+    File.write(File.join(dir, "r", "state.json"), JSON.generate({ "state" => "blocked", "detail" => "waiting" }.merge(state)))
+    sessions([{ "id" => "r", "name" => "r", "status" => "idle", "startedAt" => 1 }]).first[:context]
+  end
+
+  it "carries a blocked session's needs and suggested reply to the answer prompt" do
+    found = context_with("needs" => " tell me when the merge is done ", "suggestedReply" => "the merge is finished, go ahead")
+    expect(found).to include(needs: "tell me when the merge is done", suggested: "the merge is finished, go ahead")
+  end
+
+  it "carries an empty suggestion when Claude Code offered none" do
+    expect(context_with("needs" => "pick a branch")).to include(suggested: "")
+  end
+
   it "reads a live job that waits on a person as blocked, not done" do
     job("s1", "blocked", needs: "confirm the retry")
     live = sessions([{ "id" => "s1", "name" => "s1", "status" => "idle", "startedAt" => 1 }])

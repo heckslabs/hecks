@@ -176,6 +176,10 @@ svg.focusing .edge.lit, svg.focusing .node.lit { opacity: 1; }
 .ask-row .q { color: var(--ink2); font-size: 12px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
 .ask-row time { font-family: var(--mono); font-size: 11px; color: var(--muted); white-space: nowrap; }
 .ask-row .mine { grid-column: 2 / -1; font-size: 12px; color: var(--ink2); }
+.ask-row .suggested { grid-column: 2 / -1; justify-self: start; font: 12px var(--body); color: var(--ink); background: var(--surface);
+  border: 1px dashed var(--you); border-radius: 999px; padding: 2px 10px; cursor: pointer; text-align: left; overflow-wrap: anywhere; }
+.ask-row .suggested:hover { border-style: solid; }
+.ask-row .suggested b { color: var(--you); font-weight: 600; margin-right: 6px; }
 .answer-btn { font: 600 12px var(--body); color: #111; background: var(--you); border: 0; border-radius: 6px; padding: 4px 12px; cursor: pointer; white-space: nowrap; }
 .answer-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 .sess .answer-btn { justify-self: start; margin-top: 2px; }
@@ -421,20 +425,27 @@ const evChip = (name) => h("span", { class: "ev" + (name.endsWith("!") ? " you" 
 // The sessions waiting on you, with what each asked; you answer them in the shared prompt (/answer.js).
 const replies = new Map();
 const blockedSessions = () => (state && Array.isArray(state.sessions) ? state.sessions : []).filter((s) => s.status === "blocked");
-function answer(id) {
+function answer(id, prefill) {
   const list = blockedSessions();
   if (!list.length) return;
   boardAnswer.open(list, id, {
     sending: (s, text) => { replies.set(s.id, { text, state: "sending" }); renderWaiting(state.sessions); },
     sent: (s) => { replies.set(s.id, { text: replies.get(s.id).text, state: "sent; waiting for it to carry on" }); refresh(); },
     failed: (s, text, message) => { replies.set(s.id, { text, state: "not sent: " + message }); renderWaiting(state.sessions); }
-  });
+  }, { prefill: Boolean(prefill) });
 }
 // A session's role: the agent its run names, or else the role its name begins with.
 const roleOf = (s) => s.agent || Object.keys(ROLES).find((role) => String(s.name || "").startsWith(role)) || "";
+// The reply Claude Code suggested, as a button that opens the prompt with it in the answer box.
+function suggestion(s) {
+  const text = s.context && s.context.suggested;
+  if (!text) return null;
+  return h("button", { type: "button", class: "suggested", "data-answer": s.id, "data-prefill": "1",
+    "data-tip": "Open the answer with this reply filled in; Enter sends it" }, h("b", {}, "Suggested"), text);
+}
 const answerButton = (id) => h("button", { type: "button", class: "answer-btn", "data-answer": id }, "Answer");
 function asked(s) {
-  const text = (s.context && s.context.said) || s.detail || "";
+  const text = (s.context && (s.context.needs || s.context.said)) || s.detail || "";
   const line = text.split("\n").map((l) => l.replace(/[*_`#>]/g, "").trim()).find(Boolean) || "";
   return line.slice(0, 220);
 }
@@ -451,12 +462,13 @@ function renderWaiting(sessions) {
       h("span", { class: "q", "data-tip": asked(s) }, asked(s)),
       h("time", { datetime: s.started }, clock(s.started)),
       answerButton(s.id),
+      suggestion(s),
       mine ? h("div", { class: "mine" }, h("b", {}, "You: "), mine.text, " \u00B7 " + mine.state) : null);
   }));
 }
 document.addEventListener("click", (e) => {
   const b = e.target.closest("[data-answer]");
-  if (b) { e.stopPropagation(); answer(b.dataset.answer); }
+  if (b) { e.stopPropagation(); answer(b.dataset.answer, b.dataset.prefill === "1"); }
 }, true);
 
 function renderCards(roles) {
