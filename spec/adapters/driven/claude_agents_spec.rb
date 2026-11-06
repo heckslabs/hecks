@@ -84,6 +84,14 @@ RSpec.describe Hecks::Adapters::ClaudeAgents do
       expect(File.read(File.join(scratch, "cwd")).strip).to eq(scratch)
     end
 
+    it "adds the verdict format to the architect's brief, and to no other agent's", :aggregate_failures do
+      start(agent: { value: "architect" })
+      expect(asked.join("\n")).to include("say ok", "make the last line of your closing message", "Verdict: rethink")
+
+      start(agent: { value: "reviewer" })
+      expect(asked.last).to eq("say ok")
+    end
+
     it "leaves the agent out when none is named, and keeps a brief that looks like a flag" do
       start(brief: { value: "--dangerously-skip-permissions" })
 
@@ -148,10 +156,31 @@ RSpec.describe Hecks::Adapters::ClaudeAgents do
       expect(answer[:findings]).to include("Rename the port")
     end
 
-    it "takes the verdict from the Verdict line, not from a word elsewhere in the text" do
-      job("done", "reviewed", { result: "Verdict: rethink\nThe plan is sound in parts, but the ports are wrong." })
+    it "takes the verdict from the last Verdict line, not from a word elsewhere in the text" do
+      job("done", "reviewed", { result: "The plan is sound in parts, but the ports are wrong.\nVerdict: rethink" })
 
       expect(read(agent: { value: "architect" })).to include(verdict: "rethink")
+    end
+
+    it "reads a Verdict line the architect set in bold or with a closing period" do
+      job("done", "reviewed", { result: "Findings follow.\n**Verdict: sound with changes.** Rename the port." })
+
+      expect(read(agent: { value: "architect" })).to include(verdict: "changes")
+    end
+
+    # The job's timeline, whose last entry keeps only the tail of what the session wrote.
+    def timeline(text)
+      entry = { at: "t", state: "done", detail: "reviewed", text: text }
+      File.write(File.join(jobs, "abc123", "timeline.jsonl"), "#{JSON.generate(entry)}\n")
+    end
+
+    it "reads the verdict off the tail of the session's last timeline entry", :aggregate_failures do
+      job("done", "reviewed")
+      timeline("ersion of the plan.\n5 findings.\nVerdict: sound with changes")
+
+      answer = read(agent: { value: "architect" })
+      expect(answer).to include(verdict: "changes")
+      expect(answer[:findings]).to include("5 findings")
     end
 
     it "reads the reviewer's judgment off the closed job, and no verdict" do

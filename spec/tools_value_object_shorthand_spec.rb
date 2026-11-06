@@ -52,4 +52,15 @@ RSpec.describe Hecks::Tools::ValueObjectShorthand do
     expect(shorten(write: true)).to eq({})
     expect(source).to eq(kept_blocks)
   end
+
+  def example(folder)
+    FileUtils.mkdir_p(File.join(root, "examples", folder))
+    File.write(File.join(root, "examples", folder, "a.bluebook"), %(  value_object "V" do\n    attribute :value, String\n  end\n))
+  end
+
+  it "skips the examples held in block form, and rewrites any other example" do
+    example("multi_role")
+    example("other")
+    expect(described_class.shorten(["examples"], root: root, write: false)).to eq("examples/other/a.bluebook" => 1)
+  end
 end
