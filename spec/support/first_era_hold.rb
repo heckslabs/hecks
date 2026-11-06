@@ -17,8 +17,8 @@ module FirstEraHold
   # @return [void]
   def hold_first_era!(url:, domain:, source:, schema: nil, role: nil)
     bluebook = load_registry(source).bluebooks.values.first
-    db = Hecks::Adapters::PostgresEra.connect_for(domain, { database: url, schema: schema }.compact)
-    lineage = Hecks::Adapters::PostgresEra::Lineage.new(db, domain)
+    db = Hecks::Adapters::PostgresRevisions.connect_for(domain, { database: url, schema: schema }.compact)
+    lineage = Hecks::Adapters::PostgresRevisions::Lineage.new(db, domain)
     lineage.ensure_base!
     lineage.hold_first!(source, projection: Hecks::Runtime::StorageShape.project(bluebook))
     lineage.provision_first_era!(bluebook.aggregates, role: role)
@@ -68,8 +68,8 @@ module FirstEraHold
   private
 
   def hold_bluebook_era!(url, bluebook, source, schema = nil)
-    db = Hecks::Adapters::PostgresEra.connect_for(bluebook.name, { database: url, schema: schema }.compact)
-    lineage = Hecks::Adapters::PostgresEra::Lineage.new(db, bluebook.name)
+    db = Hecks::Adapters::PostgresRevisions.connect_for(bluebook.name, { database: url, schema: schema }.compact)
+    lineage = Hecks::Adapters::PostgresRevisions::Lineage.new(db, bluebook.name)
     lineage.ensure_base!
     return if lineage.eras.any?
 

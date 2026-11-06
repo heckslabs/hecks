@@ -40,7 +40,7 @@ module Hecks
 
         # @return [Hash, nil] the storage shape a held text declares; nil for no text
         def shape_of(text)
-          text && Runtime::StorageShape.project(PostgresEra::LineageManager.shadow(text))
+          text && Runtime::StorageShape.project(PostgresRevisions::LineageManager.shadow(text))
         end
 
         # A document holds no ledger, so its watermark is zero and never moves.

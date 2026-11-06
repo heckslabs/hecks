@@ -23,7 +23,7 @@ RSpec.describe Hecks::Translation::AdditiveShape do
     BLUEBOOK
   end
 
-  def declared(text) = Hecks::Adapters::PostgresEra::LineageManager.shadow(text)
+  def declared(text) = Hecks::Adapters::PostgresRevisions::LineageManager.shadow(text)
 
   def implicit?(held, current)
     diff = Hecks::Translation::Scaffold.diff(declared(held), declared(current))
@@ -34,7 +34,7 @@ RSpec.describe Hecks::Translation::AdditiveShape do
 
   def ledger?(held, current)
     projection = Hecks::Runtime::StorageShape.project(declared(held))
-    change = Hecks::Adapters::PostgresEra::LineageManager::LedgerChange.between(projection, declared(current))
+    change = Hecks::Adapters::PostgresRevisions::LineageManager::LedgerChange.between(projection, declared(current))
     change.replaced.empty?
   end
 
@@ -99,7 +99,7 @@ RSpec.describe Hecks::Translation::AdditiveShape do
 
   describe "the implicit edge's decision with a recorded move" do
     def verdict(held_text, current_text)
-      decision = Hecks::Adapters::PostgresEra::LineageManager::MintDecision
+      decision = Hecks::Adapters::PostgresRevisions::LineageManager::MintDecision
       bluebook = declared(current_text)
       held = { ordinal: 1, label: "aaaaaa", held_text: held_text, declaration: declared(held_text) }
       decision.decide(held: [held], bluebook: bluebook, watermark: 1, rows: [],

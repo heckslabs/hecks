@@ -8,7 +8,7 @@ require_relative "../../../support/era_app_role"
 
 # The first-era hold is one transaction, completes when a half-done run is repeated, and grants an
 # app role only when the world names one.
-RSpec.describe "PostgresEra first-era hold", :io do
+RSpec.describe "PostgresRevisions first-era hold", :io do
   include EraRegistryLoading
   include EraAppRole
 
@@ -37,8 +37,8 @@ RSpec.describe "PostgresEra first-era hold", :io do
   def projection = Hecks::Runtime::StorageShape.project(bluebook)
 
   def lineage
-    @db ||= Hecks::Adapters::PostgresEra.connect_for("Holdable", { database: FencedOwner.url(HOLD_DB) })
-    @lineage ||= Hecks::Adapters::PostgresEra::Lineage.new(@db, "Holdable").tap(&:ensure_base!)
+    @db ||= Hecks::Adapters::PostgresRevisions.connect_for("Holdable", { database: FencedOwner.url(HOLD_DB) })
+    @lineage ||= Hecks::Adapters::PostgresRevisions::Lineage.new(@db, "Holdable").tap(&:ensure_base!)
   end
 
   after { @db&.close }

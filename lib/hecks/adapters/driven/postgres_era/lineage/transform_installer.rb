@@ -2,7 +2,7 @@ require_relative "transform_sql"
 
 module Hecks
   module Adapters
-    class PostgresEra
+    class PostgresRevisions
       class Lineage
         # Installs the shared `hecks_tr_*` jsonb functions that compiled translation SQL calls;
         # kept equal to the Ruby reference transform by the equivalence spec.

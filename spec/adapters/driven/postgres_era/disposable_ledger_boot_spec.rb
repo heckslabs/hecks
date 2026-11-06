@@ -10,7 +10,7 @@ require_relative "../../../support/mint_request_support"
 # additive one is applied in place, a breaking one moves the aggregate's rows to a dated archive
 # and starts it empty, and a boot never refuses as unminted or superseded. A world without the
 # declaration keeps its era guard.
-RSpec.describe "a disposable ledger's boot in PostgresEra", :io do
+RSpec.describe "a disposable ledger's boot in PostgresRevisions", :io do
   include EraRegistryLoading
   include MintRequestSupport
 
@@ -59,7 +59,7 @@ RSpec.describe "a disposable ledger's boot in PostgresEra", :io do
   # Boots the era check of `source`; `disposable: false` boots a world without the declaration.
   def boot(source, disposable: true, **settings)
     registry = load_registry(source, translation_source: settings.delete(:translation))
-    Hecks::Adapters::PostgresEra::LineageManager.check!(
+    Hecks::Adapters::PostgresRevisions::LineageManager.check!(
       registry: registry, bluebook: registry.bluebooks.values.first, current_text: source,
       settings: { database: url, disposable_ledger: disposable }.merge(settings)
     )
@@ -68,7 +68,7 @@ RSpec.describe "a disposable ledger's boot in PostgresEra", :io do
 
   # The adapter a boot of `registry` builds for one aggregate, at the era the boot resolved.
   def adapter(registry, name = "Acct")
-    Hecks::Adapters::PostgresEra.new(
+    Hecks::Adapters::PostgresRevisions.new(
       aggregate: registry.bluebooks.values.first.aggregate(name),
       settings:  { database: url, domain: "Ledger", era: registry.resolved_eras["Ledger"] }
     )
@@ -133,7 +133,7 @@ RSpec.describe "a disposable ledger's boot in PostgresEra", :io do
 
     before do
       first = load_registry(renamed(shape_v1)).tap(&:apply_world_names!)
-      Hecks::Adapters::PostgresEra::LineageManager.check!(
+      Hecks::Adapters::PostgresRevisions::LineageManager.check!(
         registry: first, bluebook: first.bluebooks.values.first, current_text: shape_v1,
         settings: { database: url, disposable_ledger: true }
       )

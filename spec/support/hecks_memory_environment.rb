@@ -1,6 +1,6 @@
 # Keeps every spec that boots the Hecks domain (lib/hecks/hecks) off a database.
 #
-# The domain is bound to PostgresEra in hecks.world; its environments/memory.world overlay
+# The domain is bound to PostgresRevisions in hecks.world; its environments/memory.world overlay
 # swaps it to Memory. `Hecks.boot` reads `HECKS_ENVIRONMENT`, so setting it once here covers
 # every boot a spec makes, directly or through an adapter, without touching each spec.
 # A spec that needs the real journal boots a child process with the variable unset.

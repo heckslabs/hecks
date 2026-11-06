@@ -15,7 +15,7 @@ RSpec.describe "hecks deploy provision", :io do
   TENANT_CHILD = 'require "hecks/tools"; Hecks::Tools.script("project_tenant", ARGV)'.freeze
   # Named for the process, so two runs on one Postgres never drop each other's database.
   DB = "hecks_project_tenant_spec_#{Process.pid}".freeze
-  # The overlay binds the database by URL as a non-superuser owner: PostgresEra refuses to boot
+  # The overlay binds the database by URL as a non-superuser owner: PostgresRevisions refuses to boot
   # as a superuser (see support/fenced_owner.rb).
   DB_URL = FencedOwner.url(DB)
 
@@ -145,8 +145,8 @@ RSpec.describe "hecks deploy provision", :io do
 
   # The eras a tenant's schema holds for Scratch, as the lineage reads them.
   def held_eras(schema)
-    db = Hecks::Adapters::PostgresEra.connect_for("Scratch", { database: DB_URL, schema: schema })
-    Hecks::Adapters::PostgresEra::Lineage.new(db, "Scratch").eras.map { |era| era[:ordinal] }
+    db = Hecks::Adapters::PostgresRevisions.connect_for("Scratch", { database: DB_URL, schema: schema })
+    Hecks::Adapters::PostgresRevisions::Lineage.new(db, "Scratch").eras.map { |era| era[:ordinal] }
   ensure
     db&.close
   end

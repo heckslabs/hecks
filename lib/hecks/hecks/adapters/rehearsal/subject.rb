@@ -121,9 +121,9 @@ module Hecks
         #
         # @param eras [Array<Hash>] the copy's held eras, oldest first: `label`, `held_text`
         # @yieldreturn [Integer] the copy's ledger watermark, read only when no held era matches
-        # @return [PostgresEra::LineageManager::RevisionResolution::Answer]
+        # @return [PostgresRevisions::LineageManager::RevisionResolution::Answer]
         def resolve(eras, &)
-          PostgresEra::LineageManager::RevisionResolution.resolve(
+          PostgresRevisions::LineageManager::RevisionResolution.resolve(
             eras: eras, bluebook: bluebook, translations: registry.translations, directory: directory, &
           )
         end

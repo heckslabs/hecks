@@ -9,9 +9,9 @@ require_relative "../../../support/postgres_probe"
 require_relative "../../../support/scratch_postgres"
 require_relative "../../../support/event_trace_shop"
 
-# The event trace on a scratch PostgresEra database: the same delivered, refused and unheard
+# The event trace on a scratch PostgresRevisions database: the same delivered, refused and unheard
 # outcomes as on SQLite, read over a session that cannot write.
-RSpec.describe "the event trace on PostgresEra", :io do
+RSpec.describe "the event trace on PostgresRevisions", :io do
   EVENT_TRACE_SPEC_DB = "hecks_event_trace_spec"
 
   scratch_postgres EVENT_TRACE_SPEC_DB

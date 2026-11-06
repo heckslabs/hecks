@@ -10,7 +10,7 @@ require_relative "../ports/persistence/plugins/era"
 module Hecks
   module Tools
     # The command behind `hecks shape` and `hecks shape`: a bluebook's storage-shape projection, the
-    # same hash PostgresEra mints an era's label from, so two runs diff to show whether a bluebook
+    # same hash PostgresRevisions mints an era's label from, so two runs diff to show whether a bluebook
     # change would bump an era.
     module Shape
       module_function

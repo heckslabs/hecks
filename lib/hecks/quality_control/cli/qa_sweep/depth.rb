@@ -7,10 +7,10 @@ module Hecks
       # clamps on seeds, and the lines that announce the resolution.
       module Depth
         # Why `--seeds` is clamped for `--persistence-parity`.
-        PARITY_CLAMP_REASON = "Real PostgresEra I/O per dispatch is genuinely expensive"
+        PARITY_CLAMP_REASON = "Real PostgresRevisions I/O per dispatch is genuinely expensive"
 
         # Why `--seeds` is clamped for `concurrency`.
-        CONCURRENCY_CLAMP_REASON = "Each seed forks two real racers against real PostgresEra I/O"
+        CONCURRENCY_CLAMP_REASON = "Each seed forks two real racers against real PostgresRevisions I/O"
 
         private
 
@@ -30,7 +30,7 @@ module Hecks
           clamp_seeds
         end
 
-        # Clamps down (never up) only for `--persistence-parity`: real PostgresEra I/O per dispatch
+        # Clamps down (never up) only for `--persistence-parity`: real PostgresRevisions I/O per dispatch
         # is expensive even for a target on the widest tier. `concurrency` has a tighter cap: each
         # seed pays for two disposable schemas and a real fork; it is reached via `--modes
         # concurrency`.

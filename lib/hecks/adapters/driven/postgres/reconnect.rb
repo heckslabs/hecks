@@ -1,6 +1,6 @@
 module Hecks
   module Adapters
-    # Replaces a dead `@db` after `PG::ConnectionBad`; shared by `Postgres` and `PostgresEra`.
+    # Replaces a dead `@db` after `PG::ConnectionBad`; shared by `Postgres` and `PostgresRevisions`.
     # Needs `@db`, `@aggregate` and `@settings`.
     module PostgresReconnect
       # Runs one parameterless statement, replacing a dead connection before re-raising.

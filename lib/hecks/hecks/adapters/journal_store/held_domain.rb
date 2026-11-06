@@ -160,7 +160,7 @@ module Hecks
         def named(era)
           return era if era[:hash]
 
-          hash = PostgresEra::LineageManager.held_hash(era)
+          hash = PostgresRevisions::LineageManager.held_hash(era)
           era.merge(hash: hash, label: hash[0, Runtime::StorageShape::LABEL_LENGTH])
         end
 
@@ -175,8 +175,8 @@ module Hecks
         # @yield [Lineage] the domain's lineage
         # @return [Object] the block's value
         def reading
-          db = PostgresEra.connect_for(bluebook.name, settings, provision: false)
-          yield PostgresEra::Lineage.new(db, bluebook.name, reading: true)
+          db = PostgresRevisions.connect_for(bluebook.name, settings, provision: false)
+          yield PostgresRevisions::Lineage.new(db, bluebook.name, reading: true)
         ensure
           db&.close
         end
@@ -188,9 +188,9 @@ module Hecks
         # @return [Object] the block's value
         # @raise [Runtime::WiringError] on a superuser connection the world has not allowed
         def writing
-          db = PostgresEra.connect_for(bluebook.name, settings)
-          lineage = PostgresEra::Lineage.new(db, bluebook.name, formerly_known_as: bluebook.formerly_known_as)
-          lineage.check_fence_applies!(allow_superuser: PostgresEra.setting(settings, :allow_superuser, default: false))
+          db = PostgresRevisions.connect_for(bluebook.name, settings)
+          lineage = PostgresRevisions::Lineage.new(db, bluebook.name, formerly_known_as: bluebook.formerly_known_as)
+          lineage.check_fence_applies!(allow_superuser: PostgresRevisions.setting(settings, :allow_superuser, default: false))
           lineage.ensure_base!
           yield lineage
         ensure
@@ -200,11 +200,11 @@ module Hecks
         # What a boot of the held bluebook would resolve, read from its database over a connection
         # that only reads: the resolution the boot records (`LineageManager::RevisionResolution`).
         #
-        # @return [PostgresEra::LineageManager::RevisionResolution::Answer]
+        # @return [PostgresRevisions::LineageManager::RevisionResolution::Answer]
         # @raise [Runtime::WiringError] if the connection is refused or a held text was altered
         def resolution
-          PostgresEra::LineageManager::RevisionResolution.read(bluebook: bluebook, settings: settings,
-                                                               translations: translations, directory: directory)
+          PostgresRevisions::LineageManager::RevisionResolution.read(bluebook: bluebook, settings: settings,
+                                                                     translations: translations, directory: directory)
         end
 
         # The eras a lineage holds, without provisioning anything: none when the lineage tables do

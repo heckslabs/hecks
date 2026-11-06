@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../../../hecks"
-# The ledger's `persisted_by "PostgresEra"` binding needs the era plugin, which core does not load.
+# The ledger's `persisted_by "PostgresRevisions"` binding needs the era plugin, which core does not load.
 require_relative "../../ports/persistence/plugins/era"
 require_relative "../adapters/git_pr"
 require_relative "qa_pr_check/checking"

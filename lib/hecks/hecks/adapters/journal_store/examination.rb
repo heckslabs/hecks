@@ -117,8 +117,8 @@ module Hecks
         # Records both worlds wrote since the cut that no winner was named for.
         def unresolved_conflicts(domain, lineage, eras, named)
           latest = eras.last
-          chain = PostgresEra::LineageManager.edge_chain(domain.registry, domain.bluebook, eras[0..-2],
-                                                         latest[:label], target: latest)
+          chain = PostgresRevisions::LineageManager.edge_chain(domain.registry, domain.bluebook, eras[0..-2],
+                                                               latest[:label], target: latest)
           conflicts = domain.aggregates.flat_map do |aggregate|
             lineage.conflict_ids(aggregate, chain, latest[:ordinal], latest[:watermark].to_i)
           end

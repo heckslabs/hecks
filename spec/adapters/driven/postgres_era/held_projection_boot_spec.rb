@@ -42,8 +42,8 @@ RSpec.describe "a boot matching a held era by its recorded projection", :io do
   # Holds era 1 with `text` as its held text, `projection` as the shape its mint recorded, and the
   # whole domain's hash as its name when `named`.
   def hold!(text, projection, named: false)
-    db = Hecks::Adapters::PostgresEra.connect_for("Ledger", { database: boot_url })
-    lineage = Hecks::Adapters::PostgresEra::Lineage.new(db, "Ledger")
+    db = Hecks::Adapters::PostgresRevisions.connect_for("Ledger", { database: boot_url })
+    lineage = Hecks::Adapters::PostgresRevisions::Lineage.new(db, "Ledger")
     lineage.ensure_base!
     lineage.hold_first!(text, projection: projection)
     name!(lineage) if named
@@ -60,7 +60,7 @@ RSpec.describe "a boot matching a held era by its recorded projection", :io do
   # Boots the era check of the full domain against the database, without a mint request.
   def boot
     registry = load_registry(full_source)
-    Hecks::Adapters::PostgresEra::LineageManager.check!(
+    Hecks::Adapters::PostgresRevisions::LineageManager.check!(
       registry: registry, bluebook: registry.bluebooks.values.first, current_text: full_source,
       settings: { database: boot_url, mint_eras: true }
     )

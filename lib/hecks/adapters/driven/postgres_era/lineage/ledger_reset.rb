@@ -3,7 +3,7 @@ require "digest"
 
 module Hecks
   module Adapters
-    class PostgresEra
+    class PostgresRevisions
       class Lineage
         # The writes a disposable ledger's boot makes in place of a mint: it re-holds the latest era
         # at the booting shape, gives an aggregate a head that reads only its latest era, and moves

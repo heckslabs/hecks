@@ -102,7 +102,7 @@ pub(crate) fn persistence_binds(text: &str) -> HashMap<String, String> {
     binds
 }
 
-// Where an adapter class can live: the driven adapters, and the era plugin that holds `PostgresEra`,
+// Where an adapter class can live: the driven adapters, and the era plugin that holds `PostgresRevisions`,
 // the one adapter that declares itself lineage-capable.
 const ADAPTER_DIRS: [&str; 2] = [
     "lib/hecks/adapters/driven",
@@ -230,7 +230,7 @@ mod tests {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
         let names = lineage_capable_adapter_names(&root).expect("scans the adapter directories");
         assert!(
-            names.iter().any(|name| name == "PostgresEra"),
+            names.iter().any(|name| name == "PostgresRevisions"),
             "lineage-capable adapters found: {names:?}"
         );
     }

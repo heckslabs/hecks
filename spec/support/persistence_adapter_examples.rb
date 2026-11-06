@@ -1,4 +1,4 @@
-# What the journalling persistence adapters (Sqlite, Postgres, PostgresEra, Heki) all owe, written
+# What the journalling persistence adapters (Sqlite, Postgres, PostgresRevisions, Heki) all owe, written
 # once and run against each. A spec supplies `adapter` and `aggregate` (the Pizzas "Order"), and
 # where an example opens a second adapter, `reopened_adapter` (same store) or `other_domain_adapter`
 # (same store, a different domain). Examples that name one adapter's storage stay in its own spec.
@@ -24,7 +24,7 @@ RSpec.shared_context "with the Pizzas Order adapter helpers" do
   def event_summary(events) = events.map { |item| [item.name, item.id, item.payload] }
 end
 
-# The core record contract of the SQL journalling adapters (Sqlite, Postgres, PostgresEra): what
+# The core record contract of the SQL journalling adapters (Sqlite, Postgres, PostgresRevisions): what
 # is saved is found, every write is journaled, a delete is journaled too, events are kept per
 # record, and a second adapter over the same store sees it all.
 RSpec.shared_examples "a journalled record adapter" do

@@ -1,6 +1,6 @@
 module Hecks
   module Adapters
-    class PostgresEra
+    class PostgresRevisions
       class Lineage
         # Chunked, lock-free, resumable backfill loop shared by the head-snapshot backfill and each
         # field-cache table's initial backfill.

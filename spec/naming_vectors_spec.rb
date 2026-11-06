@@ -11,7 +11,7 @@ RSpec.describe "the shared naming vectors" do
   NAMING_VECTORS = JSON.parse(File.read(File.join(InMemoryDomain::ROOT, "spec", "fixtures", "naming_vectors.json")))
 
   def qualified_name(domain, suffix)
-    Hecks::Adapters::PostgresEra::Lineage.new(nil, domain).send(:qualified_name, suffix)
+    Hecks::Adapters::PostgresRevisions::Lineage.new(nil, domain).send(:qualified_name, suffix)
   end
 
   NAMING_VECTORS.fetch("snake").each do |row|
@@ -44,7 +44,7 @@ RSpec.describe "the shared naming vectors" do
       got = qualified_name(row["domain"], row["suffix"])
 
       expect(got).to eq(row["expected"])
-      expect(got.bytesize).to be <= Hecks::Adapters::PostgresEra::Lineage::POSTGRES_IDENTIFIER_LIMIT
+      expect(got.bytesize).to be <= Hecks::Adapters::PostgresRevisions::Lineage::POSTGRES_IDENTIFIER_LIMIT
     end
   end
 end

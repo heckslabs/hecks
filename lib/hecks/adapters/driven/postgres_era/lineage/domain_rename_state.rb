@@ -1,6 +1,6 @@
 module Hecks
   module Adapters
-    class PostgresEra
+    class PostgresRevisions
       class Lineage
         # What a domain rename moves besides the journal: every table keyed by the domain's name,
         # the head objects found in the catalogue (not by the aggregates the bluebook lists now, so

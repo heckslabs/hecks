@@ -3,7 +3,7 @@ require "digest"
 
 module Hecks
   module Adapters
-    class PostgresEra
+    class PostgresRevisions
       class Lineage
         # The edge chains whose composed (direct) translation `direct_translation_spec` proves
         # equal to their one-link-per-era chain, kept as fingerprints in `direct_verified.json`.

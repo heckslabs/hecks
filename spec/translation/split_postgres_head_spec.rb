@@ -8,7 +8,7 @@ require "hecks/adapters/driven/postgres_era/lineage"
 RSpec.describe "a split target's head, read from the journal", :io do
   # Only what the chain reads from a Lineage: the journal's name, the eras and a connection.
   class SplitHeadHost
-    include Hecks::Adapters::PostgresEra::Lineage::ChainSql
+    include Hecks::Adapters::PostgresRevisions::Lineage::ChainSql
 
     def initialize(db, eras)
       @db = db
@@ -23,7 +23,7 @@ RSpec.describe "a split target's head, read from the journal", :io do
 
   before do
     skip "no local Postgres answers" unless PostgresProbe.available?
-    Hecks::Adapters::PostgresEra::Lineage::TransformSql::ALL.each { |sql| db.exec(sql) }
+    Hecks::Adapters::PostgresRevisions::Lineage::TransformSql::ALL.each { |sql| db.exec(sql) }
     db.exec("CREATE TEMP TABLE split_head_journal (ordinal bigserial, era integer, aggregate text, " \
             "aggregate_id text, operation text, state jsonb)")
     journal_row(1, "collection", "A", "save", "agg" => "A", "label" => "Board",

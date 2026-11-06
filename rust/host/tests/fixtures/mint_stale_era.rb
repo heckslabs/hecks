@@ -96,7 +96,7 @@ end
 # command makes, at the watermark the database holds when it asks.
 def mint_request_for(owner_url)
   db = PG.connect(owner_url)
-  watermark = Hecks::Adapters::PostgresEra::Lineage.new(db, "Ledger").last_ordinal
+  watermark = Hecks::Adapters::PostgresRevisions::Lineage.new(db, "Ledger").last_ordinal
   { confirm: true, verdict: "would_mint", watermark: watermark }
 ensure
   db&.close
@@ -108,7 +108,7 @@ def check!(source, owner_url:, translation_source: nil, role: nil)
   settings = { database: owner_url, mint_eras: true }
   settings[:role] = role if role
   settings[:mint_request] = mint_request_for(owner_url)
-  Hecks::Adapters::PostgresEra::LineageManager.check!(
+  Hecks::Adapters::PostgresRevisions::LineageManager.check!(
     registry: registry, bluebook: bluebook, current_text: source, settings: settings
   )
 end

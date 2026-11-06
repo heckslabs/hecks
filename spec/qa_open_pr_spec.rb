@@ -5,7 +5,7 @@ require_relative "support/qa_lib_cli"
 require "json"
 require "tmpdir"
 
-# `hecks quality_control patch.open` as a real subprocess against a disposable PostgresEra
+# `hecks quality_control patch.open` as a real subprocess against a disposable PostgresRevisions
 # ledger and a throwaway repository; a fake `gh` on `PATH` keeps GitHub itself out of reach.
 RSpec.describe "hecks quality_control patch.open and improvement.open", :io do
   FAKE_GH = <<~'RUBY'.freeze

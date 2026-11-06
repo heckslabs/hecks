@@ -84,8 +84,8 @@ module Hecks
 
       # @return [Object] the domain's lineage, with its base tables ensured
       def ensured_lineage(bluebook, settings)
-        db = Hecks::Adapters::PostgresEra.connect_for(bluebook.name, settings)
-        lineage = Hecks::Adapters::PostgresEra::Lineage.new(db, bluebook.name)
+        db = Hecks::Adapters::PostgresRevisions.connect_for(bluebook.name, settings)
+        lineage = Hecks::Adapters::PostgresRevisions::Lineage.new(db, bluebook.name)
         lineage.ensure_base!
         lineage
       end

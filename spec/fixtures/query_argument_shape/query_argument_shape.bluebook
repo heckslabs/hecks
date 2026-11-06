@@ -1,6 +1,6 @@
 # A note about a subject, asked for by the subject's id: a query whose one argument is a bare
 # String. A caller that offers any other shape for that argument must be refused, on Memory and
-# on PostgresEra alike, before the store is read.
+# on PostgresRevisions alike, before the store is read.
 Hecks.bluebook "QueryArgumentShape" do
   vision "Notes asked about by their subject, so a query's argument is held to its declared type."
   core

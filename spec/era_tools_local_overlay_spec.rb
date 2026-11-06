@@ -8,7 +8,7 @@ require "hecks/tools/translation_audit"
 require "hecks/tools/tail_merge"
 require "hecks/hecks/adapters/journal_store"
 
-# A domain on Memory by default that a copy opts into PostgresEra with `*.local.hecksagon` and
+# A domain on Memory by default that a copy opts into PostgresRevisions with `*.local.hecksagon` and
 # `*.local.world` (ADR 0136). The era tools read the held journal, so they must load the domain with
 # the same overlay the runtime applies, or they report it bound to Memory.
 RSpec.describe "the era tools and a local overlay" do
@@ -46,7 +46,7 @@ RSpec.describe "the era tools and a local overlay" do
 
   describe "the launcher's held domain" do
     %i[translated bare scaffold].each do |mode|
-      it "sees the PostgresEra a local hecksagon names in #{mode} mode" do
+      it "sees the PostgresRevisions a local hecksagon names in #{mode} mode" do
         held = Hecks::Adapters::JournalStore::HeldDomain.open(domain_dir(with_local: true), mode: mode, environment: nil)
         expect(held.adapter_name).to eq("Postgres")
       end
@@ -56,7 +56,7 @@ RSpec.describe "the era tools and a local overlay" do
   [Hecks::Tools::TranslationScaffold, Hecks::Tools::RevisionReattest, Hecks::Tools::RevisionProjectionBackfill,
    Hecks::Tools::TranslationAudit, Hecks::Tools::TailMerge].each do |tool|
     describe tool do
-      it "sees the PostgresEra a local hecksagon names" do
+      it "sees the PostgresRevisions a local hecksagon names" do
         expect(adapter_after(tool, domain_dir(with_local: true))).to eq("Postgres")
       end
 

@@ -1,6 +1,6 @@
 require "tempfile"
 
-# Loads bluebook source text into a fresh registry the way a boot does, for the PostgresEra
+# Loads bluebook source text into a fresh registry the way a boot does, for the PostgresRevisions
 # lineage specs: library first, then the bluebook, then any data translation that rides with it.
 module EraRegistryLoading
   # @param source [String] the bluebook source

@@ -1,5 +1,5 @@
 # The QualityControl bluebook, bound so it boots standing alone (a fuzz or model_check boot of this
-# directory). The QA ledger binds PostgresEra in qa/bluebook/quality_control.hecksagon, and the
+# directory). The QA ledger binds PostgresRevisions in qa/bluebook/quality_control.hecksagon, and the
 # Hecks bluebook binds it through its world's `default_adapter`; the ports every one of them shares
 # are in quality_control.ports.hecksagon.
 Hecks.hecksagon "QualityControl" do

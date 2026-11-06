@@ -73,7 +73,7 @@ module PersistenceLegacyFixture
 
   def postgres_era_adapter(aggregate, database)
     hold_postgres_era!(database)
-    adapter = Hecks::Adapters::PostgresEra.new(aggregate: aggregate, settings: { database: database })
+    adapter = Hecks::Adapters::PostgresRevisions.new(aggregate: aggregate, settings: { database: database })
     connection = adapter.instance_variable_get(:@db)
     lineage = adapter.instance_variable_get(:@lineage)
     fixture = read_json("postgres_era/rows.json").fetch(aggregate.storage_name)

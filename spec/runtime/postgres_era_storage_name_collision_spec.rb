@@ -10,8 +10,8 @@ require_relative "../support/first_era_hold"
 # Pins a fix (ADR 0059): Lineage#head_view/#head_snapshot/#matview were
 # qualified by storage_name alone, so two aggregates named alike (e.g. two
 # "Note"s in different domains) derived the same physical relations, and
-# PostgresEra's boot-time self-heal silently clobbered one with the other.
-RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (docs/decisions/0059)", :io do
+# PostgresRevisions's boot-time self-heal silently clobbered one with the other.
+RSpec.describe "PostgresRevisions domain-qualifies head_view/head_snapshot/matview (docs/decisions/0059)", :io do
   include MintRequestSupport
   include FirstEraHold
 
@@ -162,7 +162,7 @@ RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (do
   def world_text(declarations) = declarations.map { |declaration| world_for(declaration) }.join("\n")
 
   # Writes Target (with the given source) and the vendored Notes bluebook beside it,
-  # wired to PostgresEra.
+  # wired to PostgresRevisions.
   #
   # @return [String] the bluebook directory to boot
   def write_vendored_domain(target_source)
@@ -248,7 +248,7 @@ RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (do
 
     # Repository-level: building a repository never requires a role grant
     # (only dispatching a role-gated command does), so this reaches the
-    # same PostgresEra#initialize self-heal path without a Governance grant.
+    # same PostgresRevisions#initialize self-heal path without a Governance grant.
     def save_custodian_role_assignment(registry)
       aggregate = registry.bluebook("Custodian").aggregate("RoleAssignment")
       role_assignment_repository(registry, "Custodian").save(
@@ -381,7 +381,7 @@ RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (do
     def check!(source, translation_source: nil)
       registry = load_registry(source, translation_source: translation_source)
       bluebook = registry.bluebooks.values.first
-      Hecks::Adapters::PostgresEra::LineageManager.check!(
+      Hecks::Adapters::PostgresRevisions::LineageManager.check!(
         registry: registry, bluebook: bluebook, current_text: source,
         settings: with_mint_request({ database: owner_url, mint_eras: true }, domain: bluebook.name)
       )
@@ -398,7 +398,7 @@ RSpec.describe "PostgresEra domain-qualifies head_view/head_snapshot/matview (do
       hold_first_era!(url: owner_url, domain: "Target", source: TARGET_V1)
       registry_v1 = check!(TARGET_V1)
       aggregate_v1 = registry_v1.bluebooks.values.first.aggregate("Note")
-      adapter_v1 = Hecks::Adapters::PostgresEra.new(
+      adapter_v1 = Hecks::Adapters::PostgresRevisions.new(
         aggregate: aggregate_v1, settings: { database: owner_url, domain: "Target", era: 1 }
       )
       adapter_v1.save(Hecks::Runtime::Instance.new(

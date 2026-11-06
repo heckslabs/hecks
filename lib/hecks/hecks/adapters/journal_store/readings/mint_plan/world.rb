@@ -22,7 +22,7 @@ module Hecks
 
             # @return [Boolean] whether the world declares `disposable_ledger true`
             def disposable?
-              PostgresEra::LineageManager::DisposableLedger.declared?(@held.settings)
+              PostgresRevisions::LineageManager::DisposableLedger.declared?(@held.settings)
             end
 
             # @return [String] the flags, in words
@@ -52,7 +52,7 @@ module Hecks
             private
 
             def setting(key, default = "unset")
-              PostgresEra.setting(@held.settings, key, default: default)
+              PostgresRevisions.setting(@held.settings, key, default: default)
             end
 
             def stranded_path

@@ -56,8 +56,8 @@ RSpec.describe "a mint by a written edge from an era whose held text is partial"
   # Holds era 1 with only the top-level file as its held text and the whole domain's shape.
   def hold_partial!
     bluebook = load_registry(shape("cost")).bluebooks.values.first
-    db = Hecks::Adapters::PostgresEra.connect_for("Ledger", { database: url })
-    lineage = Hecks::Adapters::PostgresEra::Lineage.new(db, "Ledger")
+    db = Hecks::Adapters::PostgresRevisions.connect_for("Ledger", { database: url })
+    lineage = Hecks::Adapters::PostgresRevisions::Lineage.new(db, "Ledger")
     lineage.ensure_base!
     lineage.hold_first!(%(Hecks.bluebook "Ledger" do\nend\n), projection: Hecks::Runtime::StorageShape.project(bluebook))
     lineage.provision_first_era!(bluebook.aggregates)
@@ -68,7 +68,7 @@ RSpec.describe "a mint by a written edge from an era whose held text is partial"
   def mint_registry
     registry = load_registry(shape("amount"), translation_source: edge)
     request = { confirm: true, verdict: "would_mint", watermark: watermark_of(url, "Ledger") }
-    Hecks::Adapters::PostgresEra::LineageManager.check!(
+    Hecks::Adapters::PostgresRevisions::LineageManager.check!(
       registry: registry, bluebook: registry.bluebooks.values.first, current_text: shape("amount"),
       settings: { database: url, mint_eras: true, mint_request: request }
     )

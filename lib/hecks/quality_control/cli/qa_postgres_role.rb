@@ -139,8 +139,8 @@ module Hecks
         return rows[0]["owner"] unless rows.ntuples.zero?
 
         admin.close
-        abort "hecks quality_control create_ledger_role: no database #{database} — createdb it first (PostgresEra provisions " \
-              "every table it needs on first connect, never the database itself)"
+        abort "hecks quality_control create_ledger_role: no database #{database} — createdb it first (PostgresRevisions " \
+              "provisions every table it needs on first connect, never the database itself)"
       end
 
       def report(database, role, done, skipped)

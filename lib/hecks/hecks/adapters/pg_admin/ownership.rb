@@ -66,7 +66,7 @@ module Hecks
 
         def refuse_missing_database!(database)
           raise ConsoleCapture::Failure,
-                "no database #{database}: createdb it first (PostgresEra provisions every table it " \
+                "no database #{database}: createdb it first (PostgresRevisions provisions every table it " \
                 "needs on first connect, never the database itself)"
         end
 

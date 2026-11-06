@@ -4,7 +4,7 @@ require_relative "../postgres/outbox"
 
 module Hecks
   module Adapters
-    class PostgresEra
+    class PostgresRevisions
       # The event, saga and outbox tables a database shares across its domains. Only the mint path
       # creates them, through `Lineage#ensure_base!`; a boot reads them and never provisions them.
       class SharedTables

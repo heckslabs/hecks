@@ -86,7 +86,7 @@ module Hecks
         adapter_name = Hecks::Ports::Persistence::BindingPolicy.resolve(registry, bluebook.name, first).adapter
         unless lineage_capable?(registry, Runtime::RevisionCheck.layout_class(registry, bluebook.name, adapter_name))
           abort "a tail-merge needs a lineage journal; #{bluebook.name} is bound to #{adapter_name}, " \
-                "not PostgresEra"
+                "not PostgresRevisions"
         end
 
         registry.binding_settings(bluebook.name, Hecks::Ports::Persistence::VERB, adapter_name)
@@ -101,7 +101,7 @@ module Hecks
 
       # @raise [SystemExit] when the merge is refused
       def merge_tail(registry, bluebook, settings, winners)
-        Hecks::Adapters::PostgresEra::LineageManager.merge!(
+        Hecks::Adapters::PostgresRevisions::LineageManager.merge!(
           registry: registry, bluebook: bluebook, settings: settings, winners: winners
         )
       rescue Hecks::Runtime::WiringError => e
@@ -110,8 +110,8 @@ module Hecks
 
       # @return [void]
       def report_divergence(bluebook, settings)
-        db = Hecks::Adapters::PostgresEra.connect_for(bluebook.name, settings)
-        lineage = Hecks::Adapters::PostgresEra::Lineage.new(db, bluebook.name)
+        db = Hecks::Adapters::PostgresRevisions.connect_for(bluebook.name, settings)
+        lineage = Hecks::Adapters::PostgresRevisions::Lineage.new(db, bluebook.name)
         lineage.ensure_base!
         eras = lineage.eras
         diverged = eras.size > 1 ? (1...eras.last[:ordinal]).sum { |era| lineage.diverged_count(era) } : 0

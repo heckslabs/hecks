@@ -1,6 +1,6 @@
 module Hecks
   module Adapters
-    class PostgresEra
+    class PostgresRevisions
       # The shared `events` table: every domain's aggregates journal their emitted events
       # into it, keyed by `aggregate` ("domain::AggregateName") and `aggregate_id`.
       module Events

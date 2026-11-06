@@ -1142,7 +1142,7 @@ async fn google_callback(
     };
     let instances = read.get("instances").cloned().unwrap_or(json!({}));
 
-    // PostgresEra head first — Identity is not in the WASM journal.
+    // PostgresRevisions head first — Identity is not in the WASM journal.
     // Journal `instances` is only a fallback for Lambda-era rows.
     let identity_id =
         match auth::resolve_identity_from_head(store, domain_ir, &claims.issuer, &claims.subject)

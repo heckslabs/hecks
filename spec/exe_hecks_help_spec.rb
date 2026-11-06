@@ -5,7 +5,7 @@ require "rbconfig"
 # Usage is projected from the bluebook alone: `exe/hecks` answers it without binding the Hecks
 # domain's persistence adapter, so a machine with no Postgres (or a gem without `pg`) still
 # reads the help. The child runs with no `HECKS_ENVIRONMENT` and a Postgres address nothing
-# listens on; a bound PostgresEra would fail there.
+# listens on; a bound PostgresRevisions would fail there.
 RSpec.describe "exe/hecks usage without an adapter", :io do
   let(:exe) { File.expand_path("../exe/hecks", __dir__) }
   let(:env) do
@@ -28,7 +28,7 @@ RSpec.describe "exe/hecks usage without an adapter", :io do
 
       expect(status).to be_success, "failed:\n#{err}"
       expect(out).to include("hecks")
-      expect(err).not_to match(/cannot (open|bind)|PG::|PostgresEra|password|connect/i)
+      expect(err).not_to match(/cannot (open|bind)|PG::|PostgresRevisions|password|connect/i)
     end
   end
 
@@ -37,7 +37,7 @@ RSpec.describe "exe/hecks usage without an adapter", :io do
 
     expect(status.exitstatus).to eq(2)
     expect(err).to include("no such command: no_such_verb")
-    expect(err).not_to match(/cannot (open|bind)|PG::|PostgresEra|password/i)
+    expect(err).not_to match(/cannot (open|bind)|PG::|PostgresRevisions|password/i)
     expect(out).to eq("")
   end
 

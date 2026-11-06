@@ -80,7 +80,7 @@ module Hecks
                 "There is no shared default, unlike :postgres, so the caller cannot forget to own the lifecycle."
         end
 
-        # The world text for one bluebook on `PostgresEra`, in a throwaway schema the caller owns.
+        # The world text for one bluebook on `PostgresRevisions`, in a throwaway schema the caller owns.
         #
         # `allow_superuser true` is deliberate: the era write-fence is row-level security, which a
         # superuser bypasses, and the fence is not under test here.

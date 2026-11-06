@@ -3,7 +3,7 @@ require "pg"
 
 # Provisions the QA ledger's owner role by running the real
 # `hecks quality_control create_ledger_role`.
-# PostgresEra refuses to boot over a superuser connection, so the ledger connects as `hecks_qa`.
+# PostgresRevisions refuses to boot over a superuser connection, so the ledger connects as `hecks_qa`.
 # Sibling of `FencedOwner`, which hand-rolls the role for non-QA fixtures.
 module QaLedgerRole
   ROLE = "hecks_qa".freeze

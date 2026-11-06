@@ -1,6 +1,6 @@
 module Hecks
   module Adapters
-    class PostgresEra
+    class PostgresRevisions
       class Lineage
         # The SQL templates of the head and its chain, filled with `format`.
         module SqlTemplates

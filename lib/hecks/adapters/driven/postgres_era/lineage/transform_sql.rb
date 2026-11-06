@@ -1,6 +1,6 @@
 module Hecks
   module Adapters
-    class PostgresEra
+    class PostgresRevisions
       class Lineage
         # The six shared `hecks_tr_*` jsonb functions that compiled translation SQL calls.
         #

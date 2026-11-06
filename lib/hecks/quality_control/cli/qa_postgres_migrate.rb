@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../../../hecks"
-# The era subsystem does not load with core; a `PostgresEra` domain needs it (ADR 0033).
+# The era subsystem does not load with core; a `PostgresRevisions` domain needs it (ADR 0033).
 require_relative "../../ports/persistence/plugins/era"
 require_relative "../../adapters/driven/heki"
 require_relative "qa_postgres_migrate/copying"
@@ -11,7 +11,7 @@ module Hecks
   module QualityControlCli
     # The command behind `hecks quality_control sweep.migrate_ledger_from_heki`: copies each
     # aggregate's current state from a Heki data directory into the repository that the domain's
-    # `.hecksagon`/`.world` files bind today (for example `PostgresEra`). It is domain-agnostic.
+    # `.hecksagon`/`.world` files bind today (for example `PostgresRevisions`). It is domain-agnostic.
     #
     #   migrate_ledger_from_heki <domain_dir> <heki_data_dir> [aggregate_name ...]         # dry run
     #   migrate_ledger_from_heki <domain_dir> <heki_data_dir> [aggregate_name ...] --force # apply

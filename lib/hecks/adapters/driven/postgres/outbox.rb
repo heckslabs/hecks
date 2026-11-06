@@ -3,7 +3,7 @@ require_relative "../../../runtime/outbox"
 
 module Hecks
   module Adapters
-    # Outbox storage shared by `Postgres` and `PostgresEra`; needs `@db` and `table`.
+    # Outbox storage shared by `Postgres` and `PostgresRevisions`; needs `@db` and `table`.
     # See `Runtime::Outbox` for the four verbs.
     module PostgresOutbox
       CREATE_OUTBOX_TABLE = <<~SQL.freeze

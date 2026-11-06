@@ -4,7 +4,7 @@ require_relative "../lineage"
 
 module Hecks
   module Adapters
-    class PostgresEra
+    class PostgresRevisions
       module LineageManager
         # The one answer to which era a bluebook's shape resolves to, given the eras its database
         # holds: the boot records it, the boot status reports it, and the rehearsal and the mint
@@ -121,7 +121,7 @@ module Hecks
           # @raise [Runtime::WiringError] if the connection is refused or a held text fails its
           #   integrity check
           def read(bluebook:, settings:, translations:, directory: nil)
-            db = PostgresEra.connect_for(bluebook.name, settings, provision: false)
+            db = PostgresRevisions.connect_for(bluebook.name, settings, provision: false)
             db.exec("SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY")
             lineage = Lineage.new(db, bluebook.name, formerly_known_as: bluebook.formerly_known_as, reading: true)
             resolve(eras: lineage.eras, bluebook: bluebook, translations: translations, directory: directory) do

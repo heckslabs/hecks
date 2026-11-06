@@ -155,7 +155,7 @@ RSpec.describe "multitenancy: interleaved random writes stay isolated" do
         "bloom" => { database: url, schema: "fuzz_bloom_#{seed}" } }
     end
 
-    it "keeps two real PostgresEra tenants' interleaved writes exactly partitioned, across several seeds" do
+    it "keeps two real PostgresRevisions tenants' interleaved writes exactly partitioned, across several seeds" do
       (1..4).each do |seed|
         mismatches = partition_mismatches(seed: seed, steps: 25, adapter: "Postgres", tenant_settings: postgres_tenants(seed))
 

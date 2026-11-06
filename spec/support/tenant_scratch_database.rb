@@ -2,7 +2,7 @@ require "securerandom"
 require_relative "fenced_owner"
 
 # A scratch Postgres database for a tenant spec: created fresh before the block, owned by the
-# non-superuser role PostgresEra boots as, and dropped afterwards.
+# non-superuser role PostgresRevisions boots as, and dropped afterwards.
 module TenantScratchDatabase
   # Every call gets a database of its own: a runtime booted in an earlier example keeps a cached
   # connection to its database's URL, and dropping that database kills the connection, so a
@@ -15,7 +15,7 @@ module TenantScratchDatabase
   def with_scratch_database(name)
     scratch = "#{name}_#{SecureRandom.hex(3)}"
     drop_scratch_database(scratch, create: true)
-    # Both tenants boot as a non-superuser owner; PostgresEra refuses superusers (fenced_owner.rb).
+    # Both tenants boot as a non-superuser owner; PostgresRevisions refuses superusers (fenced_owner.rb).
     FencedOwner.own!(scratch)
     yield scratch
   ensure

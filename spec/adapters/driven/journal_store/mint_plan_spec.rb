@@ -7,7 +7,7 @@ require_relative "../../../support/postgres_probe"
 require_relative "../../../support/scratch_postgres"
 require_relative "../../../support/mint_plan_shop"
 
-# The mint plan runs every guard the mint runs, read-only, on a scratch PostgresEra database.
+# The mint plan runs every guard the mint runs, read-only, on a scratch PostgresRevisions database.
 RSpec.describe "the mint plan", :io do
   include MintPlanShop
 

@@ -69,7 +69,7 @@ RSpec.describe "the boot status and the boot resolving through one resolution", 
   # Boots the era check of `source`, as a copy that owns the database would.
   def boot(source, translation_source: nil, settings: {})
     registry = load_registry(source, translation_source: translation_source)
-    Hecks::Adapters::PostgresEra::LineageManager.check!(
+    Hecks::Adapters::PostgresRevisions::LineageManager.check!(
       registry: registry, bluebook: registry.bluebooks.values.first, current_text: source,
       settings: { database: url, mint_eras: true }.merge(settings)
     )
@@ -79,8 +79,8 @@ RSpec.describe "the boot status and the boot resolving through one resolution", 
   # What the boot status answers for `source` against the same database.
   def status(source, translation_source: nil)
     registry = load_registry(source, translation_source: translation_source)
-    Hecks::Adapters::PostgresEra.era_status(registry: registry, bluebook: registry.bluebooks.values.first,
-                                            settings: { database: url })
+    Hecks::Adapters::PostgresRevisions.era_status(registry: registry, bluebook: registry.bluebooks.values.first,
+                                                  settings: { database: url })
   end
 
   # The status the boot recorded on its registry, in the words the boot status uses.
@@ -101,9 +101,9 @@ RSpec.describe "the boot status and the boot resolving through one resolution", 
 
   # Names era 1, as a mint leaving it would, so an edge from its label can lead on.
   def name_first_era!
-    db = Hecks::Adapters::PostgresEra.connect_for("Ledger", { database: url })
-    lineage = Hecks::Adapters::PostgresEra::Lineage.new(db, "Ledger")
-    Hecks::Adapters::PostgresEra::LineageManager.ensure_named!(lineage, lineage.eras.first)
+    db = Hecks::Adapters::PostgresRevisions.connect_for("Ledger", { database: url })
+    lineage = Hecks::Adapters::PostgresRevisions::Lineage.new(db, "Ledger")
+    Hecks::Adapters::PostgresRevisions::LineageManager.ensure_named!(lineage, lineage.eras.first)
   ensure
     db&.close
   end

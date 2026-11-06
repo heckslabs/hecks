@@ -4,7 +4,7 @@ module Hecks
   module Ports
     module Persistence
       # The commands whose own record an unminted boot may write, as a persistence binding names
-      # them: `persisted_by("PostgresEra") { mints_era "Maintenance.MintEra" }` in a world. This is
+      # them: `persisted_by("PostgresRevisions") { mints_era "Maintenance.MintEra" }` in a world. This is
       # where the allowance lives; the `mints_era true` a command can still carry is read as a
       # fallback, and the two must agree.
       #

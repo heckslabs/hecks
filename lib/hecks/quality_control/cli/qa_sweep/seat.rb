@@ -69,7 +69,7 @@ module Hecks
         def mode_label
           case @mode
           when :differential then "Ruby vs compiled Rust (#{@feature})"
-          when :persistence_parity then "Memory vs real PostgresEra (#{@feature}) — persistence-adapter parity"
+          when :persistence_parity then "Memory vs real PostgresRevisions (#{@feature}) — persistence-adapter parity"
           when :concurrency
             "real forked cross-process dispatch vs its own sequential oracle (#{@feature}) — write-lock serialization"
           when :seedless

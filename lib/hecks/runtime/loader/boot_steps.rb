@@ -57,7 +57,7 @@ module Hecks
         # Resolves the Ruby implementation of every adapter a hecksagon binds, and of every
         # `default_adapter` a world names (a bluebook that binds nothing takes its world's).
         # An adapter's implementation can register its own persistence plugin as
-        # a side effect of loading (e.g. `PostgresEra`) — resolving here, before
+        # a side effect of loading (e.g. `PostgresRevisions`) — resolving here, before
         # gates are collected, is what registers those plugins' gates without
         # the app requiring them itself. A bind with no implementation is left
         # for `verify!` to refuse.

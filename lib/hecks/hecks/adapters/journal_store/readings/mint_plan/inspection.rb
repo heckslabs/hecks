@@ -51,7 +51,7 @@ module Hecks
               raise Runtime::WiringError, "#{@held.domain_name} holds no era; hold the first era before a mint" if eras.empty?
 
               named = [*eras[0...-1], @held.named(eras.last)]
-              [eras, PostgresEra::LineageManager::RevisionResolution.resolve(
+              [eras, PostgresRevisions::LineageManager::RevisionResolution.resolve(
                 eras: named, bluebook: @held.bluebook, translations: @held.translations, directory: @held.directory
               ) { lineage.last_ordinal }]
             end

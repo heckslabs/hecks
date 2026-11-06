@@ -29,7 +29,7 @@ module Hecks
         held = JournalStore::HeldDomain.open(ledger, mode: :translated)
         registry = held.registry
         latest, watermark = latest_era(held)
-        verdict = PostgresEra::LineageManager::MintDecision.decide_latest(
+        verdict = PostgresRevisions::LineageManager::MintDecision.decide_latest(
           latest, bluebook: held.bluebook, translations: registry.translations, directory: ledger, watermark: watermark
         )
         { watermark: watermark, held: held_bluebook(latest), current: held.bluebook, verdict: verdict }
@@ -39,15 +39,15 @@ module Hecks
       # @return [Array(Hash, Integer)] the latest held era and the live watermark, read from its
       #   database
       def latest_era(held)
-        db = PostgresEra.connect_for(held.domain_name, held.settings)
-        lineage = PostgresEra::Lineage.new(db, held.domain_name)
+        db = PostgresRevisions.connect_for(held.domain_name, held.settings)
+        lineage = PostgresRevisions::Lineage.new(db, held.domain_name)
         [lineage.eras.last, lineage.last_ordinal]
       ensure
         db&.close
       end
 
       # @return [Runtime::ProjectedBluebook] the held era's stored storage shape, as a bluebook view
-      def held_bluebook(latest) = PostgresEra::LineageManager.held_bluebook(latest)
+      def held_bluebook(latest) = PostgresRevisions::LineageManager.held_bluebook(latest)
 
       # The bluebook directory a mint is for: the one the request names, or the QualityControl
       # ledger when it names none or an empty one.
@@ -95,8 +95,8 @@ module Hecks
       # @return [Integer]
       def own_rows_after(ledger, run, rehearsed)
         held = JournalStore::HeldDomain.open(ledger, mode: :translated)
-        db = PostgresEra.connect_for(held.domain_name, held.settings)
-        PostgresEra::Lineage.new(db, held.domain_name).rows_of_after(rehearsed, "maintenance", run)
+        db = PostgresRevisions.connect_for(held.domain_name, held.settings)
+        PostgresRevisions::Lineage.new(db, held.domain_name).rows_of_after(rehearsed, "maintenance", run)
       ensure
         db&.close
       end

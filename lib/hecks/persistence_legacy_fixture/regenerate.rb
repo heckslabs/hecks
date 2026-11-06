@@ -9,7 +9,7 @@ require_relative "postgres_stores"
 module Hecks
   module PersistenceLegacyFixture
     # Regenerates the persistence legacy fixtures by writing the seed records through the real
-    # adapters: Heki, SQLite, D1, Postgres and PostgresEra. It needs a reachable Postgres (which
+    # adapters: Heki, SQLite, D1, Postgres and PostgresRevisions. It needs a reachable Postgres (which
     # scratch databases are made in) and the `sqlite3` program (which dumps the SQLite database).
     #
     # The fixtures are the baseline later adapters are compared with, so a caller confirms before

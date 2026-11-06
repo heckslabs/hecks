@@ -120,11 +120,11 @@ module Hecks
         features.match?(/^#{Regexp.escape(feature)}\s*=\s*\[\]/)
       end
 
-      # Answers whether any `.hecksagon` under `domain_path` binds PostgresEra,
+      # Answers whether any `.hecksagon` under `domain_path` binds PostgresRevisions,
       # by literal name or through a local variable assigned `"Postgres"`.
       #
       # @param domain_path [String] filesystem path to the target domain's directory
-      # @return [Boolean] whether a PostgresEra `persisted_by` binding is found
+      # @return [Boolean] whether a PostgresRevisions `persisted_by` binding is found
       def postgres_era_bound?(domain_path)
         Dir.glob(File.join(domain_path, "**", "*.hecksagon")).any? do |path|
           text = File.read(path)

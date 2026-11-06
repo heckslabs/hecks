@@ -8,7 +8,7 @@ require_relative "../../support/first_era_hold"
 
 # Runs only when a Postgres server is reachable (`support/postgres_probe.rb`); manages its own
 # scratch database.
-RSpec.describe Hecks::Adapters::PostgresEra, :io do
+RSpec.describe Hecks::Adapters::PostgresRevisions, :io do
   include EraRegistryLoading
   include FirstEraHold
 
@@ -75,7 +75,7 @@ RSpec.describe Hecks::Adapters::PostgresEra, :io do
 
   it "refuses loudly when the declared database is unreachable" do
     expect { described_class.new(aggregate: aggregate, settings: { database: "postgres://localhost:1/nowhere" }) }
-      .to raise_error(Hecks::Runtime::WiringError, %r{cannot bind PostgresEra at postgres://localhost:1/nowhere for Order})
+      .to raise_error(Hecks::Runtime::WiringError, %r{cannot bind PostgresRevisions at postgres://localhost:1/nowhere for Order})
   end
 
   # The factory merges `era: nil` for a domain the boot gate has not resolved; `setting` must
@@ -173,7 +173,7 @@ RSpec.describe Hecks::Adapters::PostgresEra, :io do
 
     it "refuses an operator it cannot compile, rather than answering from memory" do
       expect { adapter.query(declared_where("status", "between", "a"), {}) }
-        .to raise_error(ArgumentError, 'PostgresEra query adapter does not support "between"')
+        .to raise_error(ArgumentError, 'PostgresRevisions query adapter does not support "between"')
     end
 
     # A field name containing a quote must not close the jsonb path literal into live SQL,
@@ -260,7 +260,7 @@ RSpec.describe Hecks::Adapters::PostgresEra, :io do
 
   # `reference_to` compiles to a scalar Reference<T> stored as a bare id; `where` on it must
   # not dig for a nested "value" key.
-  describe "a reference_to reference field, queried through PostgresEra" do
+  describe "a reference_to reference field, queried through PostgresRevisions" do
     REFS_SOURCE = <<~BLUEBOOK.freeze
       Hecks.bluebook "Refs" do
         aggregate "Ticket" do

@@ -167,7 +167,7 @@ RSpec.describe "Rust/Ruby lineage parity (rust/host)", :io do
     bluebook = registry.bluebook("Pizzas")
     source = File.read(InMemoryDomain::PIZZAS_BLUEBOOK)
     hold_first_era!(url: owner_url, domain: "Pizzas", source: source, role: @scratch.app_role)
-    Hecks::Adapters::PostgresEra::LineageManager.check!(
+    Hecks::Adapters::PostgresRevisions::LineageManager.check!(
       registry: registry, bluebook: bluebook, current_text: File.read(InMemoryDomain::PIZZAS_BLUEBOOK),
       settings: { database: owner_url, role: @scratch.app_role }
     )
@@ -180,13 +180,16 @@ RSpec.describe "Rust/Ruby lineage parity (rust/host)", :io do
   end
 
   def save_margherita(aggregate)
-    adapter = Hecks::Adapters::PostgresEra.new(aggregate: aggregate, settings: { database: owner_url, domain: "Pizzas", era: 1 })
+    adapter = Hecks::Adapters::PostgresRevisions.new(aggregate: aggregate,
+                                                     settings:  {
+                                                       database: owner_url, domain: "Pizzas", era: 1
+                                                     })
     built = Hecks::Runtime::Instance.new(aggregate: aggregate, id: "p1")
     margherita_fields.each { |name, value| built[name] = Hecks::Runtime::Value.for(aggregate, name, value) }
     adapter.save(built)
   end
 
-  # A scratch database holding one Margherita saved through PostgresEra under a lineage-checked
+  # A scratch database holding one Margherita saved through PostgresRevisions under a lineage-checked
   # Order.
   def provisioned_margherita
     @scratch = new_scratch("pizzas_")

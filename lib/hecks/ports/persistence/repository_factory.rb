@@ -30,14 +30,14 @@ module Hecks
           settings = layout_settings(registry, domain, aggregate, bind, opts.settings_verb)
           adapter = registry.adapter_class(bind.adapter).new(aggregate: aggregate, settings: settings, root: registry.root)
           repository = AppendOnly.new(CodecBoundary.guard!(adapter))
-          # `:atomic_append` (PostgresEra) means `append` already committed the
+          # `:atomic_append` (PostgresRevisions) means `append` already committed the
           # projected state in the same transaction as the journal row, so a
           # boot-time replay through `project` has nothing left to fix up.
           opts.recover && !repository.capabilities.include?(:atomic_append) ? repository.recover! : repository
         end
 
         # A `Postgres` bind in a hecksagon that sets `revisions` builds the revision layout, which
-        # is the `PostgresEra` adapter until the layout is extracted (ADR 0182, delegation step).
+        # is the `PostgresRevisions` adapter until the layout is extracted (ADR 0182, delegation step).
         # Every other bind is returned unchanged.
         #
         # @param registry [Runtime::Registry] the booted registry

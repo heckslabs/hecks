@@ -119,7 +119,7 @@ module Hecks
         #
         # @return [Object] whatever the adapter's `reset!` returns; every shipped adapter
         #   returns itself
-        # @raise [Runtime::WiringError] if the adapter has no `reset!`, or (PostgresEra) if row
+        # @raise [Runtime::WiringError] if the adapter has no `reset!`, or (PostgresRevisions) if row
         #   level security silently matched none of the journal rows
         def reset!
           raise Runtime::WiringError, "append-only adapter cannot reset" unless @adapter.respond_to?(:reset!)
@@ -160,7 +160,7 @@ module Hecks
         # projected table in the same transaction as the journal append, so they never fall
         # behind it — each tracks how far it has replayed (`checkpoint`) and only re-walks
         # entries past that point (`entries_since`), bounded by activity since the last boot,
-        # not total history. An adapter without that pair (Memory, Heki, D1, PostgresEra,
+        # not total history. An adapter without that pair (Memory, Heki, D1, PostgresRevisions,
         # RemoteRuntime) is unaffected: it still replays every entry.
         #
         # @return [Persistence::AppendOnly] self, so a factory can build and recover in one
@@ -180,13 +180,13 @@ module Hecks
         # @return [Persistence::Entry] the entry as the adapter returns it; every shipped
         #   adapter returns the entry it was given
         # @raise [Runtime::WiringError] from a `RemoteRuntime` adapter, which has no local
-        #   journal, and from PostgresEra when its era is superseded
+        #   journal, and from PostgresRevisions when its era is superseded
         def append(entry) = @adapter.append(entry)
 
         # Applies one journaled entry to the adapter's current-state store.
         #
         # @param entry [Persistence::Entry] the save or delete to materialize
-        # @return [Object, nil] adapter-defined: Memory, Sqlite, Postgres and PostgresEra answer
+        # @return [Object, nil] adapter-defined: Memory, Sqlite, Postgres and PostgresRevisions answer
         #   the saved `Runtime::Instance`; Heki and `SqliteProjection` answer the entry;
         #   a delete answers a driver result, the removed record, or nil
         # @raise [Runtime::WiringError] from a `RemoteRuntime` adapter, which projects nothing
@@ -287,7 +287,7 @@ module Hecks
 
         # Runs the block while holding the adapter's cross-process write lock.
         #
-        # Only PostgresEra advertises `:cross_process_lock` (ADR 0036); the real dispatch
+        # Only PostgresRevisions advertises `:cross_process_lock` (ADR 0036); the real dispatch
         # path checks `capabilities` first, so this `yield` fallback only guards a stray
         # direct call.
         #

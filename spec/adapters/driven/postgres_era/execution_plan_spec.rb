@@ -5,7 +5,7 @@ require_relative "../../../support/scratch_postgres"
 require_relative "../../../support/persistence_adapter_examples"
 require_relative "../../../support/first_era_hold"
 
-RSpec.describe "PostgresEra execution-plan capabilities", :io do
+RSpec.describe "PostgresRevisions execution-plan capabilities", :io do
   include_context "with the atomic_put Item aggregate"
   include FirstEraHold
 
@@ -17,7 +17,7 @@ RSpec.describe "PostgresEra execution-plan capabilities", :io do
 
   scratch_postgres EXECUTION_PLAN_DB
 
-  let(:aggregate) { item_aggregate("PostgresEraPlanning", "PostgresEra implements the frozen atomic-put contract") }
+  let(:aggregate) { item_aggregate("PostgresEraPlanning", "PostgresRevisions implements the frozen atomic-put contract") }
   # The Item bluebook the first era freezes; the adapter reads the era, never its text.
   let(:source) do
     <<~BLUEBOOK
@@ -35,7 +35,7 @@ RSpec.describe "PostgresEra execution-plan capabilities", :io do
     BLUEBOOK
   end
   let(:store) do
-    adapter = Hecks::Adapters::PostgresEra.new(
+    adapter = Hecks::Adapters::PostgresRevisions.new(
       aggregate: aggregate,
       settings:  { database: EXECUTION_PLAN_DB, domain: "PostgresEraPlanning" }
     )

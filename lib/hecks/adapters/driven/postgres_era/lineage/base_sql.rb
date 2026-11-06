@@ -1,6 +1,6 @@
 module Hecks
   module Adapters
-    class PostgresEra
+    class PostgresRevisions
       class Lineage
         # The DDL of the lineage tables and the journal, run once per boot, owner only.
         module BaseSql

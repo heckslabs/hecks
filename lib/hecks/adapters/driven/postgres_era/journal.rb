@@ -2,7 +2,7 @@ require "json"
 
 module Hecks
   module Adapters
-    class PostgresEra
+    class PostgresRevisions
       # Writing and reading the journal: every append, with the head snapshot and field caches
       # it keeps current in the same transaction, and the reads of the whole journal.
       module Journal
@@ -83,7 +83,7 @@ module Hecks
         # without error; comparing the count before with the DELETE's own count exposes that.
         # Head snapshots, field caches, `events` and saga rows are left as they are.
         #
-        # @return [Adapters::PostgresEra] this adapter
+        # @return [Adapters::PostgresRevisions] this adapter
         # @raise [Runtime::WiringError] if the journal held rows and the DELETE removed none
         def reset!
           before = @db.exec_params(

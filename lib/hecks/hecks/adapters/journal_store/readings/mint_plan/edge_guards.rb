@@ -63,23 +63,23 @@ module Hecks
             def refusal(latest, verdict)
               return "the decision is #{verdict.verdict}: #{verdict.reason}" if ENV["HECKS_SCAFFOLD"] == "1"
 
-              PostgresEra::LineageManager.resolve_edge!(context(latest))
+              PostgresRevisions::LineageManager.resolve_edge!(context(latest))
               "the decision is #{verdict.verdict}: #{verdict.reason}"
             rescue Runtime::WiringError => e
               e.message
             end
 
             def context(latest)
-              PostgresEra::LineageManager::Context.new(
+              PostgresRevisions::LineageManager::Context.new(
                 registry: @held.registry, bluebook: @held.bluebook, current_text: nil, lineage: @lineage, role: nil,
                 directory: @held.directory, latest: latest
               )
             end
 
             def covered?(latest, edge)
-              held = PostgresEra::LineageManager.held_bluebook(latest)
+              held = PostgresRevisions::LineageManager.held_bluebook(latest)
               status = @report.check("coverage") do
-                PostgresEra::LineageManager.check_coverage!(@held.registry, @held.bluebook, held, edge)
+                PostgresRevisions::LineageManager.check_coverage!(@held.registry, @held.bluebook, held, edge)
                 [:pass, "no change in the shape goes unexplained by the edge"]
               end
               status == "pass"

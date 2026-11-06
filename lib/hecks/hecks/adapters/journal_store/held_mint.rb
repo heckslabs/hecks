@@ -33,7 +33,7 @@ module Hecks
         def self.read(directory)
           domain = HeldDomain.open(directory, mode: :translated)
           return { eraless: domain.adapter_name } unless domain.capable?
-          return { disposable: true } if PostgresEra::LineageManager::DisposableLedger.declared?(domain.settings)
+          return { disposable: true } if PostgresRevisions::LineageManager::DisposableLedger.declared?(domain.settings)
 
           resolution = domain.resolution
           return { held: 0 } if resolution.status == "unheld"

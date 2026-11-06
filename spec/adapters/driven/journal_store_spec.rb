@@ -131,9 +131,9 @@ RSpec.describe Hecks::Adapters::JournalStore, :io do
     FileUtils.mkdir_p(File.join(bluebook_dir, "translations"))
     File.write(File.join(bluebook_dir, "ledger.bluebook"), JS_V2)
     File.write(File.join(bluebook_dir, "ledger.hecksagon"),
-               "Hecks.hecksagon \"Ledger\" do\n  Ledger::Account.persisted_by(\"PostgresEra\")\nend\n")
+               "Hecks.hecksagon \"Ledger\" do\n  Ledger::Account.persisted_by(\"PostgresRevisions\")\nend\n")
     File.write(File.join(bluebook_dir, "ledger.world"),
-               "Hecks.world \"Ledger\" do\n  realm \"Specs\"\n  persisted_by(\"PostgresEra\") do\n    " \
+               "Hecks.world \"Ledger\" do\n  realm \"Specs\"\n  persisted_by(\"PostgresRevisions\") do\n    " \
                "database #{url.inspect}\n    mint_eras true\n  end\nend\n")
   end
 
@@ -153,7 +153,7 @@ RSpec.describe Hecks::Adapters::JournalStore, :io do
   end
 
   def check_lineage!(registry, bluebook, text, **extra)
-    Hecks::Adapters::PostgresEra::LineageManager.check!(
+    Hecks::Adapters::PostgresRevisions::LineageManager.check!(
       registry: registry, bluebook: bluebook, current_text: text,
       settings: with_mint_request({ database: url, mint_eras: true }, domain: bluebook.name), **extra
     )
@@ -165,7 +165,7 @@ RSpec.describe Hecks::Adapters::JournalStore, :io do
 
   def save_v1_record(bluebook)
     aggregate = bluebook.aggregate("Acct")
-    adapter = Hecks::Adapters::PostgresEra.new(aggregate: aggregate, settings: { database: url, domain: "Ledger" })
+    adapter = Hecks::Adapters::PostgresRevisions.new(aggregate: aggregate, settings: { database: url, domain: "Ledger" })
     adapter.save(Hecks::Runtime::Instance.new(aggregate: aggregate, id: "a1", state: v1_record_state))
   end
 
@@ -417,7 +417,7 @@ RSpec.describe Hecks::Adapters::JournalStore, :io do
     end
 
     def save_in_era_two(account)
-      adapter = Hecks::Adapters::PostgresEra.new(aggregate: account, settings: { database: url, domain: "Ledger", era: 2 })
+      adapter = Hecks::Adapters::PostgresRevisions.new(aggregate: account, settings: { database: url, domain: "Ledger", era: 2 })
       state = { amount: { "cents" => 999 }, kind: { "label" => "business" }, denomination: { "code" => "USD" }, status: "open" }
       adapter.save(Hecks::Runtime::Instance.new(aggregate: account, id: "a1", state: state))
     end

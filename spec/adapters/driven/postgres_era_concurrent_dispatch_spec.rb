@@ -5,11 +5,11 @@ require_relative "../../support/scratch_postgres"
 require_relative "../../support/first_era_hold"
 require_relative "../../support/concurrency_gap_domain"
 
-# Two forked processes dispatching against one PostgresEra aggregate are serialized by its
+# Two forked processes dispatching against one PostgresRevisions aggregate are serialized by its
 # cross-process advisory lock (ADR 0036). Forks, not threads: threads share `AggregateLock`.
-RSpec.describe "concurrent dispatch against one PostgresEra-backed aggregate", :io do
+RSpec.describe "concurrent dispatch against one PostgresRevisions-backed aggregate", :io do
   ERA_CONCURRENCY_DATABASE = "hecks_postgres_era_concurrency_spec".freeze
-  ERA_GAP_VISION = "The smallest domain that exercises PostgresEra's cross-process write lock.".freeze
+  ERA_GAP_VISION = "The smallest domain that exercises PostgresRevisions's cross-process write lock.".freeze
 
   # The four pipes the racers and the example talk over, as read and write ends: callbacks
   # are relayed over pipes, since an in-process Queue does not cross a fork.
@@ -31,7 +31,7 @@ RSpec.describe "concurrent dispatch against one PostgresEra-backed aggregate", :
     hold_declared_era!(registry.bluebook("EraConcurrencyGap"), url: ERA_CONCURRENCY_DATABASE)
   end
 
-  # Same Account fixture as postgres_concurrent_dispatch_spec.rb, bound to PostgresEra.
+  # Same Account fixture as postgres_concurrent_dispatch_spec.rb, bound to PostgresRevisions.
   def boot
     registry = Hecks::Runtime::Registry.new
 

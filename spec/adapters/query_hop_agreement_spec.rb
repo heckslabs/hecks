@@ -10,7 +10,7 @@ require "pg"
 #
 # It does: `Runtime::ReferenceHop.apply` folds the hop into a local `in:` clause inside
 # `QueryInterpreter#call`, so `SqlQueryBuilder#query_expression` never sees an "owner/field" name.
-# Postgres and PostgresEra need a real server; under `CI` the shared probe raises instead of
+# Postgres and PostgresRevisions need a real server; under `CI` the shared probe raises instead of
 # skipping, and the postgres_io_spec_files list puts this file in a Postgres leg.
 # `order_by` on a hop field is refused at DSL-seal time (`seal_query_hop`); dsl_spec.rb covers it.
 RSpec.describe "cross-aggregate hop queries answer correctly on real SQL adapters, not just Memory", :io do
@@ -59,7 +59,7 @@ RSpec.describe "cross-aggregate hop queries answer correctly on real SQL adapter
   end
 
   def declare_era_hop_world
-    # `allow_superuser`: PostgresEra refuses to boot as a superuser (its write-fence is row-level
+    # `allow_superuser`: PostgresRevisions refuses to boot as a superuser (its write-fence is row-level
     # security), and the fence is not under test.
     Hecks.world("HopChain") do
       persisted_by("Postgres") do

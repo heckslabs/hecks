@@ -62,7 +62,7 @@ module Hecks
         def empty_counts = @subject.aggregates.map { |a| Census::Count.new(aggregate: a.name, head: 0, journal: 0) }
 
         def counted(db, name, source, elsewhere)
-          lineage = PostgresEra::Lineage.new(db, @subject.bluebook_name)
+          lineage = PostgresRevisions::Lineage.new(db, @subject.bluebook_name)
           Census.new(schema: name, source: source, present: true, eras: eras(db), counts: counts(db, lineage),
                      journal_entries: rows(db, lineage.journal), elsewhere: elsewhere)
         end

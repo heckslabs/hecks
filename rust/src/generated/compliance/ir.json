@@ -353,19 +353,19 @@
       {
         "name": "Review",
         "storage_name": "review",
-        "adapter": "PostgresEra"
+        "adapter": "Postgres"
       }
     ]
   },
   "adapters": [
     {
-      "name": "PostgresEra",
+      "name": "Postgres",
       "port": "persistence",
       "fields": [
         "database",
-        "role",
         "schema",
         "formerly",
+        "role",
         "allow_superuser",
         "mint_eras",
         "disposable_ledger",
@@ -382,11 +382,11 @@
     }
   ],
   "world": {
-    "default_adapter": "PostgresEra",
+    "default_adapter": "Postgres",
     "default_database": true,
     "persistence": [
       {
-        "adapter": "PostgresEra",
+        "adapter": "Postgres",
         "settings": [
           "allow_superuser"
         ]

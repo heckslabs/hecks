@@ -8,14 +8,14 @@ require "fileutils"
 require "pathname"
 
 # `qa_sweep`'s `adapter_parity_sqlite` mode, run as a real subprocess over a fixture ledger.
-# Needs no PostgresEra binding: every domain has the `sqlite` capability.
+# Needs no PostgresRevisions binding: every domain has the `sqlite` capability.
 RSpec.describe "qa_sweep adapter_parity_sqlite", :io do
   QA_SWEEP_ADAPTER_PARITY_SQLITE_DATABASE = "hecks_qa_sweep_adapter_parity_sqlite_spec".freeze
 
-  # Same widget as the shared fixture, bound to Memory to show no PostgresEra binding is needed.
+  # Same widget as the shared fixture, bound to Memory to show no PostgresRevisions binding is needed.
   ADAPTER_PARITY_SQLITE_TARGET_BLUEBOOK = <<~RUBY.freeze
     Hecks.bluebook "QaSweepAdapterParitySqliteFixtureTarget" do
-      vision "A trivially well-behaved sweep target, authored only to prove qa_sweep's adapter_parity_sqlite mode reaches an ordinary, non-PostgresEra-bound domain, never this repository's own live, actively-changing QA corpus."
+      vision "A trivially well-behaved sweep target, authored only to prove qa_sweep's adapter_parity_sqlite mode reaches an ordinary, non-PostgresRevisions-bound domain, never this repository's own live, actively-changing QA corpus."
 
       aggregate "Widget" do
         description "One numbered widget and a bump count — nothing a fuzzer can ever catch."
@@ -123,7 +123,7 @@ RSpec.describe "qa_sweep adapter_parity_sqlite", :io do
                         "seed 1: held (ruby_only, adapter_parity_sqlite)",
                         "clean — sqlite-parity concluded and released."].freeze
 
-  context "when a plain, non-PostgresEra-bound target is swept in both modes" do
+  context "when a plain, non-PostgresRevisions-bound target is swept in both modes" do
     before do
       identify_target!("sqlite-parity", @target_domain_relpath)
       @stdout, @stderr, @status = run_qa_sweep("sqlite-parity", "--modes", "ruby_only,adapter_parity_sqlite", "--seeds", "1")

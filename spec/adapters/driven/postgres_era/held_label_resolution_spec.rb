@@ -43,8 +43,8 @@ RSpec.describe "the label a resolution gives a held era", :io do
   def full_hash = Hecks::Runtime::StorageShape.mint_hash(full_bluebook)
 
   def hold!(text, projection, named: false)
-    db = Hecks::Adapters::PostgresEra.connect_for("Ledger", { database: url })
-    lineage = Hecks::Adapters::PostgresEra::Lineage.new(db, "Ledger")
+    db = Hecks::Adapters::PostgresRevisions.connect_for("Ledger", { database: url })
+    lineage = Hecks::Adapters::PostgresRevisions::Lineage.new(db, "Ledger")
     lineage.ensure_base!
     lineage.hold_first!(text, projection: projection)
     lineage.mint_name!(1, full_hash, full_hash[0, 6]) if named
@@ -54,7 +54,7 @@ RSpec.describe "the label a resolution gives a held era", :io do
   end
 
   def resolution
-    Hecks::Adapters::PostgresEra::LineageManager::RevisionResolution.read(
+    Hecks::Adapters::PostgresRevisions::LineageManager::RevisionResolution.read(
       bluebook: full_bluebook, settings: { database: url }, translations: []
     )
   end

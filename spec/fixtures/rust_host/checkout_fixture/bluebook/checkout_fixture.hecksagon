@@ -5,15 +5,15 @@ Hecks.hecksagon "CheckoutFixture" do
   # compiled in; the only in-repo domain that attaches ConsoleSettings.
   attaches "ConsoleSettings"
 
-  CheckoutFixture::Event.persisted_by("PostgresEra")
-  CheckoutFixture::Registration.persisted_by("PostgresEra")
-  CheckoutFixture::PaymentConnection.persisted_by("PostgresEra")
+  CheckoutFixture::Event.persisted_by("PostgresRevisions")
+  CheckoutFixture::Registration.persisted_by("PostgresRevisions")
+  CheckoutFixture::PaymentConnection.persisted_by("PostgresRevisions")
 end
 
 Hecks.hecksagon "Payments" do
   attaches "Governance"
 
-  Payments::Payment.persisted_by("PostgresEra")
+  Payments::Payment.persisted_by("PostgresRevisions")
 
   # The processor's webhook, translated into this bluebook's vocabulary —
   # web.rs `webhook_route` dispatches these two operations.
@@ -41,7 +41,7 @@ end
 
 # ConsoleSettings gets its own binding block because BindingPolicy.resolve
 # looks an aggregate up by its own domain name, not by whoever attached it
-# (same reason Governance has one above). Memory, not PostgresEra: these
+# (same reason Governance has one above). Memory, not PostgresRevisions: these
 # rows are whatever the current test dispatched, never a prior run's.
 Hecks.hecksagon "ConsoleSettings" do
   # `StateStyle.Declare` declares `role "Console"` — a declared role is

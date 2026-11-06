@@ -147,8 +147,8 @@ end
 # provision the lineage, freeze the source as era 1, provision its read side.
 def hold_first_era!(source, owner_url:)
   bluebook = load_registry(source).bluebooks.values.first
-  db = Hecks::Adapters::PostgresEra.connect_for(bluebook.name, { database: owner_url })
-  lineage = Hecks::Adapters::PostgresEra::Lineage.new(db, bluebook.name)
+  db = Hecks::Adapters::PostgresRevisions.connect_for(bluebook.name, { database: owner_url })
+  lineage = Hecks::Adapters::PostgresRevisions::Lineage.new(db, bluebook.name)
   lineage.ensure_base!
   lineage.hold_first!(source, projection: Hecks::Runtime::StorageShape.project(bluebook))
   lineage.provision_first_era!(bluebook.aggregates)
@@ -160,7 +160,7 @@ end
 # command makes, at the watermark the database holds when it asks.
 def mint_request_for(owner_url)
   db = PG.connect(owner_url)
-  watermark = Hecks::Adapters::PostgresEra::Lineage.new(db, DOMAIN).last_ordinal
+  watermark = Hecks::Adapters::PostgresRevisions::Lineage.new(db, DOMAIN).last_ordinal
   { confirm: true, verdict: "would_mint", watermark: watermark }
 ensure
   db&.close
@@ -172,7 +172,7 @@ def check_ruby!(source, owner_url:, translation_source: nil, role: nil)
   settings = { database: owner_url, mint_eras: true }
   settings[:role] = role if role
   settings[:mint_request] = mint_request_for(owner_url)
-  Hecks::Adapters::PostgresEra::LineageManager.check!(
+  Hecks::Adapters::PostgresRevisions::LineageManager.check!(
     registry: registry, bluebook: bluebook, current_text: source, settings: settings
   )
   registry
@@ -197,7 +197,7 @@ end
 hold_first_era!(V1, owner_url: ruby_owner_url)
 registry_v1 = check_ruby!(V1, owner_url: ruby_owner_url)
 aggregate_v1 = registry_v1.bluebooks.values.first.aggregate("Account")
-adapter_v1 = Hecks::Adapters::PostgresEra.new(aggregate: aggregate_v1, settings: { database: ruby_owner_url, domain: DOMAIN, era: 1 })
+adapter_v1 = Hecks::Adapters::PostgresRevisions.new(aggregate: aggregate_v1, settings: { database: ruby_owner_url, domain: DOMAIN, era: 1 })
 era1_writes = { "biz" => 100, "pers" => 250 }
 era1_writes.each { |kind, cents| adapter_v1.save(account_instance(aggregate_v1, kind, cents: cents)) }
 
@@ -212,7 +212,7 @@ end
 
 registry_v2 = check_ruby!(V2, owner_url: ruby_owner_url, translation_source: edge_src, role: nil)
 aggregate_v2 = registry_v2.bluebooks.values.first.aggregate("Account")
-adapter_v2 = Hecks::Adapters::PostgresEra.new(aggregate: aggregate_v2, settings: { database: ruby_owner_url, domain: DOMAIN, era: 2 })
+adapter_v2 = Hecks::Adapters::PostgresRevisions.new(aggregate: aggregate_v2, settings: { database: ruby_owner_url, domain: DOMAIN, era: 2 })
 era2_writes = { "gift" => 5 }
 era2_writes.each { |kind, cents| adapter_v2.save(account_instance(aggregate_v2, kind, cents: cents)) }
 

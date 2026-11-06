@@ -10,7 +10,7 @@ require_relative "../../../support/first_era_hold"
 # What a boot may do with its journal when its shape is unminted, superseded, or the mint's own
 # boot: an unminted boot reads and refuses writes by naming the mint entry point, a superseded
 # boot refuses by naming its superseding era, and a mint boot carrying its request writes.
-RSpec.describe "unminted and superseded boots in PostgresEra", :io do
+RSpec.describe "unminted and superseded boots in PostgresRevisions", :io do
   include EraRegistryLoading
   include MintRequestSupport
   include FirstEraHold
@@ -74,7 +74,7 @@ RSpec.describe "unminted and superseded boots in PostgresEra", :io do
   # owns it.
   def registry_for(source, translation_source: nil, settings: {})
     registry = load_registry(source, translation_source: translation_source)
-    Hecks::Adapters::PostgresEra::LineageManager.check!(
+    Hecks::Adapters::PostgresRevisions::LineageManager.check!(
       registry: registry, bluebook: registry.bluebooks.values.first, current_text: source,
       settings: { database: boot_url, mint_eras: true }.merge(settings)
     )
@@ -89,8 +89,8 @@ RSpec.describe "unminted and superseded boots in PostgresEra", :io do
   # The adapter a boot builds from `registry`, with the settings RepositoryFactory.build merges in.
   def adapter_for(registry, era:, **flags)
     settings = { database: boot_url, domain: "Ledger", era: era }.merge(flags)
-    Hecks::Adapters::PostgresEra.new(aggregate: registry.bluebooks.values.first.aggregate("Acct"),
-                                     settings:  settings)
+    Hecks::Adapters::PostgresRevisions.new(aggregate: registry.bluebooks.values.first.aggregate("Acct"),
+                                           settings:  settings)
   end
 
   def entry

@@ -4,7 +4,7 @@ require_relative "domain_rename_state"
 
 module Hecks
   module Adapters
-    class PostgresEra
+    class PostgresRevisions
       class Lineage
         # The domain rename bridge: moves a domain's journal, sequence, partitions and lineage
         # rows from its `formerly_known_as` name to the current one. Only the rename entry point

@@ -35,7 +35,7 @@ RSpec.describe "the mint plan agreeing with the mint", :io do
   def mint(directory)
     held = Hecks::Adapters::JournalStore::HeldDomain.open(File.join(directory, "bluebook"))
     before = era_count
-    Hecks::Adapters::PostgresEra::LineageManager.check!(
+    Hecks::Adapters::PostgresRevisions::LineageManager.check!(
       registry: held.registry, bluebook: held.bluebook, current_text: held.source_text, directory: held.directory,
       settings: held.settings.merge(mint_request: { confirm: true, verdict: "would_mint", watermark: 0 })
     )

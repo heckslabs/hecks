@@ -4,9 +4,9 @@ require_relative "ledger_change"
 
 module Hecks
   module Adapters
-    class PostgresEra
+    class PostgresRevisions
       module LineageManager
-        # The era check of a world that declares `disposable_ledger true` in its PostgresEra
+        # The era check of a world that declares `disposable_ledger true` in its PostgresRevisions
         # `persisted_by` block: a tooling ledger whose rows are worth keeping, not worth an era.
         #
         # Its boot never refuses as unminted or superseded and needs no edge, mint or rehearsal. It
@@ -22,7 +22,9 @@ module Hecks
           #
           # @param settings [Hash{Symbol, String => Object}] the persistence settings of the boot
           # @return [Boolean]
-          def declared?(settings) = [true, "true"].include?(PostgresEra.setting(settings, :disposable_ledger, default: false))
+          def declared?(settings)
+            [true, "true"].include?(PostgresRevisions.setting(settings, :disposable_ledger, default: false))
+          end
 
           # Brings the ledger to the booting shape and records the era the boot reads.
           #
@@ -37,7 +39,7 @@ module Hecks
           # check that applies them, and a re-hold provisions heads under the storage names.
           def check!(registry:, bluebook:, current_text:, settings:)
             registry.apply_world_names!
-            db = PostgresEra.connect_for(bluebook.name, settings, provision: true)
+            db = PostgresRevisions.connect_for(bluebook.name, settings, provision: true)
             lineage = open_lineage(db, bluebook, settings)
             registry.resolved_eras[bluebook.name] = locked(db, bluebook.name) { reconcile!(lineage, bluebook, current_text) }
             grant!(lineage, bluebook, settings, registry.resolved_eras[bluebook.name])
@@ -94,7 +96,7 @@ module Hecks
 
           def open_lineage(db, bluebook, settings)
             lineage = Lineage.new(db, bluebook.name, formerly_known_as: bluebook.formerly_known_as)
-            lineage.check_fence_applies!(allow_superuser: PostgresEra.setting(settings, :allow_superuser, default: false))
+            lineage.check_fence_applies!(allow_superuser: PostgresRevisions.setting(settings, :allow_superuser, default: false))
             lineage.ensure_base!
             lineage
           end
@@ -109,7 +111,7 @@ module Hecks
           end
 
           def grant!(lineage, bluebook, settings, ordinal)
-            role = PostgresEra.setting(settings, :role)
+            role = PostgresRevisions.setting(settings, :role)
             lineage.grant_role!(role.to_s, aggregates: bluebook.aggregates, era: ordinal) unless role.to_s.empty?
           end
         end

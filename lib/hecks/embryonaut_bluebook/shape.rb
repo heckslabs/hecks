@@ -2,7 +2,7 @@ require_relative "../ports/persistence/plugins/era/storage_shape"
 
 module Hecks
   module EmbryonautBluebook
-    # A label change here means a vendored package's next deploy mints a new PostgresEra.
+    # A label change here means a vendored package's next deploy mints a new PostgresRevisions.
     module Shape
       module_function
 

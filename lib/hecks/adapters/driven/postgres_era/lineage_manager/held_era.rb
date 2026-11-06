@@ -4,7 +4,7 @@ require_relative "../../../../runtime/errors"
 
 module Hecks
   module Adapters
-    class PostgresEra
+    class PostgresRevisions
       module LineageManager
         # What a held era is: the storage shape its mint recorded, and the hash of that shape.
         #

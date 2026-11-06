@@ -9,7 +9,7 @@ require_relative "../../../../indifferent_key"
 
 module Hecks
   module Adapters
-    class PostgresEra
+    class PostgresRevisions
       module LineageManager
         # Boot-time era resolution. A boot reads: it reports the era its shape resolves to, and
         # writes nothing. The mint entry point (a settings `mint_request`) is the only path that
@@ -34,7 +34,7 @@ module Hecks
             return DisposableLedger.check!(registry:, bluebook:, current_text:, settings:) if DisposableLedger.declared?(settings)
 
             request = MintRequest.from(settings)
-            db = PostgresEra.connect_for(bluebook.name, settings, provision: !request.nil?)
+            db = PostgresRevisions.connect_for(bluebook.name, settings, provision: !request.nil?)
             lineage = open_lineage(db, bluebook, settings, request)
             resolve_era(Context.new(registry: registry, bluebook: bluebook, current_text: current_text,
                                     lineage: lineage, role: IndifferentKey.read(settings, :role),
@@ -54,14 +54,14 @@ module Hecks
                                                      reading:           request.nil?)
             # First, before anything else: the earliest point the connection's role is known,
             # so a superuser connection refuses here by default.
-            lineage.check_fence_applies!(allow_superuser: PostgresEra.setting(settings, :allow_superuser, default: false))
+            lineage.check_fence_applies!(allow_superuser: PostgresRevisions.setting(settings, :allow_superuser, default: false))
             request ? lineage.ensure_base! : lineage.refuse_pending_rename!
             lineage
           end
 
           # Whether the world allows minting, spelled as a boolean or as the word.
           def mint_permitted?(settings)
-            [true, "true"].include?(PostgresEra.setting(settings, :mint_eras, default: MINT_BY_DEFAULT))
+            [true, "true"].include?(PostgresRevisions.setting(settings, :mint_eras, default: MINT_BY_DEFAULT))
           end
 
           # Resolves the boot's shape through `RevisionResolution`, the answer every era tool reads,

@@ -7,7 +7,7 @@ require_relative "../lib/hecks/adapters/driven/postgres_era/lineage_manager"
 # The one mint decision the rehearsal and the mint share. Each example gives the decision the same
 # inputs a caller would, on disposable bluebooks and a fake lineage, with no database.
 module MintDecisionSupport
-  Manager = Hecks::Adapters::PostgresEra::LineageManager
+  Manager = Hecks::Adapters::PostgresRevisions::LineageManager
   Decision = Manager::MintDecision
   MEMO = "attribute :memo, Memo, optional: true\n    value_object \"Memo\" do\n      attribute :text, String\n    end".freeze
   Ctx = Struct.new(:registry, :bluebook, :latest, :label, :domain_name, :ordinal, :directory) do

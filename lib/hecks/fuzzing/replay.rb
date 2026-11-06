@@ -33,7 +33,7 @@ module Hecks
       # @param steps [Array<Hash>] the step list to replay
       # @param self_consistency [Boolean] also run SelfConsistency.check before returning
       # @param boot [Hash] `adapter:` the persistence adapter to boot the copy with (default
-      #   `:memory`), `database:` the PostgresEra database name (required for `:postgres_era`)
+      #   `:memory`), `database:` the PostgresRevisions database name (required for `:postgres_era`)
       #   and `schema:`
       # @return [Hash] instances, events, refusals, reactions, sagas, queries, oracle traces
       def call(domain_path, steps, self_consistency: false, **boot)

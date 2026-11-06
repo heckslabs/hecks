@@ -85,7 +85,7 @@ RSpec.describe Hecks::Projector::Exporter do
   end
 
   describe ".lineage" do
-    # Needs a real PostgresEra binding, not `boot_in_memory`'s Memory override, and the
+    # Needs a real PostgresRevisions binding, not `boot_in_memory`'s Memory override, and the
     # era plugin loaded (ADR 0033). `require "pg"` stays lazy, so no database is needed.
     def registry_with_directory_bound_to_postgres
       require InMemoryDomain::ERA_PLUGIN

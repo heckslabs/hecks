@@ -87,7 +87,7 @@ pub fn persistence_adapters(domain_ir: &Value) -> Vec<(String, String)> {
 /// The only persistence adapters `rust/host` has a real backend for — see
 /// `refuse_unsupported_persistence_adapters` below. Must list the same names
 /// as [`BACKENDS`] (a test holds them together).
-pub const SUPPORTED_PERSISTENCE_ADAPTERS: &[&str] = &["Postgres", "PostgresEra", "Memory"];
+pub const SUPPORTED_PERSISTENCE_ADAPTERS: &[&str] = &["Postgres", "PostgresRevisions", "Memory"];
 
 /// The environment variable that lets the host boot on the Memory store, which keeps nothing
 /// across a restart and so is for local runs and tests only.
@@ -116,7 +116,7 @@ impl Backend {
 /// is one more row here (and one in [`SUPPORTED_PERSISTENCE_ADAPTERS`]).
 pub const BACKENDS: &[(&str, Backend)] = &[
     ("Postgres", Backend::TokioPostgres),
-    ("PostgresEra", Backend::TokioPostgres),
+    ("PostgresRevisions", Backend::TokioPostgres),
     ("Memory", Backend::Memory),
 ];
 
@@ -517,7 +517,7 @@ mod tests {
         let ir = serde_json::json!({
             "name": "Pizzas",
             "persistence": { "aggregates": [
-                { "name": "Order", "storage_name": "order", "adapter": "PostgresEra" }
+                { "name": "Order", "storage_name": "order", "adapter": "PostgresRevisions" }
             ] }
         });
         assert!(refuse_unsupported_persistence_adapters(&ir).is_ok());
@@ -544,10 +544,10 @@ mod tests {
 
     fn world_ir(settings: &Value) -> Value {
         serde_json::json!({
-            "adapters": [{"name": "PostgresEra", "port": "persistence",
+            "adapters": [{"name": "PostgresRevisions", "port": "persistence",
                           "fields": ["url"], "secrets": ["password"], "defaults": {}}],
             "world": {"default_adapter": null, "default_database": false,
-                      "persistence": [{"adapter": "PostgresEra", "settings": settings}]}
+                      "persistence": [{"adapter": "PostgresRevisions", "settings": settings}]}
         })
     }
 
@@ -556,7 +556,7 @@ mod tests {
         let err =
             refuse_undeclared_world_settings(&world_ir(&serde_json::json!(["bogus"]))).unwrap_err();
         assert!(
-            err.contains("PostgresEra") && err.contains("bogus"),
+            err.contains("PostgresRevisions") && err.contains("bogus"),
             "{err}"
         );
     }
@@ -677,10 +677,10 @@ mod tests {
     #[test]
     fn declared_and_supported_boots_with_null_or_persistence_port() {
         let ir = with_adapters(
-            bound(&[("A", "Postgres"), ("B", "PostgresEra")]),
+            bound(&[("A", "Postgres"), ("B", "PostgresRevisions")]),
             serde_json::json!([
                 {"name": "Postgres", "port": "persistence"},
-                {"name": "PostgresEra", "port": null}
+                {"name": "PostgresRevisions", "port": null}
             ]),
         );
         assert!(refuse_unsupported_persistence_adapters(&ir).is_ok());
@@ -749,7 +749,7 @@ mod tests {
 
     #[test]
     fn postgres_and_postgres_era_are_one_backend() {
-        let ir = bound(&[("A", "Postgres"), ("B", "PostgresEra")]);
+        let ir = bound(&[("A", "Postgres"), ("B", "PostgresRevisions")]);
         assert_eq!(select_backend(&ir, false), Ok(Backend::TokioPostgres));
     }
 
@@ -793,7 +793,7 @@ mod tests {
 
     #[test]
     fn lineage_on_postgres_boots() {
-        let mut ir = bound(&[("A", "PostgresEra")]);
+        let mut ir = bound(&[("A", "PostgresRevisions")]);
         ir["lineage"] = serde_json::json!({
             "capable_aggregates": [{ "name": "A", "storage_name": "a" }]
         });

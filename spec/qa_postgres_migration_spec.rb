@@ -8,7 +8,7 @@ require "fileutils"
 require_relative "support/qa_lib_cli"
 
 # Round trip of `hecks quality_control migrate_ledger_from_heki`: boots the QualityControl bluebook
-# under a Heki binding, then under PostgresEra on a scratch database, both from temp-dir copies.
+# under a Heki binding, then under PostgresRevisions on a scratch database, both from temp-dir copies.
 #
 # Data is generated through real command dispatch so it matches what the ledger produces.
 # Examples call `run_migrate` themselves (idempotent) because order is random; the dry-run
@@ -160,7 +160,7 @@ RSpec.describe "hecks quality_control migrate_ledger_from_heki", :io do
 
     QualityControl::Angle.propose!(
       reference: { value: "ANGLE-2" }, proposer: { value: "Claude QA" },
-      premise: { value: "Whether list_of value objects round-trip identically through PostgresEra jsonb storage." },
+      premise: { value: "Whether list_of value objects round-trip identically through PostgresRevisions jsonb storage." },
       citation: { value: "ADR 0036" }, now: { value: 1_100 }
     )
 

@@ -7,7 +7,7 @@ require "hecks/adapters/driven/postgres_era"
 RSpec.describe "the unminted boot's refusal" do
   # Holds the journal's refusal under the state a boot leaves it with.
   class UnmintedLabelsHost
-    include Hecks::Adapters::PostgresEra::Journal
+    include Hecks::Adapters::PostgresRevisions::Journal
 
     def initialize(aggregate:, lineage:, era:)
       @aggregate = aggregate

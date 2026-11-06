@@ -68,7 +68,7 @@ module Hecks
       # Raises the refusal naming every changed path no translation rule explains.
       #
       # The Layer-1 coverage refusal — one wording, shared with whoever
-      # calls it (today, `PostgresEra::LineageManager::CoverageCheck`'s
+      # calls it (today, `PostgresRevisions::LineageManager::CoverageCheck`'s
       # own mint-time coverage check).
       #
       # @param bluebook [Bluebook::Declaration] the bluebook booting now, named in the message

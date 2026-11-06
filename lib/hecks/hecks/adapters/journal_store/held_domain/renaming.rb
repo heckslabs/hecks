@@ -16,9 +16,9 @@ module Hecks
           # @return [Object] the block's value
           # @raise [Runtime::WiringError] on a superuser connection the world has not allowed
           def renaming
-            db = PostgresEra.connect_for(bluebook.name, settings, provision: false)
-            lineage = PostgresEra::Lineage.new(db, bluebook.name, formerly_known_as: bluebook.formerly_known_as)
-            lineage.check_fence_applies!(allow_superuser: PostgresEra.setting(settings, :allow_superuser, default: false))
+            db = PostgresRevisions.connect_for(bluebook.name, settings, provision: false)
+            lineage = PostgresRevisions::Lineage.new(db, bluebook.name, formerly_known_as: bluebook.formerly_known_as)
+            lineage.check_fence_applies!(allow_superuser: PostgresRevisions.setting(settings, :allow_superuser, default: false))
             yield lineage
           ensure
             db&.close

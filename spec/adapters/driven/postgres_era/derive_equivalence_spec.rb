@@ -37,7 +37,7 @@ RSpec.describe "derive, run in process and compiled to Postgres", :io do
     admin.exec("CREATE DATABASE #{DERIVE_DB}")
     admin.close
     @db = PG.connect(dbname: DERIVE_DB)
-    Hecks::Adapters::PostgresEra::Lineage::TransformSql::ALL.each { |sql| @db.exec(sql) }
+    Hecks::Adapters::PostgresRevisions::Lineage::TransformSql::ALL.each { |sql| @db.exec(sql) }
   end
 
   after(:all) do

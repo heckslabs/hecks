@@ -13,11 +13,11 @@ RSpec.describe "qa_sweep era_boundary", :io do
   QA_SWEEP_ERA_BOUNDARY_LEDGER_DATABASE = "hecks_qa_sweep_era_boundary_spec".freeze
   QA_SWEEP_ERA_BOUNDARY_TARGET_DATABASE = "hecks_qa_sweep_era_boundary_target_spec".freeze
 
-  # `MODE_REQUIREMENTS[:era_boundary]` gates eligibility on a PostgresEra binding and a
+  # `MODE_REQUIREMENTS[:era_boundary]` gates eligibility on a PostgresRevisions binding and a
   # `translations/*.bluebook` file; the file's content is never read by the mode.
   ERA_BOUNDARY_TARGET_BLUEBOOK = <<~RUBY.freeze
     Hecks.bluebook "QaSweepRevisionBoundaryFixtureTarget" do
-      vision "A trivially well-behaved sweep target, authored only to prove qa_sweep's era_boundary mode reaches a real PostgresEra-bound domain, never this repository's own live, actively-changing QA corpus."
+      vision "A trivially well-behaved sweep target, authored only to prove qa_sweep's era_boundary mode reaches a real PostgresRevisions-bound domain, never this repository's own live, actively-changing QA corpus."
 
       aggregate "Widget" do
         description "One numbered widget — nothing a fuzzer can ever catch."

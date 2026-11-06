@@ -1883,50 +1883,29 @@
       {
         "name": "Event",
         "storage_name": "event",
-        "adapter": "PostgresEra"
+        "adapter": "PostgresRevisions"
       },
       {
         "name": "Registration",
         "storage_name": "registration",
-        "adapter": "PostgresEra"
+        "adapter": "PostgresRevisions"
       },
       {
         "name": "PaymentConnection",
         "storage_name": "payment_connection",
-        "adapter": "PostgresEra"
+        "adapter": "PostgresRevisions"
       }
     ]
   },
   "adapters": [
-    {
-      "name": "PostgresEra",
-      "port": "persistence",
-      "fields": [
-        "database",
-        "role",
-        "schema",
-        "formerly",
-        "allow_superuser",
-        "mint_eras",
-        "disposable_ledger",
-        "mints_era"
-      ],
-      "secrets": [
 
-      ],
-      "defaults": {
-      },
-      "provides": [
-        "set_transform"
-      ]
-    }
   ],
   "world": {
     "default_adapter": null,
     "default_database": false,
     "persistence": [
       {
-        "adapter": "PostgresEra",
+        "adapter": "PostgresRevisions",
         "settings": [
           "database",
           "allow_superuser"

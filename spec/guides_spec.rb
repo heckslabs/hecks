@@ -1,5 +1,5 @@
 require "spec_helper"
-# PostgresEra is not core-loaded; schema-evolution.md's examples need it explicitly.
+# PostgresRevisions is not core-loaded; schema-evolution.md's examples need it explicitly.
 require "hecks/ports/persistence/plugins/era"
 require_relative "support/doctest"
 require_relative "support/doctest_names"

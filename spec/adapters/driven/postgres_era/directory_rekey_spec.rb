@@ -44,7 +44,7 @@ RSpec.describe "the Directory example's real rekey edge (examples/directory)", :
     admin.exec("DROP DATABASE IF EXISTS #{DIRECTORY_DB} WITH (FORCE)")
     admin.exec("CREATE DATABASE #{DIRECTORY_DB}")
     admin.close
-    # PostgresEra refuses to boot as a superuser; see support/fenced_owner.rb
+    # PostgresRevisions refuses to boot as a superuser; see support/fenced_owner.rb
     FencedOwner.own!(DIRECTORY_DB)
   end
 
@@ -65,7 +65,7 @@ RSpec.describe "the Directory example's real rekey edge (examples/directory)", :
   def check!(source, translation_source: nil)
     registry = load_registry(source, translation_source: translation_source)
     bluebook = registry.bluebooks.values.first
-    Hecks::Adapters::PostgresEra::LineageManager.check!(
+    Hecks::Adapters::PostgresRevisions::LineageManager.check!(
       registry: registry, bluebook: bluebook, current_text: source,
       settings: with_mint_request({ database: FencedOwner.url(DIRECTORY_DB), mint_eras: true },
                                   domain: bluebook.name)
@@ -75,7 +75,7 @@ RSpec.describe "the Directory example's real rekey edge (examples/directory)", :
 
   def adapter_for(registry)
     member = registry.bluebooks.values.first.aggregate("Member")
-    Hecks::Adapters::PostgresEra.new(aggregate: member, settings: { database: DIRECTORY_DB, domain: "Directory" })
+    Hecks::Adapters::PostgresRevisions.new(aggregate: member, settings: { database: DIRECTORY_DB, domain: "Directory" })
   end
 
   MEMBERS_BY_EMAIL = {

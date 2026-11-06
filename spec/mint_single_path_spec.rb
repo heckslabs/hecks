@@ -9,7 +9,7 @@ require_relative "../lib/hecks/adapters/driven/postgres_era/lineage_manager"
 # counts, so other edges from the held era neither fork it nor make it stale. Each example
 # uses disposable bluebook text and no database.
 module SinglePathSupport
-  Decision = Hecks::Adapters::PostgresEra::LineageManager::MintDecision
+  Decision = Hecks::Adapters::PostgresRevisions::LineageManager::MintDecision
   HELD_LABEL = "aaaaaa".freeze
   MEMO = "attribute :memo, Memo, optional: true\n    value_object \"Memo\" do\n      attribute :text, String\n    end".freeze
   Edge = Struct.new(:domain, :from, :to)
@@ -38,7 +38,7 @@ module SinglePathSupport
 
   def renamed_current = ledger_text(cost: "amount")
 
-  def declared(text) = Hecks::Adapters::PostgresEra::LineageManager.shadow(text)
+  def declared(text) = Hecks::Adapters::PostgresRevisions::LineageManager.shadow(text)
 
   def label_of(text) = Decision.label_of(declared(text))
 

@@ -77,7 +77,7 @@ fn random_ir(rng: &mut Rng, depth: usize) -> Value {
                     })
                     .collect(),
             ),
-            3 => json!(*rng.pick(&["Postgres", "PostgresEra", "Heki", "Memory", ""])),
+            3 => json!(*rng.pick(&["Postgres", "PostgresRevisions", "Heki", "Memory", ""])),
             _ => random_value(rng, 2),
         };
         fields.insert(key.to_string(), value);
@@ -156,16 +156,16 @@ fn an_unsupported_persistence_adapter_is_always_refused_at_boot() {
     // No `adapters` key (every deployed IR today): the old behaviour, byte for byte.
     for adapter in ["Heki", "memory", "Sqlite", "", "postgres", "Postgres "] {
         let message = refusal(&ir_binding(adapter, None));
-        assert!(message.starts_with("rust/host only has a backend for [\"Postgres\", \"PostgresEra\", \"Memory\"] today; this domain also binds: A (persisted_by "), "{adapter:?}");
+        assert!(message.starts_with("rust/host only has a backend for [\"Postgres\", \"PostgresRevisions\", \"Memory\"] today; this domain also binds: A (persisted_by "), "{adapter:?}");
     }
-    for adapter in ["Postgres", "PostgresEra", "Memory"] {
+    for adapter in ["Postgres", "PostgresRevisions", "Memory"] {
         assert!(refuse_unsupported_persistence_adapters(&ir_binding(adapter, None)).is_ok());
     }
 }
 
 #[test]
 fn declared_supported_adapters_boot() {
-    for adapter in ["Postgres", "PostgresEra"] {
+    for adapter in ["Postgres", "PostgresRevisions"] {
         for port in [json!("persistence"), Value::Null] {
             let ir = ir_binding(
                 adapter,

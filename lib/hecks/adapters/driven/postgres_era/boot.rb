@@ -2,18 +2,18 @@ require_relative "../../../indifferent_key"
 
 module Hecks
   module Adapters
-    class PostgresEra
+    class PostgresRevisions
       # Connects a boot to its database without provisioning it: the connection selects the declared
-      # schema and creates nothing. Only the mint path opens with `PostgresEra.connect_for`, which
+      # schema and creates nothing. Only the mint path opens with `PostgresRevisions.connect_for`, which
       # creates the schema.
       module ReadConnector
         # @param name [String] the domain or aggregate name, used only in refusal messages
         # @param settings [Hash{Symbol, String => Object}] the persistence settings of the boot
         # @return [PG::Connection] an open connection that writes no schema
-        def self.connect_for(name, settings) = PostgresEra.connect_for(name, settings, provision: false)
+        def self.connect_for(name, settings) = PostgresRevisions.connect_for(name, settings, provision: false)
       end
 
-      # The steps `PostgresEra#initialize` runs after joining the shared connection: naming the
+      # The steps `PostgresRevisions#initialize` runs after joining the shared connection: naming the
       # journal, resolving the era it reads, and reading the field caches that era holds. A boot
       # writes nothing; the mint path provisions everything.
       module Boot

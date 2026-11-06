@@ -9,7 +9,7 @@ require_relative "../support/first_era_hold"
 # Pins a fix: a vendored package whose bluebook is not the Pascal-cased package name (package
 # `note` declaring `Notes`) had no source found for its era-1 mint, so the single-file fallback
 # stamped the host domain's own text under the bluebook's name and the next boot refused.
-RSpec.describe "PostgresEra era-1 minting for a vendored bluebook named unlike its package", :io do
+RSpec.describe "PostgresRevisions era-1 minting for a vendored bluebook named unlike its package", :io do
   include FirstEraHold
 
   BLUEBOOK_NAME_DB = "hecks_era_vendored_bluebook_name_spec".freeze

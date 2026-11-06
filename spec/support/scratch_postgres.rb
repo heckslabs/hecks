@@ -8,7 +8,7 @@ require_relative "fenced_owner"
 #   RSpec.describe "...", :io do
 #     scratch_postgres SPEC_DB, fenced: true
 #
-# `fenced: true` hands the database to the non-superuser role PostgresEra boots as (see
+# `fenced: true` hands the database to the non-superuser role PostgresRevisions boots as (see
 # fenced_owner.rb). With no reachable Postgres the group skips; under `ENV["CI"]` the probe raises.
 module ScratchPostgres
   def self.admin

@@ -92,7 +92,7 @@ RSpec.describe "legacy persistence decode (A1 bytes, A3 canonical decode)" do
       expect(decoded_state { fixture.sqlite_adapter(account_ir, @dir).find("ACC-1") }).to eq(account)
     end
 
-    it "reads a never-seeded projected field's NULL column back ABSENT, as Heki/PostgresEra do" do
+    it "reads a never-seeded projected field's NULL column back ABSENT, as Heki/PostgresRevisions do" do
       expect(decoded_state { fixture.sqlite_adapter(card_payment_ir, @dir).find("AUTH-1") }).to eq(card_payment)
     end
 
@@ -115,7 +115,7 @@ RSpec.describe "legacy persistence decode (A1 bytes, A3 canonical decode)" do
   end
 
   # The codecs alone, over the exact rows `pg` returned; no connection needed.
-  describe "Postgres / PostgresEra codecs (rows as pg returned them)" do
+  describe "Postgres / PostgresRevisions codecs (rows as pg returned them)" do
     it "Postgres decodes head rows DEEP, the projected field's NULL column absent", :aggregate_failures do
       rows = fixture.read_json("postgres/rows.json")
       codec = ->(ir) { fixture.codec(Hecks::Adapters::Postgres, ir) }
@@ -124,9 +124,9 @@ RSpec.describe "legacy persistence decode (A1 bytes, A3 canonical decode)" do
       expect(codec.call(card_payment_ir).send(:decode, rows.dig("card_payment", "head", 0))).to eq(card_payment)
     end
 
-    it "PostgresEra decodes head_snapshot state DEEP, the projected field absent", :aggregate_failures do
+    it "PostgresRevisions decodes head_snapshot state DEEP, the projected field absent", :aggregate_failures do
       rows = fixture.read_json("postgres_era/rows.json")
-      codec = ->(ir) { fixture.codec(Hecks::Adapters::PostgresEra, ir) }
+      codec = ->(ir) { fixture.codec(Hecks::Adapters::PostgresRevisions, ir) }
 
       expect(codec.call(account_ir).send(:decode, rows.dig("account", "head_snapshot", 0, "state"))).to eq(account)
       expect(codec.call(card_payment_ir).send(:decode, rows.dig("card_payment", "head_snapshot", 0, "state")))
@@ -193,7 +193,7 @@ RSpec.describe "legacy persistence decode (A1 bytes, A3 canonical decode)" do
       expect_find_and_entries(fixture.postgres_adapter(card_payment_ir, databases[:postgres]), "AUTH-1", card_payment)
     end
 
-    it "PostgresEra: restored journal + head_snapshot decode deep on find AND on entries" do
+    it "PostgresRevisions: restored journal + head_snapshot decode deep on find AND on entries" do
       expect_find_and_entries(fixture.postgres_era_adapter(account_ir, databases[:postgres_era]), "ACC-1", account)
       expect_find_and_entries(fixture.postgres_era_adapter(card_payment_ir, databases[:postgres_era]), "AUTH-1",
                               card_payment)

@@ -47,7 +47,7 @@ RSpec.describe "committed OIDC manifests (hecks deploy oidc_manifest.project_oid
   end
 
   OIDC_MANIFESTS.each do |path|
-    # `:io` on every example: a domain that commits a manifest may be PostgresEra-bound.
+    # `:io` on every example: a domain that commits a manifest may be PostgresRevisions-bound.
     it "#{relative(path)} is exactly what hecks deploy oidc_manifest.project_oidc would regenerate right now", :io do
       expect(projection_for(path)).to eq(File.read(path)), drift_message(path)
     end

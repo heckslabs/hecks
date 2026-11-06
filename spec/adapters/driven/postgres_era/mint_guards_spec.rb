@@ -6,9 +6,9 @@ require_relative "../../../support/fenced_owner"
 require_relative "../../../support/era_registry_loading"
 require_relative "../../../support/mint_request_support"
 
-# The mint guards of PostgresEra's era check, on a disposable database: a boot never mints, and a
+# The mint guards of PostgresRevisions's era check, on a disposable database: a boot never mints, and a
 # mint needs a confirmed would_mint rehearsal at the watermark it read. Each refusal names why.
-RSpec.describe "mint guards in the PostgresEra era check", :io do
+RSpec.describe "mint guards in the PostgresRevisions era check", :io do
   include EraRegistryLoading
   include MintRequestSupport
 
@@ -64,7 +64,7 @@ RSpec.describe "mint guards in the PostgresEra era check", :io do
   def check!(source, translation_source: nil, settings: {})
     registry = load_registry(source, translation_source: translation_source)
     base = { database: guard_url, mint_eras: true }
-    Hecks::Adapters::PostgresEra::LineageManager.check!(
+    Hecks::Adapters::PostgresRevisions::LineageManager.check!(
       registry: registry, bluebook: registry.bluebooks.values.first, current_text: source,
       settings: base.merge(settings)
     )
@@ -81,8 +81,8 @@ RSpec.describe "mint guards in the PostgresEra era check", :io do
   def hold_first!(source)
     registry = load_registry(source)
     bluebook = registry.bluebooks.values.first
-    db = Hecks::Adapters::PostgresEra.connect_for("Ledger", { database: guard_url })
-    lineage = Hecks::Adapters::PostgresEra::Lineage.new(db, "Ledger")
+    db = Hecks::Adapters::PostgresRevisions.connect_for("Ledger", { database: guard_url })
+    lineage = Hecks::Adapters::PostgresRevisions::Lineage.new(db, "Ledger")
     lineage.ensure_base!
     lineage.hold_first!(source, projection: Hecks::Runtime::StorageShape.project(bluebook))
     bluebook.aggregates.each { |aggregate| lineage.ensure_first_head!(aggregate.storage_name) }

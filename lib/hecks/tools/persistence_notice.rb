@@ -37,7 +37,7 @@ module Hecks
       # @return [String] what is true of this run and how to keep records instead
       def message_for(registry)
         "nothing is persisted: #{adapters(registry).size} aggregates are in Memory, so this process holds no " \
-          "records and no history. To keep them, add a hecks.local.hecksagon with `persisted_by \"PostgresEra\"` " \
+          "records and no history. To keep them, add a hecks.local.hecksagon with `persisted_by \"PostgresRevisions\"` " \
           "and a hecks.local.world with `default_database` (ADR 0136)."
       end
     end

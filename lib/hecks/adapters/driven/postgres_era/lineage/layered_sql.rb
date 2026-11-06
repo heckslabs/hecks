@@ -2,7 +2,7 @@ require_relative "sql_templates"
 
 module Hecks
   module Adapters
-    class PostgresEra
+    class PostgresRevisions
       class Lineage
         # The shortcut that builds an era from the matview of the era before it, rather than from
         # the whole journal. A chain that cannot take it falls back to `ChainSql#chain_sql`.

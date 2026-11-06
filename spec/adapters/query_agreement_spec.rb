@@ -3,7 +3,7 @@ require "hecks/ports/persistence/plugins/era"
 require "tmpdir"
 require_relative "../support/postgres_probe"
 require_relative "../support/first_era_hold"
-# `pg` is required explicitly; the adapter only requires it lazily in `PostgresEra.connect_for`.
+# `pg` is required explicitly; the adapter only requires it lazily in `PostgresRevisions.connect_for`.
 require "pg"
 
 # Differential gate: Memory, Sqlite and Postgres must agree on the same declared query over the
@@ -43,7 +43,7 @@ module QueryAgreementD1Probe
 end
 
 RSpec.describe "adapter agreement — declared queries answer identically across Memory, Sqlite, " \
-               "PostgresEra, plain Postgres, and D1",
+               "PostgresRevisions, plain Postgres, and D1",
                :io do
   include FirstEraHold
 
@@ -293,8 +293,8 @@ RSpec.describe "adapter agreement — declared queries answer identically across
 
   def build_postgres_engines
     {
-      "Postgres with revisions" => Hecks::Adapters::PostgresEra.new(aggregate: aggregate,
-                                                                    settings:  { database: QUERY_AGREEMENT_DB }),
+      "Postgres with revisions" => Hecks::Adapters::PostgresRevisions.new(aggregate: aggregate,
+                                                                          settings:  { database: QUERY_AGREEMENT_DB }),
       "Postgres"                => Hecks::Adapters::Postgres.new(aggregate: aggregate,
                                                                  settings:  { database: PLAIN_POSTGRES_AGREEMENT_DB })
     }
@@ -329,7 +329,7 @@ tags: [{ name: "blue" }],  note: { value: "low risk" }, rating: { value: 500 }, 
     end
   end
 
-  # The bluebook the PostgresEra database holds as its first era. A boot never holds an era, so
+  # The bluebook the PostgresRevisions database holds as its first era. A boot never holds an era, so
   # the scrubbed database holds one before the engine reads it; the journal is named for the
   # aggregate's storage name, as the bare aggregate boots under.
   FIRST_ERA_SOURCE = <<~RUBY.freeze

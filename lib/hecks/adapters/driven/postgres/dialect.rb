@@ -20,7 +20,7 @@ module Hecks
         end
 
         # `column` is already a real jsonb column and already the array — no shared
-        # `state` blob to walk into first, unlike PostgresEra's own version.
+        # `state` blob to walk into first, unlike PostgresRevisions's own version.
         def list_contains_clause(column, member, placeholder)
           target = member.empty? ? "elem #>> '{}'" : "elem ->> #{text_literal(member)}"
           elements = "jsonb_array_elements(#{quote_ident(column)}) AS elem"
@@ -30,7 +30,7 @@ module Hecks
         def plain_column(name) = quote_ident(name)
 
         # The attribute name is the column itself here, not part of the path (unlike
-        # PostgresEra's shared `state` blob) — the path is whatever follows the column.
+        # PostgresRevisions's shared `state` blob) — the path is whatever follows the column.
         def nested_expression(name, path, member)
           segments = path.empty? ? [(member || "value").to_s] : path
           jsonb_path(name, segments)
@@ -70,7 +70,7 @@ module Hecks
           "#{order_expression(order_by.field)} #{direction}#{nulls}, id #{direction}"
         end
 
-        # Same walk PostgresEra's own numeric_field? uses — decides
+        # Same walk PostgresRevisions's own numeric_field? uses — decides
         # numericness at any depth from the declared shape itself, not a
         # runtime value.
         def numeric_field?(field)

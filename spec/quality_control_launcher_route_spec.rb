@@ -8,9 +8,9 @@ require_relative "support/postgres_probe"
 require_relative "support/qa_ledger_fixture"
 
 # `exe/hecks quality_control …` boots the QA ledger's own directory, where the ledger binds
-# PostgresEra, as the rotation does through `Hecks::Corpus::ROTATION_LEDGER`. It does not boot the
+# PostgresRevisions, as the rotation does through `Hecks::Corpus::ROTATION_LEDGER`. It does not boot the
 # Hecks domain, which binds nothing and so stores in Memory. The launcher runs from a disposable
-# root whose `qa/bluebook` is a throwaway PostgresEra ledger, so the real rows are never touched.
+# root whose `qa/bluebook` is a throwaway PostgresRevisions ledger, so the real rows are never touched.
 RSpec.describe "exe/hecks quality_control reads the QA ledger", :io do
   ROUTE_LEDGER_DATABASE = "hecks_qa_quality_control_route_spec".freeze
 

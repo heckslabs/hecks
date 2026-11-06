@@ -416,7 +416,7 @@ Hecks.bluebook "Deploy" do
       attribute :value, String, pattern: '\A[^\t\n\r]+\z'
     end
 
-    # The persistence adapter the overlay binds; PostgresEra when a request names none.
+    # The persistence adapter the overlay binds; PostgresRevisions when a request names none.
     value_object "AdapterName" do
       attribute :value, String, pattern: '\A[A-Z][A-Za-z0-9]*\z'
     end
@@ -440,7 +440,7 @@ Hecks.bluebook "Deploy" do
     # `hecks deploy tenant.provision <directory> slug=s domain= realm= schema= database= [adapter=]`.
     # The only command that creates a tenant: its slug, schema and realm are validated by the value
     # objects' patterns and invariants, then the overlay is written through the TenantProvisioning
-    # port; the adapter answers PostgresEra when `adapter` is left out. `dry_run?` on this verb
+    # port; the adapter answers PostgresRevisions when `adapter` is left out. `dry_run?` on this verb
     # validates a declaration without recording it.
     command "Provision" do
       goal "Validate one tenant, write its environment overlay world, and register it"

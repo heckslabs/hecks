@@ -8,7 +8,7 @@ require_relative "../support/postgres_probe"
 require_relative "../support/fenced_owner"
 require_relative "../support/first_era_hold"
 
-# A domain bound to PostgresEra boots with the era plugin loaded, without the
+# A domain bound to PostgresRevisions boots with the era plugin loaded, without the
 # application requiring the plugin file itself. Each example boots in a fresh
 # Ruby process since the plugin registers itself process-wide.
 RSpec.describe "Booting a domain bound to a lazily loaded persistence plugin" do
@@ -114,7 +114,7 @@ RSpec.describe "Booting a domain bound to a lazily loaded persistence plugin" do
   # Runs a probe in a fresh Ruby process after the domain is loaded the way a boot does.
   def run_after_load(probe) = run_fresh("#{loaded_registry_script}\n#{probe}")
 
-  it "loads the era plugin when a hecksagon binds PostgresEra", :process do
+  it "loads the era plugin when a hecksagon binds PostgresRevisions", :process do
     write_domain(adapter: "Postgres", database: "postgres:///never_connected")
 
     expect(run_after_load(ERA_PLUGIN_PROBE)).to eq("before" => false, "after" => true)

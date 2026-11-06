@@ -354,7 +354,7 @@ fn identity_id_from_state(state: &Value) -> Option<String> {
         })
 }
 
-/// Resolves an external identity the way the Google callback does: the PostgresEra head first,
+/// Resolves an external identity the way the Google callback does: the PostgresRevisions head first,
 /// then the flat journal's `instances`. A domain whose Identity bluebook keeps no head of its own
 /// (its heads cover its own aggregates and the membership aggregate) holds the link only there.
 ///
@@ -395,7 +395,7 @@ fn flat_journal_is_absent(error: &anyhow::Error) -> bool {
         .any(StoreError::is_not_provisioned)
 }
 
-/// Identity lives in the PostgresEra head, not `dispatch::read`'s
+/// Identity lives in the PostgresRevisions head, not `dispatch::read`'s
 /// `instances` — tries both the domain-qualified and the bare relation name.
 pub async fn resolve_identity_from_head(
     store: &Store,
@@ -417,7 +417,7 @@ pub async fn resolve_identity_from_head(
     Ok(found.and_then(|state| identity_id_from_state(&state)))
 }
 
-// Member lives in the PostgresEra head, not `dispatch::read`'s journal
+// Member lives in the PostgresRevisions head, not `dispatch::read`'s journal
 // `instances` — reading `instances` for an already-linked member misses
 // it entirely, so this queries the head view directly instead.
 async fn member_row_by_email(
@@ -460,7 +460,7 @@ fn membership_names(aggregate: &str) -> (String, String) {
     (bare, storage_name)
 }
 
-// Ported from `Adapters::PostgresEra#append` -- the same journal-insert
+// Ported from `Adapters::PostgresRevisions#append` -- the same journal-insert
 // + snapshot-upsert transaction every Member write uses. The advisory
 // lock guards a concurrent domain rename, not ordinal uniqueness.
 async fn append_member_state(

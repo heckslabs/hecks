@@ -1,6 +1,6 @@
 module Hecks
   module Adapters
-    class PostgresEra
+    class PostgresRevisions
       class Lineage
         # ADR 0166: a `split` writes rows into another aggregate from one aggregate's rows. The
         # target's
