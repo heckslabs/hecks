@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "json"
+require "hecks/runtime/event_tap"
 
 module Hecks
   module Adapters
@@ -35,15 +36,23 @@ module Hecks
         # @param names [Array<String>] bare event names
         # @return [Array<Hash>] the matching events as board rows, oldest first
         def named(names)
-          return [] unless File.file?(@path)
-
-          found = File.foreach(@path).select { |line| names.any? { |name| line.include?("\"#{name}\"") } }
+          found = generations.flat_map { |file| matching(file, names) }
           link(parse(found)).select { |row| names.include?(bare(row[:name])) }
-        rescue SystemCallError
-          []
         end
 
         private
+
+        # The log's files, oldest first: the rotated generations the runtime's tap keeps, then the live one.
+        def generations
+          rotated = (1..Hecks::Runtime::EventTap::KEPT).map { |n| "#{@path}.#{n}" }
+          (rotated.reverse + [@path]).select { |file| File.file?(file) }
+        end
+
+        def matching(file, names)
+          File.foreach(file).select { |line| names.any? { |name| line.include?("\"#{name}\"") } }
+        rescue SystemCallError
+          []
+        end
 
         def parse(lines) = lines.filter_map { |line| decode(line) }
 
