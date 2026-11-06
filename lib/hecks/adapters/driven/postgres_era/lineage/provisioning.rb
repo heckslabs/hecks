@@ -175,7 +175,7 @@ module Hecks
 
           def refuse_unfenced_role!(role, exempt)
             raise Runtime::WiringError,
-                  "cannot boot #{@domain}: the revision store's write-fence is row-level security, and this " \
+                  "cannot boot #{@domain}: PostgresRevision's era write-fence is row-level security, and this " \
                   "connection's role #{role} is #{exempt.join(" and ")} — Postgres exempts it from every " \
                   "policy, FORCE included, so an old checkout connected this way keeps writing a superseded " \
                   "era and nothing refuses. Connect as an ordinary role instead (database " \
