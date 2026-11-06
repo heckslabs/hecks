@@ -29,6 +29,23 @@ RSpec.describe Hecks::Adapters::PipelineWiring do
     expect(found[:nodes].map { |node| node[:id] }).to eq(["Hecks::LinkedTree"])
   end
 
+  # Two domains: Hecks hears an Agents event and reaches an Agents command, as a translation does.
+  def across_domains(policy)
+    review = double(hecks_name: "PlanReview", description: "", lifecycle: nil, queries: [], commands: [], ports: [])
+    run = double(hecks_name: "AgentRun", description: "", lifecycle: nil, queries: [], commands: [], ports: [])
+    books = { "Hecks"  => double(name: "Hecks", policies: [policy], aggregates: [run], modules: []),
+              "Agents" => double(name: "Agents", policies: [], aggregates: [review], modules: []) }
+    found = instance_double(Hecks::Runtime::Registry, bluebooks: books, ports: {}, adapters: {})
+    described_class.new(registry: found).graph[:edges]
+  end
+
+  it "draws an edge from the domain that raises the event to the one it reaches", :aggregate_failures do
+    heard = across_domains(policy("StartTheRoleOnReviewRequest", "PlanReview", "AgentRun.Dispatch"))
+    expect(heard.first).to include(from: "Agents::PlanReview", to: "Hecks::AgentRun")
+    reached = across_domains(policy("RecordTheVerdict", "AgentRun", "PlanReview.Answer"))
+    expect(reached.first).to include(from: "Hecks::AgentRun", to: "Agents::PlanReview")
+  end
+
   it "draws an ask as an edge to its port, and the port to the adapter that answers it", :aggregate_failures do
     ask = policy("ListenWhenServed", "PipelineBoard", "Hecks::PipelineBoard::Web.Listen")
     adapter = double(name: "PipelineWeb", port_name: "Web")
