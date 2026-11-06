@@ -30,5 +30,6 @@ end
 Hecks.hecksagon "Fixer" do
   attaches "Governance"
   persisted_by "Memory"
+  revisions true
   Fixer::Attempt.persisted_by("Postgres")
 end

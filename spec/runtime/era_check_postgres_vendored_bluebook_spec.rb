@@ -89,6 +89,7 @@ RSpec.describe "PostgresRevision era-1 minting for a second bluebook in a multi-
     end
 
     Hecks.hecksagon "Governance" do
+      revisions true
       Governance::RoleAssignment.persisted_by("Postgres")
       Governance::RoleTransition.persisted_by("Postgres")
     end

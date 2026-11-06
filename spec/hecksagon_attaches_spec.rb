@@ -136,6 +136,13 @@ RSpec.describe "a hecksagon attaching a bluebook the gem carries" do
 
   # `attaches` is the one word for a gem bluebook and for a vendored package; the two older words
   # are deprecated spellings that behave as before and warn.
+  # A registry holding one "Hexed" hecksagon block per flag; a true flag declares `revisions true`.
+  def registry_with_revisions(flags)
+    registry_with do
+      flags.each { |flag| Hecks.hecksagon("Hexed") { revisions true if flag } }
+    end
+  end
+
   describe "attaches, from the gem or from vendor" do
     it "finds a framework member and a language bluebook through the one table" do
       expect(Hecks::FrameworkBluebooks.table.keys).to include("Governance", "Identity", "Deploy", "Site", "Tenancy")
@@ -186,6 +193,12 @@ RSpec.describe "a hecksagon attaching a bluebook the gem carries" do
       end
 
       expect(registry.hecksagon("Hexed").member_bluebooks).to eq(["Governance"])
+    end
+
+    it "keeps revisions true when two hecksagon blocks merge, in either load order", :aggregate_failures do
+      [[true, false], [false, true]].each do |flags|
+        expect(registry_with_revisions(flags).hecksagon("Hexed").revisions?).to be true
+      end
     end
   end
 end

@@ -92,6 +92,7 @@ RSpec.describe "PostgresRevision domain-qualifies head_view/head_snapshot/matvie
     end
 
     Hecks.hecksagon "Governance" do
+      revisions true
       Governance::RoleAssignment.persisted_by("Postgres")
       Governance::RoleTransition.persisted_by("Postgres")
     end
@@ -128,6 +129,7 @@ RSpec.describe "PostgresRevision domain-qualifies head_view/head_snapshot/matvie
     end
 
     Hecks.hecksagon "Governance" do
+      revisions true
       Governance::RoleAssignment.persisted_by("Postgres")
       Governance::RoleTransition.persisted_by("Postgres")
     end

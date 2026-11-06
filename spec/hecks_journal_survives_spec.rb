@@ -83,6 +83,12 @@ RSpec.describe "the Hecks domain journals to Postgres with revisions", :io do
         persisted_by "Postgres"
         revisions true
       end
+
+      # Each attached bluebook inherits the Postgres bind, and the database holds its eras.
+      %w[Governance Bluebook Hecksagon World Adapter Port Translation Expression Tenancy Deploy Site Tickets
+         Composer QualityControl Coder Fixer PipelineBoard Pipeline].each do |member|
+        Hecks.hecksagon(member) { revisions true }
+      end
     HECKSAGON
   end
 
