@@ -51,6 +51,18 @@ Hecks.bluebook "Hecks" do
         returns Document
       end
 
+      query "Stashes" do
+        description "The checkout's stash entries: each one's ref (stash@{0}), its time, the branch it records when the message names one, and its message. Read only: nothing is applied, popped, dropped or branched."
+        attribute :checkout, Place, optional: true
+        returns Document
+      end
+
+      query "DanglingCommits" do
+        description "The commits no ref reaches, as `git fsck --unreachable --no-reflogs` reports them: each one's short sha, author date and subject, newest first. Read only: nothing is pruned, collected or repaired."
+        attribute :checkout, Place, optional: true
+        returns Document
+      end
+
       query "Settings" do
         description "What this copy resolves for each setting that can come from a variable, its own world or a default, and which one supplied it."
         attribute :domain, Place, optional: true
