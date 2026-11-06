@@ -3,10 +3,19 @@ Hecks.bluebook "Bluebook" do
     # Closed sets the language admits, projected into matching Ruby and Rust
     # tables (hecks project_vocabulary, hecks project_rust_vocabulary) so both runtimes agree.
     description "The closed sets the language admits — the whole of what any runtime may accept, declared once."
-    acknowledges :no_command_surface, "the closed sets are declared once and projected into both runtimes; nothing changes them at runtime"
 
     # Named only by itself; a vocabulary hangs under nothing else.
-    identified_by VocabularyName, as: :name
+    attribute :name, VocabularyName
+    identified_by :name
+
+    command "Declare" do
+      role "Language"
+      goal "Declare a closed set the language admits, under its name"
+
+      attribute :name, VocabularyName, sets: true
+
+      emits VocabularyDeclared
+    end
 
 
     value_object "VocabularyName" do

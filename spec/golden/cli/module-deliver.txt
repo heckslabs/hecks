@@ -10,6 +10,9 @@ everyday:
   Workspace.status  The checkout's branch, whether it is a linked worktree, where it stands…
 
 commands:
+  Workspace:
+    A look at a checkout: its branch, what it changed and what it committed.
+    look!       Record that a look at a checkout was asked for, before the Reading port answers it
   Revision:
     One commit made in a checkout, or declined with the reason: what it says and what it is on.
     make!       Commit what is staged in a checkout under a message: never pushed, never amended, never onto main
@@ -17,6 +20,9 @@ commands:
     A linked worktree opened on a new branch from main, or declined with the reason.
     add!        Open a linked worktree on a new branch from main, never on main itself
     pull_main!  Bring local main up to date with origin/main: fetch, fast-forward when behind, rebase its unpushed commits when diverged, refusing a dirty or mid-rebase checkout
+  Removal:
+    One path removed from a checkout, or declined with the reason.
+    remove!     Remove one path inside a checkout: a file, or a directory when told to; never .git, never outside the checkout, never a tracked file of the primary checkout
   Landing:
     One branch landed on local main, or one worktree retired: done, or refused with the reason.
     land!       Merge a worktree's branch onto local main: fast-forward when it can be, a merge commit when main moved, never forced, never pushed
@@ -68,7 +74,7 @@ bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
   expression       The subset of regular Ruby a predicate is allowed to be — small enough that every target can…
 
   hecks <command> --help       what one command wants, and every way it refuses
-  hecks --all                  also list the 34 internal commands and queries
-  hecks --maintainer           also list the 386 commands and queries for working on hecks itself
-  a command is called with its aggregate — Revision.make!
+  hecks --all                  also list the 37 internal commands and queries
+  hecks --maintainer           also list the 389 commands and queries for working on hecks itself
+  a command is called with its aggregate — Workspace.look!
   exit status: 0 answered, 1 refused or failed, 2 a line it could not read

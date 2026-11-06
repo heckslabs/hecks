@@ -7,6 +7,7 @@ everyday:
   Codebase.search  The lines of the checkout's text files that match a pattern, as…
 
 commands:
+  Codebase.look!  Record that a read of the checkout's files was asked for, before the Codebase port answers it
 
 queries (nothing here changes anything):
   Codebase.search       The lines of the checkout's text files that match a pattern, as path:line: text.
@@ -31,6 +32,6 @@ bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
   expression       The subset of regular Ruby a predicate is allowed to be — small enough that every target can…
 
   hecks <command> --help       what one command wants, and every way it refuses
-  hecks --maintainer           also list the 436 commands and queries for working on hecks itself
-  a command is called with its aggregate — 
+  hecks --maintainer           also list the 443 commands and queries for working on hecks itself
+  a command is called with its aggregate — Codebase.look!
   exit status: 0 answered, 1 refused or failed, 2 a line it could not read

@@ -3,10 +3,9 @@ Hecks.bluebook "Hecks" do
     vision "Take finished work into the shared line."
 
     # A checkout's state, read and never written: nothing needs a raw `git status`, `git diff` or
-    # `git log`. The `Reading` port's adapter answers each query; the aggregate keeps no record.
+    # `git log`. The `Reading` port's adapter answers each query; `Look` records that one was asked, and the answer is not kept.
     aggregate "Workspace" do
       description "A look at a checkout: its branch, what it changed and what it committed."
-      acknowledges :no_command_surface, "a look at a checkout: it answers the state of a checkout and changes nothing"
 
       attribute :checkout, Place
       identified_by :checkout
@@ -22,6 +21,15 @@ Hecks.bluebook "Hecks" do
 
       value_object "Document" do
         attribute :text, String
+      end
+
+      command "Look" do
+        role "Operator"
+        goal "Record that a look at a checkout was asked for, before the Reading port answers it"
+
+        attribute :checkout, Place, sets: true
+
+        emits WorkspaceLooked
       end
 
       query "Status" do
@@ -277,6 +285,97 @@ Hecks.bluebook "Hecks" do
     policy "DeclineTheWorktree" do
       on      "LinkedTree.CreateRefused"
       trigger LinkedTree::Decline, with: { refusal: :refusal }
+    end
+
+    # One path removed from a checkout: asked of the file-removing port, then recorded or declined. The path is
+    # taken as the caller names it, inside the checkout, and nothing is expanded: there is no glob. A directory is
+    # removed only when the caller says so, a tracked file is removed only from a linked worktree (never from the
+    # primary checkout), and `.git` and anything outside the checkout are refused by name. A session that cannot
+    # run `rm` itself can still tidy its own worktree.
+    aggregate "Removal" do
+      description "One path removed from a checkout, or declined with the reason."
+
+      attribute :run,       RunKey
+      attribute :checkout,  Word,   optional: true
+      attribute :path,      Word,   optional: true
+      attribute :directory, Switch, optional: true
+      attribute :report,    Report, optional: true
+      attribute :refusal,   Report, optional: true
+      identified_by :run
+
+      value_object "RunKey" do
+        attribute :value, String, matches: :present
+      end
+
+      # A directory, or a path inside it.
+      value_object "Word" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Switch" do
+        attribute :value, Boolean
+      end
+
+      value_object "Report" do
+        attribute :value, String
+      end
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "declined"
+        transition "Record"  => "removed",  from: "requested"
+        transition "Decline" => "declined", from: "requested"
+        mark :terminal, "removed", "declined"
+      end
+
+      command "Remove" do
+        role "Operator"
+        goal "Remove one path inside a checkout: a file, or a directory when told to; never .git, never outside the checkout, never a tracked file of the primary checkout"
+
+        attribute :run,       RunKey, sets: true
+        attribute :checkout,  Word,   optional: true, sets: true
+        attribute :path,      Word,   sets: true
+        attribute :directory, Switch, optional: true, sets: true
+
+        given("a path is named") { path.value.to_s.strip != "" }
+
+        emits RemoveRequested
+      end
+
+      command "Record" do
+        role "System"
+        goal "Record the path a checkout removed"
+
+        reference_to Removal
+        attribute :path,   Word,   optional: true, sets: true
+        attribute :report, Report, sets: true
+
+        emits RemoveRecorded
+      end
+
+      command "Decline" do
+        role "System"
+        goal "Record why a path could not be removed"
+
+        reference_to Removal
+        attribute :refusal, Report, sets: true
+
+        emits RemoveDeclined
+      end
+    end
+
+    policy "RemoveFileWhenRequested" do
+      on      "Removal.RemoveRequested"
+      ask     :delete, with: { run: :run }
+    end
+
+    policy "RecordTheFileRemoval" do
+      on      "Removal.FileRemoveAnswered"
+      trigger Removal::Record, with: { path: :path, report: :report }
+    end
+
+    policy "DeclineTheFileRemoval" do
+      on      "Removal.FileRemoveRefused"
+      trigger Removal::Decline, with: { refusal: :refusal }
     end
 
     # Lands a branch on main after its mechanical gate work: comment style is fixed, the shape

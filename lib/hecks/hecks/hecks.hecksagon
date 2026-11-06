@@ -171,6 +171,14 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  Hecks::Removal.port "FileRemoving" do
+    asks "Delete", to: Removal do
+      attribute :run, RunKey
+      answers "FileRemoveAnswered"
+      refuses "FileRemoveRefused"
+    end
+  end
+
   Hecks::Landing.port "Worktrees" do
     asks "Merge", to: Landing do
       attribute :run, RunKey

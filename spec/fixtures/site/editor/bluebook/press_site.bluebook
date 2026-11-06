@@ -6,10 +6,17 @@ Hecks.bluebook "PressSite" do
 
   aggregate "SiteMap" do
     description "The publisher site's routes."
-    acknowledges :no_command_surface, "a site's route table is declared content: its routes are what the site's bluebook says, and no command changes them"
 
     attribute :name, MapName
     identified_by :name
+
+    command "Declare" do
+      goal "Declare the site's route table under a name"
+
+      attribute :name, MapName, sets: true
+
+      emits SiteMapDeclared
+    end
 
     value_object "MapName" do
       attribute :value, String

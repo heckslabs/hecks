@@ -7,6 +7,11 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ## [Unreleased]
 
+### Added
+
+- **`Removal.remove!` removes one path inside a checkout.** `exe/hecks Removal.remove! path.value=<path> [checkout.value=<dir>] [directory.value=true]`. It takes one path as given (no glob), refuses anything outside the checkout (`..`, or a symlinked directory that leads out), the checkout itself, `.git`, a directory unless `directory.value=true`, a directory that holds another checkout, and a tracked file in the primary checkout (a linked worktree may remove its own tracked files). The adapter is `GitFileRemoval` on the `FileRemoving` port.
+- **`Workspace.status`, `changes` and `history` run as bare verbs**, and an aggregate can no longer acknowledge `:no_command_surface`: it must have a command. `Workspace`, `Codebase`, `Introspection`, `CorpusRun`, `Vocabulary`, `DomainPort`, `PortOperation` and `Route` gained one.
+
 ## [7.0.0] - 2026-11-02
 
 ### Breaking

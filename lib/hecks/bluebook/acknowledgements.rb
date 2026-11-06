@@ -4,7 +4,11 @@ module Hecks
     # reason, and a kind the check really emits (ADR 0150).
     module Acknowledgements
       # The finding kinds an aggregate may acknowledge.
-      AGGREGATE_KINDS = %i[large_aggregate key_by_value orphaned_reference no_command_surface].freeze
+      AGGREGATE_KINDS = %i[large_aggregate key_by_value orphaned_reference].freeze
+
+      # The findings that can never be acknowledged, and what to do about each instead. An aggregate with
+      # no commands has nothing that changes it, and a reason does not give it a command surface.
+      UNWAIVABLE = { no_command_surface: "give it a command; a read that changes nothing is recorded by a command that records the ask" }.freeze
 
       # The kinds that are reported once per attribute or per referenced aggregate, so an
       # acknowledgement of one names which (`of:`): the attribute for `key_by_value`, the
@@ -55,6 +59,8 @@ module Hecks
 
       # @raise [DSL::Malformed] always, naming the kinds that can be acknowledged
       def self.refuse_kind!(owner, kind, among)
+        raise DSL::Malformed, "#{owner} acknowledges :#{kind}, which cannot be waived — #{UNWAIVABLE[kind]}" if UNWAIVABLE.key?(kind)
+
         raise DSL::Malformed,
               "#{owner} acknowledges :#{kind}, a finding model_check does not report here — " \
               "the kinds are #{among.map(&:inspect).join(", ")}"

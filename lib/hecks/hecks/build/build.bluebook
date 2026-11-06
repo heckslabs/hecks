@@ -479,7 +479,7 @@ Hecks.bluebook "Hecks" do
     end
 
     # Corpus: what this repository's committed domains are, and what the language's own IR holds.
-    # It is not a Run: it takes no request and keeps no lifecycle, only queries. Every question about
+    # It is not a Run: it keeps no lifecycle and takes no request to carry out, only queries, and `Look` records that one was asked. Every question about
     # them is a pure read, answered by the SourceTree port: which domains carry
     # a Rust feature, the order they regenerate in, whether each generated module is covered, and the
     # structural queries over the IR. Two commands open a long-running server: the query MCP server
@@ -487,8 +487,6 @@ Hecks.bluebook "Hecks" do
     # answers when it ends.
     aggregate "CorpusRun" do
       description "One look at the corpus and the language's IR, or one server opened on them."
-
-      acknowledges :no_command_surface, "every question about the corpus is a pure read answered by the SourceTree port, so nothing changes this aggregate and the queries are its whole surface"
 
       attribute :run,       RunKey
       identified_by :run
@@ -527,6 +525,15 @@ Hecks.bluebook "Hecks" do
       # An answer that is one document of text, exactly as the tool that produced it wrote it.
       value_object "Document" do
         attribute :text, String
+      end
+
+      command "Look" do
+        role "Maintainer"
+        goal "Record that a look at the corpus was asked for, before the SourceTree port answers it"
+
+        attribute :run, RunKey, sets: true
+
+        emits CorpusLooked
       end
 
       query "RustDomains" do

@@ -24,22 +24,22 @@ module Hecks
         end
 
         # An aggregate with no commands has nothing that changes it and no command surface for a
-        # diagram to draw from. Reads are queries; a change needs a command.
+        # diagram to draw from. Reads are queries; a change needs a command. This cannot be waived
+        # (see {Acknowledgements::UNWAIVABLE}): a read-only aggregate records the ask with a command.
         #
         # @param bluebook [Bluebook::Declaration] the assembled bluebook to check
         # @return [Array<Finding>] one :no_command_surface error per aggregate with no commands
         def no_command_surface_findings(bluebook)
-          unacknowledged_commandless(bluebook).map do |aggregate|
+          commandless(bluebook).map do |aggregate|
             Finding.new(kind: :no_command_surface, severity: :error, subject: aggregate.hecks_name,
                         message: "declares no commands, so nothing changes it and no command surface can " \
                                  "be drawn — give it a command")
           end
         end
 
-        # @return [Array<Bluebook::Aggregate>] the aggregates with no commands that do not acknowledge it
-        def unacknowledged_commandless(bluebook)
-          commandless = bluebook.aggregates.select { |aggregate| aggregate.commands.empty? }
-          commandless.reject { |aggregate| Acknowledgements.held?(aggregate, :no_command_surface) }
+        # @return [Array<Bluebook::Aggregate>] the aggregates with no commands
+        def commandless(bluebook)
+          bluebook.aggregates.select { |aggregate| aggregate.commands.empty? }
         end
 
         # Every finding about an aggregate's size and its command surface.

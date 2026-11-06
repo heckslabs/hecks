@@ -34,8 +34,14 @@ RSpec.describe Hecks::Bluebook::ModelCheck::AggregateChecks do
     expect(found.map(&:subject)).to eq(%w[Cognition Prompt])
   end
 
-  it "reports nothing for a commandless aggregate that acknowledges the finding" do
-    expect(findings(aggregate.new("Route", [], acknowledging(:no_command_surface)))).to be_empty
+  it "still reports a commandless aggregate that carries an acknowledgement of the finding" do
+    expect(findings(aggregate.new("Route", [], acknowledging(:no_command_surface))).map(&:subject)).to eq(["Route"])
+  end
+
+  it "refuses the acknowledgement itself, naming what to do instead", :aggregate_failures do
+    expect { Hecks::Bluebook::Acknowledgements.kind!("Route", :no_command_surface, "read-only by design") }
+      .to raise_error(Hecks::Bluebook::DSL::Malformed, /cannot be waived.*give it a command/)
+    expect(Hecks::Bluebook::Acknowledgements::AGGREGATE_KINDS).not_to include(:no_command_surface)
   end
 
   it "still reports a commandless aggregate that acknowledges another kind" do

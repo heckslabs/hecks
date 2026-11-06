@@ -11,6 +11,7 @@ RSpec.describe Hecks::Tools::Run, ".cli_form" do
     allow(Hecks).to receive(:boot).and_return(runtime)
     allow(Hecks::Assembly).to receive(:bind_ported_runtime)
     allow(Hecks::Adapters::Driving::CliRunner).to receive(:call).and_return(["done", 0])
+    allow(Hecks::Adapters::Driving::CliRunner).to receive(:resolve).and_return({})
     silence_the_answer
   end
 
@@ -29,5 +30,20 @@ RSpec.describe Hecks::Tools::Run, ".cli_form" do
     run_verb
 
     expect(Hecks::Assembly).to have_received(:bind_ported_runtime).with(runtime)
+  end
+
+  it "writes a verb that names a command, with the bang the launcher requires" do
+    run_verb
+
+    expect(Hecks::Adapters::Driving::CliRunner).to have_received(:call).with(hash_including(argv: ["noop!"]))
+  end
+
+  it "leaves a verb that names a query as typed, since a query only reads" do
+    allow(Hecks::Adapters::Driving::CliRunner).to receive(:resolve).and_return({ asking: true })
+
+    described_class.cli_form("domain", ["workspace.status", "checkout=."], "hecks run")
+  rescue SystemExit
+    expect(Hecks::Adapters::Driving::CliRunner).to have_received(:call)
+      .with(hash_including(argv: ["workspace.status", "checkout=."]))
   end
 end

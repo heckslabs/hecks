@@ -23,6 +23,9 @@ commands:
     A running rust/host, and the version and era it last reported.
     check_era!            Ask a running host which era it reports, and keep whether it is one that should be running
     recheck!              Ask a host already checked which era it reports now
+  Introspection:
+    A look at a booted domain, answered by the runtime without changing anything.
+    look!                 Record that a look at a booted domain was asked for, before the runtime answers it
 
 queries (nothing here changes anything):
   Operation:
@@ -62,6 +65,6 @@ bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
 
   hecks <command> --help       what one command wants, and every way it refuses
   hecks --all                  also list the 19 internal commands and queries
-  hecks --maintainer           also list the 396 commands and queries for working on hecks itself
+  hecks --maintainer           also list the 403 commands and queries for working on hecks itself
   a command is called with its aggregate — Operation.run!
   exit status: 0 answered, 1 refused or failed, 2 a line it could not read

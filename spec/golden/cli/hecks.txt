@@ -42,6 +42,9 @@ commands:
     One projection of the Rust kernel's capability enums, or one measure of their coverage.
     project_kernel_capabilities!  Project the capability enums the hand-written Rust kernel is matched against
     measure_kernel_coverage!      Check that every capability the grammar admits has its hand-written kernel file
+  CorpusRun:
+    One look at the corpus and the language's IR, or one server opened on them.
+    look!                         Record that a look at the corpus was asked for, before the SourceTree port answers it
   GateRun:
     One run of a stage's checks: every check of the stage, or the ones named.
     gate!                         Run every check of a stage, or the ones named, and keep whether the gate is green
@@ -83,6 +86,9 @@ commands:
     One filling of the Work queue: the planned rows that start a session now, and why each other waits.
     fill!                         Choose the planned Work rows that start a session now and, with confirm, start them; without it, say what would start
     settle!                       Check the started sessions and finish the row of each that is done, or yield the row of one that stopped
+  Workspace:
+    A look at a checkout: its branch, what it changed and what it committed.
+    look!                         Record that a look at a checkout was asked for, before the Reading port answers it
   Revision:
     One commit made in a checkout, or declined with the reason: what it says and what it is on.
     make!                         Commit what is staged in a checkout under a message: never pushed, never amended, never onto main
@@ -90,6 +96,9 @@ commands:
     A linked worktree opened on a new branch from main, or declined with the reason.
     add!                          Open a linked worktree on a new branch from main, never on main itself
     pull_main!                    Bring local main up to date with origin/main: fetch, fast-forward when behind, rebase its unpushed commits when diverged, refusing a dirty or mid-rebase checkout
+  Removal:
+    One path removed from a checkout, or declined with the reason.
+    remove!                       Remove one path inside a checkout: a file, or a directory when told to; never .git, never outside the checkout, never a tracked file of the primary checkout
   Landing:
     One branch landed on local main, or one worktree retired: done, or refused with the reason.
     land!                         Merge a worktree's branch onto local main: fast-forward when it can be, a merge commit when main moved, never forced, never pushed
@@ -138,6 +147,9 @@ commands:
     One named one-off script the checkout runs, planned or applied; the body is a tool.
     plan_script!                  Show what a named one-off script would change, writing nothing
     apply_script!                 Carry out a named one-off script's changes, only when confirmed
+  Codebase:
+    A read of the checkout's text files, answered without changing anything.
+    look!                         Record that a read of the checkout's files was asked for, before the Codebase port answers it
   Era:
     One change to a domain's journal of eras, and how it ended: a store's upkeep.
     hold_first!                   Hold the first era of a domain that holds none, as its first boot would
@@ -168,6 +180,9 @@ commands:
     A running rust/host, and the version and era it last reported.
     check_era!                    Ask a running host which era it reports, and keep whether it is one that should be running
     recheck!                      Ask a host already checked which era it reports now
+  Introspection:
+    A look at a booted domain, answered by the runtime without changing anything.
+    look!                         Record that a look at a booted domain was asked for, before the runtime answers it
   QaQuiesce:
     One hold or release of the QA quiet marker: held, released, or refused.
     hold!                         Quiet QA for a mint window: every tick step refuses to start while the marker is fresh
@@ -343,6 +358,6 @@ bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
   expression       The subset of regular Ruby a predicate is allowed to be — small enough that every target can…
 
   hecks <command> --help       what one command wants, and every way it refuses
-  hecks --all                  also list the 245 internal commands and queries
+  hecks --all                  also list the 248 internal commands and queries
   a command is called with its aggregate — Build.project_rust!
   exit status: 0 answered, 1 refused or failed, 2 a line it could not read

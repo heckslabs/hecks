@@ -23,9 +23,20 @@ Hecks.bluebook "Site" do
 
   aggregate "Route" do
     description "The shape of one row of a site's route table: where a path is served from, who may reach it, how it is cached, and where it appears in the navigation."
-    acknowledges :no_command_surface, "a route row is declared data: the table is what a site's bluebook says, and no command changes a row"
 
     identified_by :path
+
+    command "Declare" do
+      goal "Declare one row of the route table: where a path is served from, who may reach it, and how it is rendered"
+
+      attribute :path,   Path,   sets: true
+      attribute :kind,   Kind,   sets: true
+      attribute :render, Render, sets: true
+      attribute :auth,   Auth,   sets: true
+      attribute :origin, Origin, sets: true
+
+      emits RouteDeclared
+    end
 
     attribute :path,   Path
     attribute :kind,   Kind

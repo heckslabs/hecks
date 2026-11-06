@@ -88,17 +88,28 @@ module Hecks
       # No fall-through: reached only when the argument is not script-shaped, so a
       # near miss deserves the runner's "did you mean" rather than the step-list
       # form's "no such script".
-      # A verb always writes, so its word carries the bang the launcher requires.
-      def writing(argv)
+      # A verb that names a command writes, so its word carries the bang the launcher requires. A
+      # verb that names a query only reads, and a bang would make the launcher look for a command by
+      # that name and find none, so a query keeps its word as typed.
+      def writing(argv, runtime = nil, program = nil)
         return argv if argv.empty? || argv.first.end_with?("!")
+        return argv if runtime && query?(runtime, argv, program)
 
         ["#{argv.first}!", *argv.drop(1)]
+      end
+
+      # @api private
+      # @return [Boolean] whether the launcher reads the line as a query, which a bare name does only
+      #   when no command carries it
+      def query?(runtime, argv, program)
+        Adapters::Driving::CliRunner.resolve(runtime, argv, program)[:asking] == true
       end
 
       def cli_form(domain, argv, program)
         runtime = Hecks.boot(domain, install_driving: false)
         Assembly.bind_ported_runtime(runtime)
-        text, status = Adapters::Driving::CliRunner.call(runtime: runtime, argv: writing(argv), program: program)
+        text, status = Adapters::Driving::CliRunner.call(runtime: runtime, argv: writing(argv, runtime, program),
+                                                          program: program)
         status.zero? ? puts(text) : abort(text)
         exit 0
       end
