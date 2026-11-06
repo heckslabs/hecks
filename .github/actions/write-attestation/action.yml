@@ -34,7 +34,16 @@ runs:
 
         # A notes commit needs an author; the runner carries none by default. Scoped to
         # this one command (`-c`), not the repo config, since nothing else here commits.
-        git fetch origin refs/notes/ci:refs/notes/ci || true
-        git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
-          notes --ref=ci add -f -m "$note" "$tree"
-        git push origin refs/notes/ci
+        #
+        # Two runs writing the notes ref at once make one push lose the race (the remote answers
+        # "rejected" or a transient "fatal error in commit_refs_rules"). Each attempt re-reads the
+        # ref and re-adds the note on top of it, so a retry never overwrites the other run's note.
+        for attempt in 1 2 3 4 5; do
+          git fetch origin +refs/notes/ci:refs/notes/ci || true
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            notes --ref=ci add -f -m "$note" "$tree"
+          if git push origin refs/notes/ci; then exit 0; fi
+          echo "[ci_attest_write] push of refs/notes/ci failed (attempt $attempt of 5); retrying" >&2
+          sleep $((attempt * 2))
+        done
+        exit 1
