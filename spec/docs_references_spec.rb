@@ -46,7 +46,7 @@ module DocReferences
   # Launchers that take a verb of their own after them: `hecks deploy recipe.project`.
   BLUEBOOK_LAUNCHERS = %w[query ask deploy site quality_control].freeze
 
-  PATH_ROOTS = %w[lib spec rust examples exe docs editors].freeze
+  PATH_ROOTS = %w[lib spec rust examples exe docs].freeze
   PATH = %r{\A(?:#{PATH_ROOTS.join("|")})/[\w./-]+\z}
   PLACEHOLDER = /<|>|\*|\{|\$|N{3,}|\.\./
   WORD = /\A[a-z_]+(?:\.[a-z_]+)?\z/
@@ -54,8 +54,7 @@ module DocReferences
 
   module_function
 
-  GLOBS = %w[{README,CONTRIBUTING,CLAUDE}.md docs/*.md docs/implemented/*.md docs/implemented/guides/*.md
-             rust/lsp/README.md].freeze
+  GLOBS = %w[{README,CONTRIBUTING,CLAUDE}.md docs/*.md docs/implemented/*.md docs/implemented/guides/*.md].freeze
 
   def docs
     GLOBS.flat_map { |glob| Dir[File.join(ROOT, glob)] }.sort.reject { |path| skipped?(path) }

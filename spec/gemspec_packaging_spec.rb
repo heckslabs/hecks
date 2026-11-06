@@ -208,7 +208,7 @@ RSpec.describe "gem packaging" do
         # `rust/codegen/src/json.rs` is compiled into `hecks-build` by path, so it ships with it.
         expected = %w[rust/Cargo.toml rust/Cargo.lock rust/src/lib.rs rust/src/main.rs
                       rust/codegen/Cargo.toml rust/codegen/src/json.rs rust/parser/Cargo.toml
-                      rust/host/Cargo.toml rust/build/Cargo.toml rust/web/Cargo.toml rust/lsp/Cargo.toml]
+                      rust/host/Cargo.toml rust/build/Cargo.toml rust/web/Cargo.toml]
         expect(rust).to include(*expected)
         expect(rust.grep(%r{\Arust/src/kernel/})).not_to be_empty
       end

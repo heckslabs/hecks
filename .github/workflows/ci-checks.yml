@@ -335,11 +335,6 @@ jobs:
 
       - uses: ./.github/actions/cargo-cache
         with:
-          name: lint-lsp
-          crate-root: rust/lsp
-
-      - uses: ./.github/actions/cargo-cache
-        with:
           name: lint-host
           crate-root: rust/host
 

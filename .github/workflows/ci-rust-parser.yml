@@ -87,16 +87,6 @@ jobs:
       - name: "cargo test: rust/parser (hecks-parse)"
         run: cd rust/parser && cargo test
 
-      # rust/lsp is an independent Cargo project (it shells out to the parser binary),
-      # so it needs its own target-dir cache.
-      - uses: ./.github/actions/cargo-cache
-        with:
-          name: lsp
-          crate-root: rust/lsp
-
-      - name: "cargo test: rust/lsp (hecks_lsp)"
-        run: cd rust/lsp && cargo test
-
       # Push only on a miss; re-pushing a hit wastes upload bandwidth.
       - uses: ./.github/actions/ghcr-binary-cache-save
         if: steps.ghcr_cache.outputs.cache-hit != 'true'

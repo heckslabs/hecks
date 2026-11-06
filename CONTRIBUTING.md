@@ -262,7 +262,7 @@ bundle exec hecks build.project_rust examples/banking
 cd rust && cargo build --release && cargo test --lib
 ```
 
-Every Rust crate (`rust/`, `rust/parser`, `rust/codegen`, `rust/lsp`, `rust/host`, `rust/web`, `rust/build`) is held to
+Every Rust crate (`rust/`, `rust/parser`, `rust/codegen`, `rust/host`, `rust/web`, `rust/build`) is held to
 `cargo fmt --check` and `cargo clippy --all-targets -- -D warnings`. The lint set is the `[lints.clippy]` table in each
 crate's `Cargo.toml` (clippy's pedantic and nursery groups plus `unwrap_used`, `expect_used` and `panic`; the same table
 in every crate, so change them together), with `clippy.toml` letting tests unwrap. CI runs both in the

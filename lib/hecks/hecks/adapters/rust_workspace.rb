@@ -23,7 +23,7 @@ module Hecks
 
       # What a copy holds: the workspace manifest, the kernel and every crate a domain build uses.
       PACKAGED = %w[Cargo.toml Cargo.lock src codegen parser expr
-                    host build web lsp].freeze
+                    host build web].freeze
 
       # Left out of a copy: build output anywhere, the corpus tests, and the corpus domains.
       SKIPPED = lambda do |relative|

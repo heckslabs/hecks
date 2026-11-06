@@ -24,7 +24,7 @@ jobs:
   #
   # The skip list is exclude-shaped: specs `require "hecks"`, shell out to `exe/hecks`, build the
   # shared rust/ crate and read examples/ and qa/, so those, Gemfile*, hecks.gemspec and
-  # .rspec stay in scope. Skippable: docs, editors, release, deploy, .claude, .githooks,
+  # .rspec stay in scope. Skippable: docs, release, deploy, .claude, .githooks,
   # local-dev files and rubocop config. `.github/**` is not skippable: a workflow change
   # is real doubt, so run it.
   # BEGIN GENERATED ci_gate postgres_io_relevant_changed (CiGate vocabulary; hecks project_ci_gates). Do not hand-edit.
