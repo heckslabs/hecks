@@ -1,0 +1,7 @@
+# Binds the `Cleaning` port to `ClaudeCleaning`, which lists Claude sessions and removes the safe ones.
+# Required by name, not relative, so a copy of this directory shares the one implementation loaded.
+require "hecks/hecks/adapters/claude_cleaning"
+
+Hecks.adapter "ClaudeCleaning" do
+  port "Cleaning"
+end

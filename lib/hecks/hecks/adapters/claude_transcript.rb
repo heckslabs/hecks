@@ -33,6 +33,22 @@ module Hecks
         true
       end
 
+      # Where the session's own worktree is: the path its transcript last recorded when it entered a
+      # worktree, which is not the directory `claude agents` reports.
+      #
+      # @param session_id [String] the full session id, which names the transcript file
+      # @return [String, nil] the worktree path, or nil when the session never entered a worktree
+      #   or left it
+      # @raise [SystemCallError] when the transcript cannot be found or read
+      # @raise [JSON::ParserError] when the transcript is not JSON lines
+      def worktree(session_id)
+        path = Dir.glob(File.join(@projects, "*", "#{session_id}.jsonl")).first
+        raise Errno::ENOENT, "no transcript for session #{session_id}" unless path && !session_id.to_s.empty?
+
+        states = File.foreach(path).select { |line| line.include?('"worktree-state"') }
+        states.empty? ? nil : JSON.parse(states.last).dig("worktreeSession", "worktreePath")
+      end
+
       private
 
       # The first of these is the brief; any later one is a person.
