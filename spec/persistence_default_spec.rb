@@ -39,13 +39,13 @@ RSpec.describe Hecks::Ports::Persistence::BindingPolicy do
 
   it "hands an attaching domain's root default to the bluebook it attaches" do
     wire { subscribes_to "Elsewhere" }
-    attach_with_default("PostgresEra")
-    expect(adapter_of("Bubble")).to eq("PostgresEra")
+    attach_with_default("Postgres")
+    expect(adapter_of("Bubble")).to eq("Postgres")
   end
 
   it "keeps an aggregate's own bind over the inherited default" do
     wire { Deciderate::Game.persisted_by("Memory") }
-    attach_with_default("PostgresEra")
+    attach_with_default("Postgres")
     expect(adapter_of("Game")).to eq("Memory")
   end
 end

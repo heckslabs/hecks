@@ -39,7 +39,8 @@ module Hecks
       end
 
       def held?(registry, name, bluebook)
-        Framework.members.key?(name) || Runtime::RevisionCheck.lineage_capable?(registry, adapter_of(registry, name, bluebook))
+        Framework.members.key?(name) || Runtime::RevisionCheck.lineage_capable_for?(registry, name,
+                                                                                    adapter_of(registry, name, bluebook))
       end
 
       def adapter_of(registry, name, bluebook)

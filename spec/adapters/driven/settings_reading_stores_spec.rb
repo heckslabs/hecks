@@ -58,10 +58,10 @@ RSpec.describe Hecks::Adapters::SettingsReading do
   end
 
   context "when the world names a Postgres database with a password" do
-    let(:reg) { registry(default_adapter: "PostgresEra", database: url) }
+    let(:reg) { registry(default_adapter: "Postgres", database: url) }
     let(:url) { "postgres://hecks:secret@localhost/hecks_train" }
 
-    before { allow(reg).to receive(:binding_settings).with("Shop", "persisted_by", "PostgresEra").and_return({ database: url }) }
+    before { allow(reg).to receive(:binding_settings).with("Shop", "persisted_by", "Postgres").and_return({ database: url }) }
 
     it "names the database without its password" do
       expect(stores(read(reg))).to eq(["store Shop: Postgres hecks_train (world default_adapter)"])

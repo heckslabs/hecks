@@ -117,8 +117,8 @@ RSpec.describe Hecks::Projector::Exporter do
       member = registry.bluebooks.fetch("Directory").aggregate("Member")
       adapter = Hecks::Runtime::RevisionCheck.adapter_for(registry, "Directory", member)
 
-      expect(adapter).to eq("PostgresEra")
-      expect(Hecks::Runtime::RevisionCheck.lineage_capable?(registry, adapter)).to be true
+      expect(adapter).to eq("Postgres")
+      expect(Hecks::Runtime::RevisionCheck.lineage_capable_for?(registry, "Directory", adapter)).to be true
     end
   end
 

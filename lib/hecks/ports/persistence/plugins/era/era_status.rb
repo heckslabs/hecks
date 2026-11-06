@@ -31,7 +31,8 @@ module Hecks
         first = bluebook.aggregates.first
         adapter = first && RevisionCheck.adapter_for(registry, bluebook.name, first)
         layout = adapter && RevisionCheck.layout_class(registry, bluebook.name, adapter)
-        return no_eras(bluebook, adapter || "nothing") unless layout && RevisionCheck.lineage_capable?(registry, layout)
+        return no_eras(bluebook, adapter || "nothing") unless layout && RevisionCheck.lineage_capable_for?(registry,
+                                                                                                           bluebook.name, adapter)
 
         settings = registry.binding_settings(bluebook.name, Ports::Persistence::VERB, adapter)
         registry.adapter_class(layout).era_status(registry: registry, bluebook: bluebook, settings: settings,

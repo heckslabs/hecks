@@ -49,7 +49,7 @@ module Hecks
         bluebook = registry.bluebooks.fetch(domain_name)
         capable = bluebook.aggregates.select do |aggregate|
           adapter_name = Runtime::RevisionCheck.adapter_for(registry, domain_name, aggregate)
-          Runtime::RevisionCheck.lineage_capable?(registry, adapter_name)
+          Runtime::RevisionCheck.lineage_capable_for?(registry, domain_name, adapter_name)
         end
 
         { capable_aggregates: capable.map { |aggregate| { name: aggregate.name, storage_name: aggregate.storage_name } } }

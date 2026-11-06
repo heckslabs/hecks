@@ -26,7 +26,7 @@ RSpec.describe "the held mint of a disposable ledger" do
     directory = File.join(@scratch, "bluebook")
     FileUtils.cp_r(fixture, directory)
     world = File.join(directory, "shop.world")
-    File.write(world, File.read(world).sub(/(persisted_by\("PostgresEra"\) do\n)/, "\\1    #{line}\n"))
+    File.write(world, File.read(world).sub(/(persisted_by\("Postgres"\) do\n)/, "\\1    #{line}\n"))
     directory
   end
 
