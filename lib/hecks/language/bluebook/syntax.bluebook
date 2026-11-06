@@ -84,9 +84,7 @@ Hecks.bluebook "Bluebook" do
     #
     # Identified by position: the same word is legitimately admitted in more than one
     # context, so no other field is unique.
-    value_object "KeywordPosition" do
-      attribute :value, Integer
-    end
+    value_object "KeywordPosition", Integer
 
     entity "Keyword" do
       description "One word the bluebook surface admits — the body it may open, and the field it fills. Nested under Syntax because it is now the LANGUAGE'S OWN data, not merely its declaration : a word's own status is a real fact that moves, not a string replaced wholesale."
@@ -133,9 +131,7 @@ Hecks.bluebook "Bluebook" do
     end
 
     # Identified by position, as Keyword is; Argument and Keyword rows are never compared.
-    value_object "ArgumentPosition" do
-      attribute :value, Integer
-    end
+    value_object "ArgumentPosition", Integer
 
     entity "Argument" do
       description "One argument a keyword takes, typed. Nested under Syntax (a SIBLING of Keyword, not nested inside it — `keyword`/`context` name which Keyword row it belongs to, carried as ordinary fields rather than through containment, because the language reads Argument rows independently of any one Keyword element)."
@@ -185,13 +181,9 @@ Hecks.bluebook "Bluebook" do
       end
     end
 
-    value_object "KeywordSeedText" do
-      attribute :value, String
-    end
+    value_object "KeywordSeedText", String
 
-    value_object "ArgumentSeedText" do
-      attribute :value, String
-    end
+    value_object "ArgumentSeedText", String
 
     # There is only ever one Syntax record, so this carries no `position`.
     command "Declare" do

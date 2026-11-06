@@ -38,7 +38,7 @@ RSpec.describe "hecks gate" do
 
   it "answers 0 and names the checks when every one passes", :process do
     status, out, = run_gate("demo", "only=passes,reads_env")
-    expect([status, out]).to eq([0, "[gate demo] green: passes, reads_env\n"])
+    expect([status, out]).to eq([0, "gate-counts expected=2 recorded=2\n[gate demo] green: passes, reads_env\n"])
   end
 
   it "runs every check and reports each red one with its output and what it means", :aggregate_failures, :process do
