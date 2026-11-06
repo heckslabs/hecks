@@ -1656,6 +1656,8 @@ Hecks.bluebook "Hecks" do
       attribute :base,    Word,   optional: true
       attribute :number,  Word,   optional: true
       attribute :url,     Word,   optional: true
+      attribute :title,   Title,  optional: true
+      attribute :body,    Body,   optional: true
       attribute :report,  Report, optional: true
       attribute :refusal, Report, optional: true
       identified_by :run
@@ -1669,6 +1671,16 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, matches: :present
       end
 
+      # A pull request's title: one line of text.
+      value_object "Title" do
+        attribute :value, String, matches: :present
+      end
+
+      # A pull request's body: Markdown, possibly many lines.
+      value_object "Body" do
+        attribute :value, String, matches: :present
+      end
+
       value_object "Report", String
 
       value_object "Document" do
@@ -1679,8 +1691,9 @@ Hecks.bluebook "Hecks" do
         mark :failure, "refused"
         transition "Record"  => "opened", from: "requested"
         transition "Confirm" => "merged", from: "requested"
+        transition "Revise"  => "edited", from: "requested"
         transition "Refuse"  => "refused", from: "requested"
-        mark :terminal, "opened", "merged", "refused"
+        mark :terminal, "opened", "merged", "edited", "refused"
       end
 
       command "Open" do
@@ -1710,6 +1723,21 @@ Hecks.bluebook "Hecks" do
         emits "PullRequestMergeRequested"
       end
 
+      command "Edit" do
+        role "Operator"
+        goal "Edit the title or body of an open pull request by its number; never its branch, merge or state"
+
+        attribute :run,     RunKey, sets: true
+        attribute :number,  Word, sets: true
+        attribute :title,   Title, optional: true, sets: true
+        attribute :body,    Body, optional: true, sets: true
+        attribute :confirm, Switch, optional: true, sets: true
+
+        given("edits the pull request on GitHub needs --confirm; without it this only reports") { confirm.value == true }
+
+        emits "PullRequestEditRequested"
+      end
+
       command "Record" do
         role "System"
         goal "Record the number and URL GitHub gave an opened pull request"
@@ -1731,6 +1759,17 @@ Hecks.bluebook "Hecks" do
         attribute :report, Report, sets: true
 
         emits "PullRequestMerged"
+      end
+
+      command "Revise" do
+        role "System"
+        goal "Record that GitHub edited the title or body of a pull request"
+
+        reference_to ReviewRequest
+        attribute :number, Word, sets: true
+        attribute :report, Report, sets: true
+
+        emits "PullRequestEdited"
       end
 
       command "Refuse" do
@@ -1794,6 +1833,21 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheRefusedMerge" do
       on      "ReviewRequest.SquashRefused"
+      trigger ReviewRequest::Refuse, with: { refusal: :refusal }
+    end
+
+    policy "AmendWhenEditRequested" do
+      on      "ReviewRequest.PullRequestEditRequested"
+      ask     :amend, with: { run: :run }
+    end
+
+    policy "RecordTheEditedPullRequest" do
+      on      "ReviewRequest.AmendAnswered"
+      trigger ReviewRequest::Revise, with: { number: :number, report: :report }
+    end
+
+    policy "RecordTheRefusedEdit" do
+      on      "ReviewRequest.AmendRefused"
       trigger ReviewRequest::Refuse, with: { refusal: :refusal }
     end
   end
