@@ -101,9 +101,7 @@ Hecks.bluebook "Privacy" do
       invariant("a key carries the vault's own opaque reference to it") { !value.to_s.empty? }
     end
 
-    value_object "Report" do
-      attribute :value, String
-    end
+    value_object "Report", String
 
     # A key is asked for, then the vault issues it, then its reference is recorded (ADR 0147): the
     # record reads `active` only once the vault named a key it holds. A refused issue leaves it

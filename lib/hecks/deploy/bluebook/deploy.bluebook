@@ -426,9 +426,7 @@ Hecks.bluebook "Deploy" do
       attribute :value, String, matches: :not_empty
     end
 
-    value_object "Report" do
-      attribute :value, String
-    end
+    value_object "Report", String
 
     lifecycle :status, default: "requested" do
       mark :failure, "refused"
@@ -572,9 +570,7 @@ Hecks.bluebook "Deploy" do
       attribute :value, String, pattern: '\A[A-Za-z][A-Za-z0-9_]*\z'
     end
 
-    value_object "Report" do
-      attribute :value, String
-    end
+    value_object "Report", String
 
     lifecycle :status, default: "requested" do
       mark :failure, "faulted"
@@ -678,9 +674,7 @@ Hecks.bluebook "Deploy" do
       attribute :value, String, matches: :not_empty
     end
 
-    value_object "Report" do
-      attribute :value, String
-    end
+    value_object "Report", String
 
     lifecycle :status, default: "requested" do
       mark :failure, "faulted"
@@ -772,9 +766,7 @@ Hecks.bluebook "Deploy" do
       attribute :value, String, matches: :not_empty
     end
 
-    value_object "Report" do
-      attribute :value, String
-    end
+    value_object "Report", String
 
     lifecycle :status, default: "requested" do
       mark :failure, "flagged"
@@ -873,9 +865,7 @@ Hecks.bluebook "Deploy" do
       attribute :value, String, pattern: '[0-9]{4}-[0-9]{2}-[0-9]{2}'
     end
 
-    value_object "Report" do
-      attribute :value, String
-    end
+    value_object "Report", String
 
     lifecycle :status, default: "requested" do
       mark :failure, "flagged"
@@ -983,13 +973,9 @@ Hecks.bluebook "Deploy" do
       attribute :value, String, pattern: '^(alone|service_roll|box_roll)$'
     end
 
-    value_object "Switch" do
-      attribute :value, Boolean
-    end
+    value_object "Switch", Boolean
 
-    value_object "Report" do
-      attribute :value, String
-    end
+    value_object "Report", String
 
     lifecycle :status, default: "requested" do
       mark :failure, "flagged"
@@ -1121,13 +1107,9 @@ Hecks.bluebook "Deploy" do
       attribute :value, String, matches: :no_whitespace
     end
 
-    value_object "Switch" do
-      attribute :value, Boolean
-    end
+    value_object "Switch", Boolean
 
-    value_object "Report" do
-      attribute :value, String
-    end
+    value_object "Report", String
 
     lifecycle :status, default: "requested" do
       mark :failure, "flagged"
@@ -1290,13 +1272,9 @@ Hecks.bluebook "Deploy" do
       attribute :value, String, pattern: '^[A-Za-z0-9_-]+=[A-Za-z0-9_.-]+( [A-Za-z0-9_-]+=[A-Za-z0-9_.-]+)*$'
     end
 
-    value_object "Switch" do
-      attribute :value, Boolean
-    end
+    value_object "Switch", Boolean
 
-    value_object "Report" do
-      attribute :value, String
-    end
+    value_object "Report", String
 
     lifecycle :status, default: "requested" do
       mark :failure, "flagged"
@@ -1473,13 +1451,9 @@ Hecks.bluebook "Deploy" do
       attribute :value, String, matches: :word_chars
     end
 
-    value_object "Switch" do
-      attribute :value, Boolean
-    end
+    value_object "Switch", Boolean
 
-    value_object "Report" do
-      attribute :value, String
-    end
+    value_object "Report", String
 
     lifecycle :status, default: "requested" do
       mark :failure, "flagged", "drifted"
@@ -1728,9 +1702,7 @@ Hecks.bluebook "Deploy" do
       attribute :value, String, matches: :word_chars
     end
 
-    value_object "Report" do
-      attribute :value, String
-    end
+    value_object "Report", String
 
     lifecycle :status, default: "requested" do
       mark :failure, "drifted", "flagged"
@@ -1857,9 +1829,7 @@ Hecks.bluebook "Deploy" do
       invariant("a project, script or file is named by its path") { !value.to_s.empty? }
     end
 
-    value_object "Report" do
-      attribute :value, String
-    end
+    value_object "Report", String
 
     # No outcome is a failure: a report that could not be made is `unavailable`, never `flagged`
     # (only a malformed request is), because the era check gates a deploy, not this report.
@@ -2011,13 +1981,9 @@ Hecks.bluebook "Deploy" do
       invariant("a preview is never of main or master") { value != "main" && value != "master" }
     end
 
-    value_object "Switch" do
-      attribute :value, Boolean
-    end
+    value_object "Switch", Boolean
 
-    value_object "Report" do
-      attribute :value, String
-    end
+    value_object "Report", String
 
     lifecycle :status, default: "requested" do
       mark :failure, "flagged"
@@ -2336,13 +2302,9 @@ Hecks.bluebook "Deploy" do
       attribute :value, String, matches: :host_port
     end
 
-    value_object "Switch" do
-      attribute :value, Boolean
-    end
+    value_object "Switch", Boolean
 
-    value_object "Report" do
-      attribute :value, String
-    end
+    value_object "Report", String
 
     lifecycle :status, default: "requested" do
       mark :failure, "flagged"
@@ -2463,13 +2425,9 @@ Hecks.bluebook "Deploy" do
       invariant("a template is named by its path") { !value.to_s.empty? }
     end
 
-    value_object "Switch" do
-      attribute :value, Boolean
-    end
+    value_object "Switch", Boolean
 
-    value_object "Report" do
-      attribute :value, String
-    end
+    value_object "Report", String
 
     lifecycle :status, default: "requested" do
       mark :failure, "drifted", "refused"
@@ -2584,9 +2542,7 @@ Hecks.bluebook "Deploy" do
       attribute :value, String, matches: :not_empty
     end
 
-    value_object "Report" do
-      attribute :value, String
-    end
+    value_object "Report", String
 
     lifecycle :status, default: "requested" do
       mark :failure, "faulted"

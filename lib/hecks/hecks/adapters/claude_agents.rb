@@ -84,8 +84,50 @@ module Hecks
       # @raise [ConsoleCapture::Failure] when the job's state cannot be read
       def read_job(**held)
         job = @jobs.state(plain(held[:session]))
-        { state: job["state"].to_s, detail: job["detail"].to_s, previous: plain(held[:condition]).to_s,
-          checkout: File.join(plain(held[:repo]).to_s, "") }
+        { state: job["state"].to_s, detail: job["detail"].to_s }.merge(architect_facts(job, held), reviewer_facts(job, held),
+                                                                       run_facts(held))
+      end
+
+      # The most of the architect's closing text a review keeps.
+      FINDINGS_LIMIT = 2000
+
+      # @return [Hash{Symbol => String}] the architect's `verdict` and its `findings` (its closing
+      #   text), both empty for any other agent
+      def architect_facts(job, held)
+        return { verdict: "", findings: "" } unless plain(held[:agent]).to_s == "architect"
+
+        { verdict: verdict_of(job), findings: job.dig("output", "result").to_s[0, FINDINGS_LIMIT] }
+      end
+
+      # The reviewer's judgment as its closing text states it: `real_bug` or `stale_expectation`.
+      JUDGMENT_WORDS = /\b(real[ _]bug|stale[ _]expectation)\b/i
+
+      # @return [Hash{Symbol => String}] the reviewer's `judgment`, empty for any other agent or a
+      #   text that names none
+      def reviewer_facts(job, held)
+        return { judgment: "" } unless plain(held[:agent]).to_s == "reviewer"
+
+        closing = [job.dig("output", "result"), job["detail"]].compact.join(" ")
+        { judgment: closing[JUDGMENT_WORDS, 1].to_s.downcase.tr(" ", "_") }
+      end
+
+      # @return [Hash{Symbol => String}] the run the job belongs to: its key, its last known
+      #   condition, and its directory with a trailing slash
+      def run_facts(held)
+        { previous: plain(held[:condition]).to_s, checkout: File.join(plain(held[:repo]).to_s, ""),
+          run: plain(held[:run]).to_s }
+      end
+
+      # The architect's verdict as the job's closing text states it, or empty for any other agent or
+      # a text that names none. The words are `sound`, `sound with changes` and `rethink`.
+      VERDICT_WORDS = /\b(sound with changes|sound|rethink)\b/i
+
+      # @param job [Hash] the job's state
+      # @return [String] `sound`, `changes`, `rethink`, or empty
+      def verdict_of(job)
+        closing = [job.dig("output", "result"), job["detail"]].compact.join(" ")
+        word = closing[VERDICT_WORDS, 1].to_s.downcase
+        word == "sound with changes" ? "changes" : word
       end
 
       # Waits the settling time, then reads the job as {#read_job} does: a session that dies at

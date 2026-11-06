@@ -138,13 +138,9 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, matches: :present
       end
 
-      value_object "Switch" do
-        attribute :value, Boolean
-      end
+      value_object "Switch", Boolean
 
-      value_object "Report" do
-        attribute :value, String
-      end
+      value_object "Report", String
 
       # One word of a fact: a branch, a commit, whether a tag stands.
       value_object "Word" do
@@ -442,13 +438,9 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, matches: :present
       end
 
-      value_object "Switch" do
-        attribute :value, Boolean
-      end
+      value_object "Switch", Boolean
 
-      value_object "Report" do
-        attribute :value, String
-      end
+      value_object "Report", String
 
       # A branch name, or a commit.
       value_object "Word" do
@@ -456,9 +448,7 @@ Hecks.bluebook "Hecks" do
       end
 
       # How long a lane has stood behind the lane it follows, or how long its row lets it.
-      value_object "Hours" do
-        attribute :value, Integer
-      end
+      value_object "Hours", Integer
 
       lifecycle :status, default: "requested" do
         mark :failure, "faulted"
@@ -681,9 +671,7 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, matches: :not_empty
       end
 
-      value_object "Report" do
-        attribute :value, String
-      end
+      value_object "Report", String
 
       # An answer that is one document of text, exactly as the tool that produced it wrote it.
       value_object "Document" do
@@ -805,9 +793,7 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, matches: :not_empty
       end
 
-      value_object "Report" do
-        attribute :value, String
-      end
+      value_object "Report", String
 
       # An answer that is one document of text, exactly as the tool that produced it wrote it.
       value_object "Document" do
