@@ -523,6 +523,7 @@ function listen() {
   const shared = window.boardStream && boardStream({
     open: () => { $("live").textContent = "stream: live"; },
     error: () => { $("live").textContent = "stream: reconnecting"; },
+    pause: () => { $("live").textContent = "stream: paused"; },
     state: (data) => { try { render(data.state); } catch (e) { $("updated").textContent = "update failed: " + e.message; } },
     board: (ev) => { if (hear(ev, true) && state) { renderMap(state.roles || [], state.generated_at); renderWire(); } }
   });

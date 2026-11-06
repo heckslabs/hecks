@@ -775,6 +775,7 @@ function listen() {
   const shared = window.boardStream && boardStream({
     open: () => { $("live").textContent = "stream: live"; },
     error: () => { $("live").textContent = "stream: reconnecting"; },
+    pause: () => { $("live").textContent = "stream: paused"; },
     state: (data) => { try { render(data.state); } catch (e) { $("updated").textContent = "update failed: " + e.message; } },
     board: (ev) => { if (ev.key) putEvent(ev, true); }
   });
