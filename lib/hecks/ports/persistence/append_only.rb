@@ -186,7 +186,8 @@ module Hecks
         # Applies one journaled entry to the adapter's current-state store.
         #
         # @param entry [Persistence::Entry] the save or delete to materialize
-        # @return [Object, nil] adapter-defined: Memory, Sqlite, Postgres and PostgresRevision answer
+        # @return [Object, nil] adapter-defined: Memory, Sqlite, Postgres and PostgresRevision
+        # answer
         #   the saved `Runtime::Instance`; Heki and `SqliteProjection` answer the entry;
         #   a delete answers a driver result, the removed record, or nil
         # @raise [Runtime::WiringError] from a `RemoteRuntime` adapter, which projects nothing

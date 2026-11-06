@@ -46,18 +46,8 @@ module Hecks
         end
       end
 
-      # Decides whether a registry binds anything that carries eras.
-      #
-      # Mirrors check_bluebook!'s own per-bluebook anchor check, asked
-      # once up front so a registry with nothing lineage-capable never
-      # registers the `:era_check` gate at all.
-      #
-      # @param registry [Runtime::Registry] the registry whose bluebooks are asked
-      # @return [Boolean] true when some bluebook's first aggregate is bound to a
-      #   lineage-capable adapter; false for an empty registry or one with no such binding
-      # @raise [Runtime::WiringError] if a first aggregate's persistence binding is missing,
-      #   ambiguous, or carries an unsupported role
-      # Whether a domain's bind selects the revision layout: `Postgres` with `revisions true` (ADR 0182).
+      # Whether a domain's bind selects the revision layout: `Postgres` with `revisions true` (ADR
+      # 0182).
       def revision_layout?(registry, domain, adapter)
         adapter.to_s == "Postgres" && registry.hecksagon(domain)&.revisions? == true
       end
@@ -73,7 +63,8 @@ module Hecks
         plain
       end
 
-      # Whether a domain's bound adapter keeps eras, reading `Postgres` with revisions as the revision layout.
+      # Whether a domain's bound adapter keeps eras, reading `Postgres` with revisions as the
+      # revision layout.
       def lineage_capable_for?(registry, domain, adapter)
         lineage_capable?(registry, layout_class(registry, domain, adapter))
       end
@@ -83,6 +74,17 @@ module Hecks
         layout_class(registry, bluebook.name, adapter)
       end
 
+      # Decides whether a registry binds anything that carries eras.
+      #
+      # Mirrors check_bluebook!'s own per-bluebook anchor check, asked
+      # once up front so a registry with nothing lineage-capable never
+      # registers the `:era_check` gate at all.
+      #
+      # @param registry [Runtime::Registry] the registry whose bluebooks are asked
+      # @return [Boolean] true when some bluebook's first aggregate is bound to a
+      #   lineage-capable adapter; false for an empty registry or one with no such binding
+      # @raise [Runtime::WiringError] if a first aggregate's persistence binding is missing,
+      #   ambiguous, or carries an unsupported role
       def lineage_capable_registry?(registry)
         registry.bluebooks.each_value.any? do |bluebook|
           first = bluebook.aggregates.first

@@ -4,7 +4,8 @@ module Hecks
   module Adapters
     class PostgresRevision
       # Connects a boot to its database without provisioning it: the connection selects the declared
-      # schema and creates nothing. Only the mint path opens with `PostgresRevision.connect_for`, which
+      # schema and creates nothing. Only the mint path opens with `PostgresRevision.connect_for`,
+      # which
       # creates the schema.
       module ReadConnector
         # @param name [String] the domain or aggregate name, used only in refusal messages

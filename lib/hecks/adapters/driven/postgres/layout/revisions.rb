@@ -3,7 +3,8 @@ module Hecks
     class Postgres
       module Layout
         # The revision layout (ADR 0182): a domain whose hecksagon sets `revisions true` keeps its
-        # eras, lineage and field caches in the `PostgresRevision` store. This layout holds that store and
+        # eras, lineage and field caches in the `PostgresRevision` store. This layout holds that
+        # store and
         # answers the storage calls with it, so a `Postgres` bind reaches the revision code through
         # the same seam the table layout uses.
         class Revisions

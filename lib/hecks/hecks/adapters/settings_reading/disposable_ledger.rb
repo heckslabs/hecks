@@ -4,7 +4,8 @@ module Hecks
   module Adapters
     class SettingsReading
       # The `disposable ledger` row of `hecks config`: whether the copy's world declares its
-      # PostgresRevision store a disposable tooling ledger, which needs no era for a shape change, and
+      # PostgresRevision store a disposable tooling ledger, which needs no era for a shape change,
+      # and
       # whether the world or the default says so.
       module DisposableLedger
         # @param directory [String] the domain directory

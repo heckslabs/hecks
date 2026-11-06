@@ -10,8 +10,8 @@ require_relative "qa_postgres_migrate/reporting"
 module Hecks
   module QualityControlCli
     # The command behind `hecks quality_control sweep.migrate_ledger_from_heki`: copies each
-    # aggregate's current state from a Heki data directory into the repository that the domain's
-    # `.hecksagon`/`.world` files bind today (for example `PostgresRevision`). It is domain-agnostic.
+    # aggregate's current state from a Heki data directory into the repository the domain binds
+    # today (for example `PostgresRevision`). It is domain-agnostic.
     #
     #   migrate_ledger_from_heki <domain_dir> <heki_data_dir> [aggregate_name ...]         # dry run
     #   migrate_ledger_from_heki <domain_dir> <heki_data_dir> [aggregate_name ...] --force # apply

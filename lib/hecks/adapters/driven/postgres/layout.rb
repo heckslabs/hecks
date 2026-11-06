@@ -23,7 +23,7 @@ module Hecks
         # **Why the lookup skips the class:** the adapter's class body forwards each call to
         # its layout, so the implementation lives in one of the modules the class includes.
         module Implementations
-          # @param name [Symbol] a storage call from {STORAGE}
+          # @param name [Symbol] a storage call from {Layout::STORAGE}
           # @return [UnboundMethod] the module method that implements the call
           def self.for(name)
             Postgres.ancestors.drop(1).each do |mod|

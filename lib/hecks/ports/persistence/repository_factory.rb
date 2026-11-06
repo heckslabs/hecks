@@ -37,7 +37,8 @@ module Hecks
         end
 
         # A `Postgres` bind in a hecksagon that sets `revisions` builds the revision layout, which
-        # is the `PostgresRevision` adapter until the layout is extracted (ADR 0182, delegation step).
+        # is the `PostgresRevision` adapter until the layout is extracted (ADR 0182, delegation
+        # step).
         # Every other bind is returned unchanged.
         #
         # @param registry [Runtime::Registry] the booted registry

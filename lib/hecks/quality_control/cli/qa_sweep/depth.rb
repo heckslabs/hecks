@@ -30,7 +30,8 @@ module Hecks
           clamp_seeds
         end
 
-        # Clamps down (never up) only for `--persistence-parity`: real PostgresRevision I/O per dispatch
+        # Clamps down (never up) only for `--persistence-parity`: real PostgresRevision I/O per
+        # dispatch
         # is expensive even for a target on the widest tier. `concurrency` has a tighter cap: each
         # seed pays for two disposable schemas and a real fork; it is reached via `--modes
         # concurrency`.
