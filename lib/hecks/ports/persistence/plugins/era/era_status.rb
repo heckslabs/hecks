@@ -35,8 +35,8 @@ module Hecks
                                                                                                            bluebook.name, adapter)
 
         settings = registry.binding_settings(bluebook.name, Ports::Persistence::VERB, adapter)
-        registry.adapter_class(layout).era_status(registry: registry, bluebook: bluebook, settings: settings,
-                                                  directory: directory).to_row
+        layout.era_status(registry: registry, bluebook: bluebook, settings: settings,
+                          directory: directory).to_row
       end
 
       # @param bluebook [Bluebook::Declaration] the bluebook
