@@ -11,8 +11,22 @@ RSpec.describe "AgentRun.Answer through the Agents port" do
   ANSWER_STAND_IN = <<~SH.freeze
     #!/bin/sh
     here=$(dirname "$0")
-    if [ "$1" = "agents" ]; then cat "$here/sessions.json"; exit 0; fi
-    if [ "$2" = "--resume" ]; then printf '%s\\n' "$@" > "$here/resume.args"; exit 0; fi
+    polls() { if [ -f "$here/stopped" ]; then cat "$here/polls" 2>/dev/null || echo 0; else echo 99; fi; }
+    if [ "$1" = "agents" ]; then
+      n=$(polls); echo $((n + 1)) > "$here/polls"
+      if [ -f "$here/stopped" ] && [ "$n" -ge 2 ]; then sed 's/"state":"[a-z]*"/"state":"stopped"/' "$here/sessions.json"; else cat "$here/sessions.json"; fi
+      exit 0
+    fi
+    if [ "$1" = "stop" ]; then echo "$2" >> "$here/stopped"; echo 0 > "$here/polls"; exit 0; fi
+    if [ "$2" = "--resume" ]; then
+      printf '%s\\n' "$@" > "$here/resume.args"
+      if [ -f "$here/copy" ] || [ "$(polls)" -lt 2 ]; then
+        echo "note: the flags you passed started a copy as copy-session-1" >&2; echo "backgrounded · copy-session-1"
+      else
+        echo "note: woke session with its saved options." >&2; echo "backgrounded · stand-in-session"
+      fi
+      exit 0
+    fi
     printf 'backgrounded · stand-in-session\\n'
   SH
 
@@ -81,5 +95,24 @@ RSpec.describe "AgentRun.Answer through the Agents port" do
     expect(out.dig("state", "answered_at")).not_to be_nil
     resumed = ["--bg", "--resume", "stand-in-session-0000-full", "--", "use the staging branch"]
     expect(File.read(resume_args).split("\n")).to eq(resumed)
+  end
+
+  def stopped = File.read(File.join(scratch, "stopped")).split("\n")
+
+  it "stops a blocked session, wakes it in place, and keeps the run on the same session", :aggregate_failures do
+    started_run("a-place", "blocked")
+    state = JSON.parse(answer("a-place", "go on"))["state"]
+
+    expect(stopped).to eq(["stand-in-session"])
+    expect(state).to include("session" => "stand-in-session")
+    expect(File.read(resume_args)).not_to include("--agent")
+  end
+
+  it "follows the copy the CLI started instead, so the run holds the new session", :aggregate_failures do
+    File.write(File.join(scratch, "copy"), "yes")
+    started_run("a-copy", "blocked")
+    state = JSON.parse(answer("a-copy", "go on"))["state"]
+
+    expect(state).to include("session" => "copy-session-1")
   end
 end

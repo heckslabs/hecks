@@ -114,7 +114,43 @@ RSpec.describe Hecks::Adapters::ClaudeAgents do
   describe "#resume" do
     def resume(**held) = adapter.resume(session: { value: "abc123" }, repo: { value: scratch }, **held)
 
-    before { listing({ "id" => "abc123", "sessionId" => "abc123-0000-full" }) }
+    # Logs a stop, records a resume's arguments, directory and session variables, and says what
+    # `copy` holds (if set) as `claude` does when it starts a copy.
+    RESUME_STAND_IN = <<~SH.freeze
+      #!/bin/sh
+      here=$(dirname "$0")
+      polls() { if [ -f "$here/stopped" ]; then cat "$here/polls" 2>/dev/null || echo 0; else echo 99; fi; }
+      if [ "$1" = "agents" ]; then
+        n=$(polls); echo $((n + 1)) > "$here/polls"
+        if [ -f "$here/stopped" ] && [ "$n" -ge 2 ]; then sed 's/"state":"[a-z]*"/"state":"stopped"/' "$here/sessions.json"; else cat "$here/sessions.json"; fi
+        exit 0
+      fi
+      if [ "$1" = "stop" ]; then
+        echo "$2" >> "$here/stopped"; echo 0 > "$here/polls"
+        if [ -f "$here/pid" ]; then (sleep 0.8; kill "$(cat "$here/pid")") >/dev/null 2>&1 & fi
+        exit 0
+      fi
+      if [ -f "$here/pid" ] && kill -0 "$(cat "$here/pid")" 2>/dev/null; then touch "$here/copy"; fi
+      printf '%s\\n' "$@" > "$here/argv"
+      pwd -P > "$here/cwd"
+      env | grep '^CLAUDE' | sort > "$here/claude_env"
+      if [ -f "$here/copy" ] || [ "$(polls)" -lt 2 ]; then
+        echo "note: ${here}/copy started a copy as copy-9f3e21" >&2; echo "backgrounded · copy-9f3e21"
+      else
+        echo "note: woke session abc123 with its saved options (--model)." >&2; echo "backgrounded · abc123"
+      fi
+    SH
+
+    def listed_as(state) = listing({ "id" => "abc123", "sessionId" => "abc123-0000-full", "state" => state })
+
+    def stopped = File.exist?(File.join(scratch, "stopped")) ? File.read(File.join(scratch, "stopped")).split("\n") : []
+
+    def copy_says(text) = File.write(File.join(scratch, "copy"), text)
+
+    before do
+      install(RESUME_STAND_IN)
+      listed_as("stopped")
+    end
 
     it "resumes the session by its full id in the run's directory, with the answer after --", :aggregate_failures do
       result = resume(answer: { value: "--keep-going" })
@@ -124,9 +160,83 @@ RSpec.describe Hecks::Adapters::ClaudeAgents do
       expect(result.dig(:resumed_at, :value)).to match(/\A\d{4}-\d{2}-\d{2}T/)
     end
 
-    it "resumes the session with the run's agent" do
+    it "keeps the run's own session id when the session woke in place" do
+      expect(resume(answer: { value: "go on" })).to include(session: { value: "abc123" })
+    end
+
+    it "names no agent, even for a run that has one, so the session keeps its saved options" do
       resume(answer: { value: "go on" }, agent: { value: "orchestrator" })
-      expect(asked).to eq(["--agent", "orchestrator", "--bg", "--resume", "abc123-0000-full", "--", "go on"])
+      expect(asked).to eq(["--bg", "--resume", "abc123-0000-full", "--", "go on"])
+    end
+
+    it "stops a session that is still running before it resumes it", :aggregate_failures do
+      listed_as("blocked")
+      resume(answer: { value: "go on" })
+
+      expect(stopped).to eq(["abc123"])
+      expect(asked).to include("--resume")
+    end
+
+    it "does not stop a session that is already stopped" do
+      resume(answer: { value: "go on" })
+      expect(stopped).to be_empty
+    end
+
+    # Sets `CLAUDE*` variables for the block and puts the environment back.
+    def with_claude_env(**vars)
+      saved = ENV.to_h
+      ENV.keys.grep(/\ACLAUDE/).each { |name| ENV.delete(name) }
+      vars.each { |name, value| ENV[name.to_s] = value }
+      yield
+    ensure
+      ENV.replace(saved)
+    end
+
+    it "runs the resume without the calling session's CLAUDE* variables, keeping its config" do
+      with_claude_env(CLAUDE_CODE_AGENT: "planner", CLAUDE_EFFORT: "high", CLAUDE_CONFIG_DIR: "/kept") do
+        resume(answer: { value: "go on" })
+      end
+
+      expect(File.read(File.join(scratch, "claude_env"))).to eq("CLAUDE_CONFIG_DIR=/kept\n")
+    end
+
+    it "follows the copy when the CLI started one, and surfaces its note from stderr", :aggregate_failures do
+      copy_says("yes")
+
+      expect(resume(answer: { value: "go on" })).to include(session: { value: "copy-9f3e21" },
+                                                            note:    { value: a_string_including("started a copy") })
+    end
+
+    it "waits until the stopped session reads stopped before it resumes, so no copy is started", :aggregate_failures do
+      listed_as("blocked")
+      result = resume(answer: { value: "go on" })
+
+      expect(result).to include(session: { value: "abc123" })
+      expect(File.read(File.join(scratch, "polls")).to_i).to be >= 3
+    end
+
+    # A process standing for the session's, listed with its pid; the stand-in kills it 0.8s after
+    # `stop`, long after the listing reads stopped, and starts a copy for a resume while it lives.
+    def session_process
+      pid = Process.spawn("sleep", "30")
+      Process.detach(pid)
+      File.write(File.join(scratch, "pid"), pid.to_s)
+      listing({ "id" => "abc123", "sessionId" => "abc123-0000-full", "state" => "blocked", "pid" => pid })
+      pid
+    end
+
+    it "waits for the session's process to exit after the listing reads stopped", :aggregate_failures do
+      pid = session_process
+      result = resume(answer: { value: "go on" })
+
+      expect(result).to include(session: { value: "abc123" })
+      expect { Process.kill(0, pid) }.to raise_error(Errno::ESRCH)
+    end
+
+    it "follows the id the CLI backgrounded when it differs from the run's, whatever the note says" do
+      install(RESUME_STAND_IN.sub("echo \"backgrounded · abc123\"", "echo \"backgrounded · other-77aa\""))
+
+      expect(resume(answer: { value: "go on" })).to include(session: { value: "other-77aa" })
     end
 
     it "refuses a session that is not listed, and starts nothing" do
