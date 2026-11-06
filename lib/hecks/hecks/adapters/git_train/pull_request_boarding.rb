@@ -129,8 +129,10 @@ module Hecks
           ok ? output.to_s.strip : nil
         end
 
+        # GitHub deletes the branch once the PR merges (the repository's delete-on-merge setting);
+        # `gh` refuses `--delete-branch` while main has a merge queue.
         def enable_auto_merge(branch)
-          ok, output = @runner.call(["gh", "pr", "merge", branch, "--auto", "--squash", "--delete-branch"], chdir: @checkout)
+          ok, output = @runner.call(["gh", "pr", "merge", branch, "--auto", "--squash"], chdir: @checkout)
           raise ConsoleCapture::Failure, "could not set #{branch} to auto-merge: #{output.to_s.strip}" unless ok
         end
 
