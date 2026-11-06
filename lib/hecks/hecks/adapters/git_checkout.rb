@@ -2,6 +2,7 @@
 
 require_relative "git_worktrees"
 require_relative "git_strays"
+require_relative "git_recovery"
 
 module Hecks
   module Adapters
@@ -79,6 +80,27 @@ module Hecks
           range = plain(held[:range])
           read("log", "--format=%h %s", *(range ? [checked_range(range)] : ["-n", RECENT.to_s]))
         end
+      end
+
+      # The stash entries of a checkout: each one's ref, time, the branch it records and its
+      # message.
+      #
+      # @param held [Hash] `checkout`
+      # @return [Hash{Symbol => String}] `text:` one tab-separated line per entry, or `no stashes`
+      # @raise [Runtime::NotFound] when the checkout is not a repository
+      def stashes(**held)
+        answering(held) { GitRecovery.new(@git, @checkout).stashes }
+      end
+
+      # The commits no ref reaches, as `git fsck --unreachable --no-reflogs` reports them: each
+      # one's short sha, author date and subject. Nothing is pruned or repaired.
+      #
+      # @param held [Hash] `checkout`
+      # @return [Hash{Symbol => String}] `text:` one tab-separated line per commit, or
+      #   `no dangling commits`
+      # @raise [Runtime::NotFound] when the checkout is not a repository
+      def dangling_commits(**held)
+        answering(held) { GitRecovery.new(@git, @checkout).dangling_commits }
       end
 
       private
