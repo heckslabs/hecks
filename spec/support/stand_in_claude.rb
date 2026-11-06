@@ -13,7 +13,7 @@ STAND_IN_CLAUDE = <<~SH
   if [ "$1" = "agents" ]; then cat "$here/sessions.json"; exit 0; fi
   if [ "$1" = "rm" ]; then shift; echo "$*" >> "$here/rm.log"; exit 0; fi
   if [ "$1" = "--agent" ] && [ "$2" = "hecks-probe-not-an-agent" ]; then
-    printf 'Available agents: architect, coder, orchestrator, planner, release_manager, reviewer\\n'; exit 0
+    printf 'Available agents: architect, coder, orchestrator, planner, pruner, release_manager, reviewer\\n'; exit 0
   fi
   printf 'backgrounded · stand-in-session\\n'
 SH
