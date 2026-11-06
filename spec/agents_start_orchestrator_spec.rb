@@ -2,8 +2,9 @@ require "spec_helper"
 require_relative "support/stand_in_claude"
 
 # A conflicting Work item asks the orchestrator for advice, and that event starts its session
-# through AgentRun. A stand-in `claude` starts the session, so no real one runs: the spec shows the advice
-# request becomes a run keyed by the routing request, and a check with no conflict starts nothing.
+# through AgentRun. A stand-in `claude` starts the session, so no real one runs: the spec shows
+# the advice request becomes a run keyed by the routing request, and a check with no conflict
+# starts nothing.
 RSpec.describe "an advice request starting the orchestrator's session" do
   include_context "with a stand-in claude"
 
