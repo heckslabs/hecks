@@ -426,8 +426,11 @@ Hecks.bluebook "Hecks" do
 
     # A session can die within seconds of its start (an agent that fails to load). Its job is read
     # once the port has let it settle, so a dead session is recorded failed, never left started.
+    # A root: a start sits five reactions deep already, and reading the new session begins its own
+    # chain, so recording a session that is working, or that died at once, is not refused at the cap.
     policy "ReadTheNewSession" do
       on      "AgentRun.AgentRunStarted"
+      root
       ask     :await_job, with: { run: :run }
     end
 
