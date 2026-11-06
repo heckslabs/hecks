@@ -2772,7 +2772,7 @@ All targets.
 
 #### Eligible for
 
-Waiting bluebooks whose recorded capabilities include one mode — e.g. mode=postgres_era for the persistence-parity axis. The ledger's own answer to which bluebooks a mode can reach; inference at sweep time is still what decides.
+Waiting bluebooks whose recorded capabilities include one mode — e.g. mode=postgres_revision for the persistence-parity axis. The ledger's own answer to which bluebooks a mode can reach; inference at sweep time is still what decides.
 
 Targets whose capabilities includes the mode you give and that are waiting, sorted by swept in, lowest first.
 
