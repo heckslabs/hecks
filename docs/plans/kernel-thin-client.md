@@ -13,7 +13,7 @@ What follows says what was **read** and what is **inferred**; an inference is ma
 |---|---|---|
 | Protocol server | `rust/src/kernel/serve.rs` (300 lines) | `hello` (version, features `sessions` `callbacks`, `needs`/`query_needs`/`defaults` tables), `open`/`close` sessions, one callback kind: `ask: "fact"` |
 | Ruby client | `lib/hecks/rust_build/kernel_client.rb` (108 lines) | spawns `binary --serve`, `dispatch(verb, args, session:)`, answers callbacks from one block. Only caller: `spec/rust_build_kernel_client_spec.rb` (`:io`) and the bench |
-| Kernel loads a domain | `rust/src/kernel/cli.rs` | **Not by IR yet.** The binary is built per domain (`cargo build --features pizzas`); `generated::active` still routes dispatch. Only `present` takes an `"ir"` key (`ir_presenter.rs`) |
+| Kernel loads a domain | `rust/src/kernel/cli.rs` | **Not by IR yet.** The binary is built per domain (`cargo build --features pizzas`); `generated::active` still routes dispatch. Only `present` (`ir_presenter.rs`) and the named-query steps (`ir_queries.rs`: `QUERIES`, `ENTITY_QUERIES`, `check_query_args`) take an `"ir"` key |
 | Kernel store | `rust/src/kernel/repository.rs` | in-memory only (`InMemoryRepository`); `seed`, `snapshot`, `restore` exist per session |
 | Tables the host builds | `lib/hecks/rust_build/kernel_input.rb` | `defaults`, `needs`, `query_needs`, read from the domain's generated IR |
 | Bench | `lib/hecks/bench` (`FuzzRun.bench!`) | targets `ruby:memory` and `rust`, workloads pizzas and banking; baseline in ADR 0188 |

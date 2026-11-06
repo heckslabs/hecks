@@ -4,6 +4,7 @@ pub mod cli;
 pub mod collecting;
 pub mod dispatch;
 pub mod ir_presenter;
+pub mod ir_queries;
 pub mod json;
 pub mod named_query;
 pub mod needs;

@@ -491,7 +491,7 @@ fn matches_snake_alias(declared_verb: &str, asked: &str) -> bool {
 /// adjacent-character pairs. The kernel stays self-contained on purpose: it is compiled into every
 /// domain's wasm module from a workspace that holds only this crate, so it cannot include a file
 /// from `rust/codegen` the way the host, parser and build crates share `hecks_naming.rs`.
-fn to_snake(name: &str) -> String {
+pub(crate) fn to_snake(name: &str) -> String {
     let chars: Vec<char> = name.chars().collect();
     let mut out = String::with_capacity(name.len() + 4);
 
