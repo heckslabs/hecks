@@ -185,7 +185,8 @@ function layout() {
   order.forEach((d, i) => {
     const size = nodes.filter((n) => n.domain === d).length, joined = (links.get([d, hub].sort().join("|")) || 0) / most;
     // A domain joined to the middle by more lines sits a little closer to it.
-    const reach = (hubRadius + 300 + size * 4) * (1 - 0.2 * joined), angle = i / order.length * 6.283 - 1.571;
+    // The middle domain's blocks spread past its context ring, so the ring stands well clear of it.
+    const reach = (hubRadius * 1.7 + 380 + size * 4) * (1 - 0.1 * joined), angle = i / order.length * 6.283 - 1.571;
     placeContexts(d, { x: Math.cos(angle) * reach * 1.25, y: Math.sin(angle) * reach });
   });
   nodes.forEach((n, i) => { const c = centre.get(keyOf(n)) || { x: 0, y: 0 }; n.x = c.x + Math.cos(i * 2.4) * 30; n.y = c.y + Math.sin(i * 2.4) * 30; n.vx = 0; n.vy = 0; });
@@ -199,8 +200,11 @@ function tick(heat) {
   }
   for (const e of edges) {
     const a = byId.get(e.from), b = byId.get(e.to); if (!a || !b) continue;
-    const rest = e.kind === "adapter" ? 30 : 60, dx = b.x - a.x, dy = b.y - a.y, d = Math.max(Math.hypot(dx, dy), 1);
-    const f = (d - rest) * (a.domain === b.domain && keyOf(a) !== keyOf(b) ? 0.004 : 0.01);
+    // A line between domains pulls gently and from far off, so a domain keeps its place on the ring
+    // instead of being drawn into the boundary of the domain it talks to.
+    const across = a.domain !== b.domain, rest = e.kind === "adapter" ? 30 : across ? 260 : 60;
+    const dx = b.x - a.x, dy = b.y - a.y, d = Math.max(Math.hypot(dx, dy), 1);
+    const f = (d - rest) * (across ? 0.0008 : keyOf(a) !== keyOf(b) ? 0.004 : 0.01);
     a.vx += dx / d * f; a.vy += dy / d * f; b.vx -= dx / d * f; b.vy -= dy / d * f;
   }
   for (const n of nodes) {
