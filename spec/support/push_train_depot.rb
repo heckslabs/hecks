@@ -39,7 +39,7 @@ module PushTrainDepot
     %(Hecks.bluebook "Depot" do\n  domain_module "Deliver" do\n#{aggregate}\n#{policies.join("\n")}  end\nend\n)
   end
 
-  # @return [String] the hecksagon: persisted by PostgresRevisions, governed (its commands declare roles),
+  # @return [String] the hecksagon: persisted by PostgresRevision, governed (its commands declare roles),
   #   with the push train's ports
   def self.hecksagon_source
     ports = PORTS.map { |name| block(hecksagon_lines, %(  Hecks::SendTrain.port "#{name}" do)) }
@@ -75,8 +75,8 @@ module PushTrainDepot
   # Holds era 1 from the depot as it stands in `dir`: its whole source and its storage shape.
   def self.hold!(dir, url)
     bluebook = Hecks.describe(dir).registry.bluebooks["Depot"]
-    db = Hecks::Adapters::PostgresRevisions.connect_for("Depot", { database: url })
-    lineage = Hecks::Adapters::PostgresRevisions::Lineage.new(db, "Depot")
+    db = Hecks::Adapters::PostgresRevision.connect_for("Depot", { database: url })
+    lineage = Hecks::Adapters::PostgresRevision::Lineage.new(db, "Depot")
     lineage.ensure_base!
     lineage.hold_first!(Hecks::Runtime::RevisionCheck.source_text_for(bluebook, dir),
                         projection: Hecks::Runtime::StorageShape.project(bluebook))

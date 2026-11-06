@@ -62,8 +62,8 @@ module Hecks
           domain = HeldDomain.open(plain(held[:domain]))
           named = winners(held)
           diverged = domain.writing { |lineage| diverged_writes(domain, lineage) }
-          PostgresRevisions::LineageManager.merge!(registry: domain.registry, bluebook: domain.bluebook,
-                                                   settings: domain.settings, winners: named)
+          PostgresRevision::LineageManager.merge!(registry: domain.registry, bluebook: domain.bluebook,
+                                                  settings: domain.settings, winners: named)
           ["#{domain.domain_name}: #{diverged} post-cut write#{"s" unless diverged == 1} in ancestor " \
            "eras before the merge",
            "merged — the head now interleaves both worlds by their recorded ordinals",

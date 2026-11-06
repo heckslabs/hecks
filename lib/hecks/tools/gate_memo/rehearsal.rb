@@ -12,7 +12,7 @@ module Hecks
       # ones
       # it read. Reuse never skips the mint's own check: `moved?` compares the live watermark, and
       # the
-      # PostgresRevisions lineage manager refuses a mint whose watermark moved.
+      # PostgresRevision lineage manager refuses a mint whose watermark moved.
       module Rehearsal
         # The one verdict a mint may follow.
         VERDICT = "would_mint"

@@ -4,7 +4,7 @@ require_relative "../../../../runtime/registry"
 
 module Hecks
   module Adapters
-    class PostgresRevisions
+    class PostgresRevision
       class Lineage
         # Era text integrity: each held text is verified against its stored digest before use,
         # and a drifted digest is resolved only by an append-only attestation.

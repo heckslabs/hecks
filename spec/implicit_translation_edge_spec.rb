@@ -51,7 +51,7 @@ module ImplicitEdgeSupport
     RUBY
   end
 
-  def declared(text) = Hecks::Adapters::PostgresRevisions::LineageManager.shadow(text)
+  def declared(text) = Hecks::Adapters::PostgresRevision::LineageManager.shadow(text)
 
   def diff_for(held_text, current_text)
     Hecks::Translation::Scaffold.diff(declared(held_text), declared(current_text))
@@ -59,7 +59,7 @@ module ImplicitEdgeSupport
 
   # The implicit edge the shared decision takes, with the move the shape ledger records.
   def implicit_for(held_text, current_text)
-    decision = Hecks::Adapters::PostgresRevisions::LineageManager::MintDecision
+    decision = Hecks::Adapters::PostgresRevision::LineageManager::MintDecision
     bluebook = declared(current_text)
     recorded = [["aaaaaa", decision.label_of(bluebook)]]
     held = stored_era(held_text).merge(declaration: declared(held_text))
@@ -92,7 +92,7 @@ module ImplicitEdgeSupport
 
   # An object carrying every part of the lineage manager a minter path calls.
   def host
-    manager = Hecks::Adapters::PostgresRevisions::LineageManager
+    manager = Hecks::Adapters::PostgresRevision::LineageManager
     Object.new.extend(manager, manager::Minter, manager::CoverageCheck)
   end
 
@@ -104,8 +104,8 @@ module ImplicitEdgeSupport
 
   # The chain from the held era to the era a step reaches, which the journal names by `target`.
   def chain_over(target)
-    Hecks::Adapters::PostgresRevisions::LineageManager.edge_chain(registry, declared(ledger_text), [held_era], "bbbbbb",
-                                                                  target: target)
+    Hecks::Adapters::PostgresRevision::LineageManager.edge_chain(registry, declared(ledger_text), [held_era], "bbbbbb",
+                                                                 target: target)
   end
 
   def held_era = { ordinal: 1, label: "aaaaaa" }
@@ -118,7 +118,7 @@ RSpec.describe "an implicit translation edge" do
 
   # The label of the bluebook that adds the optional memo, which the implicit edge reaches.
   def optional_label
-    Hecks::Adapters::PostgresRevisions::LineageManager::MintDecision.label_of(
+    Hecks::Adapters::PostgresRevision::LineageManager::MintDecision.label_of(
       declared(ledger_text(extra: ImplicitEdgeSupport::OPTIONAL_MEMO))
     )
   end

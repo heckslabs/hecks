@@ -1,6 +1,6 @@
 require "pg"
 
-# A deployment's app role for the PostgresRevisions specs: a non-owner `LOGIN` role, the only kind of
+# A deployment's app role for the PostgresRevision specs: a non-owner `LOGIN` role, the only kind of
 # connection the era write fence acts on, and a way to run one statement as it.
 #
 # The spec that includes this names the database and the role:

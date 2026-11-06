@@ -63,16 +63,16 @@ module Hecks
         def reading(subject)
           subject.held.read_from(url)
           db = connect(subject)
-          yield PostgresRevisions::Lineage.new(db, subject.bluebook_name, reading: reads_only?)
+          yield PostgresRevision::Lineage.new(db, subject.bluebook_name, reading: reads_only?)
         ensure
           db&.close
         end
 
         # A copy somebody else made is opened read-only before any statement runs: the schema is
         # selected, never created, and a digest the copy lacks is left unwritten. A database the run
-        # made is its own to touch, so it is opened as a PostgresRevisions boot opens it.
+        # made is its own to touch, so it is opened as a PostgresRevision boot opens it.
         def connect(subject)
-          return PostgresRevisions.connect_for(subject.bluebook_name, subject.settings) unless reads_only?
+          return PostgresRevision.connect_for(subject.bluebook_name, subject.settings) unless reads_only?
 
           require "pg"
           PG.connect(url).tap do |db|

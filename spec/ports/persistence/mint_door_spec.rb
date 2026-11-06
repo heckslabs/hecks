@@ -124,23 +124,23 @@ RSpec.describe "the mints_era binding" do
 
   # The boot gate runs the check before it reads or writes any database, so a disagreement
   # refuses the boot by name, not at the first write.
-  describe "PostgresRevisions's boot gate" do
+  describe "PostgresRevision's boot gate" do
     before do
       require "hecks/adapters/driven/postgres_era"
     rescue LoadError
-      skip "PostgresRevisions is not loadable here"
+      skip "PostgresRevision is not loadable here"
     end
 
     it "refuses a binding that leaves a flagged command out, before reaching the database" do
-      allow(Hecks::Adapters::PostgresRevisions::LineageManager).to receive(:check!)
+      allow(Hecks::Adapters::PostgresRevision::LineageManager).to receive(:check!)
       expect do
-        Hecks::Adapters::PostgresRevisions.era_check!(registry: nil, bluebook: ledger, current_text: "",
-                                                      settings: { mints_era: "Maintenance.Other" })
+        Hecks::Adapters::PostgresRevision.era_check!(registry: nil, bluebook: ledger, current_text: "",
+                                                     settings: { mints_era: "Maintenance.Other" })
       end.to raise_error(Hecks::Runtime::WiringError, /Maintenance\.Other/)
     end
 
     it "reads the names off its own settings" do
-      adapter = Hecks::Adapters::PostgresRevisions.allocate
+      adapter = Hecks::Adapters::PostgresRevision.allocate
       adapter.instance_variable_set(:@settings, { mints_era: "Maintenance.MintEra" })
       expect(adapter.mints_era_declared?("Maintenance", "MintEra")).to be(true)
     end

@@ -70,7 +70,7 @@ module Hecks
           composed_plan(domain, latest)
         end
 
-        def held_shape(era) = PostgresRevisions::LineageManager.held_shape(era)
+        def held_shape(era) = PostgresRevision::LineageManager.held_shape(era)
 
         def composed_plan(domain, latest)
           current = Runtime::StorageShape.mint_hash(domain.bluebook)[0, Runtime::StorageShape::LABEL_LENGTH]

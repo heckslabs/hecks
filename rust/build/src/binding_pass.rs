@@ -161,10 +161,10 @@ mod tests {
 
     #[test]
     fn a_bare_bind_names_the_domain_default() {
-        let text = "Hecks.hecksagon \"Miette\" do\n  persisted_by \"PostgresRevisions\"\nend\n";
+        let text = "Hecks.hecksagon \"Miette\" do\n  persisted_by \"PostgresRevision\"\nend\n";
         assert_eq!(
             domain_default(text, "Miette"),
-            Ok(Some("PostgresRevisions".to_string()))
+            Ok(Some("PostgresRevision".to_string()))
         );
     }
 
@@ -179,7 +179,7 @@ mod tests {
 
     #[test]
     fn a_guarded_bind_is_refused_not_read_as_unconditional() {
-        let text = "Hecks.hecksagon \"Miette\" do\n  persisted_by \"PostgresRevisions\" if ENV[\"MIETTE_LOCAL\"]\nend\n";
+        let text = "Hecks.hecksagon \"Miette\" do\n  persisted_by \"PostgresRevision\" if ENV[\"MIETTE_LOCAL\"]\nend\n";
         let err = domain_default(text, "Miette").unwrap_err();
         assert!(err.contains("`if ENV[\"MIETTE_LOCAL\"]`"), "{err}");
     }
@@ -187,7 +187,7 @@ mod tests {
     #[test]
     fn a_bind_in_another_bluebook_is_ignored() {
         let text =
-            "Hecks.hecksagon \"Other\" do\n  persisted_by \"PostgresRevisions\" if ENV[\"X\"]\nend\n";
+            "Hecks.hecksagon \"Other\" do\n  persisted_by \"PostgresRevision\" if ENV[\"X\"]\nend\n";
         assert_eq!(domain_default(text, "Miette"), Ok(None));
     }
 }

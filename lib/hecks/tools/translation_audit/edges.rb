@@ -28,7 +28,7 @@ module Hecks
         private
 
         def lineage_manager
-          Hecks::Adapters::PostgresRevisions::LineageManager
+          Hecks::Adapters::PostgresRevision::LineageManager
         end
 
         # The chain when the held journal already matches the bluebook.

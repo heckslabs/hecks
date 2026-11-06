@@ -3,7 +3,7 @@ require "hecks/ports/persistence/plugins/era"
 require_relative "../../../support/postgres_probe"
 require_relative "../../../support/scratch_postgres"
 
-RSpec.describe "PostgresRevisions chain SQL over a long edge chain", :io do
+RSpec.describe "PostgresRevision chain SQL over a long edge chain", :io do
   # Not SPEC_DB: a describe-block constant lands at top level, and other specs claim that name.
   CHAIN_LIMIT_DB = "hecks_postgres_era_chain_limit_spec".freeze
 
@@ -15,7 +15,7 @@ RSpec.describe "PostgresRevisions chain SQL over a long edge chain", :io do
 
   let(:host) do
     Class.new do
-      include Hecks::Adapters::PostgresRevisions::Lineage::ChainSql
+      include Hecks::Adapters::PostgresRevision::Lineage::ChainSql
 
       def eras = []
       def quoted_journal = "chain_journal"

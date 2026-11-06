@@ -3,7 +3,7 @@ require_relative "sql_templates"
 
 module Hecks
   module Adapters
-    class PostgresRevisions
+    class PostgresRevision
       class Lineage
         # The read side of lineage: builds and maintains the head-snapshot
         # table and the compiled view/matview a query actually reads.

@@ -3,7 +3,7 @@ require_relative "../../support/postgres_probe"
 require_relative "../../support/era_registry_loading"
 
 # The physical name of a stored aggregate and the former name of a domain are the world's to say,
-# not the bluebook's: `stored_as Revision: "commit"` and `formerly "Old"` in the PostgresRevisions block.
+# not the bluebook's: `stored_as Revision: "commit"` and `formerly "Old"` in the PostgresRevision block.
 # The bluebook's `formerly_known_as` still works as a fallback, warns once naming the replacement,
 # and must agree with the world when both are given.
 RSpec.describe "the world's names for what is stored" do
@@ -103,7 +103,7 @@ RSpec.describe "the world's names for what is stored" do
   describe "the domain's former name" do
     let(:era_block) { proc { persisted_by("Postgres") { formerly "Old" } } }
 
-    it "is adopted from the PostgresRevisions block" do
+    it "is adopted from the PostgresRevision block" do
       registry = registry_with(&era_block).apply_world_names!
       expect(registry.bluebook("Ledger").formerly_known_as).to eq("Old")
     end

@@ -2,7 +2,7 @@ require_relative "../../../runtime/errors"
 
 module Hecks
   module Adapters
-    class PostgresRevisions
+    class PostgresRevision
       # The class-level surface of the adapter: the boot gate's entry point, setting lookup,
       # and the connection the shared-connection pool opens on its behalf.
       module ClassMethods
@@ -76,7 +76,7 @@ module Hecks
 
         private
 
-        # Lazy so a domain that never wires PostgresRevisions does not need the pg gem.
+        # Lazy so a domain that never wires PostgresRevision does not need the pg gem.
         def require_pg!(name)
           require "pg"
         rescue LoadError
@@ -88,7 +88,7 @@ module Hecks
           return declared unless declared.to_s.empty?
 
           raise Runtime::WiringError,
-                "#{name} binds PostgresRevisions, which needs a database connection, " \
+                "#{name} binds PostgresRevision, which needs a database connection, " \
                 "but its world declares no \"database\"."
         end
 
@@ -115,7 +115,7 @@ module Hecks
 
         def bind_failure(name, declared, error)
           Runtime::WiringError.new(
-            "cannot bind PostgresRevisions at #{declared} for #{name}: #{error.message.strip} " \
+            "cannot bind PostgresRevision at #{declared} for #{name}: #{error.message.strip} " \
             "-- to run without a database, set HECKS_ENVIRONMENT=memory (a domain needs an environments/memory overlay)"
           )
         end

@@ -57,14 +57,14 @@ RSpec.describe "a disposable ledger's archive on scratch Postgres", :io do
 
   def boot!
     registry = load_registry(ARCHIVE_SOURCE)
-    Hecks::Adapters::PostgresRevisions::LineageManager.check!(
+    Hecks::Adapters::PostgresRevision::LineageManager.check!(
       registry: registry, bluebook: registry.bluebooks.values.first, current_text: ARCHIVE_SOURCE, settings: settings
     )
     registry
   end
 
   def adapter(registry)
-    Hecks::Adapters::PostgresRevisions.new(
+    Hecks::Adapters::PostgresRevision.new(
       aggregate: registry.bluebooks.values.first.aggregate("Acct"),
       settings:  { database: url, domain: "Ledger", era: registry.resolved_eras["Ledger"] }
     )
@@ -85,7 +85,7 @@ RSpec.describe "a disposable ledger's archive on scratch Postgres", :io do
   # A lineage on its own connection, with `between` hooked in before the delete.
   def lineage(between: nil)
     db = PG.connect(url)
-    found = Hecks::Adapters::PostgresRevisions::Lineage.new(db, "Ledger")
+    found = Hecks::Adapters::PostgresRevision::Lineage.new(db, "Ledger")
     found.singleton_class.prepend(BetweenCopyAndDelete)
     found.between = between
     found

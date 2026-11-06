@@ -8,7 +8,7 @@ require_relative "support/scratch_postgres"
 require_relative "support/fenced_owner"
 require_relative "support/first_era_hold"
 
-# The Fixer's attempts on a disposable PostgresRevisions database, booted from a fixture copy of the Fixer
+# The Fixer's attempts on a disposable PostgresRevision database, booted from a fixture copy of the Fixer
 # domain whose world names that database. Each boot runs in its own process, so an attempt written
 # by one process is read by a fresh one, which is what the QA event pump depends on. The real ledger
 # and its hecks_fixer database are never touched.
@@ -104,7 +104,7 @@ RSpec.describe "the Fixer's durable attempts", :io do
     expect(fixer_database_eras).to include(%w[Fixer 1])
   end
 
-  it "binds Attempt to PostgresRevisions in the QA hecksagon and names hecks_fixer in its world", :aggregate_failures do
+  it "binds Attempt to PostgresRevision in the QA hecksagon and names hecks_fixer in its world", :aggregate_failures do
     hecksagon = File.read(File.join(FIXER_QA_BLUEBOOK, "quality_control.hecksagon"))
     world = File.read(File.join(FIXER_QA_BLUEBOOK, "fixer.world"))
 

@@ -431,7 +431,7 @@ RSpec.describe Hecks::Ports::Persistence::StateCodec do
     end
 
     def postgres_era_head(model, snapshot)
-      fixture.codec(Hecks::Adapters::PostgresRevisions, model).send(:decode, snapshot)
+      fixture.codec(Hecks::Adapters::PostgresRevision, model).send(:decode, snapshot)
     end
 
     def postgres_era_record_sources(rows, model, canonical)
@@ -469,7 +469,7 @@ RSpec.describe Hecks::Ports::Persistence::StateCodec do
       expect_canonical(sources)
     end
 
-    it "PostgresRevisions: head_snapshot through today's codec and raw, and the journal raw and top-level-symbolized" do
+    it "PostgresRevision: head_snapshot through today's codec and raw, and the journal raw and top-level-symbolized" do
       sources = postgres_era_sources
       expect(sources.size).to eq(8)
       expect_canonical(sources)

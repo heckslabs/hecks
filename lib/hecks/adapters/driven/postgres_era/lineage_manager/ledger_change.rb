@@ -4,7 +4,7 @@ require_relative "../../../../ports/persistence/plugins/era/translation/additive
 
 module Hecks
   module Adapters
-    class PostgresRevisions
+    class PostgresRevision
       module LineageManager
         # The change between the storage shape a disposable ledger holds and the shape it boots
         # with, aggregate by aggregate. `added` names aggregates the held shape did not have,

@@ -20,7 +20,7 @@ RSpec.describe Hecks::Adapters::Codebase::Search do
     it "names each matching line by path and line number" do
       write("lib/a.rb", "one\nPostgresEra here\nthree\n")
 
-      expect(search("Era")).to eq("lib/a.rb:2: PostgresRevisions here")
+      expect(search("Era")).to eq("lib/a.rb:2: PostgresRevision here")
     end
 
     it "lists files in path order" do

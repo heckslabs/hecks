@@ -10,7 +10,7 @@ module Hecks
     # (pizzas on Memory by default) and drops into IRB with its Ruby adapter installed, for
     # dispatching a
     # real command by hand. No argument needs no database (ADR 0073); a domain directory boots as
-    # it is wired, which may bind PostgresRevisions (examples/directory does).
+    # it is wired, which may bind PostgresRevision (examples/directory does).
     module Console
       PIZZAS = File.expand_path("../../../examples/pizzas", __dir__)
 

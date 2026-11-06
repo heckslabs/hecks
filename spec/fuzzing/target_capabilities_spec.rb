@@ -49,7 +49,7 @@ RSpec.describe Hecks::Fuzzing::TargetCapabilities, :aggregate_failures do
       expect(infer(CAP_BANKING)).not_to include("postgres_era")
     end
 
-    it "reads directory's PostgresRevisions binding and translation edge, and its lack of a rust feature" do
+    it "reads directory's PostgresRevision binding and translation edge, and its lack of a rust feature" do
       expect(infer(CAP_DIRECTORY)).to include("postgres_era", "translations", "sqlite")
       expect(infer(CAP_DIRECTORY)).not_to include("rust", "role_gated", "sagas")
     end
@@ -89,7 +89,7 @@ RSpec.describe Hecks::Fuzzing::TargetCapabilities, :aggregate_failures do
     end
   end
 
-  describe ".infer, reading how a hecksagon names PostgresRevisions" do
+  describe ".infer, reading how a hecksagon names PostgresRevision" do
     def postgres_era_for(hecksagon_text)
       Dir.mktmpdir do |tmp|
         File.write(File.join(tmp, "sample.hecksagon"), hecksagon_text)
@@ -105,7 +105,7 @@ RSpec.describe Hecks::Fuzzing::TargetCapabilities, :aggregate_failures do
       expect(postgres_era_for(%(Hecks.hecksagon "A" do\n  revisions true\n  A::Thing.persisted_by("Memory")\nend\n))).to be(false)
     end
 
-    it "reads a variable assigned PostgresRevisions and passed to persisted_by" do
+    it "reads a variable assigned PostgresRevision and passed to persisted_by" do
       text = %(adapter = "Postgres"\nHecks.hecksagon "A" do\n  revisions true\n  A::Thing.persisted_by(adapter)\nend\n)
       expect(postgres_era_for(text)).to be(true)
       expect(postgres_era_for(text.sub("persisted_by(adapter)", "persisted_by adapter"))).to be(true)
@@ -141,7 +141,7 @@ RSpec.describe Hecks::Fuzzing::TargetCapabilities, :aggregate_failures do
       end
     end
 
-    it "rewrites a variable-named bind, so a Memory boot no longer inherits PostgresRevisions" do
+    it "rewrites a variable-named bind, so a Memory boot no longer inherits PostgresRevision" do
       text = %(adapter = "Postgres"\nHecks.hecksagon "A" do\n  revisions true\n  A::Thing.persisted_by(adapter)\nend\n)
       out = rewritten(text, "Memory")
 
@@ -170,7 +170,7 @@ RSpec.describe Hecks::Fuzzing::TargetCapabilities, :aggregate_failures do
       expect(described_class.resolve(%i[differential ruby_only], %w[sqlite])).to eq(%i[ruby_only])
     end
 
-    it "resolves persistence_parity, era_boundary and concurrency only off a PostgresRevisions binding" do
+    it "resolves persistence_parity, era_boundary and concurrency only off a PostgresRevision binding" do
       expect(described_class.resolve(all_enabled, %w[postgres_era sqlite translations]))
         .to include(:persistence_parity, :era_boundary, :concurrency, :adapter_parity_postgres)
       expect(described_class.resolve(all_enabled, %w[sqlite translations]))

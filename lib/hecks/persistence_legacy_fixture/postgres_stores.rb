@@ -3,7 +3,7 @@
 module Hecks
   module PersistenceLegacyFixture
     class Regenerate
-      # Writing the Postgres and PostgresRevisions fixtures through scratch databases, which are made
+      # Writing the Postgres and PostgresRevision fixtures through scratch databases, which are made
       # for the run and dropped after it. Included in `Regenerate`.
       module PostgresStores
         # The scratch database each Postgres-backed store is written to.
@@ -59,7 +59,7 @@ module Hecks
 
         def era_rows(instance)
           aggregate = instance.aggregate
-          adapter = Hecks::Adapters::PostgresRevisions.new(aggregate: aggregate, settings: { database: SCRATCH[:postgres_era] })
+          adapter = Hecks::Adapters::PostgresRevision.new(aggregate: aggregate, settings: { database: SCRATCH[:postgres_era] })
           adapter.save(instance)
           db = adapter.instance_variable_get(:@db)
           snapshot = adapter.send(:quoted_head_snapshot)

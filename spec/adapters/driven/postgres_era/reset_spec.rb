@@ -4,9 +4,9 @@ require_relative "../../../support/postgres_probe"
 require_relative "../../../support/era_registry_loading"
 require_relative "../../../support/first_era_hold"
 
-# `PostgresRevisions#reset!` raises rather than silently deleting nothing when the journal's
+# `PostgresRevision#reset!` raises rather than silently deleting nothing when the journal's
 # force-RLS policies admit no DELETE. Needs a non-superuser owner: superusers bypass RLS.
-RSpec.describe "PostgresRevisions#reset! against a lineage-provisioned journal", :io do
+RSpec.describe "PostgresRevision#reset! against a lineage-provisioned journal", :io do
   include EraRegistryLoading
   include FirstEraHold
 
@@ -68,7 +68,7 @@ RSpec.describe "PostgresRevisions#reset! against a lineage-provisioned journal",
     hold_first_era!(url: owner_url, domain: "Ledger", source: RESET_SPEC_SOURCE)
     registry = load_registry(RESET_SPEC_SOURCE)
     bluebook = registry.bluebooks.values.first
-    Hecks::Adapters::PostgresRevisions::LineageManager.check!(
+    Hecks::Adapters::PostgresRevision::LineageManager.check!(
       registry: registry, bluebook: bluebook, current_text: RESET_SPEC_SOURCE, settings: { database: owner_url }
     )
     registry
@@ -76,7 +76,7 @@ RSpec.describe "PostgresRevisions#reset! against a lineage-provisioned journal",
 
   def adapter_for(registry)
     aggregate = registry.bluebooks.values.first.aggregate("Acct")
-    Hecks::Adapters::PostgresRevisions.new(aggregate: aggregate, settings: { database: owner_url, domain: "Ledger" })
+    Hecks::Adapters::PostgresRevision.new(aggregate: aggregate, settings: { database: owner_url, domain: "Ledger" })
   end
 
   def write_a_record(adapter, registry, id: "a1")
@@ -109,7 +109,7 @@ RSpec.describe "PostgresRevisions#reset! against a lineage-provisioned journal",
     # The ambient connection is the local default user, commonly a superuser, which bypasses RLS.
     let(:ambient_adapter) do
       aggregate = registry.bluebooks.values.first.aggregate("Acct")
-      Hecks::Adapters::PostgresRevisions.new(aggregate: aggregate, settings: { database: RESET_DB, domain: "Ledger" })
+      Hecks::Adapters::PostgresRevision.new(aggregate: aggregate, settings: { database: RESET_DB, domain: "Ledger" })
     end
 
     before { write_a_record(ambient_adapter, registry, id: "a2") }

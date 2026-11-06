@@ -19,7 +19,7 @@ module AutoMintSupport
 
   # The shared decision's verdict for the held era, as the auto-mint rule reads it.
   def verdict(kind = "would_mint", reason: nil, source: "file")
-    Hecks::Adapters::PostgresRevisions::LineageManager::MintDecision::Verdict.new(
+    Hecks::Adapters::PostgresRevision::LineageManager::MintDecision::Verdict.new(
       verdict: kind, reason: reason, edge: nil, edges: [], source: source, diff: NO_DIFF, watermark: 19
     )
   end

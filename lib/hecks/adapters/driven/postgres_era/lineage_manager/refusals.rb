@@ -1,6 +1,6 @@
 module Hecks
   module Adapters
-    class PostgresRevisions
+    class PostgresRevision
       module LineageManager
         # The refusals a mint raises: toward the scaffold when no edge exists, and for a forked or
         # stale edge. Each is built from the era check's `Context`.

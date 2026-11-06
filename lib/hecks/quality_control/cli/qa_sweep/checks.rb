@@ -25,14 +25,14 @@ module Hecks
           self_consistency:           "each engine agrees with itself on rehydration/idempotency/value-object round trip",
           ruby_only:                  "no declared property is violated and the interpreter does not crash across every " \
                                       "generated step",
-          persistence_parity:         "Memory and a real, disposable PostgresRevisions-backed boot agree on instances, " \
+          persistence_parity:         "Memory and a real, disposable PostgresRevision-backed boot agree on instances, " \
                                       "events, refusals, reactions, sagas and queries across every generated step",
           adapter_parity_sqlite:      "Memory and a real, on-disk SQLite-backed boot agree on instances, events, " \
                                       "refusals, reactions, sagas and queries across every generated step",
           concurrency:                "two real, forked, cross-process dispatches of the same generated command against " \
-                                      "the same PostgresRevisions-backed schema settle on the same outcomes the identical " \
+                                      "the same PostgresRevision-backed schema settle on the same outcomes the identical " \
                                       "pair settles on when dispatched sequentially with no contention",
-          era_boundary:               "no ancestor PostgresRevisions era this target's own real lineage holds still carries " \
+          era_boundary:               "no ancestor PostgresRevision era this target's own real lineage holds still carries " \
                                       "post-cut writes nobody has merged forward (Lineage#diverged_count, every ancestor, " \
                                       "is zero)"
         }.freeze

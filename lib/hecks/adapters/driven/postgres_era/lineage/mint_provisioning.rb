@@ -2,7 +2,7 @@ require_relative "../field_cache_provisioner"
 
 module Hecks
   module Adapters
-    class PostgresRevisions
+    class PostgresRevision
       class Lineage
         # The read side of an era that the mint path provisions: each aggregate's head view and the
         # field caches its queries narrow by. The mint that compiles an era and the first-era hold

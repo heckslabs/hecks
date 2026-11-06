@@ -24,7 +24,7 @@ module Hecks
       # @return [Boolean]
       def disposable?(ledger)
         held = ledger.is_a?(String) ? JournalStore::HeldDomain.open(ledger, mode: :translated) : ledger
-        PostgresRevisions::LineageManager::DisposableLedger.declared?(held.settings)
+        PostgresRevision::LineageManager::DisposableLedger.declared?(held.settings)
       end
 
       # Mints the next era of the ledger, or refuses by name.
@@ -67,8 +67,8 @@ module Hecks
 
       # @return [Integer] the ordinal the ledger would mint next: one past its latest held era
       def next_era_of(settings, name)
-        db = PostgresRevisions.connect_for(name, settings)
-        latest = PostgresRevisions::Lineage.new(db, name).eras.last
+        db = PostgresRevision.connect_for(name, settings)
+        latest = PostgresRevision::Lineage.new(db, name).eras.last
         latest ? latest[:ordinal] + 1 : 1
       ensure
         db&.close

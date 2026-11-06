@@ -43,7 +43,7 @@ module Hecks
           def validate_parity_and_release
             if @persistence_parity_mode && !@target_ref
               abort "#{USAGE}\n--persistence-parity needs an explicit target-reference — it never auto-picks " \
-                    "from the rotation, since only a PostgresRevisions-bound domain gains anything from this " \
+                    "from the rotation, since only a PostgresRevision-bound domain gains anything from this " \
                     "comparison at all (`resolved modes:` on any single-target run says whether a target qualifies)"
             end
             validate_release if @release_mode

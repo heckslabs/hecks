@@ -26,7 +26,7 @@ module Hecks
   module Adapters
     # Postgres adapter that journals each write per domain and derives every head by era; the
     # only one that can translate, fork or merge on shape drift. Compare jsonb state canonicalized.
-    class PostgresRevisions
+    class PostgresRevision
       include SqlQueryBuilder
       include Adapters::PostgresOutbox
       include Adapters::PostgresReconnect

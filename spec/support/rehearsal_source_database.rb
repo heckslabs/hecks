@@ -50,15 +50,15 @@ module RehearsalSourceDatabase
     settings = { database: FencedOwner.url(source), domain: "Shop" }
     settings[:schema] = schema if schema
     hold_first_era!(url: settings[:database], domain: "Shop", source: text, schema: schema)
-    Hecks::Adapters::PostgresRevisions::LineageManager.check!(registry: registry, bluebook: bluebook,
-                                                              current_text: text, settings: settings)
+    Hecks::Adapters::PostgresRevision::LineageManager.check!(registry: registry, bluebook: bluebook,
+                                                             current_text: text, settings: settings)
     store(bluebook, settings) if widgets
   end
 
   # @api private
   def store(bluebook, settings)
     aggregate = bluebook.aggregate("Widget")
-    adapter = Hecks::Adapters::PostgresRevisions.new(aggregate: aggregate, settings: settings)
+    adapter = Hecks::Adapters::PostgresRevision.new(aggregate: aggregate, settings: settings)
     adapter.save(Hecks::Runtime::Instance.new(aggregate: aggregate, id: "w1",
                                               state: { sku: { "value" => "w1" }, size: { "value" => "small" } }))
   end

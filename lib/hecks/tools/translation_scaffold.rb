@@ -41,7 +41,7 @@ module Hecks
         unless lineage_capable?(registry, Runtime::RevisionCheck.layout_class(registry, bluebook.name, adapter_name))
           abort "#{bluebook.name} is bound to #{adapter_name}, which holds no eras — " \
                 "a translation edge is only applied by a lineage-capable adapter. " \
-                "Bind PostgresRevisions, or change the shape and its stored data by hand."
+                "Bind PostgresRevision, or change the shape and its stored data by hand."
         end
         adapter_name
       end
@@ -94,20 +94,20 @@ module Hecks
       end
 
       def lineage_manager
-        Hecks::Adapters::PostgresRevisions::LineageManager
+        Hecks::Adapters::PostgresRevision::LineageManager
       end
 
       # @return [Array] the open connection and its ensured lineage
       def open_lineage(registry, bluebook, adapter_name)
         # `World#for_binding` keys settings by the world-declared adapter name (e.g.
-        # "PostgresRevisions"); a bypassed name like "Postgres" finds nothing.
+        # "PostgresRevision"); a bypassed name like "Postgres" finds nothing.
         settings = registry.world(bluebook.name)&.for_binding(Hecks::Ports::Persistence::VERB, adapter_name) || {}
         # A Shared-mode domain's `.world` file declares no schema of its own — production is scoped
         # by the Lambda's own HECKS_SCHEMA. Run by hand outside Lambda, this tool needs that same
         # schema supplied the same way.
         settings = settings.merge(schema: ENV["HECKS_SCHEMA"]) if ENV["HECKS_SCHEMA"]
-        db = Hecks::Adapters::PostgresRevisions.connect_for(bluebook.name, settings)
-        lineage = Hecks::Adapters::PostgresRevisions::Lineage.new(db, bluebook.name)
+        db = Hecks::Adapters::PostgresRevision.connect_for(bluebook.name, settings)
+        lineage = Hecks::Adapters::PostgresRevision::Lineage.new(db, bluebook.name)
         lineage.ensure_base!
         [db, lineage]
       end

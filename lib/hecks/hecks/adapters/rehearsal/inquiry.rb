@@ -66,8 +66,8 @@ module Hecks
         def coverage_refusals(edge)
           return [] unless edge
 
-          held = PostgresRevisions::LineageManager.held_bluebook(latest)
-          PostgresRevisions::LineageManager.check_coverage!(@subject.registry, @subject.bluebook, held, edge)
+          held = PostgresRevision::LineageManager.held_bluebook(latest)
+          PostgresRevision::LineageManager.check_coverage!(@subject.registry, @subject.bluebook, held, edge)
           []
         rescue Runtime::WiringError => e
           [e.message]

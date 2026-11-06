@@ -5,8 +5,8 @@ require_relative "../../../support/direct_chains"
 # The head reads directly only on a chain the direct translation spec proved, keyed by the exact
 # edges and the bluebook name. Needs no database. Regenerate the committed file with
 # `HECKS_WRITE_DIRECT_VERIFIED=1` (see `Lineage::DirectVerified`).
-RSpec.describe Hecks::Adapters::PostgresRevisions::Lineage::DirectVerified do
-  DIRECT_HOST = Class.new { include Hecks::Adapters::PostgresRevisions::Lineage::DirectSql }
+RSpec.describe Hecks::Adapters::PostgresRevision::Lineage::DirectVerified do
+  DIRECT_HOST = Class.new { include Hecks::Adapters::PostgresRevision::Lineage::DirectSql }
   PROVEN_CHAINS = DirectChains.chains
 
   File.write(described_class::PATH, described_class.render(PROVEN_CHAINS)) if ENV["HECKS_WRITE_DIRECT_VERIFIED"]

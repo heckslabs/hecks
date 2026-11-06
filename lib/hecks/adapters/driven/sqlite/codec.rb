@@ -70,7 +70,7 @@ module Hecks
         end
 
         # A NULL `projects` column means never seeded, so it reads back absent as under Heki and
-        # PostgresRevisions; nothing stores a nil projected value. The lifecycle field keeps its NULL.
+        # PostgresRevision; nothing stores a nil projected value. The lifecycle field keeps its NULL.
         def projected_only?(field)
           @aggregate.lifecycle_field&.to_sym != field[:name].to_sym &&
             @aggregate.projected_fields.any? { |projected| projected.name.to_sym == field[:name].to_sym }

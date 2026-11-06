@@ -12,7 +12,7 @@ module Hecks
     module Persistence
       module Plugins
         # ADR 0033 — requiring this file installs the plugin; nothing in Hecks core
-        # requires it, so it loads only for a domain that binds `PostgresRevisions` (or asks explicitly).
+        # requires it, so it loads only for a domain that binds `PostgresRevision` (or asks explicitly).
         module Era
           module_function
 

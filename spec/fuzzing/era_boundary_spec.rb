@@ -88,7 +88,7 @@ RSpec.describe Hecks::Fuzzing::RevisionBoundary, :aggregate_failures, :io do
   def check!(source, translation_source: nil)
     registry = Hecks::Runtime::Registry.new
     load_bluebook(registry, source, translation_source)
-    Hecks::Adapters::PostgresRevisions::LineageManager.check!(
+    Hecks::Adapters::PostgresRevision::LineageManager.check!(
       registry: registry, bluebook: registry.bluebooks.values.first, current_text: source,
       settings: with_mint_request({ database: database_url, allow_superuser: true, mint_eras: true },
                                   domain: registry.bluebooks.values.first.name)
@@ -132,9 +132,9 @@ RSpec.describe Hecks::Fuzzing::RevisionBoundary, :aggregate_failures, :io do
   def write_v1_record(id)
     registry = hold_v1!
     aggregate = registry.bluebooks.values.first.aggregate("Widget")
-    adapter = Hecks::Adapters::PostgresRevisions.new(aggregate: aggregate,
-                                                     settings:  { database: database_url,
-                                                                  domain:   "RevisionBoundaryFixture" })
+    adapter = Hecks::Adapters::PostgresRevision.new(aggregate: aggregate,
+                                                    settings:  { database: database_url,
+                                                                 domain:   "RevisionBoundaryFixture" })
     instance = Hecks::Runtime::Instance.new(
       aggregate: aggregate, id: id, state: { cost: { "cents" => 100 }, kind: { "label" => "biz" } }
     )
@@ -209,14 +209,14 @@ RSpec.describe Hecks::Fuzzing::RevisionBoundary, :aggregate_failures, :io do
     scrub.close
   end
 
-  it "reports checked: false for a domain not bound to PostgresRevisions at all" do
+  it "reports checked: false for a domain not bound to PostgresRevision at all" do
     File.write(File.join(@fixture_root, "fixture.bluebook"), ERA_BOUNDARY_V1_SOURCE)
     File.write(File.join(@fixture_root, "fixture.hecksagon"), hecksagon_source("Memory"))
 
     result = described_class.diverged_ancestor_writes(@fixture_root)
 
     expect(result.values_at(:checked, :kind)).to eq([false, :not_applicable])
-    expect(result[:reason]).to include("not PostgresRevisions")
+    expect(result[:reason]).to include("not PostgresRevision")
   end
 
   # Nothing to audit and could-not-audit must differ: `hecks quality_control ask run` reads

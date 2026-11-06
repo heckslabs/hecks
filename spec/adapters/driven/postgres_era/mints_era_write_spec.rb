@@ -74,7 +74,7 @@ RSpec.describe "a mints_era command's record through an unminted boot", :io do
   # owns it.
   def registry_for(source, translation_source: nil, settings: {})
     registry = load_registry(source, translation_source: translation_source)
-    Hecks::Adapters::PostgresRevisions::LineageManager.check!(
+    Hecks::Adapters::PostgresRevision::LineageManager.check!(
       registry: registry, bluebook: registry.bluebooks.values.first, current_text: source,
       settings: { database: boot_url, mint_eras: true }.merge(settings)
     )
@@ -89,8 +89,8 @@ RSpec.describe "a mints_era command's record through an unminted boot", :io do
   # The adapter a boot builds from `registry`, with the settings RepositoryFactory.build merges in.
   def adapter_for(registry, era:, **flags)
     settings = { database: boot_url, domain: "Ledger", era: era }.merge(flags)
-    Hecks::Adapters::PostgresRevisions.new(aggregate: registry.bluebooks.values.first.aggregate("Acct"),
-                                           settings:  settings)
+    Hecks::Adapters::PostgresRevision.new(aggregate: registry.bluebooks.values.first.aggregate("Acct"),
+                                          settings:  settings)
   end
 
   # A journal entry for the `Acct` record; `mints_era` marks it as a mint command's own record.

@@ -3,8 +3,8 @@ require "hecks/ports/persistence/plugins/era"
 
 # Not `io: true`: `setting` touches no database. Pins that a stored `false` at the symbol
 # key is not discarded by `||` in favor of the string key, so `key?` must be asked first.
-RSpec.describe "Hecks::Adapters::PostgresRevisions.setting" do
-  let(:described_class) { Hecks::Adapters::PostgresRevisions }
+RSpec.describe "Hecks::Adapters::PostgresRevision.setting" do
+  let(:described_class) { Hecks::Adapters::PostgresRevision }
 
   it "returns a symbol-keyed value that is literally `false`, rather than falling to the string spelling" do
     settings = { database: false, "database" => "elsewhere" }

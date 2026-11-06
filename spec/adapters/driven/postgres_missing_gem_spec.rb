@@ -5,7 +5,7 @@ require "hecks"
 # once it loads.
 RSpec.describe "connecting a Postgres adapter without the pg gem" do
   {
-    "Postgres with revisions" => Hecks::Adapters::PostgresRevisions,
+    "Postgres with revisions" => Hecks::Adapters::PostgresRevision,
     "Postgres"                => Hecks::Adapters::Postgres
   }.each do |label, adapter|
     it "raises a LoadError from #{label} that says to add the pg gem" do

@@ -2,7 +2,7 @@ require "hecks"
 require "hecks/hecks/adapters/settings_reading"
 require_relative "../lib/hecks/quality_control/adapters/main_maintenance"
 
-# The QA bundle's worlds declare their PostgresRevisions ledgers disposable, so a shape change needs no
+# The QA bundle's worlds declare their PostgresRevision ledgers disposable, so a shape change needs no
 # mint, and a Maintenance mint of that ledger answers that none is needed instead of erroring.
 RSpec.describe "the QA ledger's disposable worlds" do
   let(:ledger) { File.expand_path("../qa/bluebook", __dir__) }

@@ -48,9 +48,9 @@ RSpec.describe "the stored projection checked against the era's hash", :io do
   # Holds era 1 and names it, as a mint leaving it would.
   def hold_named_era!
     hold_first_era!(url: url, domain: "Audited", source: source("cost"))
-    db = Hecks::Adapters::PostgresRevisions.connect_for("Audited", { database: url })
-    lineage = Hecks::Adapters::PostgresRevisions::Lineage.new(db, "Audited")
-    Hecks::Adapters::PostgresRevisions::LineageManager.ensure_named!(lineage, lineage.eras.first)
+    db = Hecks::Adapters::PostgresRevision.connect_for("Audited", { database: url })
+    lineage = Hecks::Adapters::PostgresRevision::Lineage.new(db, "Audited")
+    Hecks::Adapters::PostgresRevision::LineageManager.ensure_named!(lineage, lineage.eras.first)
   ensure
     db&.close
   end

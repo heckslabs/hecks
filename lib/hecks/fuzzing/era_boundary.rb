@@ -2,7 +2,7 @@ require "hecks/ports/persistence/plugins/era"
 
 module Hecks
   module Fuzzing
-    # Checks a target's real, already-configured `PostgresRevisions` ledger for
+    # Checks a target's real, already-configured `PostgresRevision` ledger for
     # ancestor eras still holding writes nobody has merged forward.
     module RevisionBoundary
       module_function
@@ -27,16 +27,16 @@ module Hecks
         failed("#{e.class}: #{e.message}")
       end
 
-      # Why a bluebook has no `PostgresRevisions` lineage to audit, or nil when it does.
+      # Why a bluebook has no `PostgresRevision` lineage to audit, or nil when it does.
       def unaudited_reason(registry, bluebook)
         return "#{bluebook.name} declares no aggregates" unless bluebook.aggregates.first
 
         adapter_name = bound_adapter(registry, bluebook)
-        "#{bluebook.name} is bound to #{adapter_name}, not PostgresRevisions" unless adapter_name == "Postgres"
+        "#{bluebook.name} is bound to #{adapter_name}, not PostgresRevision" unless adapter_name == "Postgres"
       end
 
       # The adapter a domain's revisions live in: `Postgres` with `revisions true` is the revision
-      # layout, which the audit reads as `PostgresRevisions` (ADR 0182).
+      # layout, which the audit reads as `PostgresRevision` (ADR 0182).
       def bound_adapter(registry, bluebook)
         adapter = Hecks::Ports::Persistence::BindingPolicy.resolve(registry, bluebook.name, bluebook.aggregates.first).adapter
         adapter == "Postgres" && registry.hecksagon(bluebook.name)&.revisions? ? "Postgres" : adapter
@@ -45,8 +45,8 @@ module Hecks
       # Counts the writes each ancestor era holds that were never merged forward.
       def audit(registry, bluebook, adapter_name)
         settings = registry.binding_settings(bluebook.name, Hecks::Ports::Persistence::VERB, adapter_name)
-        db = Hecks::Adapters::PostgresRevisions.connect_for(bluebook.name, settings)
-        lineage = Hecks::Adapters::PostgresRevisions::Lineage.new(db, bluebook.name)
+        db = Hecks::Adapters::PostgresRevision.connect_for(bluebook.name, settings)
+        lineage = Hecks::Adapters::PostgresRevision::Lineage.new(db, bluebook.name)
         lineage.ensure_base!
         eras = lineage.eras
         breakdown = ancestor_breakdown(lineage, eras)

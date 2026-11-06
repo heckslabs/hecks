@@ -39,6 +39,6 @@ RSpec.describe "the launcher's memory commands" do
                                        stdin_data: "exit\n", chdir: InMemoryDomain::ROOT)
 
     expect(status).to be_success, err
-    expect(err).not_to include("cannot bind PostgresRevisions")
+    expect(err).not_to include("cannot bind PostgresRevision")
   end
 end

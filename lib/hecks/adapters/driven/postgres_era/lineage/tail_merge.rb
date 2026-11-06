@@ -3,7 +3,7 @@ require_relative "merge_writes"
 
 module Hecks
   module Adapters
-    class PostgresRevisions
+    class PostgresRevision
       class Lineage
         # `merge_tail!` closes a fork: an old era's post-cut writes re-enter under named winners;
         # `diverged_count` measures the drift before that.

@@ -7,7 +7,7 @@ require_relative "../../../support/era_registry_loading"
 
 # What a boot with no mint request may do: read the held eras and report the shape it resolves to,
 # and write nothing. The first era is held and minted by the mint entry point, never by a boot.
-RSpec.describe "a boot with no mint request in PostgresRevisions", :io do
+RSpec.describe "a boot with no mint request in PostgresRevision", :io do
   include EraRegistryLoading
 
   BOOT_READ_ONLY_DB = "hecks_boot_read_only_spec".freeze
@@ -54,8 +54,8 @@ RSpec.describe "a boot with no mint request in PostgresRevisions", :io do
   # Holds the first era the way the `hold_first` command does: lineage tables, the era, its heads.
   def hold_first!(source, url)
     bluebook = bluebook_of(source)
-    db = Hecks::Adapters::PostgresRevisions.connect_for(DOMAIN, { database: url })
-    lineage = Hecks::Adapters::PostgresRevisions::Lineage.new(db, DOMAIN)
+    db = Hecks::Adapters::PostgresRevision.connect_for(DOMAIN, { database: url })
+    lineage = Hecks::Adapters::PostgresRevision::Lineage.new(db, DOMAIN)
     lineage.ensure_base!
     lineage.hold_first!(source, projection: Hecks::Runtime::StorageShape.project(bluebook))
     bluebook.aggregates.each { |aggregate| lineage.ensure_first_head!(aggregate.storage_name) }
@@ -67,7 +67,7 @@ RSpec.describe "a boot with no mint request in PostgresRevisions", :io do
   def same_shape_chain
     registry = registry_of(held_source)
     label = label_of(held_source)
-    Hecks::Adapters::PostgresRevisions::LineageManager.edge_chain(
+    Hecks::Adapters::PostgresRevision::LineageManager.edge_chain(
       registry, registry.bluebooks.values.first, [{ ordinal: 1, label: label }], label
     )
   end
@@ -75,7 +75,7 @@ RSpec.describe "a boot with no mint request in PostgresRevisions", :io do
   # Runs the boot's era check of `source` against `url`, with no mint request.
   def boot!(source, url: held_url)
     registry = registry_of(source)
-    Hecks::Adapters::PostgresRevisions::LineageManager.check!(
+    Hecks::Adapters::PostgresRevision::LineageManager.check!(
       registry: registry, bluebook: registry.bluebooks.values.first, current_text: source,
       settings: { database: url, mint_eras: true }
     )
@@ -84,7 +84,7 @@ RSpec.describe "a boot with no mint request in PostgresRevisions", :io do
 
   # The rows of every lineage relation in the held database, each in a stable order.
   def lineage_rows
-    db = Hecks::Adapters::PostgresRevisions.connect_for(DOMAIN, { database: held_url })
+    db = Hecks::Adapters::PostgresRevision.connect_for(DOMAIN, { database: held_url })
     %w[hecks_eras hecks_era_texts].to_h { |table| [table, rows_of(db, table)] }
   ensure
     db&.close
@@ -95,7 +95,7 @@ RSpec.describe "a boot with no mint request in PostgresRevisions", :io do
   end
 
   def relation_present?(url, name)
-    db = Hecks::Adapters::PostgresRevisions.connect_for(DOMAIN, { database: url })
+    db = Hecks::Adapters::PostgresRevision.connect_for(DOMAIN, { database: url })
     db.exec_params("SELECT to_regclass($1) IS NOT NULL AS present", [name])[0]["present"] == "t"
   ensure
     db&.close

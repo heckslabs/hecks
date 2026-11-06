@@ -68,7 +68,7 @@ RSpec.describe "a Maintenance-like mint command through an unminted boot", :io d
 
   def registry_for(source, translation_source: nil)
     registry = load_registry(source, translation_source: translation_source)
-    Hecks::Adapters::PostgresRevisions::LineageManager.check!(
+    Hecks::Adapters::PostgresRevision::LineageManager.check!(
       registry: registry, bluebook: registry.bluebooks.values.first, current_text: source,
       settings: { database: boot_url, mint_eras: true }
     )
@@ -81,7 +81,7 @@ RSpec.describe "a Maintenance-like mint command through an unminted boot", :io d
 
   def adapter_for(registry)
     settings = { database: boot_url, domain: "Ledger", era: 1, unminted: true }
-    Hecks::Adapters::PostgresRevisions.new(aggregate: maintenance(registry), settings: settings)
+    Hecks::Adapters::PostgresRevision.new(aggregate: maintenance(registry), settings: settings)
   end
 
   # The refusal message of the command's record written through the adapter, or nil when it passed.

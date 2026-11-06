@@ -52,7 +52,7 @@ module Hecks
           '  echo "    one-time setup on this machine: a database AND a non-superuser role that owns it" >&2; \\',
           '  echo "    (a superuser skips the era write-fence, so createdb alone fails), then name it in" >&2; \\',
           '  echo "    hecks.local.world: default_database postgres://<role>@localhost/<db>" >&2; \\',
-          '  echo "    and set persisted_by PostgresRevisions in hecks.local.hecksagon" >&2; \\'
+          '  echo "    and set persisted_by PostgresRevision in hecks.local.hecksagon" >&2; \\'
         ].freeze
 
         # The `smoke-after-deploy` recipe: the smoke runs as `smoke_run.run`, which finds

@@ -70,8 +70,8 @@ module Hecks
 
       # @return [Integer] the exit status
       def backfill(bluebook, settings)
-        db = Hecks::Adapters::PostgresRevisions.connect_for(bluebook.name, settings)
-        lineage = Hecks::Adapters::PostgresRevisions::Lineage.new(db, bluebook.name)
+        db = Hecks::Adapters::PostgresRevision.connect_for(bluebook.name, settings)
+        lineage = Hecks::Adapters::PostgresRevision::Lineage.new(db, bluebook.name)
         lineage.ensure_base!
 
         before = missing_projections(db, bluebook)

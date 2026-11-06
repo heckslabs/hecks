@@ -16,7 +16,7 @@ require_relative "../../../naming"
 
 module Hecks
   module Adapters
-    class PostgresRevisions
+    class PostgresRevision
       # The lineage topology inside one Postgres database: a journal per domain, partitioned by
       # era, with each aggregate's head derived from it rather than stored.
       class Lineage

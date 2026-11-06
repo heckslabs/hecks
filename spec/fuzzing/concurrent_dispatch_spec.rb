@@ -208,7 +208,7 @@ RSpec.describe Hecks::Fuzzing::ConcurrentDispatch, :aggregate_failures do
       end
     RUBY
 
-    # Attaching Governance without this sibling refuses boot. Memory, not PostgresRevisions, so
+    # Attaching Governance without this sibling refuses boot. Memory, not PostgresRevision, so
     # RoleAssignment stays unshared across racers, which is the shape this example pins.
     CONCURRENT_DISPATCH_UNBOUND_CONTEXT_MAP = InMemoryDomain::GOVERNANCE_MEMORY_HECKSAGON
 
@@ -251,7 +251,7 @@ RSpec.describe Hecks::Fuzzing::ConcurrentDispatch, :aggregate_failures do
       "expected no finding (Governance::RoleAssignment isn't durably, sharedly " \
         "persisted in this fixture, so it should never have been raced at all) but " \
         "got: #{divergences.inspect} — this is BUG#142, a false positive from racing " \
-        "a Memory-backed aggregate, not a broken PostgresRevisions write lock"
+        "a Memory-backed aggregate, not a broken PostgresRevision write lock"
     end
 
     # The oracle settles this pair as `["succeeded", "refused"]` (AlreadyExists within one

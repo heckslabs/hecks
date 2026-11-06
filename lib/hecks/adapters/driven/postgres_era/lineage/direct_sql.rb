@@ -4,7 +4,7 @@ require_relative "direct_verified"
 
 module Hecks
   module Adapters
-    class PostgresRevisions
+    class PostgresRevision
       class Lineage
         # The head read in one step. Each held era's rows take the translation composed from that
         # era's edge to the last, instead of one link per later era. A chain that does not compose

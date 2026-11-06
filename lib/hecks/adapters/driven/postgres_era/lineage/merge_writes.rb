@@ -1,6 +1,6 @@
 module Hecks
   module Adapters
-    class PostgresRevisions
+    class PostgresRevision
       class Lineage
         # The row-level steps of a tail merge: finding the ids both worlds touched, capturing the
         # new world's head states, rebuilding the heads, and writing each winner back.
@@ -92,7 +92,7 @@ module Hecks
           end
 
           # Journal first, snapshot second, as a live write does: this INSERT bypasses
-          # PostgresRevisions#append, and head_view reads live rows from the snapshot table.
+          # PostgresRevision#append, and head_view reads live rows from the snapshot table.
           def write_winner!(merge, aggregate, id, state)
             ordinal = @db.exec_params(
               "INSERT INTO #{quoted_journal} (era, aggregate, aggregate_id, operation, state) " \

@@ -4,7 +4,7 @@ require_relative "../../../../ports/persistence/plugins/era/translation/audit"
 
 module Hecks
   module Adapters
-    class PostgresRevisions
+    class PostgresRevision
       module LineageManager
         # Tail-merge (hecks merge_tail): interleaves the stale world's post-cut writes into the
         # head by global ordinal, audited, in one transaction.
@@ -18,7 +18,7 @@ module Hecks
           #   broken, a contested record has no winner, or the audit reports violations;
           #   every refusal rolls the merge back
           def merge!(registry:, bluebook:, settings:, winners: {})
-            db = PostgresRevisions.connect_for(bluebook.name, settings)
+            db = PostgresRevision.connect_for(bluebook.name, settings)
             lineage = Lineage.new(db, bluebook.name, formerly_known_as: bluebook.formerly_known_as)
             lineage.ensure_base!
 

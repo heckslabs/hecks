@@ -15,7 +15,7 @@ RSpec.describe "an era held from a domain split into module folders", :io do
 
   def url = FencedOwner.url(MODULE_FOLDER_DB)
 
-  def manager = Hecks::Adapters::PostgresRevisions::LineageManager
+  def manager = Hecks::Adapters::PostgresRevision::LineageManager
 
   TOP_LEVEL = %(Hecks.bluebook "Ledger" do\n  vision "Keep accounts."\nend\n).freeze
 
@@ -54,8 +54,8 @@ RSpec.describe "an era held from a domain split into module folders", :io do
   end
 
   def hold!(text, bluebook)
-    db = Hecks::Adapters::PostgresRevisions.connect_for("Ledger", { database: url })
-    lineage = Hecks::Adapters::PostgresRevisions::Lineage.new(db, "Ledger")
+    db = Hecks::Adapters::PostgresRevision.connect_for("Ledger", { database: url })
+    lineage = Hecks::Adapters::PostgresRevision::Lineage.new(db, "Ledger")
     lineage.ensure_base!
     lineage.hold_first!(text, projection: Hecks::Runtime::StorageShape.project(bluebook))
     lineage.eras.last

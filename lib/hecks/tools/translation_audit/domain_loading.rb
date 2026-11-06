@@ -27,8 +27,8 @@ module Hecks
           adapter_name = Hecks::Ports::Persistence::BindingPolicy.resolve(registry, bluebook.name, first).adapter
           refuse_unless_lineage_capable(registry, bluebook, adapter_name)
 
-          db = Hecks::Adapters::PostgresRevisions.connect_for(bluebook.name, binding_settings(registry, bluebook, adapter_name))
-          lineage = Hecks::Adapters::PostgresRevisions::Lineage.new(db, bluebook.name)
+          db = Hecks::Adapters::PostgresRevision.connect_for(bluebook.name, binding_settings(registry, bluebook, adapter_name))
+          lineage = Hecks::Adapters::PostgresRevision::Lineage.new(db, bluebook.name)
           lineage.ensure_base!
           [db, lineage]
         end
@@ -50,7 +50,7 @@ module Hecks
           return if lineage_capable?(registry, Runtime::RevisionCheck.layout_class(registry, bluebook.name, adapter_name))
 
           abort "the audit reads a lineage journal; #{bluebook.name} is bound to #{adapter_name}, " \
-                "not PostgresRevisions"
+                "not PostgresRevision"
         end
 
         def lineage_capable?(_registry, adapter_name)

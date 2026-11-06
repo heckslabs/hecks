@@ -9,7 +9,7 @@ require_relative "era_resolution"
 
 module Hecks
   module Adapters
-    class PostgresRevisions
+    class PostgresRevision
       module LineageManager
         # Names the source era, resolves its one outgoing translation edge, and mints the
         # next era once coverage and the audited chain check out.

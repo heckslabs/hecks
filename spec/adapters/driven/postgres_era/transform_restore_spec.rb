@@ -7,7 +7,7 @@ require_relative "../../../support/scratch_postgres"
 
 # A dump of a lineage restores: `pg_restore` refreshes a materialized view built on a
 # `hecks_tr_*` function with an empty search path, and the function still finds its sibling.
-RSpec.describe "PostgresRevisions transform functions across pg_dump and pg_restore", :io do
+RSpec.describe "PostgresRevision transform functions across pg_dump and pg_restore", :io do
   SOURCE_DB = "hecks_transform_restore_source_spec".freeze
   TARGET_DB = "hecks_transform_restore_target_spec".freeze
 
@@ -15,7 +15,7 @@ RSpec.describe "PostgresRevisions transform functions across pg_dump and pg_rest
 
   before do
     db = PG.connect(dbname: SOURCE_DB)
-    Hecks::Adapters::PostgresRevisions::Lineage::TransformSql::ALL.each { |sql| db.exec(sql) }
+    Hecks::Adapters::PostgresRevision::Lineage::TransformSql::ALL.each { |sql| db.exec(sql) }
     db.exec(<<~SQL)
       CREATE TABLE journal (state jsonb);
       INSERT INTO journal VALUES ('{"keep": 1, "gone": 2}');

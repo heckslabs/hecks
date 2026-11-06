@@ -16,7 +16,7 @@ module MintRequestSupport
   # @return [Integer] the journal's watermark, or 0 before the domain's journal exists
   def watermark_of(url, domain)
     connection = url.include?("=") || url.start_with?("postgres") ? PG.connect(url) : PG.connect(dbname: url)
-    Hecks::Adapters::PostgresRevisions::Lineage.new(connection, domain).last_ordinal
+    Hecks::Adapters::PostgresRevision::Lineage.new(connection, domain).last_ordinal
   rescue PG::UndefinedTable
     0
   ensure

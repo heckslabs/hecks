@@ -43,7 +43,7 @@ module Hecks
           @lineage = lineage
           @eras = eras
           @edge = edge
-          @manager = PostgresRevisions::LineageManager
+          @manager = PostgresRevision::LineageManager
         end
 
         # @return [Finding, nil] see `EdgeAudit.call`
@@ -79,7 +79,7 @@ module Hecks
         # The edge the shared decision leads the latest era by. A decision that does not mint names
         # the refusal, so the audit raises rather than audit an edge a mint would not take.
         def decided_edge(latest, label)
-          verdict = PostgresRevisions::LineageManager::MintDecision.decide_latest(
+          verdict = PostgresRevision::LineageManager::MintDecision.decide_latest(
             latest, bluebook: @bluebook, translations: @registry.translations, directory: @held.directory,
             watermark: @lineage.last_ordinal
           )

@@ -2,7 +2,7 @@ require "json"
 
 module Hecks
   module Adapters
-    class PostgresRevisions
+    class PostgresRevision
       # The two-phase query path: candidate ids from the field caches, then the head view
       # restricted to them. The cache only narrows; the head view stays authoritative.
       module QueryPhases

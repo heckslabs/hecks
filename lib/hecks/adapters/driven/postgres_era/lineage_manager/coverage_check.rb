@@ -6,7 +6,7 @@ require_relative "../../../../ports/persistence/plugins/era/translation/audit"
 
 module Hecks
   module Adapters
-    class PostgresRevisions
+    class PostgresRevision
       module LineageManager
         # What a mint must prove first: the edge covers the whole diff, no identity path was
         # re-keyed, and the audit's first two layers pass over the compiled chain.
@@ -80,7 +80,7 @@ module Hecks
           # Runs before anything is minted, so a refusal leaves no half-born era.
           #
           # @param bluebook [Bluebook::Declaration] the domain as currently declared
-          # @param lineage [Adapters::PostgresRevisions::Lineage] the domain's lineage, on an open db
+          # @param lineage [Adapters::PostgresRevision::Lineage] the domain's lineage, on an open db
           # @param chain [Array<Hash>] the full edge chain ending in `edge`, per `edge_chain`
           # @param ordinal [Integer] the ordinal of the era about to be minted
           # @param edge [Bluebook::Translation] the pending edge

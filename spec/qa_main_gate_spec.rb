@@ -7,7 +7,7 @@ require "hecks/quality_control/cli/qa_main_gate"
 require "hecks/quality_control/cli/qa_fix_main_bug"
 
 # `hecks quality_control main_check.check_main` and `bug.fix_and_land`, run in-process against a
-# disposable PostgresRevisions ledger (spec/support/qa_ledger_fixture.rb) and a throwaway git repository
+# disposable PostgresRevision ledger (spec/support/qa_ledger_fixture.rb) and a throwaway git repository
 # with an origin. The gate, the fixer, the landing and the push are doubles: a spec must not run the
 # real gate, land on or push a real main.
 RSpec.describe "hecks quality_control check_main and bug.fix_and_land", :io do

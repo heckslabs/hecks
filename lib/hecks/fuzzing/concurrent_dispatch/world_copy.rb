@@ -5,7 +5,7 @@ require_relative "../isolated_boot"
 module Hecks
   module Fuzzing
     module ConcurrentDispatch
-      # Copies a target domain, rebinds it to a shared `PostgresRevisions` schema and boots it there.
+      # Copies a target domain, rebinds it to a shared `PostgresRevision` schema and boots it there.
       module WorldCopy
         FUZZ_WORLD_FILE = "hecks_fuzz_postgres_era.world".freeze
         # A `Hecks.hecksagon "Name"` declaration, capturing the name.

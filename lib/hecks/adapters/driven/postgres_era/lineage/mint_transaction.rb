@@ -3,7 +3,7 @@ require_relative "../../../../ports/persistence/plugins/era/storage_shape"
 
 module Hecks
   module Adapters
-    class PostgresRevisions
+    class PostgresRevision
       class Lineage
         # `mint_era!`: writes a new era in one transaction and advances the current-era
         # RLS fence (`advance_era!`) just before commit.

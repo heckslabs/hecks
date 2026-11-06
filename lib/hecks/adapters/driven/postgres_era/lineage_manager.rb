@@ -10,8 +10,8 @@ require_relative "../../../runtime/registry"
 
 module Hecks
   module Adapters
-    class PostgresRevisions
-      # PostgresRevisions's era gate: mints the next era when an edge covers the drift, else refuses.
+    class PostgresRevision
+      # PostgresRevision's era gate: mints the next era when an edge covers the drift, else refuses.
       # Era names are hashed once at mint time and stored in hecks_eras, never reconstructed.
       module LineageManager
         extend RevisionResolver

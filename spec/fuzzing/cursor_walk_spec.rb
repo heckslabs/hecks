@@ -52,7 +52,7 @@ RSpec.describe "walking a cursor query by its pages" do
     end
   end
 
-  describe "on PostgresRevisions", :io do
+  describe "on PostgresRevision", :io do
     let(:database) { "hecks_cursor_walk_#{Process.pid}" }
 
     before do

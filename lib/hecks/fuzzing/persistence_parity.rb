@@ -5,7 +5,7 @@ require_relative "nondeterministic"
 module Hecks
   module Fuzzing
     # Differential check of one Ruby engine against two persistences, `left:` and `right:`.
-    # Defaults to Memory vs a disposable `PostgresRevisions` database, which needs `database:`/`schema:`.
+    # Defaults to Memory vs a disposable `PostgresRevision` database, which needs `database:`/`schema:`.
     module PersistenceParity
       module_function
 

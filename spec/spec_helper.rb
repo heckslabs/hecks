@@ -61,7 +61,7 @@ module InMemoryDomain
   # The revision layout is declared by the same adapter file as the table layout (ADR 0182).
   POSTGRES_ERA_ADAPTER = POSTGRES_ADAPTER
   # ADR 0033 — the era/lineage plugin is not core-required; a spec that binds
-  # PostgresRevisions must `require "hecks/ports/persistence/plugins/era"` itself,
+  # PostgresRevision must `require "hecks/ports/persistence/plugins/era"` itself,
   # same as any other consumer would.
   ERA_PLUGIN = "hecks/ports/persistence/plugins/era".freeze
 
@@ -103,7 +103,7 @@ module InMemoryDomain
     end
   HECKSAGON
 
-  # Sibling world PostgresRevisions needs once the hecksagon above binds it —
+  # Sibling world PostgresRevision needs once the hecksagon above binds it —
   # RevisionCheck looks up registry.world("Governance"), not QualityControl's.
   # @param database_url [String] the same URL the consuming domain's world uses
   # @return [String] a `Hecks.world "Governance"` file body

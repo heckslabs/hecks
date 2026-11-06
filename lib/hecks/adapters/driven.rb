@@ -7,9 +7,9 @@ end
 require_relative "driven/memory"
 require_relative "driven/sqlite"
 require_relative "driven/postgres"
-# PostgresRevisions is autoloaded so a domain that never binds it loads no era code; loading it
+# PostgresRevision is autoloaded so a domain that never binds it loads no era code; loading it
 # installs the era persistence plugin, which registers itself (ADR 0033).
-Hecks::Adapters.autoload(:PostgresRevisions, "hecks/adapters/driven/postgres_era")
+Hecks::Adapters.autoload(:PostgresRevision, "hecks/adapters/driven/postgres_era")
 require_relative "driven/lambda"
 # Loaded on first mention: nothing about a domain's own boot needs the dump
 # tooling, and it wants the optional `pg` gem.

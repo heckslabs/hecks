@@ -15,9 +15,9 @@ module Hecks
         include Children
         include Report
 
-        # Said when no clean wave-1 target binds PostgresRevisions, so there is nothing to compare Memory
+        # Said when no clean wave-1 target binds PostgresRevision, so there is nothing to compare Memory
         # to.
-        PARITY_WAVE_SKIPPED = "parity wave: no clean target binds PostgresRevisions — nothing to compare Memory " \
+        PARITY_WAVE_SKIPPED = "parity wave: no clean target binds PostgresRevision — nothing to compare Memory " \
                               "against. Skipped."
 
         private
@@ -104,7 +104,7 @@ module Hecks
           return skipped_wave(PARITY_WAVE_SKIPPED) if candidates.empty?
 
           puts
-          puts "parity wave: Memory vs real PostgresRevisions for #{candidates.size} target(s), " \
+          puts "parity wave: Memory vs real PostgresRevision for #{candidates.size} target(s), " \
                "at most #{@max_parallel} at once: #{candidates.join(", ")}"
           results = run_pool(candidates) do |reference|
             spawn_sweep_child(reference, later_wave_flags, modes: [], parity: true)

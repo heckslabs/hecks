@@ -129,7 +129,7 @@ RSpec.describe "every live DSL word, used somewhere real" do
                                            "own aggregates have moved to the world, so no real declaration remains. " \
                                            "spec/dsl_spec.rb and spec/runtime/registry/world_names_spec.rb run it.",
     "formerly_known_as (Bluebook)"      =>
-                                           "deprecated for `formerly` in the world's PostgresRevisions block, " \
+                                           "deprecated for `formerly` in the world's PostgresRevision block, " \
                                            "kept as a fallback " \
                                            "for one major release; no bluebook in this repository renames its domain. " \
                                            "spec/dsl_spec.rb and spec/runtime/registry/world_names_spec.rb run it.",

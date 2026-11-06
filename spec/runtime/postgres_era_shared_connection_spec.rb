@@ -5,9 +5,9 @@ require_relative "../support/fenced_owner"
 require_relative "../support/first_era_hold"
 require_relative "../support/thread_parking"
 
-# A domain's PostgresRevisions adapters share one connection per database and schema, so booting a
+# A domain's PostgresRevision adapters share one connection per database and schema, so booting a
 # domain with many aggregates does not exhaust the server's connection slots.
-RSpec.describe "PostgresRevisions shares one connection across a domain's aggregates", :io do
+RSpec.describe "PostgresRevision shares one connection across a domain's aggregates", :io do
   SHARED_CONN_DB = "hecks_shared_connection_spec".freeze
   AGGREGATE_COUNT = 70
 
@@ -84,7 +84,7 @@ RSpec.describe "PostgresRevisions shares one connection across a domain's aggreg
   def adapters_for(domain, settings)
     hold_declared_era!(domain, url: settings[:database], schema: settings[:schema])
     domain.aggregates.map do |aggregate|
-      Hecks::Adapters::PostgresRevisions.new(aggregate: aggregate, settings: settings.merge(domain: "Sprawl"))
+      Hecks::Adapters::PostgresRevision.new(aggregate: aggregate, settings: settings.merge(domain: "Sprawl"))
     end
   end
 

@@ -13,7 +13,7 @@ require_relative "../../../support/thread_parking"
 # entry point (`Lineage#rename_domain!`, which `Era.RenameDomain` applies). A boot under the new
 # name until the rename refuses by name and writes nothing.
 # Runs only when a Postgres server is reachable (support/postgres_probe.rb).
-RSpec.describe "domain rename (formerly_known_as) in the PostgresRevisions adapter", :io do
+RSpec.describe "domain rename (formerly_known_as) in the PostgresRevision adapter", :io do
   include EraRegistryLoading
   include FirstEraHold
   include EraAppRole
@@ -102,7 +102,7 @@ RSpec.describe "domain rename (formerly_known_as) in the PostgresRevisions adapt
     settings[:role] = role if role
     # The rehearsal reads the watermark of the journal the database holds under the domain's name.
     settings = with_mint_request(settings.merge(mint_eras: true), domain: bluebook.name) if mint
-    Hecks::Adapters::PostgresRevisions::LineageManager.check!(
+    Hecks::Adapters::PostgresRevision::LineageManager.check!(
       registry: registry, bluebook: bluebook, current_text: source, settings: settings
     )
     registry
@@ -113,8 +113,8 @@ RSpec.describe "domain rename (formerly_known_as) in the PostgresRevisions adapt
   def rename!(source)
     bluebook = load_registry(source).bluebooks.values.first
     with_pg(FencedOwner.url(RENAME_DB)) do |db|
-      Hecks::Adapters::PostgresRevisions::Lineage.new(db, bluebook.name, formerly_known_as: bluebook.formerly_known_as)
-                                                 .rename_domain!(storage_names: bluebook.aggregates.map(&:storage_name))
+      Hecks::Adapters::PostgresRevision::Lineage.new(db, bluebook.name, formerly_known_as: bluebook.formerly_known_as)
+                                                .rename_domain!(storage_names: bluebook.aggregates.map(&:storage_name))
     end
   end
 
@@ -139,7 +139,7 @@ RSpec.describe "domain rename (formerly_known_as) in the PostgresRevisions adapt
 
   def adapter_for(registry, aggregate_name, domain:)
     aggregate = registry.bluebooks.values.first.aggregate(aggregate_name)
-    Hecks::Adapters::PostgresRevisions.new(aggregate: aggregate, settings: { database: RENAME_DB, domain: domain })
+    Hecks::Adapters::PostgresRevision.new(aggregate: aggregate, settings: { database: RENAME_DB, domain: domain })
   end
 
   # Holds era 1 under the old name, as `hold_first` does, then boots it and writes a record.
@@ -254,7 +254,7 @@ RSpec.describe "domain rename (formerly_known_as) in the PostgresRevisions adapt
       # as the owner: reattest! lazily creates hecks_attestations, which the rename must own
       with_pg(FencedOwner.url(RENAME_DB)) do |db|
         # Forces hecks_attestations into existence.
-        Hecks::Adapters::PostgresRevisions::Lineage.new(db, "OldName").reattest!(1)
+        Hecks::Adapters::PostgresRevision::Lineage.new(db, "OldName").reattest!(1)
       end
       rename_and_boot!(NEW_SOURCE)
     end

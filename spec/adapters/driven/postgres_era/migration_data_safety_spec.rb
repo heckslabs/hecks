@@ -7,12 +7,12 @@ require_relative "../../../support/era_registry_loading"
 require_relative "../../../support/mint_request_support"
 require_relative "../../../support/first_era_hold"
 
-# A data-loss regression in PostgresRevisions's migration path (H3 below),
+# A data-loss regression in PostgresRevision's migration path (H3 below),
 # pinned against a real Postgres so a fix that regresses fails loudly.
 #
 # Listed in .github/postgres_io_spec_files.txt — moving this file must also
 # update that list, or a Postgres-provisioning CI leg stops running it.
-RSpec.describe "PostgresRevisions migration data safety", :io do
+RSpec.describe "PostgresRevision migration data safety", :io do
   include MintRequestSupport
   include EraRegistryLoading
   include FirstEraHold
@@ -21,7 +21,7 @@ RSpec.describe "PostgresRevisions migration data safety", :io do
 
   scratch_postgres DATA_SAFETY_DB, fenced: true
 
-  def lineage_manager = Hecks::Adapters::PostgresRevisions::LineageManager
+  def lineage_manager = Hecks::Adapters::PostgresRevision::LineageManager
 
   def check!(source, translation_source: nil)
     registry = load_registry(source, translation_source: translation_source)
@@ -40,7 +40,7 @@ RSpec.describe "PostgresRevisions migration data safety", :io do
 
   def head_for(registry, aggregate_name, domain)
     aggregate = registry.bluebooks.values.first.aggregate(aggregate_name)
-    Hecks::Adapters::PostgresRevisions.new(aggregate: aggregate, settings: { database: DATA_SAFETY_DB, domain: domain })
+    Hecks::Adapters::PostgresRevision.new(aggregate: aggregate, settings: { database: DATA_SAFETY_DB, domain: domain })
   end
 
   def instance_of(registry, aggregate_name, id, state)

@@ -2,7 +2,7 @@ require "monitor"
 
 module Hecks
   module Adapters
-    # One Postgres connection shared by every `Postgres` or `PostgresRevisions` adapter of a process
+    # One Postgres connection shared by every `Postgres` or `PostgresRevision` adapter of a process
     # that targets the same database and schema, so a domain's connection count does not grow
     # with its aggregates. Each adapter class shares only with its own kind, because each opens
     # its connection its own way.

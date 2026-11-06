@@ -65,9 +65,9 @@ end
 
 def stored_shape(db, owner)
   conn = PG.connect(dbname: db, user: owner)
-  eras = Hecks::Adapters::PostgresRevisions::Lineage.new(conn, "Ledger", reading: true).eras
+  eras = Hecks::Adapters::PostgresRevision::Lineage.new(conn, "Ledger", reading: true).eras
   era = eras.first
-  [eras.size, era[:hash], Hecks::Adapters::PostgresRevisions::LineageManager.held_shape(era.merge(held_text: "not a bluebook"))]
+  [eras.size, era[:hash], Hecks::Adapters::PostgresRevision::LineageManager.held_shape(era.merge(held_text: "not a bluebook"))]
 ensure
   conn&.close
 end

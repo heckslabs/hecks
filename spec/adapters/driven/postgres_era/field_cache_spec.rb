@@ -8,7 +8,7 @@ require_relative "../../../support/first_era_hold"
 
 # Field cache and resumable backfill against a throwaway Postgres database:
 # correctness before and after a mint, crash resumability, and non-blocking writes.
-RSpec.describe "PostgresRevisions field cache — Track C validation", :io do
+RSpec.describe "PostgresRevision field cache — Track C validation", :io do
   include MintRequestSupport
   include EraRegistryLoading
   include FirstEraHold
@@ -133,7 +133,7 @@ RSpec.describe "PostgresRevisions field cache — Track C validation", :io do
   def check!(source, translation_source: nil)
     registry = load_registry(source, translation_source: translation_source)
     bluebook = registry.bluebooks.values.first
-    Hecks::Adapters::PostgresRevisions::LineageManager.check!(
+    Hecks::Adapters::PostgresRevision::LineageManager.check!(
       registry: registry, bluebook: bluebook, current_text: source,
       settings: with_mint_request({ database: owner_url, mint_eras: true }, domain: bluebook.name)
     )
@@ -144,7 +144,7 @@ RSpec.describe "PostgresRevisions field cache — Track C validation", :io do
     aggregate = registry.bluebooks.values.first.aggregate(aggregate_name)
     settings = { database: owner_url, domain: "Cache" }
     settings[:era] = era if era
-    Hecks::Adapters::PostgresRevisions.new(aggregate: aggregate, settings: settings)
+    Hecks::Adapters::PostgresRevision.new(aggregate: aggregate, settings: settings)
   end
 
   def instance_for(aggregate, id, status:, cents:)
@@ -161,7 +161,7 @@ RSpec.describe "PostgresRevisions field cache — Track C validation", :io do
   # Calls `Lineage#field_cache` rather than re-deriving the table name, which
   # would drift when the name hash changes (ADR 0059).
   def field_cache_table(db, storage_name, era, field)
-    name = Hecks::Adapters::PostgresRevisions::Lineage.new(db, "Cache").field_cache(storage_name, era, field)
+    name = Hecks::Adapters::PostgresRevision::Lineage.new(db, "Cache").field_cache(storage_name, era, field)
     db.exec_params("SELECT to_regclass($1) IS NOT NULL AS present", [name])[0]["present"] == "t" ? name : nil
   end
 
@@ -193,7 +193,7 @@ RSpec.describe "PostgresRevisions field cache — Track C validation", :io do
 
   def status_expression = "state #>> ARRAY['status']::text[]"
 
-  def lineage_on_adapter_db = Hecks::Adapters::PostgresRevisions::Lineage.new(adapter.instance_variable_get(:@db), "Cache")
+  def lineage_on_adapter_db = Hecks::Adapters::PostgresRevision::Lineage.new(adapter.instance_variable_get(:@db), "Cache")
 
   context "with three widgets saved" do
     before do
@@ -287,7 +287,7 @@ RSpec.describe "PostgresRevisions field cache — Track C validation", :io do
     end
 
     def run_crashing_backfill
-      stub_const("Hecks::Adapters::PostgresRevisions::Lineage::ResumableBackfill::CHUNK_SIZE", 3)
+      stub_const("Hecks::Adapters::PostgresRevision::Lineage::ResumableBackfill::CHUNK_SIZE", 3)
       lineage = lineage_on_adapter_db
       crash_on_second_chunk(lineage)
       expect { lineage.ensure_field_cache!("widget", 1, "status", status_expression) }
@@ -340,8 +340,8 @@ RSpec.describe "PostgresRevisions field cache — Track C validation", :io do
     end
 
     def start_slow_backfill(backfill_db, entered)
-      stub_const("Hecks::Adapters::PostgresRevisions::Lineage::ResumableBackfill::CHUNK_SIZE", 2)
-      lineage = Hecks::Adapters::PostgresRevisions::Lineage.new(backfill_db, "Cache")
+      stub_const("Hecks::Adapters::PostgresRevision::Lineage::ResumableBackfill::CHUNK_SIZE", 2)
+      lineage = Hecks::Adapters::PostgresRevision::Lineage.new(backfill_db, "Cache")
       slow_down_upserts(lineage, entered)
       Thread.new { lineage.ensure_field_cache!("widget", 1, "status", status_expression) }
     end

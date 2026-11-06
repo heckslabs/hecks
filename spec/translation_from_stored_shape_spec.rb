@@ -8,7 +8,7 @@ require_relative "support/era_registry_loading"
 RSpec.describe "a translation decided from the held era's stored shape" do
   include EraRegistryLoading
 
-  def manager = Hecks::Adapters::PostgresRevisions::LineageManager
+  def manager = Hecks::Adapters::PostgresRevision::LineageManager
 
   def source(attributes)
     <<~BLUEBOOK

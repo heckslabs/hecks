@@ -77,7 +77,7 @@ RSpec.describe "Hecks::Fuzzing::Properties", :aggregate_failures do
   # (Memory by construction), so `adapter: :sqlite` would silently stay
   # Memory, claiming coverage it doesn't have.
   #
-  # Postgres/PostgresRevisions stay `io: true`-gated (spec/adapters/driven/
+  # Postgres/PostgresRevision stay `io: true`-gated (spec/adapters/driven/
   # postgres_*_spec.rb): a real server has no safe place to come from in
   # an unconditional, always-on local spec.
   describe "the standard battery, over real generated sequences, against real SQLite" do

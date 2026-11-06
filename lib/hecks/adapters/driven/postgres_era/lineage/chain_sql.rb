@@ -7,7 +7,7 @@ require_relative "direct_sql"
 
 module Hecks
   module Adapters
-    class PostgresRevisions
+    class PostgresRevision
       class Lineage
         # The SQL that derives an era's head from the journal: each ancestor era's rows, cut at
         # the watermark recorded when its successor was minted, then every edge's rules chained

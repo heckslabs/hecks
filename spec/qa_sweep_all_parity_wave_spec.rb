@@ -14,7 +14,7 @@ RSpec.describe "qa_sweep --all", :io do
   ].freeze
 
   def parity_lines
-    ["parity wave: Memory vs real PostgresRevisions for 1 target(s), at most " \
+    ["parity wave: Memory vs real PostgresRevision for 1 target(s), at most " \
      "#{QualityControlDials::SWEEP_MAX_PARALLEL} at once: pg_one",
      "clean (3): heki_one, pg_one, pg_one [parity wave]"]
   end
@@ -22,8 +22,8 @@ RSpec.describe "qa_sweep --all", :io do
   before { identify_targets!("heki_one" => @target_domain_relpath, "pg_one" => @pg_target_domain_relpath) }
 
   # Wave 2 runs persistence parity as its own `qa_sweep pg_one --persistence-parity` child
-  # for each clean PostgresRevisions-bound target; `heki_one` is not bound, so only one child runs.
-  it "runs persistence parity as a second wave over PostgresRevisions-bound targets that came back clean", :aggregate_failures do
+  # for each clean PostgresRevision-bound target; `heki_one` is not bound, so only one child runs.
+  it "runs persistence parity as a second wave over PostgresRevision-bound targets that came back clean", :aggregate_failures do
     stdout, _stderr, status = run_qa_sweep("--all", "--seeds", "2")
 
     expect(status.exitstatus).to eq(0)

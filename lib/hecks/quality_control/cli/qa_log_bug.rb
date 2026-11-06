@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../../../hecks"
-# The era subsystem does not load with core; the `PostgresRevisions` binding needs it (ADR 0033).
+# The era subsystem does not load with core; the `PostgresRevision` binding needs it (ADR 0033).
 require_relative "../../ports/persistence/plugins/era"
 require_relative "qa_log_bug/arguments"
 require_relative "qa_log_bug/proof"

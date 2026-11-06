@@ -46,7 +46,7 @@ RSpec.describe "revisions, the hecksagon word for schema revisions" do
 
   it "refuses at boot on Memory, naming the adapters that can keep revisions" do
     expect { boot_with("  revisions true") }
-      .to raise_error(Hecks::Runtime::WiringError, /sets revisions.*Memory.*Postgres, PostgresRevisions/)
+      .to raise_error(Hecks::Runtime::WiringError, /sets revisions.*Memory.*Postgres, PostgresRevision/)
   end
 
   it "does not refuse when revisions is left out" do

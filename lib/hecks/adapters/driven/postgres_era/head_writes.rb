@@ -2,7 +2,7 @@ require "json"
 
 module Hecks
   module Adapters
-    class PostgresRevisions
+    class PostgresRevision
       # The write path under the domain's lock: one journal row, then the head snapshot and every
       # field cache brought to the same ordinal inside the same transaction.
       module HeadWrites

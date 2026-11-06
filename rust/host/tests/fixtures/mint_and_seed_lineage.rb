@@ -1,5 +1,5 @@
 #!/usr/bin/env ruby
-# Seeds real data across two eras through PostgresRevisions, then prints the merged head as JSON.
+# Seeds real data across two eras through PostgresRevision, then prints the merged head as JSON.
 # Ground truth translates era 1 with Ports::Persistence::Lineage#translate, not the head view.
 #
 # usage: mint_and_seed_lineage.rb <db_name> <owner_role> <app_role>
@@ -98,8 +98,8 @@ end
 # provision the lineage, freeze the source as era 1, provision its read side.
 def hold_first_era!(source, owner_url:)
   bluebook = load_registry(source).bluebooks.values.first
-  db = Hecks::Adapters::PostgresRevisions.connect_for(bluebook.name, { database: owner_url })
-  lineage = Hecks::Adapters::PostgresRevisions::Lineage.new(db, bluebook.name)
+  db = Hecks::Adapters::PostgresRevision.connect_for(bluebook.name, { database: owner_url })
+  lineage = Hecks::Adapters::PostgresRevision::Lineage.new(db, bluebook.name)
   lineage.ensure_base!
   lineage.hold_first!(source, projection: Hecks::Runtime::StorageShape.project(bluebook))
   lineage.provision_first_era!(bluebook.aggregates)
@@ -111,7 +111,7 @@ end
 # command makes, at the watermark the database holds when it asks.
 def mint_request_for(owner_url)
   db = PG.connect(owner_url)
-  watermark = Hecks::Adapters::PostgresRevisions::Lineage.new(db, DOMAIN).last_ordinal
+  watermark = Hecks::Adapters::PostgresRevision::Lineage.new(db, DOMAIN).last_ordinal
   { confirm: true, verdict: "would_mint", watermark: watermark }
 ensure
   db&.close
@@ -123,7 +123,7 @@ def check!(source, owner_url:, translation_source: nil, role: nil)
   settings = { database: owner_url, mint_eras: true }
   settings[:role] = role if role
   settings[:mint_request] = mint_request_for(owner_url)
-  Hecks::Adapters::PostgresRevisions::LineageManager.check!(
+  Hecks::Adapters::PostgresRevision::LineageManager.check!(
     registry: registry, bluebook: bluebook, current_text: source, settings: settings
   )
   registry
@@ -155,7 +155,7 @@ end
 hold_first_era!(V1, owner_url: owner_url)
 registry_v1 = check!(V1, owner_url: owner_url)
 aggregate_v1 = registry_v1.bluebooks.values.first.aggregate("Account")
-adapter_v1 = Hecks::Adapters::PostgresRevisions.new(
+adapter_v1 = Hecks::Adapters::PostgresRevision.new(
   aggregate: aggregate_v1, settings: { database: owner_url, domain: DOMAIN, era: 1 }
 )
 era1_writes = { "biz" => 100, "pers" => 250 }
@@ -166,8 +166,8 @@ from = label_of(V1)
 to = label_of(V2)
 registry_v2 = check!(V2, owner_url: owner_url, translation_source: edge_source(from: from, to: to), role: app_role)
 aggregate_v2 = registry_v2.bluebooks.values.first.aggregate("Account")
-adapter_v2 = Hecks::Adapters::PostgresRevisions.new(
-  # owner_url, not the app role: a fresh PostgresRevisions re-runs the backfill check, which touches
+adapter_v2 = Hecks::Adapters::PostgresRevision.new(
+  # owner_url, not the app role: a fresh PostgresRevision re-runs the backfill check, which touches
   # hecks_backfill_progress, a table grant_role! never gives the app role.
   aggregate: aggregate_v2, settings: { database: owner_url, domain: DOMAIN, era: 2 }
 )

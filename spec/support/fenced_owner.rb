@@ -1,9 +1,9 @@
 require "pg"
 
-# A non-superuser owner for a spec's disposable database, so PostgresRevisions's row-level-security
+# A non-superuser owner for a spec's disposable database, so PostgresRevision's row-level-security
 # write fence applies: `Lineage#check_fence_applies!` refuses to boot as a superuser.
 #
-# The role owns the database because a PostgresRevisions boot provisions tables, policies and schemas.
+# The role owns the database because a PostgresRevision boot provisions tables, policies and schemas.
 # One `ROLE` serves every caller and is never dropped: `parallel_rspec` runs files concurrently,
 # creation swallows the race-loser's error (see hecks quality_control create_ledger_role), and
 # dropping it would fail while another spec's database still hangs off it.

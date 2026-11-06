@@ -1,6 +1,6 @@
 module Hecks
   module Adapters
-    class PostgresRevisions
+    class PostgresRevision
       # Saga checkpoints. Rows keep `domain` as a column so domains sharing one schema stay
       # isolated. No lock here: `SagaInterpreter`'s own mutex already serializes in-process writers.
       module Sagas

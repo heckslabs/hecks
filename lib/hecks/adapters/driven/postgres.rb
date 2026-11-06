@@ -26,7 +26,7 @@ require_relative "../../indifferent_key"
 module Hecks
   module Adapters
     # The plain Postgres store: one table per aggregate, real typed columns
-    # for scalars, jsonb for nested/list attributes. See `PostgresRevisions` for lineage/era support.
+    # for scalars, jsonb for nested/list attributes. See `PostgresRevision` for lineage/era support.
     class Postgres
       include SqlQueryBuilder
       include SchemaBuilder
@@ -78,7 +78,7 @@ module Hecks
               "cannot bind Postgres at #{declared} for #{name}: #{e.message.strip}"
       end
 
-      # **Lazy, on purpose** — same reasoning as PostgresRevisions's own connect_for: a domain that
+      # **Lazy, on purpose** — same reasoning as PostgresRevision's own connect_for: a domain that
       # never wires Postgres should never need the gem installed.
       def self.require_pg(name)
         require "pg"
@@ -102,7 +102,7 @@ module Hecks
 
       # A domain with `schema` set shares this Postgres instance, so every unqualified
       # reference resolves through search_path. Messages stay quiet on purpose, same as
-      # PostgresRevisions's own: a schema/table that already exists is the ordinary case on every
+      # PostgresRevision's own: a schema/table that already exists is the ordinary case on every
       # boot after the first, not news.
       def self.configure(connection, settings)
         schema = IndifferentKey.read(settings, :schema)

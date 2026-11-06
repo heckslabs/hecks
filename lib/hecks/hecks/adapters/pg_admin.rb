@@ -11,7 +11,7 @@ module Hecks
     #
     # Connections are made to the maintenance database (`postgres`) or to the database being
     # administered, as the current operating-system user, exactly as `psql` would. Nothing here
-    # creates the ledger database itself: PostgresRevisions provisions the tables it needs on first
+    # creates the ledger database itself: PostgresRevision provisions the tables it needs on first
     # connect, and an operator makes the database with `createdb`.
     class PgAdmin
       include Ownership

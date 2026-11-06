@@ -2,7 +2,7 @@ require "json"
 
 module Hecks
   module Adapters
-    class PostgresRevisions
+    class PostgresRevision
       # The SQL dialect `SqlQueryBuilder` compiles declared queries in, plus the two-phase
       # query path that narrows candidates through the field caches before reading the head view.
       module Dialect
@@ -10,7 +10,7 @@ module Hecks
 
         def select_list = "id, state"
         def from_relation = quoted_head
-        def dialect_name = "PostgresRevisions"
+        def dialect_name = "PostgresRevision"
         def empty_in_clause = "FALSE"
 
         def placeholder(binds, value)

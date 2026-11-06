@@ -5,7 +5,7 @@ require_relative "../../../../shape_ledger"
 
 module Hecks
   module Adapters
-    class PostgresRevisions
+    class PostgresRevision
       module LineageManager
         # The decision a mint and a rehearsal both make: which translation edge leads the held era
         # to the current shape, and whether a mint would go ahead on it. It reads only what its

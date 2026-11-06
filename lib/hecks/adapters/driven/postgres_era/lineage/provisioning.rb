@@ -4,7 +4,7 @@ require_relative "../shared_tables"
 
 module Hecks
   module Adapters
-    class PostgresRevisions
+    class PostgresRevision
       class Lineage
         # Owner-only schema bootstrap: lineage tables, the RLS fence, the domain rename
         # bridge, and per-era journal partitions.
@@ -185,9 +185,9 @@ module Hecks
           end
 
           def warn_unfenced_role(role, exempt)
-            warn "[hecks] #{@domain}: booting PostgresRevisions as #{role}, #{exempt.join(" and ")}, under " \
+            warn "[hecks] #{@domain}: booting PostgresRevision as #{role}, #{exempt.join(" and ")}, under " \
                  "allow_superuser — the era write-fence is void for this connection; only this process's own " \
-                 "superseded-era check (PostgresRevisions#append) stands between an old checkout and a superseded era"
+                 "superseded-era check (PostgresRevision#append) stands between an old checkout and a superseded era"
           end
 
           # Abandons the open transaction, ignoring a failure of the rollback itself.

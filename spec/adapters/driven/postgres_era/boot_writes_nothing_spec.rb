@@ -10,7 +10,7 @@ require_relative "../../../support/first_era_hold"
 # every row as they were, a boot of a database no mint has provisioned refuses by name and creates
 # nothing, and the first-era hold of the mint entry point provisions a fresh database so that a
 # read-only boot of it works.
-RSpec.describe "a boot's writes in PostgresRevisions", :io do
+RSpec.describe "a boot's writes in PostgresRevision", :io do
   include EraRegistryLoading
   include FirstEraHold
 
@@ -57,13 +57,13 @@ RSpec.describe "a boot's writes in PostgresRevisions", :io do
   def adapter_on(url, era: nil)
     settings = { database: url, domain: BOOT_WRITES_DOMAIN }
     settings[:era] = era if era
-    Hecks::Adapters::PostgresRevisions.new(aggregate: aggregate, settings: settings)
+    Hecks::Adapters::PostgresRevision.new(aggregate: aggregate, settings: settings)
   end
 
   # Boots the era check of the bluebook against `url` with no mint request, as a copy would.
   def boot_check!(url)
     registry = load_registry(source)
-    Hecks::Adapters::PostgresRevisions::LineageManager.check!(
+    Hecks::Adapters::PostgresRevision::LineageManager.check!(
       registry: registry, bluebook: registry.bluebooks.values.first, current_text: source,
       settings: { database: url, mint_eras: true }
     )

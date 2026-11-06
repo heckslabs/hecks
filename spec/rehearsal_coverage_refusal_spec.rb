@@ -5,7 +5,7 @@ require_relative "../lib/hecks/hecks/adapters/rehearsal/inquiry"
 # The rehearsal puts the decided edge through the same coverage check the mint raises before it
 # writes an era, so a change no rule explains is refused in the rehearsal as it is at the mint.
 RSpec.describe Hecks::Adapters::Rehearsal::Inquiry, "#examine coverage of the decided edge" do
-  let(:manager) { Hecks::Adapters::PostgresRevisions::LineageManager }
+  let(:manager) { Hecks::Adapters::PostgresRevision::LineageManager }
   let(:subject_double) do
     instance_double(Hecks::Adapters::Rehearsal::Subject, registry: :registry, bluebook: :bluebook,
                                                          held: instance_double(Hecks::Adapters::JournalStore::HeldDomain))

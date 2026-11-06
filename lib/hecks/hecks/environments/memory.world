@@ -1,5 +1,5 @@
 # The Memory selection for the Hecks domain: nothing is written to a database. Specs and
-# pull-request runs use it (`HECKS_ENVIRONMENT=memory`); a real run keeps the PostgresRevisions
+# pull-request runs use it (`HECKS_ENVIRONMENT=memory`); a real run keeps the PostgresRevision
 # journal named in hecks.world. The overlay's `default_adapter` wins over the base's.
 #
 # The event tap is off as well: the log hecks.world names feeds the owner's pipeline board, and a

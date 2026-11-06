@@ -1,6 +1,6 @@
 module Hecks
   module Adapters
-    class PostgresRevisions
+    class PostgresRevision
       module LineageManager
         # Everything one era check carries from connecting to minting: the booting registry and
         # bluebook, its source text, the open lineage, the role to grant, the bluebook directory,

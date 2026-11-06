@@ -10,7 +10,7 @@ require_relative "../../../support/thread_parking"
 # A domain rename moves every table keyed by the old name, the heads of aggregates the bluebook no
 # longer lists, the field caches and the backfill cursors, and it reads the eras only after the
 # locks are granted.
-RSpec.describe "PostgresRevisions domain rename state", :io do
+RSpec.describe "PostgresRevision domain rename state", :io do
   include EraRegistryLoading
   include FirstEraHold
 
@@ -61,8 +61,8 @@ RSpec.describe "PostgresRevisions domain rename state", :io do
   def connect = PG.connect(FencedOwner.url(STATE_DB))
 
   def rename_with(db)
-    Hecks::Adapters::PostgresRevisions::Lineage.new(db, "NewState", formerly_known_as: "OldState")
-                                               .rename_domain!(storage_names: ["acct"], cache_fields: { "acct" => ["status"] })
+    Hecks::Adapters::PostgresRevision::Lineage.new(db, "NewState", formerly_known_as: "OldState")
+                                              .rename_domain!(storage_names: ["acct"], cache_fields: { "acct" => ["status"] })
   end
 
   # Holds the old domain's first era and provisions the cache and progress rows of its Acct.
@@ -73,17 +73,17 @@ RSpec.describe "PostgresRevisions domain rename state", :io do
 
   def seed_other_state!
     db = connect
-    db.exec(Hecks::Adapters::PostgresRevisions::Lineage::LedgerReset::ARCHIVES_SQL)
+    db.exec(Hecks::Adapters::PostgresRevision::Lineage::LedgerReset::ARCHIVES_SQL)
     db.exec("INSERT INTO hecks_ledger_archives (domain, aggregate, archive, row_count) " \
             "VALUES ('OldState', 'gone', 'old_state_gone_archived_20261001000000', 0)")
     db.exec("CREATE TABLE old_state_gone_archived_20261001000000 (x int)")
-    db.exec(Hecks::Adapters::PostgresRevisions::Sagas::CREATE_SAGAS_SQL)
+    db.exec(Hecks::Adapters::PostgresRevision::Sagas::CREATE_SAGAS_SQL)
     db.exec("INSERT INTO hecks_saga_instances (domain, process_manager, correlation, state, memory) " \
             "VALUES ('OldState', 'Pm', 'c1', 'open', '{}')")
     db.close
   end
 
-  def old_lineage(db) = Hecks::Adapters::PostgresRevisions::Lineage.new(db, "OldState")
+  def old_lineage(db) = Hecks::Adapters::PostgresRevision::Lineage.new(db, "OldState")
 
   def relations_like(pattern)
     db = connect
@@ -150,7 +150,7 @@ RSpec.describe "PostgresRevisions domain rename state", :io do
 
     it "moves the field cache the new name hashes" do
       db = connect
-      cache = Hecks::Adapters::PostgresRevisions::Lineage.new(db, "NewState").field_cache("acct", 1, "status")
+      cache = Hecks::Adapters::PostgresRevision::Lineage.new(db, "NewState").field_cache("acct", 1, "status")
       expect(relations_like(cache)).to eq([cache])
     ensure
       db&.close

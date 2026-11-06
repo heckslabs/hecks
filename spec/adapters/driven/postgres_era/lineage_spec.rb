@@ -7,9 +7,9 @@ require_relative "../../../support/thread_parking"
 require_relative "../../../support/mint_request_support"
 require_relative "../../../support/first_era_hold"
 
-# Lineage in the PostgresRevisions adapter: partitioned journal, era rows, the one-transaction mint,
+# Lineage in the PostgresRevision adapter: partitioned journal, era rows, the one-transaction mint,
 # and the head compiled as a chain of edges. Needs a reachable Postgres (see postgres_probe.rb).
-RSpec.describe "lineage in the PostgresRevisions adapter", :io do
+RSpec.describe "lineage in the PostgresRevision adapter", :io do
   include EraRegistryLoading
   include EraAppRole
   include MintRequestSupport
@@ -189,7 +189,7 @@ RSpec.describe "lineage in the PostgresRevisions adapter", :io do
     registry = load_registry(source, translation_source: translation_source)
     bluebook = registry.bluebooks.values.first
     settings = boot_settings(role: role, mint_eras: mint_eras)
-    Hecks::Adapters::PostgresRevisions::LineageManager.check!(
+    Hecks::Adapters::PostgresRevision::LineageManager.check!(
       registry: registry, bluebook: bluebook, current_text: source,
       settings: with_mint_request(settings, domain: bluebook.name)
     )
@@ -232,7 +232,7 @@ RSpec.describe "lineage in the PostgresRevisions adapter", :io do
 
   def adapter_for(registry, aggregate_name)
     aggregate = registry.bluebooks.values.first.aggregate(aggregate_name)
-    Hecks::Adapters::PostgresRevisions.new(aggregate: aggregate, settings: { database: owner_url, domain: "Ledger" })
+    Hecks::Adapters::PostgresRevision.new(aggregate: aggregate, settings: { database: owner_url, domain: "Ledger" })
   end
 
   def v1_record_state
@@ -266,7 +266,7 @@ RSpec.describe "lineage in the PostgresRevisions adapter", :io do
   # Checks an already loaded registry against the database as the owner.
   def check_loaded!(registry, text)
     hold_first_unless_held!(text)
-    Hecks::Adapters::PostgresRevisions::LineageManager.check!(
+    Hecks::Adapters::PostgresRevision::LineageManager.check!(
       registry: registry, bluebook: registry.bluebooks.values.first, current_text: text,
       settings: with_mint_request({ database: owner_url, mint_eras: true },
                                   domain: registry.bluebooks.values.first.name)
@@ -358,7 +358,7 @@ RSpec.describe "lineage in the PostgresRevisions adapter", :io do
       with_db { |db| db.exec_params("UPDATE hecks_eras SET held_text = $1 WHERE ordinal = 1", [V2_SOURCE]) }
     end
 
-    def reattest_era_one! = with_db { |db| Hecks::Adapters::PostgresRevisions::Lineage.new(db, "Ledger").reattest!(1) }
+    def reattest_era_one! = with_db { |db| Hecks::Adapters::PostgresRevision::Lineage.new(db, "Ledger").reattest!(1) }
 
     def attestation = with_db { |db| db.exec("SELECT * FROM hecks_attestations WHERE domain = 'Ledger'")[0] }
 
@@ -587,7 +587,7 @@ RSpec.describe "lineage in the PostgresRevisions adapter", :io do
     def run_snapshot_inside_a_rolled_back_transaction
       acct = load_registry(V1_SOURCE).bluebooks.values.first.aggregate("Acct")
       with_db do |db|
-        lineage = Hecks::Adapters::PostgresRevisions::Lineage.new(db, "Ledger")
+        lineage = Hecks::Adapters::PostgresRevision::Lineage.new(db, "Ledger")
         db.exec("BEGIN")
         db.exec_params(PLACEHOLDER_ERA_INSERT)
         lineage.ensure_head_snapshot!(acct.storage_name, 99)
@@ -647,8 +647,8 @@ RSpec.describe "lineage in the PostgresRevisions adapter", :io do
     def save_collide_record
       acct = check!(COLLIDE_V1).bluebooks.values.first.aggregate("Acct")
       state = { amount: { "cents" => 500 }, kind: { "value" => "biz" }, team: "team-1" }
-      Hecks::Adapters::PostgresRevisions.new(aggregate: acct, settings: { database: LINEAGE_DB, domain: "Collide" })
-                                        .save(Hecks::Runtime::Instance.new(aggregate: acct, id: "a1", state: state))
+      Hecks::Adapters::PostgresRevision.new(aggregate: acct, settings: { database: LINEAGE_DB, domain: "Collide" })
+                                       .save(Hecks::Runtime::Instance.new(aggregate: acct, id: "a1", state: state))
     end
 
     def colliding_edge
@@ -713,7 +713,7 @@ RSpec.describe "lineage in the PostgresRevisions adapter", :io do
 
     # ...an era-1 checkout still sees it, under the old storage name...
     it "lets an era-1 checkout still see it, under the old storage name" do
-      old_world = Hecks::Adapters::PostgresRevisions.new(
+      old_world = Hecks::Adapters::PostgresRevision.new(
         aggregate: @old_registry.bluebooks.values.first.aggregate("Acct"),
         settings:  { database: owner_url, domain: "Ledger", era: 1 }
       )
@@ -727,7 +727,7 @@ RSpec.describe "lineage in the PostgresRevisions adapter", :io do
     end
 
     it "counts it as diverged" do
-      expect(with_db { |db| Hecks::Adapters::PostgresRevisions::Lineage.new(db, "Ledger").diverged_count(1) }).to eq(1)
+      expect(with_db { |db| Hecks::Adapters::PostgresRevision::Lineage.new(db, "Ledger").diverged_count(1) }).to eq(1)
     end
   end
 
@@ -816,10 +816,10 @@ RSpec.describe "lineage in the PostgresRevisions adapter", :io do
   # Saves one record into the world of `era`, as that checkout's adapter would.
   def save_in_world(registry, aggregate_name, era, id, **state)
     aggregate = registry.bluebooks.values.first.aggregate(aggregate_name)
-    world = Hecks::Adapters::PostgresRevisions.new(aggregate: aggregate,
-                                                   settings:  {
-                                                     database: LINEAGE_DB, domain: "Ledger", era: era
-                                                   })
+    world = Hecks::Adapters::PostgresRevision.new(aggregate: aggregate,
+                                                  settings:  {
+                                                    database: LINEAGE_DB, domain: "Ledger", era: era
+                                                  })
     world.save(Hecks::Runtime::Instance.new(aggregate: aggregate, id: id, state: state))
   end
 
@@ -839,7 +839,7 @@ RSpec.describe "lineage in the PostgresRevisions adapter", :io do
   end
 
   def merge_tail!(registry, **extra)
-    Hecks::Adapters::PostgresRevisions::LineageManager.merge!(
+    Hecks::Adapters::PostgresRevision::LineageManager.merge!(
       registry: registry, bluebook: registry.bluebooks.values.first,
       settings: with_mint_request({ database: LINEAGE_DB, mint_eras: true },
                                   domain: registry.bluebooks.values.first.name),
@@ -875,7 +875,7 @@ RSpec.describe "lineage in the PostgresRevisions adapter", :io do
       end
 
       it "leaves nothing diverged" do
-        expect(with_db { |db| Hecks::Adapters::PostgresRevisions::Lineage.new(db, "Ledger").diverged_count(1) }).to eq(0)
+        expect(with_db { |db| Hecks::Adapters::PostgresRevision::Lineage.new(db, "Ledger").diverged_count(1) }).to eq(0)
       end
 
       it "never rewrites the ancestor era's rows" do
@@ -919,7 +919,7 @@ RSpec.describe "lineage in the PostgresRevisions adapter", :io do
     # ordinal re-checks under the lock and stands down
     def second_mint_of_ordinal_two
       with_db do |db|
-        lineage = Hecks::Adapters::PostgresRevisions::Lineage.new(db, "Ledger")
+        lineage = Hecks::Adapters::PostgresRevision::Lineage.new(db, "Ledger")
         lineage.mint_era!(ordinal: 2, hash: "x", label: "x", held_text: "x", aggregates: [], edges: [])
       end
     end
@@ -1003,7 +1003,7 @@ RSpec.describe "lineage in the PostgresRevisions adapter", :io do
       roster_v1 = load_registry(ROSTER_V1)
       check_loaded!(roster_v1, ROSTER_V1)
       person = roster_v1.bluebooks.values.first.aggregate("Person")
-      people = Hecks::Adapters::PostgresRevisions.new(aggregate: person, settings: { database: LINEAGE_DB, domain: "Roster" })
+      people = Hecks::Adapters::PostgresRevision.new(aggregate: person, settings: { database: LINEAGE_DB, domain: "Roster" })
       state = { name: { "value" => "Chris Young" }, title: { "value" => "CEO" } }
       people.save(Hecks::Runtime::Instance.new(aggregate: person, id: "Chris Young", state: state))
       @drifted = load_registry(ROSTER_V2, translation_source: rekey_edge)
@@ -1016,7 +1016,7 @@ RSpec.describe "lineage in the PostgresRevisions adapter", :io do
 
       def head
         person = @drifted.bluebooks.values.first.aggregate("Person")
-        Hecks::Adapters::PostgresRevisions.new(aggregate: person, settings: { database: LINEAGE_DB, domain: "Roster" })
+        Hecks::Adapters::PostgresRevision.new(aggregate: person, settings: { database: LINEAGE_DB, domain: "Roster" })
       end
 
       def rows_under(id)
@@ -1058,7 +1058,7 @@ RSpec.describe "lineage in the PostgresRevisions adapter", :io do
     # The fenced role must still boot; ensure_base!'s ALTER TABLE and REVOKE are owner-only.
     it "lets the fenced role still boot" do
       with_db(user: LINEAGE_ROLE) do |app|
-        expect { Hecks::Adapters::PostgresRevisions::Lineage.new(app, "Ledger").ensure_base! }.not_to raise_error
+        expect { Hecks::Adapters::PostgresRevision::Lineage.new(app, "Ledger").ensure_base! }.not_to raise_error
       end
     end
 
@@ -1124,7 +1124,7 @@ RSpec.describe "lineage in the PostgresRevisions adapter", :io do
       # Hold a mint-shaped transaction open with the next era's partition attached, uncommitted.
       @blocker = PG.connect(dbname: LINEAGE_DB)
       @blocker.exec("BEGIN")
-      Hecks::Adapters::PostgresRevisions::Lineage.new(@blocker, "Ledger").ensure_partition!(3)
+      Hecks::Adapters::PostgresRevision::Lineage.new(@blocker, "Ledger").ensure_partition!(3)
     end
 
     after do
@@ -1273,7 +1273,7 @@ RSpec.describe "lineage in the PostgresRevisions adapter", :io do
       old = check!(V2_SOURCE)
       settings = { database: owner_url, domain: "Ledger", era: old.resolved_eras["Ledger"],
                    superseded_by: old.superseded_eras["Ledger"] }
-      Hecks::Adapters::PostgresRevisions.new(aggregate: old.bluebooks.values.first.aggregate("Account"), settings: settings)
+      Hecks::Adapters::PostgresRevision.new(aggregate: old.bluebooks.values.first.aggregate("Account"), settings: settings)
     end
 
     before do
@@ -1300,7 +1300,7 @@ RSpec.describe "lineage in the PostgresRevisions adapter", :io do
   def check_as_ambient!(source, held: true, **extra_settings)
     hold_first_unless_held!(source, url: LINEAGE_DB) if held
     registry = load_registry(source)
-    Hecks::Adapters::PostgresRevisions::LineageManager.check!(
+    Hecks::Adapters::PostgresRevision::LineageManager.check!(
       registry: registry, bluebook: registry.bluebooks.values.first, current_text: source,
       settings: with_mint_request({ database: LINEAGE_DB, mint_eras: true }.merge(extra_settings),
                                   domain: registry.bluebooks.values.first.name)
@@ -1317,7 +1317,7 @@ RSpec.describe "lineage in the PostgresRevisions adapter", :io do
     end
 
     def superuser_refusal
-      lead = "cannot boot Ledger: PostgresRevisions's era write-fence is row-level security, and this " \
+      lead = "cannot boot Ledger: PostgresRevision's era write-fence is row-level security, and this " \
              "connection's role #{ambient["rolname"].inspect} is "
       closing = "#{Regexp.escape("Connect as an ordinary role instead")}.*" \
                 "#{Regexp.escape("or declare `allow_superuser true` in the same persisted_by block")}"
@@ -1325,7 +1325,7 @@ RSpec.describe "lineage in the PostgresRevisions adapter", :io do
     end
 
     def fence_void_warning
-      Regexp.new("#{Regexp.escape("[hecks] Ledger: booting PostgresRevisions as #{ambient["rolname"].inspect}, ")}.*" \
+      Regexp.new("#{Regexp.escape("[hecks] Ledger: booting PostgresRevision as #{ambient["rolname"].inspect}, ")}.*" \
                  "#{Regexp.escape("under allow_superuser — the era write-fence is void for this connection")}")
     end
 
@@ -1385,7 +1385,7 @@ RSpec.describe "lineage in the PostgresRevisions adapter", :io do
     def old_world
       settings = { database: owner_url, domain: "Ledger", era: @old_registry.resolved_eras["Ledger"],
                    superseded_by: @old_registry.superseded_eras["Ledger"] }
-      Hecks::Adapters::PostgresRevisions.new(aggregate: acct, settings: settings)
+      Hecks::Adapters::PostgresRevision.new(aggregate: acct, settings: settings)
     end
 
     it "marks the old checkout as booted at era 1 and superseded by era 2", :aggregate_failures do
@@ -1424,7 +1424,7 @@ RSpec.describe "lineage in the PostgresRevisions adapter", :io do
     end
 
     it "diverges nothing" do
-      expect(with_db { |db| Hecks::Adapters::PostgresRevisions::Lineage.new(db, "Ledger").diverged_count(1) }).to eq(0)
+      expect(with_db { |db| Hecks::Adapters::PostgresRevision::Lineage.new(db, "Ledger").diverged_count(1) }).to eq(0)
     end
   end
 
@@ -1472,7 +1472,7 @@ RSpec.describe "lineage in the PostgresRevisions adapter", :io do
   # Saves a record into era 2's head through the era-2 adapter.
   def save_era_two_record(id, label)
     account = era_two_account
-    adapter = Hecks::Adapters::PostgresRevisions.new(aggregate: account, settings: { database: LINEAGE_DB, domain: "Ledger" })
+    adapter = Hecks::Adapters::PostgresRevision.new(aggregate: account, settings: { database: LINEAGE_DB, domain: "Ledger" })
     state = { amount: { "cents" => 250 }, kind: { "label" => label }, denomination: { "code" => "USD" } }
     adapter.save(Hecks::Runtime::Instance.new(aggregate: account, id: id, state: state))
   end
@@ -1499,8 +1499,8 @@ RSpec.describe "lineage in the PostgresRevisions adapter", :io do
 
   # The SQL of a from-scratch build over the whole edge chain.
   def full_build_sql(db, source, edges, label)
-    lineage = Hecks::Adapters::PostgresRevisions::Lineage.new(db, "Ledger")
-    chain = Hecks::Adapters::PostgresRevisions::LineageManager.edge_chain(
+    lineage = Hecks::Adapters::PostgresRevision::Lineage.new(db, "Ledger")
+    chain = Hecks::Adapters::PostgresRevision::LineageManager.edge_chain(
       load_registry(source, translation_source: edges), load_registry(source).bluebooks.values.first, lineage.eras[0..-2], label
     )
     lineage.chain_sql(era_two_account, 3, chain)
@@ -1579,10 +1579,10 @@ RSpec.describe "lineage in the PostgresRevisions adapter", :io do
     # re-derived at query time the write would leak upward through era 2's matview.
     def stale_write
       account = era_two_account
-      stale = Hecks::Adapters::PostgresRevisions.new(aggregate: account,
-                                                     settings:  {
-                                                       database: LINEAGE_DB, domain: "Ledger", era: 2
-                                                     })
+      stale = Hecks::Adapters::PostgresRevision.new(aggregate: account,
+                                                    settings:  {
+                                                      database: LINEAGE_DB, domain: "Ledger", era: 2
+                                                    })
       state = { amount: { "cents" => 999 }, kind: { "label" => "business" }, denomination: { "code" => "ZZZ" } }
       stale.save(Hecks::Runtime::Instance.new(aggregate: account, id: "business", state: state))
     end
@@ -1593,7 +1593,7 @@ RSpec.describe "lineage in the PostgresRevisions adapter", :io do
       with_db do |db|
         db.exec("REFRESH MATERIALIZED VIEW #{PG::Connection.quote_ident("ledger_account_lineage_3_#{@l3}")}")
         [db.exec("SELECT id, state FROM ledger_account_head ORDER BY id").values,
-         Hecks::Adapters::PostgresRevisions::Lineage.new(db, "Ledger").diverged_count(2)]
+         Hecks::Adapters::PostgresRevision::Lineage.new(db, "Ledger").diverged_count(2)]
       end
     end
 

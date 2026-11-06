@@ -21,9 +21,9 @@ module Hecks
           # The edge text for the latest era, or why there is nothing to scaffold.
           def scaffold_latest(held, latest)
             return "#{held.domain_name} matches era #{latest[:ordinal]} — nothing to scaffold." if
-              PostgresRevisions::LineageManager.held_shape(latest) == held.shape
+              PostgresRevision::LineageManager.held_shape(latest) == held.shape
 
-            declared = PostgresRevisions::LineageManager.held_bluebook(latest)
+            declared = PostgresRevision::LineageManager.held_bluebook(latest)
             edge_text(held, latest, Translation::Scaffold.diff(declared, held.bluebook))
           end
 

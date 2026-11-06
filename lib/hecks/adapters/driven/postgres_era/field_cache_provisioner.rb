@@ -3,7 +3,7 @@ require_relative "dialect"
 
 module Hecks
   module Adapters
-    class PostgresRevisions
+    class PostgresRevision
       # Creates and backfills one aggregate's field caches for one era. Only the mint path that
       # compiles an era's head, and the first-era hold, run it; a boot reads the caches that exist.
       class FieldCacheProvisioner

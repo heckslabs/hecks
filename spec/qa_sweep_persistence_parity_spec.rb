@@ -8,14 +8,14 @@ require "fileutils"
 require "pathname"
 
 # `qa_sweep --persistence-parity` against a real subprocess and the real `examples/directory`,
-# whose `compute`/`rekey` edge exercises PostgresRevisions SQL compilation.
+# whose `compute`/`rekey` edge exercises PostgresRevision SQL compilation.
 RSpec.describe "qa_sweep --persistence-parity", :io do
   QA_SWEEP_PERSISTENCE_PARITY_DATABASE = "hecks_qa_sweep_persistence_parity_spec".freeze
 
   # A Heki-bound target for the eligibility gate's negative example.
   INELIGIBLE_TARGET_BLUEBOOK = <<~RUBY.freeze
     Hecks.bluebook "QaSweepPersistenceParityIneligibleFixture" do
-      vision "A trivially well-behaved, non-PostgresRevisions-bound target — proves --persistence-parity's own eligibility gate refuses it before ever claiming or opening a sweep."
+      vision "A trivially well-behaved, non-PostgresRevision-bound target — proves --persistence-parity's own eligibility gate refuses it before ever claiming or opening a sweep."
 
       aggregate "Widget" do
         identified_by :reference
@@ -108,7 +108,7 @@ RSpec.describe "qa_sweep --persistence-parity", :io do
   # The lines a clean `--all --persistence-parity` run prints for the directory target.
   def parity_all_lines
     ["clean (3): directory, ineligible, directory [parity wave]",
-     "parity wave: Memory vs real PostgresRevisions for 1 target(s), at most " \
+     "parity wave: Memory vs real PostgresRevision for 1 target(s), at most " \
      "#{QualityControlDials::SWEEP_MAX_PARALLEL} at once: directory",
      "  directory: ruby_only,self_consistency (capabilities: postgres_era,sqlite,translations; " \
      "deferred: persistence_parity)",
@@ -150,14 +150,14 @@ RSpec.describe "qa_sweep --persistence-parity", :io do
     expect(stderr).to include("needs an explicit target-reference")
   end
 
-  it "refuses a target with no persisted_by(\"PostgresRevisions\") binding at all — an operational error, not a finding",
+  it "refuses a target with no persisted_by(\"PostgresRevision\") binding at all — an operational error, not a finding",
      :aggregate_failures do
     identify_target!("ineligible", @ineligible_relpath)
 
     _stdout, stderr, status = run_qa_sweep("ineligible", "--persistence-parity")
 
     expect(status.exitstatus).to eq(1)
-    expect(stderr).to include("declares no persisted_by(\"PostgresRevisions\") binding")
+    expect(stderr).to include("declares no persisted_by(\"PostgresRevision\") binding")
   end
 
   it "leaves an ineligible target as found, not held by a sweep that was going to abort" do
@@ -177,7 +177,7 @@ RSpec.describe "qa_sweep --persistence-parity", :io do
     target = target.shelve!(reason: { value: "structurally can't be reached by any Memory-only fuzz/replay path" })
     expect(target.status).to eq("shelved")
 
-    target = target.restore!(reason: { value: "PR #564 fixed the era-check blocker; PostgresRevisions-bound domains fuzz again" })
+    target = target.restore!(reason: { value: "PR #564 fixed the era-check blocker; PostgresRevision-bound domains fuzz again" })
     expect(target.status).to eq("waiting")
   end
 
@@ -187,12 +187,12 @@ RSpec.describe "qa_sweep --persistence-parity", :io do
     stdout
   end
 
-  it "restores a shelved PostgresRevisions-bound target and sweeps it clean, end to end, against real PostgresRevisions",
+  it "restores a shelved PostgresRevision-bound target and sweeps it clean, end to end, against real PostgresRevision",
      :aggregate_failures do
     restore_shelved_directory!
 
     expect(directory_parity_stdout).to include(
-      "Memory vs real PostgresRevisions (directory) — persistence-adapter parity", "seed 1: held", "seed 2: held",
+      "Memory vs real PostgresRevision (directory) — persistence-adapter parity", "seed 1: held", "seed 2: held",
       "clean — directory concluded and released.", "mode=persistence_parity"
     )
   end

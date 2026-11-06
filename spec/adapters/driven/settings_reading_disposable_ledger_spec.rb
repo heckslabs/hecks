@@ -3,7 +3,7 @@ require "tmpdir"
 require "hecks/hecks/adapters/settings_reading"
 require_relative "../../support/registry_double"
 
-# `hecks config`'s `disposable ledger` row: whether the world declares its PostgresRevisions store a
+# `hecks config`'s `disposable ledger` row: whether the world declares its PostgresRevision store a
 # disposable tooling ledger, and which source said so.
 RSpec.describe Hecks::Adapters::SettingsReading, "#settings" do
   include RegistryDouble

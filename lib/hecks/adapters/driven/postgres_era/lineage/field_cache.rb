@@ -2,7 +2,7 @@ require "digest"
 
 module Hecks
   module Adapters
-    class PostgresRevisions
+    class PostgresRevision
       class Lineage
         # Per-`where`-field cache tables that let a declared query find ids without reducing
         # the whole aggregate. Holds (id, ordinal, value); lists are not cached

@@ -1,5 +1,5 @@
 require_relative "../../hecks"
-# ADR 0033 — a domain wired to PostgresRevisions needs this plugin loaded
+# ADR 0033 — a domain wired to PostgresRevision needs this plugin loaded
 # explicitly; the era/lineage subsystem does not load with core.
 require_relative "../ports/persistence/plugins/era"
 

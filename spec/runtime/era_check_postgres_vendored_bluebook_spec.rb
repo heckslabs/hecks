@@ -6,10 +6,10 @@ require_relative "../support/scratch_postgres"
 require_relative "../support/fenced_owner"
 require_relative "../support/first_era_hold"
 
-# Pins a fix: PostgresRevisions's era-1 self-mint for a second, vendored bluebook
+# Pins a fix: PostgresRevision's era-1 self-mint for a second, vendored bluebook
 # in a registry wrote the first bluebook's own source text into
 # `hecks_eras.held_text` instead of the second bluebook's own.
-RSpec.describe "PostgresRevisions era-1 minting for a second bluebook in a multi-bluebook registry", :io do
+RSpec.describe "PostgresRevision era-1 minting for a second bluebook in a multi-bluebook registry", :io do
   include FirstEraHold
 
   VENDORED_BLUEBOOK_DB = "hecks_era_vendored_bluebook_spec".freeze

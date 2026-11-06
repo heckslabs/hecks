@@ -15,7 +15,7 @@ module Hecks
             # @return [Object] the block's value
             # @raise [Runtime::WiringError] if the connection is refused
             def reading(held)
-              db = PostgresRevisions.connect_for(held.domain_name, held.settings, provision: false)
+              db = PostgresRevision.connect_for(held.domain_name, held.settings, provision: false)
               db.exec("SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY")
               yield lineage_over(db, held), db
             ensure
@@ -24,7 +24,7 @@ module Hecks
 
             def lineage_over(db, held)
               bluebook = held.bluebook
-              PostgresRevisions::Lineage.new(db, bluebook.name, formerly_known_as: bluebook.formerly_known_as, reading: true)
+              PostgresRevision::Lineage.new(db, bluebook.name, formerly_known_as: bluebook.formerly_known_as, reading: true)
             end
           end
         end

@@ -6,7 +6,7 @@ require "hecks/tools/console"
 # IRB session fed on stdin. Postgres is pointed at a port nothing listens
 # on, for the child process only: the bare console must dispatch a pizza
 # with no database server reachable (ADR 0073), while an explicit
-# `examples/directory` still boots that directory's own `PostgresRevisions` wiring.
+# `examples/directory` still boots that directory's own `PostgresRevision` wiring.
 RSpec.describe "Hecks::Tools::Console" do
   # The child's whole program: the library entry point, with the domain argument passed through.
   # A prefixed constant name: top-level spec constants share one namespace, and
@@ -45,7 +45,7 @@ RSpec.describe "Hecks::Tools::Console" do
     _stdout, stderr, status = run_console("examples/directory", stdin: "exit\n")
 
     expect(status).not_to be_success
-    expect(stderr).to include("cannot bind PostgresRevisions")
+    expect(stderr).to include("cannot bind PostgresRevision")
   end
 
   describe ".overview" do

@@ -4,7 +4,7 @@ require_relative "../../../../ports/persistence/plugins/era/storage_shape"
 
 module Hecks
   module Adapters
-    class PostgresRevisions
+    class PostgresRevision
       class Lineage
         # CRUD over `hecks_eras`/`hecks_era_texts`: era text
         # integrity, archiving, and once-only era naming.

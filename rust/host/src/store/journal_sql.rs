@@ -282,7 +282,7 @@ pub async fn current_era(client: &Client, domain: &str) -> anyhow::Result<Option
     Ok(rows.first().map(|row| row.get(0)))
 }
 
-/// Mirrors `PostgresRevisions#append`'s two-step write: journal insert, then a
+/// Mirrors `PostgresRevision#append`'s two-step write: journal insert, then a
 /// head-snapshot upsert that never regresses on a stale/reordered write.
 pub async fn append_lineage_mutation<C: GenericClient>(
     client: &C,

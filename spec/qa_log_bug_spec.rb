@@ -3,7 +3,7 @@ require "hecks/ports/persistence/plugins/era"
 require_relative "support/qa_ledger_fixture"
 require_relative "support/qa_lib_cli"
 
-# `hecks quality_control log` run as a real subprocess against a disposable PostgresRevisions ledger
+# `hecks quality_control log` run as a real subprocess against a disposable PostgresRevision ledger
 # (spec/support/qa_ledger_fixture.rb); see qa_sweep_all_fixture.rb for why not Memory.
 RSpec.describe "hecks quality_control log", :io do
   FLAKY_DEMONSTRATION = "ruby -e 'exit 0' # ostensibly reproduces a flaky race, not reliably".freeze

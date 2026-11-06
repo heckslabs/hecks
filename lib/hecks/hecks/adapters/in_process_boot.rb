@@ -2,7 +2,7 @@
 
 require "json"
 require "hecks"
-# A domain wired to PostgresRevisions needs this plugin loaded explicitly, and the `:shape` projection
+# A domain wired to PostgresRevision needs this plugin loaded explicitly, and the `:shape` projection
 # reads `Runtime::StorageShape` from it (ADR 0033).
 require_relative "../../ports/persistence/plugins/era"
 require_relative "../../tools/stores"

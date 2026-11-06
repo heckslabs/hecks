@@ -4,7 +4,7 @@ Hecks.hecksagon "Deploy" do
 
   # `Tenant.Provision` and `Tenant.Reprovision` dispatch this through their policies; `directory` is a real filesystem path, which `Tenant`'s
   # declared `domain` name cannot supply. `adapter` may be left to the record, which leaves it to
-  # the adapter's PostgresRevisions.
+  # the adapter's PostgresRevision.
   Deploy::Tenant.port "TenantProvisioning" do
     asks "WriteOverlay", to: Tenant do
       attribute :database,  DatabaseName

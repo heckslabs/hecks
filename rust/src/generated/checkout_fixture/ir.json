@@ -1883,17 +1883,17 @@
       {
         "name": "Event",
         "storage_name": "event",
-        "adapter": "PostgresRevisions"
+        "adapter": "PostgresRevision"
       },
       {
         "name": "Registration",
         "storage_name": "registration",
-        "adapter": "PostgresRevisions"
+        "adapter": "PostgresRevision"
       },
       {
         "name": "PaymentConnection",
         "storage_name": "payment_connection",
-        "adapter": "PostgresRevisions"
+        "adapter": "PostgresRevision"
       }
     ]
   },
@@ -1905,7 +1905,7 @@
     "default_database": false,
     "persistence": [
       {
-        "adapter": "PostgresRevisions",
+        "adapter": "PostgresRevision",
         "settings": [
           "database",
           "allow_superuser"

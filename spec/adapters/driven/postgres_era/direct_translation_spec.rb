@@ -7,7 +7,7 @@ require_relative "../../../support/direct_chains"
 # Proves the direct head (one composed step per held era) equals the chain (one link per era)
 # for every committed edge chain, over rows built from each ruled aggregate's held shape.
 # A chain that has no exact composition (a rekey) reads through the chain, and says so.
-RSpec.describe "PostgresRevisions direct translation against the edge chain", :io do
+RSpec.describe "PostgresRevision direct translation against the edge chain", :io do
   DIRECT_DB = "hecks_postgres_era_direct_spec".freeze
   Aggregate = Struct.new(:name, :storage_name)
 
@@ -15,7 +15,7 @@ RSpec.describe "PostgresRevisions direct translation against the edge chain", :i
 
   # The lineage surface the head SQL reads, over a scratch journal.
   class DirectHost
-    include Hecks::Adapters::PostgresRevisions::Lineage::ChainSql
+    include Hecks::Adapters::PostgresRevision::Lineage::ChainSql
 
     def initialize(db) = @db = db
     def eras = []
@@ -31,7 +31,7 @@ RSpec.describe "PostgresRevisions direct translation against the edge chain", :i
     @database ||= PG.connect(dbname: DIRECT_DB).tap do |db|
       db.exec("CREATE TABLE journal (ordinal bigint, era int, aggregate text, aggregate_id text, " \
               "operation text, state jsonb)")
-      Hecks::Adapters::PostgresRevisions::Lineage::TransformSql::ALL.each { |sql| db.exec(sql) }
+      Hecks::Adapters::PostgresRevision::Lineage::TransformSql::ALL.each { |sql| db.exec(sql) }
     end
   end
 

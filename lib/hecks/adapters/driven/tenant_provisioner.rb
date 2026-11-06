@@ -34,7 +34,7 @@ module Hecks
       #
       # @param slug [String, Hash] names the overlay file
       # @param directory [String, Hash] the domain's own directory on disk (not its declared name)
-      # @param adapter [String, Hash, nil] the adapter the overlay binds; PostgresRevisions when none
+      # @param adapter [String, Hash, nil] the adapter the overlay binds; PostgresRevision when none
       # @return [Hash{Symbol => Object}] `:slug`, `:domain`, `:realm`, `:schema` and `:output`
       # @raise [Refused] when a value is outside its allow-list or the path leaves `environments/`
       def write_overlay(slug:, domain:, realm:, schema:, database:, directory:, adapter: nil, **)

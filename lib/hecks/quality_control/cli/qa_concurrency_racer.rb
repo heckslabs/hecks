@@ -11,7 +11,7 @@ module Hecks
     # `Hecks::Fuzzing::ConcurrentDispatch`, run as its own OS process.
     #
     # It is spawned, not forked: the caller (`hecks quality_control sweep.run`) holds live
-    # `PostgresRevisions` connections, and fork duplicates their file descriptors and SSL state,
+    # `PostgresRevision` connections, and fork duplicates their file descriptors and SSL state,
     # corrupting them when a child exits.
     #
     #   hecks quality_control sweep.race <domain-path> <database> <schema> <verb> <args-json>

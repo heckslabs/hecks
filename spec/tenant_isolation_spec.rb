@@ -181,7 +181,7 @@ RSpec.describe "multitenancy: one boot per tenant, one shared route table" do
   end
 
   # One database proves isolation both through dispatch/query and through direct SQL.
-  context "when bound to real PostgresRevisions", :io do
+  context "when bound to real PostgresRevision", :io do
     around do |example|
       next example.run unless PostgresProbe.available?
 
@@ -204,7 +204,7 @@ RSpec.describe "multitenancy: one boot per tenant, one shared route table" do
     end
 
     # The aggregate's table in tenant_bloom's own schema, found by its `_head` suffix
-    # (Lineage#head_view): the catalog has no ordering, and PostgresRevisions's bookkeeping tables each
+    # (Lineage#head_view): the catalog has no ordering, and PostgresRevision's bookkeeping tables each
     # hold a legitimate row.
     def bloom_head_table(direct)
       tables = direct.exec("SELECT table_name FROM information_schema.tables WHERE table_schema = 'tenant_bloom'")
@@ -216,7 +216,7 @@ RSpec.describe "multitenancy: one boot per tenant, one shared route table" do
       direct = PG.connect(dbname: @db)
       direct.exec("SET search_path TO tenant_bloom")
       table = bloom_head_table(direct)
-      expect(table).not_to be_nil, "PostgresRevisions never created an aggregate head table in tenant_bloom's own schema at all"
+      expect(table).not_to be_nil, "PostgresRevision never created an aggregate head table in tenant_bloom's own schema at all"
       direct.exec("SELECT count(*) FROM #{table}").first["count"]
     ensure
       direct&.close
@@ -228,7 +228,7 @@ RSpec.describe "multitenancy: one boot per tenant, one shared route table" do
       expect_tenant_capable(boot_tenant("acme"))
     end
 
-    it "keeps two tenants' data completely apart on real PostgresRevisions", :aggregate_failures do
+    it "keeps two tenants' data completely apart on real PostgresRevision", :aggregate_failures do
       write_postgres_tenant_domain
       router = tenant_router(boot_tenant("acme"), boot_tenant("bloom"))
       router.dispatch("Acme::Tenanted::Widget.Make", ref: { value: "acme-only-real-postgres" })
@@ -237,7 +237,7 @@ RSpec.describe "multitenancy: one boot per tenant, one shared route table" do
       expect(router.query("Bloom::Tenanted::Widget.all")).to eq([])
     end
 
-    # No CREATE SCHEMA: PostgresRevisions creates a declared schema on connect, and this pins that.
+    # No CREATE SCHEMA: PostgresRevision creates a declared schema on connect, and this pins that.
     it "keeps the other tenant's own schema empty of the first tenant's rows, in genuinely separate schemas" do
       write_postgres_tenant_domain
       router = tenant_router(boot_tenant("acme"), boot_tenant("bloom"))
