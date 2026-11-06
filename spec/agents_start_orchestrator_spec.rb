@@ -33,6 +33,13 @@ RSpec.describe "an advice request starting the orchestrator's session" do
     expect(running).not_to include("advice-w-clear")
   end
 
+  it "refuses a check that names no advice key, by name", :aggregate_failures do
+    refused = launch("agents", "Routing.check!", "work.value=w-keyless", "conflict.value=yes", "hops.value=1",
+                     "role.value=orchestrator", "repo.value=#{scratch}", "brief.value=x", "--wait").first.to_s
+    expect(refused).to include("advice")
+    expect(running).not_to include("w-keyless")
+  end
+
   it "starts no run for a check at the hop limit", :aggregate_failures do
     expect(check("w-stop", "yes", hops: 3)).to include("under the hop limit")
     expect(running).not_to include("advice-w-stop")
