@@ -16,7 +16,7 @@ module Hecks
         return unless bluebook
 
         offender = bluebook.aggregates.find do |aggregate|
-          !tenant_capable?(registry, bound_adapter(registry, domain, aggregate))
+          !tenant_capable?(registry, domain, bound_adapter(registry, domain, aggregate))
         end
         return unless offender
 
@@ -31,15 +31,15 @@ module Hecks
         "#{domain}::#{offender.hecks_name} is bound to #{adapter_name}, which is not " \
           "tenant_capable? — booting #{domain} for more than one tenant would share " \
           "#{adapter_name}'s own storage across tenants that must never see each other's data. " \
-          "Bind a tenant-capable adapter (Memory, PostgresEra with its own schema: per tenant), " \
+          "Bind a tenant-capable adapter (Memory, Postgres with revisions and its own schema: per tenant), " \
           "or keep #{domain} single-tenant."
       end
 
       # Same defensive shape as RevisionCheck#lineage_capable? — a class that
       # doesn't respond at all, or whose lookup raises, is false, not an error.
-      def tenant_capable?(registry, adapter_name)
+      def tenant_capable?(registry, domain, adapter_name)
         BestEffort.call(false) do
-          adapter_class = registry.adapters[adapter_name] && registry.adapter_class(adapter_name)
+          adapter_class = Runtime::RevisionCheck.layout_class(registry, domain, adapter_name)
           adapter_class.respond_to?(:tenant_capable?) && adapter_class.tenant_capable?
         end
       end

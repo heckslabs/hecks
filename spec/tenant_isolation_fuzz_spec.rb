@@ -43,6 +43,7 @@ RSpec.describe "multitenancy: interleaved random writes stay isolated" do
   TENANT_FUZZ_HECKSAGON = <<~HECKSAGON.freeze
     Hecks.hecksagon "Fuzzed" do
       attaches "Governance"
+      %<revisions>s
       Fuzzed::Widget.persisted_by("%<adapter>s")
     end
   HECKSAGON
@@ -75,7 +76,8 @@ RSpec.describe "multitenancy: interleaved random writes stay isolated" do
 
   def write_domain(dir, adapter:, tenant_settings:)
     write(dir, "fuzzed.bluebook", TENANT_FUZZ_BLUEBOOK)
-    write(dir, "fuzzed.hecksagon", format(TENANT_FUZZ_HECKSAGON, adapter: adapter))
+    write(dir, "fuzzed.hecksagon",
+          format(TENANT_FUZZ_HECKSAGON, adapter: adapter, revisions: adapter == "Postgres" ? "revisions true" : ""))
     write(dir, "context_map.hecksagon", InMemoryDomain::GOVERNANCE_MEMORY_HECKSAGON)
     write(dir, "fuzzed.world", TENANT_FUZZ_WORLD)
     tenant_settings.each { |slug, settings| write_overlay(dir, slug, adapter, settings) }
@@ -116,7 +118,7 @@ RSpec.describe "multitenancy: interleaved random writes stay isolated" do
   def partition_mismatches(seed:, steps:, adapter:, tenant_settings:)
     Dir.mktmpdir do |dir|
       write_domain(dir, adapter: adapter, tenant_settings: tenant_settings)
-      hold_postgres_tenant_eras!(dir, tenant_settings) if adapter == "PostgresEra"
+      hold_postgres_tenant_eras!(dir, tenant_settings) if adapter == "Postgres"
       dispatchers = boot_tenants(dir)
       interleave(dispatchers, seed: seed, steps: steps).filter_map do |slug, refs|
         actual = actual_refs(dispatchers.fetch(slug)).sort
@@ -135,7 +137,7 @@ RSpec.describe "multitenancy: interleaved random writes stay isolated" do
   end
 
   # One scratch Postgres database for all seeds; per-seed create/drop would cost more than it buys.
-  context "when bound to real PostgresEra", :io do
+  context "when bound to real Postgres with revisions", :io do
     around do |example|
       next example.run unless PostgresProbe.available?
 
@@ -155,7 +157,7 @@ RSpec.describe "multitenancy: interleaved random writes stay isolated" do
 
     it "keeps two real PostgresEra tenants' interleaved writes exactly partitioned, across several seeds" do
       (1..4).each do |seed|
-        mismatches = partition_mismatches(seed: seed, steps: 25, adapter: "PostgresEra", tenant_settings: postgres_tenants(seed))
+        mismatches = partition_mismatches(seed: seed, steps: 25, adapter: "Postgres", tenant_settings: postgres_tenants(seed))
 
         expect(mismatches).to be_empty
       end

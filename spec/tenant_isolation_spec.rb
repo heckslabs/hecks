@@ -43,6 +43,7 @@ RSpec.describe "multitenancy: one boot per tenant, one shared route table" do
   TENANT_ISOLATION_HECKSAGON = <<~HECKSAGON.freeze
     Hecks.hecksagon "Tenanted" do
       attaches "Governance"
+      %<revisions>s
       Tenanted::Widget.persisted_by("%<adapter>s")
     end
   HECKSAGON
@@ -75,9 +76,10 @@ RSpec.describe "multitenancy: one boot per tenant, one shared route table" do
 
   # One directory, two tenant overlays (environments/acme.world, bloom.world) overriding realm
   # and persistence settings.
-  def write_tenant_domain(adapter:, tenant_settings:)
+  def write_tenant_domain(adapter:, tenant_settings:, revisions: false)
     write("tenanted.bluebook", TENANT_ISOLATION_BLUEBOOK)
-    write("tenanted.hecksagon", format(TENANT_ISOLATION_HECKSAGON, adapter: adapter))
+    write("tenanted.hecksagon",
+          format(TENANT_ISOLATION_HECKSAGON, adapter: adapter, revisions: revisions ? "revisions true" : ""))
     write("context_map.hecksagon", InMemoryDomain::GOVERNANCE_MEMORY_HECKSAGON)
     write("tenanted.world", TENANT_ISOLATION_WORLD)
     tenant_settings.each { |slug, settings| write_overlay(slug, adapter, settings) }
@@ -194,7 +196,7 @@ RSpec.describe "multitenancy: one boot per tenant, one shared route table" do
 
     def write_postgres_tenant_domain
       url = FencedOwner.url(@db)
-      write_tenant_domain(adapter: "PostgresEra", tenant_settings: {
+      write_tenant_domain(adapter: "Postgres", revisions: true, tenant_settings: {
                             "acme"  => { database: url, schema: "tenant_acme" },
                             "bloom" => { database: url, schema: "tenant_bloom" }
                           })
