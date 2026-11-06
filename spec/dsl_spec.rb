@@ -3593,10 +3593,10 @@ RSpec.describe "the DSL surface" do
     it "declares the database and persistence adapter every bluebook defaults to" do
       world = world_of("Valued") do
         default_database "postgres://localhost/valued"
-        default_adapter "PostgresEra"
+        default_adapter "Postgres"
       end
 
-      expect(world.to_h).to include(default_database: "postgres://localhost/valued", default_adapter: "PostgresEra")
+      expect(world.to_h).to include(default_database: "postgres://localhost/valued", default_adapter: "Postgres")
     end
 
     it "leaves both defaults undeclared when the world names neither" do

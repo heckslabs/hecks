@@ -30,7 +30,7 @@ RSpec.describe "the era tools and a local overlay" do
       end
     BLUEBOOK
   end
-  let(:local_hecksagon) { %(Hecks.hecksagon "Overlaid" do\n  persisted_by "PostgresEra"\nend\n) }
+  let(:local_hecksagon) { %(Hecks.hecksagon "Overlaid" do\n  persisted_by "Postgres"\nend\n) }
 
   def domain_dir(with_local:)
     dir = Dir.mktmpdir("overlaid-")
@@ -48,7 +48,7 @@ RSpec.describe "the era tools and a local overlay" do
     %i[translated bare scaffold].each do |mode|
       it "sees the PostgresEra a local hecksagon names in #{mode} mode" do
         held = Hecks::Adapters::JournalStore::HeldDomain.open(domain_dir(with_local: true), mode: mode, environment: nil)
-        expect(held.adapter_name).to eq("PostgresEra")
+        expect(held.adapter_name).to eq("Postgres")
       end
     end
   end
@@ -57,7 +57,7 @@ RSpec.describe "the era tools and a local overlay" do
    Hecks::Tools::TranslationAudit, Hecks::Tools::TailMerge].each do |tool|
     describe tool do
       it "sees the PostgresEra a local hecksagon names" do
-        expect(adapter_after(tool, domain_dir(with_local: true))).to eq("PostgresEra")
+        expect(adapter_after(tool, domain_dir(with_local: true))).to eq("Postgres")
       end
 
       it "stays in Memory when no local file opts in" do
