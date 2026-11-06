@@ -12,6 +12,9 @@ module Hecks
     # from each job's own `state.json` and `timeline.jsonl` and from `claude agents --json`. It
     # reads the job's state and never the ledger, and writes nothing.
     class PipelineJobs
+      # The kinds a session may tag its question with, in brackets at its start.
+      KIND_PREFIX = /\A\s*\[(confirm|choose|retry|owner)\]/i
+
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] `jobs_dir:` the directory of jobs, `agents:` a callable answering
       #   the parsed `claude agents --json`, `runs:` a callable answering session id =>
@@ -79,7 +82,13 @@ module Hecks
         { context: PipelineBoard::SessionContext.of(state["linkScanPath"].to_s).merge(context_extras(state)),
           resume: state.values_at("resumeSessionId", "sessionId").compact.first, cwd: state["cwd"].to_s,
           permission: permission_of(state), attach: state["daemonShort"].to_s,
-          question_kind: state["questionKind"].to_s }
+          question_kind: question_kind(state) }
+      end
+
+      # @return [String] the kind the job names, else the one its question begins with, else empty
+      def question_kind(state)
+        named = state["questionKind"].to_s
+        named.empty? ? state["detail"].to_s[KIND_PREFIX, 1].to_s.downcase : named
       end
 
       # The links the job lists, and the git branch the session works on in its own worktree.

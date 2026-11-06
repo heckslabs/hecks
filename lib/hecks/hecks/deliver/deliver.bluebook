@@ -156,6 +156,66 @@ Hecks.bluebook "Hecks" do
       end
     end
 
+    # The changed files of a checkout that already match `origin/main`, put back so the checkout can take a pull:
+    # asked of the git port, then recorded or declined. A file that differs from `origin/main` is never touched.
+    aggregate "Restoration" do
+      description "The changed files of a checkout that already match origin/main, restored, or declined with the reason."
+
+      attribute :run,      RunKey
+      attribute :checkout, Word,   optional: true
+      attribute :report,   Report, optional: true
+      attribute :refusal,  Report, optional: true
+      identified_by :run
+
+      value_object "RunKey" do
+        attribute :value, String, matches: :present
+      end
+
+      # A directory inside the repository.
+      value_object "Word" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Report", String
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "declined"
+        transition "Record"  => "restored", from: "requested"
+        transition "Decline" => "declined", from: "requested"
+        mark :terminal, "restored", "declined"
+      end
+
+      command "Make" do
+        role "Operator"
+        goal "Restore each changed file of a checkout that already matches origin/main, and leave every other file alone"
+
+        attribute :run,      RunKey, sets: true
+        attribute :checkout, Word, optional: true, sets: true
+
+        emits RestoreRequested
+      end
+
+      command "Record" do
+        role "System"
+        goal "Record which changed files a checkout restored"
+
+        reference_to Restoration
+        attribute :report, Report, sets: true
+
+        emits RestoreRecorded
+      end
+
+      command "Decline" do
+        role "System"
+        goal "Record why nothing could be restored"
+
+        reference_to Restoration
+        attribute :refusal, Report, sets: true
+
+        emits RestoreDeclined
+      end
+    end
+
     # A linked worktree opened on a new branch from main: asked of the git port, then recorded or declined. The
     # path is the one the caller names, or a directory under the checkout's `.claude/worktrees`. `Landing` and
     # `Landing.retire!` take it from there, so a session that cannot run `git worktree add` itself can still open one.
@@ -830,6 +890,22 @@ Hecks.bluebook "Hecks" do
     policy "DeclineTheCommit" do
       on      "Revision.CommitRefused"
       trigger Revision::Decline, with: { refusal: :refusal }
+    end
+
+    # A restore that was asked for is made by the git port, which answers with what it restored or refuses with why.
+    policy "RestoreWhenMade" do
+      on      "Restoration.RestoreRequested"
+      ask     :restore, with: { run: :run }
+    end
+
+    policy "RecordTheRestoration" do
+      on      "Restoration.RestoreAnswered"
+      trigger Restoration::Record, with: { report: :report }
+    end
+
+    policy "DeclineTheRestoration" do
+      on      "Restoration.RestoreRefused"
+      trigger Restoration::Decline, with: { refusal: :refusal }
     end
 
     # The copy of Hecks that runs the train follows what it pushed, so the next boarding and the

@@ -25,6 +25,19 @@ RSpec.describe "PipelineBoard readings" do
     Hecks::Adapters::PipelineJobs.new(settings: { jobs_dir: dir, agents: -> { agents }, now: -> { Time.now } }).rows
   end
 
+  # The kind a blocked session's question carries, read from the bracket it begins with.
+  def kind_of(detail)
+    FileUtils.mkdir_p(File.join(dir, "q"))
+    File.write(File.join(dir, "q", "state.json"), JSON.generate("state" => "blocked", "detail" => detail, "needs" => detail))
+    sessions([{ "id" => "q", "name" => "q", "status" => "idle", "startedAt" => 1 }]).first[:question_kind]
+  end
+
+  it "reads a blocked session's question kind from the bracket its question begins with", :aggregate_failures do
+    expect(kind_of("[confirm] Run the specs again?")).to eq("confirm")
+    expect(kind_of("[OWNER] Push main?")).to eq("owner")
+    expect(kind_of("Which branch should I use?")).to eq("")
+  end
+
   it "reads a live job that waits on a person as blocked, not done" do
     job("s1", "blocked", needs: "confirm the retry")
     live = sessions([{ "id" => "s1", "name" => "s1", "status" => "idle", "startedAt" => 1 }])
