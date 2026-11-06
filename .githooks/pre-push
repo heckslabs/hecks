@@ -37,6 +37,14 @@ export HECKS_ENVIRONMENT
 TAG_SKIP_INELIGIBLE="$WORKDIR/tag_skip_ineligible"
 PUSHED_REFS=$(cat)
 
+# No refs on stdin means git will update nothing: each ref was already up to date, or git refused
+# it before the hook ran (a non-fast-forward, say). There is nothing to check, and without this the
+# main rule below would read the empty list as a push of main and name the wrong cause.
+if [ -z "$PUSHED_REFS" ]; then
+  printf '[pre-push] no ref to update (each is up to date or was refused by git) — nothing to check.\n\n'
+  exit 0
+fi
+
 if [ -n "$PUSHED_REFS" ]; then
   printf '%s\n' "$PUSHED_REFS" | while IFS=' ' read -r local_ref local_oid _remote_ref _remote_oid; do
     case "$local_ref" in
