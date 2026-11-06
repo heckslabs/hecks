@@ -183,7 +183,7 @@ module Hecks
       # all back when it raises.
       #
       # The records, journal entries, events, outbox rows and dispatch claims read as they did
-      # before the block, so a crash before the commit leaves the store unchanged. See
+      # when the block began, so a crash ahead of the commit leaves the store unchanged. See
       # `Runtime::Outbox`.
       #
       # @yield the writes to run together

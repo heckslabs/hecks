@@ -14,9 +14,8 @@ require_relative "support/rust_conformance_helpers"
 RSpec.describe Hecks::RustBuild::KernelEngine, :io do
   include RustConformanceHelpers
 
-  PIZZAS = File.expand_path("../examples/pizzas", __dir__)
-  STAMP = "2026-01-01T00:00:00Z".freeze
-
+  let(:pizzas_dir) { File.expand_path("../examples/pizzas", __dir__) }
+  let(:stamp) { "2026-01-01T00:00:00Z" }
   let(:workload) { Hecks::Bench::Workload.pizzas }
 
   around do |example|
@@ -29,7 +28,7 @@ RSpec.describe Hecks::RustBuild::KernelEngine, :io do
     end
   end
 
-  before { allow(Hecks::Runtime::Event).to receive(:stamp).and_return(STAMP) }
+  before { allow(Hecks::Runtime::Event).to receive(:stamp).and_return(stamp) }
 
   def canonical(events)
     events.map do |event|
@@ -45,7 +44,7 @@ RSpec.describe Hecks::RustBuild::KernelEngine, :io do
   end
 
   def run_engine(engine)
-    dispatcher = Hecks.boot(PIZZAS, install_driving: false, engine: engine)
+    dispatcher = Hecks.boot(pizzas_dir, install_driving: false, engine: engine)
     canonical(run_cycle(dispatcher))
   ensure
     dispatcher.close if engine == :kernel && dispatcher
@@ -63,7 +62,7 @@ RSpec.describe Hecks::RustBuild::KernelEngine, :io do
 
   describe "the engine choice" do
     it "returns a KernelDispatcher for :kernel" do
-      dispatcher = Hecks.boot(PIZZAS, install_driving: false, engine: :kernel)
+      dispatcher = Hecks.boot(pizzas_dir, install_driving: false, engine: :kernel)
 
       expect(dispatcher).to be_a(Hecks::Runtime::KernelDispatcher)
     ensure
@@ -71,19 +70,19 @@ RSpec.describe Hecks::RustBuild::KernelEngine, :io do
     end
 
     it "refuses an unknown engine by name" do
-      expect { Hecks.boot(PIZZAS, engine: :wasm) }.to raise_error(ArgumentError, /unknown engine :wasm/)
+      expect { Hecks.boot(pizzas_dir, engine: :wasm) }.to raise_error(ArgumentError, /unknown engine :wasm/)
     end
 
     it "refuses a domain the Rust workspace has no feature for, never falling back", :aggregate_failures do
       allow(Hecks::RustBuild::NativeBuild).to receive(:build_rust_for).and_return(nil)
 
-      expect { Hecks.boot(PIZZAS, engine: :kernel) }
+      expect { Hecks.boot(pizzas_dir, engine: :kernel) }
         .to raise_error(described_class::BinaryUnavailable, /declares no feature "pizzas"/)
     end
   end
 
   describe "a refusal" do
-    let(:dispatcher) { Hecks.boot(PIZZAS, install_driving: false, engine: :kernel) }
+    let(:dispatcher) { Hecks.boot(pizzas_dir, install_driving: false, engine: :kernel) }
 
     after { dispatcher.close }
 
