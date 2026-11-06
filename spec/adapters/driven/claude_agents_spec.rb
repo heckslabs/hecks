@@ -119,12 +119,21 @@ RSpec.describe Hecks::Adapters::ClaudeAgents do
     RESUME_STAND_IN = <<~SH.freeze
       #!/bin/sh
       here=$(dirname "$0")
-      if [ "$1" = "agents" ]; then cat "$here/sessions.json"; exit 0; fi
-      if [ "$1" = "stop" ]; then echo "$2" >> "$here/stopped"; exit 0; fi
+      polls() { if [ -f "$here/stopped" ]; then cat "$here/polls" 2>/dev/null || echo 0; else echo 99; fi; }
+      if [ "$1" = "agents" ]; then
+        n=$(polls); echo $((n + 1)) > "$here/polls"
+        if [ -f "$here/stopped" ] && [ "$n" -ge 2 ]; then sed 's/"state":"[a-z]*"/"state":"stopped"/' "$here/sessions.json"; else cat "$here/sessions.json"; fi
+        exit 0
+      fi
+      if [ "$1" = "stop" ]; then echo "$2" >> "$here/stopped"; echo 0 > "$here/polls"; exit 0; fi
       printf '%s\\n' "$@" > "$here/argv"
       pwd -P > "$here/cwd"
       env | grep '^CLAUDE' | sort > "$here/claude_env"
-      if [ -f "$here/copy" ]; then cat "$here/copy"; else echo "woke session abc123 with its saved options"; fi
+      if [ -f "$here/copy" ] || [ "$(polls)" -lt 2 ]; then
+        echo "note: ${here}/copy started a copy as copy-9f3e21" >&2; echo "backgrounded · copy-9f3e21"
+      else
+        echo "note: woke session abc123 with its saved options (--model)." >&2; echo "backgrounded · abc123"
+      fi
     SH
 
     def listed_as(state) = listing({ "id" => "abc123", "sessionId" => "abc123-0000-full", "state" => state })
@@ -186,11 +195,25 @@ RSpec.describe Hecks::Adapters::ClaudeAgents do
       expect(File.read(File.join(scratch, "claude_env"))).to eq("CLAUDE_CONFIG_DIR=/kept\n")
     end
 
-    it "follows the copy when the CLI started one, and surfaces its note", :aggregate_failures do
-      copy_says("session abc123 keeps its own saved options, so the flags you passed started a copy as copy-9f3e21\n")
+    it "follows the copy when the CLI started one, and surfaces its note from stderr", :aggregate_failures do
+      copy_says("yes")
 
       expect(resume(answer: { value: "go on" })).to include(session: { value: "copy-9f3e21" },
                                                             note:    { value: a_string_including("started a copy") })
+    end
+
+    it "waits until the stopped session reads stopped before it resumes, so no copy is started", :aggregate_failures do
+      listed_as("blocked")
+      result = resume(answer: { value: "go on" })
+
+      expect(result).to include(session: { value: "abc123" })
+      expect(File.read(File.join(scratch, "polls")).to_i).to be >= 3
+    end
+
+    it "follows the id the CLI backgrounded when it differs from the run's, whatever the note says" do
+      install(RESUME_STAND_IN.sub("echo \"backgrounded · abc123\"", "echo \"backgrounded · other-77aa\""))
+
+      expect(resume(answer: { value: "go on" })).to include(session: { value: "other-77aa" })
     end
 
     it "refuses a session that is not listed, and starts nothing" do

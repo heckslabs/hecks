@@ -22,16 +22,23 @@ module Hecks
       # Job states of a session that is not running.
       STOPPED_STATES = %w[stopped done failed].freeze
 
+      # Seconds a stopped session is given to read as stopped before the resume goes ahead.
+      STOP_PATIENCE = 10
+
       # `CLAUDE*` variables that carry credentials or configuration, not the calling session.
       KEPT_VARIABLES = /\ACLAUDE_(CONFIG_DIR|CODE_OAUTH_TOKEN|CODE_USE_\w+)\z/
 
       # @param command [String] the program that resumes and stops sessions
       # @param shell [Shell] runs it
       # @param nice [Array<String>] the niceness prefix of the command line, if any
-      def initialize(command, shell, nice: [])
+      # @param patience [Numeric] seconds a stopped session is given to read as stopped
+      # @param pause [Numeric] seconds between looks at the listing
+      def initialize(command, shell, nice: [], patience: STOP_PATIENCE, pause: 0.25)
         @command = command
         @shell = shell
         @nice = nice
+        @patience = patience
+        @pause = pause
       end
 
       # @param id [String] the id the run holds
@@ -51,7 +58,7 @@ module Hecks
                                 env: cleared.merge(env), chdir: chdir)
         raise ConsoleCapture::Failure, "#{@command} resume #{id} refused: #{result.err.strip}" unless result.ok?
 
-        outcome(id, result.out)
+        outcome(id, result)
       end
 
       private
@@ -59,7 +66,24 @@ module Hecks
       def stop(entry)
         return if STOPPED_STATES.include?(entry["state"].to_s)
 
-        @shell.capture(@command, "stop", entry.fetch("id", entry["sessionId"]).to_s)
+        name = entry.fetch("id", entry["sessionId"]).to_s
+        @shell.capture(@command, "stop", name)
+        settle(name)
+      end
+
+      # Waits until the listing no longer shows the session running: a resume sent while it does is
+      # answered with a copy. Gives up after the patience and resumes anyway.
+      def settle(name)
+        deadline = Time.now + @patience
+        sleep(@pause) while running?(name) && Time.now < deadline
+      end
+
+      def running?(name)
+        listing = @shell.capture(@command, "agents", "--json", "--all")
+        found = listing.ok? && JSON.parse(listing.out).find { |entry| [entry["id"], entry["sessionId"]].include?(name) }
+        found ? !STOPPED_STATES.include?(found["state"].to_s) : false
+      rescue JSON::ParserError
+        false
       end
 
       # Each inherited `CLAUDE*` variable that names the calling session, unset.
@@ -67,13 +91,15 @@ module Hecks
         ENV.keys.select { |name| name.start_with?("CLAUDE") && !KEPT_VARIABLES.match?(name) }.to_h { |name| [name, nil] }
       end
 
-      def outcome(id, out)
+      # The CLI prints `backgrounded · <id>` on stdout, the id the session now runs under, and its
+      # `note:` on stderr. An id other than the run's, or a note of a copy, means a copy was started.
+      def outcome(id, result)
         at = { value: Time.now.utc.iso8601 }
-        note = out[COPY_NOTE]
-        return { resumed_at: at, session: { value: id } } unless note
+        named = result.out[ClaudeAgents::SESSION_ID, 1] || result.err[COPY_ID, 1] || id
+        note = result.err[COPY_NOTE] || result.out[COPY_NOTE]
+        return { resumed_at: at, session: { value: id } } unless note || named != id
 
-        copy = out[COPY_ID, 1] || out[ClaudeAgents::SESSION_ID, 1] || id
-        { resumed_at: at, session: { value: copy }, note: { value: note.strip } }
+        { resumed_at: at, session: { value: named }, note: { value: (note || "started a copy as #{named}").strip } }
       end
     end
   end
