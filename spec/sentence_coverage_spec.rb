@@ -21,7 +21,8 @@ RSpec.describe "the sentence form against the whole corpus", :io do
   # queries, which filter on `ends_at: nil`: the sentence form has no "is not set" phrase for a
   # filter yet, and adding one is a Rust parser change (ADR 0140). The last two are command words
   # the sentence form has no phrase for yet: `needs` (a run-time input) and `audience` (who a
-  # launcher lists the command for). Adding either phrase is a grammar decision for the sentence form.
+  # launcher lists the command for). Adding either phrase is a grammar decision for the sentence
+  # form.
   SENTENCE_UNSAID = [
     /triggers \S+, a command this bluebook does not declare/,
     /names no command \w+ declares/,
