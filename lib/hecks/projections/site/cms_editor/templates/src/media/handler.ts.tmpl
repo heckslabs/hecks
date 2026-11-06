@@ -46,10 +46,9 @@ async function readBounded(request: Request, limit: number): Promise<Uint8Array 
     const { done, value } = await reader.read();
     if (done) break;
     size += value.length;
-    if (size > limit) {
-      await reader.cancel();
-      return null;
-    }
+    // Stop reading and refuse. Cancelling the body here makes Node 24's undici throw an uncaught
+    // "ReadableStream is already closed" while it is still producing a multipart upload.
+    if (size > limit) return null;
     chunks.push(value);
   }
   return Buffer.concat(chunks);
