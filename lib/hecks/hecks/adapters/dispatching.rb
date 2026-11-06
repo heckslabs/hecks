@@ -6,6 +6,7 @@ require_relative "dispatching/rows"
 require_relative "dispatching/plan"
 require_relative "dispatching/launcher"
 require_relative "dispatching/settler"
+require_relative "red_main"
 
 module Hecks
   module Adapters
@@ -18,7 +19,8 @@ module Hecks
     class Dispatching
       # @param registry [Runtime::Registry, nil] the booted registry whose rows are read
       # @param aggregate [Object, nil] unused
-      # @param settings [Hash] `load:`, `cpus:` and `runner:` stand in for the machine and the launcher
+      # @param settings [Hash] `load:`, `cpus:` and `runner:` stand in for the machine and the launcher,
+      #   `red_main:` for the state of main CI
       # @param root [String, nil] unused
       def initialize(registry: nil, aggregate: nil, settings: {}, root: nil)
         @registry = registry
@@ -28,11 +30,16 @@ module Hecks
       # Says which planned rows start now, and starts them when confirmed.
       #
       # @param held [Hash] the `Dispatch` record: `repo`, `budget_minutes`, `confirm`
+      # While main CI is red only `red-*` rows start; every other planned row waits, named. When `gh`
+      # cannot say, the report says so in one line and the fill is unchanged.
+      #
       # @return [Hash{Symbol => Hash}] `report:` the load, the rows started or that would be, and the
       #   rows left waiting with the reason
       def choose(**held)
-        plan = plan_for
+        stop = red_main(held)
+        plan = plan_for(stop)
         lines = [header(plan)] + plan.chosen.map { |row| chosen_line(row) } + plan.skipped.map { |skip| skipped_line(skip) }
+        lines.insert(1, RedMain::UNKNOWN) if stop.unknown?
         lines += launch(plan, held) if plain(held[:confirm]) == true
         { report: { value: lines.join("\n") } }
       end
@@ -54,10 +61,16 @@ module Hecks
 
       def launcher_for(held) = Launcher.new(plain(held[:repo]), runner: @standins[:runner])
 
-      def plan_for
+      def plan_for(stop)
         Plan.new(rows.planned, rows.started, cap: machine.cap, load: machine.load, max_load: machine.max_load,
-                                             frozen: machine.frozen)
+                                             frozen: machine.frozen, red_only: stop.red?)
       end
+
+      def red_main(held)
+        @standins[:red_main] || RedMain.state(@registry, checkout: existing(plain(held[:repo])))
+      end
+
+      def existing(directory) = directory && File.directory?(directory) ? directory : nil
 
       def header(plan)
         "#{load_line}; cap #{machine.cap}, #{rows.started.size} started; frozen: #{frozen_line}; #{plan.chosen.size} to start"

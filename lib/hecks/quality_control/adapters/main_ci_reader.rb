@@ -15,13 +15,26 @@ module Hecks
       # How many finished runs are read.
       LIMIT = 5
 
+      # `gh` failed, was not signed in, or answered something unreadable.
+      class Unreadable < StandardError; end
+
       # @param repo [String, nil] `owner/name`; the checkout's own when nil
-      def initialize(repo: nil)
+      # @param chdir [String, nil] the directory `gh` runs in; the current one when nil
+      def initialize(repo: nil, chdir: nil)
         @repo = repo
+        @chdir = chdir
       end
 
       # @return [Array<Run>] finished `CI` runs on main, newest first; empty when `gh` cannot answer
       def runs
+        runs!
+      rescue Unreadable
+        []
+      end
+
+      # @return [Array<Run>] finished `CI` runs on main, newest first
+      # @raise [Unreadable] when `gh` cannot answer, so "no runs" is told from "could not ask"
+      def runs!
         listed = gh("run", "list", "--workflow", "CI", "--branch", "main", "--status", "completed",
                     "--limit", LIMIT.to_s, "--json", "databaseId,conclusion,createdAt,headSha")
         listed.map { |run| run_of(run) }
@@ -40,14 +53,18 @@ module Hecks
         jobs = jobs["jobs"] if jobs.is_a?(Hash)
         job = Array(jobs).find { |candidate| candidate["conclusion"] == "failure" }
         job ? job["name"].to_s : "unknown job"
+      rescue Unreadable
+        "unknown job"
       end
 
       def gh(*args)
         args += ["--repo", @repo] if @repo
-        out, status = Open3.capture2("gh", *args, err: File::NULL)
-        status.success? ? JSON.parse(out) : []
-      rescue SystemCallError, JSON::ParserError
-        []
+        out, status = Open3.capture2("gh", *args, err: File::NULL, **(@chdir ? { chdir: @chdir } : {}))
+        raise Unreadable, "gh #{args.first} failed" unless status.success?
+
+        JSON.parse(out)
+      rescue SystemCallError, JSON::ParserError => e
+        raise Unreadable, e.message
       end
     end
   end

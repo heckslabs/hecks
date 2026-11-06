@@ -34,6 +34,9 @@ module Hecks
       # Everything up to the first line break.
       FIRST_LINE = /[^\n]*/
 
+      # What the rehearsal's answer opens with while main CI is red.
+      STOP = "STOP: main is red"
+
       RED_NOW = /last (?:rehearsal|quick|full): red [^;\n]*\(the current /
 
       # The thresholds a registry's QualityControl world declares.
@@ -56,10 +59,11 @@ module Hecks
       #   `detail:`
       # @raise [Runtime::GivenNotMet] when the refs cannot be read
       def read(**_held)
-        text = push_line(@rehearsal.due(checkout: @root).fetch(:text))
+        answer = @rehearsal.due(checkout: @root).fetch(:text)
+        text = push_line(answer)
         limits = self.class.thresholds(registry)
-        { due: flag(due?(text, limits)), raised: flag(raised?), work: { value: WORK }, title: { value: title(text, limits) },
-          detail: { value: detail(text, limits) } }
+        { due: flag(due?(text, limits)), raised: flag(raised?), work: { value: WORK },
+          title: { value: stop(answer) + title(text, limits) }, detail: { value: detail(text, limits) } }
       rescue ConsoleCapture::Failure => e
         raise Runtime::GivenNotMet, "the refs could not be read: #{first_line(e.message)}"
       end
@@ -73,6 +77,9 @@ module Hecks
 
       # The row's title, naming the size class once the commits ahead pass a threshold.
       def title(text, limits) = PushSize.title(TITLE, text[AHEAD, 1].to_i, limits)
+
+      # What the row's title opens with while main is red, as the rehearsal's STOP line says.
+      def stop(answer) = answer.start_with?(STOP) ? "STOP: main is red, only fixes go out: " : ""
 
       # The `push due:` line of the rehearsal's answer: the red-main line that may lead it is not
       # part of whether a push is due.

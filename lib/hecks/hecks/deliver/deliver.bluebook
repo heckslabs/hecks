@@ -600,6 +600,7 @@ Hecks.bluebook "Hecks" do
       attribute :remote,   Word,   optional: true
       attribute :checkout, Word,   optional: true
       attribute :full_gate, Switch, optional: true
+      attribute :fixes,    Word,   optional: true
       attribute :boarded,  Word,   optional: true
       attribute :pushed,   Word,   optional: true
       attribute :report,   Report, optional: true
@@ -644,6 +645,11 @@ Hecks.bluebook "Hecks" do
         # note; without it the push runs only the `quick` stage.
         attribute :full_gate, Switch, optional: true, sets: true
         attribute :confirm,   Switch, optional: true, sets: true
+        # The open `red-*` Work row this push fixes. While the latest finished CI run on main failed
+        # (the Hecks world's `red_main_stop`), the train refuses a boarding that names none, before it
+        # settles, mints or pushes: "main is red (CI run <id> on <sha>, <job>): only a push that fixes
+        # a red row goes out; board again with fixes=<red row> (rows: <open red-* rows>)".
+        attribute :fixes,     Word, optional: true, sets: true
 
         given("pushes the branch to the remote needs --confirm; without it this only reports") { confirm.value == true }
 

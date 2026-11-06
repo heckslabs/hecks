@@ -265,8 +265,13 @@ commit must pass as `RequiredCheck` rows beside them.
 - **Red main is a standing Work row.** When the latest `CI` run on `main` fails, each QA tick files one
   open `red-main-<run id>` row naming the failing job, and finishes it when a later run passes. The
   dispatch fill plans `red-*` rows first and starts one before other planned work, and `push_rehearsal.due`
-  and the train's report open with `main is red since <time>: <job>; row red-main-<id>`. A red main
-  blocks promotion to `stable`, never a push: refusing the push would stop the fix too.
+  and the train's report open with `STOP: main is red since <time> (<job>): only fixes go out`. **Red
+  main is a full stop.** The train and the dispatch fill read CI themselves (`RedMain`, the latest
+  finished `CI` run on origin/main, cached for the Hecks world's `red_main_stop` `cache_minutes`; `gh`
+  failing is "unknown" and stops nothing, said in one line). While it is red a push that fixes no red row
+  is refused: board with `send_train.board! fixes=<open red-* row> --confirm`, otherwise land locally and
+  wait; the fill starts only `red-*` rows. The owner's `HECKS_OWNER_PUSH=<reason>` override stays. A red
+  main also blocks promotion to `stable`.
 - **`stable` is only ever promoted.** CI runs the full job set on every push
   to `main`; when every `RequiredCheck` passed on a commit, `promote.yml`
   fast-forwards `stable` onto it through

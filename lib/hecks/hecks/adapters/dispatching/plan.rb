@@ -10,13 +10,17 @@ module Hecks
       #
       # A planned row waits when it sits in a frozen area, when its area overlaps a started row's or an
       # earlier chosen row's (by {AreaOverlap}), or when the machine is loaded or the cap is reached,
-      # which also hold back every row after it.
+      # which also hold back every row after it. While main is red (`red_only:`) every row but a
+      # `red-*` one waits.
       class Plan
         # A row, as {Rows} reads it.
         Row = Struct.new(:key, :title, :detail, :area, keyword_init: true)
 
         # What a name is compared without, so `quality_control` and `QualityControl` meet.
         NOT_ALNUM = /[^a-z0-9]/
+
+        # The key prefix of a row that fixes a red main; the only rows that start while it is red.
+        RED = "red-"
 
         # A row left waiting, and the reason.
         Skip = Struct.new(:key, :reason)
@@ -29,7 +33,8 @@ module Hecks
 
         # @param planned [Array<Row>] the planned rows, in plan order
         # @param started [Array<Row>] the started rows
-        # @param limits [Hash] `cap:` (Integer), `load:` and `max_load:` (Float), `frozen:` (Array)
+        # @param limits [Hash] `cap:` (Integer), `load:` and `max_load:` (Float), `frozen:` (Array),
+        #   `red_only:` (Boolean, only `red-*` rows start)
         def initialize(planned, started, **limits)
           @started = started
           @limits = limits
@@ -44,8 +49,12 @@ module Hecks
         private
 
         def consider(row)
-          reason = stop_reason || frozen_reason(row) || overlap_reason(row)
+          reason = red_reason(row) || stop_reason || frozen_reason(row) || overlap_reason(row)
           reason ? @skipped << Skip.new(row.key, reason) : @chosen << row
+        end
+
+        def red_reason(row)
+          "waits: main is red, only red rows start" if @limits[:red_only] && !row.key.start_with?(RED)
         end
 
         def stop_reason = overloaded || capped

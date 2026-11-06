@@ -11,7 +11,7 @@ require_relative "git_train/survey"
 require_relative "git_train/settlement"
 require_relative "git_train/mint_step"
 require_relative "git_train/launcher_shape"
-require_relative "red_main_line"
+require_relative "git_train/red_stop"
 
 module Hecks
   module Adapters
@@ -40,9 +40,10 @@ module Hecks
       # @param options [Hash] `mint:` the mint a boarding runs first (the Hecks domain's if none);
       #   `domain:` the launcher's Hecks domain directory the train's shape is read from (the one
       #   this code runs from by default); `registry:` the booted registry whose world names the
-      #   push size
+      #   push size and declares the red-main stop; `reader:` and `clock:` stand in for GitHub and the time
       def initialize(aggregate: nil, settings: {}, root: nil, **options)
         @registry = options.delete(:registry)
+        @stop_options = options.slice(:reader, :clock)
         @mint = options.delete(:mint) || MintStep.new
         @domain = options.delete(:domain) || JournalStore::HeldMint::DOMAIN
         @git = Git.new
@@ -52,16 +53,20 @@ module Hecks
       # boarded commit.
       #
       # @param held [Hash] the `SendTrain` record: `run`, `confirm`, `branch`, `remote`, `checkout`
-      #   (a directory inside the repository; the current directory when none is named) and
-      #   `full_gate` (the whole pre-push stage, which the hook reads as `hecks.fullGate`)
+      #   (a directory inside the repository; the current directory when none is named),
+      #   `full_gate` (the whole pre-push stage, which the hook reads as `hecks.fullGate`) and
+      #   `fixes` (the open red Work row this push fixes, which a red main requires)
       # @return [Hash{Symbol => Hash}] `outcome:`, `checkout:`, `boarded:` (the commit named at
       #   boarding), `pushed:` and `report:`, which opens with what the mint did
-      # @raise [ConsoleCapture::Failure] when the checkout is not a repository, the branch moved
+      # @raise [ConsoleCapture::Failure] when main is red and `fixes` names no open red row (before
+      #   anything is settled or minted), the checkout is not a repository, the branch moved
       #   since boarding, the train is not at the boarded commit, the branch and the remote's
       #   conflict, or the push is refused
       # @raise [Runtime::WiringError] when the mint refuses, before anything is pushed
       def carry(**held)
         @checkout = toplevel(plain(held[:checkout]) || Dir.pwd)
+        @stop = RedStop.new(@registry, @checkout, **@stop_options)
+        @stop.check!(plain(held[:fixes]))
         in_turn do
           size = push_size(held)
           boarded = boarded_commit(held)
@@ -114,13 +119,13 @@ module Hecks
 
       def remote_of(held) = plain(held[:remote]) || "origin"
 
-      # The carriage's answer, its report opened with the red-main line while one is open, then what
+      # The carriage's answer, its report opened with the stop line while main is red, then what
       # the mint did and naming the boarded
       # commit (and the settled one when settlement moved the branch).
       def after_mint(minted, boarded, carried, size = nil)
         answer, settled = carried
         named = settled == boarded ? "boarded #{boarded[0, 9]}" : "boarded #{boarded[0, 9]}, settled to #{settled[0, 9]}"
-        report = "#{RedMainLine.lead}#{"#{size}\n" if size}#{minted}, then #{named}: #{answer.dig(:report, :value)}"
+        report = "#{@stop.lead}#{"#{size}\n" if size}#{minted}, then #{named}: #{answer.dig(:report, :value)}"
         answer.merge(boarded: { value: boarded }, report: { value: report })
       end
 

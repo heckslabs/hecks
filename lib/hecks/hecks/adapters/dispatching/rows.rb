@@ -16,7 +16,7 @@ module Hecks
 
         # The key prefix of a row that says main is red; such a row is planned first, and so is the
         # `push-due` row once its title says the push is urgent.
-        RED = "red-"
+        RED = Plan::RED
 
         # @return [Array<Plan::Row>] the planned rows, red ones first, then in plan order (a row
         #   with no step last)

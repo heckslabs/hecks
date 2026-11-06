@@ -60,6 +60,10 @@ Hecks.world "Hecks" do
   # name is said here, where every copy reads it.
   minting commands: ["Era.MintHeld"]
   landing "Queue", stale_minutes: 30, wait_minutes: 40
+  # While the latest finished `CI` run on origin/main failed, only a push that fixes a red Work row goes out
+  # (`send_train.board! fixes=<red row>`) and the dispatch fill starts only `red-*` rows. Presence turns the stop
+  # on; `cache_minutes` is how long the `gh` answer is kept in the git common directory. `gh` failing stops nothing.
+  red_main_stop "Main", cache_minutes: 5
   # Owner decision: the full spec suite runs only in CI (the Vocabulary `rspec` check is `runs_in: "ci"`).
   # Locally `test_suite_run.run_suite!` is refused, and `run_spec_files!` and `run_impacted_specs!` run at
   # most `spec_files_limit` files per call; CI is detected by the environment (`CI`, `GITHUB_ACTIONS`).
