@@ -71,8 +71,8 @@ module Hecks
         settle(name)
       end
 
-      # Waits until the listing no longer shows the session running: a resume sent while it does is
-      # answered with a copy. Gives up after the patience and resumes anyway.
+      # Waits until the listing shows the session stopped: a resume sent while it runs is answered
+      # with a copy. Gives up after the patience and resumes anyway.
       def settle(name)
         deadline = Time.now + @patience
         sleep(@pause) while running?(name) && Time.now < deadline
@@ -92,7 +92,7 @@ module Hecks
       end
 
       # The CLI prints `backgrounded · <id>` on stdout, the id the session now runs under, and its
-      # `note:` on stderr. An id other than the run's, or a note of a copy, means a copy was started.
+      # `note:` on stderr. An id other than the run's, or a note of a copy, means a copy started.
       def outcome(id, result)
         at = { value: Time.now.utc.iso8601 }
         named = result.out[ClaudeAgents::SESSION_ID, 1] || result.err[COPY_ID, 1] || id
