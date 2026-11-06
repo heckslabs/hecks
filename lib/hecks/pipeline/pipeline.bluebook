@@ -7,6 +7,9 @@
 #   Tickets   Work.WorkPlanned        -> Plan      (planned)
 #   Tickets   Work.WorkReopened       -> Plan      (planned), a finished or dropped item planned again
 #   Tickets   Work.WorkStarted        -> Dispatch  (dispatched), again for a Work item started again
+#   Pipeline  Passage.PassagePlanned  -> AgentRun.Dispatch (the architect reviews the plan)
+#   Hecks     AgentRun.SessionFinished -> Review   (the architect's report; the stage is unchanged)
+#             Both seams are `translates` in hecks.hecksagon, where Pipeline and Delegate meet.
 #   Hecks     Landing.LandedWorkFound -> Land      (landed)
 #   Hecks     Integration.MainPushed  -> Push      (pushed), every landed passage at once
 #   Hecks     RedFlag.RedFlagRaised   -> Hold      (held), every pushed passage
@@ -37,6 +40,7 @@ Hecks.bluebook "Pipeline" do
     attribute :pushed,  Word,     optional: true
     attribute :flag,    Word,     optional: true
     attribute :stalled, Reason,   optional: true
+    attribute :verdict, Report,   optional: true
 
     # The Work item's key, which the branch that lands it is named after.
     value_object "ChangeKey" do
@@ -50,6 +54,11 @@ Hecks.bluebook "Pipeline" do
 
     # A session id, a commit, or a red flag's id.
     value_object "Word" do
+      attribute :value, String, matches: :present
+    end
+
+    # What the architect reported about the plan, as the session wrote it.
+    value_object "Report" do
       attribute :value, String, matches: :present
     end
 
@@ -90,6 +99,17 @@ Hecks.bluebook "Pipeline" do
       sets :stalled, to: { value: "" }
 
       emits PassageDispatched
+    end
+
+    # A review records a fact about the plan and leaves the stage where it is.
+    command "Review" do
+      role "System"
+      goal "Record the architect's report on a planned change"
+
+      reference_to Passage
+      attribute :verdict, Report, sets: true
+
+      emits PassageReviewed
     end
 
     command "Land" do

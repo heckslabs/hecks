@@ -1025,3 +1025,23 @@ Hecks.hecksagon "QualityControl" do
                                                           watermark: :watermark, rehearsal_verdict: "would_mint" }
   end
 end
+
+# The architect reviews every planned change. Pipeline is attached here and Delegate is Hecks's own, so the
+# two seams are translations, not `across` dispatches. The run is keyed by the change and its brief is the
+# change key, which lets the finished run name the passage it reviewed; a run that is not a passage's
+# architect run names no passage, so its review is refused. The directory is the one the runtime runs in.
+Hecks.hecksagon "Hecks" do
+  translates "DispatchArchitectWhenPlanned" do
+    on Passage::PassagePlanned
+    trigger AgentRun::Dispatch, with: { run: :change, brief: :change, repo: ".", agent: "architect" }
+  end
+end
+
+Hecks.hecksagon "Pipeline" do
+  subscribe "Hecks.SessionFinished"
+
+  translates "ReviewWhenArchitectFinished" do
+    on AgentRun::SessionFinished
+    trigger Passage::Review, with: { change: :run, verdict: :detail }
+  end
+end
