@@ -109,7 +109,7 @@ module Hecks
           GC.start
 
           create_database_if_missing(database)
-          reset_schema!(database, schema, create: false)
+          ensure_schema!(database, schema)
         end
 
         # Several pool children may reach this at once: one wins the CREATE, and the rest see the
