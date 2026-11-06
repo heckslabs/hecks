@@ -12,6 +12,7 @@ Hecks.hecksagon "Hecks" do
   subscribe "Agents.PlanReviewRequested"
   subscribe "Agents.PlanningRequested"
   subscribe "Agents.SubmissionReviewRequested"
+  subscribe "Agents.DispatchAdviceRequested"
   # Persistence is not bound here, so the domain is in Memory. A copy opts in with a
   # hecks.local.hecksagon whose `persisted_by` the attached bluebooks inherit (ADR 0136).
 

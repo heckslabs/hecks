@@ -265,6 +265,16 @@ Hecks.bluebook "Agents" do
 
     value_object "HopCount", Integer
 
+    # The key of the orchestrator's run, so it never collides with another run for the same Work item.
+    value_object "AdviceKey", String
+
+    value_object "RoleRef", String
+
+    value_object "RepoPath", String
+
+    # What the orchestrator is asked: the Work item and the conflict, in words.
+    value_object "BriefText", String
+
     # `conflict` is "yes" when the item spans several areas or overlaps another session's.
     command "Check" do
       role "System"
@@ -273,6 +283,10 @@ Hecks.bluebook "Agents" do
       attribute :work, WorkKey, sets: true
       attribute :conflict, Conflict, sets: true
       attribute :hops, HopCount, sets: true
+      attribute :advice, AdviceKey, optional: true
+      attribute :role, RoleRef, optional: true
+      attribute :repo, RepoPath, optional: true
+      attribute :brief, BriefText, optional: true
 
       given("the check is under the hop limit") { hops.value < 3 }
 
@@ -297,6 +311,10 @@ Hecks.bluebook "Agents" do
       reference_to Routing
       attribute :conflict, Conflict
       attribute :hops, HopCount
+      attribute :advice, AdviceKey, optional: true
+      attribute :role, RoleRef, optional: true
+      attribute :repo, RepoPath, optional: true
+      attribute :brief, BriefText, optional: true
 
       emits "DispatchAdviceRequested"
     end
@@ -304,7 +322,7 @@ Hecks.bluebook "Agents" do
     policy "RouteWhenNoConflict" do
       on      "Routing.WorkChecked"
       where   { conflict.value == "no" }
-      trigger Routing::Route, with: {}
+      trigger Routing::Route, with: { conflict: :conflict, hops: :hops }
     end
 
     policy "AskAdviceWhenConflict" do
