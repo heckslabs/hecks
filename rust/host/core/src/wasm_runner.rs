@@ -16,10 +16,10 @@ use wasmtime_wasi::WasiCtxBuilder;
 /// transaction while the kernel runs, so a run that never ends, or that grows without bound, would
 /// stall every write the host serves.
 #[derive(Clone, Copy, Debug)]
-struct Limits {
-    deadline: Duration,
-    memory_bytes: usize,
-    output_bytes: usize,
+pub(crate) struct Limits {
+    pub(crate) deadline: Duration,
+    pub(crate) memory_bytes: usize,
+    pub(crate) output_bytes: usize,
 }
 
 /// The limits every real run gets.
@@ -30,7 +30,7 @@ struct Limits {
 /// - `memory_bytes`: a run needs roughly five to nine times its output in linear memory, so a world
 ///   whose answer fits `output_bytes` fits in 1 GiB; a run past it could not have answered anyway.
 /// - `output_bytes`: the whole world comes back on stdout, and the host holds it in memory too.
-const KERNEL_LIMITS: Limits = Limits {
+pub(crate) const KERNEL_LIMITS: Limits = Limits {
     deadline: Duration::from_secs(10),
     memory_bytes: 1024 * 1024 * 1024,
     output_bytes: 64 * 1024 * 1024,
@@ -103,7 +103,7 @@ impl StdoutStream for StepsOut {
 
 /// The one engine every module compiles against, with epoch interruption on so a run can be
 /// stopped at its deadline. A background thread advances its epoch every `EPOCH_TICK`.
-fn engine() -> &'static Engine {
+pub(crate) fn engine() -> &'static Engine {
     static ENGINE: OnceLock<Engine> = OnceLock::new();
     ENGINE.get_or_init(|| {
         let mut config = Config::new();
@@ -272,7 +272,7 @@ fn start(
 }
 
 /// `deadline` in whole epoch ticks, rounded up so a deadline shorter than one tick still runs.
-fn deadline_ticks(deadline: Duration) -> u64 {
+pub(crate) fn deadline_ticks(deadline: Duration) -> u64 {
     let ticks = deadline.as_nanos().div_ceil(EPOCH_TICK.as_nanos());
     u64::try_from(ticks).unwrap_or(u64::MAX).max(1)
 }

@@ -1,0 +1,21 @@
+/// The clock a host grants an adapter component: whole epoch seconds, read by the host.
+package hecks:adapters@0.1.0;
+
+interface clock {
+  /// Whole seconds since the Unix epoch.
+  now-seconds: func() -> s64;
+}
+
+/// The smallest adapter: imports the clock grant, answers with the time it read.
+world clock-adapter {
+  import clock;
+  export echo-time: func() -> string;
+}
+
+/// The same adapter plus two exports a limits test drives: one that never returns and one that
+/// grows linear memory by the pages asked.
+world clock-adapter-limits {
+  include clock-adapter;
+  export spin: func();
+  export grow: func(pages: u32) -> u32;
+}
