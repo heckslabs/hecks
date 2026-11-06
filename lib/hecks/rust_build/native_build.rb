@@ -93,7 +93,7 @@ module Hecks
       # @return [String] the binary, pinned to `target/debug/rust-<feature>`
       # @raise [BuildFailed] when the build fails or leaves no binary
       def build_and_pin(domain_feature, rust_dir)
-        lock_path = File.join(rust_dir, "target", ".build_rust_for.lock")
+        lock_path = File.join(target_dir(rust_dir), ".build_rust_for.lock")
         FileUtils.mkdir_p(File.dirname(lock_path))
 
         File.open(lock_path, File::CREAT | File::RDWR) do |lock|
@@ -108,8 +108,14 @@ module Hecks
       end
 
       def pinned_path(rust_dir, domain_feature)
-        File.join(rust_dir, "target", "debug", "rust-#{domain_feature}")
+        File.join(target_dir(rust_dir), "debug", "rust-#{domain_feature}")
       end
+
+      # Where Cargo writes: `CARGO_TARGET_DIR` when set, else the workspace's own `target/`.
+      #
+      # @param rust_dir [String] the workspace
+      # @return [String] the directory holding `debug/`
+      def target_dir(rust_dir) = ENV.fetch("CARGO_TARGET_DIR") { File.join(rust_dir, "target") }
 
       # A binary pinned ahead of time, by an earlier run whose build was restored from a cache, is
       # current when no source is newer than it: the rule `make` applies to any target.
@@ -142,7 +148,7 @@ module Hecks
 
       # `cargo build` always writes the same path; it is pinned per feature while the lock is held.
       def pin(rust_dir, domain_feature, command)
-        binary = File.join(rust_dir, "target", "debug", "rust")
+        binary = File.join(target_dir(rust_dir), "debug", "rust")
         unless File.executable?(binary)
           raise BuildFailed, "`#{command.join(" ")}` succeeded in #{rust_dir} but left no executable at #{binary}"
         end

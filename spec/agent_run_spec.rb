@@ -9,7 +9,7 @@ require "tmpdir"
 # event. The stand-in names the agents it has, prints the session id a spec writes, and records
 # each start, so no real session is ever started.
 RSpec.describe "AgentRun through the Agents port" do
-  STAND_IN_CLAUDE = <<~SH.freeze
+  AGENT_RUN_STAND_IN_CLAUDE = <<~SH.freeze
     #!/bin/sh
     here=$(dirname "$0")
     if [ "$1" = "--agent" ] && [ "$3" = "-p" ]; then
@@ -43,7 +43,7 @@ RSpec.describe "AgentRun through the Agents port" do
   end
 
   def install_stand_in
-    File.write(File.join(scratch, "claude"), STAND_IN_CLAUDE)
+    File.write(File.join(scratch, "claude"), AGENT_RUN_STAND_IN_CLAUDE)
     File.chmod(0o755, File.join(scratch, "claude"))
     next_session("stand-in-session")
   end

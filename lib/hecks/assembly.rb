@@ -45,11 +45,29 @@ module Hecks
     # @param shared [String, nil] a shared-root override
     # @param install_driving [Boolean] install the `Widget::Item.Add`-style facade
     # @param environment [String, nil, Symbol] the overlay, or `FROM_ENV` for `HECKS_ENVIRONMENT`
-    # @return [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the booted dispatcher
-    def boot(path, shared: nil, install_driving: true, environment: FROM_ENV)
+    # @param engine [Symbol] `:ruby` or `:kernel`; see `boot_kernel`
+    # @return [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher, Runtime::KernelDispatcher]
+    #   the booted dispatcher
+    # @raise [ArgumentError] when the engine is neither
+    def boot(path, shared: nil, install_driving: true, environment: FROM_ENV, engine: :ruby)
+      return boot_kernel(path, engine) unless engine == :ruby
+
       drive(Runtime::Loader.boot(path, shared: shared, environment: selected_environment(environment),
                                        event_tap: event_tap_override),
             install_driving)
+    end
+
+    # Boots a domain on the Rust kernel; see `RustBuild::KernelEngine`. It never falls back.
+    #
+    # @param path [String] path to a domain directory
+    # @param engine [Symbol] must be `:kernel`
+    # @return [Runtime::KernelDispatcher]
+    # @raise [ArgumentError] when `engine` is not a known engine
+    def boot_kernel(path, engine)
+      raise ArgumentError, "unknown engine #{engine.inspect} — one of :ruby, :kernel" unless engine == :kernel
+
+      require_relative "rust_build/kernel_engine"
+      RustBuild::KernelEngine.boot(path)
     end
 
     # Loads a domain's declarations without binding any adapter. See `Runtime::Loader.describe`.

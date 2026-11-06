@@ -5,6 +5,7 @@ require_relative "../../runtime/instance"
 require_relative "memory/shared_elements"
 require_relative "memory/outbox_rows"
 require_relative "memory/dispatch_claims"
+require_relative "memory/snapshot"
 
 module Hecks
   module Adapters
@@ -13,6 +14,7 @@ module Hecks
     class Memory
       include OutboxRows
       include DispatchClaims
+      include Snapshot
 
       # Reports that two tenant boots of this adapter never share state.
       #
@@ -177,22 +179,20 @@ module Hecks
         self
       end
 
-      # Runs the block directly, as the save + emit + outbox boundary other adapters commit.
+      # Runs the block as the save + emit + outbox boundary other adapters commit, and takes it
+      # all back when it raises.
       #
-      # No rollback here — a Hash has no transaction to join. Memory
-      # implements `transaction` so `Interpreting#run_dispatch_order` has
-      # one shape to call, and the outbox so a spec can watch rows move
-      # pending → claimed → delivered without a database (the same
-      # reason Memory records `events`). See `Runtime::Outbox`.
+      # The records, journal entries, events, outbox rows and dispatch claims read as they did
+      # when the block began, so a crash ahead of the commit leaves the store unchanged. See
+      # `Runtime::Outbox`.
       #
-      # @yield the writes to run together; an exception raised inside undoes nothing but the
-      #   dispatch claims the block made, so a refused dispatch can be delivered again
+      # @yield the writes to run together
       # @return [Object] the block's own result
       def transaction
-        held = @dispatch_claims.keys
+        held = snapshot
         yield
       rescue StandardError
-        (@dispatch_claims.keys - held).each { |key| @dispatch_claims.delete(key) }
+        restore(held)
         raise
       end
 
