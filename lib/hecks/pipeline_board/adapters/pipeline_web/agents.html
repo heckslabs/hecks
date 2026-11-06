@@ -388,7 +388,7 @@ function render(s) {
 
 function renderTotals(roles) {
   const working = new Set(roles.flatMap((r) => (r.working || []).map((w) => w.id)));
-  const blocked = blockedSessions();
+  const blocked = blockedSessions().filter((s) => !justAnswered(s));
   const finished = roles.reduce((n, r) => n + (r.completed || []).length, 0);
   const hot = [...heard.values()].filter(isHot).length;
   $("totals").replaceChildren(
@@ -458,7 +458,7 @@ function answer(id, prefill) {
   if (!list.length) return;
   boardAnswer.open(list, id, {
     sending: (s, text) => { replies.set(s.id, { text, state: "sending" }); renderWaiting(state.sessions); },
-    sent: (s) => { replies.set(s.id, { text: replies.get(s.id).text, state: "sent; waiting for it to carry on" }); refresh(); },
+    sent: (s) => { replies.delete(s.id); answered.set(s.id, Date.now()); renderWaiting(state.sessions); refresh(); },
     failed: (s, text, message) => { replies.set(s.id, { text, state: "not sent: " + message }); renderWaiting(state.sessions); }
   }, { prefill: Boolean(prefill) });
 }
@@ -477,8 +477,14 @@ function asked(s) {
   const line = text.split("\n").map((l) => l.replace(/[*_`#>]/g, "").trim()).find(Boolean) || "";
   return line.slice(0, 220);
 }
+// Sessions just answered, by when: each leaves the list at once, since its job reads as blocked
+// for a while after it is resumed. One still waiting after ANSWERED_HIDE ms is asking again.
+const answered = new Map(), ANSWERED_HIDE = 120000;
+const justAnswered = (s) => answered.has(s.id) && Date.now() - answered.get(s.id) < ANSWERED_HIDE;
 function renderWaiting(sessions) {
-  const list = Array.isArray(sessions) ? sessions.filter((s) => s.status === "blocked") : [];
+  const blocked = Array.isArray(sessions) ? sessions.filter((s) => s.status === "blocked") : [];
+  for (const id of answered.keys()) if (!blocked.some((s) => s.id === id)) answered.delete(id);
+  const list = blocked.filter((s) => !justAnswered(s));
   for (const id of replies.keys()) if (!list.some((s) => s.id === id)) replies.delete(id);
   $("waiting").hidden = list.length === 0;
   const tag = (role) => h("span", { class: "tag you", "data-role": ROLES[role] ? role : null, "data-tip": ROLES[role] ? ROLES[role].name : "a session started by hand" },
