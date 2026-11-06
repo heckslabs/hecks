@@ -46,7 +46,12 @@ RSpec.describe "revisions, the hecksagon word for schema revisions" do
 
   it "refuses at boot on Memory, naming the adapters that can keep revisions" do
     expect { boot_with("  revisions true") }
-      .to raise_error(Hecks::Runtime::WiringError, /sets revisions.*Memory.*Postgres, PostgresRevision/)
+      .to raise_error(Hecks::Runtime::WiringError, /sets revisions.*Memory.*need one of Postgres/)
+  end
+
+  it "refuses the retired postgres_era key and names the replacement" do
+    expect { boot_with("  Lending::Loan.persisted_by(\"postgres_era\")") }
+      .to raise_error(Hecks::Runtime::WiringError, /binds postgres_era, which was removed in 8.0.*revisions true/)
   end
 
   it "does not refuse when revisions is left out" do
