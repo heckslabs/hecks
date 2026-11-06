@@ -8,6 +8,10 @@ RSpec.describe "a change" do
   let(:done) { [] }
   let(:hecks) { Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false) }
   let(:rename_args) { [{ key: "from", value: "a" }, { key: "to", value: "b" }] }
+  # The script's source: the examples register the script themselves, so the file only has to exist.
+  let(:source) do
+    Tempfile.new(["change", ".rb"]).tap { |file| file.write("# registered by the example\n") && file.flush }.path
+  end
 
   before { runner.reset! }
 
@@ -39,11 +43,6 @@ RSpec.describe "a change" do
   end
 
   # One run: asks for the change with the expected digest, carried out in this process.
-  # The script's source: this example registers the script itself, so the file only has to exist.
-  let(:source) do
-    Tempfile.new(["change", ".rb"]).tap { |file| file.write("# registered by the example\n") && file.flush }.path
-  end
-
   def apply(run, expected:)
     hecks.dispatch_flat("Hecks::Change.Apply", run: { value: run }, script: { value: "rename" },
                                               arguments: rename_args, source: { value: source },

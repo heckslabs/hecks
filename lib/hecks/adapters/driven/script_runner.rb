@@ -63,16 +63,32 @@ module Hecks
       #   or the script is unknown or its plan raises
       def examine_for_apply(**held)
         source = plain(held[:source])
-        load(source) if source && !source.to_s.empty?
-        answer = examine(**held)
-        expected = plain(held[:expected])
-        return answer if expected.nil? || answer[:digest][:value] == expected
-
-        raise Refused, "the plan's digest is #{answer[:digest][:value]}, not the expected #{expected}; review it again"
+        load_source(source)
+        match_digest(examine(**held), plain(held[:expected]))
       rescue ::LoadError, ::StandardError => e
         raise e if e.is_a?(Refused)
 
         raise Refused, "could not load #{source}: #{e.message}"
+      end
+
+      # Loads the script's source when one is named.
+      #
+      # @param source [String, nil] the path of the file
+      # @return [void]
+      def load_source(source)
+        load(source) if source && !source.to_s.empty?
+      end
+
+      # Answers the plan if its digest is the expected one, or none is expected.
+      #
+      # @param answer [Hash{Symbol => Hash}] what `examine` answered
+      # @param expected [String, nil] the digest the person reviewed
+      # @return [Hash{Symbol => Hash}] the answer
+      # @raise [Refused] when the digest is not the expected one
+      def match_digest(answer, expected)
+        return answer if expected.nil? || answer[:digest][:value] == expected
+
+        raise Refused, "the plan's digest is #{answer[:digest][:value]}, not the expected #{expected}; review it again"
       end
 
       # Carries out a confirmed change if its plan has not moved.
