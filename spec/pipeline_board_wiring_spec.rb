@@ -121,6 +121,18 @@ RSpec.describe Hecks::Adapters::PipelineWiring do
       end
     end
 
+    it "serves the shared answer prompt at /answer.js" do
+      expect(fetch("/answer.js").body).to include("boardAnswer")
+    end
+
+    it "lets both the board and the agents' page answer a session waiting on you", :aggregate_failures do
+      %w[PAGE AGENTS_PAGE].each do |name|
+        page = File.read(Hecks::Adapters::PipelineWeb.const_get(name))
+        expect(page).to include('<script src="/answer.js"></script>')
+        expect(page).to include("boardAnswer.open(")
+      end
+    end
+
     it "links the board's Agents strip to the agents' page" do
       expect(File.read(Hecks::Adapters::PipelineWeb::PAGE)).to include('href="/agents"')
     end

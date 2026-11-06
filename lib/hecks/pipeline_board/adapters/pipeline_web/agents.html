@@ -92,7 +92,13 @@ svg.focusing .edge.lit, svg.focusing .node.lit { opacity: 1; }
 .legend i { display: inline-block; width: 22px; border-top: 2px solid var(--axis); }
 .legend i.hot { border-color: var(--signal); } .legend i.you { border-color: var(--you); } .legend i.dash { border-top-style: dashed; }
 
-.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; align-items: start; }
+.pinned { display: grid; gap: 8px; }
+.pinned > header { display: flex; align-items: center; gap: 10px; }
+.pinned > header .note { margin-right: auto; }
+.cards { display: flex; gap: 12px; align-items: flex-start; overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding: 0 2px;
+  padding: 2px 2px 10px; scrollbar-width: thin; }
+.cards > .card { flex: 0 0 min(320px, 86vw); scroll-snap-align: start; }
+.cards > .unknown { flex: 1; }
 .card { border: 1px solid var(--border); border-radius: 10px; background: var(--surface); padding: 12px 14px; display: grid; gap: 10px; align-content: start; }
 .card.busy { border-color: color-mix(in srgb, var(--signal) 55%, var(--border)); box-shadow: 0 0 0 3px var(--signal-soft); }
 .card.lit { border-color: var(--signal); }
@@ -159,6 +165,21 @@ svg.focusing .edge.lit, svg.focusing .node.lit { opacity: 1; }
 .verdict summary { cursor: pointer; overflow-wrap: anywhere; }
 .verdict .full { white-space: pre-wrap; margin-top: 4px; padding: 6px 8px; background: var(--page); border-radius: 6px; overflow-wrap: anywhere; }
 .unknown { color: var(--ink2); font-style: italic; }
+.waiting { border: 1px solid var(--you); border-left-width: 4px; border-radius: 10px; background: var(--you-soft); padding: 10px 14px; display: grid; gap: 8px; }
+.waiting[hidden] { display: none; }
+.waiting > header { display: flex; align-items: baseline; gap: 10px; }
+.waiting > header h2 { color: var(--you); }
+.ask-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 4px 12px; align-items: center; padding: 8px 0; border-top: 1px solid color-mix(in srgb, var(--you) 30%, transparent); }
+.ask-row:first-of-type { border-top: 0; }
+.ask-row .who { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.ask-row .n { font-family: var(--mono); font-size: 12px; overflow-wrap: anywhere; }
+.ask-row .q { color: var(--ink2); font-size: 12px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.ask-row time { font-family: var(--mono); font-size: 11px; color: var(--muted); white-space: nowrap; }
+.ask-row .mine { grid-column: 2 / -1; font-size: 12px; color: var(--ink2); }
+.answer-btn { font: 600 12px var(--body); color: #111; background: var(--you); border: 0; border-radius: 6px; padding: 4px 12px; cursor: pointer; white-space: nowrap; }
+.answer-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.sess .answer-btn { justify-self: start; margin-top: 2px; }
+@media (max-width: 700px) { .ask-row { grid-template-columns: minmax(0, 1fr) auto; } .ask-row .q { grid-column: 1 / -1; } }
 .tip { position: fixed; pointer-events: none; z-index: 9; background: var(--ink); color: var(--surface); font-size: 12px; padding: 6px 9px; border-radius: 6px; max-width: 320px; white-space: pre-line; display: none; }
 @media (prefers-reduced-motion: reduce) {
   .node.busy .ring, .edge.hot path.flow, .pill.busy .dot, .track > div, .hop.fresh { animation: none; }
@@ -174,6 +195,11 @@ svg.focusing .edge.lit, svg.focusing .node.lit { opacity: 1; }
     <div class="meta"><span id="updated">loading</span><span id="live">stream: connecting</span></div>
   </header>
   <div class="totals" id="totals"></div>
+
+  <section class="waiting" id="waiting" aria-labelledby="h-waiting" hidden>
+    <header><h2 id="h-waiting">Waiting on you</h2><span class="note">Agents that stopped to ask you something. Answer here and they carry on.</span></header>
+    <div id="asks"></div>
+  </section>
 
   <figure class="map">
     <svg id="comms" viewBox="0 0 1280 510" role="img" aria-label="How the roles hand work on. You ask the planner and the architect. The planner gives the orchestrator Work items. The orchestrator routes work to coders, or asks you when two items conflict. A coder's submission asks the reviewer, and a real bug goes to you. Landed work goes to the pipeline. A verified passage makes the release manager recommend promotion, and you settle it.">
@@ -261,7 +287,12 @@ svg.focusing .edge.lit, svg.focusing .node.lit { opacity: 1; }
     </figcaption>
   </figure>
 
-  <div class="cards" id="cards"></div>
+  <section class="pinned" aria-labelledby="h-pinned">
+    <header><h2 id="h-pinned">Pinned agents</h2><span class="note">Scroll sideways for every role; click a role on the map to bring its card here.</span>
+      <button type="button" class="chipbtn" id="cards-prev" aria-label="Previous agents">&lsaquo;</button>
+      <button type="button" class="chipbtn" id="cards-next" aria-label="Next agents">&rsaquo;</button></header>
+    <div class="cards" id="cards"></div>
+  </section>
 
   <div class="two">
     <section class="block" aria-labelledby="h-wire">
@@ -288,6 +319,7 @@ svg.focusing .edge.lit, svg.focusing .node.lit { opacity: 1; }
 </main>
 <div class="tip" id="tip" role="tooltip"></div>
 <script src="/stream.js"></script>
+<script src="/answer.js"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 function h(tag, attrs, ...kids) {
@@ -334,8 +366,9 @@ function render(s) {
   state = s;
   (Array.isArray(s.events) ? s.events : []).forEach((e) => hear(e, false));
   const roles = Array.isArray(s.roles) ? s.roles : [];
-  renderTotals(roles, s.sessions);
+  renderTotals(roles);
   renderMap(roles, s.generated_at);
+  renderWaiting(s.sessions);
   renderCards(s.roles);
   renderWire();
   fillWork(s.open_work);
@@ -343,9 +376,9 @@ function render(s) {
   $("updated").textContent = "updated " + clock(s.generated_at);
 }
 
-function renderTotals(roles, sessions) {
+function renderTotals(roles) {
   const working = new Set(roles.flatMap((r) => (r.working || []).map((w) => w.id)));
-  const blocked = roles.flatMap((r) => r.working || []).filter((w) => w.status === "blocked");
+  const blocked = blockedSessions();
   const finished = roles.reduce((n, r) => n + (r.completed || []).length, 0);
   const hot = [...heard.values()].filter(isHot).length;
   $("totals").replaceChildren(
@@ -385,6 +418,47 @@ function renderMap(roles, now) {
 
 const evChip = (name) => h("span", { class: "ev" + (name.endsWith("!") ? " you" : "") }, name.replace(/!$/, ""));
 
+// The sessions waiting on you, with what each asked; you answer them in the shared prompt (/answer.js).
+const replies = new Map();
+const blockedSessions = () => (state && Array.isArray(state.sessions) ? state.sessions : []).filter((s) => s.status === "blocked");
+function answer(id) {
+  const list = blockedSessions();
+  if (!list.length) return;
+  boardAnswer.open(list, id, {
+    sending: (s, text) => { replies.set(s.id, { text, state: "sending" }); renderWaiting(state.sessions); },
+    sent: (s) => { replies.set(s.id, { text: replies.get(s.id).text, state: "sent; waiting for it to carry on" }); refresh(); },
+    failed: (s, text, message) => { replies.set(s.id, { text, state: "not sent: " + message }); renderWaiting(state.sessions); }
+  });
+}
+// A session's role: the agent its run names, or else the role its name begins with.
+const roleOf = (s) => s.agent || Object.keys(ROLES).find((role) => String(s.name || "").startsWith(role)) || "";
+const answerButton = (id) => h("button", { type: "button", class: "answer-btn", "data-answer": id }, "Answer");
+function asked(s) {
+  const text = (s.context && s.context.said) || s.detail || "";
+  const line = text.split("\n").map((l) => l.replace(/[*_`#>]/g, "").trim()).find(Boolean) || "";
+  return line.slice(0, 220);
+}
+function renderWaiting(sessions) {
+  const list = Array.isArray(sessions) ? sessions.filter((s) => s.status === "blocked") : [];
+  for (const id of replies.keys()) if (!list.some((s) => s.id === id)) replies.delete(id);
+  $("waiting").hidden = list.length === 0;
+  const tag = (role) => h("span", { class: "tag you", "data-tip": ROLES[role] ? ROLES[role].name : "a session started by hand" },
+    (ROLES[role] && ROLES[role].code) || "S");
+  $("asks").replaceChildren(...list.map((s) => {
+    const mine = replies.get(s.id);
+    return h("div", { class: "ask-row" },
+      h("div", { class: "who" }, tag(roleOf(s)), h("span", { class: "n" }, s.name)),
+      h("span", { class: "q", "data-tip": asked(s) }, asked(s)),
+      h("time", { datetime: s.started }, clock(s.started)),
+      answerButton(s.id),
+      mine ? h("div", { class: "mine" }, h("b", {}, "You: "), mine.text, " \u00B7 " + mine.state) : null);
+  }));
+}
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-answer]");
+  if (b) { e.stopPropagation(); answer(b.dataset.answer); }
+}, true);
+
 function renderCards(roles) {
   if (isUnknown(roles)) return $("cards").replaceChildren(h("p", { class: "unknown" }, "Roles unknown: " + roles.unknown));
   $("cards").replaceChildren(...roles.map(card));
@@ -398,7 +472,8 @@ function card(r) {
   const busy = working.length > 0;
   const session = (w) => h("div", { class: "sess" + (w.status === "blocked" ? " blocked" : ""), "data-tip": w.name + "\n" + (w.detail || w.status) },
     h("span", { class: "n" }, w.name + (w.status === "blocked" ? " · waiting on you" : "")),
-    h("span", { class: "d" }, w.detail || w.status), h("div", { class: "track" }, h("div")));
+    h("span", { class: "d" }, w.detail || w.status), h("div", { class: "track" }, h("div")),
+    w.status === "blocked" ? answerButton(w.id) : null);
   return h("article", { class: "card" + (busy ? " busy" : ""), "data-role": r.name, tabindex: "0" },
     h("header", {}, h("span", { class: "code" }, meta.code),
       h("div", {}, h("div", { class: "title" }, meta.name),
@@ -469,7 +544,20 @@ function markFocus(role) {
   svg.querySelectorAll(".node").forEach((n) => n.classList.toggle("lit", on && near.has(n.dataset.role)));
   document.querySelectorAll(".card").forEach((c) => c.classList.toggle("lit", on && c.dataset.role === role));
 }
-function focus(role) { focused = focused === role ? null : role; markFocus(focused); }
+function focus(role) {
+  focused = focused === role ? null : role;
+  markFocus(focused);
+  const card = focused && document.querySelector('.card[data-role="' + focused + '"]');
+  const smooth = matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
+  if (card) card.scrollIntoView({ behavior: smooth, block: "nearest", inline: "start" });
+}
+// The arrows step the row by one card.
+function stepCards(dir) {
+  const row = $("cards"), card = row.querySelector(".card");
+  row.scrollBy({ left: dir * ((card ? card.offsetWidth : 320) + 12), behavior: "smooth" });
+}
+$("cards-prev").addEventListener("click", () => stepCards(-1));
+$("cards-next").addEventListener("click", () => stepCards(1));
 document.addEventListener("click", (e) => {
   const t = e.target.closest(".node, .card");
   if (t && !e.target.closest("a, details")) focus(t.dataset.role);
