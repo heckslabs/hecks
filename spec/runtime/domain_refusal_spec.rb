@@ -51,7 +51,7 @@ RSpec.describe "every refusal the corpus provokes" do
 
   CORPUS.each do |name, path|
     # Copying the tree isolates the Heki-backed "banking" store, but "pizzas" declares
-    # `persisted_by("PostgresEra")` with a fixed connection string and still boots against the
+    # `persisted_by("Postgres")` with a fixed connection string and still boots against the
     # shared database, so only "pizzas" is `io: true` and skips without Postgres.
     it "#{name} raises only errors the domain is allowed to raise",
        io: (name == "pizzas") do

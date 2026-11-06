@@ -326,7 +326,7 @@ RSpec.describe "the DSL surface" do
     end
 
     # Needs a real `Hecks.boot`, not `boot_in_memory`: examples/pizzas
-    # declares `persisted_by("PostgresEra")` unconditionally, so this
+    # declares `persisted_by("Postgres")` unconditionally, so this
     # needs a reachable Postgres (`io: true`, self-skipping otherwise).
     it ".boot loads a domain directory and returns the entry point", :aggregate_failures, :io do
       skip "no reachable Postgres — start one to run this spec" unless PostgresProbe.available?
@@ -337,7 +337,7 @@ RSpec.describe "the DSL surface" do
     end
 
     # Reads declarations only: no adapter is resolved, so a domain that declares
-    # `persisted_by("PostgresEra")` answers without a database.
+    # `persisted_by("Postgres")` answers without a database.
     it ".describe reads a domain directory, binding no adapter and opening no database", :aggregate_failures do
       described = Hecks.describe(File.expand_path("../examples/pizzas", __dir__))
 

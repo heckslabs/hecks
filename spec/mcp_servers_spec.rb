@@ -150,14 +150,14 @@ RSpec.describe "the stdio MCP servers" do
     end
   end
 
-  # Copies the pizzas example under root_dir, rebound from PostgresEra to Memory, so
+  # Copies the pizzas example under root_dir, rebound from Postgres to Memory, so
   # the server examples below need no database to prove the server's refusals and framing.
   def memory_pizzas_under(root_dir)
     target = File.join(root_dir, "pizzas")
     FileUtils.cp_r(File.join(root, "examples/pizzas/bluebook"), target)
     FileUtils.rm_f(File.join(target, "pizzas.world"))
     hecksagon = File.join(target, "pizzas.hecksagon")
-    File.write(hecksagon, File.read(hecksagon).gsub('persisted_by("PostgresEra")', 'persisted_by("Memory")'))
+    File.write(hecksagon, File.read(hecksagon).gsub('persisted_by("Postgres")', 'persisted_by("Memory")'))
     "pizzas"
   end
 
