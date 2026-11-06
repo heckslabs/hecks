@@ -539,6 +539,14 @@ Hecks.bluebook "Hecks" do
       trigger AgentRun::Dispatch, with: { run: :submission, repo: :repo, brief: :brief, agent: :role }
     end
 
+    # A recommended promotion starts the release manager's session as a run keyed by the change, with
+    # a brief to recommend promote, revert or fix forward. It only recommends: promoting stays the
+    # owner's confirmed command on the board.
+    policy "StartTheReleaseManagerOnRecommendation" do
+      on      "PromotionRecommendation.PromotionRecommended"
+      trigger AgentRun::Dispatch, with: { run: :change, repo: :repo, brief: :brief, agent: :role }
+    end
+
     policy "StartThePlannerOnPlanningRequest" do
       on      "Planning.PlanningRequested"
       trigger AgentRun::Dispatch, with: { run: :plan, repo: :repo, brief: :goal, agent: :role }

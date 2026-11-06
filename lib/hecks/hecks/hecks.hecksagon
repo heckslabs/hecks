@@ -1068,7 +1068,10 @@ Hecks.hecksagon "Agents" do
   # Main is green on a change: the release manager recommends promoting it. A person confirms.
   translates "RecommendPromotionWhenVerified" do
     on Passage::PassageVerified
-    trigger PromotionRecommendation::Recommend, with: { change: :change, reasons: "main is green on this change" }
+    trigger PromotionRecommendation::Recommend,
+            with: { change: :change, reasons: "main is green on this change", role: "release_manager", repo: ".",
+                    brief: "Main is green on this change. Recommend promote, revert or fix forward, with reasons. " \
+                           "Only recommend: the owner confirms any promotion on the board." }
   end
 
   translates "RecordTheArchitectsVerdict" do

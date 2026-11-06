@@ -340,6 +340,9 @@ Hecks.bluebook "Agents" do
 
     attribute :change, ChangeRef
     attribute :reasons, Reasons, optional: true
+    attribute :role, RoleRef, optional: true
+    attribute :repo, RepoPath, optional: true
+    attribute :brief, BriefText, optional: true
 
     value_object "ChangeRef" do
       attribute :value, String, matches: :present
@@ -347,6 +350,9 @@ Hecks.bluebook "Agents" do
     end
 
     value_object "Reasons", String
+    value_object "RoleRef", String
+    value_object "RepoPath", String
+    value_object "BriefText", String
 
     lifecycle :status, default: "recommended" do
       transition "Settle" => "settled", from: "recommended"
@@ -358,6 +364,9 @@ Hecks.bluebook "Agents" do
 
       attribute :change, ChangeRef, sets: true
       attribute :reasons, Reasons, sets: true
+      attribute :role, RoleRef, optional: true, sets: true
+      attribute :repo, RepoPath, optional: true, sets: true
+      attribute :brief, BriefText, optional: true, sets: true
 
       emits "PromotionRecommended"
     end
