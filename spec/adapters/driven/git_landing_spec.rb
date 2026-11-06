@@ -4,6 +4,7 @@ require "open3"
 require "tmpdir"
 require "hecks/hecks/adapters/git_landing"
 require "hecks/hecks/adapters/git_checkout"
+require "hecks/hecks/adapters/git_copy"
 
 # The Checkout and Landing adapters, against a throwaway repository: a landing fast-forwards or
 # merges onto main and reports a conflict, a retirement keeps unmerged or dirty work, and the
@@ -138,5 +139,103 @@ RSpec.describe "the Checkout and Landing adapters", :io do
 
     expect(checkout.history(checkout: { value: feature_tree }, range: "main..HEAD")[:text]).to match(/\A\h+ second\n\z/)
     expect { checkout.history(checkout: { value: feature_tree }, range: "--all") }.to raise_error(Hecks::Runtime::NotFound)
+  end
+
+  def log(**held) = checkout.history(checkout: { value: feature_tree }, **held)[:text]
+
+  it "limits the commits to those that add or remove some text", :aggregate_failures do
+    commit("second", dir: feature_tree, text: "a needle")
+    commit("third", dir: feature_tree)
+
+    expect(log(containing: "needle")).to match(/\A\h+ second\n\z/)
+    expect(log(containing: "needle", path: "third")).to eq("\n")
+  end
+
+  it "limits the commits to those that touch a path, and refuses a path or text it cannot take", :aggregate_failures do
+    commit("third", dir: feature_tree)
+
+    expect(log(path: "third")).to match(/\A\h+ third\n\z/)
+    expect { log(path: "../first") }.to raise_error(Hecks::Runtime::NotFound)
+    expect { log(containing: "a\nb") }.to raise_error(Hecks::Runtime::NotFound)
+  end
+
+  describe "copying a tree as it stood at a ref" do
+    def destination = File.join(scratch, "copy")
+
+    def copy(**held) = Hecks::Adapters::GitCopy.new.copy(checkout: { value: feature_tree }, **held)
+
+    it "writes a path, or the whole tree, into a new directory and reports it", :aggregate_failures do
+      commit("second", dir: feature_tree, text: "two")
+
+      report = copy(ref: { value: "HEAD" }, path: { value: "second" }, destination: { value: destination })[:report][:value]
+
+      expect(File.read(File.join(destination, "second"))).to eq("two")
+      expect(File).not_to exist(File.join(destination, "first"))
+      expect(report).to match(/\Acopied 1 files of second at \h+ into #{Regexp.escape(destination)}\z/)
+    end
+
+    it "copies the tree as it stood at a parent revision", :aggregate_failures do
+      commit("second", dir: feature_tree)
+      other = File.join(scratch, "earlier")
+
+      copy(ref: { value: "HEAD^" }, destination: { value: other })
+
+      expect(File).to exist(File.join(other, "first"))
+      expect(File).not_to exist(File.join(other, "second"))
+    end
+
+    # The copies that are declined: a relative destination, one inside the checkout, one that
+    # already holds files, an option for a ref, a path that leaves the repository, and an
+    # unknown ref.
+    def declined_copies
+      File.write(File.join(scratch, "occupied"), "x")
+      [{ ref: { value: "HEAD" }, destination: { value: "relative/dir" } },
+       { ref: { value: "HEAD" }, destination: { value: File.join(feature_tree, "inside") } },
+       { ref: { value: "HEAD" }, destination: { value: File.join(scratch, "occupied") } },
+       { ref: { value: "--all" }, destination: { value: destination } },
+       { ref: { value: "HEAD" }, path: { value: "../first" }, destination: { value: destination } },
+       { ref: { value: "nosuchref" }, destination: { value: destination } }]
+    end
+
+    it "declines each copy it must not make and writes nothing", :aggregate_failures do
+      declined_copies.each do |held|
+        expect { copy(**held) }.to raise_error(Hecks::Adapters::ConsoleCapture::Failure), held.inspect
+      end
+      expect(File).not_to exist(destination)
+    end
+  end
+
+  describe "showing a file as it stood at a ref" do
+    def show(**held) = checkout.show(checkout: { value: feature_tree }, **held)
+
+    it "answers the file exactly as committed, at HEAD and at a parent", :aggregate_failures do
+      commit("second", dir: feature_tree, text: "  indented\nline two\n")
+
+      expect(show(ref: "HEAD", path: "second")[:text]).to eq("  indented\nline two\n")
+      expect(show(ref: "HEAD^", path: "first")[:text]).to eq("first")
+    end
+
+    it "lists the top level when no path is named", :aggregate_failures do
+      commit("second", dir: feature_tree)
+
+      expect(show(ref: "HEAD")[:text]).to include("first", "second")
+      expect(show(ref: "HEAD^")[:text]).to include("first").and(satisfy { |text| !text.include?("second") })
+    end
+
+    it "refuses a missing file, a range, an option and a path that leaves the repository", :aggregate_failures do
+      [{ ref: "HEAD", path: "missing" }, { ref: "main..HEAD", path: "first" }, { ref: "--all", path: "first" },
+       { ref: "HEAD", path: "../first" }, { ref: "HEAD", path: "/etc/passwd" }, { ref: "HEAD", path: "-first" },
+       { ref: "HEAD", path: "./first" }].each do |held|
+        expect { show(**held) }.to raise_error(Hecks::Runtime::NotFound), held.inspect
+      end
+    end
+
+    it "cuts a long file and says so", :aggregate_failures do
+      commit("long", dir: feature_tree, text: "x" * (Hecks::Adapters::GitCheckout::SHOWN + 1))
+      text = show(ref: "HEAD", path: "long")[:text]
+
+      expect(text).to end_with("\n[cut at 200000 of 200001 characters]\n")
+      expect(text.length).to eq(Hecks::Adapters::GitCheckout::SHOWN + "\n[cut at 200000 of 200001 characters]\n".length)
+    end
   end
 end
