@@ -52,19 +52,21 @@ commands:
 queries (nothing here changes anything):
   Workspace:
     A look at a checkout: its branch, what it changed and what it committed.
-    status    The checkout's branch, whether it is a linked worktree, where it stands against main and origin/main, and what is changed or untracked.
-    strays    What each untracked or changed path in the checkout is: a stale copy of a file main deleted, a linked worktree sitting inside it (dirty or clean, pushed or not), a tracked file with uncommitted changes, or unknown.
-    changes   What the checkout changed since a ref (main by default): the diffstat, or the paths alone.
-    history   The commits in a range, newest first (the last 20 when none is named).
-    settings  What this copy resolves for each setting that can come from a variable, its own world or a default, and which one supplied it. (also: config)
-    doctor    Whether this checkout can run Hecks here: overlay files parse, the stores answer, the toolchain pin matches, and what this worktree cannot see.
-    where     Where this checkout's domain resolves: the store each bluebook uses and why, the audience and environment with their reasons, and any overlay file this worktree lacks.
+    status            The checkout's branch, whether it is a linked worktree, where it stands against main and origin/main, and what is changed or untracked.
+    strays            What each untracked or changed path in the checkout is: a stale copy of a file main deleted, a linked worktree sitting inside it (dirty or clean, pushed or not), a tracked file with uncommitted changes, or unknown.
+    changes           What the checkout changed since a ref (main by default): the diffstat, or the paths alone.
+    history           The commits in a range, newest first (the last 20 when none is named).
+    stashes           The checkout's stash entries: each one's ref (stash@{0}), its time, the branch it records when the message names one, and its message.
+    dangling_commits  The commits no ref reaches, as `git fsck --unreachable --no-reflogs` reports them: each one's short sha, author date and subject, newest first.
+    settings          What this copy resolves for each setting that can come from a variable, its own world or a default, and which one supplied it. (also: config)
+    doctor            Whether this checkout can run Hecks here: overlay files parse, the stores answer, the toolchain pin matches, and what this worktree cannot see.
+    where             Where this checkout's domain resolves: the store each bluebook uses and why, the audience and environment with their reasons, and any overlay file this worktree lacks.
   Landing:
     One branch landed on local main, or one worktree retired: done, or refused with the reason.
-    unlanded  Every branch with commits that are not on main, or with uncommitted work, and where its worktree is.
+    unlanded          Every branch with commits that are not on main, or with uncommitted work, and where its worktree is.
   ReviewRequest:
     One pull request opened or squash-merged on GitHub, and what GitHub answered.
-    status    The state of one pull request on GitHub: its number, state, URL and checks, as text.
+    status            The state of one pull request on GitHub: its number, state, URL and checks, as text.
 
 bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
   deploy           Generate, check and compare deploy recipes, project OIDC manifests and provision tenants.
