@@ -155,7 +155,7 @@ RSpec.describe "qa_sweep era_boundary", :io do
   it "runs once per sweep, never per seed", :aggregate_failures do
     stdout = era_boundary_sweep
 
-    expect(stdout).to include("resolved modes: era_boundary (capabilities=postgres_era,sqlite,translations)")
+    expect(stdout).to include("resolved modes: era_boundary (capabilities=postgres_revision,sqlite,translations)")
     # Seedless: no "seed N: held" line.
     expect(stdout).not_to match(/seed \d+:/)
   end

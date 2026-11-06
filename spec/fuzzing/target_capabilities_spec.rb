@@ -46,11 +46,11 @@ RSpec.describe Hecks::Fuzzing::TargetCapabilities, :aggregate_failures do
   describe ".infer, against the real corpus" do
     it "reads banking's rust feature, Governance attachment, role gates, tenant scope and sagas off disk" do
       expect(infer(CAP_BANKING)).to include("rust", "governance", "role_gated", "tenant", "sagas", "sqlite")
-      expect(infer(CAP_BANKING)).not_to include("postgres_era")
+      expect(infer(CAP_BANKING)).not_to include("postgres_revision")
     end
 
     it "reads directory's PostgresRevision binding and translation edge, and its lack of a rust feature" do
-      expect(infer(CAP_DIRECTORY)).to include("postgres_era", "translations", "sqlite")
+      expect(infer(CAP_DIRECTORY)).to include("postgres_revision", "translations", "sqlite")
       expect(infer(CAP_DIRECTORY)).not_to include("rust", "role_gated", "sagas")
     end
 
@@ -93,7 +93,7 @@ RSpec.describe Hecks::Fuzzing::TargetCapabilities, :aggregate_failures do
     def postgres_era_for(hecksagon_text)
       Dir.mktmpdir do |tmp|
         File.write(File.join(tmp, "sample.hecksagon"), hecksagon_text)
-        described_class.infer(tmp, rust_dir: File.join(tmp, "nowhere")).include?("postgres_era")
+        described_class.infer(tmp, rust_dir: File.join(tmp, "nowhere")).include?("postgres_revision")
       end
     end
 
@@ -171,15 +171,15 @@ RSpec.describe Hecks::Fuzzing::TargetCapabilities, :aggregate_failures do
     end
 
     it "resolves persistence_parity, era_boundary and concurrency only off a PostgresRevision binding" do
-      expect(described_class.resolve(all_enabled, %w[postgres_era sqlite translations]))
+      expect(described_class.resolve(all_enabled, %w[postgres_revision sqlite translations]))
         .to include(:persistence_parity, :era_boundary, :concurrency, :adapter_parity_postgres)
       expect(described_class.resolve(all_enabled, %w[sqlite translations]))
         .not_to include(:persistence_parity, :era_boundary, :concurrency)
     end
 
-    it "requires BOTH translations and postgres_era for era_boundary" do
-      expect(described_class.eligible?(:era_boundary, %w[postgres_era sqlite])).to be(false)
-      expect(described_class.eligible?(:era_boundary, %w[postgres_era sqlite translations])).to be(true)
+    it "requires BOTH translations and postgres_revision for era_boundary" do
+      expect(described_class.eligible?(:era_boundary, %w[postgres_revision sqlite])).to be(false)
+      expect(described_class.eligible?(:era_boundary, %w[postgres_revision sqlite translations])).to be(true)
     end
 
     it "refuses a mode name nothing declares, rather than silently resolving it away" do

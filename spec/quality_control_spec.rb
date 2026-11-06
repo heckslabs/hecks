@@ -1304,8 +1304,8 @@ RSpec.describe "QualityControl" do
     end
 
     def targets_released_for_modes
-      released_with("directory", "examples/directory", "postgres_era")
-      released_with("pizzas", "examples/pizzas", "rust,postgres_era")
+      released_with("directory", "examples/directory", "postgres_revision")
+      released_with("pizzas", "examples/pizzas", "rust,postgres_revision")
       a_target("roster", "examples/roster")
     end
 
@@ -1317,7 +1317,7 @@ RSpec.describe "QualityControl" do
     it "are recorded at release and answer which waiting bluebooks a mode can reach", :aggregate_failures do
       targets_released_for_modes
 
-      expect(references("Target.EligibleFor", mode: { value: "postgres_era" })).to contain_exactly("directory", "pizzas")
+      expect(references("Target.EligibleFor", mode: { value: "postgres_revision" })).to contain_exactly("directory", "pizzas")
       expect(references("Target.EligibleFor", mode: { value: "rust" })).to eq(["pizzas"])
       expect(references("Target.EligibleFor", mode: { value: "wasm" })).to be_empty
     end

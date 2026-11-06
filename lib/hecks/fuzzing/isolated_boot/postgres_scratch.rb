@@ -50,7 +50,7 @@ module Hecks
           reset_schema!(database, schema, create: true)
         end
 
-        # `:postgres_era` is the only mode that exercises era/lineage-bound SQL; plain
+        # `:postgres_revision` is the only mode that exercises era/lineage-bound SQL; plain
         # `:postgres` never touches that machinery. Unlike `:postgres`, there's no shared
         # scratch constant here — `database:`/`schema:` are required keyword args because
         # the caller (`hecks quality_control sweep.run --persistence-parity`) owns that
@@ -75,7 +75,7 @@ module Hecks
           return unless database.to_s.empty? || schema.to_s.empty?
 
           raise ArgumentError,
-                "adapter: :postgres_era requires both database: and schema: — a throwaway database/schema " \
+                "adapter: :postgres_revision requires both database: and schema: — a throwaway database/schema " \
                 "THIS CALLER creates and drops itself (see rebind_to_postgres_era!'s own header). " \
                 "There is no shared default, unlike :postgres, so the caller cannot forget to own the lifecycle."
         end

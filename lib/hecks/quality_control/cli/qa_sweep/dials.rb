@@ -51,7 +51,7 @@ module Hecks
           # The adapter pair each parity mode compares; a new pairing is a data change here, not a
           # new diff.
           @adapter_parity_pairs = dial(:ADAPTER_PARITY_PAIRS,
-                                       { persistence_parity:    { left: :memory, right: :postgres_era },
+                                       { persistence_parity:    { left: :memory, right: :postgres_revision },
                                          adapter_parity_sqlite: { left: :memory, right: :sqlite } }.freeze)
         end
 

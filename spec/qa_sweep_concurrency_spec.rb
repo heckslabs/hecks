@@ -162,7 +162,7 @@ RSpec.describe "qa_sweep concurrency", :io do
     stdout, stderr, status = run_concurrency_sweep("concurrency", seeds: "1", steps: "10")
 
     expect(status.exitstatus).to eq(0), "expected a clean sweep, got:\nSTDOUT:\n#{stdout}\nSTDERR:\n#{stderr}"
-    expect(stdout).to include("resolved modes: concurrency (capabilities=postgres_era,sqlite)", "seed 1: held (concurrency)",
+    expect(stdout).to include("resolved modes: concurrency (capabilities=postgres_revision,sqlite)", "seed 1: held (concurrency)",
                               "clean — concurrency concluded and released.")
   end
 

@@ -104,15 +104,15 @@ RSpec.describe "qa_sweep --persistence-parity", :io do
   # streams separate, unlike `--all` children, which log to one merged stream.
   # `--all --persistence-parity` folds back to plain `--all` with the parity wave forced on, rather
   # than narrowing every child to one mode (which would abort the ineligible target). Wave 2 then
-  # runs over `directory` alone, the only `postgres_era`-capable target.
+  # runs over `directory` alone, the only `postgres_revision`-capable target.
   # The lines a clean `--all --persistence-parity` run prints for the directory target.
   def parity_all_lines
     ["clean (3): directory, ineligible, directory [parity wave]",
      "parity wave: Memory vs real PostgresRevision for 1 target(s), at most " \
      "#{QualityControlDials::SWEEP_MAX_PARALLEL} at once: directory",
-     "  directory: ruby_only,self_consistency (capabilities: postgres_era,sqlite,translations; " \
+     "  directory: ruby_only,self_consistency (capabilities: postgres_revision,sqlite,translations; " \
      "deferred: persistence_parity)",
-     "  directory [parity wave]: persistence_parity (capabilities: postgres_era,sqlite,translations)"]
+     "  directory [parity wave]: persistence_parity (capabilities: postgres_revision,sqlite,translations)"]
   end
 
   # Sweeps both targets with `--all --persistence-parity`, expecting a clean exit, and answers
@@ -157,7 +157,7 @@ RSpec.describe "qa_sweep --persistence-parity", :io do
     _stdout, stderr, status = run_qa_sweep("ineligible", "--persistence-parity")
 
     expect(status.exitstatus).to eq(1)
-    expect(stderr).to include("declares no persisted_by(\"PostgresRevision\") binding")
+    expect(stderr).to include("declares no persisted_by(\"Postgres\") binding")
   end
 
   it "leaves an ineligible target as found, not held by a sweep that was going to abort" do

@@ -11,7 +11,7 @@ RSpec.describe Hecks::Adapters::Codebase::SqliteFixture do
     report = described_class.new(tree, shell: shell).regenerate(confirm: false)
 
     expect(report).to eq("dry run, would rewrite spec/fixtures/persistence_legacy/ for heki, sqlite, d1, postgres, " \
-                         "postgres_era through the real adapters (sqlite3 is installed; add --confirm)")
+                         "postgres_revision through the real adapters (sqlite3 is installed; add --confirm)")
     expect(shell.asked.map { |ask| ask[:program] }).to eq(["sqlite3"])
   end
 

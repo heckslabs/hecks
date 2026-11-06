@@ -73,7 +73,7 @@ RSpec.describe "walking a cursor query by its pages" do
     end
 
     it "yields exactly the unpaged rows at both page sizes" do
-      history = Hecks::Fuzzing::Replay.call(banking, steps, adapter: :postgres_era, database: database, schema: "public")
+      history = Hecks::Fuzzing::Replay.call(banking, steps, adapter: :postgres_revision, database: database, schema: "public")
       expect(finding(history)).to be(true)
     end
   end

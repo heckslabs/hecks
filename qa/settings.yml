@@ -36,7 +36,7 @@ concurrency_seed_cap: 3
 adapter_parity_pairs:
   persistence_parity:
     left: memory
-    right: postgres_era
+    right: postgres_revision
   adapter_parity_sqlite:
     left: memory
     right: sqlite

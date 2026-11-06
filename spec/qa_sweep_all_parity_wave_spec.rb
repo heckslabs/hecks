@@ -8,8 +8,8 @@ RSpec.describe "qa_sweep --all", :io do
   include_context "with a qa_sweep_all fixture", "hecks_qa_sweep_all_parity_wave_spec"
 
   PARITY_WAVE_PATTERNS = [
-    /^  pg_one: ruby_only,self_consistency \(capabilities: postgres_era,sqlite; deferred: persistence_parity\)$/,
-    /^  pg_one \[parity wave\]: persistence_parity \(capabilities: postgres_era,sqlite\)$/,
+    /^  pg_one: ruby_only,self_consistency \(capabilities: postgres_revision,sqlite; deferred: persistence_parity\)$/,
+    /^  pg_one \[parity wave\]: persistence_parity \(capabilities: postgres_revision,sqlite\)$/,
     /^  heki_one: ruby_only,self_consistency \(capabilities: sqlite\)$/
   ].freeze
 

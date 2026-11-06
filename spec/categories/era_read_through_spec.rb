@@ -105,7 +105,7 @@ RSpec.describe "every era fixture, read through from its base", :aggregate_failu
     after(:context) { ScratchPostgres.drop([ERA_SCRATCH_DB]) if PostgresProbe.available? }
 
     def era_read_through(fixture)
-      read_through(fixture, adapter: :postgres_era, database: ERA_SCRATCH_DB, schema: "era_#{fixture}",
+      read_through(fixture, adapter: :postgres_revision, database: ERA_SCRATCH_DB, schema: "era_#{fixture}",
                                  scratch: { disposable: false })
     end
 

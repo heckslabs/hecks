@@ -37,10 +37,10 @@ module Hecks
         properties_in_differential: %w[rust],
         structural_skip_report:     %w[rust],
         adapter_parity_sqlite:      %w[sqlite],
-        persistence_parity:         %w[postgres_era],
-        adapter_parity_postgres:    %w[postgres_era],
-        era_boundary:               %w[translations postgres_era],
-        concurrency:                %w[postgres_era],
+        persistence_parity:         %w[postgres_revision],
+        adapter_parity_postgres:    %w[postgres_revision],
+        era_boundary:               %w[translations postgres_revision],
+        concurrency:                %w[postgres_revision],
         wasm_front:                 %w[rust]
       }.freeze
 
@@ -59,12 +59,12 @@ module Hecks
       # @param rust_dir [String] path to the Rust project root, checked for a matching
       #   Cargo feature; defaults to this repo's own `rust/` directory
       # @return [Array<String>] the target's capabilities, sorted; a subset of
-      #   `sqlite`, `rust`, `postgres_era`, `translations`, `governance`, `role_gated`,
+      #   `sqlite`, `rust`, `postgres_revision`, `translations`, `governance`, `role_gated`,
       #   `tenant`, `sagas`
       def infer(domain_path, rust_dir: File.expand_path("../../../rust", __dir__))
         capabilities = %w[sqlite]
         capabilities << "rust" if rust_feature?(domain_path, rust_dir)
-        capabilities << "postgres_era" if postgres_era_bound?(domain_path)
+        capabilities << "postgres_revision" if postgres_era_bound?(domain_path)
         capabilities << "translations" if Dir.glob(File.join(domain_path, "**", "translations", "*.bluebook")).any?
         capabilities << "governance" if authorization_attached?(domain_path)
         capabilities.concat(declared_capabilities(domain_path)).sort

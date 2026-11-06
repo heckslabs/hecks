@@ -16,13 +16,13 @@ module Hecks
       # Both results are JSON-round-tripped so plain data compares equal on both sides.
       #
       # @param left [Symbol] an `IsolatedBoot` adapter: `:memory`, `:sqlite`, `:postgres`,
-      #   `:postgres_era`
+      #   `:postgres_revision`
       # @param right [Symbol] the second adapter, same set as `left`
       # @param storage [Hash] connection settings `Replay.call` takes, passed to both sides:
-      #   `database:` and `schema:` (strings, required when either side is `:postgres_era`)
+      #   `database:` and `schema:` (strings, required when either side is `:postgres_revision`)
       # @return [Array<Hash>] entries `{field: String, left => Object, right => Object}`,
       #   keyed by the adapter symbols; empty if both sides agree
-      def diff(domain_path, steps, left: :memory, right: :postgres_era, **storage)
+      def diff(domain_path, steps, left: :memory, right: :postgres_revision, **storage)
         left_result  = Replay.call(domain_path, steps, adapter: left, **storage)
         right_result = Replay.call(domain_path, steps, adapter: right, **storage)
 

@@ -38,7 +38,7 @@ RSpec.describe Hecks::Fuzzing::QaSettings do
   TYPED_DIALS = %i[cadence_seconds pr_cap_per_day sweep_max_parallel draft_only auto_merge adversarial_fraction].freeze
 
   EXPECTED_PARITY_PAIRS = {
-    persistence_parity:    { left: :memory, right: :postgres_era },
+    persistence_parity:    { left: :memory, right: :postgres_revision },
     adapter_parity_sqlite: { left: :memory, right: :sqlite }
   }.freeze
 
@@ -116,7 +116,7 @@ RSpec.describe Hecks::Fuzzing::QaSettings do
     end
 
     it "refuses an adapter_parity_pairs entry missing left or right" do
-      broken = valid_yaml.sub(/^\s*right: postgres_era\n/, "")
+      broken = valid_yaml.sub(/^\s*right: postgres_revision\n/, "")
       with_settings_file(broken) do |path|
         expect { described_class.load(path) }.to raise_error(ArgumentError, /adapter_parity_pairs/)
       end

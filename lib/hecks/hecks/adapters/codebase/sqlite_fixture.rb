@@ -20,7 +20,7 @@ module Hecks
         DIRECTORY = "spec/fixtures/persistence_legacy"
 
         # The stores each fixture set is written for.
-        STORES = %w[heki sqlite d1 postgres postgres_era].freeze
+        STORES = %w[heki sqlite d1 postgres postgres_revision].freeze
 
         # @param tree [Tree] the checkout whose fixtures are rewritten
         # @param shell [#capture, nil] starts the `sqlite3` probe; a `Shell` when nil

@@ -99,7 +99,7 @@ module Hecks
         end
 
         # Wave 2: `--persistence-parity` children for wave-1 targets that came back clean and infer
-        # `postgres_era`. Skipped by `--no-parity` or when `--modes` already named the mode.
+        # `postgres_revision`. Skipped by `--no-parity` or when `--modes` already named the mode.
         def run_parity_wave(wave1)
           candidates = wave_candidates(wave1, :persistence_parity)
           return skipped_wave(PARITY_WAVE_SKIPPED) if candidates.empty?

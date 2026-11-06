@@ -53,9 +53,9 @@ module Hecks
         when :memory       then rebind_to_memory!(copy)
         when :sqlite       then rebind_to_sqlite!(copy)
         when :postgres     then rebind_to_postgres!(copy, **scratch)
-        when :postgres_era then rebind_to_postgres_era!(copy, database: database, schema: schema, **scratch)
+        when :postgres_revision then rebind_to_postgres_era!(copy, database: database, schema: schema, **scratch)
         else raise ArgumentError,
-                   "unknown fuzz adapter #{adapter.inspect} — :memory, :sqlite, :postgres, or :postgres_era"
+                   "unknown fuzz adapter #{adapter.inspect} — :memory, :sqlite, :postgres, or :postgres_revision"
         end
       end
 

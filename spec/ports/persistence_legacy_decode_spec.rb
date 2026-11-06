@@ -150,8 +150,8 @@ RSpec.describe "legacy persistence decode (A1 bytes, A3 canonical decode)" do
   describe "against a real Postgres", :io do
     def databases
       {
-        postgres:     "hecks_persistence_legacy_decode_spec",
-        postgres_era: "hecks_persistence_legacy_decode_era_spec"
+        postgres:          "hecks_persistence_legacy_decode_spec",
+        postgres_revision: "hecks_persistence_legacy_decode_era_spec"
       }
     end
 
@@ -194,8 +194,8 @@ RSpec.describe "legacy persistence decode (A1 bytes, A3 canonical decode)" do
     end
 
     it "PostgresRevision: restored journal + head_snapshot decode deep on find AND on entries" do
-      expect_find_and_entries(fixture.postgres_era_adapter(account_ir, databases[:postgres_era]), "ACC-1", account)
-      expect_find_and_entries(fixture.postgres_era_adapter(card_payment_ir, databases[:postgres_era]), "AUTH-1",
+      expect_find_and_entries(fixture.postgres_era_adapter(account_ir, databases[:postgres_revision]), "ACC-1", account)
+      expect_find_and_entries(fixture.postgres_era_adapter(card_payment_ir, databases[:postgres_revision]), "AUTH-1",
                               card_payment)
     end
   end

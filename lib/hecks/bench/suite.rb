@@ -3,7 +3,7 @@ module Hecks
     # Runs every requested target against every requested domain and aggregates the runs.
     # Runs are interleaved across targets so unrelated machine load lands on all of them.
     module Suite
-      TARGETS = %w[ruby:memory ruby:sqlite ruby:postgres ruby:postgres_era rust].freeze
+      TARGETS = %w[ruby:memory ruby:sqlite ruby:postgres ruby:postgres_revision rust].freeze
 
       # What to measure; `rust_binary` needs a single domain, since a binary embeds exactly one.
       Config = Struct.new(:domains, :targets, :warmup, :iterations, :runs, :rust_binary, keyword_init: true)

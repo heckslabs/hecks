@@ -218,7 +218,7 @@ RSpec.describe "persistence adapter contract (state codec round trip)" do
   end
 
   context "with a real Postgres", :io do
-    def databases = { postgres: "hecks_persistence_contract_spec", postgres_era: "hecks_persistence_contract_era_spec" }
+    def databases = { postgres: "hecks_persistence_contract_spec", postgres_revision: "hecks_persistence_contract_era_spec" }
 
     before(:all) do
       skip "no reachable Postgres — start one to run this spec" unless PostgresProbe.available?
@@ -258,10 +258,10 @@ RSpec.describe "persistence adapter contract (state codec round trip)" do
 
     describe Hecks::Adapters::PostgresRevision do
       # A boot never holds era 1 (ADR 0168): hold it on the freshly scrubbed database first.
-      before { fixture.hold_postgres_era!(databases[:postgres_era]) }
+      before { fixture.hold_postgres_era!(databases[:postgres_revision]) }
 
       def build_adapter(aggregate)
-        Hecks::Adapters::PostgresRevision.new(aggregate: aggregate, settings: { database: databases[:postgres_era] })
+        Hecks::Adapters::PostgresRevision.new(aggregate: aggregate, settings: { database: databases[:postgres_revision] })
       end
 
       it_behaves_like "a state-codec persistence adapter", durable: true

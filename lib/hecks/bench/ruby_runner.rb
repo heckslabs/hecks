@@ -5,9 +5,9 @@ module Hecks
     # Times the Ruby runtime's `dispatch_flat`, in-process, on one persistence adapter.
     # Boots a throwaway copy via `Fuzzing::IsolatedBoot` so every run starts from an empty store.
     module RubyRunner
-      ADAPTERS = %i[memory sqlite postgres postgres_era].freeze
+      ADAPTERS = %i[memory sqlite postgres postgres_revision].freeze
 
-      POSTGRES_ADAPTERS = %i[postgres postgres_era].freeze
+      POSTGRES_ADAPTERS = %i[postgres postgres_revision].freeze
 
       DATABASE = "hecks_bench".freeze
 

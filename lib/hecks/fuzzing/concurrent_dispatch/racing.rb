@@ -12,7 +12,7 @@ module Hecks
         # Nothing else touches this schema, so the outcome is correct by construction.
         def reference_outcomes(domain_path, setup_steps, race_step, database:, schema:)
           outcomes = []
-          IsolatedBoot.call(domain_path, adapter: :postgres_era, database: database, schema: schema) do |copy|
+          IsolatedBoot.call(domain_path, adapter: :postgres_revision, database: database, schema: schema) do |copy|
             runtime = Hecks.boot(copy, environment: nil)
             dispatch_all!(runtime, setup_steps)
             outcomes << dispatch_one(runtime, race_step)
@@ -28,7 +28,7 @@ module Hecks
         # duplicates open file descriptors, including this process's own live
         # Postgres connection, which corrupted it when tried here.
         def concurrent_outcomes(domain_path, setup_steps, race_step, database:, schema:)
-          IsolatedBoot.call(domain_path, adapter: :postgres_era, database: database, schema: schema) do |copy|
+          IsolatedBoot.call(domain_path, adapter: :postgres_revision, database: database, schema: schema) do |copy|
             dispatch_all!(Hecks.boot(copy, environment: nil), setup_steps)
           end
 

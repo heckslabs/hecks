@@ -11,7 +11,7 @@ module Hecks
         # A `Hecks.hecksagon "Name"` declaration, capturing the name.
         HECKSAGON_DECLARATION = /Hecks\.hecksagon\s+"([^"]+)"/
 
-        # Same copy-and-rebind IsolatedBoot.call(..., adapter: :postgres_era) does,
+        # Same copy-and-rebind IsolatedBoot.call(..., adapter: :postgres_revision) does,
         # minus the schema wipe — this schema already holds what setup wrote, and
         # the race must run against that, not a blank one.
         def boot_preserving_schema(domain_path, database:, schema:)

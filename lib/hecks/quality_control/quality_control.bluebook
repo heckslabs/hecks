@@ -274,7 +274,7 @@ Hecks.bluebook "QualityControl" do
 
     # Answers from the ledger which waiting bluebooks a mode could run against.
     query "EligibleFor" do
-      description "Waiting bluebooks whose recorded capabilities include one mode — e.g. mode=postgres_era for the persistence-parity axis. The ledger's own answer to which bluebooks a mode can reach; inference at sweep time is still what decides."
+      description "Waiting bluebooks whose recorded capabilities include one mode — e.g. mode=postgres_revision for the persistence-parity axis. The ledger's own answer to which bluebooks a mode can reach; inference at sweep time is still what decides."
       attribute :mode, Capability
       where(:"capabilities.value" => { contains: :mode })
       where(status: "waiting")

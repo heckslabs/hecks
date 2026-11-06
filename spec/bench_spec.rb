@@ -137,7 +137,7 @@ RSpec.describe Hecks::Bench do
 
     def result_with_postgres_unavailable(log)
       allow(Hecks::Bench::PostgresProbe).to receive(:unavailable_reason).and_return(postgres_unavailable_reason)
-      described_class.call(tiny(targets: %w[ruby:memory ruby:postgres ruby:postgres_era]), log: log)
+      described_class.call(tiny(targets: %w[ruby:memory ruby:postgres ruby:postgres_revision]), log: log)
     end
 
     it "skips a Postgres target with the reason instead of failing when no server answers", :aggregate_failures, :process do
@@ -146,7 +146,7 @@ RSpec.describe Hecks::Bench do
 
       expect(result[:results].map { |entry| entry[:target] }).to eq(%w[ruby:memory])
       expect(result[:skipped]).to eq([{ target: "ruby:postgres", reason: reason },
-                                      { target: "ruby:postgres_era", reason: reason }])
+                                      { target: "ruby:postgres_revision", reason: reason }])
     end
 
     it "says which Postgres targets it skipped, in the log and in the report", :aggregate_failures, :process do
@@ -154,13 +154,14 @@ RSpec.describe Hecks::Bench do
       result = result_with_postgres_unavailable(log)
 
       expect(log.string).to include("skip ruby:postgres: #{postgres_unavailable_reason}")
-      expect(Hecks::Bench::Report.markdown(result)).to include("Skipped:", "- ruby:postgres_era: #{postgres_unavailable_reason}")
+      expect(Hecks::Bench::Report.markdown(result)).to include("Skipped:",
+                                                               "- ruby:postgres_revision: #{postgres_unavailable_reason}")
     end
 
     it "measures Postgres when a server answers", :aggregate_failures, :io do
       skip "no local Postgres" unless PostgresProbe.available?
 
-      result = described_class.call(tiny(targets: %w[ruby:postgres ruby:postgres_era]), log: quiet)
+      result = described_class.call(tiny(targets: %w[ruby:postgres ruby:postgres_revision]), log: quiet)
 
       expect(result[:skipped]).to be_empty
       expect(result[:results].map { |entry| entry[:median][:throughput_per_s] }).to all(be_positive)

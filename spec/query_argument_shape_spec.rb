@@ -51,7 +51,7 @@ RSpec.describe "a query argument of the wrong shape" do
 
     def postgres_history
       Hecks::Fuzzing::Replay.call(self.class.fixture, self.class.steps,
-                                  adapter: :postgres_era, database: QUERY_ARGUMENT_SHAPE_DB, schema: "public")
+                                  adapter: :postgres_revision, database: QUERY_ARGUMENT_SHAPE_DB, schema: "public")
     end
 
     it "refuses the same query as Memory, without a driver error" do
@@ -60,7 +60,7 @@ RSpec.describe "a query argument of the wrong shape" do
 
     it "agrees with Memory on every answer, through the persistence parity check" do
       diff = Hecks::Fuzzing::PersistenceParity.diff(self.class.fixture, self.class.steps,
-                                                    left: :memory, right: :postgres_era,
+                                                    left: :memory, right: :postgres_revision,
                                                     database: QUERY_ARGUMENT_SHAPE_DB, schema: "public")
       expect(diff).to be_empty
     end
