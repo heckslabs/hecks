@@ -61,8 +61,9 @@ RSpec.describe "a query over a value object a sibling aggregate declares", :io d
 
   def postgres_engines
     {
-      "PostgresEra" => Hecks::Adapters::PostgresEra.new(aggregate: aggregate, settings: { database: SIBLING_VO_DB }),
-      "Postgres"    => Hecks::Adapters::Postgres.new(aggregate: aggregate, settings: { database: SIBLING_VO_PLAIN_DB })
+      "Postgres with revisions" => Hecks::Adapters::PostgresEra.new(aggregate: aggregate, settings: { database: SIBLING_VO_DB }),
+      "Postgres"                => Hecks::Adapters::Postgres.new(aggregate: aggregate,
+                                                                 settings:  { database: SIBLING_VO_PLAIN_DB })
     }
   end
 

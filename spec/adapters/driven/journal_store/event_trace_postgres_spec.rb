@@ -20,7 +20,7 @@ RSpec.describe "the event trace on PostgresEra", :io do
   # would write the events first.
   before do
     @dir = Dir.mktmpdir("event-trace-pg-")
-    EventTraceShop.write(@dir, adapter: "PostgresEra", world: EventTraceShop.postgres_world(EVENT_TRACE_SPEC_DB))
+    EventTraceShop.write(@dir, adapter: "Postgres", world: EventTraceShop.postgres_world(EVENT_TRACE_SPEC_DB))
     EventTraceShop.run(@dir)
   end
 

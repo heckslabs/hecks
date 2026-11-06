@@ -47,7 +47,8 @@ module EventTraceShop
     File.write(File.join(dir, "bluebook/trace.bluebook"), BLUEBOOK)
     return unless adapter
 
-    File.write(File.join(dir, "bluebook/trace.hecksagon"), %(Hecks.hecksagon "Trace" do\n  persisted_by "#{adapter}"\nend\n))
+    File.write(File.join(dir, "bluebook/trace.hecksagon"),
+               %(Hecks.hecksagon "Trace" do\n  #{"revisions true\n  " if adapter == "Postgres"}persisted_by "#{adapter}"\nend\n))
     File.write(File.join(dir, "bluebook/trace.world"), world)
   end
 
@@ -57,7 +58,7 @@ module EventTraceShop
 
   def postgres_world(database)
     settings = %W[database\ "#{database}" disposable_ledger\ true allow_superuser\ true].join("\n    ")
-    %(Hecks.world "Trace" do\n  persisted_by("PostgresEra") do\n    #{settings}\n  end\nend\n)
+    %(Hecks.world "Trace" do\n  persisted_by("Postgres") do\n    #{settings}\n  end\nend\n)
   end
 
   # Boots the domain in `dir` and places and touches an order.

@@ -293,8 +293,10 @@ RSpec.describe "adapter agreement — declared queries answer identically across
 
   def build_postgres_engines
     {
-      "PostgresEra" => Hecks::Adapters::PostgresEra.new(aggregate: aggregate, settings: { database: QUERY_AGREEMENT_DB }),
-      "Postgres"    => Hecks::Adapters::Postgres.new(aggregate: aggregate, settings: { database: PLAIN_POSTGRES_AGREEMENT_DB })
+      "Postgres with revisions" => Hecks::Adapters::PostgresEra.new(aggregate: aggregate,
+                                                                    settings:  { database: QUERY_AGREEMENT_DB }),
+      "Postgres"                => Hecks::Adapters::Postgres.new(aggregate: aggregate,
+                                                                 settings:  { database: PLAIN_POSTGRES_AGREEMENT_DB })
     }
   end
 
