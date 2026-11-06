@@ -12,6 +12,7 @@ module Hecks
         STORAGE = %i[
           append entries events events_for record_event find all count project reset! save
           delete atomic_put execute_query decode query
+          save_saga delete_saga each_saga
           transaction transaction_status exec exec_params pg_exec pg_exec_params backend_pid
           reconnect! dead? close disown! dispatch_claim dispatch_applied? outbox_claim outbox_enqueue
           outbox_settle outbox_rows outbox_row_from insert_outbox_row create_outbox_table!
