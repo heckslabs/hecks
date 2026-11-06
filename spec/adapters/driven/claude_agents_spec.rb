@@ -114,7 +114,7 @@ RSpec.describe Hecks::Adapters::ClaudeAgents do
   describe "#resume" do
     def resume(**held) = adapter.resume(session: { value: "abc123" }, repo: { value: scratch }, **held)
 
-    # Logs a stop, records a resume's arguments, directory and CLAUDE* variables, and says what
+    # Logs a stop, records a resume's arguments, directory and session variables, and says what
     # `copy` holds (if set) as `claude` does when it starts a copy.
     RESUME_STAND_IN = <<~SH.freeze
       #!/bin/sh
