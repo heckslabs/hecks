@@ -84,6 +84,14 @@ RSpec.describe Hecks::Adapters::ClaudeAgents do
       expect(File.read(File.join(scratch, "cwd")).strip).to eq(scratch)
     end
 
+    it "adds the verdict format to the architect's brief, and to no other agent's", :aggregate_failures do
+      start(agent: { value: "architect" })
+      expect(asked.join("\n")).to include("say ok", "make the first line of your closing message", "Verdict: rethink")
+
+      start(agent: { value: "reviewer" })
+      expect(asked.last).to eq("say ok")
+    end
+
     it "leaves the agent out when none is named, and keeps a brief that looks like a flag" do
       start(brief: { value: "--dangerously-skip-permissions" })
 

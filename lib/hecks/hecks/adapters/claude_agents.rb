@@ -126,6 +126,11 @@ module Hecks
       # a verdict word appearing elsewhere in the text.
       VERDICT_LINE = /^\s*verdict:\s*(sound with changes|sound|rethink)\b/i
 
+      # The format the verdict reader expects, stated where the architect cannot miss it: in the
+      # brief, because the closing text it writes is its own summary, not the review.
+      VERDICT_REQUEST = "\n\nWhen you finish, make the first line of your closing message exactly " \
+                        "`Verdict: sound`, `Verdict: sound with changes` or `Verdict: rethink`, then the findings."
+
       # @param job [Hash] the job's state
       # @return [String] `sound`, `changes`, `rethink`, or empty
       def verdict_of(job)
@@ -206,8 +211,11 @@ module Hecks
 
       def start_arguments(held)
         agent = plain(held[:agent])
-        [*niceness, @command, *(agent ? ["--agent", agent] : []), "--bg", "--", plain(held[:brief])]
+        [*niceness, @command, *(agent ? ["--agent", agent] : []), "--bg", "--", briefed(plain(held[:brief]), agent)]
       end
+
+      # @return [String] the brief, with the verdict format added for the architect
+      def briefed(brief, agent) = agent == "architect" ? "#{brief}#{VERDICT_REQUEST}" : brief.to_s
 
       def niceness = @session.nice ? ["nice", "-n", @session.nice.to_s] : []
 
