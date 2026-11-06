@@ -150,15 +150,43 @@ function assignDomains() {
   domainColour = new Map(domains.map((d, i) => [d, i]));
   contexts = [...ctx.keys()].sort((a, b) => ctx.get(b) - ctx.get(a));
 }
-/* ---- layout: domains on a ring, their contexts on a ring around each, aggregates inside, ports on the rim, adapters outside ---- */
+/* ---- layout: the largest domain in the middle, the others on a ring around it, their contexts on a ring
+   around each, aggregates inside, ports on the rim, adapters outside ---- */
 let centre = new Map();
+/* How many lines join each pair of domains, keyed "a|b" with the names in order. */
+function domainLinks() {
+  const links = new Map();
+  for (const e of edges) {
+    const a = byId.get(e.from), b = byId.get(e.to);
+    if (!a || !b || !a.domain || !b.domain || a.domain === b.domain) continue;
+    const key = [a.domain, b.domain].sort().join("|"); links.set(key, (links.get(key) || 0) + 1);
+  }
+  return links;
+}
+/* The ring's order: start with the domain most joined to the middle one, then each next is the one most
+   joined to the last placed, so domains that talk sit side by side. */
+function ringOrder(hub, rest, links) {
+  const weight = (a, b) => links.get([a, b].sort().join("|")) || 0, left = rest.slice(), order = [];
+  const take = (score) => { const best = left.reduce((m, d) => (score(d) > score(m) ? d : m)); left.splice(left.indexOf(best), 1); order.push(best); };
+  if (left.length) take((d) => weight(d, hub));
+  while (left.length) { const last = order[order.length - 1]; take((d) => weight(d, last) * 10 + weight(d, hub)); }
+  return order;
+}
+function placeContexts(d, c) {
+  const mine = contexts.filter((k) => k === d || k.startsWith(d + " / ")), r = mine.length > 1 ? 90 + mine.length * 16 : 0;
+  mine.forEach((k, j) => centre.set(k, { x: c.x + Math.cos(j / mine.length * 6.283) * r, y: c.y + Math.sin(j / mine.length * 6.283) * r }));
+  return r;
+}
 function layout() {
   centre = new Map();
-  domains.forEach((d, i) => {
-    const mine = contexts.filter((k) => k === d || k.startsWith(d + " / ")), size = nodes.filter((n) => n.domain === d).length;
-    const c = { x: Math.cos(i / domains.length * 6.283) * (640 + size * 3), y: Math.sin(i / domains.length * 6.283) * (460 + size * 2) };
-    const r = mine.length > 1 ? 90 + mine.length * 16 : 0;
-    mine.forEach((k, j) => centre.set(k, { x: c.x + Math.cos(j / mine.length * 6.283) * r, y: c.y + Math.sin(j / mine.length * 6.283) * r }));
+  const [hub, ...rest] = domains, links = domainLinks(), order = ringOrder(hub, rest, links);
+  const hubRadius = hub ? placeContexts(hub, { x: 0, y: 0 }) : 0;
+  const most = Math.max(1, ...order.map((d) => links.get([d, hub].sort().join("|")) || 0));
+  order.forEach((d, i) => {
+    const size = nodes.filter((n) => n.domain === d).length, joined = (links.get([d, hub].sort().join("|")) || 0) / most;
+    // A domain joined to the middle by more lines sits a little closer to it.
+    const reach = (hubRadius + 300 + size * 4) * (1 - 0.2 * joined), angle = i / order.length * 6.283 - 1.571;
+    placeContexts(d, { x: Math.cos(angle) * reach * 1.25, y: Math.sin(angle) * reach });
   });
   nodes.forEach((n, i) => { const c = centre.get(keyOf(n)) || { x: 0, y: 0 }; n.x = c.x + Math.cos(i * 2.4) * 30; n.y = c.y + Math.sin(i * 2.4) * 30; n.vx = 0; n.vy = 0; });
   for (let step = 0; step < 400; step++) tick(1 - step / 420);
