@@ -39,7 +39,8 @@ module Hecks
       # layout, which the audit reads as `PostgresRevision` (ADR 0182).
       def bound_adapter(registry, bluebook)
         adapter = Hecks::Ports::Persistence::BindingPolicy.resolve(registry, bluebook.name, bluebook.aggregates.first).adapter
-        adapter == "Postgres" && registry.hecksagon(bluebook.name)&.revisions? ? "Postgres" : adapter
+        revisions = Hecks::Ports::Persistence::BindingPolicy.revisions?(registry, bluebook.name)
+        adapter == "Postgres" && revisions ? "Postgres" : adapter
       end
 
       # Counts the writes each ancestor era holds that were never merged forward.

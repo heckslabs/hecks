@@ -72,6 +72,53 @@ module Hecks
           adapters.first
         end
 
+        # Whether a domain keeps the revision layout for its Postgres bind: its own hecksagon says
+        # `revisions true`, or, when the domain takes its bind from attaching domains (it is not
+        # wired itself and no world default applies), an attaching hecksagon that hands down the
+        # Postgres default says it.
+        #
+        # @param registry [Runtime::Registry] the registry holding every hecksagon
+        # @param domain [String, Symbol] name of the domain
+        # @return [Boolean] whether the revision layout is selected
+        # @raise [Runtime::WiringError] if the attaching domains that hand down the Postgres default
+        #   disagree on `revisions`
+        def revisions?(registry, domain)
+          hecksagon = registry.hecksagon(domain)
+          return true if hecksagon&.revisions?
+          return false unless hecksagon && !wired?(hecksagon) && registry.default_adapter_for(domain).nil?
+
+          inherited_revisions?(registry, domain)
+        end
+
+        # The `revisions` setting the attaching domains handing down the Postgres default agree on.
+        #
+        # @param registry [Runtime::Registry] the registry holding every hecksagon
+        # @param domain [String, Symbol] name of the attached bluebook
+        # @return [Boolean] false when no attaching domain hands down Postgres
+        # @raise [Runtime::WiringError] if those attaching domains disagree
+        def inherited_revisions?(registry, domain)
+          attachers = registry.hecksagons.values.select do |hecksagon|
+            hecksagon.attaches?(domain) && hecksagon.default_binds(VERB).any? { |bind| bind.adapter.to_s == "Postgres" }
+          end
+          settings = attachers.map(&:revisions?).uniq
+          raise conflicting_revisions(domain, attachers) if settings.size > 1
+
+          settings.first == true
+        end
+
+        # Builds, without raising, the error for attaching domains that disagree on `revisions`.
+        #
+        # @param domain [String, Symbol] name of the attached bluebook
+        # @param attachers [Array<Bluebook::Hecksagon>] the attaching hecksagons
+        # @return [Runtime::WiringError] an error whose message names the attaching domains
+        def conflicting_revisions(domain, attachers)
+          Runtime::WiringError.new(
+            "#{domain} is attached by domains that bind #{VERB} by default to Postgres but disagree on " \
+            "revisions (#{attachers.map { |a| "#{a.domain}: #{a.revisions?}" }.join(", ")}). " \
+            "Bind #{domain} itself, or make the attaching domains agree."
+          )
+        end
+
         # Picks the single roleless bind, refusing any other count and any bind with a role.
         #
         # @param bindings [Array<Bluebook::Bind>] the aggregate's binds; not empty

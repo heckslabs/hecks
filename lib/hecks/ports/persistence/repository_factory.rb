@@ -46,7 +46,7 @@ module Hecks
         # @param bind [Bluebook::Bind] the bind as the hecksagon declared it
         # @return [Bluebook::Bind] the bind the adapter is built and configured under
         def revision_domain?(registry, domain, bind)
-          bind.adapter.to_s == "Postgres" && registry.hecksagon(domain)&.revisions? == true
+          bind.adapter.to_s == "Postgres" && BindingPolicy.revisions?(registry, domain)
         end
 
         # The settings the adapter is built with: the declared ones, plus `revisions` where the

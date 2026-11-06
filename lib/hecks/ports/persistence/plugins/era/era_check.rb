@@ -49,7 +49,7 @@ module Hecks
       # Whether a domain's bind selects the revision layout: `Postgres` with `revisions true` (ADR
       # 0182).
       def revision_layout?(registry, domain, adapter)
-        adapter.to_s == "Postgres" && registry.hecksagon(domain)&.revisions? == true
+        adapter.to_s == "Postgres" && Hecks::Ports::Persistence::BindingPolicy.revisions?(registry, domain)
       end
 
       # The adapter class that holds a domain's eras: the revision store where the layout is set,
