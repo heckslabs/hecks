@@ -96,7 +96,13 @@ module Hecks
       def architect_facts(job, held)
         return { verdict: "", findings: "" } unless plain(held[:agent]).to_s == "architect"
 
-        { verdict: verdict_of(job), findings: job.dig("output", "result").to_s[0, FINDINGS_LIMIT] }
+        text = closing_text(job, held)
+        { verdict: verdict_of(text), findings: text[0, FINDINGS_LIMIT] }
+      end
+
+      # @return [String] what the architect wrote last (the timeline's tail) with the job's summary
+      def closing_text(job, held)
+        [@jobs.closing(plain(held[:session])), job.dig("output", "result"), job["detail"]].compact.join("\n")
       end
 
       # The reviewer's judgment as its closing text states it: `real_bug` or `stale_expectation`.
@@ -122,20 +128,19 @@ module Hecks
       # a text that names none. The words are `sound`, `sound with changes` and `rethink`.
       VERDICT_WORDS = /\b(sound with changes|sound|rethink)\b/i
 
-      # The line the architect's definition asks every closing message to start with; it wins over
-      # a verdict word appearing elsewhere in the text.
+      # The line the architect's definition asks every closing message to end with; the last one
+      # wins over a verdict word appearing elsewhere in the text.
       VERDICT_LINE = /^\s*verdict:\s*(sound with changes|sound|rethink)\b/i
 
-      # The format the verdict reader expects, stated where the architect cannot miss it: in the
-      # brief, because the closing text it writes is its own summary, not the review.
-      VERDICT_REQUEST = "\n\nWhen you finish, make the first line of your closing message exactly " \
-                        "`Verdict: sound`, `Verdict: sound with changes` or `Verdict: rethink`, then the findings."
+      # The format the verdict reader expects, stated in the brief. The job keeps only the tail of
+      # what the architect wrote last, so the verdict goes on the last line.
+      VERDICT_REQUEST = "\n\nWhen you finish, make the last line of your closing message exactly " \
+                        "`Verdict: sound`, `Verdict: sound with changes` or `Verdict: rethink`."
 
-      # @param job [Hash] the job's state
-      # @return [String] `sound`, `changes`, `rethink`, or empty
-      def verdict_of(job)
-        closing = [job.dig("output", "result"), job["detail"]].compact.join(" ")
-        word = (closing[VERDICT_LINE, 1] || closing[VERDICT_WORDS, 1]).to_s.downcase
+      # @param text [String] what the architect wrote last
+      # @return [String] `sound`, `changes`, `rethink`, or empty; the last `Verdict:` line wins
+      def verdict_of(text)
+        word = (text.scan(VERDICT_LINE).last&.first || text[VERDICT_WORDS, 1]).to_s.downcase
         word == "sound with changes" ? "changes" : word
       end
 
