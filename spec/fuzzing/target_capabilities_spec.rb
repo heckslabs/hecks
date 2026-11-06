@@ -27,9 +27,10 @@ RSpec.describe Hecks::Fuzzing::TargetCapabilities, :aggregate_failures do
   TOML
 
   CAP_MANAGED_PLATFORM = <<~RUBY.freeze
-    adapter = "PostgresEra"
+    adapter = "Postgres"
 
     Hecks.hecksagon "ManagedPlatform" do
+      revisions true
       attaches "Governance"
       ManagedPlatform::Client.persisted_by(adapter)
       ManagedPlatform::ManagedSite.persisted_by(adapter)
@@ -97,14 +98,15 @@ RSpec.describe Hecks::Fuzzing::TargetCapabilities, :aggregate_failures do
     end
 
     it "still reads every literal spelling" do
-      expect(postgres_era_for(%(Hecks.hecksagon "A" do\n  A::Thing.persisted_by("PostgresEra")\nend\n))).to be(true)
-      expect(postgres_era_for(%(Hecks.hecksagon "A" do\n  A::Thing.persisted_by "PostgresEra"\nend\n))).to be(true)
-      expect(postgres_era_for(%(Hecks.hecksagon "A" do\n  persisted_by "PostgresEra"\nend\n))).to be(true)
-      expect(postgres_era_for(%(Hecks.hecksagon "A" do\n  A::Thing.persisted_by("Memory")\nend\n))).to be(false)
+      text = %(Hecks.hecksagon "A" do\n  revisions true\n  A::Thing.persisted_by("Postgres")\nend\n)
+      expect(postgres_era_for(text)).to be(true)
+      expect(postgres_era_for(%(Hecks.hecksagon "A" do\n  revisions true\n  A::Thing.persisted_by "Postgres"\nend\n))).to be(true)
+      expect(postgres_era_for(%(Hecks.hecksagon "A" do\n  revisions true\n  persisted_by "Postgres"\nend\n))).to be(true)
+      expect(postgres_era_for(%(Hecks.hecksagon "A" do\n  revisions true\n  A::Thing.persisted_by("Memory")\nend\n))).to be(false)
     end
 
     it "reads a variable assigned PostgresEra and passed to persisted_by" do
-      text = %(adapter = "PostgresEra"\nHecks.hecksagon "A" do\n  A::Thing.persisted_by(adapter)\nend\n)
+      text = %(adapter = "Postgres"\nHecks.hecksagon "A" do\n  revisions true\n  A::Thing.persisted_by(adapter)\nend\n)
       expect(postgres_era_for(text)).to be(true)
       expect(postgres_era_for(text.sub("persisted_by(adapter)", "persisted_by adapter"))).to be(true)
     end
@@ -118,9 +120,9 @@ RSpec.describe Hecks::Fuzzing::TargetCapabilities, :aggregate_failures do
     end
 
     it "does not read a variable that is never passed to persisted_by" do
-      expect(postgres_era_for(%(adapter = "PostgresEra"\nHecks.hecksagon "A" do\n  A::Thing.persisted_by("Memory")\nend\n)))
+      expect(postgres_era_for(%(adapter = "Postgres"\nHecks.hecksagon "A" do\n  revisions true\n  A::Thing.persisted_by("Memory")\nend\n)))
         .to be(false)
-      expect(postgres_era_for(%(adapter = "PostgresEra"\nother = "Memory"\nHecks.hecksagon "A" do\n  A::Thing.persisted_by(other)\nend\n)))
+      expect(postgres_era_for(%(adapter = "Postgres"\nother = "Memory"\nHecks.hecksagon "A" do\n  revisions true\n  A::Thing.persisted_by(other)\nend\n)))
         .to be(false)
     end
 
@@ -140,7 +142,7 @@ RSpec.describe Hecks::Fuzzing::TargetCapabilities, :aggregate_failures do
     end
 
     it "rewrites a variable-named bind, so a Memory boot no longer inherits PostgresEra" do
-      text = %(adapter = "PostgresEra"\nHecks.hecksagon "A" do\n  A::Thing.persisted_by(adapter)\nend\n)
+      text = %(adapter = "Postgres"\nHecks.hecksagon "A" do\n  revisions true\n  A::Thing.persisted_by(adapter)\nend\n)
       out = rewritten(text, "Memory")
 
       expect(out).to include(%(A::Thing.persisted_by("Memory")))
@@ -148,7 +150,7 @@ RSpec.describe Hecks::Fuzzing::TargetCapabilities, :aggregate_failures do
     end
 
     it "still rewrites literal binds" do
-      out = rewritten(%(Hecks.hecksagon "A" do\n  A::Thing.persisted_by "PostgresEra"\nend\n), "Memory")
+      out = rewritten(%(Hecks.hecksagon "A" do\n  revisions true\n  A::Thing.persisted_by "Postgres"\nend\n), "Memory")
 
       expect(out).to include(%(A::Thing.persisted_by("Memory")))
     end

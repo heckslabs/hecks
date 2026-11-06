@@ -128,8 +128,7 @@ module Hecks
       def postgres_era_bound?(domain_path)
         Dir.glob(File.join(domain_path, "**", "*.hecksagon")).any? do |path|
           text = File.read(path)
-          text.match?(POSTGRES_ERA_BINDING) || postgres_revisions_bound?(text) ||
-            postgres_era_variable_bound?(text)
+          text.match?(REVISIONS_SET) && (text.match?(POSTGRES_ERA_BINDING) || postgres_era_variable_bound?(text))
         end
       end
 
