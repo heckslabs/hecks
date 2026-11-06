@@ -30,7 +30,12 @@ RSpec.describe "two concurrent mints of one era in the PostgresEra adapter", :io
 
       # @return [Queue] pushed to when the first minter is parked inside its transaction
       def arm!
-        @mutex.synchronize { @first = nil; @armed = true; @parked = Queue.new; @release = Queue.new }
+        @mutex.synchronize do
+          @first = nil
+          @armed = true
+          @parked = Queue.new
+          @release = Queue.new
+        end
         @parked
       end
 
@@ -149,7 +154,7 @@ RSpec.describe "two concurrent mints of one era in the PostgresEra adapter", :io
     RUBY
   end
 
-  def v1_to_v2_edge =edge_source(from: hash_of(V1_SOURCE)[0, 6], to: hash_of(V2_SOURCE)[0, 6])
+  def v1_to_v2_edge = edge_source(from: hash_of(V1_SOURCE)[0, 6], to: hash_of(V2_SOURCE)[0, 6])
 
   # One full boot-time era check of V2 against the database, minting if drifted.
   def mint_v2!
@@ -186,15 +191,21 @@ RSpec.describe "two concurrent mints of one era in the PostgresEra adapter", :io
     hold_first_era!(url: owner_url, domain: "Ledger", source: V1_SOURCE) unless first_era_held?
     parked = Gate.arm!
     outcomes = {}
-    first = Thread.new { outcomes[:first] = capture { mint_v2! } }
-    ThreadParking.wait_for { !parked.empty? || !first.alive? }
-    raise "the first minter finished before reaching the gate: #{outcomes[:first].inspect}" if parked.empty?
-
+    first = start_first_minter(parked, outcomes)
     second = Thread.new { outcomes[:second] = capture { mint_v2! } }
     ThreadParking.wait_for { outcomes[:blocked_on] = blocked_statement }
     Gate.release!
     [first, second].each(&:join)
     outcomes
+  end
+
+  # Starts the first minter and waits until it is parked inside its transaction.
+  def start_first_minter(parked, outcomes)
+    first = Thread.new { outcomes[:first] = capture { mint_v2! } }
+    ThreadParking.wait_for { !parked.empty? || !first.alive? }
+    raise "the first minter finished before reaching the gate: #{outcomes[:first].inspect}" if parked.empty?
+
+    first
   end
 
   def capture
@@ -213,7 +224,7 @@ RSpec.describe "two concurrent mints of one era in the PostgresEra adapter", :io
 
   # The same schedule, three times from a clean database: a reproduced schedule, not a lucky one.
   3.times do |run|
-    context "run #{run + 1} of the forced schedule" do
+    context "with run #{run + 1} of the forced schedule" do
       let!(:outcomes) { race_two_mints! }
 
       it "commits era 2 exactly once", :aggregate_failures do
@@ -233,7 +244,7 @@ RSpec.describe "two concurrent mints of one era in the PostgresEra adapter", :io
       # The loser queues behind the winner's uncommitted insert in boot-time upkeep, before it
       # decides anything; once the winner commits it finds the shape held and mints nothing.
       it "makes the loser wait on the winner's uncommitted era row, then boot without minting", :aggregate_failures do
-        expect(outcomes[:blocked_on]).to match(/hecks_eras/)
+        expect(outcomes[:blocked_on]).to include("hecks_eras")
         expect(outcomes[:first][:returned]).to eq(2)
         expect(outcomes[:second][:returned]).to be_nil
       end
