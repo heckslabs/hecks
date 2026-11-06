@@ -53,9 +53,19 @@ module Hecks
         argv = PipelineBoard::Actions.argv(action, fields, confirm: confirm)
         program = PipelineBoard::Actions.program(action)
         stdin = action == "reply" ? "#{fields[:text]}\r" : nil
+        first = PipelineBoard::Actions.before(action, fields)
+        check_first(program, first) if first
         @launcher.call(program, *argv, chdir: @launcher_root, stdin: stdin)
         @snapshot.refresh_now if action == "reply"
         { ran: "#{program} #{argv.first}" }
+      end
+
+      # Runs the command a step names to run first (an answer checks the run), so the run holds the
+      # job's own state before the step's rule is asked. Its refusal ends the step.
+      def check_first(program, argv)
+        @launcher.call(program, *argv, chdir: @launcher_root, stdin: nil)
+      rescue PipelineBoard::Unavailable => e
+        raise PipelineBoard::Unavailable, "the session could not be checked first: #{e.message}"
       end
 
       # The step the page asked for, with the fields the launcher needs. An auto reply becomes a
