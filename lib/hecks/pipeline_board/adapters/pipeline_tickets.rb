@@ -78,7 +78,7 @@ module Hecks
 
       def run_item(run)
         { work_item: field(run, :brief).to_s[WORK_ITEM_LINE, 1].to_s, status: field(run, :status).to_s,
-          run: field(run, :run).to_s, repo: field(run, :repo).to_s }
+          run: field(run, :run).to_s, repo: field(run, :repo).to_s, agent: field(run, :agent).to_s }
       end
 
       def records_of(domain, name)
