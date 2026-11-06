@@ -6,6 +6,7 @@ require "time"
 require_relative "console_capture"
 require_relative "claude_transcript"
 require_relative "claude_jobs"
+require_relative "architect_verdict"
 require_relative "claude_agent_list"
 require_relative "dispatching/settings"
 
@@ -97,7 +98,7 @@ module Hecks
         return { verdict: "", findings: "" } unless plain(held[:agent]).to_s == "architect"
 
         text = closing_text(job, held)
-        { verdict: verdict_of(text), findings: text[0, FINDINGS_LIMIT] }
+        { verdict: ArchitectVerdict.of(text), findings: text[0, FINDINGS_LIMIT] }
       end
 
       # @return [String] what the architect wrote last (the timeline's tail) with the job's summary
@@ -122,26 +123,6 @@ module Hecks
       def run_facts(held)
         { previous: plain(held[:condition]).to_s, checkout: File.join(plain(held[:repo]).to_s, ""),
           run: plain(held[:run]).to_s }
-      end
-
-      # The architect's verdict as the job's closing text states it, or empty for any other agent or
-      # a text that names none. The words are `sound`, `sound with changes` and `rethink`.
-      VERDICT_WORDS = /\b(sound with changes|sound|rethink)\b/i
-
-      # The line the architect's definition asks every closing message to end with; the last one
-      # wins over a verdict word appearing elsewhere in the text.
-      VERDICT_LINE = /^[\s*_`>#-]*verdict:\s*[*_`]*(sound with changes|sound|rethink)\b/i
-
-      # The format the verdict reader expects, stated in the brief. The job keeps only the tail of
-      # what the architect wrote last, so the verdict goes on the last line.
-      VERDICT_REQUEST = "\n\nWhen you finish, make the last line of your closing message exactly " \
-                        "`Verdict: sound`, `Verdict: sound with changes` or `Verdict: rethink`."
-
-      # @param text [String] what the architect wrote last
-      # @return [String] `sound`, `changes`, `rethink`, or empty; the last `Verdict:` line wins
-      def verdict_of(text)
-        word = (text.scan(VERDICT_LINE).last&.first || text[VERDICT_WORDS, 1]).to_s.downcase
-        word == "sound with changes" ? "changes" : word
       end
 
       # Waits the settling time, then reads the job as {#read_job} does: a session that dies at
@@ -220,7 +201,7 @@ module Hecks
       end
 
       # @return [String] the brief, with the verdict format added for the architect
-      def briefed(brief, agent) = agent == "architect" ? "#{brief}#{VERDICT_REQUEST}" : brief.to_s
+      def briefed(brief, agent) = agent == "architect" ? "#{brief}#{ArchitectVerdict::REQUEST}" : brief.to_s
 
       def niceness = @session.nice ? ["nice", "-n", @session.nice.to_s] : []
 

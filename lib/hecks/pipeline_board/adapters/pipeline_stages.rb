@@ -87,7 +87,7 @@ module Hecks
       # plan reviews and promotion recommendations.
       def agents(data)
         { roles: PipelineBoard::AgentRoles.of(data[:sessions], @roles, data[:events]),
-          reviews: PipelineBoard::AgentRoles.reviews, recommendations: PipelineBoard::AgentRoles.recommendations }
+          reviews: PipelineBoard::AgentRoles.reviews(guard { @tickets.runs }), recommendations: PipelineBoard::AgentRoles.recommendations }
       end
 
       def sections

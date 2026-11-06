@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+require_relative "../../../hecks/adapters/claude_jobs"
+require_relative "../../../hecks/adapters/architect_verdict"
+
 module Hecks
   module Adapters
     module PipelineBoard
@@ -80,14 +83,22 @@ module Hecks
           event && { name: event[:name], at: event[:at], id: event[:id] }
         end
 
-        # The architect's plan reviews, as the launcher reads them in the checkout that holds the
-        # live store, when the board is told where that is (PIPELINE_BOARD_LAUNCHER_ROOT).
+        # The architect's plan reviews, taken from the architect's runs and what each session wrote
+        # last. The runs persist in the run ledger; the review itself is not stored anywhere else.
         #
+        # @param runs [Hash{String => Hash}, Hash] each run by session id, or `{unknown:}`
+        # @param jobs [#closing] answers the tail of what a session wrote last
         # @return [Array<Hash>, Hash] each review's `work`, `verdict`, `findings`; or `{unknown:}`
-        def reviews
-          launched("PlanReview.reviews") do |row|
-            { work: row["work"].to_s, verdict: row["verdict"].to_s, findings: row["findings"].to_s }
-          end
+        def reviews(runs, jobs = ClaudeJobs.new)
+          return runs unless runs.is_a?(Hash) && !runs.key?(:unknown)
+
+          architects = runs.select { |_, run| run[:agent] == "architect" }
+          architects.map { |session, run| review(session, run, jobs.closing(session)) }
+        end
+
+        # @return [Hash] one review: the Work item it is for, its verdict and its findings
+        def review(_session, run, closing)
+          { work: run[:run].to_s, verdict: ArchitectVerdict.of(closing), findings: closing.strip[0, 2000] }
         end
 
         # The promotions the release manager recommends that the owner has not settled.

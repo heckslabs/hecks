@@ -24,6 +24,23 @@ RSpec.describe Hecks::Adapters::PipelineBoard::AgentRoles do
     expect(card[:live]).to eq(0)
   end
 
+  describe ".reviews" do
+    let(:jobs) { instance_double(Hecks::Adapters::ClaudeJobs, closing: "Five findings.\n**Verdict: sound with changes.**") }
+    let(:runs) do
+      { "s1" => { run: "w1", agent: "architect", status: "finished" }, "s2" => { run: "w2", agent: "coder", status: "started" } }
+    end
+
+    it "lists one review per architect run, with the verdict and findings its session wrote", :aggregate_failures do
+      reviews = described_class.reviews(runs, jobs)
+      expect(reviews.map { |review| review[:work] }).to eq(["w1"])
+      expect(reviews.first).to include(verdict: "changes", findings: include("Five findings"))
+    end
+
+    it "passes the unknown reason through when the runs could not be read" do
+      expect(described_class.reviews({ unknown: "no launcher" }, jobs)).to eq(unknown: "no launcher")
+    end
+  end
+
   it "has no last event when the feed could not be read" do
     expect(described_class.of([], %w[architect], { unknown: "x" }).first[:last]).to be_nil
   end
