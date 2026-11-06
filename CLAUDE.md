@@ -110,8 +110,7 @@ them without running).
 
 **The full spec suite runs only in CI** (the Vocabulary `rspec` check is `runs_in: "ci"`). Locally run the
 quick gate and named specs: `run_suite!` is refused by name, and `run_spec_files!` and `run_impacted_specs!`
-take at most the `spec_files_limit` of the `test_scope` setting in `hecks.world` per call (`hecks config`
-prints it); CI is detected from the environment.
+run every file they are given, with no cap per call; CI is detected from the environment.
 
 A session isolated in a git worktree has had `bundle exec` with the spec runner
 refused with "too complex to verify that it stays inside the worktree", while

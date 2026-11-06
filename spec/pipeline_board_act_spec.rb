@@ -60,6 +60,24 @@ RSpec.describe "POST /api/act on the board" do
     end
   end
 
+  it "asks the architect for a review by event, in the checkout the board names", :aggregate_failures do
+    response = post("action" => "review", "target" => "w-1", "text" => "build the panel")
+    expect(response.code).to eq("200")
+    expect(sent.first.first(5)).to eq(["exe/hecks", "agents", "PlanReview.request!", "work.value=w-1", "hops.value=1"])
+  end
+
+  it "gives the planner a goal, with a request key and the checkout the board names", :aggregate_failures do
+    response = post("action" => "plan", "text" => "plan the agents panel")
+    expect(response.code).to eq("200")
+    expect(sent.first).to include("agents", "Planning.request!", "goal.value=plan the agents panel", "role.value=planner")
+  end
+
+  it "settles a promotion recommendation through the Agents domain", :aggregate_failures do
+    response = post("action" => "settle", "target" => "w-green")
+    expect(response.code).to eq("200")
+    expect(sent).to eq([["exe/hecks", "agents", "PromotionRecommendation.settle!", "to=w-green", "--wait"]])
+  end
+
   it "runs a board train once the page confirms it" do
     post("action" => "board_train", "confirm" => true)
     expect(sent).to eq([["exe/hecks", "SendTrain.board!", "--confirm"]])
