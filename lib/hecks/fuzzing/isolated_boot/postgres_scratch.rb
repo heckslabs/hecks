@@ -103,13 +103,13 @@ module Hecks
         end
 
         # Mirrors `ensure_fuzz_schema!`'s GC.start-before-connecting fix for the same
-        # max_connections exhaustion. Creates `database` if missing, but never drops
-        # it — that's the caller's job (see `rebind_to_postgres_era!`).
+        # max_connections exhaustion. Creates `database` if missing, then starts `schema` empty:
+        # every ephemeral boot must see only its own rows.
         def ensure_postgres_era_schema!(database:, schema:)
           GC.start
 
           create_database_if_missing(database)
-          ensure_schema!(database, schema)
+          reset_schema!(database, schema, create: true)
         end
 
         # Several pool children may reach this at once: one wins the CREATE, and the rest see the
