@@ -14,7 +14,7 @@ module Hecks
       # `/api/events` holds its connection open as a Server-Sent Events stream.
       class Server
         HOST = "127.0.0.1"
-        ROUTES = %w[/ /api/state /api/events /wiring /api/wiring /sequence /agents].freeze
+        ROUTES = %w[/ /api/state /api/events /wiring /api/wiring /sequence /agents /stream.js].freeze
         STATUS = { 200 => "OK", 400 => "Bad Request", 403 => "Forbidden", 404 => "Not Found",
                    405 => "Method Not Allowed", 415 => "Unsupported Media Type",
                    422 => "Unprocessable Entity" }.freeze
@@ -96,6 +96,7 @@ module Hecks
           when "/wiring" then reply(socket, 200, "text/html; charset=utf-8", @app.wiring_page)
           when "/sequence" then reply(socket, 200, "text/html; charset=utf-8", @app.sequence_page)
           when "/agents" then reply(socket, 200, "text/html; charset=utf-8", @app.agents_page)
+          when "/stream.js" then reply(socket, 200, "text/javascript; charset=utf-8", @app.stream_script)
           when "/api/wiring" then reply(socket, 200, "application/json", JSON.generate(@app.wiring))
           else stream(socket)
           end

@@ -108,6 +108,19 @@ RSpec.describe Hecks::Adapters::PipelineWiring do
       expect(File.read(Hecks::Adapters::PipelineWeb::AGENTS_PAGE)).not_to match(%r{https?://|//cdn|@import})
     end
 
+    it "serves the shared stream script at /stream.js" do
+      expect(fetch("/stream.js").body).to include("boardStream")
+    end
+
+    # A browser holds six connections to a host; a stream per page used them all up with three tabs.
+    it "opens the event stream only in the shared script", :aggregate_failures do
+      pages = %w[PAGE AGENTS_PAGE WIRING_PAGE SEQUENCE_PAGE].map { |name| File.read(Hecks::Adapters::PipelineWeb.const_get(name)) }
+      pages.each do |page|
+        expect(page).not_to include("new EventSource")
+        expect(page).to include('<script src="/stream.js"></script>')
+      end
+    end
+
     it "links the board's Agents strip to the agents' page" do
       expect(File.read(Hecks::Adapters::PipelineWeb::PAGE)).to include('href="/agents"')
     end

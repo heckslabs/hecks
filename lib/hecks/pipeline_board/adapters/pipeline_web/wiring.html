@@ -108,6 +108,7 @@ th { color: var(--ink2); font-size: 12px; }
   <div class="top"><h2 id="ptitle"></h2><span><button id="focus" type="button" aria-pressed="false">Focus</button> <button id="pclose" type="button" aria-label="Close">&#10005;</button></span></div>
   <div id="pbody"></div>
 </aside>
+<script src="/stream.js"></script>
 <script>
 "use strict";
 const $ = (id) => document.getElementById(id);
@@ -561,14 +562,15 @@ function logLine(ev, reaction, kind) {
 }
 let backlog = [], liveStarted = false;
 function listen() {
-  const es = new EventSource("/api/events");
-  es.onopen = () => { $("live").textContent = "stream: live"; };
-  es.onerror = () => { $("live").textContent = "stream: reconnecting"; };
-  es.addEventListener("board", (m) => {
-    const ev = JSON.parse(m.data); if (!ev.key) return;
+  if (!window.boardStream) { $("live").textContent = "stream: unavailable"; return; }
+  boardStream({
+    open: () => { $("live").textContent = "stream: live"; },
+    error: () => { $("live").textContent = "stream: reconnecting"; },
+    board: (ev) => {
+    if (!ev.key) return;
     remember(ev); if (selected) renderPanel();
     if (!liveStarted) { backlog.push(ev); clearTimeout(listen.t); listen.t = setTimeout(startLive, 600); } else fire(ev, true);
-  });
+  } });
 }
 function startLive() { liveStarted = true; replay(backlog.slice(-12), true); }
 function replay(list, first) {

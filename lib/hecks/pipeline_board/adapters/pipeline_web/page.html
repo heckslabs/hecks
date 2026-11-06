@@ -242,6 +242,7 @@ details.panel > .scroll, details.panel > .feed, details.panel > .strip, details.
   </form>
 </dialog>
 <div class="tip" id="tip" role="tooltip"></div>
+<script src="/stream.js"></script>
 <script>
 "use strict";
 const ICON = { ok: "✓", working: "◔", attention: "▲", failed: "✕", unknown: "?" };
@@ -771,14 +772,13 @@ async function refresh() {
 }
 // The server pushes the state whenever it changes, so the page renders what it is sent.
 function listen() {
-  if (!window.EventSource) { $("live").textContent = "stream: unsupported"; setInterval(refresh, 10000); return; }
-  const es = new EventSource("/api/events");
-  es.onopen = () => { $("live").textContent = "stream: live"; };
-  es.onerror = () => { $("live").textContent = "stream: reconnecting"; };
-  es.addEventListener("state", (m) => {
-    try { render(JSON.parse(m.data).state); } catch (e) { $("updated").textContent = "update failed: " + e.message; }
+  const shared = window.boardStream && boardStream({
+    open: () => { $("live").textContent = "stream: live"; },
+    error: () => { $("live").textContent = "stream: reconnecting"; },
+    state: (data) => { try { render(data.state); } catch (e) { $("updated").textContent = "update failed: " + e.message; } },
+    board: (ev) => { if (ev.key) putEvent(ev, true); }
   });
-  es.addEventListener("board", (m) => { const ev = JSON.parse(m.data); if (ev.key) putEvent(ev, true); });
+  if (!shared) { $("live").textContent = "stream: unsupported"; setInterval(refresh, 10000); }
 }
 $("toggle").addEventListener("click", () => {
   const on = document.body.classList.toggle("tables-only");
