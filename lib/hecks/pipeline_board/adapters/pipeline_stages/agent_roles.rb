@@ -48,7 +48,7 @@ module Hecks
         # @return [Hash] one role's card: its live count, last event, the sessions working now and
         #   the work it has completed (finished sessions and events it handled, newest first)
         def card(name, sessions, events)
-          mine = sessions.select { |s| s[:name].to_s.start_with?(name) }
+          mine = sessions.select { |s| s[:agent].to_s == name || s[:name].to_s.start_with?(name) }
           { name: name, last: last_of(name, events), handled: handled(name, events) }.merge(shown(mine))
         end
 
