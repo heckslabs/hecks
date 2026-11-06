@@ -163,15 +163,16 @@ module Hecks
       end
 
       # Answers a blocked session by resuming it in the run's directory, with the answer as its
-      # prompt.
+      # prompt. The run holds the short id `claude agents` shows; `--resume` takes only the full
+      # session id, and given a short one it opens a new session waiting on its picker instead.
       #
-      # @param held [Hash] the `AgentRun` record: `session`, `repo`, and `answer`
+      # @param held [Hash] the `AgentRun` record: `session`, `repo`, `answer`, and `agent` if named
       # @return [Hash{Symbol => Hash}] `resumed_at:` when the resume was started, as an ISO 8601
       #   string
-      # @raise [ConsoleCapture::Failure] when the command refuses
+      # @raise [ConsoleCapture::Failure] when the session is not listed or the command refuses
       def resume(**held)
         id = plain(held[:session])
-        result = @shell.capture(*niceness, @command, "--bg", "--resume", id, "--", plain(held[:answer]),
+        result = @shell.capture(*resume_arguments(full_session_id(id), held),
                                 env: @session.session_environment, chdir: plain(held[:repo]))
         raise ConsoleCapture::Failure, "#{@command} resume #{id} refused: #{result.err.strip}" unless result.ok?
 
@@ -193,6 +194,18 @@ module Hecks
 
         found = JSON.parse(listing.out).find { |entry| [entry["id"], entry["sessionId"]].include?(id) }
         found || raise(ConsoleCapture::Failure, "no session #{id} is listed")
+      end
+
+      # The id `--resume` takes: the listed session's full `sessionId`.
+      def full_session_id(id)
+        full = listed(id)["sessionId"].to_s
+        full.empty? ? raise(ConsoleCapture::Failure, "session #{id} is listed with no full session id") : full
+      end
+
+      # The session keeps its agent when resumed, so the answer is read with the role's definition.
+      def resume_arguments(full, held)
+        agent = plain(held[:agent])
+        [*niceness, @command, *(agent ? ["--agent", agent] : []), "--bg", "--resume", full, "--", plain(held[:answer])]
       end
 
       def start_arguments(held)

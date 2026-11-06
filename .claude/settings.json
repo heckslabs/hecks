@@ -24,7 +24,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR/.claude/hooks/rubocop_post_edit.sh\""
+            "command": "hook=\"${CLAUDE_PROJECT_DIR:-$(pwd)}/.claude/hooks/rubocop_post_edit.sh\"; [ -x \"$hook\" ] || exit 0; exec \"$hook\""
           }
         ]
       }
