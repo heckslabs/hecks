@@ -17,13 +17,13 @@ pub fn run(
     world_default: Option<&str>,
     root: &Path,
 ) -> Result<(), String> {
-    let binds = match hecksagon_path {
+    let (binds, revisions) = match hecksagon_path {
         Some(path) => {
             let text = std::fs::read_to_string(path)
                 .map_err(|e| format!("reading {}: {e}", path.display()))?;
-            persistence_binds(&text)
+            (persistence_binds(&text), keeps_revisions(&text))
         }
-        None => HashMap::new(),
+        None => (HashMap::new(), false),
     };
     let fallback_adapter = world_default.unwrap_or("Memory").to_string();
     let capable_adapters = lineage_capable_adapter_names(root)?;
@@ -39,7 +39,9 @@ pub fn run(
             let adapter_name = binds
                 .get(name.as_str())
                 .map_or(fallback_adapter.as_str(), String::as_str);
-            capable_adapters.iter().any(|a| a == adapter_name)
+            // `Postgres` with `revisions true` is the revision layout, which is lineage-capable (ADR 0182).
+            let layout = if revisions && adapter_name == "Postgres" { "PostgresRevision" } else { adapter_name };
+            capable_adapters.iter().any(|a| a == layout)
         })
         .map(|name| {
             let storage_name = crate::hecks_naming::snake(&name);
@@ -100,6 +102,14 @@ pub(crate) fn persistence_binds(text: &str) -> HashMap<String, String> {
     }
 
     binds
+}
+
+/// Whether a hecksagon's text sets `revisions true` (ADR 0182).
+fn keeps_revisions(text: &str) -> bool {
+    text.lines().any(|line| {
+        let line = line.trim();
+        line == "revisions true" || line.starts_with("revisions true ") || line.starts_with("revisions true#")
+    })
 }
 
 // Where an adapter class can live: the driven adapters, and the era plugin that holds `PostgresRevision`,
