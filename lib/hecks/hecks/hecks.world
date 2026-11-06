@@ -71,7 +71,7 @@ Hecks.world "Hecks" do
   # The free space, in gigabytes, below which the board's Disk free tile asks for attention and then fails.
   disk_health "PipelineBoard", attention_gb: 20, failed_gb: 5
   # The agent roles the board pins at its top. Each wakes on demand; none may issue an owner decision.
-  agent_roles "PipelineBoard", roles: "planner,orchestrator,architect,coder,reviewer,release_manager"
+  agent_roles "PipelineBoard", roles: "planner,orchestrator,architect,coder,reviewer,release_manager,pruner"
   # The runtime appends one JSON line per event and per policy delivery here, so a reader such as the
   # PipelineBoard sees the domains that persist nothing (the push train runs in Memory). A client's
   # world declares no `event_log`, so a client writes no file. The file rotates at `max_bytes`.
