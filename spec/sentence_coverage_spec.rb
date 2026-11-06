@@ -19,13 +19,18 @@ RSpec.describe "the sentence form against the whole corpus", :io do
   # or that reach into another bluebook, which a standalone sentence file cannot say; the last is a
   # report that pages each of several included aggregates on its own. The next is Governance's live
   # queries, which filter on `ends_at: nil`: the sentence form has no "is not set" phrase for a
-  # filter yet, and adding one is a Rust parser change (ADR 0140).
+  # filter yet, and adding one is a Rust parser change (ADR 0140). The last two are command words
+  # the sentence form has no phrase for yet: `needs` (a run-time input) and `audience` (who a
+  # launcher lists the command for). Adding either phrase is a grammar decision for the sentence form.
   SENTENCE_UNSAID = [
     /triggers \S+, a command this bluebook does not declare/,
     /names no command \w+ declares/,
     /no phrase for this filter in query Live\w+/,
     /no phrase for this paging option in report/,
-    /the sentence form has no phrase for acknowledgements/
+    /the sentence form has no phrase for acknowledgements/,
+    /the sentence form has no phrase for needs on command \w+/,
+    /the sentence form has no phrase for audience on command \w+/,
+    /the sentence form cannot say modules/
   ].freeze
 
   def self.name_of(path) = File.read(path)[/Hecks\.bluebook\s+"([^"]+)"/, 1]

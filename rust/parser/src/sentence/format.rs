@@ -723,7 +723,12 @@ fn command_text(
     noun: &str,
     fields: &[ir::Attribute],
 ) -> Result<(), String> {
-    let held = [(!command.needs.is_empty(), "needs")];
+    // Words the sentence form has no phrase for yet are refused by name, never dropped: a dropped
+    // word would read back as a different command.
+    let held = [
+        (!command.needs.is_empty(), "needs"),
+        (!command.audience.is_empty(), "audience"),
+    ];
     if let Some((_, what)) = held.iter().find(|(present, _)| *present) {
         return Err(format!(
             "the sentence form has no phrase for {what} on command {}",
