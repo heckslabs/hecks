@@ -394,7 +394,7 @@ const ROLE_CODES = { planner: "PL", orchestrator: "OR", architect: "AR", coder: 
 function renderRoles(roles) {
   if (isUnknown(roles)) return put("roles", unknown(roles));
   put("roles", roles.map((r) => {
-    const blocked = (r.working || []).filter((s) => s.status === "blocked").length;
+    const blocked = (r.working || []).filter((w) => boardAnswer.needsAnswer(fullSession(w))).length;
     const state = blocked ? " blocked" : r.live > 0 ? " busy" : "";
     const note = blocked ? blocked + " waiting on you" : r.live > 0 ? r.live + " working" : "idle";
     return h("a", { class: "role" + state, href: "/agents", "data-role": r.name, tip: r.name + ": " + note },
@@ -420,7 +420,7 @@ function renderStrip(stages) {
   const off = stages.filter((s) => s.state !== "ok");
   summarize("strip", off.length ? off.map((s) => [": " + s.detail, s.state, s.name]) : [["all " + stages.length + " stages ok", "ok"]]);
   put("strip", stages.map((s) => {
-    const waiting = Array.isArray(s.blocked) ? s.blocked : [];
+    const waiting = (Array.isArray(s.blocked) ? s.blocked : []).filter((b) => boardAnswer.needsAnswer({ ...b, status: "blocked" }));
     const clickable = waiting.length || needsAttention(s.state);
     const node = h("div", { class: "node" + (clickable ? " clickable" : ""), tip: s.name + ": " + s.detail + (waiting.length ? " (click to answer)" : needsAttention(s.state) ? " (click to resolve)" : "") },
       h("div", { class: "name" }, s.name), h("div", { class: "count" }, s.count), badge(s.state), h("div", { class: "detail" }, s.detail));
@@ -437,11 +437,11 @@ function answerable(el, open) {
 }
 // Opens the shared answer prompt (/answer.js) on these sessions; the row shows your reply as it goes.
 function openAnswer(list, pickId) {
-  const show = () => { if (lastState) renderSessions(lastState.sessions); };
+  const show = () => { if (lastState) render(lastState); };
   boardAnswer.open(list, pickId, {
-    sending: (s, text) => { replies.set(s.id, { text: text, state: "sending" }); show(); },
-    sent: (s) => { replies.delete(s.id); refresh(); },
-    failed: (s, text, message) => { replies.set(s.id, { text: text, state: "not sent: " + message }); show(); }
+    sending: show,
+    sent: () => { show(); refresh(); },
+    failed: show
   });
 }
 // A chart or table cell that opens the run on GitHub when the run carries its URL.
@@ -491,7 +491,7 @@ function renderAttention(metrics, stages, sessions, recommendations) {
   const groups = [
     ["Metrics", metrics.filter((t) => needsAttention(t.state)).map((t) => ({ kind: "Metric", item: t.label, state: t.state, value: (t.value ?? "-") + (t.unit || ""), detail: t.detail, since: "-", act: () => resolve(t.label, t.detail) }))],
     ["Pipeline stages", stages.filter((s) => needsAttention(s.state)).map((s) => ({ kind: "Stage", item: s.name, state: s.state, value: "-", detail: s.detail, since: "-", act: () => resolve(s.name, s.detail) }))],
-    ["Sessions waiting on you", sessions.filter((s) => s.status === "blocked").map((s) => ({ kind: "Session", item: s.name + " " + (s.id || ""), state: "attention", value: s.work_item || s.row || "-", detail: s.detail, since: clock(s.started), act: () => openAnswer([{ id: s.id, name: s.name, run: s.run, repo: s.repo, work_item: s.work_item, question: s.detail, context: s.context, attach: s.attach }], s.id) }))]
+    ["Sessions waiting on you", sessions.filter((s) => boardAnswer.needsAnswer(s)).map((s) => ({ kind: "Session", item: s.name + " " + (s.id || ""), state: "attention", value: s.work_item || s.row || "-", detail: s.detail, since: clock(s.started), act: () => openAnswer([{ id: s.id, name: s.name, run: s.run, repo: s.repo, work_item: s.work_item, question: s.detail, context: s.context, attach: s.attach }], s.id) }))]
   ].filter(([, items]) => items.length);
   setTitle("h-attn", "Needs attention", groups.reduce((n, [, items]) => n + items.length, recs.length));
   const sized = Object.fromEntries(groups.map(([title, items]) => [title, items.length]));
@@ -543,7 +543,7 @@ function addAutoReply(row, s) {
     e.stopPropagation();
     button.disabled = true;
     const res = await fetch("/api/act", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "auto_reply", target: s.id }) });
-    if (res.ok) return refresh();
+    if (res.ok) { boardAnswer.note(s, s.question_kind === "confirm" ? "yes" : "retry", boardAnswer.SENT); return refresh(); }
     button.disabled = false;
     button.title = (await res.text()).slice(0, 200);
   });
@@ -613,10 +613,10 @@ function renderSessions(all) {
   const rows = $("sessions").querySelectorAll("tbody tr");
   shown.forEach((s, i) => {
     // A reply the server has not answered yet keeps its row highlighted.
-    if (replies.get(s.id)?.state === "sending") rows[i].classList.add("sending");
+    if (boardAnswer.reply(s.id)?.state === "sending") rows[i].classList.add("sending");
     if (deletable(s)) addDelete(rows[i], s);
-    if (s.status === "blocked" && ["confirm", "retry"].includes(s.question_kind)) addAutoReply(rows[i], s);
-    if (s.status !== "blocked") return;
+    if (!boardAnswer.needsAnswer(s)) return;
+    if (["confirm", "retry"].includes(s.question_kind)) addAutoReply(rows[i], s);
     rows[i].classList.add("clickable"); rows[i].title = "Click to answer";
     answerable(rows[i], () => openAnswer([{ id: s.id, name: s.name, run: s.run, repo: s.repo, work_item: s.work_item, question: s.detail, context: s.context, attach: s.attach }], s.id));
   });
@@ -639,7 +639,7 @@ function renderFan(fan) {
   put("lanetable", table(["Session", "Status", "Started", "Ended", "Work item"], sessions.map((s) => [sessionLabel(s), s.status, clock(s.started), s.ended ? clock(s.ended) : "now", s.row || "-"])));
   const laneRows = $("lanetable").querySelectorAll("tbody tr");
   sessions.forEach((s, i) => {
-    if (s.status !== "blocked" || !laneRows[i]) return;
+    if (!boardAnswer.needsAnswer(s) || !laneRows[i]) return;
     laneRows[i].classList.add("clickable");
     answerable(laneRows[i], () => openAnswer([{ id: s.id, name: s.name, run: s.run, repo: s.repo, work_item: s.work_item, question: s.detail, context: s.context, attach: s.attach }], s.id));
   });
@@ -696,16 +696,20 @@ function eventTip(e) {
 
 let lastState = null;
 // Replies the user sent, shown at once in the session row: sending, sent, or why it was not sent.
-const replies = new Map();
+// The shared store (/answer.js) holds them, so the row can say why its answer control is gone.
 function replyNote(s) {
-  const r = replies.get(s.id);
+  const r = boardAnswer.reply(s.id);
   if (!r) return s.detail;
-  // Only a failed send says anything about the reply; the session's status is always the server's.
-  const failed = r.state.startsWith("not sent");
-  return h("span", {}, s.detail || "", h("div", { class: "reply" }, h("b", {}, "You: "), r.text, failed ? h("small", {}, " · " + r.state) : ""));
+  return h("span", {}, s.detail || "", h("div", { class: "reply" }, h("b", {}, "You: "), r.text, h("small", {}, " · " + r.state)));
+}
+// A role's session is a trimmed copy; the board's own session row carries the question a reply answered.
+function fullSession(w) {
+  const all = lastState && Array.isArray(lastState.sessions) ? lastState.sessions : [];
+  return all.find((s) => s.id === w.id) || w;
 }
 function render(s) {
   lastState = s;
+  if (Array.isArray(s.sessions)) boardAnswer.prune(s.sessions);
   renderTiles(s.metrics); renderAttention(s.metrics, s.stages, s.sessions, s.recommendations); renderStrip(s.stages); renderCi(s.ci_runs, s.slowest_jobs);
   renderRoles(s.roles); renderWork(s.open_work); renderSessions(s.sessions); renderFan(s.fanout); renderEvents(s.events);
   $("updated").textContent = "updated " + clock(s.generated_at);

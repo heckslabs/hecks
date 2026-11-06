@@ -451,15 +451,14 @@ function renderMap(roles, now) {
 const evChip = (name) => h("span", { class: "ev" + (name.endsWith("!") ? " you" : "") }, name.replace(/!$/, ""));
 
 // The sessions waiting on you, with what each asked; you answer them in the shared prompt (/answer.js).
-const replies = new Map();
 const blockedSessions = () => (state && Array.isArray(state.sessions) ? state.sessions : []).filter((s) => s.status === "blocked");
 function answer(id, prefill) {
   const list = blockedSessions();
   if (!list.length) return;
   boardAnswer.open(list, id, {
-    sending: (s, text) => { replies.set(s.id, { text, state: "sending" }); renderWaiting(state.sessions); },
-    sent: (s) => { replies.set(s.id, { text: replies.get(s.id).text, state: "sent; waiting for it to carry on" }); refresh(); },
-    failed: (s, text, message) => { replies.set(s.id, { text, state: "not sent: " + message }); renderWaiting(state.sessions); }
+    sending: () => renderWaiting(state.sessions),
+    sent: () => refresh(),
+    failed: () => renderWaiting(state.sessions)
   }, { prefill: Boolean(prefill) });
 }
 // A session's role: the agent its run names, or else the role its name begins with.
@@ -467,11 +466,14 @@ const roleOf = (s) => s.agent || Object.keys(ROLES).find((role) => String(s.name
 // The reply Claude Code suggested, as a button that opens the prompt with it in the answer box.
 function suggestion(s) {
   const text = s.context && s.context.suggested;
-  if (!text) return null;
+  if (!text || !boardAnswer.needsAnswer(s)) return null;
   return h("button", { type: "button", class: "suggested", "data-answer": s.id, "data-prefill": "1",
     "data-tip": "Open the answer with this reply filled in; Enter sends it" }, h("b", {}, "Suggested"), text);
 }
-const answerButton = (id) => h("button", { type: "button", class: "answer-btn", "data-answer": id }, "Answer");
+// A role card's session is a trimmed copy; the board's own row carries the question the reply answered.
+const fullSession = (w) => (state && Array.isArray(state.sessions) ? state.sessions : []).find((s) => s.id === w.id) || w;
+// The Answer button, drawn only while the session still needs an answer (/answer.js decides).
+const answerButton = (s) => boardAnswer.needsAnswer(s) ? h("button", { type: "button", class: "answer-btn", "data-answer": s.id }, "Answer") : null;
 function asked(s) {
   const text = (s.context && (s.context.needs || s.context.said)) || s.detail || "";
   const line = text.split("\n").map((l) => l.replace(/[*_`#>]/g, "").trim()).find(Boolean) || "";
@@ -479,17 +481,17 @@ function asked(s) {
 }
 function renderWaiting(sessions) {
   const list = Array.isArray(sessions) ? sessions.filter((s) => s.status === "blocked") : [];
-  for (const id of replies.keys()) if (!list.some((s) => s.id === id)) replies.delete(id);
+  boardAnswer.prune(Array.isArray(sessions) ? sessions : []);
   $("waiting").hidden = list.length === 0;
   const tag = (role) => h("span", { class: "tag you", "data-role": ROLES[role] ? role : null, "data-tip": ROLES[role] ? ROLES[role].name : "a session started by hand" },
     (ROLES[role] && ROLES[role].code) || "S");
   $("asks").replaceChildren(...list.map((s) => {
-    const mine = replies.get(s.id);
+    const mine = boardAnswer.reply(s.id);
     return h("div", { class: "ask-row" },
       h("div", { class: "who" }, tag(roleOf(s)), h("span", { class: "n" }, s.name)),
       h("span", { class: "q", "data-tip": asked(s) }, asked(s)),
       h("time", { datetime: s.started }, clock(s.started)),
-      answerButton(s.id),
+      answerButton(s),
       suggestion(s),
       mine ? h("div", { class: "mine" }, h("b", {}, "You: "), mine.text, " \u00B7 " + mine.state) : null);
   }));
@@ -513,7 +515,7 @@ function card(r) {
   const session = (w) => h("div", { class: "sess" + (w.status === "blocked" ? " blocked" : ""), "data-tip": w.name + "\n" + (w.detail || w.status) },
     h("span", { class: "n" }, w.name + (w.status === "blocked" ? " · waiting on you" : "")),
     h("span", { class: "d" }, w.detail || w.status), h("div", { class: "track" }, h("div")),
-    w.status === "blocked" ? answerButton(w.id) : null);
+    w.status === "blocked" ? answerButton(fullSession(w)) : null);
   return h("article", { class: "card" + (busy ? " busy" : ""), "data-role": r.name, tabindex: "0" },
     h("header", {}, h("span", { class: "code" }, meta.code),
       h("div", {}, h("div", { class: "title" }, meta.name),
