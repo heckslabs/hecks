@@ -283,7 +283,8 @@ Hecks.bluebook "Agents" do
       attribute :work, WorkKey, sets: true
       attribute :conflict, Conflict, sets: true
       attribute :hops, HopCount, sets: true
-      attribute :advice, AdviceKey, optional: true
+      # The key the orchestrator's run takes when the check finds a conflict: without it no session could start.
+      attribute :advice, AdviceKey
       attribute :role, RoleRef, optional: true
       attribute :repo, RepoPath, optional: true
       attribute :brief, BriefText, optional: true
