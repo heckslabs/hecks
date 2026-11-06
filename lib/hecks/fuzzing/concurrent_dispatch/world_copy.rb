@@ -19,6 +19,7 @@ module Hecks
             copy = File.join(tmp, File.basename(domain_path))
             IsolatedBoot.copy_dereferencing(domain_path, copy)
             FileUtils.rm_rf(File.join(copy, "data"))
+            IsolatedBoot.ensure_schema!(database, schema)
             IsolatedBoot.rewrite_bindings!(copy, "Postgres")
             write_postgres_era_world!(copy, database: database, schema: schema)
             yield copy

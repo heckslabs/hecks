@@ -113,6 +113,13 @@ module Hecks
 
         # Several pool children may reach this at once: one wins the CREATE, and the rest see the
         # database exist, or wait out the moment the template database is busy and look again.
+        # Creates `schema` in `database` when it is not there yet, and keeps what it holds.
+        def ensure_schema!(database, schema)
+          db = PG.connect(dbname: database)
+          db.exec("CREATE SCHEMA IF NOT EXISTS #{db.quote_ident(schema)}")
+          db.close
+        end
+
         def create_database_if_missing(database)
           admin = PG.connect(dbname: "postgres")
           3.times do
