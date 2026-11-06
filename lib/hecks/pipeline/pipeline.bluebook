@@ -44,9 +44,7 @@ Hecks.bluebook "Pipeline" do
       invariant("a passage is named by its change") { !value.to_s.empty? }
     end
 
-    value_object "Title" do
-      attribute :value, String
-    end
+    value_object "Title", String
 
     # A session id, a commit, or a red flag's id.
     value_object "Word" do
@@ -266,11 +264,25 @@ Hecks.bluebook "Pipeline" do
     identified_by :number
 
     attribute :number, PullNumber
+    attribute :state, PullState, optional: true
 
     value_object "PullNumber" do
       # The git host's number for a pull request in its repository.
       attribute :value, String, matches: :present
       invariant("a pull request has a number") { !value.to_s.empty? }
+    end
+
+    value_object "PullState", String
+
+    # What the git host last reported for a pull request: open, merged or closed.
+    command "Note" do
+      role "System"
+      goal "Record the state the git host reports for one pull request"
+
+      attribute :number, PullNumber, sets: true
+      attribute :state, PullState, sets: true
+
+      emits "PullRequestNoted"
     end
 
     # The git host's answer for one pull request: its title, state, draft flag and merge status.
