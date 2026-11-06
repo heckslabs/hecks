@@ -18,7 +18,7 @@ RSpec.describe "qa_sweep concurrency", :io do
   # Same smallest domain as `spec/fuzzing/concurrent_dispatch_spec.rb`, which uses the real lock.
   CONCURRENCY_TARGET_BLUEBOOK = <<~RUBY.freeze
     Hecks.bluebook "QaSweepConcurrencyFixtureTarget" do
-      vision "A trivially well-behaved sweep target, authored only to prove qa_sweep's concurrency mode reaches a real PostgresEra-bound domain, never this repository's own live, actively-changing QA corpus."
+      vision "A trivially well-behaved sweep target, authored only to prove qa_sweep's concurrency mode reaches a real Postgres-with-revisions domain, never this repository's own live, actively-changing QA corpus."
 
       aggregate "Account" do
         identified_by :number
@@ -61,14 +61,15 @@ RSpec.describe "qa_sweep concurrency", :io do
 
   CONCURRENCY_TARGET_HECKSAGON = <<~RUBY.freeze
     Hecks.hecksagon "QaSweepConcurrencyFixtureTarget" do
-      QaSweepConcurrencyFixtureTarget::Account.persisted_by("PostgresEra")
+      revisions true
+      QaSweepConcurrencyFixtureTarget::Account.persisted_by("Postgres")
     end
   RUBY
 
   def concurrency_target_world
     <<~RUBY
       Hecks.world "QaSweepConcurrencyFixtureTarget" do
-        persisted_by("PostgresEra") do
+        persisted_by("Postgres") do
           database "postgres://localhost/#{QA_SWEEP_CONCURRENCY_TARGET_DATABASE}"
           allow_superuser true
         end
