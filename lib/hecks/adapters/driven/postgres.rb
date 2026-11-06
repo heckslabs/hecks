@@ -151,3 +151,4 @@ module Hecks
 end
 
 require_relative "postgres/projection"
+require_relative "postgres/layout"
