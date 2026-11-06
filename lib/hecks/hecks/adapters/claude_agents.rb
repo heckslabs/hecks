@@ -122,11 +122,15 @@ module Hecks
       # a text that names none. The words are `sound`, `sound with changes` and `rethink`.
       VERDICT_WORDS = /\b(sound with changes|sound|rethink)\b/i
 
+      # The line the architect's definition asks every closing message to start with; it wins over
+      # a verdict word appearing elsewhere in the text.
+      VERDICT_LINE = /^\s*verdict:\s*(sound with changes|sound|rethink)\b/i
+
       # @param job [Hash] the job's state
       # @return [String] `sound`, `changes`, `rethink`, or empty
       def verdict_of(job)
         closing = [job.dig("output", "result"), job["detail"]].compact.join(" ")
-        word = closing[VERDICT_WORDS, 1].to_s.downcase
+        word = (closing[VERDICT_LINE, 1] || closing[VERDICT_WORDS, 1]).to_s.downcase
         word == "sound with changes" ? "changes" : word
       end
 
