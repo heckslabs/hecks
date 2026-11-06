@@ -76,9 +76,26 @@ RSpec.describe "PipelineBoard readings" do
     journal.named("WorkFinished", 200)
   end
 
-  def throughput(finished)
-    tiles = Hecks::Adapters::PipelineBoard::Metrics.tiles({ ci_runs: { unknown: "x" }, finished: finished }, now)
+  def throughput(finished, open_work = [])
+    data = { ci_runs: { unknown: "x" }, finished: finished, open_work: open_work }
+    tiles = Hecks::Adapters::PipelineBoard::Metrics.tiles(data, now)
     tiles.find { |tile| tile[:id] == "throughput" }
+  end
+
+  it "asks for attention when nothing finished in the day while Work items wait in the plan" do
+    stale = finished(["2026-10-31T19:00:00Z"])
+    expect(throughput(stale, [{ status: "planned" }, { status: "started" }]))
+      .to include(value: 0, state: "attention", detail: "last 2026-10-31 19:00:00 UTC; 1 planned")
+  end
+
+  it "stays ok with nothing finished when nothing waits in the plan" do
+    expect(throughput([], [{ status: "started" }])).to include(value: 0, state: "ok", detail: "none finished yet; 0 planned")
+  end
+
+  it "lets a journal that cannot be read raise, so the board shows unknown instead of zero" do
+    trace = ->(_count, _event) { raise Hecks::Adapters::PipelineBoard::Unavailable, "journal: no store" }
+    journal = Hecks::Adapters::PipelineJournal.new(settings: { trace: trace, tap: File.join(dir, "none.jsonl"), ttl: 0 })
+    expect { journal.named("WorkFinished", 200) }.to raise_error(Hecks::Adapters::PipelineBoard::Unavailable, /no store/)
   end
 
   it "counts the day's finished work from the events of that name, not from the recent window" do
