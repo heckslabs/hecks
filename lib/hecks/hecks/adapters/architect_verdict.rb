@@ -3,13 +3,13 @@
 module Hecks
   module Adapters
     # The verdict an architect's closing text states: `sound`, `changes` (for "sound with changes")
-    # or `rethink`. The adapter that closes a review and the board that lists it read it the same way.
+    # or `rethink`. The adapter that closes a review and the board that lists it read it alike.
     module ArchitectVerdict
       # The words a verdict is one of, found anywhere in the text when no Verdict line is.
       WORDS = /\b(sound with changes|sound|rethink)\b/i
 
-      # The line the architect is asked to end its closing message with; the last one wins. It may be
-      # set in bold, quoted or end with a period.
+      # The line the architect is asked to end its closing message with; the last one wins. It may
+      # be set in bold, quoted, or end with a period.
       LINE = /^[\s*_`>#-]*verdict:\s*[*_`]*(sound with changes|sound|rethink)\b/i
 
       # The format the verdict reader expects, stated in the architect's brief. A job keeps only the
