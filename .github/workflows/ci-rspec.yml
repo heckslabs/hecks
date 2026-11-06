@@ -93,7 +93,7 @@ jobs:
   # skip this required check instead of running it. Also skipped on push (cache warming
   # needs only the postgres_io_parallel shards) and when the tree is attested.
   #
-  # No Postgres service: specs that boot examples/pizzas against PostgresEra are tagged
+  # No Postgres service: specs that boot examples/pizzas against PostgresRevision are tagged
   # `io: true` and run in rspec_postgres_io. An untagged one fails here with
   # PG::ConnectionBad.
   rspec_shard:
