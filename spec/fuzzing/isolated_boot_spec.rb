@@ -229,14 +229,17 @@ RSpec.describe Hecks::Fuzzing::IsolatedBoot, :aggregate_failures do
   # bring a `default_adapter` of its own or the unbound aggregate raises a WiringError at
   # the first dispatch (BindingPolicy reads the world through `Registry#default_adapter_for`).
   describe ".call, for a domain bound only by its world's default_adapter" do
+    DEFAULT_ADAPTER_HECKSAGON = <<~HECKSAGON.freeze
+      Hecks.hecksagon "Widgets" do
+        revisions true
+        attaches "widgets", from: :vendor
+        attaches "Governance"
+      end
+    HECKSAGON
+
     def default_adapter_project(root)
-      write(root, "bluebook/consumer.hecksagon", <<~HECKSAGON)
-        Hecks.hecksagon "Widgets" do
-          attaches "widgets", from: :vendor
-          attaches "Governance"
-        end
-      HECKSAGON
-      write(root, "bluebook/consumer.world", %(Hecks.world "Widgets" do\n  default_adapter "PostgresEra"\nend\n))
+      write(root, "bluebook/consumer.hecksagon", DEFAULT_ADAPTER_HECKSAGON)
+      write(root, "bluebook/consumer.world", %(Hecks.world "Widgets" do\n  default_adapter "Postgres"\nend\n))
       write(root, "bluebook/context_map.hecksagon", InMemoryDomain::GOVERNANCE_MEMORY_HECKSAGON)
       write(root, "vendor/embryonaut_bluebooks/widgets/bluebook/widgets.bluebook", WIDGETS_BLUEBOOK)
       File.join(root, "bluebook")

@@ -3,7 +3,7 @@ require_relative "../../support/postgres_probe"
 require_relative "../../support/era_registry_loading"
 
 # `mints_era` leaves the command and moves to the persistence binding: a world's
-# `persisted_by("PostgresEra") { mints_era "Maintenance.MintEra" }` names the commands whose own
+# `persisted_by("Postgres") { mints_era "Maintenance.MintEra" }` names the commands whose own
 # record an unminted boot may write. The bluebook word still works; given together the two must
 # agree, and a name that matches no command refuses by name.
 RSpec.describe "the mints_era binding" do

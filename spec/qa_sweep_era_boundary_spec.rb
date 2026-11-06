@@ -54,7 +54,7 @@ RSpec.describe "qa_sweep era_boundary", :io do
   def era_boundary_target_world
     <<~RUBY
       Hecks.world "QaSweepRevisionBoundaryFixtureTarget" do
-        persisted_by("PostgresEra") do
+        persisted_by("Postgres") do
           database "postgres://localhost/#{QA_SWEEP_ERA_BOUNDARY_TARGET_DATABASE}"
           allow_superuser true
         end

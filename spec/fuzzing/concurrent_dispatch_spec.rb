@@ -78,7 +78,7 @@ RSpec.describe Hecks::Fuzzing::ConcurrentDispatch, :aggregate_failures do
 
   # File-based fixture: `IsolatedBoot.call`/`copy_dereferencing` need a real directory. Same
   # minimal shape as `EraConcurrencyGap` in `postgres_era_concurrent_dispatch_spec.rb`.
-  context "with a real, disposable PostgresEra schema", :io do
+  context "with a real, disposable Postgres schema with revisions", :io do
     CONCURRENT_DISPATCH_SPEC_DATABASE = "hecks_concurrent_dispatch_spec".freeze
 
     # Namespaced: a constant assigned inside `RSpec.describe`/`context` lands on `Object`, so a
@@ -129,7 +129,8 @@ RSpec.describe Hecks::Fuzzing::ConcurrentDispatch, :aggregate_failures do
 
     CONCURRENT_DISPATCH_FIXTURE_HECKSAGON = <<~RUBY.freeze
       Hecks.hecksagon "ConcurrentDispatchFixture" do
-        ConcurrentDispatchFixture::Account.persisted_by("PostgresEra")
+        revisions true
+        ConcurrentDispatchFixture::Account.persisted_by("Postgres")
       end
     RUBY
 

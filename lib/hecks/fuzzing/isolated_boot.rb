@@ -6,6 +6,7 @@ require_relative "../runtime/adapter_lookup"
 require_relative "isolated_boot/copying"
 require_relative "isolated_boot/worlds"
 require_relative "isolated_boot/postgres_scratch"
+require_relative "isolated_boot/revisions_kept"
 require_relative "isolated_boot/scratch_schema"
 
 module Hecks

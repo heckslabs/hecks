@@ -10,6 +10,7 @@ module Hecks
           database ||= FUZZ_POSTGRES_DATABASE
           schema   ||= scratch_schema(database)
           rewrite_bindings!(copy, "Postgres")
+          RevisionsKept.drop!(copy)
           strip_translations!(copy)
           ensure_fuzz_schema!(database, schema)
 
@@ -26,6 +27,7 @@ module Hecks
               persisted_by("Postgres") do
                 database "#{database}"
                 schema "#{schema}"
+                allow_superuser true
               end
             end
           WORLD
@@ -58,6 +60,7 @@ module Hecks
           require_owned_scratch!(database, schema)
 
           rewrite_bindings!(copy, "Postgres")
+          RevisionsKept.keep!(copy)
           ensure_postgres_era_schema!(database: database, schema: schema)
 
           write_worlds!(copy, "hecks_fuzz_postgres_era.world") do |name|
@@ -66,6 +69,8 @@ module Hecks
           write_unbound_bluebook_worlds!(copy)
         end
 
+        # The revision layout: every hecksagon in the copy keeps its revisions, so the Postgres bind
+        # boots as the revision store (ADR 0182).
         def require_owned_scratch!(database, schema)
           return unless database.to_s.empty? || schema.to_s.empty?
 
