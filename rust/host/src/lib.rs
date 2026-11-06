@@ -29,6 +29,7 @@ mod http;
 #[cfg(test)]
 #[path = "boundary_fuzz/ir.rs"]
 mod ir_fuzz;
+pub mod grants;
 pub mod ledger;
 pub mod payments;
 pub mod platform_signin;

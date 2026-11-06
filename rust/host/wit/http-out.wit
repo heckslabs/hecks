@@ -1,0 +1,29 @@
+package hecks:adapters@0.1.0;
+
+interface http-out {
+  /// Why the host would not answer: the grant does not name the host, or the request failed.
+  variant refusal {
+    /// The component asked for a host its grant does not declare; carries the host asked.
+    undeclared(string),
+    /// The grant allows it but the request failed; carries the reason.
+    failed(string),
+  }
+
+  /// One request: method, absolute URL, headers, body and a timeout the host enforces.
+  record call {
+    method: string,
+    url: string,
+    headers: list<tuple<string, string>>,
+    body: list<u8>,
+    timeout-ms: u32,
+  }
+
+  /// The answer to a request that reached its host.
+  record reply {
+    status: u16,
+    headers: list<tuple<string, string>>,
+    body: list<u8>,
+  }
+
+  request: func(call: call) -> result<reply, refusal>;
+}
