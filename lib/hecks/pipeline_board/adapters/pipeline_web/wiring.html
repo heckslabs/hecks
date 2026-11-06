@@ -10,18 +10,19 @@
   --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink2: #52514e; --muted: #898781;
   --grid: #e1e0d9; --axis: #c3c2b7; --border: rgba(11,11,11,.10);
   --series1: #2a78d6; --good: #0ca30c; --warning: #fab219; --critical: #d03b3b;
+  --wiring: #8b5e3c; /* ports and adapters: a brown outside the eight domain slots */
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
     --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink2: #c3c2b7; --muted: #898781;
-    --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,.10); --series1: #3987e5;
+    --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,.10); --series1: #3987e5; --wiring: #b8865f;
   }
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
   --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink2: #c3c2b7; --muted: #898781;
-  --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,.10); --series1: #3987e5;
+  --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,.10); --series1: #3987e5; --wiring: #b8865f;
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--page); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
@@ -531,8 +532,9 @@ function drawNode(n, now) {
   const x = sx(n), y = sy(n), r = n.kind === "aggregate" ? 6 : 7, pulse = pulses.get(n.id);
   const live = pulse && pulse > now, heat = live ? Math.min(1, (pulse - now) / LINGER_FADE) : 0;
   shape(n, x, y, r + (live && !reduceMotion ? 3 * heat : 0));
-  ctx.fillStyle = live ? css("--series1") : css("--surface"); ctx.globalAlpha = live ? 0.4 + 0.6 * heat : 1; ctx.fill(); ctx.globalAlpha = 1;
-  ctx.lineWidth = live ? 2 : 1.2; ctx.strokeStyle = live ? css("--series1") : (showBounds ? colourOf(n.domain) : css("--ink2")); ctx.stroke();
+  const hue = n.kind === "aggregate" ? colourOf(n.domain) : css("--wiring");
+  ctx.fillStyle = live ? css("--series1") : hue; ctx.globalAlpha = live ? 0.4 + 0.6 * heat : 1; ctx.fill(); ctx.globalAlpha = 1;
+  ctx.lineWidth = live ? 2 : 1.2; ctx.strokeStyle = live ? css("--series1") : hue; ctx.stroke();
   if (live && heat > 0.6) label(n, false);
 }
 function label(n, boxed, quiet) {
