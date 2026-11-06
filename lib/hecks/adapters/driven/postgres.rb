@@ -48,7 +48,11 @@ module Hecks
 
       # Names the optional persistence capabilities `Ports::Persistence::AppendOnly` may rely on.
       # @return [Array<Symbol>] atomic_put, optimistic_concurrency and dispatch_claims
-      def persistence_capabilities = %i[atomic_put optimistic_concurrency dispatch_claims]
+      def persistence_capabilities
+        return layout.persistence_capabilities if layout.is_a?(Layout::Revisions)
+
+        %i[atomic_put optimistic_concurrency dispatch_claims]
+      end
 
       # Opens a connection to the database a world declares, scoped to its `schema` if any.
       #
@@ -123,6 +127,19 @@ module Hecks
       def initialize(aggregate:, settings: {}, root: nil)
         @aggregate = aggregate
         @settings  = settings
+        if settings[:revisions]
+          @layout = Layout::Revisions.new(aggregate: aggregate, settings: settings, root: root)
+        else
+          open_table_layout(aggregate, settings)
+        end
+      end
+
+      # Connects and provisions the table layout for the aggregate.
+      #
+      # @param aggregate [Bluebook::Aggregate] the aggregate the tables are for
+      # @param settings [Hash] the binding's settings
+      # @return [void]
+      def open_table_layout(aggregate, settings)
         @db = PostgresSharedConnection.for(aggregate.name, settings, connector: self.class)
         # Scopes saga rows; falls back to the aggregate's storage name when
         # settings gives no domain (e.g. a directly-instantiated adapter).
@@ -152,3 +169,4 @@ end
 
 require_relative "postgres/projection"
 require_relative "postgres/layout"
+require_relative "postgres/layout/revisions"
