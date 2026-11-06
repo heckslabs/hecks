@@ -148,16 +148,16 @@ it, so they are ordered, not parallel: that item first, then this leg joins it. 
    Ruby adapters, threads or eras. They are out of scope here and keep running in Ruby until their own
    steps (Memory only: 4, Postgres era: last in ADR 0188).
 
-## Questions for the owner
+## Choices taken (owner said "your call", 2026-11-05)
 
-1. **Seeding the corpus after Ruby.** (a) Hand-written or from `.behaviors`, reviewed, never from the kernel
-   it judges. (b) Seeded from the kernel and reviewed. (c) Keep Ruby as a seeding tool only, outside the
-   runtime. Recommend (a): (b) is a tautology, (c) keeps a second evaluator alive by another name.
-2. **Retirement gate size.** How many consecutive clean nightly sweeps, over how many seeds per domain, before
-   Ruby leaves the fuzzer? I suggest 14 nights and the current `SEED_BUDGET` doubled; the number is yours.
-3. **Version differential baseline.** Compare to `edge` (tag at `stable`'s head) or to the previous
-   release? Recommend `edge`: it is the last kernel every required check passed.
-4. **Where the Simulation vocabulary lives.** A new bluebook or the existing QualityControl/Fuzzing one?
-   Recommend the existing one unless it already holds too much; I did not measure that.
-5. **A `facts` key on corpus steps** (smallest way to make callback answers replayable) touches the corpus
-   format both parsers read. Accept, or journal answers elsewhere?
+These are my recommendations, taken as the plan's defaults. None is an accepted ADR: slice 0 still
+writes them down for the owner to accept.
+
+1. **Corpus after Ruby:** written by hand or from `.behaviors`, reviewed, never seeded from the kernel it
+   judges. `seed_semantics_corpus!` stays on the Ruby engine until Ruby retires.
+2. **Retirement gate:** 14 consecutive clean nightly sweeps, at double the current `SEED_BUDGET` per domain.
+3. **Version differential baseline:** `edge`, the last kernel every required check passed.
+4. **Simulation vocabulary:** the existing QualityControl/Fuzzing bluebook. If the coder finds it too
+   large (not measured), splitting it out is a finding to report, not a reason to stop.
+5. **Callback answers:** a `facts` key on the corpus step, with Ruby and Rust parsers held to it by
+   `check_conformance`.
