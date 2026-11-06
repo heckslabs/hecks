@@ -951,7 +951,7 @@ RSpec.describe "the Hecks command table through the launcher" do
       served = []
       Hecks::Adapters::Terminal.server = ->(argv) { served << argv }
       begin
-        run_verb("server.serve_mcp", "run=#{run}", "--stdio")
+        @served_status = run_verb("server.serve_mcp", "run=#{run}", "--stdio").last
       ensure
         Hecks::Adapters::Terminal.server = nil
       end
@@ -974,12 +974,12 @@ RSpec.describe "the Hecks command table through the launcher" do
       expect(listed("launch.stopped", "run")).to include("launchers-2")
     end
 
-    it "serve_mcp hands the process to the entry point through the Terminal adapter and keeps that it closed",
+    it "serve_mcp hands the process to the entry point through the Terminal adapter and completes",
        :aggregate_failures do
       served = served_by_mcp("mcp-1")
 
       expect(served).to eq([["--stdio"]])
-      expect(JSON.parse(run_verb("server.ended", "run=mcp-1").first).first["output"]).to eq("mcp server closed")
+      expect(@served_status).to eq(0)
     end
   end
 

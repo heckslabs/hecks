@@ -2,7 +2,7 @@ Hecks.bluebook "Hecks" do
   domain_module "Serve" do
     vision "Open something on a port until it is stopped: the Composer, a rendered example, or a static site."
 
-    aggregate "Server", kind: "Run" do
+    aggregate "Server" do
       description "One server opened on a checkout, until it is stopped."
 
       attribute :port,      Port, optional: true
@@ -10,6 +10,24 @@ Hecks.bluebook "Hecks" do
       attribute :agent,     AgentName, optional: true
       attribute :directory, Directory, optional: true
       attribute :stdio,     Switch, optional: true
+      attribute :run,       RunKey
+      attribute :operation, OperationName, optional: true
+      identified_by :run
+
+      # The SourceTree operation a served command names; the adapter dispatches on it.
+      value_object "OperationName" do
+        attribute :value, String, matches: :present
+      end
+
+      # The name a caller gives one server request, so a request can be told apart from another.
+      value_object "RunKey" do
+        attribute :value, String, matches: :present
+      end
+
+      # A flag that is on or off.
+      value_object "Switch" do
+        attribute :value, Boolean
+      end
 
       # One directory of files, named by a path.
       value_object "Directory" do
