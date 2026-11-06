@@ -80,7 +80,7 @@ module Hecks
         def require_pg!(name)
           require "pg"
         rescue LoadError
-          raise LoadError, "#{name} binds PostgresEra, which needs the pg gem: add `gem \"pg\"` to the Gemfile"
+          raise LoadError, "#{name} binds Postgres with revisions, which needs the pg gem: add `gem \"pg\"` to the Gemfile"
         end
 
         def declared_database(name, settings)
