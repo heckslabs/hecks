@@ -539,9 +539,24 @@ Hecks.bluebook "Hecks" do
       trigger AgentRun::Dispatch, with: { run: :submission, repo: :repo, brief: :brief, agent: :role }
     end
 
+    # A recommended promotion starts the release manager's session as a run keyed by the change, with
+    # a brief to recommend promote, revert or fix forward. It only recommends: promoting stays the
+    # owner's confirmed command on the board.
+    policy "StartTheReleaseManagerOnRecommendation" do
+      on      "PromotionRecommendation.PromotionRecommended"
+      trigger AgentRun::Dispatch, with: { run: :change, repo: :repo, brief: :brief, agent: :role }
+    end
+
     policy "StartThePlannerOnPlanningRequest" do
       on      "Planning.PlanningRequested"
       trigger AgentRun::Dispatch, with: { run: :plan, repo: :repo, brief: :goal, agent: :role }
+    end
+
+    # A conflicting Work item asks the orchestrator for advice: its session starts as a run keyed by the
+    # routing request, with a brief that names the Work item and the conflict.
+    policy "StartTheOrchestratorOnAdviceRequest" do
+      on      "Routing.DispatchAdviceRequested"
+      trigger AgentRun::Dispatch, with: { run: :advice, repo: :repo, brief: :brief, agent: :role }
     end
 
     # A session the board started by hand has no run to tidy, so it is removed on its own. The
