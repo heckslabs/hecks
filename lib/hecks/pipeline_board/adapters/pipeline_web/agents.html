@@ -67,7 +67,9 @@ button:focus-visible, .node:focus-visible, .card:focus-visible, textarea:focus-v
 .node text.name { font: 600 13px var(--body); fill: var(--ink); }
 .node text.stat { font: 400 11px var(--mono); fill: var(--ink2); }
 .node.busy text.stat { fill: var(--signal); }
-.node.blocked rect.box { stroke: var(--you); } .node.blocked text.stat { fill: var(--you); }
+.node.blocked rect.box { stroke: var(--you); }
+.node g.wait circle { fill: var(--you); stroke: var(--page); stroke-width: 2; }
+.node g.wait text { font: 700 11px var(--mono); fill: #111; }
 .node .ring { fill: none; stroke: var(--signal); stroke-width: 1.5; opacity: 0; }
 .node.busy .ring { animation: ring 2.4s ease-out infinite; transform-box: fill-box; transform-origin: center; }
 @keyframes ring { 0% { opacity: .55; transform: scale(1); } 100% { opacity: 0; transform: scale(1.18, 1.5); } }
@@ -398,6 +400,27 @@ function renderTotals(roles) {
 
 const isHot = (e) => state && Date.parse(state.generated_at) - Date.parse(e.at) < HOT_MS;
 
+// How many of a role's sessions wait on you, as an amber badge on the node's top-right corner;
+// the node's own line only has room for what is working.
+function waitBadge(node, count) {
+  let badge = node.querySelector("g.wait");
+  if (!count) { if (badge) badge.remove(); return; }
+  if (!badge) {
+    const box = node.querySelector("rect.box"), svg = node.namespaceURI;
+    const x = Number(box.getAttribute("x")) + Number(box.getAttribute("width")), y = Number(box.getAttribute("y"));
+    badge = document.createElementNS(svg, "g");
+    badge.setAttribute("class", "wait");
+    const dot = document.createElementNS(svg, "circle");
+    dot.setAttribute("cx", x - 4); dot.setAttribute("cy", y + 4); dot.setAttribute("r", 11);
+    const label = document.createElementNS(svg, "text");
+    label.setAttribute("x", x - 4); label.setAttribute("y", y + 8); label.setAttribute("text-anchor", "middle");
+    badge.append(dot, label);
+    node.append(badge);
+  }
+  badge.querySelector("text").textContent = String(count);
+  node.dataset.waiting = String(count);
+}
+
 // The map is fixed; the page only marks busy roles and lines whose event fired lately.
 function renderMap(roles, now) {
   const svg = $("comms");
@@ -408,8 +431,9 @@ function renderMap(roles, now) {
     const blocked = (r.working || []).filter((w) => w.status === "blocked").length;
     node.classList.toggle("busy", r.live > 0);
     node.classList.toggle("blocked", blocked > 0);
-    node.querySelector("text.stat").textContent = blocked ? "● " + r.live + " working · " + blocked + " waiting" : r.live > 0 ? "● " + r.live + " working" : "idle" + (done ? " · " + done + " done" : "");
-    node.dataset.tip = ROLES[r.name] ? ROLES[r.name].name + "\n" + r.live + " working · " + done + " finished" + (r.last ? "\nLast: " + r.last.name + " at " + clock(r.last.at) : "") : r.name;
+    node.querySelector("text.stat").textContent = r.live > 0 ? "● " + r.live + " working" : "idle" + (done ? " · " + done + " done" : "");
+    waitBadge(node, blocked);
+    node.dataset.tip = ROLES[r.name] ? ROLES[r.name].name + "\n" + r.live + " working · " + done + " finished" + (blocked ? "\n" + blocked + " waiting on you" : "") + (r.last ? "\nLast: " + r.last.name + " at " + clock(r.last.at) : "") : r.name;
   }
   const last = {};
   for (const e of heard.values()) {
