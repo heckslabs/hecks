@@ -35,13 +35,13 @@ module Hecks
         end
 
         # @param base [String] the ref the branch is compared with
-        # @param cap [Integer] the most spec files to run
+        # @param cap [Integer, nil] the most spec files to run; nil runs every mapped spec
         # @param dry [Boolean] list the mapped specs and run none
         # @param run_options [Hash] `isolation`, `example`, `env` and `tags`, as `SpecFiles#run`
         #   takes them
         # @return [String] the changed files, the mapped, skipped and run specs and how each ended
         # @raise [ConsoleCapture::Failure] when git refuses or a spec fails
-        def call(base:, cap: DEFAULT_CAP, dry: false, **run_options)
+        def call(base:, cap: nil, dry: false, **run_options)
           changed = changed_files(base)
           skips = GitRehearsal::Impacted::Skips.new(@tree.root, scratch: @scratch)
           mapping = GitRehearsal::SpecMap.new(@tree.root).map(changed, limit: cap, skip: skips)

@@ -45,14 +45,14 @@ module Hecks
         end
 
         # @param changed [Array<String>] changed paths relative to the root
-        # @param limit [Integer] the most specs to return
+        # @param limit [Integer, nil] the most specs to return; nil returns every one
         # @param skip [#call] given a spec, nil to run it or the reason to leave it out
         # @return [Mapping]
         def map(changed, limit:, skip: ->(_spec) {})
           ranked = tiers(changed).sort_by { |spec, tier| [tier, spec] }.map(&:first)
           reasons = ranked.to_h { |spec| [spec, skip.call(spec)] }.compact
           kept = ranked - reasons.keys
-          Mapping.new(kept.first(limit), kept.size, reasons)
+          Mapping.new(kept.first(limit || kept.size), kept.size, reasons)
         end
 
         private

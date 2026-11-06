@@ -72,6 +72,13 @@ RSpec.describe Hecks::Adapters::Codebase::ImpactedSpecs do
     expect(dry(cap: 1)).to include("capped at 1 of 2; the rest run in CI")
   end
 
+  it "lists every impacted spec when no cap is named", :aggregate_failures do
+    write("docs/guide.md", "# guide\n")
+    write("lib/widget.rb", "class Widget; end\n")
+    expect(dry).to include("impacted specs: 2")
+    expect(dry).not_to include("capped at")
+  end
+
   it "skips a spec that needs the network, and says why" do
     write("lib/fetch.rb", "module Fetch; end\n")
     expect(dry).to include("skipped: spec/fetch_spec.rb (needs network)")

@@ -50,7 +50,7 @@ module Hecks
         # @param tree [Tree] the checkout
         # @return [String] the mapping and, unless dry, how each spec file ended
         def impacted(args, tree)
-          ImpactedSpecs.new(tree).call(base: args[:base] || "main", cap: args[:cap] || ImpactedSpecs::DEFAULT_CAP,
+          ImpactedSpecs.new(tree).call(base: args[:base] || "main", cap: args[:cap],
                                        dry: args[:dry] == true, isolation: args[:isolation] || "process",
                                        example: args[:example], env: RunOptions.spec_env(args), tags: args[:tags])
         end
