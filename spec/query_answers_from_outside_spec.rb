@@ -198,6 +198,24 @@ RSpec.describe "a query answered by a port the hecksagon binds" do
 
   scratch_directory :dir, "outside"
 
+  # The Lookup bluebook with a query "Listed" that returns a list of Listing rows and is bound to
+  # the Echoer port, with the where clause `clause` filtering them.
+  def listed_with(clause)
+    listed = <<~RUBY.gsub(/^(?=.)/, "    ")
+      query "Listed" do
+        #{clause}
+        returns list_of(Listing)
+      end
+
+    RUBY
+    OUTSIDE_BLUEBOOK.sub(%(    query "Sight" do), "#{listed}    query \"Sight\" do")
+  end
+
+  def listed_hecksagon = OUTSIDE_HECKSAGON.sub('answers_query "Sight"', %(answers_query "Sight"\n        answers_query "Listed"))
+
+  # The Echoer adapter's listed answer: three rows, which a where may filter.
+  def listed_body = "#{ECHOER_BODY}\ndef listed = [{ title: \"a\" }, { title: \"b\" }, { title: \"c\" }]\n"
+
   describe "an answer that is its declared shape" do
     it "comes from the adapter, which is handed plain data, and arrives as the value object's fields" do
       row = boot_domain.query("Lookup::Note.Echo", title: "hello").first
@@ -323,6 +341,37 @@ RSpec.describe "a query answered by a port the hecksagon binds" do
     end
   end
 
+  describe "a port-answered query with a where" do
+    it "returns only the rows the where admits, in the order the port answered them", :aggregate_failures do
+      runtime = boot_domain(bluebook: listed_with(%(where(title: { in: "a,c" }))), hecksagon: listed_hecksagon,
+                            body: listed_body)
+
+      expect(runtime.query("Lookup::Note.Listed")).to eq([{ title: "a" }, { title: "c" }])
+      expect(runtime.reference_query("Lookup::Note.Listed")).to eq([{ title: "a" }, { title: "c" }])
+    end
+
+    it "returns every row when the where admits them all" do
+      runtime = boot_domain(bluebook: listed_with(%(where(title: { in: "a,b,c" }))), hecksagon: listed_hecksagon,
+                            body: listed_body)
+
+      expect(runtime.query("Lookup::Note.Listed").size).to eq(3)
+    end
+
+    it "returns no row when the where admits none" do
+      runtime = boot_domain(bluebook: listed_with(%(where(title: "z"))), hecksagon: listed_hecksagon, body: listed_body)
+
+      expect(runtime.query("Lookup::Note.Listed")).to eq([])
+    end
+
+    it "still refuses a malformed row that a where would have dropped" do
+      body = "#{ECHOER_BODY}\ndef listed = [{ title: \"a\" }, { title: \"\" }]\n"
+      runtime = boot_domain(bluebook: listed_with(%(where(title: "a"))), hecksagon: listed_hecksagon, body: body)
+
+      expect { runtime.query("Lookup::Note.Listed") }
+        .to raise_error(Hecks::Runtime::InvariantViolation, /Note\.Listed answered outside the domain.*a listing is titled/)
+    end
+  end
+
   describe "at boot, a query has exactly one answer path" do
     def expect_refusal(message, **options)
       expect { boot_domain(**options) }.to raise_error(Hecks::Runtime::WiringError, message)
@@ -364,9 +413,15 @@ RSpec.describe "a query answered by a port the hecksagon binds" do
                                                       %(answers_query "Sight"\n        answers_query "Recent")))
     end
 
-    it "refuses a returning query that also declares a where, since the where could not be used" do
-      expect_refusal(/Lookup::Note\.Echo has two answer paths: it is bound to the Echoer port but also declares where/,
-                     bluebook: echo_with("where(title: :title)\n      returns Heard"))
+    it "refuses a where that names a field the returned value object does not declare" do
+      expect { boot_domain(bluebook: listed_with(%(where(nope: "a"))), hecksagon: listed_hecksagon, body: listed_body) }
+        .to raise_error(Hecks::Bluebook::DSL::Malformed, /Note\.Listed asks about nope, which Listing never declares/)
+    end
+
+    it "refuses order_by, limit or offset on a bound query, which only stored records take" do
+      expect_refusal(/Lookup::Note\.Listed is bound to the Echoer port but declares order_by, limit or offset/,
+                     bluebook: listed_with("where(title: { in: \"a\" })\n          limit 1"),
+                     hecksagon: listed_hecksagon, body: listed_body)
     end
 
     it "refuses a returned value object the aggregate does not declare" do

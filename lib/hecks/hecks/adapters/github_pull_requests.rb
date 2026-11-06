@@ -67,7 +67,27 @@ module Hecks
         { text: "#{status_lines(view).join("\n")}\n" }
       end
 
+      # The timeline of one pull request: every entry GitHub recorded, as `kind`, `actor` and `at`
+      # rows, oldest first. The query's `where` picks the kinds it reports, so none are dropped
+      # here. Read-only: the only calls are `gh pr view` and a GET of the timeline.
+      #
+      # @param held [Hash] the query's arguments: `number` (required)
+      # @return [Array<Hash{Symbol => String}>] one `kind:`/`actor:`/`at:` row per timeline entry
+      # @raise [ConsoleCapture::Failure] when no number is named, the number is not a pull request,
+      #   or GitHub refuses
+      def timeline(**held)
+        number = pull_request_number(held[:number], "read")
+        gh!("pr", "view", number, "--json", "number")
+        events = JSON.parse(gh!("api", "repos/{owner}/{repo}/issues/#{number}/timeline", "--paginate", "--slurp"))
+
+        events.flatten.map { |event| timeline_row(event) }
+      end
+
       private
+
+      def timeline_row(event)
+        { kind: event["event"].to_s, actor: event.dig("actor", "login").to_s, at: event["created_at"].to_s }
+      end
 
       def plain(argument) = argument.is_a?(Hash) ? argument[:value] : argument
 

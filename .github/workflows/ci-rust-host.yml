@@ -153,14 +153,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          for _ in $(seq 1 90); do
+          for _ in $(seq 1 300); do
             # --paginate runs --jq once per page, so list the names and count the lines
             found=$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts?per_page=100" \
                     --jq '.artifacts[] | select(.name | startswith("host-wasm-")) | .name' | wc -l | tr -d ' ')
             [ "$found" = "3" ] && exit 0
             sleep 2
           done
-          echo "the host-wasm artifacts were not uploaded within 180s" >&2
+          echo "the host-wasm artifacts were not uploaded within 600s" >&2
           exit 1
 
       - uses: actions/download-artifact@v4

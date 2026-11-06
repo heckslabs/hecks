@@ -17,7 +17,8 @@ module Hecks
         # the value object the query `returns`, so an answer that is not that shape is refused
         # before it enters the domain. The aggregate's records are never read.
         #
-        # @return [Array<Hash>] the rows as the returned value object's fields, frozen
+        # @return [Array<Hash>] the rows the query's `where` clauses admit, as the returned value
+        #   object's fields, frozen
         # @raise [Runtime::WiringError] if no adapter answers the port or the adapter lacks the
         #   method
         # @raise [Runtime::TypeMismatch, Runtime::InvariantViolation, Runtime::UnknownArgument,
@@ -32,7 +33,14 @@ module Hecks
           AdapterLookup.check_answers!(klass, port.name, method, declared, asked: asked)
 
           answer = adapter.public_send(method, **Value.materialize(args))
-          Freezer.deep(shaped(aggregate, declared, answer, asked))
+          Freezer.deep(admitted(declared, shaped(aggregate, declared, answer, asked), args))
+        end
+
+        # The rows an outside answer keeps: those its declared `where` clauses admit. Every row is
+        # shaped first, so a malformed row is refused even when a where would have dropped it. A
+        # where reads the row's own fields, as it reads a stored record's.
+        def admitted(declared, rows, args)
+          rows.select { |row| declared.wheres.all? { |clause| where_holds?(clause, row, args) } }
         end
 
         # Refuses arguments the adapter cannot be handed: a required one left out, or one the query

@@ -94,16 +94,18 @@ module Hecks
           AdapterLookup.check_answers!(klass, port.name, Naming.snake(query.hecks_name), query, asked: where)
         end
 
-        # A bound query returns a value object and filters no stored records.
+        # A bound query returns a value object. Its `where` clauses filter the rows the port returns
+        # (the bluebook seals each field against that value object); order_by, limit and offset take
+        # stored records only.
         def refuse_unanswerable_binding!(where, port, query)
           unless query.returns
             raise WiringError, "#{where} is bound to the #{port.name} port but returns nothing — " \
                                "declare the value object its answer takes with `returns`"
           end
-          return unless filters_records?(query)
+          return unless query.order_by || query.limit || query.offset
 
-          raise WiringError, "#{where} has two answer paths: it is bound to the #{port.name} port but " \
-                             "also declares where, order_by or limit over stored records"
+          raise WiringError, "#{where} is bound to the #{port.name} port but declares order_by, limit " \
+                             "or offset, which only stored records take"
         end
 
         def refuse_authorized_binding!(where, port, query)
