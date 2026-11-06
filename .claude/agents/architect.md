@@ -23,7 +23,7 @@ You review plans, not code. A plan says what will be built and where; you say wh
 
 ## What to return
 
-1. A verdict in one sentence: sound, sound with changes, or rethink. Then one line naming the smallest version of the proposal that still meets its goal (S2).
+1. A verdict in one sentence: sound, sound with changes, or rethink. Then one line naming the smallest version of the proposal that still meets its goal (S2). End your closing message with a last line that reads exactly `Verdict: sound`, `Verdict: sound with changes` or `Verdict: rethink`; the board keeps only the tail of what you write, and reads that line to record your review.
 2. Findings, most severe first. Each has the plan's line, the rule (lens and number from the rubric), the evidence, and the change.
 3. What you could not check, and which findings a check would confirm.
 4. Anything in the plan worth keeping, in a line, only if it is not obvious.

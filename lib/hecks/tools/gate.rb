@@ -78,6 +78,9 @@ module Hecks
         session = GateMemo::Session.new(root: root, env: stage.fetch("env", {}))
         plan = session.plan(checks)
         results = run_all(stage, plan.run, root, progress)
+        # Every selected check must come back with a result, ran or skipped as unchanged; the
+        # counts say so for the GateRun record to check.
+        puts "gate-counts expected=#{checks.size} recorded=#{results.size + plan.skipped.size}"
         GateReport.report(name, plan, results, session.record(results))
       end
 
