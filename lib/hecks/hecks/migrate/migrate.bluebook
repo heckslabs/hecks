@@ -60,13 +60,9 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, matches: :not_empty
       end
 
-      value_object "Switch" do
-        attribute :value, Boolean
-      end
+      value_object "Switch", Boolean
 
-      value_object "Count" do
-        attribute :value, Integer
-      end
+      value_object "Count", Integer
 
       # The rehearsal verdict a mint was asked with: the one the caller read, compared with the decision.
       value_object "MintVerdict" do
@@ -75,13 +71,9 @@ Hecks.bluebook "Hecks" do
       end
 
       # The ledger watermark a mint was asked at: the newest held era's ordinal.
-      value_object "Watermark" do
-        attribute :value, Integer
-      end
+      value_object "Watermark", Integer
 
-      value_object "Report" do
-        attribute :value, String
-      end
+      value_object "Report", String
 
       lifecycle :status, default: "requested" do
         mark :failure, "refused"
@@ -742,9 +734,7 @@ Hecks.bluebook "Hecks" do
         attribute :journal,   Integer
       end
 
-      value_object "Switch" do
-        attribute :value, Boolean
-      end
+      value_object "Switch", Boolean
 
       value_object "Count" do
         attribute :value, Integer
@@ -798,9 +788,7 @@ Hecks.bluebook "Hecks" do
         end
       end
 
-      value_object "Report" do
-        attribute :value, String
-      end
+      value_object "Report", String
 
       # Only the first rows are held, so a domain with a million stale rows is a report, not a
       # flood; the total says how many there were.

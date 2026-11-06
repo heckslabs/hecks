@@ -41,15 +41,11 @@ Hecks.bluebook "ConsoleSettings" do
       invariant("names something") { !value.to_s.empty? }
     end
 
-    value_object "Flag" do
-      attribute :value, String
-    end
+    value_object "Flag", String
 
     # Wraps extra_json's opaque JSON text — a bare `String` fails directly on
     # an aggregate/command attribute (see the `Flag` comment above).
-    value_object "StateStyleExtra" do
-      attribute :value, String
-    end
+    value_object "StateStyleExtra", String
 
     command "Declare" do
       role "Console"
@@ -116,14 +112,10 @@ Hecks.bluebook "ConsoleSettings" do
       invariant("names something") { !value.to_s.empty? }
     end
 
-    value_object "SettingsNumber" do
-      attribute :value, Integer
-    end
+    value_object "SettingsNumber", Integer
 
     # Opaque JSON text; a bare `String` fails on an attribute directly.
-    value_object "CollectionExtra" do
-      attribute :value, String
-    end
+    value_object "CollectionExtra", String
 
     command "Declare" do
       role "Console"
@@ -218,9 +210,7 @@ Hecks.bluebook "ConsoleSettings" do
       invariant("names something") { !value.to_s.empty? }
     end
 
-    value_object "IdentityExtra" do
-      attribute :value, String
-    end
+    value_object "IdentityExtra", String
 
     command "Declare" do
       role "Console"

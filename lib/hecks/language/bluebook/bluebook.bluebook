@@ -51,9 +51,7 @@ Hecks.bluebook "Bluebook", version: "1" do
       attribute :aggregate, String
     end
 
-    value_object "ModuleText" do
-      attribute :value, String
-    end
+    value_object "ModuleText", String
 
     value_object "Provision" do
       attribute :capability, String
@@ -61,9 +59,7 @@ Hecks.bluebook "Bluebook", version: "1" do
       attribute :verb,       String
     end
 
-    value_object "ProvisionText" do
-      attribute :value, String
-    end
+    value_object "ProvisionText", String
 
     value_object "RuleText" do
       # deliberately permissive : source_token and replacement are legitimately

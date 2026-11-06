@@ -20,6 +20,20 @@ module Hecks
         @directory = File.expand_path(directory || DIRECTORY)
       end
 
+      # The tail of what the session wrote last: the `text` of the job's last timeline entry, which
+      # the state file's summary does not carry.
+      #
+      # @param session [String] the session's id, which names its job's directory
+      # @return [String] that text, or empty when the job keeps no timeline or it cannot be read
+      def closing(session)
+        path = File.join(@directory, session.to_s, "timeline.jsonl")
+        return "" unless File.file?(path)
+
+        JSON.parse(File.readlines(path).last.to_s)["text"].to_s
+      rescue JSON::ParserError
+        ""
+      end
+
       # @param session [String] the session's id, which names its job's directory
       # @return [Hash{String => Object}] the job's state file, parsed
       # @raise [ConsoleCapture::Failure] when the session names no job, or its state cannot be read

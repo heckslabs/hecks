@@ -26,9 +26,7 @@ Hecks.bluebook "Banking" do
       invariant("a card serial is present") { !value.to_s.empty? }
     end
 
-    value_object "CardNickname" do
-      attribute :value, String
-    end
+    value_object "CardNickname", String
 
     value_object "DailyFee" do
       attribute :amount, Float, default: 0.0

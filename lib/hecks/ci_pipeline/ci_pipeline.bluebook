@@ -52,9 +52,7 @@ Hecks.bluebook "CiPipeline" do
       invariant("a workflow is named by its file") { !value.to_s.empty? }
     end
 
-    value_object "WorkflowText" do
-      attribute :value, String
-    end
+    value_object "WorkflowText", String
 
     # The events the projector writes under `on:`. `schedule` is not here: its cron text is not
     # expressible yet, so the scheduled workflows stay hand-written.
@@ -67,9 +65,7 @@ Hecks.bluebook "CiPipeline" do
       attribute :value, String, pattern: '^[A-Z][A-Z0-9_]*$'
     end
 
-    value_object "Switch" do
-      attribute :value, Boolean
-    end
+    value_object "Switch", Boolean
 
     # A digest of the projected YAML, or of the committed file: a hex SHA-256.
     value_object "ProjectionDigest" do
@@ -349,9 +345,7 @@ Hecks.bluebook "CiPipeline" do
       attribute :value, String, default: ""
     end
 
-    value_object "Switch" do
-      attribute :value, Boolean
-    end
+    value_object "Switch", Boolean
 
     command "Declare" do
       role "CI engineer"
@@ -486,9 +480,7 @@ Hecks.bluebook "CiPipeline" do
       invariant("a job is named") { !value.to_s.empty? }
     end
 
-    value_object "Switch" do
-      attribute :value, Boolean
-    end
+    value_object "Switch", Boolean
 
     value_object "GateName" do
       attribute :value, String, default: ""

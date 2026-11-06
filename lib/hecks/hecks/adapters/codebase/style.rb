@@ -4,6 +4,7 @@ require "json"
 require_relative "tree"
 require_relative "ruby_child"
 require "hecks/canonical_json"
+require "hecks/tools/value_object_shorthand"
 
 module Hecks
   module Adapters
@@ -19,7 +20,7 @@ module Hecks
       module Style
         # Every operation this family carries out.
         OPERATIONS = %w[check_comments fix_comments write_comment_baseline check_comments_unchanged
-                        check_rust_comments fix_rust_comments canonicalise].freeze
+                        check_rust_comments fix_rust_comments canonicalise shorten_value_objects].freeze
 
         # The categories a fix rewrites, in both linters.
         FIXABLE = "all_caps,long_bold,long_line"
@@ -29,6 +30,9 @@ module Hecks
 
         # The paths a code-unchanged check looks at when none are named.
         UNCHANGED_PATHS = ["lib"].freeze
+
+        # The operations that run in this process, not through a linter, and the method for each.
+        IN_PROCESS = { "canonicalise" => :canonical, "shorten_value_objects" => :shorten_value_objects }.freeze
 
         # The linter each operation runs.
         SCRIPTS = { "check_rust_comments"  => "standardize_comments_rust",
@@ -48,7 +52,7 @@ module Hecks
         #   refused
         def call(operation, held, tree, shell: nil)
           args = held.transform_values { |value| value.is_a?(Hash) ? value[:value] : value }
-          return canonical(args, tree) if operation == "canonicalise"
+          return public_send(IN_PROCESS[operation], args, tree) if IN_PROCESS.key?(operation)
 
           child = RubyChild.new(tree)
           case operation
@@ -73,6 +77,27 @@ module Hecks
           flags.push("--top", args[:top].to_s) if args[:top]
           paths = after_separator(paths_of(args))
           RubyChild.new(tree).answer(script_of(operation), *flags, *paths)
+        end
+
+        # Rewrites bare value object blocks as the shorthand, or, unconfirmed, only counts them.
+        #
+        # @param args [Hash] the record's plain fields: `paths`, `confirm`
+        # @param tree [Tree] the checkout
+        # @return [String] what was rewritten, or what a rewrite would change
+        def shorten_value_objects(args, tree)
+          write = args[:confirm] == true
+          found = Tools::ValueObjectShorthand.shorten(paths_of(args), root: tree.root, write: write)
+          return "no bare value object blocks" if found.empty?
+
+          "#{shortening_lead(found, write)}\n#{found.map { |file, count| "#{file}: #{count}" }.join("\n")}"
+        end
+
+        # @param found [Hash{String => Integer}] each file's count of blocks
+        # @param write [Boolean] whether the files were rewritten
+        # @return [String] the first line of the report
+        def shortening_lead(found, write)
+          counts = "#{found.values.sum} value objects in #{found.size} files"
+          write ? "rewrote #{counts}" : "dry run, #{counts} (add --confirm to rewrite)"
         end
 
         # @param args [Hash] the record's plain fields

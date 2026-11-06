@@ -120,9 +120,7 @@ Hecks.bluebook "Catcher" do
     # or invariant. For a command, lifecycle or invariant, the text is meant to sit inside the
     # aggregate named by aggregate_name; for an aggregate, the text is that aggregate. Text for a
     # person to read and paste; nothing here evaluates it.
-    value_object "Proposal" do
-      attribute :value, String
-    end
+    value_object "Proposal", String
 
     # command, lifecycle or invariant: the proposal text is meant to sit inside the aggregate
     # named by aggregate_name. aggregate: the proposal text is meant to be that aggregate.
@@ -232,9 +230,7 @@ Hecks.bluebook "Catcher" do
     end
 
     # The identifier of the Work row this action started, when one was started for it.
-    value_object "WorkKey" do
-      attribute :value, String
-    end
+    value_object "WorkKey", String
 
     # Started is the only phase the model declares; more may be added.
     value_object "ActionPhase" do

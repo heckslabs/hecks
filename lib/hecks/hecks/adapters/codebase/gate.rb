@@ -29,7 +29,19 @@ module Hecks
           plain = ->(name) { held[name].is_a?(Hash) ? held[name][:value] : held[name] }
           only = plain.call(:only).to_s
           argv = [plain.call(:stage).to_s, *("only=#{only}" unless only.empty?)]
-          RubyChild.new(tree).answer("gate", *argv).strip
+          out = RubyChild.new(tree).answer("gate", *argv).strip
+          { report: { value: out } }.merge(counts_of(out))
+        end
+
+        # The counts the gate tool prints for the verdict; a run that printed none claims zero.
+        COUNTS_LINE = /^gate-counts expected=(\d+) recorded=(\d+)$/
+
+        # @param out [String] the gate's standard output
+        # @return [Hash] `expected:` and `recorded:`, each a value object's value
+        def counts_of(out)
+          match = COUNTS_LINE.match(out)
+          expected, recorded = match ? match.captures : %w[0 0]
+          { expected: { value: expected }, recorded: { value: recorded } }
         end
       end
     end

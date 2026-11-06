@@ -5,8 +5,13 @@ Hecks.hecksagon "Hecks" do
   # Expression, Tenancy, Deploy, Site, Tickets, Composer and QualityControl (the last three bring
   # their own ports), and Coder and Fixer, whose events Tickets and QualityControl react to.
   %w[Bluebook Hecksagon World Adapter Port Translation Expression Tenancy Deploy Site Tickets Composer QualityControl
-     Coder Fixer PipelineBoard Pipeline]
+     Coder Fixer PipelineBoard Pipeline Agents]
     .each { |declaration| attaches declaration }
+  # An architect review asked for by event starts a session through AgentRun (see
+  # StartTheArchitectOnReviewRequest in the delegate bluebook).
+  subscribe "Agents.PlanReviewRequested"
+  subscribe "Agents.PlanningRequested"
+  subscribe "Agents.SubmissionReviewRequested"
   # Persistence is not bound here, so the domain is in Memory. A copy opts in with a
   # hecks.local.hecksagon whose `persisted_by` the attached bluebooks inherit (ADR 0136).
 
@@ -1025,5 +1030,41 @@ Hecks.hecksagon "QualityControl" do
     end
     trigger Maintenance::RecordRehearsalVerdict, with: { run: :run, domain: :rehearsed_domain,
                                                           watermark: :watermark, rehearsal_verdict: "would_mint" }
+  end
+end
+
+# The architect's session closes with a verdict, which the adapter reads off the job: JobRead carries
+# it, and the plan review records it. The run's key is the Work item, so it names the review.
+Hecks.hecksagon "Agents" do
+  subscribe "Hecks.JobRead"
+  subscribe "Coder.WorkSubmitted"
+  subscribe "Pipeline.PassageVerified"
+
+  # The coder hands in a branch: the reviewer is asked to judge it. The branch is named for the Work item,
+  # the review is keyed by the commit, and the session works in the checkout the event was raised in.
+  translates "AskTheReviewerWhenWorkIsSubmitted" do
+    on Submission::WorkSubmitted
+    trigger SubmissionReview::Request, with: { submission: :sha, work: :branch, brief: :branch, hops: 1,
+                                               role: "reviewer", repo: "." }
+  end
+
+  # The reviewer's session closes with its judgment, which the adapter reads off the job; the run's key
+  # is the submitted commit, so it names the review.
+  translates "RecordTheReviewersJudgment" do
+    on AgentRun::JobRead
+    where { judgment != "" && previous != state }
+    trigger SubmissionReview::Judge, with: { submission: :run, judgment: :judgment }
+  end
+
+  # Main is green on a change: the release manager recommends promoting it. A person confirms.
+  translates "RecommendPromotionWhenVerified" do
+    on Passage::PassageVerified
+    trigger PromotionRecommendation::Recommend, with: { change: :change, reasons: "main is green on this change" }
+  end
+
+  translates "RecordTheArchitectsVerdict" do
+    on AgentRun::JobRead
+    where { verdict != "" && previous != state }
+    trigger PlanReview::Answer, with: { work: :run, verdict: :verdict, findings: :findings }
   end
 end

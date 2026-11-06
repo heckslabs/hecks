@@ -15,17 +15,11 @@ Hecks.bluebook "ContextMap" do
       invariant("a context map names its system") { !value.to_s.empty? }
     end
 
-    value_object "ContextBody" do
-      attribute :value, String
-    end
+    value_object "ContextBody", String
 
-    value_object "RelationshipBody" do
-      attribute :value, String
-    end
+    value_object "RelationshipBody", String
 
-    value_object "SeparateWaysBody" do
-      attribute :value, String
-    end
+    value_object "SeparateWaysBody", String
 
     command "Declare" do
       role "Architect"

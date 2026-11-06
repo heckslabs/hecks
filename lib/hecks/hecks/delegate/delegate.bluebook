@@ -37,9 +37,7 @@ Hecks.bluebook "Hecks" do
       end
 
       # What the session is asked to do. It may span lines; the dispatch refuses one that is blank.
-      value_object "Brief" do
-        attribute :value, String
-      end
+      value_object "Brief", String
 
       # A custom agent's name. It starts with a letter or digit, so it cannot be taken for a flag.
       value_object "AgentName" do
@@ -51,24 +49,16 @@ Hecks.bluebook "Hecks" do
       end
 
       # What a session reported about itself the last time it was asked.
-      value_object "Condition" do
-        attribute :value, String
-      end
+      value_object "Condition", String
 
-      value_object "Report" do
-        attribute :value, String
-      end
+      value_object "Report", String
 
       # When the outside removed a session, as the port reports it.
-      value_object "Moment" do
-        attribute :value, String
-      end
+      value_object "Moment", String
 
       # The directory a session works in, written with its trailing slash, so a watch that filters
       # on a checkout's directory matches the checkout and every worktree under it.
-      value_object "Checkout" do
-        attribute :value, String
-      end
+      value_object "Checkout", String
 
       lifecycle :status, default: "requested" do
         mark :failure, "refused"
@@ -313,9 +303,7 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, matches: :not_empty
       end
 
-      value_object "Switch" do
-        attribute :value, Boolean
-      end
+      value_object "Switch", Boolean
 
       value_object "Minutes" do
         attribute :value, Integer
@@ -327,9 +315,7 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, matches: :present
       end
 
-      value_object "Outcome" do
-        attribute :value, String
-      end
+      value_object "Outcome", String
 
       lifecycle :status, default: "requested" do
         mark :failure, "refused"
@@ -537,6 +523,27 @@ Hecks.bluebook "Hecks" do
       trigger AgentRun::Retain, with: { refusal: :refusal }
     end
 
+    # A plan review asked for by event starts the named role's session as a run, keyed by the Work
+    # item, with the plan as its brief.
+    policy "StartTheRoleOnReviewRequest" do
+      on      "PlanReview.PlanReviewRequested"
+      trigger AgentRun::Dispatch, with: { run: :work, repo: :repo, brief: :plan, agent: :role }
+    end
+
+    # A planning request starts the planner's session as a run keyed by the request, with the goal as
+    # its brief. The planner drafts a plan and asks; it creates Work items only once the owner says so.
+    # A submission review starts the reviewer's session as a run keyed by the submitted commit, so it
+    # never collides with the architect's run for the same Work item. The brief names the branch.
+    policy "StartTheReviewerOnReviewRequest" do
+      on      "SubmissionReview.SubmissionReviewRequested"
+      trigger AgentRun::Dispatch, with: { run: :submission, repo: :repo, brief: :brief, agent: :role }
+    end
+
+    policy "StartThePlannerOnPlanningRequest" do
+      on      "Planning.PlanningRequested"
+      trigger AgentRun::Dispatch, with: { run: :plan, repo: :repo, brief: :goal, agent: :role }
+    end
+
     # A session the board started by hand has no run to tidy, so it is removed on its own. The
     # rule is the same as Tidy's: only a finished session that waits on nobody goes.
     aggregate "PlainSession" do
@@ -551,9 +558,7 @@ Hecks.bluebook "Hecks" do
         invariant("a session has an id") { !value.to_s.empty? }
       end
 
-      value_object "SessionCondition" do
-        attribute :value, String
-      end
+      value_object "SessionCondition", String
 
       command "Remove" do
         role "Operator"

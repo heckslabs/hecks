@@ -20,7 +20,7 @@ module Hecks
                deploy/bluebook/*.bluebook site/bluebook/*.bluebook rails_app/bluebook/*.bluebook tickets/bluebook/*.bluebook
                composer/bluebook/*.bluebook quality_control/*.bluebook fixer/*.bluebook coder/*.bluebook
                bulk/bluebook/*.bluebook ci_pipeline/*.bluebook pipeline_board/*.bluebook
-               pipeline/*.bluebook].freeze
+               pipeline/*.bluebook agents/*.bluebook].freeze
 
     # A `Hecks.bluebook "Name"` header line, capturing the bluebook's name.
     BLUEBOOK_HEADER = /\A\s*Hecks\.bluebook\s+"([^"]+)"/

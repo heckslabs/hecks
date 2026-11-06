@@ -25,9 +25,7 @@ Hecks.bluebook "GeneratedReactionWording" do
       invariant("a LineLabel is not blank") { !value.to_s.empty? }
     end
 
-    value_object "DeskScore" do
-      attribute :value, Integer
-    end
+    value_object "DeskScore", Integer
 
     lifecycle :status, default: "open" do
       transition "Close" => "closed", from: "open"

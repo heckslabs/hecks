@@ -51,9 +51,7 @@ Hecks.bluebook "Bulk" do
       attribute :reason,  String, optional: true
     end
 
-    value_object "Report" do
-      attribute :value, String
-    end
+    value_object "Report", String
 
     lifecycle :status, default: "requested" do
       mark :failure, "declined"

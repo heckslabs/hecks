@@ -18,9 +18,7 @@ Hecks.bluebook "GeneratedKeywordAggregate" do
       invariant("a CrateCode is not blank") { !value.to_s.empty? }
     end
 
-    value_object "CrateScore" do
-      attribute :value, Integer
-    end
+    value_object "CrateScore", Integer
 
     value_object "CrateNote" do
       attribute :value, String, matches: :present

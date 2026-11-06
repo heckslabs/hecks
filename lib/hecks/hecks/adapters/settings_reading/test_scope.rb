@@ -20,7 +20,9 @@ module Hecks
         end
 
         def wording(declared)
-          "full suite in #{declared[:suite_runs_in]}; at most #{declared[:spec_files_limit]} spec files per call locally"
+          cap = declared[:spec_files_limit]
+          calls = cap ? "at most #{cap} spec files per call locally" : "no cap on spec files per call"
+          "full suite in #{declared[:suite_runs_in]}; #{calls}"
         end
       end
     end

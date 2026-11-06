@@ -76,13 +76,9 @@ Hecks.bluebook "Expression" do
       invariant("an operator sits somewhere in its grammar's check order") { value > 0 }
     end
 
-    value_object "Target" do
-      attribute :value, String
-    end
+    value_object "Target", String
 
-    value_object "Form" do
-      attribute :value, String
-    end
+    value_object "Form", String
 
     value_object "Rendering" do
       attribute :target, String
@@ -178,13 +174,9 @@ Hecks.bluebook "Expression" do
       invariant("a rule names a strategy") { !value.to_s.empty? }
     end
 
-    value_object "SourceToken" do
-      attribute :value, String
-    end
+    value_object "SourceToken", String
 
-    value_object "Replacement" do
-      attribute :value, String
-    end
+    value_object "Replacement", String
 
     value_object "Boundary" do
       attribute :value, String, default: "none"
@@ -196,13 +188,9 @@ Hecks.bluebook "Expression" do
       invariant("a rule sits somewhere in the order") { value > 0 }
     end
 
-    value_object "Target" do
-      attribute :value, String
-    end
+    value_object "Target", String
 
-    value_object "Form" do
-      attribute :value, String
-    end
+    value_object "Form", String
 
     value_object "Rule" do
       attribute :strategy,     String
@@ -307,13 +295,9 @@ Hecks.bluebook "Expression" do
       invariant("a predicate says what it is for") { !value.to_s.empty? }
     end
 
-    value_object "Source" do
-      attribute :value, String
-    end
+    value_object "Source", String
 
-    value_object "Canonical" do
-      attribute :value, String
-    end
+    value_object "Canonical", String
 
     value_object "Subject" do
       attribute :value, String

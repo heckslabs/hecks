@@ -403,9 +403,7 @@ Hecks.bluebook "QualityControl" do
 
     # Restated on a surprise so the event carries it: an event holds only its dispatched arguments,
     # and `SuspendOnSurprise` needs a `Target` to address.
-    value_object "TargetRef" do
-      attribute :value, String
-    end
+    value_object "TargetRef", String
 
     value_object "CheckSequence" do
       attribute :value, Integer
@@ -414,9 +412,7 @@ Hecks.bluebook "QualityControl" do
 
     # Plain text, no pattern: a test file is newlines by construction and tool output is whatever
     # the tool said.
-    value_object "Listing" do
-      attribute :value, String
-    end
+    value_object "Listing", String
 
     value_object "Subject" do
       attribute :value, String, matches: :present
@@ -429,9 +425,7 @@ Hecks.bluebook "QualityControl" do
       invariant("a check says what it expected") { !value.to_s.empty? }
     end
 
-    value_object "Observation" do
-      attribute :value, String
-    end
+    value_object "Observation", String
 
     # One comparison. An entity: a check has its own identity, verbs and lifecycle, and only makes
     # sense inside the sweep that made it. `Surprising` answers "every surprising check, any
@@ -863,9 +857,7 @@ Hecks.bluebook "QualityControl" do
       attribute :value, String, pattern: '^[a-z0-9]+(-[a-z0-9]+)+$'
     end
 
-    value_object "SweepRef" do
-      attribute :value, String
-    end
+    value_object "SweepRef", String
 
     value_object "Engineer" do
       attribute :value, String, default: "nobody"
@@ -1432,13 +1424,9 @@ Hecks.bluebook "QualityControl" do
       invariant("an issue number is not negative") { !value.negative? }
     end
 
-    value_object "IssueUrl" do
-      attribute :value, String
-    end
+    value_object "IssueUrl", String
 
-    value_object "RefusalText" do
-      attribute :value, String
-    end
+    value_object "RefusalText", String
 
     # Three tries, then a human. The cap is on the record because a policy carries no state.
     value_object "AttemptCount" do
@@ -1451,9 +1439,7 @@ Hecks.bluebook "QualityControl" do
       invariant("a filing is attempted at least once") { value.positive? }
     end
 
-    value_object "BugRef" do
-      attribute :value, String
-    end
+    value_object "BugRef", String
 
     # Raising and sending are two verbs: a crash between them leaves a `Raised` row, not a false
     # filing. `Submit` is non-creating, so `TicketSubmitted` carries `{ id: ... }`, which a
@@ -1670,9 +1656,7 @@ Hecks.bluebook "QualityControl" do
       invariant("a patch is titled") { !value.to_s.empty? }
     end
 
-    value_object "BugRef" do
-      attribute :value, String
-    end
+    value_object "BugRef", String
 
     # Both endings are terminal: a merged PR does not reopen, and neither does the ledger's memory
     # of a closed one.
@@ -1869,9 +1853,7 @@ Hecks.bluebook "QualityControl" do
       invariant("an improvement is titled") { !value.to_s.empty? }
     end
 
-    value_object "AngleRef" do
-      attribute :value, String
-    end
+    value_object "AngleRef", String
 
     # `Merge` and `Close` are reachable from "opened" too: GitHub does not wait for a `Land`, and a
     # proof-only PR can be closed while still "opened" (`retire_if_settled?` hit
@@ -2193,9 +2175,7 @@ Hecks.bluebook "QualityControl" do
     end
 
     # The era a mint created, as the Minted event carries it.
-    value_object "MintedEra" do
-      attribute :value, Integer
-    end
+    value_object "MintedEra", Integer
 
     # Opens a run for a submitted commit of main; the gate is the first step it asks for.
     command "Start" do
@@ -2273,15 +2253,11 @@ Hecks.bluebook "QualityControl" do
 
     # The confirmation of a mint: the owner's `--confirm` flag, which the launcher reads as a Boolean. A mint
     # the auto-mint rule covers runs without it; every other mint needs it.
-    value_object "Confirmation" do
-      attribute :value, Boolean
-    end
+    value_object "Confirmation", Boolean
 
     # Why a mint was refused, as the refusal the mint entry point names. A held mint says "needs owner
     # approval", which the approval policy reads.
-    value_object "MintRefusal" do
-      attribute :value, String
-    end
+    value_object "MintRefusal", String
 
     # The single entry point for a mint of a domain's next era. It is the only command that asks for a mint:
     # a boot never mints, and the mint names the commit its landing puts on main, so the ledger and main move

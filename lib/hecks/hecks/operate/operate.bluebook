@@ -34,9 +34,7 @@ Hecks.bluebook "Hecks" do
       attribute :refusal,      Output,     optional: true
       identified_by :run
 
-      value_object "Switch" do
-        attribute :value, Boolean
-      end
+      value_object "Switch", Boolean
 
       # The delivery id an outbox row carries, as the stalled-row warning at boot names it.
       value_object "RowId" do
@@ -54,18 +52,14 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, matches: :not_empty
       end
 
-      value_object "Script" do
-        attribute :value, String
-      end
+      value_object "Script", String
 
       value_object "Verb" do
         attribute :value, String, matches: :present
       end
 
       # One `name=value` word of the verb a run dispatches.
-      value_object "Word" do
-        attribute :value, String
-      end
+      value_object "Word", String
 
       value_object "Address" do
         attribute :value, String, matches: :http_scheme
@@ -83,17 +77,13 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, pattern: '^(timestamped|sha256|hex)$'
       end
 
-      value_object "Payload" do
-        attribute :value, String
-      end
+      value_object "Payload", String
 
       value_object "PayloadFile" do
         attribute :value, String, matches: :not_empty
       end
 
-      value_object "Output" do
-        attribute :value, String
-      end
+      value_object "Output", String
 
       # Who the first administrator is: a person of the domain's membership bluebook.
       value_object "Email" do
@@ -434,17 +424,13 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, matches: :present
       end
 
-      value_object "VersionText" do
-        attribute :value, String
-      end
+      value_object "VersionText", String
 
       value_object "Verdict" do
         attribute :value, String, pattern: '^(match|unlisted|mismatch)$'
       end
 
-      value_object "Report" do
-        attribute :value, String
-      end
+      value_object "Report", String
 
       lifecycle :status, default: "requested" do
         mark :failure, "drifted", "unreachable"

@@ -6,6 +6,7 @@ require "time"
 require_relative "console_capture"
 require_relative "claude_transcript"
 require_relative "claude_jobs"
+require_relative "architect_verdict"
 require_relative "claude_agent_list"
 require_relative "dispatching/settings"
 
@@ -84,8 +85,44 @@ module Hecks
       # @raise [ConsoleCapture::Failure] when the job's state cannot be read
       def read_job(**held)
         job = @jobs.state(plain(held[:session]))
-        { state: job["state"].to_s, detail: job["detail"].to_s, previous: plain(held[:condition]).to_s,
-          checkout: File.join(plain(held[:repo]).to_s, "") }
+        { state: job["state"].to_s, detail: job["detail"].to_s }.merge(architect_facts(job, held), reviewer_facts(job, held),
+                                                                       run_facts(held))
+      end
+
+      # The most of the architect's closing text a review keeps.
+      FINDINGS_LIMIT = 2000
+
+      # @return [Hash{Symbol => String}] the architect's `verdict` and its `findings` (its closing
+      #   text), both empty for any other agent
+      def architect_facts(job, held)
+        return { verdict: "", findings: "" } unless plain(held[:agent]).to_s == "architect"
+
+        text = closing_text(job, held)
+        { verdict: ArchitectVerdict.of(text), findings: text[0, FINDINGS_LIMIT] }
+      end
+
+      # @return [String] what the architect wrote last (the timeline's tail) with the job's summary
+      def closing_text(job, held)
+        [@jobs.closing(plain(held[:session])), job.dig("output", "result"), job["detail"]].compact.join("\n")
+      end
+
+      # The reviewer's judgment as its closing text states it: `real_bug` or `stale_expectation`.
+      JUDGMENT_WORDS = /\b(real[ _]bug|stale[ _]expectation)\b/i
+
+      # @return [Hash{Symbol => String}] the reviewer's `judgment`, empty for any other agent or a
+      #   text that names none
+      def reviewer_facts(job, held)
+        return { judgment: "" } unless plain(held[:agent]).to_s == "reviewer"
+
+        closing = [job.dig("output", "result"), job["detail"]].compact.join(" ")
+        { judgment: closing[JUDGMENT_WORDS, 1].to_s.downcase.tr(" ", "_") }
+      end
+
+      # @return [Hash{Symbol => String}] the run the job belongs to: its key, its last known
+      #   condition, and its directory with a trailing slash
+      def run_facts(held)
+        { previous: plain(held[:condition]).to_s, checkout: File.join(plain(held[:repo]).to_s, ""),
+          run: plain(held[:run]).to_s }
       end
 
       # Waits the settling time, then reads the job as {#read_job} does: a session that dies at
@@ -160,8 +197,11 @@ module Hecks
 
       def start_arguments(held)
         agent = plain(held[:agent])
-        [*niceness, @command, *(agent ? ["--agent", agent] : []), "--bg", "--", plain(held[:brief])]
+        [*niceness, @command, *(agent ? ["--agent", agent] : []), "--bg", "--", briefed(plain(held[:brief]), agent)]
       end
+
+      # @return [String] the brief, with the verdict format added for the architect
+      def briefed(brief, agent) = agent == "architect" ? "#{brief}#{ArchitectVerdict::REQUEST}" : brief.to_s
 
       def niceness = @session.nice ? ["nice", "-n", @session.nice.to_s] : []
 

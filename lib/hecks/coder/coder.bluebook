@@ -322,22 +322,16 @@ Hecks.bluebook "Coder" do
       invariant("a brief states an outcome") { !value.to_s.empty? }
     end
 
-    value_object "BriefDetail" do
-      attribute :value, String
-    end
+    value_object "BriefDetail", String
 
     # One path or module name the session may edit.
     value_object "AreaWord" do
       attribute :value, String, matches: :present
     end
 
-    value_object "BriefRules" do
-      attribute :value, String
-    end
+    value_object "BriefRules", String
 
-    value_object "BriefVerification" do
-      attribute :value, String
-    end
+    value_object "BriefVerification", String
 
     # The brief a coder session reads for the next planned Work item: the Brief keyed by that item.
     query "For" do
@@ -356,7 +350,7 @@ Hecks.bluebook "Coder" do
       attribute :area,    list_of(AreaWord), optional: true, sets: true
 
       sets :rules, to: "Map the whole picture before acting. Act on everything within the area. Stop only for (a) a risk of losing data, (b) an action the owner alone may take: a push, a mint, a release, deleting something that is not yours, or (c) a change outside the area. When stopped, report what was stuck first, then finish everything that does not depend on the stuck part."
-      sets :review, to: "Before you edit anything, have your plan reviewed. Write the plan: what you will build, which aggregates, commands, policies, ports, adapters and files it touches, and how it will be checked. Give it to the architect agent (the Agent tool, subagent type architect) and act on its verdict. Sound: build it. Sound with changes: revise the plan as its findings say, then build it. Rethink: edit nothing, hand the Work item back with exe/hecks tickets Work.yield! to={work} reason.value=\"architect: rethink. <its verdict and first finding>\" --wait, and end. Quote the verdict and each finding you acted on or set aside, with your reason, in your report."
+      sets :review, to: "Before you edit anything, have your plan reviewed. Write the plan: what you will build, which aggregates, commands, policies, ports, adapters and files it touches, and how it will be checked. Ask the architect by event: exe/hecks agents PlanReview.request! work.value={work} hops.value=1 role.value=architect repo.value=<your worktree's absolute path> plan.value=\"<the plan>\" --wait. A refusal that names the hop limit means a chain of reviews has gone too far: stop and report it. Then read the verdict with exe/hecks agents PlanReview.reviews and find {work}: it holds the verdict and the architect's findings once it has answered. If it holds none yet, wait a minute and read it again, for up to ten minutes; if there is still none, report that the architect did not answer and edit nothing. Act on the verdict. sound: build it. changes: revise the plan as its findings say, then build it. rethink: edit nothing, hand the Work item back with exe/hecks tickets Work.yield! to={work} reason.value=\"architect: rethink. <its verdict and first finding>\" --wait, and end. Quote the verdict and each finding you acted on or set aside, with your reason, in your report."
       sets :verification, to: "Run named specs only through the launcher: exe/hecks test_suite_run.run_spec_example! file.value=<spec> \"example.value= \" --wait. Do not run the full suite: it runs only in CI. Run at most {limit} spec files per call locally (test_suite_run.run_spec_files!), never a whole family. Never use git stash. Keep the quick gate green (exe/hecks gate_run.gate! stage=quick --wait) and RuboCop strict (methods at most 10 lines). Run the quick gate, specs and builds each as ONE blocking command with an explicit Bash timeout of up to 600000 ms; never as a background command with a monitor or poll loop. Run exe/hecks style_run.check_comments! paths=<one file> --wait for each Ruby file you touch."
       sets :workflow, to: "Pull main first, always: fetch origin, bring local main up to date, then cut the branch. Work in your own worktree named for the Work item: step 1 is exe/hecks LinkedTree.add! branch.value={work} --wait, which pulls main (a fast-forward, or a rebase of local main's unpushed commits when both moved; it refuses by name when the checkout is dirty) and cuts the branch from it. A session the harness started in a worktree (EnterWorktree cuts from origin/main, not local main) checks git merge-base --is-ancestor origin/main HEAD and rebases onto local main if not, after exe/hecks LinkedTree.pull_main! --wait. Rebase onto local main before landing: local main can hold work that is not pushed, and landing refuses a branch whose base is behind origin/main. Put no Claude attribution trailer in a commit message: no Co-Authored-By line and no Claude-Session line. A worktree that holds ignored files is kept after landing and reported: remove it by hand."
       sets :landing, to: "Regenerate only if a bluebook, hecksagon, Vocabulary row or generator changed: exe/hecks regeneration_run.regenerate_corpus! --confirm --wait, then --check. Run exe/hecks conformance_run.check_shape_ledger! --wait; a purely additive move uses --confirm --additive, any other move: stop and report it. Land with exe/hecks landing.finish! --confirm: one step that rebases onto local main, runs the quick gate, lands through the queue and removes the worktree and branch. It refuses by name at the first failure (unsaved work, conflict, gate red, queue busy): fix that and run it again. If landing refuses because a landing is in flight, run it again once; it queues. Never poll or sleep on a lock, and never run a lock file by hand."

@@ -16,9 +16,7 @@ Hecks.bluebook "CompositeLineLedger" do
       invariant("a VenueCode is not blank") { !value.to_s.empty? }
     end
 
-    value_object "VenueScore" do
-      attribute :value, Integer
-    end
+    value_object "VenueScore", Integer
 
     value_object "LineSequence" do
       attribute :value, Integer
@@ -94,9 +92,7 @@ Hecks.bluebook "CompositeLineLedger" do
       invariant("a HangarCode is not blank") { !value.to_s.empty? }
     end
 
-    value_object "HangarScore" do
-      attribute :value, Integer
-    end
+    value_object "HangarScore", Integer
 
     command "Open" do
       goal "Open it"

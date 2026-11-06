@@ -24,9 +24,7 @@ Hecks.bluebook "GeneratedRouteAppend" do
       attribute :value, String, one_of: ["red", "amber", "green"]
     end
 
-    value_object "HangarScore" do
-      attribute :value, Integer
-    end
+    value_object "HangarScore", Integer
 
     command "Open" do
       goal "Open it"
@@ -72,9 +70,7 @@ Hecks.bluebook "GeneratedRouteAppend" do
       attribute :value, String, one_of: ["low", "high"]
     end
 
-    value_object "KioskScore" do
-      attribute :value, Integer
-    end
+    value_object "KioskScore", Integer
 
     value_object "LineSequence" do
       attribute :value, Integer

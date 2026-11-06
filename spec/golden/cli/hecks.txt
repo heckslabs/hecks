@@ -62,6 +62,7 @@ commands:
     One check or fix of comment style, or one document written with its keys in order.
     check_comments!               List every comment that breaks the Ruby style guide
     fix_comments!                 Rewrite the mechanical Ruby comment violations
+    shorten_value_objects!        Rewrite every bluebook value object block that only wraps one plain value as the shorthand
     write_comment_baseline!       Record every long comment block as tolerated, for lib/hecks unless paths are named
     check_comments_unchanged!     Prove an edit was comment-only: no file's code differs from the ref
     check_rust_comments!          List every comment that breaks the Rust style guide
