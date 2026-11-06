@@ -23,7 +23,7 @@ deploy-service:
 	  echo "    one-time setup on this machine: a database AND a non-superuser role that owns it" >&2; \
 	  echo "    (a superuser skips the era write-fence, so createdb alone fails), then name it in" >&2; \
 	  echo "    hecks.local.world: default_database postgres://<role>@localhost/<db>" >&2; \
-	  echo "    and set persisted_by PostgresEra in hecks.local.hecksagon" >&2; \
+	  echo "    and set persisted_by PostgresRevision in hecks.local.hecksagon" >&2; \
 	  echo "    deploying anyway so the deploy is not lost" >&2; \
 	  rm -f "$$err"; bash ./deploy-service.sh $(SERVICE); rc=$$?; \
 	  echo "==> deploy exit $$rc. The deploy record was NOT written: the database is unavailable (see above)." >&2; \
@@ -44,7 +44,7 @@ smoke-after-deploy:
 	  echo "    one-time setup on this machine: a database AND a non-superuser role that owns it" >&2; \
 	  echo "    (a superuser skips the era write-fence, so createdb alone fails), then name it in" >&2; \
 	  echo "    hecks.local.world: default_database postgres://<role>@localhost/<db>" >&2; \
-	  echo "    and set persisted_by PostgresEra in hecks.local.hecksagon" >&2; \
+	  echo "    and set persisted_by PostgresRevision in hecks.local.hecksagon" >&2; \
 	  echo "    running the smoke anyway so its result is not lost" >&2; \
 	  rm -f "$$err"; TASKDEF="$(TASKDEF)" bash ./smoke-after-deploy.sh; rc=$$?; \
 	  echo "==> smoke exit $$rc. The deploy record was NOT written: the database is unavailable (see above)." >&2; \
