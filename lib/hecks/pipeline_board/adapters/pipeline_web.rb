@@ -19,6 +19,7 @@ module Hecks
       SEQUENCE_PAGE = File.expand_path("pipeline_web/sequence.html", __dir__)
       AGENTS_PAGE = File.expand_path("pipeline_web/agents.html", __dir__)
       STREAM_SCRIPT = File.expand_path("pipeline_web/stream.js", __dir__)
+      ANSWER_SCRIPT = File.expand_path("pipeline_web/answer.js", __dir__)
       DEFAULT_PORT = 4747
       ACT_SECONDS = 120
 
@@ -172,6 +173,9 @@ module Hecks
 
       # @return [String] the script every page loads to share one event stream per browser
       def stream_script = File.read(STREAM_SCRIPT)
+
+      # @return [String] the script that answers a session waiting on you, shared by the pages
+      def answer_script = File.read(ANSWER_SCRIPT)
 
       # @return [Hash] the wiring graph (`nodes` and `edges`), or `{unknown: reason}`
       def wiring
