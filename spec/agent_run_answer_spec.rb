@@ -4,8 +4,9 @@ require "json"
 require "tmpdir"
 
 # `AgentRun.Answer` through the booted Hecks domain: a session that has not ended, working or
-# blocked, is resumed with the answer, and an empty answer is refused. A stand-in `claude` records each `--resume` call, so no real
-# session is resumed. The adapter's argument list and directory are in claude_agents_spec.rb.
+# blocked, is resumed with the answer, and an empty answer is refused. A stand-in `claude`
+# records each `--resume` call, so no real session is resumed. The adapter's argument list and
+# directory are in claude_agents_spec.rb.
 RSpec.describe "AgentRun.Answer through the Agents port" do
   ANSWER_STAND_IN = <<~SH.freeze
     #!/bin/sh
