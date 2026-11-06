@@ -130,6 +130,7 @@ commands:
     One pull request opened or squash-merged on GitHub, and what GitHub answered.
     open!                         Open a pull request from a branch onto a base, and keep the number and URL GitHub gives it
     take!                         Squash-merge an open pull request by its number; never with an admin override
+    edit!                         Edit the title or body of an open pull request by its number; never its branch, merge or state
   LanguageRun:
     One change to the language's own tables, or one reading of where its words stand.
     project_model!                Project the model's holding half from the language that declares it
@@ -380,6 +381,6 @@ bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
   expression       The subset of regular Ruby a predicate is allowed to be — small enough that every target can…
 
   hecks <command> --help       what one command wants, and every way it refuses
-  hecks --all                  also list the 297 internal commands and queries
+  hecks --all                  also list the 299 internal commands and queries
   a command is called with its aggregate — Build.project_rust!
   exit status: 0 answered, 1 refused or failed, 2 a line it could not read

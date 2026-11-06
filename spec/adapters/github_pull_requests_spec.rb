@@ -90,4 +90,72 @@ RSpec.describe Hecks::Adapters::GithubPullRequests do
       )
     end
   end
+
+  describe "#amend" do
+    def view_args = ["pr", "view", "42", "--json", "state"]
+
+    def state_reply(state)
+      replies[view_args] = [JSON.generate("state" => state), "", true]
+    end
+
+    def edit_title(title: nil, body: nil)
+      pulls.amend(number: { value: "42" }, title: title && { value: title }, body: body && { value: body })
+    end
+
+    it "edits the title and body of an open pull request, each as one argv element", :aggregate_failures do
+      state_reply("OPEN")
+      replies[["pr", "edit", "42", "--title=New title", "--body=- a line\n--flag"]] = ["", "", true]
+
+      answer = edit_title(title: "New title", body: "- a line\n--flag")
+
+      expect(answer[:outcome]).to eq(value: "edited")
+      expect(calls.last).to eq(["pr", "edit", "42", "--title=New title", "--body=- a line\n--flag"])
+    end
+
+    it "edits only the body when no title is named" do
+      state_reply("OPEN")
+      replies[["pr", "edit", "42", "--body=Only the body"]] = ["", "", true]
+
+      edit_title(body: "Only the body")
+
+      expect(calls.last).to eq(["pr", "edit", "42", "--body=Only the body"])
+    end
+
+    it "never passes a branch, a base, a merge or a close to gh", :aggregate_failures do
+      state_reply("OPEN")
+      replies[["pr", "edit", "42", "--title=T"]] = ["", "", true]
+
+      edit_title(title: "T")
+
+      expect(calls.flatten).not_to include("--base", "--head", "merge", "close", "--admin")
+    end
+
+    it "refuses when neither a title nor a body is named", :aggregate_failures do
+      expect { edit_title }.to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /no title or body/)
+      expect(calls).to be_empty
+    end
+
+    it "refuses a blank title and body as not named" do
+      expect { edit_title(title: "  ", body: "") }.to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /no title or body/)
+    end
+
+    it "refuses a pull request that is not open, and edits nothing", :aggregate_failures do
+      state_reply("MERGED")
+
+      expect { edit_title(title: "T") }.to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /not open \(MERGED\)/)
+      expect(calls).to eq([view_args])
+    end
+
+    it "refuses a number that gh would read as an option" do
+      expect { pulls.amend(number: { value: "--admin" }, title: { value: "T" }) }
+        .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /not a number/)
+    end
+
+    it "refuses with what gh said when GitHub refuses the edit" do
+      state_reply("OPEN")
+      replies[["pr", "edit", "42", "--title=T"]] = ["", "could not edit", false]
+
+      expect { edit_title(title: "T") }.to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /could not edit/)
+    end
+  end
 end

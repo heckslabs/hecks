@@ -56,6 +56,24 @@ module Hecks
           report: { value: "squash-merged ##{number}" } }
       end
 
+      # Edits the title and body of one open pull request, by its number. Only the parts named are
+      # sent; `--title=` and `--body=` are each one argv element, never passed through a shell.
+      #
+      # @param held [Hash] the `ReviewRequest` record: `number` (required), and `title` or `body`
+      #   (at least one)
+      # @return [Hash{Symbol => Hash}] `outcome:` (`edited`), `number:` and `report:`
+      # @raise [ConsoleCapture::Failure] when no number is named, neither title nor body is given,
+      #   the pull request is not open, or GitHub refuses
+      def amend(**held)
+        number = pull_request_number(held[:number], "edit")
+        changes = edit_changes(plain(held[:title]), plain(held[:body]))
+        ensure_open!(number)
+        gh!("pr", "edit", number, *changes.map { |field, text| "--#{field}=#{text}" })
+
+        { outcome: { value: "edited" }, number: { value: number },
+          report: { value: "edited the #{changes.keys.join(" and ")} of ##{number}" } }
+      end
+
       # The state of one pull request, as text: its number, state, URL and checks.
       #
       # @param held [Hash] the query's arguments: `number` (required)
@@ -70,6 +88,22 @@ module Hecks
       private
 
       def plain(argument) = argument.is_a?(Hash) ? argument[:value] : argument
+
+      # The title and body that were named, in the order gh takes them; a blank one is not named.
+      def edit_changes(title, body)
+        changes = { title: title, body: body }.reject { |_field, text| text.to_s.strip.empty? }
+        return changes unless changes.empty?
+
+        raise ConsoleCapture::Failure, "no title or body given to edit the pull request: name at least one"
+      end
+
+      # Refuses a pull request that is not open, so a merged or closed one is never edited.
+      def ensure_open!(number)
+        state = JSON.parse(gh!("pr", "view", number, "--json", "state"))["state"]
+        return if state == "OPEN"
+
+        raise ConsoleCapture::Failure, "pull request ##{number} is not open (#{state}); only an open one is edited"
+      end
 
       # A pull request's number, digits only: gh reads a value that starts with a dash as an option.
       def pull_request_number(argument, verb)
