@@ -118,6 +118,11 @@ RSpec.describe Hecks::Adapters::PipelineBoard::Rules do
       expect(names.all? { |name| actions.known?(name) }).to be(true)
     end
 
+    it "has an answer check the run first, and no other step a first command", :aggregate_failures do
+      expect(actions.before("answer", { target: "run-1" })).to eq(%w[AgentRun.check! to=run-1 --wait])
+      expect(actions.before("promote", {})).to be_nil
+    end
+
     it "knows no other step" do
       expect(actions.known?("rm")).to be(false)
     end
