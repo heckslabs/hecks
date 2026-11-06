@@ -91,8 +91,12 @@ module Hecks
         named.empty? ? state["detail"].to_s[KIND_PREFIX, 1].to_s.downcase : named
       end
 
-      # The links the job lists, and the git branch the session works on in its own worktree.
-      def context_extras(state) = { links: Array(state["children"]), branch: state["worktreeBranch"].to_s }
+      # The links the job lists, the git branch the session works on in its own worktree, what it
+      # says it needs from a person, and the reply Claude Code suggests for it (`suggestedReply`).
+      def context_extras(state)
+        { links: Array(state["children"]), branch: state["worktreeBranch"].to_s, needs: state["needs"].to_s.strip,
+          suggested: state["suggestedReply"].to_s.strip }
+      end
 
       def ended_of(status, edges) = %w[busy blocked].include?(status) ? nil : edges.last
 

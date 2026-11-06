@@ -64,12 +64,11 @@ module Hecks
 
       # @param event [String] a bare event name, such as `WorkFinished`
       # @param count [Integer] how many of the newest to read
-      # @return [Array<Hash>] the newest events of that name in the journal stores, newest first;
-      #   empty when no store can be read
+      # @return [Array<Hash>] the newest events of that name in the journal stores, newest first
+      # @raise [PipelineBoard::Unavailable] when no store can be read, so the tile says unknown
+      #   rather than counting nothing
       def named(event, count)
         @cache.fetch([:named, event, count]) { chained(@trace.call(count, event)).sort_by { |row| row[:at].to_s }.reverse }
-      rescue PipelineBoard::Unavailable
-        []
       end
 
       private

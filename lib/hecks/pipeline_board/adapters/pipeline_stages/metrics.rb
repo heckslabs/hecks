@@ -34,8 +34,8 @@ module Hecks
         def self.work(data, now)
           limits = data.fetch(:push_limits, Hecks::Adapters::PushSize::DEFAULTS)
           floors = data.fetch(:disk_health, DiskTiles::HEALTH_DEFAULTS)
-          [ahead(data[:local], now, limits), working(data), throughput(data[:finished], now), release(data[:release], now),
-           disk(data[:disk], floors)]
+          [ahead(data[:local], now, limits), working(data), throughput(data[:finished], data[:open_work], now),
+           release(data[:release], now), disk(data[:disk], floors)]
         end
       end
     end

@@ -927,4 +927,39 @@ Hecks.bluebook "CiPipeline" do
     on      "CiRun.FailureCounted"
     trigger CiRun::Fail, with: { build: :build }
   end
+
+  read_model "CiRunPassedByStatus" do
+    description "The required jobs that passed, added up for each status a CI run stands in."
+    include CiRun
+    group_by :status
+    sum :passed
+  end
+
+  read_model "CiRunSkippedByStatus" do
+    description "The required jobs that were skipped, added up for each status a CI run stands in."
+    include CiRun
+    group_by :status
+    sum :skipped
+  end
+
+  read_model "CiRunFailedByStatus" do
+    description "The required jobs that failed, added up for each status a CI run stands in."
+    include CiRun
+    group_by :status
+    sum :failed
+  end
+
+  read_model "JobLongest" do
+    description "The longest wall time, in seconds, of each job by name."
+    include Job
+    group_by :name
+    max :seconds
+  end
+
+  read_model "JobShortest" do
+    description "The shortest wall time, in seconds, of each job by name."
+    include Job
+    group_by :name
+    min :seconds
+  end
 end

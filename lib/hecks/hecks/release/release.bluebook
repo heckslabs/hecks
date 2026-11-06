@@ -898,5 +898,20 @@ Hecks.bluebook "Hecks" do
       on      "Package.PinRefused"
       trigger Package::Abandon, with: { refusal: :refusal }
     end
+
+    read_model "PromotionLag" do
+      description "How many promotion runs faulted after standing behind, for each lane."
+      include PromotionRun
+      where(status: "faulted", behind_hours: { gt: 0 })
+      group_by :lane
+      count
+    end
+
+    read_model "ReleasesByState" do
+      description "How many releases stand in each state."
+      include Release
+      group_by :state
+      count
+    end
   end
 end

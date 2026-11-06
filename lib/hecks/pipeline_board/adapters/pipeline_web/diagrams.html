@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pipeline Diagrams</title>
+<style>
+/* The diagrams page: the wiring and sequence diagrams, one at a time, filling the window. */
+:root {
+  color-scheme: light;
+  --page: #f6f7f8; --surface: #fdfdfd; --ink: #0d1116; --ink2: #4d5560; --axis: #c4c9d0; --signal: #2a78d6;
+  --body: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { color-scheme: dark; --page: #0b0d10; --surface: #14171b; --ink: #eef0f2; --ink2: #b9c0c8; --axis: #343a42; --signal: #4b9bf0; }
+}
+:root[data-theme="dark"] { color-scheme: dark; --page: #0b0d10; --surface: #14171b; --ink: #eef0f2; --ink2: #b9c0c8; --axis: #343a42; --signal: #4b9bf0; }
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--page); color: var(--ink); font: 14px/1.5 var(--body); display: flex; flex-direction: column; }
+header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; padding: 12px 16px; }
+h1 { font-size: 20px; font-weight: 600; margin: 0; }
+a { color: var(--signal); }
+.switch { display: flex; gap: 6px; margin-left: auto; }
+.switch button { font: 500 13px var(--body); color: var(--ink2); background: var(--surface); border: 1px solid var(--axis); border-radius: 999px; padding: 3px 14px; cursor: pointer; }
+.switch button[aria-pressed="true"] { color: var(--ink); border-color: var(--signal); }
+.switch button:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
+.hint { color: var(--ink2); font-size: 12px; }
+iframe { flex: 1; width: 100%; min-height: 480px; border: 0; border-top: 1px solid var(--axis); background: var(--page); }
+</style>
+</head>
+<body>
+  <header>
+    <h1>Diagrams</h1>
+    <a href="/">← Pipeline Board</a>
+    <a href="/agents">Agents</a>
+    <span class="hint" id="hint"></span>
+    <div class="switch" role="group" aria-label="Diagram">
+      <button type="button" data-view="wiring" aria-pressed="true">Wiring</button>
+      <button type="button" data-view="sequence" aria-pressed="false">Sequence</button>
+    </div>
+  </header>
+  <iframe id="view" title="Diagram"></iframe>
+<script>
+// Each diagram: where it is served and what to do with it. The address's #sequence picks the second.
+const VIEWS = {
+  wiring: { src: "/wiring", title: "Wiring diagram", hint: "drag to pan · + and − to zoom · click a block to open it" },
+  sequence: { src: "/sequence", title: "Sequence diagram", hint: "each event as it happens, and the policies it set off" }
+};
+const view = document.getElementById("view");
+function show(name) {
+  const chosen = VIEWS[name] ? name : "wiring";
+  if (view.dataset.view !== chosen) { view.src = VIEWS[chosen].src; view.dataset.view = chosen; }
+  view.title = VIEWS[chosen].title;
+  document.getElementById("hint").textContent = VIEWS[chosen].hint;
+  document.querySelectorAll(".switch button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.view === chosen)));
+}
+document.querySelectorAll(".switch button").forEach((b) => b.addEventListener("click", () => {
+  history.replaceState(null, "", b.dataset.view === "wiring" ? location.pathname : "#" + b.dataset.view);
+  show(b.dataset.view);
+}));
+addEventListener("hashchange", () => show(location.hash.slice(1)));
+show(location.hash.slice(1));
+</script>
+</body>
+</html>

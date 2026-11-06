@@ -116,5 +116,64 @@ RSpec.describe Hecks::Adapters::PipelineWiring do
     it "has no external URL in the sequence page" do
       expect(File.read(Hecks::Adapters::PipelineWeb::SEQUENCE_PAGE)).not_to match(%r{https?://|//cdn|@import})
     end
+
+    it "serves the agents' page at /agents" do
+      expect(fetch("/agents").body).to include("Pipeline Agents")
+    end
+
+    it "has no external URL in the agents' page" do
+      expect(File.read(Hecks::Adapters::PipelineWeb::AGENTS_PAGE)).not_to match(%r{https?://|//cdn|@import})
+    end
+
+    it "serves the shared stream script at /stream.js" do
+      expect(fetch("/stream.js").body).to include("boardStream")
+    end
+
+    # A browser holds six connections to a host; a stream per page used them all up with three tabs.
+    it "opens the event stream only in the shared script", :aggregate_failures do
+      pages = %w[PAGE AGENTS_PAGE WIRING_PAGE SEQUENCE_PAGE].map { |name| File.read(Hecks::Adapters::PipelineWeb.const_get(name)) }
+      pages.each do |page|
+        expect(page).not_to include("new EventSource")
+        expect(page).to include('<script src="/stream.js"></script>')
+      end
+    end
+
+    it "serves the shared answer prompt at /answer.js" do
+      expect(fetch("/answer.js").body).to include("boardAnswer")
+    end
+
+    it "lets both the board and the agents' page answer a session waiting on you", :aggregate_failures do
+      %w[PAGE AGENTS_PAGE].each do |name|
+        page = File.read(Hecks::Adapters::PipelineWeb.const_get(name))
+        expect(page).to include('<script src="/answer.js"></script>')
+        expect(page).to include("boardAnswer.open(")
+      end
+    end
+
+    it "serves the diagrams' page at /diagrams, showing the wiring and the sequence", :aggregate_failures do
+      body = fetch("/diagrams").body
+      expect(body).to include("Pipeline Diagrams")
+      expect(body).to include('src: "/wiring"', 'src: "/sequence"')
+    end
+
+    it "links the board to the diagrams' page instead of embedding them", :aggregate_failures do
+      page = File.read(Hecks::Adapters::PipelineWeb::PAGE)
+      expect(page).to include('href="/diagrams"')
+      expect(page).not_to include("<iframe")
+    end
+
+    it "pages the board's sessions, keeping each row's controls", :aggregate_failures do
+      page = File.read(Hecks::Adapters::PipelineWeb::PAGE)
+      expect(page).to include("const SESSION_PAGE = 15;")
+      expect(page).to include('pageBar("sessions", at, list.length, SESSION_PAGE')
+    end
+
+    it "shows the board's Sessions panel collapsed until it is opened" do
+      expect(File.read(Hecks::Adapters::PipelineWeb::PAGE)).to include('<details class="panel" id="sessions-panel"><summary')
+    end
+
+    it "links the board's Agents strip to the agents' page" do
+      expect(File.read(Hecks::Adapters::PipelineWeb::PAGE)).to include('href="/agents"')
+    end
   end
 end

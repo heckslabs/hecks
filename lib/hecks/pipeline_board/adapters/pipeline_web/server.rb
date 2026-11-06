@@ -7,14 +7,30 @@ require_relative "act_route"
 module Hecks
   module Adapters
     module PipelineBoard
-      # A small HTTP/1.1 server on the loopback address and nothing else. It answers three GET paths
-      # (`/`, `/api/state`, `/api/events`) and refuses everything else. The one write it takes is
-      # `POST /api/act`, a JSON body naming one step the app passes to its `act`, which runs that
+      # A small HTTP/1.1 server on the loopback address and nothing else. It answers the pages,
+      # scripts and JSON listed in `SERVED` and the `/api/events` stream, and refuses the rest.
+      # The one write it takes is `POST /api/act`, a JSON body naming one step the app passes to
+      # its `act`, which runs that
       # step's launcher command and nothing else. It serves one request per connection, and
       # `/api/events` holds its connection open as a Server-Sent Events stream.
       class Server
         HOST = "127.0.0.1"
-        ROUTES = %w[/ /api/state /api/events /wiring /api/wiring /sequence].freeze
+        HTML_TYPE = "text/html; charset=utf-8"
+        SCRIPT_TYPE = "text/javascript; charset=utf-8"
+        JSON_TYPE = "application/json"
+        # Each GET path but the stream: the type it answers with and the app method that reads it.
+        SERVED = {
+          "/"           => [HTML_TYPE, :page],
+          "/wiring"     => [HTML_TYPE, :wiring_page],
+          "/sequence"   => [HTML_TYPE, :sequence_page],
+          "/agents"     => [HTML_TYPE, :agents_page],
+          "/diagrams"   => [HTML_TYPE, :diagrams_page],
+          "/stream.js"  => [SCRIPT_TYPE, :stream_script],
+          "/answer.js"  => [SCRIPT_TYPE, :answer_script],
+          "/api/state"  => [JSON_TYPE, :state],
+          "/api/wiring" => [JSON_TYPE, :wiring]
+        }.freeze
+        ROUTES = [*SERVED.keys, "/api/events"].freeze
         STATUS = { 200 => "OK", 400 => "Bad Request", 403 => "Forbidden", 404 => "Not Found",
                    405 => "Method Not Allowed", 415 => "Unsupported Media Type",
                    422 => "Unprocessable Entity" }.freeze
@@ -90,14 +106,11 @@ module Hecks
         end
 
         def route(socket, path)
-          case path
-          when "/" then reply(socket, 200, "text/html; charset=utf-8", @app.page)
-          when "/api/state" then reply(socket, 200, "application/json", JSON.generate(@app.state))
-          when "/wiring" then reply(socket, 200, "text/html; charset=utf-8", @app.wiring_page)
-          when "/sequence" then reply(socket, 200, "text/html; charset=utf-8", @app.sequence_page)
-          when "/api/wiring" then reply(socket, 200, "application/json", JSON.generate(@app.wiring))
-          else stream(socket)
-          end
+          return stream(socket) if path == "/api/events"
+
+          type, reader = SERVED.fetch(path)
+          body = @app.public_send(reader)
+          reply(socket, 200, type, type == JSON_TYPE ? JSON.generate(body) : body)
         end
 
         # The one write the board takes: `POST /api/act`, judged by {ActRoute} before its body is
