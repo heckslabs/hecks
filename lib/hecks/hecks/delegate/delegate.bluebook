@@ -204,16 +204,15 @@ Hecks.bluebook "Hecks" do
         emits AgentRunRetained
       end
 
-      # Answers the question a blocked session waits on: its answer is sent as a resumed background
-      # session's prompt, so the session carries on under the same ID.
+      # Answers a session that has not ended, working or blocked on a person: its answer is sent as a
+      # resumed background session's prompt, so the session carries on under the same ID.
       command "Answer", from: "started" do
         role "Operator"
-        goal "Answer the question a blocked session is waiting on by resuming it with the answer"
+        goal "Answer a session that is working or blocked by resuming it with the answer"
 
         reference_to AgentRun
         attribute :answer, Brief
 
-        given("the session is blocked on a person") { condition.value == "blocked" }
         given("the answer says something") { !answer.value.to_s.strip.empty? }
 
         emits AnswerRequested

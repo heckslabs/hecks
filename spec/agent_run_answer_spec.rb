@@ -3,9 +3,10 @@ require "fileutils"
 require "json"
 require "tmpdir"
 
-# `AgentRun.Answer` through the booted Hecks domain: a blocked session is resumed with the answer,
-# and anything else is refused. A stand-in `claude` records each `--resume` call, so no real
-# session is resumed. The adapter's argument list and directory are in claude_agents_spec.rb.
+# `AgentRun.Answer` through the booted Hecks domain: a session that has not ended, working or
+# blocked, is resumed with the answer, and an empty answer is refused. A stand-in `claude`
+# records each `--resume` call, so no real session is resumed. The adapter's argument list and
+# directory are in claude_agents_spec.rb.
 RSpec.describe "AgentRun.Answer through the Agents port" do
   ANSWER_STAND_IN = <<~SH.freeze
     #!/bin/sh
@@ -58,11 +59,11 @@ RSpec.describe "AgentRun.Answer through the Agents port" do
 
   def answer(run, text) = launch("agent_run.answer!", "to=#{run}", "answer.value=#{text}", "--wait").first.to_s
 
-  it "refuses an answer to a session that is working, and resumes nothing", :aggregate_failures do
+  it "resumes a working session with the answer as its prompt", :aggregate_failures do
     started_run("a-working", "working")
 
-    expect(answer("a-working", "yes")).to include("blocked on a person")
-    expect(File.exist?(resume_args)).to be(false)
+    expect(answer("a-working", "yes")).to include("answered_at")
+    expect(File.read(resume_args).split("\n")).to eq(["--bg", "--resume", "stand-in-session-0000-full", "--", "yes"])
   end
 
   it "refuses an answer that says nothing, and resumes nothing", :aggregate_failures do
