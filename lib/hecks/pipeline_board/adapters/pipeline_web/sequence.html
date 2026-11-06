@@ -73,6 +73,7 @@ canvas { display: block; }
     </div>
   </section>
 </main>
+<script src="/stream.js"></script>
 <script>
 "use strict";
 const $ = (id) => document.getElementById(id);
@@ -170,13 +171,14 @@ function fit(text, maxW) { while (text.length > 8 && ctx.measureText(text).width
 /* ---- stream ---- */
 let backlog = [], liveStarted = false, dirty = false;
 function listen() {
-  const es = new EventSource("/api/events");
-  es.onopen = () => { $("live").textContent = "stream: live"; };
-  es.onerror = () => { $("live").textContent = "stream: reconnecting"; };
-  es.addEventListener("board", (m) => {
-    const ev = JSON.parse(m.data); if (!ev.key) return;
+  if (!window.boardStream) { $("live").textContent = "stream: unavailable"; return; }
+  boardStream({
+    open: () => { $("live").textContent = "stream: live"; },
+    error: () => { $("live").textContent = "stream: reconnecting"; },
+    board: (ev) => {
+    if (!ev.key) return;
     if (!liveStarted) { backlog.push(ev); clearTimeout(listen.t); listen.t = setTimeout(startLive, 600); } else { take(ev); dirty = true; }
-  });
+  } });
 }
 function startLive() { liveStarted = true; backlog.sort((a, b) => String(a.at).localeCompare(String(b.at))).forEach(take); dirty = true; }
 function loop() { if (dirty || rows.some((r) => performance.now() - r.fresh < 2600)) { dirty = false; render(); } requestAnimationFrame(loop); }

@@ -287,6 +287,7 @@ svg.focusing .edge.lit, svg.focusing .node.lit { opacity: 1; }
   </div>
 </main>
 <div class="tip" id="tip" role="tooltip"></div>
+<script src="/stream.js"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 function h(tag, attrs, ...kids) {
@@ -519,14 +520,13 @@ async function refresh() {
   catch (e) { $("updated").textContent = "update failed: " + e.message; }
 }
 function listen() {
-  if (!window.EventSource) { $("live").textContent = "stream: unsupported"; setInterval(refresh, 10000); return; }
-  const es = new EventSource("/api/events");
-  es.onopen = () => { $("live").textContent = "stream: live"; };
-  es.onerror = () => { $("live").textContent = "stream: reconnecting"; };
-  es.addEventListener("state", (m) => { try { render(JSON.parse(m.data).state); } catch (e) { $("updated").textContent = "update failed: " + e.message; } });
-  es.addEventListener("board", (m) => {
-    if (hear(JSON.parse(m.data), true) && state) { renderMap(state.roles || [], state.generated_at); renderWire(); }
+  const shared = window.boardStream && boardStream({
+    open: () => { $("live").textContent = "stream: live"; },
+    error: () => { $("live").textContent = "stream: reconnecting"; },
+    state: (data) => { try { render(data.state); } catch (e) { $("updated").textContent = "update failed: " + e.message; } },
+    board: (ev) => { if (hear(ev, true) && state) { renderMap(state.roles || [], state.generated_at); renderWire(); } }
   });
+  if (!shared) { $("live").textContent = "stream: unsupported"; setInterval(refresh, 10000); }
 }
 refresh(); listen();
 </script>
