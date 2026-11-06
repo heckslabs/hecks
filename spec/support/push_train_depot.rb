@@ -4,7 +4,7 @@ require "open3"
 # A scratch domain, Depot, that holds the Hecks push train's own declarations: the `SendTrain`
 # aggregate and the push policies, cut from `deliver.bluebook`, and the Train, Alerts and Launcher
 # ports, cut from `hecks.hecksagon`. It is split across files the way the Hecks domain is, a
-# top-level file and a `deliver` module folder, and persisted by PostgresEra on a scratch database.
+# top-level file and a `deliver` module folder, and persisted by Postgres with revisions on a scratch database.
 module PushTrainDepot
   HECKS = File.expand_path("../../lib/hecks/hecks", __dir__)
 
@@ -43,7 +43,7 @@ module PushTrainDepot
   #   with the push train's ports
   def self.hecksagon_source
     ports = PORTS.map { |name| block(hecksagon_lines, %(  Hecks::SendTrain.port "#{name}" do)) }
-    head = %(Hecks.hecksagon "Depot" do\n  attaches "Governance"\n  persisted_by "PostgresEra"\n\n)
+    head = %(Hecks.hecksagon "Depot" do\n  attaches "Governance"\n  revisions true\n  persisted_by "Postgres"\n\n)
     %(#{head}#{ports.join("\n").gsub("Hecks::", "Depot::")}end\n\nHecks.hecksagon "Governance" do\n  persisted_by "Memory"\nend\n)
   end
 
@@ -53,7 +53,7 @@ module PushTrainDepot
   # @return [String] the world naming the scratch database
   def self.world_source(url, disposable: false)
     setting = disposable ? "disposable_ledger true" : "mint_eras true"
-    %(Hecks.world "Depot" do\n  persisted_by("PostgresEra") do\n    database "#{url}"\n    #{setting}\n  end\nend\n)
+    %(Hecks.world "Depot" do\n  persisted_by("Postgres") do\n    database "#{url}"\n    #{setting}\n  end\nend\n)
   end
 
   # Writes the depot into `dir` with the aggregate shaped by `shape` (see `deliver_source`).
