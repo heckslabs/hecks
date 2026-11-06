@@ -376,6 +376,8 @@ queries (nothing here changes anything):
   FuzzRun:
     One fuzz sweep or benchmark, and how it ended; and the generated sequences it replays.
     generate_sequence       One generated, valid dispatch sequence for a domain, as a script `hecks run` replays.
+    promotion_lag           How many promotion runs faulted after standing behind, for each lane.
+    releases_by_state       How many releases stand in each state.
 
 bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
   deploy           Generate, check and compare deploy recipes, project OIDC manifests and provision tenants.
