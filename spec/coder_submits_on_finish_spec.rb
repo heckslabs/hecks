@@ -24,7 +24,7 @@ RSpec.describe "a coder that ends done submitting its own branch" do
   end
 
   # A scratch repository on `branch` with one commit; `dirty` leaves an untracked file beside it.
-  # The commit's content names the branch, so each example's HEAD is its own sha and a run or
+  # The commit's content names the branch, so each example's `HEAD` is its own sha and a run or
   # review recorded for one example is never read as another's.
   def checkout(branch, dirty: false)
     dir = File.join(scratch, "work-#{branch}")
