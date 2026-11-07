@@ -15,20 +15,32 @@ module Hecks
         end
       end
 
-      # The example domain's directory name, also its Cargo feature.
+      # What the report calls the workload; for the core two it is the domain's directory name.
       attr_reader :name
 
-      # The absolute path of the example domain directory.
+      # The Cargo feature the domain's binary is built with: its directory's name.
+      attr_reader :feature
+
+      # The absolute path of the domain directory.
       attr_reader :domain_path
 
       # The commands run once, untimed, before any cycle.
       attr_reader :setup
 
-      def initialize(name:, setup:, cycle:)
+      # The verb the gate reads for an extra workload, whose other steps only prepare it; nil for
+      # the core two, whose gate figure is every step.
+      attr_reader :focus
+
+      # @param name [String] the report name; by default also the example directory
+      # @param path [String, nil] the domain directory relative to the repository root
+      # @param focus [String, nil] the verb the gate judges
+      def initialize(name:, setup:, cycle:, path: nil, focus: nil)
         @name = name
-        @domain_path = File.expand_path("../../../examples/#{name}", __dir__)
+        @domain_path = File.expand_path("../../../#{path || "examples/#{name}"}", __dir__)
+        @feature = File.basename(@domain_path)
         @setup = setup
         @cycle = cycle
+        @focus = focus
       end
 
       def cycle(number) = @cycle.call(number)
@@ -39,9 +51,11 @@ module Hecks
         { "pizzas" => pizzas, "banking" => banking }
       end
 
+      # @return [Workload] a core workload, or one of the gate's extras (`GateWorkloads`)
       def self.fetch(name)
-        all.fetch(name) do
-          raise ArgumentError, "unknown domain #{name.inspect} — one of #{all.keys.join(", ")}"
+        everything = all.merge(GateWorkloads.all)
+        everything.fetch(name) do
+          raise ArgumentError, "unknown domain #{name.inspect} — one of #{everything.keys.join(", ")}"
         end
       end
 

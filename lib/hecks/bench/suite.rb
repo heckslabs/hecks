@@ -3,7 +3,13 @@ module Hecks
     # Runs every requested target against every requested domain and aggregates the runs.
     # Runs are interleaved across targets so unrelated machine load lands on all of them.
     module Suite
-      TARGETS = %w[ruby:memory ruby:sqlite ruby:postgres ruby:postgres_era rust].freeze
+      TARGETS = %w[ruby:memory ruby:sqlite ruby:postgres ruby:postgres_era rust rust:client].freeze
+
+      # What a run measures when no target is named: `rust:client` is the gate, asked for by name.
+      DEFAULT_TARGETS = (TARGETS - %w[rust:client]).freeze
+
+      # The targets that need a Rust binary.
+      RUST_TARGETS = %w[rust rust:client].freeze
 
       # What to measure; `rust_binary` needs a single domain, since a binary embeds exactly one.
       Config = Struct.new(:domains, :targets, :warmup, :iterations, :runs, :rust_binary, keyword_init: true)
@@ -28,8 +34,10 @@ module Hecks
         skipped.each { |entry| log.puts "skip #{entry[:target]}: #{entry[:reason]}" }
         results = measure_all(config, active, log)
         { environment: describe_environment(load_before, active), config: config.to_h, results: results,
-          skipped: skipped }
+          skipped: skipped, gate: gate_for(results, active) }
       end
+
+      def gate_for(results, active) = (Gate.reading(results) if active.include?("rust:client"))
 
       def measure_all(config, active, log)
         config.domains.flat_map { |domain| measure_domain(Workload.fetch(domain), active, config, log) }
@@ -64,7 +72,7 @@ module Hecks
 
       def unavailable_targets(config)
         postgres = PostgresProbe.unavailable_reason if config.targets.any? { |t| postgres_target?(t) }
-        rust = RustRunner.unavailable_reason(binary: config.rust_binary) if config.targets.include?("rust")
+        rust = RustRunner.unavailable_reason(binary: config.rust_binary) if config.targets.intersect?(RUST_TARGETS)
         config.targets.filter_map do |target|
           reason = target_reason(target, postgres, rust)
           { target: target, reason: reason } if reason
@@ -74,7 +82,7 @@ module Hecks
       def postgres_target?(target) = target.start_with?("ruby:postgres")
 
       def target_reason(target, postgres, rust)
-        return rust if target == "rust"
+        return rust if RUST_TARGETS.include?(target)
 
         postgres if postgres_target?(target)
       end
@@ -82,7 +90,7 @@ module Hecks
       def measure_domain(workload, targets, config, log)
         round = Round.new(workload, config, log, {}, targets.to_h { |target| [target, []] })
         config.runs.times { |index| targets.each { |target| measure_target(round, target, index) } }
-        targets.map { |target| aggregate(workload.name, target, round.summaries[target]) }
+        targets.map { |target| Aggregate.call(workload.name, target, round.summaries[target]) }
       end
 
       def measure_target(round, target, index)
@@ -98,29 +106,13 @@ module Hecks
       end
 
       def measure_once(workload, target, config, binaries)
-        if target == "rust"
-          binary = config.rust_binary || (binaries[workload.name] ||= RustRunner.build(workload.name))
-          RustRunner.call(workload, binary: binary, warmup: config.warmup, iterations: config.iterations)
+        if RUST_TARGETS.include?(target)
+          binary = config.rust_binary || (binaries[workload.feature] ||= RustRunner.build(workload.feature))
+          runner = target == "rust" ? RustRunner : KernelRunner
+          runner.call(workload, binary: binary, warmup: config.warmup, iterations: config.iterations)
         else
           RubyRunner.call(workload, adapter: target.delete_prefix("ruby:").to_sym,
                                     warmup: config.warmup, iterations: config.iterations)
-        end
-      end
-
-      def aggregate(domain, target, summaries)
-        rates = summaries.map { |summary| summary[:throughput_per_s] }
-        median = %i[throughput_per_s p50_us p99_us mean_us max_us drift].to_h do |key|
-          [key, Stats.median(summaries.filter_map { |summary| summary[key] })]
-        end
-        median[:roundtrip_floor_p50_us] = Stats.median(summaries.filter_map { |s| s[:roundtrip_floor_p50_us] })
-        median[:by_verb] = median_by_verb(summaries)
-        { domain: domain, target: target, runs: summaries, median: median.compact,
-          throughput_range: rates.minmax }
-      end
-
-      def median_by_verb(summaries)
-        summaries.first[:by_verb].keys.to_h do |verb|
-          [verb, %i[p50_us p99_us].to_h { |key| [key, Stats.median(summaries.map { |s| s[:by_verb][verb][key] })] }]
         end
       end
 

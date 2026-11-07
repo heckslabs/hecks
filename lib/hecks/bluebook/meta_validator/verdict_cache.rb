@@ -5,6 +5,7 @@ require_relative "../../cache_dir"
 require_relative "../../version"
 require_relative "verdict_cache/tagging"
 require_relative "verdict_cache/prebuilt"
+require_relative "verdict_cache/stored_pairs"
 require_relative "../../switches"
 
 module Hecks
@@ -25,6 +26,7 @@ module Hecks
       module VerdictCache
         extend Tagging
         extend Prebuilt
+        extend StoredPairs
 
         module_function
 
@@ -153,11 +155,10 @@ module Hecks
           return unless @dirty && enabled?
 
           @dirty = false
-          storable = entries.select { |_key, held| encodable?(held) }
-          encoded = encode(storable)
-          return unless decode(encoded) == storable
+          pairs = stored_pairs
+          return unless pairs
 
-          write(JSON.generate({ "format" => FORMAT, "entries" => encoded }, max_nesting: false))
+          write(JSON.generate({ "format" => FORMAT, "entries" => { "$h" => pairs } }, max_nesting: false))
           prune
         rescue StandardError
           nil
@@ -170,6 +171,7 @@ module Hecks
           @seeded = false
           @dirty = false
           @entries = nil
+          @read_pairs = nil
           @code_digest = nil
           @language_digest = nil
         end

@@ -182,7 +182,7 @@ warns once per boot naming that line, and `exe/hecks codemod_run.move_former_nam
 `Studio` was once called `Producer`:
 
 ```ruby
-AggregateReference::Studio.ir.formerly_known_as.value  # => "Producer"
+AggregateReference::Studio.ir.formerly_known_as  # => "Producer"
 ```
 
 ## created_by
@@ -201,7 +201,7 @@ The refusal wording reads it: a command aimed at a record that does not exist an
 whose records are not made by its first-listed command.
 
 ```ruby
-AggregateReference::Studio.ir.created_by.value  # => "Studio.found!"
+AggregateReference::Studio.ir.created_by  # => "Studio.found!"
 ```
 
 ## identified_by

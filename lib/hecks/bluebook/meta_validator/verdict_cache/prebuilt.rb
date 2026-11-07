@@ -36,7 +36,10 @@ module Hecks
             return {} unless doc.is_a?(Hash) && doc["format"] == FORMAT
 
             decoded = decode(doc["entries"])
-            well_formed?(decoded) ? decoded : {}
+            return {} unless well_formed?(decoded)
+
+            read_pairs.merge!(doc["entries"]["$h"].to_h { |pair| [pair.first, pair] })
+            decoded
           rescue StandardError
             {}
           end

@@ -172,6 +172,15 @@ RSpec.describe Hecks::Bluebook::MetaValidator::VerdictCache do
       expect(cache.seed).to eq("plain" => accepted)
     end
 
+    it "keeps the verdicts it read when it writes a new one" do
+      written_cache
+      cache.seed
+      cache.record("k2", refused)
+      cache.flush && cache.reset!
+
+      expect(cache.seed).to eq("k1" => accepted, "k2" => refused)
+    end
+
     # The file the gem would ship: the user's own file moved under a directory of its own.
     def ship_prebuilt
       shipped = File.join(scratch, "prebuilt", File.basename(cache.path))

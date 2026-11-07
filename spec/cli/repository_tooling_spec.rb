@@ -180,6 +180,14 @@ RSpec.describe "the repository tooling commands" do
       expect { check_stale_list(err) }.to raise_error(SystemExit)
       expect(err.string).to include("list.txt is out of date.", "spec/new_spec.rb", "spec/gone_spec.rb")
     end
+
+    it "tells a stale list's reader the launcher command that rewrites it", :aggregate_failures do
+      expect { check_stale_list(StringIO.new) }.to raise_error(SystemExit) do |error|
+        expect(error.message).to include("exe/hecks test_suite_run.write_io_parallel_spec_list!",
+                                         "exclude.value=\\^x", "tags.value=--tag\\ io", "write.value=list.txt --confirm")
+        expect(error.message).not_to include("list_io_parallel_specs --write")
+      end
+    end
   end
 
   describe Hecks::Tools::StressConcurrencySpecs do

@@ -20,3 +20,19 @@ static CLIENT: LazyLock<reqwest::Client> = LazyLock::new(|| {
 pub(crate) fn client() -> &'static reqwest::Client {
     &CLIENT
 }
+
+/// Built once like [`client`], but it follows no redirect: a reply that names another location is
+/// handed back as it is, so a caller that checked the first host is never moved to a second.
+#[allow(clippy::expect_used)] // reason: a client with default TLS settings always builds
+static UNREDIRECTED: LazyLock<reqwest::Client> = LazyLock::new(|| {
+    reqwest::Client::builder()
+        .pool_max_idle_per_host(0)
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .expect("a reqwest client with default settings always builds")
+});
+
+/// The shared client that never follows a redirect, for calls whose host was checked against a grant.
+pub(crate) fn unredirected_client() -> &'static reqwest::Client {
+    &UNREDIRECTED
+}

@@ -2,6 +2,7 @@
 
 require "json"
 require "open3"
+require "shellwords"
 
 module Hecks
   module Tools
@@ -179,8 +180,16 @@ module Hecks
         unlisted = "carries a matching example but is not listed (would never run in the shards)"
         request.err.puts named(unlisted, missing) if missing.any?
         request.err.puts named("listed but carries no matching example any more", stale) if stale.any?
-        abort "Refresh it and commit the result:\n  " \
-              "hecks list_io_parallel_specs --write #{shown} '#{request.exclude_arg}' -- #{request.tag_args.join(" ")}"
+        abort "Refresh it and commit the result:\n  #{refresh_command(request)}"
+      end
+
+      # @param request [Request] the parsed command line
+      # @return [String] the launcher command that rewrites the committed list with the exclude
+      #   pattern and tag filter this run used
+      def refresh_command(request)
+        args = { "exclude" => request.exclude_arg, "tags" => request.tag_args.join(" "), "write" => request.list_path }
+        words = args.map { |name, value| "#{name}.value=#{Shellwords.escape(value)}" }
+        "exe/hecks test_suite_run.write_io_parallel_spec_list! #{words.join(" ")} --confirm"
       end
 
       # @param heading [String] what the paths have in common

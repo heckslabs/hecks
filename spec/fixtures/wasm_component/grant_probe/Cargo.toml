@@ -1,0 +1,21 @@
+# A test component: imports the host's `secrets` and `http-out` and exports `read-secret` and
+# `fetch` (world `grant-probe` in rust/host/wit/grants.wit). Built to ../grant_probe.wasm with
+# `cargo build --release --target wasm32-wasip2`; the committed .wasm is that build's output.
+[package]
+name = "grant_probe"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wit-bindgen = "0.46"
+
+[profile.release]
+opt-level = "s"
+lto = true
+strip = true
+
+[workspace]

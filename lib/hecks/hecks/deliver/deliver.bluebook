@@ -1191,6 +1191,16 @@ Hecks.bluebook "Hecks" do
       trigger SendTrain::Queue, with: { checkout: :checkout, boarded: :boarded, commits: :commits, report: :report }
     end
 
+    # A repository that disallows auto-merge has the train wait for the PR's required checks and
+    # squash-merge it when green (an answer of `pushed`, recorded above). A required check that
+    # failed is a fault whose refusal names the failed checks; the PR stays open and no admin
+    # override is used.
+    policy "RecordTheFailedChecks" do
+      on      "SendTrain.TrainAnswered"
+      where   { outcome.value == "checks_failed" }
+      trigger SendTrain::Fault, with: { refusal: :report }
+    end
+
     policy "RecordTheRefusedPush" do
       on      "SendTrain.TrainRefused"
       trigger SendTrain::Fault, with: { refusal: :refusal }

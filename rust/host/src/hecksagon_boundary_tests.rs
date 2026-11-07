@@ -12,6 +12,14 @@ const RUNTIME_MODULES: &[(&str, &str)] = &[
     ("dispatch.rs", include_str!("../core/src/dispatch.rs")),
     ("journal.rs", include_str!("../core/src/journal.rs")),
     ("wasm_runner.rs", include_str!("../core/src/wasm_runner.rs")),
+    (
+        "component_runner.rs",
+        include_str!("../core/src/component_runner.rs"),
+    ),
+    (
+        "component_imports.rs",
+        include_str!("../core/src/component_imports.rs"),
+    ),
     ("needs.rs", include_str!("../core/src/needs.rs")),
     ("query_step.rs", include_str!("../core/src/query_step.rs")),
     (

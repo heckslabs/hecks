@@ -53,6 +53,7 @@ spec/adapters/postgres_projection_read_model_spec.rb
 spec/adapters/query_agreement_spec.rb
 spec/adapters/query_hop_agreement_spec.rb
 spec/adapters/sibling_value_object_query_spec.rb
+spec/bench_gate_spec.rb
 spec/bench_spec.rb
 spec/categories/era_read_through_spec.rb
 spec/categories/write_atomicity_spec.rb
@@ -107,6 +108,7 @@ spec/project_deploy_smoke_spec.rb
 spec/project_deploy_tenant_spec.rb
 spec/project_deploy_vercel_spec.rb
 spec/project_deploy_world_lookup_spec.rb
+spec/pull_request_train_no_auto_merge_spec.rb
 spec/pull_request_train_spec.rb
 spec/push_size_spec.rb
 spec/push_train_end_to_end_spec.rb

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "git_worktrees"
+require_relative "git_main_pull/nowhere"
 
 module Hecks
   module Adapters
@@ -13,8 +14,12 @@ module Hecks
     # a commit and never merges onto `main`. A repository without an `origin` (or with no
     # `origin/main`) has nothing to be behind, and the answer says so.
     #
+    # With `main` checked out nowhere the ref is moved without a checkout (see `Nowhere`).
+    #
     # An includer has the `GitWorktrees` helpers and sets `@git`.
     module GitMainPull
+      include Nowhere
+
       REMOTE_MAIN = "origin/main"
 
       # The files git keeps while a rebase or merge is unfinished, and what each is called.
@@ -71,7 +76,7 @@ module Hecks
       end
 
       def rebase_main(host, ahead, behind)
-        raise ConsoleCapture::Failure, "cannot pull main: main is diverged and is checked out nowhere to rebase it in" unless host
+        return pull_unhosted_main(ahead, behind) unless host
 
         result = @git.capture("rebase", "--rebase-merges", REMOTE_MAIN, chdir: host.path)
         unless result.ok?

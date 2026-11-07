@@ -12,7 +12,8 @@ module Hecks
 
       def markdown(result)
         [environment_block(result[:environment]), configuration_block(result[:config]),
-         table(result[:results]), floor_block(result[:results]), skipped_block(result[:skipped])]
+         table(result[:results]), floor_block(result[:results]), GateReport.markdown(result[:gate]),
+         skipped_block(result[:skipped])]
           .compact.join("\n\n") << "\n"
       end
 

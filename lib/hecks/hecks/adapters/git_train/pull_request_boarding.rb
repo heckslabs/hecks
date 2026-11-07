@@ -3,6 +3,7 @@
 require "json"
 require_relative "reading"
 require_relative "bench"
+require_relative "merge_when_green"
 
 module Hecks
   module Adapters
@@ -17,9 +18,16 @@ module Hecks
       class PullRequestBoarding
         include Reading
 
+        # @return [#call, nil] takes seconds to wait between reads of the checks, when the
+        #   repository disallows auto-merge and the train waits for them itself; a spec sets it
+        attr_writer :pause
+
         # The branch a boarded commit is pushed to. Named by the commit, so each boarding is its own
         # branch and a boarding that is retried finds its branch already there.
         def self.branch_for(commit) = "train/main-#{commit[0, 12]}"
+
+        # What `gh` says when the repository does not allow auto-merge.
+        AUTO_MERGE_DISALLOWED = "Auto merge is not allowed"
 
         # @param git [Git] the adapter every git call goes through
         # @param checkout [String] the repository's top level
@@ -35,7 +43,9 @@ module Hecks
         end
 
         # @param boarded [String] the commit to carry, which local main must still name
-        # @return [Hash{Symbol => Hash}] `outcome:` `queued` (a PR is open and set to auto-merge) or
+        # @return [Hash{Symbol => Hash}] `outcome:` `queued` (a PR is open and set to auto-merge),
+        #   `pushed` (the repository disallows auto-merge; the checks passed and the train
+        #   squash-merged the PR), `checks_failed` (a required check failed; the PR stays open) or
         #   `carried` (main already carries the commit), with `boarded:` and `report:`
         # @raise [ConsoleCapture::Failure] when main moved since boarding, the commit is not
         #   built on the remote's main, the push is refused, or `gh` cannot open or auto-merge
@@ -48,8 +58,9 @@ module Hecks
           branch = self.class.branch_for(boarded)
           Bench.new(@git, @checkout, branch: branch, remote: @remote, config: @config).push(boarded, tracking)
           url = open_pr(branch, boarded)
-          enable_auto_merge(branch)
-          queued(boarded, branch, url)
+          return queued(boarded, branch, url) if enable_auto_merge(branch)
+
+          waited(boarded, branch, url)
         end
 
         # Reads a queued boarding's PR. Open, it answers `open` and nothing else; merged, it answers
@@ -130,10 +141,21 @@ module Hecks
         end
 
         # GitHub deletes the branch once the PR merges (the repository's delete-on-merge setting);
-        # `gh` refuses `--delete-branch` while main has a merge queue.
+        # `gh` refuses `--delete-branch` while main has a merge queue. Answers false, and sets
+        # nothing, when the repository disallows auto-merge.
         def enable_auto_merge(branch)
           ok, output = @runner.call(["gh", "pr", "merge", branch, "--auto", "--squash"], chdir: @checkout)
-          raise ConsoleCapture::Failure, "could not set #{branch} to auto-merge: #{output.to_s.strip}" unless ok
+          return true if ok
+          return false if output.to_s.include?(AUTO_MERGE_DISALLOWED)
+
+          raise ConsoleCapture::Failure, "could not set #{branch} to auto-merge: #{output.to_s.strip}"
+        end
+
+        # No auto-merge here, so the train waits for the required checks and merges the PR itself.
+        def waited(boarded, branch, url)
+          options = @pause ? { pause: @pause } : {}
+          answer = MergeWhenGreen.new(@runner, @checkout, **options).settle(branch, url.split("/").last, boarded)
+          answer.merge(checkout: { value: @checkout }, boarded: { value: boarded })
         end
 
         def queued(boarded, branch, url)

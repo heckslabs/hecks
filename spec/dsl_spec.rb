@@ -1213,7 +1213,7 @@ RSpec.describe "the DSL surface" do
     end
 
     it "formerly_known_as on an aggregate records the name it held before" do
-      expect(renamed_aggregate.formerly_known_as.value).to eq("Pie")
+      expect(renamed_aggregate.formerly_known_as).to eq("Pie")
     end
 
     it "formerly_known_as records what a domain's own identity used to be" do

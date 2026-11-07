@@ -1,0 +1,16 @@
+package hecks:adapters@0.1.0;
+
+/// Everything the host can grant; the runner links exactly these.
+world granted {
+  import clock;
+  import secrets;
+  import http-out;
+}
+
+/// A component that asks for a secret and for a URL and reports what it was told.
+world grant-probe {
+  import secrets;
+  import http-out;
+  export read-secret: func(name: string) -> result<string, string>;
+  export fetch: func(url: string) -> result<string, string>;
+}
