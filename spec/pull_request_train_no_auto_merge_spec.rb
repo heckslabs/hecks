@@ -17,13 +17,17 @@ RSpec.describe "the push train boarding main where auto-merge is disallowed", :i
   let(:reads) { [] }
   let(:pauses) { [] }
 
-  NO_AUTO_MERGE_IDENTITY = { "GIT_AUTHOR_NAME" => "A", "GIT_AUTHOR_EMAIL" => "a@example.test",
-                             "GIT_COMMITTER_NAME" => "A", "GIT_COMMITTER_EMAIL" => "a@example.test" }.freeze
-  MERGE_COMMIT = "c" * 40
-  REFUSAL = "GraphQL: Auto merge is not allowed for this repository (enablePullRequestAutoMerge)".freeze
+  def identity
+    { "GIT_AUTHOR_NAME" => "A", "GIT_AUTHOR_EMAIL" => "a@example.test",
+      "GIT_COMMITTER_NAME" => "A", "GIT_COMMITTER_EMAIL" => "a@example.test" }
+  end
+
+  def merge_commit = "c" * 40
+
+  def refusal = "GraphQL: Auto merge is not allowed for this repository (enablePullRequestAutoMerge)"
 
   def git(*args, dir: work)
-    out, err, status = Open3.capture3(NO_AUTO_MERGE_IDENTITY, "git", *args, chdir: dir)
+    out, err, status = Open3.capture3(identity, "git", *args, chdir: dir)
     raise "git #{args.join(" ")} failed: #{err}" unless status.success?
 
     out.strip
@@ -36,9 +40,9 @@ RSpec.describe "the push train boarding main where auto-merge is disallowed", :i
     gh_calls << argv
     case argv[1..2]
     when %w[pr create] then [true, "https://github.test/o/r/pull/7\n"]
-    when %w[pr merge] then argv.include?("--auto") ? [false, REFUSAL] : [true, ""]
+    when %w[pr merge] then argv.include?("--auto") ? [false, refusal] : [true, ""]
     when %w[pr checks] then [true, reads.size > 1 ? reads.shift : reads.first]
-    when %w[pr view] then [true, JSON.generate(state: "MERGED", mergeCommit: { oid: MERGE_COMMIT })]
+    when %w[pr view] then [true, JSON.generate(state: "MERGED", mergeCommit: { oid: merge_commit })]
     else [false, "unexpected #{argv.join(" ")}"]
     end
   end
@@ -78,7 +82,7 @@ RSpec.describe "the push train boarding main where auto-merge is disallowed", :i
     it "waits, squash-merges the PR by its number and answers pushed with the merge commit", :aggregate_failures do
       answer = board(["rspec", "pass"])
 
-      expect(answer).to include(outcome: { value: "pushed" }, pushed: { value: MERGE_COMMIT })
+      expect(answer).to include(outcome: { value: "pushed" }, pushed: { value: merge_commit })
       expect(merged_by_squash).to eq([["gh", "pr", "merge", "7", "--squash"]])
       expect(pauses).to eq([Hecks::Adapters::GitTrain::MergeWhenGreen::INTERVAL])
     end
