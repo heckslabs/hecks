@@ -353,7 +353,7 @@ Hecks.bluebook "Agents" do
     attribute :change, ChangeRef
     attribute :reasons, Reasons, optional: true
     attribute :role, RoleRef, optional: true
-    attribute :repo, RepoPath, optional: true
+    attribute :repo, RepoPath
     attribute :brief, BriefText, optional: true
 
     value_object "ChangeRef" do
@@ -377,7 +377,7 @@ Hecks.bluebook "Agents" do
       attribute :change, ChangeRef, sets: true
       attribute :reasons, Reasons, sets: true
       attribute :role, RoleRef, optional: true, sets: true
-      attribute :repo, RepoPath, optional: true, sets: true
+      attribute :repo, RepoPath, sets: true
       attribute :brief, BriefText, optional: true, sets: true
 
       emits "PromotionRecommended"
