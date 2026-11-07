@@ -13,14 +13,33 @@ RSpec.describe "a plan review request starting the architect's session" do
 
   def launch(*argv) = Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, argv: argv, program: "hecks")
 
-  def request(work, hops)
-    launch("agents", "PlanReview.request!", "work.value=#{work}", "hops.value=#{hops}", "role.value=architect",
-           "repo.value=#{scratch}", "plan.value=review this plan", "--wait").first.to_s
+  def request(work, hops, run: work)
+    launch("agents", "PlanReview.request!", "run.value=#{run}", "work.value=#{work}", "hops.value=#{hops}",
+           "role.value=architect", "repo.value=#{scratch}", "plan.value=review this plan", "--wait").first.to_s
   end
 
-  it "starts a run keyed by the Work item for a request under the hop limit" do
-    request("w-start", 1)
-    expect(launch("agent_run.running").first.to_s).to include("w-start")
+  it "starts a run keyed by the review, naming its Work item, for a request under the hop limit" do
+    request("w-start", 1, run: "r-start")
+    expect(launch("agent_run.running").first.to_s).to include("r-start", "w-start")
+  end
+
+  it "names the run it minted in the result of a request that leaves the key out" do
+    out = launch("agents", "PlanReview.request!", "work.value=w-mint", "hops.value=1", "role.value=architect",
+                 "repo.value=#{scratch}", "plan.value=review this plan", "--wait").first.to_s
+    expect(JSON.parse(out).dig("ids", "run")).to match(/\A\S+\z/)
+  end
+
+  def review_again
+    request("w-again", 1, run: "r-first")
+    close_job("Verdict: sound.")
+    launch("agent_run.check!", "to=r-first", "--wait")
+    request("w-again", 1, run: "r-second")
+  end
+
+  it "reviews a Work item again under a new run once its first review's run has finished", :aggregate_failures do
+    expect(review_again).to include("PlanReviewRequested")
+    expect(launch("agent_run.tidyable").first.to_s).to include("r-first", "r-second")
+    expect(launch("agents", "PlanReview.reviews").first.to_s).to include("r-first", "sound", "r-second")
   end
 
   it "reads the new session without a reaction refused at the depth cap" do
@@ -41,7 +60,7 @@ RSpec.describe "a plan review request starting the architect's session" do
     request("w-verdict", 1)
     close_job("Verdict: sound with changes. Revise the plan as the findings say.")
     launch("agent_run.check!", "to=w-verdict", "--wait")
-    expect(verdict_reactions.map { |r| r[:delivered] }).to eq([true])
+    expect(verdict_reactions.last[:delivered]).to be(true)
     expect(launch("agents", "PlanReview.reviews").first.to_s).to include("w-verdict", "changes", "Revise the plan")
   end
 

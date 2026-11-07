@@ -53,17 +53,27 @@ Hecks.bluebook "Agents" do
     end
   end
 
-  # The architect's review of a plan, asked by event instead of by prose. The Work key is the
-  # correlation id; each request carries a hop count so a review that asks another review stops.
+  # The architect's review of a plan, asked by event instead of by prose. Each review has its own
+  # run key, which is also the key of the architect's run, so a Work item is reviewed again once a
+  # review has ended; the launcher mints the key when a request leaves it out. Each request carries
+  # a hop count so a review that asks another review stops.
   aggregate "PlanReview" do
     description "One review of a Work item's plan by the architect role: asked as an event, answered with a verdict, and refused past the hop limit."
 
-    identified_by :work
+    identified_by :run
 
+    acknowledges :key_by_value, "the Work item's slug, which lives in the Tickets store, not in a Routing record, so a reference would refuse every review of a Work item no routing was asked for", of: :work
+
+    attribute :run, RunKey
     attribute :work, WorkKey
     attribute :verdict, Verdict, optional: true
     attribute :findings, FindingsText, optional: true
     attribute :hops, HopCount, optional: true
+
+    # One review's key, and the key of the architect's run that answers it.
+    value_object "RunKey" do
+      attribute :value, String, matches: :present
+    end
 
     value_object "WorkKey" do
       attribute :value, String, matches: :present
@@ -88,6 +98,7 @@ Hecks.bluebook "Agents" do
       role "System"
       goal "Ask the architect to review one Work item's plan"
 
+      attribute :run,  RunKey, sets: true
       attribute :work, WorkKey, sets: true
       attribute :hops, HopCount, sets: true
       attribute :role, RoleRef
@@ -116,7 +127,7 @@ Hecks.bluebook "Agents" do
     end
 
     query "Reviews" do
-      description "Every plan review, by Work item: the verdict once the architect has answered."
+      description "Every plan review, by Work item, each with its run key: the verdict once the architect has answered."
       order_by :work
     end
   end
