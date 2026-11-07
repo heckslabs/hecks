@@ -42,12 +42,14 @@ module Hecks
       # @param options [Hash] `mint:` the mint a boarding runs first (the Hecks domain's if none);
       #   `domain:` the launcher's Hecks domain directory the train's shape is read from (the one
       #   this code runs from by default); `registry:` the booted registry whose world names the
-      #   push size; `runner:` what runs `gh` for the pull requests (a spec's fake GitHub)
+      #   push size; `runner:` what runs `gh` for the pull requests (a spec's fake GitHub);
+      #   `pause:` what waits between reads of the checks (a spec's no-wait)
       def initialize(aggregate: nil, settings: {}, root: nil, **options)
         @registry = options.delete(:registry)
         @mint = options.delete(:mint) || MintStep.new
         @domain = options.delete(:domain) || JournalStore::HeldMint::DOMAIN
         @runner = options.delete(:runner) || method(:run_command)
+        @pause = options.delete(:pause)
         @git = Git.new
       end
 
@@ -135,7 +137,9 @@ module Hecks
         config = gate_config(held)
         return Carriage.new(@git, @checkout, branch: branch, remote: remote, config: config) unless branch == "main"
 
-        PullRequestBoarding.new(@git, @checkout, remote: remote, config: config, runner: @runner)
+        PullRequestBoarding.new(@git, @checkout, remote: remote, config: config, runner: @runner).tap do |boarding|
+          boarding.pause = @pause
+        end
       end
 
       # What the push is, said before it is made: how many commits go and, past the world's
