@@ -1,0 +1,404 @@
+{
+  "ir_version": 1,
+  "name": "RunKeyMintFixture",
+  "version": null,
+  "vision": "The smallest domain whose placed booking starts a check under a run key nobody named.",
+  "classification": "core",
+  "formerly_known_as": null,
+  "namespace": null,
+  "aggregates": [
+    {
+      "name": "Booking",
+      "description": "A booking, placed once.",
+      "identified_by": [
+        "ref.value"
+      ],
+      "attributes": [
+        {
+          "name": "ref",
+          "type": "BookingRef",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "BookingRef",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Place",
+          "role": null,
+          "goal": "Place a booking",
+          "references": null,
+          "attributes": [
+            {
+              "name": "ref",
+              "type": "BookingRef",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+            {
+              "target": "ref",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "ref"
+              }
+            }
+          ],
+          "emits": [
+            "BookingPlaced"
+          ],
+          "from": null,
+          "provenance": null,
+          "idempotent": false,
+          "mints_era": false
+        }
+      ],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "lifecycle": null,
+      "entities": [
+
+      ],
+      "queries": [
+
+      ],
+      "ports": [
+
+      ],
+      "provenance": null,
+      "formerly_known_as": null,
+      "created_by": null,
+      "acknowledgements": [
+
+      ]
+    },
+    {
+      "name": "Check",
+      "description": "A check run for a booking, keyed by its run.",
+      "identified_by": [
+        "run.value"
+      ],
+      "attributes": [
+        {
+          "name": "run",
+          "type": "RunKey",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
+          "name": "booking",
+          "type": "BookingRef",
+          "list": false,
+          "default": null,
+          "optional": false,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        }
+      ],
+      "value_objects": [
+        {
+          "name": "RunKey",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        },
+        {
+          "name": "BookingRef",
+          "attributes": [
+            {
+              "name": "value",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": false,
+          "members": [
+
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "name": "Start",
+          "role": null,
+          "goal": "Start a check run",
+          "references": null,
+          "attributes": [
+            {
+              "name": "run",
+              "type": "RunKey",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
+              "name": "booking",
+              "type": "BookingRef",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "givens": [
+
+          ],
+          "ensures": [
+
+          ],
+          "needs": [
+
+          ],
+          "mutations": [
+            {
+              "target": "run",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "run"
+              }
+            },
+            {
+              "target": "booking",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "booking"
+              }
+            }
+          ],
+          "emits": [
+            "CheckStarted"
+          ],
+          "from": null,
+          "provenance": null,
+          "idempotent": false,
+          "mints_era": false
+        }
+      ],
+      "invariants": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "lifecycle": null,
+      "entities": [
+
+      ],
+      "queries": [
+
+      ],
+      "ports": [
+
+      ],
+      "provenance": null,
+      "formerly_known_as": null,
+      "created_by": null,
+      "acknowledgements": [
+
+      ]
+    }
+  ],
+  "read_models": [
+
+  ],
+  "policies": [
+    {
+      "name": "StartCheckOnPlaced",
+      "on_event": "BookingPlaced",
+      "trigger_command": "Check.Start",
+      "target_domain": null,
+      "expect_undelivered": false,
+      "root": false,
+      "where": null,
+      "for_each": null,
+      "with_spec": [
+        [
+          "booking",
+          ":ref"
+        ]
+      ],
+      "where_ast": null
+    }
+  ],
+  "process_managers": [
+
+  ],
+  "attaches_to": [
+
+  ],
+  "provides": [
+
+  ],
+  "canonical_form": [
+    {
+      "strategy": "collapse_whitespace",
+      "source_token": "",
+      "replacement": "",
+      "boundary": "none",
+      "position": "1"
+    },
+    {
+      "strategy": "replace",
+      "source_token": ".length",
+      "replacement": ".size",
+      "boundary": "word",
+      "position": "2"
+    },
+    {
+      "strategy": "scale_call",
+      "source_token": "days",
+      "replacement": "86400",
+      "boundary": "word",
+      "position": "3"
+    },
+    {
+      "strategy": "scale_call",
+      "source_token": "hours",
+      "replacement": "3600",
+      "boundary": "word",
+      "position": "4"
+    },
+    {
+      "strategy": "scale_call",
+      "source_token": "minutes",
+      "replacement": "60",
+      "boundary": "word",
+      "position": "5"
+    }
+  ],
+  "lineage": {
+    "capable_aggregates": [
+
+    ]
+  },
+  "persistence": {
+    "aggregates": [
+      {
+        "name": "Booking",
+        "storage_name": "booking",
+        "adapter": "Memory"
+      },
+      {
+        "name": "Check",
+        "storage_name": "check",
+        "adapter": "Memory"
+      }
+    ]
+  },
+  "adapters": [
+    {
+      "name": "Memory",
+      "port": "persistence",
+      "fields": [
+
+      ],
+      "secrets": [
+
+      ],
+      "defaults": {
+      }
+    }
+  ],
+  "world": {
+    "default_adapter": null,
+    "default_database": false,
+    "persistence": [
+
+    ]
+  },
+  "translations": [
+
+  ],
+  "source_text": "# Pins a policy's `with:` triggering a creating command that requires a `run` key and names none:\n# the runtime mints the key from its identity port, and the event records it. `Check.Start` takes\n# `run` as its identity; the policy projects only `booking`, so the key must come from the port.\n#\n# Dispatched against both engines by\n# spec/corpus/rust_conformance/reaction_mints_run_key.json\nHecks.bluebook \"RunKeyMintFixture\" do\n  vision \"The smallest domain whose placed booking starts a check under a run key nobody named.\"\n\n  core\n\n  aggregate \"Booking\" do\n    description \"A booking, placed once.\"\n\n    identified_by :ref\n\n    attribute :ref, BookingRef\n\n    value_object \"BookingRef\" do\n      attribute :value, String\n    end\n\n    command \"Place\" do\n      goal \"Place a booking\"\n\n      attribute :ref, BookingRef\n\n      sets :ref\n\n      emits \"BookingPlaced\"\n    end\n  end\n\n  aggregate \"Check\" do\n    description \"A check run for a booking, keyed by its run.\"\n\n    identified_by :run\n\n    attribute :run, RunKey\n    attribute :booking, BookingRef\n\n    value_object \"RunKey\" do\n      attribute :value, String\n    end\n\n    value_object \"BookingRef\" do\n      attribute :value, String\n    end\n\n    command \"Start\" do\n      goal \"Start a check run\"\n\n      attribute :run, RunKey\n      attribute :booking, BookingRef\n\n      sets :run\n      sets :booking\n\n      emits \"CheckStarted\"\n    end\n  end\n\n  policy \"StartCheckOnPlaced\" do\n    on \"BookingPlaced\"\n    trigger Check::Start, with: { booking: :ref }\n  end\nend\n"
+}

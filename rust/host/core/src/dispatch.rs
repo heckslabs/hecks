@@ -695,6 +695,13 @@ fn kernel_input(
         if defaults.as_object().is_some_and(|t| !t.is_empty()) {
             input["defaults"] = defaults;
         }
+        // A reaction's creating command that requires a `run` and names none is minted one from
+        // the identity port, so the port's ids ride in beside the commands that need them.
+        let run_required = crate::identity::run_required_table(domain_ir);
+        if run_required.as_array().is_some_and(|t| !t.is_empty()) {
+            input["run_required"] = run_required;
+            input["identity"] = crate::identity::pool(&crate::identity::ProcessIdentity);
+        }
     }
     input
 }
