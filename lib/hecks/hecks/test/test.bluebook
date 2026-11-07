@@ -266,6 +266,18 @@ Hecks.bluebook "Hecks" do
         emits RegenerateLegacyFixturesRequested
       end
 
+      command "RewriteIrGolden" do
+        role "Maintainer"
+        goal "Rewrite the frozen IR of the language bluebooks that spec/ir_golden_spec.rb pins, once their source moved"
+
+        attribute :run,     RunKey, sets: true
+        attribute :confirm, Switch, optional: true, sets: true
+
+        sets :operation, to: "rewrite_ir_golden"
+
+        emits RewriteIrGoldenRequested
+      end
+
       command "SeedSemanticsCorpus" do
         role "Maintainer"
         goal "Fill the expected outcome of every semantics fixture that lacks one, or re-seed one"
@@ -362,6 +374,11 @@ Hecks.bluebook "Hecks" do
 
     policy "ExamineWhenRegenerateLegacyFixturesRequested" do
       on      "TestSuiteRun.RegenerateLegacyFixturesRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "ExamineWhenRewriteIrGoldenRequested" do
+      on      "TestSuiteRun.RewriteIrGoldenRequested"
       ask     :examine, with: { run: :run }
     end
 

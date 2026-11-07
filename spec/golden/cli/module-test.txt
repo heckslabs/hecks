@@ -21,6 +21,7 @@ commands:
     run_cargo_tests!              Run the cargo tests of the host, the parser or the JSON fuzzer, with the seed counts their fuzzers take
     clear_caches!                 Delete the on-disk syntax-boot and verdict caches, so the next boot builds and judges afresh
     regenerate_legacy_fixtures!   Regenerate the persistence legacy fixtures through the real adapters
+    rewrite_ir_golden!            Rewrite the frozen IR of the language bluebooks that spec/ir_golden_spec.rb pins, once their source moved
     seed_semantics_corpus!        Fill the expected outcome of every semantics fixture that lacks one, or re-seed one
     write_io_parallel_spec_list!  Write the committed list of the spec files a tag filter selects
   FuzzRun:
