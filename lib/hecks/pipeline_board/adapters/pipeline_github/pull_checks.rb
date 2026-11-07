@@ -15,8 +15,8 @@ module Hecks
         module_function
 
         # @param listed [Array<Hash>] `gh pr list --json` rows
-        # @return [Array<Hash>] `number`, `branch`, `passed`, `failed`, `pending` and `total` for each
-        #   open pull request on a train branch
+        # @return [Array<Hash>] `number`, `branch`, `passed`, `failed`, `pending` and `total`
+        #   for each open pull request on a train branch
         def train(listed)
           trains = Array(listed).select { |pull| pull["headRefName"].to_s.start_with?(BRANCH_PREFIX) }
           trains.map { |pull| counted(pull) }

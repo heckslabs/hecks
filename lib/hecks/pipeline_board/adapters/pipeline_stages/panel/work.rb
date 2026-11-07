@@ -21,7 +21,8 @@ module Hecks
             @size = size
           end
 
-          # @return [Array<Array(String, String)>] the sessions, blocked first, a heading for each state
+          # @return [Array<Array(String, String)>] the sessions by state, blocked first, each state
+          #   under a heading
           def sessions
             found = @state[:sessions]
             return [unknown(found)] unless found.is_a?(Array)
@@ -29,7 +30,7 @@ module Hecks
             GROUPS.flat_map { |status, heading| group(status, heading, found.select { |row| row[:status] == status }) }
           end
 
-          # @return [Array<Array(String, String)>] each open train pull request with its check counts
+          # @return [Array<Array(String, String)>] each open train pull request, its checks counted
           def pulls
             found = @state[:train_prs]
             return [unknown(found)] unless found.is_a?(Array)

@@ -7,7 +7,7 @@ module Hecks
         # The drawing the panel's sections share: clipping, padding, boxes of plain ASCII, wrapping
         # a list of items into rows, and the optional colour of a row. A row is `[text, tone]`.
         module Kit
-          # The ANSI colour of each tone; a tone with no entry stays plain.
+          # The terminal colour code of each tone; a tone with no entry stays plain.
           COLOURS = { "ok" => 32, "done" => 32, "working" => 36, "busy" => 36, "attention" => 33, "failed" => 31,
                       "blocked" => 31, "unknown" => 2 }.freeze
           # The tones from the one that most needs a look to the one that needs none.

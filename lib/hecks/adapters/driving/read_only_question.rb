@@ -24,9 +24,9 @@ module Hecks
           words.first(2).any? { |word| listed.include?(normal(word)) }
         end
 
-        # Whether the line a launcher was given asks a question its bluebook lists under `reads_tap`,
-        # which the launcher answers on a boot that writes nothing: no outbox row is redriven and
-        # no saga resumed.
+        # Whether the line a launcher was given asks a question its bluebook lists under
+        # `reads_tap`, which the launcher answers on a boot that writes nothing: no outbox row
+        # is redriven and no saga resumed.
         #
         # @param described [#registry] the described domain the line is run against
         # @param argv [Array<String>] the command line's words
