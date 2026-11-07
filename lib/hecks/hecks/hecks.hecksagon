@@ -13,6 +13,8 @@ Hecks.hecksagon "Hecks" do
   subscribe "Agents.PlanningRequested"
   subscribe "Agents.SubmissionReviewRequested"
   subscribe "Agents.DispatchAdviceRequested"
+  # A woken pruner starts a session through AgentRun (see DispatchThePrunerWhenWoken in the agents bluebook).
+  subscribe "Agents.PrunerWoken"
   # Persistence is not bound here, so the domain is in Memory. A copy opts in with a
   # hecks.local.hecksagon whose `persisted_by` the attached bluebooks inherit (ADR 0136).
 
@@ -453,6 +455,13 @@ Hecks.hecksagon "Hecks" do
       answers "AgentResumed"
       refuses "ResumeRefused"
     end
+  end
+
+  # A woken pruner (the Pruning aggregate of the agents bluebook) is handed its brief as a run of the
+  # `pruner` agent; AgentRun.Dispatch mints the key.
+  translates "DispatchThePrunerWhenWoken" do
+    on Pruning::PrunerWoken
+    trigger AgentRun::Dispatch, with: { run: :role, repo: :repo, brief: :brief, agent: :role }
   end
 
   Hecks::SendTrain.port "Launcher" do
