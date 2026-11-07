@@ -1,4 +1,5 @@
 require "spec_helper"
+require "json"
 require "hecks/hecks/adapters/dispatching"
 
 # A `Dispatch.Fill` reaches its `Choose` ask through the `ChooseWhenFilling` policy, with the
@@ -12,7 +13,17 @@ RSpec.describe "a filling, dispatched through its Choose ask" do
   def dispatching(planned)
     items = instance_double(Hecks::Adapters::Dispatching::WorkItems, planned: planned.map { |key| item(key) },
                                                                     started: [], runs: {}, lessons: [])
-    Hecks::Adapters::Dispatching.new(settings: { load: -> { 1.5 }, cpus: 4, work_items: items })
+    Hecks::Adapters::Dispatching.new(settings: { load: -> { 1.5 }, cpus: 4, work_items: items, runner: runner })
+  end
+
+  # The launcher's stand-in: every command answers, compose with a brief, and dispatching `gap-b`
+  # fails with the reason a session reads.
+  def runner
+    lambda do |argv|
+      out = argv.include?("Brief.compose!") ? JSON.generate("state" => { "outcome" => "x" }) : ""
+      failed = argv.include?("run.value=gap-b")
+      Hecks::Adapters::Shell::Result.new(out, failed ? "no repo" : "", instance_double(Process::Status, success?: !failed))
+    end
   end
 
   def boot = Hecks.boot(HECKS_DOMAIN, environment: "memory", install_driving: false).registry
@@ -46,6 +57,14 @@ RSpec.describe "a filling, dispatched through its Choose ask" do
     report = report_of(fill(boot, planned))
 
     expect(report).to include("would start gap-a", "would start other")
+  end
+
+  it "records a confirmed filling's report with one line for each chosen work item", :aggregate_failures do
+    registry = fill(boot, planned, only: { value: "gap" }, confirm: { value: true })
+    recorded = Hecks::Runtime::Value.materialize(events_named(registry, "DispatchAnswered").last.payload[:report])
+
+    expect(recorded.to_s).to include("started gap-a", "yielded gap-b: dispatch of gap-b failed: no repo")
+    expect(report_of(registry)).not_to include("would start")
   end
 
   it "is refused at no point: Choose answers and nothing is refused", :aggregate_failures do
