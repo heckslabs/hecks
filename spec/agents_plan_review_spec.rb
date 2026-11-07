@@ -18,13 +18,18 @@ RSpec.describe "the Agents plan review" do
 
   before { boot_agents }
 
-  def request(hops)
-    review.request!(work: { value: "w1" }, hops: { value: hops }, role: { value: "architect" },
+  def request(hops, run: "r1")
+    review.request!(run: { value: run }, work: { value: "w1" }, hops: { value: hops }, role: { value: "architect" },
                     repo: { value: "/tmp" }, plan: { value: "a plan" })
   end
 
   it "accepts a request under the hop limit" do
     expect { request(2) }.not_to raise_error
+  end
+
+  it "reviews a Work item again under a new run once a review of it was answered" do
+    request(1).answer!(verdict: { value: "sound" })
+    expect { request(1, run: "r2") }.not_to raise_error
   end
 
   it "refuses a request at the hop limit, by name" do

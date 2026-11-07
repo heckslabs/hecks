@@ -6,7 +6,7 @@ require "hecks/fuzzing"
 # Each shape's fingerprint is in the step's own `role`/`actor_id`/`dry_run` keys.
 RSpec.describe Hecks::Fuzzing::SequenceGenerator, :aggregate_failures do
   ROLE_BANKING = File.join(InMemoryDomain::ROOT, "examples/banking")
-  ROLE_PIZZAS  = File.join(InMemoryDomain::ROOT, "examples/pizzas")
+  ROLE_PIZZAS  = File.join(InMemoryDomain::ROOT, "spec/fixtures/pizza_fixture")
   ROLE_CHESS   = File.join(InMemoryDomain::ROOT, "examples/chess")
 
   def notes_over(domain, seeds:, mutation:, **options)
@@ -169,9 +169,9 @@ RSpec.describe Hecks::Fuzzing::SequenceGenerator, :aggregate_failures do
 
   describe "the dry-run draw" do
     def writing_dry_run_history
-      { dry_run_traces: [{ verb: "Pizzas::Order.CreatePizza", ok: true,
+      { dry_run_traces: [{ verb: "PizzaFixture::Order.CreatePizza", ok: true,
                            before: { instances: {}, events: 0 },
-                           after:  { instances: { "Pizzas::Order#x" => {} }, events: 1 } }] }
+                           after:  { instances: { "PizzaFixture::Order#x" => {} }, events: 1 } }] }
     end
 
     context "with half the pizza steps drawn as dry runs" do

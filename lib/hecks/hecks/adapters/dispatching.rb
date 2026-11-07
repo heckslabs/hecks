@@ -34,14 +34,13 @@ module Hecks
       #
       # @param held [Hash] the `Dispatch` record: `repo`, `budget_minutes`, `confirm`, and `only`,
       #   the key prefix the choice is held to
-      # @return [Hash{Symbol => Hash}] `report:` the load, the work items started or that would be,
-      #   and
-      #   the
-      #   work items left waiting with the reason
+      # @return [Hash{Symbol => Hash}] `report:` the load; one line for each chosen work item, which
+      #   says it would start or, when confirmed, that it started or why it went back to the plan;
+      #   then the work items left waiting with the reason
       def choose(**held)
         plan = plan_for(prefix(held))
-        lines = report_lines(plan)
-        lines += launch(plan, held) if plain(held[:confirm]) == true
+        chosen = plain(held[:confirm]) == true ? launch(plan, held) : plan.chosen.map { |item| chosen_line(item) }
+        lines = [header(plan)] + chosen + plan.skipped.map { |skip| skipped_line(skip) }
         { report: { value: lines.join("\n") } }
       end
 
@@ -104,8 +103,24 @@ module Hecks
         launcher = launcher_for(held)
         minutes = plain(held[:budget_minutes]) || Settings::BUDGET_MINUTES
         plan.chosen.each_with_index.map do |item, index|
-          launcher.launch(item, held: holding(plan, index), minutes: minutes, limit: machine.spec_files_limit,
-                                frozen: machine.frozen, traps: traps_for(item))
+          launched(launcher, item) do
+            launcher.launch(item, held: holding(plan, index), minutes: minutes, limit: machine.spec_files_limit,
+                                  frozen: machine.frozen, traps: traps_for(item))
+          end
+        end
+      end
+
+      # One work item's launch line. An error the launcher did not expect yields that work item
+      # with the error's class and message, so the next chosen work item still launches and the
+      # report still says why; a yield that fails too is named on the line.
+      def launched(launcher, item)
+        yield
+      rescue StandardError => e
+        reason = "#{e.class}: #{e.message}"
+        begin
+          launcher.yield_back(item, reason)
+        rescue StandardError => failure
+          "#{item.key} could not be started or yielded: #{reason} (yield failed: #{failure.class}: #{failure.message})"
         end
       end
 

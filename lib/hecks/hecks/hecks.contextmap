@@ -41,4 +41,10 @@ Hecks.context_map "Hecks" do
   relate "Agents"   => "Hecks", as: :shared_kernel
   relate "Coder"    => "Agents", as: :anti_corruption_layer
   relate "Pipeline" => "Agents", as: :anti_corruption_layer
+
+  # Coder's hecksagon translates the Hecks domain's `JobRead` of a finished coder run into its own
+  # `Submission.Submit`, so Hecks' AgentRun model stays out of Coder's. Hecks attaches Coder as well,
+  # so the pair also shares a kernel, which has no direction.
+  relate "Hecks"    => "Coder", as: :anti_corruption_layer
+  relate "Coder"    => "Hecks", as: :shared_kernel
 end

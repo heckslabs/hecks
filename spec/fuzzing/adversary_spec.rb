@@ -5,7 +5,7 @@ require "hecks/fuzzing"
 # The adversarial layer: deterministic per seed, opt-in (off is byte-identical), and every
 # mutation kind shows its documented shape in the step's own args, on real generated sequences.
 RSpec.describe Hecks::Fuzzing::SequenceGenerator, :aggregate_failures do
-  PIZZAS            = File.join(InMemoryDomain::ROOT, "examples/pizzas")
+  PIZZAS            = File.join(InMemoryDomain::ROOT, "spec/fixtures/pizza_fixture")
   ADVERSARY_BANKING = File.join(InMemoryDomain::ROOT, "examples/banking")
   CHESS             = File.join(InMemoryDomain::ROOT, "examples/chess")
   NESTED_PIECES     = File.join(InMemoryDomain::ROOT, "qa/stress_domains/nested_pieces")

@@ -96,9 +96,12 @@ module Hecks
           architects.map { |session, run| review(session, run, jobs.closing(session)) }
         end
 
-        # @return [Hash] one review: the Work item it is for, its verdict and its findings
+        # @return [Hash] one review: the Work item it is for (the run's own, or its key when the run
+        #   names none), its run key, its verdict and its findings
         def review(_session, run, closing)
-          { work: run[:run].to_s, verdict: ArchitectVerdict.of(closing), findings: closing.strip[0, 2000] }
+          work = run[:work_item].to_s
+          { work: work.empty? ? run[:run].to_s : work, run: run[:run].to_s, verdict: ArchitectVerdict.of(closing),
+            findings: closing.strip[0, 2000] }
         end
 
         # The promotions the release manager recommends that the owner has not settled: each change
