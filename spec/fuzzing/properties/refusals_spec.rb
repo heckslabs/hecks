@@ -6,9 +6,12 @@ require "hecks/fuzzing"
 # has, so its replay holds real refusals; the failing cases doctor one refusal's after-snapshot,
 # since a runtime that leaks a refused write is what the property exists to catch.
 RSpec.describe "Hecks::Fuzzing::Properties.refusals_leave_no_trace", :aggregate_failures do
-  def pizzas_path = File.join(InMemoryDomain::ROOT, "examples/pizzas")
+  def pizzas_path = File.join(InMemoryDomain::ROOT, "spec/fixtures/pizza_fixture")
 
-  def corpus_steps = JSON.parse(File.read(File.join(InMemoryDomain::ROOT, "spec/corpus/pizzas.json")))["steps"]
+  # The shared pizzas corpus names the domain `Pizzas`; the fixture answers to `PizzaFixture`.
+  def corpus_steps
+    JSON.parse(File.read(File.join(InMemoryDomain::ROOT, "spec/corpus/pizzas.json")).gsub("Pizzas::", "PizzaFixture::"))["steps"]
+  end
 
   def verdict(history) = Hecks::Fuzzing::Properties.refusals_leave_no_trace(history)
 
@@ -39,6 +42,6 @@ RSpec.describe "Hecks::Fuzzing::Properties.refusals_leave_no_trace", :aggregate_
   end
 
   it "skips an entry missing either snapshot" do
-    expect(verdict(refusal_traces: [{ verb: "Pizzas::Order.Purchase", kind: "GivenNotMet", before: {} }])).to be(true)
+    expect(verdict(refusal_traces: [{ verb: "PizzaFixture::Order.Purchase", kind: "GivenNotMet", before: {} }])).to be(true)
   end
 end

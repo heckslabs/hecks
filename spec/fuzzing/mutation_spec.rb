@@ -149,7 +149,7 @@ RSpec.describe Hecks::Fuzzing::Mutation, :aggregate_failures do
   end
 
   describe Hecks::Fuzzing::Mutation::Run do
-    let(:pizzas) { File.join(InMemoryDomain::ROOT, "examples/pizzas") }
+    let(:pizzas) { File.join(InMemoryDomain::ROOT, "spec/fixtures/pizza_fixture") }
     let(:options) { { seed: 7, budget: 4, seeds: 1, steps: 12, operators: %i[drop_given drop_one_of drop_policy] } }
 
     def summary(report) = report.verdicts.map { |outcome| [outcome.site.id, outcome.status] }
@@ -173,18 +173,18 @@ RSpec.describe Hecks::Fuzzing::Mutation, :aggregate_failures do
       expect(report.killed.map(&:by)).to include(a_string_starting_with("behavior:"))
     end
 
-    # A copy of the pizzas example, with a snapshot of its bluebook kept where the runtime keeps
+    # A copy of the pizza fixture, with a snapshot of its bluebook kept where the runtime keeps
     # eras
     # when `snapshots` is true.
     def pizzas_copy(into, snapshots:)
-      copy = File.join(into, "pizzas")
+      copy = File.join(into, "pizza_fixture")
       FileUtils.cp_r(pizzas, copy)
       FileUtils.rm_rf(File.join(copy, "data"))
       return copy unless snapshots
 
-      era = File.join(copy, "data", "eras", "pizzas", "archive")
+      era = File.join(copy, "data", "eras", "pizza_fixture", "archive")
       FileUtils.mkdir_p(era)
-      FileUtils.cp(File.join(copy, "bluebook", "pizzas.bluebook"), File.join(era, "1-02e1d1c3dcfb.bluebook"))
+      FileUtils.cp(File.join(copy, "bluebook", "pizza_fixture.bluebook"), File.join(era, "1-02e1d1c3dcfb.bluebook"))
       copy
     end
 
@@ -242,10 +242,10 @@ RSpec.describe Hecks::Fuzzing::Mutation, :aggregate_failures do
     end
 
     it "runs the mutate tool over the domain with the flags the record holds", :aggregate_failures do
-      answer = Hecks::Adapters::ProcessPool.new.probe(domain: { value: "examples/pizzas" }, budget: { value: 4 })
+      answer = Hecks::Adapters::ProcessPool.new.probe(domain: { value: "spec/fixtures/pizza_fixture" }, budget: { value: 4 })
 
       expect(asked.first[4]).to include('Hecks::Tools.script("mutate", ARGV)')
-      expect(asked.first.drop(6)).to eq(%w[examples/pizzas --budget 4])
+      expect(asked.first.drop(6)).to eq(%w[spec/fixtures/pizza_fixture --budget 4])
       expect(answer).to eq(report: { value: "mutation pizzas\n" })
     end
   end
