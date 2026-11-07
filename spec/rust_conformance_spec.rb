@@ -26,7 +26,8 @@ RSpec.describe "Rust conformance (native binary)", :io do
   end
 
   def kernel_stdout(binary, fixture)
-    stdin = Hecks::RustBuild::KernelInput.json(File.join(InMemoryDomain::ROOT, fixture.fetch("domain")), fixture.fetch("steps"))
+    stdin = Hecks::RustBuild::KernelInput.json(File.join(InMemoryDomain::ROOT, fixture.fetch("domain")), fixture.fetch("steps"),
+                                               identity: fixture["identity"])
     stdout, status = Open3.capture2(binary, stdin_data: stdin)
     expect(status).to be_success, "#{binary} exited #{status.exitstatus}:\n#{stdout}"
     stdout

@@ -1,0 +1,67 @@
+# Pins a policy's `with:` triggering a creating command that requires a `run` key and names none:
+# the runtime mints the key from its identity port, and the event records it. `Check.Start` takes
+# `run` as its identity; the policy projects only `booking`, so the key must come from the port.
+#
+# Dispatched against both engines by
+# spec/corpus/rust_conformance/reaction_mints_run_key.json
+Hecks.bluebook "RunKeyMintFixture" do
+  vision "The smallest domain whose placed booking starts a check under a run key nobody named."
+
+  core
+
+  aggregate "Booking" do
+    description "A booking, placed once."
+
+    identified_by :ref
+
+    attribute :ref, BookingRef
+
+    value_object "BookingRef" do
+      attribute :value, String
+    end
+
+    command "Place" do
+      goal "Place a booking"
+
+      attribute :ref, BookingRef
+
+      sets :ref
+
+      emits "BookingPlaced"
+    end
+  end
+
+  aggregate "Check" do
+    description "A check run for a booking, keyed by its run."
+
+    identified_by :run
+
+    attribute :run, RunKey
+    attribute :booking, BookingRef
+
+    value_object "RunKey" do
+      attribute :value, String
+    end
+
+    value_object "BookingRef" do
+      attribute :value, String
+    end
+
+    command "Start" do
+      goal "Start a check run"
+
+      attribute :run, RunKey
+      attribute :booking, BookingRef
+
+      sets :run
+      sets :booking
+
+      emits "CheckStarted"
+    end
+  end
+
+  policy "StartCheckOnPlaced" do
+    on "BookingPlaced"
+    trigger Check::Start, with: { booking: :ref }
+  end
+end

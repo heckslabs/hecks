@@ -8,7 +8,24 @@ module Hecks
     module IdentityGeneration
       NAME = "identity_generation".freeze
 
+      @stand_in = nil
+
       module_function
+
+      # Answers every identity request with `stand_in` instead of the bound adapter while the
+      # block runs, for a caller that needs the ids to be known in advance (a conformance replay
+      # scripts them so both engines mint the same ones).
+      #
+      # @param stand_in [#uuid] the object that mints instead of the adapter
+      # @yield the work to run with the stand-in in place
+      # @return [Object] what the block answers
+      def standing_in(stand_in)
+        previous = @stand_in
+        @stand_in = stand_in
+        yield
+      ensure
+        @stand_in = previous
+      end
 
       # Mints a fresh identity value from the bound adapter.
       #
@@ -22,6 +39,8 @@ module Hecks
       #
       # @raise [Runtime::WiringError] if none, or more than one, implements this port
       def adapter(registry)
+        return @stand_in if @stand_in
+
         implementations = registry.adapters.values.select { |a| a.port == NAME }
         return registry.adapter_class(implementations.first.name) if implementations.size == 1
 

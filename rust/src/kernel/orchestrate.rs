@@ -644,7 +644,7 @@ fn split_routed_args(projected: Json, target_verb: &str, tables: &Tables) -> Jso
         .collect();
 
     if (tables.command_creates_fn)(target_verb) {
-        return Json::Object(facts);
+        return Json::Object(crate::kernel::run_keys::with_minted_run(target_verb, facts));
     }
 
     let Some(aggregate_name) = target_verb.rsplit_once('.').map(|(agg, _)| agg) else {
