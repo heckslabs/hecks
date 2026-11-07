@@ -397,8 +397,8 @@ Hecks.bluebook "Agents" do
   # The pruner removes finished sessions. The bluebook gives: a pruner is woken only from rest, so a
   # second wake while one works is refused by the lifecycle, and the end of its run rests it again.
   # The policies state: any run but the pruner's own ending (a job read that shows done or stopped)
-  # wakes it, so its finish never loops. The Hecks hecksagon dispatches a woken pruner as a run of
-  # the `pruner` agent, since a policy here cannot reach AgentRun; Dispatch mints the run key. A
+  # wakes it, so its finish never loops. The delegate bluebook starts a woken pruner as a run of the
+  # `pruner` agent, since a policy here cannot reach AgentRun; the reaction mints the run key. A
   # role's `starts` field would replace the literals in the first policy.
   aggregate "Pruning" do
     description "The pruner role's standing: resting, or working on one dispatched run, so a second pruner is never started while one works."

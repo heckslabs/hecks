@@ -9,7 +9,7 @@ RSpec.describe "the pruner's turn" do
     launch("pruning.wake!", "to=pruner", "repo.value=#{scratch}", "brief.value=prune", "--wait")
     dispatch("w-second")
     finish("w-second")
-    expect(reactions("DispatchThePrunerWhenWoken").size).to eq(1)
+    expect(reactions("StartThePrunerWhenWoken").size).to eq(1)
   end
 
   it "dispatches a pruner again once the first has ended, under a new run key" do
@@ -17,6 +17,6 @@ RSpec.describe "the pruner's turn" do
     finish("w-a")
     dispatch("w-b")
     finish("w-b")
-    expect(reactions("DispatchThePrunerWhenWoken").size).to eq(2)
+    expect(reactions("StartThePrunerWhenWoken").size).to eq(2)
   end
 end
