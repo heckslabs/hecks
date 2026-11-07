@@ -8,6 +8,7 @@ require_relative "claude_transcript"
 require_relative "claude_jobs"
 require_relative "claude_resumption"
 require_relative "architect_verdict"
+require_relative "coder_job_facts"
 require_relative "claude_agent_list"
 require_relative "dispatching/settings"
 
@@ -82,12 +83,29 @@ module Hecks
       #
       # @param held [Hash] the `AgentRun` record: `session`, `repo`, and the `condition` it holds
       # @return [Hash{Symbol => String}] `state:` and `detail:` from the job, `previous:` the held
-      #   condition (empty when none), and `checkout:` the run's directory with its trailing slash
+      #   condition (empty when none), `checkout:` the run's directory with its trailing slash, and
+      #   the {CoderJobFacts}: `agent:`, `report:`, and a done coder's `branch:`, `sha:`, `clean:`
       # @raise [ConsoleCapture::Failure] when the job's state cannot be read
       def read_job(**held)
         job = @jobs.state(plain(held[:session]))
         { state: job["state"].to_s, detail: job["detail"].to_s }.merge(architect_facts(job, held), reviewer_facts(job, held),
-                                                                       run_facts(held))
+                                                                       run_facts(held), session_facts(job, held))
+      end
+
+      # @return [Hash{Symbol => Object}] what {CoderJobFacts} reads of the job and its checkout
+      def session_facts(job, held)
+        CoderJobFacts.new.call(agent: plain(held[:agent]), state: job["state"], report: last_words(job, held),
+                               checkout: plain(held[:repo]))
+      end
+
+      # The session's last words: its timeline's tail, else the job's result, else its summary. Not
+      # {#closing_text}, which joins all three, so the report's last word is the session's own.
+      #
+      # @return [String] the first of the three that says something, or empty
+      def last_words(job, held)
+        [@jobs.closing(plain(held[:session])), job.dig("output", "result"), job["detail"]].map(&:to_s).find do |text|
+          !text.strip.empty?
+        end.to_s
       end
 
       # The most of the architect's closing text a review keeps.

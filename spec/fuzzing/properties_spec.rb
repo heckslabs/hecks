@@ -7,7 +7,7 @@ require "hecks/fuzzing"
 # a property that can never fail is decoration.
 RSpec.describe "Hecks::Fuzzing::Properties", :aggregate_failures do
   ROOT_DIR = InMemoryDomain::ROOT unless defined?(ROOT_DIR)
-  PROPERTIES_PIZZAS   = File.join(ROOT_DIR, "examples/pizzas")
+  PROPERTIES_PIZZAS   = File.join(ROOT_DIR, "spec/fixtures/pizza_fixture")
   PROPERTIES_BANKING  = File.join(ROOT_DIR, "examples/banking")
   PROPERTIES_FIXTURES = File.join(ROOT_DIR, "spec/fixtures")
   # A real bootable domain (no .hecksagon — Memory by construction), and
@@ -106,8 +106,8 @@ RSpec.describe "Hecks::Fuzzing::Properties", :aggregate_failures do
       }
     end
 
-    # A query ask as `Replay` records it, for the Pizzas::Order.Expensive query.
-    def query_ask(**fields) = { query: "Pizzas::Order.Expensive", args: {} }.merge(fields)
+    # A query ask as `Replay` records it, for the PizzaFixture::Order.Expensive query.
+    def query_ask(**fields) = { query: "PizzaFixture::Order.Expensive", args: {} }.merge(fields)
 
     # Asks the two engines agree on: the same rows, a refusal from both, and a read-model ask.
     def agreeing_asks
@@ -116,7 +116,7 @@ RSpec.describe "Hecks::Fuzzing::Properties", :aggregate_failures do
        # both error: and reference_error: present (the shape Replay
        # produces when both engines raise independently).
        query_ask(error: "refused", reference_error: "refused"),
-       { query: "Pizzas.some_read_model", args: {}, rows: [] }]
+       { query: "PizzaFixture.some_read_model", args: {}, rows: [] }]
     end
 
     # A saga advance of Banking's Settlement process manager, as recorded in `history[:sagas]`.
@@ -280,14 +280,14 @@ RSpec.describe "Hecks::Fuzzing::Properties", :aggregate_failures do
 
     it "lifecycle_values_are_declared names an instance holding an undeclared state" do
       history = { bluebook:  bluebook_for(PROPERTIES_PIZZAS),
-                  instances: { "Pizzas::Order#p1" => { status: "teleported" } } }
+                  instances: { "PizzaFixture::Order#p1" => { status: "teleported" } } }
 
       expect(finding(:lifecycle_values_are_declared, history)).to be_a(String).and include("teleported")
     end
 
     it "lifecycle_values_are_declared passes a genuinely declared state through" do
       history = { bluebook:  bluebook_for(PROPERTIES_PIZZAS),
-                  instances: { "Pizzas::Order#p1" => { status: "available" } } }
+                  instances: { "PizzaFixture::Order#p1" => { status: "available" } } }
 
       expect(finding(:lifecycle_values_are_declared, history)).to be(true)
     end
@@ -307,7 +307,8 @@ RSpec.describe "Hecks::Fuzzing::Properties", :aggregate_failures do
     it "query_answers_match_reference names a native answer the reference interpreter disputes" do
       history = { queries: [query_ask(rows: [{ id: "Margherita" }], reference_rows: [])] }
 
-      expect(finding(:query_answers_match_reference, history)).to be_a(String).and include("Pizzas::Order.Expensive", "natively")
+      expect(finding(:query_answers_match_reference, history))
+        .to be_a(String).and include("PizzaFixture::Order.Expensive", "natively")
     end
 
     it "query_answers_match_reference passes agreement, refusals, and read-model asks through" do
@@ -321,14 +322,14 @@ RSpec.describe "Hecks::Fuzzing::Properties", :aggregate_failures do
       history = { queries: [query_ask(rows: [{ id: "Margherita" }], reference_error: "reference refused")] }
 
       expect(finding(:query_answers_match_reference, history)).to be_a(String)
-        .and include("Pizzas::Order.Expensive", "divergence")
+        .and include("PizzaFixture::Order.Expensive", "divergence")
     end
 
     it "query_answers_match_reference names the reverse refusal-shaped divergence too — reference refused, native didn't" do
       history = { queries: [query_ask(error: "native refused", reference_rows: [{ id: "Margherita" }])] }
 
       expect(finding(:query_answers_match_reference, history)).to be_a(String)
-        .and include("Pizzas::Order.Expensive", "divergence")
+        .and include("PizzaFixture::Order.Expensive", "divergence")
     end
 
     it "replay_is_deterministic names a real divergence — a genuinely different step count" do
@@ -336,7 +337,7 @@ RSpec.describe "Hecks::Fuzzing::Properties", :aggregate_failures do
       # one to hand) — a wrong claim that two different step lists are
       # "the same replay" is exactly what this property exists to catch,
       # so this proves the comparison itself is sensitive to real drift.
-      create = { "verb" => "Pizzas::Order.CreatePizza",
+      create = { "verb" => "PizzaFixture::Order.CreatePizza",
                  "args" => { "name"  => { "value" => "X" },
                              "pizza" => { "price_cents" => { "cents" => 100 }, "size" => { "value" => "small" } } } }
       first, second = [[], [create]].map { |steps| Hecks::Fuzzing::Replay.call(PROPERTIES_PIZZAS, steps).except(:bluebook, :bluebooks) }

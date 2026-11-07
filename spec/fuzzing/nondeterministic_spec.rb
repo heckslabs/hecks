@@ -7,7 +7,7 @@ require "hecks/fuzzing"
 # own except-list, and no declared field outlives the thing that produced it.
 RSpec.describe Hecks::Fuzzing::Nondeterministic, :aggregate_failures do
   NONDETERMINISTIC_ROOT     = InMemoryDomain::ROOT
-  NONDETERMINISTIC_PIZZAS   = File.join(NONDETERMINISTIC_ROOT, "examples/pizzas")
+  NONDETERMINISTIC_PIZZAS   = File.join(NONDETERMINISTIC_ROOT, "spec/fixtures/pizza_fixture")
   NONDETERMINISTIC_FUZZ_DIR = File.join(NONDETERMINISTIC_ROOT, "lib/hecks/fuzzing")
   NONDETERMINISTIC_HOME     = File.join(NONDETERMINISTIC_FUZZ_DIR, "nondeterministic.rb")
 

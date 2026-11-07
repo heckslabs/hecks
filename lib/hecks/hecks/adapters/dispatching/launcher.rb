@@ -5,6 +5,7 @@ require "time"
 require_relative "../shell"
 require_relative "../console_capture"
 require_relative "brief_text"
+require_relative "step_outcome"
 
 module Hecks
   module Adapters
@@ -18,9 +19,6 @@ module Hecks
       class Launcher
         # The claimant every dispatched work item names.
         CLAIMANT = "dispatch"
-
-        # The JSON object a command prints after any log lines.
-        JSON_OBJECT = /\{.*\}/m
 
         # @param repo [String] the checkout whose `exe/hecks` runs the commands and where sessions
         #   work
@@ -36,13 +34,14 @@ module Hecks
         # @param minutes [Integer] the time budget of the work item
         # @param limit [Integer, nil] the most spec files a session runs per call, from the world
         # @param lines [Hash] `traps:` a line for each known trap the work item's area meets
-        # @return [String] one line: the session started, or why the work item went back to the plan
+        # @return [String] one line: the session started, with what a later reaction refused, or why
+        #   the work item went back to the plan
         def launch(item, held:, minutes:, limit: nil, **lines)
           step(item, "pull main", pull_argv)
-          step(item, "start", start_argv(item, minutes))
+          started = step(item, "start", start_argv(item, minutes), reaches: "started")
           text = BriefText.new(composed(item)).render(item.key, area: item.area, limit: limit, held: held, **lines)
           step(item, "dispatch", dispatch_argv(item, text))
-          "started #{item.key}"
+          started_line(item, started.note)
         rescue ConsoleCapture::Failure => e
           yield_back(item, e.message)
         end
@@ -60,23 +59,26 @@ module Hecks
 
         # @param key [String] the Work item to send back to the plan
         # @param reason [String] why
-        # @return [String] the line that says so
+        # @return [String] the line that says so, and why the yield was not recorded when it was not
         def yield_back(key, reason)
           key = key.key if key.respond_to?(:key)
-          @runner.call(["tickets", "Work.yield!", "to=#{key}", "reason.value=#{reason}", "--wait"])
-          "yielded #{key}: #{reason}"
+          outcome = StepOutcome.new(@runner.call(["tickets", "Work.yield!", "to=#{key}", "reason.value=#{reason}", "--wait"]))
+          line = "yielded #{key}: #{reason}"
+          outcome.ok? ? line : "#{line} (the yield was not recorded: #{outcome.reason})"
         end
 
         private
 
-        def step(item, name, argv)
-          result = @runner.call(argv)
-          return result if result.ok? && !result.out.include?('"refusal": "')
+        # Runs one step and answers its outcome; a step whose command did not do its part raises
+        # with the command's own reason.
+        def step(item, name, argv, reaches: nil)
+          outcome = StepOutcome.new(@runner.call(argv), reaches: reaches)
+          return outcome if outcome.ok?
 
-          raise ConsoleCapture::Failure, "#{name} of #{item.key} failed: #{said(result)}"
+          raise ConsoleCapture::Failure, "#{name} of #{item.key} failed: #{outcome.reason}"
         end
 
-        def said(result) = (result.err.empty? ? result.out : result.err).strip[0, 300]
+        def started_line(item, note) = note.empty? ? "started #{item.key}" : "started #{item.key} (then refused: #{note})"
 
         # Local `main` current before the session starts, so no worktree is cut from a stale base.
         def pull_argv = ["LinkedTree.pull_main!", "checkout.value=#{@repo}", "--wait"]
@@ -93,8 +95,8 @@ module Hecks
         def composed(item)
           argv = ["coder", "Brief.compose!", "work.value=#{item.key}", "outcome.value=#{item.title}",
                   "detail.value=#{item.detail}", *item.area.map { |word| "area.value=#{word}" }, "--wait"]
-          result = step(item, "compose", argv)
-          JSON.parse(result.out[JSON_OBJECT])["state"]
+          state = step(item, "compose", argv).printed&.dig("state")
+          state || raise(ConsoleCapture::Failure, "compose of #{item.key} printed no brief")
         end
       end
     end

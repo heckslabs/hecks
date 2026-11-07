@@ -36,6 +36,11 @@ RSpec.describe Hecks::Adapters::PipelineBoard::AgentRoles do
       expect(reviews.first).to include(verdict: "changes", findings: include("Five findings"))
     end
 
+    it "names the Work item a review's run serves, with the review's own run key", :aggregate_failures do
+      keyed = { "s3" => { run: "r-7", work_item: "w3", agent: "architect", status: "finished" } }
+      expect(described_class.reviews(keyed, jobs).first).to include(work: "w3", run: "r-7")
+    end
+
     it "passes the unknown reason through when the runs could not be read" do
       expect(described_class.reviews({ unknown: "no launcher" }, jobs)).to eq(unknown: "no launcher")
     end

@@ -22,7 +22,7 @@ RSpec.describe "Fuzzing::Properties.bulk_runs_match_hand_dispatch" do
   end
 
   it "does not apply to a domain that does not attach Bulk" do
-    pizzas = File.join(InMemoryDomain::ROOT, "examples/pizzas")
+    pizzas = File.join(InMemoryDomain::ROOT, "spec/fixtures/pizza_fixture")
     expect(Hecks::Fuzzing::Properties.bulk_runs_match_hand_dispatch(pizzas, [])).to be(true)
   end
 end

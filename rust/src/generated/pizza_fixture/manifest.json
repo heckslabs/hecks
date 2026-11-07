@@ -1,0 +1,82 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "PizzaFixture::Order",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "PizzaFixture::Order.CreatePizza",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "PizzaFixture::Order.AddTopping",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "command",
+    "id": "PizzaFixture::Order.Purchase",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "port_operation",
+    "id": "PizzaFixture::Order.PaymentGateway.Receive",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "query",
+    "id": "PizzaFixture::Order.Available",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "PizzaFixture::Order.Everything",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "PizzaFixture::Order.ByPrice",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "PizzaFixture::Order.ByPriceDescending",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "PizzaFixture::Order.ByCustomer",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "PizzaFixture::Order.ByCustomerDescending",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "PizzaFixture::Order.ByCustomerUnsetLast",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "PizzaFixture::Order.CostingLessThan",
+    "generated": true
+  },
+  {
+    "kind": "query",
+    "id": "PizzaFixture::Order.Expensive",
+    "generated": true
+  },
+  {
+    "kind": "policy",
+    "id": "PizzaFixture::OnPizzaPaymentReceived",
+    "generated": true,
+    "routed": true
+  }
+]

@@ -93,8 +93,14 @@ module Hecks
       end
 
       def run_item(run)
-        { work_item: field(run, :brief).to_s[WORK_ITEM_LINE, 1].to_s, status: field(run, :status).to_s,
+        { work_item: work_item_of(run), status: field(run, :status).to_s,
           run: field(run, :run).to_s, repo: field(run, :repo).to_s, agent: field(run, :agent).to_s }
+      end
+
+      # The Work item a run names, else the one the first line of its brief names.
+      def work_item_of(run)
+        named = field(run, :work).to_s
+        named.empty? ? field(run, :brief).to_s[WORK_ITEM_LINE, 1].to_s : named
       end
 
       def records_of(domain, name)

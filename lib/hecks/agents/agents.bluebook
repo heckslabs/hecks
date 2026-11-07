@@ -53,17 +53,27 @@ Hecks.bluebook "Agents" do
     end
   end
 
-  # The architect's review of a plan, asked by event instead of by prose. The Work key is the
-  # correlation id; each request carries a hop count so a review that asks another review stops.
+  # The architect's review of a plan, asked by event instead of by prose. Each review has its own
+  # run key, which is also the key of the architect's run, so a Work item is reviewed again once a
+  # review has ended; the launcher mints the key when a request leaves it out. Each request carries
+  # a hop count so a review that asks another review stops.
   aggregate "PlanReview" do
     description "One review of a Work item's plan by the architect role: asked as an event, answered with a verdict, and refused past the hop limit."
 
-    identified_by :work
+    identified_by :run
 
+    acknowledges :key_by_value, "the Work item's slug, which lives in the Tickets store, not in a Routing record, so a reference would refuse every review of a Work item no routing was asked for", of: :work
+
+    attribute :run, RunKey
     attribute :work, WorkKey
     attribute :verdict, Verdict, optional: true
     attribute :findings, FindingsText, optional: true
     attribute :hops, HopCount, optional: true
+
+    # One review's key, and the key of the architect's run that answers it.
+    value_object "RunKey" do
+      attribute :value, String, matches: :present
+    end
 
     value_object "WorkKey" do
       attribute :value, String, matches: :present
@@ -88,6 +98,7 @@ Hecks.bluebook "Agents" do
       role "System"
       goal "Ask the architect to review one Work item's plan"
 
+      attribute :run,  RunKey, sets: true
       attribute :work, WorkKey, sets: true
       attribute :hops, HopCount, sets: true
       attribute :role, RoleRef
@@ -116,7 +127,7 @@ Hecks.bluebook "Agents" do
     end
 
     query "Reviews" do
-      description "Every plan review, by Work item: the verdict once the architect has answered."
+      description "Every plan review, by Work item, each with its run key: the verdict once the architect has answered."
       order_by :work
     end
   end
@@ -342,7 +353,7 @@ Hecks.bluebook "Agents" do
     attribute :change, ChangeRef
     attribute :reasons, Reasons, optional: true
     attribute :role, RoleRef, optional: true
-    attribute :repo, RepoPath, optional: true
+    attribute :repo, RepoPath
     attribute :brief, BriefText, optional: true
 
     value_object "ChangeRef" do
@@ -366,7 +377,7 @@ Hecks.bluebook "Agents" do
       attribute :change, ChangeRef, sets: true
       attribute :reasons, Reasons, sets: true
       attribute :role, RoleRef, optional: true, sets: true
-      attribute :repo, RepoPath, optional: true, sets: true
+      attribute :repo, RepoPath, sets: true
       attribute :brief, BriefText, optional: true, sets: true
 
       emits "PromotionRecommended"
@@ -391,6 +402,88 @@ Hecks.bluebook "Agents" do
       description "The recommendations still waiting on the owner, by change."
       where(status: "recommended")
       order_by :change
+    end
+  end
+
+  # The pruner removes finished sessions. The bluebook gives: a pruner is woken only from rest, so a
+  # second wake while one works is refused by the lifecycle, and the end of its run rests it again.
+  # The policies state: any run but the pruner's own ending (a job read that shows done or stopped)
+  # wakes it, so its finish never loops. The delegate bluebook starts a woken pruner as a run of the
+  # `pruner` agent, since a policy here cannot reach AgentRun; the reaction mints the run key. A
+  # role's `starts` field would replace the literals in the first policy.
+  aggregate "Pruning" do
+    description "The pruner role's standing: resting, or working on one dispatched run, so a second pruner is never started while one works."
+
+    identified_by :role
+
+    attribute :role, PrunerRole
+    attribute :repo, PrunerRepo, optional: true
+    attribute :brief, PrunerBrief, optional: true
+
+    value_object "PrunerRole" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "PrunerRepo", String
+    value_object "PrunerBrief", String
+
+    lifecycle :status, default: "resting" do
+      transition "Wake" => "working", from: "resting"
+      transition "Rest" => "resting", from: "working"
+    end
+
+    # The first finished run seats the pruner; a seat that exists is refused, which is its answer.
+    command "Seat" do
+      role "System"
+      goal "Seat the pruner so it can be woken"
+
+      attribute :role, PrunerRole, sets: true
+
+      emits "PrunerSeated"
+    end
+
+    command "Wake", from: "resting" do
+      role "System"
+      goal "Wake the pruner for one run, unless it is already working"
+
+      reference_to Pruning
+      attribute :repo, PrunerRepo, sets: true
+      attribute :brief, PrunerBrief, sets: true
+
+      emits "PrunerWoken"
+    end
+
+    command "Rest", from: "working" do
+      role "System"
+      goal "Record that the pruner's run ended, so it may be woken again"
+
+      reference_to Pruning
+
+      emits "PrunerRested"
+    end
+
+    policy "SeatThePrunerWhenARunFinishes" do
+      on      "AgentRun.JobRead"
+      root
+      where   { (state == "done" || state == "stopped") && previous != state && agent != "pruner" }
+      trigger Pruning::Seat, with: { role: "pruner" }
+    end
+
+    policy "WakeThePrunerWhenARunFinishes" do
+      on      "AgentRun.JobRead"
+      root
+      where   { (state == "done" || state == "stopped") && previous != state && agent != "pruner" }
+      trigger Pruning::Wake,
+              with: { pruning: "pruner", repo: ".",
+                      brief: "List the sessions and remove the finished ones that are safe to remove. " \
+                             "Leave any that is working or blocked, and report what was refused." }
+    end
+
+    policy "RestThePrunerWhenItsRunEnds" do
+      on      "AgentRun.JobRead"
+      root
+      where   { (state == "done" || state == "stopped" || state == "failed") && previous != state && agent == "pruner" }
+      trigger Pruning::Rest, with: { pruning: "pruner" }
     end
   end
 end

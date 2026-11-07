@@ -67,11 +67,10 @@ module Hecks
     # @param install_driving [Boolean] install the `Widget::Item.Add`-style facade
     # @param environment [String, nil] env name; its `.hecksagon`/`.world` overlay,
     #   if present, loads after the domain's own. Defaults to `HECKS_ENVIRONMENT`; nil loads none
-    # @param engine [Symbol] `:ruby` (the default) interprets the domain in this process; `:kernel`
-    #   runs it in the Rust kernel and refuses a domain that does not persist in Memory
+    # @param engine [Symbol] `:ruby` here or `:kernel` (Memory only); `HECKS_ENGINE`, else `:ruby`
     # @return [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher, Runtime::KernelDispatcher]
     #   the domain's dispatcher
-    def boot(path, shared: nil, install_driving: true, environment: Assembly::FROM_ENV, engine: :ruby)
+    def boot(path, shared: nil, install_driving: true, environment: Assembly::FROM_ENV, engine: Assembly::FROM_ENV)
       Assembly.boot(path, shared: shared, install_driving: install_driving, environment: environment,
                           engine: engine)
     end

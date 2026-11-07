@@ -1,0 +1,9 @@
+# The Agents bluebook's launcher when the Hecks domain attaches it: `hecks agents <verb>` reads the
+# world named for the bluebook, as `deploy.world` does for the Deploy bluebook. Its store is not set
+# here: the bluebook takes the one the Hecks domain gives the bluebooks it attaches.
+#
+# `run_keys` mints the `run` key of a plan review a request leaves out, so each review has its own
+# key and the architect's run that answers it never takes the Work item's.
+Hecks.world "Agents" do
+  launcher "Launcher", run_keys: true
+end

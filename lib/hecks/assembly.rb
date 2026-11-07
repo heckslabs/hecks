@@ -9,13 +9,19 @@ module Hecks
   #   Hecks::Assembly.boot("examples/pizzas/bluebook")
   #     .dispatch("Pizzas::Pizza.CreatePizza", name: "Margherita")
   module Assembly
-    # Default for a boot's `environment:` keyword: read `HECKS_ENVIRONMENT`. An explicit `nil`
-    # means no overlay, whatever the variable holds.
+    # Default for a boot's `environment:` and `engine:` keywords: read `HECKS_ENVIRONMENT` and
+    # `HECKS_ENGINE`. An explicit `environment: nil` means no overlay, whatever the variable holds.
     FROM_ENV = :from_env
 
     # The variable that moves the Hecks world's event tap for a process no hecks command runs: a
     # spec run sets it for itself and every child it starts.
     EVENT_TAP_VARIABLE = "HECKS_EVENT_TAP".freeze
+
+    # The variable that chooses a boot's engine when the caller left `engine:` at its default.
+    ENGINE_VARIABLE = "HECKS_ENGINE".freeze
+
+    # The engines a boot can run a domain on: `:ruby` in this process, `:kernel` in the Rust kernel.
+    ENGINES = %i[ruby kernel].freeze
 
     module_function
 
@@ -39,18 +45,39 @@ module Hecks
     # @return [String, nil] the override
     def event_tap_override = ENV.fetch(EVENT_TAP_VARIABLE, nil)
 
+    # The engine a boot runs on: the caller's own choice, else `HECKS_ENGINE` when the caller left
+    # the keyword at its default, else `:ruby`. An unknown engine is refused by name, never
+    # replaced by another.
+    #
+    # @param engine [Symbol, String] `:ruby`, `:kernel`, or `FROM_ENV`
+    # @return [Symbol] `:ruby` or `:kernel`
+    # @raise [ArgumentError] naming an engine that is neither
+    def selected_engine(engine)
+      chosen = (engine == FROM_ENV ? engine_from_env : engine).to_s.to_sym
+      return chosen if ENGINES.include?(chosen)
+
+      raise ArgumentError, "unknown engine #{chosen.inspect} — one of :ruby, :kernel"
+    end
+
+    # @return [String, Symbol] `HECKS_ENGINE`, stripped, or `:ruby` when it is unset or empty
+    def engine_from_env
+      named = ENV[ENGINE_VARIABLE].to_s.strip
+      named.empty? ? :ruby : named
+    end
+
     # Boots a domain directory. See `Runtime::Loader.boot`.
     #
     # @param path [String] path to a domain directory, or a file inside one
     # @param shared [String, nil] a shared-root override
     # @param install_driving [Boolean] install the `Widget::Item.Add`-style facade
     # @param environment [String, nil, Symbol] the overlay, or `FROM_ENV` for `HECKS_ENVIRONMENT`
-    # @param engine [Symbol] `:ruby` or `:kernel`; see `boot_kernel`
+    # @param engine [Symbol] `:ruby`, `:kernel`, or `FROM_ENV` for `HECKS_ENGINE`; see
+    #   `selected_engine`
     # @return [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher, Runtime::KernelDispatcher]
     #   the booted dispatcher
     # @raise [ArgumentError] when the engine is neither
-    def boot(path, shared: nil, install_driving: true, environment: FROM_ENV, engine: :ruby)
-      return boot_kernel(path, engine) unless engine == :ruby
+    def boot(path, shared: nil, install_driving: true, environment: FROM_ENV, engine: FROM_ENV)
+      return boot_kernel(path) if selected_engine(engine) == :kernel
 
       drive(Runtime::Loader.boot(path, shared: shared, environment: selected_environment(environment),
                                        event_tap: event_tap_override),
@@ -60,12 +87,8 @@ module Hecks
     # Boots a domain on the Rust kernel; see `RustBuild::KernelEngine`. It never falls back.
     #
     # @param path [String] path to a domain directory
-    # @param engine [Symbol] must be `:kernel`
     # @return [Runtime::KernelDispatcher]
-    # @raise [ArgumentError] when `engine` is not a known engine
-    def boot_kernel(path, engine)
-      raise ArgumentError, "unknown engine #{engine.inspect} — one of :ruby, :kernel" unless engine == :kernel
-
+    def boot_kernel(path)
       require_relative "rust_build/kernel_engine"
       RustBuild::KernelEngine.boot(path)
     end

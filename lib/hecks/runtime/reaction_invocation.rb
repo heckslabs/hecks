@@ -4,6 +4,7 @@ require_relative "identity"
 require_relative "value"
 require_relative "reaction_invocation/target_resolution"
 require_relative "reaction_invocation/identities"
+require_relative "reaction_invocation/run_keys"
 
 module Hecks
   module Runtime
@@ -135,7 +136,7 @@ module Hecks
 
         if target.entities.empty? && target.command.creates?
           refuse_unconsumed!(target.command, args, consumed, passthrough)
-          return { with: facts }
+          return { with: with_minted_run(registry, target.command, facts) }
         end
 
         route = receiver_route(verb, target, args, source_receiver_for(target, source_receiver), consumed)
@@ -156,6 +157,7 @@ module Hecks
 
       extend TargetResolution
       extend Identities
+      extend RunKeys
     end
   end
 end

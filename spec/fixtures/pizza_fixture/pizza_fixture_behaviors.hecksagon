@@ -1,0 +1,19 @@
+# Memory-bound sibling of pizza_fixture.hecksagon: `pizza_fixture.behaviors` boots a fresh runtime per
+# test, so it loads this sibling instead of the one beside the bluebook.
+Hecks.hecksagon "PizzaFixture" do
+  attaches "Governance"
+  PizzaFixture::Order.persisted_by("Memory")
+
+  PizzaFixture::Order.port "PaymentGateway" do
+    operation "Receive" do
+      attribute :customer_name, CustomerName
+      attribute :amount, Price
+      emits "PizzaPaymentReceived"
+    end
+  end
+end
+
+Hecks.hecksagon "Governance" do
+  Governance::RoleAssignment.persisted_by("Memory")
+  Governance::RoleTransition.persisted_by("Memory")
+end

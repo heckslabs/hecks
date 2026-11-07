@@ -4,6 +4,8 @@ require "hecks/fuzzing/sequence_generator"
 RSpec.describe Hecks::Fuzzing::SequenceGenerator, :aggregate_failures do
   def domain(name) = File.join(InMemoryDomain::ROOT, "examples/#{name}")
 
+  def pizza_fixture = File.join(InMemoryDomain::ROOT, "spec/fixtures/pizza_fixture")
+
   def expect_corpus_shape(step)
     expect(step.keys - %w[verb query args]).to be_empty
     expect(step).to have_key("args")
@@ -12,15 +14,15 @@ RSpec.describe Hecks::Fuzzing::SequenceGenerator, :aggregate_failures do
 
   describe "determinism" do
     it "produces the exact same script for the same seed" do
-      first  = described_class.generate(domain("pizzas"), seed: 5, steps: 15)
-      second = described_class.generate(domain("pizzas"), seed: 5, steps: 15)
+      first  = described_class.generate(pizza_fixture, seed: 5, steps: 15)
+      second = described_class.generate(pizza_fixture, seed: 5, steps: 15)
 
       expect(first).to eq(second)
     end
 
     it "produces a different script for a different seed" do
-      first  = described_class.generate(domain("pizzas"), seed: 1, steps: 15)
-      second = described_class.generate(domain("pizzas"), seed: 2, steps: 15)
+      first  = described_class.generate(pizza_fixture, seed: 1, steps: 15)
+      second = described_class.generate(pizza_fixture, seed: 2, steps: 15)
 
       expect(first).not_to eq(second)
     end
@@ -81,9 +83,9 @@ RSpec.describe Hecks::Fuzzing::SequenceGenerator, :aggregate_failures do
   describe "validity" do
     # Generation dispatches each candidate against a live runtime, and `safe_call` rescues only
     # DOMAIN_REFUSALS, so a malformed step that crashes the interpreter fails this example.
-    it "never crashes the interpreter for pizzas, across many seeds" do
+    it "never crashes the interpreter for the pizza fixture, across many seeds" do
       5.times do |seed|
-        expect { described_class.generate(domain("pizzas"), seed: seed, steps: 40) }
+        expect { described_class.generate(pizza_fixture, seed: seed, steps: 40) }
           .not_to raise_error
       end
     end
@@ -98,22 +100,22 @@ RSpec.describe Hecks::Fuzzing::SequenceGenerator, :aggregate_failures do
     it "reaches an actual state, not just refusals — at least one instance-acting or entity step becomes eligible" do
       # Instance-acting and entity commands enter the pool only once `known_ids` has their
       # aggregate, so this confirms steps build on each other.
-      steps = described_class.generate(domain("pizzas"), seed: 11, steps: 40)
+      steps = described_class.generate(pizza_fixture, seed: 11, steps: 40)
       verbs = steps.filter_map { |step| step["verb"] }
 
       expect(verbs.any? { |verb| !verb.end_with?(".CreatePizza") }).to be(true)
     end
 
     it "produces steps in the exact shape spec/corpus/*.json already uses" do
-      steps = described_class.generate(domain("pizzas"), seed: 9, steps: 10)
+      steps = described_class.generate(pizza_fixture, seed: 9, steps: 10)
 
       steps.each { |step| expect_corpus_shape(step) }
     end
 
     it "leaves the real example data untouched" do
-      before = Dir.glob("#{domain("pizzas")}/data/**/*")
-      described_class.generate(domain("pizzas"), seed: 1, steps: 20)
-      after = Dir.glob("#{domain("pizzas")}/data/**/*")
+      before = Dir.glob("#{pizza_fixture}/data/**/*")
+      described_class.generate(pizza_fixture, seed: 1, steps: 20)
+      after = Dir.glob("#{pizza_fixture}/data/**/*")
 
       expect(after).to eq(before)
     end

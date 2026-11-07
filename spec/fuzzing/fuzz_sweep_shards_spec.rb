@@ -58,7 +58,7 @@ RSpec.describe Hecks::Tools::FuzzSweep::Shards, :aggregate_failures do
     end
 
     it "refuses a shard of a named domain, which has nothing to split" do
-      expect { expect(sweep.parse(%w[examples/pizzas --shard 1/2])).to be_nil }
+      expect { expect(sweep.parse(%w[spec/fixtures/pizza_fixture --shard 1/2])).to be_nil }
         .to output(/no domain can be named/).to_stderr
     end
 
@@ -164,10 +164,10 @@ RSpec.describe Hecks::Tools::FuzzSweep::Shards, :aggregate_failures do
     end
 
     it "is read as seconds by absolute domain directory" do
-      write_table("# a comment\nexamples/pizzas:12.5\n\nlib/hecks/site:3\n")
+      write_table("# a comment\nspec/fixtures/pizza_fixture:12.5\n\nlib/hecks/site:3\n")
 
       expect(described_class.costs_from(@dir))
-        .to eq(File.join(@dir, "examples/pizzas") => 12.5, File.join(@dir, "lib/hecks/site") => 3.0)
+        .to eq(File.join(@dir, "spec/fixtures/pizza_fixture") => 12.5, File.join(@dir, "lib/hecks/site") => 3.0)
     end
 
     it "is empty when the checkout has none" do

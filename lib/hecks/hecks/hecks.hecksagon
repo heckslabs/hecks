@@ -7,12 +7,14 @@ Hecks.hecksagon "Hecks" do
   %w[Bluebook Hecksagon World Adapter Port Translation Expression Tenancy Deploy Site Tickets Composer QualityControl
      Coder Fixer PipelineBoard Pipeline Agents]
     .each { |declaration| attaches declaration }
-  # An architect review asked for by event starts a session through AgentRun (see
-  # StartTheArchitectOnReviewRequest in the delegate bluebook).
+  # An architect review asked for by event starts a session through AgentRun, keyed by the review
+  # (see StartTheRoleOnReviewRequest in the delegate bluebook).
   subscribe "Agents.PlanReviewRequested"
   subscribe "Agents.PlanningRequested"
   subscribe "Agents.SubmissionReviewRequested"
   subscribe "Agents.DispatchAdviceRequested"
+  # A woken pruner starts a session through AgentRun (see StartThePrunerWhenWoken in the delegate bluebook).
+  subscribe "Agents.PrunerWoken"
   # Persistence is not bound here, so the domain is in Memory. A copy opts in with a
   # hecks.local.hecksagon whose `persisted_by` the attached bluebooks inherit (ADR 0136).
 
@@ -1079,11 +1081,11 @@ Hecks.hecksagon "Agents" do
   subscribe "Pipeline.PassageVerified"
 
   # The coder hands in a branch: the reviewer is asked to judge it. The branch is named for the Work item,
-  # the review is keyed by the commit, and the session works in the checkout the event was raised in.
+  # the review is keyed by the commit, and the session works in the coder's checkout, which the event names.
   translates "AskTheReviewerWhenWorkIsSubmitted" do
     on Submission::WorkSubmitted
     trigger SubmissionReview::Request, with: { submission: :sha, work: :branch, brief: :branch, hops: 1,
-                                               role: "reviewer", repo: "." }
+                                               role: "reviewer", repo: :checkout }
   end
 
   # The reviewer's session closes with its judgment, which the adapter reads off the job; the run's key
@@ -1103,9 +1105,28 @@ Hecks.hecksagon "Agents" do
                            "Only recommend: the owner confirms any promotion on the board." }
   end
 
+  # The architect's session closes with its verdict; the run's key is the review's, so it names the
+  # review it answers.
   translates "RecordTheArchitectsVerdict" do
     on AgentRun::JobRead
     where { verdict != "" && previous != state }
-    trigger PlanReview::Answer, with: { work: :run, verdict: :verdict, findings: :findings }
+    trigger PlanReview::Answer, with: { run: :run, verdict: :verdict, findings: :findings }
+  end
+end
+
+# A coder's session closes with its report, and the adapter reads the branch, commit and cleanliness of
+# the run's checkout off the job once a coder's job is done. A report whose last word is `submitted` hands
+# the branch in; Submit refuses main, stable and a dirty tree by name. Submitting also finishes the Work
+# item the branch is named for (Tickets) and starts maintenance (QualityControl), as a hand submit does.
+# A root, as the JobRead policies of the delegate bluebook are: the reviewer's start that a submission
+# asks for sits past the reaction depth limit when counted from the check that read the job.
+Hecks.hecksagon "Coder" do
+  subscribe "Hecks.JobRead"
+
+  translates "SubmitWhenTheCoderSaysSubmitted" do
+    on AgentRun::JobRead
+    root
+    where { state == "done" && previous != state && agent == "coder" && report.rstrip.end_with?("submitted") }
+    trigger Submission::Submit, with: { branch: :branch, sha: :sha, checkout: :checkout, clean: :clean }
   end
 end

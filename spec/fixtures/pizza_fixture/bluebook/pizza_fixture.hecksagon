@@ -1,0 +1,28 @@
+Hecks.hecksagon "PizzaFixture" do
+  # Role declarations only enforce access once Governance can check them; this standalone
+  # deploy attaches and binds Governance itself.
+  attaches "Governance"
+  PizzaFixture::Order.persisted_by("Memory")
+
+  # Every way in is named: the console (Ruby), `hecks run` (Cli), the forms and storehouse
+  # reader (Json) and `hecks mcp` (Mcp). An adapter left out would refuse the domain.
+  driven_by "Ruby"
+  driven_by "Cli"
+  driven_by "Json"
+  driven_by "Mcp"
+
+  # The primary port: an outside fact is told to the domain in its own vocabulary; business
+  # rules stay on Purchase, reached via OnPizzaPaymentReceived.
+  PizzaFixture::Order.port "PaymentGateway" do
+    operation "Receive" do
+      attribute :customer_name, CustomerName
+      attribute :amount, Price
+      emits "PizzaPaymentReceived"
+    end
+  end
+end
+
+Hecks.hecksagon "Governance" do
+  Governance::RoleAssignment.persisted_by("Memory")
+  Governance::RoleTransition.persisted_by("Memory")
+end
