@@ -45,6 +45,10 @@ module Hecks
         { text: JSON.generate(slowest(count(limit, 8))) }
       end
 
+      # @return [String] the repository's web address, the base of its commit links
+      # @raise [PipelineBoard::Unavailable] when `gh` cannot answer
+      def repo_url = read("repo", "view", "--json", "url")["url"].to_s
+
       # @return [Hash, nil] the newest `v` release: `tag`, `published` and `published_at`
       # @raise [PipelineBoard::Unavailable] when `gh` cannot answer
       def latest_release
