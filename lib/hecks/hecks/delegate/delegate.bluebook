@@ -569,6 +569,13 @@ Hecks.bluebook "Hecks" do
       trigger AgentRun::Dispatch, with: { run: :plan, repo: :repo, brief: :goal, agent: :role }
     end
 
+    # A woken pruner starts its session as a run of the `pruner` agent. The run key is minted, since
+    # no Work item or commit names a pruner's run.
+    policy "StartThePrunerWhenWoken" do
+      on      "Pruning.PrunerWoken"
+      trigger AgentRun::Dispatch, with: { repo: :repo, brief: :brief, agent: :role }
+    end
+
     # A conflicting Work item asks the orchestrator for advice: its session starts as a run keyed by the
     # routing request, with a brief that names the Work item and the conflict.
     policy "StartTheOrchestratorOnAdviceRequest" do
