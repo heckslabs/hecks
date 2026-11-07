@@ -104,6 +104,54 @@ RSpec.describe "pulling main first" do
     end
   end
 
+  describe "LinkedTree.PullMain with main checked out nowhere" do
+    def report = adder.pull(checkout: repo)[:report][:value]
+
+    # Local main takes `file` as an unpushed commit, then the checkout moves to another branch.
+    def mine_then_leave(file)
+      commit(repo, file)
+      git("checkout", "-b", "elsewhere")
+    end
+
+    it "carries a main whose tree origin/main already holds, naming the squash", :aggregate_failures do
+      mine_then_leave("mine.txt")
+      push_from_other("mine.txt", "squash of mine", "mine.txt")
+      expect(report).to start_with("main carried by squash")
+      expect(tip("main")).to eq(tip("origin/main"))
+    end
+
+    it "fast-forwards the ref when main is only behind", :aggregate_failures do
+      git("checkout", "-b", "elsewhere")
+      origin_moves
+      expect(report).to start_with("main fast-forwarded 1 commit")
+      expect(tip("main")).to eq(tip("origin/main"))
+    end
+
+    it "rebases a truly diverged main in a temporary worktree and loses no commit", :aggregate_failures do
+      mine_then_leave("mine.txt")
+      origin_moves
+      expect(report).to include("checked out nowhere")
+      expect(git("ls-tree", "-r", "--name-only", "main").split("\n")).to include("mine.txt", "theirs.txt")
+      expect(git("worktree", "list").lines.size).to eq(1)
+    end
+
+    def push_from_other(file, message, content)
+      File.write(File.join(other, file), content)
+      git("add", ".", chdir: other)
+      git("commit", "-m", message, chdir: other)
+      git("push", "origin", "main", chdir: other)
+    end
+
+    def clash_on_origin = push_from_other("clash.txt", "clash", "theirs")
+
+    it "refuses on conflict and leaves main where it was", :aggregate_failures do
+      mine_then_leave("clash.txt")
+      clash_on_origin
+      expect { adder.pull(checkout: repo) }.to raise_error(failure, /cannot pull main: .*conflicts in clash.txt/)
+      expect(git("worktree", "list").lines.size).to eq(1)
+    end
+  end
+
   describe "Landing" do
     def stale_branch
       git("worktree", "add", "-b", "work/stale", File.join(dir, "stale"), "main")

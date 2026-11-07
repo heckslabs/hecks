@@ -22,9 +22,10 @@ module Hecks
             end
           end
 
-          # Whether `encode` can carry `obj`; a verdict holding a typed `Runtime::Value` (such as an
-          # aggregate's `created_by`) cannot be rebuilt from plain JSON, so it stays out of the file
-          # and is judged afresh, which is what a miss does anyway.
+          # Whether `encode` can carry `obj`; a verdict holding a typed `Runtime::Value` cannot be
+          # rebuilt from plain JSON, so it stays out of the file and is judged afresh, which is what
+          # a miss does anyway. Reconstruction hands over plain text, so no judged bluebook holds
+          # one.
           #
           # @param obj [Object] a candidate for `encode`
           # @return [Boolean]

@@ -7,6 +7,7 @@
 
 pub mod arg_limits;
 pub mod clock;
+pub mod component_imports;
 pub mod component_runner;
 pub mod dispatch;
 pub mod expr_json;

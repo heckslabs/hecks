@@ -26,9 +26,14 @@ module Hecks
               description:   text(row[:description]),
               identified_by: identity_paths(row),
               attributes:    Array(row[:attributes]).map { |field| attribute(field, id) }
-            }.merge(aggregate_rules(row)).merge(lifecycle: lifecycle(row), provenance: provenance(row),
-                                                formerly_known_as: row[:formerly_known_as],
-                                                created_by: row[:created_by])
+            }.merge(aggregate_rules(row)).merge(lifecycle: lifecycle(row), provenance: provenance(row))
+              .merge(aggregate_origin(row))
+          end
+
+          # The names an aggregate row keeps of where it came from, as the plain text the cell holds
+          # (not the typed value), so the held declaration is plain data the verdict file can store.
+          def aggregate_origin(row)
+            { formerly_known_as: text(row[:formerly_known_as]), created_by: text(row[:created_by]) }
           end
 
           # The rules and projected fields an aggregate row holds.

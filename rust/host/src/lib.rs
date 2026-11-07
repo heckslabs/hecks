@@ -23,6 +23,7 @@ pub mod expr_json_fuzz;
 pub mod extension;
 #[cfg(test)]
 pub mod fuzz_support;
+pub mod grants;
 #[cfg(test)]
 mod hecksagon_boundary_tests;
 mod http;

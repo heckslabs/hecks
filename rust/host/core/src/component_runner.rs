@@ -10,13 +10,13 @@ use wasmtime::{Engine, ResourceLimiter, Store, Trap};
 use wasmtime_wasi::p2::pipe::MemoryOutputPipe;
 use wasmtime_wasi::{WasiCtx, WasiCtxBuilder, WasiCtxView, WasiView};
 
+use crate::component_imports::{self, Imports};
 use crate::wasm_runner::{deadline_ticks, engine, Limits, KERNEL_LIMITS};
 
-/// The name the host grants the clock under; it is the interface in `rust/host/wit/clock.wit`.
-const CLOCK_INTERFACE: &str = "hecks:adapters/clock@0.1.0";
-
-/// One run's WASI context, its resource table and the memory cap its store enforces.
-struct RunState {
+/// One run's WASI context, its resource table, the imports that answer the component and the
+/// memory cap its store enforces.
+pub(crate) struct RunState {
+    pub(crate) imports: Arc<dyn Imports>,
     wasi: WasiCtx,
     table: ResourceTable,
     memory_bytes: usize,
@@ -104,22 +104,49 @@ pub fn echo_time(path: &Path) -> anyhow::Result<String> {
     })
 }
 
-/// Instantiates the component at `path` with the granted imports and hands the instance to
-/// `call`. A call that passes its deadline, its memory cap or its output cap is stopped and
-/// answered with an error naming the cap.
+/// Calls the export `name` of the component at `path`, which takes one string and answers
+/// `result<string, string>`, with `imports` answering what the component asks of the host. An
+/// `Err` inside the answer is the component's own; an `Err` outside is the run's.
+pub fn call_text(
+    path: &Path,
+    imports: Arc<dyn Imports>,
+    name: &str,
+    argument: &str,
+) -> anyhow::Result<Result<String, String>> {
+    run_with(KERNEL_LIMITS, path, imports, |store, instance| {
+        let func =
+            instance.get_typed_func::<(String,), (Result<String, String>,)>(&mut *store, name)?;
+        Ok(func.call(&mut *store, (argument.to_string(),))?.0)
+    })
+}
+
+/// Runs `call` against the component at `path` with no grant beyond the clock.
 fn run_within<T>(
     limits: Limits,
     path: &Path,
     call: impl FnOnce(&mut Store<RunState>, &wasmtime::component::Instance) -> anyhow::Result<T>,
 ) -> anyhow::Result<T> {
+    run_with(limits, path, component_imports::none(), call)
+}
+
+/// Instantiates the component at `path` with the granted imports and hands the instance to
+/// `call`. A call that passes its deadline, its memory cap or its output cap is stopped and
+/// answered with an error naming the cap.
+fn run_with<T>(
+    limits: Limits,
+    path: &Path,
+    imports: Arc<dyn Imports>,
+    call: impl FnOnce(&mut Store<RunState>, &wasmtime::component::Instance) -> anyhow::Result<T>,
+) -> anyhow::Result<T> {
     let (engine, component) = component(path)?;
     let mut linker: Linker<RunState> = Linker::new(engine);
     wasmtime_wasi::p2::add_to_linker_sync(&mut linker)?;
-    grant_clock(&mut linker)?;
+    component_imports::link(&mut linker)?;
 
     let stdout = MemoryOutputPipe::new(limits.output_bytes);
     let wasi = WasiCtxBuilder::new().stdout(stdout.clone()).build();
     let state = RunState {
+        imports,
         wasi,
         table: ResourceTable::new(),
         memory_bytes: limits.memory_bytes,
@@ -159,13 +186,6 @@ fn name_the_cap(err: anyhow::Error, memory_refused: bool, limits: &Limits) -> an
         );
     }
     err
-}
-
-/// Grants the component the `clock` import: whole epoch seconds, read by the host.
-fn grant_clock(linker: &mut Linker<RunState>) -> anyhow::Result<()> {
-    let mut clock = linker.instance(CLOCK_INTERFACE)?;
-    clock.func_wrap("now-seconds", |_, ()| Ok((crate::clock::unix_now(),)))?;
-    Ok(())
 }
 
 #[cfg(test)]
