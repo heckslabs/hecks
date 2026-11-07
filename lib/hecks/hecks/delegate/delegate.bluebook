@@ -25,9 +25,15 @@ Hecks.bluebook "Hecks" do
       attribute :tidied_at, Moment,    optional: true
       attribute :answered_at, Moment,  optional: true
       attribute :detail,    Report,    optional: true
+      attribute :work,      WorkSlug,  optional: true
       identified_by :run
 
       value_object "RunKey" do
+        attribute :value, String, matches: :present
+      end
+
+      # The Work item a run serves when its key is not the Work item's own, as a review's is not.
+      value_object "WorkSlug" do
         attribute :value, String, matches: :present
       end
 
@@ -78,6 +84,7 @@ Hecks.bluebook "Hecks" do
         attribute :repo,  Path, sets: true
         attribute :brief, Brief, sets: true
         attribute :agent, AgentName, optional: true, sets: true
+        attribute :work,  WorkSlug, optional: true, sets: true
 
         given("a brief says something") { !brief.value.to_s.strip.empty? }
 
@@ -532,11 +539,12 @@ Hecks.bluebook "Hecks" do
       trigger AgentRun::Retain, with: { refusal: :refusal }
     end
 
-    # A plan review asked for by event starts the named role's session as a run, keyed by the Work
-    # item, with the plan as its brief.
+    # A plan review asked for by event starts the named role's session as a run keyed by the review,
+    # as the reviewer's is keyed by the commit, so it never collides with the Work item's own run or
+    # an earlier review of it. The run names the Work item it reviews, and the plan is its brief.
     policy "StartTheRoleOnReviewRequest" do
       on      "PlanReview.PlanReviewRequested"
-      trigger AgentRun::Dispatch, with: { run: :work, repo: :repo, brief: :plan, agent: :role }
+      trigger AgentRun::Dispatch, with: { run: :run, work: :work, repo: :repo, brief: :plan, agent: :role }
     end
 
     # A planning request starts the planner's session as a run keyed by the request, with the goal as

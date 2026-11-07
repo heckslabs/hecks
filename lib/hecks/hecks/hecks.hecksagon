@@ -7,8 +7,8 @@ Hecks.hecksagon "Hecks" do
   %w[Bluebook Hecksagon World Adapter Port Translation Expression Tenancy Deploy Site Tickets Composer QualityControl
      Coder Fixer PipelineBoard Pipeline Agents]
     .each { |declaration| attaches declaration }
-  # An architect review asked for by event starts a session through AgentRun (see
-  # StartTheArchitectOnReviewRequest in the delegate bluebook).
+  # An architect review asked for by event starts a session through AgentRun, keyed by the review
+  # (see StartTheRoleOnReviewRequest in the delegate bluebook).
   subscribe "Agents.PlanReviewRequested"
   subscribe "Agents.PlanningRequested"
   subscribe "Agents.SubmissionReviewRequested"
@@ -1103,10 +1103,12 @@ Hecks.hecksagon "Agents" do
                            "Only recommend: the owner confirms any promotion on the board." }
   end
 
+  # The architect's session closes with its verdict; the run's key is the review's, so it names the
+  # review it answers.
   translates "RecordTheArchitectsVerdict" do
     on AgentRun::JobRead
     where { verdict != "" && previous != state }
-    trigger PlanReview::Answer, with: { work: :run, verdict: :verdict, findings: :findings }
+    trigger PlanReview::Answer, with: { run: :run, verdict: :verdict, findings: :findings }
   end
 end
 
