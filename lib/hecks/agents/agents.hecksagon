@@ -1,6 +1,9 @@
 # The Agents bluebook, bound so it boots standing alone (a behaviors or model_check boot of this
-# directory). It persists in Memory like every tooling domain, and declares no port: a role's session
-# is started by the Hecks domain's AgentRun, which hears the request events.
+# directory). It persists in Memory by its committed world. A development checkout opts it into
+# SqlitePersistence (~/.claude/hecks-dev/agents.db) in the gitignored agents.local.world and
+# agents.local.hecksagon here, and in hecks.local.world and hecks.local.hecksagon beside the Hecks
+# domain that attaches it. It declares no port: a role's session is started by the Hecks domain's
+# AgentRun, which hears the request events.
 Hecks.hecksagon "Agents" do
   attaches "Governance"
   persisted_by "Memory"
