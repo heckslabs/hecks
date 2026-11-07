@@ -1,0 +1,21 @@
+# A test component: imports the host's `clock` and exports `echo-time` (world `clock-adapter-limits`
+# in rust/host/wit/clock.wit). Built to ../clock_echo.wasm with
+# `cargo build --release --target wasm32-wasip2`; the committed .wasm is that build's output.
+[package]
+name = "clock_echo"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wit-bindgen = "0.46"
+
+[profile.release]
+opt-level = "s"
+lto = true
+strip = true
+
+[workspace]
