@@ -63,8 +63,12 @@ text, status, reason = Hecks::Adapters::Driving::CliRunner.usage(
   runtime: described, argv: ARGV, program: program
 )
 unless text
+  # A question the world lists under `reads_tap` is answered on a boot that writes nothing.
+  read_only = Hecks::Adapters::Driving::ReadOnlyQuestion.for_line?(described, ARGV, "Hecks")
   runtime = begin
-    Hecks::Adapters::Driving::LauncherOptions.quietly(hold: MEMORY_COMMANDS.include?(ARGV.first.to_s.chomp("!"))) { Hecks.boot_described(described, install_driving: false) }
+    Hecks::Adapters::Driving::LauncherOptions.quietly(hold: MEMORY_COMMANDS.include?(ARGV.first.to_s.chomp("!"))) do
+      Hecks.boot_described(described, install_driving: false, read_only: read_only)
+    end
   rescue StandardError => e
     abort "cannot open Hecks: #{e.message.strip}"
   end

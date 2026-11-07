@@ -5,6 +5,7 @@ require "time"
 require_relative "cache"
 require_relative "pipeline_github/settled_counts"
 require_relative "pipeline_github/runs"
+require_relative "pipeline_github/pull_checks"
 require_relative "../../cache_dir"
 
 module Hecks
@@ -57,6 +58,14 @@ module Hecks
         raise PipelineBoard::Unavailable, "no v release found" unless found
 
         { tag: found["tagName"], published: !found["isDraft"], published_at: found["publishedAt"] }
+      end
+
+      # @return [Array<Hash>] the open pull requests on `train/` branches with their checks counted:
+      #   `number`, `branch`, `passed`, `failed`, `pending` and `total`
+      # @raise [PipelineBoard::Unavailable] when `gh` cannot answer
+      def train_prs
+        listed = read("pr", "list", "--state", "open", "--limit", "30", "--json", PipelineBoard::PullChecks::FIELDS)
+        PipelineBoard::PullChecks.train(listed)
       end
 
       # @return [Hash, nil] the newest CI run on main, as {#ci_runs} rows are

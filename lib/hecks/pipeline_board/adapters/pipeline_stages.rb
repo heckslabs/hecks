@@ -20,6 +20,7 @@ require_relative "pipeline_stages/metrics"
 require_relative "pipeline_stages/fanout"
 require_relative "pipeline_stages/train_detail"
 require_relative "pipeline_stages/commit_link"
+require_relative "pipeline_stages/panel"
 
 module Hecks
   module Adapters
@@ -56,6 +57,18 @@ module Hecks
           fanout: fanout(data) }.merge(agents(data))
       end
 
+      # The state the page shows, drawn as a text panel for a terminal. It reads what `/api/state`
+      # reads, and the open train pull requests besides; it writes nothing.
+      #
+      # @param width [Hash, Integer, nil] the panel's columns
+      # @param colour [Hash, String, nil] `true` to colour rows by their state
+      # @param limit [Hash, Integer, nil] how many planned Work items and finished sessions to list
+      # @return [Hash{Symbol => String}] `text:` the panel
+      def snapshot(width: nil, colour: nil, limit: nil)
+        drawn = state.merge(train_prs: guard { @github.train_prs })
+        { text: PipelineBoard::Panel.render(drawn, width: held(width), colour: held(colour).to_s == "true", limit: held(limit)) }
+      end
+
       # @return [Array<Hash>, Hash] the newest events with the policies that reacted, or
       #   `{unknown: reason}`
       def feed = guard { @journal.recent(40) }
@@ -79,6 +92,9 @@ module Hecks
       end
 
       private
+
+      # An argument as the query hands it: the value inside a value object, or the value itself.
+      def held(argument) = argument.is_a?(Hash) ? argument[:value] : argument
 
       # The thresholds the tiles judge against, read from the Hecks world once.
       def read_limits(registry)

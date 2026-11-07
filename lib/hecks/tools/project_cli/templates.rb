@@ -54,6 +54,8 @@ module Hecks
             runtime: described, argv: ARGV, program: program
           )
           unless text
+            # A question the world lists under `reads_tap` is answered on a boot that writes nothing.
+            read_only = Hecks::Adapters::Driving::ReadOnlyQuestion.for_line?(described, ARGV, "{{name}}")
             runtime = begin
               {{started}}
             rescue StandardError => e
