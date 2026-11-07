@@ -54,8 +54,15 @@ RSpec.describe "the Agents reviewer, recommendation and owner-only rule" do
 
   it "records a promotion recommendation without promoting" do
     expect do
-      Hecks::Agents::PromotionRecommendation.recommend!(change: { value: "w-green" }, reasons: { value: "green" })
+      Hecks::Agents::PromotionRecommendation.recommend!(change: { value: "w-green" }, reasons: { value: "green" },
+                                                        repo: { value: "." })
     end.not_to raise_error
+  end
+
+  it "refuses a promotion recommendation without a repo, by name" do
+    expect do
+      Hecks::Agents::PromotionRecommendation.recommend!(change: { value: "w-green" }, reasons: { value: "green" })
+    end.to raise_error(StandardError, /repo/)
   end
 
   it "refuses a role issuing an owner decision, by name" do
