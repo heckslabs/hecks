@@ -11,7 +11,7 @@ RSpec.describe Hecks::Adapters::Driving::McpScope do
     gate inner isolation iterations kind lane landed list_shards message name named new_name no_ai number only
     opens outcome owner package pairs_shape parallel persist_regressions pin profile pushed reason rehearsal_verdict
     report required role run runs scope seed_start seeds session shard stage stdout steps strict subject tags taking
-    target targets timeout title to top verb warmup watermark winners word workers
+    target targets timeout title to top verb warmup watermark winners word work workers
   ].freeze
 
   let(:classes) do
