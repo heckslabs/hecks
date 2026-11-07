@@ -12,7 +12,7 @@ module Hecks
       # A changed spec runs itself. A changed Ruby file runs the spec named for it and the specs
       # that require it or mention its path or its constant. A changed bluebook, hecksagon, world or
       # behaviors file runs the specs that mention its path or domain name (and, for the language's
-      # own bluebooks, the shape-ledger, conformance and corpus specs). A changed `rust/` file runs
+      # own bluebooks, the shape-ledger, conformance, corpus, golden and vocabulary specs). A changed `rust/` file runs
       # the Ruby specs that drive it, never cargo; a changed `docs/` file runs the docs specs.
       class SpecMap
         # What was mapped.
@@ -35,7 +35,7 @@ module Hecks
         DOCS = %w[docs_ reference_ changelog_ adr_].freeze
         RUST = %w[rust_ semantics_corpus_spec].freeze
         LANGUAGE = %r{\Alib/hecks/language/}
-        LEDGER = /shape_ledger|conformance|corpus/
+        LEDGER = /shape_ledger|conformance|corpus|golden|vocabulary/
         EXTENSIONS = /\..*\z/
 
         # @param root [String] the tree whose `spec/` is searched
