@@ -191,19 +191,23 @@ module Hecks
       # @return [String] the script that answers a session waiting on you, shared by the pages
       def answer_script = File.read(ANSWER_SCRIPT)
 
-      # @return [Hash] the wiring graph (`nodes` and `edges`), or `{unknown: reason}`
+      # @return [Hash] the wiring graph (`nodes` and `edges`) with its `digest`, as the bluebook
+      #   files declare it now, or `{unknown: reason}`
       def wiring
-        @wiring.graph
+        @wiring.reading
       rescue PipelineBoard::Unavailable => e
         { unknown: e.message }
       end
 
-      # Yields each event of the journal once and again when its reactions change, and the state
-      # whenever it changes, until the reader goes away.
+      # Yields each event of the journal once and again when its reactions change, the state
+      # whenever it changes, and the wiring's digest whenever the bluebooks are drawn differently,
+      # until the reader goes away.
       #
-      # @yieldparam event [Hash] an event row, an `unknown` note, a `state` hash or a heartbeat
+      # @yieldparam event [Hash] an event row, an `unknown` note, a `state` hash, a `wiring` digest
+      #   or a heartbeat
       def stream(&)
-        PipelineBoard::Stream.new(feed: @stages.method(:feed), state: method(:state), interval: @interval).each(&)
+        PipelineBoard::Stream.new(feed: @stages.method(:feed), state: method(:state), wiring: method(:wiring),
+                                  interval: @interval).each(&)
       end
     end
   end

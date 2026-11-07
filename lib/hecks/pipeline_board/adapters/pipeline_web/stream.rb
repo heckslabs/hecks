@@ -16,27 +16,42 @@ module Hecks
 
         # @param feed [#call] answers the newest events, newest first, or `{unknown: reason}`
         # @param state [#call, nil] answers the board's state hash (see {Snapshot#latest})
-        # @param interval [Numeric] seconds between looks at the feed and the state
-        def initialize(feed:, state: nil, interval: 1.0)
+        # @param wiring [#call, nil] answers the wiring graph with its `digest`, or `{unknown: reason}`
+        # @param interval [Numeric] seconds between looks at the feed, the state and the wiring
+        def initialize(feed:, state: nil, wiring: nil, interval: 1.0)
           @feed = feed
           @state = state
+          @wiring = wiring
           @interval = interval
           @seen = {}
           @state_digest = nil
+          @wiring_digest = nil
           @ticks = 0
         end
 
-        # @yieldparam event [Hash] an event row, an `unknown` note, a `state` hash or a heartbeat
+        # @yieldparam event [Hash] an event row, an `unknown` note, a `state` hash, a `wiring`
+        #   digest or a heartbeat
         def each(&emit)
           loop do
             look(&emit)
             look_state(&emit)
+            look_wiring(&emit)
             beat(&emit)
             sleep @interval
           end
         end
 
         private
+
+        # Says the wiring is drawn differently: once on first look, then whenever its digest moves.
+        # The page that is told fetches `/api/wiring` again.
+        def look_wiring
+          digest = @wiring&.call&.dig(:digest)
+          return if digest.nil? || digest == @wiring_digest
+
+          @wiring_digest = digest
+          yield({ wiring: { digest: digest, at: Time.now.utc.iso8601 } })
+        end
 
         def look(&emit)
           rows = @feed.call
