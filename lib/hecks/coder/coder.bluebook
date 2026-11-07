@@ -185,14 +185,18 @@ Hecks.bluebook "Coder" do
 
   # The coder side only submits. `Submit` records that a branch at a commit is ready for QA and
   # maintenance to take from here; it lands nothing and pushes nothing. The event
-  # `WorkSubmitted(branch, sha)` is the contract those policies read.
+  # `WorkSubmitted(branch, sha, checkout)` is the contract those policies read: the reviewer works
+  # in the checkout it names. A coder run that ends done with a report whose last word is
+  # `submitted` submits by itself (`SubmitWhenTheCoderSaysSubmitted` in the Hecks hecksagon), with
+  # the branch, commit and cleanliness git reports in the run's checkout.
   aggregate "Submission" do
     description "One branch at one commit, handed to QA and maintenance to land."
 
     identified_by :branch
 
-    attribute :branch, SubmissionBranch
-    attribute :sha,    SubmissionSha
+    attribute :branch,   SubmissionBranch
+    attribute :sha,      SubmissionSha
+    attribute :checkout, SubmissionCheckout
 
     value_object "SubmissionBranch" do
       attribute :value, String, matches: :present
@@ -204,12 +208,29 @@ Hecks.bluebook "Coder" do
       attribute :value, String, matches: :git_sha
     end
 
+    # The directory the coder's branch is checked out in.
+    value_object "SubmissionCheckout" do
+      attribute :value, String, matches: :present
+      invariant("a submission names the checkout it was made in") { !value.to_s.empty? }
+    end
+
+    # Whether the checkout held no uncommitted or untracked file when the branch was submitted.
+    value_object "SubmissionClean", Boolean
+
     command "Submit" do
       role "Coder"
       goal "Hand a branch at a commit to QA and maintenance, and land nothing from here"
 
-      attribute :branch, SubmissionBranch
-      attribute :sha,    SubmissionSha
+      attribute :branch,   SubmissionBranch
+      attribute :sha,      SubmissionSha
+      attribute :checkout, SubmissionCheckout
+      attribute :clean,    SubmissionClean
+
+      given("a coder submits its own branch, never main or stable") do
+        branch.value != "main" && branch.value != "stable"
+      end
+
+      given("the coder's tree is clean: nothing uncommitted or untracked") { clean.value == true }
 
       emits "WorkSubmitted"
     end
