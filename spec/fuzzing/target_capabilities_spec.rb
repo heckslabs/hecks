@@ -11,7 +11,7 @@ RSpec.describe Hecks::Fuzzing::TargetCapabilities, :aggregate_failures do
   CAP_RUST_DIR  = File.join(CAP_ROOT, "rust")
   CAP_BANKING   = File.join(CAP_ROOT, "examples/banking")
   CAP_DIRECTORY = File.join(CAP_ROOT, "examples/directory")
-  CAP_PIZZAS    = File.join(CAP_ROOT, "examples/pizzas")
+  CAP_PIZZAS    = File.join(CAP_ROOT, "spec/fixtures/pizza_fixture")
   CAP_CHESS     = File.join(CAP_ROOT, "examples/chess")
 
   CAP_CARGO_TOML = <<~TOML.freeze

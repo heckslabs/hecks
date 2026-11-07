@@ -14,7 +14,7 @@ RSpec.describe Hecks::Fuzzing::ConcurrentDispatch, :aggregate_failures do
     it "reports it rather than answering clean" do
       allow(described_class).to receive(:lockable_verbs).and_return([[], ["Shop::Order.Place: NoMethodError: boom"]])
 
-      divergences = described_class.check("examples/pizzas", [{ "verb" => "Shop::Order.Place" }],
+      divergences = described_class.check("spec/fixtures/pizza_fixture", [{ "verb" => "Shop::Order.Place" }],
                                           database: "unused", race_schema: "unused", reference_schema: "unused")
 
       expect(divergences.map { |divergence| divergence[:field] }).to eq(["concurrency_unraceable"])
@@ -24,7 +24,7 @@ RSpec.describe Hecks::Fuzzing::ConcurrentDispatch, :aggregate_failures do
     it "still answers clean when nothing raced because there was nothing to race" do
       allow(described_class).to receive(:lockable_verbs).and_return([[], []])
 
-      expect(described_class.check("examples/pizzas", [{ "query" => "Order::All" }],
+      expect(described_class.check("spec/fixtures/pizza_fixture", [{ "query" => "Order::All" }],
                                    database: "unused", race_schema: "unused", reference_schema: "unused")).to eq([])
     end
   end
