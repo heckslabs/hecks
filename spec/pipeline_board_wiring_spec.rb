@@ -109,6 +109,18 @@ RSpec.describe Hecks::Adapters::PipelineWiring do
       expect(File.read(Hecks::Adapters::PipelineWeb::WIRING_PAGE)).not_to match(%r{https?://|//cdn|@import})
     end
 
+    def draw_node_source = fetch("/wiring").body[/function drawNode.*?\n}\n/m]
+
+    it "fills an aggregate with its domain's colour and a port or adapter with --wiring", :aggregate_failures do
+      expect(draw_node_source).to include('const hue = n.kind === "aggregate" ? colourOf(n.domain) : css("--wiring")')
+      expect(draw_node_source).to include('ctx.fillStyle = live ? css("--series1") : hue')
+      expect(draw_node_source).to include('ctx.strokeStyle = live ? css("--series1") : hue')
+    end
+
+    it "defines --wiring for the light and both dark themes" do
+      expect(fetch("/wiring").body.scan(/--wiring: #\h{6}/).size).to eq(3)
+    end
+
     it "serves the sequence diagram at /sequence" do
       expect(fetch("/sequence").body).to include("Pipeline Sequence")
     end
