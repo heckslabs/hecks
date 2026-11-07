@@ -55,6 +55,8 @@ module Hecks
 
         # The launcher's test for a Memory command; a trailing `!` is not part of the name.
         RUNS_ON_MEMORY = 'MEMORY_COMMANDS.include?(ARGV.first.to_s.chomp("!"))'.freeze
+        # The line that opens the boot of a memory command, which holds standard error back.
+        QUIETLY = "Hecks::Adapters::Driving::LauncherOptions.quietly(hold: #{RUNS_ON_MEMORY}) do".freeze
 
         # Where a launcher sits: the path up to the root, how it finds its domain, the program
         # name its header states, the path its usage shows, and the name it runs under.
@@ -148,8 +150,8 @@ module Hecks
         # @api private
         # @return [String] the opted-in launcher's middle
         def described_entry(name, boot, shown, quiet: false)
-          started = "Hecks.boot_described(described, install_driving: false)"
-          started = "Hecks::Adapters::Driving::LauncherOptions.quietly(hold: #{RUNS_ON_MEMORY}) { #{started} }" if quiet
+          started = "Hecks.boot_described(described, install_driving: false, read_only: read_only)"
+          started = "#{QUIETLY}\n      #{started}\n    end" if quiet
           render(DESCRIBED_ENTRY, boot: boot, shown: shown, name: name, started: started).chomp
         end
 
