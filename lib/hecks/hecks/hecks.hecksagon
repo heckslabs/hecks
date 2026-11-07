@@ -461,7 +461,7 @@ Hecks.hecksagon "Hecks" do
   # `pruner` agent; AgentRun.Dispatch mints the key.
   translates "DispatchThePrunerWhenWoken" do
     on Pruning::PrunerWoken
-    trigger AgentRun::Dispatch, with: { run: :role, repo: :repo, brief: :brief, agent: :role }
+    trigger AgentRun::Dispatch, with: { repo: :repo, brief: :brief, agent: :role }
   end
 
   Hecks::SendTrain.port "Launcher" do
