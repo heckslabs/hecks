@@ -3,7 +3,7 @@
 module Hecks
   module Adapters
     module PipelineBoard
-      # The bluebook files a booted registry was declared from, and a reading of them as they are now.
+      # The bluebook files a booted registry was declared from, and a reading of them as they stand.
       # A reading declares the files into a registry of its own and boots nothing, so it runs no
       # policy, opens no repository and takes no outbox row; the ports and adapters are the booted
       # registry's, which the files do not change.
@@ -30,7 +30,7 @@ module Hecks
         def stamp = paths.map { |path| [path, *look(path)] }
 
         # @return [Reading] the bluebooks as the files declare them now
-        # @raise [StandardError] when a file no longer declares a valid bluebook
+        # @raise [StandardError] when a file does not declare a valid bluebook
         def read
           fresh = Runtime::Registry.new(root: @registry.root)
           Hecks.with_registry(fresh) { paths.select { |path| File.file?(path) }.each { |path| Kernel.load(path) } }

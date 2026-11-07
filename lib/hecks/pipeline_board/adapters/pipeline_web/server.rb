@@ -136,7 +136,7 @@ module Hecks
 
         def headers(head) = head.map { |key, value| "#{key}: #{value}\r\n" }.join
 
-        # One server-sent event: a `state` push, a `wiring` change or a `board` event, each a JSON line.
+        # One server-sent event: a `state` push, a `wiring` change or a `board` event, as JSON.
         def sse(event)
           name = %w[state wiring].find { |kind| event.key?(kind.to_sym) } || "board"
           "event: #{name}\ndata: #{JSON.generate(event)}\n\n"

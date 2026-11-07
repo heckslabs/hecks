@@ -16,7 +16,7 @@ module Hecks
 
         # @param feed [#call] answers the newest events, newest first, or `{unknown: reason}`
         # @param state [#call, nil] answers the board's state hash (see {Snapshot#latest})
-        # @param wiring [#call, nil] answers the wiring graph with its `digest`, or `{unknown: reason}`
+        # @param wiring [#call, nil] answers the wiring with its `digest`, or `{unknown: reason}`
         # @param interval [Numeric] seconds between looks at the feed, the state and the wiring
         def initialize(feed:, state: nil, wiring: nil, interval: 1.0)
           @feed = feed
