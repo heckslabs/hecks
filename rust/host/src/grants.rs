@@ -73,7 +73,9 @@ async fn send(url: reqwest::Url, call: Call) -> Result<Reply, Refusal> {
     let method = reqwest::Method::from_bytes(call.method.as_bytes())
         .map_err(|err| Refusal::Failed(format!("method {:?}: {err}", call.method)))?;
     let timeout = Duration::from_millis(u64::from(call.timeout_ms)).min(LONGEST_TIMEOUT);
-    let mut request = http::client().request(method, url).timeout(timeout);
+    let mut request = http::unredirected_client()
+        .request(method, url)
+        .timeout(timeout);
     for (name, value) in &call.headers {
         request = request.header(name, value);
     }
@@ -89,30 +91,63 @@ async fn send(url: reqwest::Url, call: Call) -> Result<Reply, Refusal> {
             )
         })
         .collect();
-    let body = response.bytes().await.map_err(failed)?;
-    if body.len() > REPLY_BYTES {
-        return Err(Refusal::Failed(format!(
-            "reply passed the {REPLY_BYTES} byte cap"
-        )));
-    }
+    let body = read_capped(response, REPLY_BYTES).await?;
     Ok(Reply {
         status,
         headers,
-        body: body.to_vec(),
+        body,
     })
 }
 
-/// Runs `work` to completion from a blocking thread: on the ambient runtime when there is one
-/// (the component runs under `spawn_blocking`), else on a runtime of its own.
-fn block_on<T>(work: impl std::future::Future<Output = Result<T, Refusal>>) -> Result<T, Refusal> {
-    if let Ok(handle) = tokio::runtime::Handle::try_current() {
-        return handle.block_on(work);
+/// The body of `response`, refused as soon as it is known to pass `limit` bytes: by its declared
+/// length before any byte is read, else as the chunks arrive, so no more than `limit` is held.
+async fn read_capped(mut response: reqwest::Response, limit: usize) -> Result<Vec<u8>, Refusal> {
+    let over = || Refusal::Failed(format!("reply passed the {limit} byte cap"));
+    if response
+        .content_length()
+        .is_some_and(|declared| declared > limit as u64)
+    {
+        return Err(over());
     }
-    let runtime = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .map_err(|err| Refusal::Failed(format!("no runtime to send on: {err}")))?;
-    runtime.block_on(work)
+    let mut body = Vec::new();
+    while let Some(chunk) = response
+        .chunk()
+        .await
+        .map_err(|err| Refusal::Failed(err.to_string()))?
+    {
+        if body.len() + chunk.len() > limit {
+            return Err(over());
+        }
+        body.extend_from_slice(&chunk);
+    }
+    Ok(body)
+}
+
+/// Runs `work` to completion on a thread and runtime of its own, so it is safe whatever runtime
+/// the caller sits in (a blocking thread, or the main future of `block_on`, where the ambient
+/// handle would panic). Called from inside an async task, where waiting would stall a worker, it
+/// refuses instead.
+fn block_on<T: Send>(
+    work: impl std::future::Future<Output = Result<T, Refusal>> + Send,
+) -> Result<T, Refusal> {
+    if tokio::task::try_id().is_some() {
+        return Err(Refusal::Failed(
+            "a request cannot block an async task; run the component on a blocking thread".into(),
+        ));
+    }
+    let gone = || Refusal::Failed("the request thread ended without an answer".into());
+    std::thread::scope(|scope| {
+        scope
+            .spawn(|| {
+                let runtime = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .map_err(|err| Refusal::Failed(format!("no runtime to send on: {err}")))?;
+                runtime.block_on(work)
+            })
+            .join()
+            .unwrap_or_else(|_| Err(gone()))
+    })
 }
 
 #[cfg(test)]
@@ -187,6 +222,102 @@ mod tests {
         let url = serve_once("pong");
         let answer = ask(Grants::new([], ["127.0.0.1"]), "fetch", &url).unwrap();
         assert_eq!(answer, "200 pong");
+    }
+
+    /// Serves `head` and then `tail` on a local port, holding the connection open for a second.
+    fn serve_raw(head: String, tail: Vec<u8>) -> String {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let _ = stream.read(&mut [0u8; 1024]).unwrap();
+            let _ = stream.write_all(head.as_bytes());
+            let _ = stream.write_all(&tail);
+            std::thread::sleep(Duration::from_secs(1));
+        });
+        format!("http://127.0.0.1:{port}/")
+    }
+
+    fn capped(url: &str, limit: usize) -> Result<Vec<u8>, Refusal> {
+        block_on(async move {
+            let response = http::unredirected_client().get(url).send().await.unwrap();
+            read_capped(response, limit).await
+        })
+    }
+
+    #[test]
+    fn a_redirect_to_an_undeclared_host_is_not_followed() {
+        let other = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        other.set_nonblocking(true).unwrap();
+        let target = format!("http://localhost:{}/", other.local_addr().unwrap().port());
+        let head = format!("HTTP/1.1 302 Found\r\nLocation: {target}\r\nContent-Length: 0\r\n\r\n");
+        let url = serve_raw(head, vec![]);
+        let answer = ask(Grants::new([], ["127.0.0.1"]), "fetch", &url).unwrap();
+        assert!(answer.starts_with("302"), "{answer}");
+        assert!(other.accept().is_err(), "the redirect target was contacted");
+    }
+
+    #[test]
+    fn a_reply_declaring_more_than_the_cap_is_refused_before_its_body_is_read() {
+        let head = "HTTP/1.1 200 OK\r\nContent-Length: 1000000\r\n\r\n".to_string();
+        let started = std::time::Instant::now();
+        let err = capped(&serve_raw(head, b"tiny".to_vec()), 10).unwrap_err();
+        assert!(
+            started.elapsed() < Duration::from_millis(900),
+            "waited for the body"
+        );
+        assert_eq!(err, Refusal::Failed("reply passed the 10 byte cap".into()));
+    }
+
+    #[test]
+    fn a_reply_of_unknown_length_is_cut_off_at_the_cap() {
+        let head = "HTTP/1.1 200 OK\r\nConnection: close\r\n\r\n".to_string();
+        let err = capped(&serve_raw(head, vec![b'x'; 50]), 10).unwrap_err();
+        assert_eq!(err, Refusal::Failed("reply passed the 10 byte cap".into()));
+    }
+
+    #[test]
+    fn a_reply_within_the_cap_is_read_whole() {
+        let head = "HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\n".to_string();
+        assert_eq!(
+            capped(&serve_raw(head, b"fits".to_vec()), 10).unwrap(),
+            b"fits"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn a_request_made_from_an_async_task_is_refused_not_panicked() {
+        tokio::spawn(async { refused_inside_a_task() })
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn a_request_made_from_the_main_future_of_a_runtime_is_answered_not_panicked() {
+        let url = serve_once("main");
+        let answer = Grants::new([], ["127.0.0.1"])
+            .request(call_to(&url))
+            .unwrap();
+        assert_eq!(answer.body, b"main");
+    }
+
+    fn call_to(url: &str) -> Call {
+        Call {
+            method: "GET".into(),
+            url: url.into(),
+            headers: vec![],
+            body: vec![],
+            timeout_ms: 1000,
+        }
+    }
+
+    fn refused_inside_a_task() {
+        let grants = Grants::new([], ["127.0.0.1"]);
+        let err = grants.request(call_to("http://127.0.0.1:1/")).unwrap_err();
+        assert!(
+            matches!(err, Refusal::Failed(ref why) if why.contains("async task")),
+            "{err:?}"
+        );
     }
 
     #[test]
