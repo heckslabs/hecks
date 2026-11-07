@@ -117,6 +117,17 @@ RSpec.describe Hecks::Adapters::PipelineWiring do
       expect(draw_node_source).to include('ctx.strokeStyle = live ? css("--series1") : hue')
     end
 
+    def wheel_source = fetch("/wiring").body[/addEventListener\("wheel".*?passive: false \}\);/m]
+
+    it "takes the wheel only for Cmd or Ctrl zoom over the canvas", :aggregate_failures do
+      expect(wheel_source).to include("if (!(e.metaKey || e.ctrlKey) || e.target !== canvas) return;")
+      expect(wheel_source.index("return;")).to be < wheel_source.index("e.preventDefault()")
+    end
+
+    it "does not forward a plain wheel to the parent page" do
+      expect(fetch("/wiring").body).not_to include("parent.scrollBy")
+    end
+
     it "defines --wiring for the light and both dark themes" do
       expect(fetch("/wiring").body.scan(/--wiring: #\h{6}/).size).to eq(3)
     end
