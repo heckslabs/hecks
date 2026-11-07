@@ -24,10 +24,12 @@ module Hecks
       # @yieldparam type [String] the type of the attribute it fills in
       # @yieldparam verb [String] the command that is running
       # @yieldreturn [Object, nil] the value, or nil when the host has none
+      # @param domain_ir [Hash, Array, nil] the domain IR (one domain, or an array), sent once so
+      #   the kernel builds its presenter and query rows for the session; nil sends none
       # @return [KernelClient] connected, with the protocol agreed
-      def self.open(binary, needs: {}, protocols: [1], &answerer)
+      def self.open(binary, needs: {}, protocols: [1], domain_ir: nil, &answerer)
         client = new(binary, answerer)
-        client.hello(needs: needs, protocols: protocols)
+        client.hello(needs: needs, protocols: protocols, domain_ir: domain_ir)
         client
       rescue Unreachable
         client&.close
@@ -44,9 +46,10 @@ module Hecks
       #
       # @return [void]
       # @raise [Unreachable] when no version is common to both ends
-      def hello(needs:, protocols:)
+      def hello(needs:, protocols:, domain_ir: nil)
         hello = { "protocols" => protocols, "needs" => needs }
         hello["callbacks"] = true if @answerer
+        hello["ir"] = domain_ir if domain_ir
         answer = call("hello" => hello)
         raise Unreachable, answer["error"] unless answer["ok"]
 
@@ -62,6 +65,19 @@ module Hecks
         message["session"] = session if session
         call(message)
       end
+
+      # Sends the domain IR for the rest of the connection; a run that follows carries no `"ir"`.
+      #
+      # @param domain_ir [Hash, Array] one domain's canonical IR, or an array of them
+      # @return [Hash] `{"ok" => true}`
+      def load_ir(domain_ir) = call("load" => { "ir" => domain_ir })
+
+      # Runs a whole `{"steps" => [...]}` or `{"present" => answer}` message, answered from the IR
+      # the connection holds when the message carries none.
+      #
+      # @param message [Hash] the run
+      # @return [Hash] the run's answer
+      def run(message) = call(message)
 
       # @return [Hash] `{"ok" => true, "session" => name}`, or a refusal when the name is taken
       def open_session(name) = call("open" => name)

@@ -66,7 +66,7 @@ mod against_generated {
 
     // Every verb the generated table holds, asked with no arguments and with arguments that fit
     // none of them, so a gate or a missing-argument refusal is compared too.
-    fn every_verb_steps() -> String {
+    pub(super) fn every_verb_steps() -> String {
         let verbs = QUERIES
             .iter()
             .map(|q| q.verb)
@@ -143,6 +143,86 @@ mod against_generated {
     }
 }
 
+/// A serve session that is sent the IR once (`load`, or in the `hello`) answers a run that carries
+/// none byte for byte as the one-shot run does with the IR in it, and as it does with none at all.
+#[cfg(any(feature = "pizzas", feature = "banking", feature = "tenant_ledger"))]
+mod session {
+    use super::against_generated::every_verb_steps;
+    use super::*;
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    #[derive(Clone, Default)]
+    struct Sink(Rc<RefCell<Vec<u8>>>);
+
+    impl std::io::Write for Sink {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            self.0.borrow_mut().extend_from_slice(bytes);
+            Ok(bytes.len())
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    /// The answers a connection gives to `lines`, one per line.
+    pub(super) fn served(lines: &[String]) -> Vec<String> {
+        let sink = Sink::default();
+        let input = std::io::Cursor::new(format!("{}\n", lines.join("\n")));
+        crate::kernel::serve::serve(input, sink.clone());
+        let text = String::from_utf8(sink.0.borrow().clone()).unwrap_or_default();
+        text.lines().map(str::to_string).collect()
+    }
+
+    /// The IR on one line, as a message in the stream must be.
+    fn ir_text() -> String {
+        ir().to_json_string()
+    }
+
+    fn run_line(extra: &str) -> String {
+        format!(r#"{{"steps":[{}]{extra}}}"#, every_verb_steps())
+    }
+
+    pub(super) fn compact(answer: &str) -> String {
+        Json::parse(answer).map_or_else(|_| answer.to_string(), |json| json.to_json_string())
+    }
+
+    #[test]
+    fn a_loaded_ir_answers_a_run_that_carries_none_as_the_run_with_the_ir_does() {
+        let load = format!(r#"{{"load":{{"ir":{}}}}}"#, ir_text());
+        let answers = served(&[load, run_line("")]);
+        let one_shot = run(&run_line(&format!(r#","ir":{}"#, ir_text())));
+        assert_eq!(answers[1], compact(&one_shot));
+    }
+
+    #[test]
+    fn a_hello_that_carries_the_ir_loads_it() {
+        let hello = format!(r#"{{"hello":{{"protocols":[1],"ir":{}}}}}"#, ir_text());
+        let answers = served(&[hello, run_line("")]);
+        assert_eq!(answers[1], compact(&run(&run_line(""))));
+    }
+
+    #[test]
+    fn a_session_with_no_ir_answers_from_the_generated_tables() {
+        let answers = served(&[run_line("")]);
+        assert_eq!(answers[0], compact(&run(&run_line(""))));
+    }
+
+    #[test]
+    fn a_load_with_no_ir_is_refused() {
+        let answers = served(&[r#"{"load":{}}"#.to_string()]);
+        assert!(answers[0].contains("load needs an ir"), "{}", answers[0]);
+    }
+
+    #[test]
+    fn a_run_that_carries_its_own_ir_is_answered_from_it_not_the_session() {
+        let load = r#"{"load":{"ir":[]}}"#.to_string();
+        let own = run_line(&format!(r#","ir":{}"#, ir_text()));
+        let answers = served(&[load, own.clone()]);
+        assert_eq!(answers[1], compact(&run(&own)));
+    }
+}
+
 #[cfg(feature = "pizzas")]
 mod pizzas {
     use super::*;
@@ -174,6 +254,53 @@ mod pizzas {
             String::new()
         };
         run(&format!(r#"{{"steps":[{STEPS},{asks}]{ir}}}"#))
+    }
+
+    /// Microseconds per run of the same pizzas run: answered from the generated tables, with the IR
+    /// sent in each run, and in a loaded session that sends it once. Run it with
+    /// `cargo test --release --features pizzas perf_per_run -- --ignored --nocapture`.
+    #[test]
+    #[ignore = "a timing, not a check"]
+    fn perf_per_run() {
+        use super::session::served;
+        const RUNS: u32 = 2000;
+        let steps = format!("{STEPS},{}", ASKS.join(","));
+        let ir = ir().to_json_string();
+        let line = |text: String| Json::parse(&text).map_or(text, |json| json.to_json_string());
+        let plain = line(format!(r#"{{"steps":[{steps}]}}"#));
+        let with_ir = line(format!(r#"{{"steps":[{steps}],"ir":{ir}}}"#));
+        let mut lines = vec![format!(r#"{{"load":{{"ir":{ir}}}}}"#)];
+        lines.extend((0..RUNS).map(|_| plain.clone()));
+        let answers = served(&lines);
+        assert_eq!(answers.len(), lines.len());
+        assert_eq!(answers[1], super::session::compact(&run(&plain)));
+        // The best of five rounds, taken in turn, so a warm-up or a busy moment is not the figure.
+        let best = |work: &dyn Fn()| {
+            (0..5)
+                .map(|_| {
+                    let started = std::time::Instant::now();
+                    work();
+                    started.elapsed().as_secs_f64() * 1e6 / f64::from(RUNS)
+                })
+                .fold(f64::MAX, f64::min)
+        };
+        let generated = best(&|| (0..RUNS).for_each(|_| drop(run(&plain))));
+        let sent_each_run = best(&|| (0..RUNS).for_each(|_| drop(run(&with_ir))));
+        let session = best(&|| drop(served(&lines)));
+        println!("per run: generated {generated:.1} us, ir each run {sent_each_run:.1} us, session {session:.1} us");
+    }
+
+    // The pizzas run's own answer, presented through a loaded session and through a one-shot with
+    // the IR: the presenter the session built answers as the one a run builds.
+    #[test]
+    fn a_loaded_session_presents_an_answer_as_the_run_with_the_ir_does() {
+        use super::session::{compact, served};
+        let present = format!(r#"{{"present":{}"#, answer(false));
+        let ir = ir().to_json_string();
+        let load = format!(r#"{{"load":{{"ir":{ir}}}}}"#);
+        let answers = served(&[load, format!("{present}}}")]);
+        let one_shot = run(&format!(r#"{present},"ir":{ir}}}"#));
+        assert_eq!(answers[1], compact(&one_shot));
     }
 
     #[test]
