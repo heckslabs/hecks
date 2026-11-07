@@ -1079,11 +1079,11 @@ Hecks.hecksagon "Agents" do
   subscribe "Pipeline.PassageVerified"
 
   # The coder hands in a branch: the reviewer is asked to judge it. The branch is named for the Work item,
-  # the review is keyed by the commit, and the session works in the checkout the event was raised in.
+  # the review is keyed by the commit, and the session works in the coder's checkout, which the event names.
   translates "AskTheReviewerWhenWorkIsSubmitted" do
     on Submission::WorkSubmitted
     trigger SubmissionReview::Request, with: { submission: :sha, work: :branch, brief: :branch, hops: 1,
-                                               role: "reviewer", repo: "." }
+                                               role: "reviewer", repo: :checkout }
   end
 
   # The reviewer's session closes with its judgment, which the adapter reads off the job; the run's key
@@ -1107,5 +1107,22 @@ Hecks.hecksagon "Agents" do
     on AgentRun::JobRead
     where { verdict != "" && previous != state }
     trigger PlanReview::Answer, with: { work: :run, verdict: :verdict, findings: :findings }
+  end
+end
+
+# A coder's session closes with its report, and the adapter reads the branch, commit and cleanliness of
+# the run's checkout off the job once a coder's job is done. A report whose last word is `submitted` hands
+# the branch in; Submit refuses main, stable and a dirty tree by name. Submitting also finishes the Work
+# item the branch is named for (Tickets) and starts maintenance (QualityControl), as a hand submit does.
+# A root, as the JobRead policies of the delegate bluebook are: the reviewer's start that a submission
+# asks for sits past the reaction depth limit when counted from the check that read the job.
+Hecks.hecksagon "Coder" do
+  subscribe "Hecks.JobRead"
+
+  translates "SubmitWhenTheCoderSaysSubmitted" do
+    on AgentRun::JobRead
+    root
+    where { state == "done" && previous != state && agent == "coder" && report.rstrip.end_with?("submitted") }
+    trigger Submission::Submit, with: { branch: :branch, sha: :sha, checkout: :checkout, clean: :clean }
   end
 end

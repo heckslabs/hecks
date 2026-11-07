@@ -46,7 +46,8 @@ RSpec.describe "a plan review request starting the architect's session" do
   end
 
   def submit(branch, commit)
-    launch("coder", "Submission.submit!", "branch.value=#{branch}", "sha.value=#{commit}", "--wait")
+    launch("coder", "Submission.submit!", "branch.value=#{branch}", "sha.value=#{commit}", "checkout.value=#{scratch}",
+           "clean.value=true", "--wait")
   end
 
   def reactions(policy) = @hecks.registry.reaction_log.select { |r| r[:policy] == policy }

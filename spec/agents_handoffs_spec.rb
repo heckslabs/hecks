@@ -18,7 +18,8 @@ RSpec.describe "the agents handing work to each other" do
   end
 
   it "asks the reviewer when a coder submits work", :aggregate_failures do
-    launch("coder", "Submission.submit!", "branch.value=w-sub", "sha.value=abc1234", "--wait")
+    launch("coder", "Submission.submit!", "branch.value=w-sub", "sha.value=abc1234", "checkout.value=#{scratch}",
+           "clean.value=true", "--wait")
     expect(reaction("AskTheReviewerWhenWorkIsSubmitted").last[:delivered]).to be(true)
     expect(launch("agents", "SubmissionReview.reviews").first.to_s).to include("w-sub")
   end
