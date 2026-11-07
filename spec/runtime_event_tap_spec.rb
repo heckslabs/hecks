@@ -125,6 +125,18 @@ RSpec.describe Hecks::Runtime::EventTap do
     expect(lines.last["seq"]).to eq(12)
   end
 
+  it "continues the sequence when the tail it reads starts inside a multi-byte character" do
+    head = %({"seq":1,"pad":")
+    last = %({"seq":7}\n)
+    pad = "é" * 40_000
+    size = head.bytesize + pad.bytesize + 3 + last.bytesize
+    pad = "#{pad}a" if (size - described_class::TAIL_BYTES - head.bytesize).even?
+    File.write(path, "#{head}#{pad}\"}\n#{last}")
+    described_class.install(registry_with(world(path: path)))
+    log << event
+    expect(lines.last["seq"]).to eq(8)
+  end
+
   it "drops a write that fails instead of raising" do
     File.write(path, "x")
     described_class.install(registry_with(world(path: File.join(path, "below-a-file.jsonl"))))

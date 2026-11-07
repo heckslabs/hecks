@@ -165,10 +165,19 @@ module Hecks
       def seq_at_end(file)
         return nil unless File.file?(file)
 
-        line = File.open(file) { |io| io.seek([io.size - TAIL_BYTES, 0].max) && io.read.split("\n").last }
+        line = last_line(file)
         line && JSON.parse(line)["seq"]
       rescue JSON::ParserError
         nil
+      end
+
+      # The tail is read as bytes: the seek can land inside a multi-byte character, which only
+      # spoils the first, partial line, never the last one.
+      def last_line(file)
+        File.open(file, "rb") do |io|
+          io.seek([io.size - TAIL_BYTES, 0].max)
+          io.read.split("\n".b).last&.force_encoding(Encoding::UTF_8)
+        end
       end
     end
   end
