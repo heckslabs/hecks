@@ -12,9 +12,9 @@ module Hecks
       # A changed spec runs itself. A changed Ruby file runs the spec named for it and the specs
       # that require it or mention its path or its constant. A changed bluebook, hecksagon, world or
       # behaviors file runs the specs that mention its path or domain name (and, for the language's
-      # own bluebooks, the shape-ledger, conformance, corpus, golden and vocabulary specs). A changed
-      # `rust/` file runs the Ruby specs that drive it, never cargo; a changed `docs/` file runs the
-      # docs specs.
+      # own bluebooks, the shape-ledger, conformance, corpus, golden and vocabulary specs). A
+      # changed `rust/` file runs the Ruby specs that drive it, never cargo; a changed `docs/`
+      # file runs the docs specs.
       class SpecMap
         # What was mapped.
         #
