@@ -174,10 +174,13 @@ module Hecks
       # The tail is read as bytes: the seek can land inside a multi-byte character, which only
       # spoils the first, partial line, never the last one.
       def last_line(file)
-        File.open(file, "rb") do |io|
-          io.seek([io.size - TAIL_BYTES, 0].max)
-          io.read.split("\n".b).last&.force_encoding(Encoding::UTF_8)
-        end
+        tail = File.open(file, "rb") { |io| io.seek([io.size - TAIL_BYTES, 0].max) && io.read }
+        complete_last_line(tail)
+      end
+
+      def complete_last_line(bytes)
+        line = bytes.split("\n".b).last
+        line&.force_encoding(Encoding::UTF_8)
       end
     end
   end
