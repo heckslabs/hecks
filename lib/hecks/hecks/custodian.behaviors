@@ -66,7 +66,8 @@ Hecks.behaviors "Custodian" do
   test "Board keeps a checkout that is not there as a faulted push" do
     tests "Board", on: "SendTrain"
     input run: { value: "evening" }, checkout: { value: "/tmp/hecks-behaviors-absent/checkout" }, confirm: { value: true }
-    expect emits: %w[BoardingRequested TrainRefused PushFaulted OutcomeUnrecorded]
+    expect emits: %w[BoardingRequested TrainRefused PushFaulted OutcomeUnrecorded
+                  BoardingReleaseRequested ReleaseAnswered BoardingReleaseSettled]
   end
 
   test "Land keeps a checkout that is not there as a refused landing" do
@@ -78,7 +79,8 @@ Hecks.behaviors "Custodian" do
   test "Rehearse keeps a checkout that is not there as a declined rehearsal" do
     tests "Rehearse", on: "PushRehearsal"
     input run: { value: "evening" }, checkout: { value: "/tmp/hecks-behaviors-absent/checkout" }
-    expect emits: %w[PushRehearsalRequested PushRehearsalRefused PushRehearsalDeclined]
+    expect emits: %w[PushRehearsalRequested PushRehearsalRefused PushRehearsalDeclined
+                  BoardingReleaseRequested ReleaseAnswered BoardingReleaseSettled]
   end
 
   test "Make keeps a checkout that is not there as a declined commit" do
