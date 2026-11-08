@@ -1,6 +1,6 @@
 # Interviews are the beginning of work
 
-**Status:** Proposed. Date: 2026-11-07. Supersedes the interview shape of
+**Status:** Accepted. Date: 2026-11-08. Accepted by the owner (2026-11-08). Proposed 2026-11-07. Supersedes the interview shape of
 [ADR 0088](0088-an-ai-driven-interview-records-what-an-expert-says-and-drafts-the-first-domain.md):
 its typed findings, its `planned` to `underway` ceremony, its single `expert`, and its keeping the
 chapter out of the Hecks domain. Its purpose stands: a domain, and now any piece of work, starts from

@@ -1,6 +1,6 @@
 # The board's read model is declared, and its pages are projected from declarations
 
-**Status:** Proposed. Date: 2026-11-07. Narrows
+**Status:** Accepted. Date: 2026-11-08. Accepted by the owner (2026-11-08). Proposed 2026-11-07. Narrows
 [0154](0154-hand-written-code-is-a-kernel-an-adapter-or-a-projector.md) (a hand-written file is a
 kernel, an adapter or a projector) to the PipelineBoard (`lib/hecks/pipeline_board`), and follows
 [0190](0190-tools-dissolve-behind-ports-and-kept-data-is-read-from-the-committed-world.md) in
