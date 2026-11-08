@@ -31,7 +31,7 @@ module Hecks
         @shell = Shell.new
         @listing = ClaudeSessionListing.new(@command, shell: @shell)
         @runs = Dispatching::WorkItems.new(registry)
-        @roles = PipelineBoard::AgentRoles.declared(registry)
+        @roles = pinned_roles(registry)
       end
 
       # Removes one session with `claude rm`.
@@ -75,6 +75,12 @@ module Hecks
       end
 
       private
+
+      # The roles the Agents bluebook's `PinnedRole` rows name; every declared role when the
+      # bluebook is not loaded, so a missing row refuses more and never retires a pinned session.
+      def pinned_roles(registry)
+        @runs.pinned_roles || PipelineBoard::AgentRoles.declared(registry)
+      end
 
       def run_key(entry)
         held = @runs.run_sessions.values_at(entry["id"], entry["sessionId"])

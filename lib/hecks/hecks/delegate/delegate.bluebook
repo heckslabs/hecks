@@ -882,9 +882,9 @@ Hecks.bluebook "Hecks" do
         ask     :examine, with: { session: :session }
       end
 
-      policy "RefuseTheBoundSessionOfAPinnedRole" do
+      policy "RefuseTheSessionOfAPinnedRole" do
         on      "PlainSession.SessionExamined"
-        where   { bound == true && pinned == true }
+        where   { pinned == true }
         trigger PlainSession::RefuseRetirement, with: { session: :session, refusal: :note }
       end
 
@@ -896,7 +896,7 @@ Hecks.bluebook "Hecks" do
 
       policy "RetireTheFreeSession" do
         on      "PlainSession.SessionExamined"
-        where   { bound != true || (pinned != true && working != true) }
+        where   { pinned != true && (bound != true || working != true) }
         ask     :withdraw, with: { session: :session }
       end
     end
