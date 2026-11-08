@@ -1,6 +1,6 @@
 # The MCP servers stay stdio-only, and a network transport needs real authentication first
 
-**Status:** Proposed (draft). The stdio gate described under "What is enforced today" shipped with this ADR. Nothing under "Decision" is built, and this ADR does not authorize building a network transport; it says what has to be true before anyone does.
+**Status:** Proposed (draft). The stdio gate described under "What is enforced today" shipped with this ADR. Nothing under "Decision" is built, and this ADR does not authorize building a network transport; it says what has to be true before anyone does. Door vocabulary superseded by [0103](0103-doors-are-driving-adapters.md); the decision stands under the new names.
 
 ## Context
 

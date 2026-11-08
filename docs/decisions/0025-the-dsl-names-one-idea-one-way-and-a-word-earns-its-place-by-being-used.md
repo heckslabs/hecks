@@ -7,7 +7,7 @@ against the code, and [`docs/1.0-readiness.md`](../1.0-readiness.md) records
 the gate this decision blocked. Two corrections to this text stand
 (inline below): `has_many`/`has_one`/`belongs_to` were kept, not deleted, and
 `then_set`→`sets` landed. Trust the slice table over this document's prose —
-this document records the *decision*, not a live status feed.
+this document records the *decision*, not a live status feed. Identity and References sections superseded by [0029](0029-identity-is-a-value-concept-and-relationships-state-cardinality.md).
 
 ## Context
 
