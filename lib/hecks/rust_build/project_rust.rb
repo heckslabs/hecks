@@ -5,6 +5,8 @@ require "json"
 require_relative "../../hecks"
 require_relative "../bluebook/meta_validator"
 require_relative "../ports/persistence/plugins/era"
+require_relative "../shape_ledger/kept"
+require_relative "../shape_ledger/scope"
 require_relative "domain_name"
 require_relative "write_if_changed"
 

@@ -393,6 +393,7 @@
       }
     ]
   },
+  "kept": true,
   "authorization": {
     "provider": "Governance",
     "grant": "Governance::RoleAssignment.Assign",

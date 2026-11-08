@@ -1,6 +1,7 @@
 require "json"
 require "hecks"
 require_relative "ports/persistence/plugins/era/era_check"
+require_relative "shape_ledger/kept"
 require_relative "shape_ledger/scope"
 require_relative "shape_ledger/status"
 require_relative "shape_ledger/edge_hygiene"
