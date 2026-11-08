@@ -7,7 +7,11 @@
 # `dispatch_max_load` is the 1-minute load above which `Dispatch.Fill` starts no session (the CPU count
 # when absent). `session_environment` is what every dispatched session starts with: a shared cargo
 # target directory and a `nice` increment.
+#
+# `github_issues` is the switch on GitHub issues for run findings (`OpenIssueWhenRunReported`). It is
+# off: a run finding stays a work item and no GitHub call is made. `enabled: true` turns it back on.
 Hecks.world "Tickets" do
+  github_issues "GitHubIssues", enabled: false
   work_limit "WorkLimits", cap: 8
   frozen_shapes "PersistedShapes", areas: []
   session_environment "Sessions", cargo_target_dir: "~/.cache/hecks/cargo-target", nice: 15

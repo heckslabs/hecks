@@ -553,6 +553,8 @@ Hecks.bluebook "Tickets" do
     ask     :open_issue, with: { finding: :finding }
   end
 
+  # Switched off by the Tickets world's `github_issues` setting (`enabled: false`): the ask is
+  # refused naming the setting before any GitHub call, and the run finding stays a work item.
   policy "OpenIssueWhenRunReported" do
     on      "Finding.RunFindingReported"
     ask     :open_issue, with: { finding: :finding }
