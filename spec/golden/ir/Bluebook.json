@@ -34866,6 +34866,32 @@
             [
               [
                 "name",
+                "io_spec_list"
+              ],
+              [
+                "id",
+                "io_spec_list"
+              ],
+              [
+                "title",
+                "io spec list, the committed Postgres io file list names every spec file a --tag io dry run selects"
+              ],
+              [
+                "argv",
+                ""
+              ],
+              [
+                "script",
+                "# The exclude pattern is read from the workflow whose job checks the list, never copied here.\n# A tree whose spec files all match origin/main cannot have moved the list, so it is skipped.\nbase=\"$(git merge-base HEAD origin/main 2>/dev/null || true)\"\nif [ -n \"$base\" ] && [ -z \"$(git diff --name-only \"$base\" -- 'spec/*_spec.rb'; git ls-files --others --exclude-standard -- 'spec/*_spec.rb')\" ]; then\n  echo \"no spec file differs from origin/main: skipped\"\n  exit 0\nfi\npattern=\"$(sed -n \"s/^  IO_PARALLEL_EXCLUDE_PATTERN: '\\(.*\\)'\\$/\\1/p\" .github/workflows/ci-postgres-io-parallel.yml)\"\ntest -n \"$pattern\" || { echo \"IO_PARALLEL_EXCLUDE_PATTERN is not set in ci-postgres-io-parallel.yml\" >&2; exit 1; }\nbundle exec exe/hecks test_suite_run.list_io_parallel_specs exclude=\"$pattern\" check=.github/postgres_io_spec_files.txt --wait\n"
+              ],
+              [
+                "blocked",
+                "a spec file was added, removed or retagged io and .github/postgres_io_spec_files.txt is stale, so CI's postgres_io_file_list job would fail. Rewrite it with test_suite_run.write_io_parallel_spec_list! (exclude= the workflow's IO_PARALLEL_EXCLUDE_PATTERN, write=.github/postgres_io_spec_files.txt, --confirm) and commit the file."
+              ]
+            ],
+            [
+              [
+                "name",
                 "rust_fmt"
               ],
               [
@@ -35541,7 +35567,7 @@
               ],
               [
                 "checks",
-                "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,adapter_words"
+                "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,adapter_words,io_spec_list"
               ]
             ],
             [

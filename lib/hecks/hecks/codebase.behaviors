@@ -220,6 +220,12 @@ Hecks.behaviors "Codebase" do
                      TestSuiteCompleted]
   end
 
+  test "RewriteIrGolden reports what it would rewrite, and rewrites nothing, without confirm" do
+    tests "RewriteIrGolden", on: "TestSuiteRun"
+    input run: { value: "golden" }
+    expect emits: %w[RewriteIrGoldenRequested TestSuiteExamined TestSuiteAccepted TestSuiteAnswered TestSuiteCompleted]
+  end
+
   test "SeedSemanticsCorpus refuses a fixture name that is not a file name" do
     tests "SeedSemanticsCorpus", on: "TestSuiteRun"
     input fixture: { value: "Not A Name" }, run: { value: "seed" }

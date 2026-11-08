@@ -3,6 +3,7 @@
 require "socket"
 require "json"
 require_relative "act_route"
+require_relative "deep_links"
 
 module Hecks
   module Adapters
@@ -33,7 +34,7 @@ module Hecks
         ROUTES = [*SERVED.keys, "/api/events"].freeze
         STATUS = { 200 => "OK", 400 => "Bad Request", 403 => "Forbidden", 404 => "Not Found",
                    405 => "Method Not Allowed", 415 => "Unsupported Media Type",
-                   422 => "Unprocessable Entity" }.freeze
+                   422 => "Unprocessable Entity", 503 => "Service Unavailable" }.freeze
 
         # @return [Integer] the port the server is bound to
         attr_reader :port
@@ -100,6 +101,9 @@ module Hecks
         def answer(socket, verb, path, headers)
           return post(socket, path, headers) if verb == "POST" && path == ActRoute::PATH
           return reply(socket, 405, "text/plain", "method not allowed", "Allow" => "GET") unless verb == "GET"
+
+          deep = DeepLinks.match(path)
+          return reply(socket, *DeepLinks.answer(@app, deep)) if deep
           return reply(socket, 404, "text/plain", "not found") unless ROUTES.include?(path)
 
           route(socket, path)
@@ -132,9 +136,9 @@ module Hecks
 
         def headers(head) = head.map { |key, value| "#{key}: #{value}\r\n" }.join
 
-        # One server-sent event: a `state` push or a `board` event, each a JSON line.
+        # One server-sent event: a `state` push, a `wiring` change or a `board` event, as JSON.
         def sse(event)
-          name = event.key?(:state) ? "state" : "board"
+          name = %w[state wiring].find { |kind| event.key?(kind.to_sym) } || "board"
           "event: #{name}\ndata: #{JSON.generate(event)}\n\n"
         end
 

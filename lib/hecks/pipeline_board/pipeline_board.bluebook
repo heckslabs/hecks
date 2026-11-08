@@ -57,6 +57,16 @@ Hecks.bluebook "PipelineBoard" do
       attribute :text, String
     end
 
+    # How many columns a text panel is drawn in.
+    value_object "Width" do
+      attribute :value, Integer, default: 80
+    end
+
+    # Whether a text panel is coloured: `true` or `false`.
+    value_object "Colour" do
+      attribute :value, String, default: "false"
+    end
+
     # How many results a query answers, at most.
     value_object "Limit" do
       attribute :value, Integer, default: 20
@@ -285,6 +295,14 @@ Hecks.bluebook "PipelineBoard" do
 
     query "Sessions" do
       description "The busy and the recent dispatched sessions, with the job's own state."
+      returns Document
+    end
+
+    query "Snapshot" do
+      description "The board's state as a fixed-width text panel for a terminal: stage counts, metric tiles, recent main CI, sessions by state, open train PRs, planned Work items and agents. It reads only, and the board need not be running."
+      attribute :width,  Width,  optional: true
+      attribute :colour, Colour, optional: true
+      attribute :limit,  Limit,  optional: true
       returns Document
     end
 

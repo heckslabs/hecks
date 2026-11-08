@@ -519,7 +519,9 @@ function attentionTable(items) {
   items.forEach((it, i) => { trs[i].classList.add("clickable"); trs[i].title = "Click to resolve or answer"; answerable(trs[i], it.act); });
   return node;
 }
-function sessionLabel(s) { return h("span", {}, s.name, " ", h("small", { class: "sid" }, s.id || "")); }
+// A session's own page: its AgentRun by run key, else by session id.
+function runHref(s) { return "/runs/" + encodeURIComponent(s.run || s.id); }
+function sessionLabel(s) { return h("span", {}, h("a", { href: runHref(s), class: "run-link", "data-tip": "Open this run's page" }, s.name), " ", h("small", { class: "sid" }, s.id || "")); }
 // Answers a blocked session's question on its own, for the kinds the board may answer.
 function addAutoReply(row, s) {
   const button = h("button", { type: "button", class: "del", tip: "Answer this question on its own: " + (s.question_kind === "confirm" ? "yes" : "retry") }, "Auto reply");
@@ -654,7 +656,7 @@ function chainOf(ev) {
 function putEvent(ev, fresh) {
   if (!ev.key) return;
   const card = h("div", { class: "ev" + (fresh ? " fresh" : ""), tip: eventTip(ev) }, h("div", { class: "head" },
-    h("span", { class: "time" }, clock(ev.at)), h("span", { class: "name" }, ev.name), h("span", { class: "agg" }, (ev.aggregate || "") + "#" + (ev.id || "")),
+    h("span", { class: "time" }, clock(ev.at)), h("span", { class: "name" }, ev.name), h("span", { class: "agg" }, ev.aggregate === "SendTrain" && ev.id ? h("a", { href: "/trains/" + encodeURIComponent(ev.id) }, "SendTrain#" + ev.id) : (ev.aggregate || "") + "#" + (ev.id || "")),
     h("span", { class: "agg" }, ev.source === "tap" ? "event log" : "journal")), chainOf(ev));
   const old = seen.get(ev.key), feed = $("feed");
   if (old) old.replaceWith(card); else feed.prepend(card);

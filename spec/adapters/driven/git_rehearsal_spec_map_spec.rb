@@ -80,6 +80,12 @@ RSpec.describe Hecks::Adapters::GitRehearsal::SpecMap do
         .to include("spec/shape_ledger_spec.rb", "spec/conformance_run_spec.rb", "spec/semantics_corpus_spec.rb")
     end
 
+    it "adds the frozen IR golden and vocabulary specs" do
+      %w[ir_golden_spec vocabulary_table_spec].each { |name| add("spec/#{name}.rb") }
+      expect(specs("lib/hecks/language/bluebook/vocabulary.bluebook"))
+        .to include("spec/ir_golden_spec.rb", "spec/vocabulary_table_spec.rb")
+    end
+
     it "leaves them to an ordinary bluebook" do
       expect(specs("lib/hecks/shop/shop.bluebook")).not_to include("spec/shape_ledger_spec.rb")
     end

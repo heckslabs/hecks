@@ -2,6 +2,7 @@
 
 require "json"
 require_relative "probe"
+require_relative "pipeline_tickets/run_detail"
 require_relative "../../hecks/adapters/started_work"
 
 module Hecks
@@ -10,6 +11,8 @@ module Hecks
     # through the booted Tickets domain's repository (never from its database), and reports which
     # session ran each work item from the AgentRun records. It only reads.
     class PipelineTickets
+      include PipelineBoard::RunDetail
+
       DONE = %w[done dropped].freeze
       WORK_ITEM_LINE = /^(?:WORK ITEM|ROW):\s*(\S+)/
       # How long the runs read stays good: the jobs reader asks for them once per session.

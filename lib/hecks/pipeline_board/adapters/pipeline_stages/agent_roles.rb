@@ -64,7 +64,8 @@ module Hecks
 
         # @return [Hash] a session as the card shows it: its name, status and what it reported
         def brief(session)
-          { id: session[:id], name: session[:name], status: session[:status], detail: session[:detail].to_s.slice(0, 160) }
+          { id: session[:id], run: session[:run].to_s, name: session[:name], status: session[:status],
+            detail: session[:detail].to_s.slice(0, 160) }
         end
 
         # @return [Array<Hash>] the five newest events the role handled, as `name`, `at` and `id`

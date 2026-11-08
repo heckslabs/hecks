@@ -78,6 +78,9 @@ RSpec.describe "the Codebase rows of the ADR table" do
                note: "no bin script: it deletes the syntax-boot and verdict caches, which turning them off " \
                      "with HECKS_SYNTAX_BOOT_CACHE=off or HECKS_VERDICT_CACHE=off used to rule out"),
     AdrRow.new(script: "regenerate_persistence_legacy_fixtures", verbs: %w[regenerate_legacy_fixtures]),
+    AdrRow.new(script: "rewrite_ir_golden", verbs: %w[rewrite_ir_golden],
+               note: "added beyond ADR 0080's table: it runs spec/ir_golden_spec.rb with GOLDEN=rewrite, so the " \
+                     "frozen IR is rewritten through the binary; without --confirm it only reports"),
     AdrRow.new(script: "seed_semantics_corpus", verbs: %w[seed_semantics_corpus]),
     AdrRow.new(script: "pattern-cases", verbs: %w[record_pattern_cases],
                note: "a query: it prints JSON and writes nothing"),

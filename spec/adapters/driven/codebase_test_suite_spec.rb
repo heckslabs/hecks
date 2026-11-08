@@ -109,6 +109,23 @@ RSpec.describe Hecks::Adapters::Codebase::TestSuite do
     end
   end
 
+  describe "the frozen IR golden" do
+    it "says what it would rewrite, and runs nothing, unless confirmed" do
+      expect(suite("rewrite_ir_golden", {}, nil))
+        .to eq("dry run, would rewrite spec/golden/ir from spec/ir_golden_spec.rb (add --confirm)")
+    end
+
+    it "runs the golden spec with GOLDEN=rewrite when confirmed" do
+      runner = instance_double(Hecks::Adapters::Codebase::TestRunner, run_paths: "1 example, 0 failures")
+      allow(Hecks::Adapters::Codebase::TestRunner).to receive(:new).and_return(runner)
+
+      suite("rewrite_ir_golden", { confirm: true }, nil)
+
+      expect(runner).to have_received(:run_paths)
+        .with(paths: ["spec/ir_golden_spec.rb"], env: { "GOLDEN" => "rewrite" }, tags: nil)
+    end
+  end
+
   describe "the committed spec list" do
     let(:held) { { exclude: word("^spec/qa"), write: word("list.txt") } }
 
