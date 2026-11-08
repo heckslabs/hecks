@@ -1,6 +1,6 @@
 # 08: Platform tooling that belongs in Hecks
 
-**Status:** Accepted 2026-09-26 · **Type:** grilling (HITL) · **Blocked by:** none · **Claimed by:** unclaimed
+**Status:** Accepted 2026-09-26. Registry half superseded by [0094](../0094-commerce-and-the-bluebook-registry-move-to-the-platform.md). · **Type:** grilling (HITL) · **Blocked by:** none · **Claimed by:** unclaimed
 **Map:** [0064 client boundary](../0064-client-boundary-map.md)
 
 ## Question

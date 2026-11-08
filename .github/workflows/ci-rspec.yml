@@ -117,7 +117,12 @@ jobs:
       # and the skip backstop turns an unrouted skip into a failure.
       - name: Install zsh
         run: |
-          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends zsh
+          for attempt in 1 2 3; do
+            if sudo DEBIAN_FRONTEND=noninteractive timeout 120 apt-get update -qq && \
+               sudo DEBIAN_FRONTEND=noninteractive timeout 180 apt-get install -y --no-install-recommends zsh; then exit 0; fi
+            echo "::warning::apt install of zsh failed or timed out (attempt $attempt of 3)"
+          done
+          exit 1
       - uses: ./.github/actions/hecks-environment
         with:
           database: ${{ secrets.HECKS_JOURNAL_DATABASE }}

@@ -23,6 +23,75 @@ Hecks.bluebook "Agents" do
 
     value_object "CommandName", String
 
+    # What a role may run itself, one row per pattern: `Aggregate.verb`, or `Aggregate.*` for every
+    # verb of an aggregate. A role with no row here is not guarded. The `Guard` query reads these
+    # rows when it is asked, so the allowlist is data and no hook or role file holds a copy.
+    value_object "RoutingRule" do
+      attribute :role,    String
+      attribute :pattern, String
+
+      member role: "orchestrator", pattern: "Work.*"
+      member role: "orchestrator", pattern: "Dispatch.fill!"
+      member role: "orchestrator", pattern: "Planning.request!"
+      member role: "orchestrator", pattern: "AgentRun.check_all!"
+      member role: "orchestrator", pattern: "AgentRun.answer!"
+      member role: "orchestrator", pattern: "AgentRun.tidy!"
+      member role: "orchestrator", pattern: "PushRehearsal.rehearse!"
+      member role: "orchestrator", pattern: "SendTrain.board!"
+      member role: "orchestrator", pattern: "ReviewRequest.status"
+      member role: "orchestrator", pattern: "ReviewRequest.take!"
+      member role: "orchestrator", pattern: "LinkedTree.pull_main!"
+      member role: "orchestrator", pattern: "Landing.retire!"
+      member role: "orchestrator", pattern: "PipelineBoard.snapshot"
+    end
+
+    # The nearest verb or role for a refused shape: the first word of a refused command and what
+    # to use instead. The refusal names the `use` of the row whose shape the command starts with.
+    value_object "RefusalHint" do
+      attribute :role,  String
+      attribute :shape, String
+      attribute :use,   String
+
+      member role: "orchestrator", shape: "git",
+             use: "the reviewer role: Work.plan! with category verify, which Dispatch fills"
+      member role: "orchestrator", shape: "gh",
+             use: "the reviewer role through Work.plan! with category verify, or ReviewRequest.status"
+      member role: "orchestrator", shape: "bundle",
+             use: "the coder role through Work.plan!/Dispatch; a spec runs there"
+      member role: "orchestrator", shape: "cat",
+             use: "the coder or reviewer role through Work.plan!/Dispatch; a file is read there"
+      member role: "orchestrator", shape: "grep",
+             use: "the coder or reviewer role through Work.plan!/Dispatch; a search is run there"
+      member role: "orchestrator", shape: "exe/hecks",
+             use: "a verb on the routing list, or the planner role through Planning.request!"
+    end
+
+    # The rule a role's agent file states, as data, so the file reads from it and the board and
+    # briefs read the same words.
+    value_object "RoleRule" do
+      attribute :role, String
+      attribute :rule, String
+
+      member role: "orchestrator",
+             rule: "Do no work in your own session: no spec runs, no CI-log reading, no git or gh reads, no file reads of code. Every such step is a run dispatched through Hecks: the coder for a change, the reviewer for verifying a claim or judging a failure, the planner for design, the architect for a bluebook or an ADR. A claim is verified by a reviewer run, never by you."
+    end
+
+    value_object "GuardedCommand", String
+
+    value_object "Document" do
+      attribute :text, String
+    end
+
+    # Whether a role may run one Bash command itself. A role with routing rows runs only a command
+    # whose verb one of them names, alone (no pipe, chain, redirect or substitution); anything else
+    # is refused by name with the replacement. A role with no rows is allowed.
+    query "Guard" do
+      description "Allowed, or refused by name with the verb or role to use instead, for one command a role asks to run."
+      attribute :role,    RoleName
+      attribute :command, GuardedCommand
+      returns Document
+    end
+
     # Declares a role. Its kind says which judgment it owns: orchestrator, architect, coder,
     # reviewer or release manager.
     command "Declare" do
@@ -126,9 +195,144 @@ Hecks.bluebook "Agents" do
       emits "PlanReviewed"
     end
 
+    # The verdict of an architect run no request row names, such as one started by hand or whose row
+    # was lost: the review is created with its verdict, so the verdict is a fact on the change and
+    # not a lookup. A row that exists refuses it, and the `Answer` beside it has recorded the verdict.
+    command "Record" do
+      role "System"
+      goal "Create a review from the architect's closing verdict when no request row exists"
+
+      attribute :run,      RunKey, sets: true
+      attribute :work,     WorkKey, sets: true
+      attribute :verdict,  Verdict, sets: true
+      attribute :findings, FindingsText, optional: true, sets: true
+
+      given("the verdict is one the architect gives") do
+        verdict.value == "sound" || verdict.value == "changes" || verdict.value == "rethink"
+      end
+
+      emits "PlanReviewRecorded"
+    end
+
+    policy "RecordTheVerdictWhenNoReviewWasAsked" do
+      on      "AgentRun.JobRead"
+      root
+      where   { agent == "architect" && verdict != "" && previous != state }
+      trigger PlanReview::Record, with: { run: :run, work: :work, verdict: :verdict, findings: :findings }
+    end
+
     query "Reviews" do
       description "Every plan review, by Work item, each with its run key: the verdict once the architect has answered."
       order_by :work
+    end
+  end
+
+  # A judge's verdict on its way to the coder waiting on it. The verdict is a command on the change,
+  # never a lookup the coder does: when an architect or reviewer run finishes, it is judged here
+  # whether or not a PlanReview or SubmissionReview row exists. The Hecks hecksagon subscribes to
+  # `VerdictJudged` and answers the coder's run (`AgentRun.Answer`); the answer's outcome comes back
+  # as `Deliver` or `Undeliver`. Several judges of one Work item each have their own run key.
+  aggregate "Verdict" do
+    description "One judge run's verdict, bound for the coder waiting on its Work item: judged, then delivered or undeliverable with the reason."
+
+    identified_by :run
+
+    attribute :run, RunKey
+    attribute :work, WorkKey
+    attribute :role, RoleRef, optional: true
+    attribute :answer, AnswerText, optional: true
+    attribute :reason, ReasonText, optional: true
+
+    value_object "RunKey" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "WorkKey" do
+      attribute :value, String, matches: :present
+      invariant("a verdict names its Work item") { !value.to_s.empty? }
+    end
+
+    value_object "RoleRef", String
+
+    # The verdict and findings, as the coder is told them.
+    value_object "AnswerText", String
+
+    value_object "ReasonText", String
+
+    lifecycle :status, default: "judged" do
+      transition "Deliver" => "delivered", from: "judged"
+      transition "Undeliver" => "undeliverable", from: "judged"
+    end
+
+    command "Judge" do
+      role "System"
+      goal "Record a judge's verdict for the coder waiting on its Work item"
+
+      attribute :run,    RunKey, sets: true
+      attribute :work,   WorkKey, sets: true
+      attribute :role,   RoleRef, sets: true
+      attribute :answer, AnswerText, sets: true
+
+      given("the judge is the architect or the reviewer") { role.value == "architect" || role.value == "reviewer" }
+      given("the verdict says something") { !answer.value.to_s.strip.empty? }
+
+      emits "VerdictJudged"
+    end
+
+    command "Deliver", from: "judged" do
+      role "System"
+      goal "Record that the coder's run was answered with the verdict"
+
+      reference_to Verdict
+
+      emits "VerdictDelivered"
+    end
+
+    # No waiting coder is a finding on the Work item, not a question for the orchestrator.
+    command "Undeliver", from: "judged" do
+      role "System"
+      goal "Record why the verdict could not reach a coder"
+
+      reference_to Verdict
+      attribute :reason, ReasonText, sets: true
+
+      emits "VerdictUndeliverable"
+    end
+
+    query "Delivered" do
+      description "Every verdict a coder received, by run, each with the verdict text."
+      where(status: "delivered")
+      order_by :run
+    end
+
+    # A verdict still judged has not reached a coder: no coder run waits on its Work item, or the
+    # answer is on its way.
+    query "Judged" do
+      description "Every verdict judged and not yet settled, by run."
+      where(status: "judged")
+      order_by :run
+    end
+
+    query "Undelivered" do
+      description "Every verdict no coder received, by run, each with the reason."
+      where(status: "undeliverable")
+      order_by :run
+    end
+
+    # The architect's closing text is its findings; the verdict word leads them.
+    policy "JudgeTheArchitectsVerdict" do
+      on      "AgentRun.JobRead"
+      root
+      where   { agent == "architect" && verdict != "" && previous != state }
+      trigger Verdict::Judge, with: { run: :run, work: :work, role: "architect", answer: :findings }
+    end
+
+    # The reviewer's closing text is the job's detail; its judgment word is in it.
+    policy "JudgeTheReviewersJudgment" do
+      on      "AgentRun.JobRead"
+      root
+      where   { agent == "reviewer" && judgment != "" && previous != state }
+      trigger Verdict::Judge, with: { run: :run, work: :work, role: "reviewer", answer: :detail }
     end
   end
 
@@ -341,6 +545,91 @@ Hecks.bluebook "Agents" do
       on      "Routing.WorkChecked"
       where   { conflict.value == "yes" }
       trigger Routing::AskAdvice, with: {}
+    end
+  end
+
+  # How a role ends a turn. Every role closes with one `TurnFinished` carrying the fields it has;
+  # the orchestrator carries all of them. The console block and the board's run cards and stuck list
+  # are projections of this event (see the PipelineBoard bluebook), so no second source says what a
+  # turn did. A role that has not adopted it still ends with a plain last word, which is accepted.
+  aggregate "Turn" do
+    description "One finished turn of one role: the verdict, and what it landed, dispatched, filed and left stuck."
+
+    identified_by :run
+
+    attribute :run,        RunKey
+    attribute :session,    SessionRef, optional: true
+    attribute :role,       RoleRef
+    attribute :at,         Moment
+    attribute :verdict,    TurnVerdict
+    attribute :landed,     Facts, optional: true
+    attribute :main,       Facts, optional: true
+    attribute :train,      Facts, optional: true
+    attribute :dispatched, Facts, optional: true
+    attribute :filed,      Facts, optional: true
+    attribute :stuck,      list_of(StuckItem), optional: true
+    attribute :unpushed,   Facts, optional: true
+    attribute :links,      Facts, optional: true
+
+    value_object "RunKey" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "SessionRef", String
+
+    value_object "RoleRef" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Moment" do
+      attribute :value, String, matches: :present
+    end
+
+    # `routed` when the turn passed its work on, `blocked` when something stands in the way.
+    value_object "TurnVerdict" do
+      attribute :value, String, matches: :present
+      invariant("a verdict is routed or blocked") { value == "routed" || value == "blocked" }
+    end
+
+    # A JSON document: `landed[]` of {sha,title}, `main` of {origin,ahead,behind,clean,origin_pushed_h},
+    # `train` of {open pr or null,next_board}, `dispatched[]` of {work,role,session,state,age_s},
+    # `filed[]` of {kind finding|work,key,step}, `unpushed[]` of {branch,commits[],note}, `links[]`.
+    value_object "Facts", String
+
+    # One thing the pipeline is stuck on. `kind` says what sort, `owner_run` the run that holds it.
+    value_object "StuckItem" do
+      attribute :kind,      String
+      attribute :what,      String
+      attribute :since,     String
+      attribute :owner_run, String
+      attribute :link,      String
+    end
+
+    command "Finish" do
+      role "System"
+      goal "Record that a role ended its turn, and what the turn did"
+
+      attribute :run,        RunKey, sets: true
+      attribute :session,    SessionRef, optional: true, sets: true
+      attribute :role,       RoleRef, sets: true
+      attribute :at,         Moment, sets: true
+      attribute :verdict,    TurnVerdict, sets: true
+      attribute :landed,     Facts, optional: true, sets: true
+      attribute :main,       Facts, optional: true, sets: true
+      attribute :train,      Facts, optional: true, sets: true
+      attribute :dispatched, Facts, optional: true, sets: true
+      attribute :filed,      Facts, optional: true, sets: true
+      attribute :stuck,      list_of(StuckItem), optional: true, sets: true
+      attribute :unpushed,   Facts, optional: true, sets: true
+      attribute :links,      Facts, optional: true, sets: true
+
+      emits "TurnFinished"
+    end
+
+    query "Blocked" do
+      description "The turns that ended blocked, by run."
+      where(verdict: "blocked")
+      order_by :run
     end
   end
 

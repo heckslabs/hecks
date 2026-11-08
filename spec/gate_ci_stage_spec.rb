@@ -124,7 +124,7 @@ RSpec.describe "the ci gate stage" do
 
     it "resolves through the launcher", :aggregate_failures do
       calls = launcher_calls
-      hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
+      hecks = boot_hecks_in_memory
       unresolved = calls.reject { |kind, verb| resolves?(hecks, kind, verb) }
 
       expect(calls).not_to be_empty

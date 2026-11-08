@@ -46,14 +46,20 @@ module Hecks
       # Squash-merges one open pull request by its number.
       #
       # @param held [Hash] the `PullRequest` record: `number` (required)
-      # @return [Hash{Symbol => Hash}] `outcome:` (`merged`), `number:` and `report:`
+      # `gh pr merge` also succeeds when it only enqueues the pull request (auto-merge or a merge
+      # queue), so its exit code is not taken for a merge: the pull request is read afterwards and
+      # `merged` needs its `mergedAt`.
+      # @return [Hash{Symbol => Hash}] `outcome:` (`merged`, or `queued` when GitHub accepted the
+      #   merge but has not made it), `number:` and `report:`
       # @raise [ConsoleCapture::Failure] when no number is named, or GitHub refuses
       def squash(**held)
         number = pull_request_number(held[:number], "merge")
         gh!("pr", "merge", number, "--squash")
+        merge = JSON.parse(gh!("pr", "view", number, "--json", "mergedAt,mergeCommit"))
+        return merged_answer(number, merge) if merge["mergedAt"]
 
-        { outcome: { value: "merged" }, number: { value: number },
-          report: { value: "squash-merged ##{number}" } }
+        { outcome: { value: "queued" }, number: { value: number },
+          report: { value: "queued for merge (auto-merge enabled) ##{number}: GitHub merges it when its checks pass" } }
       end
 
       # Edits the title and body of one open pull request, by its number. Only the parts named are
@@ -102,6 +108,12 @@ module Hecks
       end
 
       private
+
+      def merged_answer(number, merge)
+        sha = merge.dig("mergeCommit", "oid").to_s[0, 9]
+        { outcome: { value: "merged" }, number: { value: number },
+          report: { value: "merged ##{number}#{" as #{sha}" unless sha.empty?}" } }
+      end
 
       def timeline_row(event)
         { kind: event["event"].to_s, actor: event.dig("actor", "login").to_s, at: event["created_at"].to_s }

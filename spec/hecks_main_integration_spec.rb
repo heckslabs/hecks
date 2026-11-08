@@ -14,8 +14,7 @@ RSpec.describe "integrating main through the MainIntegration saga" do
   let(:stages) { instance_double(Hecks::Adapters::GitRehearsal::Stages, run: []) }
 
   before(:all) do
-    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false,
-                                                                            environment:     HecksMemoryEnvironment::NAME)
+    @hecks = boot_hecks_in_memory
   end
 
   before do

@@ -6,7 +6,7 @@ require "hecks/projections/context_map_diagram"
 # the bluebooks it attaches, each of which attaches Governance, and the one place Deploy's model is
 # translated into Tenancy's.
 RSpec.describe "The Hecks domain's context map" do
-  let(:registry) { Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false).registry }
+  let(:registry) { boot_hecks_in_memory.registry }
   let(:declared) { registry.context_map("Hecks") }
   let(:edges) { Hecks::Projections::ContextRelationships.call(registry: registry) }
 

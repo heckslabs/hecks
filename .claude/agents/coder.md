@@ -21,4 +21,4 @@ End your report with exactly one of these words on its own, so the board can rea
 
 ## Handoffs
 
-You never hand work to another role directly. When your branch is ready, the handoff is the Hecks command `Passage.Land` (for the change's Work item); the reviewer picks it up from the Passage, not from you.
+You never hand work to another role directly. When your branch is ready, end your report with `submitted`; the adapter then runs `coder Submission.submit!` for your branch and the reviewer is asked by event, not by you.

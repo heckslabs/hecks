@@ -134,6 +134,11 @@ button.del:disabled { opacity: .5; }
 ol.steps { margin: 4px 0 0 18px; padding: 0; }
 ol.steps li { padding: 3px 0; border-bottom: 1px solid var(--grid); overflow-wrap: anywhere; }
 tr.clickable { cursor: pointer; } tr.clickable:hover, tr.clickable:focus-visible { background: var(--page); }
+/* The item a deep link names: a ring that stays while the link stands, on a session row or a SendTrain event. */
+.highlighted { outline: 3px solid var(--series1); outline-offset: 2px; border-radius: 6px; }
+tr.highlighted td { background: color-mix(in srgb, var(--series1) 14%, transparent); }
+.highlight-banner { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin-bottom: 16px; padding: 10px 14px; border: 1px solid var(--series1); border-left-width: 4px; border-radius: 8px; background: var(--surface); font-size: 13px; }
+.highlight-banner[hidden] { display: none; }
 .tables-only .chartview { display: none; } body:not(.tables-only) .tableview { display: none; }
 @media (max-width: 900px) {
   .strip { grid-template-columns: 1fr; gap: 10px; }
@@ -183,6 +188,7 @@ details.panel > .scroll, details.panel > .feed, details.panel > .strip, details.
       <button id="toggle" type="button" aria-pressed="false" data-tip="Switch between the charts and plain tables">Show tables</button>
     </div>
   </header>
+  <div id="highlight-banner" class="highlight-banner" role="status" aria-live="polite" hidden></div>
 
   <section class="agentstrip" aria-labelledby="h-roles"><h2 id="h-roles">Agents</h2><div class="roles" id="roles"></div>
     <a class="open" href="/agents" data-tip="Who hands work to whom, each role's sessions, plan reviews, and the forms that ask the planner and the architect">Open the Agents page →</a></section>
@@ -519,9 +525,9 @@ function attentionTable(items) {
   items.forEach((it, i) => { trs[i].classList.add("clickable"); trs[i].title = "Click to resolve or answer"; answerable(trs[i], it.act); });
   return node;
 }
-// A session's own page: its AgentRun by run key, else by session id.
+// A session's deep link: the board with its row highlighted, by run key, else by session id.
 function runHref(s) { return "/runs/" + encodeURIComponent(s.run || s.id); }
-function sessionLabel(s) { return h("span", {}, h("a", { href: runHref(s), class: "run-link", "data-tip": "Open this run's page" }, s.name), " ", h("small", { class: "sid" }, s.id || "")); }
+function sessionLabel(s) { return h("span", {}, h("a", { href: runHref(s), class: "run-link", "data-tip": "Highlight this run on the board" }, s.name), " ", h("small", { class: "sid" }, s.id || "")); }
 // Answers a blocked session's question on its own, for the kinds the board may answer.
 function addAutoReply(row, s) {
   const button = h("button", { type: "button", class: "del", tip: "Answer this question on its own: " + (s.question_kind === "confirm" ? "yes" : "retry") }, "Auto reply");
@@ -585,8 +591,9 @@ let lastSessions = [];
 // The sessions shown at once; the rest are a page away, under the table.
 const SESSION_PAGE = 15;
 function renderSessions(all) {
-  if (isUnknown(all)) return put("sessions", unknown(all));
+  if (isUnknown(all)) { put("sessions", unknown(all)); return applyHighlight(); }
   lastSessions = all;
+  if (highlight && highlight.kind === "runs" && !highlight.placed) aimSessions(all);
   const list = all.filter(SESSION_FILTERS[sessionFilter] || SESSION_FILTERS.all);
   setTitle("h-sess", "Sessions", list.length);
   const by = (status) => all.filter((s) => s.status === status).length;
@@ -600,12 +607,22 @@ function renderSessions(all) {
   shown.forEach((s, i) => {
     // A reply the server has not answered yet keeps its row highlighted.
     if (replies.get(s.id)?.state === "sending") rows[i].classList.add("sending");
+    rows[i].dataset.highlight = highlightTokens("runs", [s.run, s.id]);
     if (deletable(s)) addDelete(rows[i], s);
     if (s.status === "blocked" && ["confirm", "retry"].includes(s.question_kind)) addAutoReply(rows[i], s);
     if (s.status !== "blocked") return;
     rows[i].classList.add("clickable"); rows[i].title = "Click to answer";
     answerable(rows[i], () => openAnswer([{ id: s.id, name: s.name, run: s.run, repo: s.repo, work_item: s.work_item, question: s.detail, context: s.context, attach: s.attach }], s.id));
   });
+  applyHighlight();
+}
+// The Sessions table shows the highlighted run's row: the filter that holds it, and the page it is on.
+function aimSessions(all) {
+  const has = (s) => s.run === highlight.key || s.id === highlight.key;
+  const listed = () => all.filter(SESSION_FILTERS[sessionFilter] || SESSION_FILTERS.all);
+  if (!all.some(has)) return;
+  if (!listed().some(has)) sessionFilter = "all";
+  pages.set("sessions", Math.floor(listed().findIndex(has) / SESSION_PAGE));
 }
 function renderFan(fan) {
   if (isUnknown(fan)) { for (const id of ["lanes", "meters", "flags", "fill", "mapping", "lanetable"]) put(id, unknown(fan)); return; }
@@ -653,15 +670,22 @@ function chainOf(ev) {
   }
   return h("div", { class: "chain" }, nodes);
 }
+// A SendTrain event names its boarding: a deep link that highlights the boarding's events here.
+function trainLabel(ev) {
+  if (ev.aggregate !== "SendTrain" || !ev.id) return (ev.aggregate || "") + "#" + (ev.id || "");
+  return h("a", { href: "/trains/" + encodeURIComponent(ev.id), class: "train-link", "data-tip": "Highlight this boarding on the board" }, "SendTrain#" + ev.id);
+}
 function putEvent(ev, fresh) {
   if (!ev.key) return;
   const card = h("div", { class: "ev" + (fresh ? " fresh" : ""), tip: eventTip(ev) }, h("div", { class: "head" },
-    h("span", { class: "time" }, clock(ev.at)), h("span", { class: "name" }, ev.name), h("span", { class: "agg" }, ev.aggregate === "SendTrain" && ev.id ? h("a", { href: "/trains/" + encodeURIComponent(ev.id) }, "SendTrain#" + ev.id) : (ev.aggregate || "") + "#" + (ev.id || "")),
+    h("span", { class: "time" }, clock(ev.at)), h("span", { class: "name" }, ev.name), h("span", { class: "agg" }, trainLabel(ev)),
     h("span", { class: "agg" }, ev.source === "tap" ? "event log" : "journal")), chainOf(ev));
+  if (ev.aggregate === "SendTrain" && ev.id) card.dataset.highlight = highlightTokens("trains", [ev.id]);
   const old = seen.get(ev.key), feed = $("feed");
   if (old) old.replaceWith(card); else feed.prepend(card);
   seen.set(ev.key, card);
   while (feed.children.length > 80) { const last = feed.lastChild; for (const [k, v] of seen) if (v === last) seen.delete(k); last.remove(); }
+  if (fresh) applyHighlight();
 }
 function renderEvents(events) {
   const newest = Array.isArray(events) && events.length ? events[0] : null;
@@ -670,7 +694,62 @@ function renderEvents(events) {
   if (isUnknown(events)) return put("feed", unknown(events));
   setTitle("h-ev", "Events", events.length);
   if (!seen.size) [...events].reverse().forEach((e) => putEvent(e, false));
+  applyHighlight();
 }
+
+// The item a deep link names: /runs/<key> is a session row, by its run key or session id, and
+// /trains/<key> the SendTrain events of one boarding. The ring stays while the link stands in the
+// address bar, follows every re-render, and goes when the link is cleared.
+let highlight = null;
+const HIGHLIGHT_PATH = /^\/(runs|trains)\/([A-Za-z0-9][A-Za-z0-9._-]{0,127})$/;
+const HIGHLIGHT_NAME = { runs: "Run", trains: "Train" };
+const HIGHLIGHT_MISSING = { runs: "no session with that run key or id is listed", trains: "no SendTrain event of that boarding is in the feed" };
+function highlightFrom(path) { const m = HIGHLIGHT_PATH.exec(path); return m ? { kind: m[1], key: m[2], placed: false } : null; }
+function highlightTokens(kind, keys) { return keys.filter(Boolean).map((key) => kind + ":" + key).join(" "); }
+// Sets the highlight (or none) and the address that stands for it: "push" adds a history entry, "replace" rewrites the current one.
+function setHighlight(next, mode) {
+  highlight = next;
+  const path = next ? "/" + next.kind + "/" + encodeURIComponent(next.key) : "/";
+  if (mode === "push") history.pushState(null, "", path); else if (mode === "replace") history.replaceState(null, "", path);
+  renderSessions(lastSessions);
+}
+// Marks every element whose tokens name the highlighted item, opens its panel and scrolls to it once;
+// when the latest render holds nothing of it, the banner says so, with the JSON for tools.
+function applyHighlight() {
+  for (const el of document.querySelectorAll(".highlighted")) el.classList.remove("highlighted");
+  const banner = $("highlight-banner");
+  if (!highlight) { banner.hidden = true; return; }
+  const want = highlight.kind + ":" + highlight.key;
+  const hits = [...document.querySelectorAll("[data-highlight]")].filter((el) => el.dataset.highlight.split(" ").includes(want));
+  for (const el of hits) el.classList.add("highlighted");
+  if (hits.length && !highlight.placed) {
+    highlight.placed = true;
+    const panel = hits[0].closest("details"); if (panel) panel.open = true;
+    hits[0].scrollIntoView({ block: "center" });
+  }
+  // A run filtered or paged out of view is still on the board: only the data says it is not.
+  const listed = highlight.kind === "runs" ? lastSessions.some((s) => s.run === highlight.key || s.id === highlight.key) : hits.length > 0;
+  banner.hidden = listed || !lastState;
+  if (banner.hidden) return;
+  const clear = h("button", { type: "button" }, "Clear");
+  clear.addEventListener("click", () => setHighlight(null, "replace"));
+  banner.replaceChildren(h("span", {}, h("b", {}, HIGHLIGHT_NAME[highlight.kind] + " " + highlight.key), " is not on the board: " + HIGHLIGHT_MISSING[highlight.kind] + "."),
+    h("a", { href: "/api/" + highlight.kind + "/" + encodeURIComponent(highlight.key) }, "JSON"), clear);
+}
+// An in-board link to a run or a train highlights its item here instead of leaving the page. A
+// plain click anywhere else clears the highlight; a control (a link, a button, a panel's summary,
+// a form field, the dialog) keeps it, so paging or filtering a table does not drop it.
+document.addEventListener("click", (e) => {
+  const link = e.target.closest("a[href^='/runs/'], a[href^='/trains/']");
+  if (link && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey) {
+    const next = highlightFrom(link.getAttribute("href"));
+    if (next) { e.preventDefault(); setHighlight(next, "push"); return; }
+  }
+  if (!highlight || e.target.closest(".highlighted, a, button, input, select, textarea, summary, dialog, label")) return;
+  setHighlight(null, "replace");
+});
+addEventListener("popstate", () => { highlight = highlightFrom(location.pathname); renderSessions(lastSessions); });
+highlight = highlightFrom(location.pathname);
 // The full context of one event for its hover: when, which aggregate instance, and every reaction.
 function eventTip(e) {
   const lines = [e.name, "at " + clock(e.at), e.aggregate + (e.id ? " " + e.id : "")];

@@ -13,7 +13,7 @@ RSpec.describe "the Site row of the ADR command table" do
   PROJECT = File.join(InMemoryDomain::ROOT, "spec/fixtures/site/studio")
 
   before(:all) do
-    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
+    @hecks = boot_hecks_in_memory
     @bluebook = @hecks.registry.bluebook("Site")
   end
 

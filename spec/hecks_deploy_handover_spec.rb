@@ -21,7 +21,7 @@ RSpec.describe "the Deploy bluebook's Handover", :io do
   FAULT_PREFIX = "Hecks::Adapters::ConsoleCapture::Failure: ".freeze
 
   before(:all) do
-    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
+    @hecks = boot_hecks_in_memory
   end
 
   def with_domain(files = { "bluebook/shop.world" => WORLD_TO_CLEAR })

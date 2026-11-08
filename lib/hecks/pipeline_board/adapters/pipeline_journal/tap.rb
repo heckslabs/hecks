@@ -72,8 +72,11 @@ module Hecks
         def event_row(data, index)
           { key: "tap:#{data["at"]}:#{data["aggregate"]}:#{data["id"]}:#{data["event"]}:#{index}", source: "tap",
             at: data["at"], aggregate: data["aggregate"], id: data["id"], name: data["event"], reactions: inline(data),
-            links: data["links"].to_h, correlation: data["correlation"].to_h }
+            links: data["links"].to_h, correlation: data["correlation"].to_h }.merge(payload(data))
         end
+
+        # The structured payload a line carries (a `TurnFinished` does); most lines carry none.
+        def payload(data) = data["payload"].is_a?(Hash) ? { payload: data["payload"] } : {}
 
         def inline(data) = data["policy"] ? [reaction(data)] : []
 

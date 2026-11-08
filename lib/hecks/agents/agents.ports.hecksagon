@@ -1,0 +1,10 @@
+# The ports Agents declares, for every hecksagon that attaches the bluebook. Each names the question
+# it asks of the outside and never says how it is answered; an adapter binds each.
+Hecks.hecksagon "Agents" do
+  attaches "Governance"
+
+  # Whether a role may run one command itself, decided from the Role aggregate's routing rows.
+  Agents::Role.port "Routing" do
+    answers_query "Guard"
+  end
+end

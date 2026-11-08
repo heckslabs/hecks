@@ -67,4 +67,22 @@ Hecks.behaviors "Tickets" do
            claimed_by: { value: "session-1" }, claimed_at: { value: "2026-11-01T00:00:00Z" }
     expect refused: "done"
   end
+
+  test "Revise replaces the area and keeps a started work item started" do
+    tests "Revise", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "w10" }, title: { value: "Wide" }
+    setup  "Tickets::Work.Start", work: { value: "w10" },
+           claimed_by: { value: "session-1" }, claimed_at: { value: "2026-11-01T00:00:00Z" }
+    input  work: { value: "w10" }, title: { value: "Narrow" }, detail: { value: "d" },
+           area: [{ value: "lib/hecks/tickets" }]
+    expect status: "started", claimed_by: { value: "session-1" }
+  end
+
+  test "Revise refuses a decision no Adr has" do
+    tests "Revise", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "w11" }, title: { value: "Unlinked" }
+    input  work: { value: "w11" }, title: { value: "Unlinked" }, detail: { value: "d" },
+           decision: "9999"
+    expect refused: "Adr"
+  end
 end

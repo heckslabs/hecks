@@ -196,9 +196,12 @@ module InMemoryDomain
   end
 end
 
-RSpec.configure do |config|
-  config.include InMemoryDomain
+# Included into the example group base class, not the configuration: RSpec.reset, which the
+# launcher's runner calls between runs in one process, clears configuration but not the base
+# class, and spec_helper is required only once, so a later run still finds the boot helpers.
+RSpec::Core::ExampleGroup.include InMemoryDomain
 
+RSpec.configure do |config|
   config.expect_with(:rspec) { |expectations| expectations.syntax = :expect }
   config.disable_monkey_patching!
   config.order = :random

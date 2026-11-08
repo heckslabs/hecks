@@ -74,8 +74,16 @@ module Hecks
           return unknown("Local main", main) if bad?(main)
 
           tree = main[:dirty].zero? ? "clean" : "#{main[:dirty]} changed files"
-          note = "#{main[:ahead]} ahead, #{main[:behind]} behind origin/main; #{tree}"
+          note = "local main #{main[:sha]}, #{main[:ahead]} ahead, #{main[:behind]} behind origin/main; #{tree}; " \
+                 "tests: #{gate_words(main[:gate])}#{changed_words(main[:changes])}"
           row("Local main", state("Local main", ahead: main[:ahead]), main[:ahead], note)
+        end
+
+        def gate_words(gate) = gate == "green" ? "quick gate green" : "quick gate not recorded for this commit"
+
+        # One line, "what changed since you last looked": the landings the owner has not pushed.
+        def changed_words(changes)
+          changes.to_a.empty? ? "" : "; changed: #{changes.join(" | ")}"
         end
 
         def train(info, now)
