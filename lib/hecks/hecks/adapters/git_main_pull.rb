@@ -15,12 +15,8 @@ module Hecks
     # a commit and never merges onto `main`. A repository without an `origin` (or with no
     # `origin/main`) has nothing to be behind, and the answer says so.
     #
-    # When `origin/main` holds the squash of a boarded train (see `Carried`), only the commits after
-    # the boarded one are rebased, and the report names the carried range.
-    #
-    # With `main` checked out nowhere the ref is moved without a checkout (see `Nowhere`).
-    #
-    # An includer has the `GitWorktrees` helpers and sets `@git`.
+    # A squash-merged train is rebased past (see `Carried`); with `main` checked out nowhere the
+    # ref is moved without a checkout (see `Nowhere`). An includer has the `GitWorktrees` helpers and sets `@git`.
     module GitMainPull
       include Carried
       include Nowhere

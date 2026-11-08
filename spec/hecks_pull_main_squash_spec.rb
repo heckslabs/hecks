@@ -5,7 +5,7 @@ require "hecks/hecks/adapters/git_landing"
 require "hecks/hecks/adapters/git_worktree_add"
 
 # A train squash-merged on origin: local main's commits up to the boarded sha are carried and only
-# the ones after it are rebased. Every example builds throwaway repositories with a local bare remote.
+# the ones after it are rebased. Every example builds throwaway repositories on a local bare remote.
 RSpec.describe "pulling main after a squash-merged train" do
   let(:dir) { File.realpath(Dir.mktmpdir("hecks-pull-squash")) }
   let(:adder) { Hecks::Adapters::GitWorktreeAdd.new }
