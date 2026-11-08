@@ -42,6 +42,11 @@ RSpec.describe Hecks::Adapters::GitLanding, "#finish_branch" do
     commit(tree, "a.txt")
   end
 
+  def build_repo_with_stale_marker
+    build_repo
+    File.join(repo, ".git", "hecks-red-flag.json").tap { |path| File.write(path, "{}") }
+  end
+
   def finish(gate, **tune) = described_class.new(**tune).finish_branch(checkout: tree, branch: "work/a", onto: "main", gate: gate)
 
   it "rebases onto a main that moved, lands it and removes the worktree", :aggregate_failures do
@@ -86,9 +91,7 @@ RSpec.describe Hecks::Adapters::GitLanding, "#finish_branch" do
   end
 
   it "lands with a stale red-flag marker in the git directory and leaves the file alone", :aggregate_failures do
-    build_repo
-    stale = File.join(repo, ".git", "hecks-red-flag.json")
-    File.write(stale, "{}")
+    stale = build_repo_with_stale_marker
     finish(->(_dir) { green })
 
     expect(git("log", "--format=%s", "main")).to include("a.txt")
