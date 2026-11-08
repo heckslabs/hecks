@@ -31,7 +31,9 @@ RSpec.describe "the lifecycle failure marks" do
 
   it "marks the states the Launch, Sweep and Clearance lifecycles end in" do
     ends   = { "Launch" => "stopped", "Sweep" => "abandoned", "Clearance" => "red" }
-    marked = declared.to_h { |_, aggregate, lifecycle| [aggregate, Array(lifecycle.marked("failure"))] }
+    marked = declared.each_with_object(Hash.new { |all, key| all[key] = [] }) do |(_, aggregate, lifecycle), all|
+      all[aggregate] += Array(lifecycle.marked("failure"))
+    end
 
     expect(ends.reject { |aggregate, state| marked[aggregate].include?(state) }).to eq({})
   end
