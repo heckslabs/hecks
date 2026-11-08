@@ -45,7 +45,6 @@ Hecks.bluebook "Agents" do
       member role: "orchestrator", pattern: "Landing.retire!"
       member role: "orchestrator", pattern: "PipelineBoard.snapshot"
       member role: "orchestrator", pattern: "Operation.follow"
-      member role: "orchestrator", pattern: "Operation.followed"
       member role: "orchestrator", pattern: "git status"
       member role: "orchestrator", pattern: "git log"
       member role: "orchestrator", pattern: "git diff"
@@ -93,7 +92,7 @@ Hecks.bluebook "Agents" do
       member role: "orchestrator", shape: "settle",
              use: "Dispatch.settle!, which AgentRun.check_all! and every confirmed Dispatch.fill! already run"
       member role: "orchestrator", shape: "exe/hecks",
-             use: "a verb on the routing list (Operation.follow or Operation.followed hears a run), or the planner role through Planning.request!"
+             use: "a verb on the routing list (Operation.follow hears a run), or the planner role through Planning.request!"
     end
 
     # The rule a role's agent file states, as data, so the file reads from it and the board and

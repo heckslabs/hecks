@@ -105,13 +105,8 @@ RSpec.describe "the orchestrator routing guard" do
       expect(verdict(call)).to eq(text: "allowed")
     end
 
-    it "allows Operation.followed" do
-      expect(verdict("exe/hecks Operation.followed domain.value=Hecks aggregate.value=AgentRun")).to eq(text: "allowed")
-    end
-
-    it "carries the Operation rows as data", :aggregate_failures do
-      patterns = rows("RoutingRule").map { |row| row[:pattern] }
-      expect(patterns).to include("Operation.follow", "Operation.followed")
+    it "carries the Operation.follow row as data" do
+      expect(rows("RoutingRule").map { |row| row[:pattern] }).to include("Operation.follow")
     end
 
     it "carries the shell rows and the flag rules as data", :aggregate_failures do
