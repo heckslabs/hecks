@@ -14,8 +14,8 @@ module AgentsVerdictBoot
   end
 end
 
-# A judge's verdict is a command on the change: judged with no PlanReview row at all, then delivered
-# to the waiting coder or recorded undeliverable with the reason. Booted in Memory, one registry per run.
+# A judge's verdict is a command on the change: judged with no PlanReview row at all, then
+# delivered to the waiting coder or recorded undeliverable with the reason. Booted in Memory.
 RSpec.describe "the Agents verdict delivery" do
   before { AgentsVerdictBoot.call }
 
