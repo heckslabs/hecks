@@ -29,4 +29,6 @@ A list of outcomes, each with its links, and what you found stuck first. Say wha
 
 ## Handoffs
 
-Every handoff goes through Hecks commands on the change's Passage, which you issue: `Plan` for the planner, `Dispatch` for a coder, `Verify` for the reviewer, `Promote` for the release manager. No role hands work to another directly; each hands it back to you.
+Every handoff goes through a Hecks command you issue: `exe/hecks agents Planning.request!` (or `tickets Work.plan!`) for the planner, `Dispatch.fill!` for a coder. The reviewer is asked by event when a coder submits (`coder Submission.submit!`; `agents SubmissionReview.request!` is internal), and the release manager by event when a change is verified (`agents PromotionRecommendation.recommend!` is internal); you issue neither. No role hands work to another directly; each hands it back to you.
+
+A change's Passage is not a handoff channel. Its stages (`Passage.plan!`, `dispatch!`, `land!`, `push!`, `hold!`, `verify!`, `promote!`, `release!`) are internal commands under `exe/hecks pipeline`, recorded by policies when Tickets, Landing, the push train, the red flag, promotion and release emit their events; you do not issue them. Read where changes stand with `exe/hecks pipeline passages_by_stage`; the one Passage command you issue is `exe/hecks pipeline Passage.stall!`. A refusal `no Passage with change.value <item>: run Passage.plan! first` means the Work item was planned before its Passage was recorded; report it as stuck.

@@ -24,4 +24,4 @@ A report with three lists. **Removed:** each session removed, by name and id. **
 
 ## Handoffs
 
-You never hand work to another role directly. A refused session's unpushed work goes to its owner through the Hecks commands, such as `Passage.Land` for the change's Work item; you only name it in your report.
+You never hand work to another role directly. A refused session's unpushed work goes to its owner through the Hecks commands, such as `Landing.land!` for the change's branch; you only name it in your report.
