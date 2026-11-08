@@ -37,6 +37,9 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, matches: :present
       end
 
+      # The run of the judge whose verdict an answer carries, so the outcome names the verdict it delivers.
+      value_object "VerdictKey", String
+
       # The directory the session works in.
       value_object "Path" do
         attribute :value, String, matches: :not_empty
@@ -220,6 +223,7 @@ Hecks.bluebook "Hecks" do
 
         reference_to AgentRun
         attribute :answer, Brief
+        attribute :verdict, VerdictKey, default: ""
 
         given("the answer says something") { !answer.value.to_s.strip.empty? }
 
@@ -233,6 +237,7 @@ Hecks.bluebook "Hecks" do
         reference_to AgentRun
         attribute :answered_at, Moment, sets: true
         attribute :session,     SessionId, sets: true
+        attribute :verdict,     VerdictKey, default: ""
 
         emits AgentRunAnswered
       end
@@ -243,6 +248,7 @@ Hecks.bluebook "Hecks" do
 
         reference_to AgentRun
         attribute :refusal, Report, sets: true
+        attribute :verdict, VerdictKey, default: ""
 
         emits AgentRunUnanswered
       end
@@ -550,17 +556,17 @@ Hecks.bluebook "Hecks" do
 
     policy "ResumeWithTheAnswer" do
       on      "AgentRun.AnswerRequested"
-      ask     :resume, with: { run: :run, answer: :answer }
+      ask     :resume, with: { run: :run, answer: :answer, verdict: :verdict }
     end
 
     policy "RecordTheAnswer" do
       on      "AgentRun.AgentResumed"
-      trigger AgentRun::Answered, with: { answered_at: :resumed_at, session: :session }
+      trigger AgentRun::Answered, with: { answered_at: :resumed_at, session: :session, verdict: :verdict }
     end
 
     policy "RecordTheRefusedAnswer" do
       on      "AgentRun.ResumeRefused"
-      trigger AgentRun::Unanswered, with: { refusal: :refusal }
+      trigger AgentRun::Unanswered, with: { refusal: :refusal, verdict: :verdict }
     end
 
     # The session is looked for before the run is retired; only one `claude agents` no longer
@@ -603,6 +609,14 @@ Hecks.bluebook "Hecks" do
     policy "StartTheRoleOnReviewRequest" do
       on      "PlanReview.PlanReviewRequested"
       trigger AgentRun::Dispatch, with: { run: :run, work: :work, repo: :repo, brief: :plan, agent: :role }
+    end
+
+    # A judge's verdict answers the coder waiting on the Work item, a run keyed by the Work item, in
+    # place. The judge's run names the verdict, so the outcome settles it (Agents translations
+    # RecordTheVerdictDelivered and RecordTheVerdictUndeliverable).
+    policy "AnswerTheWaitingCoder" do
+      on      "Verdict.VerdictJudged"
+      trigger AgentRun::Answer, with: { run: :work, answer: :answer, verdict: :run }
     end
 
     # A planning request starts the planner's session as a run keyed by the request, with the goal as

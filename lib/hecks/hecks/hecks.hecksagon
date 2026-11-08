@@ -15,6 +15,9 @@ Hecks.hecksagon "Hecks" do
   subscribe "Agents.DispatchAdviceRequested"
   # A woken pruner starts a session through AgentRun (see StartThePrunerWhenWoken in the delegate bluebook).
   subscribe "Agents.PrunerWoken"
+  # A judged verdict answers the coder waiting on its Work item (AnswerTheWaitingCoder in the delegate
+  # bluebook); the outcome comes back as a delivered or an undeliverable verdict.
+  subscribe "Agents.VerdictJudged"
   # Persistence is not bound here, so the domain is in Memory. A copy opts in with a
   # hecks.local.hecksagon whose `persisted_by` the attached bluebooks inherit (ADR 0136).
 
@@ -459,6 +462,7 @@ Hecks.hecksagon "Hecks" do
     asks "Resume", to: AgentRun do
       attribute :run, RunKey
       attribute :answer, Brief
+      attribute :verdict, VerdictKey
       answers "AgentResumed"
       refuses "ResumeRefused"
     end
@@ -1118,6 +1122,20 @@ Hecks.hecksagon "Agents" do
     on AgentRun::JobRead
     where { verdict != "" && previous != state }
     trigger PlanReview::Answer, with: { run: :run, verdict: :verdict, findings: :findings }
+  end
+
+  # The coder's session was resumed with the verdict.
+  translates "RecordTheVerdictDelivered" do
+    on AgentRun::AgentRunAnswered
+    where { verdict != "" }
+    trigger Verdict::Deliver, with: { run: :verdict }
+  end
+
+  # No session could take the verdict: the reason is a finding on the verdict, not a question for the orchestrator.
+  translates "RecordTheVerdictUndeliverable" do
+    on AgentRun::AgentRunUnanswered
+    where { verdict != "" }
+    trigger Verdict::Undeliver, with: { run: :verdict, reason: :refusal }
   end
 end
 

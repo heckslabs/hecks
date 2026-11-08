@@ -299,6 +299,20 @@ Hecks.bluebook "Agents" do
       emits "VerdictUndeliverable"
     end
 
+    query "Delivered" do
+      description "Every verdict a coder received, by run, each with the verdict text."
+      where(status: "delivered")
+      order_by :run
+    end
+
+    # A verdict still judged has not reached a coder: no coder run waits on its Work item, or the
+    # answer is on its way.
+    query "Judged" do
+      description "Every verdict judged and not yet settled, by run."
+      where(status: "judged")
+      order_by :run
+    end
+
     query "Undelivered" do
       description "Every verdict no coder received, by run, each with the reason."
       where(status: "undeliverable")
