@@ -2,7 +2,8 @@ require "spec_helper"
 
 # The architect's verdict is recorded whether or not the process that hears it holds the request:
 # Hecks runs in Memory per process, so a verdict must not depend on the request row. `Record`
-# creates the review from the verdict, and takes the place of a request that is still waiting.
+# creates the review from the verdict when the request is unknown; `Answer` is the route where
+# the request is held. Together the two policies on the job read cover either process.
 RSpec.describe "the Agents plan review across processes" do
   def boot_agents
     registry = Hecks::Runtime::Registry.new
@@ -26,18 +27,20 @@ RSpec.describe "the Agents plan review across processes" do
                                                            verdict: { value: "sound" }, findings: { value: "none" })
   end
 
-  def reviews = @dispatcher.registry.repository("Agents", @dispatcher.registry.bluebook("Agents").aggregate("PlanReview")).all
-
   it "records the verdict in a process that never saw the request" do
     boot_agents
     expect(record.instance.verdict.value).to eq("sound")
   end
 
-  it "records the verdict over a request still waiting in the same process", :aggregate_failures do
+  it "refuses answering a request this process never saw, by name" do
+    boot_agents
+    expect { @dispatcher.dispatch("Agents::PlanReview.Answer", to: "r1", with: { verdict: { value: "sound" } }) }
+      .to raise_error(Hecks::Runtime::NotFound, /no PlanReview/)
+  end
+
+  it "refuses recording over a request this process holds, so Answer is the route there" do
     boot_agents
     request
-    record
-    expect(reviews.map { |row| row.id.to_s }.sort).to eq(%w[r1 r1~1])
-    expect(reviews.find { |row| row.id.to_s == "r1" }.verdict.value).to eq("sound")
+    expect { record }.to raise_error(Hecks::Runtime::AlreadyExists)
   end
 end
