@@ -20,6 +20,9 @@ module Hecks
         # The world verb that carries what every session starts with.
         SESSION = "session_environment"
 
+        # The world verb that carries the owner's roll-forward switch.
+        ROLL = "dispatch_roll_forward"
+
         # Minutes a started work item may run when the caller names no budget.
         BUDGET_MINUTES = 90
 
@@ -56,6 +59,9 @@ module Hecks
         # @return [Float] the load above which no session is started: the world's, else the CPU
         #   count
         def max_load = (declared(MAX_LOAD)[:limit] || @cpus).to_f
+
+        # @return [Boolean] whether planned work rolls forward by itself; true unless the world says false
+        def roll_forward? = declared(ROLL)[:roll_forward] != false
 
         # @return [Integer] the cap on started work items
         def cap = WorkLimits.cap(@registry)

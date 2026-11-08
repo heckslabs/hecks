@@ -5,7 +5,8 @@
 # `frozen_shapes` (not `freeze`, which every Ruby object already answers) names the areas and aggregates whose persisted shape may not move: a brief tells its session
 # to commit and hold a change that moves one, and `Dispatch.Fill` starts no Work item in a frozen area.
 # `dispatch_max_load` is the 1-minute load above which `Dispatch.Fill` starts no session (the CPU count
-# when absent). `session_environment` is what every dispatched session starts with: a shared cargo
+# when absent). `dispatch_roll_forward` is the owner's switch: while `roll_forward` is true the Delegate
+# policies run `Dispatch.Fill` on events that free capacity, and false pauses them. `session_environment` is what every dispatched session starts with: a shared cargo
 # target directory and a `nice` increment.
 #
 # `github_issues` is the switch on GitHub issues for run findings (`OpenIssueWhenRunReported`). It is
@@ -14,6 +15,7 @@ Hecks.world "Tickets" do
   github_issues "GitHubIssues", enabled: false
   work_limit "WorkLimits", cap: 10
   dispatch_max_load "Dispatch", limit: 10.0
+  dispatch_roll_forward "Dispatch", roll_forward: true
   frozen_shapes "PersistedShapes", areas: []
   session_environment "Sessions", cargo_target_dir: "~/.cache/hecks/cargo-target", nice: 15
 end

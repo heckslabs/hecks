@@ -402,6 +402,16 @@ Hecks.hecksagon "Hecks" do
     answers_query "Preview"
   end
 
+  # The outside a rolling fill reaches: the same queue, machine and freeze as a filling, and the owner's
+  # `dispatch_roll_forward` switch; a paused or repeated roll refuses.
+  Hecks::Roll.port "Rolling" do
+    asks "Roll", to: Roll do
+      attribute :run, RollKey
+      answers "RollReported"
+      refuses "RollRefused"
+    end
+  end
+
   # The outside an agent run reaches: it finds the directory and the agents, starts the background
   # session, and reports the state its job is in. The state is judged in the bluebook, not here.
   # The Sessions port removes a plain session with `claude rm`, once the bluebook has allowed it.

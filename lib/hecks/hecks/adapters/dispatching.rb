@@ -7,6 +7,7 @@ require_relative "dispatching/plan"
 require_relative "dispatching/launcher"
 require_relative "dispatching/lesson_traps"
 require_relative "dispatching/settler"
+require_relative "dispatching/last_roll"
 
 module Hecks
   module Adapters
@@ -53,6 +54,21 @@ module Hecks
         { text: "#{report_lines(plan_for(prefix(held))).join("\n")}\n" }
       end
 
+      # Fills the queue because capacity freed or work arrived, unless the owner paused rolling.
+      # A report that repeats the last one is refused, so a repeated skip is recorded once.
+      #
+      # @param _held [Hash] the `Roll` record
+      # @return [Hash{Symbol => Hash}] `report:` the filling's report
+      # @raise [ConsoleCapture::Failure] when rolling is paused or the report repeats the last one
+      def roll(**_held)
+        raise ConsoleCapture::Failure, "paused: dispatch_roll_forward is false" unless machine.roll_forward?
+
+        text = choose(repo: { value: Dir.pwd }, confirm: true).dig(:report, :value)
+        raise ConsoleCapture::Failure, "unchanged: #{header_of(text)}" if LastRoll.repeat?(text)
+
+        { report: { value: text } }
+      end
+
       # Checks every started session and settles the work item of each that ended: done finishes it.
       #
       # @param held [Hash] the `Dispatch` record: `repo`
@@ -85,6 +101,8 @@ module Hecks
 
       # The planned work items, held to those whose key starts with `only` when one is named.
       def planned(only) = work_items.planned.select { |item| only.empty? || item.key.to_s.start_with?(only) }
+
+      def header_of(report) = report.partition("\n").first
 
       def header(plan)
         "#{load_line}; cap #{machine.cap}, #{work_items.started.size} started; frozen: #{frozen_line}; " \
