@@ -53,6 +53,30 @@ RSpec.describe Hecks::Adapters::Dispatching do
     expect(reasons(outcome)).to eq("b" => "skipped: lib/a/x.rb overlaps a at lib/a")
   end
 
+  it "starts a work item whose area is in another checkout beside one in lib/hecks" do
+    outcome = plan([item("v", "/work/hecks-video")], started: [item("a", "lib/hecks")], root: "/work/hecks")
+
+    expect(outcome.chosen.map(&:key)).to eq(["v"])
+  end
+
+  it "still skips two work items inside one root" do
+    outcome = plan([item("b", "/work/hecks/lib/a/x.rb")], started: [item("a", "lib/a")], root: "/work/hecks")
+
+    expect(reasons(outcome)).to eq("b" => "skipped: /work/hecks/lib/a/x.rb overlaps a at lib/a")
+  end
+
+  it "skips two work items in the same other checkout" do
+    outcome = plan([item("b", "/work/video/app")], started: [item("a", "/work/video")], root: "/work/hecks")
+
+    expect(reasons(outcome)["b"]).to eq("skipped: /work/video/app overlaps a at /work/video")
+  end
+
+  it "says whose repository each side is when a clash spans places" do
+    outcome = plan([item("b", "/work/hecks-video")], started: [item("a", "**/*.rb")], root: "/work/hecks")
+
+    expect(reasons(outcome)["b"]).to end_with("(/work/hecks-video is in another checkout, **/*.rb is in this repository)")
+  end
+
   it "stops at the cap and holds back every work item after it" do
     outcome = plan([item("a", "x"), item("b", "y"), item("c", "z")], started: [item("s", "w")], cap: 2)
 

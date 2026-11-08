@@ -23,6 +23,9 @@ module Hecks
       # The segment that stands for any number of directories.
       ANY = "**"
 
+      # The leading segment that puts a path outside the repository in a place no area of it has.
+      OUTSIDE = "/outside/"
+
       # How a single segment glob is matched.
       MATCHING = File::FNM_EXTGLOB | File::FNM_DOTMATCH
 
@@ -42,6 +45,19 @@ module Hecks
         return true if left.nil? || right.nil?
 
         file ? meet?(left, right, leaf: true) : meet?(left, right)
+      end
+
+      # Whether an area is an absolute path in some other checkout than `root`: the one rule that
+      # tells another repository's areas apart from this repository's.
+      #
+      # @param path [String] a path prefix or glob
+      # @param root [String, nil] the repository's top level
+      # @return [Boolean] false for a relative area, or when no root is known
+      def outside?(path, root:)
+        text = path.to_s.strip
+        return false unless root && text.start_with?("/")
+
+        relative_to(text, root, fold_case?(root)).start_with?(OUTSIDE)
       end
 
       # The first pair of paths, one from each list, that overlap.
@@ -79,7 +95,7 @@ module Hecks
         return nil unless root
 
         inside = under(text, folded ? root.downcase : root)
-        inside.start_with?("..") ? "/outside/#{text}" : inside
+        inside.start_with?("..") ? "#{OUTSIDE}#{text}" : inside
       end
 
       # @return [String] the path from `root`; empty for the root itself
