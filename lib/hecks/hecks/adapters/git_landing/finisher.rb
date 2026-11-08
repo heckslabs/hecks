@@ -56,13 +56,20 @@ module Hecks
         end
 
         def rebase
-          result = @git.capture("rebase", @onto, chdir: @checkout)
+          result = @git.capture("rebase", *rebase_range, chdir: @checkout)
           return if result.ok?
 
           conflicts = @git.capture("diff", "--name-only", "--diff-filter=U", chdir: @checkout).out.split
           @git.capture("rebase", "--abort", chdir: @checkout)
           raise ConsoleCapture::Failure,
                 "conflict: rebasing #{@branch} onto #{@onto} conflicts in #{conflicts.join(", ")}; nothing changed"
+        end
+
+        # What the rebase replays: when the branch was cut from a commit that `onto` carried by
+        # squash, only the branch's own commits after it.
+        def rebase_range
+          boarded = carried_boarding("#{@branch}..#{@onto}", @branch)
+          boarded ? ["--onto", @onto, boarded] : [@onto]
         end
 
         def run_gate

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "git_worktrees"
+require_relative "git_main_pull/carried"
 require_relative "git_main_pull/nowhere"
 
 module Hecks
@@ -14,10 +15,14 @@ module Hecks
     # a commit and never merges onto `main`. A repository without an `origin` (or with no
     # `origin/main`) has nothing to be behind, and the answer says so.
     #
+    # When `origin/main` holds the squash of a boarded train (see `Carried`), only the commits after
+    # the boarded one are rebased, and the report names the carried range.
+    #
     # With `main` checked out nowhere the ref is moved without a checkout (see `Nowhere`).
     #
     # An includer has the `GitWorktrees` helpers and sets `@git`.
     module GitMainPull
+      include Carried
       include Nowhere
 
       REMOTE_MAIN = "origin/main"
@@ -78,15 +83,18 @@ module Hecks
       def rebase_main(host, ahead, behind)
         return pull_unhosted_main(ahead, behind) unless host
 
-        result = @git.capture("rebase", "--rebase-merges", REMOTE_MAIN, chdir: host.path)
-        unless result.ok?
-          conflicts = @git.capture("diff", "--name-only", "--diff-filter=U", chdir: host.path).out.split
-          @git.capture("rebase", "--abort", chdir: host.path)
-          raise ConsoleCapture::Failure,
-                "cannot pull main: rebasing main's #{ahead} unpushed commits onto #{REMOTE_MAIN} conflicts in " \
-                "#{conflicts.join(", ")}; nothing changed"
-        end
-        "main rebased #{ahead} unpushed commits onto #{REMOTE_MAIN} (#{behind} new) at #{short(read("rev-parse", "main"))}"
+        note = carried_note
+        refuse_conflict(host.path, ahead) unless @git.capture(*rebase_args, chdir: host.path).ok?
+        "main rebased #{ahead} unpushed commits onto #{REMOTE_MAIN} (#{behind} new) at #{short(read("rev-parse", "main"))}#{note}"
+      end
+
+      # Abandons a conflicted rebase in `dir` and refuses by name, leaving `main` where it was.
+      def refuse_conflict(dir, ahead)
+        conflicts = @git.capture("diff", "--name-only", "--diff-filter=U", chdir: dir).out.split
+        @git.capture("rebase", "--abort", chdir: dir)
+        raise ConsoleCapture::Failure,
+              "cannot pull main: rebasing main's #{ahead} unpushed commits onto #{REMOTE_MAIN} conflicts in " \
+              "#{conflicts.join(", ")}; nothing changed"
       end
 
       # Refuses landing a branch onto `main` while it lacks what `origin/main` has.
