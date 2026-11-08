@@ -679,6 +679,15 @@ Hecks.bluebook "Hecks" do
       trigger Machine::Sample, with: { run: :beat }
     end
 
+    # The clock's beat is the timer that drives a sweep: every started run's session is checked once
+    # per beat, so a session that ended or blocked is recorded without anyone asking. The beat's own key
+    # keys the sweep, so one beat sweeps once. A root, so the sweep starts its own chain.
+    policy "SweepOnHeartbeat" do
+      on      "Heartbeat.Beaten"
+      root
+      trigger SessionSweep::CheckAll, with: { run: :beat }
+    end
+
     policy "ReadTheMachine" do
       on      "Machine.MachineSampleRequested"
       ask     :read, with: { run: :run }
