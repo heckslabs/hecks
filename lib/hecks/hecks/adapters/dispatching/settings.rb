@@ -62,7 +62,7 @@ module Hecks
         #   count
         def max_load = (declared(MAX_LOAD)[:limit] || @cpus).to_f
 
-        # @return [Boolean] whether planned work rolls forward by itself; true unless the world says false
+        # @return [Boolean] whether planned work rolls forward by itself; false only when paused
         def roll_forward? = declared(ROLL)[:roll_forward] != false
 
         # @return [Integer] the cap on started work items
