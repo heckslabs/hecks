@@ -176,6 +176,13 @@ Hecks.bluebook "Agents" do
     attribute :findings, FindingsText, optional: true
     attribute :hops, HopCount, optional: true
 
+    # A request still waiting is reusable: the verdict heard in a process that holds it takes its
+    # place (the request is kept as `<run>~<n>`), and one heard where it is unknown creates the review.
+    lifecycle :status, default: "requested" do
+      transition "Answer" => "answered", from: "requested"
+      mark :reusable, "requested"
+    end
+
     # One review's key, and the key of the architect's run that answers it.
     value_object "RunKey" do
       attribute :value, String, matches: :present
@@ -217,7 +224,7 @@ Hecks.bluebook "Agents" do
     end
 
     # The architect answers with a verdict: sound, changes, or rethink.
-    command "Answer" do
+    command "Answer", from: "requested" do
       role "System"
       goal "Record the architect's verdict on the plan"
 
@@ -243,6 +250,8 @@ Hecks.bluebook "Agents" do
       attribute :work,     WorkKey, sets: true
       attribute :verdict,  Verdict, sets: true
       attribute :findings, FindingsText, optional: true, sets: true
+
+      given("the review is not already answered") { status != "answered" }
 
       given("the verdict is one the architect gives") do
         verdict.value == "sound" || verdict.value == "changes" || verdict.value == "rethink"
