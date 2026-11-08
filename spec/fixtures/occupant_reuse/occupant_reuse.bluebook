@@ -1,0 +1,64 @@
+# Fixture for occupant reuse: a Ticket whose "closed" state is reusable, and a Note with no lifecycle.
+Hecks.bluebook "OccupantReuse" do
+  vision "A ticket id that a new ticket may take once the old one has closed, and a note id that is never reused."
+  core
+
+  aggregate "Ticket" do
+    description "A ticket; an open one holds its code, a closed one hands it on."
+
+    identified_by :code
+
+    attribute :code, Code
+    attribute :title, Title
+
+    value_object "Title" do
+      attribute :value, String
+    end
+    value_object "Code" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "open" do
+      transition "Close" => "closed", from: "open"
+      mark :terminal, "closed"
+      mark :reusable, "closed"
+    end
+
+    command "Open" do
+      goal "Bring one into being"
+
+      attribute :code, Code
+      attribute :title, Title
+
+      emits "TicketOpened"
+    end
+
+    command "Close" do
+      goal "End the ticket"
+
+      reference_to Ticket
+
+      emits "TicketClosed"
+    end
+  end
+
+  aggregate "Note" do
+    description "A note with no lifecycle: its id is never reused."
+
+    identified_by :slug
+
+    attribute :slug, Slug
+
+    value_object "Slug" do
+      attribute :value, String
+    end
+
+    command "Write" do
+      goal "Write a note"
+
+      attribute :slug, Slug
+
+      emits "NoteWritten"
+    end
+  end
+end

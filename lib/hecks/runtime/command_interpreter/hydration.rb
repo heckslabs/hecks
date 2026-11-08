@@ -4,6 +4,7 @@ require_relative "../instance"
 require_relative "../refusal_wording"
 require_relative "../dependency_planning"
 require_relative "../../rendering"
+require_relative "occupant_reuse"
 
 module Hecks
   module Runtime
@@ -11,6 +12,8 @@ module Hecks
       # Finds or builds the record a command acts on, and refuses when the identity it names is
       # missing, occupied or contradicts its route.
       module Hydration
+        include OccupantReuse
+
         private
 
         # Picks the hydration the command's dependency plan allows. A command that declares a
@@ -56,7 +59,7 @@ module Hecks
 
         def hydrate_legacy_creation(ctx)
           id = identity_of(ctx.aggregate, ctx.args) || raise_creating_no_identity(ctx.command, ctx.aggregate)
-          raise_already_exists(ctx.command, ctx.aggregate, id) if ctx.repository.find(id)
+          claim_creation_id(ctx, id, ctx.repository.find(id))
 
           fresh_instance(ctx, id)
         end
@@ -66,9 +69,7 @@ module Hecks
           # An occupied identity refuses (`AlreadyExists`), except under ATOMIC_PUT: that adapter
           # enforces the same refusal itself, atomically, via `insert_only:` in `step_save` —
           # reading here too would race the write for nothing.
-          if ctx.strategy != DependencyPlanning::ATOMIC_PUT && ctx.repository.find(id)
-            raise_already_exists(ctx.command, ctx.aggregate, id)
-          end
+          claim_creation_id(ctx, id, ctx.repository.find(id)) if ctx.strategy != DependencyPlanning::ATOMIC_PUT
 
           fresh_instance(ctx, id)
         end
@@ -78,9 +79,9 @@ module Hecks
         def hydrate_prior_or_initial(ctx)
           id    = creation_identity(ctx)
           found = ctx.repository.find(id)
-          # Same refusal as `hydrate_complete_state`, for a complete-but-state-
+          # Same claim as `hydrate_complete_state`, for a complete-but-state-
           # dependent creating command (one with a `given` on its own prior state).
-          raise_already_exists(ctx.command, ctx.aggregate, id) if found
+          claim_creation_id(ctx, id, found)
 
           fresh_instance(ctx, id)
         end
