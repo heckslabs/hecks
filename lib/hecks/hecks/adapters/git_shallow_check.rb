@@ -18,8 +18,9 @@ module Hecks
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] unused
       # @param root [String, nil] unused
+      # @param registry [Runtime::Registry, nil] unused
       # @param run [Hash] what a spec changes in the clone run: `specs:` and `command:`
-      def initialize(aggregate: nil, settings: {}, root: nil, **run)
+      def initialize(aggregate: nil, settings: {}, root: nil, registry: nil, **run)
         @git = Git.new
         @run = run
       end
