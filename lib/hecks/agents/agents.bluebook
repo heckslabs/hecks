@@ -32,6 +32,7 @@ Hecks.bluebook "Agents" do
 
       member role: "orchestrator", pattern: "Work.*"
       member role: "orchestrator", pattern: "Dispatch.fill!"
+      member role: "orchestrator", pattern: "Dispatch.settle!"
       member role: "orchestrator", pattern: "Planning.request!"
       member role: "orchestrator", pattern: "AgentRun.check_all!"
       member role: "orchestrator", pattern: "AgentRun.answer!"
@@ -62,6 +63,8 @@ Hecks.bluebook "Agents" do
              use: "the coder or reviewer role through Work.plan!/Dispatch; a file is read there"
       member role: "orchestrator", shape: "grep",
              use: "the coder or reviewer role through Work.plan!/Dispatch; a search is run there"
+      member role: "orchestrator", shape: "settle",
+             use: "Dispatch.settle!, which AgentRun.check_all! and every confirmed Dispatch.fill! already run"
       member role: "orchestrator", shape: "exe/hecks",
              use: "a verb on the routing list, or the planner role through Planning.request!"
     end

@@ -39,10 +39,9 @@ module Hecks
       #   says it would start or, when confirmed, that it started or why it went back to the plan;
       #   then the work items left waiting with the reason
       def choose(**held)
-        plan = plan_for(prefix(held))
-        chosen = plain(held[:confirm]) == true ? launch(plan, held) : plan.chosen.map { |item| chosen_line(item) }
-        lines = [header(plan)] + chosen + plan.skipped.map { |skip| skipped_line(skip) }
-        { report: { value: lines.join("\n") } }
+        confirmed = plain(held[:confirm]) == true
+        settle_ended(held) if confirmed
+        { report: { value: filling_lines(plan_for(prefix(held)), held, confirmed).join("\n") } }
       end
 
       # Says which planned work items would start now and why each other waits, without starting
@@ -79,6 +78,16 @@ module Hecks
       end
 
       private
+
+      # The load, each work item that starts or would, then each left waiting with its reason.
+      def filling_lines(plan, held, confirmed)
+        chosen = confirmed ? launch(plan, held) : plan.chosen.map { |item| chosen_line(item) }
+        [header(plan)] + chosen + plan.skipped.map { |skip| skipped_line(skip) }
+      end
+
+      # A confirmed filling finishes or yields the work items whose sessions ended before the plan
+      # counts started rows, so the cap holds only live work.
+      def settle_ended(held) = Settler.new(work_items, launcher_for(held)).call
 
       def work_items = @standins[:work_items] || WorkItems.new(@registry)
 

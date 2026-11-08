@@ -28,6 +28,11 @@ RSpec.describe "the orchestrator routing guard" do
       expect(patterns).to include("AgentRun.check_all!", "AgentRun.answer!", "AgentRun.tidy!", "Landing.retire!")
     end
 
+    it "lets the orchestrator settle ended sessions, with a hint for the nearest refused shape", :aggregate_failures do
+      expect(rows("RoutingRule").map { |row| row[:pattern] }).to include("Dispatch.settle!")
+      expect(rows("RefusalHint").map { |row| row[:shape] }).to include("settle")
+    end
+
     it "carries the no-work rule as data" do
       expect(rows("RoleRule").first[:rule]).to include("A claim is verified by a reviewer run, never by you")
     end
