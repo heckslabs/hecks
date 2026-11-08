@@ -64,7 +64,7 @@ module Hecks
           return unless @state
 
           current = @state.call
-          digest = Digest::SHA1.hexdigest(JSON.generate(current.except(:generated_at)))
+          digest = Digest::SHA1.hexdigest(JSON.generate(current.except(:generated_at, :stale_seconds)))
           return if digest == @state_digest
 
           @state_digest = digest
