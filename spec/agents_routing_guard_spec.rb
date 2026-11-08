@@ -100,6 +100,20 @@ RSpec.describe "the orchestrator routing guard" do
       expect(verdict("exe/hecks tickets Work.undone")).to eq(text: "allowed")
     end
 
+    it "allows Operation.follow, so the orchestrator hears a run start or end without polling" do
+      call = "exe/hecks Operation.follow domain.value=Hecks aggregate.value=AgentRun from_now=true wait=600"
+      expect(verdict(call)).to eq(text: "allowed")
+    end
+
+    it "allows Operation.followed" do
+      expect(verdict("exe/hecks Operation.followed domain.value=Hecks aggregate.value=AgentRun")).to eq(text: "allowed")
+    end
+
+    it "carries the Operation rows as data", :aggregate_failures do
+      patterns = rows("RoutingRule").map { |row| row[:pattern] }
+      expect(patterns).to include("Operation.follow", "Operation.followed")
+    end
+
     it "carries the shell rows and the flag rules as data", :aggregate_failures do
       expect(rows("RoutingRule").map { |row| row[:pattern] }).to include("git status", "gh pr view", "git worktree list")
       expect(rows("ShellFlagRule").map { |row| row[:command] }).to include("git", "gh", "git branch")
