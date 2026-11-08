@@ -1,0 +1,7 @@
+# Binds the `Routing` port to `RoutingGuard`, which answers `Guard` from the Role aggregate's routing rows.
+# Required by name, not relative, so a copy of this directory shares the one implementation loaded.
+require "hecks/agents/adapters/routing_guard"
+
+Hecks.adapter "RoutingGuard" do
+  port "Routing"
+end

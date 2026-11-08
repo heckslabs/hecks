@@ -23,6 +23,75 @@ Hecks.bluebook "Agents" do
 
     value_object "CommandName", String
 
+    # What a role may run itself, one row per pattern: `Aggregate.verb`, or `Aggregate.*` for every
+    # verb of an aggregate. A role with no row here is not guarded. The `Guard` query reads these
+    # rows when it is asked, so the allowlist is data and no hook or role file holds a copy.
+    value_object "RoutingRule" do
+      attribute :role,    String
+      attribute :pattern, String
+
+      member role: "orchestrator", pattern: "Work.*"
+      member role: "orchestrator", pattern: "Dispatch.fill!"
+      member role: "orchestrator", pattern: "Planning.request!"
+      member role: "orchestrator", pattern: "AgentRun.check_all!"
+      member role: "orchestrator", pattern: "AgentRun.answer!"
+      member role: "orchestrator", pattern: "AgentRun.tidy!"
+      member role: "orchestrator", pattern: "PushRehearsal.rehearse!"
+      member role: "orchestrator", pattern: "SendTrain.board!"
+      member role: "orchestrator", pattern: "ReviewRequest.status"
+      member role: "orchestrator", pattern: "ReviewRequest.take!"
+      member role: "orchestrator", pattern: "LinkedTree.pull_main!"
+      member role: "orchestrator", pattern: "Landing.retire!"
+      member role: "orchestrator", pattern: "PipelineBoard.snapshot"
+    end
+
+    # The nearest verb or role for a refused shape: the first word of a refused command and what
+    # to use instead. The refusal names the `use` of the row whose shape the command starts with.
+    value_object "RefusalHint" do
+      attribute :role,  String
+      attribute :shape, String
+      attribute :use,   String
+
+      member role: "orchestrator", shape: "git",
+             use: "the reviewer role: Work.plan! with category verify, which Dispatch fills"
+      member role: "orchestrator", shape: "gh",
+             use: "the reviewer role through Work.plan! with category verify, or ReviewRequest.status"
+      member role: "orchestrator", shape: "bundle",
+             use: "the coder role through Work.plan!/Dispatch; a spec runs there"
+      member role: "orchestrator", shape: "cat",
+             use: "the coder or reviewer role through Work.plan!/Dispatch; a file is read there"
+      member role: "orchestrator", shape: "grep",
+             use: "the coder or reviewer role through Work.plan!/Dispatch; a search is run there"
+      member role: "orchestrator", shape: "exe/hecks",
+             use: "a verb on the routing list, or the planner role through Planning.request!"
+    end
+
+    # The rule a role's agent file states, as data, so the file reads from it and the board and
+    # briefs read the same words.
+    value_object "RoleRule" do
+      attribute :role, String
+      attribute :rule, String
+
+      member role: "orchestrator",
+             rule: "Do no work in your own session: no spec runs, no CI-log reading, no git or gh reads, no file reads of code. Every such step is a run dispatched through Hecks: the coder for a change, the reviewer for verifying a claim or judging a failure, the planner for design, the architect for a bluebook or an ADR. A claim is verified by a reviewer run, never by you."
+    end
+
+    value_object "GuardedCommand", String
+
+    value_object "Document" do
+      attribute :text, String
+    end
+
+    # Whether a role may run one Bash command itself. A role with routing rows runs only a command
+    # whose verb one of them names, alone (no pipe, chain, redirect or substitution); anything else
+    # is refused by name with the replacement. A role with no rows is allowed.
+    query "Guard" do
+      description "Allowed, or refused by name with the verb or role to use instead, for one command a role asks to run."
+      attribute :role,    RoleName
+      attribute :command, GuardedCommand
+      returns Document
+    end
+
     # Declares a role. Its kind says which judgment it owns: orchestrator, architect, coder,
     # reviewer or release manager.
     command "Declare" do
