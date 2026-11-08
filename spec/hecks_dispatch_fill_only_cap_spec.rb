@@ -8,8 +8,6 @@ require "hecks/hecks/adapters/dispatching"
 # boots in Memory; the `Dispatching` port is the real adapter over stand-in work items and a
 # stand-in runner, so no session starts and no live store is read.
 RSpec.describe "a filling held to one work item, read through the launcher" do
-  DOMAIN_UNDER_FILL = File.expand_path("../lib/hecks/hecks", __dir__).freeze
-
   def item(key) = Hecks::Adapters::Dispatching::Plan::Item.new(key: key, title: key, detail: "", area: [key])
 
   # Twelve planned work items ahead of the one named, and three already started.
@@ -33,7 +31,7 @@ RSpec.describe "a filling held to one work item, read through the launcher" do
 
   # The settled record a command line answers, without `--wait`.
   def fill(*words)
-    runtime = Hecks.boot(DOMAIN_UNDER_FILL, environment: "memory", install_driving: false)
+    runtime = boot_hecks_in_memory
     adapter = stand_in
     text, = Hecks::Runtime::AdapterLookup.standing_in(->(_port, _asked) { adapter }) do
       Hecks::Adapters::Driving::CliRunner.call(runtime: runtime, argv: ["Dispatch.fill!", "repo.value=/repo", *words])
