@@ -12,8 +12,8 @@ module MachineReadings
     { cpu_idle: idle, load: load, swap_used: swap, compressor_gb: compressor, lane_waiting: lane }
   end
 
-  # The load state after each CPU idle percentage of a series, each reading made with the state before
-  # and a load average inside its own gap, so the CPU alone decides.
+  # The load state after each CPU idle percentage of a series, each reading made with the state
+  # before and a load average inside its own gap, so the CPU alone decides.
   def loads(series)
     standing = {}
     series.map do |idle|

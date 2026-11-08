@@ -1,11 +1,11 @@
 require "hecks/hecks/adapters/machine_sampling"
 
-# Beats of a clock against the Delegate domain in Memory, with a fake machine behind the Sampling port
-# and a rolling port that counts its fills.
+# Beats of a clock against the Delegate domain in Memory, with a fake machine behind the
+# Sampling port and a rolling port that counts its fills.
 module MachineBeats
   Sampling = Hecks::Adapters::MachineSampling
 
-  # Boots the Hecks domain in Memory and beats once for each reading, a fake machine answering each.
+  # Boots the Hecks domain in Memory and beats once for each reading of a fake machine.
   #
   # @param series [Array<Hash>] the gauges of each beat: `cpu_idle`, `swap_used`, `load`, ...
   # @return [Hash] `names:` the events recorded in order, `rolls:` how many fills the rolling port answered
