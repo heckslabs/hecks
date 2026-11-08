@@ -18,6 +18,9 @@ require_relative "pipeline_stages/gather"
 require_relative "pipeline_stages/strip"
 require_relative "pipeline_stages/metrics"
 require_relative "pipeline_stages/fanout"
+require_relative "pipeline_stages/train_detail"
+require_relative "pipeline_stages/commit_link"
+require_relative "pipeline_stages/panel"
 
 module Hecks
   module Adapters
@@ -54,11 +57,44 @@ module Hecks
           fanout: fanout(data) }.merge(agents(data))
       end
 
+      # The state the page shows, drawn as a text panel for a terminal. It reads what `/api/state`
+      # reads, and the open train pull requests besides; it writes nothing.
+      #
+      # @param width [Hash, Integer, nil] the panel's columns
+      # @param colour [Hash, String, nil] `true` to colour rows by their state
+      # @param limit [Hash, Integer, nil] how many planned Work items and finished sessions to list
+      # @return [Hash{Symbol => String}] `text:` the panel
+      def snapshot(width: nil, colour: nil, limit: nil)
+        drawn = state.merge(train_prs: guard { @github.train_prs })
+        { text: PipelineBoard::Panel.render(drawn, width: held(width), colour: held(colour).to_s == "true", limit: held(limit)) }
+      end
+
       # @return [Array<Hash>, Hash] the newest events with the policies that reacted, or
       #   `{unknown: reason}`
       def feed = guard { @journal.recent(40) }
 
+      # @param key [String] an AgentRun's key or session id
+      # @return [Hash, nil] the run's record, with `commits`: each landed sha and its links
+      def run_detail(key)
+        run = @tickets.run_detail(key)
+        run&.merge(commits: commits_of(run[:landed]))
+      end
+
+      # @param key [String] a SendTrain run key
+      # @return [Hash, nil] the boarding's outcome and its pull request, nil when none has the key
+      def train_detail(key) = @trains.of(key)
+
+      # The shas as commit links on the repository and, where the CI rows know the sha, the CI run.
+      def commits_of(shas)
+        base = guard { @github.repo_url }
+        runs = guard { JSON.parse(@github.ci_runs[:text], symbolize_names: true) }
+        shas.map { |sha| PipelineBoard::CommitLink.of(sha, base, runs) }
+      end
+
       private
+
+      # An argument as the query hands it: the value inside a value object, or the value itself.
+      def held(argument) = argument.is_a?(Hash) ? argument[:value] : argument
 
       # The thresholds the tiles judge against, read from the Hecks world once.
       def read_limits(registry)
@@ -81,6 +117,9 @@ module Hecks
       def wire_work(readers, registry)
         @tickets = readers.fetch(:tickets) { PipelineTickets.new(registry: registry) }
         @jobs = readers.fetch(:jobs) { PipelineJobs.new(settings: { runs: -> { guard { @tickets.runs } } }) }
+        @trains = readers.fetch(:trains) do
+          PipelineBoard::TrainDetail.new(root: ENV.fetch("PIPELINE_BOARD_LAUNCHER_ROOT", @root))
+        end
       end
 
       # The pinned agents panel: each role with its live sessions and last event, and the open

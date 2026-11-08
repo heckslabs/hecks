@@ -192,6 +192,7 @@ function listen() {
     open: () => { $("live").textContent = "stream: live"; },
     error: () => { $("live").textContent = "stream: reconnecting"; },
     pause: () => { $("live").textContent = "stream: paused"; },
+    wiring: (m) => { if (m && wiringDigest && m.digest !== wiringDigest) loadWiring(false); },
     board: (ev) => {
     if (!ev.key) return;
     if (!liveStarted) { backlog.push(ev); clearTimeout(listen.t); listen.t = setTimeout(startLive, 600); } else { take(ev); dirty = true; }
@@ -204,13 +205,24 @@ $("scroller").addEventListener("scroll", () => { const s = $("scroller"); if (s.
 $("clear").addEventListener("click", () => { rows.length = 0; dirty = true; });
 $("domain").addEventListener("change", (e) => { filter = e.target.value; dirty = true; });
 
-fetch("/api/wiring", { cache: "no-store" }).then((r) => r.json()).then((g) => {
-  if (g.unknown) { $("count").textContent = "unknown: " + g.unknown; }
-  else { graph = g; byId = new Map(g.nodes.map((n) => [n.id, n]));
-    const count = new Map(); for (const n of g.nodes) if (n.kind === "aggregate") count.set(n.domain, (count.get(n.domain) || 0) + 1);
-    [...count.keys()].sort((a, b) => count.get(b) - count.get(a)).forEach((d, i) => { domainSlot.set(d, i); $("domain").append(h("option", { value: d }, d)); }); }
-  requestAnimationFrame(loop); listen();
-}).catch((e) => { $("count").textContent = "unknown: " + e.message; requestAnimationFrame(loop); listen(); });
+/* The graph is read at load, and again whenever the stream says the bluebooks are drawn differently. */
+let wiringDigest = null;
+function applyWiring(g) {
+  graph = g; wiringDigest = g.digest; byId = new Map(g.nodes.map((n) => [n.id, n]));
+  const count = new Map(); for (const n of g.nodes) if (n.kind === "aggregate") count.set(n.domain, (count.get(n.domain) || 0) + 1);
+  const keep = filter, names = [...count.keys()].sort((a, b) => count.get(b) - count.get(a));
+  domainSlot.clear(); $("domain").querySelectorAll("option[value]:not([value=''])").forEach((o) => o.remove());
+  names.forEach((d, i) => { domainSlot.set(d, i); $("domain").append(h("option", { value: d }, d)); });
+  if (names.includes(keep)) $("domain").value = keep;
+  dirty = true;
+}
+function loadWiring(first) {
+  return fetch("/api/wiring", { cache: "no-store" }).then((r) => r.json()).then((g) => {
+    if (g.unknown) $("count").textContent = "unknown: " + g.unknown; else applyWiring(g);
+    if (first) { requestAnimationFrame(loop); listen(); }
+  }).catch((e) => { $("count").textContent = "unknown: " + e.message; if (first) { requestAnimationFrame(loop); listen(); } });
+}
+loadWiring(true);
 </script>
 </body>
 </html>

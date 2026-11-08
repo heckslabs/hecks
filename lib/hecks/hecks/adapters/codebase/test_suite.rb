@@ -26,7 +26,7 @@ module Hecks
         # Every operation this family carries out.
         OPERATIONS = %w[run_spec_example run_spec_files run_impacted_specs run_suite run_changed
                         stress_concurrency run_cargo_tests clear_caches regenerate_legacy_fixtures seed_semantics_corpus
-                        write_io_parallel_spec_list].freeze
+                        write_io_parallel_spec_list rewrite_ir_golden].freeze
 
         # The operations that run specs in a folder of their own: they need that folder to hold
         # specs, not to be this checkout, so any project's suite runs through them.
@@ -34,6 +34,9 @@ module Hecks
 
         # The spec directory a folder's whole suite lives in.
         SPEC_DIRECTORY = "spec"
+
+        # The spec that pins the frozen IR of the language bluebooks.
+        GOLDEN_SPEC = "spec/ir_golden_spec.rb"
 
         # The tag filter the postgres job lists its specs by when none is named.
         DEFAULT_TAGS = "--tag io --tag ~fuzzing"
@@ -79,6 +82,7 @@ module Hecks
           when "stress_concurrency" then stress(args, tree)
           when "regenerate_legacy_fixtures" then regenerate_fixtures(args, tree, shell)
           when "seed_semantics_corpus" then seed(args, tree)
+          when "rewrite_ir_golden" then rewrite_golden(args, tree)
           else write_list(args, tree)
           end
         end
@@ -137,6 +141,18 @@ module Hecks
         def seed(args, tree)
           seeding = command("seed_semantics_corpus")
           answer { TestRunner.at_reaction_depth_zero { seeding.call(root: tree.root, env: RunOptions.seed_env(args)) } }
+        end
+
+        # Rewrites the frozen IR files by running the golden spec with `GOLDEN=rewrite`. Unconfirmed
+        # it writes nothing and says so; read the diff of `spec/golden/ir` afterwards.
+        #
+        # @param args [Hash] `confirm`
+        # @param tree [Tree] the checkout
+        # @return [String] what the spec run printed, or (unconfirmed) what would be rewritten
+        def rewrite_golden(args, tree)
+          return "dry run, would rewrite spec/golden/ir from #{GOLDEN_SPEC} (add --confirm)" unless args[:confirm] == true
+
+          TestRunner.new(tree).run_paths(paths: [GOLDEN_SPEC], env: { "GOLDEN" => "rewrite" }, tags: nil)
         end
 
         # A pure read: a listing, or the recorded pattern cases.

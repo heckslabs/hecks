@@ -599,6 +599,7 @@ function listen() {
     open: () => { $("live").textContent = "stream: live"; },
     error: () => { $("live").textContent = "stream: reconnecting"; },
     pause: () => { $("live").textContent = "stream: paused"; },
+    wiring: (m) => { if (m && wiringDigest && m.digest !== wiringDigest) loadWiring(false); },
     board: (ev) => {
     if (!ev.key) return;
     remember(ev); if (selected) renderPanel();
@@ -634,15 +635,29 @@ $("replay").addEventListener("click", () => replay(recent.slice(-12), false));
 $("bounds").addEventListener("click", () => { showBounds = !showBounds; $("bounds").setAttribute("aria-pressed", String(showBounds)); $("bounds").textContent = showBounds ? "Hide boundaries" : "Show boundaries"; });
 addEventListener("resize", () => { if (touched) size(); else fit(); });
 
-fetch("/api/wiring", { cache: "no-store" }).then((r) => r.json()).then((g) => {
-  if (g.unknown) { $("count").textContent = "unknown: " + g.unknown; return; }
-  nodes = g.nodes; edges = g.edges; byId = new Map(nodes.map((n) => [n.id, n]));
-  assignDomains();
+/* ---- the graph: read once at load, and again whenever the stream says the bluebooks are drawn differently ---- */
+let wiringDigest = null;
+// Swaps in a new graph. What is lit, pulsing, expanded, panned and open stays as it was where it still exists.
+function applyWiring(g, first) {
+  const lit = new Map(edges.map((e) => [e.from + "|" + e.to + "|" + e.label, e.lit]));
+  nodes = g.nodes; edges = g.edges; wiringDigest = g.digest; byId = new Map(nodes.map((n) => [n.id, n]));
+  for (const e of edges) { const held = lit.get(e.from + "|" + e.to + "|" + e.label); if (held) e.lit = held; }
+  hover = null; assignDomains();
   $("count").textContent = domains.length + " domains, " + contexts.length + " contexts, " + nodes.filter((n) => n.kind === "aggregate").length + " aggregates, " + edges.filter((e) => e.kind !== "adapter").length + " policies";
   $("domains").replaceChildren(...domains.map((d) => h("span", {}, h("i", { class: "swatch", style: "background:" + colourOf(d) }), d)));
-  layout(); fit(); renderTable(); requestAnimationFrame(draw); listen();
-  const wanted = decodeURIComponent(location.hash.slice(1)); if (wanted && byId.has(wanted)) { expanded.add(keyOf(byId.get(wanted))); openPanel(byId.get(wanted)); }
-}).catch((e) => { $("count").textContent = "unknown: " + e.message; });
+  layout(); if (first || !touched) fit(); renderTable();
+  if (!first && selected) { const held = byId.get(selected.id); if (held) openPanel(held); else closePanel(); }
+}
+function loadWiring(first) {
+  return fetch("/api/wiring", { cache: "no-store" }).then((r) => r.json()).then((g) => {
+    if (g.unknown) { $("count").textContent = "unknown: " + g.unknown; return; }
+    applyWiring(g, first);
+    if (!first) return;
+    requestAnimationFrame(draw); listen();
+    const wanted = decodeURIComponent(location.hash.slice(1)); if (wanted && byId.has(wanted)) { expanded.add(keyOf(byId.get(wanted))); openPanel(byId.get(wanted)); }
+  }).catch((e) => { $("count").textContent = "unknown: " + e.message; });
+}
+loadWiring(true);
 </script>
 </body>
 </html>
