@@ -145,6 +145,12 @@ commands:
     open!                         Open a pull request from a branch onto a base, and keep the number and URL GitHub gives it
     take!                         Squash-merge an open pull request by its number; never with an admin override
     edit!                         Edit the title or body of an open pull request by its number; never its branch, merge or state
+  BoardingHold:
+    One hold of local main for a boarding: held, or refused.
+    hold!                         Hold local main for the boarding of the commit it names now: landings onto main are refused until a release or the window ends
+  BoardingRelease:
+    One lifting of the hold on local main: released, or refused.
+    release!                      Lift the hold on local main, whoever took it; a lift with nothing held is a no-op
   Relief:
     The plan that frees space: which command frees each kind of owner, and which subjects are never touched.
     plan!                         Say what would free space and by which command, changing nothing
@@ -316,6 +322,9 @@ queries (nothing here changes anything):
     One pull request opened or squash-merged on GitHub, and what GitHub answered.
     status                  The state of one pull request on GitHub: its number, state, URL and checks, as text.
     timeline                Who merged a pull request, who turned auto-merge on or off, who closed, reopened or was asked to review it, and when: read from its timeline on GitHub, oldest first.
+  BoardingHold:
+    One hold of local main for a boarding: held, or refused.
+    status                  Whether local main is held for a boarding: the commit, owner, reason and age, or that the hold expired or is absent.
   LanguageRun:
     One change to the language's own tables, or one reading of where its words stand.
     word_status             Where every word of the language stands: the ones not simply admitted, and the renamed.
@@ -411,6 +420,6 @@ bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
   expression       The subset of regular Ruby a predicate is allowed to be — small enough that every target can…
 
   hecks <command> --help       what one command wants, and every way it refuses
-  hecks --all                  also list the 336 internal commands and queries
+  hecks --all                  also list the 342 internal commands and queries
   a command is called with its aggregate — Build.project_rust!
   exit status: 0 answered, 1 refused or failed, 2 a line it could not read
