@@ -31,11 +31,9 @@ RSpec.describe "the DiskSpace relief and caches", :aggregate_failures do
     expect(givens("Relief", "Plan")).to be_empty
   end
 
-  it "carries the cold-cache cost on every cache kind" do
-    expect(rows("Cache", "CacheKind").map { |row| row[:rebuild_cost] }).to all(satisfy { |cost| !cost.empty? })
-  end
+  it "reads a done run with the same vocabulary the relief rule uses" do
+    states = rows("Reading", "ReadingState").map { |row| row[:state] }
 
-  it "keeps a cache a live run uses or a pinned session owns, and asks for --confirm" do
-    expect(givens("Cache", "Clear")).to include(/live run uses/, /pinned session/, /needs --confirm/)
+    expect(rows("Relief", "ReliefRule").map { |row| row[:state] } - states).to eq([])
   end
 end

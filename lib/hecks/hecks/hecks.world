@@ -71,7 +71,8 @@ Hecks.world "Hecks" do
   # The free space, in gigabytes, below which the board's Disk free tile asks for attention and then fails.
   disk_health "PipelineBoard", attention_gb: 20, failed_gb: 5
   # The DiskSpace levels: rising under `rising_free_gb` free or at `rising_used_percent` used, high under
-  # `high_free_gb` free or at `high_used_percent` used; the worse of the two sets the level.
+  # `high_free_gb` free or at `high_used_percent` used; the worse of the two sets the level. These are
+  # the volume's own lines for relief; `disk_health` above sets the floors of the board's Disk free tile.
   disk_space "DiskSpace", rising_free_gb: 60, rising_used_percent: 80, high_free_gb: 30, high_used_percent: 90
   # The agent roles the board pins at its top. Each wakes on demand; none may issue an owner decision.
   agent_roles "PipelineBoard", roles: "orchestrator,planner,architect,coder,reviewer,release_manager,pruner"
