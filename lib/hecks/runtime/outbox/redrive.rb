@@ -17,7 +17,8 @@ module Hecks
         # effect did not run. Every other claimed row stays as it is, and a pending row is not
         # touched.
         #
-        # @param delivery_id [String] the row's `delivery_id`, as the stalled-row warning names it
+        # @param delivery_id [String] the row's `delivery_id`, or its uuid when one claimed row
+        #   carries it
         # @return [Array<Row>] the row when it redrove, `[]` when its consumer failed again
         # @raise [Hecks::Runtime::NotFound] when no claimed row has that delivery id, or the row
         #   was claimed too recently to be stalled
@@ -30,28 +31,46 @@ module Hecks
         # consumer: for a row whose effect is known to have landed, or that nobody wants run, so
         # the stalled-row warning stops naming it. The error says it was abandoned by hand.
         #
-        # @param delivery_id [String] the row's `delivery_id`, as the stalled-row warning names it
+        # @param delivery_id [String] the row's `delivery_id`, or its uuid when one claimed row
+        #   carries it
+        # @param reason [String, nil] why the row is abandoned, kept on the settled row's error
         # @return [Array<Row>] the row that was settled
-        # @raise [Hecks::Runtime::NotFound] when no claimed row has that delivery id, or the row
-        #   was claimed too recently to be stalled
-        def abandon_row!(delivery_id)
+        # @raise [Hecks::Runtime::NotFound] when no claimed row has that delivery id, the uuid
+        #   names several, or the row was claimed too recently to be stalled
+        def abandon_row!(delivery_id, reason: nil)
           repository, row = stalled_row(delivery_id)
-          [abandon(row, repository)]
+          [abandon(row, repository, reason)]
         end
 
         private
 
-        # The store and the claimed row that carry `delivery_id`, once the row has stood claimed
-        # past `STALLED_AFTER`: a younger claim is a reaction running in another process.
+        # The store and the claimed row that `delivery_id` names, once the row has stood claimed
+        # past `STALLED_AFTER`: a younger claim is a reaction running in another process. The id
+        # is the full `delivery_id`, or its uuid (the part before the `/`) when one claimed row
+        # carries it.
         def stalled_row(delivery_id)
-          stores.each do |repository|
-            row = repository.outbox_rows(status: "claimed").find { |candidate| candidate.delivery_id == delivery_id }
-            next unless row
-            raise Hecks::Runtime::NotFound, in_flight_wording(row) unless row.stalled?
+          repository, row = named_claimed_row(delivery_id)
+          raise Hecks::Runtime::NotFound, "no claimed outbox row #{delivery_id.inspect}" unless row
+          raise Hecks::Runtime::NotFound, in_flight_wording(row) unless row.stalled?
 
-            return [repository, row]
-          end
-          raise Hecks::Runtime::NotFound, "no claimed outbox row #{delivery_id.inspect}"
+          [repository, row]
+        end
+
+        def named_claimed_row(delivery_id)
+          pairs = stores.flat_map { |store| store.outbox_rows(status: "claimed").map { |row| [store, row] } }
+          pairs.find { |_, row| row.delivery_id == delivery_id } || uuid_claimed_row(pairs, delivery_id)
+        end
+
+        def uuid_claimed_row(pairs, uuid)
+          named = pairs.select { |_, row| row.delivery_id.split("/", 2).first == uuid }
+          raise Hecks::Runtime::NotFound, ambiguous_wording(uuid, named) if named.size > 1
+
+          named.first
+        end
+
+        def ambiguous_wording(delivery_id, pairs)
+          "outbox row #{delivery_id.inspect} names #{pairs.size} claimed rows: " \
+            "#{pairs.map { |_, row| row.delivery_id }.join(", ")}; pass the full delivery id"
         end
 
         def in_flight_wording(row)
@@ -59,9 +78,11 @@ module Hecks
             "claimed over #{STALLED_AFTER}s ago is stalled"
         end
 
-        def abandon(row, repository)
-          repository.outbox_settle(row.id, status: "failed", error: "abandoned by an operator, not redelivered")
+        def abandon(row, repository, reason)
+          error = ["abandoned by an operator, not redelivered", reason].compact.join(": ")
+          repository.outbox_settle(row.id, status: "failed", error: error)
           row.status = "failed"
+          row.error = error
           row
         end
 

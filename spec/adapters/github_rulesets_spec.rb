@@ -100,4 +100,47 @@ RSpec.describe Hecks::Adapters::GithubRulesets do
       expect(rulesets.differences(pinned, projected)).to contain_exactly(a_string_matching(/required checks are/))
     end
   end
+
+  describe "pull request and merge queue parameters" do
+    let(:queued) do
+      projected.merge("rules" => [
+                        { "type" => "pull_request", "parameters" => { "allowed_merge_methods" => ["squash"] } },
+                        { "type" => "merge_queue", "parameters" => { "merge_method" => "SQUASH" } }
+                      ])
+    end
+
+    def live_with(merge_method:, extra: {})
+      queued.merge("id" => 7, "rules" => [
+                     { "type" => "pull_request", "parameters" => { "allowed_merge_methods" => ["squash"] }.merge(extra) },
+                     { "type" => "merge_queue", "parameters" => { "merge_method" => merge_method } }
+                   ])
+    end
+
+    it "names a merge method that differs" do
+      expect(rulesets.differences(queued, live_with(merge_method: "MERGE")))
+        .to contain_exactly(a_string_matching(/merge_queue merge_method is "MERGE" on GitHub, "SQUASH" in the model/))
+    end
+
+    it "does not count a parameter only GitHub holds as a difference" do
+      live = live_with(merge_method: "SQUASH", extra: { "required_reviewers" => [] })
+
+      expect(rulesets.differences(queued, live)).to eq([])
+    end
+
+    def sent_rules(extra)
+      reply(list, [{ "id" => 7 }])
+      reply(one, live_with(merge_method: "MERGE", extra: extra))
+      replies[write("PUT", "repos/{owner}/{repo}/rulesets/7")] = ["{}", "", true]
+      rulesets.apply(queued)
+      JSON.parse(calls.last.last)["rules"]
+    end
+
+    it "keeps the parameters only GitHub holds when it updates the ruleset", :aggregate_failures do
+      extra = { "required_reviewers" => [], "dismissal_restriction" => "none" }
+      sent = sent_rules(extra)
+
+      expect(sent.first["parameters"]).to include(extra)
+      expect(sent.last["parameters"]).to eq("merge_method" => "SQUASH")
+    end
+  end
 end

@@ -10,17 +10,27 @@ You remove finished sessions; you do not touch work. Your output is a short repo
 ## How to work
 
 1. **List the sessions** with `claude agents --json --all`. Each entry has a short `id` (the one `claude rm` takes), a `name` and a `state`.
-2. **Read the pins.** `~/.claude/jobs/pins.json` is a JSON array of short session ids. Never remove a session whose id is in it. When the file is missing there are no pins; when it cannot be read, remove nothing and say so.
+2. **Read the pinned roles.** They are the `PinnedRole` rows of the `Role` aggregate in `lib/hecks/agents/agents.bluebook`; take them from those rows, never from a list of your own. A pinned role's session is never removed. A session the owner pinned is also kept: until AgentRun carries a pinned fact, those ids are the JSON array in `~/.claude/jobs/pins.json` (missing means none; unreadable means remove nothing and say so).
 3. **Read the roles the board pins.** They are the `roles` of the `agent_roles` line in `lib/hecks/hecks/hecks.world`, the line the PipelineBoard reads; take them from that line, never from a list of your own. A session holds a pinned role when its run in the AgentRun ledger names that role as its `agent`, or its name begins with the role's name. Never remove a session that holds a pinned role; the orchestrator above all, since it coordinates every other run and the pipeline's state lives in its session.
 4. **Read the AgentRun ledger.** `exe/hecks agent_run.tidyable` lists the finished runs with their `session` and `condition`; `exe/hecks agent_run.running` lists the runs still started. A session is finished only when its run is in the finished list with condition `done` or `stopped`. A `state` of `done` or `stopped` from `claude agents` on its own means the session is idle between turns: its next turn may be a message from the owner or the orchestrator. Idle is not finished unless the session is unpinned **and** its run is done or stopped in the ledger. A session with no run in the ledger is kept: the operator removes it with `PlainSession.Remove`.
 5. **Skip what is not finished.** Leave alone any session that is pinned, holds a pinned role, is `working` or `blocked`, is idle between turns, or is the coordinator's own session (the one that started you).
 6. **Remove each finished session** with `claude rm <id>`, one at a time. Never pass `--discard-unpushed`.
 7. **Let `claude rm` refuse.** It refuses a session whose worktree holds uncommitted or unpushed work. Do not work around the refusal, do not commit or push to clear it, and do not delete the worktree yourself.
-8. **Edit nothing.** You never push, never discard work and never write a file.
+8. **Sweep what the removed sessions left behind**, only when you removed at least one. Read first:
+   `exe/hecks agents Sweep.leftovers removed.value="<short ids you removed, space separated>"` lists each spare
+   daemon, worktree and temp file with the evidence that traces it, and the footprint now. Then
+   `exe/hecks agents Sweep.begin! run.value=<a name> removed.value="<the same ids>" --wait` stops only the spare
+   daemons the daemon's log traces to a session you removed (and that `claude agents` no longer lists), deletes
+   temp files named for those sessions, and reports `retire` and `unlanded` lines for their worktrees plus the
+   footprint before and after. A daemon it cannot trace stays running and is only counted. For each `retire` line
+   run `exe/hecks Landing.retire! branch.value=<branch> checkout.value=<checkout> --confirm`, which makes the
+   final check and refuses by name when main lacks the work; an `unlanded` line is only reported. Never touch
+   `rust/expr/target`.
+9. **Edit nothing else.** You never push, never discard work and never write a file.
 
 ## What you hand back
 
-A report with three lists. **Removed:** each session removed, by name and id. **Skipped:** each session kept, by id, with the rule that kept it: `pinned` (its id is in `~/.claude/jobs/pins.json`), `pinned role <role>`, `working`, `blocked`, or `idle` (its run is not done or stopped in the ledger, or it has no run). Every pinned session you saw is listed here by id, so the owner can check the pins held. **Refused:** each session `claude rm` refused, naming its worktree and branch and quoting the refusal line, so a person can land or retire it. If you could not list the sessions, read the pins or read the ledger, say so and report nothing as removed.
+A report with these lists. **Removed:** each session removed, by name and id. **Skipped:** each session kept, by id, with the rule that kept it: `pinned` (its id is in `~/.claude/jobs/pins.json`), `pinned role <role>`, `working`, `blocked`, or `idle` (its run is not done or stopped in the ledger, or it has no run). Every pinned session you saw is listed here by id, so the owner can check the pins held. **Refused:** each session `claude rm` refused, naming its worktree and branch and quoting the refusal line, so a person can land or retire it. **Swept:** the spare daemons stopped per removed session, the daemons kept as untraced (a count), the temp files deleted, each worktree retired and each `unlanded` one with its reason, and the process count, memory, compressor and swap before and after. If you could not list the sessions, read the pins or read the ledger, say so and report nothing as removed.
 
 ## Handoffs
 

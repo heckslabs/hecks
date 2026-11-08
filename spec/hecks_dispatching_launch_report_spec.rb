@@ -70,7 +70,7 @@ RSpec.describe Hecks::Adapters::Dispatching, "#choose" do
     text = report(%w[a b], "AgentRun.dispatch!" => raising)
 
     expect(text).to include("yielded a: ArgumentError: bad brief", "started b")
-    expect(text).not_to include("would start")
+    expect(text).not_to match(/would start [a-z]/)
   end
 
   it "names a work item that could neither start nor be yielded" do

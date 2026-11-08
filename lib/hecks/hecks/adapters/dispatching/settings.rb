@@ -4,6 +4,7 @@ require "etc"
 require_relative "../work_limits"
 require_relative "../shell"
 require_relative "../codebase/test_scope"
+require_relative "../machine_sampling/history"
 
 module Hecks
   module Adapters
@@ -20,6 +21,9 @@ module Hecks
         # The world verb that carries what every session starts with.
         SESSION = "session_environment"
 
+        # The world verb that carries the owner's roll-forward switch.
+        ROLL = "dispatch_roll_forward"
+
         # Minutes a started work item may run when the caller names no budget.
         BUDGET_MINUTES = 90
 
@@ -29,10 +33,12 @@ module Hecks
         # @param registry [Runtime::Registry, nil] the booted registry whose Tickets world is read
         # @param load [#call, nil] answers the 1-minute load average; the machine's when nil
         # @param cpus [Integer, nil] the CPU count; the machine's when nil
-        def initialize(registry, load: nil, cpus: nil)
+        # @param cap [Integer, nil] the cap on started work items; the world's when nil
+        def initialize(registry, load: nil, cpus: nil, cap: nil)
           @registry = registry
           @load = load || -> { self.class.uptime_load }
           @cpus = cpus || Etc.nprocessors
+          @cap = cap
         end
 
         # Ruby's `Etc` has no load average, so the 1-minute figure is read from `uptime`.
@@ -57,8 +63,20 @@ module Hecks
         #   count
         def max_load = (declared(MAX_LOAD)[:limit] || @cpus).to_f
 
+        # @return [String, nil] why no session starts while the machine's crossings say so: the
+        #   last reading left the load above its mark ("paused by load") or memory low; else nil
+        def paused
+          standing = MachineSampling::History.new(@registry).states
+          return "skipped: paused by load (LoadRoseAbove)" if standing[:load] == "above"
+
+          "skipped: memory low (MemoryLow)" if standing[:memory] == "low"
+        end
+
+        # @return [Boolean] whether planned work rolls forward by itself; false only when paused
+        def roll_forward? = declared(ROLL)[:roll_forward] != false
+
         # @return [Integer] the cap on started work items
-        def cap = WorkLimits.cap(@registry)
+        def cap = @cap || WorkLimits.cap(@registry)
 
         # @return [Integer, nil] the most spec files a session may run per call, from the Hecks
         #   world's `test_scope` setting; nil when none is declared

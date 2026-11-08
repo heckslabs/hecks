@@ -139,11 +139,12 @@ module Hecks
         { judgment: closing[JUDGMENT_WORDS, 1].to_s.downcase.tr(" ", "_") }
       end
 
-      # @return [Hash{Symbol => String}] the run the job belongs to: its key, its last known
-      #   condition, and its directory with a trailing slash
+      # @return [Hash{Symbol => String}] the run the job belongs to: its key, the Work item it
+      #   serves (empty for a run that serves none), its last known condition, and its directory
+      #   with a trailing slash
       def run_facts(held)
         { previous: plain(held[:condition]).to_s, checkout: File.join(plain(held[:repo]).to_s, ""),
-          run: plain(held[:run]).to_s }
+          run: plain(held[:run]).to_s, work: plain(held[:work]).to_s }
       end
 
       # Waits the settling time, then reads the job as {#read_job} does: a session that dies at

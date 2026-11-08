@@ -46,7 +46,7 @@ module Hecks
       # the step that sets them runs.
       Context = Struct.new(:domain, :aggregate, :command, :args, :repository, :instance, :transition, :old_state,
                            :result, :correlation, :route, :plan, :strategy, :persistence_outcome, :pending_delegation,
-                           :dry_run, :correction_bindings, :outbox_rows, :invocation, :dispatch_key) do
+                           :dry_run, :correction_bindings, :outbox_rows, :invocation, :dispatch_key, :archiving) do
         include DispatchContext
       end
 

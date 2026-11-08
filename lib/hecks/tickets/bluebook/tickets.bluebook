@@ -314,6 +314,20 @@ Hecks.bluebook "Tickets" do
       attribute :text, String
     end
 
+    # How many lines a report prints.
+    value_object "Rows" do
+      attribute :value, Integer
+
+      invariant("a report prints at least one line") { value.positive? }
+    end
+
+    # How many columns a report fits.
+    value_object "Columns" do
+      attribute :value, Integer
+
+      invariant("a report is at least forty columns wide") { value >= 40 }
+    end
+
     value_object "WorkKey" do
       attribute :value, String, matches: :present
 
@@ -374,21 +388,64 @@ Hecks.bluebook "Tickets" do
       emits "WorkPlanned"
     end
 
-    # A work item still open takes what a later look at it found: the item stays one, its title and
-    # detail move. It may also take a new area (the whole list is replaced) and the decision it
-    # carries out (refused by name when no Adr has that id); one left out stays as it was.
+    # A work item still open takes what a later look at it found: its title and detail move and
+    # nothing else does. The status, claim, priority, step, area and decision stay as they were.
+    # Area and decision move through `Rescope`, `ClearArea` and `Decide`, since a `sets` of a field
+    # the caller left out would write it empty.
     command "Revise" do
-      goal "Replace an open work item's title and detail, and optionally its area and decision"
+      goal "Replace an open work item's title and detail, and nothing else"
 
       reference_to Work
       attribute :title,  WorkTitle, sets: true
       attribute :detail, WorkText, sets: true
-      attribute :area,   list_of(Word), optional: true, sets: true
-      reference_to Adr, as: :decision, optional: true
+
+      given("a done work item is not revised") { status != "done" }
+      given("a dropped work item is not revised") { status != "dropped" }
+
+      emits "WorkRevised"
+    end
+
+    # An open work item takes a new area: the whole list is replaced.
+    command "Rescope" do
+      goal "Replace the area an open work item claims with the given list"
+
+      reference_to Work
+      attribute :area, list_of(Word), sets: true
+
+      given("a done work item is not rescoped") { status != "done" }
+      given("a dropped work item is not rescoped") { status != "dropped" }
+
+      emits "WorkRescoped"
+    end
+
+    # An open work item claims nothing again. An item with no area never overlaps another in
+    # Dispatch, so emptying it is a command of its own.
+    command "ClearArea" do
+      goal "Empty the area an open work item claims"
+
+      reference_to Work
+
+      sets :area, to: []
+
+      given("a done work item has no area to clear") { status != "done" }
+      given("a dropped work item has no area to clear") { status != "dropped" }
+
+      emits "WorkAreaCleared"
+    end
+
+    # An open work item names the decision it carries out (refused by name when no Adr has that id).
+    command "Decide" do
+      goal "Name the decision an open work item carries out"
+
+      reference_to Work
+      reference_to Adr, as: :decision
 
       sets :decision
 
-      emits "WorkRevised"
+      given("a done work item takes no decision") { status != "done" }
+      given("a dropped work item takes no decision") { status != "dropped" }
+
+      emits "WorkDecided"
     end
 
     # An open work item is sorted into one category. The claim, the step and the area stay as they are.
@@ -521,6 +578,16 @@ Hecks.bluebook "Tickets" do
       where(status: "planned")
       order_by :step
       limit 1
+    end
+
+    # The Dispatching ordering made readable: the port's adapter asks the one ordering Dispatch rolls
+    # forward with, and the plan that says why a planned item would wait.
+    query "PriorityReport" do
+      description "Every open work item in the order Dispatch would start it (red first, then now, next, later, none; by step then id), with why each planned one waits."
+      attribute :tier,  String, optional: true
+      attribute :limit, Rows, optional: true
+      attribute :width, Columns, optional: true
+      returns Document
     end
 
     query "Under" do

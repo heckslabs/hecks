@@ -100,7 +100,7 @@ RSpec.describe Hecks::Adapters::PushSize, :io do
 
     def work_items(pushing)
       Hecks::Adapters::Dispatching::WorkItems.new(nil).tap do |items|
-        allow(items).to receive(:having).with("planned").and_return([[1, item("later", "later")], [2, pushing]])
+        allow(items).to receive(:having).with("planned").and_return([[1, 0, item("later", "later")], [2, 0, pushing]])
       end
     end
 

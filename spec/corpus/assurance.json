@@ -1,0 +1,48 @@
+{
+  "name": "assurance-parity",
+  "note": "One claim declared, given evidence and judged satisfied, and one deployment opened with that claim required.",
+  "domain": "examples/assurance",
+  "expectations": {
+    "events": 5
+  },
+  "steps": [
+    {
+      "verb": "Assurance::Claim.Declare",
+      "args": {
+        "name": { "value": "p99-latency" },
+        "subject": { "value": "checkout" },
+        "requirement": { "value": "performance" },
+        "direction": { "value": "at_most" },
+        "limit": { "value": 200 },
+        "verified_by": { "value": "load-test" }
+      }
+    },
+    {
+      "verb": "Assurance::Claim.Record",
+      "args": {
+        "name": { "value": "p99-latency" },
+        "measured": { "value": 150 },
+        "scope": { "value": "staging" }
+      }
+    },
+    {
+      "verb": "Assurance::Claim.Satisfy",
+      "args": {
+        "name": { "value": "p99-latency" }
+      }
+    },
+    {
+      "verb": "Assurance::Deployment.Open",
+      "args": {
+        "name": { "value": "release-1" }
+      }
+    },
+    {
+      "verb": "Assurance::Deployment.Require",
+      "args": {
+        "name": { "value": "release-1" },
+        "claim": { "value": "p99-latency" }
+      }
+    }
+  ]
+}

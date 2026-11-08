@@ -7,4 +7,18 @@ Hecks.hecksagon "Agents" do
   Agents::Role.port "Routing" do
     answers_query "Guard"
   end
+
+  # What the machine holds after sessions are removed: the process table, the daemon's log, the
+  # worktrees and the temp directory. Bound by adapters/sweeping, which stops a spare daemon only when
+  # the log traces it to a removed session.
+  Agents::Sweep.port "Machine" do
+    asks "Sweep", to: Sweep do
+      attribute :run,     SweepName
+      attribute :removed, RemovedSessions
+      answers "SweepReported"
+      refuses "SweepRefused"
+    end
+
+    answers_query "Leftovers"
+  end
 end

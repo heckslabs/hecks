@@ -29,7 +29,7 @@ RSpec.describe "gem packaging" do
     "rust/host/src/lib.rs"          => ""
   }.freeze
 
-  PACKAGED_SUBCOMMANDS = ["run", "document", "ir", "stores", "model_check", "smoke_test", "project_diagrams",
+  PACKAGED_SUBCOMMANDS = ["run", "ir", "stores", "model_check", "smoke_test", "project_diagrams",
                           "project_cli", "mcp"].freeze
 
   LOAD_ONLY_HECKS = <<~RUBY.freeze

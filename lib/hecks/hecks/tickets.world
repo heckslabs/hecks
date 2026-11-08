@@ -5,15 +5,28 @@
 # `frozen_shapes` (not `freeze`, which every Ruby object already answers) names the areas and aggregates whose persisted shape may not move: a brief tells its session
 # to commit and hold a change that moves one, and `Dispatch.Fill` starts no Work item in a frozen area.
 # `dispatch_max_load` is the 1-minute load above which `Dispatch.Fill` starts no session (the CPU count
-# when absent). `session_environment` is what every dispatched session starts with: a shared cargo
+# when absent). `dispatch_roll_forward` is the owner's switch: while `roll_forward` is true the Delegate
+# policies run `Dispatch.Fill` on events that free capacity, and false pauses them. `session_environment` is what every dispatched session starts with: a shared cargo
 # target directory and a `nice` increment.
 #
 # `github_issues` is the switch on GitHub issues for run findings (`OpenIssueWhenRunReported`). It is
 # off: a run finding stays a work item and no GitHub call is made. `enabled: true` turns it back on.
+#
+# `machine_marks` are the marks the Machine's readings are judged against (Delegate `Machine`, read through
+# the `Sampling` port). Each state has two marks with a gap between them, so a gauge near one does not flap:
+# the load has risen at CPU idle `cpu_idle_low` percent or under (or at a load average over `load_high` with
+# the CPU under `cpu_idle_high` idle) and fallen at `cpu_idle_high` idle or over (or under `load_low` with the
+# CPU over `cpu_idle_low`); memory is low over `swap_low` percent of swap used or a compressor over
+# `compressor_gb` gigabytes, and recovered under `swap_recovered` percent; the test lane is busy at
+# `lane_busy` waiting and idle at `lane_idle` or fewer; a reading is taken at most every `interval` seconds.
 Hecks.world "Tickets" do
+  machine_marks "Machine", load_low: 8.0, load_high: 10.0, cpu_idle_low: 25.0, cpu_idle_high: 40.0,
+                           swap_low: 70.0, swap_recovered: 50.0, compressor_gb: 12.0, lane_busy: 4.0, lane_idle: 1.0,
+                           interval: 60.0
   github_issues "GitHubIssues", enabled: false
-  work_limit "WorkLimits", cap: 10
-  dispatch_max_load "Dispatch", limit: 10.0
+  work_limit "WorkLimits", cap: 14
+  dispatch_max_load "Dispatch", limit: 16.0
+  dispatch_roll_forward "Dispatch", roll_forward: true
   frozen_shapes "PersistedShapes", areas: []
   session_environment "Sessions", cargo_target_dir: "~/.cache/hecks/cargo-target", nice: 15
 end

@@ -8,6 +8,7 @@ use crate::binding_pass;
 use crate::build_artifact;
 use crate::cargo_sync;
 use crate::json::Json;
+use crate::kept_pass;
 use crate::lineage_pass;
 use crate::resolve;
 use crate::rustfmt;
@@ -133,6 +134,13 @@ pub fn run(root: &Path, domain: &str, opts: &Options) -> Result<(), String> {
         },
     )?;
     target_ir.set("world", world);
+    kept_pass::run(
+        &mut target_ir,
+        hecksagon_path.as_deref(),
+        world_path.as_deref(),
+        world_default.as_deref(),
+        root,
+    )?;
 
     // Every other bluebook the gem supplies by `attaches "Name"`, resolved through the
     // same directory listing (`resolve::framework_members`) the Ruby

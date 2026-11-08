@@ -3,6 +3,8 @@
 require "json"
 require "open3"
 
+require_relative "github_ruleset_parameters"
+
 module Hecks
   module Adapters
     # The rulesets of the repository `gh` is pointed at, read and written through `gh api`.
@@ -45,7 +47,8 @@ module Hecks
         live = named(projected.fetch("name"))
         path = "repos/{owner}/{repo}/rulesets"
         if live
-          call("api", "--method", "PUT", "#{path}/#{live.fetch("id")}", "--input", "-", stdin: JSON.generate(projected))
+          body = JSON.generate(GithubRulesetParameters.preserve(projected, live))
+          call("api", "--method", "PUT", "#{path}/#{live.fetch("id")}", "--input", "-", stdin: body)
           :updated
         else
           call("api", "--method", "POST", path, "--input", "-", stdin: JSON.generate(projected))
@@ -64,7 +67,7 @@ module Hecks
         found = COMPARED.reject { |key| projected[key] == live[key] }.map do |key|
           "#{projected["name"]}: #{key} is #{live[key].inspect} on GitHub, #{projected[key].inspect} in the model"
         end
-        found + %i[compare_conditions compare_bypass compare_rules compare_checks].flat_map do |part|
+        found + %i[compare_conditions compare_bypass compare_rules compare_parameters compare_checks].flat_map do |part|
           send(part, projected, live)
         end
       end
@@ -90,6 +93,8 @@ module Hecks
         theirs = live.fetch("rules", []).map { |rule| rule["type"] }.sort
         mine == theirs ? [] : ["#{projected["name"]}: rules are #{theirs.inspect} on GitHub, #{mine.inspect} in the model"]
       end
+
+      def compare_parameters(projected, live) = GithubRulesetParameters.differences(projected, live)
 
       def compare_checks(projected, live)
         mine = required(projected)

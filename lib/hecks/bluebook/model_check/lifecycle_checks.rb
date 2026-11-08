@@ -1,9 +1,13 @@
+require_relative "reusable_checks"
+
 module Hecks
   module Bluebook
     module ModelCheck
       # The checks over a lifecycle read as a state machine: states nothing reaches, transitions
       # that can never fire, states nothing leaves, and transitions naming no command.
       module LifecycleChecks
+        include ReusableChecks
+
         # Runs every lifecycle-shaped check for one declaring construct — the aggregate
         # itself, or one of its entities — if it declares a lifecycle at all.
         def lifecycle_findings(aggregate, declaring)
@@ -21,10 +25,11 @@ module Hecks
           ]
         end
 
-        # The findings about where the lifecycle ends: states nothing leaves, and `:terminal` marks
-        # a transition contradicts.
+        # The findings about where the lifecycle ends: states nothing leaves, `:terminal` marks
+        # a transition contradicts, and `:reusable` marks on a missing or live state.
         def end_state_findings(lifecycle, reached, subject)
-          [*stuck_state_findings(lifecycle, reached, subject), *terminal_exit_findings(lifecycle, subject)]
+          [*stuck_state_findings(lifecycle, reached, subject), *terminal_exit_findings(lifecycle, subject),
+           *reusable_findings(lifecycle, subject)]
         end
 
         # @return [String] the aggregate's name, or `Aggregate::Entity` for one of its entities

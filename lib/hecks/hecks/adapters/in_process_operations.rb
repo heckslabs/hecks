@@ -93,13 +93,14 @@ module Hecks
 
       # Settles one stalled claimed outbox row as failed, without running its consumer.
       #
-      # @param held [Hash] the `Operation` record: `subject` (the domain) and `row` (a delivery id)
+      # @param held [Hash] the `Operation` record: `subject` (the domain to boot), `row` (a delivery
+      #   id, or its uuid) and `reason` (why, kept on the settled row)
       # @return [Hash{Symbol => Hash}] `output:` the row that was abandoned
       # @raise [Runtime::NotFound] if the domain cannot be found, or no claimed row has `row`
       def abandon(**held)
         outbox = boot(held[:subject]).outbox
-        rows = outbox.abandon_row!(plain(held[:row]))
-        output("abandoned #{rows.size} outbox row(s): #{rows.map(&:delivery_id).join(", ")}")
+        rows = outbox.abandon_row!(plain(held[:row]), reason: plain(held[:reason]))
+        output("abandoned #{rows.size} outbox row(s) as failed: #{rows.map(&:delivery_id).join(", ")}")
       end
 
       # Runs a `.behaviors` file, or every one under a directory.

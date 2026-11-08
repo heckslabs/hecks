@@ -7,6 +7,7 @@ require_relative "dispatching/plan"
 require_relative "dispatching/launcher"
 require_relative "dispatching/lesson_traps"
 require_relative "dispatching/settler"
+require_relative "dispatching/last_roll"
 
 module Hecks
   module Adapters
@@ -38,10 +39,9 @@ module Hecks
       #   says it would start or, when confirmed, that it started or why it went back to the plan;
       #   then the work items left waiting with the reason
       def choose(**held)
-        plan = plan_for(prefix(held))
-        chosen = plain(held[:confirm]) == true ? launch(plan, held) : plan.chosen.map { |item| chosen_line(item) }
-        lines = [header(plan)] + chosen + plan.skipped.map { |skip| skipped_line(skip) }
-        { report: { value: lines.join("\n") } }
+        confirmed = plain(held[:confirm]) == true
+        settle_ended(held) if confirmed
+        { report: { value: filling_lines(plan_for(prefix(held)), held, confirmed).join("\n") } }
       end
 
       # Says which planned work items would start now and why each other waits, without starting
@@ -51,6 +51,21 @@ module Hecks
       # @return [Hash{Symbol => String}] `text:` the report, one line per work item
       def preview(**held)
         { text: "#{report_lines(plan_for(prefix(held))).join("\n")}\n" }
+      end
+
+      # Fills the queue because capacity freed or work arrived, unless the owner paused rolling.
+      # A report that repeats the last one is refused, so a repeated skip is recorded once.
+      #
+      # @param _held [Hash] the `Roll` record
+      # @return [Hash{Symbol => Hash}] `report:` the filling's report
+      # @raise [ConsoleCapture::Failure] when rolling is paused or the report repeats the last one
+      def roll(**_held)
+        raise ConsoleCapture::Failure, "paused: dispatch_roll_forward is false" unless machine.roll_forward?
+
+        text = choose(repo: { value: Dir.pwd }, confirm: true).dig(:report, :value)
+        raise ConsoleCapture::Failure, "unchanged: #{header_of(text)}" if LastRoll.repeat?(text)
+
+        { report: { value: text } }
       end
 
       # Checks every started session and settles the work item of each that ended: done finishes it.
@@ -64,15 +79,25 @@ module Hecks
 
       private
 
+      # The load, each work item that starts or would, then each left waiting with its reason.
+      def filling_lines(plan, held, confirmed)
+        chosen = confirmed ? launch(plan, held) : plan.chosen.map { |item| chosen_line(item) }
+        [header(plan)] + chosen + plan.skipped.map { |skip| skipped_line(skip) }
+      end
+
+      # A confirmed filling finishes or yields the work items whose sessions ended before the plan
+      # counts started rows, so the cap holds only live work.
+      def settle_ended(held) = Settler.new(work_items, launcher_for(held)).call
+
       def work_items = @standins[:work_items] || WorkItems.new(@registry)
 
-      def machine = Settings.new(@registry, load: @standins[:load], cpus: @standins[:cpus])
+      def machine = Settings.new(@registry, load: @standins[:load], cpus: @standins[:cpus], cap: @standins[:cap])
 
       def launcher_for(held) = Launcher.new(plain(held[:repo]), runner: @standins[:runner])
 
       def plan_for(only = "")
         Plan.new(planned(only), work_items.started, cap: machine.cap, load: machine.load, max_load: machine.max_load,
-                                                    frozen: machine.frozen)
+                                                    frozen: machine.frozen, paused: machine.paused)
       end
 
       # The key prefix a filling is held to; empty when none is named.
@@ -86,9 +111,11 @@ module Hecks
       # The planned work items, held to those whose key starts with `only` when one is named.
       def planned(only) = work_items.planned.select { |item| only.empty? || item.key.to_s.start_with?(only) }
 
+      def header_of(report) = report.partition("\n").first
+
       def header(plan)
-        "#{load_line}; cap #{machine.cap}, #{work_items.started.size} started; frozen: #{frozen_line}; " \
-          "#{plan.chosen.size} to start"
+        "#{load_line}; started #{work_items.started.size} of cap #{machine.cap}; " \
+          "this fill would start #{plan.chosen.size}; frozen: #{frozen_line}"
       end
 
       def load_line = "load #{machine.load.round(1)} (limit #{machine.max_load.round(1)}, #{machine.cpus} cpus)"

@@ -147,6 +147,24 @@ Hecks.hecksagon "Hecks" do
   end
 
 
+  Hecks::BoardingHold.port "Holding" do
+    asks "Mark", to: BoardingHold do
+      attribute :run, RunKey
+      answers "HoldAnswered"
+      refuses "HoldRefused"
+    end
+
+    answers_query "Status"
+  end
+
+  Hecks::BoardingRelease.port "Releasing" do
+    asks "Clear", to: BoardingRelease do
+      attribute :run, RunKey
+      answers "ReleaseAnswered"
+      refuses "ReleaseRefused"
+    end
+  end
+
   Hecks::QaQuiesce.port "Quiescing" do
     asks "Mark", to: QaQuiesce do
       attribute :run, RunKey
@@ -402,6 +420,28 @@ Hecks.hecksagon "Hecks" do
     answers_query "Preview"
   end
 
+  # The outside a rolling fill reaches: the same queue, machine and freeze as a filling, and the owner's
+  # `dispatch_roll_forward` switch; a paused or repeated roll refuses.
+  Hecks::Roll.port "Rolling" do
+    asks "Roll", to: Roll do
+      attribute :run, RollKey
+      answers "RollReported"
+      refuses "RollRefused"
+    end
+  end
+
+  # The outside a reading of the machine reaches: the CPU idle percentage, swap used, the compressor's
+  # size, the load average and the test lane's queue, judged against the Tickets world's `machine_marks`.
+  # It answers each gauge's state and the state it stood in before; a reading within a minute of the last
+  # one is refused.
+  Hecks::Machine.port "Sampling" do
+    asks "Read", to: Machine do
+      attribute :run, MachineKey
+      answers "MachineSampled"
+      refuses "MachineUnreadable"
+    end
+  end
+
   # The outside an agent run reaches: it finds the directory and the agents, starts the background
   # session, and reports the state its job is in. The state is judged in the bluebook, not here.
   # The Sessions port removes a plain session with `claude rm`, once the bluebook has allowed it.
@@ -409,6 +449,20 @@ Hecks.hecksagon "Hecks" do
     asks "Discard", to: PlainSession do
       attribute :session, SessionId
       answers "PlainSessionRemoved"
+      refuses "PlainSessionRefused"
+    end
+
+    # Reads the run that holds the session and whether a pinned role names it; changes nothing.
+    asks "Examine", to: PlainSession do
+      attribute :session, SessionId
+      answers "SessionExamined"
+      refuses "PlainSessionRefused"
+    end
+
+    # `claude rm`, then `claude stop` only if rm alone left the session listed; answers SessionRetired.
+    asks "Withdraw", to: PlainSession do
+      attribute :session, SessionId
+      answers "SessionRetired"
       refuses "PlainSessionRefused"
     end
   end

@@ -791,7 +791,6 @@ Hecks.bluebook "Hecks" do
         reference_to Landing
         attribute :refusal, Report, sets: true
 
-
         emits LandingRefused
       end
 
@@ -895,7 +894,6 @@ Hecks.bluebook "Hecks" do
         attribute :branch, Word, sets: true
         attribute :report, Report, sets: true
 
-
         emits WorktreeRetired
       end
 
@@ -905,7 +903,6 @@ Hecks.bluebook "Hecks" do
 
         reference_to Landing
         attribute :refusal, Report, sets: true
-
 
         emits RetirementDeclined
       end
@@ -923,6 +920,120 @@ Hecks.bluebook "Hecks" do
         attribute :onto,     Word, optional: true
         returns Document
       end
+    end
+
+    # CI starts early: a landed coder branch is pushed as `ci/<branch>` with a draft pull request that is
+    # never merged, so CI runs while the next piece starts. The record holds the branch, the draft's number,
+    # and what CI said (passed or failed with the failing specs and the first error line). The push, the
+    # draft and the CI read are the ports' work (never main, never forced, never --no-verify); this
+    # aggregate only keeps their outcome and answers the coder that cut the branch.
+    aggregate "EarlyCi" do
+      description "One landed branch pushed as ci/<branch> with a draft pull request, and what CI said of it."
+
+      attribute :run,       RunKey
+      attribute :branch,    Word
+      attribute :early_ci,  Switch, default: { value: true }
+      attribute :agent_run, Word,   optional: true
+      attribute :work,      Word,   optional: true
+      attribute :number,    Word,   optional: true
+      attribute :outcome,   Verdict, optional: true
+      attribute :report,    Report, optional: true
+      attribute :refusal,   Report, optional: true
+      identified_by :run
+
+      value_object "RunKey" do
+        attribute :value, String, matches: :present
+      end
+
+      # A branch, a Work item key, an agent run key or a pull request number.
+      value_object "Word" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Switch", Boolean
+
+      value_object "Verdict" do
+        attribute :value, String, pattern: '\A(passed|failed)\z'
+      end
+
+      value_object "Report", String
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "declined"
+        transition "Open"    => "opened",   from: "requested"
+        transition "Observe" => "observed", from: "opened"
+        transition "Close"   => "closed",   from: %w[requested opened observed]
+        transition "Decline" => "declined", from: %w[requested opened]
+        mark :terminal, "closed", "declined"
+      end
+
+      command "Start" do
+        role "System"
+        goal "Record that a landed branch is to be pushed as ci/<branch> for an early CI run; off, nothing starts"
+
+        attribute :run,       RunKey, sets: true
+        attribute :branch,    Word, sets: true
+        attribute :early_ci,  Switch, default: { value: true }, sets: true
+        attribute :agent_run, Word, optional: true, sets: true
+        attribute :work,      Word, optional: true, sets: true
+
+        given("the world switch delivery early_ci is on") { early_ci.value == true }
+        given("a branch other than main is pushed") { branch.value != "main" }
+
+        emits EarlyCiStarted
+      end
+
+      command "Open" do
+        role "System"
+        goal "Record the draft pull request opened from ci/<branch>; it is never merged"
+
+        reference_to EarlyCi
+        attribute :number, Word, sets: true
+
+        emits EarlyCiOpened
+      end
+
+      command "Observe" do
+        role "System"
+        goal "Record what CI said of ci/<branch>: passed, or failed with the failing specs and the first error line"
+
+        reference_to EarlyCi
+        attribute :outcome, Verdict, sets: true
+        attribute :report,  Report, sets: true
+
+        emits EarlyCiObserved
+      end
+
+      command "Close" do
+        role "System"
+        goal "Record that the push train carried the commits, so the draft is closed and ci/<branch> deleted"
+
+        reference_to EarlyCi
+
+        emits EarlyCiClosed
+      end
+
+      command "Decline" do
+        role "System"
+        goal "Record why the early CI push or draft could not be made"
+
+        reference_to EarlyCi
+        attribute :refusal, Report, sets: true
+
+        emits EarlyCiDeclined
+      end
+    end
+
+    policy "StartEarlyCiWhenBranchLanded" do
+      on      "Landing.BranchLanded"
+      trigger EarlyCi::Start, with: { run: :run, branch: :branch }
+    end
+
+    # The failing specs go back to the coder run that cut the branch, resuming it under the same session.
+    policy "TellTheCoderWhenCiFailed" do
+      on      "EarlyCi.EarlyCiObserved"
+      where   { outcome.value == "failed" }
+      trigger AgentRun::Answer, with: { run: :agent_run, answer: :report }
     end
 
     policy "MergeWhenLanding" do
@@ -1161,7 +1272,6 @@ Hecks.bluebook "Hecks" do
         attribute :remote,   Word, default: "origin", sets: true
         attribute :checkout, Word, optional: true, sets: true
 
-
         emits SurveyRequested
       end
 
@@ -1171,7 +1281,6 @@ Hecks.bluebook "Hecks" do
 
         reference_to SendTrain
         attribute :report, Report, sets: true
-
 
         emits CheckoutsSurveyed
       end
@@ -1189,7 +1298,6 @@ Hecks.bluebook "Hecks" do
         attribute :commits,  Count, optional: true, sets: true
         attribute :report,   Report, sets: true
 
-
         emits BranchPushed
       end
 
@@ -1202,7 +1310,6 @@ Hecks.bluebook "Hecks" do
         attribute :checkout, Word, sets: true
         attribute :boarded,  Word, sets: true
         attribute :report,   Report, sets: true
-
 
         emits CarriedByEarlierPush
       end
@@ -1217,7 +1324,6 @@ Hecks.bluebook "Hecks" do
         attribute :boarded,  Word, sets: true
         attribute :commits,  Count, optional: true, sets: true
         attribute :report,   Report, sets: true
-
 
         emits BoardingQueued
       end
@@ -1234,7 +1340,6 @@ Hecks.bluebook "Hecks" do
         attribute :pushed,   Word, sets: true
         attribute :commits,  Count, optional: true, sets: true
         attribute :report,   Report, sets: true
-
 
         emits BranchPushed
       end
@@ -1255,7 +1360,6 @@ Hecks.bluebook "Hecks" do
 
         reference_to SendTrain
         attribute :refusal, Report, sets: true
-
 
         emits PushFaulted
       end
@@ -1991,6 +2095,201 @@ Hecks.bluebook "Hecks" do
     policy "RecordTheRefusedEdit" do
       on      "ReviewRequest.AmendRefused"
       trigger ReviewRequest::Refuse, with: { refusal: :refusal }
+    end
+
+    # The failure it prevents: a deep rehearsal takes minutes, another session lands on local main in
+    # between, and `SendTrain.board!` refuses with "main moved since boarding: board again", so the
+    # rehearsal repeats. A hold is named for the commit rehearsed. While it stands a landing onto main
+    # is refused by name, except the fix of a red-* Work item. The rehearsal takes it; a boarding, a
+    # refused boarding or a red rehearsal lifts it; and one nobody lifted expires at the
+    # `boarding_hold` window of the world (20 minutes), so main is never held for longer than that.
+    # The marker file is the `Holding` and `Releasing` ports' adapter; nothing here reads a clock or a
+    # file. A release is its own aggregate, keyed by the run that caused it, so lifting a hold never
+    # collides with the record of the hold itself.
+    aggregate "BoardingHold" do
+      description "One hold of local main for a boarding: held, or refused."
+      created_by "BoardingHold.hold!"
+
+      attribute :run,      RunKey
+      attribute :checkout, Word,   optional: true
+      attribute :owner,    Word,   optional: true
+      attribute :reason,   Word,   optional: true
+      attribute :output,   Report, optional: true
+      attribute :refusal,  Report, optional: true
+      identified_by :run
+
+      value_object "RunKey" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Word" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Report", String
+
+      value_object "Document" do
+        attribute :text, String
+      end
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "refused"
+        transition "Settle"  => "settled", from: "requested"
+        transition "Decline" => "refused", from: "requested"
+        mark :terminal, "settled", "refused"
+      end
+
+      command "Hold" do
+        role "Operator"
+        goal "Hold local main for the boarding of the commit it names now: landings onto main are refused until a release or the window ends"
+
+        attribute :run,      RunKey, sets: true
+        attribute :checkout, Word, optional: true, sets: true
+        attribute :owner,    Word, optional: true, sets: true
+        attribute :reason,   Word, optional: true, sets: true
+
+        emits BoardingHoldRequested
+      end
+
+      command "Settle" do
+        role "System"
+        goal "Record what the hold did"
+
+        reference_to BoardingHold
+        attribute :output, Report, sets: true
+
+        emits BoardingHoldSettled
+      end
+
+      command "Decline" do
+        role "System"
+        goal "Record why a hold was refused"
+
+        reference_to BoardingHold
+        attribute :refusal, Report, sets: true
+
+        emits BoardingHoldDeclined
+      end
+
+      query "Status" do
+        description "Whether local main is held for a boarding: the commit, owner, reason and age, or that the hold expired or is absent."
+        attribute :checkout, Word, optional: true
+        returns Document
+      end
+    end
+
+    aggregate "BoardingRelease" do
+      description "One lifting of the hold on local main: released, or refused."
+      created_by "BoardingRelease.release!"
+
+      attribute :run,      RunKey
+      attribute :checkout, Word,   optional: true
+      attribute :output,   Report, optional: true
+      attribute :refusal,  Report, optional: true
+      identified_by :run
+
+      value_object "RunKey" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Word" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Report", String
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "refused"
+        transition "Settle"  => "released", from: "requested"
+        transition "Decline" => "refused",  from: "requested"
+        mark :terminal, "released", "refused"
+      end
+
+      command "Release" do
+        role "Operator"
+        goal "Lift the hold on local main, whoever took it; a lift with nothing held is a no-op"
+
+        attribute :run,      RunKey, sets: true
+        attribute :checkout, Word, optional: true, sets: true
+
+        emits BoardingReleaseRequested
+      end
+
+      command "Settle" do
+        role "System"
+        goal "Record what the release did"
+
+        reference_to BoardingRelease
+        attribute :output, Report, sets: true
+
+        emits BoardingReleaseSettled
+      end
+
+      command "Decline" do
+        role "System"
+        goal "Record why a release was refused"
+
+        reference_to BoardingRelease
+        attribute :refusal, Report, sets: true
+
+        emits BoardingReleaseDeclined
+      end
+    end
+
+    policy "HoldWhenRehearsingDeep" do
+      on      "PushRehearsal.PushRehearsalRequested"
+      where   { scope.value == "deep" }
+      trigger BoardingHold::Hold, with: { run: :run, reason: { value: "deep rehearsal, then the train" } }
+    end
+
+    policy "ReleaseWhenRehearsalRed" do
+      on      "PushRehearsal.PushRehearsalFailed"
+      trigger BoardingRelease::Release, with: { run: :run }
+    end
+
+    policy "ReleaseWhenRehearsalRefused" do
+      on      "PushRehearsal.PushRehearsalDeclined"
+      trigger BoardingRelease::Release, with: { run: :run }
+    end
+
+    policy "ReleaseWhenBoarded" do
+      on      "SendTrain.TrainAnswered"
+      trigger BoardingRelease::Release, with: { run: :run, checkout: :checkout }
+    end
+
+    policy "ReleaseWhenBoardingRefused" do
+      on      "SendTrain.TrainRefused"
+      trigger BoardingRelease::Release, with: { run: :run }
+    end
+
+    policy "MarkTheHoldWhenRequested" do
+      on      "BoardingHold.BoardingHoldRequested"
+      ask     :mark, with: { run: :run }
+    end
+
+    policy "ClearTheHoldWhenRequested" do
+      on      "BoardingRelease.BoardingReleaseRequested"
+      ask     :clear, with: { run: :run }
+    end
+
+    policy "RecordTheHold" do
+      on      "BoardingHold.HoldAnswered"
+      trigger BoardingHold::Settle, with: { output: :output }
+    end
+
+    policy "RecordTheRefusedHold" do
+      on      "BoardingHold.HoldRefused"
+      trigger BoardingHold::Decline, with: { refusal: :refusal }
+    end
+
+    policy "RecordTheRelease" do
+      on      "BoardingRelease.ReleaseAnswered"
+      trigger BoardingRelease::Settle, with: { output: :output }
+    end
+
+    policy "RecordTheRefusedRelease" do
+      on      "BoardingRelease.ReleaseRefused"
+      trigger BoardingRelease::Decline, with: { refusal: :refusal }
     end
   end
 end

@@ -28,6 +28,7 @@ module Hecks
 
         def persist_and_check(ctx)
           seed_projected_fields(ctx)
+          archive_occupant(ctx)
           ctx.persistence_outcome = persist_instance(ctx)
           raise_for_persistence_outcome!(ctx)
         end

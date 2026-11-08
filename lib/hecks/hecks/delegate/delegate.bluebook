@@ -26,6 +26,7 @@ Hecks.bluebook "Hecks" do
       attribute :answered_at, Moment,  optional: true
       attribute :detail,    Report,    optional: true
       attribute :work,      WorkSlug,  optional: true
+      attribute :trial,     Trial,     optional: true
       identified_by :run
 
       value_object "RunKey" do
@@ -39,6 +40,10 @@ Hecks.bluebook "Hecks" do
 
       # The run of the judge whose verdict an answer carries, so the outcome names the verdict it delivers.
       value_object "VerdictKey", String
+
+      # Whether the run is a test run, one whose key starts `live-` or `resume-`. It is set when the
+      # run retires itself, so a trial run is told from a real one in the ledger.
+      value_object "Trial", Boolean
 
       # The directory the session works in.
       value_object "Path" do
@@ -77,6 +82,7 @@ Hecks.bluebook "Hecks" do
         transition "Fail"    => "finished", from: "started"
         transition "Tidied"  => "tidied",   from: "finished"
         transition "Retired" => "retired",  from: "started"
+        transition "RetireTrial" => "retired", from: "started"
         mark :terminal, "tidied", "refused", "retired"
       end
 
@@ -276,6 +282,19 @@ Hecks.bluebook "Hecks" do
         emits AgentRunRetired
       end
 
+      # A trial run has no person to answer it and no work to finish, so it is closed once its
+      # session is seen working or blocked, whether or not the session is still listed.
+      command "RetireTrial" do
+        role "System"
+        goal "Close a trial run whose session is working or blocked, and flag the run as a trial"
+
+        reference_to AgentRun
+        attribute :trial,  Trial, default: true, sets: true
+        attribute :detail, Report, sets: true
+
+        emits AgentTrialRunRetired
+      end
+
       command "Unretired" do
         role "System"
         goal "Record why a run was not retired: its session is still listed, or could not be looked for"
@@ -446,6 +465,344 @@ Hecks.bluebook "Hecks" do
       trigger Dispatch::Decline, with: { refusal: :refusal }
     end
 
+    # Planned Work items start by themselves: a reaction to an event that frees capacity or adds work
+    # runs one filling (`Dispatch.Fill`'s choice, confirmed), so nobody calls Fill. The choice, its
+    # guards and its priority order are the `Dispatching` port's; the owner's switch is the Tickets
+    # world's `dispatch_roll_forward`, and a paused or unchanged roll is recorded as a refusal.
+    aggregate "Roll" do
+      description "One rolling fill of the Work queue, started by an event rather than a person."
+
+      attribute :run,     RollKey
+      attribute :report,  RollOutcome, optional: true
+      attribute :refusal, RollOutcome, optional: true
+      identified_by :run
+
+      value_object "RollKey" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "RollOutcome", String
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "refused"
+        transition "Record"  => "answered", from: "requested"
+        transition "Decline" => "refused",  from: "requested"
+        mark :terminal, "answered", "refused"
+      end
+
+      command "Start" do
+        role "System"
+        goal "Fill the queue now because capacity freed or work arrived"
+
+        attribute :run, RollKey, sets: true
+
+        emits RollRequested
+      end
+
+      command "Record" do
+        role "System"
+        goal "Record what the rolling fill started"
+
+        reference_to Roll
+        attribute :report, RollOutcome, sets: true
+
+        emits RollAnswered
+      end
+
+      command "Decline" do
+        role "System"
+        goal "Record why the rolling fill started nothing"
+
+        reference_to Roll
+        attribute :refusal, RollOutcome, sets: true
+
+        emits RollDeclined
+      end
+    end
+
+    # The slow backstop: a clock adapter on the `clock` port beats, and a beat rolls the queue forward.
+    aggregate "Heartbeat" do
+      description "One beat of the clock, which the bluebook reads as an event and never as a time."
+
+      attribute :beat, BeatKey
+      identified_by :beat
+
+      value_object "BeatKey" do
+        attribute :value, String, matches: :present
+      end
+
+      command "Beat" do
+        role "System"
+        goal "Record that the clock beat"
+
+        attribute :beat, BeatKey, sets: true
+
+        emits Beaten
+      end
+    end
+
+    # The machine's load, heard instead of asked. Each beat of the clock takes one reading through the
+    # `Sampling` port: the CPU idle percentage, swap used as a percentage of swap total, the compressor's
+    # size in gigabytes and the load average (a third reading, which counts processes waiting on swap and
+    # disk and so overstates CPU use), and the test lane's waiting count once that lane exists. The adapter
+    # judges each against the marks in the Tickets world's `machine_marks` line and answers the state each
+    # leaves and the state it stood in before. The policies below say what a crossing is: a state that
+    # differs from the one before, so a reading inside the gap says nothing and a crossing is heard once.
+    # The bluebook reads neither the clock nor the machine.
+    aggregate "Machine" do
+      description "One reading of the machine, and the crossings of a mark that it heard."
+
+      attribute :run,           MachineKey
+      attribute :cpu_idle,      Gauge, optional: true
+      attribute :swap_used,     Gauge, optional: true
+      attribute :compressor_gb, Gauge, optional: true
+      attribute :load,          Gauge, optional: true
+      attribute :lane_waiting,  Gauge, optional: true
+      attribute :load_state,    Standing, optional: true
+      attribute :memory_state,  Standing, optional: true
+      attribute :lane_state,    Standing, optional: true
+      attribute :refusal,       MachineNote, optional: true
+      identified_by :run
+
+      value_object "MachineKey" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Gauge", Float
+
+      # Where the last crossing left the machine: below or above, ok or low, idle or busy.
+      value_object "Standing", String
+
+      value_object "MachineNote", String
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "unread"
+        transition "Record"  => "read",   from: "requested"
+        transition "Decline" => "unread", from: "requested"
+        mark :terminal, "read", "unread"
+      end
+
+      command "Sample" do
+        role "System"
+        goal "Take one reading of the machine, at most once a minute"
+
+        attribute :run, MachineKey, sets: true
+
+        emits MachineSampleRequested
+      end
+
+      command "Record" do
+        role "System"
+        goal "Record the readings and the states they leave"
+
+        reference_to Machine
+        attribute :cpu_idle,      Gauge, optional: true, sets: true
+        attribute :swap_used,     Gauge, optional: true, sets: true
+        attribute :compressor_gb, Gauge, optional: true, sets: true
+        attribute :load,          Gauge, optional: true, sets: true
+        attribute :lane_waiting,  Gauge, optional: true, sets: true
+        attribute :load_state,    Standing, sets: true
+        attribute :memory_state,  Standing, sets: true
+        attribute :lane_state,    Standing, sets: true
+
+        emits MachineRead
+      end
+
+      command "Decline" do
+        role "System"
+        goal "Record why the machine was not read"
+
+        reference_to Machine
+        attribute :refusal, MachineNote, sets: true
+
+        emits MachineUnread
+      end
+
+      command "FallBelow" do
+        role "System"
+        goal "Hear the load fall under its low mark"
+
+        reference_to Machine
+
+        emits LoadFellBelow
+      end
+
+      command "RiseAbove" do
+        role "System"
+        goal "Hear the load rise over its high mark"
+
+        reference_to Machine
+
+        emits LoadRoseAbove
+      end
+
+      command "RunLow" do
+        role "System"
+        goal "Hear memory run low: swap used or the compressor passed its mark"
+
+        reference_to Machine
+
+        emits MemoryLow
+      end
+
+      command "Recover" do
+        role "System"
+        goal "Hear memory recover: swap used fell under its recovery mark"
+
+        reference_to Machine
+
+        emits MemoryRecovered
+      end
+
+      command "GoBusy" do
+        role "System"
+        goal "Hear the test lane's queue pass its busy mark"
+
+        reference_to Machine
+
+        emits TestLaneBusy
+      end
+
+      command "GoIdle" do
+        role "System"
+        goal "Hear the test lane's queue fall to its idle mark"
+
+        reference_to Machine
+
+        emits TestLaneIdle
+      end
+    end
+
+    policy "SampleOnHeartbeat" do
+      on      "Heartbeat.Beaten"
+      root
+      trigger Machine::Sample, with: { run: :beat }
+    end
+
+    # The clock's beat is the timer that drives a sweep: every started run's session is checked once
+    # per beat, so a session that ended or blocked is recorded without anyone asking. The beat's own key
+    # keys the sweep, so one beat sweeps once. A root, so the sweep starts its own chain.
+    policy "SweepOnHeartbeat" do
+      on      "Heartbeat.Beaten"
+      root
+      trigger SessionSweep::CheckAll, with: { run: :beat }
+    end
+
+    policy "ReadTheMachine" do
+      on      "Machine.MachineSampleRequested"
+      ask     :read, with: { run: :run }
+    end
+
+    policy "RecordTheMachine" do
+      on      "Machine.MachineSampled"
+      trigger Machine::Record, with: { cpu_idle: :cpu_idle, swap_used: :swap_used, compressor_gb: :compressor_gb,
+                                       load: :load, lane_waiting: :lane_waiting, load_state: :load_state,
+                                       memory_state: :memory_state, lane_state: :lane_state }
+    end
+
+    policy "RecordTheUnreadMachine" do
+      on      "Machine.MachineUnreadable"
+      trigger Machine::Decline, with: { refusal: :refusal }
+    end
+
+    policy "HearTheLoadFall" do
+      on      "Machine.MachineSampled"
+      root
+      where   { load_state == "below" && load_before == "above" }
+      trigger Machine::FallBelow, with: { machine: :id }
+    end
+
+    policy "HearTheLoadRise" do
+      on      "Machine.MachineSampled"
+      root
+      where   { load_state == "above" && load_before != "above" }
+      trigger Machine::RiseAbove, with: { machine: :id }
+    end
+
+    policy "HearMemoryRunLow" do
+      on      "Machine.MachineSampled"
+      root
+      where   { memory_state == "low" && memory_before != "low" }
+      trigger Machine::RunLow, with: { machine: :id }
+    end
+
+    policy "HearMemoryRecover" do
+      on      "Machine.MachineSampled"
+      root
+      where   { memory_state == "ok" && memory_before == "low" }
+      trigger Machine::Recover, with: { machine: :id }
+    end
+
+    policy "HearTheLaneBusy" do
+      on      "Machine.MachineSampled"
+      root
+      where   { lane_state == "busy" && lane_before != "busy" }
+      trigger Machine::GoBusy, with: { machine: :id }
+    end
+
+    policy "HearTheLaneIdle" do
+      on      "Machine.MachineSampled"
+      root
+      where   { lane_state == "idle" && lane_before == "busy" }
+      trigger Machine::GoIdle, with: { machine: :id }
+    end
+
+    # The fill that follows a reading. It runs after the reading is recorded, so it sees the state the
+    # reading left: a fill that follows LoadFellBelow, MemoryRecovered or TestLaneIdle starts work, and
+    # one that follows LoadRoseAbove or MemoryLow finds every item waiting "paused by load" or "memory
+    # low". The reading's own key keys the roll, so one reading rolls once. It is also the slow backstop:
+    # a beat is a reading, and a reading is a roll.
+    policy "RollWhenTheMachineIsRead" do
+      on      "Machine.MachineRead"
+      root
+      trigger Roll::Start, with: { run: :id }
+    end
+
+    policy "RollWhenRequested" do
+      on      "Roll.RollRequested"
+      ask     :roll, with: { run: :run }
+    end
+
+    policy "RecordTheRoll" do
+      on      "Roll.RollReported"
+      trigger Roll::Record, with: { report: :report }
+    end
+
+    policy "RecordTheDeclinedRoll" do
+      on      "Roll.RollRefused"
+      trigger Roll::Decline, with: { refusal: :refusal }
+    end
+
+    policy "RollWhenARunEnds" do
+      on      "AgentRun.SessionFinished"
+      trigger Roll::Start, with: { run: :run }
+    end
+
+    policy "RollWhenARunFails" do
+      on      "AgentRun.SessionFailed"
+      trigger Roll::Start, with: { run: :run }
+    end
+
+    policy "RollWhenARunIsRetired" do
+      on      "AgentRun.AgentRunRetired"
+      trigger Roll::Start, with: { run: :run }
+    end
+
+    policy "RollWhenWorkIsPlanned" do
+      on      "Work.WorkPlanned"
+      trigger Roll::Start, with: { run: :work }
+    end
+
+    policy "RollWhenWorkIsReopened" do
+      on      "Work.WorkReopened"
+      trigger Roll::Start, with: { run: :work }
+    end
+
+    policy "RollWhenABranchLands" do
+      on      "Landing.BranchLanded"
+      trigger Roll::Start, with: { run: :run }
+    end
+
     # The directory is looked for first, so a brief is never handed to a session that has nowhere to work.
     policy "LocateTheRepo" do
       on      "AgentRun.AgentRunRequested"
@@ -495,6 +852,15 @@ Hecks.bluebook "Hecks" do
     policy "ReadTheJob" do
       on      "AgentRun.AgentCheckRequested"
       ask     :read_job, with: { run: :run }
+    end
+
+    # A sweep also rolls the queue: a confirmed filling settles the started Work items whose sessions
+    # ended before it counts the cap, so a sweep frees the capacity its checks found. A root, so the
+    # settling's own finishes and yields start their own chains and never nest past the reaction cap.
+    policy "RollWhenSwept" do
+      on      "SessionSweep.SweepRequested"
+      root
+      trigger Roll::Start
     end
 
     # Each check is addressed by the Work item's key alone: the sweep's own `run` is not passed on.
@@ -593,6 +959,15 @@ Hecks.bluebook "Hecks" do
       trigger AgentRun::Unretired, with: { refusal: :refusal }
     end
 
+    # A run keyed `live-*` or `resume-*` is a test run: left alone it stays blocked or working for
+    # ever, so the first reading that finds it working or blocked retires it.
+    policy "RetireTheTrialRun" do
+      on      "AgentRun.JobRead"
+      root
+      where   { (run.start_with?("live-") || run.start_with?("resume-")) && (state == "working" || state == "blocked") }
+      trigger AgentRun::RetireTrial, with: { detail: :detail }
+    end
+
     policy "RecordTheRemoval" do
       on      "AgentRun.SessionRemoved"
       trigger AgentRun::Tidied, with: { tidied_at: :removed_at }
@@ -687,6 +1062,54 @@ Hecks.bluebook "Hecks" do
       policy "RemoveWhenAsked" do
         on      "PlainSession.RemoveRequested"
         ask     :discard, with: { session: :session }
+      end
+
+      # Retires a session that no run holds, or whose run has ended. The port reads the facts first
+      # (the run that holds it, whether that run is started, whether a pinned role names it, whether
+      # it is working); the policies below judge them and either ask the port to retire or refuse by name.
+      command "Retire" do
+        role "Operator"
+        goal "Retire a session bound to no run, so the fleet does not settle and re-claim it"
+
+        attribute :session, SessionId
+        attribute :reason, SessionReason, optional: true
+
+        emits "SessionRetireRequested"
+      end
+
+      value_object "SessionReason", String
+
+      command "RefuseRetirement" do
+        role "System"
+        goal "Record why a session was not retired"
+
+        attribute :session, SessionId
+        attribute :refusal, SessionReason
+
+        emits "SessionRetirementRefused"
+      end
+
+      policy "ExamineBeforeRetiring" do
+        on      "PlainSession.SessionRetireRequested"
+        ask     :examine, with: { session: :session }
+      end
+
+      policy "RefuseTheSessionOfAPinnedRole" do
+        on      "PlainSession.SessionExamined"
+        where   { pinned == true }
+        trigger PlainSession::RefuseRetirement, with: { session: :session, refusal: :note }
+      end
+
+      policy "RefuseTheSessionWorkingOnARun" do
+        on      "PlainSession.SessionExamined"
+        where   { bound == true && pinned != true && working == true }
+        trigger PlainSession::RefuseRetirement, with: { session: :session, refusal: :note }
+      end
+
+      policy "RetireTheFreeSession" do
+        on      "PlainSession.SessionExamined"
+        where   { pinned != true && (bound != true || working != true) }
+        ask     :withdraw, with: { session: :session }
       end
     end
 
