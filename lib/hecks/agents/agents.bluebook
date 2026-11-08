@@ -76,6 +76,15 @@ Hecks.bluebook "Agents" do
              rule: "Do no work in your own session: no spec runs, no CI-log reading, no git or gh reads, no file reads of code. Every such step is a run dispatched through Hecks: the coder for a change, the reviewer for verifying a claim or judging a failure, the planner for design, the architect for a bluebook or an ADR. A claim is verified by a reviewer run, never by you."
     end
 
+    # The roles whose session is never removed, one row each: the orchestrator holds the pipeline's
+    # state in its session. The pruner reads these rows, so no file or role list holds a copy.
+    value_object "PinnedRole" do
+      attribute :role,   String
+      attribute :reason, String
+
+      member role: "orchestrator", reason: "its session holds the pipeline's state and coordinates every run"
+    end
+
     value_object "GuardedCommand", String
 
     value_object "Document" do
