@@ -84,7 +84,7 @@ Hecks.bluebook "Hecks" do
       attribute :volume,       Word,  optional: true
       attribute :free_gb,      Count, optional: true
       attribute :used_percent, Count, optional: true
-      attribute :level,        Word,  optional: true
+      attribute :state,        Word,  optional: true
       identified_by :run
 
       value_object "RunKey" do
@@ -135,7 +135,7 @@ Hecks.bluebook "Hecks" do
         attribute :volume,       Word, optional: true, sets: true
         attribute :free_gb,      Count, sets: true
         attribute :used_percent, Count, sets: true
-        attribute :level,        Word, sets: true
+        attribute :state,        Word, sets: true
 
         emits LevelJudged
       end
@@ -147,7 +147,7 @@ Hecks.bluebook "Hecks" do
       created_by "Relief.plan!"
 
       attribute :run,       RunKey
-      attribute :level,     Word,   optional: true
+      attribute :state,     Word,   optional: true
       attribute :confirm,   Switch, optional: true
       attribute :refusal,   Report, optional: true
       attribute :output,    Report, optional: true
@@ -192,7 +192,7 @@ Hecks.bluebook "Hecks" do
         goal "Say what would free space and by which command, changing nothing"
 
         attribute :run,    RunKey, sets: true
-        attribute :level,  Word, optional: true, sets: true
+        attribute :state,  Word, optional: true, sets: true
         attribute :output, Report, optional: true, sets: true
 
         emits ReliefPlanned
@@ -203,10 +203,10 @@ Hecks.bluebook "Hecks" do
         goal "Run the automatic relief rows, merged worktrees and done runs, at the high level only"
 
         attribute :run,     RunKey, sets: true
-        attribute :level,   Word, sets: true
+        attribute :state,   Word, sets: true
         attribute :confirm, Switch, optional: true, sets: true
 
-        given("relief runs only at the high level") { level.value == "high" }
+        given("relief runs only at the high level") { state.value == "high" }
         given("relief runs only with --confirm; without it this only reports") { confirm.value == true }
 
         emits ReliefRequested
