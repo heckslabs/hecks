@@ -3,9 +3,10 @@ require "fileutils"
 require "json"
 require "tmpdir"
 
-# A judge's verdict reaches the coder waiting on its Work item with no PlanReview row at all: judged,
-# it answers the coder's run in place, and the outcome is a delivered or an undeliverable verdict. A
-# stand-in `claude` records each `--resume`, so no real session is resumed. Scratch state only.
+# A judge's verdict reaches the coder waiting on its Work item with no PlanReview row at all:
+# judged, it answers the coder's run in place, and the outcome is a delivered or an undeliverable
+# verdict. A stand-in `claude` records each `--resume`, so no real session is resumed. Scratch
+# state only.
 RSpec.describe "the Agents verdict reaching the waiting coder" do
   VERDICT_STAND_IN = <<~SH.freeze
     #!/bin/sh
