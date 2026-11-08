@@ -218,6 +218,20 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  Hecks::ShallowCheck.port "ShallowChecks" do
+    asks "ShallowCheck", to: ShallowCheck do
+      attribute :run, RunKey
+      answers "ShallowCheckAnswered"
+      refuses "ShallowCheckRefused"
+    end
+
+    asks "ShallowSwitch", to: ShallowCheck do
+      attribute :run, RunKey
+      answers "ShallowSwitchAnswered"
+      refuses "ShallowSwitchRefused"
+    end
+  end
+
   Hecks::LinkedTree.port "WorktreeAdding" do
     asks "Create", to: LinkedTree do
       attribute :run, RunKey

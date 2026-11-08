@@ -216,6 +216,87 @@ Hecks.bluebook "Hecks" do
       end
     end
 
+    # CI's failing checks, run at landing in a fresh `--depth 1` clone of the branch tip, so a red that only a
+    # shallow history, a load order or a missing git identity shows is caught before it reaches main. `Landing.finish!`
+    # asks the same port after the quick gate; `ShallowCheck.run!` is the rehearsal. A branch that changes nothing
+    # the checks read (docs only) is skipped without a clone. It is on from the first landing; `ShallowCheck.switch!`
+    # with `state.value=off` turns it off for the repository and `state.value=on` back on.
+    aggregate "ShallowCheck" do
+      description "CI's failing checks run in a depth-1 clone of a branch: passed or skipped, or refused with the spec and its first failure line."
+
+      attribute :run,      RunKey
+      attribute :checkout, Word,   optional: true
+      attribute :branch,   Word,   optional: true
+      attribute :onto,     Word,   optional: true
+      attribute :state,    Word,   optional: true
+      attribute :report,   Report, optional: true
+      attribute :refusal,  Report, optional: true
+      identified_by :run
+
+      value_object "RunKey" do
+        attribute :value, String, matches: :present
+      end
+
+      # A branch, a directory, or `on` or `off`.
+      value_object "Word" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Report", String
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "refused"
+        transition "Pass"   => "passed",  from: "requested"
+        transition "Refuse" => "refused", from: "requested"
+        mark :terminal, "passed", "refused"
+      end
+
+      command "Run" do
+        role "Operator"
+        goal "Run CI's failing checks in a depth-1 clone of a branch when it changes something they read, refusing with the spec and its first failure line"
+
+        attribute :run,      RunKey, sets: true
+        attribute :checkout, Word, optional: true, sets: true
+        attribute :branch,   Word, optional: true, sets: true
+        attribute :onto,     Word, default: "main", sets: true
+
+        emits ShallowCheckRequested
+      end
+
+      command "Switch" do
+        role "Operator"
+        goal "Turn the shallow check on or off for the whole repository"
+
+        attribute :run,      RunKey, sets: true
+        attribute :checkout, Word, optional: true, sets: true
+        attribute :state,    Word, sets: true
+
+        given("the switch is on or off") { state.value == "on" || state.value == "off" }
+
+        emits ShallowSwitchRequested
+      end
+
+      command "Pass" do
+        role "System"
+        goal "Record that the checks passed, or why none ran"
+
+        reference_to ShallowCheck
+        attribute :report, Report, sets: true
+
+        emits ShallowCheckPassed
+      end
+
+      command "Refuse" do
+        role "System"
+        goal "Record which spec was red in the clone and its first failure line"
+
+        reference_to ShallowCheck
+        attribute :refusal, Report, sets: true
+
+        emits ShallowCheckDeclined
+      end
+    end
+
     # A linked worktree opened on a new branch from main: asked of the git port, then recorded or declined. The
     # path is the one the caller names, or a directory under the checkout's `.claude/worktrees`. `Landing` and
     # `Landing.retire!` take it from there, so a session that cannot run `git worktree add` itself can still open one.
@@ -963,6 +1044,36 @@ Hecks.bluebook "Hecks" do
     policy "DeclineTheRestoration" do
       on      "Restoration.RestoreRefused"
       trigger Restoration::Decline, with: { refusal: :refusal }
+    end
+
+    policy "CheckShallowWhenRequested" do
+      on      "ShallowCheck.ShallowCheckRequested"
+      ask     :shallow_check, with: { run: :run }
+    end
+
+    policy "SwitchShallowWhenRequested" do
+      on      "ShallowCheck.ShallowSwitchRequested"
+      ask     :shallow_switch, with: { run: :run }
+    end
+
+    policy "RecordTheShallowPass" do
+      on      "ShallowCheck.ShallowCheckAnswered"
+      trigger ShallowCheck::Pass, with: { report: :report }
+    end
+
+    policy "RecordTheShallowSwitch" do
+      on      "ShallowCheck.ShallowSwitchAnswered"
+      trigger ShallowCheck::Pass, with: { report: :report }
+    end
+
+    policy "RecordTheShallowRefusal" do
+      on      "ShallowCheck.ShallowCheckRefused"
+      trigger ShallowCheck::Refuse, with: { refusal: :refusal }
+    end
+
+    policy "RecordTheRefusedShallowSwitch" do
+      on      "ShallowCheck.ShallowSwitchRefused"
+      trigger ShallowCheck::Refuse, with: { refusal: :refusal }
     end
 
     # The copy of Hecks that runs the train follows what it pushed, so the next boarding and the

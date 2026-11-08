@@ -3,6 +3,7 @@
 require_relative "../git_worktrees"
 require_relative "../git_main_pull"
 require_relative "../shell"
+require_relative "../git_shallow_check"
 
 module Hecks
   module Adapters
@@ -27,13 +28,16 @@ module Hecks
         # @param checkout [String] the worktree the branch is checked out in
         # @param branch [String] the branch to finish
         # @param onto [String] the branch to rebase onto
-        # @param gate [#call] answers the {Shell::Result} of the quick gate run in a directory
-        def initialize(git, checkout, branch:, onto:, gate: nil)
+        # @param steps [Hash] `gate:` (answers the {Shell::Result} of the quick gate run in a
+        #   directory) and `shallow:` (given the checkout, branch and onto, raises when one of CI's
+        #   failing checks is red in a depth-1 clone)
+        def initialize(git, checkout, branch:, onto:, **steps)
           @git = git
           @checkout = checkout
           @branch = ref(branch)
           @onto = ref(onto)
-          @gate = gate || ->(dir) { Shell.new.capture(*GATE, chdir: dir) }
+          @gate = steps[:gate] || ->(dir) { Shell.new.capture(*GATE, chdir: dir) }
+          @shallow = steps[:shallow] || method(:shallow_check)
         end
 
         # Refuses unsaved work, pulls `main` when it is the target, rebases and runs the gate.
@@ -46,9 +50,14 @@ module Hecks
           pull_main if @onto == "main"
           rebase
           run_gate
+          @shallow.call(@checkout, @branch, @onto)
         end
 
         private
+
+        def shallow_check(checkout, branch, onto)
+          GitShallowCheck.new.shallow_check(checkout: checkout, branch: branch, onto: onto)
+        end
 
         def refuse_unsaved
           changed = dirty(@checkout)
