@@ -78,7 +78,8 @@ Hecks.world "Hecks" do
   event_log "EventTap", path: "~/.claude/hecks-dev/events.jsonl", max_bytes: 5_000_000
   launcher "Launcher", run_keys: true,
                        settled: %w[package.vendor package.revendor package.release
-                                  operation.bootstrap_admin smoke_run.run
+                                  operation.bootstrap_admin operation.abandon_outbox_row
+                                  operation.redrive_outbox smoke_run.run
                                   service_roll.run box_roll.run data_copy.restore
                                   data_copy.verify bluebook_diff.run preview_run.name
                                   preview_run.url preview_run.list preview_run.deploy
