@@ -15,6 +15,7 @@ mod json;
 #[allow(dead_code)]
 #[path = "../../codegen/src/hecks_naming.rs"]
 mod hecks_naming;
+mod kept_pass;
 mod lineage_pass;
 mod pipeline;
 mod reserved_names;
