@@ -1069,8 +1069,8 @@ Hecks.bluebook "Bluebook" do
     # the only conclusion that clears a red spec. `unfinished` says the job did not run to an end,
     # so it is no verdict on the specs. An empty name is a check that has not concluded yet.
     #
-    # The adapters that read these rows are the pipeline board, the CI speed reader, the candidate
-    # gating and red-flag surveys, the QualityControl run and check readers, and the release gate.
+    # The adapters that read these rows are the pipeline board, the CI speed reader, the
+    # QualityControl run and check readers, and the release gate.
     value_object "CheckConclusion" do
       attribute :name,       String
       attribute :certifies,  String

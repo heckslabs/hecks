@@ -53,16 +53,6 @@ module Hecks
         shas.filter_map { |sha| (full = dated.keys.find { |key| key.start_with?(sha) }) && [sha, dated[full]] }.to_h
       end
 
-      # The standing red flag of the repository, as its marker file holds it, or nil when main is
-      # not flagged.
-      #
-      # @return [Hash, nil] the flag: id, commit, raised_at, runs and checkins
-      def red_flag
-        common = ask(@root, "rev-parse", "--path-format=absolute", "--git-common-dir").strip
-        path = File.join(common, "hecks-red-flag.json")
-        JSON.parse(File.read(path)) if File.exist?(path)
-      end
-
       # @return [Hash] `behind`, the commits on origin/main that stable lacks, and `sha`
       # @raise [PipelineBoard::Unavailable] when git cannot answer
       def stable

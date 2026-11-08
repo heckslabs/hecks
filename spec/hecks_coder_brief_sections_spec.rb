@@ -41,6 +41,15 @@ RSpec.describe "the Coder brief's standing sections" do
     expect(section(:restraints)).to include("Do not push", "Do not mint", "live database", "client data")
   end
 
+  it "states the PR rule: main never goes red, and a red PR stays on its branch", :aggregate_failures do
+    restraints = section(:restraints)
+
+    expect(restraints).to include("Main never goes red", "approved automatically when its CI is green",
+                                  "main moves only by an approved pull request",
+                                  "A red pull request stays on its branch")
+    expect(restraints).not_to match(/red flag|RedFlag/i)
+  end
+
   it "asks the architect by event before any edit, and hands the row back on rethink" do
     expect(section(:review)).to include("Before you edit anything", "PlanReview.request!", "PlanReview.reviews",
                                         "changes: revise the plan", "Work.yield! to={work}", "Quote the verdict")

@@ -38,10 +38,6 @@ RSpec.describe Hecks::Adapters::PipelineBoard::Rules do
       expect(verdict("Sessions", { busy: 2, blocked: 0 })).to eq("working")
       expect(verdict("Sessions", { busy: 0, blocked: 0 })).to eq("ok")
     end
-
-    it "always fails the red flag" do
-      expect(verdict("Red flag", {})).to eq("failed")
-    end
   end
 
   describe "the tiles" do

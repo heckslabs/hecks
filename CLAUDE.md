@@ -66,7 +66,11 @@ is cut from `origin/main`, not local `main`: check `git merge-base --is-ancestor
 
 Push `main` by boarding the train (`send_train.board! --confirm`), other branches with `git push`. The pre-push hook (`.githooks/pre-push`: rspec, fuzzing,
 model_check, rubocop, CI attestation) runs on every push, so do not bypass it.
-A red main stands a **red flag** (`RedFlag`, `lib/hecks/hecks/redflag/redflag.bluebook`): a CI run of main that completes red raises it (`Integration.CiFailed`, or `exe/hecks RedFlag.sync! run.value=<id>`), and one that completes green lowers it. While it stands, `Landing` and `SendTrain` refuse by name (`main is red: flag <id>`) everything except the fix of a red-* Work item (exe/hecks tickets Work.undone lists them): a branch named for the Work item lands and its tip is the one commit the train boards. A session listens with `exe/hecks Operation.follow domain.value=Hecks aggregate.value=RedFlag from_now=true wait=600` (RedFlagRaised, RedFlagRunNoted, RedFlagCheckedIn, RedFlagCleared), says it helps with `exe/hecks RedFlag.check_in! run.value=<id> session.value=<name> taking.value=<Work item or cause>`, and resumes on RedFlagCleared; `exe/hecks RedFlag.status` prints the flag, the red time and who is helping. Everything else lands locally with landing.land! once the flag is down.
+**Main never goes red.** Agents work on branches and pull requests; a pull request is approved
+automatically when its CI is green; main moves only by an approved pull request. A red pull request
+stays on its branch, and the session the owner names fixes it there. Nothing flags a red main, and
+`Landing` and `SendTrain` refuse nothing on its account (the old red flag, ADR 0174, is retired by
+`docs/decisions/0200-the-red-flag-is-retired.md`).
 
 ## Briefing a session
 
@@ -95,9 +99,8 @@ environment variable. Memory changes some behavior: two guide examples that retr
 **A spec never touches the owner's live state.** The Memory overlay switches the runtime's event tap
 off, spec_helper points a child's tap at the run's own temporary file (`HECKS_EVENT_TAP`), and
 `spec/support/live_state_guard.rb` fails by name a spec that opens the live tap
-(`~/.claude/hecks-dev/events.jsonl`), reaches the checkout's own red flag (`.git/hecks-red-flag.json`)
-or moves it during an example; `spec/support/live_ledger_guard.rb` does the same for the ticket and
-agent-run databases. A spec that needs a repository, a flag or a tap builds its own under a temporary
+(`~/.claude/hecks-dev/events.jsonl`); `spec/support/live_ledger_guard.rb` does the same for the ticket
+and agent-run databases. A spec that needs a repository or a tap builds its own under a temporary
 directory and names it (`checkout:`, a world with a temporary `event_log` path).
 
 Several files cost one launcher boot, not one each:

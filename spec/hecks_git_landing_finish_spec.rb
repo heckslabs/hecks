@@ -85,6 +85,16 @@ RSpec.describe Hecks::Adapters::GitLanding, "#finish_branch" do
     expect(marker).to include("sha" => git("rev-parse", "main").strip, "verdict" => "green")
   end
 
+  it "lands with a stale red-flag marker in the git directory and leaves the file alone", :aggregate_failures do
+    build_repo
+    stale = File.join(repo, ".git", "hecks-red-flag.json")
+    File.write(stale, "{}")
+    finish(->(_dir) { green })
+
+    expect(git("log", "--format=%s", "main")).to include("a.txt")
+    expect(File.read(stale)).to eq("{}")
+  end
+
   it "refuses a primary checkout in the middle of a rebase by name and leaves main as it was", :aggregate_failures do
     build_repo
     before = git("rev-parse", "main").strip

@@ -28,7 +28,7 @@ module Hecks
 
         def self.ci(data, runs, now)
           health = data.fetch(:ci_health, CiTiles.defaults)
-          [success(runs, health), wall(runs, health), failed_head(runs), red_for(runs, data[:red_flag], now),
+          [success(runs, health), wall(runs, health), failed_head(runs), red_for(runs, now),
            lead(data, runs), carry(data, runs)]
         end
 

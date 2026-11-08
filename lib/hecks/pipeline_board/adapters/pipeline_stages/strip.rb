@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "time"
-require "hecks/hecks/adapters/red_flag_report"
 require_relative "../rules"
 
 module Hecks
@@ -17,17 +16,8 @@ module Hecks
         # @param now [Time] the time the stages are read at
         # @return [Array<Hash>] `name`, `state`, `count` and `detail` for each stage
         def build(data, now)
-          [*flag(data[:red_flag], now), work(data[:counts]), sessions(data[:sessions]), local(data[:local]),
+          [work(data[:counts]), sessions(data[:sessions]), local(data[:local]),
            train(data[:train], now), ci(data[:ci_runs]), promote(data[:stable]), release(data[:release])]
-        end
-
-        # The red flag row, first in the strip while a flag stands: its commit, the minutes main has
-        # been red, and who has checked in. Nothing while main is not flagged or the read failed.
-        def flag(standing, now)
-          return [] unless standing.is_a?(Hash) && standing.key?("id")
-
-          report = Hecks::Adapters::RedFlagReport.new(standing, now: now)
-          [row("Red flag", state("Red flag"), standing["id"], report.text.tr("\n", "; "))]
         end
 
         def row(name, state, count, detail) = { name: name, state: state, count: count.to_s, detail: detail }

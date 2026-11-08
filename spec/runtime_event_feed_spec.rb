@@ -12,7 +12,7 @@ RSpec.describe Hecks::Runtime::EventFeed do
 
   after { FileUtils.rm_rf(dir) }
 
-  def line(seq, aggregate: "Hecks::RedFlag", event: "RedFlagRaised")
+  def line(seq, aggregate: "Hecks::Landing", event: "BranchLanded")
     { "kind" => "event", "seq" => seq, "aggregate" => aggregate, "id" => "x", "event" => event }
   end
 
@@ -31,13 +31,13 @@ RSpec.describe Hecks::Runtime::EventFeed do
   end
 
   it "filters by event name" do
-    write(path, line(1), line(2, event: "RedFlagCleared"))
-    expect(described_class.new(path: path).read(names: ["RedFlagCleared"])[:events].map { |e| e["seq"] }).to eq([2])
+    write(path, line(1), line(2, event: "BranchRebased"))
+    expect(described_class.new(path: path).read(names: ["BranchRebased"])[:events].map { |e| e["seq"] }).to eq([2])
   end
 
   it "advances the cursor past lines the filter dropped" do
     write(path, line(1, aggregate: "Hecks::Landing"), line(2, aggregate: "Hecks::Landing"))
-    expect(described_class.new(path: path).read(aggregates: ["RedFlag"])[:cursor]).to eq(2)
+    expect(described_class.new(path: path).read(aggregates: ["Integration"])[:cursor]).to eq(2)
   end
 
   it "reads the rotated generations before the live file" do

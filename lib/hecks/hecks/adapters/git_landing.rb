@@ -8,7 +8,7 @@ require_relative "git_landing/tidy"
 require_relative "git_landing/rivals"
 require_relative "git_landing/finisher"
 require_relative "git_landing/lineup"
-require_relative "git_landing/flagged"
+require_relative "git_landing/main_base"
 require_relative "../../indifferent_key"
 
 module Hecks
@@ -21,7 +21,7 @@ module Hecks
     class GitLanding
       include GitWorktrees
       include GitMainPull
-      include Flagged
+      include MainBase
       include Sheltering
 
       # Accepts the arguments every driven adapter is built with; only the registry and the

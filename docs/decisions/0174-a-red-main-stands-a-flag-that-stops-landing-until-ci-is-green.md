@@ -1,6 +1,6 @@
 # A red main stands a flag that stops landing until CI is green
 
-**Status:** Accepted (owner requirement, 2026-11-02). Date: 2026-11-02.
+**Status:** Superseded by ADR 0200 (2026-11-07). Date: 2026-11-02.
 
 ## Context
 

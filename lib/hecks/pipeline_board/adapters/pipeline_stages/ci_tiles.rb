@@ -56,17 +56,14 @@ module Hecks
           unknown_tile("failed_head", "Failed jobs on head", { unknown: "GitHub would not list the jobs of #{head[:sha]}" })
         end
 
-        # How long main has been red, from the one {RedReading} the strip's flag row shares. A
-        # standing flag reads red even while the newest run is still going; with no flag, a run
-        # still going has no verdict yet, so the tile says it is running rather than red.
+        # How long main has been red, from a {RedReading} of the runs. A run still going has no
+        # verdict yet, so the tile says it is running rather than red.
         #
         # @param runs [Array<Hash>] CI runs of main, oldest first
-        # @param flag [Hash, nil] the red flag marker, `{unknown: reason}` or nil
         # @param now [Time] the time the red time is measured to
         # @return [Hash] the tile; its value is nil when no green run in the window starts the count
-        def red_for(runs, flag, now)
-          reading = RedReading.new(runs, flag, now)
-          return red_tile(reading) if reading.flagged?
+        def red_for(runs, now)
+          reading = RedReading.new(runs, now)
           return running_red(runs.last) unless runs.last[:status] == "completed"
           return tile("red", "Main red for", 0, "h", detail: "main is green") if runs.last[:conclusion] == "success"
 

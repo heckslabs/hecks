@@ -156,32 +156,6 @@ RSpec.describe "integrating main through the MainIntegration saga" do
     expect(report("CiFailed")).to end_with("failed jobs: rspec 1/4")
   end
 
-  def flag_file = File.join(repo, ".git", "hecks-red-flag.json")
-
-  it "raises the red flag when a run's CI fails, carrying the commit and failed jobs", :aggregate_failures do
-    stub_outside(conclusion: "failure", jobs: FAILED_JOBS)
-    landed = land
-    advance(3)
-    expect(File.read(flag_file)).to include(landed, "rspec 1/4")
-    expect(@hecks.registry.event_log.map(&:name)).to include("RedFlagRaised")
-  end
-
-  it "stands no flag when CI passes" do
-    land
-    advance(3)
-
-    expect(File.exist?(flag_file)).to be(false)
-  end
-
-  it "lowers a standing flag when a later run's CI passes", :aggregate_failures do
-    land
-    File.write(flag_file, JSON.generate(id: "flag-old", commit: "old", runs: [], checkins: []))
-    advance(3)
-
-    expect(File.exist?(flag_file)).to be(false)
-    expect(@hecks.registry.event_log.map(&:name)).to include("RedFlagCleared")
-  end
-
   it "refuses to board a range carrying an agent's trailer, by name", :aggregate_failures do
     landed = land(message: "feature\n\nCo-Authored-By: Claude <noreply@anthropic.com>")
     advance(2)

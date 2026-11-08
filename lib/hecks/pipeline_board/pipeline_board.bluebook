@@ -87,8 +87,6 @@ Hecks.bluebook "PipelineBoard" do
       attribute :state,    String
 
       # ---- the strip: one stage each, left to right ----
-      member stage: "Red flag",   position: 1, measure: "",             op: "always",  than: "",  scale: 1, state: "failed"
-
       member stage: "Work items", position: 1, measure: "started",      op: ">",       than: "0", scale: 1, state: "working"
       member stage: "Work items", position: 2, measure: "",             op: "always",  than: "",  scale: 1, state: "ok"
 
@@ -210,7 +208,6 @@ Hecks.bluebook "PipelineBoard" do
       member action: "auto_reply",  needs: "target",               confirm: "no",  program: "exe/hecks", argv: ""
       member action: "board_train", needs: "",                     confirm: "yes", program: "exe/hecks", argv: "SendTrain.board! --confirm"
       member action: "promote",     needs: "",                     confirm: "yes", program: "exe/hecks", argv: "PromotionRun.promote! lane=stable --confirm --wait"
-      member action: "check_in",    needs: "target session text",  confirm: "no",  program: "exe/hecks", argv: "RedFlag.check_in! run.value={target} session.value={session} taking.value={text}"
       member action: "delete",      needs: "target",               confirm: "yes", program: "exe/hecks", argv: "AgentRun.tidy! to={target}"
       member action: "discard",     needs: "target condition",     confirm: "yes", program: "exe/hecks", argv: "PlainSession.remove! to={target} condition.value={condition}"
       member action: "review",      needs: "target text",          confirm: "no",  program: "exe/hecks", argv: "agents PlanReview.request! work.value={target} hops.value=1 role.value=architect repo.value={repo} plan.value={text} --wait"

@@ -11,7 +11,7 @@ module Hecks
       # It is one JSON file in the repository's git directory, read by the pipeline board to say
       # whether the tree the owner is about to test was gated.
       module GateMarker
-        # The file name, beside the red-flag marker in the git directory.
+        # The file name, in the git directory.
         FILE = "hecks-local-main-gate.json"
 
         # @param common_dir [String] the repository's common git directory

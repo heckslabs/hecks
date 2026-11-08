@@ -134,18 +134,6 @@ Hecks.hecksagon "Hecks" do
     answers_query "Due"
   end
 
-  Hecks::RedFlag.port "Flagging" do
-    %w[Hoist SignIn Lower Survey].each do |step|
-      asks step, to: RedFlag do
-        attribute :run, RunKey
-        answers "FlagAnswered"
-        refuses "FlagRefused"
-      end
-    end
-
-    answers_query "Status"
-  end
-
 
   Hecks::QaQuiesce.port "Quiescing" do
     asks "Mark", to: QaQuiesce do

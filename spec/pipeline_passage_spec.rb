@@ -64,12 +64,11 @@ RSpec.describe "Pipeline passages" do
     expect(passage("p-walk")).to be_nil
   end
 
-  it "can be held by a red flag while pushed and verified from held", :aggregate_failures do
-    plan("p-hold")
-    advance("p-hold", "land")
-    advance("p-hold", "push", "pushed.value=abc1234")
-    expect(advance("p-hold", "hold", "flag.value=flag-1").dig("state", "stage")).to eq("held")
-    expect(advance("p-hold", "verify").dig("state", "stage")).to eq("verified")
+  it "is verified from pushed" do
+    plan("p-verify")
+    advance("p-verify", "land")
+    advance("p-verify", "push", "pushed.value=abc1234")
+    expect(advance("p-verify", "verify").dig("state", "stage")).to eq("verified")
   end
 
   it "refuses to push a passage that has not landed" do

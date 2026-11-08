@@ -9,8 +9,7 @@
 #   Tickets   Work.WorkStarted        -> Dispatch  (dispatched), again for a Work item started again
 #   Hecks     Landing.LandedWorkFound -> Land      (landed)
 #   Hecks     Integration.MainPushed  -> Push      (pushed), every landed passage at once
-#   Hecks     RedFlag.RedFlagRaised   -> Hold      (held), every pushed passage
-#   Hecks     RedFlag.RedFlagCleared  -> Verify    (verified), every pushed or held passage
+#   Hecks     Integration.CiPassed    -> Verify    (verified), every pushed passage
 #   Hecks     PromotionRun.PromotionCompleted, promoted -> Promote (promoted), every verified passage
 #   Hecks     Release.Published       -> Release   (released), every promoted passage
 #
@@ -35,7 +34,6 @@ Hecks.bluebook "Pipeline" do
     attribute :session, Word,     optional: true
     attribute :landed,  Word,     optional: true
     attribute :pushed,  Word,     optional: true
-    attribute :flag,    Word,     optional: true
     attribute :stalled, Reason,   optional: true
 
     # The Work item's key, which the branch that lands it is named after.
@@ -46,7 +44,7 @@ Hecks.bluebook "Pipeline" do
 
     value_object "Title", String
 
-    # A session id, a commit, or a red flag's id.
+    # A session id or a commit.
     value_object "Word" do
       attribute :value, String, matches: :present
     end
@@ -61,8 +59,7 @@ Hecks.bluebook "Pipeline" do
       transition "Dispatch" => "dispatched", from: %w[planned dispatched]
       transition "Land"     => "landed",     from: %w[planned dispatched]
       transition "Push"     => "pushed",     from: "landed"
-      transition "Hold"     => "held",       from: "pushed"
-      transition "Verify"   => "verified",   from: %w[pushed held]
+      transition "Verify"   => "verified",   from: "pushed"
       transition "Promote"  => "promoted",   from: "verified"
       transition "Release"  => "released",   from: "promoted"
     end
@@ -111,16 +108,6 @@ Hecks.bluebook "Pipeline" do
       emits PassagePushed
     end
 
-    command "Hold" do
-      role "System"
-      goal "Record that main went red while this change waits for a green run"
-
-      reference_to Passage
-      attribute :flag, Word, sets: true
-
-      emits PassageHeld
-    end
-
     command "Verify" do
       role "System"
       goal "Record that a green run of main covers the pushed change"
@@ -162,7 +149,7 @@ Hecks.bluebook "Pipeline" do
 
     query "InFlight" do
       description "Every passage that has not been released, oldest change first."
-      where(stage: { in: "planned,dispatched,landed,pushed,held,verified,promoted" })
+      where(stage: { in: "planned,dispatched,landed,pushed,verified,promoted" })
       order_by :change
     end
 
@@ -180,8 +167,8 @@ Hecks.bluebook "Pipeline" do
     end
 
     query "Pushed" do
-      description "The passages on the remote waiting for a green run of main, held by a red flag or not."
-      where(stage: { in: "pushed,held" })
+      description "The passages on the remote waiting for a green run of main."
+      where(stage: "pushed")
       order_by :change
     end
 
@@ -230,14 +217,8 @@ Hecks.bluebook "Pipeline" do
     trigger  Passage::Push, with: { change: :change, pushed: :pushed }
   end
 
-  policy "HoldEveryPushedWhenMainRed" do
-    on       "RedFlag.RedFlagRaised"
-    for_each "Passage.Pushed"
-    trigger  Passage::Hold, with: { change: :change, flag: :flag }
-  end
-
   policy "VerifyEveryPushedWhenMainGreen" do
-    on       "RedFlag.RedFlagCleared"
+    on       "Integration.CiPassed"
     for_each "Passage.Pushed"
     trigger  Passage::Verify, with: { change: :change }
   end
@@ -267,13 +248,6 @@ Hecks.bluebook "Pipeline" do
     include Passage
     where(stalled: { ne: "" })
     group_by :stage, :change
-  end
-
-  read_model "HeldPassages" do
-    description "Every passage held after its push, sorted by the flag that holds it."
-    include Passage
-    where(stage: "held")
-    group_by :flag, :change
   end
 
   # A pull request a passage's branch is reviewed and merged through. The bluebook names the
