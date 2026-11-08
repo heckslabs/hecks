@@ -32,10 +32,18 @@ RSpec.describe "pulling main after a squash-merged train" do
   before do
     git("init", "--bare", "-b", "main", File.join(dir, "remote.git"), chdir: dir)
     git("clone", File.join(dir, "remote.git"), repo, chdir: dir)
+    identify(repo)
     git("checkout", "-b", "main") unless git("branch", "--show-current") == "main"
     commit(repo, "README")
     git("push", "origin", "main")
     git("clone", File.join(dir, "remote.git"), other, chdir: dir)
+    identify(other)
+  end
+
+  # A runner has no global committer, and a rebase replays commits.
+  def identify(where)
+    git("config", "user.name", "t", chdir: where)
+    git("config", "user.email", "t@t", chdir: where)
   end
 
   # Local main takes a, b (boarded), the origin squashes them, and `later` lands locally afterwards.

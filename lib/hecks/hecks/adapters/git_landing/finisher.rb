@@ -56,13 +56,11 @@ module Hecks
         end
 
         def rebase
-          result = @git.capture("rebase", *rebase_range, chdir: @checkout)
+          result = @git.capture(*replay_identity(@checkout), "rebase", *rebase_range, chdir: @checkout)
           return if result.ok?
 
-          conflicts = @git.capture("diff", "--name-only", "--diff-filter=U", chdir: @checkout).out.split
-          @git.capture("rebase", "--abort", chdir: @checkout)
           raise ConsoleCapture::Failure,
-                "conflict: rebasing #{@branch} onto #{@onto} conflicts in #{conflicts.join(", ")}; nothing changed"
+                "conflict: rebasing #{@branch} onto #{@onto} #{abandon_rebase(@checkout, result)}; nothing changed"
         end
 
         # What the rebase replays: when the branch was cut from a commit that `onto` carried by

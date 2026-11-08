@@ -50,10 +50,10 @@ module Hecks
         end
 
         def rebase_in(tree, ahead)
-          result = @git.capture(*rebase_args, chdir: tree)
+          result = @git.capture(*replay_identity(tree), *rebase_args, chdir: tree)
           return read("rev-parse", "HEAD", dir: tree) if result.ok?
 
-          refuse_conflict(tree, ahead)
+          refuse_conflict(tree, ahead, result)
         end
       end
     end
