@@ -42,17 +42,13 @@ Hecks.bluebook "Assurance" do
       invariant("a direction is at_most or at_least") { value == "at_most" || value == "at_least" }
     end
 
-    value_object "Limit" do
-      attribute :value, Integer
-    end
+    value_object "Limit", Integer
 
     value_object "Verifier" do
       attribute :value, String, matches: :present
     end
 
-    value_object "Measurement" do
-      attribute :value, Integer
-    end
+    value_object "Measurement", Integer
 
     value_object "Scope" do
       attribute :value, String, matches: :present
