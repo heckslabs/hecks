@@ -29,6 +29,7 @@ require:
   - ./lib/rubocop/cop/hecks/bare_event_and_query_names
   - ./lib/rubocop/cop/hecks/correlates_by_aggregate
   - ./lib/rubocop/cop/hecks/creating_command_sets
+  - ./lib/rubocop/cop/hecks/no_script_io_outside_adapters
 
 # `h[a] || h[b]` on one receiver drops a stored `false`; use `key?` first.
 Hecks/FallbackHashLookup:
@@ -151,6 +152,20 @@ Hecks/NoTransportInRuntime:
     - "lib/hecks/bluebook/**/*.rb"
   Exclude:
     - "lib/hecks/runtime/adapter_namespace.rb"
+
+# ADR 0190 decision 4: library code takes values and returns a value or raises. `OptionParser`,
+# `ARGV`, `exit` and `$stdout` belong in an adapter folder or `exe/`, which the cop skips. The files
+# that offend today are listed in `lib/rubocop/cop/hecks/no_script_io_outside_adapters_baseline.txt`;
+# a listed file is advisory, the list only shrinks, and the cop goes when the list is empty. Hecks's
+# own tree only: a client's tree never loads this cop. It is registered here and in that file, not
+# in ADR 0091, whose decisions allow no per-file list.
+Hecks/NoScriptIoOutsideAdapters:
+  Enabled: true
+  Include:
+    - "lib/**/*.rb"
+  Exclude:
+    - "**/adapters/**/*"
+    - "lib/rubocop/**/*"
 
 # Elapsed time is measured on the monotonic clock; `Time.now - File.mtime(f)` is left alone.
 Hecks/MonotonicDuration:
