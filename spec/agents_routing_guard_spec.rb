@@ -110,8 +110,52 @@ RSpec.describe "the orchestrator routing guard" do
     end
 
     it "carries the shell rows and the flag rules as data", :aggregate_failures do
-      expect(rows("RoutingRule").map { |row| row[:pattern] }).to include("git status", "gh pr view", "git worktree list")
+      expect(rows("RoutingRule").map { |row| row[:pattern] }).to include("git status", "gh pr view", "git worktree")
       expect(rows("ShellFlagRule").map { |row| row[:command] }).to include("git", "gh", "git branch")
+    end
+  end
+
+  describe "a git verb the orchestrator may run" do
+    %w[show fetch switch merge cherry-pick revert commit add tag worktree].each do |verb|
+      it "allows git #{verb}" do
+        expect(verdict("git #{verb} x")).to eq(text: "allowed")
+      end
+    end
+
+    it "carries the verbs as RoutingRule rows", :aggregate_failures do
+      patterns = rows("RoutingRule").map { |row| row[:pattern] }
+      expect(patterns).to include("git show", "git fetch", "git commit", "git worktree", "git tag")
+      expect(patterns).not_to include("git worktree list")
+    end
+  end
+
+  describe "a git call that stays refused" do
+    ["git push", "git push origin main", "git push --force", "git push -f origin x",
+     "git push --force-with-lease", "git commit --no-verify -m x", "git commit -n -m x",
+     "git commit --admin x", "git merge --no-verify x"].each do |call|
+      it "refuses #{call}" do
+        expect(refusal(call)).to include("routes only")
+      end
+    end
+
+    it "refuses a force flag on an allowed verb", :aggregate_failures do
+      expect(refusal("git fetch -f origin")).to include("routes only")
+      expect(refusal("git worktree remove --force x")).to include("routes only")
+    end
+
+    it "refuses the verbs it leaves out", :aggregate_failures do
+      %w[reset restore checkout stash rebase].each { |verb| expect(refusal("git #{verb} x")).to include("routes only") }
+    end
+
+    it "refuses an owner push override set in the command", :aggregate_failures do
+      expect(refusal("HECKS_OWNER_PUSH=why git push")).to include("routes only")
+      expect(refusal("export HECKS_OWNER_PUSH=why")).to include("routes only")
+    end
+
+    it "refuses a global option or alias that reaches push", :aggregate_failures do
+      ["git -c alias.p=push p", "git -C . push", "git --git-dir=x push", "git p"].each do |call|
+        expect(refusal(call)).to include("routes only")
+      end
     end
   end
 
@@ -120,8 +164,8 @@ RSpec.describe "the orchestrator routing guard" do
       expect(refusal("git push origin main")).to include("SendTrain.board!")
     end
 
-    it "refuses commit, branch deletion and branch creation", :aggregate_failures do
-      ["git commit -m x", "git branch -D x", "git branch newname"].each do |call|
+    it "refuses branch deletion and branch creation through git branch", :aggregate_failures do
+      ["git branch -D x", "git branch newname"].each do |call|
         expect(refusal(call)).to include("routes only")
       end
     end
