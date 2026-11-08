@@ -39,8 +39,8 @@ module Hecks
         # @param started [Array<Item>] the started work items
         # @param limits [Hash] `cap:` (Integer), `load:` and `max_load:` (Float), `frozen:` (Array)
         #   and `paused:` (String, optional: why every work item waits, "skipped: paused by load")
-        #   and `root:` (String, optional: this repository's top level, to tell its areas from another
-        #   checkout's; the checkout holding this file by default)
+        #   and `root:` (String, optional: this repository's top level, to tell its areas from
+        #   another checkout's; the checkout holding this file by default)
         def initialize(planned, started, **limits)
           @started = started
           @limits = limits
