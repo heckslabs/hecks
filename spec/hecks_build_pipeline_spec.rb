@@ -30,7 +30,8 @@ RSpec.describe "hecks-build (rust/build) pipeline parity", :io do
   # `hecks-parse` reads none of them, so `ir.json` (and `metadata.rs`, which embeds it) match only
   # without them. `lineage` and `kept` are not among them: `hecks-build` derives them from the
   # hecksagon and world text, and the two must agree on which aggregates are lineage-capable
-  # (compliance binds three through its world) and on whether the data is kept (`ShapeLedger::Kept`).
+  # (compliance binds three through its world) and on whether the data is kept
+  # (`ShapeLedger::Kept`).
   HB_REGISTRY_ONLY_IR_KEYS = %w[persistence authorization membership identity provides translations approvals
                                 source_text].freeze
 
