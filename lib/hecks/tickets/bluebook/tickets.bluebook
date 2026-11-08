@@ -375,13 +375,18 @@ Hecks.bluebook "Tickets" do
     end
 
     # A work item still open takes what a later look at it found: the item stays one, its title and
-    # detail move.
+    # detail move. It may also take a new area (the whole list is replaced) and the decision it
+    # carries out (refused by name when no Adr has that id); one left out stays as it was.
     command "Revise" do
-      goal "Replace an open work item's title and detail with what a later look found"
+      goal "Replace an open work item's title and detail, and optionally its area and decision"
 
       reference_to Work
       attribute :title,  WorkTitle, sets: true
       attribute :detail, WorkText, sets: true
+      attribute :area,   list_of(Word), optional: true, sets: true
+      reference_to Adr, as: :decision, optional: true
+
+      sets :decision
 
       emits "WorkRevised"
     end
