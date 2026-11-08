@@ -26,6 +26,7 @@ Hecks.bluebook "Hecks" do
       attribute :answered_at, Moment,  optional: true
       attribute :detail,    Report,    optional: true
       attribute :work,      WorkSlug,  optional: true
+      attribute :trial,     Trial,     optional: true
       identified_by :run
 
       value_object "RunKey" do
@@ -39,6 +40,10 @@ Hecks.bluebook "Hecks" do
 
       # The run of the judge whose verdict an answer carries, so the outcome names the verdict it delivers.
       value_object "VerdictKey", String
+
+      # Whether the run is a test run, one whose key starts `live-` or `resume-`. It is set when the
+      # run retires itself, so a trial run is told from a real one in the ledger.
+      value_object "Trial", Boolean
 
       # The directory the session works in.
       value_object "Path" do
@@ -77,6 +82,7 @@ Hecks.bluebook "Hecks" do
         transition "Fail"    => "finished", from: "started"
         transition "Tidied"  => "tidied",   from: "finished"
         transition "Retired" => "retired",  from: "started"
+        transition "RetireTrial" => "retired", from: "started"
         mark :terminal, "tidied", "refused", "retired"
       end
 
@@ -274,6 +280,19 @@ Hecks.bluebook "Hecks" do
         attribute :detail, Report, sets: true
 
         emits AgentRunRetired
+      end
+
+      # A trial run has no person to answer it and no work to finish, so it is closed once its
+      # session is seen working or blocked, whether or not the session is still listed.
+      command "RetireTrial" do
+        role "System"
+        goal "Close a trial run whose session is working or blocked, and flag the run as a trial"
+
+        reference_to AgentRun
+        attribute :trial,  Trial, default: true, sets: true
+        attribute :detail, Report, sets: true
+
+        emits AgentTrialRunRetired
       end
 
       command "Unretired" do
@@ -591,6 +610,15 @@ Hecks.bluebook "Hecks" do
     policy "RecordTheRefusedLookFor" do
       on      "AgentRun.LookForRefused"
       trigger AgentRun::Unretired, with: { refusal: :refusal }
+    end
+
+    # A run keyed `live-*` or `resume-*` is a test run: left alone it stays blocked or working for
+    # ever, so the first reading that finds it working or blocked retires it.
+    policy "RetireTheTrialRun" do
+      on      "AgentRun.JobRead"
+      root
+      where   { (run.start_with?("live-") || run.start_with?("resume-")) && (state == "working" || state == "blocked") }
+      trigger AgentRun::RetireTrial, with: { detail: :detail }
     end
 
     policy "RecordTheRemoval" do
