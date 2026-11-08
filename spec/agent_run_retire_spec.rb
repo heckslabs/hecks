@@ -15,7 +15,7 @@ RSpec.describe "AgentRun.Retire through the Agents port" do
   SH
 
   before(:all) do
-    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
+    @hecks = boot_hecks_in_memory
   end
 
   let(:scratch) { File.realpath(Dir.mktmpdir("agent-retire")) }
