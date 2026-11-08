@@ -5,7 +5,7 @@ require "spec_helper"
 # declares refuses.
 RSpec.describe "an interrupted Commit run" do
   before(:all) do
-    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
+    @hecks = boot_hecks_in_memory
   end
 
   def interrupted_commit

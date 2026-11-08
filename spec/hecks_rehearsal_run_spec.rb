@@ -16,7 +16,7 @@ RSpec.describe "rehearsing a domain's next era" do
   let(:rows_path) { File.join(shop, "rehearsal", "rows.json") }
 
   before(:all) do
-    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
+    @hecks = boot_hecks_in_memory
   end
 
   before { RehearsalShop.copy_to(shop) }

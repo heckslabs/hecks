@@ -19,7 +19,7 @@ RSpec.shared_context "with the deploy roll stand-ins" do
   let(:registry)        { BoxHostingStubs::REGISTRY }
 
   before(:all) do
-    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
+    @hecks = boot_hecks_in_memory
   end
 
   # Runs each example of the group with a stand-in toolchain built from the golden named by the

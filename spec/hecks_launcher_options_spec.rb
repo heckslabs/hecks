@@ -43,7 +43,7 @@ RSpec.describe "the launcher's opt-in options" do
     write("shelf/bluebook/shelf.hecksagon", "Hecks.hecksagon \"Shelf\" do\n  persisted_by \"Memory\"\nend\n")
     write("clean/bluebook/clean.bluebook", SHELF.sub('"Shelf"', '"Clean"').sub(/    lifecycle.*?    end\n\n/m, ""))
     write("clean/bluebook/clean.hecksagon", "Hecks.hecksagon \"Clean\" do\n  persisted_by \"Memory\"\nend\n")
-    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
+    @hecks = boot_hecks_in_memory
   end
 
   after(:all) { FileUtils.rm_rf(@dir) }

@@ -26,7 +26,7 @@ RSpec.describe "a filling, dispatched through its Choose ask" do
     end
   end
 
-  def boot = Hecks.boot(HECKS_DOMAIN, environment: "memory", install_driving: false).registry
+  def boot = boot_hecks_in_memory(HECKS_DOMAIN).registry
 
   def fill(registry, planned, **args)
     stand_in = dispatching(planned)

@@ -20,7 +20,7 @@ RSpec.describe Hecks::Adapters::Driving::McpScope do
   end
 
   let(:public_argument_names) do
-    declaration = Hecks.boot(File.expand_path("../lib/hecks/hecks", __dir__), install_driving: false)
+    declaration = boot_hecks_in_memory
     cli = Hecks::Projector.call(:cli, bluebook: Hecks::Storehouse.bluebook_for(declaration), options: { program: "mcp" })
     cli[:commands].values.reject { |spec| spec[:internal] }
                   .flat_map { |spec| spec[:arguments].map { |argument| argument[:path].split(".").first } }.uniq

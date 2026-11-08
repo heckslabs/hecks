@@ -13,7 +13,7 @@ RSpec.describe "a landing followed by its rehearsal" do
   let(:stages) { instance_double(Hecks::Adapters::GitRehearsal::Stages, run: []) }
 
   before(:all) do
-    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
+    @hecks = boot_hecks_in_memory
   end
 
   before do

@@ -8,7 +8,7 @@ RSpec.describe "the lifecycle failure marks" do
   FAILURE_NAMED = /fail|fault|flag|drift|unreach|refus|halt|stop|abandon|\Ared\z|needs_fix|error|broken/
 
   before(:all) do
-    @runtime = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
+    @runtime = boot_hecks_in_memory
   end
 
   def declared

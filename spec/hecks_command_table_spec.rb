@@ -102,7 +102,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     write("clean/bluebook/clean.bluebook", CLEAN_BLUEBOOK.sub('"Shelf"', '"Clean"'))
     write("eras.txt", "abc123\n")
     write("clean/bluebook/clean.hecksagon", SHELF_HECKSAGON.sub('"Shelf"', '"Clean"'))
-    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
+    @hecks = boot_hecks_in_memory
   end
 
   after(:all) { FileUtils.rm_rf(@dir) }

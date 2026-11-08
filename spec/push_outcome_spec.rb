@@ -10,7 +10,7 @@ require "hecks/hecks/adapters/desktop_alert"
 # the recorder are stand-ins, so nothing is pushed, moved, shown or recorded.
 RSpec.describe "a boarding's outcome, recorded through the PushRecords port" do
   before(:all) do
-    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
+    @hecks = boot_hecks_in_memory
   end
 
   let(:recorder) { instance_double(Hecks::Adapters::PushRecorder, record_outcome: { report: { value: "recorded" } }) }
