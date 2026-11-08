@@ -35,10 +35,10 @@ dispatch from a callback would make the kernel wait for the answer while the ada
 3. **`row_sweeper` returns the rows it found.** It stops dispatching from inside the adapter; the follow-up
    it decided at run time becomes a policy on its answer. The other three readers already only read.
 4. **Which mechanism answers a port.** One mechanism per port, never both:
-   - When the port's `.adapter` declares a Wasm component (`runs`, ADR 0192), the host loads that
+   - When the port's `.adapter` declares a Wasm component (`runs`, ADR 0198), the host loads that
      component and answers; the Ruby client is not asked.
    - Otherwise the Ruby client answers through its callback, one registered adapter per port.
-   - A port with neither refuses by name (`no adapter answers port <name>`). This is the route 0192's
+   - A port with neither refuses by name (`no adapter answers port <name>`). This is the route 0198's
      `runs` word selects; this record owns the Ruby side of it.
 5. **Until the kernel and the client build this, the client refuses by name.** A dispatch from inside a
    Ruby adapter call raises `nested dispatch from a port callback is not built` rather than hanging. The
@@ -55,7 +55,7 @@ Bluebook first.
   added to the connection bluebook before the kernel or client code lands**, so the Ruby client, the
   kernel loop and other clients are projected from one place.
 - **Hecksagon.** Which adapter answers a port is wiring (decision 4) and is unchanged in shape; `runs` is
-  ADR 0192's word.
+  ADR 0198's word.
 - **Adapter code.** The kernel loop (`rust/src/kernel/serve.rs`), the Ruby client
   (`lib/hecks/rust_build/kernel_client.rb`) and the Ruby adapters behind the ports are imperative code
   outside the bluebook world, because the kernel owns no I/O and something that does has to answer.

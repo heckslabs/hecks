@@ -36,12 +36,12 @@ them down for acceptance.
    the entry in the IR following the `plugins` shape (`adapter`, `runs`, `sha256`, base64 module), so the
    loader is shared. The exact keyword spelling is settled when slice 4 builds it.
 3. **C. The store stays native for this step.** No component persists; the host journals. Revisit after
-   the one-event-log step of ADR 0188 (step 8) changes what a store is. ADR 0191 settles only that the
+   the one-event-log step of ADR 0188 (step 8) changes what a store is. ADR 0197 settles only that the
    kernel serves Memory domains; how a persisted domain reaches the kernel is its open question for step
    6, and the host owns the store and its minting (ADR 0030) until that is answered.
 4. **D. Time is the kernel's `now` fact, and a component imports no clock.** A step that needs the time
    declares `needs` and the kernel asks the host for `now` (ADR 0189 `ask: "fact"`), so there is one path
-   for time, and it is the one the simulation tests seed (ADR 0193). No `clock.sleep` import exists.
+   for time, and it is the one the simulation tests seed (ADR 0199). No `clock.sleep` import exists.
    **A component does not retry.** A retry policy is a rule the domain may need to know, so it is not
    adapter logic. On an HTTP 429 the component returns at once and the port refuses by name
    (`provider rate limited`, carrying the provider's retry-after seconds when it sent one). The port's
@@ -73,7 +73,7 @@ Bluebook first, then hecksagon.
   Resend has fixed the shape, as CLAUDE.md prefers a projection to hand-written code.
 - **Not an outside-world adapter:** the local tooling adapters (git, deploy, claude sessions), which a
   sandbox would only forbid what they exist to do, and Google sign-in and `AwsLambdaInvoker`, left native
-  (**I**: the plan inferred both). Which mechanism answers a port is ADR 0190's decision 4: a port whose `.adapter`
+  (**I**: the plan inferred both). Which mechanism answers a port is ADR 0196's decision 4: a port whose `.adapter`
   declares `runs` is answered by its component, any other by the Ruby callback, one per port.
 
 ## Consequences

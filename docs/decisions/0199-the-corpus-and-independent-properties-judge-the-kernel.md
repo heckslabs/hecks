@@ -78,7 +78,7 @@ Bluebook first.
   bluebook gap (CLAUDE.md). Its home is the QualityControl bluebook (decision 5).
   The `facts` key on a corpus step is data the corpus format declares.
 - **Hecksagon.** Which kernel binary answers, which clock source, which persistence: wiring, Memory by
-  default (ADR 0191).
+  default (ADR 0197).
 - **Adapter and generator code.** The engine seam, the callback answerer, the sequence generator and the
   shrinker are imperative Ruby that drives a process. The shrinker is already engine-agnostic (**R**,
   "never replays anything").
