@@ -162,4 +162,76 @@ Hecks.bluebook "LifecycleFindings" do
       emits "ParcelReopened"
     end
   end
+
+  # A :reusable state nothing leaves raises no finding: Ticket's occupant has ended in "closed".
+
+  aggregate "Ticket" do
+    identified_by :code
+
+    attribute :code, Code
+
+    value_object "Code" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "open" do
+      transition "Close" => "closed", from: "open"
+      mark :terminal, "closed"
+      mark :reusable, "closed"
+    end
+
+    command "Open" do
+      role "Tester"
+      goal "Bring one into being"
+      attribute :code, Code
+      emits "TicketOpened"
+    end
+
+    command "Close" do
+      role "Tester"
+      goal "End the ticket"
+      reference_to Ticket
+      emits "TicketClosed"
+    end
+  end
+
+  # A :reusable state that is the default or that a transition leaves is a reusable_live_state error.
+
+  aggregate "Lease" do
+    identified_by :code
+
+    attribute :code, Code
+
+    value_object "Code" do
+      attribute :value, String
+    end
+
+    lifecycle :status, default: "requested" do
+      transition "Start"  => "started",  from: "requested"
+      transition "Finish" => "finished", from: "started"
+      mark :terminal, "finished"
+      mark :reusable, "requested", "started", "finished"
+    end
+
+    command "Request" do
+      role "Tester"
+      goal "Bring one into being"
+      attribute :code, Code
+      emits "LeaseRequested"
+    end
+
+    command "Start" do
+      role "Tester"
+      goal "Begin the lease"
+      reference_to Lease
+      emits "LeaseStarted"
+    end
+
+    command "Finish" do
+      role "Tester"
+      goal "End the lease"
+      reference_to Lease
+      emits "LeaseFinished"
+    end
+  end
 end
