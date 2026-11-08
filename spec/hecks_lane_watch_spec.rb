@@ -40,7 +40,7 @@ RSpec.describe "watching a lane" do
   before do
     File.write(File.join(root, "hecks.gemspec"), "")
     FileUtils.mkdir_p(File.join(root, "lib"))
-    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
+    @hecks = boot_hecks_in_memory
     Hecks::Adapters::Codebase::Tree.root = root
     Hecks::Adapters::Codebase::Promotion.clock = -> { now }
   end

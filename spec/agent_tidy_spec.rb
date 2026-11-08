@@ -18,7 +18,7 @@ RSpec.describe "AgentRun.Tidy through the Agents port" do
   FULL_ID = "0000aaaa-1111-2222-3333-444455556666".freeze
 
   before(:all) do
-    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
+    @hecks = boot_hecks_in_memory
   end
 
   let(:scratch) { File.realpath(Dir.mktmpdir("agent-tidy")) }

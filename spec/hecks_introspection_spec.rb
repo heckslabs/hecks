@@ -42,7 +42,7 @@ RSpec.describe "hecks introspection through the launcher" do
     FileUtils.mkdir_p(File.join(@dir, "bluebook"))
     File.write(File.join(@dir, "bluebook/shelf.bluebook"), INTROSPECTED_BLUEBOOK)
     File.write(File.join(@dir, "bluebook/shelf.hecksagon"), INTROSPECTED_HECKSAGON)
-    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
+    @hecks = boot_hecks_in_memory
   end
 
   after(:all) { FileUtils.rm_rf(@dir) }

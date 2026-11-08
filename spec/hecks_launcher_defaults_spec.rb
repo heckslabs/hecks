@@ -4,7 +4,7 @@ require "spec_helper"
 # bluebook commands that dispatch them; the launchers behind them hold no copy.
 RSpec.describe "launcher defaults declared on their bluebook commands" do
   before(:all) do
-    @runtime = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
+    @runtime = boot_hecks_in_memory
   end
 
   def command(aggregate, name) = @runtime.registry.bluebook("Hecks").aggregate(aggregate).command(name)

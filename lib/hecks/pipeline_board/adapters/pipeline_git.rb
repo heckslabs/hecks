@@ -23,13 +23,17 @@ module Hecks
       end
 
       # @return [Hash] `ahead`, `behind` (local main against origin/main), `dirty` (changed files in
-      #   this checkout) and `sha`
+      #   this checkout), `sha`, `gate` (`green` when the last finish gated this very commit, else
+      #   `unknown`) and `changes` (the subjects of the commits on main that origin/main lacks)
       # @raise [PipelineBoard::Unavailable] when git cannot answer
       def local_main
         behind, ahead = ask(@root, "rev-list", "--left-right", "--count", "origin/main...main").split.map(&:to_i)
         { sha: short("main"), ahead: ahead, behind: behind, oldest_unpushed: oldest_unpushed,
-          dirty: ask(@root, "status", "--porcelain").lines.size }
+          dirty: ask(@root, "status", "--porcelain").lines.size, gate: gate_verdict, changes: changes }
       end
+
+      # @return [Array<String>] what landed on main since origin/main, newest first, at most eight
+      def changes = ask(@root, "log", "--first-parent", "-n", "8", "--format=%s", "origin/main..main").lines.map(&:strip)
 
       # @return [Hash] the commit the train's checkout stands on: `sha`, `at`, and `pushed`
       #   (whether origin/main holds it)
@@ -66,6 +70,16 @@ module Hecks
       end
 
       private
+
+      # `green` only when the finish marker names the commit main stands on now.
+      def gate_verdict
+        common = ask(@root, "rev-parse", "--path-format=absolute", "--git-common-dir").strip
+        path = File.join(common, "hecks-local-main-gate.json")
+        marker = JSON.parse(File.read(path)) if File.exist?(path)
+        marker && ask(@root, "rev-parse", "main").strip == marker["sha"] ? marker["verdict"] : "unknown"
+      rescue JSON::ParserError
+        "unknown"
+      end
 
       def short(ref) = ask(@root, "rev-parse", "--short", ref).strip
 

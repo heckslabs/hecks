@@ -45,11 +45,30 @@ module Hecks
           failed = wait_for(branch)
           return failed_answer(branch, failed) unless failed.empty?
 
-          GithubPullRequests.new(runner: method(:gh)).squash(number: number)
-          merged(boarded)
+          answer = GithubPullRequests.new(runner: method(:gh)).squash(number: number)
+          return merged(boarded) if answer.dig(:outcome, :value) == "merged"
+
+          follow(branch, boarded)
         end
 
         private
+
+        # The merge was accepted but not made (a merge queue): the PR is read until it merges.
+        # `pushed` is answered only for a merged PR; one the queue closed unmerged is a fault.
+        def follow(branch, boarded)
+          @reads.times do
+            seen = PullRequestBoarding::Observation.new(@runner, @checkout).answer(boarded)
+            return { outcome: { value: "pushed" }, pushed: seen[:pushed], report: seen[:report] } if seen[:pushed]
+
+            dropped!(branch, seen[:state]) unless seen[:state] == "OPEN"
+            @pause.call(INTERVAL)
+          end
+          raise ConsoleCapture::Failure, "#{branch} is queued but did not merge in #{@reads * INTERVAL}s; PR left queued"
+        end
+
+        def dropped!(branch, state)
+          raise ConsoleCapture::Failure, "the merge queue dropped #{branch} (#{state.to_s.downcase}) without merging it"
+        end
 
         def wait_for(branch)
           @reads.times do

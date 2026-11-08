@@ -167,7 +167,7 @@ Hecks.bluebook "PipelineBoard" do
       member name: "wall_goal_minutes",       value: 3
       member name: "success_good",            value: 80
       member name: "success_fair",            value: 50
-      member name: "session_cap",             value: 8
+      member name: "session_cap",             value: 10
       member name: "throughput_window_hours", value: 24
       member name: "session_fresh_seconds",   value: 600
       member name: "session_window_hours",    value: 24
@@ -314,6 +314,24 @@ Hecks.bluebook "PipelineBoard" do
     query "Events" do
       description "The most recent events the tooling recorded, newest first: time, aggregate, event, and the policy that reacted where the journal holds one."
       attribute :limit, Limit, optional: true
+      returns Document
+    end
+
+    query "RunCards" do
+      description "One card per run, newest first: the run, its role, session and time, and its last word, the verdict of the run's newest TurnFinished."
+      attribute :limit, Limit, optional: true
+      returns Document
+    end
+
+    query "Stuck" do
+      description "What the pipeline is stuck on, across runs: the stuck rows of each run's newest TurnFinished, with what, since when, the run that owns it and a link."
+      attribute :limit, Limit, optional: true
+      returns Document
+    end
+
+    query "TurnBlock" do
+      description "The console block of a run's newest TurnFinished (the newest of any run when none is named): headed turn finished: role @ time, one aligned line per field."
+      attribute :run, RunKey, optional: true
       returns Document
     end
   end

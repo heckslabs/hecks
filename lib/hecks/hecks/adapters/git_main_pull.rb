@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
 require_relative "git_worktrees"
+require_relative "git_main_pull/carried"
 require_relative "git_main_pull/nowhere"
+require_relative "git_main_pull/replay"
 
 module Hecks
   module Adapters
@@ -14,11 +16,12 @@ module Hecks
     # a commit and never merges onto `main`. A repository without an `origin` (or with no
     # `origin/main`) has nothing to be behind, and the answer says so.
     #
-    # With `main` checked out nowhere the ref is moved without a checkout (see `Nowhere`).
-    #
+    # A squash-merged train is rebased past (`Carried`); `main` checked out nowhere is `Nowhere`.
     # An includer has the `GitWorktrees` helpers and sets `@git`.
     module GitMainPull
+      include Carried
       include Nowhere
+      include Replay
 
       REMOTE_MAIN = "origin/main"
 
@@ -78,15 +81,17 @@ module Hecks
       def rebase_main(host, ahead, behind)
         return pull_unhosted_main(ahead, behind) unless host
 
-        result = @git.capture("rebase", "--rebase-merges", REMOTE_MAIN, chdir: host.path)
-        unless result.ok?
-          conflicts = @git.capture("diff", "--name-only", "--diff-filter=U", chdir: host.path).out.split
-          @git.capture("rebase", "--abort", chdir: host.path)
-          raise ConsoleCapture::Failure,
-                "cannot pull main: rebasing main's #{ahead} unpushed commits onto #{REMOTE_MAIN} conflicts in " \
-                "#{conflicts.join(", ")}; nothing changed"
-        end
-        "main rebased #{ahead} unpushed commits onto #{REMOTE_MAIN} (#{behind} new) at #{short(read("rev-parse", "main"))}"
+        note = carried_note
+        result = @git.capture(*replay_identity(host.path), *rebase_args, chdir: host.path)
+        refuse_conflict(host.path, ahead, result) unless result.ok?
+        "main rebased #{ahead} unpushed commits onto #{REMOTE_MAIN} (#{behind} new) at #{short(read("rev-parse", "main"))}#{note}"
+      end
+
+      # Abandons a failed rebase in `dir` and refuses by name, leaving `main` where it was.
+      def refuse_conflict(dir, ahead, result)
+        raise ConsoleCapture::Failure,
+              "cannot pull main: rebasing main's #{ahead} unpushed commits onto #{REMOTE_MAIN} " \
+              "#{abandon_rebase(dir, result)}; nothing changed"
       end
 
       # Refuses landing a branch onto `main` while it lacks what `origin/main` has.

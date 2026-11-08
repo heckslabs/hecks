@@ -92,7 +92,8 @@ module Hecks
           private
 
           def open_answer(branch, view)
-            { outcome: { value: "open" }, report: { value: "#{branch} is #{view["state"].to_s.downcase}; not merged yet" } }
+            state = view["state"].to_s
+            { outcome: { value: "open" }, state: state, report: { value: "#{branch} is #{state.downcase}; not merged yet" } }
           end
 
           def merged(branch, merge)

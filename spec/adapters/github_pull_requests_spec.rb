@@ -50,11 +50,31 @@ RSpec.describe Hecks::Adapters::GithubPullRequests do
   end
 
   describe "#squash" do
-    it "squash-merges the pull request by its number, and never passes --admin", :aggregate_failures do
-      replies[["pr", "merge", "42", "--squash"]] = ["", "", true]
+    def merge_args = ["pr", "merge", "42", "--squash"]
 
-      expect(pulls.squash(number: { value: "42" })).to include(outcome: { value: "merged" })
-      expect(calls).to eq([["pr", "merge", "42", "--squash"]])
+    def view_args = ["pr", "view", "42", "--json", "mergedAt,mergeCommit"]
+
+    def view_reply(merged_at, oid = nil)
+      replies[merge_args] = ["", "", true]
+      replies[view_args] = [JSON.generate(mergedAt: merged_at, mergeCommit: oid && { oid: oid }), "", true]
+    end
+
+    it "squash-merges the pull request by its number, and never passes --admin", :aggregate_failures do
+      view_reply("2026-11-08T00:20:00Z", "abcdef0123456789")
+
+      answer = pulls.squash(number: { value: "42" })
+
+      expect(answer).to include(outcome: { value: "merged" }, report: { value: "merged #42 as abcdef012" })
+      expect(calls).to eq([merge_args, view_args])
+    end
+
+    it "answers queued, not merged, when gh enqueued the pull request and mergedAt is unset", :aggregate_failures do
+      view_reply(nil)
+
+      answer = pulls.squash(number: { value: "42" })
+
+      expect(answer).to include(outcome: { value: "queued" })
+      expect(answer.dig(:report, :value)).to start_with("queued for merge (auto-merge enabled) #42")
     end
 
     it "refuses when no number is named" do

@@ -76,6 +76,33 @@ RSpec.describe Hecks::Adapters::GitLanding, "#finish_branch" do
     expect { finish(->(_dir) { green }) }.to raise_error(failure, /unsaved work/)
   end
 
+  it "records the gate verdict for the commit main names and says so", :aggregate_failures do
+    build_repo
+    said = finish(->(_dir) { green })
+    marker = described_class::GateMarker.read(File.join(repo, ".git"))
+
+    expect(said[:report][:value]).to include("tests: quick gate green")
+    expect(marker).to include("sha" => git("rev-parse", "main").strip, "verdict" => "green")
+  end
+
+  it "refuses a primary checkout in the middle of a rebase by name and leaves main as it was", :aggregate_failures do
+    build_repo
+    before = git("rev-parse", "main").strip
+    FileUtils.mkdir_p(File.join(repo, ".git", "rebase-merge"))
+
+    expect { finish(->(_dir) { green }) }.to raise_error(failure, /middle of a rebase/)
+    expect(git("rev-parse", "main").strip).to eq(before)
+  end
+
+  it "refuses a dirty primary checkout by name and leaves main as it was", :aggregate_failures do
+    build_repo
+    before = git("rev-parse", "main").strip
+    File.write(File.join(repo, "README"), "edited")
+
+    expect { finish(->(_dir) { green }) }.to raise_error(failure, /README/)
+    expect(git("rev-parse", "main").strip).to eq(before)
+  end
+
   it "refuses by name while another landing is in flight" do
     build_repo
     git_dir = git("rev-parse", "--path-format=absolute", "--git-common-dir").strip

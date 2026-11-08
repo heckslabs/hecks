@@ -32,7 +32,7 @@ RSpec.describe "the ADR 0080 command table, every row" do
   NOT_USER_FACING = %w[race].freeze
 
   before(:all) do
-    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
+    @hecks = boot_hecks_in_memory
     @bluebooks = Hash.new { |cache, declaration| cache[declaration] = @hecks.registry.bluebook(declaration) }
   end
 

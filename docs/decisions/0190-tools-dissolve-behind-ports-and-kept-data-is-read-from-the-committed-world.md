@@ -1,6 +1,6 @@
 # Tools dissolve behind ports, and kept data is read from the committed world
 
-**Status:** Proposed. Date: 2026-11-07. Narrows [0154](0154-hand-written-code-is-a-kernel-an-adapter-or-a-projector.md):
+**Status:** Accepted. Date: 2026-11-08. Accepted by the owner (2026-11-08). Proposed 2026-11-07. Narrows [0154](0154-hand-written-code-is-a-kernel-an-adapter-or-a-projector.md):
 it says where the hand-written code in `lib/hecks/tools` goes under that rule. Builds on
 [0136](0136-hecks-defaults-to-memory-and-a-local-hecksagon-opts-in.md) (Memory unless the world opts in)
 and [0163](0163-hecks-is-one-context-in-task-modules-and-a-bang-is-the-only-sign-of-a-write.md) (`audience`,

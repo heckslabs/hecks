@@ -16,7 +16,7 @@ RSpec.describe "the Deploy bluebook's SmokeRun", :io do
   end
 
   before(:all) do
-    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
+    @hecks = boot_hecks_in_memory
   end
 
   # The scripts and stand-in programs in a scratch directory for each example, named by `runner`.

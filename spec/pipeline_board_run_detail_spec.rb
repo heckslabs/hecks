@@ -4,7 +4,7 @@ require "spec_helper"
 require_relative "support/pipeline_board_world"
 require "hecks/pipeline_board/adapters/pipeline_web"
 
-# What one /runs/<run> page reads: the AgentRun record and the commits its Work item landed.
+# What /api/runs/<run> answers: the AgentRun record and the commits its Work item landed.
 RSpec.describe Hecks::Adapters::PipelineBoard::RunDetail do
   let(:records) do
     [{ run: "r-9", session: "s-9", brief: "WORK ITEM: w-9\nbody", status: "finished", detail: "report", agent: "coder",

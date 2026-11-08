@@ -33,6 +33,10 @@ RSpec.describe "the Coder brief's standing sections" do
                                          "landing.finish!", "rebases onto local main", "in flight", "it queues")
   end
 
+  it "says a claim is verified by a reviewer run, never by the orchestrator" do
+    expect(section(:report)).to include("verified by a reviewer run, never by the orchestrator")
+  end
+
   it "forbids the push, the mint and live databases" do
     expect(section(:restraints)).to include("Do not push", "Do not mint", "live database", "client data")
   end

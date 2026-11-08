@@ -2,6 +2,7 @@
 
 require "open3"
 require_relative "../../indifferent_key"
+require_relative "finding_github/switch"
 
 module Hecks
   module Adapters
@@ -25,8 +26,11 @@ module Hecks
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] `repository:` names the `owner/name` to drive
       # @param root [String, nil] unused
-      def initialize(aggregate: nil, settings: {}, root: nil)
+      # @param registry [Runtime::Registry, nil] whose Tickets world holds the `github_issues`
+      #   switch
+      def initialize(aggregate: nil, settings: {}, root: nil, registry: nil)
         @repository = settings[:repository]
+        @registry = registry
       end
 
       # Opens an issue for the finding the runtime hands over (its whole held state).
@@ -34,9 +38,10 @@ module Hecks
       # @param held [Hash] the finding's fields; `title` and `body` are value objects or strings
       # @return [Hash{Symbol => Hash}] `issue_number:` of the new issue, the shape
       #   `Finding.RecordIssue` takes
-      # @raise [Error] when no repository is named, `gh` exits non-zero, or prints no
-      #   issue URL
+      # @raise [Error] when the run-finding switch is off, no repository is named, `gh` exits
+      #   non-zero, or prints no issue URL
       def open_issue(**held)
+        Switch.guard!(held, @registry)
         out = gh("issue", "create", "--title", plain(held[:title]).to_s, "--body", plain(held[:body]).to_s)
         number = Text.last_lines(out, 1)[ISSUE_NUMBER, 1]
         raise Error, "gh issue create printed no issue URL: #{out.strip.inspect}" unless number

@@ -20,4 +20,4 @@ A recommendation, `promote` or `hold`, with the reason in one or two lines, quot
 
 ## Handoffs
 
-Your recommendation is recorded as the Passage's `Promote` command, not sent to anyone. `Release` is the owner's command; you never issue it.
+Your recommendation is recorded by `PromotionRecommendation.recommend!` (run for you when a change is verified), not sent to anyone. `Release` is the owner's command; you never issue it.

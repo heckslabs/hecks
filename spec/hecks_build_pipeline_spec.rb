@@ -26,13 +26,14 @@ RSpec.describe "hecks-build (rust/build) pipeline parity", :io do
   end
 
   # What only the live registry can supply to `hecks project_rust`: persistence bindings, the
-  # optional seams `rust/host` reads, translation edges and the verbatim source text.
+  # optional seams `rust/host` reads, translation edges, the verbatim source text and `kept`,
+  # which `ShapeLedger::Kept` judges on the committed world loaded into a registry.
   # `hecks-parse` reads none of them, so `ir.json` (and `metadata.rs`, which embeds it) match only
   # without them. `lineage` is not among them: `hecks-build` derives it from the hecksagon and
   # world text, and the two must agree on which aggregates are lineage-capable (compliance binds
   # three through its world).
   HB_REGISTRY_ONLY_IR_KEYS = %w[persistence authorization membership identity provides translations approvals
-                                source_text].freeze
+                                source_text kept].freeze
 
   # [domain, dirs its run touches]: the target, `meta`, and any framework bluebook it attaches.
   HB_PARITY_DOMAINS = {

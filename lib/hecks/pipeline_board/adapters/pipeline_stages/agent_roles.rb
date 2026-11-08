@@ -32,9 +32,10 @@ module Hecks
         ROLE_EVENTS = {
           "planner"         => %w[PlanningRequested],
           "orchestrator"    => %w[WorkChecked WorkRouted DispatchAdviceRequested],
-          "architect"       => %w[PlanReviewRequested PlanReviewed],
+          "architect"       => %w[PlanReviewRequested PlanReviewed VerdictDelivered VerdictUndeliverable],
           "coder"           => %w[WorkSubmitted],
-          "reviewer"        => %w[SubmissionReviewRequested SpecFailureJudged HandedToPerson],
+          "reviewer"        => %w[SubmissionReviewRequested SpecFailureJudged HandedToPerson
+                                  VerdictDelivered VerdictUndeliverable],
           "release_manager" => %w[PromotionRecommended PromotionSettled]
         }.freeze
 

@@ -17,8 +17,8 @@ RSpec.describe "the Work concurrency cap" do
     JSON.parse(cli("work.undone")).find { |work| work["work"] == key }
   end
 
-  it "declares a cap of 8 in the Tickets world" do
-    expect(Hecks::Adapters::WorkLimits.cap(hecks.registry)).to eq(8)
+  it "declares a cap of 10 in the Tickets world" do
+    expect(Hecks::Adapters::WorkLimits.cap(hecks.registry)).to eq(10)
   end
 
   it "reads the cap from the world, and falls back to 8 without one", :aggregate_failures do
@@ -35,27 +35,27 @@ RSpec.describe "the Work concurrency cap" do
     expect(Hecks::Adapters::WorkLimits.cap(instance_double(Hecks::Runtime::Registry, world: world))).to eq(8)
   end
 
-  it "lets the 8th start through and yields the 9th with its reason", :aggregate_failures do
-    eighth = (1..8).map { |n| start("cap/#{n}") }.last
-    ninth = start("cap/9")
+  it "lets the 10th start through and yields the 11th with its reason", :aggregate_failures do
+    tenth = (1..10).map { |n| start("cap/#{n}") }.last
+    eleventh = start("cap/11")
 
-    expect(eighth["status"]).to eq("started")
-    expect(ninth["status"]).to eq("planned")
-    expect(ninth["reason"]).to include("9", "cap of 8", "cap/1", "cap/8")
+    expect(tenth["status"]).to eq("started")
+    expect(eleventh["status"]).to eq("planned")
+    expect(eleventh["reason"]).to include("11", "cap of 10", "cap/1", "cap/10")
   end
 
   it "leaves a row that is already started alone when another start is yielded", :aggregate_failures do
-    (1..9).each { |n| start("held/#{n}") }
+    (1..11).each { |n| start("held/#{n}") }
 
-    expect(JSON.parse(cli("work.undone")).count { |work| work["status"] == "started" }).to eq(8)
+    expect(JSON.parse(cli("work.undone")).count { |work| work["status"] == "started" }).to eq(10)
     expect(start("held/1")["status"]).to eq("started")
   end
 
   it "admits a start again once a holder finishes" do
-    (1..9).each { |n| start("free/#{n}") }
+    (1..11).each { |n| start("free/#{n}") }
     cli("work.finish!", "to=free/1")
-    cli("work.start!", "to=free/9", "claimed_by.value=s", "claimed_at.value=2026-11-01T09:00:00Z")
+    cli("work.start!", "to=free/11", "claimed_by.value=s", "claimed_at.value=2026-11-01T09:00:00Z")
 
-    expect(JSON.parse(cli("work.undone")).find { |work| work["work"] == "free/9" }["status"]).to eq("started")
+    expect(JSON.parse(cli("work.undone")).find { |work| work["work"] == "free/11" }["status"]).to eq("started")
   end
 end

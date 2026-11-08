@@ -136,7 +136,7 @@ RSpec.describe "the Codebase rows of the ADR command table" do
                            TestSuiteRun CorpusRun Server PublishingRun PromotionRun].freeze
 
   before(:all) do
-    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
+    @hecks = boot_hecks_in_memory
     @bluebook = @hecks.registry.bluebook("Hecks")
   end
 

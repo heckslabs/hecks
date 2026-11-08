@@ -474,7 +474,7 @@ RSpec.describe Hecks::Adapters::JournalStore, :io do
 
   describe "through the launcher" do
     def run_verb(*argv)
-      @hecks ||= Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
+      @hecks ||= boot_hecks_in_memory
       Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, argv: argv, program: "hecks")
     end
 

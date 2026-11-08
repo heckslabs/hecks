@@ -95,7 +95,7 @@ RSpec.describe "the Deploy bluebook's DataCopy and CopyVerification", :io do
                  target_secret=arn:new].freeze
 
   before(:all) do
-    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
+    @hecks = boot_hecks_in_memory
   end
 
   # A scratch directory with the stand-in programs for each example, named by `scratch`.

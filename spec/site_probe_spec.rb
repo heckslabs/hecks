@@ -58,7 +58,7 @@ RSpec.describe Hecks::Projections::Site::Probe do
 
   describe "site_projection.check_site!" do
     before(:all) do
-      @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
+      @hecks = boot_hecks_in_memory
     end
 
     after { Hecks::Adapters::Codebase::Tree.root = nil }

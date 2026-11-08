@@ -10,6 +10,7 @@ require_relative "claude_resumption"
 require_relative "architect_verdict"
 require_relative "coder_job_facts"
 require_relative "claude_agent_list"
+require_relative "claude_session_listing"
 require_relative "dispatching/settings"
 
 module Hecks
@@ -46,6 +47,7 @@ module Hecks
         @transcript = ClaudeTranscript.new(**settings.slice(:projects))
         @jobs = ClaudeJobs.new(directory: settings[:jobs])
         @agents = ClaudeAgentList.new(@command, shell: @shell)
+        @listing = ClaudeSessionListing.new(@command, shell: @shell)
         @settle = settings.fetch(:settle, SETTLE_SECONDS)
       end
 
@@ -195,6 +197,21 @@ module Hecks
                         .call(id, listed(id), plain(held[:answer]), env: @session.session_environment, chdir: plain(held[:repo]))
       end
 
+      # Says whether `claude agents` still lists the run's session. A session `claude rm` deleted is
+      # not listed; whether a run whose session is gone may be retired is the bluebook's.
+      #
+      # @param held [Hash] the `AgentRun` record: `session`
+      # @return [Hash{Symbol => Object}] `listed:` whether the session is listed, `state:` its state
+      #   there (empty when it is not), and `note:` that in words
+      # @raise [ConsoleCapture::Failure] when the sessions cannot be listed
+      def look_for(**held)
+        id = plain(held[:session]).to_s
+        entry = id.empty? ? nil : @listing.find(id)
+        return { listed: false, state: "", note: "session #{id} is not listed" } unless entry
+
+        { listed: true, state: entry["state"].to_s, note: "session #{id} is still listed, #{entry["state"]}" }
+      end
+
       private
 
       def agent_listing(repo, agent)
@@ -204,13 +221,7 @@ module Hecks
         { listed: names.include?(agent), note: "agent #{agent} is not available in #{repo}; available: #{names.join(", ")}" }
       end
 
-      def listed(id)
-        listing = @shell.capture(@command, "agents", "--json", "--all")
-        raise ConsoleCapture::Failure, "#{@command} could not list sessions: #{listing.err.strip}" unless listing.ok?
-
-        found = JSON.parse(listing.out).find { |entry| [entry["id"], entry["sessionId"]].include?(id) }
-        found || raise(ConsoleCapture::Failure, "no session #{id} is listed")
-      end
+      def listed(id) = @listing.find(id) || raise(ConsoleCapture::Failure, "no session #{id} is listed")
 
       def start_arguments(held)
         agent = plain(held[:agent])

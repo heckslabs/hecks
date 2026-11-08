@@ -5,7 +5,7 @@ require "spec_helper"
 # the one place they are written; the launcher behind it holds no copy.
 RSpec.describe "stress_concurrency's declared defaults" do
   before(:all) do
-    @runtime = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
+    @runtime = boot_hecks_in_memory
   end
 
   let(:command) do

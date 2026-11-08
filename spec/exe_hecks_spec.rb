@@ -8,7 +8,7 @@ RSpec.describe "exe/hecks" do
   let(:root) { File.expand_path("..", __dir__) }
 
   before(:all) do
-    @hecks = Hecks.boot(File.join(File.expand_path("..", __dir__), "lib/hecks/hecks"), install_driving: false)
+    @hecks = boot_hecks_in_memory
     names  = { "mcp" => "serve_mcp", "console" => "open_console" }
     options = { program: "hecks", names: names }
     @cli    = Hecks::Projector.call(:cli, bluebook: @hecks.registry.bluebook("Hecks"), options: options)

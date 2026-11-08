@@ -24,7 +24,7 @@ RSpec.describe "the Deploy bluebook's BluebookDiff", :io do
   BASH
 
   before(:all) do
-    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
+    @hecks = boot_hecks_in_memory
   end
 
   # A scratch project for each example, named by `dir`: it holds the stand-in script unless the

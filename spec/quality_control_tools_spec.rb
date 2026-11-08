@@ -8,7 +8,7 @@ RSpec.describe "the QualityControl tool queries" do
   NOVELTY_FIXTURES_DIR = File.join(InMemoryDomain::ROOT, "spec/fixtures/qa_domain_novelty").freeze
 
   before(:all) do
-    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
+    @hecks = boot_hecks_in_memory
     @declaration = @hecks.registry.bluebook("QualityControl")
   end
 

@@ -37,6 +37,7 @@ module Hecks
           ir[:lineage] = shaped(exporter.lineage(@registry, @domain_name))
           ir[:persistence] = shaped(exporter.persistence(@registry, @domain_name))
           add_persistence_wiring(ir, exporter)
+          ir[:kept] = kept?
           add_seams(ir, exporter)
           add_edges_and_source(ir)
           add_plugins(ir, exporter)
@@ -52,6 +53,16 @@ module Hecks
         end
 
         def shaped(payload) = self.class.json_shaped(payload)
+
+        # Whether the target's data is kept (`ShapeLedger::Kept`), judged on the committed world
+        # alone, so a local overlay never changes the answer the host reads.
+        #
+        # @return [Boolean]
+        def kept?
+          registry = ShapeLedger::Scope.committed_registry(@bluebook_dir)
+          bluebook = registry.bluebooks[@domain_name]
+          bluebook ? ShapeLedger::Kept.of?(registry, @domain_name, bluebook) : Framework.members.key?(@domain_name)
+        end
 
         # The wasm plugins the host runs for queries no hecksagon binds; none, no key.
         #

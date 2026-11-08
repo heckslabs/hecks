@@ -24,6 +24,22 @@ RSpec.describe "the push train boarding main where auto-merge is disallowed", :i
 
   def merge_commit = "c" * 40
 
+  # What `gh pr view` answers for a PR in each state; `mergedAt` is set only once it has merged.
+  def merged_view = JSON.generate(state: "MERGED", mergedAt: "2026-11-08T00:20:00Z", mergeCommit: { oid: merge_commit })
+
+  # The scripted answers of `gh pr view`; each read takes the next, the last repeating.
+  def views = (@views ||= [merged_view])
+
+  def merge_reply(argv) = argv.include?("--auto") ? [false, refusal] : [true, ""]
+
+  def next_checks = reads.size > 1 ? reads.shift : reads.first
+
+  def next_view = views.size > 1 ? views.shift : views.first
+
+  def queued_view = JSON.generate(state: "OPEN", mergedAt: nil, mergeCommit: nil)
+
+  def dropped_view = JSON.generate(state: "CLOSED", mergedAt: nil, mergeCommit: nil)
+
   def refusal = "GraphQL: Auto merge is not allowed for this repository (enablePullRequestAutoMerge)"
 
   def git(*args, dir: work)
@@ -40,9 +56,9 @@ RSpec.describe "the push train boarding main where auto-merge is disallowed", :i
     gh_calls << argv
     case argv[1..2]
     when %w[pr create] then [true, "https://github.test/o/r/pull/7\n"]
-    when %w[pr merge] then argv.include?("--auto") ? [false, refusal] : [true, ""]
-    when %w[pr checks] then [true, reads.size > 1 ? reads.shift : reads.first]
-    when %w[pr view] then [true, JSON.generate(state: "MERGED", mergeCommit: { oid: merge_commit })]
+    when %w[pr merge] then merge_reply(argv)
+    when %w[pr checks] then [true, next_checks]
+    when %w[pr view] then [true, next_view]
     else [false, "unexpected #{argv.join(" ")}"]
     end
   end
@@ -85,6 +101,24 @@ RSpec.describe "the push train boarding main where auto-merge is disallowed", :i
       expect(answer).to include(outcome: { value: "pushed" }, pushed: { value: merge_commit })
       expect(merged_by_squash).to eq([["gh", "pr", "merge", "7", "--squash"]])
       expect(pauses).to eq([Hecks::Adapters::GitTrain::MergeWhenGreen::INTERVAL])
+    end
+  end
+
+  context "when the merge call only enqueues the PR" do
+    before { checks(["rspec", "pass"]) }
+
+    it "answers pushed only once the queue has merged it, pausing meanwhile", :aggregate_failures do
+      views.replace([queued_view, queued_view, queued_view, merged_view])
+
+      expect(board(["rspec", "pass"])).to include(outcome: { value: "pushed" }, pushed: { value: merge_commit })
+      expect(pauses.size).to eq(2)
+    end
+
+    it "faults, naming the queue, when the queue drops the PR unmerged" do
+      views.replace([queued_view, dropped_view])
+
+      expect { board(["rspec", "pass"]) }
+        .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, %r{merge queue dropped train/main-\w+ \(closed\)})
     end
   end
 

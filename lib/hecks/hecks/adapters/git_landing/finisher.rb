@@ -3,6 +3,7 @@
 require_relative "../git_worktrees"
 require_relative "../git_main_pull"
 require_relative "../shell"
+require_relative "../git_shallow_check"
 
 module Hecks
   module Adapters
@@ -27,13 +28,16 @@ module Hecks
         # @param checkout [String] the worktree the branch is checked out in
         # @param branch [String] the branch to finish
         # @param onto [String] the branch to rebase onto
-        # @param gate [#call] answers the {Shell::Result} of the quick gate run in a directory
-        def initialize(git, checkout, branch:, onto:, gate: nil)
+        # @param steps [Hash] `gate:` (answers the {Shell::Result} of the quick gate run in a
+        #   directory) and `shallow:` (given the checkout, branch and onto, raises when one of CI's
+        #   failing checks is red in a depth-1 clone)
+        def initialize(git, checkout, branch:, onto:, **steps)
           @git = git
           @checkout = checkout
           @branch = ref(branch)
           @onto = ref(onto)
-          @gate = gate || ->(dir) { Shell.new.capture(*GATE, chdir: dir) }
+          @gate = steps[:gate] || ->(dir) { Shell.new.capture(*GATE, chdir: dir) }
+          @shallow = steps[:shallow] || method(:shallow_check)
         end
 
         # Refuses unsaved work, pulls `main` when it is the target, rebases and runs the gate.
@@ -46,9 +50,14 @@ module Hecks
           pull_main if @onto == "main"
           rebase
           run_gate
+          @shallow.call(@checkout, @branch, @onto)
         end
 
         private
+
+        def shallow_check(checkout, branch, onto)
+          GitShallowCheck.new.shallow_check(checkout: checkout, branch: branch, onto: onto)
+        end
 
         def refuse_unsaved
           changed = dirty(@checkout)
@@ -56,13 +65,18 @@ module Hecks
         end
 
         def rebase
-          result = @git.capture("rebase", @onto, chdir: @checkout)
+          result = @git.capture(*replay_identity(@checkout), "rebase", *rebase_range, chdir: @checkout)
           return if result.ok?
 
-          conflicts = @git.capture("diff", "--name-only", "--diff-filter=U", chdir: @checkout).out.split
-          @git.capture("rebase", "--abort", chdir: @checkout)
           raise ConsoleCapture::Failure,
-                "conflict: rebasing #{@branch} onto #{@onto} conflicts in #{conflicts.join(", ")}; nothing changed"
+                "conflict: rebasing #{@branch} onto #{@onto} #{abandon_rebase(@checkout, result)}; nothing changed"
+        end
+
+        # What the rebase replays: when the branch was cut from a commit that `onto` carried by
+        # squash, only the branch's own commits after it.
+        def rebase_range
+          boarded = carried_boarding("#{@branch}..#{@onto}", @branch)
+          boarded ? ["--onto", @onto, boarded] : [@onto]
         end
 
         def run_gate

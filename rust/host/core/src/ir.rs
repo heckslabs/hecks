@@ -231,6 +231,13 @@ pub fn mirrored_aggregates(domain_ir: &Value) -> std::collections::BTreeSet<Stri
     mirrored
 }
 
+/// Whether the domain's data is kept: protected by an era or a translation edge, not dropped
+/// freely (ADR 0190). The Ruby side decides it once from the committed world and exports it as
+/// `ir.json`'s `kept` key; an IR without the key (an older one) is not kept.
+pub fn kept(domain_ir: &Value) -> bool {
+    domain_ir.get("kept").and_then(Value::as_bool).unwrap_or(false)
+}
+
 pub fn membership_provider(domain_ir: &Value) -> Option<MembershipProvider> {
     let fact = domain_ir.get("membership")?;
     Some(MembershipProvider {
@@ -440,6 +447,15 @@ fn single_backend(domain_ir: &Value) -> Result<Backend, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn kept_reads_the_exported_boolean_and_defaults_to_not_kept() {
+        let read = |ir: Value| kept(&ir);
+        assert!(read(serde_json::json!({"kept": true})));
+        assert!(!read(serde_json::json!({"kept": false})));
+        assert!(!read(serde_json::json!({})));
+        assert!(!read(serde_json::json!({"kept": "yes"})));
+    }
 
     #[test]
     fn lineage_capable_aggregates_qualifies_names_with_the_domain() {

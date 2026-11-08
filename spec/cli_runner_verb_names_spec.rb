@@ -4,7 +4,7 @@ require "spec_helper"
 # copied from `dispatches Hecks::SendTrain.Board` runs as it reads.
 RSpec.describe "the launcher's verb-form command names" do
   before(:all) do
-    @runtime = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
+    @runtime = boot_hecks_in_memory
   end
 
   def help(word)

@@ -6,7 +6,7 @@ require "json"
 # `aws` is stubbed, so the readings here are what the stub returns and nothing reaches AWS.
 RSpec.describe "the Deploy bluebook's CostCheck" do
   before(:all) do
-    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
+    @hecks = boot_hecks_in_memory
   end
 
   let(:ok)  { instance_double(Process::Status, success?: true) }

@@ -1,0 +1,61 @@
+# Baseline of Hecks/NoScriptIoOutsideAdapters (ADR 0190 decision 4).
+#
+# These lib files use OptionParser, ARGV, exit or $stdout outside an adapter folder. A listed
+# file is advisory: the cop does not flag it. The list only shrinks. When a file is fixed or
+# deleted, remove its line; a spec fails for a line whose file is gone or no longer offends.
+# New code is never added here. When the list is empty, delete the cop, this file and its
+# .rubocop.yml entry. Registered here and in .rubocop.yml, not in ADR 0091, which allows no
+# per-file list.
+lib/hecks/bench/cli.rb
+lib/hecks/embryonaut_bluebook/vendor_cli.rb
+lib/hecks/mcp_stdio_guard.rb
+lib/hecks/quality_control/cli/qa_concurrency_racer.rb
+lib/hecks/quality_control/cli/qa_mutate.rb
+lib/hecks/quality_control/cli/qa_postgres_migrate.rb
+lib/hecks/quality_control/cli/qa_postgres_role.rb
+lib/hecks/quality_control/cli/qa_seed_angles.rb
+lib/hecks/quality_control/cli/qa_seed_targets.rb
+lib/hecks/quality_control/cli/qa_tick.rb
+lib/hecks/query_ir_mcp.rb
+lib/hecks/release/approval.rb
+lib/hecks/release/runner.rb
+lib/hecks/rust_build.rb
+lib/hecks/rust_build/project_rust/codegen_run.rb
+lib/hecks/secrets.rb
+lib/hecks/tools.rb
+lib/hecks/tools/behaviors.rb
+lib/hecks/tools/canonicalise.rb
+lib/hecks/tools/check_engine_agreement.rb
+lib/hecks/tools/comment_style/cli.rb
+lib/hecks/tools/console.rb
+lib/hecks/tools/deploy_recipe.rb
+lib/hecks/tools/deploy_template_diff.rb
+lib/hecks/tools/doc_coverage.rb
+lib/hecks/tools/document.rb
+lib/hecks/tools/downstream_model_check.rb
+lib/hecks/tools/expression_projection.rb
+lib/hecks/tools/follow.rb
+lib/hecks/tools/fuzz_sweep.rb
+lib/hecks/tools/fuzz_sweep/pool.rb
+lib/hecks/tools/interview_run.rb
+lib/hecks/tools/model_check.rb
+lib/hecks/tools/pattern_cases.rb
+lib/hecks/tools/project_cli.rb
+lib/hecks/tools/reference.rb
+lib/hecks/tools/regeneration_run/pool.rb
+lib/hecks/tools/release_gem.rb
+lib/hecks/tools/release.rb
+lib/hecks/tools/rspec_io_parallel_files.rb
+lib/hecks/tools/rspec_shard_files.rb
+lib/hecks/tools/run.rb
+lib/hecks/tools/rust_comment_style.rb
+lib/hecks/tools/seed_semantics_corpus.rb
+lib/hecks/tools/site_routes/cli.rb
+lib/hecks/tools/smoke_http.rb
+lib/hecks/tools/smoke_http/settings.rb
+lib/hecks/tools/smoke_test.rb
+lib/hecks/tools/statements.rb
+lib/hecks/tools/stores.rb
+lib/hecks/tools/stress_concurrency_specs.rb
+lib/hecks/tools/stub_scope.rb
+lib/hecks/tools/tenant_provisioning.rb

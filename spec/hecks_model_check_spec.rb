@@ -4,7 +4,7 @@ require "hecks/bluebook/model_check"
 # The Hecks domain, with every bluebook it attaches, comes through the same static model check the
 # pre-push gate runs (`ModelCheckRun.model_check!`) with no error: an error would fail the push.
 RSpec.describe "The Hecks domain's model check" do
-  let(:registry) { Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false).registry }
+  let(:registry) { boot_hecks_in_memory.registry }
 
   let(:findings) do
     declarations = registry.bluebooks.values

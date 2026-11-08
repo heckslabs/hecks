@@ -53,6 +53,10 @@ RSpec.describe Hecks::Adapters::PipelineStages do
     expect(stage("Local main")).to include(count: "1", state: "attention")
   end
 
+  it "says which commit local main is, whether it was gated, and what changed" do
+    expect(stage("Local main")[:detail]).to match(/local main \h+, 1 ahead.*tests: quick gate not recorded.*changed: /)
+  end
+
   it "reads the newest CI run as failed with its wall minutes" do
     expect(stage("CI")[:detail]).to include("failure", "5.0 min")
   end

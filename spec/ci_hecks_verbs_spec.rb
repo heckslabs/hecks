@@ -41,7 +41,7 @@ RSpec.describe "CI and hook calls of the hecks launcher" do
 
   it "names only commands the launcher resolves, each with its aggregate", :aggregate_failures do
     calls = verb_calls
-    hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
+    hecks = boot_hecks_in_memory
 
     expect(calls).not_to be_empty
     calls.each { |kind, verb| expect_resolves(hecks, kind, verb) }

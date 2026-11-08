@@ -22,10 +22,11 @@ module Hecks
         def pull_unhosted_main(ahead, behind)
           return carried_by_squash if read("rev-parse", "main^{tree}") == read("rev-parse", "#{REMOTE_MAIN}^{tree}")
 
+          note = carried_note
           rebased = rebase_detached(ahead)
           move_main(rebased)
           "main rebased #{ahead} unpushed commits onto #{REMOTE_MAIN} (#{behind} new) at #{short(rebased)}, " \
-            "checked out nowhere"
+            "checked out nowhere#{note}"
         end
 
         def carried_by_squash
@@ -49,14 +50,10 @@ module Hecks
         end
 
         def rebase_in(tree, ahead)
-          result = @git.capture("rebase", "--rebase-merges", REMOTE_MAIN, chdir: tree)
+          result = @git.capture(*replay_identity(tree), *rebase_args, chdir: tree)
           return read("rev-parse", "HEAD", dir: tree) if result.ok?
 
-          conflicts = @git.capture("diff", "--name-only", "--diff-filter=U", chdir: tree).out.split
-          @git.capture("rebase", "--abort", chdir: tree)
-          raise ConsoleCapture::Failure,
-                "cannot pull main: rebasing main's #{ahead} unpushed commits onto #{REMOTE_MAIN} conflicts in " \
-                "#{conflicts.join(", ")}; nothing changed"
+          refuse_conflict(tree, ahead, result)
         end
       end
     end

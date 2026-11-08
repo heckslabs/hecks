@@ -141,7 +141,7 @@ Hecks.bluebook "CiWorkflows" do
       member workflow: "ci-rspec.yml", job: "rspec_shard", name: "ruby", uses: "./.github/actions/setup-ruby"
       member workflow: "ci-rspec.yml", job: "rspec_shard", name: "zsh",
              title: "Install zsh",
-             run: "sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends zsh\n",
+             run: "for attempt in 1 2 3; do\n  if sudo DEBIAN_FRONTEND=noninteractive timeout 120 apt-get update -qq && \\\n     sudo DEBIAN_FRONTEND=noninteractive timeout 180 apt-get install -y --no-install-recommends zsh; then exit 0; fi\n  echo \"::warning::apt install of zsh failed or timed out (attempt $attempt of 3)\"\ndone\nexit 1\n",
              note: "cli_completion_spec checks the zsh completion script with `zsh -n`; CI has no zsh,\nand the skip backstop turns an unrouted skip into a failure."
       member workflow: "ci-rspec.yml", job: "rspec_shard", name: "environment",
              uses: "./.github/actions/hecks-environment"

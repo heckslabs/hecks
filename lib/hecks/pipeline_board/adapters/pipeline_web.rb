@@ -167,12 +167,12 @@ module Hecks
       def wiring_page = File.read(WIRING_PAGE)
 
       # @param key [String] an AgentRun's key or its session id
-      # @return [Hash, nil] what `/runs/<key>` shows; nil when no run has that key
+      # @return [Hash, nil] what `/api/runs/<key>` answers; nil when no run has that key
       # @raise [PipelineBoard::Unavailable] when the run records cannot be read
       def run_detail(key) = @stages.run_detail(key)
 
       # @param key [String] a SendTrain run key
-      # @return [Hash, nil] what `/trains/<key>` shows; nil when no boarding has that key
+      # @return [Hash, nil] what `/api/trains/<key>` answers; nil when no boarding has that key
       # @raise [PipelineBoard::Unavailable] when the boarding cannot be read
       def train_detail(key) = @stages.train_detail(key)
 

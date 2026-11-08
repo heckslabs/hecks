@@ -2,6 +2,7 @@
 
 require "tmpdir"
 require_relative "../git_worktrees"
+require_relative "../git_main_pull"
 
 module Hecks
   module Adapters
@@ -54,12 +55,21 @@ module Hecks
         end
 
         def integrate(dir, before)
+          refuse_midway(dir)
           changed = dirty(dir)
           raise ConsoleCapture::Failure, unsaved_refusal(dir, changed) unless changed.empty?
 
           outcome = ancestor?(before, branch_tip(@branch)) ? fast_forward(dir) : merge_commit(dir)
           [outcome, read("rev-parse", "HEAD", dir: dir)]
         end
+
+        # A checkout in the middle of a rebase or merge is refused by name, with nothing changed.
+        def refuse_midway(dir)
+          midway = GitMainPull::MIDWAY.find { |name, _| File.exist?(git_path(dir, name)) }
+          raise ConsoleCapture::Failure, "#{dir} is in the middle of a #{midway.last}; nothing changed" if midway
+        end
+
+        def git_path(dir, name) = read("rev-parse", "--path-format=absolute", "--git-path", name, dir: dir)
 
         def fast_forward(dir)
           read("merge", "--ff-only", @branch, dir: dir)

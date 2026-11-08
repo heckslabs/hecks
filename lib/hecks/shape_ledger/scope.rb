@@ -42,10 +42,7 @@ module Hecks
         Framework.members.key?(name) || Runtime::RevisionCheck.lineage_capable?(registry, adapter_of(registry, name, bluebook))
       end
 
-      def adapter_of(registry, name, bluebook)
-        first = bluebook.aggregates.first
-        first ? Runtime::RevisionCheck.adapter_for(registry, name, first) : Ports::Persistence::DEFAULT_ADAPTER
-      end
+      def adapter_of(registry, name, bluebook) = Kept.adapter_of(registry, name, bluebook)
     end
   end
 end

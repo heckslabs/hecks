@@ -2,6 +2,7 @@
 
 require_relative "tile_kit"
 require_relative "../rules"
+require_relative "red_reading"
 
 module Hecks
   module Adapters
@@ -55,24 +56,26 @@ module Hecks
           unknown_tile("failed_head", "Failed jobs on head", { unknown: "GitHub would not list the jobs of #{head[:sha]}" })
         end
 
-        # A run still going has no verdict yet, so the tile says it is running rather than red.
-        def red_for(runs, now)
-          latest = runs.last
-          return running_red(latest) unless latest[:status] == "completed"
-          return tile("red", "Main red for", 0, "h", detail: "main is green") if latest[:conclusion] == "success"
+        # How long main has been red, from the one {RedReading} the strip's flag row shares. A
+        # standing flag reads red even while the newest run is still going; with no flag, a run
+        # still going has no verdict yet, so the tile says it is running rather than red.
+        #
+        # @param runs [Array<Hash>] CI runs of main, oldest first
+        # @param flag [Hash, nil] the red flag marker, `{unknown: reason}` or nil
+        # @param now [Time] the time the red time is measured to
+        # @return [Hash] the tile; its value is nil when no green run in the window starts the count
+        def red_for(runs, flag, now)
+          reading = RedReading.new(runs, flag, now)
+          return red_tile(reading) if reading.flagged?
+          return running_red(runs.last) unless runs.last[:status] == "completed"
+          return tile("red", "Main red for", 0, "h", detail: "main is green") if runs.last[:conclusion] == "success"
 
-          green = runs.index { |run| run[:conclusion] == "success" }
-          hours = green && ((now - finished(runs[green])) / 3600.0).round(1)
-          tile("red", "Main red for", hours, "h", state: Rules.verdict("Main red", {}), detail: red_note(runs, green))
+          red_tile(reading)
         end
 
-        # Names the last green commit and the first red one after it. The runs are newest first, so
-        # the first red is the run just before the green one in the list.
-        def red_note(runs, green)
-          return "no green run in the window" unless green
-          return "last green #{runs[green][:sha]}" if green.zero?
-
-          "last green #{runs[green][:sha]}, first red #{runs[green - 1][:sha]}"
+        def red_tile(reading)
+          hours = reading.minutes && (reading.minutes / 60.0).round(1)
+          tile("red", "Main red for", hours, "h", state: Rules.verdict("Main red", {}), detail: reading.words)
         end
 
         # The run is still going, so it has no verdict yet: the tile says so rather than red.

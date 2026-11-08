@@ -101,7 +101,7 @@ RSpec.describe "the Custodian rows of the ADR command table" do
   ].freeze
 
   before(:all) do
-    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
+    @hecks = boot_hecks_in_memory
     @bluebook = @hecks.registry.bluebook("Hecks")
   end
 

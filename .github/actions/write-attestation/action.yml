@@ -44,6 +44,10 @@ runs:
             notes --ref=ci add -f -m "$note" "$tree"
           if git push origin refs/notes/ci; then exit 0; fi
           echo "[ci_attest_write] push of refs/notes/ci failed (attempt $attempt of 5); retrying" >&2
-          sleep $((attempt * 2))
+          sleep $((attempt * 2 + RANDOM % 5))
         done
-        exit 1
+
+        # The note only lets a later run on this tree skip checks it would otherwise repeat, so
+        # losing the race costs a slower later run, never a red one.
+        echo "[ci_attest_write] could not push refs/notes/ci after 5 attempts; no attestation for this tree" >&2
+        exit 0

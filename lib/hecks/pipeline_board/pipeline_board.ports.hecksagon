@@ -23,6 +23,9 @@ Hecks.hecksagon "PipelineBoard" do
   # The events the tooling recorded, read from the journal store without writing to it.
   PipelineBoard::PipelineBoard.port "Journal" do
     answers_query "Events"
+    answers_query "RunCards"
+    answers_query "Stuck"
+    answers_query "TurnBlock"
   end
 
   # The wiring of the booted domains, read from the registry, for the diagram.

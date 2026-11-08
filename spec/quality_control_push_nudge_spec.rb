@@ -8,7 +8,7 @@ require "hecks/quality_control/adapters/push_due_reader"
 # `Due` is stubbed with the line it answers, and the Hecks domain boots in Memory, so no git or
 # ledger is read.
 RSpec.describe "the push nudge" do
-  let(:hecks) { Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false) }
+  let(:hecks) { boot_hecks_in_memory }
   let(:rehearsal) { instance_double(Hecks::Adapters::GitRehearsal) }
   let(:counter) { [0] }
 

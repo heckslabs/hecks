@@ -31,7 +31,7 @@ RSpec.shared_context "with a resting pruner" do
   include PruningSpecHelpers
 
   before(:all) do
-    @hecks = Hecks.boot(File.join(InMemoryDomain::ROOT, "lib/hecks/hecks"), install_driving: false)
+    @hecks = boot_hecks_in_memory
   end
 
   before { rest_the_pruner }

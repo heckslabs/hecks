@@ -10,8 +10,8 @@ RSpec.describe Hecks::Adapters::Driving::McpScope do
     declaration_cache days dry dry_run email environment era example exclude expert fills format full_gate
     gate inner isolation iterations kind lane landed list_shards message name named new_name no_ai number only
     opens outcome owner package pairs_shape parallel persist_regressions pin profile pushed reason rehearsal_verdict
-    report required role run runs scope seed_start seeds session shard stage stdout steps strict subject tags taking
-    target targets timeout title to top verb warmup watermark winners word work workers
+    report required role run runs scope seed_start seeds session shard stage state stdout steps strict subject tags taking
+    target targets timeout title to top verb verdict warmup watermark winners word work workers
   ].freeze
 
   let(:classes) do
@@ -20,7 +20,7 @@ RSpec.describe Hecks::Adapters::Driving::McpScope do
   end
 
   let(:public_argument_names) do
-    declaration = Hecks.boot(File.expand_path("../lib/hecks/hecks", __dir__), install_driving: false)
+    declaration = boot_hecks_in_memory
     cli = Hecks::Projector.call(:cli, bluebook: Hecks::Storehouse.bluebook_for(declaration), options: { program: "mcp" })
     cli[:commands].values.reject { |spec| spec[:internal] }
                   .flat_map { |spec| spec[:arguments].map { |argument| argument[:path].split(".").first } }.uniq

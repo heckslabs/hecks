@@ -1025,6 +1025,7 @@
 
     ]
   },
+  "kept": false,
   "authorization": {
     "provider": "Governance",
     "grant": "Governance::RoleAssignment.Assign",

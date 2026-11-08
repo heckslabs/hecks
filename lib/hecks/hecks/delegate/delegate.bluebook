@@ -37,6 +37,9 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, matches: :present
       end
 
+      # The run of the judge whose verdict an answer carries, so the outcome names the verdict it delivers.
+      value_object "VerdictKey", String
+
       # The directory the session works in.
       value_object "Path" do
         attribute :value, String, matches: :not_empty
@@ -73,7 +76,8 @@ Hecks.bluebook "Hecks" do
         transition "Finish"  => "finished", from: "started"
         transition "Fail"    => "finished", from: "started"
         transition "Tidied"  => "tidied",   from: "finished"
-        mark :terminal, "tidied", "refused"
+        transition "Retired" => "retired",  from: "started"
+        mark :terminal, "tidied", "refused", "retired"
       end
 
       command "Dispatch" do
@@ -219,6 +223,7 @@ Hecks.bluebook "Hecks" do
 
         reference_to AgentRun
         attribute :answer, Brief
+        attribute :verdict, VerdictKey, default: ""
 
         given("the answer says something") { !answer.value.to_s.strip.empty? }
 
@@ -232,6 +237,7 @@ Hecks.bluebook "Hecks" do
         reference_to AgentRun
         attribute :answered_at, Moment, sets: true
         attribute :session,     SessionId, sets: true
+        attribute :verdict,     VerdictKey, default: ""
 
         emits AgentRunAnswered
       end
@@ -242,8 +248,42 @@ Hecks.bluebook "Hecks" do
 
         reference_to AgentRun
         attribute :refusal, Report, sets: true
+        attribute :verdict, VerdictKey, default: ""
 
         emits AgentRunUnanswered
+      end
+
+      # Closes a run still recorded started whose session is gone: `claude agents` no longer lists
+      # it, so no check can read it and the ledger would list it as started for ever. A session
+      # still listed is kept: a finished one is tidied, a live one answered, and a plain session is
+      # removed with `PlainSession.Remove`.
+      command "Retire", from: "started" do
+        role "Operator"
+        goal "Close a started run whose session is gone, so the ledger stops listing it as started"
+
+        reference_to AgentRun
+
+        emits AgentRunRetireRequested
+      end
+
+      command "Retired" do
+        role "System"
+        goal "Record that the run was closed because its session is gone, and what the listing said"
+
+        reference_to AgentRun
+        attribute :detail, Report, sets: true
+
+        emits AgentRunRetired
+      end
+
+      command "Unretired" do
+        role "System"
+        goal "Record why a run was not retired: its session is still listed, or could not be looked for"
+
+        reference_to AgentRun
+        attribute :refusal, Report, sets: true
+
+        emits AgentRunUnretired
       end
 
       query "Tidyable" do
@@ -516,17 +556,41 @@ Hecks.bluebook "Hecks" do
 
     policy "ResumeWithTheAnswer" do
       on      "AgentRun.AnswerRequested"
-      ask     :resume, with: { run: :run, answer: :answer }
+      ask     :resume, with: { run: :run, answer: :answer, verdict: :verdict }
     end
 
     policy "RecordTheAnswer" do
       on      "AgentRun.AgentResumed"
-      trigger AgentRun::Answered, with: { answered_at: :resumed_at, session: :session }
+      trigger AgentRun::Answered, with: { answered_at: :resumed_at, session: :session, verdict: :verdict }
     end
 
     policy "RecordTheRefusedAnswer" do
       on      "AgentRun.ResumeRefused"
-      trigger AgentRun::Unanswered, with: { refusal: :refusal }
+      trigger AgentRun::Unanswered, with: { refusal: :refusal, verdict: :verdict }
+    end
+
+    # The session is looked for before the run is retired; only one `claude agents` no longer
+    # lists is gone.
+    policy "LookForTheSessionBeforeRetiring" do
+      on      "AgentRun.AgentRunRetireRequested"
+      ask     :look_for, with: { run: :run }
+    end
+
+    policy "RetireWhenTheSessionIsGone" do
+      on      "AgentRun.SessionLookedFor"
+      where   { listed == false }
+      trigger AgentRun::Retired, with: { detail: :note }
+    end
+
+    policy "KeepWhenTheSessionIsListed" do
+      on      "AgentRun.SessionLookedFor"
+      where   { listed != false }
+      trigger AgentRun::Unretired, with: { refusal: :note }
+    end
+
+    policy "RecordTheRefusedLookFor" do
+      on      "AgentRun.LookForRefused"
+      trigger AgentRun::Unretired, with: { refusal: :refusal }
     end
 
     policy "RecordTheRemoval" do
@@ -545,6 +609,14 @@ Hecks.bluebook "Hecks" do
     policy "StartTheRoleOnReviewRequest" do
       on      "PlanReview.PlanReviewRequested"
       trigger AgentRun::Dispatch, with: { run: :run, work: :work, repo: :repo, brief: :plan, agent: :role }
+    end
+
+    # A judge's verdict answers the coder waiting on the Work item, a run keyed by the Work item, in
+    # place. The judge's run names the verdict, so the outcome settles it (Agents translations
+    # RecordTheVerdictDelivered and RecordTheVerdictUndeliverable).
+    policy "AnswerTheWaitingCoder" do
+      on      "Verdict.VerdictJudged"
+      trigger AgentRun::Answer, with: { run: :work, answer: :answer, verdict: :run }
     end
 
     # A planning request starts the planner's session as a run keyed by the request, with the goal as

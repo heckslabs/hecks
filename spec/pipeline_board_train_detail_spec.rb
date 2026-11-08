@@ -4,7 +4,7 @@ require "spec_helper"
 require_relative "support/pipeline_board_world"
 require "hecks/pipeline_board/adapters/pipeline_web"
 
-# What one /trains/<run> page reads: the boarding's outcome and its pull request.
+# What /api/trains/<run> answers: the boarding's outcome and its pull request.
 RSpec.describe Hecks::Adapters::PipelineBoard::TrainDetail do
   let(:outcome) { [{ "status" => "queued", "boarded" => "d" * 40, "pushed" => "", "report" => "queued", "refusal" => "" }] }
   let(:view) do
