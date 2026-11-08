@@ -167,7 +167,7 @@ Hecks.bluebook "PipelineBoard" do
       member name: "wall_goal_minutes",       value: 3
       member name: "success_good",            value: 80
       member name: "success_fair",            value: 50
-      member name: "session_cap",             value: 8
+      member name: "session_cap",             value: 10
       member name: "throughput_window_hours", value: 24
       member name: "session_fresh_seconds",   value: 600
       member name: "session_window_hours",    value: 24
