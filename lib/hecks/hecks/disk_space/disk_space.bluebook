@@ -1,0 +1,340 @@
+Hecks.bluebook "Hecks" do
+  domain_module "DiskSpace" do
+    vision "Say what is using space by owner and what it would take to free it, with the level the volume is at."
+
+    # The domain names no disk, clock, path or shell. A reading is something an adapter behind the
+    # DiskSpace port measured; the rows below say how to judge it and what frees it. The thresholds
+    # are data: the Hecks world's `disk_space` line overrides the defaults in the `Setting` rows.
+    # Relief reuses the givens of the commands it names (Landing.Retire, AgentRun.Tidy), so it
+    # carries no second set of safety rules.
+
+    # One measurement of what an owner uses.
+    aggregate "Reading" do
+      description "What one owner (a worktree, a run, a cache or a tmp directory) uses on a volume, and what state it is in."
+      created_by "Reading.take!"
+
+      attribute :run,        RunKey
+      attribute :owner_kind, Word,  optional: true
+      attribute :subject,    Word,  optional: true
+      attribute :bytes,      Count, optional: true
+      attribute :state,      Word,  optional: true
+      attribute :volume,     Word,  optional: true
+      identified_by :run
+
+      value_object "RunKey" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Word" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Count", Integer
+
+      # The kinds of owner a reading names.
+      value_object "OwnerKind" do
+        attribute :kind,  String
+        attribute :means, String
+
+        member kind: "worktree", means: "a git worktree of the checkout"
+        member kind: "run",      means: "a background session's run directory"
+        member kind: "cache",    means: "a rebuildable cache, named by a Cache row"
+        member kind: "tmp",      means: "a tmp directory that is not a git worktree"
+      end
+
+      # The states a reading can be in. `protected` is yes for a state relief never touches.
+      value_object "ReadingState" do
+        attribute :state,     String
+        attribute :protected, String
+        attribute :means,     String
+
+        member state: "clean",    protected: "no",  means: "nothing in it that is not on a remote or in main"
+        member state: "merged",   protected: "no",  means: "its commits are on main"
+        member state: "pinned",   protected: "yes", means: "a pinned session or a pinned board role owns it"
+        member state: "live",     protected: "yes", means: "a run that has not finished uses it"
+        member state: "unpushed", protected: "yes", means: "it holds commits main and the remote lack"
+        member state: "dirty",    protected: "yes", means: "it holds uncommitted files"
+      end
+
+      lifecycle :status, default: "requested" do
+        transition "Record" => "recorded", from: "requested"
+        mark :terminal, "recorded"
+      end
+
+      command "Take" do
+        role "System"
+        goal "Record what one owner uses on a volume, and the state it is in"
+
+        attribute :run,        RunKey, sets: true
+        attribute :owner_kind, Word, sets: true
+        attribute :subject,    Word, sets: true
+        attribute :bytes,      Count, sets: true
+        attribute :state,      Word, sets: true
+        attribute :volume,     Word, optional: true, sets: true
+
+        emits ReadingTaken
+      end
+
+      command "Record" do
+        role "System"
+        goal "Close a reading once it is stored"
+
+        reference_to Reading
+
+        emits ReadingRecorded
+      end
+    end
+
+    # The level a volume is at: calm, rising or high.
+    aggregate "Level" do
+      description "How full a volume is: calm, rising or high, the worse of its free gigabytes and its used percent."
+      created_by "Level.judge!"
+
+      attribute :run,          RunKey
+      attribute :volume,       Word,  optional: true
+      attribute :free_gb,      Count, optional: true
+      attribute :used_percent, Count, optional: true
+      attribute :level,        Word,  optional: true
+      identified_by :run
+
+      value_object "RunKey" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Word" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Count", Integer
+
+      # One condition of a rule that names a level. The rules are tried in `position` order and the
+      # first that holds names the level, so `high` is tried before `rising`; `always` holds for any
+      # reading. `measure` names a number the adapter read, `than` the `Setting` it must be under
+      # (free gigabytes) or reach (used percent). `<` and `>=` are the only operators.
+      value_object "Verdict" do
+        attribute :position, Integer
+        attribute :measure,  String
+        attribute :op,       String
+        attribute :than,     String
+        attribute :level,    String
+
+        member position: 1, measure: "free_gb",      op: "<",      than: "high_free_gb",         level: "high"
+        member position: 1, measure: "used_percent", op: ">=",     than: "high_used_percent",    level: "high"
+        member position: 2, measure: "free_gb",      op: "<",      than: "rising_free_gb",       level: "rising"
+        member position: 2, measure: "used_percent", op: ">=",     than: "rising_used_percent",  level: "rising"
+        member position: 3, measure: "",             op: "always", than: "",                      level: "calm"
+      end
+
+      # The default lines, overridden by the Hecks world's `disk_space` line.
+      value_object "Setting" do
+        attribute :name,  String
+        attribute :value, Integer
+
+        member name: "rising_free_gb",      value: 60
+        member name: "rising_used_percent", value: 80
+        member name: "high_free_gb",        value: 30
+        member name: "high_used_percent",   value: 90
+      end
+
+      lifecycle :status, default: "requested" do
+        transition "Settle" => "judged", from: "requested"
+        mark :terminal, "judged"
+      end
+
+      command "Judge" do
+        role "System"
+        goal "Record the level a volume is at, from its free gigabytes and used percent against the Verdict rows"
+
+        attribute :run,          RunKey, sets: true
+        attribute :volume,       Word, optional: true, sets: true
+        attribute :free_gb,      Count, sets: true
+        attribute :used_percent, Count, sets: true
+        attribute :level,        Word, sets: true
+
+        emits LevelJudged
+      end
+
+      command "Settle" do
+        role "System"
+        goal "Close a level once it is stored"
+
+        reference_to Level
+
+        emits LevelSettled
+      end
+    end
+
+    # What frees each kind of owner, and what is never freed.
+    aggregate "Relief" do
+      description "The plan that frees space: which command frees each kind of owner, and which subjects are never touched."
+      created_by "Relief.plan!"
+
+      attribute :run,       RunKey
+      attribute :level,     Word,   optional: true
+      attribute :confirm,   Switch, optional: true
+      attribute :refusal,   Report, optional: true
+      attribute :output,    Report, optional: true
+      identified_by :run
+
+      value_object "RunKey" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Word" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Switch", Boolean
+
+      value_object "Report", String
+
+      # The command that frees one kind of owner in one state. `auto` is the level from which relief
+      # may run it unasked; `never` is a command that only runs when asked. Only a rule whose
+      # `command` is a reversible one carries an `auto` level, and a tmp orphan is report-only.
+      value_object "ReliefRule" do
+        attribute :kind,    String
+        attribute :state,   String
+        attribute :command, String
+        attribute :auto,    String
+
+        member kind: "worktree", state: "merged", command: "Landing.Retire",         auto: "high"
+        member kind: "run",      state: "done",   command: "AgentRun.Tidy",          auto: "high"
+        member kind: "cache",    state: "clean",  command: "Cache.Clear",            auto: "never"
+        member kind: "tmp",      state: "clean",  command: "",                       auto: "never"
+      end
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "refused"
+        transition "Settle"  => "settled", from: "requested"
+        transition "Decline" => "refused", from: "requested"
+        mark :terminal, "settled", "refused"
+      end
+
+      command "Plan" do
+        role "Operator"
+        goal "Say what would free space and by which command, changing nothing"
+
+        attribute :run,   RunKey, sets: true
+        attribute :level, Word, optional: true, sets: true
+
+        emits ReliefPlanned
+      end
+
+      command "Relieve" do
+        role "Operator"
+        goal "Run the automatic relief rows, merged worktrees and done runs, at the high level only"
+
+        attribute :run,     RunKey, sets: true
+        attribute :level,   Word, sets: true
+        attribute :confirm, Switch, optional: true, sets: true
+
+        given("relief runs only at the high level") { level.value == "high" }
+        given("relief runs only with --confirm; without it this only reports") { confirm.value == true }
+
+        emits ReliefRequested
+      end
+
+      command "Settle" do
+        role "System"
+        goal "Record what the relief did"
+
+        reference_to Relief
+        attribute :output, Report, sets: true
+
+        emits ReliefSettled
+      end
+
+      command "Decline" do
+        role "System"
+        goal "Record why the relief was refused, naming the subject and its state"
+
+        reference_to Relief
+        attribute :refusal, Report, sets: true
+
+        emits ReliefDeclined
+      end
+    end
+
+    # The caches that can be cleared, and what clearing each costs.
+    aggregate "Cache" do
+      description "A rebuildable cache by kind, what rebuilds it and what a cold cache costs."
+      created_by "Cache.clear!"
+
+      attribute :run,     RunKey
+      attribute :kind,    Word,   optional: true
+      attribute :holder,  Word,   optional: true
+      attribute :confirm, Switch, optional: true
+      attribute :refusal, Report, optional: true
+      attribute :output,  Report, optional: true
+      identified_by :run
+
+      value_object "RunKey" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Word" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Switch", Boolean
+
+      value_object "Report", String
+
+      # One kind of cache. `pattern` is the path pattern an adapter matches, `rebuilt_by` what makes
+      # it again and `rebuild_cost` what the next build costs once it is gone.
+      value_object "CacheKind" do
+        attribute :kind,         String
+        attribute :pattern,      String
+        attribute :rebuilt_by,   String
+        attribute :rebuild_cost, String
+
+        member kind: "rust_target", pattern: "rust/**/target",             rebuilt_by: "cargo build",               rebuild_cost: "a cold Rust build, minutes per crate"
+        member kind: "spec_cache",  pattern: "tmp/spec_cache",             rebuilt_by: "the next spec run",         rebuild_cost: "the first spec run reads every file again"
+        member kind: "cargo",       pattern: "~/.cargo/registry",          rebuilt_by: "cargo fetch",               rebuild_cost: "every crate downloads again"
+      end
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "refused"
+        transition "Settle"  => "cleared", from: "requested"
+        transition "Decline" => "refused", from: "requested"
+        mark :terminal, "cleared", "refused"
+      end
+
+      command "Clear" do
+        role "Operator"
+        goal "Free one kind of cache, never unasked: refused when a live run uses the worktree it sits in or a pinned session owns it"
+
+        attribute :run,     RunKey, sets: true
+        attribute :kind,    Word, sets: true
+        attribute :holder,  Word, default: "clean", sets: true
+        attribute :confirm, Switch, optional: true, sets: true
+
+        given("a cache a live run uses is kept") { holder.value != "live" }
+        given("a cache in a pinned session's worktree is kept") { holder.value != "pinned" }
+        given("clearing needs --confirm; without it this only reports the cold-cache cost") { confirm.value == true }
+
+        emits CacheClearRequested
+      end
+
+      command "Settle" do
+        role "System"
+        goal "Record that the cache was cleared"
+
+        reference_to Cache
+        attribute :output, Report, sets: true
+
+        emits CacheCleared
+      end
+
+      command "Decline" do
+        role "System"
+        goal "Record why the cache was kept"
+
+        reference_to Cache
+        attribute :refusal, Report, sets: true
+
+        emits CacheClearDeclined
+      end
+    end
+  end
+end
