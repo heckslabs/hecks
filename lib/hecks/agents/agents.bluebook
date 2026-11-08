@@ -126,6 +126,32 @@ Hecks.bluebook "Agents" do
       emits "PlanReviewed"
     end
 
+    # The verdict of an architect run no request row names, such as one started by hand or whose row
+    # was lost: the review is created with its verdict, so the verdict is a fact on the change and
+    # not a lookup. A row that exists refuses it, and the `Answer` beside it has recorded the verdict.
+    command "Record" do
+      role "System"
+      goal "Create a review from the architect's closing verdict when no request row exists"
+
+      attribute :run,      RunKey, sets: true
+      attribute :work,     WorkKey, sets: true
+      attribute :verdict,  Verdict, sets: true
+      attribute :findings, FindingsText, optional: true, sets: true
+
+      given("the verdict is one the architect gives") do
+        verdict.value == "sound" || verdict.value == "changes" || verdict.value == "rethink"
+      end
+
+      emits "PlanReviewRecorded"
+    end
+
+    policy "RecordTheVerdictWhenNoReviewWasAsked" do
+      on      "AgentRun.JobRead"
+      root
+      where   { agent == "architect" && verdict != "" && previous != state }
+      trigger PlanReview::Record, with: { run: :run, work: :work, verdict: :verdict, findings: :findings }
+    end
+
     query "Reviews" do
       description "Every plan review, by Work item, each with its run key: the verdict once the architect has answered."
       order_by :work
