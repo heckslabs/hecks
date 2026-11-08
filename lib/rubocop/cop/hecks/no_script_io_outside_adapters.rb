@@ -6,17 +6,13 @@ module RuboCop
       # Flags a script's calling convention outside an adapter or the CLI entry: `OptionParser`,
       # `ARGV`, `exit` and any use of `$stdout`.
       #
-      # Parsing arguments, printing and exiting are the work of the adapter behind a hecksagon
-      # port and of `exe/`; library code takes values and returns a value or raises (ADR 0190).
-      # A file named in `no_script_io_outside_adapters_baseline.txt` is advisory: it is not
-      # flagged until it is fixed and removed from the list. The list only shrinks, and a spec
-      # fails for an entry whose file is gone or no longer offends.
+      # Arguments, printing and exit belong to an adapter or `exe/`; library code takes values and
+      # returns one or raises (ADR 0190). A file in `no_script_io_outside_adapters_baseline.txt`
+      # is advisory; the list only shrinks, and a spec fails for a stale entry.
       #
       # @example
       #   OptionParser.new                 # bad
-      #   ARGV.first                       # bad
       #   $stdout.puts "done"              # bad
-      #   exit 1                           # bad
       #   raise Refused, "no such domain"  # good
       class NoScriptIoOutsideAdapters < Base
         MSG = "`%<code>s` is a script's calling convention. Take values and return a value or " \
