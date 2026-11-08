@@ -87,7 +87,7 @@ module Hecks
 
         Finisher.new(@git, @checkout, branch: branch, onto: onto, gate: held[:gate]).prepare
         @retiring = true
-        merge(**held)
+        gated(onto) { merge(**held) }
       ensure
         @retiring = false
       end

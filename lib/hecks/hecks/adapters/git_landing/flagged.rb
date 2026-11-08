@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../red_flag_guard"
+require_relative "gate_marker"
 
 module Hecks
   module Adapters
@@ -11,6 +12,8 @@ module Hecks
       # on the flag so the push train may board it. The including class answers `common_git_dir`,
       # `@git` and `refuse_stale_base`.
       module Flagged
+        include GateMarker::Gating
+
         private
 
         # @return [Object] what the block answers, run only after main's checks pass
