@@ -13,6 +13,15 @@ require "hecks/tools/ci_workflows"
 # by hand, and the projection must parse to the same document, but for the changes made on purpose
 # since (`deliberately_changed`). Comments and key order may differ.
 RSpec.describe "the CiPipeline projection of ci-rspec.yml" do
+  ZSH_INSTALL = <<~SH.freeze
+    for attempt in 1 2 3; do
+      if sudo DEBIAN_FRONTEND=noninteractive timeout 120 apt-get update -qq && \\
+         sudo DEBIAN_FRONTEND=noninteractive timeout 180 apt-get install -y --no-install-recommends zsh; then exit 0; fi
+      echo "::warning::apt install of zsh failed or timed out (attempt $attempt of 3)"
+    done
+    exit 1
+  SH
+
   def root = Hecks::Tools::ROOT
 
   def workflow_path = File.join(root, ".github/workflows/ci-rspec.yml")
@@ -69,7 +78,7 @@ RSpec.describe "the CiPipeline projection of ci-rspec.yml" do
   # The zsh completion example runs `zsh -n`, and the runner has no zsh.
   def install_zsh(steps)
     steps.insert(2, { "name" => "Install zsh",
-                      "run"  => "sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends zsh\n" })
+                      "run"  => ZSH_INSTALL })
   end
 
   # Rewrites part of the command of the step whose name starts with `name`.
