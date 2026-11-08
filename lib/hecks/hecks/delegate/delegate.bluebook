@@ -842,6 +842,54 @@ Hecks.bluebook "Hecks" do
         on      "PlainSession.RemoveRequested"
         ask     :discard, with: { session: :session }
       end
+
+      # Retires a session that no run holds, or whose run has ended. The port reads the facts first
+      # (the run that holds it, whether that run is started, whether a pinned role names it, whether
+      # it is working); the policies below judge them and either ask the port to retire or refuse by name.
+      command "Retire" do
+        role "Operator"
+        goal "Retire a session bound to no run, so the fleet does not settle and re-claim it"
+
+        attribute :session, SessionId
+        attribute :reason, SessionReason, optional: true
+
+        emits "SessionRetireRequested"
+      end
+
+      value_object "SessionReason", String
+
+      command "RefuseRetirement" do
+        role "System"
+        goal "Record why a session was not retired"
+
+        attribute :session, SessionId
+        attribute :refusal, SessionReason
+
+        emits "SessionRetirementRefused"
+      end
+
+      policy "ExamineBeforeRetiring" do
+        on      "PlainSession.SessionRetireRequested"
+        ask     :examine, with: { session: :session }
+      end
+
+      policy "RefuseTheBoundSessionOfAPinnedRole" do
+        on      "PlainSession.SessionExamined"
+        where   { bound == true && pinned == true }
+        trigger PlainSession::RefuseRetirement, with: { session: :session, refusal: :note }
+      end
+
+      policy "RefuseTheSessionWorkingOnARun" do
+        on      "PlainSession.SessionExamined"
+        where   { bound == true && pinned != true && working == true }
+        trigger PlainSession::RefuseRetirement, with: { session: :session, refusal: :note }
+      end
+
+      policy "RetireTheFreeSession" do
+        on      "PlainSession.SessionExamined"
+        where   { bound != true || (pinned != true && working != true) }
+        ask     :withdraw, with: { session: :session }
+      end
     end
 
     # Clearing away finished sessions in one cleanup. A session is safe to remove when it is not

@@ -421,6 +421,20 @@ Hecks.hecksagon "Hecks" do
       answers "PlainSessionRemoved"
       refuses "PlainSessionRefused"
     end
+
+    # Reads the run that holds the session and whether a pinned role names it; changes nothing.
+    asks "Examine", to: PlainSession do
+      attribute :session, SessionId
+      answers "SessionExamined"
+      refuses "PlainSessionRefused"
+    end
+
+    # `claude rm`, then `claude stop` only if rm alone left the session listed; answers SessionRetired.
+    asks "Withdraw", to: PlainSession do
+      attribute :session, SessionId
+      answers "SessionRetired"
+      refuses "PlainSessionRefused"
+    end
   end
 
   # The Cleaning port lists the Claude sessions, looks in each one's own worktree, and removes the
