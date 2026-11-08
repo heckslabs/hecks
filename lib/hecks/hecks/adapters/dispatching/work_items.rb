@@ -40,6 +40,13 @@ module Hecks
           @registry.repository("Tickets", aggregate).all.map { |record| lesson(record) }
         end
 
+        # @return [Array<String>, nil] the roles the Agents bluebook's `PinnedRole` rows name, or
+        #   nil when that bluebook is not loaded
+        def pinned_roles
+          rows = find("Agents", "Role")&.value_objects&.find { |object| object.hecks_name == "PinnedRole" }
+          rows&.members&.map { |row| row[:role].to_s }
+        end
+
         # @return [Hash{String => Hash}] each agent run's key with its `status:` and `condition:`
         def runs
           aggregate = find("Hecks", "AgentRun")
