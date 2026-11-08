@@ -448,6 +448,13 @@ Hecks.hecksagon "Hecks" do
       refuses "RemoveRefused"
     end
 
+    # Whether `claude agents` still lists the session, before a run is retired; the bluebook judges it.
+    asks "LookFor", to: AgentRun do
+      attribute :run, RunKey
+      answers "SessionLookedFor"
+      refuses "LookForRefused"
+    end
+
     # The operator's answer goes to the blocked session as the prompt of a resumed background session.
     asks "Resume", to: AgentRun do
       attribute :run, RunKey

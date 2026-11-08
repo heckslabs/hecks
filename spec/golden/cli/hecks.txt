@@ -83,6 +83,7 @@ commands:
     check!                        Read the state a started session's job is in, and record it when it changed
     tidy!                         Remove the finished session of one run, unless it is still working, waiting on a person, or taken over
     answer!                       Answer a session that is working or blocked by resuming it with the answer
+    retire!                       Close a started run whose session is gone, so the ledger stops listing it as started
   SessionSweep:
     One check of every started run's session: each change of state is recorded on its run.
     check_all!                    Check every run whose session was started and is not known to have ended (also: agent_run.check_all!)
@@ -398,6 +399,6 @@ bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
   expression       The subset of regular Ruby a predicate is allowed to be — small enough that every target can…
 
   hecks <command> --help       what one command wants, and every way it refuses
-  hecks --all                  also list the 308 internal commands and queries
+  hecks --all                  also list the 311 internal commands and queries
   a command is called with its aggregate — Build.project_rust!
   exit status: 0 answered, 1 refused or failed, 2 a line it could not read

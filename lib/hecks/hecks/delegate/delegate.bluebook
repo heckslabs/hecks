@@ -73,7 +73,8 @@ Hecks.bluebook "Hecks" do
         transition "Finish"  => "finished", from: "started"
         transition "Fail"    => "finished", from: "started"
         transition "Tidied"  => "tidied",   from: "finished"
-        mark :terminal, "tidied", "refused"
+        transition "Retired" => "retired",  from: "started"
+        mark :terminal, "tidied", "refused", "retired"
       end
 
       command "Dispatch" do
@@ -244,6 +245,39 @@ Hecks.bluebook "Hecks" do
         attribute :refusal, Report, sets: true
 
         emits AgentRunUnanswered
+      end
+
+      # Closes a run still recorded started whose session is gone: `claude agents` no longer lists
+      # it, so no check can read it and the ledger would list it as started for ever. A session
+      # still listed is kept: a finished one is tidied, a live one answered, and a plain session is
+      # removed with `PlainSession.Remove`.
+      command "Retire", from: "started" do
+        role "Operator"
+        goal "Close a started run whose session is gone, so the ledger stops listing it as started"
+
+        reference_to AgentRun
+
+        emits AgentRunRetireRequested
+      end
+
+      command "Retired" do
+        role "System"
+        goal "Record that the run was closed because its session is gone, and what the listing said"
+
+        reference_to AgentRun
+        attribute :detail, Report, sets: true
+
+        emits AgentRunRetired
+      end
+
+      command "Unretired" do
+        role "System"
+        goal "Record why a run was not retired: its session is still listed, or could not be looked for"
+
+        reference_to AgentRun
+        attribute :refusal, Report, sets: true
+
+        emits AgentRunUnretired
       end
 
       query "Tidyable" do
@@ -527,6 +561,30 @@ Hecks.bluebook "Hecks" do
     policy "RecordTheRefusedAnswer" do
       on      "AgentRun.ResumeRefused"
       trigger AgentRun::Unanswered, with: { refusal: :refusal }
+    end
+
+    # The session is looked for before the run is retired; only one `claude agents` no longer
+    # lists is gone.
+    policy "LookForTheSessionBeforeRetiring" do
+      on      "AgentRun.AgentRunRetireRequested"
+      ask     :look_for, with: { run: :run }
+    end
+
+    policy "RetireWhenTheSessionIsGone" do
+      on      "AgentRun.SessionLookedFor"
+      where   { listed == false }
+      trigger AgentRun::Retired, with: { detail: :note }
+    end
+
+    policy "KeepWhenTheSessionIsListed" do
+      on      "AgentRun.SessionLookedFor"
+      where   { listed != false }
+      trigger AgentRun::Unretired, with: { refusal: :note }
+    end
+
+    policy "RecordTheRefusedLookFor" do
+      on      "AgentRun.LookForRefused"
+      trigger AgentRun::Unretired, with: { refusal: :refusal }
     end
 
     policy "RecordTheRemoval" do
