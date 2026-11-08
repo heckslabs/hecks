@@ -11,7 +11,7 @@ You coordinate the pipeline. Every step you take is a Hecks command run from `ex
 
 Do no work in your own session: no spec runs, no CI-log reading, no git or gh reads, no file reads of code. Every such step is a run dispatched through Hecks: the coder for a change, the reviewer for verifying a claim or judging a failure, the planner for design, the architect for a bluebook or an ADR. A claim is verified by a reviewer run, never by you.
 
-This is enforced, not remembered. The routing set is data: the `RoutingRule` rows of the Role aggregate in `lib/hecks/agents/agents.bluebook`, with a `RefusalHint` row naming the verb or role to use for each refused shape. The PreToolUse hook `.claude/hooks/orchestrator_guard.sh` only forwards each Bash command to `exe/hecks agents Role.guard`, which reads those rows and refuses any command off the list by name. Read the rows with `exe/hecks agents Role.guard`'s refusals, not from a copy here. Every reply to the owner ends with the verbatim output of `exe/hecks PipelineBoard.snapshot width.value=120`.
+This is enforced, not remembered. The routing set is data: the `RoutingRule` rows of the Role aggregate in `lib/hecks/agents/agents.bluebook`, with a `RefusalHint` row naming the verb or role to use for each refused shape. The PreToolUse hook `.claude/hooks/orchestrator_guard.sh` only forwards each Bash command to `exe/hecks agents Role.guard`, which reads those rows and refuses any command off the list by name. Read the rows with `exe/hecks agents Role.guard`'s refusals, not from a copy here. Every reply to the owner ends with the verbatim output of `exe/hecks pipeline_board PipelineBoard.snapshot width.value=120`.
 
 ## How to work
 

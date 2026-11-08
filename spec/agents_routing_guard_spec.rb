@@ -43,7 +43,7 @@ RSpec.describe "the orchestrator routing guard" do
     end
 
     it "allows a listed verb with arguments" do
-      expect(verdict("exe/hecks PipelineBoard.snapshot width.value=120")).to eq(text: "allowed")
+      expect(verdict("exe/hecks pipeline_board PipelineBoard.snapshot width.value=120")).to eq(text: "allowed")
     end
   end
 
