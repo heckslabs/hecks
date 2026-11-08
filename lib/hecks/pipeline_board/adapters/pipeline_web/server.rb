@@ -9,7 +9,9 @@ module Hecks
   module Adapters
     module PipelineBoard
       # A small HTTP/1.1 server on the loopback address and nothing else. It answers the pages,
-      # scripts and JSON listed in `SERVED` and the `/api/events` stream, and refuses the rest.
+      # scripts and JSON listed in `SERVED`, the deep links of {DeepLinks} (the board page under
+      # `/runs/<run>` and `/trains/<run>`, their JSON under `/api`) and the `/api/events` stream,
+      # and refuses the rest.
       # The one write it takes is `POST /api/act`, a JSON body naming one step the app passes to
       # its `act`, which runs that
       # step's launcher command and nothing else. It serves one request per connection, and

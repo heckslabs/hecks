@@ -527,7 +527,7 @@ function card(r) {
   const blocked = working.filter((w) => w.status === "blocked").length + recs.length;
   const busy = working.length > 0;
   const session = (w) => h("div", { class: "sess" + (w.status === "blocked" ? " blocked" : ""), "data-tip": w.name + "\n" + (w.detail || w.status) },
-    h("a", { class: "n run-link", href: "/runs/" + encodeURIComponent(w.run || w.id), "data-tip": "Open this run's page" },
+    h("a", { class: "n run-link", href: "/runs/" + encodeURIComponent(w.run || w.id), "data-tip": "Highlight this run on the board" },
       w.name + (w.status === "blocked" ? " · waiting on you" : "")),
     h("span", { class: "d" }, w.detail || w.status), h("div", { class: "track" }, h("div")),
     w.status === "blocked" ? answerButton(w.id) : null);
