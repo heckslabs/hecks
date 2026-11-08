@@ -558,37 +558,37 @@ Hecks.bluebook "Hecks" do
 
     policy "RollWhenARunEnds" do
       on      "AgentRun.SessionFinished"
-      trigger Roll::Start
+      trigger Roll::Start, with: { run: :run }
     end
 
     policy "RollWhenARunFails" do
       on      "AgentRun.SessionFailed"
-      trigger Roll::Start
+      trigger Roll::Start, with: { run: :run }
     end
 
     policy "RollWhenARunIsRetired" do
       on      "AgentRun.AgentRunRetired"
-      trigger Roll::Start
+      trigger Roll::Start, with: { run: :run }
     end
 
     policy "RollWhenWorkIsPlanned" do
       on      "Work.WorkPlanned"
-      trigger Roll::Start
+      trigger Roll::Start, with: { run: :work }
     end
 
     policy "RollWhenWorkIsReopened" do
       on      "Work.WorkReopened"
-      trigger Roll::Start
+      trigger Roll::Start, with: { run: :work }
     end
 
     policy "RollWhenABranchLands" do
       on      "Landing.BranchLanded"
-      trigger Roll::Start
+      trigger Roll::Start, with: { run: :run }
     end
 
     policy "RollOnHeartbeat" do
       on      "Heartbeat.Beaten"
-      trigger Roll::Start
+      trigger Roll::Start, with: { run: :beat }
     end
 
     # The directory is looked for first, so a brief is never handed to a session that has nowhere to work.
