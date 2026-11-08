@@ -32,10 +32,12 @@ module Hecks
         # @param registry [Runtime::Registry, nil] the booted registry whose Tickets world is read
         # @param load [#call, nil] answers the 1-minute load average; the machine's when nil
         # @param cpus [Integer, nil] the CPU count; the machine's when nil
-        def initialize(registry, load: nil, cpus: nil)
+        # @param cap [Integer, nil] the cap on started work items; the world's when nil
+        def initialize(registry, load: nil, cpus: nil, cap: nil)
           @registry = registry
           @load = load || -> { self.class.uptime_load }
           @cpus = cpus || Etc.nprocessors
+          @cap = cap
         end
 
         # Ruby's `Etc` has no load average, so the 1-minute figure is read from `uptime`.
@@ -64,7 +66,7 @@ module Hecks
         def roll_forward? = declared(ROLL)[:roll_forward] != false
 
         # @return [Integer] the cap on started work items
-        def cap = WorkLimits.cap(@registry)
+        def cap = @cap || WorkLimits.cap(@registry)
 
         # @return [Integer, nil] the most spec files a session may run per call, from the Hecks
         #   world's `test_scope` setting; nil when none is declared

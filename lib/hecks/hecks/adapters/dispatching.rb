@@ -82,7 +82,7 @@ module Hecks
 
       def work_items = @standins[:work_items] || WorkItems.new(@registry)
 
-      def machine = Settings.new(@registry, load: @standins[:load], cpus: @standins[:cpus])
+      def machine = Settings.new(@registry, load: @standins[:load], cpus: @standins[:cpus], cap: @standins[:cap])
 
       def launcher_for(held) = Launcher.new(plain(held[:repo]), runner: @standins[:runner])
 
@@ -105,8 +105,8 @@ module Hecks
       def header_of(report) = report.partition("\n").first
 
       def header(plan)
-        "#{load_line}; cap #{machine.cap}, #{work_items.started.size} started; frozen: #{frozen_line}; " \
-          "#{plan.chosen.size} to start"
+        "#{load_line}; started #{work_items.started.size} of cap #{machine.cap}; " \
+          "this fill would start #{plan.chosen.size}; frozen: #{frozen_line}"
       end
 
       def load_line = "load #{machine.load.round(1)} (limit #{machine.max_load.round(1)}, #{machine.cpus} cpus)"

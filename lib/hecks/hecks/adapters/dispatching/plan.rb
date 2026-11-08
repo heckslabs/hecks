@@ -66,7 +66,7 @@ module Hecks
         def capped
           return unless holders.size >= @limits[:cap]
 
-          "skipped: cap #{@limits[:cap]} reached (#{holders.size} started or chosen)"
+          "skipped: cap #{@limits[:cap]} reached (#{@started.size} started, #{@chosen.size} chosen by this fill)"
         end
 
         def frozen_reason(item)
