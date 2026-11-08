@@ -11,7 +11,7 @@ require "open3"
 RSpec.describe Hecks::Adapters::BoardingHolding, "#mark" do
   let(:dir) { Dir.mktmpdir("hecks-boarding-hold") }
   let(:repo) { File.join(dir, "main") }
-  let(:now) { [Time.utc(2026, 11, 8, 12, 0, 0)] }
+  let(:now) { [Time.now] }
   let(:holding) { described_class.new(settings: { clock: -> { now.first } }) }
   let(:releasing) { Hecks::Adapters::BoardingReleasing.new(settings: { clock: -> { now.first } }) }
 

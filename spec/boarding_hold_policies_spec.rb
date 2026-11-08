@@ -47,10 +47,20 @@ RSpec.describe Hecks::Adapters::GitRehearsal, "#trial" do
     launch("push_rehearsal.rehearse!", "run=r-#{SecureRandom.hex(4)}", "checkout.value=#{repo}", "scope.value=#{scope}", "--wait")
   end
 
+  def rehearse_here(scope)
+    launch("push_rehearsal.rehearse!", "run=r-#{SecureRandom.hex(4)}", "scope.value=#{scope}", "--wait")
+  end
+
   def held? = File.exist?(File.join(repo, ".git", Hecks::Adapters::BoardingHoldMarker::FILE))
 
   it "holds main during a deep rehearsal that ends green" do
     rehearse("deep")
+
+    expect(held?).to be(true)
+  end
+
+  it "holds main for a deep rehearsal that names no checkout" do
+    rehearse_here("deep")
 
     expect(held?).to be(true)
   end

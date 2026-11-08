@@ -2239,7 +2239,7 @@ Hecks.bluebook "Hecks" do
     policy "HoldWhenRehearsingDeep" do
       on      "PushRehearsal.PushRehearsalRequested"
       where   { scope.value == "deep" }
-      trigger BoardingHold::Hold, with: { run: :run, checkout: :checkout, reason: { value: "deep rehearsal, then the train" } }
+      trigger BoardingHold::Hold, with: { run: :run, reason: { value: "deep rehearsal, then the train" } }
     end
 
     policy "ReleaseWhenRehearsalRed" do
