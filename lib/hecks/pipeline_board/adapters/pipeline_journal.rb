@@ -4,6 +4,7 @@ require "json"
 require_relative "cache"
 require_relative "pipeline_journal/tap"
 require_relative "pipeline_journal/chain"
+require_relative "pipeline_turns"
 
 module Hecks
   module Adapters
@@ -64,6 +65,27 @@ module Hecks
         found.sort_by { |row| row[:at].to_s }.reverse.first(count)
       end
 
+      # @return [Array<Hash>] the finished turns the event log holds, oldest first
+      def turns
+        PipelineBoard::Turns.finished(@tap.named([PipelineBoard::Turns::EVENT]))
+      end
+
+      # @return [Hash{Symbol => String}] `text:` one card per run, from its newest `TurnFinished`
+      def run_cards(limit: nil)
+        { text: JSON.generate(PipelineBoard::Turns.run_cards(turns).first(count_of(limit))) }
+      end
+
+      # @return [Hash{Symbol => String}] `text:` the stuck items across runs, from `TurnFinished`
+      def stuck(limit: nil)
+        { text: JSON.generate(PipelineBoard::Turns.stuck(turns).first(count_of(limit))) }
+      end
+
+      # @param run [Hash, String, nil] a run key, or none for the newest turn
+      # @return [Hash{Symbol => String}] `text:` the console block of that turn
+      def turn_block(run: nil)
+        { text: PipelineBoard::Turns.block(turns, run.is_a?(Hash) ? run[:value] : run) }
+      end
+
       # The promotion events, from the persisted stores and the whole event log, so a recommendation
       # raised in another process is seen here. Memory keeps none across processes.
       #
@@ -85,6 +107,11 @@ module Hecks
       end
 
       private
+
+      def count_of(limit)
+        count = (limit.is_a?(Hash) ? limit[:value] : limit).to_i
+        count.positive? ? count : 20
+      end
 
       def stored_named(event)
         named(event, 200)

@@ -316,6 +316,24 @@ Hecks.bluebook "PipelineBoard" do
       attribute :limit, Limit, optional: true
       returns Document
     end
+
+    query "RunCards" do
+      description "One card per run, newest first: the run, its role, session and time, and its last word, the verdict of the run's newest TurnFinished."
+      attribute :limit, Limit, optional: true
+      returns Document
+    end
+
+    query "Stuck" do
+      description "What the pipeline is stuck on, across runs: the stuck rows of each run's newest TurnFinished, with what, since when, the run that owns it and a link."
+      attribute :limit, Limit, optional: true
+      returns Document
+    end
+
+    query "TurnBlock" do
+      description "The console block of a run's newest TurnFinished (the newest of any run when none is named): headed turn finished: role @ time, one aligned line per field."
+      attribute :run, RunKey, optional: true
+      returns Document
+    end
   end
 
   # The Hecks domain's `Board.Serve` asks for the board. Its registry holds every attached bluebook,

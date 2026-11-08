@@ -548,6 +548,91 @@ Hecks.bluebook "Agents" do
     end
   end
 
+  # How a role ends a turn. Every role closes with one `TurnFinished` carrying the fields it has;
+  # the orchestrator carries all of them. The console block and the board's run cards and stuck list
+  # are projections of this event (see the PipelineBoard bluebook), so no second source says what a
+  # turn did. A role that has not adopted it still ends with a plain last word, which is accepted.
+  aggregate "Turn" do
+    description "One finished turn of one role: the verdict, and what it landed, dispatched, filed and left stuck."
+
+    identified_by :run
+
+    attribute :run,        RunKey
+    attribute :session,    SessionRef, optional: true
+    attribute :role,       RoleRef
+    attribute :at,         Moment
+    attribute :verdict,    TurnVerdict
+    attribute :landed,     Facts, optional: true
+    attribute :main,       Facts, optional: true
+    attribute :train,      Facts, optional: true
+    attribute :dispatched, Facts, optional: true
+    attribute :filed,      Facts, optional: true
+    attribute :stuck,      list_of(StuckItem), optional: true
+    attribute :unpushed,   Facts, optional: true
+    attribute :links,      Facts, optional: true
+
+    value_object "RunKey" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "SessionRef", String
+
+    value_object "RoleRef" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Moment" do
+      attribute :value, String, matches: :present
+    end
+
+    # `routed` when the turn passed its work on, `blocked` when something stands in the way.
+    value_object "TurnVerdict" do
+      attribute :value, String, matches: :present
+      invariant("a verdict is routed or blocked") { value == "routed" || value == "blocked" }
+    end
+
+    # A JSON document: `landed[]` of {sha,title}, `main` of {origin,ahead,behind,clean,origin_pushed_h},
+    # `train` of {open pr or null,next_board}, `dispatched[]` of {work,role,session,state,age_s},
+    # `filed[]` of {kind finding|work,key,step}, `unpushed[]` of {branch,commits[],note}, `links[]`.
+    value_object "Facts", String
+
+    # One thing the pipeline is stuck on. `kind` says what sort, `owner_run` the run that holds it.
+    value_object "StuckItem" do
+      attribute :kind,      String
+      attribute :what,      String
+      attribute :since,     String
+      attribute :owner_run, String
+      attribute :link,      String
+    end
+
+    command "Finish" do
+      role "System"
+      goal "Record that a role ended its turn, and what the turn did"
+
+      attribute :run,        RunKey, sets: true
+      attribute :session,    SessionRef, optional: true, sets: true
+      attribute :role,       RoleRef, sets: true
+      attribute :at,         Moment, sets: true
+      attribute :verdict,    TurnVerdict, sets: true
+      attribute :landed,     Facts, optional: true, sets: true
+      attribute :main,       Facts, optional: true, sets: true
+      attribute :train,      Facts, optional: true, sets: true
+      attribute :dispatched, Facts, optional: true, sets: true
+      attribute :filed,      Facts, optional: true, sets: true
+      attribute :stuck,      list_of(StuckItem), optional: true, sets: true
+      attribute :unpushed,   Facts, optional: true, sets: true
+      attribute :links,      Facts, optional: true, sets: true
+
+      emits "TurnFinished"
+    end
+
+    query "Blocked" do
+      description "The turns that ended blocked, by run."
+      where(verdict: "blocked")
+      order_by :run
+    end
+  end
+
   # The release manager only recommends. Promotion stays a person's command, confirmed on the board.
   aggregate "PromotionRecommendation" do
     description "A release manager's recommendation to promote one change once main is green on it, with its reasons. It never promotes: the owner confirms."
