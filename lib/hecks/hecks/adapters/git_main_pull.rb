@@ -16,7 +16,9 @@ module Hecks
     # `origin/main`) has nothing to be behind, and the answer says so.
     #
     # A squash-merged train is rebased past (see `Carried`); with `main` checked out nowhere the
-    # ref is moved without a checkout (see `Nowhere`). An includer has the `GitWorktrees` helpers and sets `@git`.
+    # ref is moved without a checkout (see `Nowhere`).
+    #
+    # An includer has the `GitWorktrees` helpers and sets `@git`.
     module GitMainPull
       include Carried
       include Nowhere
