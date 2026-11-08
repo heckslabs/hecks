@@ -953,9 +953,7 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, matches: :present
       end
 
-      value_object "Switch" do
-        attribute :value, :boolean
-      end
+      value_object "Switch", Boolean
 
       value_object "Verdict" do
         attribute :value, String, pattern: '\A(passed|failed)\z'
