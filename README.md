@@ -610,6 +610,7 @@ The example domains this README draws from, plus one that consumes a
 vendored [embryonaut bluebook](#embryonaut-bluebook):
 
 <!-- generated:begin id=corpus -->
+- **assurance** — A claim is only as good as the evidence behind it; this domain judges whether evidence satisfies a claim and what that permits.
 - **banking** — Customers hold accounts, accounts move money, and every movement is a transfer that can fail halfway. The domain that has to get it right twice — once in the rules, once in the recovery.
 - **chess** — A chess game: pieces with no life outside the board that holds them, a status that only ever moves one legal way at a time, and turn order and check enforced by declaration rather than a hand-written engine.
 - **command_defaults** — A trial starts with a run count the caller may leave out.
