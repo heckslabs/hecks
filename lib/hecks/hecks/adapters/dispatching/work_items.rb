@@ -19,10 +19,15 @@ module Hecks
         # `push-due` work item once its title says the push is urgent.
         RED = "red-"
 
-        # @return [Array<Plan::Item>] the planned work items, red ones first, then in plan order (a
-        #   work item
-        #   with no step last)
-        def planned = having("planned").sort_by.with_index { |item, index| [red?(item[1]) ? 0 : 1, item[0], index] }.map(&:last)
+        # The priority tiers a planned work item ranks by, highest first; none ranks last.
+        TIERS = %w[now next later].freeze
+
+        # @return [Array<Plan::Item>] the planned work items: a red one first, then by priority
+        #   (`now`, `next`, `later`, none), then in plan order (lowest step first, no step last,
+        #   ties by key)
+        def planned
+          having("planned").sort_by.with_index { |entry, index| order(entry, index) }.map(&:last)
+        end
 
         # @return [Array<Plan::Item>] the started work items
         def started = having("started").map(&:last)
@@ -33,6 +38,13 @@ module Hecks
           return [] unless aggregate
 
           @registry.repository("Tickets", aggregate).all.map { |record| lesson(record) }
+        end
+
+        # @return [Array<String>, nil] the roles the Agents bluebook's `PinnedRole` rows name, or
+        #   nil when that bluebook is not loaded
+        def pinned_roles
+          rows = find("Agents", "Role")&.value_objects&.find { |object| object.hecks_name == "PinnedRole" }
+          rows&.members&.map { |row| row[:role].to_s }
         end
 
         # @return [Hash{String => Hash}] each agent run's key with its `status:` and `condition:`
@@ -55,6 +67,13 @@ module Hecks
 
         private
 
+        def order(entry, index)
+          step, rank, item = entry
+          [red?(item) ? 0 : 1, rank, step, item.key, index]
+        end
+
+        def rank(record) = TIERS.index(field(record, :priority).to_s) || TIERS.size
+
         def red?(item) = item.key.start_with?(RED) || (item.key == "push-due" && item.title.start_with?(PushSize::URGENT))
 
         def having(status)
@@ -62,7 +81,7 @@ module Hecks
           return [] unless work
 
           records = @registry.repository("Tickets", work).all
-          records.select { |record| field(record, :status) == status }.map { |record| [step(record), item(record)] }
+          records.select { |record| field(record, :status) == status }.map { |record| [step(record), rank(record), item(record)] }
         end
 
         def item(record)

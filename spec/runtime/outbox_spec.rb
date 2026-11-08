@@ -281,6 +281,22 @@ RSpec.describe "the transactional outbox" do
       expect { rebooted.outbox.redrive! }.not_to output.to_stderr
     end
 
+    it "abandons a claimed row named by its bare uuid, keeping the reason", :aggregate_failures do
+      crash_leaving_stalled_claim
+      uuid = rebooted.outbox.rows.first.delivery_id.split("/", 2).first
+
+      rebooted.outbox.abandon_row!(uuid, reason: "effect landed")
+
+      expect(rebooted.outbox.rows.first).to be_failed.and have_attributes(error: /abandoned by an operator.*: effect landed/)
+    end
+
+    it "redrives a claimed row named by its bare uuid" do
+      crash_leaving_stalled_claim
+      uuid = rebooted.outbox.rows.first.delivery_id.split("/", 2).first
+
+      expect(rebooted.outbox.redrive_row!(uuid).map(&:status)).to eq(["delivered"])
+    end
+
     it "refuses to abandon a delivery id that no claimed row has" do
       crash_leaving_stalled_claim
 

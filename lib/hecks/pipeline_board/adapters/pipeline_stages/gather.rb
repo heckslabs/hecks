@@ -7,8 +7,11 @@ module Hecks
     module PipelineBoard
       # Asks each reader its question and keeps the answer, or `{unknown: <reason>}` when the reader
       # could not answer, so one failed read never takes the others down. The reads run side by
-      # side, so a page takes as long as its slowest read.
+      # side and each has {READ_SECONDS} to answer, so one slow reader never holds the rest.
       module Gather
+        # Seconds one reader may take before its section is given as unknown.
+        READ_SECONDS = 20
+
         # Each section: the reader, its method, whether it answers a query document, and arguments.
         READS = {
           ci_runs: [:github, :ci_runs, :query], slowest_jobs: [:github, :slowest_jobs, :query],
@@ -43,7 +46,17 @@ module Hecks
 
         def gathered
           threads = READS.transform_values { |spec| Thread.new { read(spec) } }
-          threads.transform_values(&:value)
+          deadline = Time.now + read_seconds
+          threads.transform_values { |thread| answer_of(thread, deadline) }
+        end
+
+        def read_seconds = @read_seconds || READ_SECONDS
+
+        def answer_of(thread, deadline)
+          return thread.value if thread.join([deadline - Time.now, 0].max)
+
+          thread.kill
+          { unknown: "reader did not answer in #{read_seconds}s" }
         end
 
         def dated(data)

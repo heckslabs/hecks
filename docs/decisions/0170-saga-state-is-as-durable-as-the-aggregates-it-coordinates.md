@@ -2,7 +2,9 @@
 
 **Status:** Accepted (owner, 2026-11-02) — built. Date: 2026-11-02. Built as
 `Registry::SagaDurabilityRule` (`lib/hecks/runtime/registry/saga_durability_rule.rb`), pinned by
-`spec/runtime/registry/forgetful_saga_refusal_spec.rb`.
+`spec/runtime/registry/forgetful_saga_refusal_spec.rb`. The word was settled by
+[ADR 0180](0180-a-process-manager-has-one-name-in-the-language-and-the-runtime.md): `process_manager` in
+this record's text is the old keyword, now `saga`.
 
 ## Context
 

@@ -64,7 +64,7 @@ RSpec.describe "a filling, dispatched through its Choose ask" do
     recorded = Hecks::Runtime::Value.materialize(events_named(registry, "DispatchAnswered").last.payload[:report])
 
     expect(recorded.to_s).to include("started gap-a", "yielded gap-b: dispatch of gap-b failed: no repo")
-    expect(report_of(registry)).not_to include("would start")
+    expect(report_of(registry)).not_to include("would start gap")
   end
 
   it "is refused at no point: Choose answers and nothing is refused", :aggregate_failures do

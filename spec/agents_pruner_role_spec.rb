@@ -7,6 +7,12 @@ module PrunerRoleFile
   def role = File.read(PATH)
   def steps = role[/## How to work(.*?)## What you hand back/m, 1]
   def report = role[/## What you hand back(.*?)## Handoffs/m, 1]
+
+  def pinned_roles
+    bluebook = Hecks.describe(File.join(InMemoryDomain::ROOT, "lib/hecks/agents")).registry.bluebooks.fetch("Agents")
+    role = bluebook.aggregates.find { |aggregate| aggregate.hecks_name == "Role" }
+    role.value_objects.find { |object| object.hecks_name == "PinnedRole" }.members.map { |row| row[:role] }
+  end
 end
 
 # The pruner role file carries the rules that keep a session from being removed by mistake: the
@@ -17,11 +23,22 @@ end
 RSpec.describe "the pruner role file" do
   include PrunerRoleFile
 
-  describe "its skip rules" do
-    it "names the pins file and keeps every pinned session" do
-      expect(steps).to match(%r{~/\.claude/jobs/pins\.json.*Never remove a session whose id is in it}m)
+  describe "its pinned roles" do
+    it "reads them from the bluebook's PinnedRole rows, not a list of its own", :aggregate_failures do
+      expect(steps).to include("`PinnedRole` rows of the `Role` aggregate in `lib/hecks/agents/agents.bluebook`")
+      expect(steps).to include("A pinned role's session is never removed")
     end
 
+    it "keeps the owner's pinned sessions from the pins file until AgentRun carries the fact" do
+      expect(steps).to match(%r{until AgentRun carries a pinned fact.*~/\.claude/jobs/pins\.json}m)
+    end
+
+    it "declares the orchestrator as a pinned role in the bluebook" do
+      expect(pinned_roles).to include("orchestrator")
+    end
+  end
+
+  describe "its skip rules" do
     it "reads the roles the board pins from the world's agent_roles line", :aggregate_failures do
       expect(steps).to include("`agent_roles` line in `lib/hecks/hecks/hecks.world`")
       expect(steps).to include("never from a list of your own")

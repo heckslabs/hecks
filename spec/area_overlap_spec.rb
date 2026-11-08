@@ -42,6 +42,12 @@ RSpec.describe Hecks::Adapters::AreaOverlap do
     expect(overlap?("lib/a/*.rb", "spec/**")).to be(false)
   end
 
+  it "tells an absolute area in another checkout from this repository's", :aggregate_failures do
+    expect(described_class.outside?("/work/video", root: "/work/hecks")).to be(true)
+    expect(described_class.outside?("/work/hecks/lib", root: "/work/hecks")).to be(false)
+    expect(described_class.outside?("lib", root: "/work/hecks")).to be(false)
+  end
+
   it "names the first overlapping pair" do
     expect(described_class.first_overlap(%w[spec lib/a], %w[docs lib/a/b.rb])).to eq(%w[lib/a lib/a/b.rb])
   end

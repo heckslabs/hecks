@@ -30,6 +30,7 @@
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--page); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
 main { max-width: 1280px; margin: 0 auto; padding: 16px; }
+.stale-banner { border-left: 4px solid var(--critical); padding: 8px 12px; margin-bottom: 12px; background: var(--page); border-radius: 0 6px 6px 0; font-size: 14px; }
 header { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline; justify-content: space-between; margin-bottom: 16px; }
 h1 { font-size: 20px; margin: 0; font-weight: 600; }
 h2 { font-size: 13px; margin: 0 0 8px; color: var(--ink2); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
@@ -188,6 +189,7 @@ details.panel > .scroll, details.panel > .feed, details.panel > .strip, details.
       <button id="toggle" type="button" aria-pressed="false" data-tip="Switch between the charts and plain tables">Show tables</button>
     </div>
   </header>
+  <div id="stale-banner" class="stale-banner" role="alert" hidden></div>
   <div id="highlight-banner" class="highlight-banner" role="status" aria-live="polite" hidden></div>
 
   <section class="agentstrip" aria-labelledby="h-roles"><h2 id="h-roles">Agents</h2><div class="roles" id="roles"></div>
@@ -774,6 +776,15 @@ function render(s) {
   renderTiles(s.metrics); renderAttention(s.metrics, s.stages, s.sessions, s.recommendations); renderStrip(s.stages); renderCi(s.ci_runs, s.slowest_jobs);
   renderRoles(s.roles); renderWork(s.open_work); renderSessions(s.sessions); renderFan(s.fanout); renderEvents(s.events);
   $("updated").textContent = "updated " + clock(s.generated_at);
+  renderStale(s);
+}
+// Says so when the server has not read the state for longer than its refresh period: the page
+// would otherwise show the last good read with a fresh-looking stamp.
+function renderStale(s) {
+  const banner = $("stale-banner");
+  banner.hidden = !s.stale;
+  if (!s.stale) return;
+  banner.textContent = "This board is stale: the last good read was " + s.stale_seconds + "s ago" + (s.refresh_error ? " (" + s.refresh_error + ")" : "") + ".";
 }
 // Asks for the state once, for the first paint and for browsers without EventSource.
 async function refresh() {

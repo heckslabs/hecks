@@ -68,21 +68,57 @@ Hecks.behaviors "Tickets" do
     expect refused: "done"
   end
 
-  test "Revise replaces the area and keeps a started work item started" do
+  test "Revise keeps a started work item started, with its claim, area, priority and step" do
     tests "Revise", on: "Work"
-    setup  "Tickets::Work.Plan", work: { value: "w10" }, title: { value: "Wide" }
+    setup  "Tickets::Work.Plan", work: { value: "w10" }, title: { value: "Wide" }, step: { value: 2 }
     setup  "Tickets::Work.Start", work: { value: "w10" },
-           claimed_by: { value: "session-1" }, claimed_at: { value: "2026-11-01T00:00:00Z" }
-    input  work: { value: "w10" }, title: { value: "Narrow" }, detail: { value: "d" },
+           claimed_by: { value: "session-1" }, claimed_at: { value: "2026-11-01T00:00:00Z" },
            area: [{ value: "lib/hecks/tickets" }]
+    setup  "Tickets::Work.Prioritize", work: { value: "w10" }, priority: { value: "now" }
+    input  work: { value: "w10" }, title: { value: "Narrow" }, detail: { value: "d" }
+    expect status: "started", claimed_by: { value: "session-1" }, claimed_at: { value: "2026-11-01T00:00:00Z" },
+           priority: { value: "now" }, step: { value: 2 }
+  end
+
+  test "Revise replaces the title of a planned work item" do
+    tests "Revise", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "w12" }, title: { value: "Old" }
+    input  work: { value: "w12" }, title: { value: "New" }, detail: { value: "d" }
+    expect status: "planned", title: { value: "New" }
+  end
+
+  test "Revise refuses a done work item" do
+    tests "Revise", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "w13" }, title: { value: "Finished" }
+    setup  "Tickets::Work.Finish", work: { value: "w13" }
+    input  work: { value: "w13" }, title: { value: "Finished" }, detail: { value: "d" }
+    expect refused: "done"
+  end
+
+  test "Rescope replaces the whole area and keeps the claim" do
+    tests "Rescope", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "w14" }, title: { value: "Wide" }
+    setup  "Tickets::Work.Start", work: { value: "w14" },
+           claimed_by: { value: "session-1" }, claimed_at: { value: "2026-11-01T00:00:00Z" },
+           area: [{ value: "lib/hecks/a" }, { value: "lib/hecks/b" }]
+    input  work: { value: "w14" }, area: [{ value: "lib/hecks/tickets" }]
     expect status: "started", claimed_by: { value: "session-1" }
   end
 
-  test "Revise refuses a decision no Adr has" do
-    tests "Revise", on: "Work"
+  test "ClearArea empties the area and keeps the claim" do
+    tests "ClearArea", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "w15" }, title: { value: "Scoped" }
+    setup  "Tickets::Work.Start", work: { value: "w15" },
+           claimed_by: { value: "session-1" }, claimed_at: { value: "2026-11-01T00:00:00Z" },
+           area: [{ value: "lib/hecks/tickets" }]
+    input  work: { value: "w15" }
+    expect status: "started", claimed_by: { value: "session-1" }, area: []
+  end
+
+  test "Decide refuses a decision no Adr has" do
+    tests "Decide", on: "Work"
     setup  "Tickets::Work.Plan", work: { value: "w11" }, title: { value: "Unlinked" }
-    input  work: { value: "w11" }, title: { value: "Unlinked" }, detail: { value: "d" },
-           decision: "9999"
+    input  work: { value: "w11" }, decision: "9999"
     expect refused: "Adr"
   end
 end

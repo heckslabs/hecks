@@ -83,6 +83,21 @@ RSpec.describe "the model checker" do
       expect(finding.severity).to eq(:error)
     end
 
+    it "errors on a :reusable default state and on one a transition leaves" do
+      live = findings.select { |f| f.kind == :reusable_live_state && f.subject == "Lease" }
+      expect(live.map { |f| f.message[/"(\w+)"/, 1] }).to eq(%w[requested started])
+    end
+
+    it "raises no finding for a :reusable state nothing leaves" do
+      expect(findings.select { |f| f.subject == "Ticket" }.map(&:kind)).to be_empty
+    end
+
+    it "errors on a :reusable state the lifecycle does not declare" do
+      lifecycle = Hecks::Bluebook::Lifecycle.new(field: :status, default: "open", marks: { reusable: ["gone"] })
+      checker = Class.new { include Hecks::Bluebook::ModelCheck::LifecycleChecks }.new
+      expect(checker.reusable_findings(lifecycle, "Doc").map(&:kind)).to eq([:reusable_unknown_state])
+    end
+
     it "raises no finding kind outside the ones this fixture deliberately triggers" do
       # Not an exact count: "Vanish" cascades into a second unreachable_state and a stuck_state.
       # The fixture proves each kind fires at least once, not how many a hand-written FSM yields.

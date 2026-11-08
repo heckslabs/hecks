@@ -21,6 +21,7 @@ commands:
   PlainSession:
     A Claude session started outside a dispatched run, which the operator may remove once it is finished.
     remove!       Remove a finished session that waits on nobody
+    retire!       Retire a session bound to no run, so the fleet does not settle and re-claim it
   SessionCleanup:
     One cleanup of the Claude sessions, run sessions and plain ones: those safe to remove are removed, the others are kept with the reason.
     remove_safe!  Remove every session that is safe to remove and report each one kept with the reason; refused without confirm
@@ -50,7 +51,7 @@ bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
   expression       The subset of regular Ruby a predicate is allowed to be — small enough that every target can…
 
   hecks <command> --help       what one command wants, and every way it refuses
-  hecks --all                  also list the 31 internal commands and queries
-  hecks --maintainer           also list the 504 commands and queries for working on hecks itself
+  hecks --all                  also list the 50 internal commands and queries
+  hecks --maintainer           also list the 527 commands and queries for working on hecks itself
   a command is called with its aggregate — AgentRun.dispatch!
   exit status: 0 answered, 1 refused or failed, 2 a line it could not read

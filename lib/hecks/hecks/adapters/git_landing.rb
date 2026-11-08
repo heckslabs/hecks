@@ -9,6 +9,7 @@ require_relative "git_landing/rivals"
 require_relative "git_landing/finisher"
 require_relative "git_landing/lineup"
 require_relative "git_landing/flagged"
+require_relative "git_landing/held"
 require_relative "../../indifferent_key"
 
 module Hecks
@@ -22,6 +23,7 @@ module Hecks
       include GitWorktrees
       include GitMainPull
       include Flagged
+      include Held
       include Sheltering
 
       # Accepts the arguments every driven adapter is built with; only the registry and the
@@ -49,7 +51,7 @@ module Hecks
         settle(held)
         branch = plain(held[:branch]) || current_branch
         onto = plain(held[:onto]) || "main"
-        raise ConsoleCapture::Failure, "#{branch} is the branch to land onto" if branch == onto
+        refuse_landing(branch, onto)
 
         lineup.stand(branch, onto: onto, checkout: @checkout) { |note| land_alone(branch, onto, note) }
       end
@@ -67,6 +69,7 @@ module Hecks
       def convene(**held)
         settle(held)
         onto = plain(held[:onto]) || "main"
+        refuse_held("train", onto)
         said = lineup.convoy(@git, @checkout, onto: onto, land: method(:land_for))
         { outcome: { value: "trained" }, checkout: { value: primary.path }, branch: { value: "train" }, report: { value: said } }
       end
@@ -83,7 +86,7 @@ module Hecks
         settle(held)
         branch = plain(held[:branch]) || current_branch
         onto = plain(held[:onto]) || "main"
-        raise ConsoleCapture::Failure, "#{branch} is the branch to land onto" if branch == onto
+        refuse_landing(branch, onto)
 
         Finisher.new(@git, @checkout, branch: branch, onto: onto, gate: held[:gate], shallow: held[:shallow]).prepare
         @retiring = true
@@ -185,12 +188,6 @@ module Hecks
           kept, said = Tidy.new(@git, @checkout, branch: branch, onto: onto, mode: :retire).retire
           kept ? "kept #{branch}: #{said}" : said
         end
-      end
-
-      def refuse_unsaved(branch)
-        tree = worktree_on(branch)
-        changed = tree ? dirty(tree.path) : []
-        raise ConsoleCapture::Failure, unsaved_refusal(tree.path, changed) unless changed.empty?
       end
 
       def branches = read("for-each-ref", "--format=%(refname:short)", "refs/heads").split("\n")

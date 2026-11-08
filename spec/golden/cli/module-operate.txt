@@ -13,7 +13,7 @@ commands:
     run!                  Dispatch a verb or a step list against a domain and keep what it reported
     refresh_projections!  Bring every read-model projection of a domain up to date now
     redrive_outbox!       Redeliver the reactions a domain's outbox left undelivered, and name the claimed ones that stalled
-    abandon_outbox_row!   Settle one stalled outbox row as failed, naming it by its delivery id, without running it
+    abandon_outbox_row!   Settle one stalled outbox row as failed without running it: subject.value is the domain, row.value its delivery id or uuid
     run_behaviors!        Run a domain's behavior tests and keep the verdict
     open_console!         Open an interactive console on a domain (also: console!)
     smoke_test!           Dispatch one synthesized call per command and report of a wired domain
@@ -63,6 +63,6 @@ bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
 
   hecks <command> --help       what one command wants, and every way it refuses
   hecks --all                  also list the 19 internal commands and queries
-  hecks --maintainer           also list the 502 commands and queries for working on hecks itself
+  hecks --maintainer           also list the 545 commands and queries for working on hecks itself
   a command is called with its aggregate — Operation.run!
   exit status: 0 answered, 1 refused or failed, 2 a line it could not read

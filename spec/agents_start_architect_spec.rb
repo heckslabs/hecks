@@ -64,6 +64,32 @@ RSpec.describe "a plan review request starting the architect's session" do
     expect(launch("agents", "PlanReview.reviews").first.to_s).to include("w-verdict", "changes", "Revise the plan")
   end
 
+  it "judges the architect's verdict for the coder waiting on the Work item" do
+    request("w-judge", 1)
+    close_job("Verdict: sound. Build it.")
+    launch("agent_run.check!", "to=w-judge", "--wait")
+    expect(reactions("JudgeTheArchitectsVerdict").last[:delivered]).to be(true)
+  end
+
+  def hand_start(run, work)
+    served = work ? ["work.value=#{work}"] : []
+    launch("agent_run.dispatch!", "run.value=#{run}", "repo.value=#{scratch}", "brief.value=review", "agent.value=architect",
+           *served, "--wait")
+    close_job("Verdict: rethink. Start over.")
+    launch("agent_run.check!", "to=#{run}", "--wait")
+  end
+
+  it "records the verdict of a run no review row names, on the Work item the run serves", :aggregate_failures do
+    hand_start("r-orphan", "w-orphan")
+    expect(reactions("RecordTheVerdictWhenNoReviewWasAsked").last[:delivered]).to be(true)
+    expect(launch("agents", "PlanReview.reviews").first.to_s).to include("r-orphan", "w-orphan", "rethink")
+  end
+
+  it "records no verdict for a hand-started run that serves no Work item" do
+    hand_start("r-nowork", nil)
+    expect(launch("agents", "PlanReview.reviews").first.to_s).not_to include("r-nowork")
+  end
+
   def submit(branch, commit)
     launch("coder", "Submission.submit!", "branch.value=#{branch}", "sha.value=#{commit}", "checkout.value=#{scratch}",
            "clean.value=true", "--wait")

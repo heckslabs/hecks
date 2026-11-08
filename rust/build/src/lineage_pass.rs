@@ -110,7 +110,7 @@ const ADAPTER_DIRS: [&str; 2] = [
 ];
 
 // Reads each adapter's own source file rather than invoking Ruby.
-fn lineage_capable_adapter_names(root: &Path) -> Result<Vec<String>, String> {
+pub(crate) fn lineage_capable_adapter_names(root: &Path) -> Result<Vec<String>, String> {
     let mut names = Vec::new();
     for relative in ADAPTER_DIRS {
         let dir = root.join(relative);

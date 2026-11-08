@@ -168,6 +168,11 @@ RSpec.describe Hecks::Adapters::InProcessOperations do
         .to raise_error(Hecks::Runtime::NotFound, /no claimed outbox row "nope"/)
     end
 
+    it "says why it refuses an unknown uuid, in the message the refusal records" do
+      expect { adapter.abandon(**held(subject: @dir, row: "ab18c652-0000", reason: "landed")) }
+        .to raise_error(Hecks::Runtime::NotFound, /no claimed outbox row "ab18c652-0000"/)
+    end
+
     it "refuses a domain that is not there" do
       Dir.mktmpdir do |scratch|
         expect { adapter.abandon(**held(subject: File.join(scratch, "no/such/domain"), row: "r-1")) }

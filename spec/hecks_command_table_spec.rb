@@ -27,7 +27,7 @@ RSpec.describe "the Hecks command table through the launcher" do
     introspection.glossary model_check_run.model_check model_check_run.verdict model_check_run.flagged
     operation.run operation.refresh_projections operation.run_behaviors operation.open_console
     operation.smoke_test operation.smoke_http operation.outcome operation.failed
-    operation.follow host.check_era host.recheck host.standing
+    operation.follow operation.abandon_outbox_row operation.redrive_outbox host.check_era host.recheck host.standing
     host.drifted send_train.board send_train.outcome landing.land landing.train landing.retire landing.discard landing.outcome
     landing.unlanded workspace.status workspace.changes workspace.history
     schema_revision.hold_first schema_revision.merge_tail schema_revision.reattest

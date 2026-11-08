@@ -17,6 +17,10 @@ module Hecks
       # A branch lead the QA loop adds to a Work item's name.
       QA_LEAD = "qa/"
 
+      # @param branch [String] a branch name, with or without the QA lead
+      # @return [Boolean] whether the branch is named for a red Work item, so it fixes main
+      def self.fix?(branch) = branch.to_s.delete_prefix(QA_LEAD).start_with?(RED_WORK_ITEM)
+
       # @param git_dir [String] the repository's common git directory
       def initialize(git_dir)
         @marker = RedFlagMarker.new(git_dir)
@@ -56,7 +60,7 @@ module Hecks
 
       private
 
-      def fix?(branch) = branch.to_s.delete_prefix(QA_LEAD).start_with?(RED_WORK_ITEM)
+      def fix?(branch) = self.class.fix?(branch)
 
       def refusal(flag) = "main is red: flag #{flag["id"]}"
     end

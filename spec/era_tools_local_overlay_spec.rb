@@ -1,10 +1,8 @@
 require "spec_helper"
 require "tmpdir"
 require_relative "../lib/hecks/hecks/adapters/journal_store"
-require "hecks/tools/translation_scaffold"
 require "hecks/tools/era_reattest"
 require "hecks/tools/era_projection_backfill"
-require "hecks/tools/translation_audit"
 require "hecks/tools/tail_merge"
 require "hecks/hecks/adapters/journal_store"
 
@@ -53,8 +51,7 @@ RSpec.describe "the era tools and a local overlay" do
     end
   end
 
-  [Hecks::Tools::TranslationScaffold, Hecks::Tools::RevisionReattest, Hecks::Tools::RevisionProjectionBackfill,
-   Hecks::Tools::TranslationAudit, Hecks::Tools::TailMerge].each do |tool|
+  [Hecks::Tools::RevisionReattest, Hecks::Tools::RevisionProjectionBackfill, Hecks::Tools::TailMerge].each do |tool|
     describe tool do
       it "sees the PostgresEra a local hecksagon names" do
         expect(adapter_after(tool, domain_dir(with_local: true))).to eq("PostgresEra")

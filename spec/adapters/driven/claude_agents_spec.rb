@@ -271,6 +271,18 @@ RSpec.describe Hecks::Adapters::ClaudeAgents do
                                                                previous: "working", checkout: "#{scratch}/")
     end
 
+    it "carries the Work item the run serves, so the verdict policies can name it" do
+      job("done", "reviewed", { result: "Verdict: sound" })
+
+      expect(read(agent: { value: "architect" }, work: { value: "fix-it" })).to include(verdict: "sound", work: "fix-it")
+    end
+
+    it "answers no Work item for a run that serves none, so a hand-started run stays unrecorded" do
+      job("done", "reviewed", { result: "Verdict: sound" })
+
+      expect(read(agent: { value: "architect" })).to include(work: "")
+    end
+
     it "reads the architect's verdict and findings off the closed job", :aggregate_failures do
       job("done", "reviewed", { result: "Verdict: sound with changes. Rename the port." })
 

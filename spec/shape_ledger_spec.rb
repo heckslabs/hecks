@@ -119,7 +119,7 @@ RSpec.describe Hecks::ShapeLedger do
       described_class.check(directory, confirm: true)
       write_bluebook("attribute :price, Price", persisted_by: "Memory")
 
-      expect(described_class.check(directory)).to include("skipped 1 tooling bluebooks (committed persistence: Memory): Shop")
+      expect(described_class.check(directory)).to include("skipped 1 disposable bluebooks (committed persistence: Memory): Shop")
       expect(described_class.check(directory)).to start_with("0 bluebook shapes")
     end
 

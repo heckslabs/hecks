@@ -64,12 +64,18 @@ Hecks.world "Hecks" do
   # name is said here, where every copy reads it.
   minting commands: ["SchemaRevision.MintHeld"]
   landing "Queue", stale_minutes: 30, wait_minutes: 40
+  # How long a hold on local main for a boarding lasts before it expires on its own, so main is never held longer.
+  boarding_hold "Window", max_minutes: 20
   # Owner decision: the full spec suite runs only in CI (the Vocabulary `rspec` check is `runs_in: "ci"`).
   # Locally `test_suite_run.run_suite!` is refused, and `run_spec_files!` and `run_impacted_specs!` run
   # every file they are given; CI is detected by the environment (`CI`, `GITHUB_ACTIONS`).
   test_scope "Local", suite_runs_in: "ci"
   # The free space, in gigabytes, below which the board's Disk free tile asks for attention and then fails.
   disk_health "PipelineBoard", attention_gb: 20, failed_gb: 5
+  # The DiskSpace levels: rising under `rising_free_gb` free or at `rising_used_percent` used, high under
+  # `high_free_gb` free or at `high_used_percent` used; the worse of the two sets the level. These are
+  # the volume's own lines for relief; `disk_health` above sets the floors of the board's Disk free tile.
+  disk_space "DiskSpace", rising_free_gb: 60, rising_used_percent: 80, high_free_gb: 30, high_used_percent: 90
   # The agent roles the board pins at its top. Each wakes on demand; none may issue an owner decision.
   agent_roles "PipelineBoard", roles: "orchestrator,planner,architect,coder,reviewer,release_manager,pruner"
   # The runtime appends one JSON line per event and per policy delivery here, so a reader such as the
@@ -78,7 +84,8 @@ Hecks.world "Hecks" do
   event_log "EventTap", path: "~/.claude/hecks-dev/events.jsonl", max_bytes: 5_000_000
   launcher "Launcher", run_keys: true,
                        settled: %w[package.vendor package.revendor package.release
-                                  operation.bootstrap_admin smoke_run.run
+                                  operation.bootstrap_admin operation.abandon_outbox_row
+                                  operation.redrive_outbox smoke_run.run
                                   service_roll.run box_roll.run data_copy.restore
                                   data_copy.verify bluebook_diff.run preview_run.name
                                   preview_run.url preview_run.list preview_run.deploy

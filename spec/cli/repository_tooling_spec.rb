@@ -2,11 +2,7 @@ require "spec_helper"
 require "tmpdir"
 require "json"
 require "stringio"
-require "hecks/tools/canonicalise"
-require "hecks/tools/doc_coverage"
-require "hecks/tools/expression_projection"
 require "hecks/tools/pattern_cases"
-require "hecks/tools/release"
 require "hecks/tools/release_gem"
 require "hecks/tools/rspec_io_parallel_files"
 require "hecks/tools/rspec_shard_files"
@@ -21,27 +17,6 @@ RSpec.describe "the repository tooling commands" do
       .to output(message).to_stderr
   end
 
-  describe Hecks::Tools::Canonicalise do
-    around { |example| Dir.mktmpdir { |dir| (@dir = dir) && example.run } }
-
-    # @return [Array(Integer, String)] the exit status and what was printed for a file holding the
-    #   JSON
-    def canonicalised(json)
-      path = File.join(@dir, "a.json")
-      File.write(path, json)
-      out = StringIO.new
-      [described_class.call([path], out: out), out.string]
-    end
-
-    it "prints a JSON document with its keys sorted", :aggregate_failures do
-      status, printed = canonicalised('{"b":1,"a":{"d":1,"c":2}}')
-
-      expect(status).to eq(0)
-      expect(JSON.parse(printed).keys).to eq(%w[a b])
-      expect(printed.index('"c"')).to be < printed.index('"d"')
-    end
-  end
-
   describe Hecks::Tools::PatternCases do
     it "records one row per pattern and input, and is what the committed cases hold" do
       out = StringIO.new
@@ -49,41 +24,6 @@ RSpec.describe "the repository tooling commands" do
 
       committed = JSON.parse(File.read(File.join(InMemoryDomain::ROOT, "spec/corpus/fixtures/patterns.json")))
       expect(JSON.parse(out.string)).to eq(committed)
-    end
-  end
-
-  describe Hecks::Tools::DocCoverage do
-    it "is clean for this repository's reference pages" do
-      out = StringIO.new
-
-      expect(described_class.call(root: InMemoryDomain::ROOT, out: out, err: StringIO.new)).to eq(0)
-    end
-  end
-
-  describe Hecks::Tools::ExpressionProjection do
-    let(:path) { File.join(InMemoryDomain::ROOT, "lib/hecks/bluebook/expression/projection.json") }
-
-    it "prints the committed projection with --stdout and writes nothing", :aggregate_failures do
-      out = StringIO.new
-      before = File.read(path)
-
-      expect(described_class.call(["--stdout"], out: out)).to eq(0)
-      expect(out.string).to eq(before)
-      expect(File.read(path)).to eq(before)
-    end
-  end
-
-  describe Hecks::Tools::Release do
-    it "prints its usage and exits 0 for --help", :aggregate_failures do
-      expect { @status = described_class.call(["--help"], root: Dir.pwd) }.to output(/Usage: hecks publish/).to_stdout
-      expect(@status).to eq(0)
-    end
-
-    it "exits 2 with the usage for a flag it does not know", :aggregate_failures do
-      status = nil
-      expect { status = described_class.call(["--frobnicate"], root: Dir.pwd) }
-        .to output(/--frobnicate.*Usage: hecks publish/m).to_stderr
-      expect(status).to eq(2)
     end
   end
 

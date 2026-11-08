@@ -30,6 +30,7 @@ Hecks.bluebook "Hecks" do
       attribute :role,         RoleName,   optional: true
       attribute :claimed,      Switch,     optional: true
       attribute :row,          RowId,      optional: true
+      attribute :reason,       Reason,     optional: true
       attribute :output,       Output,     optional: true
       attribute :refusal,      Output,     optional: true
       identified_by :run
@@ -38,6 +39,11 @@ Hecks.bluebook "Hecks" do
 
       # The delivery id an outbox row carries, as the stalled-row warning at boot names it.
       value_object "RowId" do
+        attribute :value, String, matches: :present
+      end
+
+      # Why an operator settled a stalled outbox row by hand, kept on the settled row.
+      value_object "Reason" do
         attribute :value, String, matches: :present
       end
 
@@ -162,15 +168,17 @@ Hecks.bluebook "Hecks" do
       # known to have landed or that nobody wants run. It never redelivers; `RedriveOutbox` does that.
       command "AbandonOutboxRow" do
         role "Operator"
-        goal "Settle one stalled outbox row as failed, naming it by its delivery id, without running it"
+        goal "Settle one stalled outbox row as failed without running it: subject.value is the domain, row.value its delivery id or uuid"
 
         attribute :run,     OperationKey
         attribute :subject, Subject
         attribute :row,     RowId
+        attribute :reason,  Reason, optional: true
 
         sets :run
         sets :subject
         sets :row
+        sets :reason
 
         emits OutboxRowAbandonRequested
       end
