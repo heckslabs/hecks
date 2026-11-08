@@ -40,4 +40,9 @@ Hecks.hecksagon "Tickets" do
       refuses "CapRefused"
     end
   end
+
+  # The backlog in the order the Dispatching port starts it, read and never written.
+  Tickets::Work.port "PriorityReport" do
+    answers_query "PriorityReport"
+  end
 end
