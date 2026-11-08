@@ -925,6 +925,122 @@ Hecks.bluebook "Hecks" do
       end
     end
 
+    # CI starts early: a landed coder branch is pushed as `ci/<branch>` with a draft pull request that is
+    # never merged, so CI runs while the next piece starts. The record holds the branch, the draft's number,
+    # and what CI said (passed or failed with the failing specs and the first error line). The push, the
+    # draft and the CI read are the ports' work (never main, never forced, never --no-verify); this
+    # aggregate only keeps their outcome and answers the coder that cut the branch.
+    aggregate "EarlyCi" do
+      description "One landed branch pushed as ci/<branch> with a draft pull request, and what CI said of it."
+
+      attribute :run,       RunKey
+      attribute :branch,    Word
+      attribute :early_ci,  Switch, default: { value: true }
+      attribute :agent_run, Word,   optional: true
+      attribute :work,      Word,   optional: true
+      attribute :number,    Word,   optional: true
+      attribute :outcome,   Verdict, optional: true
+      attribute :report,    Report, optional: true
+      attribute :refusal,   Report, optional: true
+      identified_by :run
+
+      value_object "RunKey" do
+        attribute :value, String, matches: :present
+      end
+
+      # A branch, a Work item key, an agent run key or a pull request number.
+      value_object "Word" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Switch" do
+        attribute :value, :boolean
+      end
+
+      value_object "Verdict" do
+        attribute :value, String, pattern: '\A(passed|failed)\z'
+      end
+
+      value_object "Report", String
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "declined"
+        transition "Open"    => "opened",   from: "requested"
+        transition "Observe" => "observed", from: "opened"
+        transition "Close"   => "closed",   from: %w[requested opened observed]
+        transition "Decline" => "declined", from: %w[requested opened]
+        mark :terminal, "closed", "declined"
+      end
+
+      command "Start" do
+        role "System"
+        goal "Record that a landed branch is to be pushed as ci/<branch> for an early CI run; off, nothing starts"
+
+        attribute :run,       RunKey, sets: true
+        attribute :branch,    Word, sets: true
+        attribute :early_ci,  Switch, default: { value: true }, sets: true
+        attribute :agent_run, Word, optional: true, sets: true
+        attribute :work,      Word, optional: true, sets: true
+
+        given("the world switch delivery early_ci is on") { early_ci.value == true }
+        given("a branch other than main is pushed") { branch.value != "main" }
+
+        emits EarlyCiStarted
+      end
+
+      command "Open" do
+        role "System"
+        goal "Record the draft pull request opened from ci/<branch>; it is never merged"
+
+        reference_to EarlyCi
+        attribute :number, Word, sets: true
+
+        emits EarlyCiOpened
+      end
+
+      command "Observe" do
+        role "System"
+        goal "Record what CI said of ci/<branch>: passed, or failed with the failing specs and the first error line"
+
+        reference_to EarlyCi
+        attribute :outcome, Verdict, sets: true
+        attribute :report,  Report, sets: true
+
+        emits EarlyCiObserved
+      end
+
+      command "Close" do
+        role "System"
+        goal "Record that the push train carried the commits, so the draft is closed and ci/<branch> deleted"
+
+        reference_to EarlyCi
+
+        emits EarlyCiClosed
+      end
+
+      command "Decline" do
+        role "System"
+        goal "Record why the early CI push or draft could not be made"
+
+        reference_to EarlyCi
+        attribute :refusal, Report, sets: true
+
+        emits EarlyCiDeclined
+      end
+    end
+
+    policy "StartEarlyCiWhenBranchLanded" do
+      on      "Landing.BranchLanded"
+      trigger EarlyCi::Start, with: { run: :run, branch: :branch }
+    end
+
+    # The failing specs go back to the coder run that cut the branch, resuming it under the same session.
+    policy "TellTheCoderWhenCiFailed" do
+      on      "EarlyCi.EarlyCiObserved"
+      where   { outcome.value == "failed" }
+      trigger AgentRun::Answer, with: { run: :agent_run, answer: :report }
+    end
+
     policy "MergeWhenLanding" do
       on      "Landing.LandingRequested"
       ask     :merge, with: { run: :run }
