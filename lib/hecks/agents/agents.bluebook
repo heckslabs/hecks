@@ -812,4 +812,94 @@ Hecks.bluebook "Agents" do
       trigger Pruning::Rest, with: { pruning: "pruner" }
     end
   end
+
+  # After the pruner removes finished sessions, one sweep clears what they left behind. The bluebook
+  # says what a sweep is for and refuses an empty one; the Machine port looks (the session list, the
+  # daemon's log, the process table, each worktree, the temp directory) and stops. A spare daemon is
+  # stopped only when the daemon's log traces it to a session that was removed and is no longer listed;
+  # a daemon that cannot be traced is counted and left running. A worktree whose work is on main is
+  # named for `Landing.retire!`, which makes the final check; one with unlanded work is only reported.
+  aggregate "Sweep" do
+    description "One sweep of the leftovers of removed sessions: spare daemons traced to them stopped, worktrees named for retirement or reported, stray temp files deleted, with the machine's footprint before and after."
+
+    identified_by :run
+
+    attribute :run, SweepName
+    attribute :removed, RemovedSessions
+    attribute :report, SweepSummary, optional: true
+    attribute :refusal, SweepSummary, optional: true
+
+    value_object "SweepName" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "RemovedSessions", String
+    value_object "SweepSummary", String
+
+    value_object "SweepDocument" do
+      attribute :text, String
+    end
+
+    lifecycle :status, default: "requested" do
+      mark :failure, "refused"
+      transition "Record"  => "swept",   from: "requested"
+      transition "Decline" => "refused", from: "requested"
+      mark :terminal, "swept", "refused"
+    end
+
+    command "Begin" do
+      role "System"
+      goal "Sweep the leftovers of the sessions the pruner just removed; refused when it names none"
+
+      attribute :run,     SweepName, sets: true
+      attribute :removed, RemovedSessions, sets: true
+
+      given("the sweep names the removed sessions: it touches nothing else") { removed.value != "" }
+
+      emits "SweepRequested"
+    end
+
+    command "Record" do
+      role "System"
+      goal "Record what the sweep stopped, retired, kept and deleted, and the footprint before and after"
+
+      reference_to Sweep
+      attribute :report, SweepSummary, sets: true
+
+      emits "SweepRecorded"
+    end
+
+    command "Decline" do
+      role "System"
+      goal "Record why the sweep could not run"
+
+      reference_to Sweep
+      attribute :refusal, SweepSummary, sets: true
+
+      emits "SweepDeclined"
+    end
+
+    # What a sweep would do, read first and changing nothing: each leftover of the named sessions
+    # with the evidence that traces it, and the footprint now.
+    query "Leftovers" do
+      description "The spare daemons, worktrees and temp files traced to the named removed sessions and what a sweep would do with each, plus the machine's footprint. Reads only."
+      attribute :removed, RemovedSessions
+      returns SweepDocument
+    end
+
+    policy "SweepWhenRequested" do
+      on      "Sweep.SweepRequested"
+      ask     :sweep, with: { run: :run, removed: :removed }
+    end
+
+    policy "RecordTheSweep" do
+      on      "Sweep.SweepReported"
+      trigger Sweep::Record, with: { report: :report }
+    end
+
+    policy "RecordTheDeclinedSweep" do
+      on      "Sweep.SweepRefused"
+      trigger Sweep::Decline, with: { refusal: :refusal }
+    end
+  end
 end
