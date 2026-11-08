@@ -64,6 +64,8 @@ Hecks.world "Hecks" do
   # name is said here, where every copy reads it.
   minting commands: ["SchemaRevision.MintHeld"]
   landing "Queue", stale_minutes: 30, wait_minutes: 40
+  # How long a hold on local main for a boarding lasts before it expires on its own, so main is never held longer.
+  boarding_hold "Window", max_minutes: 20
   # Owner decision: the full spec suite runs only in CI (the Vocabulary `rspec` check is `runs_in: "ci"`).
   # Locally `test_suite_run.run_suite!` is refused, and `run_spec_files!` and `run_impacted_specs!` run
   # every file they are given; CI is detected by the environment (`CI`, `GITHUB_ACTIONS`).

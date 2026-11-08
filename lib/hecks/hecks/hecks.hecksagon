@@ -147,6 +147,24 @@ Hecks.hecksagon "Hecks" do
   end
 
 
+  Hecks::BoardingHold.port "Holding" do
+    asks "Mark", to: BoardingHold do
+      attribute :run, RunKey
+      answers "HoldAnswered"
+      refuses "HoldRefused"
+    end
+
+    answers_query "Status"
+  end
+
+  Hecks::BoardingRelease.port "Releasing" do
+    asks "Clear", to: BoardingRelease do
+      attribute :run, RunKey
+      answers "ReleaseAnswered"
+      refuses "ReleaseRefused"
+    end
+  end
+
   Hecks::QaQuiesce.port "Quiescing" do
     asks "Mark", to: QaQuiesce do
       attribute :run, RunKey
