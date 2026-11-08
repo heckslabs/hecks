@@ -35,6 +35,7 @@ module Hecks
         # @param planned [Array<Item>] the planned work items, in plan order
         # @param started [Array<Item>] the started work items
         # @param limits [Hash] `cap:` (Integer), `load:` and `max_load:` (Float), `frozen:` (Array)
+        #   and `paused:` (String, optional: why every work item waits, "skipped: paused by load")
         def initialize(planned, started, **limits)
           @started = started
           @limits = limits
@@ -55,8 +56,9 @@ module Hecks
           reason ? @skipped << Skip.new(item.key, reason) : @chosen << item
         end
 
-        def stop_reason = overloaded || capped
+        def stop_reason = @limits[:paused] || overloaded || capped
 
+        # The backstop: the load average alone refuses a fill, whatever the events said.
         def overloaded
           return unless @limits[:load] > @limits[:max_load]
 

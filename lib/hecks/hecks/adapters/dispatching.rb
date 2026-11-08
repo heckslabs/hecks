@@ -97,7 +97,7 @@ module Hecks
 
       def plan_for(only = "")
         Plan.new(planned(only), work_items.started, cap: machine.cap, load: machine.load, max_load: machine.max_load,
-                                                    frozen: machine.frozen)
+                                                    frozen: machine.frozen, paused: machine.paused)
       end
 
       # The key prefix a filling is held to; empty when none is named.

@@ -430,6 +430,18 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  # The outside a reading of the machine reaches: the CPU idle percentage, swap used, the compressor's
+  # size, the load average and the test lane's queue, judged against the Tickets world's `machine_marks`.
+  # It answers each gauge's state and the state it stood in before; a reading within a minute of the last
+  # one is refused.
+  Hecks::Machine.port "Sampling" do
+    asks "Read", to: Machine do
+      attribute :run, MachineKey
+      answers "MachineSampled"
+      refuses "MachineUnreadable"
+    end
+  end
+
   # The outside an agent run reaches: it finds the directory and the agents, starts the background
   # session, and reports the state its job is in. The state is judged in the bluebook, not here.
   # The Sessions port removes a plain session with `claude rm`, once the bluebook has allowed it.

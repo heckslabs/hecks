@@ -4,6 +4,7 @@ require "etc"
 require_relative "../work_limits"
 require_relative "../shell"
 require_relative "../codebase/test_scope"
+require_relative "../machine_sampling/history"
 
 module Hecks
   module Adapters
@@ -61,6 +62,15 @@ module Hecks
         # @return [Float] the load above which no session is started: the world's, else the CPU
         #   count
         def max_load = (declared(MAX_LOAD)[:limit] || @cpus).to_f
+
+        # @return [String, nil] why no session starts while the machine's crossings say so: the
+        #   last reading left the load above its mark ("paused by load") or memory low; else nil
+        def paused
+          standing = MachineSampling::History.new(@registry).states
+          return "skipped: paused by load (LoadRoseAbove)" if standing[:load] == "above"
+
+          "skipped: memory low (MemoryLow)" if standing[:memory] == "low"
+        end
 
         # @return [Boolean] whether planned work rolls forward by itself; false only when paused
         def roll_forward? = declared(ROLL)[:roll_forward] != false
