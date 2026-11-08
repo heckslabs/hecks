@@ -1701,9 +1701,10 @@ Hecks.bluebook "Hecks" do
         mark :failure, "refused"
         transition "Record"  => "opened", from: "requested"
         transition "Confirm" => "merged", from: "requested"
+        transition "Queue"   => "queued", from: "requested"
         transition "Revise"  => "edited", from: "requested"
         transition "Refuse"  => "refused", from: "requested"
-        mark :terminal, "opened", "merged", "edited", "refused"
+        mark :terminal, "opened", "merged", "queued", "edited", "refused"
       end
 
       command "Open" do
@@ -1769,6 +1770,17 @@ Hecks.bluebook "Hecks" do
         attribute :report, Report, sets: true
 
         emits "PullRequestMerged"
+      end
+
+      command "Queue" do
+        role "System"
+        goal "Record that GitHub accepted a pull request into its merge queue or auto-merge, not yet merged"
+
+        reference_to ReviewRequest
+        attribute :number, Word, sets: true
+        attribute :report, Report, sets: true
+
+        emits "PullRequestQueued"
       end
 
       command "Revise" do
@@ -1838,7 +1850,16 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheMergedPullRequest" do
       on      "ReviewRequest.SquashAnswered"
+      where   { outcome.value == "merged" }
       trigger ReviewRequest::Confirm, with: { number: :number, report: :report }
+    end
+
+    # GitHub accepted the merge into its queue or auto-merge without making it; the aggregate says
+    # so and does not claim `merged`. `ReviewRequest.status` reads the actual merge later.
+    policy "RecordTheQueuedPullRequest" do
+      on      "ReviewRequest.SquashAnswered"
+      where   { outcome.value == "queued" }
+      trigger ReviewRequest::Queue, with: { number: :number, report: :report }
     end
 
     policy "RecordTheRefusedMerge" do
