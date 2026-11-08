@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "hecks"
+require_relative "shell_reads"
 
 module Hecks
   module Adapters
@@ -33,15 +34,17 @@ module Hecks
         name = held(role)
         rules = rows("RoutingRule", name).map { |row| row[:pattern] }
         text = held(command).to_s.strip
-        return { text: "allowed" } if rules.empty? || allowed?(rules, text)
+        return { text: "allowed" } if rules.empty? || allowed?(rules, text, name)
 
         raise Refused, refusal(name, text)
       end
 
       private
 
-      def allowed?(rules, text)
-        return false if text.match?(CHAINING) || !text.match?(LAUNCHER)
+      def allowed?(rules, text, name = nil)
+        return false if text.match?(CHAINING)
+        return ShellReads.new(rules, rows("ShellFlagRule", name)).allowed?(text) if ShellReads.shell?(text)
+        return false unless text.match?(LAUNCHER)
 
         verb = verb_of(text.sub(LAUNCHER, ""))
         rules.any? { |rule| rule.end_with?(".*") ? verb.start_with?(rule.delete_suffix("*")) : verb == rule }

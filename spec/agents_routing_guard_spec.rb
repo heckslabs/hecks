@@ -74,6 +74,64 @@ RSpec.describe "the orchestrator routing guard" do
     end
   end
 
+  describe "a read-only git or gh call" do
+    %w[status log diff].each do |verb|
+      it "allows git #{verb}" do
+        expect(verdict("git #{verb} --stat")).to eq(text: "allowed")
+      end
+    end
+
+    it "allows git worktree list" do
+      expect(verdict("git worktree list")).to eq(text: "allowed")
+    end
+
+    it "allows git branch with a list flag" do
+      expect(verdict("git branch --list")).to eq(text: "allowed")
+    end
+
+    it "allows gh pr view, pr list and run view", :aggregate_failures do
+      ["gh pr view 12 --json state", "gh pr list", "gh run view 99"].each do |call|
+        expect(verdict(call)).to eq(text: "allowed")
+      end
+    end
+
+    it "allows Work.finish! and Work.undone", :aggregate_failures do
+      expect(verdict("exe/hecks tickets Work.finish! to=x")).to eq(text: "allowed")
+      expect(verdict("exe/hecks tickets Work.undone")).to eq(text: "allowed")
+    end
+
+    it "carries the shell rows and the flag rules as data", :aggregate_failures do
+      expect(rows("RoutingRule").map { |row| row[:pattern] }).to include("git status", "gh pr view", "git worktree list")
+      expect(rows("ShellFlagRule").map { |row| row[:command] }).to include("git", "gh", "git branch")
+    end
+  end
+
+  describe "a git or gh write" do
+    it "still refuses git push, naming the train" do
+      expect(refusal("git push origin main")).to include("SendTrain.board!")
+    end
+
+    it "refuses commit, branch deletion and branch creation", :aggregate_failures do
+      ["git commit -m x", "git branch -D x", "git branch newname"].each do |call|
+        expect(refusal(call)).to include("routes only")
+      end
+    end
+
+    it "refuses gh pr merge and a gh read that opens a browser", :aggregate_failures do
+      expect(refusal("gh pr merge 3")).to include("routes only")
+      expect(refusal("gh pr view 3 --web")).to include("routes only")
+    end
+
+    it "refuses a flag that writes a file", :aggregate_failures do
+      expect(refusal("git log --output=x")).to include("routes only")
+      expect(refusal("git diff --ext-diff")).to include("routes only")
+    end
+
+    it "refuses a git read chained to another command" do
+      expect(refusal("git status && rm x")).to include("Refused:")
+    end
+  end
+
   it "does not guard a role with no routing rows" do
     expect(verdict("cat lib/x.rb", role: "coder")).to eq(text: "allowed")
   end
