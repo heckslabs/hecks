@@ -82,7 +82,7 @@ module Hecks
           quiet = !Array(memory_commands).empty?
 
           render(LAUNCHER, name: name, program: site.program, where: site.where, up: site.up,
-                           encoding: opted ? ENCODING : "",
+                           shebang: executable ? EXECUTABLE_SHEBANG : PLAIN_SHEBANG, encoding: opted ? ENCODING : "",
                            handoff: handoff_for(executable, memory_commands, site, ledgers),
                            ending: ending_for(opted, executable && quiet),
                            entry: entry(name, site.boot, site.shown, opted, quiet: quiet))

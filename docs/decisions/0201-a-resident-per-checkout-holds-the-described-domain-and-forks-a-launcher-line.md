@@ -496,3 +496,40 @@ The two server rows were read from `ps -o rss=` in a child started as `.mcp.json
 (`ruby -I lib -e ...`), fed `initialize`, `ping` and `tools/list` (then `tools/call domains`) on stdin, one run each.
 
 The warm lines meet the 0.15 s target but `RedFlag.status`, which waits on `git`.
+
+### The launcher starts without rubygems
+
+About 60 ms of a served line is spent before the launcher's first line, and a third of it is Ruby loading
+rubygems. The thin client needs only the standard library, so the executable launcher's shebang is
+`#!/usr/bin/env -S ruby --disable-gems` (`LaunchPrelude::EXECUTABLE_SHEBANG`), and the launcher runs
+`require "rubygems" unless defined?(Gem)` right after the resident probe, so the cold path has the gems and
+`bundler/setup` as before. Every other launcher (`PLAIN_SHEBANG`) has no probe and keeps `#!/usr/bin/env ruby`.
+
+Measured on macOS arm64, Ruby 3.3.7 behind the rbenv shim, 80 alternating runs each, in milliseconds:
+
+| | p50 | p90 |
+|---|---|---|
+| `ruby -e 1` | 61.6 | 62.9 |
+| `ruby --disable-gems -e 1` | 41.3 | 42.3 |
+| the real interpreter, `-e 1`, then with `--disable-gems` | 26.2, then 5.7 | 27.1, then 6.2 |
+| `/usr/bin/env -S ruby --disable-gems -e 1` against the same without `env` | 41.5 against 40.3 | 42.2 against 40.9 |
+| `exe/hecks --help`, old shebang (main) against new shebang (worktree), both served | 84.7 to 85.5 against 64.0 to 64.9 | 88.9 to 128.6 against 66.4 to 67.7 |
+
+So rubygems costs about 20 ms, `env -S` about 1 ms, and the shim about 35 ms that stay (the real interpreter path is
+machine-specific and is not hardcoded). Inside the launcher the client reaches the end 22.6 ms after its first line with
+`Gem` still absent, and the resident's forked child, which has the gems, takes about 5 ms.
+
+What was checked about the other ways to start it:
+
+- `ruby exe/hecks`: Ruby reads the options on a script's own shebang line, so `--disable-gems` applies here too and the
+  cold path loads rubygems itself. A comparison of `ruby exe/hecks` with `ruby --disable-gems exe/hecks` therefore shows
+  nothing (63.6 ms each); the baseline has to be a launcher with the old shebang.
+- `bundle exec exe/hecks`: `RUBYOPT=-rbundler/setup` loads rubygems before the script, and a script with the new
+  shebang still reports `Gem` loaded under it.
+- `env -S` is in macOS's `/usr/bin/env` and in GNU coreutils 8.30 and later (Ubuntu 20.04 and later, Debian 10 and
+  later). An older `env` would fail to start the launcher, which is the one risk the change takes; a machine like that
+  runs `ruby exe/hecks` or restores the plain shebang.
+- A gem install is expected to be unaffected, since RubyGems writes its own wrapper script for an executable; that was
+  not run here.
+- `spec/launcher_shebang_spec.rb` starts the launcher cold through its shebang, under `bundle exec` and as a script
+  argument to `ruby`, and pins both shebangs and the position of the `require "rubygems"` after the probe.

@@ -13,7 +13,17 @@ module Hecks
           # A resident for this checkout, when one stands, runs this line and ends it (ADR 0201).
           require "hecks/adapters/driving/resident/client"
           Hecks::Adapters::Driving::Resident::Client.run(__FILE__)
+
+          # Past the probe this boot is cold, and it needs the gems the shebang left unloaded.
+          require "rubygems" unless defined?(Gem)
         RUBY
+
+        # The shebang of the executable launcher: no rubygems until the probe has missed, which
+        # saves the ~30 ms its load costs a line a resident serves. `env -S` splits the arguments.
+        EXECUTABLE_SHEBANG = "#!/usr/bin/env -S ruby --disable-gems".freeze
+
+        # The shebang of every other launcher, which has no probe and so needs the gems at once.
+        PLAIN_SHEBANG = "#!/usr/bin/env ruby".freeze
 
         # The lines that cache the Ruby a launcher compiles and the load path it searches, under the
         # hecks cache directory, when the bootsnap gem is at hand. A launcher without the gem, or

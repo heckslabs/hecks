@@ -9,6 +9,8 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ### Changed
 
+- **A line a resident serves starts about 20 ms sooner.** The executable launcher's shebang is now `#!/usr/bin/env -S ruby --disable-gems` (`LaunchPrelude::EXECUTABLE_SHEBANG`): the thin client needs only the standard library, and the launcher loads rubygems (`require "rubygems" unless defined?(Gem)`) once the resident probe has missed, so the cold path, `bundle exec exe/hecks` and `ruby exe/hecks` still have their gems. Measured with `--help` served by a resident: 84.7 to 85.5 ms median before, 64.0 to 64.9 ms after. A launcher beside a client's domain keeps `#!/usr/bin/env ruby`. `env -S` needs GNU coreutils 8.30 or later on Linux; `spec/launcher_shebang_spec.rb` pins both shebangs and starts the launcher cold three ways.
+
 - **A resumed session keeps its role's MCP restriction.** A role's `hecks-mcp` server narrows itself from the `CLAUDE_CODE_AGENT` variable Claude Code gives it, but a plain `claude --resume` gives the servers `CLAUDE_CODE_AGENT=claude`, so a resumed orchestrator came back with all 11 tools. `ClaudeResumption` now passes `--agent <role>` for a run that has a role (measured with `claude -p`: 10 tools fresh, 11 after a plain resume, 10 after a resume with `--agent`, the session id unchanged). A run with no role resumes as before.
 
 - **Removing a session no longer trusts the listing kept before it.** `ClaudeSessions#withdraw` read the 15-second shared listing after `claude rm` and `claude stop`, which still showed the session, so a retire right after a listing was refused as "still listed". The listing is forgotten (`ClaudeSessionListing#forget!`) after each removal or stop. The start answer's `started_at` is pinned in the adapter spec.
