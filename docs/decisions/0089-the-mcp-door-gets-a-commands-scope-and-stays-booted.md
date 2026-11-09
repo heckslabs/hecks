@@ -57,7 +57,7 @@ The chapter also repeats short command names across aggregates: `accept!`, `comp
   command guide. The refusals above are unchanged and are held to the replies recorded before the change.
 - **A role's list is data** (`Role.server_env`, ADR 0201 "As built"): the exact `HECKS_SERVER_COMMANDS` names are
   expanded from the role's `RoutingRule` patterns against the Hecks domain, and the server applies them itself: it
-  reads `CLAUDE_CODE_AGENT`, which Claude Code gives every server it starts, a resumed session's too, and takes the
+  reads `CLAUDE_CODE_AGENT`, which Claude Code gives every server it starts, a resumed session's too when the resume names the agent (`--agent <role>`; a resume without it gives `claude`), and takes the
   role's list from a cache file keyed by the checkout's bluebooks (`RoleServerCache`). A flag at session start does not
   survive a resume, so none is passed (ADR 0201 "As built", tested live). A role with rows never falls back to the
   unrestricted server (an empty list serves no tool), the list is fixed when the server starts, and a restricted

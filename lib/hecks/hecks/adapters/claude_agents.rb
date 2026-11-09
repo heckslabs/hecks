@@ -185,7 +185,9 @@ module Hecks
       # Answers a session by waking it in place under its own id (see {ClaudeResumption}). The run
       # holds the short id `claude agents` shows; `--resume` takes only the full session id.
       #
-      # @param held [Hash] the `AgentRun` record: `session`, `repo` and `answer`
+      # @param held [Hash] the `AgentRun` record: `session`, `repo` and `answer`, and `agent` when
+      #   the run has a role, which the resume passes as `--agent` so the role's MCP server narrows
+      #   itself again
       # @return [Hash{Symbol => Object}] `resumed_at:` when the resume was started, as an ISO 8601
       #   string; `session:` the id the run follows, its own unless the CLI started a copy; and
       #   `note:` what the CLI said of that copy, when it did
@@ -193,7 +195,8 @@ module Hecks
       def resume(**held)
         id = plain(held[:session])
         ClaudeResumption.new(@command, @shell, nice: niceness)
-                        .call(id, listed(id), plain(held[:answer]), env: named(held), chdir: plain(held[:repo]))
+                        .call(id, listed(id), plain(held[:answer]), env: named(held), chdir: plain(held[:repo]),
+                                                                    agent: plain(held[:agent]))
       end
 
       # Says whether `claude agents` still lists the run's session. A session `claude rm` deleted is

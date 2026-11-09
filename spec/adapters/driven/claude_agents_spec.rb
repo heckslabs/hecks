@@ -165,8 +165,13 @@ RSpec.describe Hecks::Adapters::ClaudeAgents do
       expect(resume(answer: { value: "go on" })).to include(session: { value: "abc123" })
     end
 
-    it "names no agent, even for a run that has one, so the session keeps its saved options" do
+    it "names the run's role with --agent, ahead of the session id, so its MCP server narrows again" do
       resume(answer: { value: "go on" }, agent: { value: "orchestrator" })
+      expect(asked).to eq(["--agent", "orchestrator", "--bg", "--resume", "abc123-0000-full", "--", "go on"])
+    end
+
+    it "names no agent for a run that has none, so the session resumes as it did before" do
+      resume(answer: { value: "go on" })
       expect(asked).to eq(["--bg", "--resume", "abc123-0000-full", "--", "go on"])
     end
 

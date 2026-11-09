@@ -249,6 +249,13 @@ stand. Where the build differs from the text above or adds to it:
     eleven the unrestricted server defines (the one missing is `behaviors`): the role was narrowed from
     `CLAUDE_CODE_AGENT` alone, with no flag and no `HECKS_SERVER_*` setting. Naming `mcp__hecks-mcp__*` in the
     orchestrator's `tools` would make the restriction matter; that is the owner's decision.
+- **A resume names the role.** Measured with `claude -p` on haiku (2026-11-09), from the hecks checkout with the
+  project's `hecks-mcp` and an inline agent named `orchestrator`: a fresh start exposed 10 `mcp__hecks-mcp__*`
+  tools; a plain `--resume` of that session left the server's `CLAUDE_CODE_AGENT` at `claude` and it exposed all
+  11 (the restriction lost); `--resume --agent orchestrator` kept the same session id (no copy) and gave 10 again
+  (with a probe server, `CLAUDE_CODE_AGENT=orchestrator`). So `ClaudeResumption` passes `--agent <role>` for a run
+  that has a role (`AgentRun`'s `agent`, the same value the start passed), ahead of `--bg --resume`, and no other
+  flag; a run with no role resumes as before. Not run: a resume of a real dispatched session.
 - **A line runs only after the words.** The request states its own length and the resident reads that many bytes
   and no more. It then answers `fds` when it can serve the line (or `stale`, which sends the launcher on to boot),
   and only then does the caller send its three streams: on Linux a read of the request could take the first

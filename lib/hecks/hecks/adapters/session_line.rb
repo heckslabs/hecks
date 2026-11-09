@@ -9,7 +9,8 @@ module Hecks
     # string for a shell. It passes no MCP flags: a resumed session does not keep them, and
     # `--strict-mcp-config` would drop the session's other servers. A role's `hecks-mcp` server
     # narrows itself from the `CLAUDE_CODE_AGENT` variable Claude Code gives it (see
-    # `Driving::Mcp::Roles`).
+    # `Driving::Mcp::Roles`); a resume names the same role with `--agent` (see
+    # {ClaudeResumption}), since without it that variable reads `claude`.
     class SessionLine
       # @param command [String] the command that starts sessions
       # @param nice [Array<String>] the niceness prefix, empty for none
