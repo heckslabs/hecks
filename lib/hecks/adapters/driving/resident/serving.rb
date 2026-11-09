@@ -23,8 +23,10 @@ module Hecks
 
           private
 
+          # Takes one caller through the handshake. Only a line that runs counts as use (see
+          # {Forking#launch}): a caller that fails the handshake, whatever the reason, leaves the
+          # resident as idle as it was, so a resident that no caller can use exits on its own.
           def handle(client)
-            @active = Time.now
             streams = []
             return drop(client, streams) unless Peer.trusted?(client)
 

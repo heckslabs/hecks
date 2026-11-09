@@ -9,6 +9,15 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ### Changed
 
+- **A resident that speaks another protocol no longer slows every launcher line until someone kills it.** After the
+  handshake changed, a resident already standing could not answer the new launcher: all 42 lines measured recorded
+  `refused:busy` at a median of 1.8 s, a cold boot plus the wait, and the old resident never exited (its change check
+  ran only after it parsed a request, every failing connection reset its idle timer, and its lock blocked a
+  replacement). `Wire::PROTOCOL` is now part of the socket, lock, pid and version file names, so a launcher never
+  talks to a resident of another protocol and starts its own (the usage log says `refused:protocol` while the old one
+  stands). Only a line that runs counts as use, so an unusable resident exits when idle. A launcher that finds the
+  resident too busy twice in a row within a minute stops it, if the process is this user's and is this checkout's
+  resident (`Stuck`). The resident writes a `.version` file. ADR 0201 and the runbook are updated.
 - **A bluebook that will not load no longer leaves the board "still opening" for ever, and a request does not wait for a boot without end.** The live store's boot thread rescued `StandardError` only, so a `SyntaxError` or `LoadError` ended the thread with no failure recorded and no backoff; it now records the failure by class and retries after the backoff. `BootLock.exclusive` takes a `wait:`: the wiring page's reload and the journal and rules describes give up after 30 seconds with `Unavailable` ("a boot is still going in this process"), while the boot threads still wait their turn. A reader waits up to 25 seconds for the first boot (it was 15; the board snapshot took up to 19 seconds). The pruner's reaper keeps `agent_run.check_all` in every spelling, since a settling check ran up to 108 minutes.
 
 - **A resident takes callers at once, and a launcher no longer waits long for a busy one.** In an hour with six

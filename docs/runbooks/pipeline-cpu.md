@@ -40,8 +40,10 @@ machine oversubscribe too: 14 sessions and a load limit of 16 on 12 cores.
 
 - **See one:** `ps -Ao pid,rss,etime,command | grep resident/server.rb`. There is one per active checkout or worktree, about
   330 MB each.
-- **Files:** `<cache>/resident/<8 hex of the checkout>.sock`, `.lock` and `.pid`, where `<cache>` is
-  `HECKS_CACHE_DIR`, else `$XDG_CACHE_HOME/hecks` or `~/.cache/hecks`.
+- **Files:** `<cache>/resident/<8 hex of the checkout>-p<protocol>.sock`, `.lock`, `.pid` and `.version`, where
+  `<cache>` is `HECKS_CACHE_DIR`, else `$XDG_CACHE_HOME/hecks` or `~/.cache/hecks`. The protocol is in the name, so a
+  landing that changes how launcher and resident talk starts new residents; the old ones, which no launcher
+  reaches, exit when idle.
 - **Stop one:** kill the process named in the `.pid` file. The next launcher line boots cold and starts another.
 - **Turn it off for a line or a shell:** `HECKS_NO_RESIDENT=1`. `console`, `interview`, `init` and `mcp` and a
   `--stream` line never use it. Specs set it, so they cannot reach yours.
@@ -75,7 +77,7 @@ The usage log (`~/.cache/hecks/usage.jsonl`) has one JSON line per launcher run:
 true for a line a resident served), `caller` (`HECKS_CALLER`, else `CLAUDE_SESSION_ID`; sessions are named
 `role:run`, the board `board`, the guard hook `hook:orchestrator_guard`) and `resident` (how the line met the
 resident: `served`, `none`, `started`, `bypass`, `unstable` or `refused:<reason>`, with reasons `stale`, `env`,
-`changed`, `script`, `busy`, `dropped`, `unsafe`, `path` and `crowded`). `exe/hecks usage` sums the outcomes, the
+`changed`, `script`, `busy`, `dropped`, `unsafe`, `path`, `crowded` and `protocol`). `exe/hecks usage` sums the outcomes, the
 share served, the refusal reasons and the last hour's boots per caller. The event tap is `~/.claude/hecks-dev/events.jsonl`, one line per
 event with `event`, `policy`, `command`, `outcome`, `at`.
 
@@ -96,6 +98,7 @@ Shared caches and records, which every checkout and worktree reads, and how each
 |---|---|---|
 | Load high, many short `ruby` processes | launcher boots with no resident (`HECKS_NO_RESIDENT`, unstable cache dir, more than 8 checkouts) | `ps -Ao pid,etime,command \| grep -c 'exe/hecks'`; `exe/hecks usage` cold/warm |
 | Same work id started again and again | a refusal that parks wrongly, or a run holding the key | count `WorkStarted` per id in the tap; `exe/hecks Dispatch.Preview` parked lines |
+| Every line `refused:busy`, about 1.8 s, right after a landing | a resident of the old protocol that no launcher can talk to (fixed: the protocol is in the file names, and a launcher stops a resident that is busy twice in a row); the `resident` field shows `refused:protocol` while an old one stands | `ps -Ao pid,etime,command \| grep resident/server.rb`; kill the old one if it must go at once; `exe/hecks usage` resident section |
 | Few lines served by the resident | the `resident` field says why: `refused:changed` (code edits retire it), `refused:env`, `refused:busy` (no first word within `ready_wait_ms`), `refused:dropped:deadline` (the caller took over five seconds) or `refused:dropped:closed` (the resident hung up), `none`/`started` (no resident yet; one launcher starts it, the rest boot at once), `unstable` or `refused:crowded` | `exe/hecks usage` resident section (outcomes, share served, refusal reasons) |
 | Fill refuses with "boot budget spent" | measured boot hours over `cpu_budget` | `exe/hecks usage` by caller; the "Boot hours today" tile |
 | Parked item never starts | its retry time has not passed, the machine is over its limit, or roll-forward is false | `exe/hecks Dispatch.Preview` (parked and skipped lines); `dispatch_roll_forward` in `tickets.world`; the waker rolls when the time passes or the load clears |

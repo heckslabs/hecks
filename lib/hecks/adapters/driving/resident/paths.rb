@@ -1,5 +1,6 @@
 require "digest/sha1"
 require "hecks/cache_dir"
+require "hecks/adapters/driving/resident/wire"
 
 module Hecks
   module Adapters
@@ -29,12 +30,53 @@ module Hecks
             named.empty? ? CacheDir.path("resident") : File.join(named, "resident")
           end
 
+          # @return [String] the protocol version the files are named for: {Wire::PROTOCOL}, unless
+          #   `HECKS_RESIDENT_PROTOCOL` names another (a spec's way to stand in for an older
+          #   resident)
+          def protocol
+            named = ENV.fetch("HECKS_RESIDENT_PROTOCOL", "")
+            named.empty? ? Wire::PROTOCOL.to_s : named[0, 6]
+          end
+
           # @param root [String] the checkout
-          # @return [String] the file name stem for the checkout, short enough for a socket path
-          def stem(root) = File.join(directory, Digest::SHA1.hexdigest(root)[0, 8])
+          # @return [String] the checkout's part of every file name, the same for every protocol
+          def prefix(root) = File.join(directory, Digest::SHA1.hexdigest(root)[0, 8])
+
+          # @param root [String] the checkout
+          # @return [String] the file name stem for the checkout and the protocol, short enough for
+          #   a socket path
+          def stem(root) = "#{prefix(root)}-p#{protocol}"
 
           # @return [String] the resident's socket
           def socket(root) = "#{stem(root)}.sock"
+
+          # @return [String] the file the running resident writes its protocol and process id to
+          def version(root) = "#{stem(root)}.version"
+
+          # @return [String] the file a launcher leaves when a resident was too busy to answer it
+          def busy(root) = "#{stem(root)}.busy"
+
+          # @return [Boolean] whether a resident of another protocol stands for the checkout: one
+          #   that holds a lock of the checkout's, not this protocol's
+          def other_protocol?(root)
+            own = lock(root)
+            Dir.glob("#{prefix(root)}*.lock").any? { |file| file != own && held?(file) }
+          rescue SystemCallError
+            false
+          end
+
+          # @return [String, nil] why there is no resident to ask: `unsafe` when something that is
+          #   not this user's own stands at the socket's path, `protocol` when a resident of
+          #   another protocol stands for the checkout (it is not asked: it speaks differently,
+          #   and exits when it has been idle), nil when there is none
+          def absent_reason(root)
+            return "unsafe" if socket_present?(root)
+
+            other_protocol?(root) ? "protocol" : nil
+          end
+
+          # @return [Boolean] whether some process holds the lock file's lock
+          def held?(file) = File.open(file) { |lock| !lock.flock(File::LOCK_EX | File::LOCK_NB) }
 
           # @return [String] the lock the one running resident holds
           def lock(root) = "#{stem(root)}.lock"

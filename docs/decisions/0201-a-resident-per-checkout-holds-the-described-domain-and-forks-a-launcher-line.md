@@ -336,6 +336,34 @@ The loaded row is dominated by the work competing for the cores, and the unchang
 10.2 s between two runs, so it shows no difference either way. The stopped row is the 3.0 s the launcher waited
 before, now 0.4 s, plus a cold boot. The quiet row varies with whatever else the machine is doing.
 
+### Protocol skew
+
+A resident and a launcher can disagree about the words they say: the handshake changed from a plain
+request to a length-prefixed one with an `fds` acknowledgement, and a resident that was already standing
+could not parse the new launcher's request. It sat idle with its socket open, never answered, and every
+launcher line recorded `refused:busy` and paid the wait plus a cold boot (42 of 42 lines measured, median
+1.8 s) until the process was killed by hand. A fresh resident then served 65 of 67 lines. The old one could
+not retire itself: the check that retires a resident whose code changed runs after a request is parsed,
+every failing connection counted as use so its idle timer kept resetting, and its lock kept a replacement
+from starting.
+
+- **The protocol is in the file names.** `Wire::PROTOCOL` is part of the stem of the socket, lock, pid and
+  version files (`<8 hex of the checkout>-p<protocol>.sock`). A launcher of another protocol looks at other
+  files, so it never connects to the old resident and never contends for its lock; it starts a resident of its
+  own. Raise `PROTOCOL` whenever the words, their order or the request's shape change.
+- **The launcher says why.** When it finds no resident of its own protocol but a resident of another holds a
+  lock of the checkout's, it notes `refused:protocol` in the usage log and does not connect.
+- **An unused resident goes idle.** Only a line that runs, and the end of one, counts as use. A caller that
+  fails the handshake, for any reason, leaves the resident as idle as it was, so a resident no caller can use
+  exits within `idle_seconds` however many callers keep trying.
+- **A stuck resident is stopped.** A launcher that finds the resident too busy to answer twice in a row, within
+  a minute (`Stuck`, a `.busy` note beside the socket), sends it `TERM`, and only if the process id file names a
+  process of this user's whose command line holds `resident/server.rb` and the checkout. The next line starts a
+  new resident. The resident also writes a `.version` file with its protocol and process id.
+- **Not covered.** A resident of the same protocol whose code is stale still retires through the fingerprint
+  check as before; a pre-existing resident of the old, unnamed stem stands until its idle time passes, and is
+  counted toward `max_residents` while it does.
+
 ### Measured
 
 | step, on the Hecks domain, macOS arm64, Ruby 3.3.7 | |

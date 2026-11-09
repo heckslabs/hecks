@@ -32,7 +32,8 @@ module Hecks
           def note(value) = (ENV[VARIABLE] = value)
 
           # @param reason [String] why the resident did not serve: `stale`, `env`, `changed`,
-          #   `script`, `busy`, `dropped`, `unsafe`, `path` or `crowded`
+          #   `script`, `busy`, `dropped`, `unsafe`, `path`, `crowded` or `protocol` (a resident
+          #   of another protocol stands for the checkout, and is not asked)
           # @return [String] the outcome word for it
           def refused(reason) = "#{REFUSED}#{reason}"
 

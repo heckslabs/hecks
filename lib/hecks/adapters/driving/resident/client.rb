@@ -7,6 +7,7 @@ require "hecks/adapters/driving/resident/peer"
 require "hecks/adapters/driving/resident/crowd"
 require "hecks/adapters/driving/resident/claim"
 require "hecks/adapters/driving/resident/outcome"
+require "hecks/adapters/driving/resident/stuck"
 
 module Hecks
   module Adapters
@@ -64,6 +65,7 @@ module Hecks
           #   resident gave for not serving the line, else what starting one came to
           def attempt(root, script)
             status, why = ask(root, script)
+            Stuck.after(root, why)
             exit(status) if status
             spawned = spawn_resident(root, script)
             why ? Outcome.refused(why) : spawned
@@ -94,7 +96,7 @@ module Hecks
           # @return [Array(Integer, nil), Array(nil, String)] the line's exit status and nil, or nil
           #   and why the resident did not take it (nil when there was nothing to ask)
           def ask(root, script)
-            return [nil, (Paths.socket_present?(root) ? "unsafe" : nil)] unless Paths.trusted_socket?(root)
+            return [nil, Paths.absent_reason(root)] unless Paths.trusted_socket?(root)
 
             socket = UNIXSocket.new(Paths.socket(root))
             Peer.trusted?(socket) ? converse(socket, script, ready_wait) : [nil, "unsafe"]

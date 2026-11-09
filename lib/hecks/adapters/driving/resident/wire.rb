@@ -17,6 +17,13 @@ module Hecks
         # that has gone, or gave up and booted on its own, never answers `go`, so a request that sat
         # in the queue is never run a second time.
         module Wire
+          # The version of what the two ends say to each other. It is part of the file names a
+          # resident and its launchers share, so a launcher never talks to a resident that speaks
+          # another version: it starts one of its own, and the old one, which no one reaches any
+          # more, exits when it has been idle. Raise it whenever the words, their order or the
+          # request's shape change.
+          PROTOCOL = 3
+
           GO = "go".freeze
           FDS = "fds".freeze
           READY = "ready".freeze

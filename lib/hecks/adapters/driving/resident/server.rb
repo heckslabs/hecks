@@ -93,6 +93,7 @@ module Hecks
             @server = listen
             File.chmod(0o600, Paths.socket(@root))
             File.write(Paths.pid(@root), Process.pid.to_s)
+            File.write(Paths.version(@root), "#{Wire::PROTOCOL} #{Process.pid}\n")
             @bound = true
           end
 
@@ -126,7 +127,7 @@ module Hecks
           def retire
             @retired = true
             @server.close unless @server.closed?
-            FileUtils.rm_f([Paths.socket(@root), Paths.pid(@root)])
+            FileUtils.rm_f([Paths.socket(@root), Paths.pid(@root), Paths.version(@root)])
             @lock&.flock(File::LOCK_UN)
           end
 

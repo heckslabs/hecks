@@ -10,16 +10,22 @@ module Hecks
           private
 
           def launch(client, request, streams)
+            @active = Time.now
             reader, writer = IO.pipe
             writer.sync = true
             pid = @fork_lock.synchronize { fork_child(client, request, streams, [reader, writer]) }
             writer.close
+            close_streams(streams)
+            watch = Thread.new { monitor(pid, client, reader) }
+            @guard.synchronize { @monitors << watch }
+          end
+
+          # Lets go of the streams the caller sent, which the child now holds.
+          def close_streams(streams)
             streams.each do |stream|
               release(stream)
               stream.close
             end
-            watch = Thread.new { monitor(pid, client, reader) }
-            @guard.synchronize { @monitors << watch }
           end
 
           # @return [Integer] the child's process id
@@ -47,13 +53,20 @@ module Hecks
             watcher = Thread.new { stop_when_gone(client, pid) }
             _, status = Process.wait2(pid)
             watcher.kill
-            Wire.reply(client, "#{Wire::STATUS}#{status.exitstatus || (128 + status.termsig)}")
+            finish_line(client, status)
             remember(reader)
           rescue SystemCallError, IOError
             nil
           ensure
             release(client)
             client.close unless client.closed?
+          end
+
+          # Marks the end of a line as use, so the resident is not idle the moment a long line ends,
+          # and tells the caller the line's status.
+          def finish_line(client, status)
+            @active = Time.now
+            Wire.reply(client, "#{Wire::STATUS}#{status.exitstatus || (128 + status.termsig)}")
           end
 
           # Queues the domains and files a finished child named as missing from the resident.
