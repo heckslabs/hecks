@@ -20,6 +20,9 @@ module Hecks
         # The claimant every dispatched work item names.
         CLAIMANT = "dispatch"
 
+        # The words of the refusal a dispatch gets when a run already holds its key.
+        KEY_HELD = /already[ _]recorded/
+
         # @param repo [String] the checkout whose `exe/hecks` runs the commands and where sessions
         #   work
         # @param runner [#call, nil] runs an argument list in `repo` and answers a {Shell::Result}
@@ -40,7 +43,7 @@ module Hecks
           step(item, "pull main", pull_argv)
           started = step(item, "start", start_argv(item, minutes), reaches: "started")
           text = BriefText.new(composed(item)).render(item.key, area: item.area, limit: limit, held: held, **lines)
-          step(item, "dispatch", dispatch_argv(item, text))
+          dispatch(item, text)
           started_line(item, started.note)
         rescue ConsoleCapture::Failure => e
           yield_back(item, e.message)
@@ -76,6 +79,18 @@ module Hecks
           return outcome if outcome.ok?
 
           raise ConsoleCapture::Failure, "#{name} of #{item.key} failed: #{outcome.reason}"
+        end
+
+        # Hands the brief to `AgentRun`. A key held by a run still recorded started is refused; when
+        # that run's session is gone, `AgentRun.Retire` closes it (it frees the key, as an ended
+        # run does) and the dispatch is made once more. A session still listed keeps its key, so
+        # the second refusal is the answer.
+        def dispatch(item, text)
+          step(item, "dispatch", dispatch_argv(item, text))
+        rescue ConsoleCapture::Failure => e
+          raise unless KEY_HELD.match?(e.message) && @runner.call(["AgentRun.retire!", "to=#{item.key}", "--wait"])
+
+          step(item, "dispatch", dispatch_argv(item, text))
         end
 
         def started_line(item, note) = note.empty? ? "started #{item.key}" : "started #{item.key} (then refused: #{note})"
