@@ -52,6 +52,7 @@ RSpec.describe Hecks::RustBuild::ProjectRust::CodegenRun do
     let(:own) { { "CARGO_TARGET_DIR" => "/shared/target/tree-0123abcd" } }
 
     before do
+      allow(Hecks::RustBuild::BuildLock).to receive(:hold).and_yield({})
       allow(Open3).to receive(:capture2e).and_return(["", finished])
       allow(Hecks::RustBuild::SessionBuild).to receive_messages(environment: own, command: %w[nice cargo build])
     end

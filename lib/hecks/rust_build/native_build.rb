@@ -4,6 +4,8 @@ require "digest"
 require "fileutils"
 require "open3"
 require_relative "session_build"
+require_relative "build_lock"
+require_relative "binary_cache"
 
 module Hecks
   module RustBuild
@@ -102,9 +104,7 @@ module Hecks
           pinned = pinned_path(rust_dir, domain_feature)
           next pinned if pinned_fresh?(pinned, rust_dir)
 
-          command = ["cargo", "build", "--no-default-features", "--features", domain_feature]
-          cargo(command, rust_dir, domain_feature)
-          pin(rust_dir, domain_feature, command)
+          build_or_restore(domain_feature, rust_dir, pinned)
         end
       end
 
@@ -113,6 +113,17 @@ module Hecks
       def lock_path_for(rust_dir)
         dir = SessionBuild.claim_slot(target_dir(rust_dir), SessionBuild.root_of(rust_dir))
         File.join(dir, ".build_rust_for.lock")
+      end
+
+      # Takes the binary another workspace built from the same sources when the cache has it, else
+      # builds, pins and keeps it.
+      def build_or_restore(domain_feature, rust_dir, pinned)
+        kept = BinaryCache.key(rust_dir, domain_feature, source_files(rust_dir))
+        return pinned if BinaryCache.restore(kept, pinned)
+
+        command = ["cargo", "build", "--no-default-features", "--features", domain_feature]
+        cargo(command, rust_dir, domain_feature)
+        pin(rust_dir, domain_feature, command).tap { |binary| BinaryCache.save(kept, binary) }
       end
 
       def pinned_path(rust_dir, domain_feature)
@@ -151,14 +162,13 @@ module Hecks
       end
 
       def cargo(command, rust_dir, domain_feature)
-        root = SessionBuild.root_of(rust_dir)
         env = { "CARGO_TARGET_DIR" => target_dir(rust_dir) }
-        _stdout, stderr, status = Open3.capture3(env, *SessionBuild.command(command, root: root), chdir: rust_dir)
+        printed, status = RustBuild.capture_build(command, chdir: rust_dir, env: env)
         return if status.success?
 
         raise BuildFailed, "`#{command.join(" ")}` failed in #{rust_dir} (exit #{status.exitstatus}) — " \
                            "#{domain_feature} is declared in Cargo.toml, so this is a build failure, " \
-                           "not a missing feature:\n#{stderr}"
+                           "not a missing feature:\n#{printed}"
       rescue SystemCallError => e
         raise BuildFailed, "`#{command.join(" ")}` could not run in #{rust_dir}: #{e.message}"
       end

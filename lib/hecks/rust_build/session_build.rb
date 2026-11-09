@@ -2,6 +2,7 @@
 
 require "digest"
 require "fileutils"
+require_relative "build_policy"
 
 module Hecks
   module RustBuild
@@ -45,6 +46,11 @@ module Hecks
       # @return [Hash{String => String}] the variables to add; none when the caller already named
       #   a target directory, so `CARGO_TARGET_DIR` set by hand still wins
       def environment(root: ROOT, base: ENV, binary: false)
+        BuildPolicy.environment(root: root, base: base).merge(target_environment(root, base, binary))
+      end
+
+      # @return [Hash{String => String}] the target directory part of `environment`
+      def target_environment(root, base, binary)
         shared = environment_of(row(root))["CARGO_TARGET_DIR"]
         given = base["CARGO_TARGET_DIR"]
         return {} if shared.nil? || (given && !(binary && File.expand_path(given) == shared))
@@ -160,9 +166,11 @@ module Hecks
 
       # @param command [Array<String>] a build command and its arguments
       # @param root [String] a hecks checkout
-      # @return [Array<String>] the command, run under `nice` when the world names an increment
+      # @return [Array<String>] the command, run under `nice` when the world names an increment:
+      #   the `rust_build` line's for every build hecks starts, else a worktree's
+      #   `session_environment`
       def command(command, root: ROOT)
-        increment = nice_of(row(root))
+        increment = BuildPolicy.nice(root) || nice_of(row(root))
         increment ? ["nice", "-n", increment.to_s, *command] : command
       end
 
@@ -176,9 +184,15 @@ module Hecks
 
       # @param root [String] a hecks checkout
       # @return [Hash] the world's `session_environment` row, read once per checkout
-      def declared(root)
+      def declared(root) = world_row(root, VERB)
+
+      # @param root [String] a hecks checkout
+      # @param verb [String] a world verb of the Tickets world
+      # @return [Hash] that verb's row, read once per checkout and verb; empty for a checkout with
+      #   no Tickets world or no such line
+      def world_row(root, verb)
         @rows ||= {}
-        @rows.fetch(root) { @rows[root] = load_row(root) }
+        @rows.fetch([root, verb]) { @rows[[root, verb]] = load_row(root, verb) }
       end
 
       # Forgets what was read, so the next call reads the world again.
@@ -188,7 +202,7 @@ module Hecks
 
       # @return [Hash] the row, read by loading the world file against a collector that keeps the
       #   world it declares
-      def load_row(root)
+      def load_row(root, verb)
         file = File.join(root, WORLD)
         return {} unless File.file?(file) && defined?(Hecks.with_registry)
 
@@ -196,7 +210,7 @@ module Hecks
         collector = Object.new
         collector.define_singleton_method(:add_world) { |world| worlds << world }
         Hecks.with_registry(collector) { Kernel.load(file) }
-        worlds.first&.for_verb(VERB) || {}
+        worlds.first&.for_verb(verb) || {}
       rescue StandardError, ScriptError
         {}
       end

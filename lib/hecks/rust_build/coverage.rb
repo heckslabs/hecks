@@ -140,9 +140,7 @@ module Hecks
       # runs the binary the build produced.
       def run_codegen(cargo)
         crate = File.join(rust_dir, "codegen")
-        root = SessionBuild.root_of(crate)
-        Open3.capture2e(SessionBuild.environment(root: root, binary: true),
-                        *SessionBuild.command(cargo, root: root), chdir: crate)
+        RustBuild.capture_build(cargo, chdir: crate, binary: true)
       end
 
       def print_report(domain, mod_dir)

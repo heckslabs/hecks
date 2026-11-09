@@ -14,6 +14,7 @@ RSpec.describe Hecks::RustBuild::NativeBuild do
     FileUtils.mkdir_p(File.join(dir, "src", "generated"))
     File.write(File.join(dir, "src", "generated", "pizzas.rs"), "// one\n")
     described_class.cache.clear
+    allow(Hecks::RustBuild::BinaryCache).to receive(:compiler).and_return("rustc-test")
   end
 
   after do
@@ -140,7 +141,8 @@ RSpec.describe Hecks::RustBuild::NativeBuild do
     def cargo_environment
       captured = []
       ok = instance_double(Process::Status, success?: true)
-      allow(Open3).to receive(:capture3) { |env, *_command, **_options| (captured << env) && ["", "", ok] }
+      allow(Hecks::RustBuild::BuildLock).to receive(:hold).and_yield({})
+      allow(Open3).to receive(:capture2e) { |env, *_command, **_options| (captured << env) && ["", ok] }
       described_class.cargo(%w[cargo build], rust, "pizzas")
       captured.first
     end
@@ -190,6 +192,33 @@ RSpec.describe Hecks::RustBuild::NativeBuild do
       described_class.build_rust_for("pizzas", dir)
 
       expect(described_class).to have_received(:cargo).once
+    end
+
+    # The cache holds a binary built from the same sources by another workspace.
+    def restore_from_cache
+      allow(Hecks::RustBuild::BinaryCache).to receive(:restore) do |_key, place|
+        FileUtils.mkdir_p(File.dirname(place))
+        File.write(place, "kept")
+        true
+      end
+    end
+
+    it "is taken from the binary cache, without running cargo, when another workspace built it", :aggregate_failures do
+      restore_from_cache
+      allow(described_class).to receive(:cargo)
+      binary = described_class.build_rust_for("pizzas", dir)
+
+      expect(File.read(binary)).to eq("kept")
+      expect(described_class).not_to have_received(:cargo)
+    end
+
+    it "is kept in the binary cache once cargo has built it" do
+      FileUtils.mkdir_p(File.join(dir, "target", "debug"))
+      allow(Hecks::RustBuild::BinaryCache).to receive_messages(restore: false, save: nil)
+      stub_cargo_leaving_a_binary
+      described_class.build_rust_for("pizzas", dir)
+
+      expect(Hecks::RustBuild::BinaryCache).to have_received(:save).once
     end
   end
 end

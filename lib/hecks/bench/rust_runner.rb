@@ -1,6 +1,7 @@
 require "fileutils"
 require "open3"
 require_relative "run"
+require_relative "../rust_build"
 
 module Hecks
   module Bench
@@ -27,13 +28,18 @@ module Hecks
 
       # The pinned copy has its own name so building another domain's feature cannot replace it.
       def build(feature, rust_dir: RUST_DIR)
-        output, status = Open3.capture2e("cargo", "build", "--release", "--no-default-features",
-                                         "--features", feature, chdir: rust_dir)
+        output, status = Hecks::RustBuild.capture_build(
+          ["cargo", "build", "--release", "--no-default-features", "--features", feature], chdir: rust_dir
+        )
         unless status.success?
           raise BuildFailed,
                 "cargo build --release --features #{feature} failed:\n#{output.lines.last(15).join}"
         end
 
+        pin_release(feature, rust_dir)
+      end
+
+      def pin_release(feature, rust_dir)
         target = File.join(ENV.fetch("CARGO_TARGET_DIR", File.join(rust_dir, "target")), "release")
         pinned = File.join(target, "rust-bench-#{feature}")
         FileUtils.cp(File.join(target, "rust"), pinned)

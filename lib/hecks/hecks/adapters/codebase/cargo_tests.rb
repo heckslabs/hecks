@@ -2,6 +2,7 @@
 
 require_relative "../console_capture"
 require_relative "../../../rust_build/session_build"
+require_relative "../../../rust_build/build_lock"
 
 module Hecks
   module Adapters
@@ -32,10 +33,17 @@ module Hecks
           target = TARGETS.fetch(args[:crate])
           env = Hecks::RustBuild::SessionBuild.environment(root: tree.root).merge(fuzz_env(target, args))
           command = Hecks::RustBuild::SessionBuild.command(["cargo", "test", *target[:words]], root: tree.root)
-          result = shell.capture(*command, env: env, chdir: tree.path("rust/#{target[:dir]}"))
+          result = locked(shell, command, env, tree.path("rust/#{target[:dir]}"))
           raise ConsoleCapture::Failure, printed(result) unless result.ok?
 
           printed(result)
+        end
+
+        # @return [Shell::Result] what cargo did, run while the machine's build lock is held
+        def locked(shell, command, env, dir)
+          Hecks::RustBuild::BuildLock.building(command) do |held|
+            shell.capture(*command, env: held.merge(env), chdir: dir)
+          end
         end
 
         # @return [Hash{String => String}] only the fuzz variables the run named and the crate reads

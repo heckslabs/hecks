@@ -18,6 +18,10 @@
 # target directory and a `nice` increment. `session_grace` is how many seconds a started session is
 # given to appear in `claude agents` before a run whose session is not listed is retired as gone.
 #
+# `rust_build` is how hard any Rust build hecks starts may work, in every checkout, the owner's too: `jobs` caps the
+# Cargo jobs at once (a third of the cores when absent) and `nice` is the increment. Builds also queue behind one
+# lock, so two never run at once (`HECKS_NO_BUILD_LOCK=1` skips it).
+#
 # `github_issues` is the switch on GitHub issues for run findings (`OpenIssueWhenRunReported`). It is
 # off: a run finding stays a work item and no GitHub call is made. `enabled: true` turns it back on.
 #
@@ -40,4 +44,5 @@ Hecks.world "Tickets" do
   frozen_shapes "PersistedShapes", areas: []
   session_environment "Sessions", cargo_target_dir: "~/.cache/hecks/cargo-target", nice: 15
   session_grace "Sessions", seconds: 120
+  rust_build "RustBuild", jobs: 4, nice: 15
 end

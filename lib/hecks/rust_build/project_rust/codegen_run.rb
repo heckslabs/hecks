@@ -96,8 +96,10 @@ module Hecks
         # @raise [Failure] when Cargo cannot build it
         def self.build(dir)
           root = SessionBuild.root_of(dir)
-          output, status = Open3.capture2e(SessionBuild.environment(root: root, binary: true),
-                                           *SessionBuild.command(%w[cargo build --quiet], root: root), chdir: dir)
+          output, status = BuildLock.hold do |held|
+            Open3.capture2e(held.merge(SessionBuild.environment(root: root, binary: true)),
+                            *SessionBuild.command(%w[cargo build --quiet], root: root), chdir: dir)
+          end
           $stdout.write(output)
           return if status.success?
 

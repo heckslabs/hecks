@@ -1,9 +1,12 @@
 # frozen_string_literal: true
 
 require "monitor"
+require "open3"
 require "tempfile"
 require_relative "hecks/adapters/console_capture"
 require_relative "rust_build/session_build"
+require_relative "rust_build/build_lock"
+require_relative "rust_build/building"
 
 module Hecks
   # The tools that generate a domain's Rust source, compile it and check the build against the Ruby
@@ -95,6 +98,8 @@ module Hecks
         end
       end
 
+      include Building
+
       # Runs a program, its output going where the running tool's output goes.
       #
       # @param command [Array<String>] the program and its arguments
@@ -106,7 +111,7 @@ module Hecks
         options = { out: $stdout, err: $stderr }
         options[:chdir] = chdir if chdir
         root = chdir ? SessionBuild.root_of(chdir) : ROOT
-        return if system(SessionBuild.environment(root: root).merge(env), *SessionBuild.command(command, root: root), **options)
+        return if BuildLock.building(command) { |held| spawn_build(held, env, command, root, options) }
 
         raise Failure, "`#{command.join(" ")}` failed#{" in #{chdir}" if chdir}"
       end
