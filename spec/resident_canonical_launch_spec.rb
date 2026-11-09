@@ -50,6 +50,13 @@ RSpec.describe "a resident started from an odd environment" do
     expect(last_outcome).to eq("served")
   end
 
+  it "serves a caller that carries the library path the rbenv shim gives every Ruby" do
+    launch_logged(odd)
+    wait_for_resident
+    launch_logged("RUBYLIB" => "/opt/homebrew/Cellar/rbenv/1.3.2/rbenv.d/exec/gem-rehash:")
+    expect(last_outcome).to eq("served")
+  end
+
   it "refuses a caller that carries a variable the code was loaded without, naming it" do
     launch_logged(odd)
     wait_for_resident

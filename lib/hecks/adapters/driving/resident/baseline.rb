@@ -1,5 +1,6 @@
 require "fileutils"
 require "hecks/adapters/driving/resident/paths"
+require "hecks/adapters/driving/resident/env_value"
 
 module Hecks
   module Adapters
@@ -22,7 +23,10 @@ module Hecks
           # @param environment [Hash{String => String}] the variables the resident matches a line
           #   on, as it holds them
           # @return [Array<String>] the names set beyond what a plain resident has
-          def odd(environment) = environment.keys - PLAIN
+          def odd(environment)
+            set = environment.reject { |name, value| PLAIN.include?(name) || EnvValue.of(name, value).nil? }
+            set.keys
+          end
 
           # Writes the names, through a temp file renamed into place, so a launcher never reads
           # half a list. An empty list is a plain resident.

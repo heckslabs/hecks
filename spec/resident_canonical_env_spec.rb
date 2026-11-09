@@ -123,6 +123,38 @@ RSpec.describe "a resident's environment" do
     end
   end
 
+  describe "the library path a Ruby version manager adds" do
+    let(:server) { resident::Server.new("/checkout", "/checkout/exe/hecks") }
+    let(:hook) { "/opt/homebrew/Cellar/rbenv/1.3.2/rbenv.d/exec/gem-rehash:" }
+
+    before do
+      server.instance_variable_set(:@environment, {})
+      server.instance_variable_set(:@fingerprint, instance_double(resident::Fingerprint, changed?: false))
+    end
+
+    def line(env) = { script: "/checkout/exe/hecks", env: env }
+
+    it "is no difference between a launcher that carries it and a resident that does not" do
+      expect(server.send(:unservable, line({ "RUBYLIB" => hook }))).to be_nil
+    end
+
+    it "is a difference once the caller adds a path of its own, named by the variable", :aggregate_failures do
+      expect(server.send(:unservable, line({ "RUBYLIB" => "/my/lib:#{hook}" }))).to eq("env:RUBYLIB")
+      expect(resident::EnvValue.of("RUBYLIB", "/my/lib:#{hook}")).to eq("/my/lib")
+    end
+
+    it "leaves every other variable as it is", :aggregate_failures do
+      expect(resident::EnvValue.of("RUBYOPT", hook)).to eq(hook)
+      expect(resident::EnvValue.of("RUBYLIB", nil)).to be_nil
+      expect(resident::EnvValue.of("RUBYLIB", "")).to be_nil
+    end
+
+    it "does not make a resident born with only that entry odd", :aggregate_failures do
+      expect(resident::Baseline.odd({ "HOME" => "/h", "RUBYLIB" => hook })).to be_empty
+      expect(resident::Baseline.odd({ "RUBYLIB" => "/my/lib" })).to eq(["RUBYLIB"])
+    end
+  end
+
   describe "a resident that was not born plain and keeps refusing" do
     let(:stop) { instance_double(Proc, call: true) }
     let(:look) { ->(_pid) { [Process.uid, "ruby #{resident::Stuck::SERVER} #{root}"] } }

@@ -9,6 +9,12 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ### Changed
 
+- **The library path the rbenv shim adds to every Ruby no longer makes a resident refuse a launcher.** A resident
+  started with the plain environment had no `RUBYLIB`, and every launcher run through the shim carries
+  `…/rbenv.d/exec/gem-rehash:` on it, so 42 of 46 lines measured were `refused:env:RUBYLIB` at 1.35 s. The
+  comparison (`Resident::EnvValue`) leaves the manager's own entries out of `RUBYLIB`, in the line and in the
+  resident's baseline; a path of the caller's own still counts, and the real-process spec now carries the
+  shim's value.
 - **A resident no longer keeps the environment of whoever started it, so it serves ordinary callers.** A resident
   started from a spec harness, a hook or a `bundle exec` kept that process's variables as its own and refused every
   other caller on them: 41 of 45 lines measured were `refused:env` at 1.36 s until the process was stopped by

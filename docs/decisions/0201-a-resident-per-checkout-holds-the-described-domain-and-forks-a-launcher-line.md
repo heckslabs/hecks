@@ -382,6 +382,12 @@ could have been the one that started it.
   whose environment matters (`HECKS_ENGINE`, `HECKS_STOREHOUSE_ROOT`) is still refused, and boots cold.
   Under `bundle exec` a caller carries `BUNDLE_GEMFILE` and `RUBYOPT`, so it is refused too; the specs'
   launchers scrub those so they look like a terminal.
+- **The rbenv hook directory on `RUBYLIB` is not a difference.** The first live check after the plain start
+  showed 42 of 46 lines `refused:env:RUBYLIB`: the rbenv shim puts `…/rbenv.d/exec/gem-rehash:` on `RUBYLIB`
+  for every Ruby it starts, so every launcher carries it and a resident started without the shim did not. The
+  specs missed it because their launchers run the real Ruby directly. `EnvValue` drops entries under
+  `/rbenv.d/` from `RUBYLIB` before the comparison and before the baseline is written; a path of the caller's
+  own still counts. The usage log's `refused:env:<NAME>` is what found it.
 - **The refusal names the variable.** The reply is `stale:env:<NAME>`, the first three differing variables
   joined with `+` (never their values, at most 48 bytes so the reply fits one wire line), and the usage log
   records `refused:env:<NAME>`. The resident section of `hecks usage` lists them.

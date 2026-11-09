@@ -94,7 +94,7 @@ module Hecks
           # @return [String, nil] the names of the first variables the line differs on from what
           #   the code loaded under, never their values, short enough to fit in a reply
           def differing(env)
-            names = loaded_names.reject { |name| env[name] == @environment[name] }
+            names = loaded_names.reject { |name| EnvValue.of(name, env[name]) == EnvValue.of(name, @environment[name]) }
             names.empty? ? nil : names.first(NAMES).join("+")[0, NAMES_WIDTH]
           end
 
