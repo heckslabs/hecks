@@ -780,9 +780,22 @@ Hecks.bluebook "Agents" do
       emits "PrunerSeated"
     end
 
+    # The manual path: one command seats the pruner and wakes it, since a process that seats it alone
+    # forgets it before the next call. The policy path seats and wakes inside one process already.
+    command "Summon" do
+      role "System"
+      goal "Seat the pruner and wake it for one run in the same command (to= is not needed)"
+
+      attribute :role, PrunerRole, sets: true
+      attribute :repo, PrunerRepo, sets: true
+      attribute :brief, PrunerBrief, sets: true
+
+      emits "PrunerSummoned"
+    end
+
     command "Wake", from: "resting" do
       role "System"
-      goal "Wake the pruner for one run, unless it is already working"
+      goal "Wake the seated pruner (to=pruner) for one run; refused while its run is still working"
 
       reference_to Pruning
       attribute :repo, PrunerRepo, sets: true
@@ -815,6 +828,11 @@ Hecks.bluebook "Agents" do
               with: { pruning: "pruner", repo: ".",
                       brief: "List the sessions and remove the finished ones that are safe to remove. " \
                              "Leave any that is working or blocked, and report what was refused." }
+    end
+
+    policy "WakeTheSummonedPruner" do
+      on      "Pruning.PrunerSummoned"
+      trigger Pruning::Wake, with: { pruning: :role, repo: :repo, brief: :brief }
     end
 
     policy "RestThePrunerWhenItsRunEnds" do
