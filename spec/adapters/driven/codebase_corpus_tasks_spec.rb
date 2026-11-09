@@ -55,8 +55,20 @@ RSpec.describe Hecks::Adapters::Codebase::CorpusTasks do
         expect(answer.lines.size).to eq(1)
       end
 
+      # The hashed rows of the checkout, read before and after the key is asked, so a failure names
+      # the files a parallel process changed in between.
+      def hashed_rows = Hecks::Corpus::GeneratedKey.listing(nil, root: tree.root)
+
+      def changed_between(before, after)
+        rows = (before | after) - (before & after)
+        rows.empty? ? "none: both listings agree" : rows.map { |row| row.split("  ", 2).last }.uniq.sort.join(", ")
+      end
+
       it "answers the key of every domain when none is named" do
-        expect(key).to eq(Hecks::Corpus::GeneratedKey.key(nil, root: tree.root))
+        before = hashed_rows
+        answer = key
+        after = hashed_rows
+        expect(answer).to eq(Hecks::Corpus::GeneratedKey.key(nil, root: tree.root)), -> { "files changed meanwhile: #{changed_between(before, after)}" }
       end
 
       it "lists each file hashed above the hash when asked for them", :aggregate_failures do
