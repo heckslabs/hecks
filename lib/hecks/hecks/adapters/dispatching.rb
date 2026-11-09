@@ -11,6 +11,7 @@ require_relative "dispatching/lesson_traps"
 require_relative "dispatching/settler"
 require_relative "dispatching/last_roll"
 require_relative "dispatching/pending"
+require_relative "dispatching/planned_cache"
 require_relative "dispatching/wake"
 require_relative "dispatching/rolls"
 
@@ -75,7 +76,9 @@ module Hecks
 
       # The load, each work item that starts or would, then each left waiting with its reason.
       def filling_lines(plan, held, confirmed)
+        note_stops(plan) if confirmed
         chosen = confirmed ? launch(plan, held) : plan.chosen.map { |item| chosen_line(item) }
+        PlannedCache.clear! if confirmed
         [header(plan)] + chosen + plan.skipped.map { |skip| skipped_line(skip) }
       end
 
@@ -86,6 +89,7 @@ module Hecks
         launcher = launcher_for(held)
         Settler.new(work_items, launcher).call
         release_taken(launcher)
+        PlannedCache.clear!
       end
 
       # A planned work item parked behind a run still recorded started is never launched, so the
@@ -118,13 +122,13 @@ module Hecks
       end
 
       # What bounds a filling: the machine's cap and load, what pauses every work item, and the
-      # boot budget, which a red-* work item is exempt from.
+      # boot budget, which a red-* work item is exempt from. It only reads: a dry plan and the
+      # board look at the queue through here too, and looking must not change what the clock's
+      # next beat does.
       def limits
         gauge = machine
-        budget = gauge.boot_stop
-        Pending.budget_stopped = !budget.nil?
         { cap: gauge.cap, load: gauge.load, max_load: gauge.max_load, frozen: gauge.frozen, paused: gauge.paused,
-          budget: budget, exempt: WorkItems.method(:red?), runs: -> { work_items.runs } }
+          budget: gauge.boot_stop, exempt: WorkItems.method(:red?), runs: -> { work_items.runs } }
       end
 
       # The key prefix a filling is held to; empty when none is named.

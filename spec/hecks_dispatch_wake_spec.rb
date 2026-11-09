@@ -50,8 +50,8 @@ RSpec.describe "waking the queue on the clock" do
     dispatching::Pending.budget_stopped = true
 
     expect(reason([], stopped: -> { "skipped: boot budget spent" })).to be_nil
-    expect(reason([], stopped: -> {})).to eq("the boot budget is no longer spent")
-    expect(reason([], stopped: -> {})).to be_nil
+    expect(reason([], stopped: -> {}, at: now + 700)).to eq("the boot budget is no longer spent")
+    expect(reason([], stopped: -> {}, at: now + 800)).to be_nil
   end
 
   it "does not read the budget unless the last plan was stopped by it" do

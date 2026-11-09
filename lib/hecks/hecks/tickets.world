@@ -15,7 +15,8 @@
 # `dispatch_max_load` is the 1-minute load above which `Dispatch.Fill` starts no session (the CPU count
 # when absent). `dispatch_roll_forward` is the owner's switch: while `roll_forward` is true the Delegate
 # policies run `Dispatch.Fill` on events that free capacity, and false pauses them. `session_environment` is what every dispatched session starts with: a shared cargo
-# target directory and a `nice` increment.
+# target directory and a `nice` increment. `session_grace` is how many seconds a started session is
+# given to appear in `claude agents` before a run whose session is not listed is retired as gone.
 #
 # `github_issues` is the switch on GitHub issues for run findings (`OpenIssueWhenRunReported`). It is
 # off: a run finding stays a work item and no GitHub call is made. `enabled: true` turns it back on.
@@ -38,4 +39,5 @@ Hecks.world "Tickets" do
   dispatch_roll_forward "Dispatch", roll_forward: false
   frozen_shapes "PersistedShapes", areas: []
   session_environment "Sessions", cargo_target_dir: "~/.cache/hecks/cargo-target", nice: 15
+  session_grace "Sessions", seconds: 120
 end

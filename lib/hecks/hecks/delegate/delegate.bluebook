@@ -20,6 +20,7 @@ Hecks.bluebook "Hecks" do
       attribute :brief,     Brief
       attribute :agent,     AgentName, optional: true
       attribute :session,   SessionId, optional: true
+      attribute :started_at, Moment,   optional: true
       attribute :condition, Condition, optional: true
       attribute :refusal,   Report,    optional: true
       attribute :tidied_at, Moment,    optional: true
@@ -113,6 +114,7 @@ Hecks.bluebook "Hecks" do
 
         reference_to AgentRun
         attribute :session, SessionId, sets: true
+        attribute :started_at, Moment, optional: true, sets: true
 
 
         emits AgentRunStarted
@@ -919,7 +921,7 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheSession" do
       on      "AgentRun.AgentStarted"
-      trigger AgentRun::Begin, with: { session: :session }
+      trigger AgentRun::Begin, with: { session: :session, started_at: :started_at }
     end
 
     # A session can die within seconds of its start (an agent that fails to load). Its job is read

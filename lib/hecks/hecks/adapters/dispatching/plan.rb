@@ -62,6 +62,18 @@ module Hecks
         #   edited
         def holders = @started + @chosen
 
+        # @return [String, nil] why the boot budget held every start back, nil when it did not
+        def budget_stop = @limits[:budget]
+
+        # Whether the machine, not the queue, left a work item waiting: the load average was over
+        # its limit or the machine's crossings paused every start. Such a wait ends when the
+        # machine recovers, which may not cross a mark, so the clock's beat watches for it.
+        #
+        # @return [Boolean]
+        def held_by_machine?
+          @skipped.any? { |skip| skip.reason == @limits[:paused] || skip.reason.start_with?("skipped: load") }
+        end
+
         private
 
         def consider(item)

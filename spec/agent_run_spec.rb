@@ -40,8 +40,9 @@ RSpec.describe "AgentRun through the Agents port" do
   end
 
   before do
+    @clock = Time.now.utc
     allow(Hecks::Adapters::ClaudeAgents).to(receive(:new).and_wrap_original do |original, **context|
-      original.call(**context, settings: { jobs: jobs, settle: 0 })
+      original.call(**context, settings: { jobs: jobs, settle: 0, now: -> { @clock } })
     end)
   end
 
@@ -133,10 +134,20 @@ RSpec.describe "AgentRun through the Agents port" do
 
   it "retires a started run whose job can no longer be read when its session is not listed", :aggregate_failures do
     vanish("a-vanished")
+    @clock += 300
     out = check("a-vanished")
 
     expect(out["events"]).to include("AgentRunRetired")
     expect(out.dig("state", "status")).to eq("retired")
+  end
+
+  it "keeps a run started seconds ago whose job cannot be read yet, though its session is not listed", :aggregate_failures do
+    vanish("a-young")
+    @clock += 10
+    out = check("a-young")
+
+    expect(out["events"]).not_to include("AgentRunRetired")
+    expect(out.dig("state", "status")).to eq("started")
   end
 
   it "keeps a started run whose job cannot be read while its session is still listed", :aggregate_failures do

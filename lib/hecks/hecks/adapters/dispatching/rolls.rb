@@ -4,6 +4,7 @@ require_relative "../console_capture"
 require_relative "filling"
 require_relative "last_roll"
 require_relative "pending"
+require_relative "planned_cache"
 require_relative "wake"
 
 module Hecks
@@ -39,7 +40,7 @@ module Hecks
         def notice(**held)
           raise ConsoleCapture::Failure, "paused: dispatch_roll_forward is false" unless machine.roll_forward?
 
-          reason = Wake.reason(work_items.planned, now: clock, stopped: -> { machine.boot_stop })
+          reason = Wake.reason(beat_items, now: clock, **beat_questions)
           raise ConsoleCapture::Failure, "quiet: nothing has become eligible by the clock" unless reason
 
           { roll: { value: "due-#{plain(held[:run])}" }, reason: { value: reason } }
@@ -48,6 +49,34 @@ module Hecks
         private
 
         def clock = @standins[:now]&.call || Time.now.utc
+
+        # What a confirmed filling leaves for the clock's beat: whether the boot budget stopped it,
+        # and when the window alone could free the budget; and whether the machine held planned work
+        # back. Only a confirmed filling writes this, so a dry plan between a stop and the next beat
+        # cannot clear it.
+        def note_stops(plan)
+          stopped = !plan.budget_stop.nil?
+          Pending.budget_stopped = stopped
+          Pending.budget_frees_at = stopped ? machine.boot_frees_at : nil
+          Pending.load_stopped = plan.held_by_machine?
+        end
+
+        # The planned items, as the last beat or confirmed filling read them a short while ago.
+        def beat_items
+          key = [@registry.object_id, @standins[:work_items].object_id]
+          PlannedCache.items(key, clock) { work_items.planned }
+        end
+
+        # What the beat asks of the machine, each asked only once its flag says it could matter.
+        def beat_questions
+          { stopped: -> { machine.boot_stop }, frees_at: -> { machine.boot_frees_at }, cleared: -> { machine_clear? } }
+        end
+
+        # Whether the load is back under its limit and no crossing pauses the starts.
+        def machine_clear?
+          gauge = machine
+          gauge.paused.nil? && gauge.load <= gauge.max_load
+        end
 
         # A roll that begins while a filling runs would start the same work twice, so it is
         # refused; the refusal is remembered so the filling that is running rolls again once done.

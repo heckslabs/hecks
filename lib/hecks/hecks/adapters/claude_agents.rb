@@ -13,6 +13,7 @@ require_relative "claude_agent_list"
 require_relative "claude_session_listing"
 require_relative "session_caller"
 require_relative "dispatching/settings"
+require_relative "session_lookup"
 require_relative "session_mcp"
 require_relative "session_line"
 
@@ -50,7 +51,7 @@ module Hecks
         @transcript = ClaudeTranscript.new(**settings.slice(:projects))
         @jobs = ClaudeJobs.new(directory: settings[:jobs])
         @agents = ClaudeAgentList.new(@command, shell: @shell)
-        @listing = ClaudeSessionListing.new(@command, shell: @shell)
+        @lookup = session_lookup(settings[:now])
         @settle = settings.fetch(:settle, SETTLE_SECONDS)
         @mcp = SessionMcp.new(server_env: settings[:server_env], files: settings[:mcp_files])
       end
@@ -78,7 +79,7 @@ module Hecks
       def start(**held)
         line = session_line
         result = @shell.capture(*line.arguments(held), env: named(held), chdir: plain(held[:repo]))
-        { session: { value: session_id(result) } }.merge(line.report)
+        { session: { value: session_id(result) }, started_at: { value: clock.iso8601 } }.merge(line.report)
       end
 
       # Reads the state a started session's job is in, beside the state the run last recorded.
@@ -206,13 +207,7 @@ module Hecks
       # @return [Hash{Symbol => Object}] `listed:` whether the session is listed, `state:` its state
       #   there (empty when it is not), and `note:` that in words
       # @raise [ConsoleCapture::Failure] when the sessions cannot be listed
-      def look_for(**held)
-        id = plain(held[:session]).to_s
-        entry = id.empty? ? nil : @listing.find(id)
-        return { listed: false, state: "", note: "session #{id} is not listed" } unless entry
-
-        { listed: true, state: entry["state"].to_s, note: "session #{id} is still listed, #{entry["state"]}" }
-      end
+      def look_for(**held) = @lookup.call(held)
 
       private
 
@@ -238,6 +233,16 @@ module Hecks
       end
 
       def niceness = @session.nice ? ["nice", "-n", @session.nice.to_s] : []
+
+      def clock = (@now || -> { Time.now.utc }).call
+
+      # The look-up of whether a run's session is still listed, over the listing it shares. `now`
+      # stands in for the clock, which also dates a session's start.
+      def session_lookup(now)
+        @now = now
+        @listing = ClaudeSessionListing.new(@command, shell: @shell, now: -> { clock })
+        SessionLookup.new(@listing, grace: -> { @session.session_grace }, now: -> { clock })
+      end
 
       def plain(argument) = argument.is_a?(Hash) ? argument[:value] : argument
     end

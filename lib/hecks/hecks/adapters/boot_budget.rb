@@ -63,7 +63,35 @@ module Hecks
         end
       end
 
+      # When the budget can next free by the window alone: the time the oldest measured runs leave
+      # it far enough that the hours fall under the budget. The clock's beat does not read the usage
+      # record again before then unless the record changes.
+      #
+      # @param budget [Numeric] the hours of boots a day allows
+      # @return [Time, nil] that time, nil when the stamped runs alone cannot bring the hours under
+      def frees_at(budget)
+        measured = measured_rows(@now.call - WINDOW)
+        owed = hours(measured) - budget.to_f
+        leaves_when(oldest_first(measured), owed) unless owed.negative?
+      end
+
       private
+
+      # The runs in the window that carry a boot time.
+      def measured_rows(cutoff)
+        Array(@entries.call(cutoff)).select { |row| UsageTail.recent?(row, cutoff) && row["boot_ms"].is_a?(Numeric) }
+      end
+
+      def oldest_first(rows) = rows.select { |row| UsageTail.stamp(row) }.sort_by { |row| UsageTail.stamp(row) }
+
+      # The time the run that brings the owed hours to nothing leaves the window.
+      def leaves_when(oldest_first, owed)
+        oldest_first.each do |row|
+          owed -= row["boot_ms"] / HOUR_MS
+          return UsageTail.stamp(row) + WINDOW if owed.negative?
+        end
+        nil
+      end
 
       def spent_line(word, hours, limit) = "skipped: boot budget #{word}: #{hours.round(2)} of #{limit.round(2)} hours"
 

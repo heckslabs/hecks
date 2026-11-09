@@ -29,6 +29,13 @@ module Hecks
         # The world verb that carries the hours of launcher boots a day allows.
         BOOT_BUDGET = "cpu_budget"
 
+        # The world verb that carries how long a started session may go unlisted before it is
+        # taken for gone.
+        GRACE = "session_grace"
+
+        # Seconds a session is given to appear in `claude agents` when the world names none.
+        GRACE_SECONDS = 120
+
         # Minutes a started work item may run when the caller names no budget.
         BUDGET_MINUTES = 90
 
@@ -88,6 +95,16 @@ module Hecks
           hours = boot_budget
           @boots.stop_reason(hours) if hours
         end
+
+        # @return [Time, nil] when the oldest counted boots leave the window far enough to free the
+        #   budget; nil when the world sets no budget or the window alone cannot free it
+        def boot_frees_at
+          hours = boot_budget
+          @boots.frees_at(hours) if hours
+        end
+
+        # @return [Integer] the seconds a started session is given to appear in the listing
+        def session_grace = Integer(declared(GRACE)[:seconds] || GRACE_SECONDS)
 
         # @return [Boolean] whether planned work rolls forward by itself; false only when paused
         def roll_forward? = declared(ROLL)[:roll_forward] != false
