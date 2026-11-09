@@ -25,14 +25,16 @@ pub struct Caller<'a> {
 /// it, so a command that declares any role refuses it.
 pub const ANONYMOUS_ROLE: &str = "Anonymous";
 
-/// What the host does about the role a command declares (`HECKS_ROLE_ENFORCEMENT`).
+/// What the host does about the role a command declares (`HECKS_ROLE_ENFORCEMENT`). Unset, the
+/// mode is `Shadow`: the migration mode, which logs what `Enforce` would refuse and refuses
+/// nothing `Off` accepts.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Enforcement {
-    /// A caller with no role is unchecked, as before.
+    /// A caller with no role is unchecked, and nothing is logged.
     Off,
     /// An unidentified or unassigned caller is let through and logged as `would_refuse_role`; a
     /// caller that states a role is checked exactly as under `Enforce`, so shadow never accepts
-    /// what `Off` would not.
+    /// what `Off` would not. The default.
     Shadow,
     /// An unidentified or unassigned caller is refused.
     Enforce,
@@ -41,12 +43,12 @@ pub enum Enforcement {
 static ENFORCEMENT: std::sync::OnceLock<Enforcement> = std::sync::OnceLock::new();
 
 impl Enforcement {
-    /// Reads `off` (the default), `shadow` or `enforce`; anything else is `Off`.
+    /// Reads `off`, `shadow` or `enforce`; unset or anything else is `Shadow`, the default.
     pub fn parse(value: Option<&str>) -> Self {
         match value.map(|v| v.trim().to_ascii_lowercase()).as_deref() {
-            Some("shadow") => Self::Shadow,
+            Some("off") => Self::Off,
             Some("enforce") => Self::Enforce,
-            _ => Self::Off,
+            _ => Self::Shadow,
         }
     }
 
@@ -56,9 +58,9 @@ impl Enforcement {
         let _ = ENFORCEMENT.set(mode);
     }
 
-    /// The mode boot installed, or `Off` when none was.
+    /// The mode boot installed, or `Shadow` when none was.
     pub fn configured() -> Self {
-        ENFORCEMENT.get().copied().unwrap_or(Self::Off)
+        ENFORCEMENT.get().copied().unwrap_or(Self::Shadow)
     }
 
     /// The caller the kernel is asked to check: an unidentified caller becomes the anonymous role
@@ -75,8 +77,11 @@ impl Enforcement {
 }
 
 /// Where a dispatch comes from. A host-internal dispatch is the host acting on its own behalf (a
-/// signup, a provisioning step, a presentation write); it names no caller and is never subject to
-/// `HECKS_ROLE_ENFORCEMENT`, which guards what callers outside the host may do.
+/// signup, a provisioning step, a presentation write); it names no caller and is never refused
+/// under `HECKS_ROLE_ENFORCEMENT`, which guards what callers outside the host may do. Under
+/// `Shadow` and `Enforce` one that reaches a command declaring a role is logged as
+/// `would_refuse_role` with `origin: host_internal`, so the sites where the host vouches for a
+/// caller the command's role never sees can be read from the log (`host_internal_role_gap`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Origin {
     /// A caller the host's internal protocol names, from one of its own peers.
@@ -96,15 +101,27 @@ enum Effect {
     Preview,
 }
 
-/// Whether the kernel refused the command for the caller's role.
+/// Whether the kernel refused the command for the caller's role. A dispatch lists it under
+/// `refusals` with `kind: Unauthorized`; a preview answers it in its last dry run, as the run's own
+/// `refusal` or one of the `refusals` it lists (`validation::answer`), so shadow mode reads both
+/// and a preview is never stricter than a dispatch.
 pub fn refused_for_role(result: &serde_json::Value) -> bool {
-    result
-        .get("refusals")
-        .and_then(|r| r.as_array())
-        .is_some_and(|all| {
-            all.iter()
-                .any(|r| r.get("kind").and_then(|k| k.as_str()) == Some("Unauthorized"))
-        })
+    let unauthorized = |r: &serde_json::Value| {
+        ["kind", "refusal"]
+            .iter()
+            .any(|key| r.get(key).and_then(|k| k.as_str()) == Some("Unauthorized"))
+    };
+    let listed = |value: &serde_json::Value| {
+        value
+            .get("refusals")
+            .and_then(|r| r.as_array())
+            .is_some_and(|all| all.iter().any(unauthorized))
+    };
+    let dry_run = result
+        .get("dry_runs")
+        .and_then(|d| d.as_array())
+        .and_then(|d| d.last());
+    listed(result) || dry_run.is_some_and(|run| unauthorized(run) || listed(run))
 }
 
 // Distinguishes a module refusal from a kernel failure to run at all.
@@ -229,8 +246,9 @@ pub async fn handle_facts_as(
 // whether or not a caller is bound.
 //
 // This entry point and `handle_facts`/`handle_routed` are the host's own: a call with no role is a
-// host-internal dispatch and is unchecked in every enforcement mode. A call that names a role is
-// still checked against it. A peer naming its caller goes through the `_as` entry points, and a
+// host-internal dispatch and is never refused in any enforcement mode (one that reaches a command
+// declaring a role is logged under `Shadow` and `Enforce`). A call that names a role is still
+// checked against it. A peer naming its caller goes through the `_as` entry points, and a
 // request to the console API or the web UI through the `_request` ones.
 pub async fn handle(
     host: Host<'_>,
@@ -377,6 +395,16 @@ async fn dispatch_with(
     args: serde_json::Value,
     caller: Caller<'_>,
 ) -> anyhow::Result<Outcome> {
+    let declared = declared_roles(verb);
+    if host_internal_role_gap(mode, origin, caller, &declared) {
+        crate::log::error(
+            "would_refuse_role",
+            serde_json::json!({
+                "verb": verb, "origin": "host_internal", "role": caller.role,
+                "actor_id": caller.actor_id, "roles": declared,
+            }),
+        );
+    }
     let checked = if origin == Origin::HostInternal {
         caller
     } else {
@@ -400,6 +428,31 @@ async fn dispatch_with(
         return run(origin, effect, host, verb, args, Caller::default()).await;
     }
     Ok(outcome)
+}
+
+/// The roles the installed IR declares for `verb`; empty when no IR is installed, the verb is not
+/// in it (an attached framework bluebook's commands are not in the sidecar) or it declares none.
+fn declared_roles(verb: &str) -> Vec<String> {
+    crate::ir::ir()
+        .map(|ir| crate::ir::command_roles(ir, verb))
+        .unwrap_or_default()
+}
+
+/// Whether a dispatch is one the host vouches for without the command's declared role ever
+/// seeing a caller: host-internal, from no caller at all, to a command that declares a role, under
+/// a mode that watches roles. Such a dispatch is logged as `would_refuse_role` and never refused;
+/// a dispatch that states a role or names an actor is checked by the kernel instead.
+pub fn host_internal_role_gap(
+    mode: Enforcement,
+    origin: Origin,
+    caller: Caller<'_>,
+    declared: &[String],
+) -> bool {
+    mode != Enforcement::Off
+        && origin == Origin::HostInternal
+        && caller.role.is_none()
+        && caller.actor_id.is_none()
+        && !declared.is_empty()
 }
 
 async fn run(
