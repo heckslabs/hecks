@@ -24,7 +24,7 @@ module Hecks
         class Opening
           RETRY_SECONDS = 60
           CHECK_SECONDS = 30
-          WAIT_SECONDS = 15
+          WAIT_SECONDS = 25
           # The files that declare a domain and the ports and adapters it plugs into.
           DECLARATIONS = "**/*.{bluebook,hecksagon,world,adapter,port}"
           # Where the checkout keeps the shared ports and adapters `Hecks.describe` loads for its
@@ -109,8 +109,15 @@ module Hecks
               @fingerprint = reading
               @failed = nil
             end
-          rescue StandardError => e
-            @lock.synchronize { @failed = { at: @clock.call, message: e.message.to_s.tr("\n", " ")[0, 160] } }
+          rescue StandardError, ScriptError => e
+            @lock.synchronize { @failed = { at: @clock.call, message: reason(e) } }
+          end
+
+          # What a failed boot says: a script error (a bluebook that does not parse, a file that
+          # will not load) is named by its class, since its message alone does not say what it is.
+          def reason(error)
+            text = error.is_a?(ScriptError) ? "#{error.class}: #{error.message}" : error.message.to_s
+            text.tr("\n", " ")[0, 160]
           end
 
           def answer

@@ -161,6 +161,22 @@ RSpec.describe Hecks::Adapters::PipelineBoard::LiveStore do
     expect(boots.size).to eq(1)
   end
 
+  # A boot that fails with a script error: a bluebook that does not parse, a file that will not
+  # load.
+  def failing_to_load(error = SyntaxError.new("unexpected end"))
+    lambda do |_|
+      boots << :try
+      raise error
+    end
+  end
+
+  it "remembers a boot that failed with a script error and says which, not 'still opening'", :aggregate_failures do
+    broken = store(failing_to_load)
+    expect(attempt(broken)).to include("did not open: SyntaxError: unexpected end")
+    expect(attempt(broken)).to include("did not open")
+    expect(boots.size).to eq(1)
+  end
+
   it "says why it did not open" do
     expect(attempt(store(failing))).to include("did not open: syntax error")
   end

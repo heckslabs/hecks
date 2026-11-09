@@ -92,7 +92,7 @@ module Hecks
         end
 
         def described
-          registry = BootLock.exclusive { Hecks.describe(BLUEBOOK_DIR).registry }
+          registry = BootLock.exclusive(wait: BootLock::WAIT_SECONDS) { Hecks.describe(BLUEBOOK_DIR).registry }
           registry.bluebooks.fetch("PipelineBoard")
         end
       end

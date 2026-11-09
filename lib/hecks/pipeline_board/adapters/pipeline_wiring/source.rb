@@ -35,7 +35,7 @@ module Hecks
         # @raise [StandardError] when a file does not declare a valid bluebook
         def read
           fresh = Runtime::Registry.new(root: @registry.root)
-          PipelineBoard::BootLock.exclusive do
+          PipelineBoard::BootLock.exclusive(wait: PipelineBoard::BootLock::WAIT_SECONDS) do
             Hecks.with_registry(fresh) { paths.select { |path| File.file?(path) }.each { |path| Kernel.load(path) } }
           end
           Reading.new(fresh.bluebooks, @registry.ports, @registry.adapters)

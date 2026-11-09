@@ -137,7 +137,9 @@ module Hecks
       end
 
       def registry
-        @registry ||= PipelineBoard::BootLock.exclusive { Hecks.describe(File.join(owner_root, DEFAULT_DOMAIN)).registry }
+        @registry ||= PipelineBoard::BootLock.exclusive(wait: PipelineBoard::BootLock::WAIT_SECONDS) do
+          Hecks.describe(File.join(owner_root, DEFAULT_DOMAIN)).registry
+        end
       end
 
       # The checkout whose local overlays name the stores: a linked worktree has none, so its main

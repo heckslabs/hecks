@@ -54,6 +54,13 @@ RSpec.describe Hecks::Adapters::Sweeping::Orphans do
     expect(orphans(kept).lines).to eq([])
   end
 
+  it "keeps a settling check in every spelling of the verb", :aggregate_failures do
+    spellings = %w[AgentRun.check_all! agent_run.check_all! Hecks::AgentRun.check_all! agent_run.check_all]
+    kept = spellings.each_with_index.map { |verb, index| entry(930 + index, 1, 9000, "exe/hecks #{verb} --wait") }
+
+    expect(orphans(kept).lines).to eq([])
+  end
+
   it "ignores a command that only names the launcher", :aggregate_failures do
     texts = ["vim exe/hecks x", "grep x exe/hecks ", "claude -p run exe/hecks tickets Work.undone"]
     named = texts.each_with_index.map { |command, index| entry(920 + index, 1, 9000, command) }
