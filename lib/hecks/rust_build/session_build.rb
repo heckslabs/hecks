@@ -49,9 +49,12 @@ module Hecks
         given = base["CARGO_TARGET_DIR"]
         return {} if shared.nil? || (given && !(binary && File.expand_path(given) == shared))
 
-        { "CARGO_TARGET_DIR" => binary ? slot(shared, root) : shared }
+        { "CARGO_TARGET_DIR" => binary ? claim(slot(shared, root), root) : shared }
       end
 
+      # A lookup: it answers the directory and makes nothing. A build that is about to write to a
+      # slot claims it ({#claim}); `environment` does so for the child it prepares.
+      #
       # @param root [String] a hecks checkout
       # @param binary [Boolean] whether the build's binary is run or published afterwards
       # @return [String, nil] the target directory the world names for a build in +root+, nil when
@@ -64,15 +67,19 @@ module Hecks
       # The directory a build that runs its own binary writes to, for a workspace in +root+. A
       # directory named by hand wins, except the world's shared one, which a dispatched session
       # inherits and which no two worktrees may write a binary to. Outside a linked worktree the
-      # world names no directory, and the workspace keeps its own `target/`.
+      # world names no directory, and the workspace keeps its own `target/`. A lookup: it makes
+      # nothing.
       #
       # @param root [String] a hecks checkout
       # @param base [#[]] the environment the child would otherwise inherit
+      # @param relative_to [String, nil] the directory a relative value of `CARGO_TARGET_DIR` is
+      #   taken from, which is the directory Cargo runs in; the working directory when nil
       # @return [String, nil] the directory, nil when the workspace's own `target/` serves
-      def binary_dir(root: ROOT, base: ENV)
+      def binary_dir(root: ROOT, base: ENV, relative_to: nil)
         given = base["CARGO_TARGET_DIR"]
         shared = declared_target_dir(root: root)
-        return File.expand_path(given) if given && (shared.nil? || File.expand_path(given) != shared)
+        named = given && File.expand_path(given, relative_to || Dir.pwd)
+        return named if named && (shared.nil? || named != shared)
 
         target_dir(root: root, binary: true)
       end
@@ -107,24 +114,35 @@ module Hecks
 
       # @param shared [String] the world's shared target directory
       # @param root [String] the checkout the slot belongs to
-      # @return [String] the slot below +shared+, with its owner recorded where possible
-      def slot(shared, root)
-        dir = File.join(shared, slug(root))
-        claim(dir, root)
-        dir
-      end
+      # @return [String] the slot below +shared+; nothing is made
+      def slot(shared, root) = File.join(shared, slug(root))
 
-      # Records +root+ as the slot's owner; a slot that cannot be written to is left unrecorded.
+      # Makes the slot and records +root+ as its owner, before a build writes to it; a slot that
+      # cannot be written to is left unrecorded.
+      #
+      # @param dir [String] a slot
+      # @param root [String] the checkout the slot belongs to
+      # @return [String] +dir+
       def claim(dir, root)
         file = File.join(dir, OWNER)
         owner = File.realpath(root)
-        return if File.file?(file) && File.read(file) == owner
-
-        FileUtils.mkdir_p(dir)
-        File.write(file, owner)
+        unless File.file?(file) && File.read(file) == owner
+          FileUtils.mkdir_p(dir)
+          File.write(file, owner)
+        end
+        dir
       rescue SystemCallError
-        nil
+        dir
       end
+
+      # Claims +dir+ when it is the slot of +root+, for a build that took its directory from a
+      # lookup; any other directory (one named by hand, the workspace's own `target/`) is left
+      # alone.
+      #
+      # @param dir [String] the directory a build is about to write to
+      # @param root [String] the checkout the build belongs to
+      # @return [String] +dir+
+      def claim_slot(dir, root) = File.basename(dir) == slug(root) ? claim(dir, root) : dir
 
       # @param path [String] a file or directory in a hecks checkout
       # @return [String] the checkout it is in: the nearest directory above it with a `.git` or a

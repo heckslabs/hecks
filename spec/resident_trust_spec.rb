@@ -270,6 +270,44 @@ RSpec.describe "what the resident trusts" do
     end
   end
 
+  describe "a line made under another HECKS_ENVIRONMENT, through the real load" do
+    let(:root) { File.expand_path("..", __dir__) }
+    let(:script) { File.join(root, "exe/hecks") }
+    let(:server) { resident::Server.new(root, script) }
+
+    # A line made with the process's own environment, plus the given variables.
+    def request(plus = {}, without = [])
+      { script: script, argv: [], cwd: root, env: ENV.to_h.except(*without).merge(plus) }
+    end
+
+    # Loads the Hecks domain the way a resident starts: the code is already in this process.
+    def loaded
+      resident::EnvTrace.send(:instance_variable_get, :@names).clear
+      allow(server).to receive(:require_hecks)
+      server.send(:prepare)
+    end
+
+    it "is seen to read HECKS_ENVIRONMENT while loading, and still serves lines with and without it", :aggregate_failures do
+      loaded
+      expect(resident::EnvTrace.names).to include("HECKS_ENVIRONMENT")
+      expect(server.send(:loaded_names)).not_to include("HECKS_ENVIRONMENT")
+      expect(server.send(:servable?, request({ "HECKS_ENVIRONMENT" => "memory" }))).to be(true)
+      expect(server.send(:servable?, request({}, ["HECKS_ENVIRONMENT"]))).to be(true)
+    end
+
+    it "still refuses a line that differs on a variable the code read that is not the environment" do
+      loaded
+      resident::EnvTrace.tracing { ENV.fetch("HECKS_QUIESCE_STATE", nil) }
+      server.send(:note_environment)
+      expect(server.send(:servable?, request({ "HECKS_QUIESCE_STATE" => "/elsewhere" }))).to be(false)
+    end
+
+    it "matches a line on GEM_HOME and GEM_PATH, which pick the gems it runs with", :aggregate_failures do
+      expect(resident::Loading::LOADED_WITH).to include("GEM_HOME", "GEM_PATH")
+      expect(resident::Loading::PER_LINE).to eq(["HECKS_ENVIRONMENT"])
+    end
+  end
+
   describe "the long-running servers" do
     def bypassed?(*argv)
       saved = ARGV.dup

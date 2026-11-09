@@ -14,7 +14,13 @@ module Hecks
           # Variables the loading tools read before the code can say which it reads: a line that
           # differs on one is not served. The `HECKS_*`, `CARGO_*` and `PG*` variables the code
           # reads while it loads are added as they are seen (`EnvTrace`).
-          LOADED_WITH = %w[HOME XDG_CACHE_HOME BUNDLE_GEMFILE RUBYOPT RUBYLIB HECKS_NO_USAGE_CACHE HECKS_ENGINE].freeze
+          LOADED_WITH = %w[HOME XDG_CACHE_HOME BUNDLE_GEMFILE RUBYOPT RUBYLIB GEM_HOME GEM_PATH
+                           HECKS_NO_USAGE_CACHE HECKS_ENGINE].freeze
+          # Variables the code reads while it loads that a line may still differ on, because the
+          # resident loads once per value: `HECKS_ENVIRONMENT` picks the loaded domain
+          # (`ENVIRONMENTS`, and one more per value a line brings, named to the resident), so it
+          # never refuses a line.
+          PER_LINE = %w[HECKS_ENVIRONMENT].freeze
           # The world's defaults when it declares no `resident` line.
           DEFAULTS = { idle_seconds: 600.0, max_residents: Crowd::DEFAULT_CAP.to_f }.freeze
 
@@ -40,9 +46,11 @@ module Hecks
           end
 
           # @return [Array<String>] the variables a line must match the resident on
-          def loaded_names = LOADED_WITH | EnvTrace.names
+          def loaded_names = (LOADED_WITH | EnvTrace.names) - PER_LINE
 
-          # Keeps the values the loaded code saw of the variables it read.
+          # Keeps the values the loaded code saw of the variables it read, apart from the ones
+          # `PER_LINE` names, which `under` set for each domain it loaded and which are not the
+          # resident's own.
           def note_environment = (@environment = @start_env.slice(*loaded_names))
 
           def require_hecks

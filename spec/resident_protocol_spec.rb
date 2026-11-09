@@ -27,7 +27,7 @@ RSpec.describe "the resident's protocol" do
     end
 
     it "refuses a request that stops short" do
-      expect { resident::Wire.read_request(StringIO.new("2\0only\0")) }.to raise_error(EOFError)
+      expect { resident::Wire.read_request(StringIO.new("20\0only\0")) }.to raise_error(EOFError)
     end
 
     it "reads one reply line at a time and nil once the other end has gone" do

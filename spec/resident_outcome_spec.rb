@@ -80,19 +80,23 @@ RSpec.describe "the client's resident outcome" do
   describe "the conversation" do
     let(:ends) { UNIXSocket.pair }
 
-    # Plays the resident: takes the request and the three streams, answers with `words`, and
-    # hangs up when it has none.
+    # Plays the resident: takes the request, then either refuses it (a first word that is `stale`),
+    # hangs up (no words), or says `fds`, takes the three streams and answers with `words`.
     def resident_says(*words)
       Thread.new do
-        take_line(ends.last)
-        words.each { |word| resident::Wire.reply(ends.last, word) }
-        ends.last.close if words.empty?
+        resident::Wire.read_request(ends.last, seconds: 3)
+        words.empty? ? ends.last.close : answer_with(words)
       end
     end
 
-    def take_line(socket)
-      resident::Wire.read_request(socket, seconds: 3)
-      3.times { socket.recv_io }
+    def answer_with(words)
+      take_streams unless words.first.start_with?("stale")
+      words.each { |word| resident::Wire.reply(ends.last, word) }
+    end
+
+    def take_streams
+      resident::Wire.reply(ends.last, "fds")
+      3.times { ends.last.recv_io }
     end
 
     it "answers the status and no reason once the resident ran the line" do

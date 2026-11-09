@@ -8,6 +8,7 @@ require "hecks/adapters/driving/resident/fingerprint"
 require "hecks/adapters/driving/resident/described_cache"
 require "hecks/adapters/driving/resident/loading"
 require "hecks/adapters/driving/resident/serving"
+require "hecks/adapters/driving/resident/stopping"
 require "hecks/adapters/driving/resident/worker"
 
 module Hecks
@@ -24,6 +25,7 @@ module Hecks
         class Server
           include Loading
           include Serving
+          include Stopping
 
           # Leaves the session the launcher that started it was in, so it keeps no terminal, and
           # serves.

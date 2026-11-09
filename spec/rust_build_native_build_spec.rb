@@ -123,6 +123,19 @@ RSpec.describe Hecks::RustBuild::NativeBuild do
       expect(described_class.target_dir(rust)).to eq("/by-hand")
     end
 
+    it "takes a relative directory named by hand from the workspace, as Cargo does" do
+      with_target_env("target-test")
+
+      expect(described_class.target_dir(rust)).to eq(File.join(rust, "target-test"))
+    end
+
+    it "makes no directory when it only looks one up" do
+      with_target_env(nil)
+      described_class.target_dir(rust)
+
+      expect(File.exist?(File.join(shared, session.slug(checkout)))).to be(false)
+    end
+
     # The environment the cargo child of a build in the worktree starts with.
     def cargo_environment
       captured = []

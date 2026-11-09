@@ -94,7 +94,7 @@ module Hecks
       # @return [String] the binary, pinned to `target/debug/rust-<feature>`
       # @raise [BuildFailed] when the build fails or leaves no binary
       def build_and_pin(domain_feature, rust_dir)
-        lock_path = File.join(target_dir(rust_dir), ".build_rust_for.lock")
+        lock_path = lock_path_for(rust_dir)
         FileUtils.mkdir_p(File.dirname(lock_path))
 
         File.open(lock_path, File::CREAT | File::RDWR) do |lock|
@@ -106,6 +106,13 @@ module Hecks
           cargo(command, rust_dir, domain_feature)
           pin(rust_dir, domain_feature, command)
         end
+      end
+
+      # The lock a build holds, in the directory it is about to write to; that directory is claimed
+      # first when it is the worktree's own slot.
+      def lock_path_for(rust_dir)
+        dir = SessionBuild.claim_slot(target_dir(rust_dir), SessionBuild.root_of(rust_dir))
+        File.join(dir, ".build_rust_for.lock")
       end
 
       def pinned_path(rust_dir, domain_feature)
@@ -122,7 +129,7 @@ module Hecks
       def target_dir(rust_dir)
         root = SessionBuild.root_of(rust_dir)
         inside = File.expand_path(rust_dir).start_with?("#{root}/")
-        (inside && SessionBuild.binary_dir(root: root)) || File.join(rust_dir, "target")
+        (inside && SessionBuild.binary_dir(root: root, relative_to: rust_dir)) || File.join(rust_dir, "target")
       end
 
       # A binary pinned ahead of time, by an earlier run whose build was restored from a cache, is

@@ -23,10 +23,13 @@ RSpec.describe "the resident's handshake" do
     allow(server).to receive(:launch)
   end
 
-  # Sends the request and the three streams as a launcher does.
+  # Sends the request, then the three streams once the resident has said `fds`, as a launcher
+  # does; answers the resident's first word.
   def send_line(caller_end)
     wire.write_request(caller_end, request)
-    3.times { caller_end.send_io(File.open(File::NULL)) }
+    first = wire.read_line(caller_end, 5)
+    3.times { caller_end.send_io(File.open(File::NULL)) } if first == "fds"
+    first
   end
 
   # Runs the resident's side of one line on a thread and answers what the caller says next.
@@ -34,8 +37,8 @@ RSpec.describe "the resident's handshake" do
     ready_server
     resident_end = ends.last
     thread = Thread.new { server.send(:handle, resident_end) }
-    send_line(ends.first)
-    yield ends.first
+    first = send_line(ends.first)
+    yield ends.first, first
     thread.join(5)
   end
 
@@ -66,7 +69,7 @@ RSpec.describe "the resident's handshake" do
 
     it "does not run a line when its caller had gone before the resident looked" do
       ready_server
-      send_line(ends.first)
+      wire.write_request(ends.first, request)
       ends.first.close
       server.send(:handle, ends.last)
       expect(server).not_to have_received(:launch)
@@ -77,7 +80,7 @@ RSpec.describe "the resident's handshake" do
     let(:request) { super().merge(env: { "HOME" => "/other" }) }
 
     it "is answered stale with the reason, here the environment, and is not run", :aggregate_failures do
-      serve_line { |caller_end| expect(wire.read_reply(caller_end)).to eq("stale:env") }
+      serve_line { |_caller_end, first| expect(first).to eq("stale:env") }
       expect(server).not_to have_received(:launch)
     end
   end
@@ -85,22 +88,67 @@ RSpec.describe "the resident's handshake" do
   describe "the limits on a request" do
     def read(text, seconds: nil) = wire.read_request(StringIO.new(text), seconds: seconds)
 
+    # A request body with the length it states, as `write_request` frames it.
+    def framed(body) = "#{body.bytesize}\0#{body}"
+
     it "refuses a field longer than the limit" do
-      expect { read("1\0#{"a" * (wire::MAX_FIELD + 10)}") }.to raise_error(wire::Refused)
+      expect { read(framed("1\0#{"a" * (wire::MAX_FIELD + 10)}")) }.to raise_error(wire::Refused)
     end
 
     it "refuses more fields than the limit" do
-      expect { read("#{wire::MAX_FIELDS + 1}\0") }.to raise_error(wire::Refused)
+      expect { read(framed("#{wire::MAX_FIELDS + 1}\0")) }.to raise_error(wire::Refused)
     end
 
     it "refuses a count that is not a number" do
+      expect { read(framed("many\0")) }.to raise_error(wire::Refused)
+    end
+
+    it "refuses a stated length that is not a number or is past the limit", :aggregate_failures do
       expect { read("many\0") }.to raise_error(wire::Refused)
+      expect { read("#{wire::MAX_REQUEST + 1}\0") }.to raise_error(wire::Refused)
+      expect { read("1" * 40) }.to raise_error(wire::Refused)
     end
 
     it "gives up on a request that stalls part way", :aggregate_failures do
       caller_end, resident_end = ends
-      caller_end.write("1\0only")
+      caller_end.write("40\0only")
       expect { wire.read_request(resident_end, seconds: 0.2) }.to raise_error(wire::Slow)
+    end
+
+    it "takes the request to the length it states and no further, so a stream behind it stays" do
+      caller_end, resident_end = ends
+      wire.write_request(caller_end, request)
+      caller_end.send_io(File.open(File::NULL))
+      wire.read_request(resident_end, seconds: 1)
+      expect(resident_end.recv_io).to be_a(IO)
+    end
+  end
+
+  describe "a caller that stalls" do
+    # Takes a caller that sends its request, then `streams` of its three streams, then stalls; the
+    # seconds it held the resident for.
+    def held_for(streams = 0)
+      stub_const("Hecks::Adapters::Driving::Resident::Serving::HANDLE_WAIT", 0.4)
+      ready_server
+      sent_by_caller(streams)
+      started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      server.send(:handle, ends.last)
+      Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
+    end
+
+    def sent_by_caller(streams)
+      wire.write_request(ends.first, request)
+      streams.times { ends.first.send_io(File.open(File::NULL)) }
+    end
+
+    it "is dropped within the one deadline of the whole exchange, and its line is not run", :aggregate_failures do
+      expect(held_for).to be < 2
+      expect(server).not_to have_received(:launch)
+    end
+
+    it "has the streams it had sent closed" do
+      held_for(1)
+      expect(ends.last).to be_closed
     end
   end
 

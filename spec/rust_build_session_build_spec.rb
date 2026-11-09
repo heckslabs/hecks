@@ -71,6 +71,27 @@ RSpec.describe Hecks::RustBuild::SessionBuild do
       expect(described_class.binary_dir(root: root, base: { "CARGO_TARGET_DIR" => "/own" })).to eq("/own")
     end
 
+    it "takes a relative directory named by hand from the directory Cargo runs in, as Cargo does" do
+      named = described_class.binary_dir(root: root, base: { "CARGO_TARGET_DIR" => "target-test" }, relative_to: "/ws/rust/host")
+
+      expect(named).to eq("/ws/rust/host/target-test")
+    end
+
+    it "makes nothing when it only looks up a directory", :aggregate_failures do
+      described_class.target_dir(root: root, binary: true)
+      described_class.binary_dir(root: root, base: no_target)
+
+      expect(File.exist?(own)).to be(false)
+    end
+
+    it "claims a slot for the build that is about to write to it, and no other directory", :aggregate_failures do
+      described_class.claim_slot(own, root)
+      described_class.claim_slot(File.join(root, "rust", "target"), root)
+
+      expect(File.exist?(File.join(own, described_class::OWNER))).to be(true)
+      expect(File.exist?(File.join(root, "rust", "target"))).to be(false)
+    end
+
     it "gives a native build in a checkout that is not a linked worktree its own target directory" do
       FileUtils.rm(File.join(root, ".git"))
 

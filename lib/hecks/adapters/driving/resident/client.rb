@@ -95,21 +95,35 @@ module Hecks
             Peer.trusted?(socket) ? converse(socket, script) : [nil, "unsafe"]
           rescue Wire::Slow
             [nil, "busy"]
-          rescue *LOST
+          rescue *LOST, Wire::Refused
             [nil, nil]
           ensure
             socket&.close
           end
 
-          # Sends the line, waits for `ready`, answers `go` and waits for the status.
+          # Sends the line and waits for `fds`, sends the three streams only then (so nothing the
+          # resident reads of the request can take one with it), waits for `ready`, answers `go`
+          # and waits for the status. A `stale` in place of `fds` sends the launcher on to boot.
           def converse(socket, script)
             Wire.write_request(socket, request(script), seconds: HANDSHAKE)
+            first = first_word(socket)
+            return [nil, refusal(first)] unless first == Wire::FDS
+
             [$stdin, $stdout, $stderr].each { |stream| socket.send_io(stream) }
             word = answer(socket)
             return [nil, refusal(word)] unless word == Wire::READY
 
             Wire.reply(socket, Wire::GO)
             [finish(socket), nil]
+          end
+
+          # @return [String] the resident's first word on the request: `fds`, `stale:<reason>`, or
+          #   `dropped` when it hung up
+          # @raise [Wire::Slow] when it said nothing in time
+          def first_word(socket)
+            Wire.read_line(socket, HANDSHAKE)
+          rescue EOFError
+            "dropped"
           end
 
           # @return [String] what the resident said to the request: `busy` when it said nothing in

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "fileutils"
+require "find"
 require_relative "target_dir"
 require_relative "worktrees"
 
@@ -58,16 +59,38 @@ module Hecks
       def unlisted_slots(shared, live, dry_run: false, now: Time.now)
         names = live.flat_map { |path| SessionBuild.slugs(path) }
         slots = Dir.glob(File.join(shared, "*-#{"[0-9a-f]" * 8}")).select { |path| File.directory?(path) }
-        abandoned = slots.reject { |path| names.include?(File.basename(path)) || kept?(path, now) }
+        abandoned = slots.reject { |path| names.include?(File.basename(path)) || kept?(path, now, live) }
         abandoned.sum { |path| remove(path, dry_run) }
       end
 
+      # @param live [Array<String>] worktree paths git still lists, the checkout's own first
       # @return [Boolean] whether a slot git does not list still has an owner or recent work
-      def kept?(slot, now)
+      def kept?(slot, now, live = [])
         owner = owner_of(slot)
-        return true if owner && File.exist?(owner)
+        return true if owner && owner_standing?(owner, live)
 
-        newest_change(slot) > now - (SLOT_GRACE_DAYS * 86_400)
+        recent_change?(slot, now - (SLOT_GRACE_DAYS * 86_400))
+      end
+
+      # Whether the checkout a slot records is still there. A directory under the checkout's own
+      # `.claude/worktrees` that git does not list is a removed worktree, whatever it holds (a
+      # `rust/target`, a scratch file); it does not keep a slot. Any other checkout (another clone
+      # of hecks sharing the directory, say) does while it exists.
+      #
+      # @return [Boolean]
+      def owner_standing?(owner, live)
+        return false unless File.exist?(owner)
+
+        real = File.realpath(owner)
+        trees = live.filter_map { |tree| File.realpath(tree) if File.exist?(tree) }
+        !worktree_dir?(real, trees.first) || trees.include?(real)
+      rescue SystemCallError
+        true
+      end
+
+      # @return [Boolean] whether the path is a directory under the checkout's `.claude/worktrees`
+      def worktree_dir?(path, main)
+        main && path.start_with?(File.join(main, ".claude", "worktrees", ""))
       end
 
       # @return [String, nil] the checkout the slot records as its owner
@@ -78,16 +101,21 @@ module Hecks
         nil
       end
 
-      # @return [Time] the latest modification time of anything in the slot, the slot included
-      def newest_change(slot)
-        times = entries_of(slot).map { |path| File.mtime(path) }
-        [*times, File.mtime(slot)].max
-      rescue SystemCallError
-        Time.now
-      end
+      # Whether anything in the slot, the slot included, changed after `cutoff`. It stops at the
+      # first thing that did, so a slot in use costs a look at a few entries, not the whole
+      # target; one that is long idle is walked once, in the prune that deletes it.
+      #
+      # @param slot [String] a slot
+      # @param cutoff [Time] the earliest a change may be to count
+      # @return [Boolean] true too when something in the slot cannot be read, which keeps it
+      def recent_change?(slot, cutoff)
+        return true if File.lstat(slot).mtime > cutoff
 
-      # @return [Array<String>] everything inside the slot, hidden files included
-      def entries_of(slot) = Dir.glob(File.join(slot, "**", "*"), File::FNM_DOTMATCH)
+        Find.find(slot) { |path| return true if File.lstat(path).mtime > cutoff }
+        false
+      rescue SystemCallError
+        true
+      end
 
       # Deletes the artifacts under each target's `<profile>/{deps,incremental,build}` not touched
       # for `days`.

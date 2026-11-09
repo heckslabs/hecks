@@ -2,18 +2,22 @@ module Hecks
   module Adapters
     module Driving
       module Resident
-        # How a resident takes one line: check who is calling, read the request and the caller's
-        # three streams, check it can serve it, say `ready`, and fork a child that runs it only when
-        # the caller answers `go`. The caller then waits for the child's exit status.
+        # How a resident takes one line: check who is calling, read the request, check it can serve
+        # it and say `fds`, take the caller's three streams, say `ready`, and fork a child that
+        # runs the line only when the caller answers `go`. The caller then waits for the child's
+        # exit status.
         #
         # The `go` is what keeps a line from running twice: a caller that gave up on a slow
         # resident has closed its socket, so a request that sat in the queue meets a closed
         # connection and is dropped, not run.
+        #
+        # The resident takes one line at a time up to the fork, so the whole of that exchange has
+        # one deadline: a caller that stalls in any step costs the other callers {HANDLE_WAIT}
+        # seconds at most.
         module Serving
-          # Seconds a caller has to send its request and streams before the resident drops it.
-          REQUEST_WAIT = 3
-          # Seconds a caller has to answer `ready` with `go`.
-          CONFIRM_WAIT = 3
+          # Seconds a caller has, from the moment the resident takes it, to send its request and
+          # streams and to answer `ready` with `go`, before the resident drops it.
+          HANDLE_WAIT = 5
 
           private
 
@@ -22,18 +26,26 @@ module Hecks
             streams = []
             return drop(client, streams) unless Peer.trusted?(client)
 
-            request = Wire.read_request(client, seconds: REQUEST_WAIT)
-            receive(client, streams)
-            reason = unservable(request)
-            reason ? refuse(client, streams, reason) : offer(client, request, streams)
+            take(client, streams, Wire::Deadline.new(HANDLE_WAIT))
           rescue StandardError, NoMemoryError
             drop(client, streams)
           end
 
-          # Takes the caller's standard input, output and error, each within the wait.
-          def receive(client, streams)
+          # Reads the request, says `fds` if it can serve it, takes the streams and makes the offer.
+          def take(client, streams, deadline)
+            request = Wire.read_request(client, seconds: deadline.left)
+            reason = unservable(request)
+            return refuse(client, streams, reason) if reason
+
+            Wire.reply(client, Wire::FDS)
+            receive(client, streams, deadline)
+            offer(client, request, streams, deadline)
+          end
+
+          # Takes the caller's standard input, output and error, each within what is left.
+          def receive(client, streams, deadline)
             3.times do
-              client.wait_readable(REQUEST_WAIT) || raise(Wire::Slow, "the streams did not arrive")
+              client.wait_readable(deadline.left) || raise(Wire::Slow, "the streams did not arrive")
               streams << client.recv_io
             end
           end
@@ -71,13 +83,13 @@ module Hecks
 
           # Tells the caller the line can be run and runs it once the caller says `go`. A caller
           # that has gone, or says nothing in time, has its line dropped.
-          def offer(client, request, streams)
+          def offer(client, request, streams, deadline)
             Wire.reply(client, Wire::READY)
-            confirmed?(client) ? launch(client, request, streams) : drop(client, streams)
+            confirmed?(client, deadline) ? launch(client, request, streams) : drop(client, streams)
           end
 
-          def confirmed?(client)
-            Wire.read_line(client, CONFIRM_WAIT) == Wire::GO
+          def confirmed?(client, deadline)
+            Wire.read_line(client, deadline.left) == Wire::GO
           rescue SystemCallError, IOError, Wire::Refused
             false
           end
@@ -92,12 +104,17 @@ module Hecks
             reader, writer = IO.pipe
             writer.sync = true
             pid = fork { become_child(client, request, streams, reader, writer) }
+            into_group(pid, pid)
             writer.close
             streams.each(&:close)
             @monitors << Thread.new { monitor(pid, client, reader) }
           end
 
+          # The child leads a process group of its own, which the resident also sets from its side
+          # so the group stands whichever of them runs first, and the child's own processes (a
+          # build, a gate) can be stopped with it.
           def become_child(client, request, streams, reader, writer)
+            into_group(0, 0)
             [@server, @lock, client, reader].each(&:close)
             Worker.new(request, streams, @cache, writer).run
           end
@@ -114,14 +131,6 @@ module Hecks
             nil
           ensure
             client.close unless client.closed?
-          end
-
-          # Interrupts the child when the caller's end of the socket closes before the line is done.
-          def stop_when_gone(client, pid)
-            client.read(1)
-            Process.kill("INT", pid)
-          rescue SystemCallError, IOError
-            nil
           end
 
           # Queues the domains and files a finished child named as missing from the resident.

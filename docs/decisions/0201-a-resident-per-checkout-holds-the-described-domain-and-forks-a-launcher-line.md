@@ -148,9 +148,16 @@ stand. Where the build differs from the text above or adds to it:
   reach it. The socket path must fit the system's limit (103 bytes on macOS); a longer one is not used and the
   launcher boots on its own, which a long temporary directory name will do.
 - **The resident serves only a line made as it was loaded.** A request whose `HOME`, `XDG_CACHE_HOME`,
-  `BUNDLE_GEMFILE`, `RUBYOPT`, `RUBYLIB`, `HECKS_NO_USAGE_CACHE` or `HECKS_ENGINE` differs from the resident's own is
-  answered by the launcher itself, because the code read those when it loaded. `HECKS_ENVIRONMENT` is not one of
-  them: each environment is its own cached load. The list is not only those seven. While the resident loads the
+  `BUNDLE_GEMFILE`, `RUBYOPT`, `RUBYLIB`, `GEM_HOME`, `GEM_PATH`, `HECKS_NO_USAGE_CACHE` or `HECKS_ENGINE` differs
+  from the resident's own is answered by the launcher itself, because the code read those when it loaded (a caller
+  with other gem paths must not be served by this resident's gems). `HECKS_ENVIRONMENT` is not one of them: each
+  environment is its own cached load (`Loading::PER_LINE`). The loading code does read it, so `EnvTrace` notes it,
+  and until it was taken out of the match every line made with `HECKS_ENVIRONMENT=memory` (the gate stages, the
+  Memory overlay, the launcher's own `MEMORY_COMMANDS`) was refused as stale and booted cold, and a resident
+  spawned from a shell that exported it served only that flavour. `PATH`, `TZ` and `LANG` are not matched: they
+  differ between a hook, a session and a terminal, so matching them would send most lines away from the resident,
+  and a caller that runs another Ruby is not told apart (the child is forked from the resident's Ruby; the launcher
+  that sent it ran under the caller's). The list is not only those nine. While the resident loads the
   code, `EnvTrace` notes every `HECKS_*`, `CARGO_*` and `PG*` variable read through `ENV` (`HECKS_STOREHOUSE_ROOT`,
   `HECKS_QUIESCE_STATE`, `HECKS_MINT_STATE` and the rest), and a line whose value of one of them differs, or that
   sets one the resident loaded without, is answered by the launcher itself. A variable read only when a line runs
@@ -228,8 +235,14 @@ stand. Where the build differs from the text above or adds to it:
     MCP tools in it as `mcp__<server>__*`; with `Bash` alone an `mcp__` tool is not in the list. If that holds for a
     session started with `--agent`, the orchestrator's restricted server is unreachable today and the saving is the
     idle servers it no longer holds (16 MB against 48 MB each). It is not verified against a real session.
-- **A line runs only after three words.** The resident answers `ready` once it has the request and the three
-  streams and can serve them; the caller answers `go`; the resident forks only then, and ends with the status.
+- **A line runs only after the words.** The request states its own length and the resident reads that many bytes
+  and no more. It then answers `fds` when it can serve the line (or `stale`, which sends the launcher on to boot),
+  and only then does the caller send its three streams: on Linux a read of the request could take the first
+  stream's bytes with it and drop that descriptor, which the order rules out without leaning on the kernel. The
+  resident answers `ready` once it has the three streams; the caller answers `go`; the resident forks only then,
+  and ends with the status. The exchange costs one round trip more than before. From the moment the resident
+  takes a caller up to the fork the whole exchange has one deadline of 5 seconds, so a caller that stalls in any
+  step holds the single accept loop for 5 seconds at most, not for each step's wait in turn.
   A caller that gave up on a slow resident has closed its socket (the client closes it on every path, before it
   boots on its own), so a request that sat in the queue meets a closed connection and is dropped. Before this a
   busy resident would later accept the queued request and run the line a second time, beside the launcher's own
@@ -248,14 +261,28 @@ stand. Where the build differs from the text above or adds to it:
 - **The cap is met before anything loads.** A resident counts the others and ends before it loads when the cap is
   met, and a launcher does not start one then. The cap a resident read from the world is kept in the resident
   directory (`cap`), so the count before the load uses it; with none written it is the default of 8.
-- **Limits on a request.** A field may be 1 MiB, a request 8 MiB and 20,000 fields, and the whole request must
-  arrive within 3 seconds; anything else is dropped, with the streams it carried closed. Waiting for the `go` is
-  3 seconds. Finished lines are dropped from the monitor list on each turn.
+- **Limits on a request.** A field may be 1 MiB, a request 8 MiB and 20,000 fields, and the whole exchange up to
+  the fork must finish within the one 5-second deadline; anything else is dropped, with the streams it carried
+  closed. Finished lines are dropped from the monitor list on each turn.
 - **What retires it.** The fingerprint also lists the launcher, `.ruby-version`, the `*.world`, `*.hecksagon` and
   `*.bluebook` files at the checkout's root and the hidden files under `lib/`. A domain directory outside `lib/`
   that a child asked the resident to load joins what the resident was built from when it is loaded, so learning a
   domain does not retire the resident. A file replaced by one of the same size whose modification time is put
   back (`rsync -t`, an unpacked archive) is not seen; that gap is accepted.
+- **Looking is cheaper than listing.** Before, every line walked `lib/` (2,363 files and 366 directories on this
+  checkout), stat'ed every entry and compared the whole listing. Now an answer is reused for 1 second, so a change
+  is seen by the first line more than a second after it. A look between full listings re-stats the files already
+  listed and the directories that hold them with no walk: an edited or removed file shows in its own stat and an
+  added or renamed one in its directory's modification time. The tree is listed again every 30 seconds and
+  whenever a look finds something different. A file added to a directory that was not listed, inside the second its
+  parent changed, waits for the next full listing. By the count of what is touched (not timed: a timing script
+  was refused in the session that made the change) a look is the same 2,729 stats but no directory reads and none
+  of the strings and the hash a listing builds, and it runs once a second at most, not once a line.
+- **A child that is stopped is stopped with what it started.** When the caller's end of the socket closes before the
+  line is done, the resident signals the child's whole process group, which the child leads (it calls `setpgid`
+  right after the fork and the resident does too, so the group stands whichever runs first): `INT`, then `TERM`
+  after 5 seconds and `KILL` 10 seconds later for a child that does not leave. A build or gate the line started is
+  stopped with it.
 - **Servers that run for days stay with the launcher.** `PipelineBoard.serve!` (which re-execs itself), the `Server`
   commands `present!`, `compose!` and `preview!`, and `serve_query_ir_mcp!` are never sent to a resident: each would
   be a forked child with a caller waiting above it for as long as the server lives. Like `console` and `mcp`, they
