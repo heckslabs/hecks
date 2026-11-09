@@ -2,43 +2,87 @@ module Hecks
   module Adapters
     module Driving
       module Resident
-        # How a resident takes one line: read the request and the caller's three streams, check
-        # it can serve it, fork a child that runs it, and answer the caller with the child's
-        # exit status.
+        # How a resident takes one line: check who is calling, read the request and the caller's
+        # three streams, check it can serve it, say `ready`, and fork a child that runs it only when
+        # the caller answers `go`. The caller then waits for the child's exit status.
+        #
+        # The `go` is what keeps a line from running twice: a caller that gave up on a slow
+        # resident has closed its socket, so a request that sat in the queue meets a closed
+        # connection and is dropped, not run.
         module Serving
-          # Seconds a caller has to send its request before the resident drops it.
+          # Seconds a caller has to send its request and streams before the resident drops it.
           REQUEST_WAIT = 3
+          # Seconds a caller has to answer `ready` with `go`.
+          CONFIRM_WAIT = 3
 
           private
 
           def handle(client)
             @active = Time.now
-            return client.close unless client.wait_readable(REQUEST_WAIT)
+            streams = []
+            return drop(client, streams) unless Peer.trusted?(client)
 
-            request = Wire.read_request(client)
-            streams = Array.new(3) { client.recv_io }
-            servable?(request) ? launch(client, request, streams) : refuse(client)
-          rescue StandardError
-            client.close unless client.closed?
+            request = Wire.read_request(client, seconds: REQUEST_WAIT)
+            receive(client, streams)
+            servable?(request) ? offer(client, request, streams) : refuse(client, streams)
+          rescue StandardError, NoMemoryError
+            drop(client, streams)
           end
 
-          # A line is served when it was made with the environment the code loaded under and the
-          # code and declarations are as they were loaded; when they changed, the resident retires.
+          # Takes the caller's standard input, output and error, each within the wait.
+          def receive(client, streams)
+            3.times do
+              client.wait_readable(REQUEST_WAIT) || raise(Wire::Slow, "the streams did not arrive")
+              streams << client.recv_io
+            end
+          end
+
+          # A line is served when it was made by this checkout's own launcher, with the environment
+          # the code loaded under, and the code and declarations are as they were loaded; when they
+          # changed, the resident retires.
           def servable?(request)
-            return false unless request[:env].slice(*Loading::LOADED_WITH) == @environment
-            return true if @fingerprint.current == @baseline
+            return false unless same_script?(request)
+            return false unless request[:env].slice(*loaded_names) == @environment
+            return true unless @fingerprint.changed?
 
             retire
             false
           end
 
-          def refuse(client)
+          # The child loads the launcher the request names, so it must be this checkout's own.
+          def same_script?(request) = canonical(request[:script]) == canonical(@script)
+
+          def canonical(path)
+            File.realpath(path.to_s)
+          rescue SystemCallError
+            File.expand_path(path.to_s)
+          end
+
+          def refuse(client, streams)
             Wire.reply(client, Wire::STALE)
-            client.close
+            drop(client, streams)
+          end
+
+          # Tells the caller the line can be run and runs it once the caller says `go`. A caller
+          # that has gone, or says nothing in time, has its line dropped.
+          def offer(client, request, streams)
+            Wire.reply(client, Wire::READY)
+            confirmed?(client) ? launch(client, request, streams) : drop(client, streams)
+          end
+
+          def confirmed?(client)
+            Wire.read_line(client, CONFIRM_WAIT) == Wire::GO
+          rescue SystemCallError, IOError, Wire::Refused
+            false
+          end
+
+          # Closes what was received from a caller and the caller's socket.
+          def drop(client, streams)
+            streams.each { |stream| stream.close unless stream.closed? }
+            client.close unless client.closed?
           end
 
           def launch(client, request, streams)
-            Wire.reply(client, Wire::GO)
             reader, writer = IO.pipe
             writer.sync = true
             pid = fork { become_child(client, request, streams, reader, writer) }

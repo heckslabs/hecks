@@ -11,26 +11,39 @@ module Hecks
           # Environments loaded at start: none named, and the Memory default of the launcher's
           # own commands.
           ENVIRONMENTS = [nil, "memory"].freeze
-          # Variables read when the code loads, not when a line runs: a line that differs on one
-          # is not served.
+          # Variables the loading tools read before the code can say which it reads: a line that
+          # differs on one is not served. The `HECKS_*`, `CARGO_*` and `PG*` variables the code
+          # reads while it loads are added as they are seen (`EnvTrace`).
           LOADED_WITH = %w[HOME XDG_CACHE_HOME BUNDLE_GEMFILE RUBYOPT RUBYLIB HECKS_NO_USAGE_CACHE HECKS_ENGINE].freeze
           # The world's defaults when it declares no `resident` line.
-          DEFAULTS = { idle_seconds: 600.0, max_residents: 8.0 }.freeze
+          DEFAULTS = { idle_seconds: 600.0, max_residents: Crowd::DEFAULT_CAP.to_f }.freeze
 
           private
 
           def prepare
             # First registered, so last run: after every handler a line registers, a child ends.
             at_exit { Worker.leave if defined?(::Hecks::Adapters::Driving::Resident::CHILD) }
+            @start_env = ENV.to_h
             @fingerprint = Fingerprint.new(@root)
-            @baseline = @fingerprint.current
-            @environment = ENV.to_h.slice(*LOADED_WITH)
+            @fingerprint.mark!
+            EnvTrace.tracing { load_everything }
+            note_environment
+            @settings = settings
+            Crowd.remember(@settings[:max_residents])
+            @crowded = standing >= @settings[:max_residents]
+          end
+
+          def load_everything
             require_hecks
             @cache = DescribedCache.new
             ENVIRONMENTS.each { |name| load_domain(File.join(@root, DOMAIN), name) }
-            @settings = settings
-            @crowded = standing >= @settings[:max_residents]
           end
+
+          # @return [Array<String>] the variables a line must match the resident on
+          def loaded_names = LOADED_WITH | EnvTrace.names
+
+          # Keeps the values the loaded code saw of the variables it read.
+          def note_environment = (@environment = @start_env.slice(*loaded_names))
 
           def require_hecks
             gemfile = File.join(@root, "Gemfile")
@@ -72,20 +85,16 @@ module Hecks
           end
 
           # @return [Integer] how many other residents hold their locks
-          def standing
-            Dir.glob(File.join(Paths.directory, "*.lock")).count do |file|
-              next false if file == Paths.lock(@root)
-
-              File.open(file) { |other| !other.flock(File::LOCK_EX | File::LOCK_NB) }
-            end
-          end
+          def standing = Crowd.standing(Paths.lock(@root))
 
           # Loads what the children named as missing, so the next line finds it ready: a domain,
-          # or a Ruby file of the checkout's own `lib/`.
+          # or a Ruby file of the checkout's own `lib/`. What it reads from the environment while
+          # loading joins what a line must match.
           def learn
             return if @notes.empty?
 
-            learn_one(*@notes.pop) until @notes.empty?
+            EnvTrace.tracing { learn_one(*@notes.pop) until @notes.empty? }
+            note_environment
             settle
           end
 

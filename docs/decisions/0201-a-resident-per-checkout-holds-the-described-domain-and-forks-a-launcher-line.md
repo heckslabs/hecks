@@ -126,7 +126,8 @@ day. The build's acceptance test stands in for the first (a warm `hecks RedFlag.
 
 The build is in `lib/hecks/adapters/driving/resident/`: `client.rb` (what a launcher runs first), `server.rb` with
 `loading.rb` and `serving.rb` (the resident), `worker.rb` (the forked child), `fingerprint.rb`, `described_cache.rb`,
-`wire.rb` and `paths.rb`. Decisions 1 to 5 stand. Where the build differs from the text above or adds to it:
+`wire.rb`, `paths.rb`, `crowd.rb` (the cap), `peer.rb` (who is on the other end) and `env_trace.rb`. Decisions 1 to 5
+stand. Where the build differs from the text above or adds to it:
 
 - **The child runs the launcher script itself.** Decision 2 has the child do "what the launcher does from
   `Hecks.boot_described` on". The build instead `load`s the real `exe/hecks` in the child, with `Hecks.describe`
@@ -149,7 +150,11 @@ The build is in `lib/hecks/adapters/driving/resident/`: `client.rb` (what a laun
 - **The resident serves only a line made as it was loaded.** A request whose `HOME`, `XDG_CACHE_HOME`,
   `BUNDLE_GEMFILE`, `RUBYOPT`, `RUBYLIB`, `HECKS_NO_USAGE_CACHE` or `HECKS_ENGINE` differs from the resident's own is
   answered by the launcher itself, because the code read those when it loaded. `HECKS_ENVIRONMENT` is not one of
-  them: each environment is its own cached load.
+  them: each environment is its own cached load. The list is not only those seven. While the resident loads the
+  code, `EnvTrace` notes every `HECKS_*`, `CARGO_*` and `PG*` variable read through `ENV` (`HECKS_STOREHOUSE_ROOT`,
+  `HECKS_QUIESCE_STATE`, `HECKS_MINT_STATE` and the rest), and a line whose value of one of them differs, or that
+  sets one the resident loaded without, is answered by the launcher itself. A variable read only when a line runs
+  (`HECKS_CALLER`) is never noted, so it does not send a session's lines away from the resident.
 - **It learns what it lacked.** A child that needs a domain or environment the resident has not loaded builds it as a
   cold launcher would, and names it and the Ruby files it loaded; the resident loads them after the reply, so the
   next child finds them ready. Loading output a cold launcher prints (the worktree-overlay warning, for one) is
@@ -193,6 +198,40 @@ The build is in `lib/hecks/adapters/driving/resident/`: `client.rb` (what a laun
     checkout's unrestricted entry does not start beside it. `--strict-mcp-config` also leaves out MCP servers from
     other scopes for that session. Argument construction is specified against a stand-in `claude`; no real session was
     started to see the servers come up restricted.
+- **A line runs only after three words.** The resident answers `ready` once it has the request and the three
+  streams and can serve them; the caller answers `go`; the resident forks only then, and ends with the status.
+  A caller that gave up on a slow resident has closed its socket (the client closes it on every path, before it
+  boots on its own), so a request that sat in the queue meets a closed connection and is dropped. Before this a
+  busy resident would later accept the queued request and run the line a second time, beside the launcher's own
+  cold boot. The request is written within a deadline, so a resident that is stopped but still accepting makes
+  the launcher fall back instead of waiting for ever. A real resident stopped with `SIGSTOP`, called, and resumed
+  ran the line once.
+- **Who may talk to it.** The client sends nothing until the resident directory and its parent are this user's and
+  closed to everyone else, the socket is a socket of this user's that others cannot write, and the kernel's record
+  of the peer (`LOCAL_PEERCRED` on macOS, `SO_PEERCRED` on Linux) names this user. The resident checks the same of
+  each caller, binds its socket under a restrictive umask, and loads only the launcher it was started from: a
+  request naming another script is refused. Where the system does not name the peer, the directory ownership is all
+  there is. `HECKS_CACHE_DIR` set to a directory others can write to means no resident is used.
+- **No resident where the cache directory is new each time.** When the cache root falls back to a per-process
+  temporary directory (`Hecks::CacheDir.stable?` is false) and `HECKS_CACHE_DIR` is not set, no launcher asks for or
+  starts a resident: each would find an empty directory and start one that lives for the idle time.
+- **The cap is met before anything loads.** A resident counts the others and ends before it loads when the cap is
+  met, and a launcher does not start one then. The cap a resident read from the world is kept in the resident
+  directory (`cap`), so the count before the load uses it; with none written it is the default of 8.
+- **Limits on a request.** A field may be 1 MiB, a request 8 MiB and 20,000 fields, and the whole request must
+  arrive within 3 seconds; anything else is dropped, with the streams it carried closed. Waiting for the `go` is
+  3 seconds. Finished lines are dropped from the monitor list on each turn.
+- **What retires it.** The fingerprint also lists the launcher, `.ruby-version`, the `*.world`, `*.hecksagon` and
+  `*.bluebook` files at the checkout's root and the hidden files under `lib/`. A domain directory outside `lib/`
+  that a child asked the resident to load joins what the resident was built from when it is loaded, so learning a
+  domain does not retire the resident. A file replaced by one of the same size whose modification time is put
+  back (`rsync -t`, an unpacked archive) is not seen; that gap is accepted.
+- **Servers that run for days stay with the launcher.** `PipelineBoard.serve!` (which re-execs itself), the `Server`
+  commands `present!`, `compose!` and `preview!`, and `serve_query_ir_mcp!` are never sent to a resident: each would
+  be a forked child with a caller waiting above it for as long as the server lives. Like `console` and `mcp`, they
+  are recognized by the word however it is spelled.
+- **It keeps no terminal.** The resident starts a new session (`setsid`) when it begins, so a child that opens
+  `/dev/tty` finds no terminal of the first launcher that started it.
 
 ### Measured
 
