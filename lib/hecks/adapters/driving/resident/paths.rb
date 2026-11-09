@@ -56,6 +56,14 @@ module Hecks
           # @return [String] the file a launcher leaves when a resident was too busy to answer it
           def busy(root) = "#{stem(root)}.busy"
 
+          # @return [String] the file the resident writes the names of the variables it was born
+          #   under beyond a plain resident's (empty for a plain one)
+          def baseline(root) = "#{stem(root)}.baseline"
+
+          # @return [String] the file the launchers keep the times a line was refused on its
+          #   environment in, one per line
+          def envs(root) = "#{stem(root)}.envs"
+
           # @return [Boolean] whether a resident of another protocol stands for the checkout: one
           #   that holds a lock of the checkout's, not this protocol's
           def other_protocol?(root)

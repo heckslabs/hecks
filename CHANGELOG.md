@@ -9,6 +9,15 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ### Changed
 
+- **A resident no longer keeps the environment of whoever started it, so it serves ordinary callers.** A resident
+  started from a spec harness, a hook or a `bundle exec` kept that process's variables as its own and refused every
+  other caller on them: 41 of 45 lines measured were `refused:env` at 1.36 s until the process was stopped by
+  hand, then 41 of 45 were served at a median of 0.20 s. Every resident now starts with the same plain environment
+  (`Resident::SpawnEnv`: paths, user, locale, terminal and the cache variables; `unsetenv_others` drops the rest)
+  and sets Bundler up for itself. A refusal names the first differing variable (`stale:env:<NAME>`, recorded as
+  `refused:env:<NAME>` in the usage log and listed by `hecks usage`), and a launcher refused on the environment
+  three times in a minute stops a resident that was not born plain (`.baseline`, `Atypical`, through `Stuck`),
+  so an older resident is replaced at the next call instead of idling out.
 - **A resident that speaks another protocol no longer slows every launcher line until someone kills it.** After the
   handshake changed, a resident already standing could not answer the new launcher: all 42 lines measured recorded
   `refused:busy` at a median of 1.8 s, a cold boot plus the wait, and the old resident never exited (its change check

@@ -8,6 +8,7 @@ require "hecks/adapters/driving/resident/crowd"
 require "hecks/adapters/driving/resident/claim"
 require "hecks/adapters/driving/resident/outcome"
 require "hecks/adapters/driving/resident/stuck"
+require "hecks/adapters/driving/resident/spawn_env"
 
 module Hecks
   module Adapters
@@ -166,7 +167,8 @@ module Hecks
 
           # Starts the resident that will serve the next line, unless the cap of residents is met;
           # it takes its own lock, so a second start exits at once. It leaves the launcher's
-          # session, so it keeps no terminal.
+          # session, so it keeps no terminal, and it starts with the same plain environment
+          # whoever starts it ({SpawnEnv}), so no caller's odd environment becomes its own.
           #
           # @return [String] the outcome: `started`, `none` when one is already coming up (its lock
           #   is held, or another launcher has claimed the start), or `refused:crowded`
@@ -175,12 +177,19 @@ module Hecks
             return Outcome.refused("crowded") if Crowd.crowded?(root)
             return Outcome::NONE unless Claim.take?(root)
 
-            server = File.join(__dir__, "server.rb")
-            lib = File.expand_path("../../../..", __dir__)
-            quiet = { in: File::NULL, out: File::NULL, err: File::NULL }
-            Process.detach(Process.spawn(RbConfig.ruby, "-I", lib, server, root, File.realpath(script), **quiet))
+            Process.detach(Process.spawn(SpawnEnv.build, *server_command(root, script), **detached))
             Outcome::STARTED
           end
+
+          # @return [Array<String>] the command that runs the resident for the checkout
+          def server_command(root, script)
+            lib = File.expand_path("../../../..", __dir__)
+            [RbConfig.ruby, "-I", lib, File.join(__dir__, "server.rb"), root, File.realpath(script)]
+          end
+
+          # @return [Hash] the spawn options: nothing is inherited from the launcher but the
+          #   plain environment {SpawnEnv} names, and no stream
+          def detached = { unsetenv_others: true, in: File::NULL, out: File::NULL, err: File::NULL }
 
           # @return [Boolean] whether a resident holds the checkout's lock, so it is up or coming up
           def lock_held?(root)

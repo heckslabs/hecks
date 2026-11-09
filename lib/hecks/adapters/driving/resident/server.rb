@@ -4,6 +4,7 @@ require "hecks/adapters/driving/resident/wire"
 require "hecks/adapters/driving/resident/peer"
 require "hecks/adapters/driving/resident/crowd"
 require "hecks/adapters/driving/resident/env_trace"
+require "hecks/adapters/driving/resident/baseline"
 require "hecks/adapters/driving/resident/fingerprint"
 require "hecks/adapters/driving/resident/described_cache"
 require "hecks/adapters/driving/resident/loading"
@@ -127,7 +128,8 @@ module Hecks
           def retire
             @retired = true
             @server.close unless @server.closed?
-            FileUtils.rm_f([Paths.socket(@root), Paths.pid(@root), Paths.version(@root)])
+            FileUtils.rm_f([Paths.socket(@root), Paths.pid(@root), Paths.version(@root), Paths.baseline(@root),
+                            Paths.envs(@root)])
             @lock&.flock(File::LOCK_UN)
           end
 

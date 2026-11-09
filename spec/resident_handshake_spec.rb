@@ -79,8 +79,8 @@ RSpec.describe "the resident's handshake" do
   describe "a line the resident will not serve" do
     let(:request) { super().merge(env: { "HOME" => "/other" }) }
 
-    it "is answered stale with the reason, here the environment, and is not run", :aggregate_failures do
-      serve_line { |_caller_end, first| expect(first).to eq("stale:env") }
+    it "is answered stale with the reason, here the variable it differs on, and is not run", :aggregate_failures do
+      serve_line { |_caller_end, first| expect(first).to eq("stale:env:HOME") }
       expect(server).not_to have_received(:launch)
     end
   end

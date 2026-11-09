@@ -37,11 +37,18 @@ module ResidentLaunch
     Answer.new(out, err, status.exitstatus)
   end
 
-  # @return [Hash] the environment of a launcher started by this group; the specs' own variable that
-  #   keeps launchers off residents is unset for it
+  # The variables a `bundle exec` puts in the environment, which a plain terminal does not have. A
+  # resident starts without them (`Resident::SpawnEnv`), so a launcher that carried them would be
+  # refused on them.
+  BUNDLER = %w[RUBYOPT RUBYLIB GEM_HOME GEM_PATH].freeze
+
+  # @return [Hash] the environment of a launcher started by this group, as a plain terminal would
+  #   make it: the specs' own variable that keeps launchers off residents is unset for it, and so
+  #   is whatever Bundler put in this process's environment
   def env(resident)
-    { "HECKS_NO_RESIDENT" => (resident ? nil : "1"), "HECKS_CACHE_DIR" => @cache, "XDG_CACHE_HOME" => @cache,
-      "HECKS_USAGE" => "off" }
+    plain = (BUNDLER + ENV.keys.grep(/\ABUNDLE/)).to_h { |name| [name, nil] }
+    plain.merge("HECKS_NO_RESIDENT" => (resident ? nil : "1"), "HECKS_CACHE_DIR" => @cache,
+                "XDG_CACHE_HOME" => @cache, "HECKS_USAGE" => "off")
   end
 
   # @return [Integer, nil] the resident's process id, when its pid file names a live process

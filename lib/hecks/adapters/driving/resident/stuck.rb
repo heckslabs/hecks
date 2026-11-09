@@ -1,5 +1,6 @@
 require "fileutils"
 require "hecks/adapters/driving/resident/paths"
+require "hecks/adapters/driving/resident/atypical"
 
 module Hecks
   module Adapters
@@ -8,8 +9,10 @@ module Hecks
         # A resident that accepts callers and does not answer them costs every launcher the wait
         # before it boots on its own, for as long as it stands. A launcher that finds the resident
         # too busy twice in a row, within a minute, stops it, and the line after that starts a
-        # new one. It stops only a process that is this user's and is this checkout's resident,
-        # which it checks by asking the system, so a recycled process id is never signalled.
+        # new one; so does one that sees a resident born under an odd environment refuse callers
+        # on it three times in a minute ({Atypical}). It stops only a process that is this user's
+        # and is this checkout's resident, which it checks by asking the system, so a recycled
+        # process id is never signalled.
         #
         # It uses only the standard library: the launcher runs it before anything else loads.
         module Stuck
@@ -42,11 +45,15 @@ module Hecks
           # @param stop [#call] answers `STOP`; a spec stands in
           # @return [Boolean] whether a resident was stopped
           def after(root, why, look: LOOK, stop: STOP)
-            return retire(root, look: look, stop: stop) if why == "busy" && following?(root)
+            return retire(root, look: look, stop: stop) if replace?(root, why)
 
             why == "busy" ? note(root) : clear(root)
             false
           end
+
+          # @return [Boolean] whether the resident is too busy twice in a row, or was born under an
+          #   odd environment and keeps refusing callers on it ({Atypical})
+          def replace?(root, why) = (why == "busy" && following?(root)) || Atypical.streak?(root, why)
 
           # Forgets a `busy` that was noted, because the resident has answered.
           def clear(root) = FileUtils.rm_f(Paths.busy(root))
@@ -76,6 +83,7 @@ module Hecks
 
             stop.call(pid)
             clear(root)
+            Atypical.clear(root)
             true
           rescue SystemCallError, ArgumentError
             false

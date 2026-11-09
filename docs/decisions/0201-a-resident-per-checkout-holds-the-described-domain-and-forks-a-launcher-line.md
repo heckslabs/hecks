@@ -364,6 +364,37 @@ from starting.
   check as before; a pre-existing resident of the old, unnamed stem stands until its idle time passes, and is
   counted toward `max_residents` while it does.
 
+### A resident's environment
+
+A resident compares each line's variables with the ones it loaded under, and until now those were whatever
+its spawner's environment happened to be. A resident started from a spec harness, a hook, a `bundle exec` or
+a session with `HECKS_*` set refused every ordinary caller: 41 of 45 lines measured were `refused:env` at
+1.36 s (a cold boot) until the process was stopped by hand, after which a resident started from a plain
+shell served 41 of 45 at a median of 0.20 s. Many different processes call `exe/hecks`, so any of them
+could have been the one that started it.
+
+- **Every resident starts plain.** `SpawnEnv.build` keeps `PATH`, `HOME`, `USER`, `LOGNAME`, `SHELL`, `LANG`,
+  `LC_*`, `TMPDIR`, `TERM`, `XDG_CACHE_HOME` and `HECKS_CACHE_DIR` (with `HECKS_RESIDENT_PROTOCOL`, which a
+  spec uses to stand in for a resident of another protocol: both name where the resident's own files live),
+  and the launcher spawns the resident with
+  `unsetenv_others`. Every other `HECKS_*`, `CARGO_*` and `PG*`, `BUNDLE_*`, `GEM_*`, `RUBYOPT`, `RUBYLIB` and
+  `CLAUDE_*` variable is dropped, and the resident sets Bundler up for itself as the launcher does. A caller
+  whose environment matters (`HECKS_ENGINE`, `HECKS_STOREHOUSE_ROOT`) is still refused, and boots cold.
+  Under `bundle exec` a caller carries `BUNDLE_GEMFILE` and `RUBYOPT`, so it is refused too; the specs'
+  launchers scrub those so they look like a terminal.
+- **The refusal names the variable.** The reply is `stale:env:<NAME>`, the first three differing variables
+  joined with `+` (never their values, at most 48 bytes so the reply fits one wire line), and the usage log
+  records `refused:env:<NAME>`. The resident section of `hecks usage` lists them.
+- **A resident not born plain is replaced.** The resident writes the names of the variables it was born with
+  beyond the cache ones to a `.baseline` file (empty for a plain one). A launcher that is refused on the
+  environment three times within a minute (`Atypical`, a `.envs` note beside the socket) and finds the
+  resident was not plain, or never said (an older resident), stops it with the same checks as a stuck one
+  (`Stuck`: this user's process, whose command line holds `resident/server.rb` and the checkout). A plain
+  resident that refuses an odd caller is never stopped however often it does.
+- **Not covered.** A caller on a different Ruby, or with `PATH`, `TZ` or `LANG` differing, is still served by
+  the resident's Ruby and locale; those differ between a hook, a session and a terminal, and matching them
+  would send most lines away from the resident.
+
 ### Measured
 
 | step, on the Hecks domain, macOS arm64, Ruby 3.3.7 | |

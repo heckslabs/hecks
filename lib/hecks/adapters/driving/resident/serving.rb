@@ -20,6 +20,11 @@ module Hecks
           HANDLE_WAIT = 5
           # What a caller is told when it took longer than {HANDLE_WAIT} and the resident gave up.
           DROPPED_DEADLINE = "dropped:deadline".freeze
+          # How many differing variables a refusal names.
+          NAMES = 3
+          # Bytes the names may take: a reply is one line of at most {Wire::MAX_LINE} bytes, and
+          # it opens with `stale:env:`.
+          NAMES_WIDTH = 48
 
           private
 
@@ -72,15 +77,25 @@ module Hecks
           def servable?(request) = unservable(request).nil?
 
           # @return [String, nil] why the line cannot be served: `script` (not this checkout's
-          #   launcher), `env` (an environment variable the code loaded under differs) or
-          #   `changed` (the code or declarations changed, so the resident retires); nil when it can
+          #   launcher), `env:<NAME>` (an environment variable the code loaded under differs; the
+          #   first three differing names, joined with `+`) or `changed` (the code or declarations
+          #   changed, so the resident retires); nil when it can
           def unservable(request)
             return "script" unless same_script?(request)
-            return "env" unless request[:env].slice(*loaded_names) == @environment
+
+            names = differing(request[:env])
+            return "env:#{names}" if names
             return nil unless changed?
 
             retire
             "changed"
+          end
+
+          # @return [String, nil] the names of the first variables the line differs on from what
+          #   the code loaded under, never their values, short enough to fit in a reply
+          def differing(env)
+            names = loaded_names.reject { |name| env[name] == @environment[name] }
+            names.empty? ? nil : names.first(NAMES).join("+")[0, NAMES_WIDTH]
           end
 
           # The child loads the launcher the request names, so it must be this checkout's own.

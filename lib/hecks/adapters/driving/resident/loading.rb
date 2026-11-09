@@ -52,8 +52,12 @@ module Hecks
 
           # Keeps the values the loaded code saw of the variables it read, apart from the ones
           # `PER_LINE` names, which `under` set for each domain it loaded and which are not the
-          # resident's own.
-          def note_environment = (@environment = @start_env.slice(*loaded_names))
+          # resident's own, and writes down which of them a plain resident would not have set
+          # ({Baseline}), so a launcher can tell a resident born under an odd environment.
+          def note_environment
+            @environment = @start_env.slice(*loaded_names)
+            Baseline.write(@root, Baseline.odd(@environment))
+          end
 
           def require_hecks
             gemfile = File.join(@root, "Gemfile")
