@@ -51,6 +51,11 @@ RSpec.describe "the Coder brief's standing sections" do
                                               "600000 ms", "poll loop")
   end
 
+  it "batches the touched spec files into one shared-process call" do
+    expect(section(:verification)).to include("ONE call", "run_spec_files!", "isolation.value=shared",
+                                              "isolation.value=process")
+  end
+
   it "fixes the report format" do
     expect(section(:report)).to include("file:line", "spec counts", "shape-ledger", "sha")
   end
