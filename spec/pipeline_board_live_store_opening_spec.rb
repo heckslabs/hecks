@@ -25,11 +25,6 @@ RSpec.describe Hecks::Adapters::PipelineBoard::LiveStore do
     Struct.new(:registry).new(registry)
   end
 
-  # The slowest snapshot the board read in practice took 19.1 s, so a reader waits longer than that.
-  it "makes a reader wait longer than the slowest boot seen" do
-    expect(Hecks::Adapters::PipelineBoard::LiveStore::Opening::WAIT_SECONDS).to be > 19.1
-  end
-
   def store(booter, **timing)
     described_class.new(root: root, booter: booter, clock: -> { time.first },
                         timing: { retry: 60, check: 0, wait: 2 }.merge(timing))

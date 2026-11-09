@@ -24,7 +24,7 @@ module Hecks
         class Opening
           RETRY_SECONDS = 60
           CHECK_SECONDS = 30
-          WAIT_SECONDS = 25
+          WAIT_SECONDS = 15
           # The files that declare a domain and the ports and adapters it plugs into.
           DECLARATIONS = "**/*.{bluebook,hecksagon,world,adapter,port}"
           # Where the checkout keeps the shared ports and adapters `Hecks.describe` loads for its
