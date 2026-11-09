@@ -24,11 +24,20 @@ RSpec.describe "POST /api/act on the board" do
     lambda do |*args, **opts|
       sent << args
       stdins << opts[:stdin]
-      raise Hecks::Adapters::PipelineBoard::Unavailable, "launcher refused" if refuse == true
-      raise Hecks::Adapters::PipelineBoard::Unavailable, "no such run" if refuse == :check && args.include?("AgentRun.check!")
+      reason = refusal(args)
+      raise Hecks::Adapters::PipelineBoard::Unavailable, reason if reason
 
       ""
     end
+  end
+
+  def refusal(args)
+    return "launcher refused" if refuse == true
+
+    checking = args.include?("AgentRun.check!")
+    return "no such run" if refuse == :check && checking
+
+    "exe/hecks AgentRun.check!: [lifecycle_refused] Check refused - status is \"finished\"" if refuse == :ended && checking
   end
 
   def post(payload, headers = {})
@@ -57,6 +66,38 @@ RSpec.describe "POST /api/act on the board" do
       expect(response.code).to eq("422")
       expect(JSON.parse(response.body)["error"]).to include("could not be checked first: no such run")
       expect(sent.map { |args| args[1] }).to eq(["AgentRun.check!"])
+    end
+  end
+
+  context "when the run has ended but its session still waits on a person" do
+    let(:refuse) { :ended }
+    let(:sessions) { [{ id: "s1", status: "blocked", attach: "s1", run: "run-1" }] }
+
+    def stages = instance_double(Hecks::Adapters::PipelineStages, state: { stages: [], sessions: sessions })
+
+    it "sends the answer to that session as a reply, after the refused check", :aggregate_failures do
+      response = post("action" => "answer", "target" => "run-1", "text" => "your call")
+      expect(response.code).to eq("200")
+      expect(sent.map { |args| args[1] }).to eq(["AgentRun.check!", "attach"])
+      expect(stdins.last).to eq("your call\r")
+    end
+  end
+
+  context "when the run has ended and no session waits on it" do
+    let(:refuse) { :ended }
+
+    it "refuses by name, says the answer is kept and sends nothing", :aggregate_failures do
+      response = post("action" => "answer", "target" => "run-1", "text" => "your call")
+      expect(response.code).to eq("422")
+      expect(JSON.parse(response.body)["error"]).to include("run run-1 has ended", "your answer is kept")
+      expect(sent.map { |args| args[1] }).to eq(["AgentRun.check!"])
+    end
+  end
+
+  context "when the run has started" do
+    it "still checks the run first and answers it through AgentRun.answer!", :aggregate_failures do
+      post("action" => "answer", "target" => "run-1", "text" => "go")
+      expect(sent.map { |args| args[1] }).to eq(%w[AgentRun.check! AgentRun.answer!])
     end
   end
 
