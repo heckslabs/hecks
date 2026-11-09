@@ -4,7 +4,7 @@ require "spec_helper"
 # word that must not stand in for it. The tooling bluebooks, the adapters behind their ports, the
 # specs and the standing guides say the term; the phrase `<aggregate> <never>` anywhere in them
 # fails here by file and line, so the word stays right after the rename that set it.
-RSpec.describe "the terms of the tooling's language" do
+RSpec.describe "the terms of the tooling's language", :repo_scan do
   SPOKEN = %w[
     lib/hecks/hecks/**/* lib/hecks/tickets/**/* lib/hecks/coder/**/* lib/hecks/pipeline/**/*
     lib/hecks/pipeline_board/**/* lib/hecks/quality_control/**/* lib/hecks/language/**/* spec/**/*.rb

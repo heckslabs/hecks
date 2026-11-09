@@ -38,6 +38,8 @@ module Hecks
         LANGUAGE = %r{\Alib/hecks/language/}
         LEDGER = /shape_ledger|conformance|corpus|golden|vocabulary/
         EXTENSIONS = /\..*\z/
+        SCAN = /^RSpec\.describe\b.*,\s*:repo_scan\b/
+        SCAN_TIER = -1
 
         # @param root [String] the tree whose `spec/` is searched
         def initialize(root)
@@ -51,19 +53,27 @@ module Hecks
         # @return [Mapping]
         def map(changed, limit:, skip: ->(_spec) {})
           ranked = tiers(changed).sort_by { |spec, tier| [tier, spec] }.map(&:first)
-          reasons = ranked.to_h { |spec| [spec, skip.call(spec)] }.compact
+          reasons = ranked.to_h { |spec| [spec, (skip.call(spec) unless scan?(spec))] }.compact
           kept = ranked - reasons.keys
           Mapping.new(kept.first(limit), kept.size, reasons)
         end
 
         private
 
-        # The closest tier each spec is reached at: 0 itself, 1 named for the file, 2 mentions it.
+        # The closest tier each spec is reached at: -1 a repository scan, 0 itself, 1 named for the
+        # file, 2 mentions it.
         def tiers(changed)
-          changed.each_with_object({}) do |path, found|
-            reach(path).each { |spec, tier| found[spec] = [found[spec], tier].compact.min }
+          found = changed.each_with_object({}) do |path, reached|
+            reach(path).each { |spec, tier| reached[spec] = [reached[spec], tier].compact.min }
           end
+          changed.empty? ? found : found.merge(scans.to_h { |spec| [spec, SCAN_TIER] })
         end
+
+        # The specs tagged `:repo_scan`: each reads the whole tree, so no changed file points at it
+        # and any change can break it. They run first, before the limit, and ignore the skip rules.
+        def scans = @corpus.files.select { |spec| scan?(spec) }
+
+        def scan?(spec) = SCAN.match?(@corpus.text(spec))
 
         def reach(path)
           return { path => 0 } if itself?(path)
