@@ -2,6 +2,7 @@
 
 require_relative "git_worktrees"
 require_relative "git_main_pull"
+require_relative "git_worktree_warm"
 
 module Hecks
   module Adapters
@@ -43,7 +44,7 @@ module Hecks
         pulled = base == "main" ? pull_main : "cut from #{base}; main not pulled"
         read("worktree", "add", "-b", branch, path, base)
         sha = read("rev-parse", "--short", "HEAD", dir: path)
-        { path: { value: path }, sha: { value: sha }, report: { value: "opened #{path} on #{branch}; #{pulled}" } }
+        opened(path, "opened #{path} on #{branch}; #{pulled}", sha)
       end
 
       # Brings local `main` up to date with `origin/main`: a fast-forward, or a rebase of its
@@ -59,6 +60,14 @@ module Hecks
       end
 
       private
+
+      # The record a new worktree answers with; its resident is started on the way, so the first
+      # launcher lines run there are served.
+      def opened(path, said, sha)
+        resident = GitWorktreeWarm.resident(path)
+        said = "#{said}; resident #{resident}" if resident
+        { path: { value: path }, sha: { value: sha }, report: { value: said } }
+      end
 
       # The ref a worktree is cut from: `main` when none is named, and a ref that resolves to a
       # commit.
