@@ -32,6 +32,7 @@ machine oversubscribe too: 14 sessions and a load limit of 16 on 12 cores.
 | **Caps** | `tickets.world` `work_limit`, `dispatch_max_load`, `machine_marks` | 6 started items, fill stops at 1-minute load 8, Machine marks 6 and 8: one number, below the 12 cores, so the Machine pausing the plan and the plan's own check agree. |
 | **Orphan reaper** | `agents/adapters/sweeping/orphans/` | The pruner's sweep stops an `exe/hecks` process older than 30 minutes whose parent is gone, and `hecks-isolated-push` spec leftovers older than a day. It keeps servers, `mcp`, `SendTrain`, ticks, gates, spec runs, landings and `Operation.run`/`follow` waits (`Rules::KEPT`), and spares Claude sessions and Cargo builds below a leftover. |
 | **Cargo target** | `rust_build/session_build.rb`, `tickets.world` `session_environment` | A build that runs a produced binary gets its own directory under the shared root (`<name>-<8 hex>`); `cargo test` shares one. `nice` follows the workspace being built. |
+| **Rust build policy** | `rust_build/build_lock.rb`, `build_policy.rb`, `binary_cache.rb`, `tickets.world` `rust_build` | Every `cargo` or `rustc` hecks starts waits for one machine-wide lock (`~/.cache/hecks/rust-build/build.lock`, a `flock`, released when the holder exits), runs with `CARGO_BUILD_JOBS` from the line (4) and `nice` (15) in every checkout, and a native binary built from the same sources by another workspace is copied from `rust-build/bin/` instead of compiled. Skipped by `HECKS_NO_BUILD_LOCK=1` and in CI; a `CARGO_BUILD_JOBS` set by hand wins. A build started by hand is untouched. |
 | **Light MCP servers** | `adapters/driving/mcp/loading.rb`, `agents Role.server_env` | `hecks-mcp` and `hecks-query-ir` load the framework on the first tool call (16 MB idle, 48 MB after). A dispatched role session starts with `claude --mcp-config ... --strict-mcp-config` carrying the role's restricted server, which also leaves out MCP servers from other scopes. |
 | **Coder waits** | `coder/coder.bluebook`, `Operation.follow` | A coder waits for its architect's verdict with `names.value=PlanReviewed,PlanReviewRecorded` in up to four 150 s calls, re-reading `PlanReview.reviews` after each. Specs are batched into one `run_spec_files!` call with `isolation.value=shared`. |
 
@@ -100,6 +101,7 @@ Shared caches and records, which every checkout and worktree reads, and how each
 | Parked item never starts | its retry time has not passed, the machine is over its limit, or roll-forward is false | `exe/hecks Dispatch.Preview` (parked and skipped lines); `dispatch_roll_forward` in `tickets.world`; the waker rolls when the time passes or the load clears |
 | A run stays started after its session was removed | the sweep waits out `session_grace` and the 5-minute look-up throttle | `claude agents --json --all`; `exe/hecks AgentRun.retire! to=<run>` after the grace |
 | `rustc` at full CPU in a worktree | a build outside the dispatcher's environment | `ps -Ao pid,pcpu,command \| grep rustc`; `exe/hecks config domain.value=lib/hecks/hecks` |
+| Several `rustc` at once, or a build that seems stuck | builds started by hand skip the lock; a hecks build waits behind another (it says so after 5 s) | `cat ~/.cache/hecks/rust-build/build.lock` names the holder's pid; `HECKS_NO_BUILD_LOCK=1` skips the wait; ADR 0203 has the build timings |
 | Many `claude`-owned `ruby` processes | two MCP servers per session | `ps -Ao rss,command \| grep -E 'tools/(mcp\|serve_query)'` |
 | Board slow or memory growing | live store reload or restart limits | the `board_restart` line; `ps -o rss= -p <board pid>` |
 | A refusal that names a `save_saga` or outbox warning | the warning is a boot notice, not the cause; the cause is the first line of the refusal and the notices follow `-- boot notices --` | read the refusal's first line; `Hecks::BootNotices` lists the notices |
@@ -109,6 +111,10 @@ Shared caches and records, which every checkout and worktree reads, and how each
 - **MCP forwarding is not built.** A server that has made a tool call holds the framework (48 MB); tool calls are not
   sent to the resident, by design (ADR 0201).
 - **No prebuilt Rust kernel for macOS.** Only Linux host rows are published, so a worktree compiles its own binaries.
+  The binary cache covers a worktree whose `rust/` is unchanged.
+- **A worktree's host build compiles its 402 registry packages again.** A binary build takes a directory of its own,
+  so `rust/host` (wasmtime and the rest) is not shared between worktrees; `sccache` would share it (not installed).
+  ADR 0203 has the measurements and why the kernel split was not made.
 - **A coder's worktree has no local overlay.** `hecks.local.hecksagon` and `hecks.local.world` are gitignored, so
   stores that live there (Agents, Work, Landing, AgentRun and the rest of the shared ledgers) boot in Memory in a
   worktree. A command that **writes** one is run in the main checkout instead (`LedgerForward`, ADR 0202), with the

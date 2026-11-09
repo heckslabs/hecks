@@ -9,6 +9,19 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ### Changed
 
+- **Rust builds hecks starts queue behind one lock, run under a job cap and `nice`, and reuse a binary another
+  workspace built.** One `rustc` was seen at 384% of a core. Every `cargo` or `rustc` hecks starts
+  (`RustBuild.command!`, `capture_build`, the codegen, native, coverage, cargo-test, bench and QA paths, and the
+  spec helpers that build the parser) now waits for one `flock` under the cache directory
+  (`RustBuild::BuildLock`; `HECKS_NO_BUILD_LOCK=1` and CI skip it), runs with `CARGO_BUILD_JOBS` and `nice` from the
+  Tickets world's new `rust_build "RustBuild", jobs: 4, nice: 15` line in every checkout, the owner's main one
+  included (`BuildPolicy`; a `CARGO_BUILD_JOBS` set by hand wins), and a native conformance binary built from the
+  same Rust sources, compiler and feature by another workspace is copied from the cache instead of compiled
+  (`BinaryCache`, newest 32). The bench runner now builds where it looks for the binary: it found none when a
+  worktree's shared target directory applied. ADR 0203 records the build timings (a cold feature build is 4 to 9
+  seconds, an edit one second, the kernel is about half of a small domain's crate unit and does not build without
+  `generated::active`) and why the kernel is not split into its own crate yet.
+
 - **A write from a worktree to a shared ledger runs in the main checkout, instead of being lost (ADR 0202).** A linked
   worktree lacks the gitignored overlay files that bind `Tickets::Work`, `Landing`, `LinkedTree`, `AgentRun`,
   `SendTrain`, `Pipeline::Passage` and the `Agents` aggregates to their ledgers, so a command that wrote one stored in

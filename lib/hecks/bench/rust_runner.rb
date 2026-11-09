@@ -28,19 +28,28 @@ module Hecks
 
       # The pinned copy has its own name so building another domain's feature cannot replace it.
       def build(feature, rust_dir: RUST_DIR)
+        target = target_dir(rust_dir)
         output, status = Hecks::RustBuild.capture_build(
-          ["cargo", "build", "--release", "--no-default-features", "--features", feature], chdir: rust_dir
+          ["cargo", "build", "--release", "--no-default-features", "--features", feature],
+          chdir: rust_dir, env: { "CARGO_TARGET_DIR" => target }
         )
         unless status.success?
           raise BuildFailed,
                 "cargo build --release --features #{feature} failed:\n#{output.lines.last(15).join}"
         end
 
-        pin_release(feature, rust_dir)
+        pin_release(feature, target)
       end
 
-      def pin_release(feature, rust_dir)
-        target = File.join(ENV.fetch("CARGO_TARGET_DIR", File.join(rust_dir, "target")), "release")
+      # @return [String] where the build writes and the binary is looked for: a directory named by
+      #   hand, else the worktree's own, else the workspace's `target/`
+      def target_dir(rust_dir)
+        root = Hecks::RustBuild::SessionBuild.root_of(rust_dir)
+        Hecks::RustBuild::SessionBuild.binary_dir(root: root) || File.join(rust_dir, "target")
+      end
+
+      def pin_release(feature, target_dir)
+        target = File.join(target_dir, "release")
         pinned = File.join(target, "rust-bench-#{feature}")
         FileUtils.cp(File.join(target, "rust"), pinned)
         pinned
