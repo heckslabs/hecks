@@ -8,6 +8,12 @@ RSpec.describe Hecks::RustBuild::BuildPolicy do
   let(:session) { Hecks::RustBuild::SessionBuild }
   let(:root) { "/some/checkout" }
 
+  # `world_row` keeps what it read for the rest of the process, and a read that fails keeps nothing:
+  # an example that came first can leave the checkout's row empty. Each example reads it afresh.
+  before { session.reset! }
+
+  after { session.reset! }
+
   def declare(**row)
     allow(session).to receive(:world_row).with(root, "rust_build").and_return(row)
   end
