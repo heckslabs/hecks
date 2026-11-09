@@ -7,7 +7,7 @@ RSpec.describe Hecks::Adapters::Dispatching do
   include RegistryDouble
 
   let(:work_items) { instance_double(described_class::WorkItems, started: [started_item], runs: runs) }
-  let(:launcher) { instance_double(described_class::Launcher, check: nil, finish: "finished a", yield_back: "yielded a") }
+  let(:launcher) { instance_double(described_class::Launcher, check_all: nil, finish: "finished a", yield_back: "yielded a") }
   let(:started_item) { described_class::Plan::Item.new(key: "a", title: "A", detail: "", area: []) }
 
   def world(**verbs)
@@ -44,7 +44,29 @@ RSpec.describe Hecks::Adapters::Dispatching do
         lines = described_class::Settler.new(work_items, launcher).call
 
         expect(lines).to eq([])
-        expect(launcher).to have_received(:check).with("a")
+        expect(launcher).to have_received(:check_all)
+      end
+    end
+
+    context "when several sessions are still running" do
+      let(:runs) { { "a" => { status: "started", condition: "" }, "b" => { status: "started", condition: "" } } }
+      let(:work_items) { instance_double(described_class::WorkItems, started: [started_item, second_item], runs: runs) }
+      let(:second_item) { described_class::Plan::Item.new(key: "b", title: "B", detail: "", area: []) }
+
+      it "checks them all in one launcher call" do
+        described_class::Settler.new(work_items, launcher).call
+
+        expect(launcher).to have_received(:check_all).once
+      end
+    end
+
+    context "when no session is started" do
+      let(:runs) { { "a" => { status: "finished", condition: "done" } } }
+
+      it "does not boot a launcher to check" do
+        described_class::Settler.new(work_items, launcher).call
+
+        expect(launcher).not_to have_received(:check_all)
       end
     end
   end

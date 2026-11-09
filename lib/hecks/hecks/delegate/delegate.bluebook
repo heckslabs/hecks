@@ -755,11 +755,14 @@ Hecks.bluebook "Hecks" do
     # The fill that follows a reading. It runs after the reading is recorded, so it sees the state the
     # reading left: a fill that follows LoadFellBelow, MemoryRecovered or TestLaneIdle starts work, and
     # one that follows LoadRoseAbove or MemoryLow finds every item waiting "paused by load" or "memory
-    # low". The reading's own key keys the roll, so one reading rolls once. It is also the slow backstop:
-    # a beat is a reading, and a reading is a roll.
-    policy "RollWhenTheMachineIsRead" do
-      on      "Machine.MachineRead"
+    # low". The reading's own key keys the roll, so one reading rolls once. Only a reading that moved a
+    # state rolls (the load, the memory or the test lane crossed a mark): a beat that leaves the machine
+    # as it stood changes nothing a fill could act on, and the events that free capacity or add work roll
+    # on their own.
+    policy "RollWhenTheMachineMoves" do
+      on      "Machine.MachineSampled"
       root
+      where   { load_state != load_before || memory_state != memory_before || lane_state != lane_before }
       trigger Roll::Start, with: { run: :id }
     end
 

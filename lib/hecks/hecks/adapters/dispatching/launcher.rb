@@ -50,9 +50,11 @@ module Hecks
           yield_back(item, e.message)
         end
 
-        # @param key [String] the run, which is also the Work item's key
+        # Checks every started run's session in one launcher boot, so each run's change of state is
+        # recorded however many runs are started.
+        #
         # @return [void]
-        def check(key) = @runner.call(["AgentRun.check!", "to=#{key}", "--wait"])
+        def check_all = @runner.call(["AgentRun.check_all!", "--wait"])
 
         # @param key [String] the Work item to record as done
         # @return [String] the line that says so

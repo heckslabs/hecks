@@ -20,7 +20,7 @@ module Hecks
 
         # @return [Array<String>] one line for each work item settled, empty when none was
         def call
-          checkable.each_key { |key| @launcher.check(key) }
+          @launcher.check_all unless checkable.empty?
           ended.map { |key, run| settle(key, run[:condition]) }
         end
 

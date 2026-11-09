@@ -110,7 +110,7 @@ module Hecks
         @github = readers.fetch(:github) { PipelineGitHub.new(root: @root) }
         @git = readers.fetch(:git) { PipelineGit.new(root: @root) }
         @journal = readers.fetch(:journal) { PipelineJournal.new(root: @root) }
-        @fill = readers.fetch(:fill) { PipelineFill.new(root: @root) }
+        @fill = readers.fetch(:fill) { PipelineFill.new(root: @root, registry: registry) }
         wire_work(readers, registry)
       end
 
