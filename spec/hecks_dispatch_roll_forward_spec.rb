@@ -24,4 +24,13 @@ RSpec.describe "a rolling fill" do
     expect(roller.roll[:report][:value]).to include("would start 0")
     expect { roller.roll }.to raise_error(Failure, /unchanged/)
   end
+
+  # The session that landed the branch ends, and that end rolls; a roll at the landing itself would
+  # count the holder as still started and start nothing.
+  it "is not started by a landed branch" do
+    bluebook = Hecks.describe(File.expand_path("../lib/hecks/hecks", __dir__)).registry.bluebooks.fetch("Hecks")
+    rolls = bluebook.policies.select { |policy| policy.name.start_with?("Roll") }
+
+    expect(rolls.map(&:on_event)).not_to include("Landing.BranchLanded")
+  end
 end

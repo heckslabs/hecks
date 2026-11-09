@@ -888,14 +888,11 @@ Hecks.bluebook "Hecks" do
       trigger Roll::Start, with: { run: :work }
     end
 
+    # A landed branch starts no roll of its own: the session that landed it ends, and that end rolls;
+    # the machine's reading is the backstop.
     policy "RollWhenWorkIsReopened" do
       on      "Work.WorkReopened"
       trigger Roll::Start, with: { run: :work }
-    end
-
-    policy "RollWhenABranchLands" do
-      on      "Landing.BranchLanded"
-      trigger Roll::Start, with: { run: :run }
     end
 
     # The directory is looked for first, so a brief is never handed to a session that has nowhere to work.

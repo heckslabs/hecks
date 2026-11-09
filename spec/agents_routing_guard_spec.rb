@@ -24,8 +24,20 @@ RSpec.describe "the orchestrator routing guard" do
   describe "the Role row" do
     it "carries the routing commands of the orchestrator", :aggregate_failures do
       patterns = rows("RoutingRule").map { |row| row[:pattern] }
-      expect(patterns).to include("Work.*", "Dispatch.fill!", "SendTrain.board!", "PipelineBoard.snapshot")
+      expect(patterns).to include("Work.*", "Dispatch.preview", "SendTrain.board!", "PipelineBoard.snapshot")
       expect(patterns).to include("AgentRun.check_all!", "AgentRun.answer!", "AgentRun.tidy!", "Landing.retire!")
+    end
+
+    it "no longer lets the orchestrator fill the queue by hand: planned work rolls forward" do
+      expect(rows("RoutingRule").map { |row| row[:pattern] }).not_to include("Dispatch.fill!")
+    end
+
+    it "refuses a fill naming the Dispatch verb the orchestrator may read" do
+      expect(refusal("exe/hecks Dispatch.fill! run.value=x repo.value=/r --confirm")).to include("use Dispatch.preview")
+    end
+
+    it "carries the roll-forward rule as data" do
+      expect(rows("RoleRule").map { |row| row[:rule] }.last).to include("A coder starts by itself")
     end
 
     it "lets the orchestrator settle ended sessions, with a hint for the nearest refused shape", :aggregate_failures do

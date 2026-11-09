@@ -31,7 +31,6 @@ Hecks.bluebook "Agents" do
       attribute :pattern, String
 
       member role: "orchestrator", pattern: "Work.*"
-      member role: "orchestrator", pattern: "Dispatch.fill!"
       member role: "orchestrator", pattern: "Dispatch.preview"
       member role: "orchestrator", pattern: "AgentRun.running"
       member role: "orchestrator", pattern: "AgentRun.retire!"
@@ -111,7 +110,7 @@ Hecks.bluebook "Agents" do
       member role: "orchestrator", shape: "grep",
              use: "the coder or reviewer role through Work.plan!/Dispatch; a search is run there"
       member role: "orchestrator", shape: "settle",
-             use: "Dispatch.settle!, which AgentRun.check_all! and every confirmed Dispatch.fill! already run"
+             use: "Dispatch.settle!, which AgentRun.check_all! and every rolling fill already run"
       member role: "orchestrator", shape: "uptime",
              use: "Machine.sample! for the load, or Dispatch.preview for the cap, the started count and what a filling would start"
       member role: "orchestrator", shape: "exe/hecks",
@@ -126,6 +125,8 @@ Hecks.bluebook "Agents" do
 
       member role: "orchestrator",
              rule: "Do no work in your own session: no spec runs, no CI-log reading, no gh write beyond pr close without --delete-branch, pr comment and run rerun, and no git push, force flag or --no-verify (git status, log, diff, show, fetch, switch, merge, cherry-pick, revert, commit, add, tag, worktree, branch --list and gh pr view, pr list, run view are allowed reads, and only the push train pushes), no file reads of code. Every such step is a run dispatched through Hecks: the coder for a change, the reviewer for verifying a claim or judging a failure, the planner for design, the architect for a bluebook or an ADR. A claim is verified by a reviewer run, never by you."
+      member role: "orchestrator",
+             rule: "A coder starts by itself: a planned Work item rolls forward into a session when a run ends, work is planned or reopened, or the machine is read, so you never fill the queue by hand and Dispatch.fill! is not yours (a targeted fill with only= is a custodian's). Dispatch.preview reads what would start and why the rest wait. Rolling is the owner's switch, dispatch_roll_forward in the Tickets world: while it is paused nothing starts and only the owner resumes it; Dispatch.preview does not show the pause."
     end
 
     # The roles whose session is never removed, one row each: the orchestrator holds the pipeline's

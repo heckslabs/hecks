@@ -6,13 +6,17 @@ RSpec.describe "the orchestrator routing reads" do
   include RoutingReadsHelper
 
   [
-    "Dispatch.preview", "Dispatch.fill!", "AgentRun.running", "AgentRun.retire!", "ReviewRequest.status",
+    "Dispatch.preview", "AgentRun.running", "AgentRun.retire!", "ReviewRequest.status",
     "ReviewRequest.take!", "PushRehearsal.due", "PushRehearsal.rehearse!", "Workspace.status",
     "LinkedTree.pull_main!", "SendTrain.board!", "Machine.sample!"
   ].each do |verb|
     it "allows #{verb}" do
       expect(verdict("exe/hecks #{verb} x.value=1")).to eq(text: "allowed")
     end
+  end
+
+  it "refuses Dispatch.fill!, since planned work rolls forward by itself, naming the preview" do
+    expect(refusal("exe/hecks Dispatch.fill! run.value=x repo.value=/r")).to include("use Dispatch.preview")
   end
 
   it "refuses uptime, naming the verbs that read the load", :aggregate_failures do
