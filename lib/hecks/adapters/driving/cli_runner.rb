@@ -4,6 +4,7 @@ require_relative "command_request"
 require_relative "context_line"
 require_relative "exit_status"
 require_relative "write_guard"
+require_relative "ledger_forward"
 require_relative "json"
 require_relative "launcher_options"
 require_relative "read_only_question"
@@ -90,8 +91,8 @@ module Hecks
           plan = resolve(runtime, argv, program)
           return plan[:answer] if plan[:answer]
 
-          refused = guard_command(plan, err)
-          return [refused, ExitStatus::REFUSED] if refused
+          guarded = guard_command(plan, argv, err)
+          return guarded if guarded
 
           answer = dispatch(runtime, plan[:spec], plan[:name], plan[:rest], plan[:program], plan[:asking],
                             bluebook: plan[:bluebook], launcher: plan[:launcher])
@@ -118,16 +119,18 @@ module Hecks
           "interrupted during #{name}: the run was stopped before it finished"
         end
 
-        # Before a command (not a query) runs: refuses a write that would land in Memory from a
-        # worktree whose main checkout stores it elsewhere, else prints the context line.
+        # Before a command (not a query) runs: a write that would land in Memory from a worktree
+        # whose main checkout stores it elsewhere runs in the main checkout (or is refused, when
+        # forwarding is off); any other command prints the context line and runs here.
         #
         # @api private
-        # @return [String, nil] the refusal, or nil when the command may run
-        def guard_command(plan, err)
+        # @return [Array(String, Integer), nil] the answer of a forwarded or refused write, or nil
+        #   when the command may run here
+        def guard_command(plan, argv, err)
           return if plan[:asking]
 
-          refusal = WriteGuard.refusal(Dir.pwd, plan[:bluebook]&.name)
-          return refusal if refusal
+          forwarded = LedgerForward.call(plan, argv, err)
+          return forwarded if forwarded
 
           ContextLine.announce(err) unless quiet?
           nil

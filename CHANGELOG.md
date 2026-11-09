@@ -9,6 +9,16 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ### Changed
 
+- **A write from a worktree to a shared ledger runs in the main checkout, instead of being lost (ADR 0202).** A linked
+  worktree lacks the gitignored overlay files that bind `Tickets::Work`, `Landing`, `LinkedTree`, `AgentRun`,
+  `SendTrain`, `Pipeline::Passage` and the `Agents` aggregates to their ledgers, so a command that wrote one stored in
+  the worktree's Memory: `tickets Work.plan!` answered `planned` and `tickets.db` never had the row. `WriteGuard` looked
+  the store up by bluebook (`Tickets`, Memory) and never fired. It now looks up the command's aggregate first, and
+  `LedgerForward` runs the line with the main checkout's `exe/hecks`, in the main checkout, relaying its output and exit
+  status, and names the worktree as `checkout.value` when the command takes one and none was given.
+  `HECKS_NO_FORWARD=1` refuses instead (the old message, now naming the main checkout), and a forwarded run
+  (`HECKS_FORWARDED=1`) is never forwarded again. Queries and commands on Memory-bound aggregates stay local.
+
 - **A coder's plan review and red-flag listening run through the main checkout.** The reviews and red flags are stored in the main checkout's SQLite, which a worktree lacks (the overlay files are gitignored), so from a worktree the `PlanReview.request!` write was refused by the write guard and the `PlanReview.reviews` read and the `Operation.follow` saw an empty Memory store: the wait could only time out. The coder brief now names `{main}/exe/hecks agents PlanReview.request!`, `{main}/exe/hecks agents PlanReview.reviews` and `{main}/exe/hecks Operation.follow domain.value={main}/lib/hecks/hecks ...`, with `repo.value=` still naming the coder's worktree so the architect reads that plan, and the same for the red-flag follow. `Dispatching::BriefText#render` takes `main:` (the checkout the filling runs from) and raises when a brief names `{main}` without it. The architect's verdict is recorded by policies in the process that settles the run, which is the main checkout, so nothing on the architect side changed.
 
 - **A refusal opens with the command's own cause, and the runtime's boot notices follow it.** A failure built from captured output (`ConsoleCapture.answer`, `answer_apart`) used to open with whichever line printed first, so a command refused for a missing `confirm` read as "process manager X has no `save_saga`" in the record's `refusal`, the `--wait` reason, and the reason a launcher step recorded with `Work.yield!`. `Hecks::BootNotices` (`lib/hecks/boot_notices.rb`) names the notices (a process manager with no `save_saga`, an outbox row claimed before a restart, a worktree without the overlay files, any other `[hecks]` warning); `compose` puts the command's words first and the notices after a `-- boot notices --` line, so nothing is lost, and `cause` gives the one line a person reads. `StepOutcome`, the settled run's failure sentence and a Memory command's stderr line all use it. The notices still print once to stderr as the process boots.
