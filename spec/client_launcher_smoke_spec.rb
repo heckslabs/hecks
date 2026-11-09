@@ -270,7 +270,7 @@ RSpec.describe "client launcher smoke" do
   end
 
   describe "a launcher the current generator wrote for a domain that did not opt in" do
-    it "is the launcher the 2.9 generator wrote, plus the project-Gemfile and compiled-Ruby blocks, byte for byte", :aggregate_failures do
+    it "is the 2.9 launcher plus the project-Gemfile and compiled-Ruby blocks, byte for byte", :aggregate_failures do
       expect(File.read(File.join(@plain_root, "pizzas/pizzas"))).to eq(PRE_3_0_LAUNCHER)
       expect(@out).to include("pizzas/pizzas  ->  Pizzas")
       expect(File.executable?(File.join(@plain_root, "pizzas/pizzas"))).to be(true)

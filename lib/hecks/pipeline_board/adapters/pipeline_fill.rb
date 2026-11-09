@@ -6,8 +6,8 @@ require_relative "../../hecks/adapters/started_work"
 module Hecks
   module Adapters
     # Reads the last filling of the queue: which planned Work items it would start, which it skips
-    # and why, plus the load and cap it saw. A rolling fill records its report on its `Roll`, so the
-    # tile reads that record through the booted registry and starts no process. Only where the
+    # and why, plus the load and cap it saw. A rolling fill records its report on its `Roll`, so
+    # the tile reads that record through the booted registry and starts no process. Only where the
     # registry holds no report (the board does not share the ledger the rolls write to) is
     # `Dispatch.Preview` asked of a launcher, and that answer is kept for several minutes.
     class PipelineFill
@@ -18,11 +18,12 @@ module Hecks
       PREVIEW_TTL = 600
 
       # @param aggregate [Object, nil] unused
-      # @param settings [Hash] `report:` stands in for the last recorded report (a callable answering
-      #   its text or nil), `runner:` for the launcher (a callable taking the arguments, answering
-      #   its standard output), `ttl:` for how long a launcher's preview is kept
+      # @param settings [Hash] `report:` stands in for the last recorded report (a callable
+      #   answering its text or nil), `runner:` for the launcher (a callable taking the arguments,
+      #   answering its standard output), `ttl:` for how long a launcher's preview is kept
       # @param root [String, nil] the checkout the launcher runs in
-      # @param registry [Runtime::Registry, nil] the booted registry the `Roll` records are read from
+      # @param registry [Runtime::Registry, nil] the booted registry the `Roll` records are read
+      #   from
       def initialize(aggregate: nil, settings: {}, root: nil, registry: nil)
         @root = root || Dir.pwd
         @registry = registry
@@ -33,7 +34,8 @@ module Hecks
 
       # @return [Hash] `load`, `limit`, `cap`, `started`, `would_start` (slug and title) and
       #   `skipped` (slug and reason)
-      # @raise [PipelineBoard::Unavailable] when no report is recorded and the launcher cannot answer
+      # @raise [PipelineBoard::Unavailable] when no report is recorded and the launcher cannot
+      #   answer
       def preview
         text = @recorded.call
         parse(text.to_s.empty? ? @cache.fetch(:fill) { launcher_report } : text)

@@ -72,17 +72,24 @@ module Hecks
             end
 
             def readable_sources(spec, context)
-              aggregates = context.aggregates
-              emitters = context.emitters
               pm = spec.process_manager
-              event_name = spec.event_name
-              # A policy's source also carries the emitter's identity, under each head and as `:id`
-              # (`PolicyInterpreter#emitter_identity`, `#emitter_id`); a saga leg's source
-              # (`SagaInterpreter#dispatch_args`) merges no such thing.
-              identity = pm.nil? && event_name ? [*event_identity_heads_for(event_name, aggregates, emitters), :id] : []
-              shapes = [event_name && event_shape_for(event_name, aggregates, emitters),
-                        pm && event_shape_for(pm.starts_on, aggregates, emitters)].compact
-              Readable.new(pm&.correlates_by && pm.correlation_head, identity, shapes, spec.row_names.to_a)
+              Readable.new(pm&.correlates_by && pm.correlation_head, emitter_identity(spec, context),
+                           emitted_shapes(spec, context), spec.row_names.to_a)
+            end
+
+            # A policy's source also carries the emitter's identity, under each head and as `:id`
+            # (`PolicyInterpreter#emitter_identity`, `#emitter_id`); a saga leg's source
+            # (`SagaInterpreter#dispatch_args`) merges no such thing.
+            def emitter_identity(spec, context)
+              return [] unless spec.process_manager.nil? && spec.event_name
+
+              [*event_identity_heads_for(spec.event_name, context.aggregates, context.emitters), :id]
+            end
+
+            def emitted_shapes(spec, context)
+              pm = spec.process_manager
+              [spec.event_name && event_shape_for(spec.event_name, context.aggregates, context.emitters),
+               pm && event_shape_for(pm.starts_on, context.aggregates, context.emitters)].compact
             end
 
             def refuse_undeclared_with_field!(spec, field)

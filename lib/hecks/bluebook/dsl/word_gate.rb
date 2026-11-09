@@ -110,15 +110,9 @@ module Hecks
           def index_for(keywords)
             return @index if @index_keywords.equal?(keywords)
 
-            index = Hash.new { |rows, key| rows[key] = [] }
-            keywords.each do |row|
-              index[[row[:context], row[:word]]] << row
-              index[[row[:context], row[:was]]] << row if row[:was] && row[:was] != row[:word]
-            end
-            index.default_proc = nil
             @index_keywords = keywords
-            @words = nil
-            @index = index.freeze
+            @words_of = nil
+            @index = build_index(keywords)
           end
 
           # Every word or older spelling the table knows anywhere, as hash keys.
@@ -127,11 +121,21 @@ module Hecks
           # @return [Hash{String => true}]
           def words_of(keywords)
             index_for(keywords)
-            @words ||= keywords.each_with_object({}) do |row, words|
-              words[row[:word]] = true
-              words[row[:was]] = true if row[:was]
-            end.freeze
+            @words_of ||= keywords.flat_map { |row| spellings(row) }.to_h { |name| [name, true] }.freeze
           end
+
+          private
+
+          # @return [Hash{Array(String, String) => Array<Hash>}] the rows by context and spelling
+          def build_index(keywords)
+            index = Hash.new { |rows, key| rows[key] = [] }
+            keywords.each { |row| spellings(row).each { |name| index[[row[:context], name]] << row } }
+            index.default_proc = nil
+            index.freeze
+          end
+
+          # @return [Array<String>] the word a row admits and, if it keeps one, its older spelling
+          def spellings(row) = [row[:word], row[:was]].compact.uniq
         end
       end
     end
