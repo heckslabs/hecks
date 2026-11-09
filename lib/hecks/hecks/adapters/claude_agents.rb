@@ -79,7 +79,7 @@ module Hecks
       def start(**held)
         line = session_line
         result = @shell.capture(*line.arguments(held), env: named(held), chdir: plain(held[:repo]))
-        { session: { value: session_id(result) }, started_at: { value: clock.iso8601 } }.merge(line.report)
+        { session: { value: session_id(result) }, started_at: { value: @clock.call.iso8601 } }.merge(line.report)
       end
 
       # Reads the state a started session's job is in, beside the state the run last recorded.
@@ -234,14 +234,12 @@ module Hecks
 
       def niceness = @session.nice ? ["nice", "-n", @session.nice.to_s] : []
 
-      def clock = (@now || -> { Time.now.utc }).call
-
       # The look-up of whether a run's session is still listed, over the listing it shares. `now`
       # stands in for the clock, which also dates a session's start.
       def session_lookup(now)
-        @now = now
-        @listing = ClaudeSessionListing.new(@command, shell: @shell, now: -> { clock })
-        SessionLookup.new(@listing, grace: -> { @session.session_grace }, now: -> { clock })
+        @clock = now || -> { Time.now.utc }
+        @listing = ClaudeSessionListing.new(@command, shell: @shell, now: @clock)
+        SessionLookup.new(@listing, grace: -> { @session.session_grace }, now: @clock)
       end
 
       def plain(argument) = argument.is_a?(Hash) ? argument[:value] : argument

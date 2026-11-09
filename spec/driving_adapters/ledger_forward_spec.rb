@@ -9,7 +9,10 @@ RSpec.describe Hecks::Adapters::Driving::LedgerForward do
   around do |example|
     Dir.mktmpdir do |root|
       @root = File.realpath(root)
+      local = ENV.delete(described_class::LOCAL)
       example.run
+    ensure
+      ENV[described_class::LOCAL] = local if local
     end
   end
 
@@ -52,6 +55,13 @@ RSpec.describe Hecks::Adapters::Driving::LedgerForward do
     expect([launcher, directory]).to eq([File.join(main, "exe/hecks"), main])
     expect(args.first(3)).to eq(%w[Work.plan! work.value=x --wait])
     expect(env).to include("HECKS_FORWARDED" => "1", "BUNDLE_GEMFILE" => nil)
+  end
+
+  it "runs nothing and answers nothing when the process writes where it stands, as a spec does", :aggregate_failures do
+    answer = forward(%w[Work.plan! work.value=x], env: { described_class::LOCAL => "1" })
+
+    expect(answer).to be_nil
+    expect(calls).to be_empty
   end
 
   it "answers what the main checkout answered" do

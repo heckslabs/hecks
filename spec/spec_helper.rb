@@ -28,6 +28,10 @@ ENV["HECKS_CACHE_DIR"] = USAGE_CACHE_SPEC_DIR
 # processes they start.
 ENV["HECKS_NO_RESIDENT"] = "1"
 
+# A spec writes to its own Memory domain: a write run from a worktree is never forwarded to the
+# main checkout's launcher, which would put the spec's stand-in runs into the owner's live ledgers.
+ENV["HECKS_WRITES_LOCAL"] = "1"
+
 # The runtime's event tap is private to the run as well, children included: a child that boots
 # the Hecks domain in its real world writes its lines here, never to the owner's log, which the
 # pipeline board reads. In this process the Memory overlay switches the tap off altogether.

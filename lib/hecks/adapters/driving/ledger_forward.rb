@@ -23,6 +23,11 @@ module Hecks
         # The argument that names the checkout a command works on.
         CHECKOUT = /\Acheckout(\.value)?\z/
 
+        # The variable that makes a process write where it stands: a spec boots its own Memory
+        # domain on purpose, and forwarding its writes would run them against the main checkout's
+        # live ledgers.
+        LOCAL = "HECKS_WRITES_LOCAL"
+
         # Runs a launcher in a directory with an environment and answers its output and status.
         RUNNER = lambda do |env, launcher, args, directory|
           Open3.capture3(env, launcher, *args, chdir: directory)
@@ -41,7 +46,7 @@ module Hecks
         # @return [Array(String, Integer), nil] the text and status the line ended with, or nil
         #   when the line runs here
         def call(plan, argv, err, **seams)
-          return if plan[:asking]
+          return if plan[:asking] || local?(seams)
 
           directory = seams.fetch(:directory) { Dir.pwd }
           verdict = verdict_for(plan, directory, seams)
@@ -53,6 +58,9 @@ module Hecks
           ["hecks: refused: #{e.message}, so a write to a shared ledger cannot be placed. Run it from the main checkout.",
            ExitStatus::REFUSED]
         end
+
+        # @return [Boolean] whether the process writes where it stands, by `HECKS_WRITES_LOCAL`
+        def local?(seams) = !seams.fetch(:env, ENV)[LOCAL].to_s.empty?
 
         # @return [WriteGuard::Verdict] what the guard decides for the line's aggregate
         def verdict_for(plan, directory, seams)
