@@ -58,6 +58,14 @@ RSpec.describe "the boot budget" do
     expect(reading.boots).to eq(1)
   end
 
+  it "does not price a run with no start time dated yesterday, which the window may no longer hold", :aggregate_failures do
+    yesterday = { "boot_ms" => 1_800_000, "date" => "2026-11-08" }
+    reading = budget(yesterday, { "boot_ms" => 1_800_000, "date" => "2026-11-09" }).today
+
+    expect(reading.hours).to eq(0.5)
+    expect(reading.approximate).to eq(1)
+  end
+
   it "names who booted in the last hour, most first, and leaves out older runs" do
     rows = [row(1, "a"), row(1, "a"), row(1, "b"), row(1, "old", 90), row(1)]
 

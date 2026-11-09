@@ -26,8 +26,8 @@ module Hecks
           memo, problem = GateMemo.read(file)
           return nil if problem || tree.nil?
 
-          entries = [memo[id], memo[key(id)]].select { |e| e.is_a?(Hash) && e["result"] == "green" }
-          entries.find { |entry| entry["tree"] == tree }&.fetch("at")
+          entries = [memo[id], memo[key(id)]].flat_map { |held| GateMemo.runs(held) }
+          entries.find { |entry| entry["result"] == "green" && entry["tree"] == tree }&.fetch("at")
         end
 
         # @param root [String] the checkout
@@ -36,11 +36,9 @@ module Hecks
         # @return [void] keeps a green entry for the check on the files it read now; an unreadable
         #   memo is left as it is
         def record(root, id, file: GateMemo.path, tree: GateMemo.tree(root, id))
-          memo, problem = GateMemo.read(file)
-          return if problem || tree.nil?
+          return if tree.nil?
 
-          memo[key(id)] = GateMemo.green(tree, tree)
-          GateMemo.write(memo, file)
+          GateMemo.update(file) { |memo| GateMemo.remember(memo, key(id), GateMemo.green(tree, tree)) }
         end
 
         # Runs the block unless the check already passed on these files, and keeps its pass. The

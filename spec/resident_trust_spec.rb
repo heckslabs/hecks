@@ -80,6 +80,8 @@ RSpec.describe "what the resident trusts" do
   end
 
   describe "the cap on residents" do
+    after { @held&.close }
+
     def holding(root)
       FileUtils.mkdir_p(paths.directory)
       lock = File.new(paths.lock(root), File::CREAT | File::RDWR)
@@ -106,6 +108,55 @@ RSpec.describe "what the resident trusts" do
 
     it "uses the default cap until a resident has written another" do
       expect(resident::Crowd.cap).to eq(8)
+    end
+
+    it "writes the cap through a rename, leaving no temp file", :aggregate_failures do
+      FileUtils.mkdir_p(paths.directory)
+      resident::Crowd.remember(5)
+
+      expect(resident::Crowd.cap).to eq(5)
+      expect(Dir.children(paths.directory)).to eq(["cap"])
+    end
+
+    # A lock file last used `age` seconds ago, with files of the same stem beside it.
+    def lock_file(name, age, beside: [])
+      FileUtils.mkdir_p(paths.directory)
+      stem = File.join(paths.directory, name)
+      (["lock"] + beside).each { |ext| File.write("#{stem}.#{ext}", "") }
+      File.utime(Time.now - age, Time.now - age, "#{stem}.lock")
+      "#{stem}.lock"
+    end
+
+    # A lock file three days old that a live resident holds.
+    def held_lock(name) = File.new(lock_file(name, 3 * 86_400), File::RDWR).tap { |lock| lock.flock(File::LOCK_EX) }
+
+    it "removes the lock files of residents that are gone for a day" do
+      gone = lock_file("aaaaaaaa", 3 * 86_400)
+      resident::Crowd.sweep
+
+      expect(File.exist?(gone)).to be(false)
+    end
+
+    it "leaves a recent lock file, and one with a socket beside it" do
+      kept = [lock_file("bbbbbbbb", 3600), lock_file("cccccccc", 3 * 86_400, beside: ["sock"])]
+      resident::Crowd.sweep
+
+      expect(kept.all? { |file| File.exist?(file) }).to be(true)
+    end
+
+    it "leaves a lock file that a resident holds, however old" do
+      @held = held_lock("dddddddd")
+      resident::Crowd.sweep
+
+      expect(File.exist?(@held.path)).to be(true)
+    end
+
+    it "sweeps the locks of gone residents when a resident takes its own" do
+      gone = lock_file("eeeeeeee", 3 * 86_400)
+      server = resident::Server.new("/c", "/c/exe/hecks")
+      server.send(:lock_taken?)
+
+      expect(File.exist?(gone)).to be(false)
     end
 
     it "keeps a launcher from starting a resident when the cap is met" do

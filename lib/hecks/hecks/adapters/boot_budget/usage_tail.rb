@@ -45,9 +45,8 @@ module Hecks
         end
 
         # Whether an entry falls in the window. A run carries the time it began (`at`); one recorded
-        # before that field existed counts only when it carries a boot time and its day is the
-        # window's first or later (the day is all it says, so it is approximate). An entry with
-        # neither is too old to price.
+        # before that field existed counts only when it carries a boot time and its day is today's
+        # (the day is all it says, so it is approximate). An entry with neither is too old to price.
         #
         # @param row [Hash] one usage entry
         # @param cutoff [Time] the start of the window
@@ -99,10 +98,13 @@ module Hecks
           day.match?(DATE) && day < cutoff.utc.strftime("%Y-%m-%d")
         end
 
-        # A run's day is the window's first day or later; an entry with no day is neither.
+        # A run with no start time counts only when its day is today's, the window's last day. Its
+        # day is all it says, so a run of the window's first day may lie up to a day outside the
+        # window; counting those would price runs the window does not hold. An entry with no day
+        # is not today's.
         def on_or_after_day?(row, cutoff)
           day = row["date"].to_s
-          day.match?(DATE) && day >= cutoff.utc.strftime("%Y-%m-%d")
+          day.match?(DATE) && day >= (cutoff + BootBudget::WINDOW).utc.strftime("%Y-%m-%d")
         end
 
         def parse(line)

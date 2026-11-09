@@ -2,6 +2,7 @@ require "fileutils"
 require "json"
 require_relative "usage_cache"
 require_relative "usage_log/telemetry"
+require_relative "usage_log/trim"
 
 module Hecks
   module Adapters
@@ -84,9 +85,14 @@ module Hecks
           words.first
         end
 
-        # Writes one entry as a line of the file.
+        # Writes one entry as a line of the file, under a shared lock that a rewrite of the file by
+        # `Trim` waits out, and trims the file when it has grown large.
         def append(entry)
-          File.open(path, "a") { |file| file.puts(JSON.generate(entry)) }
+          File.open(path, "a") do |file|
+            file.flock(File::LOCK_SH)
+            file.puts(JSON.generate(entry))
+          end
+          Trim.run(path, window: DEFAULT_WINDOW) if Trim.due?(path)
         end
 
         # The entries on file, oldest first. A line that does not parse is skipped.

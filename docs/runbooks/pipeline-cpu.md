@@ -77,6 +77,19 @@ resident: `served`, `none`, `started`, `bypass`, `unstable` or `refused:<reason>
 share served, the refusal reasons and the last hour's boots per caller. The event tap is `~/.claude/hecks-dev/events.jsonl`, one line per
 event with `event`, `policy`, `command`, `outcome`, `at`.
 
+Shared caches and records, which every checkout and worktree reads, and how each is kept:
+
+- **Usage log:** above 16 MB, runs older than 30 days move to `usage-YYYYMM.jsonl.gz` beside it and the
+  rest stay; the budget reads only a bounded tail. A run with no `at` is priced only when dated today.
+- **Verdict cache** (`hecks_verdict_cache/`): a file is marked used when read, so a checkout that only reads keeps
+  its file; other code's files go after a day unused, and no more than eight are kept. Writers merge under a lock.
+- **Gate memo** (`~/.claude/hecks-dev/gate_memo.json`): each check keeps its newest four green runs, so checkouts on
+  different trees do not evict one another; a red run forgets only the runs on its own inputs.
+- **MCP guides:** entries unread for 30 days go, and at most 200 are kept. **Resident files:** a lock file no
+  resident has taken for a day, with no socket beside it, is removed when a resident starts.
+- **Not pruned:** bootsnap's cache (it has no eviction; delete `~/.cache/hecks/bootsnap` when it grows) and the
+  shared SQLite stores.
+
 | Symptom | Likely cause | Look with |
 |---|---|---|
 | Load high, many short `ruby` processes | launcher boots with no resident (`HECKS_NO_RESIDENT`, unstable cache dir, more than 8 checkouts) | `ps -Ao pid,etime,command \| grep -c 'exe/hecks'`; `exe/hecks usage` cold/warm |

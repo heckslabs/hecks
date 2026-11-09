@@ -6,6 +6,7 @@ require_relative "../../version"
 require_relative "verdict_cache/tagging"
 require_relative "verdict_cache/prebuilt"
 require_relative "verdict_cache/stored_pairs"
+require_relative "verdict_cache/keeping"
 require_relative "../../switches"
 
 module Hecks
@@ -27,6 +28,7 @@ module Hecks
         extend Tagging
         extend Prebuilt
         extend StoredPairs
+        extend Keeping
 
         module_function
 
@@ -51,9 +53,12 @@ module Hecks
                            catcher|ci_pipeline|ci_speed|ci_workflows|fixer|site|sme|tenancy|
                            rails_app)(?:/|\.rb\z)}x
 
-        # Files older than this that do not match the current code digest are
-        # pruned on write.
-        STALE_AFTER = 60 * 60
+        # A file of other code that has not been read or written for this long is pruned on write.
+        # Reading marks a file as used, so a checkout that only reads keeps its file.
+        STALE_AFTER = 24 * 60 * 60
+
+        # The most verdict files kept in all, the current code's among them.
+        MAX_DIGESTS = 8
 
         # Whether the disk cache is on; `HECKS_VERDICT_CACHE=off` disables it.
         #
@@ -164,7 +169,7 @@ module Hecks
           pairs = stored_pairs
           return unless pairs
 
-          write(JSON.generate({ "format" => FORMAT, "entries" => { "$h" => pairs } }, max_nesting: false))
+          keep(pairs)
           prune
         rescue StandardError
           nil
@@ -202,34 +207,6 @@ module Hecks
           entries.is_a?(Hash) && entries.all? do |key, held|
             key.is_a?(String) && held.is_a?(Hash) && held[:refusals].is_a?(Array) &&
               (held[:refusals].any? || held[:declaration].is_a?(Hash))
-          end
-        end
-
-        # Writes through a PID-suffixed temp file and an atomic rename, so a
-        # concurrent reader never sees a torn file.
-        #
-        # @param text [String] the file body
-        # @return [void]
-        def write(text)
-          file = path
-          FileUtils.mkdir_p(File.dirname(file), mode: 0o700)
-          tmp = "#{file}.#{Process.pid}.tmp"
-          File.binwrite(tmp, text)
-          File.chmod(0o600, tmp)
-          File.rename(tmp, file)
-        end
-
-        # Removes verdict files for other code digests once they are stale.
-        #
-        # @return [void]
-        def prune
-          keep = File.basename(path)
-          Dir.glob(File.join(dir, "verdicts-*")).each do |file|
-            next if File.basename(file) == keep || Time.now - File.mtime(file) < STALE_AFTER
-
-            File.delete(file)
-          rescue StandardError
-            next
           end
         end
 

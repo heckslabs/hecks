@@ -52,7 +52,7 @@ module Hecks
 
           # Takes the checkout's lock, loads, and serves lines until idle or retired.
           def run
-            return unless take_lock && !Crowd.crowded?(@root)
+            return unless lock_taken? && !Crowd.crowded?(@root)
 
             prepare
             return if @crowded
@@ -65,9 +65,17 @@ module Hecks
 
           private
 
-          def take_lock
+          # Takes the checkout's lock, marks it as taken now, and clears the locks of residents that
+          # are gone.
+          #
+          # @return [Boolean] whether the lock was free and is now this resident's
+          def lock_taken?
             @lock = File.open(Paths.lock(@root), File::CREAT | File::RDWR, 0o600)
-            @lock.flock(File::LOCK_EX | File::LOCK_NB)
+            return false unless @lock.flock(File::LOCK_EX | File::LOCK_NB)
+
+            File.utime(nil, nil, Paths.lock(@root))
+            Crowd.sweep
+            true
           end
 
           # Listens on the socket, which is made closed to everyone but this user from the start.

@@ -22,7 +22,8 @@ module Hecks
           # Launchers that run detached or for a long time on purpose: servers, the push train, the
           # QA and catcher ticks, a gate, a spec run, a landing and a wait on an event.
           KEPT = /serve!|present!|compose!|preview!|\bmcp\b|mcp!|SendTrain|send_train|sweep\.tick|quality_control|
-                  Operation\.(run|follow)|gate_run|run_impacted_specs|run_spec_|push_rehearsal|landing\.(land|finish|train)/ix
+                  Operation\.(run|follow)|gate_run|run_impacted_specs|run_spec_|push_rehearsal|landing\.(land|finish|train)|
+                  agent_?run\.check_?all/ix
           # What a leftover launcher's children keep running: a session and a build are not stopped
           # with the launcher that started them. It is the program a process runs that counts, the
           # first word of its command (past a `nice`), not any word in it: a command that only
