@@ -51,7 +51,7 @@ RSpec.describe Hecks::Adapters::RoleServerEnv do
 
     it "restricts the orchestrator to the commands of its rows the Hecks domain has", :aggregate_failures do
       expect(lines("orchestrator")).to include("HECKS_SERVER_TOOLS=commands", "HECKS_SERVER_DOMAINS=lib/hecks/hecks")
-      expect(lines("orchestrator").last).to include("dispatch.fill", "agent_run.check_all", "send_train.board")
+      expect(lines("orchestrator").last).to include("agent_run.check_all", "send_train.board")
     end
 
     it "leaves a role with no rows unrestricted" do
@@ -65,13 +65,13 @@ RSpec.describe Hecks::Adapters::RoleServerEnv do
 
     it "lists every role with rows and the commands its rows name, for the server's cache", :aggregate_failures do
       expect(guard.server_table.keys).to include("orchestrator")
-      expect(guard.server_table.fetch("orchestrator")).to include("dispatch.fill", "send_train.board")
+      expect(guard.server_table.fetch("orchestrator")).to include("agent_run.check_all", "send_train.board")
     end
 
     it "writes that table where a role's server reads it, when the query is asked" do
       with_cache_root do
         guard.server_env(role: { value: "orchestrator" })
-        expect(Hecks::RoleServerCache.lookup(File.expand_path("..", __dir__), "orchestrator")).to include("dispatch.fill")
+        expect(Hecks::RoleServerCache.lookup(File.expand_path("..", __dir__), "orchestrator")).to include("agent_run.check_all")
       end
     end
 

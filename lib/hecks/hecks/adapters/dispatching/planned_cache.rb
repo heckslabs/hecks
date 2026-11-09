@@ -6,7 +6,7 @@ module Hecks
       # The planned work items as the clock's beat last read them, kept for a short time.
       #
       # The beat asks each minute whether the clock alone has made something eligible, and the
-      # answer needs only each planned item's retry time. Reading every Work row to learn that
+      # answer needs only each planned item's retry time. Reading every work item to learn that
       # would cost more the longer the ledger grew, so the items are kept for {TTL} seconds and a
       # confirmed filling, which changes which items are planned, clears them. An item planned or
       # yielded meanwhile starts a roll through its own event, so the short staleness costs the
