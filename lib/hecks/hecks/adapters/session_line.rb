@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "json"
 require_relative "architect_verdict"
 
 module Hecks
@@ -20,13 +21,21 @@ module Hecks
       end
 
       # @param held [Hash] the `AgentRun` record: `repo`, `brief`, and `agent` when named
+      # @param environment [Hash{String => String}] what the session's own commands should see
       # @return [Array<String>] the argument list
-      def arguments(held)
+      def arguments(held, environment = {})
         agent = plain(held[:agent])
-        [*@nice, @command, *(agent ? ["--agent", agent] : []), "--bg", "--", briefed(plain(held[:brief]), agent)]
+        [*@nice, @command, *(agent ? ["--agent", agent] : []), *settings(environment), "--bg", "--",
+         briefed(plain(held[:brief]), agent)]
       end
 
       private
+
+      # A background session does not take the environment of the process that starts it, so the
+      # variables its commands read (today the caller name) go in the settings `env` block, which
+      # Claude Code applies to every command the session runs.
+      # @return [Array<String>] the `--settings` flag and its JSON, or nothing for no variables
+      def settings(environment) = environment.empty? ? [] : ["--settings", JSON.generate("env" => environment)]
 
       # @return [String] the brief, with the verdict format added for the architect
       def briefed(brief, agent) = agent == "architect" ? "#{brief}#{ArchitectVerdict::REQUEST}" : brief.to_s

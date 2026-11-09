@@ -75,7 +75,7 @@ module Hecks
       # @return [Hash{Symbol => Hash}] `session:` the id the session is known by
       # @raise [ConsoleCapture::Failure] when the command fails or names no session
       def start(**held)
-        result = @shell.capture(*session_line.arguments(held), env: named(held), chdir: plain(held[:repo]))
+        result = @shell.capture(*session_line.arguments(held, caller_only(held)), env: named(held), chdir: plain(held[:repo]))
         { session: { value: session_id(result) }, started_at: { value: @clock.call.iso8601 } }
       end
 
@@ -212,6 +212,10 @@ module Hecks
 
       # @return [Hash{String => String}] the session environment, with the run's name as the caller
       def named(held) = SessionCaller.environment(@session.session_environment, held)
+
+      # @return [Hash{String => String}] only the caller name, which the session reads through its
+      #   settings; the rest of the session environment is not forwarded there
+      def caller_only(held) = SessionCaller.environment({}, held)
 
       def agent_listing(repo, agent)
         return { listed: true, note: "no agent named: the session runs the default agent" } unless agent
