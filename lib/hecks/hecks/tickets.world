@@ -45,4 +45,11 @@ Hecks.world "Tickets" do
   session_environment "Sessions", cargo_target_dir: "~/.cache/hecks/cargo-target", nice: 15
   session_grace "Sessions", seconds: 120
   rust_build "RustBuild", jobs: 4, nice: 15
+  # The decision records' files (Tickets::Adr), relative to the checkout; `None` leaves the Adr
+  # store a plain Memory one, as the memory overlay does for specs. Binding Adr makes the wiring
+  # explicit, so the other aggregates take this default where no attaching domain hands one down.
+  default_adapter "Memory"
+  persisted_by("DecisionFiles") do
+    directory "docs/decisions"
+  end
 end
