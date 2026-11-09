@@ -195,7 +195,8 @@ Hecks.bluebook "LifecycleFindings" do
     end
   end
 
-  # A :reusable state that is the default or that a transition leaves is a reusable_live_state error.
+  # A :reusable state that is the default, or that a transition leaves for a state not :reusable,
+  # is a reusable_live_state error.
 
   aggregate "Lease" do
     identified_by :code
@@ -210,7 +211,7 @@ Hecks.bluebook "LifecycleFindings" do
       transition "Start"  => "started",  from: "requested"
       transition "Finish" => "finished", from: "started"
       mark :terminal, "finished"
-      mark :reusable, "requested", "started", "finished"
+      mark :reusable, "requested", "started"
     end
 
     command "Request" do

@@ -84,6 +84,11 @@ Hecks.bluebook "Hecks" do
         transition "Retired" => "retired",  from: "started"
         transition "RetireTrial" => "retired", from: "started"
         mark :terminal, "tidied", "refused", "retired"
+        # A run that has ended frees its key: a dispatch under it starts a new run, and the ended
+        # one stays readable as `<run>~<n>`, its attempt number. A run in no state declared here
+        # frees its key too. A requested or started run, working or blocked, keeps its key, and a
+        # second dispatch is refused by name.
+        mark :reusable, "finished", "tidied", "refused", "retired"
       end
 
       command "Dispatch" do
