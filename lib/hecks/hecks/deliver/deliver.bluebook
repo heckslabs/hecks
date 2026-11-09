@@ -1593,6 +1593,9 @@ Hecks.bluebook "Hecks" do
       transition Integration::CiObservationStarted => "ci_running", from: %w[pushed ci_running]
       transition Integration::CiPassed => "green", from: "ci_running"
       transition Integration::CiFailed => "red", from: "ci_running"
+      # A train pull request closed without merging: main never moved, so CI did not fail. The run
+      # parks for a person and frees the line; verifying it again takes it up.
+      transition Integration::PullRequestClosed => "needs_human", from: "ci_running"
 
       # A newer landing on main carries this one: the run stops, and the newer run integrates both.
       transition Integration::IntegrationSuperseded => "superseded", from: %w[verifying boarding]
@@ -1643,8 +1646,9 @@ Hecks.bluebook "Hecks" do
         transition "Reject"    => "refused",    from: "requested"
         transition "Green"     => "passed",     from: "requested"
         transition "Red"       => "red",        from: "requested"
+        transition "Close"     => "closed",     from: "requested"
         transition "Supersede" => "superseded", from: "requested"
-        mark :terminal, "advanced", "verified", "failed", "pushed", "refused", "passed", "red", "superseded"
+        mark :terminal, "advanced", "verified", "failed", "pushed", "refused", "passed", "red", "closed", "superseded"
       end
 
       command "Advance" do
@@ -1775,6 +1779,17 @@ Hecks.bluebook "Hecks" do
         emits CiFailed
       end
 
+      command "Close" do
+        role "System"
+        goal "Record that the train's pull request for a boarded commit was closed without merging, so its run waits for a person"
+
+        reference_to Integration
+        attribute :landed, Word,   sets: true
+        attribute :report, Report, sets: true
+
+        emits PullRequestClosed
+      end
+
       command "Supersede" do
         role "System"
         goal "Record that a newer commit on main carries a landed one, so its run stops"
@@ -1870,6 +1885,12 @@ Hecks.bluebook "Hecks" do
       on      "Integration.ObserveAnswered"
       where   { outcome.value == "failed" }
       trigger Integration::Red, with: { landed: :landed, report: :report }
+    end
+
+    policy "RecordTheClosedPullRequest" do
+      on      "Integration.ObserveAnswered"
+      where   { outcome.value == "closed" }
+      trigger Integration::Close, with: { landed: :landed, report: :report }
     end
 
     aggregate "ReviewRequest" do
