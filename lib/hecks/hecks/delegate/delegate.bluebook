@@ -862,15 +862,11 @@ Hecks.bluebook "Hecks" do
       ask     :read_job, with: { run: :run }
     end
 
-    # A sweep also rolls the queue: a confirmed filling settles the started Work items whose sessions
-    # ended before it counts the cap, so a sweep frees the capacity its checks found. A root, so the
-    # settling's own finishes and yields start their own chains and never nest past the reaction cap.
-    policy "RollWhenSwept" do
-      on      "SessionSweep.SweepRequested"
-      root
-      trigger Roll::Start
-    end
-
+    # A sweep does not roll the queue itself. Each check below records the session it finds ended,
+    # failed or gone as `SessionFinished`, `SessionFailed` or `AgentRunRetired`, and each of those rolls
+    # on its own (`RollWhenARunEnds`, `RollWhenARunFails`, `RollWhenARunIsRetired`), settling the started
+    # Work items before it counts the cap. A beat that finds nothing changed starts no fill.
+    #
     # Each check is addressed by the Work item's key alone: the sweep's own `run` is not passed on.
     policy "CheckEveryStartedRun" do
       on       "SessionSweep.SweepRequested"
