@@ -34,7 +34,8 @@ module Hecks
                                  clock: kept.fetch(:clock, MONOTONIC), timing: timing)
         end
 
-        # Starts the boot of the checkout's domain without waiting for it, so the first read finds it
+        # Starts the boot of the checkout's domain without waiting for it, so the first read
+        # finds it
         # going or done.
         # @return [LiveStore] self
         def warm

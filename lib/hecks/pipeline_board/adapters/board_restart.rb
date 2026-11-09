@@ -27,7 +27,8 @@ module Hecks
 
         # @param limits [Hash{Symbol => Numeric}] from {.limits}
         # @param command [Array<String>] the program and arguments that started the board; the
-        #   script is taken as an absolute path so a restart does not depend on the working directory
+        #   script is taken as an absolute path so a restart does not depend on the working
+        #   directory
         # @param memory [#call] answers this process's resident memory in megabytes
         # @param now [#call] answers the time
         # @param restart [#call] takes the command and replaces this process with it
