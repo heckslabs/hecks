@@ -75,9 +75,17 @@ module Hecks
         def refresh_forever
           loop do
             read_once
-            @after_read&.call
+            after_read_once
             @wake.pop(timeout: @every)
           end
+        end
+
+        # Runs the after-read check; a check that raises, such as a restart that cannot exec, is
+        # recorded and the loop goes on, so a failed check never freezes the board.
+        def after_read_once
+          @after_read&.call
+        rescue StandardError => e
+          @lock.synchronize { @error = "#{e.class}: #{e.message.to_s.slice(0, 100)}" }
         end
 
         def read_once

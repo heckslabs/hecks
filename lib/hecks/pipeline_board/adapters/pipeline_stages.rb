@@ -128,15 +128,16 @@ module Hecks
         @jobs = readers.fetch(:jobs) { PipelineJobs.new(settings: { runs: -> { guard { @tickets.runs } } }) }
         @trains = readers.fetch(:trains) do
           PipelineBoard::TrainDetail.new(root:       ENV.fetch("PIPELINE_BOARD_LAUNCHER_ROOT", @root),
-                                         live_store: live || PipelineBoard::LiveStore.new(root: @root))
+                                         live_store: live || PipelineBoard::RegistryStore.new(registry: registry))
         end
       end
 
       # The one in-process reader of the checkout `PIPELINE_BOARD_LAUNCHER_ROOT` names, shared by
-      # the readers that need its store; nil when the board is not pointed at another checkout.
+      # the readers that need its store, and already opening; nil when the board is not pointed at
+      # another checkout, which then reads its own registry and boots no second copy of the domain.
       def live_store_named
         root = ENV.fetch("PIPELINE_BOARD_LAUNCHER_ROOT", "")
-        PipelineBoard::LiveStore.new(root: root) unless root.empty?
+        PipelineBoard::LiveStore.new(root: root).warm unless root.empty?
       end
 
       # The pinned agents panel: each role with its live sessions and last event, and the open

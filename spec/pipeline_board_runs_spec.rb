@@ -24,6 +24,12 @@ RSpec.describe Hecks::Adapters::PipelineTickets do
     expect(runs["s2"]).to include(run: "r2", agent: "", status: "finished")
   end
 
+  it "leaves out the runs that were retired or refused, as the running and tidyable queries do" do
+    retired = { run: "r3", session: "s3", brief: "x", status: "retired", agent: "coder" }
+    allow(store).to receive(:records).with("Hecks", "AgentRun").and_return([running, finished, retired])
+    expect(described_class.new(settings: { live_store: store }).runs.keys).to eq(%w[s1 s2])
+  end
+
   it "starts no process to read them" do
     allow(probe).to receive(:json)
     allow(probe).to receive(:run)

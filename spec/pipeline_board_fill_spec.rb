@@ -36,6 +36,34 @@ RSpec.describe Hecks::Adapters::PipelineFill do
     expect(fill.preview).to include(cap: 6)
   end
 
+  it "reads a confirmed report: the items it started, and the ones that went back", :aggregate_failures do
+    confirmed = [report.lines.first.strip, "started alpha", "started beta (then refused: busy)",
+                 "yielded gamma: cap"].join("\n")
+    fill = reader(confirmed).preview
+    expect(fill[:launched]).to eq([{ slug: "alpha" }, { slug: "beta" }])
+    expect(fill[:skipped]).to eq([{ slug: "gamma", reason: "cap" }])
+  end
+
+  # Previews a recorded report at each of the given times, in seconds.
+  def previews_at(*times)
+    now = [times.first]
+    fill = reader(report, clock: -> { now.first }, fresh_seconds: 900)
+    times.each do |at|
+      now[0] = at
+      fill.preview
+    end
+  end
+
+  it "asks the launcher once an unchanged report has stood past the fresh window" do
+    previews_at(0.0, 901.0)
+    expect(runner).to have_received(:call).once
+  end
+
+  it "keeps a report current while it is young" do
+    previews_at(0.0, 899.0)
+    expect(runner).not_to have_received(:call)
+  end
+
   it "refuses a report it cannot read" do
     expect { reader("not a fill report").preview }.to raise_error(Hecks::Adapters::PipelineBoard::Unavailable)
   end

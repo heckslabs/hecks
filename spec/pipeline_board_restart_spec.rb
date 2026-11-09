@@ -10,9 +10,10 @@ RSpec.describe Hecks::Adapters::PipelineBoard::BoardRestart do
   let(:clock) { [Time.utc(2026, 11, 9)] }
   let(:restarts) { [] }
   let(:memory) { [100.0] }
+  let(:command) { %w[ruby exe/hecks pipeline_board PipelineBoard.serve!] }
 
   def board
-    described_class.new(limits: limits, command: %w[ruby exe/hecks board], memory: -> { memory.first },
+    described_class.new(limits: limits, command: command, memory: -> { memory.first },
                         now: -> { clock.first }, restart: ->(argv) { restarts << argv })
   end
 
@@ -24,7 +25,7 @@ RSpec.describe Hecks::Adapters::PipelineBoard::BoardRestart do
   it "restarts as the command that started it once it is over the memory limit", :aggregate_failures do
     memory[0] = 2048.0
     expect(board.check).to eq(:memory)
-    expect(restarts).to eq([%w[ruby exe/hecks board]])
+    expect(restarts).to eq([command])
   end
 
   it "restarts after the age limit" do
@@ -36,6 +37,27 @@ RSpec.describe Hecks::Adapters::PipelineBoard::BoardRestart do
   it "reads its limits from the Hecks world, with defaults for what it leaves out" do
     world = Struct.new(:rows) { def for_verb(_verb) = rows }.new({ refresh_seconds: 60, rss_mb: 512 })
     registry = Struct.new(:world) { def world(*) = self[:world] }.new(world)
-    expect(described_class.limits(registry)).to eq(refresh_seconds: 60.0, rss_mb: 512.0, age_hours: 24.0)
+    expect(described_class.limits(registry)).to eq(refresh_seconds: 60.0, rss_mb: 512.0, age_hours: 24.0,
+                                                   min_uptime_seconds: 600.0)
+  end
+
+  def large_board
+    memory[0] = 4096.0
+    described_class.new(limits: limits.merge(min_uptime_seconds: 600.0), command: %w[ruby board],
+                        memory: -> { memory.first }, now: -> { clock.first }, restart: ->(argv) { restarts << argv })
+  end
+
+  it "does not restart before its minimum uptime, however large it is" do
+    expect(large_board.check).to be_nil
+  end
+
+  it "restarts once the minimum uptime has passed" do
+    board = large_board
+    clock[0] += 601
+    expect(board.check).to eq(:memory)
+  end
+
+  it "takes the script as an absolute path, so a restart does not depend on the directory" do
+    expect(described_class.new(limits: limits).instance_variable_get(:@command)[1]).to start_with("/")
   end
 end

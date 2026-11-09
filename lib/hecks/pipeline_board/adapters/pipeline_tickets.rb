@@ -15,6 +15,8 @@ module Hecks
       include PipelineBoard::RunDetail
 
       DONE = %w[done dropped].freeze
+      # The AgentRun statuses the `Running` and `Tidyable` queries select.
+      LISTED = %w[started finished].freeze
       WORK_ITEM_LINE = /^(?:WORK ITEM|ROW):\s*(\S+)/
       # How long the runs read stays good: the jobs reader asks for them once per session.
       RUNS_TTL = 20
@@ -52,8 +54,14 @@ module Hecks
       end
 
       # The AgentRun records of the live store when the board is told where it is, else the booted
-      # registry's.
-      def run_records = @live ? @live.records("Hecks", "AgentRun") : records_of("Hecks", "AgentRun")
+      # registry's. From the live store only the runs `AgentRun.running` and `AgentRun.tidyable`
+      # answer are kept (started and finished), so a run that was retired or refused long ago does
+      # not reach the plan-review panel, which reads a transcript for each.
+      def run_records
+        return records_of("Hecks", "AgentRun") unless @live
+
+        @live.records("Hecks", "AgentRun").select { |run| LISTED.include?(field(run, :status).to_s) }
+      end
 
       # @return [Array<String>] the branches the Landing records say were merged onto main, with any
       #   leading `qa/` taken off
