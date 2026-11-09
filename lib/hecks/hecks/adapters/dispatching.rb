@@ -5,6 +5,8 @@ require_relative "dispatching/settings"
 require_relative "dispatching/work_items"
 require_relative "dispatching/plan"
 require_relative "dispatching/launcher"
+require_relative "dispatching/in_process_runner"
+require_relative "dispatching/filling"
 require_relative "dispatching/lesson_traps"
 require_relative "dispatching/settler"
 require_relative "dispatching/last_roll"
@@ -40,8 +42,10 @@ module Hecks
       #   then the work items left waiting with the reason
       def choose(**held)
         confirmed = plain(held[:confirm]) == true
-        settle_ended(held) if confirmed
-        { report: { value: filling_lines(plan_for(prefix(held)), held, confirmed).join("\n") } }
+        Filling.during(confirmed) do
+          settle_ended(held) if confirmed
+          { report: { value: filling_lines(plan_for(prefix(held)), held, confirmed).join("\n") } }
+        end
       end
 
       # Says which planned work items would start now and why each other waits, without starting
@@ -61,6 +65,7 @@ module Hecks
       # @raise [ConsoleCapture::Failure] when rolling is paused or the report repeats the last one
       def roll(**_held)
         raise ConsoleCapture::Failure, "paused: dispatch_roll_forward is false" unless machine.roll_forward?
+        raise ConsoleCapture::Failure, "unchanged: a filling is already running" if Filling.running?
 
         text = choose(repo: { value: Dir.pwd }, confirm: true).dig(:report, :value)
         raise ConsoleCapture::Failure, "unchanged: #{header_of(text)}" if LastRoll.repeat?(text)
@@ -93,7 +98,15 @@ module Hecks
 
       def machine = Settings.new(@registry, load: @standins[:load], cpus: @standins[:cpus], cap: @standins[:cap])
 
-      def launcher_for(held) = Launcher.new(plain(held[:repo]), runner: @standins[:runner])
+      # The launcher for the checkout the filling is for. A stand-in runner wins; otherwise the
+      # steps dispatch on this registry when the checkout is the one this process stands in, and
+      # run that checkout's own `exe/hecks` when it is another.
+      def launcher_for(held)
+        repo = plain(held[:repo])
+        Launcher.new(repo, runner: @standins[:runner] || in_process_runner(repo))
+      end
+
+      def in_process_runner(repo) = InProcessRunner.fits?(@registry, repo) ? InProcessRunner.new(@registry) : nil
 
       def plan_for(only = "")
         Plan.new(planned(only), work_items.started, cap: machine.cap, load: machine.load, max_load: machine.max_load,
