@@ -2,6 +2,7 @@
 
 require "etc"
 require_relative "../work_limits"
+require_relative "../boot_budget"
 require_relative "../shell"
 require_relative "../codebase/test_scope"
 require_relative "../machine_sampling/history"
@@ -24,6 +25,9 @@ module Hecks
         # The world verb that carries the owner's roll-forward switch.
         ROLL = "dispatch_roll_forward"
 
+        # The world verb that carries the hours of launcher boots a day allows.
+        BOOT_BUDGET = "cpu_budget"
+
         # Minutes a started work item may run when the caller names no budget.
         BUDGET_MINUTES = 90
 
@@ -34,11 +38,13 @@ module Hecks
         # @param load [#call, nil] answers the 1-minute load average; the machine's when nil
         # @param cpus [Integer, nil] the CPU count; the machine's when nil
         # @param cap [Integer, nil] the cap on started work items; the world's when nil
-        def initialize(registry, load: nil, cpus: nil, cap: nil)
+        # @param boots [BootBudget, nil] what the day's boots cost; the usage record's when nil
+        def initialize(registry, load: nil, cpus: nil, cap: nil, boots: nil)
           @registry = registry
           @load = load || -> { self.class.uptime_load }
           @cpus = cpus || Etc.nprocessors
           @cap = cap
+          @boots = boots || BootBudget.new
         end
 
         # Ruby's `Etc` has no load average, so the 1-minute figure is read from `uptime`.
@@ -70,6 +76,16 @@ module Hecks
           return "skipped: paused by load (LoadRoseAbove)" if standing[:load] == "above"
 
           "skipped: memory low (MemoryLow)" if standing[:memory] == "low"
+        end
+
+        # @return [Float, nil] the hours of launcher boots a day the world allows, nil for none
+        def boot_budget = declared(BOOT_BUDGET)[:boot_hours_per_day]&.to_f
+
+        # @return [String, nil] why no session starts: the day's boots have spent the world's
+        #   budget; nil when they have not, or the world sets none
+        def boot_stop
+          hours = boot_budget
+          @boots.stop_reason(hours) if hours
         end
 
         # @return [Boolean] whether planned work rolls forward by itself; false only when paused

@@ -11,6 +11,7 @@ require_relative "pipeline_tickets"
 require_relative "pipeline_jobs"
 require_relative "pipeline_journal"
 require_relative "pipeline_disk"
+require_relative "pipeline_boots"
 require_relative "pipeline_stages/disk_tiles"
 require_relative "../../hecks/adapters/push_size"
 require_relative "pipeline_stages/agent_roles"
@@ -107,12 +108,18 @@ module Hecks
         PipelineBoard::Rules.use(registry)
         @limits = read_limits(registry)
         @roles = PipelineBoard::AgentRoles.declared(registry)
-        @disk = readers.fetch(:disk) { PipelineDisk.new(root: @root) }
+        wire_machine(readers, registry)
         @github = readers.fetch(:github) { PipelineGitHub.new(root: @root) }
         @git = readers.fetch(:git) { PipelineGit.new(root: @root) }
         @journal = readers.fetch(:journal) { PipelineJournal.new(root: @root) }
         @fill = readers.fetch(:fill) { PipelineFill.new(root: @root, registry: registry) }
         wire_work(readers, registry)
+      end
+
+      # The readers of the machine itself: the room on its disk and what its launcher boots cost.
+      def wire_machine(readers, registry)
+        @disk = readers.fetch(:disk) { PipelineDisk.new(root: @root) }
+        @boots = readers.fetch(:boots) { PipelineBoots.new(registry: registry) }
       end
 
       def wire_work(readers, registry)

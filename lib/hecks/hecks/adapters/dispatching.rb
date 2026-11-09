@@ -96,7 +96,10 @@ module Hecks
 
       def work_items = @standins[:work_items] || WorkItems.new(@registry)
 
-      def machine = Settings.new(@registry, load: @standins[:load], cpus: @standins[:cpus], cap: @standins[:cap])
+      def machine
+        Settings.new(@registry, load: @standins[:load], cpus: @standins[:cpus], cap: @standins[:cap],
+                                boots: @standins[:boots])
+      end
 
       # The launcher for the checkout the filling is for. A stand-in runner wins; otherwise the
       # steps dispatch on this registry when the checkout is the one this process stands in, and
@@ -110,9 +113,12 @@ module Hecks
 
       def plan_for(only = "")
         Plan.new(planned(only), work_items.started, cap: machine.cap, load: machine.load, max_load: machine.max_load,
-                                                    frozen: machine.frozen, paused: machine.paused,
+                                                    frozen: machine.frozen, paused: paused_reason,
                                                     runs: -> { work_items.runs })
       end
+
+      # Why every work item waits: the machine's crossings say so, or the boots spent the budget.
+      def paused_reason = machine.paused || machine.boot_stop
 
       # The key prefix a filling is held to; empty when none is named.
       def prefix(held) = plain(held[:only]).to_s

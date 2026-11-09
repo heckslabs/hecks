@@ -10,8 +10,9 @@ module Hecks
       # the timing of a deprecation rest on what people type rather than on a guess.
       #
       # A run appends one JSON line to `usage.jsonl` in the directory `UsageCache` already uses:
-      # the name as typed, the name it resolved to, the exit status, the duration in milliseconds
-      # and the date, and (`Telemetry`) the boot time, whether the boot was cold and the caller.
+      # the name as typed, the name it resolved to, the exit status, the duration in milliseconds,
+      # the date and the time, and (`Telemetry`) the boot time, whether the boot was cold and the
+      # caller.
       # No arguments, values or paths are written. The record is on unless
       # `HECKS_USAGE=off` is set or a `usage.off` marker sits in that directory. The first run that
       # writes prints one line on standard error saying so, then leaves a `usage.noticed` marker.
@@ -70,7 +71,8 @@ module Hecks
         def line(argv, resolved, status, started)
           { "typed" => typed(argv), "resolved" => resolved, "status" => status,
             "ms" => ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - started) * 1000).round,
-            "date" => Time.now.utc.strftime("%Y-%m-%d") }.merge(Telemetry.fields(started))
+            "date" => Time.now.utc.strftime("%Y-%m-%d"),
+            "at" => Time.now.utc.strftime("%Y-%m-%dT%H:%M:%SZ") }.merge(Telemetry.fields(started))
         end
 
         # The name the person typed: the first word that is not a flag, past a `query` word.
