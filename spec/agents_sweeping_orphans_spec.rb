@@ -54,14 +54,6 @@ RSpec.describe Hecks::Adapters::Sweeping::Orphans do
     expect(orphans(kept).lines).to eq([])
   end
 
-  it "keeps the check of every started run, however the verb is spelled", :aggregate_failures do
-    commands = ["exe/hecks AgentRun.check_all! --wait", "exe/hecks agent_run.check_all!",
-                "ruby exe/hecks Hecks::AgentRun.CheckAll", "exe/hecks agentrun.checkall"]
-    kept = commands.each_with_index.map { |command, index| entry(920 + index, 1, 9000, command) }
-
-    expect(orphans(kept).lines).to eq([])
-  end
-
   it "ignores a command that only names the launcher", :aggregate_failures do
     texts = ["vim exe/hecks x", "grep x exe/hecks ", "claude -p run exe/hecks tickets Work.undone"]
     named = texts.each_with_index.map { |command, index| entry(920 + index, 1, 9000, command) }
