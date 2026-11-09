@@ -28,6 +28,8 @@ RSpec.describe "the lazily loaded MCP servers" do
   end
 
   it "holds well under the memory of a server that loaded the framework" do
+    skip "ps cannot report resident memory here" unless rss_readable?
+
     _, light = run_server("unrestricted")
     _, loaded = run_server("commands")
     expect(light[:rss_mb]).to be < loaded[:rss_mb] * 0.6

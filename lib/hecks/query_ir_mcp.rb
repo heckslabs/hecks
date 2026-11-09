@@ -2,6 +2,7 @@
 
 require "json"
 require_relative "mcp_stdio_guard"
+require_relative "mcp_lazy_load"
 require_relative "storehouse/confinement"
 require_relative "query_ir_mcp/tools"
 
@@ -14,6 +15,13 @@ module Hecks
   module QueryIrMcp
     # The MCP protocol revision the server speaks.
     PROTOCOL_VERSION = "2024-11-05"
+
+    # What a batch, or a value that is not a request object, is answered.
+    INVALID_REQUEST = "Invalid Request: one request object per line; batches are not supported"
+
+    # The method that runs each tool.
+    QUERIES = { "query_ir_constructs" => :constructs, "query_ir_duplicates" => :duplicates,
+                "query_ir_impact" => :impact }.freeze
 
     module_function
 
@@ -56,28 +64,39 @@ module Hecks
     # @param arguments [Hash] its arguments as the client sent them
     # @return [Hash] the MCP tool result
     def call_tool(name, arguments)
-      case name
-      when "query_ir_constructs" then tool_result(constructs(arguments))
-      when "query_ir_duplicates" then tool_result(duplicates(arguments))
-      when "query_ir_impact" then tool_result(impact(arguments))
-      else
-        tool_result("no such tool: #{name.inspect} - known: #{TOOLS.map { |t| t[:name] }.join(", ")}", error: true)
-      end
-    rescue ArgumentError, Runtime::TypeMismatch => e
+      query = QUERIES[name]
+      return tool_result(unknown_tool(name), error: true) unless query
+
+      tool_result(public_send(query, arguments))
+    rescue *tool_errors => e
       tool_result(e.message, error: true)
     end
+
+    # The errors a tool refuses with its own message. A type mismatch is the framework's, which is
+    # not loaded until a tool needs it, and a load that failed must not pass for a refusal.
+    #
+    # @api private
+    def tool_errors = defined?(Runtime::TypeMismatch) ? [ArgumentError, Runtime::TypeMismatch] : [ArgumentError]
+
+    # @api private
+    def unknown_tool(name) = "no such tool: #{name.inspect} - known: #{TOOLS.map { |t| t[:name] }.join(", ")}"
 
     # Loads the framework and the queries on the first tool call, so `initialize`, `ping` and
     # `tools/list` are answered by a process that holds only the guard and the static definitions.
     #
+    # A load that fails is answered the same way on every later call, not tried again.
+    #
     # @api private
+    # @raise [McpLazyLoad::Failed] when the load raised
     def load_queries!
-      return if defined?(@queries)
-
-      require_relative "../hecks"
-      require_relative "query_ir"
-      @queries = true
+      McpLazyLoad.run(load_state) do
+        require_relative "../hecks"
+        require_relative "query_ir"
+      end
     end
+
+    # @api private
+    def load_state = (@load_state ||= {})
 
     # @api private
     def constructs(arguments)
@@ -121,9 +140,15 @@ module Hecks
       nil
     end
 
+    # A batch (a JSON array) or any other value that is not an object is one invalid request.
+    #
     # @api private
     def respond(request, output)
+      return error(output, nil, -32_600, INVALID_REQUEST) unless request.is_a?(Hash)
+
       handle(request, output)
+    rescue McpLazyLoad::Failed => e
+      error(output, request["id"], -32_603, e.message) unless request["id"].nil?
     rescue StandardError => e
       error(output, request["id"], -32_603, "Internal error: #{e.class}: #{e.message}")
     end

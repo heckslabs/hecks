@@ -58,3 +58,6 @@ The chapter also repeats short command names across aggregates: `accept!`, `comp
 - **A role's list is data** (`Role.server_env`, ADR 0201 "As built"): the exact `HECKS_SERVER_COMMANDS` names are
   expanded from the role's `RoutingRule` patterns against the Hecks domain, and a dispatched session starts its
   `hecks-mcp` with them through `--mcp-config`, so the list is neither written by hand nor kept apart from the guard's.
+  A role with rows never falls back to the unrestricted server, the list is read from the session's own checkout and
+  fixed when the session starts, and a restricted server still serves the reader tools beyond the role's Bash rows
+  (ADR 0201 "As built": fails closed, the session's checkout answers, accepted reads).

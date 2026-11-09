@@ -8,22 +8,33 @@ module Hecks
     # as, the MCP servers narrowed to the role, and the brief after a `--` so it is never taken for
     # a flag. An argument list, never a string for a shell.
     class SessionLine
+      # What to tell whoever reads the start report, once {#arguments} has been asked.
+      #
+      # @return [Array<String>] notes on the MCP servers the session was started with
+      attr_reader :notes
+
       # @param command [String] the command that starts sessions
       # @param nice [Array<String>] the niceness prefix, empty for none
-      # @param mcp [#arguments] the role's MCP flags (`SessionMcp`)
+      # @param mcp [#call] the role's MCP flags and notes (`SessionMcp`)
       def initialize(command:, nice:, mcp:)
         @command = command
         @nice = nice
         @mcp = mcp
+        @notes = []
       end
 
-      # @param held [Hash] the `AgentRun` record: `repo`, `brief`, and `agent` when one is named
+      # @param held [Hash] the `AgentRun` record: `repo`, `brief`, `run`, and `agent` when named
       # @return [Array<String>] the argument list
       def arguments(held)
         agent = plain(held[:agent])
-        [*@nice, @command, *(agent ? ["--agent", agent] : []), *@mcp.arguments(repo: plain(held[:repo]), agent: agent),
-         "--bg", "--", briefed(plain(held[:brief]), agent)]
+        servers = @mcp.call(repo: plain(held[:repo]), agent: agent, run: plain(held[:run]))
+        @notes = servers.notes
+        [*@nice, @command, *(agent ? ["--agent", agent] : []), *servers.flags, "--bg", "--", briefed(plain(held[:brief]), agent)]
       end
+
+      # @return [Hash{Symbol => Hash}] the start report's `note:` for the MCP servers, or empty when
+      #   there is nothing to say
+      def report = notes.empty? ? {} : { note: { value: notes.join("; ") } }
 
       private
 

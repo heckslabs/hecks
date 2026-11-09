@@ -180,6 +180,9 @@ stand. Where the build differs from the text above or adds to it:
     written, as before. A commands server loads the framework at `tools/list`, because its command guide is read from
     a booted domain, and a tool its scope refuses is refused without loading it. `spec/mcp_light_server_spec.rb` holds
     the replies to goldens written by the eager server (`spec/fixtures/mcp_light`), in this process and in a child.
+    That the goldens equal the old server's replies was not re-checked from an independent run of the old code. A
+    load that fails (a `LoadError` or `SyntaxError` is a `ScriptError`) is answered `-32603 framework failed to load`
+    on that call and every later one, without trying again (`McpLazyLoad`); a batch is answered `-32600`.
   - **Not clients.** A restricted server keeps its domain booted and answers in under 10 ms (ADR 0089); a call forked
     from the resident would boot it each time. An unrestricted server would need a launcher-visible command that takes
     its scope from the environment the caller sends, which widens what the launcher accepts. So a tool call is not
@@ -188,16 +191,43 @@ stand. Where the build differs from the text above or adds to it:
     role.value=orchestrator`, adapter `RoleServerEnv`) turns the role's `RoutingRule` patterns into
     `HECKS_SERVER_TOOLS=commands`, `HECKS_SERVER_DOMAINS=lib/hecks/hecks` and the exact command names the Hecks domain
     has: `Aggregate.*` expands to every command of the aggregate, `Aggregate.verb!` to that one, and a question, a shell
-    command or another bluebook's command (`Work.*` is Tickets') adds nothing. A role with no rows, or none that names
-    a command, gets nothing and stays unrestricted: today only the orchestrator has rows, and it gets eleven commands.
+    command or another bluebook's command (`Work.*` is Tickets') adds nothing. Only a role with no rows at all stays
+    unrestricted: today only the orchestrator has rows, and it gets eleven commands. A role that has rows and none of
+    them names a command gets no variables, and that is not permission (see "Fails closed" below).
   - **Passing it on.** `.mcp.json` is one static file, and whether Claude Code hands the environment of the `claude`
     process to the servers it starts is documented only by third-party guides ("merged with the inherited
     environment"); an unset `${VAR}` is passed on as literal text. So the session does not rely on either:
-    `SessionMcp` reads the checkout's `.mcp.json`, adds the role's variables to the `hecks-mcp` entry's `env`, and
-    passes it as `claude --mcp-config '<json>' --strict-mcp-config` (`SessionLine` builds the line), so the
-    checkout's unrestricted entry does not start beside it. `--strict-mcp-config` also leaves out MCP servers from
-    other scopes for that session. Argument construction is specified against a stand-in `claude`; no real session was
-    started to see the servers come up restricted.
+    `SessionMcp` reads the checkout's `.mcp.json`, adds the role's variables to the `hecks-mcp` entry's `env`, writes
+    the result to a file only its owner can read (`SessionConfigFile`, under the cache directory, named for the run,
+    removed with the session and swept after a fortnight) and passes `claude --mcp-config <path>
+    --strict-mcp-config` (`SessionLine` builds the line), so the checkout's unrestricted entry does not start beside
+    it, and `ps` shows a path, not every server's command line and environment. `--strict-mcp-config` also leaves out
+    MCP servers from other scopes for that session. Argument construction is specified against a stand-in `claude`; no
+    real session was started to see the servers come up restricted.
+  - **Fails closed.** A role that has routing rows never gets the checkout's unrestricted `hecks-mcp`. When the
+    checkout has no `.mcp.json`, cannot read it, has no `hecks-mcp` entry, or no row of the role names a command, the
+    session starts with the configuration without that server (the other servers stay) and the start report carries a
+    note saying why. The same note lists the role's patterns that name no command of the session's checkout.
+  - **The session's checkout answers.** The rows and the command names are read from the checkout the session works
+    in (`RoutingGuard.new(checkout: repo)`), the code its servers will run, not the dispatcher's. A name that checkout
+    lacks is dropped and named in the note. When that checkout cannot answer (no Agents bluebook), the dispatcher's
+    own are used and the note says so. Nothing is kept between sessions: the list is fixed when the session starts,
+    so a row removed afterwards does not revoke a command for a session already running.
+  - **Resume.** `ClaudeResumption` wakes a session with `claude --bg --resume <id>` and no flags, because a resume
+    given flags starts a copy (its own comment, found by hand). Whether a resumed session keeps the `--mcp-config` it
+    was started with is not documented in `claude --help`, which says only that `--bg --resume` continues the session
+    under the same id; this was not tested against a real session. A session woken by an answer therefore may come
+    back with the checkout's default servers.
+  - **Accepted: the server reads more than the Bash guard allows.** The `commands` mode narrows `dispatch` to the
+    role's commands but still serves the reader tools (`query`, `state`, `events`, `describe`, `catalog`, `history`)
+    and `Codebase.ReadSource` through `READ_PATH_QUESTIONS`, against everything under the boot root. A role's Bash is
+    held to its rows by the guard hook, which matches `Bash` only, so a restricted server reads more than the role's
+    Bash may.
+  - **Accepted: the orchestrator may not reach its server.** `.claude/agents/orchestrator.md` says `tools: Bash`.
+    The Claude Code subagent documentation (code.claude.com/docs/en/sub-agents) makes `tools` an allowlist and names
+    MCP tools in it as `mcp__<server>__*`; with `Bash` alone an `mcp__` tool is not in the list. If that holds for a
+    session started with `--agent`, the orchestrator's restricted server is unreachable today and the saving is the
+    idle servers it no longer holds (16 MB against 48 MB each). It is not verified against a real session.
 - **A line runs only after three words.** The resident answers `ready` once it has the request and the three
   streams and can serve them; the caller answers `go`; the resident forks only then, and ends with the status.
   A caller that gave up on a slow resident has closed its socket (the client closes it on every path, before it

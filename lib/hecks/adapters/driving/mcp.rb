@@ -38,6 +38,9 @@ module Hecks
           "ping"       => :ping_result
         }.freeze
 
+        # What a batch, or a value that is not a request object, is answered.
+        INVALID_REQUEST = "Invalid Request: one request object per line; batches are not supported".freeze
+
         extend Loading
 
         module_function
@@ -69,9 +72,15 @@ module Hecks
           send_error(nil, -32_700, "Parse error: #{e.message}")
         end
 
-        # Handles a request, answering an internal error rather than ending the server.
+        # Handles a request, answering an internal error rather than ending the server. A batch (a
+        # JSON array) or any other value that is not an object is one invalid request. A late load
+        # that failed is answered with its own message, on every call that needs it.
         def handle_safely(request)
+          return send_error(nil, -32_600, INVALID_REQUEST) unless request.is_a?(Hash)
+
           handle(request)
+        rescue McpLazyLoad::Failed => e
+          send_error(request["id"], -32_603, e.message) unless request["id"].nil?
         rescue StandardError => e
           send_error(request["id"], -32_603, "Internal error: #{e.class}: #{e.message}")
         end
@@ -150,24 +159,6 @@ module Hecks
 
           with_progress(token) { tool_result(answer_tool(params["name"], params["arguments"] || {})) }
         end
-
-        # Runs the block with a progress seam for this call's stages, so their lines reach the
-        # client as
-        # notifications. The seam is per thread and removed when the call ends.
-        # @param token [Object] the client's progress token
-        # @return [Object] the block's value
-        def with_progress(token)
-          framework!
-          previous = Thread.current[:mcp_progress]
-          Thread.current[:mcp_progress] = Tools::StageProgress.new(ProgressSink.new(token, out: $stdout))
-          yield
-        ensure
-          Thread.current[:mcp_progress] = previous
-        end
-
-        # The progress seam of the call on this thread: nil when the client sent no progress token.
-        # @return [Tools::StageProgress, nil]
-        def progress = Thread.current[:mcp_progress]
 
         def ping_result(_params) = {}
       end

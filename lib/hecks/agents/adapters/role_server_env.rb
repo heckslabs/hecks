@@ -10,8 +10,10 @@ module Hecks
     # the server serves has a command of that name. A pattern that names a question, another
     # bluebook's command or a shell command (`git status`) adds nothing.
     #
-    # A role with no rows, or none that names a command, gets no variables, so its server stays as
-    # unrestricted as the role's own session is.
+    # A role with no rows at all gets no variables, and its server stays as unrestricted as the
+    # role's own session is. A role that has rows and none of them names a command also gets none,
+    # and that is not permission: the session start (`SessionMcp`) leaves such a role without the
+    # `hecks-mcp` server instead of starting the checkout's unrestricted one.
     class RoleServerEnv
       McpScope = Driving::McpScope
       private_constant :McpScope
@@ -41,11 +43,18 @@ module Hecks
 
       # @return [Array<String>] the served domain's command names the patterns name, sorted
       def expanded
-        available = @names.call
         @patterns.flat_map { |pattern| matching(pattern, available) }.uniq.sort
       end
 
+      # @return [Array<String>] the `Aggregate.verb` patterns that name no command of the served
+      #   domain: a question, another bluebook's command, or a command this checkout lacks
+      def unserved
+        @patterns.select { |pattern| PATTERN.match?(pattern) && matching(pattern, available).empty? }
+      end
+
       private
+
+      def available = (@available ||= @names.call)
 
       def matching(pattern, available)
         found = PATTERN.match(pattern)

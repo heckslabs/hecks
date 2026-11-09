@@ -23,8 +23,11 @@ module Hecks
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] `rows:` a callable answering a value object's name => its rows
       # @param root [String, nil] unused
-      def initialize(aggregate: nil, settings: {}, root: nil)
+      # @param checkout [String, nil] a checkout whose bluebooks answer, rows and command names
+      #   alike, instead of this one's: the one a session will work in
+      def initialize(aggregate: nil, settings: {}, root: nil, checkout: nil)
         @rows = settings[:rows] || method(:bluebook_rows)
+        @checkout = checkout
       end
 
       # @param role [Hash, String] the role asking
@@ -55,20 +58,35 @@ module Hecks
       # @param name [String] the role
       # @return [Hash{String => String}] the `HECKS_SERVER_*` variables, or empty
       def server_variables(name)
-        patterns = rows("RoutingRule", name).map { |row| row[:pattern] }
-        return {} if patterns.empty?
+        server_plan(name)[:variables]
+      end
 
-        RoleServerEnv.new(patterns: patterns, names: method(:command_names)).variables
+      # What a session of the role needs from its MCP server: whether the role has routing rows (a
+      # role with none stays unrestricted), the variables that restrict the server to the commands
+      # the rows name, and the patterns that name no command this checkout's domain has.
+      #
+      # @param name [String] the role
+      # @return [Hash{Symbol => Object}] `rows:` true when the role has rows, `variables:` the
+      #   `HECKS_SERVER_*` variables (empty when none names a command), `unserved:` the patterns
+      def server_plan(name)
+        patterns = rows("RoutingRule", name).map { |row| row[:pattern] }
+        return { rows: false, variables: {}, unserved: [] } if patterns.empty?
+
+        env = RoleServerEnv.new(patterns: patterns, names: method(:command_names))
+        { rows: true, variables: env.variables, unserved: env.unserved }
       end
 
       private
 
-      # The command names the Hecks domain has, as a person types them; read once per guard.
+      # The command names the served Hecks domain has, as a person types them. Read from this
+      # guard's checkout, so a session is judged against the code it will run.
       def command_names
         @command_names ||= Driving::CliRunner.known_command_names(runtime: Hecks.describe(served_domain), program: "mcp")
       end
 
-      def served_domain = File.expand_path("../hecks", BLUEBOOK_DIR)
+      def served_domain = @checkout ? File.join(@checkout, "lib/hecks/hecks") : File.expand_path("../hecks", BLUEBOOK_DIR)
+
+      def agents_dir = @checkout ? File.join(@checkout, "lib/hecks/agents") : BLUEBOOK_DIR
 
       def allowed?(rules, text, name = nil)
         return false if text.match?(CHAINING)
@@ -114,7 +132,7 @@ module Hecks
 
       def bluebook = (@bluebook ||= described.bluebooks.fetch("Agents"))
 
-      def described = Hecks.describe(BLUEBOOK_DIR).registry
+      def described = Hecks.describe(agents_dir).registry
     end
   end
 end

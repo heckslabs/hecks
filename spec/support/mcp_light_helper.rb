@@ -1,6 +1,7 @@
 require "json"
 require "open3"
 require "stringio"
+require "tmpdir"
 
 # Runs the MCP server the way `.mcp.json` does, in a child process, and reads what it answered.
 # The goldens in spec/fixtures/mcp_light were written by the server before it loaded lazily.
@@ -49,11 +50,24 @@ module McpLightHelper
 
   # Starts the server on `requests`, with the mode's environment, and returns [stdout, probe].
   def run_server(mode, requests = REQUESTS)
-    env = { "HECKS_CACHE_DIR" => ENV.fetch("HECKS_CACHE_DIR") }.merge(MODES.fetch(mode))
-    out, err, = Open3.capture3(env, "ruby", "-I", "lib", "-e", CHILD, "--", stdin_data: lines_of(requests),
-                                                                            chdir:      repo_root)
+    out, err, = run_raw(MODES.fetch(mode), requests)
     [out.gsub(repo_root, ROOT_MARKER), probe_of(err)]
   end
+
+  # Starts the server with exactly these extra variables on `requests` (text or request hashes) and
+  # returns [stdout, stderr, status], so a refusal at start can be seen as the client would.
+  def run_raw(env, requests = REQUESTS)
+    input = requests.is_a?(String) ? requests : lines_of(requests)
+    out, err, status = Open3.capture3({ "HECKS_CACHE_DIR" => cache_dir }.merge(env), "ruby", "-I", "lib", "-e", CHILD, "--",
+                                      stdin_data: input, chdir: repo_root)
+    [out, err, status]
+  end
+
+  # The cache directory a child server uses: the specs' own when set, else a scratch one.
+  def cache_dir = ENV["HECKS_CACHE_DIR"] || (@scratch_cache ||= Dir.mktmpdir("mcp-light-cache"))
+
+  # Whether `ps` can report a process's resident memory here, as the memory examples need.
+  def rss_readable? = !IO.popen(["ps", "-o", "rss=", "-p", Process.pid.to_s], err: File::NULL, &:read).to_s.strip.empty?
 
   def probe_of(err)
     found = err.match(/probe framework=(\d) rss_kb=(\d+)/)

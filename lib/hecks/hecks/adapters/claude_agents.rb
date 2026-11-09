@@ -51,7 +51,7 @@ module Hecks
         @agents = ClaudeAgentList.new(@command, shell: @shell)
         @listing = ClaudeSessionListing.new(@command, shell: @shell)
         @settle = settings.fetch(:settle, SETTLE_SECONDS)
-        @mcp = SessionMcp.new(server_env: settings[:server_env])
+        @mcp = SessionMcp.new(server_env: settings[:server_env], files: settings[:mcp_files])
       end
 
       # Says the directory a session would work in is there, and whether the `claude` there lists
@@ -75,13 +75,9 @@ module Hecks
       # @return [Hash{Symbol => Hash}] `session:` the id the session is known by
       # @raise [ConsoleCapture::Failure] when the command fails or names no session
       def start(**held)
-        result = @shell.capture(*session_line.arguments(held), env: @session.session_environment, chdir: plain(held[:repo]))
-        raise ConsoleCapture::Failure, "#{@command} did not start a session: #{result.err.strip}" unless result.ok?
-
-        id = result.out[SESSION_ID, 1]
-        raise ConsoleCapture::Failure, "#{@command} named no session: #{result.out.strip}" unless id
-
-        { session: { value: id } }
+        line = session_line
+        result = @shell.capture(*line.arguments(held), env: @session.session_environment, chdir: plain(held[:repo]))
+        { session: { value: session_id(result) } }.merge(line.report)
       end
 
       # Reads the state a started session's job is in, beside the state the run last recorded.
@@ -184,6 +180,7 @@ module Hecks
         result = @shell.capture(@command, "rm", id)
         raise ConsoleCapture::Failure, "#{@command} rm #{id} refused: #{result.err.strip}" unless result.ok?
 
+        @mcp.discard(run: plain(held[:run]))
         { removed_at: { value: Time.now.utc.iso8601 } }
       end
 
@@ -228,6 +225,13 @@ module Hecks
       def listed(id) = @listing.find(id) || raise(ConsoleCapture::Failure, "no session #{id} is listed")
 
       def session_line = SessionLine.new(command: @command, nice: niceness, mcp: @mcp)
+
+      # The id a start printed, or why there is none.
+      def session_id(result)
+        raise ConsoleCapture::Failure, "#{@command} did not start a session: #{result.err.strip}" unless result.ok?
+
+        result.out[SESSION_ID, 1] || raise(ConsoleCapture::Failure, "#{@command} named no session: #{result.out.strip}")
+      end
 
       def niceness = @session.nice ? ["nice", "-n", @session.nice.to_s] : []
 

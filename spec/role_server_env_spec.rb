@@ -1,4 +1,5 @@
 require "spec_helper"
+require "tmpdir"
 require "hecks/agents/adapters/routing_guard"
 
 # A role's MCP server starts restricted to the commands its routing rows name, so it stays
@@ -32,6 +33,11 @@ RSpec.describe Hecks::Adapters::RoleServerEnv do
     expect(variables("Dispatch.fill!", "Dispatch.*")["HECKS_SERVER_COMMANDS"]).to eq("dispatch.fill,dispatch.settle")
   end
 
+  it "names the patterns that match no command of the served domain, and only those" do
+    found = described_class.new(patterns: ["Dispatch.fill!", "Work.start!", "git status", "Nope.*"], names: -> { NAMES })
+    expect(found.unserved).to eq(["Nope.*"])
+  end
+
   it "builds variables a commands server accepts", :aggregate_failures do
     scope = Hecks::Adapters::Driving::McpScope.from_env(variables("Dispatch.*"))
     expect(scope).to be_commands_mode
@@ -50,6 +56,22 @@ RSpec.describe Hecks::Adapters::RoleServerEnv do
 
     it "leaves a role with no rows unrestricted" do
       expect(lines("coder")).to eq([])
+    end
+
+    it "plans the orchestrator as a role with rows, and the coder as one with none", :aggregate_failures do
+      expect(guard.server_plan("orchestrator")).to include(rows: true)
+      expect(guard.server_plan("coder")).to eq(rows: false, variables: {}, unserved: [])
+    end
+
+    it "reads the rows and the commands from the checkout it is given", :aggregate_failures do
+      plan = Hecks::Adapters::RoutingGuard.new(checkout: File.expand_path("..", __dir__)).server_plan("orchestrator")
+      expect(plan[:variables]).to eq(guard.server_plan("orchestrator")[:variables])
+      expect(plan[:unserved]).to include("Work.*")
+    end
+
+    it "refuses a checkout that has no Agents bluebook, so a caller can fall back" do
+      missing = Hecks::Adapters::RoutingGuard.new(checkout: Dir.mktmpdir("no-checkout"))
+      expect { missing.server_plan("orchestrator") }.to raise_error(StandardError)
     end
   end
 end
