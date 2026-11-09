@@ -105,6 +105,16 @@ module Hecks
             Float(default)
           end
 
+          # Removes a file, if it is there; the standard library's `FileUtils` is not loaded for it,
+          # since a launcher that is served runs this and nothing else of the kind.
+          #
+          # @return [void]
+          def forget(path)
+            File.delete(path)
+          rescue StandardError
+            nil
+          end
+
           # Keeps a setting the world declared for the launchers, which ask before they load. It is
           # written through a temp file and renamed, so a launcher never reads half a number.
           #

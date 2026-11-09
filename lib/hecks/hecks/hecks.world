@@ -110,7 +110,8 @@ Hecks.world "Hecks" do
                                 "package.digest" => "registry.digest",
                                 "package.release" => "registry.release" },
                        streams: %w[Follow],
-                       reads_tap: %w[Operation.Feed PipelineBoard.Snapshot],
+                       reads_tap: %w[Operation.Feed PipelineBoard.Snapshot Work.undone AgentRun.running
+                                     AgentRun.tidyable PlanReview.reviews Role.guard Role.server_env],
                        executable: "exe/hecks",
                        maintainer: %w[LanguageRun KernelRun ConformanceRun RegenerationRun GateRun StyleRun InspectionRun
                                       CodemodRun TestSuiteRun CorpusRun Server PublishingRun PromotionRun Release ScriptRun

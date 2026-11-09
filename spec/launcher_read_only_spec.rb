@@ -38,6 +38,26 @@ RSpec.describe Hecks::Adapters::Driving::ReadOnlyQuestion do
     end
   end
 
+  # The pipeline polls these thousands of times a day; listed, each boots without redriving the
+  # outbox and without opening the stores of aggregates it does not ask about.
+  describe "the Hecks world's listing" do
+    let(:described) { Hecks.describe(File.expand_path("../lib/hecks/hecks", __dir__)) }
+    let(:polled) do
+      [%w[tickets Work.undone], %w[agent_run.running], %w[agent_run.tidyable], %w[agents PlanReview.reviews],
+       %w[agents Role.guard role.value=coder], %w[agents Role.server_env role.value=orchestrator]]
+    end
+
+    it "lists the questions the pipeline polls", :aggregate_failures do
+      polled.each do |line|
+        expect(described_class.for_line?(described, line, "Hecks")).to be(true), line.join(" ")
+      end
+    end
+
+    it "does not list a command" do
+      expect(described_class.for_line?(described, %w[tickets Work.start! to=x], "Hecks")).to be(false)
+    end
+  end
+
   describe ".for_line?" do
     it "reads the listing from the described domain's launcher setting" do
       described = instance_double(Hecks::Runtime::Loader::Described)

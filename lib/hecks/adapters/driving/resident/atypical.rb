@@ -1,4 +1,3 @@
-require "fileutils"
 require "hecks/adapters/driving/resident/paths"
 require "hecks/adapters/driving/resident/baseline"
 
@@ -41,7 +40,7 @@ module Hecks
           def env?(why) = why.to_s == ENV_REASON || why.to_s.start_with?("#{ENV_REASON}:")
 
           # Forgets the refusals, because the resident served or refused for another reason.
-          def clear(root) = FileUtils.rm_f(Paths.envs(root))
+          def clear(root) = Paths.forget(Paths.envs(root))
 
           # Adds this refusal to the ones within the window.
           #
@@ -49,6 +48,7 @@ module Hecks
           def note(root)
             now = Time.now.to_f
             times = (recent(root, now) << now).last(REFUSALS)
+            require "fileutils"
             FileUtils.mkdir_p(Paths.directory, mode: 0o700)
             File.write(Paths.envs(root), times.join("\n"))
             times

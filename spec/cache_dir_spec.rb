@@ -58,6 +58,17 @@ RSpec.describe Hecks::CacheDir do
       expect(root).to eq(File.join(scratch, ".cache", "hecks"))
     end
 
+    it "does not ask the system for the temp directory when the user's cache directory serves" do
+      allow(described_class).to receive(:system_tmpdir)
+      described_class.resolve(env: { "HOME" => scratch })
+      expect(described_class).not_to have_received(:system_tmpdir)
+    end
+
+    it "asks the system for the temp directory when no cache directory serves" do
+      allow(described_class).to receive(:system_tmpdir).and_return(scratch)
+      expect(described_class.resolve(env: {}, uid: 4242)).to eq(File.join(scratch, "hecks-4242"))
+    end
+
     it "uses <tmpdir>/hecks-<uid> when neither is available" do
       root = described_class.resolve(env: {}, tmpdir: scratch, uid: 4242)
 

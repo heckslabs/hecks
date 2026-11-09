@@ -415,6 +415,59 @@ could have been the one that started it.
   the resident's Ruby and locale; those differ between a hook, a session and a terminal, and matching them
   would send most lines away from the resident.
 
+### The warm path
+
+Where a served line's 0.19 s went, by phase (`HECKS_TRACE_TIMING=1` prints each mark on the wall
+clock, to standard error, from the launcher and from the child; medians of 20 calls of
+`hecks tickets Work.undone`, before any of the changes below):
+
+| phase | ms |
+|---|---|
+| the shell to the launcher's first line (the rbenv shim, Ruby, rubygems) | 64 |
+| the launcher to its connection (the client's `require`s and path checks) | 11 |
+| the handshake: request, `fds`, `ready`, `go` | under 1 |
+| the fork to the child holding the caller's streams | 5 |
+| the launcher script loaded, to the usage answer | 5 |
+| `Hecks.boot_described`: the boot gates, of which `verify!` is 46 | 52 |
+| `CliRunner.call`: the query itself | 28 |
+| the child's end, to the caller's | 18, of which 9 walked the heap for `Tempfile`s |
+
+What changed, each with the line's behaviour kept:
+
+- **The declaration checks run once, in the resident.** `Registry#verify_declarations!` (the eight
+  checks that read only declarations, worlds and adapter classes) runs when the resident loads a
+  domain, and a registry that passed skips it. `Declarations#verified` is cleared by `store`,
+  `remove`, `append` and `record_source`, so a declaration added later runs them again. A domain that
+  fails them is held as it is and each child refuses it in a cold launcher's words. About 14 ms.
+- **A read-only boot opens only what the line reads.** A question the Hecks world lists under
+  `reads_tap` (now `Work.undone`, `AgentRun.running`, `AgentRun.tidyable`, `PlanReview.reviews`,
+  `Role.guard` and `Role.server_env`, beside the two it had) boots with `read_only`, which now also
+  leaves the repository of every other bound aggregate unopened until a line asks it something, and
+  skips the saga-checkpoint check, since it resumes no saga. About 19 ms for a `Work` query, which
+  no longer opens the stores of `AgentRun`, `Pipeline` and `Agents`; with the first change,
+  `boot_described` went from 52 ms to 18. A store that cannot be opened
+  surfaces when the line first reads it, not at boot, and only for these listed questions; a boot
+  that acts checks every store as before.
+- **A child's temporary files are recorded, not found.** The child closes the `Tempfile`s it made
+  instead of walking the inherited heap for them. 9 ms.
+- **The client loads less.** `fileutils`, `tmpdir`, `etc`, `crowd`, `claim` and `spawn_env` load only
+  when a resident is to be started (`Resident::Starting`) or a directory is to be made, and a file the
+  served path clears is deleted with `File.delete`. `Hecks::CacheDir` makes its directory with
+  `Dir.mkdir` and asks the system for the temp directory only when no cache directory serves. About
+  6 ms (the launcher's start to the child holding the streams went from 16 ms to 11).
+  `lib/hecks.rb` requires the three standard-library files itself, so the framework's own files
+  that used them without a `require` of their own are unaffected.
+
+The shim is outside the repository: `ruby` on this machine is an rbenv shim, which costs about 30 ms
+before the interpreter starts, and rubygems another 30 ms that a client which never loads a gem does
+not need (`ruby --disable-gems exe/hecks` served the line in 0.07 s; the launcher's cold path would
+need a `require "rubygems"` before `bundler/setup` to allow it, which is not done).
+
+After: `hecks tickets Work.undone` 0.19 s to 0.13 s, `hecks agents Role.guard` 0.18 s to 0.11 s and
+`hecks --help` 0.10 s to 0.08 s (medians of 30 calls, main's resident and this branch's in turn, the
+same minute). The output and status of eight polled lines were compared byte for byte between the
+two and are identical.
+
 ### Measured
 
 | step, on the Hecks domain, macOS arm64, Ruby 3.3.7 | |

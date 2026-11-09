@@ -2,6 +2,7 @@ require "spec_helper"
 require "tmpdir"
 require "hecks/adapters/driving/resident/server"
 require "hecks/adapters/driving/resident/client"
+require "hecks/adapters/driving/resident/spawn_env"
 
 # A resident is started with one plain environment, whoever starts it, and says which variables a
 # refused line differed on (ADR 0201). A resident that was not born plain (an older one) and

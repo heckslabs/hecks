@@ -4,6 +4,7 @@ require "tmpdir"
 require "timeout"
 require "hecks/adapters/driving/resident/server"
 require "hecks/adapters/driving/resident/client"
+require "hecks/adapters/driving/resident/claim"
 
 # A resident that takes callers concurrently (ADR 0201): a slow caller holds up no other, a
 # launcher waits only briefly for a busy resident, one launcher starts the replacement when the

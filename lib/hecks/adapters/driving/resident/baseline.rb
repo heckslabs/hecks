@@ -1,4 +1,3 @@
-require "fileutils"
 require "hecks/adapters/driving/resident/paths"
 require "hecks/adapters/driving/resident/env_value"
 

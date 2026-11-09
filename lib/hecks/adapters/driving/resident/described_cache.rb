@@ -29,10 +29,20 @@ module Hecks
           # @return [Hecks::Runtime::Loader::Described]
           def load(path, environment)
             key = [File.expand_path(path), environment]
-            @held[key] ||= under(environment) { quietly { Hecks.describe(path).tap(&:registry) } }
+            @held[key] ||= under(environment) { quietly { verified(Hecks.describe(path).tap(&:registry)) } }
           end
 
           private
+
+          # Runs the wiring checks that read only the declarations, once, so no child that boots
+          # this domain runs them again. A domain that fails them is held as it is: each child
+          # checks it for itself and refuses, with the words a cold launcher would use.
+          def verified(described)
+            described.registry.verify_declarations!
+            described
+          rescue StandardError
+            described
+          end
 
           def quietly
             saved = $stderr

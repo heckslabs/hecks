@@ -1,4 +1,3 @@
-require "fileutils"
 require "hecks/adapters/driving/resident/paths"
 require "hecks/adapters/driving/resident/atypical"
 
@@ -56,10 +55,11 @@ module Hecks
           def replace?(root, why) = (why == "busy" && following?(root)) || Atypical.streak?(root, why)
 
           # Forgets a `busy` that was noted, because the resident has answered.
-          def clear(root) = FileUtils.rm_f(Paths.busy(root))
+          def clear(root) = Paths.forget(Paths.busy(root))
 
           # Notes that the resident was too busy to answer.
           def note(root)
+            require "fileutils"
             FileUtils.mkdir_p(Paths.directory, mode: 0o700)
             FileUtils.touch(Paths.busy(root))
           rescue SystemCallError

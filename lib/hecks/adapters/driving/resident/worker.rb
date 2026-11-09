@@ -1,6 +1,7 @@
 require "English"
 require "tempfile"
 require "hecks/adapters/driving/resident/outcome"
+require "hecks/adapters/driving/resident/trace"
 
 module Hecks
   module Adapters
@@ -46,6 +47,25 @@ module Hecks
             end
           end
 
+          # Remembers each Tempfile the line makes, so the child's end removes exactly those and
+          # does not walk the whole heap it inherited to find them, which takes about nine
+          # milliseconds on a resident's.
+          module Tempfiles
+            def new(...)
+              super.tap { |file| Worker.tempfiles << file }
+            end
+          end
+
+          # @return [Array<Tempfile>] the Tempfiles this child has made
+          def self.tempfiles = (@tempfiles ||= [])
+
+          # Removes one temporary file; one already gone is no trouble.
+          def self.close_quietly(file)
+            file.close!
+          rescue StandardError
+            nil
+          end
+
           # Ends a child once every exit handler has run. Ruby would now free the whole heap it
           # shares with the resident, which costs more than the line did; the operating system
           # does it for nothing. What that teardown would have done that matters is done here:
@@ -54,9 +74,10 @@ module Hecks
           def self.leave
             error = $ERROR_INFO
             warn(error.full_message) if error && !error.is_a?(SystemExit)
-            ObjectSpace.each_object(Tempfile, &:close!)
+            tempfiles.each { |file| close_quietly(file) }
             $stdout.flush
             $stderr.flush
+            Trace.mark("child_exit")
             Process.exit!(status_of(error))
           end
 
@@ -83,16 +104,25 @@ module Hecks
           def run
             Resident.const_set(:CHILD, true)
             take_over
-            Describing.cache = @cache
-            Describing.notes = @notes
-            Hecks.singleton_class.prepend(Describing)
-            Object.send(:remove_const, :HECKS_LAUNCHED_AT) if Object.const_defined?(:HECKS_LAUNCHED_AT)
+            Trace.mark("child_took_over")
+            install
             report_loads
             load @request[:script]
             exit(0)
           end
 
           private
+
+          # Puts in place what a line run in a child needs: the cached domains, the temp-file
+          # record, and the phase marks when asked for.
+          def install
+            Trace.install
+            Tempfile.singleton_class.prepend(Tempfiles)
+            Describing.cache = @cache
+            Describing.notes = @notes
+            Hecks.singleton_class.prepend(Describing)
+            Object.send(:remove_const, :HECKS_LAUNCHED_AT) if Object.const_defined?(:HECKS_LAUNCHED_AT)
+          end
 
           # At exit, names the Ruby files this line loaded that the resident had not, so the
           # resident loads them.

@@ -1,3 +1,8 @@
+# Standard library the framework's files use without requiring it themselves. The launcher's
+# resident client loads none of it (Hecks::CacheDir needs it only on a path it rarely takes).
+require "etc"
+require "fileutils"
+require "tmpdir"
 require_relative "hecks/version"
 # The closed sets the runtime computes with, generated from
 # vocabulary.bluebook. Plain data, required first, because some of
