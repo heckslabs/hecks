@@ -208,6 +208,24 @@ the warm run, the declaration load is about 1.0 s, `require "hecks"` about 0.17 
 the load's remaining cost is spread over the DSL evaluation of every attached bluebook, with garbage collection
 about a fifth of it. A cold run after an edit under `lib/` takes about 9 s.
 
+With the checkout's resident standing (ADR 0201), measured on 2026-11-09 on the same machine, a line takes the
+fork and its own work:
+
+| command | no resident | through the resident |
+|---|---|---|
+| `tickets Work.undone` | about 1.3 s | about 0.13 s |
+| `--help` | about 0.3 s | about 0.11 s |
+| `agents Role.guard role.value=coder command.value=ls` | about 1.3 s | about 0.13 s |
+| `RedFlag.status` (it runs `git`) | about 1.3 s | about 0.19 s |
+
+Of a warm line, about 40 ms is Ruby starting the thin client, the resident answers `go` within 16 ms of the
+connection (the fork included), and the child's own boot to the command is about 80 ms. The resident holds about
+300 MB. The first line after an edit under `lib/` is cold (the resident retired) and starts the next resident, which
+loads in about 8 s on a cold cache and 3 s on a warm one. Two costs a forked child had to be spared, found by
+measuring: the verdict cache's exit flush (150 ms a line, because the resident had judged bluebooks it never wrote)
+and the usage cache's digest of the declaration files (80 ms a line); the resident now writes the verdicts once and
+keeps the digest.
+
 Not done, and not safe to do without an audit: keying the digest to the files a verdict actually reads. It would keep the cache warm
 across unrelated edits, but a stale "no refusals" entry would skip validation, so the key must name every input of a verdict, and
 nothing lists them today.

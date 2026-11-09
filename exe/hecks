@@ -16,6 +16,10 @@ Encoding.default_internal = Encoding::UTF_8
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
+# A resident for this checkout, when one stands, runs this line and ends it (ADR 0201).
+require "hecks/adapters/driving/resident/client"
+Hecks::Adapters::Driving::Resident::Client.run(__FILE__)
+
 # In a hecks checkout this runs on the gems the Gemfile pins, as `bundle exec` and CI do.
 # Beside an installed gem, or where that set is not installed, it runs on the gems at hand.
 gemfile = File.expand_path("../Gemfile", __dir__)
@@ -30,11 +34,13 @@ end
 
 # The Ruby this boot compiles and the load path it searches are kept between boots.
 begin
-  require "bootsnap"
-  require "hecks/cache_dir"
-  if Hecks::CacheDir.stable?
-    Bootsnap.setup(cache_dir: Hecks::CacheDir.path("bootsnap"), development_mode: true,
-                   load_path_cache: true, compile_cache_iseq: true, compile_cache_yaml: false)
+  unless defined?(::Bootsnap)
+    require "bootsnap"
+    require "hecks/cache_dir"
+    if Hecks::CacheDir.stable?
+      Bootsnap.setup(cache_dir: Hecks::CacheDir.path("bootsnap"), development_mode: true,
+                     load_path_cache: true, compile_cache_iseq: true, compile_cache_yaml: false)
+    end
   end
 rescue ScriptError, StandardError
   nil

@@ -93,7 +93,7 @@ module Hecks
         #   ones
         def handoff_for(executable, memory_commands, site, ledgers)
           gems = render(executable ? PINNED_GEMS : PROJECT_GEMS, up: site.up) + COMPILED_RUBY_CACHE
-          executable ? gems + memory_default(Array(memory_commands)) + ledger_route(ledgers) : gems
+          executable ? RESIDENT_PROBE + gems + memory_default(Array(memory_commands)) + ledger_route(ledgers) : gems
         end
 
         # @api private

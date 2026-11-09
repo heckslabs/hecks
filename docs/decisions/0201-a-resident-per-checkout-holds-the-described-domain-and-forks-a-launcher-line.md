@@ -1,8 +1,10 @@
 # A resident per checkout holds the described domain and forks a launcher line
 
-**Status:** Proposed. The owner chose the resident on 2026-11-09 over leaving boots as they are. Date: 2026-11-09.
+**Status:** Accepted. The owner chose the resident on 2026-11-09 over leaving boots as they are, and it was built the
+same day (`lib/hecks/adapters/driving/resident/`); "As built" below records where the build differs from the decision and
+what it measured. Date: 2026-11-09.
 Builds on [0089](0089-the-mcp-door-gets-a-commands-scope-and-stays-booted.md), whose restricted server already keeps a domain booted.
-Some figures below are not yet measured; the measuring is the first step of the build and each is marked.
+The figures in the Context and the spike were measured before the build; those of the build are under "As built".
 
 ## Context
 
@@ -119,3 +121,63 @@ day. The build's acceptance test stands in for the first (a warm `hecks RedFlag.
   attached bluebook and the collector, with no single step to remove.
 - **A snapshot of the booted domain under `prebuilt/`.** The gem could ship it, as `CacheDir.prebuilt` allows for
   other caches. It shares the first alternative's obstacle and adds a build step on every change to `lib/`.
+
+## As built
+
+The build is in `lib/hecks/adapters/driving/resident/`: `client.rb` (what a launcher runs first), `server.rb` with
+`loading.rb` and `serving.rb` (the resident), `worker.rb` (the forked child), `fingerprint.rb`, `described_cache.rb`,
+`wire.rb` and `paths.rb`. Decisions 1 to 5 stand. Where the build differs from the text above or adds to it:
+
+- **The child runs the launcher script itself.** Decision 2 has the child do "what the launcher does from
+  `Hecks.boot_described` on". The build instead `load`s the real `exe/hecks` in the child, with `Hecks.describe`
+  answering from the resident's cache. The launcher's own top level then handles the line (the Memory defaults, the
+  ledger route, usage, streaming, the usage log), so none of it is written twice and the cold and warm paths cannot
+  drift. The cost is a re-parse of a small file. Decision 4's "move the top-level state into the request path" is
+  therefore not needed.
+- **The caller's streams are passed, not copied.** The client sends its standard input, output and error over the
+  socket as file descriptors, and the child reopens its own on them. A terminal stays a terminal, a pipe stays a
+  pipe, and the resident never sits between a caller and its output. The exit status comes back as one line. When
+  the caller's end of the socket closes before the line is done, the resident interrupts the child.
+- **No `Marshal`, no JSON on the socket.** The request is the argument list, the environment, the directory and the
+  script as NUL-ended fields, and a reply is one word. The client may not load `json` before `bundler/setup` (it
+  would not be the version the Gemfile pins), and nothing the other end sends is ever deserialized.
+- **Residents are kept apart by the cache directory.** The socket directory follows `HECKS_CACHE_DIR` as the help
+  cache does, and `spec_helper` sets `HECKS_NO_RESIDENT=1`, so a launcher a spec starts neither uses nor leaves a
+  resident. The decision's live-state guard for a spec that opens the live socket is not needed: the specs cannot
+  reach it. The socket path must fit the system's limit (103 bytes on macOS); a longer one is not used and the
+  launcher boots on its own, which a long temporary directory name will do.
+- **The resident serves only a line made as it was loaded.** A request whose `HOME`, `XDG_CACHE_HOME`,
+  `BUNDLE_GEMFILE`, `RUBYOPT`, `RUBYLIB`, `HECKS_NO_USAGE_CACHE` or `HECKS_ENGINE` differs from the resident's own is
+  answered by the launcher itself, because the code read those when it loaded. `HECKS_ENVIRONMENT` is not one of
+  them: each environment is its own cached load.
+- **It learns what it lacked.** A child that needs a domain or environment the resident has not loaded builds it as a
+  cold launcher would, and names it and the Ruby files it loaded; the resident loads them after the reply, so the
+  next child finds them ready. Loading output a cold launcher prints (the worktree-overlay warning, for one) is
+  captured once and printed by a child the first time it asks for the registry, as a cold launcher prints it.
+- **Cheap to fork, cheap to leave.** Three costs a child inherited were found by measuring and removed. The resident
+  writes the verdicts its load judged (a child had written them again at its own exit, 150 ms a line), keeps the
+  usage cache's digest of the declaration files (80 ms a line), and runs `Process.warmup` so a child's garbage
+  collections leave the shared pages alone. A child ends by flushing its output, reporting an uncaught error,
+  closing its temporary files and leaving without Ruby's teardown of the shared heap, after every other exit
+  handler has run.
+- **The ceiling on residents refuses, it does not evict.** Decision 3's "the oldest idle one exits first" is not
+  built: a resident that finds `max_residents` others standing exits at once and its launcher boots on its own. Both
+  numbers are the Hecks world's `resident` line (`idle_seconds` 600, `max_residents` 8).
+- **The servers a session starts are not yet clients (decision 6).** The two MCP servers still load their own copy.
+  That change is its own step.
+
+### Measured
+
+| step, on the Hecks domain, macOS arm64, Ruby 3.3.7 | |
+|---|---|
+| resident answers `go` after the connection (the fork included) | 16 ms |
+| a child's boot to the command (`boot_ms` in the usage log) | about 80 ms |
+| warm `hecks tickets Work.undone` | 0.13 s |
+| warm `hecks --help` | 0.11 s |
+| warm `hecks agents Role.guard role.value=coder command.value=ls` (the orchestrator guard hook) | 0.13 s |
+| warm `hecks RedFlag.status` (runs `git`) | 0.19 s |
+| the first line after an edit under `lib/`: cold boot, then a new resident | 1.4 s on warm caches |
+| a new resident's own load | about 3 s on warm caches, 8 s on cold |
+| the resident's resident memory | about 300 MB |
+
+The warm lines meet the 0.15 s target but `RedFlag.status`, which waits on `git`.
