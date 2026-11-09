@@ -9,6 +9,8 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 ### Changed
 
+- **The dispatcher starts fewer sessions, and a wait is one call.** The Tickets world caps started Work items at 6 (was 14), stops the fill at a 1-minute load of 8 (was 16) and puts the Machine's load marks at 6 and 8 (were 8 and 10), one number below the CPU count. `Operation.follow` may wait up to 600 seconds (was 60), as the briefs already told sessions. The coder brief waits for an architect's verdict in one `Operation.follow` call instead of reading `PlanReview.reviews` once a minute, and names the domain as a directory (`domain.value=lib/hecks/hecks`): the bare name `Hecks` was refused from any worktree, so a session's wait returned at once and was repeated.
+
 - **Editing a domain built in the language no longer discards the grammar table or the other bluebooks' verdicts.** The grammar table and the verdict file were named by a digest of every file under `lib/` outside the consumer trees, so a one-line edit to the Hecks domain's own bluebooks (`lib/hecks/hecks`, `tickets`, `pipeline` and the other applied trees, `VerdictCache::APPLIED_TREES`) re-judged everything on the next launch. They are now named by `VerdictCache.language_digest`, which leaves those trees out; each verdict is still keyed by its bluebook's IR, so only the edited bluebook is judged again. The help cache and the MCP guide cache keep keying on the full `code_digest`. `spec/syntax_boot_key_spec.rb` fails if a tree on the list ever loads Ruby before the table is built, or loads anything but adapters while the Hecks domain is described.
 
 ### Fixed

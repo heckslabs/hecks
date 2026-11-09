@@ -34,7 +34,8 @@ module Hecks
       REPORT_HEADER = /^── /
 
       # Longest a `Follow` query may wait for new entries, so one call cannot hold a launcher open.
-      MAX_FOLLOW_WAIT = 60
+      # A brief tells a session to wait ten minutes for an event, so one call holds that long.
+      MAX_FOLLOW_WAIT = 600
 
       # Runs the static analysis over the named domains, or over the whole corpus in a checkout.
       #
@@ -134,7 +135,7 @@ module Hecks
       # @param aggregate [Hash, String, nil] only entries of this aggregate, by bare name
       # @param since [Hash, Integer, nil] how many entries were already seen; all when absent
       # @param from_now [Hash, Boolean, nil] skip what exists; answer only a cursor at its end
-      # @param wait [Hash, Integer, nil] seconds to wait for a new entry, at most 60
+      # @param wait [Hash, Integer, nil] seconds to wait for a new entry, at most 600
       # @param interval [Hash, Float, nil] seconds between checks of the log
       # @return [Hash] the `Tail` row: `cursor:`, `events:` (payloads as JSON text) and `taken_at:`
       # @raise [Runtime::NotFound] if the domain cannot be found or keeps no event log
