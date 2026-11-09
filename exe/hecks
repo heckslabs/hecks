@@ -32,9 +32,11 @@ end
 begin
   require "bootsnap"
   require "hecks/cache_dir"
-  Bootsnap.setup(cache_dir: Hecks::CacheDir.path("bootsnap"), development_mode: true,
-                 load_path_cache: true, compile_cache_iseq: true, compile_cache_yaml: false)
-rescue LoadError, StandardError
+  if Hecks::CacheDir.stable?
+    Bootsnap.setup(cache_dir: Hecks::CacheDir.path("bootsnap"), development_mode: true,
+                   load_path_cache: true, compile_cache_iseq: true, compile_cache_yaml: false)
+  end
+rescue ScriptError, StandardError
   nil
 end
 

@@ -42,12 +42,12 @@ module Hecks
       #
       # @return [void] when the session ends; `ARGV` is restored
       def irb_session
-        require "irb"
         words = ARGV.dup
+        require "irb"
         ARGV.clear
         IRB.start(__FILE__)
       ensure
-        ARGV.replace(words)
+        ARGV.replace(words) if words
       end
 
       # @param runtime [Runtime] a booted domain

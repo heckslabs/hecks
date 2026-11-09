@@ -10,6 +10,23 @@ RSpec.describe Hecks::CacheDir do
 
   after { FileUtils.rm_rf(scratch) }
 
+  describe ".stable?" do
+    def stable_in?(env) = described_class.stable?(env: env)
+
+    it "is true for the user's own cache directory", :aggregate_failures do
+      allow(described_class).to receive(:root).and_return(File.join(scratch, ".cache", "hecks"))
+
+      expect(stable_in?("HOME" => scratch)).to be(true)
+      expect(stable_in?("HOME" => "/elsewhere")).to be(false)
+    end
+
+    it "is false for a temp-directory fallback" do
+      allow(described_class).to receive(:root).and_return(File.join(scratch, "hecks-abc123"))
+
+      expect(stable_in?("HOME" => scratch, "XDG_CACHE_HOME" => scratch)).to be(false)
+    end
+  end
+
   describe ".resolve" do
     it "prefers $XDG_CACHE_HOME/hecks", :aggregate_failures do
       xdg = File.join(scratch, "xdg")

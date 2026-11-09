@@ -107,24 +107,29 @@ module Hecks
           #
           # @param keywords [Array<Hash>] the `:keywords` rows of the grammar table
           # @return [Hash{Array(String, String) => Array<Hash>}]
-          def index_for(keywords)
-            return @index if @index_keywords.equal?(keywords)
-
-            @index_keywords = keywords
-            @words_of = nil
-            @index = build_index(keywords)
-          end
+          def index_for(keywords) = indexed(keywords).fetch(1)
 
           # Every word or older spelling the table knows anywhere, as hash keys.
           #
           # @param keywords [Array<Hash>] the `:keywords` rows of the grammar table
           # @return [Hash{String => true}]
-          def words_of(keywords)
-            index_for(keywords)
-            @words_of ||= keywords.flat_map { |row| spellings(row) }.to_h { |name| [name, true] }.freeze
-          end
+          def words_of(keywords) = indexed(keywords).fetch(2)
 
           private
+
+          # The table, its index and its words as one frozen triple, published in a single
+          # assignment so a thread never reads one table's index beside another's.
+          def indexed(keywords)
+            held = @indexed
+            return held if held && held.first.equal?(keywords)
+
+            @indexed = [keywords, build_index(keywords), build_words(keywords)].freeze
+          end
+
+          # @return [Hash{String => true}] every spelling the table knows
+          def build_words(keywords)
+            keywords.flat_map { |row| spellings(row) }.to_h { |name| [name, true] }.freeze
+          end
 
           # @return [Hash{Array(String, String) => Array<Hash>}] the rows by context and spelling
           def build_index(keywords)

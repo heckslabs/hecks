@@ -20,6 +20,17 @@ module Hecks
       File.join(root, name)
     end
 
+    # Whether the cache root is one that lasts between processes: the user's own cache directory,
+    # not the temp-directory fallback, which is new for every process or shared by name. A cache
+    # that is only worth keeping where it lasts (compiled Ruby, say) asks this first.
+    #
+    # @param env [Hash{String => String}] the environment to read `XDG_CACHE_HOME` and `HOME` from
+    # @return [Boolean]
+    def stable?(env: ENV)
+      homes = [env["XDG_CACHE_HOME"], File.join(env["HOME"].to_s, ".cache")]
+      homes.select { |home| File.absolute_path?(home.to_s) }.map { |home| File.join(home, "hecks") }.include?(root)
+    end
+
     # The directory the gem ships prebuilt cache files in, beside `lib/` so the digest of `lib/`
     # that names a cache file never covers the files built from it. It exists only in a packaged
     # gem, and it is part of the gem's own code, so it needs no ownership check.
