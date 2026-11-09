@@ -42,8 +42,37 @@ module Hecks
           # @return [String] the file the running resident writes its process id to
           def pid(root) = "#{stem(root)}.pid"
 
-          # @return [Boolean] whether the socket's path fits in the system's limit
-          def usable?(root) = socket(root).bytesize <= LONGEST_SOCKET
+          # @return [Boolean] whether a resident may be asked for or started: the socket's path
+          #   fits in the system's limit, the cache directory is one a later launcher finds again,
+          #   and the directories are this user's and closed to everyone else
+          def usable?(root)
+            socket(root).bytesize <= LONGEST_SOCKET && persistent? && trusted_directory?(directory) &&
+              trusted_directory?(File.dirname(directory))
+          end
+
+          # @return [Boolean] whether the cache directory is named, or is the stable cache root: a
+          #   launcher with a fresh temporary directory each time would start a resident each time
+          def persistent? = !ENV.fetch("HECKS_CACHE_DIR", "").empty? || CacheDir.stable?
+
+          # @return [Boolean] whether `path` is absent, or is a directory of this user's that no one
+          #   else can write to
+          def trusted_directory?(path)
+            stat = File.lstat(path)
+            stat.directory? && stat.uid == Process.uid && stat.mode.nobits?(0o022)
+          rescue Errno::ENOENT
+            true
+          rescue SystemCallError
+            false
+          end
+
+          # @return [Boolean] whether the resident's socket, if there is one, is this user's own and
+          #   closed to everyone else, so nothing is sent to a socket someone else put there
+          def trusted_socket?(root)
+            stat = File.lstat(socket(root))
+            stat.socket? && stat.uid == Process.uid && stat.mode.nobits?(0o022)
+          rescue SystemCallError
+            false
+          end
         end
       end
     end

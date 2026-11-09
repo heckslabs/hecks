@@ -100,13 +100,12 @@ RSpec.describe Hecks::Adapters::Driving::Resident::Server do
   end
 
   describe "serving a line" do
-    let(:fingerprint) { instance_double(Hecks::Adapters::Driving::Resident::Fingerprint, current: 1) }
+    let(:fingerprint) { instance_double(Hecks::Adapters::Driving::Resident::Fingerprint, changed?: false) }
     let(:listener) { instance_double(UNIXServer, closed?: false, close: nil) }
-    let(:request) { { env: { "HOME" => "/home/a" } } }
+    let(:request) { { env: { "HOME" => "/home/a" }, script: "/checkout/exe/hecks" } }
 
     before do
       server.instance_variable_set(:@fingerprint, fingerprint)
-      server.instance_variable_set(:@baseline, 1)
       server.instance_variable_set(:@environment, { "HOME" => "/home/a" })
       server.instance_variable_set(:@server, listener)
     end
@@ -116,12 +115,12 @@ RSpec.describe Hecks::Adapters::Driving::Resident::Server do
     end
 
     it "does not serve a line made with another home or bundle, and stays up", :aggregate_failures do
-      expect(server.send(:servable?, { env: { "HOME" => "/home/b" } })).to be(false)
+      expect(server.send(:servable?, request.merge(env: { "HOME" => "/home/b" }))).to be(false)
       expect(server.instance_variable_get(:@retired)).to be_nil
     end
 
     it "retires, and refuses the line, when the code is not as it was loaded", :aggregate_failures do
-      allow(fingerprint).to receive(:current).and_return(2)
+      allow(fingerprint).to receive(:changed?).and_return(true)
       expect(server.send(:servable?, request)).to be(false)
       expect(server.instance_variable_get(:@retired)).to be(true)
     end

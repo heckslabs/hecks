@@ -1,6 +1,9 @@
 require "socket"
 require "hecks/adapters/driving/resident/paths"
 require "hecks/adapters/driving/resident/wire"
+require "hecks/adapters/driving/resident/peer"
+require "hecks/adapters/driving/resident/crowd"
+require "hecks/adapters/driving/resident/env_trace"
 require "hecks/adapters/driving/resident/fingerprint"
 require "hecks/adapters/driving/resident/described_cache"
 require "hecks/adapters/driving/resident/loading"
@@ -22,9 +25,19 @@ module Hecks
           include Loading
           include Serving
 
+          # Leaves the session the launcher that started it was in, so it keeps no terminal, and
+          # serves.
+          #
           # @param root [String] the checkout
           # @param script [String] the launcher the lines come from
-          def self.start(root, script) = new(root, script).run
+          def self.start(root, script)
+            begin
+              Process.setsid
+            rescue SystemCallError
+              nil
+            end
+            new(root, script).run
+          end
 
           # @param exists [#call] answers whether a path is still there; a spec stands in
           def initialize(root, script, exists: File.method(:exist?))
@@ -39,7 +52,7 @@ module Hecks
 
           # Takes the checkout's lock, loads, and serves lines until idle or retired.
           def run
-            return unless take_lock
+            return unless take_lock && !Crowd.crowded?(@root)
 
             prepare
             return if @crowded
@@ -57,12 +70,20 @@ module Hecks
             @lock.flock(File::LOCK_EX | File::LOCK_NB)
           end
 
+          # Listens on the socket, which is made closed to everyone but this user from the start.
           def bind
             FileUtils.rm_f(Paths.socket(@root))
-            @server = UNIXServer.new(Paths.socket(@root))
+            @server = listen
             File.chmod(0o600, Paths.socket(@root))
             File.write(Paths.pid(@root), Process.pid.to_s)
             @bound = true
+          end
+
+          def listen
+            previous = File.umask(0o177)
+            UNIXServer.new(Paths.socket(@root))
+          ensure
+            File.umask(previous)
           end
 
           def serve
@@ -71,6 +92,7 @@ module Hecks
             until idle? || @retired
               ready = @server.wait_readable(1.0)
               learn
+              @monitors.select!(&:alive?)
               ready ? handle(@server.accept) : retire_when_orphaned
             end
           end
