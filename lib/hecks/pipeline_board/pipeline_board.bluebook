@@ -146,6 +146,10 @@ Hecks.bluebook "PipelineBoard" do
       member stage: "Work finished", position: 1, measure: "planned",  op: ">",      than: "0", scale: 1, state: "attention"
       member stage: "Work finished", position: 2, measure: "",         op: "always", than: "",  scale: 1, state: "ok"
 
+      # Open pull requests need attention once the oldest has waited `open_pr_stale_hours`.
+      member stage: "Open PRs", position: 1, measure: "oldest_hours", op: ">=",     than: "open_pr_stale_hours", scale: 1, state: "attention"
+      member stage: "Open PRs", position: 2, measure: "",             op: "always", than: "",                    scale: 1, state: "ok"
+
       # ---- a session's status, from what its job and `claude agents` say ----
       # `waiting` is 1 when the job says blocked and is listed or recently written; `needs` is 1
       # when the job set `needs`, which is how it says it waits on a person. A session paused on a
@@ -171,6 +175,7 @@ Hecks.bluebook "PipelineBoard" do
       member name: "throughput_window_hours", value: 24
       member name: "session_fresh_seconds",   value: 600
       member name: "session_window_hours",    value: 24
+      member name: "open_pr_stale_hours",     value: 24
     end
 
     # What the fan-out can flag on a Work item.

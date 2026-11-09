@@ -63,10 +63,13 @@ module Hecks
       # @return [Array<Hash>] the open pull requests on `train/` branches with their checks counted:
       #   `number`, `branch`, `passed`, `failed`, `pending` and `total`
       # @raise [PipelineBoard::Unavailable] when `gh` cannot answer
-      def train_prs
-        listed = read("pr", "list", "--state", "open", "--limit", "30", "--json", PipelineBoard::PullChecks::FIELDS)
-        PipelineBoard::PullChecks.train(listed)
-      end
+      def train_prs = PipelineBoard::PullChecks.train(open_list)
+
+      # @return [Hash] the open pull requests: `count`, the `oldest` creation time (nil when none),
+      #   the newest `train` pull request's number (nil when none) and `capped`, true when the
+      #   list may hold more than the `gh` limit shows
+      # @raise [PipelineBoard::Unavailable] when `gh` cannot answer
+      def open_prs = PipelineBoard::PullChecks.open(open_list)
 
       # @return [Hash, nil] the newest CI run on main, as {#ci_runs} rows are
       # @raise [PipelineBoard::Unavailable] when `gh` cannot answer
@@ -85,6 +88,12 @@ module Hecks
       def count(value, default)
         number = value.is_a?(Hash) ? value[:value] : value
         number.to_i.positive? ? number.to_i : default
+      end
+
+      # The one `gh pr list` both readings share, so the board asks GitHub once for it.
+      def open_list
+        limit = PipelineBoard::PullChecks::LIMIT.to_s
+        read("pr", "list", "--state", "open", "--limit", limit, "--json", PipelineBoard::PullChecks::FIELDS)
       end
 
       def read(*args) = @cache.fetch(args) { @gh.call(*args) }
