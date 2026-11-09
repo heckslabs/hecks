@@ -4,6 +4,7 @@ require "etc"
 require_relative "../work_limits"
 require_relative "../boot_budget"
 require_relative "../shell"
+require_relative "../../../rust_build/session_build"
 require_relative "../codebase/test_scope"
 require_relative "../machine_sampling/history"
 
@@ -99,13 +100,10 @@ module Hecks
         def spec_files_limit = Codebase::TestScope.limit(@registry)
 
         # @return [Hash{String => String}] the environment every dispatched session starts with
-        def session_environment
-          dir = declared(SESSION)[:cargo_target_dir]
-          dir ? { "CARGO_TARGET_DIR" => File.expand_path(dir.to_s) } : {}
-        end
+        def session_environment = RustBuild::SessionBuild.environment_of(declared(SESSION))
 
         # @return [Integer, nil] the `nice` increment for a session's processes, nil for none
-        def nice = declared(SESSION)[:nice]
+        def nice = RustBuild::SessionBuild.nice_of(declared(SESSION))
 
         private
 

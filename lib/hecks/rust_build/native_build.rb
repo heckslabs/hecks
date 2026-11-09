@@ -3,6 +3,7 @@
 require "digest"
 require "fileutils"
 require "open3"
+require_relative "session_build"
 
 module Hecks
   module RustBuild
@@ -111,7 +112,9 @@ module Hecks
         File.join(target_dir(rust_dir), "debug", "rust-#{domain_feature}")
       end
 
-      # Where Cargo writes: `CARGO_TARGET_DIR` when set, else the workspace's own `target/`.
+      # Where Cargo writes: `CARGO_TARGET_DIR` when set, else the workspace's own `target/`. The
+      # pinned binary is current when no source is newer than it, a rule that cannot tell two
+      # worktrees' sources apart, so this build never takes the world's shared directory.
       #
       # @param rust_dir [String] the workspace
       # @return [String] the directory holding `debug/`
@@ -136,7 +139,7 @@ module Hecks
       end
 
       def cargo(command, rust_dir, domain_feature)
-        _stdout, stderr, status = Open3.capture3(*command, chdir: rust_dir)
+        _stdout, stderr, status = Open3.capture3(*SessionBuild.command(command), chdir: rust_dir)
         return if status.success?
 
         raise BuildFailed, "`#{command.join(" ")}` failed in #{rust_dir} (exit #{status.exitstatus}) — " \

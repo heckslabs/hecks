@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../console_capture"
+require_relative "../../../rust_build/session_build"
 
 module Hecks
   module Adapters
@@ -29,8 +30,9 @@ module Hecks
         # @raise [ConsoleCapture::Failure] when a test fails or cargo is not installed
         def run(args, tree, shell)
           target = TARGETS.fetch(args[:crate])
-          env = fuzz_env(target, args)
-          result = shell.capture("cargo", "test", *target[:words], env: env, chdir: tree.path("rust/#{target[:dir]}"))
+          env = Hecks::RustBuild::SessionBuild.environment(root: tree.root).merge(fuzz_env(target, args))
+          command = Hecks::RustBuild::SessionBuild.command(["cargo", "test", *target[:words]], root: tree.root)
+          result = shell.capture(*command, env: env, chdir: tree.path("rust/#{target[:dir]}"))
           raise ConsoleCapture::Failure, printed(result) unless result.ok?
 
           printed(result)

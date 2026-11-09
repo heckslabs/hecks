@@ -3,6 +3,7 @@
 require "monitor"
 require "tempfile"
 require_relative "hecks/adapters/console_capture"
+require_relative "rust_build/session_build"
 
 module Hecks
   # The tools that generate a domain's Rust source, compile it and check the build against the Ruby
@@ -104,7 +105,7 @@ module Hecks
       def command!(*command, chdir: nil, env: {})
         options = { out: $stdout, err: $stderr }
         options[:chdir] = chdir if chdir
-        return if system(env, *command, **options)
+        return if system(SessionBuild.environment.merge(env), *SessionBuild.command(command), **options)
 
         raise Failure, "`#{command.join(" ")}` failed#{" in #{chdir}" if chdir}"
       end

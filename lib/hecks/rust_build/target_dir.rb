@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../rust_build"
+require_relative "session_build"
 
 module Hecks
   module RustBuild
@@ -12,7 +13,9 @@ module Hecks
     # one's compiled dependencies, and the output is kept once rather than once per revision.
     # A linked git worktree shares that same cache: agents keep dozens of worktrees, and a `target/`
     # in each one multiplied the build output by the worktree count. The main checkout keeps its
-    # own.
+    # own. Where the Tickets world's `session_environment` names a target directory, an installed
+    # copy and a worktree build into that one, the directory dispatched sessions already use, so
+    # the dependencies compile once on the machine.
     # `CARGO_TARGET_DIR` overrides all of these.
     module TargetDir
       module_function
@@ -22,8 +25,15 @@ module Hecks
       # @return [String] the directory Cargo writes the crate's output to
       def for(crate_dir, root: ROOT)
         ENV.fetch("CARGO_TARGET_DIR") do
-          installed?(root) || worktree?(root) ? shared(File.basename(crate_dir)) : File.join(crate_dir, "target")
+          installed?(root) || worktree?(root) ? shared_for(crate_dir, root) : File.join(crate_dir, "target")
         end
+      end
+
+      # @param crate_dir [String] the crate's directory
+      # @param root [String] the hecks copy the crate belongs to
+      # @return [String] the world's shared target directory, else the per-crate cache directory
+      def shared_for(crate_dir, root)
+        SessionBuild.target_dir(root: root) || shared(File.basename(crate_dir))
       end
 
       # @param root [String] a hecks copy's directory

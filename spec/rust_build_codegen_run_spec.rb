@@ -49,7 +49,15 @@ RSpec.describe Hecks::RustBuild::ProjectRust::CodegenRun do
 
   describe ".binary" do
     it "is in the crate's own target directory by default" do
+      allow(Hecks::RustBuild::SessionBuild).to receive(:target_dir).and_return(nil)
+
       expect(described_class.binary(@dir, env: {})).to eq(File.join(checkout_crate, "target/debug/hecks-codegen"))
+    end
+
+    it "is in the Tickets world's shared directory for a linked worktree with none named" do
+      allow(Hecks::RustBuild::SessionBuild).to receive(:target_dir).and_return("/shared/target")
+
+      expect(described_class.binary(@dir, env: {})).to eq("/shared/target/debug/hecks-codegen")
     end
 
     it "is under CARGO_TARGET_DIR when a build sets it, so nothing lands inside an installed gem" do

@@ -128,7 +128,8 @@ module Hecks
         File.exist?(File.join(mod_dir, "manifest.json")) or raise Failure, "#{mod_dir}: no committed manifest.json — " \
                                                                            "re-run hecks project_rust for this domain to write it"
         out_dir = File.join(scratch, domain)
-        output, status = Open3.capture2e("cargo", "run", "--quiet", "--", "domain", ir_path, domain, domain, out_dir,
+        cargo = %w[cargo run --quiet -- domain] + [ir_path, domain, domain, out_dir]
+        output, status = Open3.capture2e(SessionBuild.environment, *SessionBuild.command(cargo),
                                          chdir: File.join(rust_dir, "codegen"))
         status.success? or raise Failure, "hecks-codegen domain failed for #{domain}:\n#{output}"
         # `hecks-codegen domain` writes no ir.json sidecar; the cross-check reads the committed IR
