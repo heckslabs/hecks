@@ -73,8 +73,9 @@ RSpec.describe Hecks::Adapters::ClaudeAgents do
   end
 
   describe "#start" do
-    it "answers the session the command printed" do
-      expect(start).to eq(session: { value: "session-id-abc123" })
+    it "answers the session the command printed, and when it started" do
+      expect(start).to match(session:    { value: "session-id-abc123" },
+                             started_at: { value: /\A\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ\z/ })
     end
 
     it "starts it in the directory, with the agent, in the background, and the brief after --", :aggregate_failures do

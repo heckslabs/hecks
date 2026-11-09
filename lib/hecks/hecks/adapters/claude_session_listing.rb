@@ -43,6 +43,15 @@ module Hecks
         lookup(read, id)
       end
 
+      # Forgets the kept listing, so the next question reads a fresh one. A caller that has just
+      # removed or stopped a session calls it, since the kept listing still shows that session.
+      #
+      # @return [void]
+      def forget!
+        @entries = nil
+        @read_at = nil
+      end
+
       private
 
       def just_read? = !age_of_read.nil? && age_of_read < FRESH
