@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "hecks/runtime/errors"
+require "hecks/adapters/driven/memory"
 
 module Hecks
   module Adapters

@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "hecks/adapters/driven/memory"
+
 module Hecks
   module Adapters
     class DecisionFiles < Memory

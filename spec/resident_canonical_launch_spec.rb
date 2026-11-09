@@ -80,8 +80,16 @@ RSpec.describe "a resident started from an odd environment" do
   # Waits for the old resident to end, then starts its replacement with one more line.
   def restart_after(old)
     ThreadParking.wait_for(timeout: 30) { !alive?(old) }
-    launch_logged
+    line = launch_logged
     wait_for_new_resident(old)
+  rescue ThreadParking::NeverReached => e
+    raise e.class, "#{e.message}; #{ended(line)}"
+  end
+
+  # @return [String] how the line that was to start the replacement ended, for a failure message
+  def ended(line)
+    _out, err, status = line
+    "the replacing line ended #{status&.exitstatus.inspect} (#{last_outcome.inspect}): #{err.to_s.lines.last(4).join.strip}"
   end
 
   it "replaces a resident that was not born plain after three refusals, then serves", :aggregate_failures do

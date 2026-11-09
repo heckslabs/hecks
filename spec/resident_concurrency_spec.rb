@@ -12,8 +12,11 @@ require_relative "support/resident_launch"
 RSpec.describe "a resident under concurrent launchers" do
   include ResidentLaunch
 
-  CALLERS = 24
-  BUSY_CALLERS = 48
+  # The launchers an example fires scale with the cores: a runner of four is asked for what a
+  # laptop of twelve is, as many at once as the machine can run and a burst well beyond that.
+  CORES = Etc.nprocessors
+  CALLERS = (CORES * 2).clamp(8, 24)
+  BUSY_CALLERS = (CORES * 4).clamp(16, 48)
   LINE = %w[tickets Work.undone].freeze
 
   # @return [Array<Array(Integer, Float)>] each launcher's exit status and seconds, all started
@@ -28,12 +31,28 @@ RSpec.describe "a resident under concurrent launchers" do
     [status, Process.clock_gettime(Process::CLOCK_MONOTONIC) - started]
   end
 
-  # The line through the resident, with the usage log on in the group's own cache directory.
+  # The line through the resident, with the usage log on in the group's own cache directory. A
+  # line that does not end well leaves its status and the end of its standard error in `@errors`.
   def logged(*argv)
-    _out, _err, status = Open3.capture3(env(true).merge("HECKS_USAGE" => nil),
-                                        File.join(ResidentLaunch::ROOT, "exe/hecks"), *argv, chdir: ResidentLaunch::ROOT)
+    _out, err, status = Open3.capture3(env(true).merge("HECKS_USAGE" => nil),
+                                       File.join(ResidentLaunch::ROOT, "exe/hecks"), *argv, chdir: ResidentLaunch::ROOT)
+    @errors << "exit #{status.exitstatus}: #{err.lines.last(6).join.strip}" unless status.success?
     status.exitstatus
   end
+
+  # @return [String] what the launchers that failed said, for the failure message of an example
+  def said = @errors.join("\n---\n")
+
+  # @return [Float] seconds a launcher takes alone and cold, which the busy bound is a multiple of
+  def cold_seconds
+    started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    launch(*LINE, resident: false)
+    Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
+  end
+
+  # @return [Float] seconds the slowest launcher may take when every core is busy: near a cold
+  #   boot, times how many launchers share each core, and never below the laptop's twenty
+  def busy_bound(cold) = [20.0, cold * (BUSY_CALLERS.fdiv(CORES).ceil + 2) * 2].max
 
   # @return [Array<Hash>] the usage log's rows
   def logged_rows
@@ -57,6 +76,7 @@ RSpec.describe "a resident under concurrent launchers" do
   end
 
   def measured(name)
+    @errors = []
     @first_pid = start_resident
     @before = logged_rows.size
     results = yield
@@ -102,25 +122,26 @@ RSpec.describe "a resident under concurrent launchers" do
   it "starts one replacement when a burst of lines arrives after the code changed, and every line answers",
      :aggregate_failures do
     results, summary = measured("changed") { changed_code { retired.then { fire(12) } } }
-    expect(results.map(&:first).uniq).to eq([0])
+    expect(results.map(&:first).uniq).to eq([0]), -> { said }
     expect(summary[:outcomes].fetch("started", 0)).to be <= 1
   end
 
   it "answers every line without waiting long for a resident that says nothing", :aggregate_failures do
     results, summary = measured("stopped") { stopped { fire(12) } }
-    expect(results.map(&:first).uniq).to eq([0])
+    expect(results.map(&:first).uniq).to eq([0]), -> { said }
     expect(summary[:outcomes].fetch("served", 0)).to eq(0)
   end
 
   it "answers every line and serves most of them when the machine is quiet", :aggregate_failures do
     results, summary = measured("quiet") { fire }
-    expect(results.map(&:first).uniq).to eq([0])
+    expect(results.map(&:first).uniq).to eq([0]), -> { said }
     expect(summary[:outcomes].fetch("served", 0)).to be >= CALLERS / 2
   end
 
   it "answers every line and keeps the slowest near a cold boot when every core is busy", :aggregate_failures do
+    cold = cold_seconds
     results, summary = measured("busy") { loaded { fire(BUSY_CALLERS) } }
-    expect(results.map(&:first).uniq).to eq([0])
-    expect(summary[:slowest]).to be < 20
+    expect(results.map(&:first).uniq).to eq([0]), -> { said }
+    expect(summary[:slowest]).to be < busy_bound(cold)
   end
 end

@@ -228,14 +228,10 @@ Hecks.bluebook "Tickets" do
     end
 
     # The record's file, relative to the checkout.
-    value_object "RecordPath" do
-      attribute :value, String
-    end
+    value_object "RecordPath", String
 
     # The first words of the status line, as written: "Accepted", "Proposed", "Shipped".
-    value_object "StatusWording" do
-      attribute :value, String
-    end
+    value_object "StatusWording", String
 
     # The date the status line gives, YYYY-MM-DD.
     value_object "DecisionDate" do

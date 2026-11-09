@@ -14,12 +14,17 @@ module Hecks
                     refuse_membership_without_identity! refuse_unresolved_ports!
                     refuse_unanswerable_queries!].freeze
 
-        # Runs the checks unless this registry has passed them and nothing was declared since.
+        # Runs the checks unless this registry has passed them and nothing was declared since. The
+        # reserved-name check runs every time, since the file list it reads is a plain hash a
+        # caller can empty without declaring anything, and it costs a few lookups.
         #
         # @return [Registry] self
         # @raise [WiringError] if a check finds a wiring problem
         def verify_declarations!
-          return self if @declared.verified
+          if @declared.verified
+            refuse_reserved_bluebook_names!
+            return self
+          end
 
           CHECKS.each { |check| send(check) }
           @declared.verified = true

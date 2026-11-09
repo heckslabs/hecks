@@ -13,6 +13,10 @@ require "hecks/adapters/driving/resident/loading"
 # "crashed on child side of fork pre-exec". The resident is started with
 # OBJC_DISABLE_INITIALIZE_FORK_SAFETY and makes one refused connection before it forks.
 RSpec.describe "a resident child opening a Postgres connection" do
+  # The crash exists only where libpq reaches the Kerberos framework: macOS with the `pg` gem. The
+  # two examples that fork real children run there and are left out elsewhere, not skipped.
+  MAC_WITH_PG = RUBY_PLATFORM.include?("darwin") && Gem::Specification.find_all_by_name("pg").any?
+
   let(:spawn_env) { Hecks::Adapters::Driving::Resident::SpawnEnv }
   let(:warmup) { Hecks::Adapters::Driving::Resident::ForkWarmup }
   let(:variable) { "OBJC_DISABLE_INITIALIZE_FORK_SAFETY" }
@@ -32,10 +36,6 @@ RSpec.describe "a resident child opening a Postgres connection" do
       end
       puts ended.join(",")
     RUBY
-  end
-
-  def mac_with_pg?
-    RUBY_PLATFORM.include?("darwin") && Gem::Specification.find_all_by_name("pg").any?
   end
 
   def children(env, *args)
@@ -80,15 +80,11 @@ RSpec.describe "a resident child opening a Postgres connection" do
     expect(warmup.run(platform: "darwin", probe: -> { raise "refused" })).to be(false)
   end
 
-  it "ends cleanly in forked children when the switch is set", :aggregate_failures do
-    skip "macOS with the pg gem only" unless mac_with_pg?
-
+  it "ends cleanly in forked children when the switch is set", :aggregate_failures, if: MAC_WITH_PG do
     expect(children(variable => "YES")).to eq("ok,ok,ok")
   end
 
-  it "ends cleanly in forked children when the parent opened one connection first" do
-    skip "macOS with the pg gem only" unless mac_with_pg?
-
+  it "ends cleanly in forked children when the parent opened one connection first", if: MAC_WITH_PG do
     expect(children({ variable => nil }, "--warm")).to eq("ok,ok,ok")
   end
 end

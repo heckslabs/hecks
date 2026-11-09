@@ -79,7 +79,7 @@ module Hecks
       end
 
       # @return [String] the directory the binaries are kept in
-      def directory = File.join(BuildPolicy.cache_root, "bin")
+      def directory = File.join(BuildPolicy.cache_root, "binaries")
 
       # @param rust_dir [String] the workspace, whose toolchain file picks the compiler
       # @return [String] a short digest of `rustc -vV` there, "unknown" when it cannot be asked

@@ -1,3 +1,5 @@
+require "hecks/adapters/driving/resident/crowd"
+
 module Hecks
   module Adapters
     module Driving
