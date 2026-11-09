@@ -6,6 +6,7 @@ Hecks.hecksagon "Agents" do
   # Whether a role may run one command itself, decided from the Role aggregate's routing rows.
   Agents::Role.port "Routing" do
     answers_query "Guard"
+    answers_query "ServerEnv"
   end
 
   # What the machine holds after sessions are removed: the process table, the daemon's log, the

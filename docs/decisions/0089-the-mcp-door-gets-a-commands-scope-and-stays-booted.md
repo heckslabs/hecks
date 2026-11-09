@@ -49,3 +49,12 @@ The chapter also repeats short command names across aggregates: `accept!`, `comp
 - One tool per verb with a projected argument schema.
 - Whether the door should refuse to start when an allowed name resolves to nothing in a named domain, instead of admitting nothing.
 - Real access control: the roles a command declares are still unassigned and self-asserted.
+
+## Since this was written
+
+- **The server loads the framework late** (ADR 0201, decision 6): `initialize`, `ping` and `tools/list` of an
+  unrestricted or reader server are answered without it, and a commands server loads it at `tools/list` for its
+  command guide. The refusals above are unchanged and are held to the replies recorded before the change.
+- **A role's list is data** (`Role.server_env`, ADR 0201 "As built"): the exact `HECKS_SERVER_COMMANDS` names are
+  expanded from the role's `RoutingRule` patterns against the Hecks domain, and a dispatched session starts its
+  `hecks-mcp` with them through `--mcp-config`, so the list is neither written by hand nor kept apart from the guard's.

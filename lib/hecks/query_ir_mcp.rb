@@ -2,7 +2,7 @@
 
 require "json"
 require_relative "mcp_stdio_guard"
-require_relative "query_ir"
+require_relative "storehouse/confinement"
 require_relative "query_ir_mcp/tools"
 
 module Hecks
@@ -67,18 +67,33 @@ module Hecks
       tool_result(e.message, error: true)
     end
 
+    # Loads the framework and the queries on the first tool call, so `initialize`, `ping` and
+    # `tools/list` are answered by a process that holds only the guard and the static definitions.
+    #
+    # @api private
+    def load_queries!
+      return if defined?(@queries)
+
+      require_relative "../hecks"
+      require_relative "query_ir"
+      @queries = true
+    end
+
     # @api private
     def constructs(arguments)
+      load_queries!
       QueryIR.format_constructs(QueryIR.constructs(Array(arguments["names"])))
     end
 
     # @api private
     def impact(arguments)
+      load_queries!
       QueryIR.format_impact_preview(QueryIR.impact_preview(arguments["name"], arguments["field"]))
     end
 
     # @api private
     def duplicates(arguments)
+      load_queries!
       domains = confined_domains(arguments["domains"])
       QueryIR.format_duplicates(QueryIR.duplicates(domains: domains, include_meta: arguments.fetch("include_meta", true)))
     end

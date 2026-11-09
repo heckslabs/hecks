@@ -158,6 +158,16 @@ Hecks.bluebook "Agents" do
       returns Document
     end
 
+    # The `HECKS_SERVER_*` variables that start a role's MCP server restricted to the commands its
+    # routing rows name, one `NAME=value` line each, so the server serves the role's verbs and
+    # keeps the domain booted. A role with no rows, or none that names a command of the served
+    # domain, gets an empty document and its server stays unrestricted.
+    query "ServerEnv" do
+      description "The variables that restrict a role's MCP server to the commands its routing rows name, or nothing."
+      attribute :role, RoleName
+      returns Document
+    end
+
     # Declares a role. Its kind says which judgment it owns: orchestrator, architect, coder,
     # reviewer or release manager.
     command "Declare" do

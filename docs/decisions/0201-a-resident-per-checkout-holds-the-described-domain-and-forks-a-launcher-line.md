@@ -83,10 +83,10 @@ day. The build's acceptance test stands in for the first (a warm `hecks RedFlag.
 5. **The resident is a cache, never a source of truth.** Killing it loses nothing and costs the next call one cold
    boot. It holds no record, writes no file but its socket and its pid, and its socket sits in a directory only the
    user can write, as `CacheDir` already requires of the syntax-boot cache that is read back with `Marshal.load`.
-6. **The servers a session starts become clients.** The two Ruby processes `.mcp.json` starts per session
-   (`lib/hecks/tools/mcp.rb`, `lib/hecks/adapters/driving/mcp_scope.rb`) keep their protocols and ask the resident
-   for the booted declarations instead of loading them, so a session's idle cost falls from two full loads to two
-   thin processes. That change follows the launcher's and is its own step.
+6. **The servers a session starts load late.** The two Ruby processes `.mcp.json` starts per session
+   (`lib/hecks/tools/mcp.rb`, `lib/hecks/adapters/driving/mcp_scope.rb`) keep their protocols but load the framework
+   on the first tool call, so a session's idle cost falls from two full loads to two thin processes. The first design
+   made them clients of the resident; "As built" says why they are not.
 
 ## Consequences
 
@@ -167,15 +167,32 @@ The build is in `lib/hecks/adapters/driving/resident/`: `client.rb` (what a laun
   directory and its own socket still exist (`Server#orphaned?`, with a stat seam for specs) and retires when either
   is gone: a worktree that was retired, a temporary directory that was removed, or a cache that was cleared. It no
   longer waits out the idle time for a checkout nobody has.
-- **The servers a session starts are not yet clients (decision 6).** The two MCP servers still load their own copy,
-  and idle each hold about 55 MB (sampled from `ps`). Making them clients is not a small change, for three reasons
-  found when it was tried. A tool call is a JSON-RPC request to a long-lived process, not a launcher line, so the
-  resident would need a new request type that runs a tool call in a fork and returns its reply, and the restricted
-  modes (`McpScope`) would have to be proved to refuse exactly what they refuse now. The role's `RoutingRule`
-  patterns end in `.*` while `HECKS_SERVER_COMMANDS` takes exact command names, so a role's list must be expanded
-  against the booted domain when its session starts. And `.mcp.json` is one static file with no per-role
-  environment, and whether Claude Code hands a session's environment to the servers it starts is not established
-  here. That change is its own step.
+- **The servers a session starts load late, and are not clients (decision 6 as built).**
+  - **Late loading.** Both servers answer `initialize`, `ping` and `tools/list` without the framework and load it on
+    the first tool call (`Mcp::Loading#framework!`, `QueryIrMcp.load_queries!`). Two small files make that possible:
+    `storehouse/confinement.rb` (the boot root and the path check `McpScope` needs) and `storehouse/source_tags.rb`
+    (the one list the tool definitions name). The stdio guard and the `HECKS_SERVER_*` checks run before anything is
+    written, as before. A commands server loads the framework at `tools/list`, because its command guide is read from
+    a booted domain, and a tool its scope refuses is refused without loading it. `spec/mcp_light_server_spec.rb` holds
+    the replies to goldens written by the eager server (`spec/fixtures/mcp_light`), in this process and in a child.
+  - **Not clients.** A restricted server keeps its domain booted and answers in under 10 ms (ADR 0089); a call forked
+    from the resident would boot it each time. An unrestricted server would need a launcher-visible command that takes
+    its scope from the environment the caller sends, which widens what the launcher accepts. So a tool call is not
+    forwarded to the resident, and a server that has made one holds the framework, about 48 MB.
+  - **A role's server.** The `ServerEnv` query on the `Role` aggregate (`exe/hecks agents Role.server_env
+    role.value=orchestrator`, adapter `RoleServerEnv`) turns the role's `RoutingRule` patterns into
+    `HECKS_SERVER_TOOLS=commands`, `HECKS_SERVER_DOMAINS=lib/hecks/hecks` and the exact command names the Hecks domain
+    has: `Aggregate.*` expands to every command of the aggregate, `Aggregate.verb!` to that one, and a question, a shell
+    command or another bluebook's command (`Work.*` is Tickets') adds nothing. A role with no rows, or none that names
+    a command, gets nothing and stays unrestricted: today only the orchestrator has rows, and it gets eleven commands.
+  - **Passing it on.** `.mcp.json` is one static file, and whether Claude Code hands the environment of the `claude`
+    process to the servers it starts is documented only by third-party guides ("merged with the inherited
+    environment"); an unset `${VAR}` is passed on as literal text. So the session does not rely on either:
+    `SessionMcp` reads the checkout's `.mcp.json`, adds the role's variables to the `hecks-mcp` entry's `env`, and
+    passes it as `claude --mcp-config '<json>' --strict-mcp-config` (`SessionLine` builds the line), so the
+    checkout's unrestricted entry does not start beside it. `--strict-mcp-config` also leaves out MCP servers from
+    other scopes for that session. Argument construction is specified against a stand-in `claude`; no real session was
+    started to see the servers come up restricted.
 
 ### Measured
 
@@ -190,5 +207,11 @@ The build is in `lib/hecks/adapters/driving/resident/`: `client.rb` (what a laun
 | the first line after an edit under `lib/`: cold boot, then a new resident | 1.4 s on warm caches |
 | a new resident's own load | about 3 s on warm caches, 8 s on cold |
 | the resident's resident memory | about 300 MB |
+| an idle `hecks-mcp`, framework loaded at start: resident memory, and spawn to the last of three replies | 48 MB, 237 ms |
+| an idle `hecks-mcp` now: the same two figures, framework unloaded | 16 MB, 40 ms |
+| the same server after its first tool call | 48 MB; 249 ms in all, so the load moves to that call and takes about 210 ms |
+
+The two server rows were read from `ps -o rss=` in a child started as `.mcp.json` starts it
+(`ruby -I lib -e ...`), fed `initialize`, `ping` and `tools/list` (then `tools/call domains`) on stdin, one run each.
 
 The warm lines meet the 0.15 s target but `RedFlag.status`, which waits on `git`.

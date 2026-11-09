@@ -12,6 +12,8 @@ require_relative "coder_job_facts"
 require_relative "claude_agent_list"
 require_relative "claude_session_listing"
 require_relative "dispatching/settings"
+require_relative "session_mcp"
+require_relative "session_line"
 
 module Hecks
   module Adapters
@@ -49,6 +51,7 @@ module Hecks
         @agents = ClaudeAgentList.new(@command, shell: @shell)
         @listing = ClaudeSessionListing.new(@command, shell: @shell)
         @settle = settings.fetch(:settle, SETTLE_SECONDS)
+        @mcp = SessionMcp.new(server_env: settings[:server_env])
       end
 
       # Says the directory a session would work in is there, and whether the `claude` there lists
@@ -72,7 +75,7 @@ module Hecks
       # @return [Hash{Symbol => Hash}] `session:` the id the session is known by
       # @raise [ConsoleCapture::Failure] when the command fails or names no session
       def start(**held)
-        result = @shell.capture(*start_arguments(held), env: @session.session_environment, chdir: plain(held[:repo]))
+        result = @shell.capture(*session_line.arguments(held), env: @session.session_environment, chdir: plain(held[:repo]))
         raise ConsoleCapture::Failure, "#{@command} did not start a session: #{result.err.strip}" unless result.ok?
 
         id = result.out[SESSION_ID, 1]
@@ -224,13 +227,7 @@ module Hecks
 
       def listed(id) = @listing.find(id) || raise(ConsoleCapture::Failure, "no session #{id} is listed")
 
-      def start_arguments(held)
-        agent = plain(held[:agent])
-        [*niceness, @command, *(agent ? ["--agent", agent] : []), "--bg", "--", briefed(plain(held[:brief]), agent)]
-      end
-
-      # @return [String] the brief, with the verdict format added for the architect
-      def briefed(brief, agent) = agent == "architect" ? "#{brief}#{ArchitectVerdict::REQUEST}" : brief.to_s
+      def session_line = SessionLine.new(command: @command, nice: niceness, mcp: @mcp)
 
       def niceness = @session.nice ? ["nice", "-n", @session.nice.to_s] : []
 

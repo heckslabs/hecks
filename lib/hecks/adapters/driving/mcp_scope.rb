@@ -1,4 +1,5 @@
 require_relative "../../runtime/errors"
+require_relative "../../storehouse/confinement"
 
 module Hecks
   module Adapters

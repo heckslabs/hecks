@@ -140,11 +140,28 @@ module Hecks
         # @param program [String] how the caller was invoked
         # @return [Array<String>] the sorted names
         def known_names(runtime:, program: "hecks run")
+          cli = projected(runtime, program)
+          public_names(cli[:names][:command], cli[:commands]) + public_names(cli[:names][:question], cli[:questions])
+        end
+
+        # The names a person can type to run a command, leaving out the questions and the internal
+        # steps: what an MCP server's `dispatch` can be given.
+        #
+        # @param runtime [#registry] a booted domain, or what `Hecks.describe` answers
+        # @param program [String] how the caller was invoked
+        # @return [Array<String>] the sorted names
+        def known_command_names(runtime:, program: "hecks run")
+          cli = projected(runtime, program)
+          public_names(cli[:names][:command], cli[:commands])
+        end
+
+        # @api private
+        # @return [Hash] the CLI projection of the domain's own bluebook
+        def projected(runtime, program)
           bluebook, = bluebook_for(runtime, [], program)
           launcher = LauncherOptions.settings(runtime, bluebook.name)
           options = LauncherOptions.projection(launcher, program)
-          cli = Projector.call(:cli, bluebook: bluebook, options: options.merge(audience(runtime, launcher)))
-          public_names(cli[:names][:command], cli[:commands]) + public_names(cli[:names][:question], cli[:questions])
+          Projector.call(:cli, bluebook: bluebook, options: options.merge(audience(runtime, launcher)))
         end
 
         # @return [Array<String>] the names whose spec is not internal

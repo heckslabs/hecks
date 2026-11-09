@@ -1,9 +1,8 @@
 require "json"
-require_relative "../.."
 require_relative "../../tools/mcp"
 require_relative "mcp/tool_definitions"
-require_relative "mcp/tool_calls"
-require_relative "mcp/progress_sink"
+require_relative "mcp/loading"
+require_relative "mcp_scope"
 
 module Hecks
   module Adapters
@@ -11,7 +10,8 @@ module Hecks
       # The MCP server onto the storehouse bus: hand-rolled JSON-RPC over stdio, one
       # server per booted domain. All logic and the JSON shape answered with live in
       # `Storehouse`; this is plumbing only. A `role:`/`actor_id:` a caller sends is
-      # asserted, not verified, unless Governance is attached.
+      # asserted, not verified, unless Governance is attached. See `Loading` for what waits for
+      # the first call that needs it.
       #
       # There is no authentication: `domain:` boots real Ruby confined to
       # `Storehouse::BOOT_ROOT`, so this is a code execution surface for anyone who
@@ -37,6 +37,8 @@ module Hecks
           "tools/call" => :tools_call,
           "ping"       => :ping_result
         }.freeze
+
+        extend Loading
 
         module_function
 
@@ -79,25 +81,17 @@ module Hecks
         # domain afresh on every call; a restricted server lives for one spawner's session and
         # keeps each named domain booted until the files of its directory change.
         def boot(domain)
+          framework!
           path = Storehouse.confine!(scope.admit_domain!(domain), "domain")
           runtime = scope.restricted? ? resident_boot(path) : Hecks.boot(path, install_driving: false)
           Admission.admit!(runtime.registry, "Mcp")
           runtime
         end
 
-        # The runtime a restricted server keeps for `path`, booted again once its files change.
-        def resident_boot(path)
-          resident    = (@resident ||= {})
-          fingerprint = Storehouse.fingerprint(path)
-          return resident[path][:runtime] if resident[path] && resident[path][:fingerprint] == fingerprint
-
-          resident[path] = { fingerprint: fingerprint, runtime: Hecks.boot(path, install_driving: false) }
-          resident[path][:runtime]
-        end
-
         def answer_tool(name, args)
           return scope.refusal(name) unless scope.permits_tool?(name)
 
+          framework!
           ToolCalls.call(name, scope.with_default_domain(args))
         end
 
@@ -108,6 +102,7 @@ module Hecks
         def command_guide
           return unless scope.commands_mode? && scope.default_domain
 
+          framework!
           McpGuideCache.remember(scope.default_domain, scope.allowed_commands) do
             Storehouse.command_guide(boot(scope.default_domain), scope.allowed_commands)
           end
@@ -162,6 +157,7 @@ module Hecks
         # @param token [Object] the client's progress token
         # @return [Object] the block's value
         def with_progress(token)
+          framework!
           previous = Thread.current[:mcp_progress]
           Thread.current[:mcp_progress] = Tools::StageProgress.new(ProgressSink.new(token, out: $stdout))
           yield

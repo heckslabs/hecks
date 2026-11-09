@@ -2,6 +2,7 @@
 
 require "hecks"
 require_relative "shell_reads"
+require_relative "role_server_env"
 
 module Hecks
   module Adapters
@@ -42,7 +43,32 @@ module Hecks
         raise Refused, refusal(name, text)
       end
 
+      # The variables that start the role's MCP server restricted to the commands its rows name.
+      #
+      # @param role [Hash, String] the role asking
+      # @return [Hash{Symbol => String}] `text:` one `NAME=value` line each, empty when the role has
+      #   no rows that name a command of the served domain and so stays unrestricted
+      def server_env(role:)
+        { text: server_variables(held(role)).map { |name, value| "#{name}=#{value}" }.join("\n") }
+      end
+
+      # @param name [String] the role
+      # @return [Hash{String => String}] the `HECKS_SERVER_*` variables, or empty
+      def server_variables(name)
+        patterns = rows("RoutingRule", name).map { |row| row[:pattern] }
+        return {} if patterns.empty?
+
+        RoleServerEnv.new(patterns: patterns, names: method(:command_names)).variables
+      end
+
       private
+
+      # The command names the Hecks domain has, as a person types them; read once per guard.
+      def command_names
+        @command_names ||= Driving::CliRunner.known_command_names(runtime: Hecks.describe(served_domain), program: "mcp")
+      end
+
+      def served_domain = File.expand_path("../hecks", BLUEBOOK_DIR)
 
       def allowed?(rules, text, name = nil)
         return false if text.match?(CHAINING)
