@@ -2,6 +2,7 @@
 
 require "json"
 require_relative "architect_verdict"
+require_relative "session_hooks"
 
 module Hecks
   module Adapters
@@ -15,9 +16,11 @@ module Hecks
     class SessionLine
       # @param command [String] the command that starts sessions
       # @param nice [Array<String>] the niceness prefix, empty for none
-      def initialize(command:, nice:)
+      # @param hooks [SessionHooks] says the hooks a run's session carries
+      def initialize(command:, nice:, hooks: SessionHooks.new(launcher: nil))
         @command = command
         @nice = nice
+        @hooks = hooks
       end
 
       # @param held [Hash] the `AgentRun` record: `repo`, `brief`, and `agent` when named
@@ -25,7 +28,7 @@ module Hecks
       # @return [Array<String>] the argument list
       def arguments(held, environment = {})
         agent = plain(held[:agent])
-        [*@nice, @command, *(agent ? ["--agent", agent] : []), *settings(environment), "--bg", "--",
+        [*@nice, @command, *(agent ? ["--agent", agent] : []), *settings(environment, plain(held[:run])), "--bg", "--",
          briefed(plain(held[:brief]), agent)]
       end
 
@@ -33,9 +36,13 @@ module Hecks
 
       # A background session does not take the environment of the process that starts it, so the
       # variables its commands read (today the caller name) go in the settings `env` block, which
-      # Claude Code applies to every command the session runs.
-      # @return [Array<String>] the `--settings` flag and its JSON, or nothing for no variables
-      def settings(environment) = environment.empty? ? [] : ["--settings", JSON.generate("env" => environment)]
+      # Claude Code applies to every command the session runs. The `hooks` block makes the session
+      # announce its own end (see {SessionHooks}).
+      # @return [Array<String>] the `--settings` flag and its JSON, or nothing for no env or hooks
+      def settings(environment, run)
+        block = { "env" => environment, "hooks" => @hooks.for(run) }.reject { |_, value| value.empty? }
+        block.empty? ? [] : ["--settings", JSON.generate(block)]
+      end
 
       # @return [String] the brief, with the verdict format added for the architect
       def briefed(brief, agent) = agent == "architect" ? "#{brief}#{ArchitectVerdict::REQUEST}" : brief.to_s

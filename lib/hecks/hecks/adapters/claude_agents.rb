@@ -15,6 +15,8 @@ require_relative "session_caller"
 require_relative "dispatching/settings"
 require_relative "session_lookup"
 require_relative "session_line"
+require_relative "session_hooks"
+require_relative "main_launcher"
 
 module Hecks
   module Adapters
@@ -40,7 +42,8 @@ module Hecks
       #
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] `command:` the program that starts sessions (default `claude`),
-      #   `jobs:` the jobs directory, `settle:` the seconds a new session is given to fail
+      #   `jobs:` the jobs directory, `settle:` the seconds a new session is given to fail,
+      #   `launcher:` the `exe/hecks` its hooks run (default the main checkout's)
       # @param root [String, nil] unused
       # @param registry [Runtime::Registry, nil] whose Tickets world names the session environment
       def initialize(aggregate: nil, settings: {}, root: nil, registry: nil)
@@ -52,6 +55,7 @@ module Hecks
         @agents = ClaudeAgentList.new(@command, shell: @shell)
         @lookup = session_lookup(settings[:now])
         @settle = settings.fetch(:settle, SETTLE_SECONDS)
+        @hooks = SessionHooks.new(launcher: settings.fetch(:launcher) { MainLauncher.path })
       end
 
       # Says the directory a session would work in is there, and whether the `claude` there lists
@@ -226,7 +230,7 @@ module Hecks
 
       def listed(id) = @listing.find(id) || raise(ConsoleCapture::Failure, "no session #{id} is listed")
 
-      def session_line = SessionLine.new(command: @command, nice: niceness)
+      def session_line = SessionLine.new(command: @command, nice: niceness, hooks: @hooks)
 
       # The id a start printed, or why there is none.
       def session_id(result)
