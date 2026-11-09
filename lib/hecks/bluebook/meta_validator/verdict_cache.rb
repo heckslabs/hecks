@@ -125,7 +125,7 @@ module Hecks
           @seeded = true
           return {} unless enabled?
 
-          loaded = read
+          loaded = read.tap { |held| @loaded = held.size }
           entries.merge!(loaded)
           loaded.dup
         rescue StandardError
@@ -146,6 +146,12 @@ module Hecks
           @dirty = true
           register_exit_flush
         end
+
+        # How many bluebooks this process judged because the cache did not hold their verdict. A
+        # process that judged any booted cold; one that judged none booted warm.
+        #
+        # @return [Integer]
+        def misses = [entries.size - @loaded.to_i, 0].max
 
         # Writes every known verdict when any was added since the last write.
         # Failure of any kind leaves the cache as it was.
@@ -168,8 +174,8 @@ module Hecks
         #
         # @return [void]
         def reset!
-          @seeded = false
-          @dirty = false
+          @seeded = @dirty = false
+          @loaded = nil
           @entries = nil
           @read_pairs = nil
           @code_digest = nil

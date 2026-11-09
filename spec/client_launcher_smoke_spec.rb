@@ -29,6 +29,8 @@ RSpec.describe "client launcher smoke" do
     #   pizzas/pizzas                  every command, and every question
     #   pizzas/pizzas <command> --help    what it wants, and how it refuses
 
+    # When this launcher began, so the usage record can say how long it took to reach the command.
+    HECKS_LAUNCHED_AT = Process.clock_gettime(Process::CLOCK_MONOTONIC)
     $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
     # Where the project's Gemfile pins its gems (a local Hecks among them), this runs on them.

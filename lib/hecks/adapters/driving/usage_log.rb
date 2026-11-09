@@ -1,6 +1,7 @@
 require "fileutils"
 require "json"
 require_relative "usage_cache"
+require_relative "usage_log/telemetry"
 
 module Hecks
   module Adapters
@@ -10,7 +11,8 @@ module Hecks
       #
       # A run appends one JSON line to `usage.jsonl` in the directory `UsageCache` already uses:
       # the name as typed, the name it resolved to, the exit status, the duration in milliseconds
-      # and the date. No arguments, values or paths are written. The record is on unless
+      # and the date, and (`Telemetry`) the boot time, whether the boot was cold and the caller.
+      # No arguments, values or paths are written. The record is on unless
       # `HECKS_USAGE=off` is set or a `usage.off` marker sits in that directory. The first run that
       # writes prints one line on standard error saying so, then leaves a `usage.noticed` marker.
       # Writing never fails the command it records.
@@ -68,7 +70,7 @@ module Hecks
         def line(argv, resolved, status, started)
           { "typed" => typed(argv), "resolved" => resolved, "status" => status,
             "ms" => ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - started) * 1000).round,
-            "date" => Time.now.utc.strftime("%Y-%m-%d") }
+            "date" => Time.now.utc.strftime("%Y-%m-%d") }.merge(Telemetry.fields(started))
         end
 
         # The name the person typed: the first word that is not a flag, past a `query` word.
@@ -101,18 +103,25 @@ module Hecks
         # @param window [Integer] how many days back a run counts
         # @return [String] the text `hecks usage` prints
         def summary(known:, window: DEFAULT_WINDOW)
-          counts = counts_since(window)
+          runs = runs_since(window)
+          counts = resolved_names(runs)
           unrun = known.sort - counts.keys
           ["runs in the last #{window} days, most used first:", *tally_lines(counts),
+           *Telemetry.lines(runs),
            "", "never run in that window:", *unrun.map { |name| "  #{name}" }].join("\n")
+        end
+
+        # @return [Array<Hash>] the entries dated inside the window
+        def runs_since(window)
+          since = (Time.now.utc - (window * DAY)).strftime("%Y-%m-%d")
+          entries.select { |entry| entry["date"].to_s >= since }
         end
 
         # How often each resolved name ran since the window opened.
         #
         # @return [Hash{String => Integer}]
         def counts_since(window)
-          since = (Time.now.utc - (window * DAY)).strftime("%Y-%m-%d")
-          resolved_names(entries.select { |entry| entry["date"].to_s >= since })
+          resolved_names(runs_since(window))
         end
 
         # @return [Hash{String => Integer}] how many runs resolved to each name

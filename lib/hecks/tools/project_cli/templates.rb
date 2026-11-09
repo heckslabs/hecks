@@ -19,6 +19,8 @@ module Hecks
           #   {{where}}                  every command, and every question
           #   {{where}} <command> --help    what it wants, and how it refuses
 
+          # When this launcher began, so the usage record can say how long it took to reach the command.
+          HECKS_LAUNCHED_AT = Process.clock_gettime(Process::CLOCK_MONOTONIC)
           {{encoding}}$LOAD_PATH.unshift File.expand_path("{{up}}lib", __dir__)
           {{handoff}}
           require "hecks"

@@ -9,6 +9,8 @@
 #   exe/hecks                  every command, and every question
 #   exe/hecks <command> --help    what it wants, and how it refuses
 
+# When this launcher began, so the usage record can say how long it took to reach the command.
+HECKS_LAUNCHED_AT = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 Encoding.default_external = Encoding::UTF_8
 Encoding.default_internal = Encoding::UTF_8
 
