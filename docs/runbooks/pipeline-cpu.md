@@ -118,8 +118,15 @@ Shared caches and records, which every checkout and worktree reads, and how each
   sent to the resident, by design (ADR 0201).
 - **No prebuilt Rust kernel for macOS.** Only Linux host rows are published, so a worktree compiles its own binaries.
   The binary cache covers a worktree whose `rust/` is unchanged.
-- **The shared Cargo directory a dispatched session inherits can serve a stale result.** The dispatcher exports one
-  `CARGO_TARGET_DIR` to every session (`session_environment`), and Cargo judges a workspace crate fresh by file times
+- **A background session does not take the environment of the process that starts it.** Tested live (2026-11-09):
+  `claude --bg` with `HECKS_CALLER` and `CARGO_TARGET_DIR` in its environment ran a command that saw neither, while the
+  same two names in a `--settings` `env` block reached it. The start line passes the caller name that way
+  (`SessionLine`), so a dispatched session's launcher calls carry `role:run` in `exe/hecks usage`. The Tickets world's
+  `session_environment` (the shared `cargo_target_dir`) is **not** forwarded, so no dispatched session uses it today;
+  the `nice` increment still applies because it prefixes the `claude` command. Forwarding the Cargo directory is a
+  decision, because of the next gap.
+- **The shared Cargo directory would serve a stale result if it were forwarded.** `session_environment` names one
+  `CARGO_TARGET_DIR` for every session, and Cargo judges a workspace crate fresh by file times
   (ADR 0203 has the test: a broken copy with older times was green). A session's own `cargo test` or `cargo clippy`
   in that directory can reuse a neighbour worktree's artifacts. Giving each session its own slot (as binary builds
   and gates have) removes it, at the cost of compiling the registry packages once per worktree; `sccache` is the way
