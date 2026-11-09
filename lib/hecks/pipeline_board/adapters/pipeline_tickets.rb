@@ -104,7 +104,8 @@ module Hecks
 
       def run_item(run)
         { work_item: work_item_of(run), status: field(run, :status).to_s,
-          run: field(run, :run).to_s, repo: field(run, :repo).to_s, agent: field(run, :agent).to_s }
+          run: field(run, :run).to_s, repo: field(run, :repo).to_s, agent: field(run, :agent).to_s,
+          works_as: field(run, :works_as).to_s }
       end
 
       # The Work item a run names, else the one the first line of its brief names.

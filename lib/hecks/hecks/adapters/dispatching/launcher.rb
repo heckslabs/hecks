@@ -21,6 +21,10 @@ module Hecks
         # The claimant every dispatched work item names.
         CLAIMANT = "dispatch"
 
+        # The part a Work item's run records for the board's role cards. It is not an agent, so the
+        # session starts as `claude`'s default.
+        WORKS_AS = "coder"
+
         # The words of the refusal a dispatch gets when a run already holds its key.
         KEY_HELD = /already[ _]recorded/
 
@@ -144,7 +148,8 @@ module Hecks
         def pull_argv = ["LinkedTree.pull_main!", "checkout.value=#{@repo}", "--wait"]
 
         def dispatch_argv(item, text)
-          ["AgentRun.dispatch!", "run.value=#{item.key}", "repo.value=#{@repo}", "brief.value=#{text}", "--wait"]
+          ["AgentRun.dispatch!", "run.value=#{item.key}", "repo.value=#{@repo}", "works_as.value=#{WORKS_AS}",
+           "brief.value=#{text}", "--wait"]
         end
 
         def start_argv(item, minutes)

@@ -6,7 +6,7 @@ module Hecks
       # What one AgentRun page shows, read from the run's record and the Landing records of its
       # Work item. Mixed into {PipelineTickets}, which supplies the readers it uses.
       module RunDetail
-        FIELDS = %i[run agent repo session status condition detail refusal brief].freeze
+        FIELDS = %i[run agent works_as repo session status condition detail refusal brief].freeze
 
         # @param key [String] an AgentRun's key or its session id
         # @return [Hash, nil] the run's brief, agent, status, condition, detail, session, repo,

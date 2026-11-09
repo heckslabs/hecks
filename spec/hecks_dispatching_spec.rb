@@ -155,6 +155,13 @@ RSpec.describe Hecks::Adapters::Dispatching do
       expect(commands).to eq(["LinkedTree.pull_main!", "Work.start!", "Brief.compose!", "AgentRun.dispatch!"])
     end
 
+    it "records the part the run works as and names no agent, so claude is not pinned", :aggregate_failures do
+      report(held)
+
+      expect(calls.last).to include("works_as.value=coder")
+      expect(calls.last.grep(/\Aagent\.value=/)).to be_empty
+    end
+
     it "briefs the session with the other started work items' areas to leave alone", :aggregate_failures do
       report(held)
       brief = calls.last.find { |word| word.start_with?("brief.value=") }

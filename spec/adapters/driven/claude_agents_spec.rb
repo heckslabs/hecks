@@ -19,7 +19,7 @@ RSpec.describe Hecks::Adapters::ClaudeAgents do
 
   let(:scratch) { File.realpath(Dir.mktmpdir("claude-agents")) }
   let(:stand_in) { File.join(scratch, "claude") }
-  let(:adapter) { described_class.new(settings: { command: stand_in }) }
+  let(:adapter) { described_class.new(settings: { command: stand_in, launcher: "/main/exe/hecks" }) }
 
   def install(script)
     File.write(stand_in, script)
@@ -73,6 +73,8 @@ RSpec.describe Hecks::Adapters::ClaudeAgents do
   end
 
   describe "#start" do
+    def settings_asked = asked[asked.index("--settings") + 1]
+
     it "answers the session the command printed, and when it started" do
       expect(start).to match(session:    { value: "session-id-abc123" },
                              started_at: { value: /\A\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ\z/ })
@@ -88,7 +90,21 @@ RSpec.describe Hecks::Adapters::ClaudeAgents do
     it "names the run in the settings env block, so its commands are logged under it" do
       start(run: { value: "fix-it" }, agent: { value: "coder" })
 
-      expect(asked).to include(%({"env":{"HECKS_CALLER":"coder:fix-it"}}))
+      expect(JSON.parse(settings_asked).fetch("env")).to eq("HECKS_CALLER" => "coder:fix-it")
+    end
+
+    it "adds a Stop and a SessionEnd hook that check the run through the launcher", :aggregate_failures do
+      start(run: { value: "fix-it" }, agent: { value: "coder" })
+
+      hooks = JSON.parse(settings_asked).fetch("hooks")
+      expect(hooks.keys).to eq(%w[Stop SessionEnd])
+      expect(hooks["Stop"].first["hooks"].first["command"]).to include("/main/exe/hecks AgentRun.check! to=fix-it")
+    end
+
+    it "adds no hooks to a session that names no run" do
+      start(agent: { value: "miette" })
+
+      expect(JSON.parse(settings_asked)).not_to have_key("hooks")
     end
 
     it "adds the verdict format to the architect's brief, and to no other agent's", :aggregate_failures do
