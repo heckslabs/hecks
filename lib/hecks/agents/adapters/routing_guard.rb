@@ -28,9 +28,12 @@ module Hecks
 
       # @param role [Hash, String] the role asking
       # @param command [Hash, String] the Bash text it asks to run
+      # @param agent [Hash, String, nil] the subagent making the call; blank in the role's session
       # @return [Hash{Symbol => String}] `text:` "allowed"
-      # @raise [Refused] when the role has routing rows and the command is not on them
-      def guard(role:, command:)
+      # @raise [Refused] when the role's own session has routing rows and the command is not on them
+      def guard(role:, command:, agent: nil)
+        return { text: "allowed" } unless held(agent).to_s.strip.empty?
+
         name = held(role)
         rules = rows("RoutingRule", name).map { |row| row[:pattern] }
         text = held(command).to_s.strip
@@ -57,9 +60,21 @@ module Hecks
       end
 
       def refusal(name, text)
-        use = rows("RefusalHint", name).find { |row| text.start_with?(row[:shape]) }&.fetch(:use)
-        use ||= "a verb on the #{name} routing list, or dispatch another role through Work.plan!/Dispatch"
+        use = nearest_verb(name, text) || hint(name, text)
         "#{name} routes only: use #{use}. Refused: #{text}"
+      end
+
+      def hint(name, text)
+        found = rows("RefusalHint", name).find { |row| text.start_with?(row[:shape]) }
+        found ? found[:use] : "a verb on the #{name} routing list, or dispatch another role through Work.plan!"
+      end
+
+      # A routing row of the same aggregate as the launcher call, to name beside the refusal.
+      def nearest_verb(name, text)
+        return unless text.match?(LAUNCHER)
+
+        aggregate = verb_of(text.sub(LAUNCHER, "")).split(".").first
+        rows("RoutingRule", name).map { |row| row[:pattern] }.find { |rule| rule.start_with?("#{aggregate}.") }
       end
 
       def rows(table, role) = @rows.call(table).select { |row| row[:role] == role }

@@ -32,6 +32,12 @@ Hecks.bluebook "Agents" do
 
       member role: "orchestrator", pattern: "Work.*"
       member role: "orchestrator", pattern: "Dispatch.fill!"
+      member role: "orchestrator", pattern: "Dispatch.preview"
+      member role: "orchestrator", pattern: "AgentRun.running"
+      member role: "orchestrator", pattern: "AgentRun.retire!"
+      member role: "orchestrator", pattern: "PushRehearsal.due"
+      member role: "orchestrator", pattern: "Workspace.status"
+      member role: "orchestrator", pattern: "Machine.sample!"
       member role: "orchestrator", pattern: "Dispatch.settle!"
       member role: "orchestrator", pattern: "Planning.request!"
       member role: "orchestrator", pattern: "AgentRun.check_all!"
@@ -102,6 +108,8 @@ Hecks.bluebook "Agents" do
              use: "the coder or reviewer role through Work.plan!/Dispatch; a search is run there"
       member role: "orchestrator", shape: "settle",
              use: "Dispatch.settle!, which AgentRun.check_all! and every confirmed Dispatch.fill! already run"
+      member role: "orchestrator", shape: "uptime",
+             use: "Machine.sample! for the load, or Dispatch.preview for the cap, the started count and what a filling would start"
       member role: "orchestrator", shape: "exe/hecks",
              use: "a verb on the routing list (Operation.follow hears a run), or the planner role through Planning.request!"
     end
@@ -127,17 +135,22 @@ Hecks.bluebook "Agents" do
 
     value_object "GuardedCommand", String
 
+    # The id of the subagent that made the call; blank when the role's own session did.
+    value_object "GuardedAgent", String
+
     value_object "Document" do
       attribute :text, String
     end
 
     # Whether a role may run one Bash command itself. A role with routing rows runs only a command
     # whose verb one of them names, alone (no pipe, chain, redirect or substitution); anything else
-    # is refused by name with the replacement. A role with no rows is allowed.
+    # is refused by name with the replacement. A role with no rows is allowed, and so is a call made by a
+    # delegated run (a subagent that only uses the role's agent file): the rules bind the role's own session.
     query "Guard" do
       description "Allowed, or refused by name with the verb or role to use instead, for one command a role asks to run."
       attribute :role,    RoleName
       attribute :command, GuardedCommand
+      attribute :agent,   GuardedAgent, optional: true
       returns Document
     end
 
