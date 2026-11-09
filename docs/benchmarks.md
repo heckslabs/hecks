@@ -201,6 +201,13 @@ that does not keep the cache directory (`Hecks::CacheDir`) starts cold. The CiGa
 waits on, restore the cache directories with the `hecks-boot-cache` action, keyed by a hash of `lib/` and the lockfile, so a run on
 an unchanged `lib/` starts warm; a run on changed code starts cold and saves them.
 
+Measured again on 2026-11-08 (same machine, Ruby 3.3.7, warm caches, `hecks RedFlag.status`), a run that boots the
+domain takes about 1.3 s and `hecks --help` about 0.3 s, against about 2.8 s and 0.6 s before the word gate's index,
+the shared emitter index, the lazy IRB and OpenSSL loads and the bootsnap compile cache (CHANGELOG, Unreleased). Of
+the warm run, the declaration load is about 1.0 s, `require "hecks"` about 0.17 s and `bundler/setup` about 0.15 s;
+the load's remaining cost is spread over the DSL evaluation of every attached bluebook, with garbage collection
+about a fifth of it. A cold run after an edit under `lib/` takes about 9 s.
+
 Not done, and not safe to do without an audit: keying the digest to the files a verdict actually reads. It would keep the cache warm
 across unrelated edits, but a stale "no refusals" entry would skip validation, so the key must name every input of a verdict, and
 nothing lists them today.
