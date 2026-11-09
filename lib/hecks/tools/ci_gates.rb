@@ -2,6 +2,7 @@
 
 require "hecks/vocabulary"
 require_relative "../tools"
+require_relative "attested_checks"
 
 module Hecks
   module Tools
@@ -9,6 +10,10 @@ module Hecks
     # detector job between a pair of marker comments in its `workflow`. The job runs
     # `hecks decide_ci_gate gate=<name>` (`CiGateDecision`), so the decision is made by the binary
     # from the same row, never by shell the workflow carries.
+    #
+    # The names a signed attestation note may carry are regions too (`attested_checks`): the hook's
+    # `ATTEST_CHECKS` line and the `checks:` input of each note writer in `ci.yml`, written from the
+    # rows marked `attests` (`AttestedChecks`).
     #
     # Everything outside the markers is hand-written and left alone. With `--check` nothing is
     # written: the tool answers 1 and names each workflow whose region differs from the rows.
@@ -36,12 +41,22 @@ module Hecks
       end
 
       # @param root [String] the checkout
-      # @return [Hash{String => String}] each workflow's absolute path to the text it should hold
+      # @return [Hash{String => String}] each projected file's absolute path to its projected text
       def projection(root)
-        gates.group_by { |gate| gate.fetch("workflow") }.to_h do |workflow, rows|
-          path = File.join(root, WORKFLOWS, workflow)
-          [path, rows.reduce(File.read(path)) { |text, gate| replace_region(text, gate, workflow) }]
+        gated = gates.group_by { |gate| gate.fetch("workflow") }
+        files(root, gated.keys).to_h do |path|
+          rows = gated.fetch(File.basename(path), [])
+          detectors = rows.reduce(File.read(path)) { |text, gate| replace_region(text, gate, File.basename(path)) }
+          [path, AttestedChecks.write(detectors, path.delete_prefix("#{root}/"))]
         end
+      end
+
+      # @param root [String] the checkout
+      # @param workflows [Array<String>] the workflows the `CiGate` rows name
+      # @return [Array<String>] every file the rows write: those workflows, then the files that hold
+      #   an `attested_checks` region (the hook among them)
+      def files(root, workflows = gates.map { |gate| gate.fetch("workflow") }.uniq)
+        (workflows.map { |name| "#{WORKFLOWS}/#{name}" } | AttestedChecks::FILES).map { |file| File.join(root, file) }
       end
 
       # The values a row's `mode` and `push` may take: the language holds one closed set to a value

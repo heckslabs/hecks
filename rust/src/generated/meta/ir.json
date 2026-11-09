@@ -34438,6 +34438,16 @@
               "pattern": null,
               "admits": null,
               "relationship": null
+            },
+            {
+              "name": "attests",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -34537,6 +34547,10 @@
                 "engine_agreement"
               ],
               [
+                "attests",
+                "yes"
+              ],
+              [
                 "title",
                 "engine agreement, every declared comparator on both engines"
               ],
@@ -34589,6 +34603,10 @@
                 "model_check"
               ],
               [
+                "attests",
+                "yes"
+              ],
+              [
                 "title",
                 "model check, unreachable states, dead transitions and orphaned handlers"
               ],
@@ -34615,6 +34633,10 @@
                 "doc_coverage"
               ],
               [
+                "attests",
+                "yes"
+              ],
+              [
                 "title",
                 "docs coverage, words with no running example"
               ],
@@ -34639,6 +34661,10 @@
               [
                 "id",
                 "rubocop"
+              ],
+              [
+                "attests",
+                "yes"
               ],
               [
                 "title",
@@ -35736,6 +35762,16 @@
               "pattern": null,
               "admits": null,
               "relationship": null
+            },
+            {
+              "name": "attests",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -35747,54 +35783,90 @@
               [
                 "name",
                 "rspec"
+              ],
+              [
+                "attests",
+                "yes"
               ]
             ],
             [
               [
                 "name",
                 "checks"
+              ],
+              [
+                "attests",
+                "yes"
               ]
             ],
             [
               [
                 "name",
                 "rspec_postgres_io"
+              ],
+              [
+                "attests",
+                "yes"
               ]
             ],
             [
               [
                 "name",
                 "rspec_postgres_io_parallel"
+              ],
+              [
+                "attests",
+                "yes"
               ]
             ],
             [
               [
                 "name",
                 "rspec_rust_io"
+              ],
+              [
+                "attests",
+                "yes"
               ]
             ],
             [
               [
                 "name",
                 "rspec_rust_parser"
+              ],
+              [
+                "attests",
+                "yes"
               ]
             ],
             [
               [
                 "name",
                 "rspec_rust_codegen"
+              ],
+              [
+                "attests",
+                "yes"
               ]
             ],
             [
               [
                 "name",
                 "rspec_rust_host"
+              ],
+              [
+                "attests",
+                "yes"
               ]
             ],
             [
               [
                 "name",
                 "rspec_fuzzing"
+              ],
+              [
+                "attests",
+                "yes"
               ]
             ],
             [
