@@ -47,8 +47,21 @@ RSpec.describe "the Coder brief's standing sections" do
   end
 
   it "waits for the verdict by event name and reads the listing after every return" do
-    expect(section(:review)).to include("names.value=PlanReviewed,PlanReviewRecorded", "domain.value=lib/hecks/hecks",
+    expect(section(:review)).to include("names.value=PlanReviewed,PlanReviewRecorded",
+                                        "domain.value={main}/lib/hecks/hecks",
                                         "at most four times", "the read, not the follow")
+  end
+
+  it "runs every review command through the main checkout's launcher", :aggregate_failures do
+    review = section(:review)
+    expect(review).to include("{main}/exe/hecks agents PlanReview.request!",
+                              "{main}/exe/hecks agents PlanReview.reviews", "{main}/exe/hecks Operation.follow")
+    bare = review.gsub("{main}/exe/hecks", "")
+    expect(bare).not_to include("exe/hecks agents PlanReview", "exe/hecks Operation.follow")
+  end
+
+  it "listens for the red flag through the main checkout too" do
+    expect(section(:restraints)).to include("{main}/exe/hecks Operation.follow domain.value={main}/lib/hecks/hecks")
   end
 
   it "names the spec path, stash and the comment check" do

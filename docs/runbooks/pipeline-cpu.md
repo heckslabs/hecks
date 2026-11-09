@@ -89,7 +89,11 @@ event with `event`, `policy`, `command`, `outcome`, `at`.
   sent to the resident, by design (ADR 0201).
 - **No prebuilt Rust kernel for macOS.** Only Linux host rows are published, so a worktree compiles its own binaries.
 - **A coder's worktree has no local overlay.** `hecks.local.hecksagon` and `hecks.local.world` are gitignored, so
-  stores that live there (Agents, Work) boot in Memory in a worktree, and the review wait may not see a verdict.
+  stores that live there (Agents, Work) boot in Memory in a worktree, and the write guard refuses a write that would
+  land there. The coder brief therefore runs its review commands and the red-flag follow through the main checkout:
+  it names `{main}/exe/hecks` and `domain.value={main}/lib/hecks/hecks`, and the dispatcher fills `{main}` with the
+  checkout the filling runs from (`BriefText#render(main:)`, which refuses a brief that names `{main}` unfilled).
+  Other commands a session runs from its worktree that touch such a store still hit the guard.
 - **Residents cost memory.** About 330 MB each, at most 8, one per checkout in use.
 - **The reaper's `KEPT` list is by hand.** A new long-running verb needs adding to it.
 - **`--strict-mcp-config` has not been run in a real session.**

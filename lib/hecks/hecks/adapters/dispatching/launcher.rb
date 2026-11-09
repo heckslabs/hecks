@@ -43,7 +43,7 @@ module Hecks
         def launch(item, held:, minutes:, limit: nil, **lines)
           step(item, "pull main", pull_argv)
           started = step(item, "start", start_argv(item, minutes), reaches: "started")
-          text = BriefText.new(composed(item)).render(item.key, area: item.area, limit: limit, held: held, **lines)
+          text = BriefText.new(composed(item)).render(item.key, area: item.area, limit: limit, main: main, held: held, **lines)
           dispatch(item, text)
           started_line(item, started.note)
         rescue ConsoleCapture::Failure => e
@@ -140,6 +140,9 @@ module Hecks
           ["tickets", "Work.start!", "to=#{item.key}", "claimed_by.value=#{CLAIMANT}", "claimed_at.value=#{Time.now.utc.iso8601}",
            *item.area.map { |word| "area.value=#{word}" }, "budget_minutes.value=#{minutes}", "--wait"]
         end
+
+        # The primary checkout a brief's `{main}` names: where the reviews and red flags are stored.
+        def main = File.expand_path(@repo)
 
         def composed(item)
           argv = ["coder", "Brief.compose!", "work.value=#{item.key}", "outcome.value=#{item.title}",
