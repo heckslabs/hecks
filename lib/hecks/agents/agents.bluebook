@@ -867,7 +867,7 @@ Hecks.bluebook "Agents" do
   # a daemon that cannot be traced is counted and left running. A worktree whose work is on main is
   # named for `Landing.retire!`, which makes the final check; one with unlanded work is only reported.
   aggregate "Sweep" do
-    description "One sweep of the leftovers of removed sessions: spare daemons traced to them stopped, worktrees named for retirement or reported, stray temp files deleted, with the machine's footprint before and after."
+    description "One sweep of the leftovers of removed sessions: spare daemons traced to them stopped, worktrees named for retirement or reported, stray temp files deleted, launchers left running with no parent and rehearsal pushes older than a day stopped, with the machine's footprint before and after."
 
     identified_by :run
 
