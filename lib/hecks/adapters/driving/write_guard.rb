@@ -67,7 +67,8 @@ module Hecks
           return if files.empty?
 
           kind = kind_in(stores.call(main), bluebook, aggregate)
-          return if kind == ContextLine::MEMORY || kind == kind_in(stores.call(directory), bluebook, aggregate)
+          here = kind_in(stores.call(WorktreeOverlay.checkout_root(directory)), bluebook, aggregate)
+          return if kind == ContextLine::MEMORY || kind == here
 
           { root: main, kind: kind, files: files }
         end
@@ -89,10 +90,12 @@ module Hecks
             "Memory here. Run the command from the main checkout (#{main[:root]})."
         end
 
-        # Answers the store rows of a directory, through the adapter `hecks config` uses.
-        STORES = lambda do |directory|
+        # Answers the store rows of a checkout root, through the adapter `hecks config` uses, which
+        # reads a domain directory. This boots a second copy of the domain; the runner passes rows
+        # it already holds instead (see LedgerStores).
+        STORES = lambda do |root|
           require_relative "../../hecks/adapters/settings_reading"
-          Hecks::Adapters::SettingsReading.new.stores(directory)
+          Hecks::Adapters::SettingsReading.new.stores(File.join(root, "lib/hecks/hecks"))
         end
       end
     end

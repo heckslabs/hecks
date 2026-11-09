@@ -2,6 +2,7 @@
 
 require "open3"
 require_relative "exit_status"
+require_relative "ledger_stores"
 require_relative "write_guard"
 
 module Hecks
@@ -33,8 +34,10 @@ module Hecks
         # @param argv [Array<String>] the line as typed, without the launcher
         # @param err [#puts] where a forwarded run's standard error goes
         # @param seams [Hash] `:directory` (the checkout the line runs in), `:env` (which also
-        #   carries the forwarding switches), `:stores` (answers the store rows of a directory)
-        #   and `:runner` (runs the main checkout's launcher); each defaults to the real one
+        #   carries the forwarding switches), `:runtime` (whose registry answers the worktree's
+        #   stores), `:stores` (answers the store rows of a checkout root, instead of the runtime
+        #   and the main checkout's launcher) and `:runner` (runs the main checkout's launcher);
+        #   each defaults to the real one
         # @return [Array(String, Integer), nil] the text and status the line ended with, or nil
         #   when the line runs here
         def call(plan, argv, err, **seams)
@@ -46,13 +49,24 @@ module Hecks
           return unless verdict.forward
 
           forward(verdict.forward, line_for(plan[:spec], argv, directory), err, seams.fetch(:runner, RUNNER))
+        rescue LedgerStores::Unreadable => e
+          ["hecks: refused: #{e.message}, so a write to a shared ledger cannot be placed. Run it from the main checkout.",
+           ExitStatus::REFUSED]
         end
 
         # @return [WriteGuard::Verdict] what the guard decides for the line's aggregate
         def verdict_for(plan, directory, seams)
-          stores = seams.fetch(:stores, WriteGuard::STORES)
           env = seams.fetch(:env, ENV)
-          WriteGuard.verdict(directory, plan[:bluebook]&.name, aggregate: plan[:spec][:group], stores: stores, env: env)
+          WriteGuard.verdict(directory, plan[:bluebook]&.name, aggregate: plan[:spec][:group],
+                                                               stores: stores_for(directory, seams), env: env)
+        end
+
+        # @return [#call] the injected store rows, else the runtime's own and the main checkout's
+        def stores_for(directory, seams)
+          return seams[:stores] if seams[:stores]
+          return WriteGuard::STORES unless seams[:runtime]
+
+          LedgerStores.for_runtime(seams[:runtime], WorktreeOverlay.checkout_root(directory))
         end
 
         # The line as the main checkout runs it: the worktree is named when the command takes a

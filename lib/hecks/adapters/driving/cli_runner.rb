@@ -91,7 +91,7 @@ module Hecks
           plan = resolve(runtime, argv, program)
           return plan[:answer] if plan[:answer]
 
-          guarded = guard_command(plan, argv, err)
+          guarded = guard_command(plan, argv, err, runtime)
           return guarded if guarded
 
           answer = dispatch(runtime, plan[:spec], plan[:name], plan[:rest], plan[:program], plan[:asking],
@@ -126,10 +126,10 @@ module Hecks
         # @api private
         # @return [Array(String, Integer), nil] the answer of a forwarded or refused write, or nil
         #   when the command may run here
-        def guard_command(plan, argv, err)
+        def guard_command(plan, argv, err, runtime)
           return if plan[:asking]
 
-          forwarded = LedgerForward.call(plan, argv, err)
+          forwarded = LedgerForward.call(plan, argv, err, runtime: runtime)
           return forwarded if forwarded
 
           ContextLine.announce(err) unless quiet?

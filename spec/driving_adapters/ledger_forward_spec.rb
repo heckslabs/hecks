@@ -115,6 +115,14 @@ RSpec.describe Hecks::Adapters::Driving::LedgerForward do
     expect(calls).to be_empty
   end
 
+  it "refuses, not loses the write, when the main checkout's stores cannot be read", :aggregate_failures do
+    unreadable = ->(_root) { raise Hecks::Adapters::Driving::LedgerStores::Unreadable, "the main checkout did not report its stores" }
+    text, status = described_class.call(plan, %w[Work.plan!], err, directory: worktree, stores: unreadable, runner: runner)
+
+    expect(text).to include("did not report its stores", "Run it from the main checkout")
+    expect([status, calls]).to eq([Hecks::Adapters::Driving::ExitStatus::REFUSED, []])
+  end
+
   it "refuses when the main checkout has no launcher to run the write in" do
     FileUtils.rm(File.join(main, "exe/hecks"))
 
