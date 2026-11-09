@@ -118,9 +118,69 @@ RSpec.describe "integrating main through the MainIntegration saga" do
 
   def github(argv, conclusion, jobs)
     note_depth
+    return pull_request_view if argv[1..2] == %w[pr view]
     return [true, JSON.generate(jobs: jobs)] if argv[1..2] == %w[run view]
 
+    (@ci_commits ||= []) << argv[argv.index("--commit") + 1]
     [true, JSON.generate([{ databaseId: 7, status: "completed", conclusion: conclusion }])]
+  end
+
+  # The train's pull request as GitHub holds it: none by default (a plain push), or the state a
+  # spec sets in `@pull`.
+  def pull_request_view
+    return [false, "no pull requests found for branch \"train/main-x\""] unless @pull
+
+    [true, JSON.generate(@pull)]
+  end
+
+  def merged_as(sha) = { number: 12, state: "MERGED", mergeCommit: { oid: sha } }
+
+  it "judges CI on the commit GitHub merged the train pull request as", :aggregate_failures do
+    @pull = merged_as("f" * 40)
+    landed = land
+    advance(3)
+    expect(stage(landed)).to eq("green")
+    expect(@ci_commits).to all(eq("f" * 40))
+  end
+
+  it "ends a squash-merged run in red when CI on the merge commit fails" do
+    stub_outside(conclusion: "failure", jobs: FAILED_JOBS)
+    @pull = merged_as("e" * 40)
+    landed = land
+    advance(3)
+    expect(stage(landed)).to eq("red")
+  end
+
+  it "keeps a run in ci_running while its pull request is open", :aggregate_failures do
+    @pull = { number: 12, state: "OPEN", mergeCommit: nil }
+    landed = land
+    advance(3)
+    expect(stage(landed)).to eq("ci_running")
+    expect(@ci_commits).to be_nil
+  end
+
+  it "parks a run whose pull request closed unmerged, raising no red flag", :aggregate_failures do
+    @pull = { number: 12, state: "CLOSED", mergeCommit: nil }
+    landed = land
+    advance(3)
+    expect(stage(landed)).to eq("needs_human")
+    expect(File.exist?(flag_file)).to be(false)
+  end
+
+  # Lands two runs while the first one's pull request is open, then merges it and advances.
+  def land_two_behind_an_open_pull_request
+    @pull = { number: 12, state: "OPEN", mergeCommit: nil }
+    first = land
+    advance(3)
+    second = land(file: "second.rb")
+    advance(2)
+    @pull = merged_as("d" * 40)
+    advance(3)
+    [first, second]
+  end
+
+  it "boards the waiting run once the run ahead of it is green" do
+    expect(land_two_behind_an_open_pull_request.map { |landed| stage(landed) }).to eq(%w[green green])
   end
 
   it "starts a run in landed when a branch lands on main" do
