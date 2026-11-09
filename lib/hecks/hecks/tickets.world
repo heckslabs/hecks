@@ -26,7 +26,7 @@ Hecks.world "Tickets" do
   github_issues "GitHubIssues", enabled: false
   work_limit "WorkLimits", cap: 14
   dispatch_max_load "Dispatch", limit: 16.0
-  dispatch_roll_forward "Dispatch", roll_forward: true
+  dispatch_roll_forward "Dispatch", roll_forward: false
   frozen_shapes "PersistedShapes", areas: []
   session_environment "Sessions", cargo_target_dir: "~/.cache/hecks/cargo-target", nice: 15
 end
