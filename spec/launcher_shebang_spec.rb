@@ -16,7 +16,7 @@ RSpec.describe "the launcher's shebang" do
     Hecks::Tools::ProjectCli.launcher("lib/hecks/hecks", "Hecks", "hecks project_cli", **options)
   end
 
-  # Runs a launcher line cold, in a new process, so rubygems and bundler must come from the launcher.
+  # Runs a launcher line cold, in a new process, so rubygems and bundler come from the launcher.
   def cold(*command)
     env = { "HECKS_NO_RESIDENT" => "1", "HECKS_USAGE" => "off" }
     Open3.capture3(env, *command, chdir: root)
