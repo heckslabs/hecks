@@ -90,7 +90,7 @@ RSpec.describe "the client's resident outcome" do
     end
 
     def answer_with(words)
-      take_streams unless words.first.start_with?("stale")
+      take_streams unless words.first.start_with?("stale", "dropped")
       words.each { |word| resident::Wire.reply(ends.last, word) }
     end
 
@@ -109,9 +109,14 @@ RSpec.describe "the client's resident outcome" do
       expect(client.converse(ends.first, script)).to eq([nil, "env"])
     end
 
-    it "answers dropped when the resident hung up on the request" do
+    it "answers dropped:closed when the resident hung up on the request" do
       resident_says
-      expect(client.converse(ends.first, script)).to eq([nil, "dropped"])
+      expect(client.converse(ends.first, script)).to eq([nil, "dropped:closed"])
+    end
+
+    it "answers dropped:deadline when the resident says it gave up on a slow caller" do
+      resident_says("dropped:deadline")
+      expect(client.converse(ends.first, script)).to eq([nil, "dropped:deadline"])
     end
   end
 end

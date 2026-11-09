@@ -7,6 +7,8 @@ require "hecks/adapters/driving/resident/env_trace"
 require "hecks/adapters/driving/resident/fingerprint"
 require "hecks/adapters/driving/resident/described_cache"
 require "hecks/adapters/driving/resident/loading"
+require "hecks/adapters/driving/resident/forking"
+require "hecks/adapters/driving/resident/pool"
 require "hecks/adapters/driving/resident/serving"
 require "hecks/adapters/driving/resident/stopping"
 require "hecks/adapters/driving/resident/worker"
@@ -24,6 +26,8 @@ module Hecks
         #   ruby -I lib lib/hecks/adapters/driving/resident/server.rb <checkout> <launcher script>
         class Server
           include Loading
+          include Forking
+          include Pool
           include Serving
           include Stopping
 
@@ -50,6 +54,7 @@ module Hecks
             @monitors = []
             @notes = Queue.new
             @settings = Loading::DEFAULTS
+            setup_pool
           end
 
           # Takes the checkout's lock, loads, and serves lines until idle or retired.
@@ -59,6 +64,7 @@ module Hecks
             prepare
             return if @crowded
 
+            settle
             bind
             serve
           ensure
@@ -76,6 +82,7 @@ module Hecks
             return false unless @lock.flock(File::LOCK_EX | File::LOCK_NB)
 
             File.utime(nil, nil, Paths.lock(@root))
+            FileUtils.rm_f(Paths.claim(@root))
             Crowd.sweep
             true
           end
@@ -96,18 +103,16 @@ module Hecks
             File.umask(previous)
           end
 
+          # Takes callers as they come and hands each to a worker, so a caller that is slow, or a
+          # resident busy with a fork, holds up no one else. Everything else the resident does
+          # between lines is the upkeep thread's.
           def serve
             @active = Time.now
-            settle
-            until idle? || @retired
-              ready = @server.wait_readable(1.0)
-              learn
-              @monitors.select!(&:alive?)
-              ready ? handle(@server.accept) : retire_when_orphaned
-            end
+            start_threads
+            accept until idle? || @retired
+          rescue IOError, Errno::EBADF
+            nil
           end
-
-          def idle? = @monitors.none?(&:alive?) && Time.now - @active > @settings[:idle_seconds]
 
           # Whether the checkout it serves, or the socket it listens on, is gone: a worktree that
           # was retired, a temporary directory that was removed, or a cache that was cleared. A
@@ -129,6 +134,7 @@ module Hecks
             return unless @bound
 
             retire unless @retired
+            join_threads
             @monitors.each(&:join)
           end
         end

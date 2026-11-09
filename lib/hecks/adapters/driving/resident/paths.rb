@@ -42,6 +42,32 @@ module Hecks
           # @return [String] the file the running resident writes its process id to
           def pid(root) = "#{stem(root)}.pid"
 
+          # @return [String] the file a launcher creates while it starts the checkout's resident,
+          #   so a burst of launchers starts one and not one each
+          def claim(root) = "#{stem(root)}.claim"
+
+          # @param name [String] a setting the resident read from the Hecks world
+          # @param default [Numeric] what a launcher uses until a resident has written one
+          # @return [Float] the setting as the last resident wrote it
+          def recall(name, default)
+            Float(File.read(File.join(directory, name)).strip)
+          rescue SystemCallError, ArgumentError
+            Float(default)
+          end
+
+          # Keeps a setting the world declared for the launchers, which ask before they load. It is
+          # written through a temp file and renamed, so a launcher never reads half a number.
+          #
+          # @return [void]
+          def remember(name, value)
+            file = File.join(directory, name)
+            temp = "#{file}.#{Process.pid}.tmp"
+            File.write(temp, value.to_s)
+            File.rename(temp, file)
+          rescue SystemCallError
+            nil
+          end
+
           # @return [Boolean] whether a resident may be asked for or started: the socket's path
           #   fits in the system's limit, the cache directory is one a later launcher finds again,
           #   and the directories are this user's and closed to everyone else

@@ -18,6 +18,8 @@ module Hecks
           # Seconds a caller has, from the moment the resident takes it, to send its request and
           # streams and to answer `ready` with `go`, before the resident drops it.
           HANDLE_WAIT = 5
+          # What a caller is told when it took longer than {HANDLE_WAIT} and the resident gave up.
+          DROPPED_DEADLINE = "dropped:deadline".freeze
 
           private
 
@@ -27,7 +29,19 @@ module Hecks
             return drop(client, streams) unless Peer.trusted?(client)
 
             take(client, streams, Wire::Deadline.new(HANDLE_WAIT))
+          rescue Wire::Slow
+            say_dropped(client, streams)
           rescue StandardError, NoMemoryError
+            drop(client, streams)
+          end
+
+          # Tells a caller that was too slow why its line was dropped, so it can tell that apart
+          # from a resident that simply hung up.
+          def say_dropped(client, streams)
+            Wire.reply(client, DROPPED_DEADLINE)
+          rescue SystemCallError, IOError
+            nil
+          ensure
             drop(client, streams)
           end
 
@@ -46,7 +60,7 @@ module Hecks
           def receive(client, streams, deadline)
             3.times do
               client.wait_readable(deadline.left) || raise(Wire::Slow, "the streams did not arrive")
-              streams << client.recv_io
+              streams << hold(client.recv_io)
             end
           end
 
@@ -61,7 +75,7 @@ module Hecks
           def unservable(request)
             return "script" unless same_script?(request)
             return "env" unless request[:env].slice(*loaded_names) == @environment
-            return nil unless @fingerprint.changed?
+            return nil unless changed?
 
             retire
             "changed"
@@ -96,47 +110,10 @@ module Hecks
 
           # Closes what was received from a caller and the caller's socket.
           def drop(client, streams)
-            streams.each { |stream| stream.close unless stream.closed? }
-            client.close unless client.closed?
-          end
-
-          def launch(client, request, streams)
-            reader, writer = IO.pipe
-            writer.sync = true
-            pid = fork { become_child(client, request, streams, reader, writer) }
-            into_group(pid, pid)
-            writer.close
-            streams.each(&:close)
-            @monitors << Thread.new { monitor(pid, client, reader) }
-          end
-
-          # The child leads a process group of its own, which the resident also sets from its side
-          # so the group stands whichever of them runs first, and the child's own processes (a
-          # build, a gate) can be stopped with it.
-          def become_child(client, request, streams, reader, writer)
-            into_group(0, 0)
-            [@server, @lock, client, reader].each(&:close)
-            Worker.new(request, streams, @cache, writer).run
-          end
-
-          # Waits for the child, ends the caller's wait with its status, and stops the child if the
-          # caller goes.
-          def monitor(pid, client, reader)
-            watcher = Thread.new { stop_when_gone(client, pid) }
-            _, status = Process.wait2(pid)
-            watcher.kill
-            Wire.reply(client, "#{Wire::STATUS}#{status.exitstatus || (128 + status.termsig)}")
-            remember(reader)
-          rescue SystemCallError, IOError
-            nil
-          ensure
-            client.close unless client.closed?
-          end
-
-          # Queues the domains and files a finished child named as missing from the resident.
-          def remember(reader)
-            text = reader.read_nonblock(65_536, exception: false)
-            text.to_s.each_line { |line| @notes << line.chomp.split("\t", 3) }
+            [*streams, client].each do |io|
+              release(io)
+              io.close unless io.closed?
+            end
           end
         end
       end

@@ -207,7 +207,7 @@ RSpec.describe "the resident's handshake" do
     end
 
     it "closes its end of the socket before it boots on its own, so a late resident finds it gone", :aggregate_failures do
-      stub_const("Hecks::Adapters::Driving::Resident::Client::HANDSHAKE", 0.3)
+      stub_const("Hecks::Adapters::Driving::Resident::Client::READY_WAIT", 0.3)
       answer, accepted = late_accept("/c")
       expect(answer).to eq([nil, "busy"])
       expect(closed_by_caller?(accepted)).to be(true)

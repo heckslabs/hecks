@@ -77,7 +77,10 @@ Hecks.world "Hecks" do
   board_restart "PipelineBoard", refresh_seconds: 30, rss_mb: 1024, age_hours: 24
   # How long a checkout's resident (ADR 0201) waits with nothing to run before it exits, and the most
   # residents that may stand at once, one per checkout in use; a checkout past that boots each line cold.
-  resident "Launcher", idle_seconds: 600, max_residents: 8
+  # A launcher waits `ready_wait_ms` for the resident's first word and then boots on its own (an idle
+  # resident answers in milliseconds, so a longer wait only costs more than no resident), and the
+  # resident takes up to `workers` callers at once.
+  resident "Launcher", idle_seconds: 600, max_residents: 8, ready_wait_ms: 400, workers: 8
   # The DiskSpace levels: rising under `rising_free_gb` free or at `rising_used_percent` used, high under
   # `high_free_gb` free or at `high_used_percent` used; the worse of the two sets the level. These are
   # the volume's own lines for relief; `disk_health` above sets the floors of the board's Disk free tile.

@@ -41,10 +41,26 @@ RSpec.describe "a launcher through its resident" do
     expect(File.socket?(ResidentLaunch::PATHS.socket(ResidentLaunch::ROOT))).to be(true)
   end
 
+  # Waits until the resident has seen the change and retired: it looks twice a second, off the
+  # path of any line, so a line sent the moment the code changed may still meet the old resident.
+  def wait_until_retired
+    ThreadParking.wait_for(timeout: 30) { !File.exist?(ResidentLaunch::PATHS.socket(ResidentLaunch::ROOT)) }
+  end
+
+  # Changes the code, waits for the resident to retire, runs a line, and answers the line's status
+  # and the process id of the resident that then stands.
+  def line_after_a_change(pid)
+    with_newer_lockfile do
+      wait_until_retired
+      [launch("RedFlag.status").status, wait_for_new_resident(pid)]
+    end
+  end
+
   it "answers the line and starts a new resident when its code has changed", :aggregate_failures do
     pid = start_resident
-    with_newer_lockfile { expect(launch("RedFlag.status").status).to eq(0) }
-    expect(wait_for_new_resident(pid)).not_to eq(pid)
+    status, replacement = line_after_a_change(pid)
+    expect(status).to eq(0)
+    expect(replacement).not_to eq(pid)
   end
 
   it "answers the line at the cost of one cold boot when the resident was killed", :aggregate_failures do

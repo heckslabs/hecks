@@ -5,6 +5,7 @@ require "hecks/adapters/driving/resident/paths"
 require "hecks/adapters/driving/resident/wire"
 require "hecks/adapters/driving/resident/peer"
 require "hecks/adapters/driving/resident/crowd"
+require "hecks/adapters/driving/resident/claim"
 require "hecks/adapters/driving/resident/outcome"
 
 module Hecks
@@ -27,9 +28,13 @@ module Hecks
                        server.servequeryirmcp].freeze
           # The namespace a command word may be written with.
           NAMESPACE = "Hecks::".freeze
-          # Seconds the resident has to take the line and say `ready`, and to take the request
-          # itself, before the launcher boots on its own.
+          # Seconds the resident has, once it has said `fds`, to take the streams and say `ready`,
+          # and to take the request itself, before the launcher boots on its own.
           HANDSHAKE = 3
+          # Seconds an idle resident has to answer a request, until a resident has written the
+          # Hecks world's `ready_wait_ms`. A resident that has not answered by then is busy, and
+          # booting on its own costs less than waiting for it.
+          READY_WAIT = 0.4
           # What a socket that is gone, refused or too slow raises.
           LOST = [SystemCallError, IOError].freeze
 
@@ -92,7 +97,7 @@ module Hecks
             return [nil, (Paths.socket_present?(root) ? "unsafe" : nil)] unless Paths.trusted_socket?(root)
 
             socket = UNIXSocket.new(Paths.socket(root))
-            Peer.trusted?(socket) ? converse(socket, script) : [nil, "unsafe"]
+            Peer.trusted?(socket) ? converse(socket, script, ready_wait) : [nil, "unsafe"]
           rescue Wire::Slow
             [nil, "busy"]
           rescue *LOST, Wire::Refused
@@ -101,12 +106,13 @@ module Hecks
             socket&.close
           end
 
-          # Sends the line and waits for `fds`, sends the three streams only then (so nothing the
-          # resident reads of the request can take one with it), waits for `ready`, answers `go`
-          # and waits for the status. A `stale` in place of `fds` sends the launcher on to boot.
-          def converse(socket, script)
+          # Sends the line and waits for `fds` (at most `wait` seconds: an idle resident answers in
+          # milliseconds), sends the three streams only then (so nothing the resident reads of the
+          # request can take one with it), waits for `ready`, answers `go` and waits for the status.
+          # A `stale` in place of `fds` sends the launcher on to boot.
+          def converse(socket, script, wait = READY_WAIT)
             Wire.write_request(socket, request(script), seconds: HANDSHAKE)
-            first = first_word(socket)
+            first = first_word(socket, wait)
             return [nil, refusal(first)] unless first == Wire::FDS
 
             [$stdin, $stdout, $stderr].each { |stream| socket.send_io(stream) }
@@ -117,21 +123,27 @@ module Hecks
             [finish(socket), nil]
           end
 
-          # @return [String] the resident's first word on the request: `fds`, `stale:<reason>`, or
-          #   `dropped` when it hung up
+          # @return [String] the resident's first word on the request: `fds`, `stale:<reason>`,
+          #   `dropped:deadline` (it gave up on a slow caller), or `dropped:closed` when it hung up
           # @raise [Wire::Slow] when it said nothing in time
-          def first_word(socket)
-            Wire.read_line(socket, HANDSHAKE)
+          def first_word(socket, wait = READY_WAIT)
+            Wire.read_line(socket, wait)
           rescue EOFError
-            "dropped"
+            "dropped:closed"
           end
 
           # @return [String] what the resident said to the request: `busy` when it said nothing in
-          #   time, `dropped` when it hung up
+          #   time, `dropped:closed` when it hung up
           def answer(socket)
             return "busy" unless socket.wait_readable(HANDSHAKE)
 
-            Wire.read_reply(socket) || "dropped"
+            Wire.read_reply(socket) || "dropped:closed"
+          end
+
+          # @return [Float] seconds to wait for a resident's first word: the Hecks world's
+          #   `ready_wait_ms`, as the last resident wrote it, never above the handshake
+          def ready_wait
+            [Paths.recall("ready_wait_ms", READY_WAIT * 1000) / 1000.0, HANDSHAKE].min
           end
 
           # @return [String] the reason a reply that was not `ready` gives: `stale:env` is `env`
@@ -154,11 +166,12 @@ module Hecks
           # it takes its own lock, so a second start exits at once. It leaves the launcher's
           # session, so it keeps no terminal.
           #
-          # @return [String] the outcome: `started`, `none` when one is already coming up, or
-          #   `refused:crowded`
+          # @return [String] the outcome: `started`, `none` when one is already coming up (its lock
+          #   is held, or another launcher has claimed the start), or `refused:crowded`
           def spawn_resident(root, script)
             return Outcome::NONE if lock_held?(root)
             return Outcome.refused("crowded") if Crowd.crowded?(root)
+            return Outcome::NONE unless Claim.take?(root)
 
             server = File.join(__dir__, "server.rb")
             lib = File.expand_path("../../../..", __dir__)

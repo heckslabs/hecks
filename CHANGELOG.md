@@ -11,6 +11,20 @@ Entries below are grouped by theme, not itemized commit-by-commit; see
 
 - **A bluebook that will not load no longer leaves the board "still opening" for ever, and a request does not wait for a boot without end.** The live store's boot thread rescued `StandardError` only, so a `SyntaxError` or `LoadError` ended the thread with no failure recorded and no backoff; it now records the failure by class and retries after the backoff. `BootLock.exclusive` takes a `wait:`: the wiring page's reload and the journal and rules describes give up after 30 seconds with `Unavailable` ("a boot is still going in this process"), while the boot threads still wait their turn. A reader waits up to 25 seconds for the first boot (it was 15; the board snapshot took up to 19 seconds). The pruner's reaper keeps `agent_run.check_all` in every spelling, since a settling check ran up to 108 minutes.
 
+- **A resident takes callers at once, and a launcher no longer waits long for a busy one.** In an hour with six
+  sessions running specs, 59 of 108 lines were `refused:busy` and took a median 4.4 s, against 1.9 s for a launcher
+  that never asked: it waited the whole 3-second handshake. The launcher now waits for the resident's first word
+  at most `ready_wait_ms` (400, the Hecks world's `resident` line, written beside the socket by the resident);
+  the accept thread queues callers for `workers` (8) worker threads and only the forks take turns, under a lock
+  that also covers loading what children found missing (`Resident::Pool`, `Resident::Forking`); a child closes
+  every other caller's socket and stream; the socket appears only after the verdict flush and `Process.warmup`;
+  the change check runs on an upkeep thread, off the request path, and retires the resident when it finds a
+  change; one launcher claims the start of the replacement and the rest boot at once (`Resident::Claim`); and
+  `refused:dropped` is split into `dropped:deadline` and `dropped:closed`. `spec/resident_concurrency_spec.rb`
+  starts a real resident and fires 24 lines together: served 24 of 24 with a median of 0.33 to 0.88 s (0.94 s
+  before); a stopped resident costs a launcher 3.0 s, not 5.7 s; a burst after the code changed starts one
+  replacement and 11 launchers boot at once.
+
 - **Rust builds hecks starts queue behind one lock, run under a job cap and `nice`, and reuse a binary another
   workspace built.** One `rustc` was seen at 384% of a core. Every `cargo` or `rustc` hecks starts
   (`RustBuild.command!`, `capture_build`, the codegen, native, coverage, cargo-test, bench and QA paths, and the

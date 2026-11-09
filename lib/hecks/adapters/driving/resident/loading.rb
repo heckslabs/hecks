@@ -22,7 +22,8 @@ module Hecks
           # never refuses a line.
           PER_LINE = %w[HECKS_ENVIRONMENT].freeze
           # The world's defaults when it declares no `resident` line.
-          DEFAULTS = { idle_seconds: 600.0, max_residents: Crowd::DEFAULT_CAP.to_f }.freeze
+          DEFAULTS = { idle_seconds: 600.0, max_residents: Crowd::DEFAULT_CAP.to_f,
+                       ready_wait_ms: 400.0, workers: 8.0 }.freeze
 
           private
 
@@ -36,6 +37,7 @@ module Hecks
             note_environment
             @settings = settings
             Crowd.remember(@settings[:max_residents])
+            Paths.remember("ready_wait_ms", @settings[:ready_wait_ms])
             @crowded = standing >= @settings[:max_residents]
           end
 
@@ -85,7 +87,8 @@ module Hecks
             Hecks::Adapters::Driving::UsageCache.code_fingerprint(described.directory)
           end
 
-          # @return [Hash{Symbol => Float}] `idle_seconds` and `max_residents` from the Hecks world
+          # @return [Hash{Symbol => Float}] `idle_seconds`, `max_residents`, `ready_wait_ms` and
+          #   `workers` from the Hecks world
           def settings
             world = @cache.fetch(File.join(@root, DOMAIN), ENVIRONMENTS.first)&.registry&.world("Hecks")
             declared = world ? world.for_verb("resident") : {}

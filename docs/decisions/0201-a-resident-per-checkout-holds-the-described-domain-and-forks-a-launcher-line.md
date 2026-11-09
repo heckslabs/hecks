@@ -290,6 +290,52 @@ stand. Where the build differs from the text above or adds to it:
 - **It keeps no terminal.** The resident starts a new session (`setsid`) when it begins, so a child that opens
   `/dev/tty` finds no terminal of the first launcher that started it.
 
+### Under concurrent callers
+
+The usage log of 2026-11-09 (hour 09Z, six sessions running specs at once) showed 4 lines served of 108
+recorded, 59 `refused:busy`, 29 `refused:dropped`, 12 `started` and 3 `refused:changed`. A `refused:busy` line
+took a median 4.4 s against 1.9 s for a launcher that never asked a resident: it waited the whole 3-second
+handshake before it booted. The causes, and what was changed:
+
+- **The launcher waited too long for a busy resident.** An idle resident says `fds` in milliseconds, so the first
+  word is now waited for at most the Hecks world's `ready_wait_ms` (default 400); the resident writes the setting
+  beside its socket for the launchers, which run before anything loads. Once the resident has said `fds` it has
+  committed, and the later steps keep the 3-second limit.
+- **The accept loop was single-threaded.** The accept thread now queues each caller for a pool of `workers` (8)
+  worker threads, each taking one caller through the handshake. A caller that sat in the queue for more than a
+  second has booted on its own (it waits 0.4 s), so the worker drops it unread.
+- **Only the fork takes turns.** Forks, and the loading of what children found missing (`learn`), run under one
+  lock so a fork never copies the resident part way through a load. A child closes every other caller's socket
+  and stream it inherited: they would otherwise be held open, and a caller piping a line's output would wait for
+  another caller's line to end.
+- **The socket appears only when the resident is ready.** The verdict flush and `Process.warmup` (`settle`) ran
+  after the socket was bound, so the first callers waited through them; they now run before `bind`, and callers
+  before that boot at once.
+- **The change check left the request path.** An upkeep thread, twice a second, reaps finished lines, loads what
+  children found missing, looks for a change in the code or the declarations and retires the resident when it
+  finds one; a line reads the answer instead of looking. A resident without an upkeep thread (a spec's) looks for
+  itself.
+- **One launcher starts the replacement.** When the resident retires, a burst of launchers finds none. The first
+  to create `<stem>.claim` starts the replacement and the rest boot on their own at once (`none`); the resident
+  that starts removes the claim when it holds the lock, and a claim older than ten seconds is taken over.
+- **`dropped` names its cause.** `dropped:deadline` is the resident giving up on a caller that took longer than
+  the five seconds of the whole exchange (it says so before it hangs up); `dropped:closed` is a hang-up with
+  nothing said.
+
+Measured with `spec/resident_concurrency_spec.rb`, which starts a real resident on a throwaway cache and fires
+`hecks tickets Work.undone` from threads, on the unchanged resident (main at 8bb8d295f) and on this change:
+
+| scenario | before | after |
+|---|---|---|
+| 24 lines together, machine quiet: served; median, slowest | 24; 0.94 s, 0.96 s | 24; 0.33 to 0.88 s, 0.37 to 0.96 s over four runs |
+| 12 lines while the resident is stopped (`SIGSTOP`): outcome; median | 12 `refused:busy`; 5.74 s | 12 `refused:busy`; 3.0 s |
+| 12 lines after the code changed, resident retired: outcomes | not measured | 11 `none`, 1 `started`; median 2.8 s |
+| 48 lines with one busy process per core: served; median, slowest | 48; 5.3 to 10.2 s, 8.7 to 12.4 s | 48; 7.4 to 8.6 s, 9.9 to 13.9 s |
+
+The loaded row is dominated by the work competing for the cores, and the unchanged code alone ranged from 5.3 to
+10.2 s between two runs, so it shows no difference either way. The stopped row is the 3.0 s the launcher waited
+before, now 0.4 s, plus a cold boot. The quiet row varies with whatever else the machine is doing.
+
 ### Measured
 
 | step, on the Hecks domain, macOS arm64, Ruby 3.3.7 | |
