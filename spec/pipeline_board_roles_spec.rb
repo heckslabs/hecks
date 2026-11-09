@@ -24,6 +24,31 @@ RSpec.describe Hecks::Adapters::PipelineBoard::AgentRoles do
     expect(card[:live]).to eq(0)
   end
 
+  describe "a session whose run records the part it works as" do
+    let(:filled) { { name: "fix-a work", status: "busy", agent: "", works_as: "coder", work_item: "fix-a" } }
+
+    def coder(session = filled) = described_class.of([session], %w[coder], events).first
+
+    it "counts it live on that role's card", :aggregate_failures do
+      expect(coder[:live]).to eq(1)
+      expect(coder[:working].map { |s| s[:name] }).to eq(["fix-a work"])
+    end
+
+    it "counts it finished on the card once it is done" do
+      expect(coder(filled.merge(status: "done"))[:completed].map { |s| s[:name] }).to eq(["fix-a work"])
+    end
+
+    it "leaves the other roles' cards alone" do
+      expect(described_class.of([filled], %w[architect], events).first[:live]).to eq(0)
+    end
+
+    it "keeps counting a run with an agent and no part as before" do
+      pinned = { name: "x", status: "busy", agent: "architect" }
+
+      expect(described_class.of([pinned], %w[architect], events).first[:live]).to eq(1)
+    end
+  end
+
   describe ".reviews" do
     let(:jobs) { instance_double(Hecks::Adapters::ClaudeJobs, closing: "Five findings.\n**Verdict: sound with changes.**") }
     let(:runs) do

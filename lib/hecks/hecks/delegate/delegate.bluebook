@@ -19,6 +19,7 @@ Hecks.bluebook "Hecks" do
       attribute :repo,      Path
       attribute :brief,     Brief
       attribute :agent,     AgentName, optional: true
+      attribute :works_as,  Part,      optional: true
       attribute :session,   SessionId, optional: true
       attribute :started_at, Moment,   optional: true
       attribute :condition, Condition, optional: true
@@ -56,6 +57,12 @@ Hecks.bluebook "Hecks" do
 
       # A custom agent's name. It starts with a letter or digit, so it cannot be taken for a flag.
       value_object "AgentName" do
+        attribute :value, String, pattern: '\A[A-Za-z0-9][A-Za-z0-9._-]*\z'
+      end
+
+      # The part a run plays, recorded for display only. It is never passed as `--agent`: a pinned
+      # definition would change the session's model and tools, and a resume would start a copy.
+      value_object "Part" do
         attribute :value, String, pattern: '\A[A-Za-z0-9][A-Za-z0-9._-]*\z'
       end
 
@@ -100,6 +107,7 @@ Hecks.bluebook "Hecks" do
         attribute :repo,  Path, sets: true
         attribute :brief, Brief, sets: true
         attribute :agent, AgentName, optional: true, sets: true
+        attribute :works_as, Part, optional: true, sets: true
         attribute :work,  WorkSlug, optional: true, sets: true
 
         given("a brief says something") { !brief.value.to_s.strip.empty? }
