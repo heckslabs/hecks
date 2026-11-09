@@ -3,6 +3,7 @@ require_relative "../../tools/mcp"
 require_relative "mcp/tool_definitions"
 require_relative "mcp/loading"
 require_relative "mcp_scope"
+require_relative "mcp/roles"
 
 module Hecks
   module Adapters
@@ -10,8 +11,8 @@ module Hecks
       # The MCP server onto the storehouse bus: hand-rolled JSON-RPC over stdio, one
       # server per booted domain. All logic and the JSON shape answered with live in
       # `Storehouse`; this is plumbing only. A `role:`/`actor_id:` a caller sends is
-      # asserted, not verified, unless Governance is attached. See `Loading` for what waits for
-      # the first call that needs it.
+      # asserted, not verified, unless Governance is attached. `Loading` holds what waits for
+      # the first call that needs it; `Roles` narrows the server to its session's role.
       #
       # There is no authentication: `domain:` boots real Ruby confined to
       # `Storehouse::BOOT_ROOT`, so this is a code execution surface for anyone who
@@ -42,19 +43,9 @@ module Hecks
         INVALID_REQUEST = "Invalid Request: one request object per line; batches are not supported".freeze
 
         extend Loading
+        extend Roles
 
         module_function
-
-        # Read once, so a bad setting refuses to start the server before anything is
-        # written to stdout.
-        def scope
-          @scope ||= McpScope.start!(server: Tools::Mcp::SERVER)
-        end
-
-        # The standing notes, then what this server's scope says about `domain:`.
-        def warning_notes
-          NOTES[0, 2] + (scope.restricted? ? scope.notes : [NOTES[2]])
-        end
 
         def serve
           McpStdioGuard.warn!(server: Tools::Mcp::SERVER, notes: warning_notes)

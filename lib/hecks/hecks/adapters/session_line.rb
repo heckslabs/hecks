@@ -5,36 +5,25 @@ require_relative "architect_verdict"
 module Hecks
   module Adapters
     # The command line that starts one background session: the `claude` command, the agent it runs
-    # as, the MCP servers narrowed to the role, and the brief after a `--` so it is never taken for
-    # a flag. An argument list, never a string for a shell.
+    # as, and the brief after a `--` so it is never taken for a flag. An argument list, never a
+    # string for a shell. It passes no MCP flags: a resumed session does not keep them, and
+    # `--strict-mcp-config` would drop the session's other servers. A role's `hecks-mcp` server
+    # narrows itself from the `CLAUDE_CODE_AGENT` variable Claude Code gives it (see
+    # `Driving::Mcp::Roles`).
     class SessionLine
-      # What to tell whoever reads the start report, once {#arguments} has been asked.
-      #
-      # @return [Array<String>] notes on the MCP servers the session was started with
-      attr_reader :notes
-
       # @param command [String] the command that starts sessions
       # @param nice [Array<String>] the niceness prefix, empty for none
-      # @param mcp [#call] the role's MCP flags and notes (`SessionMcp`)
-      def initialize(command:, nice:, mcp:)
+      def initialize(command:, nice:)
         @command = command
         @nice = nice
-        @mcp = mcp
-        @notes = []
       end
 
-      # @param held [Hash] the `AgentRun` record: `repo`, `brief`, `run`, and `agent` when named
+      # @param held [Hash] the `AgentRun` record: `repo`, `brief`, and `agent` when named
       # @return [Array<String>] the argument list
       def arguments(held)
         agent = plain(held[:agent])
-        servers = @mcp.call(repo: plain(held[:repo]), agent: agent, run: plain(held[:run]))
-        @notes = servers.notes
-        [*@nice, @command, *(agent ? ["--agent", agent] : []), *servers.flags, "--bg", "--", briefed(plain(held[:brief]), agent)]
+        [*@nice, @command, *(agent ? ["--agent", agent] : []), "--bg", "--", briefed(plain(held[:brief]), agent)]
       end
-
-      # @return [Hash{Symbol => Hash}] the start report's `note:` for the MCP servers, or empty when
-      #   there is nothing to say
-      def report = notes.empty? ? {} : { note: { value: notes.join("; ") } }
 
       private
 

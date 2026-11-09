@@ -14,7 +14,6 @@ require_relative "claude_session_listing"
 require_relative "session_caller"
 require_relative "dispatching/settings"
 require_relative "session_lookup"
-require_relative "session_mcp"
 require_relative "session_line"
 
 module Hecks
@@ -53,7 +52,6 @@ module Hecks
         @agents = ClaudeAgentList.new(@command, shell: @shell)
         @lookup = session_lookup(settings[:now])
         @settle = settings.fetch(:settle, SETTLE_SECONDS)
-        @mcp = SessionMcp.new(server_env: settings[:server_env], files: settings[:mcp_files])
       end
 
       # Says the directory a session would work in is there, and whether the `claude` there lists
@@ -77,9 +75,8 @@ module Hecks
       # @return [Hash{Symbol => Hash}] `session:` the id the session is known by
       # @raise [ConsoleCapture::Failure] when the command fails or names no session
       def start(**held)
-        line = session_line
-        result = @shell.capture(*line.arguments(held), env: named(held), chdir: plain(held[:repo]))
-        { session: { value: session_id(result) }, started_at: { value: @clock.call.iso8601 } }.merge(line.report)
+        result = @shell.capture(*session_line.arguments(held), env: named(held), chdir: plain(held[:repo]))
+        { session: { value: session_id(result) }, started_at: { value: @clock.call.iso8601 } }
       end
 
       # Reads the state a started session's job is in, beside the state the run last recorded.
@@ -182,7 +179,6 @@ module Hecks
         result = @shell.capture(@command, "rm", id)
         raise ConsoleCapture::Failure, "#{@command} rm #{id} refused: #{result.err.strip}" unless result.ok?
 
-        @mcp.discard(run: plain(held[:run]))
         { removed_at: { value: Time.now.utc.iso8601 } }
       end
 
@@ -223,7 +219,7 @@ module Hecks
 
       def listed(id) = @listing.find(id) || raise(ConsoleCapture::Failure, "no session #{id} is listed")
 
-      def session_line = SessionLine.new(command: @command, nice: niceness, mcp: @mcp)
+      def session_line = SessionLine.new(command: @command, nice: niceness)
 
       # The id a start printed, or why there is none.
       def session_id(result)

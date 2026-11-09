@@ -58,7 +58,8 @@ module McpLightHelper
   # returns [stdout, stderr, status], so a refusal at start can be seen as the client would.
   def run_raw(env, requests = REQUESTS)
     input = requests.is_a?(String) ? requests : lines_of(requests)
-    out, err, status = Open3.capture3({ "HECKS_CACHE_DIR" => cache_dir }.merge(env), "ruby", "-I", "lib", "-e", CHILD, "--",
+    scrubbed = { "HECKS_CACHE_DIR" => cache_dir, "CLAUDE_CODE_AGENT" => nil }
+    out, err, status = Open3.capture3(scrubbed.merge(env), "ruby", "-I", "lib", "-e", CHILD, "--",
                                       stdin_data: input, chdir: repo_root)
     [out, err, status]
   end

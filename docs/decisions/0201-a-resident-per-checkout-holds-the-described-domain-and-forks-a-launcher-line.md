@@ -201,40 +201,54 @@ stand. Where the build differs from the text above or adds to it:
     command or another bluebook's command (`Work.*` is Tickets') adds nothing. Only a role with no rows at all stays
     unrestricted: today only the orchestrator has rows, and it gets eleven commands. A role that has rows and none of
     them names a command gets no variables, and that is not permission (see "Fails closed" below).
-  - **Passing it on.** `.mcp.json` is one static file, and whether Claude Code hands the environment of the `claude`
-    process to the servers it starts is documented only by third-party guides ("merged with the inherited
-    environment"); an unset `${VAR}` is passed on as literal text. So the session does not rely on either:
-    `SessionMcp` reads the checkout's `.mcp.json`, adds the role's variables to the `hecks-mcp` entry's `env`, writes
-    the result to a file only its owner can read (`SessionConfigFile`, under the cache directory, named for the run,
-    removed with the session and swept after a fortnight) and passes `claude --mcp-config <path>
-    --strict-mcp-config` (`SessionLine` builds the line), so the checkout's unrestricted entry does not start beside
-    it, and `ps` shows a path, not every server's command line and environment. `--strict-mcp-config` also leaves out
-    MCP servers from other scopes for that session. Argument construction is specified against a stand-in `claude`; no
-    real session was started to see the servers come up restricted.
-  - **Fails closed.** A role that has routing rows never gets the checkout's unrestricted `hecks-mcp`. When the
-    checkout has no `.mcp.json`, cannot read it, has no `hecks-mcp` entry, or no row of the role names a command, the
-    session starts with the configuration without that server (the other servers stay) and the start report carries a
-    note saying why. The same note lists the role's patterns that name no command of the session's checkout.
-  - **The session's checkout answers.** The rows and the command names are read from the checkout the session works
-    in (`RoutingGuard.new(checkout: repo)`), the code its servers will run, not the dispatcher's. A name that checkout
-    lacks is dropped and named in the note. When that checkout cannot answer (no Agents bluebook), the dispatcher's
-    own are used and the note says so. Nothing is kept between sessions: the list is fixed when the session starts,
-    so a row removed afterwards does not revoke a command for a session already running.
-  - **Resume.** `ClaudeResumption` wakes a session with `claude --bg --resume <id>` and no flags, because a resume
-    given flags starts a copy (its own comment, found by hand). Whether a resumed session keeps the `--mcp-config` it
-    was started with is not documented in `claude --help`, which says only that `--bg --resume` continues the session
-    under the same id; this was not tested against a real session. A session woken by an answer therefore may come
-    back with the checkout's default servers.
+  - **Flags do not survive a resume (tested live, 2026-11-09).** A session started with `claude -p --mcp-config <file>
+    --strict-mcp-config` listed only that file's server in its `init` message; the same session resumed with
+    `--resume <id>` and no flags listed the default servers (`plugin:linear:linear`), not the file's. And a resume
+    given flags starts a copy (the comment in `ClaudeResumption`). So a restriction passed as flags at start is gone
+    when an answer wakes the session, and `--strict-mcp-config` had also dropped every plugin and connector server for
+    the session. The session start therefore passes no MCP flag (`SessionLine`); `SessionMcp` and `SessionConfigFile`
+    are removed.
+  - **The server learns its role from the environment (live, same day).** A server Claude Code starts receives the
+    session's environment: `CLAUDE_CODE_AGENT` (the agent name, `orchestrator` under `--agent orchestrator`),
+    `CLAUDE_CODE_SESSION_ID`, `CLAUDE_PROJECT_DIR`. A probe server under `claude -p --agent orchestrator` listed them.
+    Every start, including a resumed session's, runs the same server with the same variables, so the server narrows
+    itself (`Driving::Mcp::Roles`):
+    - an explicit `HECKS_SERVER_*` setting wins and is read exactly as before, refusals included;
+    - otherwise `CLAUDE_CODE_AGENT` names the role. A role with no routing rows, no agent, or a checkout with no Agents
+      bluebook stays unrestricted. A role whose rows name commands becomes a `commands` server for exactly those
+      (`HECKS_SERVER_DOMAINS` is the checkout's `lib/hecks/hecks`). A role that has rows and none names a command
+      serves no tool, and every call is refused `no commands for role <name>` (`McpScope#closed_role`).
+  - **Startup stays light (`RoleServerCache`).** What a role's rows name is known only to the framework, so it is
+    worked out once per checkout state and written to `<cache>/role-servers/<digest>.json` (0600, atomic rename, the
+    newest 16 kept). The digest covers the checkout's bluebooks under `lib/hecks/hecks` and `lib/hecks/agents` and its
+    `version.rb`, so an edit to a routing row or a command misses. The server reads the file with the standard
+    library only and checks that this user owns it and nobody else can write it. On a hit nothing loads at startup:
+    an idle server holds 16 to 17 MB with or without a role (measured: no agent 16.0 to 16.7 MB; a cached role with no
+    rows 16.4 to 16.6; a closed role 16.0 to 17.0; a role with commands, after `initialize` and `ping`, 16.3 to 17.6).
+    On a miss the framework loads at the first call that needs the scope, `RoutingGuard#server_table` works out every
+    role's commands, and the file is written for the next server. `Role.server_env` refreshes the same file. A
+    checkout whose Agents bluebook cannot answer serves no tool (a failed table is not written), because that the role
+    has no rows cannot be shown. The first server after any landing under those bluebooks pays the load once.
+  - **Fails closed.** A role that has routing rows never gets an unrestricted `hecks-mcp`: an empty expansion and an
+    unreadable table both serve no tool.
+  - **The checkout is the one the server serves.** The rows and command names are read from `Storehouse::BOOT_ROOT`,
+    the checkout whose `lib` the server runs, which is the session's checkout when `.mcp.json` starts it with
+    `ruby -I lib`. The list is fixed when the server starts, so a row removed afterwards does not revoke a command for
+    a server already running; a session woken by an answer starts a new server and reads the current rows.
   - **Accepted: the server reads more than the Bash guard allows.** The `commands` mode narrows `dispatch` to the
     role's commands but still serves the reader tools (`query`, `state`, `events`, `describe`, `catalog`, `history`)
     and `Codebase.ReadSource` through `READ_PATH_QUESTIONS`, against everything under the boot root. A role's Bash is
     held to its rows by the guard hook, which matches `Bash` only, so a restricted server reads more than the role's
     Bash may.
-  - **Accepted: the orchestrator may not reach its server.** `.claude/agents/orchestrator.md` says `tools: Bash`.
-    The Claude Code subagent documentation (code.claude.com/docs/en/sub-agents) makes `tools` an allowlist and names
-    MCP tools in it as `mcp__<server>__*`; with `Bash` alone an `mcp__` tool is not in the list. If that holds for a
-    session started with `--agent`, the orchestrator's restricted server is unreachable today and the saving is the
-    idle servers it no longer holds (16 MB against 48 MB each). It is not verified against a real session.
+  - **The orchestrator cannot reach its server (tested live, 2026-11-09).** `.claude/agents/orchestrator.md` says
+    `tools: Bash`. A real `claude -p --agent orchestrator` run with this checkout's `.mcp.json` reported both servers
+    `connected`, and its `init` event listed `["Bash"]` as the session's tools: no `mcp__` tool at all. The allowlist
+    hides them, so the orchestrator's restricted server is unreachable today and its saving is the idle servers it no
+    longer holds. The same run with an inline agent named `orchestrator` and no allowlist (`--agents`) listed ten
+    `mcp__hecks-mcp__*` tools (`catalog describe dispatch domains events follow history query state validate`) of the
+    eleven the unrestricted server defines (the one missing is `behaviors`): the role was narrowed from
+    `CLAUDE_CODE_AGENT` alone, with no flag and no `HECKS_SERVER_*` setting. Naming `mcp__hecks-mcp__*` in the
+    orchestrator's `tools` would make the restriction matter; that is the owner's decision.
 - **A line runs only after the words.** The request states its own length and the resident reads that many bytes
   and no more. It then answers `fds` when it can serve the line (or `stale`, which sends the launcher on to boot),
   and only then does the caller send its three streams: on Linux a read of the request could take the first

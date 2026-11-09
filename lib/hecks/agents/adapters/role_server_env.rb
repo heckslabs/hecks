@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "hecks/naming"
+require "hecks/role_server_cache"
 require "hecks/adapters/driving/mcp_scope"
 
 module Hecks
@@ -12,14 +13,14 @@ module Hecks
     #
     # A role with no rows at all gets no variables, and its server stays as unrestricted as the
     # role's own session is. A role that has rows and none of them names a command also gets none,
-    # and that is not permission: the session start (`SessionMcp`) leaves such a role without the
-    # `hecks-mcp` server instead of starting the checkout's unrestricted one.
+    # and that is not permission: the server reads the same answer from `RoleServerCache` and serves
+    # no tool, instead of the unrestricted one.
     class RoleServerEnv
       McpScope = Driving::McpScope
       private_constant :McpScope
 
       # The domain a role's server serves, relative to the checkout it is started in.
-      DOMAIN = "lib/hecks/hecks"
+      DOMAIN = RoleServerCache::DOMAIN
 
       # What `Aggregate.verb` or `Aggregate.*` looks like.
       PATTERN = /\A(?<aggregate>[A-Za-z_]\w*)\.(?<verb>\*|\w+[!?]?)\z/

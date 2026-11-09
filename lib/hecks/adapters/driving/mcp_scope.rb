@@ -1,5 +1,6 @@
 require_relative "../../runtime/errors"
 require_relative "../../storehouse/confinement"
+require_relative "mcp_scope/closed_role"
 
 module Hecks
   module Adapters
@@ -8,6 +9,8 @@ module Hecks
       # domains in reader mode; and in commands mode those plus `dispatch` of a closed list of
       # commands — reach, not identity (ADR 0072, ADR 0089).
       class McpScope
+        include ClosedRole
+
         ENV_PREFIX         = "HECKS_SERVER_".freeze
         TOOLS_VARIABLE     = "HECKS_SERVER_TOOLS".freeze
         DOMAINS_VARIABLE   = "HECKS_SERVER_DOMAINS".freeze
@@ -78,26 +81,28 @@ module Hecks
         # the server runs in commands mode.
         attr_reader :allowed_commands
 
-        def initialize(allowed_domains:, allowed_commands: nil)
+        # @param closed_role [String, nil] set for a server that serves no tool (`ClosedRole`)
+        def initialize(allowed_domains:, allowed_commands: nil, closed_role: nil)
           @allowed_domains = allowed_domains&.map { |path| Storehouse.confine!(path, DOMAINS_VARIABLE) }.freeze
           @allowed_commands = allowed_commands&.dup&.freeze
+          @closed_role = closed_role
         end
 
         def restricted? = !@allowed_domains.nil?
 
-        def commands_mode?
-          !@allowed_commands.nil?
-        end
+        def commands_mode? = !@allowed_commands.nil?
 
         def served_tools
+          return [] if closed?
+
           commands_mode? ? COMMAND_TOOLS : READER_TOOLS
         end
 
-        def permits_tool?(name)
-          !restricted? || served_tools.include?(name)
-        end
+        def permits_tool?(name) = !restricted? || served_tools.include?(name)
 
         def refusal(name)
+          return closed_refusal(name) if closed?
+
           { ok:    false,
             error: "#{name.inspect} is refused: this server runs in #{mode_label}, " \
                    "which serves only #{served_tools.join(", ")}" }
@@ -189,12 +194,11 @@ module Hecks
         # @param guide [Array<String>, nil] one line per allowed command
         #   (`Storehouse.command_guide`)
         # @return [Hash] the definition, narrowed for this server
-        def present(tool, guide = nil)
-          Presenter.present(self, tool, guide)
-        end
+        def present(tool, guide = nil) = Presenter.present(self, tool, guide)
 
         def notes
           return [] unless restricted?
+          return closed_notes if closed?
 
           return Presenter.reader_notes(@allowed_domains) unless commands_mode?
 

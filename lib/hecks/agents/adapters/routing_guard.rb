@@ -3,6 +3,7 @@
 require "hecks"
 require_relative "shell_reads"
 require_relative "role_server_env"
+require "hecks/role_server_cache"
 
 module Hecks
   module Adapters
@@ -27,6 +28,7 @@ module Hecks
       #   alike, instead of this one's: the one a session will work in
       def initialize(aggregate: nil, settings: {}, root: nil, checkout: nil)
         @rows = settings[:rows] || method(:bluebook_rows)
+        @stand_in = settings.key?(:rows)
         @checkout = checkout
       end
 
@@ -52,7 +54,17 @@ module Hecks
       # @return [Hash{Symbol => String}] `text:` one `NAME=value` line each, empty when the role has
       #   no rows that name a command of the served domain and so stays unrestricted
       def server_env(role:)
+        refresh_server_cache
         { text: server_variables(held(role)).map { |name, value| "#{name}=#{value}" }.join("\n") }
+      end
+
+      # What each role with routing rows may dispatch, for the cache a role's MCP server reads
+      # (`RoleServerCache`): a role with rows is a key, and an empty list means none of its rows
+      # names a command of the served domain, which is not permission.
+      #
+      # @return [Hash{String => Array<String>}] role => the command names its rows name
+      def server_table
+        roles_with_rows.to_h { |name| [name, server_plan(name)[:commands]] }
       end
 
       # @param name [String] the role
@@ -70,13 +82,29 @@ module Hecks
       #   `HECKS_SERVER_*` variables (empty when none names a command), `unserved:` the patterns
       def server_plan(name)
         patterns = rows("RoutingRule", name).map { |row| row[:pattern] }
-        return { rows: false, variables: {}, unserved: [] } if patterns.empty?
+        return { rows: false, variables: {}, commands: [], unserved: [] } if patterns.empty?
 
         env = RoleServerEnv.new(patterns: patterns, names: method(:command_names))
-        { rows: true, variables: env.variables, unserved: env.unserved }
+        { rows: true, variables: env.variables, commands: env.expanded, unserved: env.unserved }
       end
 
       private
+
+      # @return [Array<String>] the roles that have at least one routing row
+      def roles_with_rows = @rows.call("RoutingRule").map { |row| row[:role] }.uniq
+
+      # Writes the table of every role's commands where the role's MCP server reads it, so the next
+      # server starts without the framework. Best effort, and only from the checkout's own rows: a
+      # guard given stand-in rows would otherwise write them under the real checkout's key.
+      def refresh_server_cache
+        return if @stand_in
+
+        RoleServerCache.write(checkout_root, server_table)
+      rescue StandardError
+        nil
+      end
+
+      def checkout_root = @checkout || File.expand_path("../../..", BLUEBOOK_DIR)
 
       # The command names the served Hecks domain has, as a person types them. Read from this
       # guard's checkout, so a session is judged against the code it will run.

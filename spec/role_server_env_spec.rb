@@ -60,7 +60,39 @@ RSpec.describe Hecks::Adapters::RoleServerEnv do
 
     it "plans the orchestrator as a role with rows, and the coder as one with none", :aggregate_failures do
       expect(guard.server_plan("orchestrator")).to include(rows: true)
-      expect(guard.server_plan("coder")).to eq(rows: false, variables: {}, unserved: [])
+      expect(guard.server_plan("coder")).to eq(rows: false, variables: {}, commands: [], unserved: [])
+    end
+
+    it "lists every role with rows and the commands its rows name, for the server's cache", :aggregate_failures do
+      expect(guard.server_table.keys).to include("orchestrator")
+      expect(guard.server_table.fetch("orchestrator")).to include("dispatch.fill", "send_train.board")
+    end
+
+    it "writes that table where a role's server reads it, when the query is asked" do
+      with_cache_root do
+        guard.server_env(role: { value: "orchestrator" })
+        expect(Hecks::RoleServerCache.lookup(File.expand_path("..", __dir__), "orchestrator")).to include("dispatch.fill")
+      end
+    end
+
+    it "does not write a table made of stand-in rows" do
+      stand_in = Hecks::Adapters::RoutingGuard.new(settings: { rows: ->(_table) { [] } })
+      with_cache_root do
+        stand_in.server_env(role: { value: "orchestrator" })
+        expect(Hecks::RoleServerCache.lookup(File.expand_path("..", __dir__), "orchestrator")).to eq(:miss)
+      end
+    end
+
+    def with_cache_root
+      home = Dir.mktmpdir("role-env-cache")
+      saved = ENV.fetch("XDG_CACHE_HOME", nil)
+      ENV["XDG_CACHE_HOME"] = home
+      Hecks::CacheDir.reset!
+      yield
+    ensure
+      ENV["XDG_CACHE_HOME"] = saved
+      Hecks::CacheDir.reset!
+      FileUtils.remove_entry(home)
     end
 
     it "reads the rows and the commands from the checkout it is given", :aggregate_failures do

@@ -162,8 +162,9 @@ Hecks.bluebook "Agents" do
     # routing rows name, one `NAME=value` line each, so the server serves the role's verbs and
     # keeps the domain booted. A role with no rows gets an empty document and its server stays
     # unrestricted. A role with rows, none of which names a command of the served domain, gets an
-    # empty document too, and that is not permission: the session start leaves it without the
-    # `hecks-mcp` server instead of starting the checkout's unrestricted one.
+    # empty document too, and that is not permission: its server serves no tool. The query also
+    # refreshes the file a role's `hecks-mcp` server reads at startup (`RoleServerCache`), which
+    # names the role from `CLAUDE_CODE_AGENT`.
     query "ServerEnv" do
       description "The variables that restrict a role's MCP server to the commands its routing rows name, or nothing."
       attribute :role, RoleName

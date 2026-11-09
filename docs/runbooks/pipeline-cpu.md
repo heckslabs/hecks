@@ -33,7 +33,7 @@ machine oversubscribe too: 14 sessions and a load limit of 16 on 12 cores.
 | **Orphan reaper** | `agents/adapters/sweeping/orphans/` | The pruner's sweep stops an `exe/hecks` process older than 30 minutes whose parent is gone, and `hecks-isolated-push` spec leftovers older than a day. It keeps servers, `mcp`, `SendTrain`, ticks, gates, spec runs, landings and `Operation.run`/`follow` waits (`Rules::KEPT`), and spares Claude sessions and Cargo builds below a leftover. |
 | **Cargo target** | `rust_build/session_build.rb`, `tickets.world` `session_environment` | A build that runs a produced binary gets its own directory under the shared root (`<name>-<8 hex>`); `cargo test` shares one. `nice` follows the workspace being built. |
 | **Rust build policy** | `rust_build/build_lock.rb`, `build_policy.rb`, `binary_cache.rb`, `tickets.world` `rust_build` | Every `cargo` or `rustc` hecks starts waits for one machine-wide lock (`~/.cache/hecks/rust-build/build.lock`, a `flock`, released when the holder exits), runs with `CARGO_BUILD_JOBS` from the line (4) and `nice` (15) in every checkout, and a native binary built from the same sources by another workspace is copied from `rust-build/bin/` instead of compiled. Skipped by `HECKS_NO_BUILD_LOCK=1` and in CI; a `CARGO_BUILD_JOBS` set by hand wins. A build started by hand is untouched. |
-| **Light MCP servers** | `adapters/driving/mcp/loading.rb`, `agents Role.server_env` | `hecks-mcp` and `hecks-query-ir` load the framework on the first tool call (16 MB idle, 48 MB after). A dispatched role session starts with `claude --mcp-config ... --strict-mcp-config` carrying the role's restricted server, which also leaves out MCP servers from other scopes. |
+| **Light MCP servers** | `adapters/driving/mcp/loading.rb`, `mcp/roles.rb`, `role_server_cache.rb`, `agents Role.server_env` | `hecks-mcp` and `hecks-query-ir` load the framework on the first tool call (16 MB idle, 48 MB after). `hecks-mcp` narrows itself to its session's role from `CLAUDE_CODE_AGENT`, read from a cache file (`<cache>/role-servers`), so the narrowing holds on a resumed session; a session start passes no MCP flag. A role with rows and no named command serves no tool. |
 | **Coder waits** | `coder/coder.bluebook`, `Operation.follow` | A coder waits for its architect's verdict with `names.value=PlanReviewed,PlanReviewRecorded` in up to four 150 s calls, re-reading `PlanReview.reviews` after each. Specs are batched into one `run_spec_files!` call with `isolation.value=shared`. |
 
 ### The resident, in practice
@@ -130,4 +130,7 @@ Shared caches and records, which every checkout and worktree reads, and how each
   that names `{main}` unfilled).
 - **Residents cost memory.** About 330 MB each, at most 8, one per checkout in use.
 - **The reaper's `KEPT` list is by hand.** A new long-running verb needs adding to it.
-- **`--strict-mcp-config` has not been run in a real session.**
+- **The orchestrator cannot reach MCP tools.** Its `tools: Bash` frontmatter hides them (tested live, 2026-11-09: the
+  session's tools were `["Bash"]` with both servers connected), so its restricted server matters only if
+  `mcp__hecks-mcp__*` is added to that list. A resumed session no longer loses the restriction, because the server
+  reads it from the environment, but this has been shown for a fresh session with an inline agent, not for a resumed one.
