@@ -2,7 +2,7 @@ require "spec_helper"
 require_relative "support/machine_beats"
 
 # A fill follows each reading and finds the state it left: a rise pauses every work item, a fall
-# lets them start, and each reading rolls once.
+# lets them start, and each reading that moved a state rolls once.
 RSpec.describe "the fill that follows a reading of the machine" do
   include MachineBeats
 
@@ -16,10 +16,10 @@ RSpec.describe "the fill that follows a reading of the machine" do
     Hecks::Adapters::Dispatching::Settings.new(registry).paused
   end
 
-  it "rolls once for each reading", :aggregate_failures do
+  it "rolls once for each reading that moved a state, and not for a quiet one", :aggregate_failures do
     beats = beat_through([gauge(10.0), gauge(60.0), gauge(60.0)])
 
-    expect(beats[:rolls].size).to eq(3)
+    expect(beats[:rolls].size).to eq(2)
     expect(crossings(beats[:names])).to eq(%w[LoadRoseAbove LoadFellBelow])
   end
 

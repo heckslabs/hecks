@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../area_overlap"
+require_relative "parking"
 
 module Hecks
   module Adapters
@@ -10,7 +11,8 @@ module Hecks
       # the
       # work items it is given and starts nothing.
       #
-      # A planned work item waits when it sits in a frozen area, when its area overlaps a started
+      # A planned work item waits when its last yield parked it ({Parking}), when it sits in a
+      # frozen area, when its area overlaps a started
       # work item's or
       # an
       # earlier chosen work item's (by {AreaOverlap}), or when the machine is loaded or the cap is
@@ -18,7 +20,8 @@ module Hecks
       # which also hold back every work item after it.
       class Plan
         # A work item, as {WorkItems} reads it.
-        Item = Struct.new(:key, :title, :detail, :area, keyword_init: true)
+        # `yield_kind`, `retry_at` and `yield_count` are what its last yield recorded ({Parking}).
+        Item = Struct.new(:key, :title, :detail, :area, :yield_kind, :retry_at, :yield_count, keyword_init: true)
 
         # The top level of this checkout: the root an absolute area is made relative to.
         REPOSITORY = File.expand_path("../../../../..", __dir__)
@@ -37,8 +40,13 @@ module Hecks
 
         # @param planned [Array<Item>] the planned work items, in plan order
         # @param started [Array<Item>] the started work items
-        # @param limits [Hash] `cap:` (Integer), `load:` and `max_load:` (Float), `frozen:` (Array)
+        # @param limits [Hash] `runs:` (callable answering the AgentRun states by run key, optional)
+        #   and `now:` (Time, optional), `cap:` (Integer), `load:` and `max_load:` (Float),
+        #   `frozen:` (Array)
         #   and `paused:` (String, optional: why every work item waits, "skipped: paused by load")
+        #   and `budget:` (String, optional: why every work item waits once the boots spent their
+        #   budget)
+        #   with `exempt:` (callable, optional: answers whether a work item starts despite it)
         #   and `root:` (String, optional: this repository's top level, to tell its areas from
         #   another checkout's; the checkout holding this file by default)
         def initialize(planned, started, **limits)
@@ -54,14 +62,37 @@ module Hecks
         #   edited
         def holders = @started + @chosen
 
+        # @return [String, nil] why the boot budget held every start back, nil when it did not
+        def budget_stop = @limits[:budget]
+
+        # Whether the machine, not the queue, left a work item waiting: the load average was over
+        # its limit or the machine's crossings paused every start. Such a wait ends when the
+        # machine recovers, which may not cross a mark, so the clock's beat watches for it.
+        #
+        # @return [Boolean]
+        def held_by_machine?
+          @skipped.any? { |skip| skip.reason == @limits[:paused] || skip.reason.start_with?("skipped: load") }
+        end
+
         private
 
         def consider(item)
-          reason = stop_reason || frozen_reason(item) || overlap_reason(item)
+          reason = parked_reason(item) || stop_reason(item) || frozen_reason(item) || overlap_reason(item)
           reason ? @skipped << Skip.new(item.key, reason) : @chosen << item
         end
 
-        def stop_reason = @limits[:paused] || overloaded || capped
+        # A yielded item waits out its backoff or its blocker, and does not count against the cap.
+        def parked_reason(item)
+          Parking.reason(item, runs: @limits[:runs] || -> { {} }, now: @limits[:now] || Time.now.utc)
+        end
+
+        def stop_reason(item) = @limits[:paused] || budget_reason(item) || overloaded || capped
+
+        # A spent boot budget holds back every work item but the ones `exempt:` names, so the fix
+        # of a red main still starts.
+        def budget_reason(item)
+          @limits[:budget] unless @limits[:exempt]&.call(item)
+        end
 
         # The backstop: the load average alone refuses a fill, whatever the events said.
         def overloaded

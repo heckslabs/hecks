@@ -11,6 +11,8 @@ module Hecks
         # Returned by `word_gate_dispatch` for a word no grammar row admits, so a caller with
         # its own `method_missing` can fall back to open-ended handling.
         NOT_ADMITTED = Object.new.freeze
+        # What the index answers for a word no row admits under a context.
+        EMPTY_ROWS = [].freeze
 
         # Private like Object's own; public ones would appear as extra "answered words" in
         # spec/syntax_conformance_spec.rb, which walks `public_instance_methods`.
@@ -43,10 +45,12 @@ module Hecks
         #
         # Returns the context the word was admitted under and the rows admitting it.
         def word_gate_admitted(keywords, context, word)
-          admitted = keywords.select { |row| word_gate_row?(row, context, word.to_s) }
+          index = WordGate.index_for(keywords)
+          name = word.to_s
+          admitted = index.fetch([context, name], EMPTY_ROWS)
           return [context, admitted] unless admitted.empty?
 
-          type_admitted = keywords.select { |row| row[:context] == "Type" && row[:word] == word.to_s }
+          type_admitted = index.fetch(["Type", name], EMPTY_ROWS).select { |row| row[:word] == name }
           type_admitted.empty? ? [context, admitted] : ["Type", type_admitted]
         end
 
@@ -83,17 +87,60 @@ module Hecks
         def respond_to_missing?(word, include_private = false)
           return super if MetaValidator.bootstrapping?
 
-          context = self.class::GRAMMAR_CONTEXT
-          keywords = MetaValidator::SyntaxBoot.call[:keywords]
-          keywords.any? { |row| word_gate_row?(row, context, word.to_s) } ||
-            keywords.any? { |row| row[:context] == "Type" && row[:word] == word.to_s } ||
-            super
+          _, admitted = word_gate_admitted(MetaValidator::SyntaxBoot.call[:keywords], self.class::GRAMMAR_CONTEXT, word)
+          !admitted.empty? || super
         end
 
         # `method_missing` fires for every typo in a builder, so only words the grammar knows
         # anywhere get the rich refusal; other typos keep Ruby's ordinary `NoMethodError`.
         def admitted_anywhere?(rows, word)
-          rows.any? { |row| row[:word] == word.to_s || row[:was] == word.to_s }
+          WordGate.words_of(rows).key?(word.to_s)
+        end
+
+        # The grammar table, indexed once. A bluebook speaks thousands of words as it loads, and
+        # the table (`SyntaxBoot.call`) is one memoized array, so its identity names the index.
+        #
+        # @api private
+        class << self
+          # Every row admitting a word under a context: `[context, word]` and, where a row keeps
+          # an older spelling, `[context, was]`, each to the rows in table order.
+          #
+          # @param keywords [Array<Hash>] the `:keywords` rows of the grammar table
+          # @return [Hash{Array(String, String) => Array<Hash>}]
+          def index_for(keywords) = indexed(keywords).fetch(1)
+
+          # Every word or older spelling the table knows anywhere, as hash keys.
+          #
+          # @param keywords [Array<Hash>] the `:keywords` rows of the grammar table
+          # @return [Hash{String => true}]
+          def words_of(keywords) = indexed(keywords).fetch(2)
+
+          private
+
+          # The table, its index and its words as one frozen triple, published in a single
+          # assignment so a thread never reads one table's index beside another's.
+          def indexed(keywords)
+            held = @indexed
+            return held if held && held.first.equal?(keywords)
+
+            @indexed = [keywords, build_index(keywords), build_words(keywords)].freeze
+          end
+
+          # @return [Hash{String => true}] every spelling the table knows
+          def build_words(keywords)
+            keywords.flat_map { |row| spellings(row) }.to_h { |name| [name, true] }.freeze
+          end
+
+          # @return [Hash{Array(String, String) => Array<Hash>}] the rows by context and spelling
+          def build_index(keywords)
+            index = Hash.new { |rows, key| rows[key] = [] }
+            keywords.each { |row| spellings(row).each { |name| index[[row[:context], name]] << row } }
+            index.default_proc = nil
+            index.freeze
+          end
+
+          # @return [Array<String>] the word a row admits and, if it keeps one, its older spelling
+          def spellings(row) = [row[:word], row[:was]].compact.uniq
         end
       end
     end

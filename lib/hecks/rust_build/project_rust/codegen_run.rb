@@ -4,6 +4,7 @@ require "fileutils"
 require "json"
 require "open3"
 require "tmpdir"
+require_relative "../session_build"
 require_relative "../write_if_changed"
 
 module Hecks
@@ -36,7 +37,9 @@ module Hecks
         # @param env [#fetch] the environment Cargo will run with
         # @return [String] the binary's path
         def self.binary(rust_dir, env: ENV)
-          target = env.fetch("CARGO_TARGET_DIR") { File.join(crate_dir(rust_dir), "target") }
+          dir = crate_dir(rust_dir)
+          target = SessionBuild.environment(root: SessionBuild.root_of(dir), base: env, binary: true)["CARGO_TARGET_DIR"] ||
+                   env.fetch("CARGO_TARGET_DIR") { File.join(dir, "target") }
           File.join(target, "debug/hecks-codegen")
         end
 
@@ -92,7 +95,11 @@ module Hecks
         # @return [void]
         # @raise [Failure] when Cargo cannot build it
         def self.build(dir)
-          output, status = Open3.capture2e("cargo", "build", "--quiet", chdir: dir)
+          root = SessionBuild.root_of(dir)
+          output, status = BuildLock.hold do |held|
+            Open3.capture2e(held.merge(SessionBuild.environment(root: root, binary: true)),
+                            *SessionBuild.command(%w[cargo build --quiet], root: root), chdir: dir)
+          end
           $stdout.write(output)
           return if status.success?
 

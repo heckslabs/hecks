@@ -24,8 +24,20 @@ RSpec.describe "the orchestrator routing guard" do
   describe "the Role row" do
     it "carries the routing commands of the orchestrator", :aggregate_failures do
       patterns = rows("RoutingRule").map { |row| row[:pattern] }
-      expect(patterns).to include("Work.*", "Dispatch.fill!", "SendTrain.board!", "PipelineBoard.snapshot")
+      expect(patterns).to include("Work.*", "Dispatch.preview", "SendTrain.board!", "PipelineBoard.snapshot")
       expect(patterns).to include("AgentRun.check_all!", "AgentRun.answer!", "AgentRun.tidy!", "Landing.retire!")
+    end
+
+    it "no longer lets the orchestrator fill the queue by hand: planned work rolls forward" do
+      expect(rows("RoutingRule").map { |row| row[:pattern] }).not_to include("Dispatch.fill!")
+    end
+
+    it "refuses a fill naming the Dispatch verb the orchestrator may read" do
+      expect(refusal("exe/hecks Dispatch.fill! run.value=x repo.value=/r --confirm")).to include("use Dispatch.preview")
+    end
+
+    it "carries the roll-forward rule as data" do
+      expect(rows("RoleRule").map { |row| row[:rule] }.last).to include("A coder starts by itself")
     end
 
     it "lets the orchestrator settle ended sessions, with a hint for the nearest refused shape", :aggregate_failures do
@@ -182,6 +194,29 @@ RSpec.describe "the orchestrator routing guard" do
 
     it "refuses a git read chained to another command" do
       expect(refusal("git status && rm x")).to include("Refused:")
+    end
+  end
+
+  describe "a gh write the orchestrator may run" do
+    ["gh pr close 12 --comment done", "gh pr comment 12 --body hi", "gh run rerun 99", "gh run rerun 99 --failed"].each do |call|
+      it "allows #{call}" do
+        expect(verdict(call)).to eq(text: "allowed")
+      end
+    end
+
+    it "carries the gh writes as RoutingRule rows" do
+      expect(rows("RoutingRule").map { |row| row[:pattern] }).to include("gh pr close", "gh pr comment", "gh run rerun")
+    end
+
+    it "refuses closing a pull request with its branch deleted", :aggregate_failures do
+      expect(refusal("gh pr close 12 --delete-branch")).to include("routes only")
+      expect(refusal("gh pr close 12 -d")).to include("routes only")
+    end
+
+    it "still refuses the gh writes that merge, create, call the API or release", :aggregate_failures do
+      ["gh pr merge 3", "gh pr create --fill", "gh api repos/x/y -X DELETE", "gh release create v1"].each do |call|
+        expect(refusal(call)).to include("routes only")
+      end
     end
   end
 

@@ -11,7 +11,10 @@ require_relative "architect_verdict"
 require_relative "coder_job_facts"
 require_relative "claude_agent_list"
 require_relative "claude_session_listing"
+require_relative "session_caller"
 require_relative "dispatching/settings"
+require_relative "session_lookup"
+require_relative "session_line"
 
 module Hecks
   module Adapters
@@ -47,7 +50,7 @@ module Hecks
         @transcript = ClaudeTranscript.new(**settings.slice(:projects))
         @jobs = ClaudeJobs.new(directory: settings[:jobs])
         @agents = ClaudeAgentList.new(@command, shell: @shell)
-        @listing = ClaudeSessionListing.new(@command, shell: @shell)
+        @lookup = session_lookup(settings[:now])
         @settle = settings.fetch(:settle, SETTLE_SECONDS)
       end
 
@@ -72,13 +75,8 @@ module Hecks
       # @return [Hash{Symbol => Hash}] `session:` the id the session is known by
       # @raise [ConsoleCapture::Failure] when the command fails or names no session
       def start(**held)
-        result = @shell.capture(*start_arguments(held), env: @session.session_environment, chdir: plain(held[:repo]))
-        raise ConsoleCapture::Failure, "#{@command} did not start a session: #{result.err.strip}" unless result.ok?
-
-        id = result.out[SESSION_ID, 1]
-        raise ConsoleCapture::Failure, "#{@command} named no session: #{result.out.strip}" unless id
-
-        { session: { value: id } }
+        result = @shell.capture(*session_line.arguments(held), env: named(held), chdir: plain(held[:repo]))
+        { session: { value: session_id(result) }, started_at: { value: @clock.call.iso8601 } }
       end
 
       # Reads the state a started session's job is in, beside the state the run last recorded.
@@ -187,7 +185,9 @@ module Hecks
       # Answers a session by waking it in place under its own id (see {ClaudeResumption}). The run
       # holds the short id `claude agents` shows; `--resume` takes only the full session id.
       #
-      # @param held [Hash] the `AgentRun` record: `session`, `repo` and `answer`
+      # @param held [Hash] the `AgentRun` record: `session`, `repo` and `answer`, and `agent` when
+      #   the run has a role, which the resume passes as `--agent` so the role's MCP server narrows
+      #   itself again
       # @return [Hash{Symbol => Object}] `resumed_at:` when the resume was started, as an ISO 8601
       #   string; `session:` the id the run follows, its own unless the CLI started a copy; and
       #   `note:` what the CLI said of that copy, when it did
@@ -195,7 +195,8 @@ module Hecks
       def resume(**held)
         id = plain(held[:session])
         ClaudeResumption.new(@command, @shell, nice: niceness)
-                        .call(id, listed(id), plain(held[:answer]), env: @session.session_environment, chdir: plain(held[:repo]))
+                        .call(id, listed(id), plain(held[:answer]), env: named(held), chdir: plain(held[:repo]),
+                                                                    agent: plain(held[:agent]))
       end
 
       # Says whether `claude agents` still lists the run's session. A session `claude rm` deleted is
@@ -205,15 +206,12 @@ module Hecks
       # @return [Hash{Symbol => Object}] `listed:` whether the session is listed, `state:` its state
       #   there (empty when it is not), and `note:` that in words
       # @raise [ConsoleCapture::Failure] when the sessions cannot be listed
-      def look_for(**held)
-        id = plain(held[:session]).to_s
-        entry = id.empty? ? nil : @listing.find(id)
-        return { listed: false, state: "", note: "session #{id} is not listed" } unless entry
-
-        { listed: true, state: entry["state"].to_s, note: "session #{id} is still listed, #{entry["state"]}" }
-      end
+      def look_for(**held) = @lookup.call(held)
 
       private
+
+      # @return [Hash{String => String}] the session environment, with the run's name as the caller
+      def named(held) = SessionCaller.environment(@session.session_environment, held)
 
       def agent_listing(repo, agent)
         return { listed: true, note: "no agent named: the session runs the default agent" } unless agent
@@ -224,15 +222,24 @@ module Hecks
 
       def listed(id) = @listing.find(id) || raise(ConsoleCapture::Failure, "no session #{id} is listed")
 
-      def start_arguments(held)
-        agent = plain(held[:agent])
-        [*niceness, @command, *(agent ? ["--agent", agent] : []), "--bg", "--", briefed(plain(held[:brief]), agent)]
+      def session_line = SessionLine.new(command: @command, nice: niceness)
+
+      # The id a start printed, or why there is none.
+      def session_id(result)
+        raise ConsoleCapture::Failure, "#{@command} did not start a session: #{result.err.strip}" unless result.ok?
+
+        result.out[SESSION_ID, 1] || raise(ConsoleCapture::Failure, "#{@command} named no session: #{result.out.strip}")
       end
 
-      # @return [String] the brief, with the verdict format added for the architect
-      def briefed(brief, agent) = agent == "architect" ? "#{brief}#{ArchitectVerdict::REQUEST}" : brief.to_s
-
       def niceness = @session.nice ? ["nice", "-n", @session.nice.to_s] : []
+
+      # The look-up of whether a run's session is still listed, over the listing it shares. `now`
+      # stands in for the clock, which also dates a session's start.
+      def session_lookup(now)
+        @clock = now || -> { Time.now.utc }
+        @listing = ClaudeSessionListing.new(@command, shell: @shell, now: @clock)
+        SessionLookup.new(@listing, grace: -> { @session.session_grace }, now: @clock)
+      end
 
       def plain(argument) = argument.is_a?(Hash) ? argument[:value] : argument
     end

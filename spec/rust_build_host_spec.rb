@@ -99,6 +99,7 @@ RSpec.describe Hecks::RustBuild::Host do
   end
 
   it "keeps Cargo's output beside the host crate when no target dir is named, so a second build is incremental" do
+    stub_const("Hecks::RustBuild::ROOT", dir)
     build
 
     expect(cargo_calls.fetch(0).last[:env]).to include("CARGO_TARGET_DIR" => File.join(workspace, "host", "target"))

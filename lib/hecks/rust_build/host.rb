@@ -108,7 +108,7 @@ module Hecks
       # `<arch>-linux-gnu-gcc` on PATH unless `CARGO_TARGET_<TRIPLE>_LINKER` already names a linker.
       def compile(target, prebuilt: true)
         host_dir = File.join(RustBuild.rust_dir, "host")
-        target_dir = TargetDir.for(host_dir)
+        target_dir = TargetDir.for(host_dir, root: SessionBuild.root_of(host_dir), binary: true)
         binary = File.join(target_dir, target, "release", BINARY)
         return binary if PrebuiltBinary.fetch_for("rust/host", host_dir, target: target, into: binary, allowed: prebuilt)
 

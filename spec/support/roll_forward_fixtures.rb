@@ -3,7 +3,8 @@ require "hecks/hecks/adapters/rolling"
 # Planned work rolls forward by itself, in priority order. The Work records are stand-ins
 # read by the real {WorkItems}.
 module RollForwardFixtures
-  Entry = Struct.new(:work, :title, :status, :priority, :step, :area, :detail, keyword_init: true)
+  Entry = Struct.new(:work, :title, :status, :priority, :step, :area, :detail, :yield_kind, :retry_at, :yield_count,
+                     keyword_init: true)
   Item = Hecks::Adapters::Dispatching::Plan::Item
   Word = Struct.new(:value)
 

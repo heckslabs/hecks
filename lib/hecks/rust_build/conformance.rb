@@ -88,10 +88,18 @@ module Hecks
         stdout
       end
 
-      def target_dir = ENV.fetch("CARGO_TARGET_DIR", File.join(RustBuild.rust_dir, "target"))
+      # Where a build of the workspace puts its binaries: the directory named by hand, else the
+      # worktree's own slot below the shared target (where `NativeBuild` builds), else the
+      # workspace's own `target/`; a directory named by hand is taken from the workspace, as Cargo
+      # takes it.
+      def target_dirs
+        rust_dir = RustBuild.rust_dir
+        [NativeBuild.target_dir(rust_dir), File.join(rust_dir, "target")].uniq
+      end
 
       def native_binary
-        %w[release debug].map { |profile| File.join(target_dir, profile, "rust") }.find { |path| File.executable?(path) }
+        paths = target_dirs.product(%w[release debug]).map { |dir, profile| File.join(dir, profile, "rust") }
+        paths.find { |path| File.executable?(path) }
       end
 
       def missing_native!

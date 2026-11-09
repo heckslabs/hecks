@@ -77,7 +77,7 @@ module Hecks
       # **Lazy, on purpose** — same reasoning as PostgresEra's own connect_for: a domain that
       # never wires Postgres should never need the gem installed.
       def self.require_pg(name)
-        require "pg"
+        require "hecks/pg_options"
       rescue LoadError
         raise LoadError, "#{name} binds Postgres, which needs the pg gem: add `gem \"pg\"` to the Gemfile"
       end

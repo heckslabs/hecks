@@ -14,6 +14,7 @@ RSpec.describe Hecks::RustBuild::NativeBuild do
     FileUtils.mkdir_p(File.join(dir, "src", "generated"))
     File.write(File.join(dir, "src", "generated", "pizzas.rs"), "// one\n")
     described_class.cache.clear
+    allow(Hecks::RustBuild::BinaryCache).to receive(:compiler).and_return("rustc-test")
   end
 
   after do
@@ -79,6 +80,80 @@ RSpec.describe Hecks::RustBuild::NativeBuild do
     expect(described_class).to have_received(:build_and_pin).once
   end
 
+  describe "where a linked worktree's build writes" do
+    let(:checkout) { Dir.mktmpdir("native_checkout") }
+    let(:shared) { File.join(checkout, "shared-target") }
+    let(:rust) { File.join(checkout, "rust") }
+    let(:session) { Hecks::RustBuild::SessionBuild }
+
+    before do
+      FileUtils.mkdir_p([File.join(checkout, "lib/hecks/hecks"), rust])
+      File.write(File.join(checkout, ".git"), "gitdir: elsewhere")
+      File.write(File.join(checkout, session::WORLD), <<~RUBY)
+        Hecks.world "Tickets" do
+          session_environment "Sessions", cargo_target_dir: "#{shared}", nice: 7
+        end
+      RUBY
+      session.reset!
+    end
+
+    after do
+      session.reset!
+      FileUtils.rm_rf(checkout)
+    end
+
+    def with_target_env(value)
+      stub_const("ENV", ENV.to_h.except("CARGO_TARGET_DIR").merge(value ? { "CARGO_TARGET_DIR" => value } : {}))
+    end
+
+    it "is a directory of the worktree's own, though the dispatcher exports the shared one" do
+      with_target_env(shared)
+
+      expect(described_class.target_dir(rust)).to eq(File.join(shared, session.slug(checkout)))
+    end
+
+    it "is the worktree's own directory when none is exported" do
+      with_target_env(nil)
+
+      expect(described_class.target_dir(rust)).to eq(File.join(shared, session.slug(checkout)))
+    end
+
+    it "is a directory named by hand when one is exported" do
+      with_target_env("/by-hand")
+
+      expect(described_class.target_dir(rust)).to eq("/by-hand")
+    end
+
+    it "takes a relative directory named by hand from the workspace, as Cargo does" do
+      with_target_env("target-test")
+
+      expect(described_class.target_dir(rust)).to eq(File.join(rust, "target-test"))
+    end
+
+    it "makes no directory when it only looks one up" do
+      with_target_env(nil)
+      described_class.target_dir(rust)
+
+      expect(File.exist?(File.join(shared, session.slug(checkout)))).to be(false)
+    end
+
+    # The environment the cargo child of a build in the worktree starts with.
+    def cargo_environment
+      captured = []
+      ok = instance_double(Process::Status, success?: true)
+      allow(Hecks::RustBuild::BuildLock).to receive(:hold).and_yield({})
+      allow(Open3).to receive(:capture2e) { |env, *_command, **_options| (captured << env) && ["", ok] }
+      described_class.cargo(%w[cargo build], rust, "pizzas")
+      captured.first
+    end
+
+    it "gives the cargo child the same directory, so a build and its pinned binary agree" do
+      with_target_env(shared)
+
+      expect(cargo_environment).to eq("CARGO_TARGET_DIR" => File.join(shared, session.slug(checkout)))
+    end
+  end
+
   describe "a binary pinned ahead of the build" do
     let(:pinned) { File.join(dir, "target", "debug", "rust-pizzas") }
 
@@ -117,6 +192,33 @@ RSpec.describe Hecks::RustBuild::NativeBuild do
       described_class.build_rust_for("pizzas", dir)
 
       expect(described_class).to have_received(:cargo).once
+    end
+
+    # The cache holds a binary built from the same sources by another workspace.
+    def restore_from_cache
+      allow(Hecks::RustBuild::BinaryCache).to receive(:restore) do |_key, place|
+        FileUtils.mkdir_p(File.dirname(place))
+        File.write(place, "kept")
+        true
+      end
+    end
+
+    it "is taken from the binary cache, without running cargo, when another workspace built it", :aggregate_failures do
+      restore_from_cache
+      allow(described_class).to receive(:cargo)
+      binary = described_class.build_rust_for("pizzas", dir)
+
+      expect(File.read(binary)).to eq("kept")
+      expect(described_class).not_to have_received(:cargo)
+    end
+
+    it "is kept in the binary cache once cargo has built it" do
+      FileUtils.mkdir_p(File.join(dir, "target", "debug"))
+      allow(Hecks::RustBuild::BinaryCache).to receive_messages(restore: false, save: nil)
+      stub_cargo_leaving_a_binary
+      described_class.build_rust_for("pizzas", dir)
+
+      expect(Hecks::RustBuild::BinaryCache).to have_received(:save).once
     end
   end
 end

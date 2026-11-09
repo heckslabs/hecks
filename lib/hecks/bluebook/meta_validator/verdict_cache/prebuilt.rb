@@ -20,11 +20,12 @@ module Hecks
           def prebuilt_path = Hecks::CacheDir.prebuilt(File.basename(path))
 
           # Reads and decodes the current code's file: the user's own, else the gem's prebuilt one.
+          # The user's own file is marked as used, so other checkouts' pruning leaves it.
           #
           # @return [Hash{String => Hash}] entries, or `{}` on any problem
           def read
             own = path
-            return read_file(own) if File.file?(own) && trusted?(own)
+            return read_file(own).tap { touch_used(own) } if File.file?(own) && trusted?(own)
 
             File.file?(prebuilt_path) ? read_file(prebuilt_path) : {}
           end

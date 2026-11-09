@@ -11,10 +11,11 @@ export PATH="$HOME/.rbenv/shims:/opt/homebrew/bin:/usr/local/bin:$PATH"
 input="$(cat)"
 role="$(printf '%s' "$input" | jq -r '.agent_type // empty')"
 command="$(printf '%s' "$input" | jq -r '.tool_input.command // empty')"
+agent="$(printf '%s' "$input" | jq -r '.agent_id // empty')"
 [ -n "$role" ] && [ -n "$command" ] || exit 0
 
 cd "${CLAUDE_PROJECT_DIR:-$(pwd)}" || exit 0
-out="$(exe/hecks agents Role.guard "role.value=$role" "command.value=$command" 2>&1)" && exit 0
+out="$(HECKS_CALLER=hook:orchestrator_guard exe/hecks agents Role.guard"role.value=$role" "command.value=$command" "agent.value=$agent" 2>&1)" && exit 0
 
 reason="$(printf '%s\n' "$out" | grep -m1 'routes only')"
 [ -n "$reason" ] || { echo "orchestrator_guard: Hecks could not answer; not blocking" >&2; exit 0; }

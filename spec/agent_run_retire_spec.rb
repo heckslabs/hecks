@@ -32,8 +32,9 @@ RSpec.describe "AgentRun.Retire through the Agents port" do
   end
 
   before do
+    @clock = Time.now.utc
     allow(Hecks::Adapters::ClaudeAgents).to(receive(:new).and_wrap_original do |original, **context|
-      original.call(**context, settings: { jobs: File.join(scratch, "jobs"), settle: 0 })
+      original.call(**context, settings: { jobs: File.join(scratch, "jobs"), settle: 0, now: -> { @clock } })
     end)
   end
 
@@ -60,10 +61,11 @@ RSpec.describe "AgentRun.Retire through the Agents port" do
 
   def retire(run) = JSON.parse(launch("AgentRun.retire!", "to=#{run}", "--wait").first.to_s)
 
-  # A started run whose session the listing then drops, retired.
-  def gone_run(run)
+  # A started run whose session the listing then drops, retired once its grace has passed.
+  def gone_run(run, after: 300)
     started_run(run)
     listing
+    @clock += after
     retire(run)
   end
 
@@ -71,6 +73,12 @@ RSpec.describe "AgentRun.Retire through the Agents port" do
     outcome = gone_run("r-gone")
     expect(outcome.dig("state", "status")).to eq("retired")
     expect(outcome["events"]).to include("AgentRunRetired")
+  end
+
+  it "keeps a run started seconds ago whose session is not listed yet, saying how young it is", :aggregate_failures do
+    outcome = gone_run("r-young", after: 10)
+    expect(outcome.dig("state", "status")).to eq("started")
+    expect(outcome.dig("state", "refusal")).to include("started 10s ago")
   end
 
   it "records what the listing said on the retired run" do

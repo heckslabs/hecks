@@ -54,8 +54,7 @@ module Hecks
         def record(results)
           return [] unless @readable
 
-          @ran.each { |id| update(id, results.fetch(id).last) }
-          error = GateMemo.write(@memo, @file)
+          error = GateMemo.update(@file) { |memo| @ran.each { |id| apply(memo, id, results.fetch(id).last) } }
           error ? ["gate memo not written (#{error}): the next run runs these checks in full"] : []
         end
 
@@ -66,8 +65,8 @@ module Hecks
         def generic(check, result)
           tree = GateMemo.tree(@root, check["id"])
           inputs = GateMemo.digest(@root, check, @env, tree)
-          entry = @memo[check["id"]]
-          return result.skipped << [check, entry["at"]] if GateMemo.reusable?(entry, inputs)
+          hit = GateMemo.reused(@memo[check["id"]], inputs)
+          return result.skipped << [check, hit["at"]] if hit
 
           run(check, result, inputs ? GateMemo.green(inputs, tree) : nil)
         end
@@ -99,13 +98,14 @@ module Hecks
           @pending[check["id"]] = entry
         end
 
-        # @return [void] keeps a passed check's entry, and forgets a check that did not pass
-        def update(id, passed)
+        # @return [void] keeps a passed check's run beside the runs of other trees, and forgets only
+        #   the runs on the inputs a check that did not pass ran on
+        def apply(memo, id, passed)
           entry = @pending[id]
           if passed && entry
-            @memo[id] = entry
+            id == "rubocop" ? memo[id] = entry : GateMemo.remember(memo, id, entry)
           else
-            @memo.delete(id)
+            id == "rubocop" ? memo.delete(id) : GateMemo.forget(memo, id, entry && entry["inputs"])
           end
         end
       end

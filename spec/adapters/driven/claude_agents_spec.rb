@@ -73,8 +73,9 @@ RSpec.describe Hecks::Adapters::ClaudeAgents do
   end
 
   describe "#start" do
-    it "answers the session the command printed" do
-      expect(start).to eq(session: { value: "session-id-abc123" })
+    it "answers the session the command printed, and when it started" do
+      expect(start).to match(session:    { value: "session-id-abc123" },
+                             started_at: { value: /\A\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ\z/ })
     end
 
     it "starts it in the directory, with the agent, in the background, and the brief after --", :aggregate_failures do
@@ -164,8 +165,13 @@ RSpec.describe Hecks::Adapters::ClaudeAgents do
       expect(resume(answer: { value: "go on" })).to include(session: { value: "abc123" })
     end
 
-    it "names no agent, even for a run that has one, so the session keeps its saved options" do
+    it "names the run's role with --agent, ahead of the session id, so its MCP server narrows again" do
       resume(answer: { value: "go on" }, agent: { value: "orchestrator" })
+      expect(asked).to eq(["--agent", "orchestrator", "--bg", "--resume", "abc123-0000-full", "--", "go on"])
+    end
+
+    it "names no agent for a run that has none, so the session resumes as it did before" do
+      resume(answer: { value: "go on" })
       expect(asked).to eq(["--bg", "--resume", "abc123-0000-full", "--", "go on"])
     end
 

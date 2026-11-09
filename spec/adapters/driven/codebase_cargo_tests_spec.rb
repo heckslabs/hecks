@@ -8,6 +8,14 @@ RSpec.describe Hecks::Adapters::Codebase::CargoTests do
   let(:tree) { Hecks::Adapters::Codebase::Tree.new }
   let(:shell) { FakeCodebaseShell.new(["1 test passed", 0]) }
 
+  # This spec is about the seed counts, so the build policy (job cap, `nice`, target directory)
+  # and the machine's build lock are left out of the command and the environment it records.
+  before do
+    allow(Hecks::RustBuild::SessionBuild).to receive(:environment).and_return({})
+    allow(Hecks::RustBuild::SessionBuild).to receive(:command) { |command, **| command }
+    allow(Hecks::RustBuild::BuildLock).to receive(:hold).and_yield({})
+  end
+
   def run_for(**args) = described_class.run(args, tree, shell)
 
   it "gives the host's fuzzer its seed count in the variable it reads" do

@@ -106,7 +106,7 @@ module Hecks
         #
         # @return [Boolean] whether a local Postgres answers; warns why when it does not
         def postgres_reachable?
-          require "pg"
+          require "hecks/pg_options"
           PG.connect(dbname: "postgres").close
           true
         rescue LoadError, PG::Error => e

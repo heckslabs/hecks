@@ -38,7 +38,7 @@ answers `--help`. A `|` inside a form is escaped as `\|` in the cell.
 | `hecks operation.refresh_projections! <subject>` | `bin/project` |
 | `hecks operation.run_behaviors! <subject>` | `bin/behaviors` |
 | `hecks console! [<subject>]` | `bin/console` |
-| `hecks operation.follow <domain> [aggregate=] [since=] [wait=] [interval=] [--from-now]` | `bin/follow` |
+| `hecks operation.follow <domain> [aggregate=] [since=] [wait=] [interval=] [names=] [--from-now]` | `bin/follow` |
 | `hecks operation.smoke_test! [<subject>]` | `bin/smoke_test` |
 | `hecks operation.smoke_http! [<url>] path= [header=] [scheme=] [payload=] [payload_file=] [health_path=] [state_path=]` | `bin/smoke_http` |
 | `hecks host.check_era! <host> expected= [timeout=]` | `bin/check_era` |

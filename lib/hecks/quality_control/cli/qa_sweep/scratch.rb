@@ -38,13 +38,13 @@ module Hecks
         end
 
         def prepare_parity_schema
-          require "pg"
+          require "hecks/pg_options"
           @parity_schema = "qa_pp_#{@target_reference}_#{Process.pid}_#{SecureRandom.hex(4)}"
           ensure_scratch_database!(@parity_database)
         end
 
         def prepare_concurrency_schemas
-          require "pg"
+          require "hecks/pg_options"
           @race_schema = "qa_cc_race_#{@target_reference}_#{Process.pid}_#{SecureRandom.hex(4)}"
           @reference_schema = "qa_cc_ref_#{@target_reference}_#{Process.pid}_#{SecureRandom.hex(4)}"
           ensure_scratch_database!(@concurrency_database)

@@ -21,6 +21,16 @@ RSpec.describe "Hecks::Tools::Console" do
     "IRBRC"  => File::NULL
   }.freeze
 
+  describe ".irb_session" do
+    it "shows the missing library, and leaves ARGV as it was", :aggregate_failures do
+      saved = ARGV.dup
+      allow(Hecks::Tools::Console).to receive(:require).with("irb").and_raise(LoadError, "cannot load such file -- irb")
+
+      expect { Hecks::Tools::Console.irb_session }.to raise_error(LoadError, /irb/)
+      expect(ARGV).to eq(saved)
+    end
+  end
+
   CONSOLE_PIZZA_SESSION = <<~RUBY.freeze
     order = Order.create_pizza!(name: { value: "Margherita" }, pizza: { price_cents: { cents: 1200 }, size: { value: "large" } })
     order.add_topping!(topping: { value: "Basil" }, amount: { value: 3 })

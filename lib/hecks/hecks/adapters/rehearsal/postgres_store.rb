@@ -94,7 +94,7 @@ module Hecks
         end
 
         def admin
-          require "pg"
+          require "hecks/pg_options"
           db = PG.connect(server_url)
           yield db
         ensure

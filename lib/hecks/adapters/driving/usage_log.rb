@@ -1,6 +1,8 @@
 require "fileutils"
 require "json"
 require_relative "usage_cache"
+require_relative "usage_log/telemetry"
+require_relative "usage_log/trim"
 
 module Hecks
   module Adapters
@@ -9,8 +11,10 @@ module Hecks
       # the timing of a deprecation rest on what people type rather than on a guess.
       #
       # A run appends one JSON line to `usage.jsonl` in the directory `UsageCache` already uses:
-      # the name as typed, the name it resolved to, the exit status, the duration in milliseconds
-      # and the date. No arguments, values or paths are written. The record is on unless
+      # the name as typed, the name it resolved to, the exit status, the duration in milliseconds,
+      # the date and the time, and (`Telemetry`) the boot time, whether the boot was cold, the
+      # caller, and how the line met the checkout's resident (`Residency`).
+      # No arguments, values or paths are written. The record is on unless
       # `HECKS_USAGE=off` is set or a `usage.off` marker sits in that directory. The first run that
       # writes prints one line on standard error saying so, then leaves a `usage.noticed` marker.
       # Writing never fails the command it records.
@@ -68,7 +72,8 @@ module Hecks
         def line(argv, resolved, status, started)
           { "typed" => typed(argv), "resolved" => resolved, "status" => status,
             "ms" => ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - started) * 1000).round,
-            "date" => Time.now.utc.strftime("%Y-%m-%d") }
+            "date" => Time.now.utc.strftime("%Y-%m-%d"),
+            "at" => Time.now.utc.strftime("%Y-%m-%dT%H:%M:%SZ") }.merge(Telemetry.fields(started))
         end
 
         # The name the person typed: the first word that is not a flag, past a `query` word.
@@ -80,9 +85,14 @@ module Hecks
           words.first
         end
 
-        # Writes one entry as a line of the file.
+        # Writes one entry as a line of the file, under a shared lock that a rewrite of the file by
+        # `Trim` waits out, and trims the file when it has grown large.
         def append(entry)
-          File.open(path, "a") { |file| file.puts(JSON.generate(entry)) }
+          File.open(path, "a") do |file|
+            file.flock(File::LOCK_SH)
+            file.puts(JSON.generate(entry))
+          end
+          Trim.run(path, window: DEFAULT_WINDOW) if Trim.due?(path)
         end
 
         # The entries on file, oldest first. A line that does not parse is skipped.
@@ -101,18 +111,25 @@ module Hecks
         # @param window [Integer] how many days back a run counts
         # @return [String] the text `hecks usage` prints
         def summary(known:, window: DEFAULT_WINDOW)
-          counts = counts_since(window)
+          runs = runs_since(window)
+          counts = resolved_names(runs)
           unrun = known.sort - counts.keys
           ["runs in the last #{window} days, most used first:", *tally_lines(counts),
+           *Telemetry.lines(runs), *Residency.lines(runs),
            "", "never run in that window:", *unrun.map { |name| "  #{name}" }].join("\n")
+        end
+
+        # @return [Array<Hash>] the entries dated inside the window
+        def runs_since(window)
+          since = (Time.now.utc - (window * DAY)).strftime("%Y-%m-%d")
+          entries.select { |entry| entry["date"].to_s >= since }
         end
 
         # How often each resolved name ran since the window opened.
         #
         # @return [Hash{String => Integer}]
         def counts_since(window)
-          since = (Time.now.utc - (window * DAY)).strftime("%Y-%m-%d")
-          resolved_names(entries.select { |entry| entry["date"].to_s >= since })
+          resolved_names(runs_since(window))
         end
 
         # @return [Hash{String => Integer}] how many runs resolved to each name

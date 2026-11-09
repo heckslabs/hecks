@@ -24,6 +24,11 @@ gem "rackup", "~> 2.0"
 gem "webrick", "~> 1.9"
 gem "rack-test", "~> 2.0"
 
+# A launcher that finds it caches compiled Ruby and the load path under the hecks cache
+# directory, so a boot spends less time reading the gem's own files; absent, a launcher boots
+# without it.
+gem "bootsnap", "~> 1.18", require: false
+
 # Pinned: newer json gems change JSON.pretty_generate output for empty arrays/hashes,
 # which the golden specs (ir_golden_spec, reference_golden_spec) pin byte for byte.
 gem "json", "2.7.2"

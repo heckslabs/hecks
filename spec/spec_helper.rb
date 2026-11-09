@@ -23,6 +23,19 @@ USAGE_CACHE_SPEC_DIR = Dir.mktmpdir("hecks-usage-cache-spec")
 at_exit { FileUtils.rm_rf(USAGE_CACHE_SPEC_DIR) }
 ENV["HECKS_CACHE_DIR"] = USAGE_CACHE_SPEC_DIR
 
+# A launcher a spec starts boots on its own: it neither asks a resident to run its line nor
+# leaves one standing after the run. The resident's own specs unset the variable for the
+# processes they start.
+ENV["HECKS_NO_RESIDENT"] = "1"
+
+# A spec writes to its own Memory domain: a write run from a worktree is never forwarded to the
+# main checkout's launcher, which would put the spec's stand-in runs into the owner's live ledgers.
+ENV["HECKS_WRITES_LOCAL"] = "1"
+
+# libpq probes macOS Kerberos on a first connection and a child that forked without exec can crash
+# there; a spec's subprocesses never need that service, so none of them takes that path.
+ENV["PGGSSENCMODE"] = "disable"
+
 # The runtime's event tap is private to the run as well, children included: a child that boots
 # the Hecks domain in its real world writes its lines here, never to the owner's log, which the
 # pipeline board reads. In this process the Memory overlay switches the tap off altogether.

@@ -6,7 +6,7 @@ module Hecks
         # Rewrites every `.hecksagon` in the copy to bind through Postgres, against this process's
         # scratch schema unless the caller names its own via `scratch:`.
         def rebind_to_postgres!(copy, database: nil, schema: nil)
-          require "pg"
+          require "hecks/pg_options"
           database ||= FUZZ_POSTGRES_DATABASE
           schema   ||= scratch_schema(database)
           rewrite_bindings!(copy, "Postgres")
@@ -54,7 +54,7 @@ module Hecks
         # the caller (`hecks quality_control sweep.run --persistence-parity`) owns that
         # database's lifecycle.
         def rebind_to_postgres_era!(copy, database:, schema:, disposable: true)
-          require "pg"
+          require "hecks/pg_options"
           require_owned_scratch!(database, schema)
 
           rewrite_bindings!(copy, "PostgresEra")

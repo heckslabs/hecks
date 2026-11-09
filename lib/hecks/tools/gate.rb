@@ -3,6 +3,7 @@
 require "open3"
 require "hecks/vocabulary"
 require_relative "../tools"
+require_relative "../rust_build/gate_build"
 require_relative "stage_progress"
 require_relative "gate_memo/session"
 require_relative "gate_report"
@@ -131,7 +132,7 @@ module Hecks
       def run_one(check, env, root)
         argv = check.fetch("run").map { |word| word.to_s.sub("{workers}", workers.to_s) }
         env = { "RUBOCOP_CACHE_ROOT" => RUBOCOP_CACHE_ROOT }.merge(ENV.slice("RUBOCOP_CACHE_ROOT")).merge(env)
-        output, status = Open3.capture2e(env, *argv, chdir: root)
+        output, status = RustBuild::GateBuild.capture(argv, env, root)
         [output, status.success?]
       rescue SystemCallError => e
         ["could not start #{argv.first}: #{e.message}", false]

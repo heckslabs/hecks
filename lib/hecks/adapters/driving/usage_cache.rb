@@ -87,10 +87,31 @@ module Hecks
         def entry_path(domain, argv, program, audience = "")
           digest = Digest::SHA256.new
           key_parts(program, audience, argv).each { |part| digest << part.to_s << "\0" }
-          fingerprint_code(domain, digest)
+          digest << code_fingerprint(domain) << "\0"
           File.join(directory, "usage-#{digest.hexdigest}.json")
         rescue SystemCallError
           nil
+        end
+
+        # Keeps the digest of the declaration files and the judging code for the process's life.
+        # A resident calls it, since the files it loaded are the files it serves and it retires when
+        # they change; any other process reads them afresh each time.
+        def remember_code!
+          @remembering = true
+        end
+
+        # @return [String] a digest of what shapes a help text apart from the command line
+        def code_fingerprint(domain)
+          return fingerprint_digest(domain) unless @remembering
+
+          (@remembered ||= {})[domain] ||= fingerprint_digest(domain)
+        end
+
+        # @return [String] the digest of the domain's declarations, the judging code, the adapters
+        def fingerprint_digest(domain)
+          digest = Digest::SHA256.new
+          fingerprint_code(domain, digest)
+          digest.hexdigest
         end
 
         # @return [Array<String>] what the answer depends on besides the files: the gem and Ruby

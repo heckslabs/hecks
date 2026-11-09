@@ -5,8 +5,11 @@ require_relative "launcher_options"
 module Hecks
   module Adapters
     module Driving
-      # Tells the launcher which questions read the event tap, so it answers them on a boot that
-      # writes nothing. The bluebook's `launcher` setting lists them under `reads_tap`.
+      # Tells the launcher which questions are plain reads, so it answers them on a boot that
+      # writes nothing and opens only the stores the line asks about: no outbox row is redriven,
+      # no saga resumed, and the other aggregates' stores stay closed. A poll of a question that
+      # is listed neither acts nor pays for what it does not read. The bluebook's `launcher`
+      # setting lists them under `reads_tap`.
       module ReadOnlyQuestion
         # The separators between a question's bluebook, aggregate and own name.
         SEPARATORS = /[.:]+/

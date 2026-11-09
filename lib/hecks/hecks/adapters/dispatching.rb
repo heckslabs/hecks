@@ -5,9 +5,16 @@ require_relative "dispatching/settings"
 require_relative "dispatching/work_items"
 require_relative "dispatching/plan"
 require_relative "dispatching/launcher"
+require_relative "dispatching/in_process_runner"
+require_relative "dispatching/filling"
+require_relative "dispatching/fill_report"
 require_relative "dispatching/lesson_traps"
 require_relative "dispatching/settler"
 require_relative "dispatching/last_roll"
+require_relative "dispatching/pending"
+require_relative "dispatching/planned_cache"
+require_relative "dispatching/wake"
+require_relative "dispatching/rolls"
 
 module Hecks
   module Adapters
@@ -21,6 +28,8 @@ module Hecks
     # (the `WorkAreas` and `WorkLimits` ports refuse a start that clashes or goes over the cap). The
     # default is a dry run, which writes nothing.
     class Dispatching
+      include Rolls
+
       # @param registry [Runtime::Registry, nil] the booted registry whose work items are read
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] `load:`, `cpus:` and `runner:` stand in for the machine and the
@@ -40,8 +49,10 @@ module Hecks
       #   then the work items left waiting with the reason
       def choose(**held)
         confirmed = plain(held[:confirm]) == true
-        settle_ended(held) if confirmed
-        { report: { value: filling_lines(plan_for(prefix(held)), held, confirmed).join("\n") } }
+        Filling.during(confirmed) do
+          settle_ended(held) if confirmed
+          { report: { value: filling_lines(plan_for(prefix(held)), held, confirmed).join("\n") } }
+        end
       end
 
       # Says which planned work items would start now and why each other waits, without starting
@@ -51,21 +62,6 @@ module Hecks
       # @return [Hash{Symbol => String}] `text:` the report, one line per work item
       def preview(**held)
         { text: "#{report_lines(plan_for(prefix(held))).join("\n")}\n" }
-      end
-
-      # Fills the queue because capacity freed or work arrived, unless the owner paused rolling.
-      # A report that repeats the last one is refused, so a repeated skip is recorded once.
-      #
-      # @param _held [Hash] the `Roll` record
-      # @return [Hash{Symbol => Hash}] `report:` the filling's report
-      # @raise [ConsoleCapture::Failure] when rolling is paused or the report repeats the last one
-      def roll(**_held)
-        raise ConsoleCapture::Failure, "paused: dispatch_roll_forward is false" unless machine.roll_forward?
-
-        text = choose(repo: { value: Dir.pwd }, confirm: true).dig(:report, :value)
-        raise ConsoleCapture::Failure, "unchanged: #{header_of(text)}" if LastRoll.repeat?(text)
-
-        { report: { value: text } }
       end
 
       # Checks every started session and settles the work item of each that ended: done finishes it.
@@ -79,25 +75,64 @@ module Hecks
 
       private
 
-      # The load, each work item that starts or would, then each left waiting with its reason.
+      # The load, each work item that starts or would, then each left waiting with its reason. A
+      # confirmed filling counts what its launches did instead of saying what would start.
       def filling_lines(plan, held, confirmed)
-        chosen = confirmed ? launch(plan, held) : plan.chosen.map { |item| chosen_line(item) }
-        [header(plan)] + chosen + plan.skipped.map { |skip| skipped_line(skip) }
+        return report_lines(plan) unless confirmed
+
+        note_stops(plan)
+        report = FillReport.new(launch(plan, held))
+        PlannedCache.clear!
+        [header(plan, report.tally(plan.chosen.size))] + report.lines + plan.skipped.map { |skip| skipped_line(skip) }
       end
 
       # A confirmed filling finishes or yields the work items whose sessions ended before the plan
-      # counts started rows, so the cap holds only live work.
-      def settle_ended(held) = Settler.new(work_items, launcher_for(held)).call
+      # counts started rows, so the cap holds only live work, then frees the run keys of the work
+      # items parked behind a run whose session is gone.
+      def settle_ended(held)
+        launcher = launcher_for(held)
+        Settler.new(work_items, launcher).call
+        release_taken(launcher)
+        PlannedCache.clear!
+      end
+
+      # A planned work item parked behind a run still recorded started is never launched, so the
+      # retire the launcher makes on a refused dispatch cannot reach it: ask for the retire here.
+      # `AgentRun.Retire` closes the run only when `claude agents` does not list its session.
+      def release_taken(launcher)
+        runs = work_items.runs
+        planned("").each { |item| launcher.retire(item.key) if Parking.key_held?(item, runs) }
+      end
 
       def work_items = @standins[:work_items] || WorkItems.new(@registry)
 
-      def machine = Settings.new(@registry, load: @standins[:load], cpus: @standins[:cpus], cap: @standins[:cap])
+      def machine
+        Settings.new(@registry, load: @standins[:load], cpus: @standins[:cpus], cap: @standins[:cap],
+                                boots: @standins[:boots])
+      end
 
-      def launcher_for(held) = Launcher.new(plain(held[:repo]), runner: @standins[:runner])
+      # The launcher for the checkout the filling is for. A stand-in runner wins; otherwise the
+      # steps dispatch on this registry when the checkout is the one this process stands in, and
+      # run that checkout's own `exe/hecks` when it is another.
+      def launcher_for(held)
+        repo = plain(held[:repo])
+        Launcher.new(repo, runner: @standins[:runner] || in_process_runner(repo))
+      end
+
+      def in_process_runner(repo) = InProcessRunner.fits?(@registry, repo) ? InProcessRunner.new(@registry) : nil
 
       def plan_for(only = "")
-        Plan.new(planned(only), work_items.started, cap: machine.cap, load: machine.load, max_load: machine.max_load,
-                                                    frozen: machine.frozen, paused: machine.paused)
+        Plan.new(planned(only), work_items.started, **limits)
+      end
+
+      # What bounds a filling: the machine's cap and load, what pauses every work item, and the
+      # boot budget, which a red-* work item is exempt from. It only reads: a dry plan and the
+      # board look at the queue through here too, and looking must not change what the clock's
+      # next beat does.
+      def limits
+        gauge = machine
+        { cap: gauge.cap, load: gauge.load, max_load: gauge.max_load, frozen: gauge.frozen, paused: gauge.paused,
+          budget: gauge.boot_stop, exempt: WorkItems.method(:red?), runs: -> { work_items.runs } }
       end
 
       # The key prefix a filling is held to; empty when none is named.
@@ -113,10 +148,14 @@ module Hecks
 
       def header_of(report) = report.partition("\n").first
 
-      def header(plan)
+      def header(plan, tally = "this fill would start #{plan.chosen.size}")
         "#{load_line}; started #{work_items.started.size} of cap #{machine.cap}; " \
-          "this fill would start #{plan.chosen.size}; frozen: #{frozen_line}"
+          "#{tally}; frozen: #{frozen_line}; at #{ran_at}"
       end
+
+      # The time the report was made, in UTC: a reader that finds the report later can tell how old
+      # it is, which the record of a roll does not say.
+      def ran_at = (@standins[:now]&.call || Time.now).utc.strftime("%Y-%m-%dT%H:%M:%SZ")
 
       def load_line = "load #{machine.load.round(1)} (limit #{machine.max_load.round(1)}, #{machine.cpus} cpus)"
 
@@ -131,13 +170,15 @@ module Hecks
         minutes = plain(held[:budget_minutes]) || Settings::BUDGET_MINUTES
         plan.chosen.each_with_index.map do |item, index|
           launched(launcher, item) do
-            launcher.launch(item, held: holding(plan, index), minutes: minutes, limit: machine.spec_files_limit,
-                                  frozen: machine.frozen, traps: traps_for(item))
+            outcome(*launcher.attempt(item, held: holding(plan, index), minutes: minutes, limit: machine.spec_files_limit,
+                                            frozen: machine.frozen, traps: traps_for(item)))
           end
         end
       end
 
-      # One work item's launch line. An error the launcher did not expect yields that work item
+      def outcome(kind, line) = FillReport::Outcome.new(kind, line)
+
+      # One work item's outcome. An error the launcher did not expect yields that work item
       # with the error's class and message, so the next chosen work item still launches and the
       # report still says why; a yield that fails too is named on the line.
       def launched(launcher, item)
@@ -145,9 +186,10 @@ module Hecks
       rescue StandardError => e
         reason = "#{e.class}: #{e.message}"
         begin
-          launcher.yield_back(item, reason)
+          outcome(:yielded, launcher.yield_back(item, reason))
         rescue StandardError => failure
-          "#{item.key} could not be started or yielded: #{reason} (yield failed: #{failure.class}: #{failure.message})"
+          outcome(:stuck, "#{item.key} could not be started or yielded: #{reason} " \
+                          "(yield failed: #{failure.class}: #{failure.message})")
         end
       end
 

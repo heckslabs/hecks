@@ -4,6 +4,7 @@ require "json"
 require "time"
 require_relative "console_capture"
 require_relative "in_process_operations/tailing"
+require_relative "in_process_operations/event_logs"
 require "hecks/tools/run"
 require "hecks/tools/model_check"
 require "hecks/tools/smoke_test"
@@ -25,6 +26,7 @@ module Hecks
     module InProcessOperations
       include Tailing
       include Feeding
+      include EventLogs
 
       # The bluebooks `hecks model_check` sweep when no domain is named need a
       # checkout; an installed gem has none.
@@ -34,7 +36,8 @@ module Hecks
       REPORT_HEADER = /^── /
 
       # Longest a `Follow` query may wait for new entries, so one call cannot hold a launcher open.
-      MAX_FOLLOW_WAIT = 60
+      # A brief tells a session to wait ten minutes for an event, so one call holds that long.
+      MAX_FOLLOW_WAIT = 600
 
       # Runs the static analysis over the named domains, or over the whole corpus in a checkout.
       #
@@ -126,48 +129,47 @@ module Hecks
         output(ConsoleCapture.answer { Tools::SmokeTest.call(argv, root: checkout_root || Dir.pwd) })
       end
 
-      # A domain's event log past a cursor, answered once: what the stream yielded before it
-      # ended. Pass the answered `cursor` back as `since` to keep tailing. `wait` bounds the stream
-      # and it ends at the first entries, so a call returns as soon as there is something to say.
+      # A domain's event log past a cursor, answered once, at the first entries or after `wait`.
+      # Pass the answered `cursor` back as `since` to keep tailing.
       #
       # @param domain [Hash, String] a domain directory
       # @param aggregate [Hash, String, nil] only entries of this aggregate, by bare name
       # @param since [Hash, Integer, nil] how many entries were already seen; all when absent
       # @param from_now [Hash, Boolean, nil] skip what exists; answer only a cursor at its end
-      # @param wait [Hash, Integer, nil] seconds to wait for a new entry, at most 60
+      # @param wait [Hash, Integer, nil] seconds to wait for a new entry, at most 600
       # @param interval [Hash, Float, nil] seconds between checks of the log
+      # @param names [Hash, String, nil] event names to hand over, comma separated
       # @return [Hash] the `Tail` row: `cursor:`, `events:` (payloads as JSON text) and `taken_at:`
       # @raise [Runtime::NotFound] if the domain cannot be found or keeps no event log
-      def follow(domain:, aggregate: nil, since: nil, from_now: nil, wait: nil, interval: nil)
+      def follow(domain:, aggregate: nil, since: nil, from_now: nil, wait: nil, interval: nil, names: nil)
         registry = boot(domain).registry
         entries = []
         cursor = stream(domain: domain, aggregate: aggregate, since: since, from_now: from_now,
                         timeout: [plain(wait).to_f, MAX_FOLLOW_WAIT].min, interval: interval,
-                        registry: registry) do |entry|
+                        names: names, registry: registry) do |entry|
           entries << entry.merge("payload" => JSON.generate(entry["payload"]))
           :batch
         end
         { cursor: cursor, events: entries, taken_at: Time.at(Ports::Clock.now(registry)).utc.iso8601 }
       end
 
-      # Tails a domain's event log, handing each entry to the block as the log shows it, until
-      # the block returns `:stop` (or `:batch`: after this check's entries), `limit` entries were
-      # handed over, `timeout` seconds pass, or the reader goes away; unbounded, until interrupted.
+      # Tails a domain's event log, handing each entry to the block, until it returns `:stop` (or
+      # `:batch`), `limit` entries were handed over, `timeout` seconds pass or the reader goes away.
       #
       # @param domain [Hash, String] a domain directory
       # @param aggregate [Hash, String, nil] only entries of this aggregate, by bare name
       # @param since [Hash, Integer, nil] entries already seen; `from_now` skips what exists
       # @param limit [Hash, Integer, nil] entries to hand over at most, or `timeout` seconds
       # @param interval [Hash, Float, nil] seconds between checks (0.5 when absent)
+      # @param names [Hash, String, nil] event names to hand over, comma separated
       # @param registry [Runtime::Registry, nil] the domain's booted registry; booted here if absent
       # @return [Integer] the count of log entries seen, to pass back as `since`
       # @raise [Runtime::NotFound] if the domain cannot be found or keeps no event log
       def stream(domain:, aggregate: nil, since: nil, from_now: nil, limit: nil, timeout: nil, interval: nil,
-                 registry: nil, &)
-        repository = event_repository(domain, registry)
+                 names: nil, registry: nil, &)
+        repository = event_repository(domain, registry, plain(aggregate))
         tail = Tail.new(plain(since)&.to_i || (plain(from_now) ? repository.events.size : 0), 0, false)
-        bounds = Bounds.new(plain(aggregate), plain(limit)&.to_i, deadline_for(timeout), plain(interval))
-        watch(repository, tail, bounds, &)
+        watch(repository, tail, bounds_for(aggregate, limit, timeout, interval, names), &)
       rescue Errno::EPIPE, Interrupt
         tail.seen
       end
@@ -211,18 +213,17 @@ module Hecks
         root if File.exist?(File.join(root, CHECKOUT_MARKER))
       end
 
-      def event_repository(domain, registry = nil)
-        registry ||= boot(domain).registry
-        repositories = registry.bluebooks.flat_map do |name, bluebook|
-          bluebook.aggregates.map { |aggregate| registry.repository(name, aggregate) }
-        end
-        repositories.find { |repository| repository.respond_to?(:events) } or
-          raise Runtime::NotFound, "no adapter in #{plain(domain)} persists an event log"
+      # What a stream follows: the aggregate, the entry cap, the deadline, the check interval and
+      # the event names.
+      def bounds_for(aggregate, limit, timeout, interval, names)
+        Bounds.new(plain(aggregate), plain(limit)&.to_i, deadline_for(timeout), plain(interval), plain(names).to_s.split(","))
       end
 
-      # Says whether `event` passes the aggregate filter: a bare name, case-insensitive, or exact.
-      def followed?(event, filter)
-        filter.nil? || Naming.demodulise(event.aggregate).casecmp?(filter) || event.aggregate == filter
+      # Says whether `event` passes the aggregate filter (a bare name, case-insensitive, or exact)
+      # and the event-name filter (a list of names, empty for every event).
+      def followed?(event, filter, names = [])
+        (filter.nil? || Naming.demodulise(event.aggregate).casecmp?(filter) || event.aggregate == filter) &&
+          (names.empty? || names.include?(event.name))
       end
     end
   end

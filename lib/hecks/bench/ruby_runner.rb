@@ -84,7 +84,7 @@ module Hecks
       end
 
       def drop_schema(schema)
-        require "pg"
+        require "hecks/pg_options"
         connection = PG.connect(dbname: DATABASE, connect_timeout: 2)
         connection.exec("SET client_min_messages = warning")
         connection.exec("DROP SCHEMA IF EXISTS #{connection.quote_ident(schema)} CASCADE")

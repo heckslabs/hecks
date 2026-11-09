@@ -128,13 +128,19 @@ module Hecks
         File.exist?(File.join(mod_dir, "manifest.json")) or raise Failure, "#{mod_dir}: no committed manifest.json — " \
                                                                            "re-run hecks project_rust for this domain to write it"
         out_dir = File.join(scratch, domain)
-        output, status = Open3.capture2e("cargo", "run", "--quiet", "--", "domain", ir_path, domain, domain, out_dir,
-                                         chdir: File.join(rust_dir, "codegen"))
+        output, status = run_codegen(%w[cargo run --quiet -- domain] + [ir_path, domain, domain, out_dir])
         status.success? or raise Failure, "hecks-codegen domain failed for #{domain}:\n#{output}"
         # `hecks-codegen domain` writes no ir.json sidecar; the cross-check reads the committed IR
         # the generator was just handed.
         FileUtils.cp(ir_path, File.join(out_dir, "ir.json"))
         out_dir
+      end
+
+      # Runs `hecks-codegen` through `cargo run` under the worktree's own target directory, since it
+      # runs the binary the build produced.
+      def run_codegen(cargo)
+        crate = File.join(rust_dir, "codegen")
+        RustBuild.capture_build(cargo, chdir: crate, binary: true)
       end
 
       def print_report(domain, mod_dir)

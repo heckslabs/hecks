@@ -2,6 +2,7 @@
 
 require "monitor"
 require "stringio"
+require_relative "../../boot_notices"
 
 module Hecks
   module Adapters
@@ -26,7 +27,8 @@ module Hecks
         def ok? = status.zero?
       end
 
-      # Raised when a captured entry point ends with a non-zero status; the message is its output.
+      # Raised when a captured entry point ends with a non-zero status; the message is what it said,
+      # with its own words first and the runtime's boot notices after them (`BootNotices.compose`).
       class Failure < StandardError; end
 
       # The process-wide lock a capture holds; reentrant, so a capture may run another.
@@ -73,10 +75,10 @@ module Hecks
       #
       # @yield the entry point to run
       # @return [String] stdout when the entry point ended with status 0
-      # @raise [Failure] when it ended otherwise; the message is what it printed
+      # @raise [Failure] when it ended otherwise; the message leads with its own words
       def answer_apart(&)
         out, err, status = synchronize { apart(&) }
-        raise Failure, (out + err).strip unless status.zero?
+        raise Failure, BootNotices.compose(out + err) unless status.zero?
 
         $stderr.write(err)
         out
@@ -98,10 +100,10 @@ module Hecks
       #
       # @yield the entry point to run
       # @return [String] the output when the entry point ended with status 0
-      # @raise [Failure] when it ended otherwise; the message is what it printed
+      # @raise [Failure] when it ended otherwise; the message leads with its own words
       def answer(&)
         outcome = capture(&)
-        raise Failure, outcome.output.strip unless outcome.ok?
+        raise Failure, BootNotices.compose(outcome.output) unless outcome.ok?
 
         outcome.output
       end

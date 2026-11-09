@@ -205,6 +205,8 @@ RSpec.describe "Hecks::Tools::GateMemo inputs" do
       _, status = Open3.capture2("git", "-C", root, "init", "-q")
       raise "git init failed" unless status.success?
 
+      # Only the run on this tree is remembered, so removing the file leaves a tree no run covers.
+      FileUtils.rm_f(memo_file)
       ran_green
     end
 

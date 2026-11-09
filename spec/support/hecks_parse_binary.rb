@@ -1,5 +1,6 @@
 require "rspec/core"
 require "hecks/composer"
+require "hecks/rust_build/build_lock"
 
 # Specs that run the Composer's check need `hecks-parse`, the Rust parser. A group that includes
 # this context builds it once, as spec/parser_parity_spec.rb does, and fails when it cannot: a
@@ -17,7 +18,9 @@ module HecksParseBinary
   def build!
     Hecks::Composer::Parse.binary
   rescue Hecks::Composer::Parse::ParserMissing
-    built = system("cargo", "build", chdir: DIR, out: File::NULL, err: File::NULL)
+    built = Hecks::RustBuild::BuildLock.hold do |held|
+      system(held, "cargo", "build", chdir: DIR, out: File::NULL, err: File::NULL)
+    end
     raise "cargo build failed for rust/parser — run `cargo build` there directly to see why" unless built
 
     Hecks::Composer::Parse.binary

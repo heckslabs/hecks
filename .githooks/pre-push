@@ -123,8 +123,11 @@ fi
 printf '\n[pre-push] every gate check is green.\n\n'
 
 # Attestation: a git note under refs/notes/ci, keyed by HEAD^{tree} and carrying an HMAC
-# signed with the keychain key hecks-ci-attest-key, tells CI which checks it can skip.
-# Best-effort: a missing key or a failed notes push never blocks the push.
+# signed with the keychain key hecks-ci-attest-key, tells CI which checks it can skip. The
+# checks it names are the GateCheck rows marked `attests` in the Vocabulary bluebook;
+# `hecks regeneration_run.project_ci_gates!` writes them into the marked line below, so this
+# hook keeps no list of its own. Best-effort: a missing key or a failed notes push never
+# blocks the push.
 #
 # The notes push needs --no-verify: otherwise it re-enters this hook and reruns the suite.
 ATTEST_KEY=$(security find-generic-password -a "$(whoami)" -s hecks-ci-attest-key -w 2>/dev/null || true)
@@ -138,7 +141,9 @@ if [ -n "$ATTEST_DIRTY" ]; then
   printf '[pre-push] the working tree has uncommitted changes, so the checks did not run on HEAD alone — no CI attestation note written\n\n'
 elif [ -n "$ATTEST_KEY" ]; then
   ATTEST_TREE=$(git rev-parse HEAD^{tree})
-  ATTEST_CHECKS="doc_coverage,engine_agreement,model_check,rubocop"
+  # BEGIN GENERATED attested_checks local (GateCheck and RequiredCheck rows; hecks project_ci_gates). Do not hand-edit.
+  ATTEST_CHECKS="engine_agreement,model_check,doc_coverage,rubocop"
+  # END GENERATED attested_checks
   ATTEST_HMAC=$(printf '%s:%s' "$ATTEST_TREE" "$ATTEST_CHECKS" | openssl dgst -sha256 -hmac "$ATTEST_KEY" -r | awk '{print $1}')
 
   if git notes --ref=ci add -f -m "checks=$ATTEST_CHECKS

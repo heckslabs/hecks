@@ -12,6 +12,8 @@ module Hecks
 
         HOST = %r{--bg-pty-host \S*/spare/[0-9a-f]+\.pty\.sock}
         BLANKS = /\s+/
+        # A line of `lsof -Fn` output that names a file: `n` and the path.
+        NAME_FIELD = /\An/
 
         # @param shell [#capture] runs `ps`
         # @param now [Time] what ages are counted back from
@@ -26,6 +28,13 @@ module Hecks
           return [] unless result.ok?
 
           result.out.lines.filter_map { |line| entry(line) }
+        end
+
+        # @return [Array<String>, nil] every process's working directory, nil when `lsof` cannot
+        #   say
+        def working_directories
+          result = @shell.capture("lsof", "-a", "-d", "cwd", "-Fn")
+          result.ok? ? paths_of(result.out) : nil
         end
 
         # @return [Array<Entry>] the hosts spawned for spares
@@ -49,6 +58,8 @@ module Hecks
         def started(entry) = @now - entry.age
 
         private
+
+        def paths_of(out) = out.lines.grep(NAME_FIELD).map { |line| line[1..].strip }
 
         def entry(line)
           pid, ppid, etime, rss, command = line.strip.split(BLANKS, 5)

@@ -96,11 +96,13 @@ module Hecks
 
       def gone?(id)
         @shell.capture(@command, "rm", id)
+        @listing.forget!
         @listing.find(id).nil?
       end
 
       def stopped(id)
         @shell.capture(@command, "stop", id)
+        @listing.forget!
         return true if gone?(id)
 
         raise ConsoleCapture::Failure, "#{@command} rm #{id} refused: the session is still listed"

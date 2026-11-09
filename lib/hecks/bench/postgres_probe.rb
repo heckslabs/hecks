@@ -8,7 +8,7 @@ module Hecks
       module_function
 
       def unavailable_reason
-        require "pg"
+        require "hecks/pg_options"
         PG.connect(dbname: "postgres", connect_timeout: 2).close
         nil
       rescue LoadError
@@ -19,7 +19,7 @@ module Hecks
       end
 
       def server_version
-        require "pg"
+        require "hecks/pg_options"
         connection = PG.connect(dbname: "postgres", connect_timeout: 2)
         connection.exec("SHOW server_version").getvalue(0, 0)
       rescue LoadError, PG::Error

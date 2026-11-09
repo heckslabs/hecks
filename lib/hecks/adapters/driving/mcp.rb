@@ -1,9 +1,9 @@
 require "json"
-require_relative "../.."
 require_relative "../../tools/mcp"
 require_relative "mcp/tool_definitions"
-require_relative "mcp/tool_calls"
-require_relative "mcp/progress_sink"
+require_relative "mcp/loading"
+require_relative "mcp_scope"
+require_relative "mcp/roles"
 
 module Hecks
   module Adapters
@@ -11,7 +11,8 @@ module Hecks
       # The MCP server onto the storehouse bus: hand-rolled JSON-RPC over stdio, one
       # server per booted domain. All logic and the JSON shape answered with live in
       # `Storehouse`; this is plumbing only. A `role:`/`actor_id:` a caller sends is
-      # asserted, not verified, unless Governance is attached.
+      # asserted, not verified, unless Governance is attached. `Loading` holds what waits for
+      # the first call that needs it; `Roles` narrows the server to its session's role.
       #
       # There is no authentication: `domain:` boots real Ruby confined to
       # `Storehouse::BOOT_ROOT`, so this is a code execution surface for anyone who
@@ -38,18 +39,13 @@ module Hecks
           "ping"       => :ping_result
         }.freeze
 
+        # What a batch, or a value that is not a request object, is answered.
+        INVALID_REQUEST = "Invalid Request: one request object per line; batches are not supported".freeze
+
+        extend Loading
+        extend Roles
+
         module_function
-
-        # Read once, so a bad setting refuses to start the server before anything is
-        # written to stdout.
-        def scope
-          @scope ||= McpScope.start!(server: Tools::Mcp::SERVER)
-        end
-
-        # The standing notes, then what this server's scope says about `domain:`.
-        def warning_notes
-          NOTES[0, 2] + (scope.restricted? ? scope.notes : [NOTES[2]])
-        end
 
         def serve
           McpStdioGuard.warn!(server: Tools::Mcp::SERVER, notes: warning_notes)
@@ -67,9 +63,15 @@ module Hecks
           send_error(nil, -32_700, "Parse error: #{e.message}")
         end
 
-        # Handles a request, answering an internal error rather than ending the server.
+        # Handles a request, answering an internal error rather than ending the server. A batch (a
+        # JSON array) or any other value that is not an object is one invalid request. A late load
+        # that failed is answered with its own message, on every call that needs it.
         def handle_safely(request)
+          return send_error(nil, -32_600, INVALID_REQUEST) unless request.is_a?(Hash)
+
           handle(request)
+        rescue McpLazyLoad::Failed => e
+          send_error(request["id"], -32_603, e.message) unless request["id"].nil?
         rescue StandardError => e
           send_error(request["id"], -32_603, "Internal error: #{e.class}: #{e.message}")
         end
@@ -79,25 +81,17 @@ module Hecks
         # domain afresh on every call; a restricted server lives for one spawner's session and
         # keeps each named domain booted until the files of its directory change.
         def boot(domain)
+          framework!
           path = Storehouse.confine!(scope.admit_domain!(domain), "domain")
           runtime = scope.restricted? ? resident_boot(path) : Hecks.boot(path, install_driving: false)
           Admission.admit!(runtime.registry, "Mcp")
           runtime
         end
 
-        # The runtime a restricted server keeps for `path`, booted again once its files change.
-        def resident_boot(path)
-          resident    = (@resident ||= {})
-          fingerprint = Storehouse.fingerprint(path)
-          return resident[path][:runtime] if resident[path] && resident[path][:fingerprint] == fingerprint
-
-          resident[path] = { fingerprint: fingerprint, runtime: Hecks.boot(path, install_driving: false) }
-          resident[path][:runtime]
-        end
-
         def answer_tool(name, args)
           return scope.refusal(name) unless scope.permits_tool?(name)
 
+          framework!
           ToolCalls.call(name, scope.with_default_domain(args))
         end
 
@@ -108,6 +102,7 @@ module Hecks
         def command_guide
           return unless scope.commands_mode? && scope.default_domain
 
+          framework!
           McpGuideCache.remember(scope.default_domain, scope.allowed_commands) do
             Storehouse.command_guide(boot(scope.default_domain), scope.allowed_commands)
           end
@@ -155,23 +150,6 @@ module Hecks
 
           with_progress(token) { tool_result(answer_tool(params["name"], params["arguments"] || {})) }
         end
-
-        # Runs the block with a progress seam for this call's stages, so their lines reach the
-        # client as
-        # notifications. The seam is per thread and removed when the call ends.
-        # @param token [Object] the client's progress token
-        # @return [Object] the block's value
-        def with_progress(token)
-          previous = Thread.current[:mcp_progress]
-          Thread.current[:mcp_progress] = Tools::StageProgress.new(ProgressSink.new(token, out: $stdout))
-          yield
-        ensure
-          Thread.current[:mcp_progress] = previous
-        end
-
-        # The progress seam of the call on this thread: nil when the client sent no progress token.
-        # @return [Tools::StageProgress, nil]
-        def progress = Thread.current[:mcp_progress]
 
         def ping_result(_params) = {}
       end
