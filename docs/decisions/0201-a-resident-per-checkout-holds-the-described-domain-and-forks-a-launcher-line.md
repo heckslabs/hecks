@@ -548,11 +548,34 @@ What was checked about the other ways to start it:
 - `spec/launcher_shebang_spec.rb` starts the launcher cold through its shebang, under `bundle exec` and as a script
   argument to `ruby`, and pins both shebangs and the position of the `require "rubygems"` after the probe.
 
-Seen while measuring, and not addressed here: `~/Library/Logs/DiagnosticReports` holds eight `ruby-2026-11-09-*.ips`
-reports (a run at 00:17 to 00:21, one a minute, then single ones at 01:19, 02:48 and 04:36). The one read says
-`EXC_CRASH` with `SIGABRT`, namespace `OBJC`, and "crashed on child side of fork pre-exec", with a Ruby as its parent
-process: the macOS Objective-C runtime aborts a forked child that touches a class whose initializer was running in
-another thread at the fork. The resident forks a child per line, so a resident child is the likely source, and
-`ReportCrash` used half a core while the latest numbers above were taken. The usual remedy for a Ruby that forks
-without exec on macOS is `OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES` in the resident's environment
-(`Resident::SpawnEnv`); it has not been tried, and the library that triggers the abort has not been identified.
+### A child that opens a Postgres connection
+
+`~/Library/Logs/DiagnosticReports` held 25 `ruby-2026-11-0*.ips` reports (a run at 00:17 to 00:21, one a minute,
+then single ones through 04:36), and `ReportCrash` used half a core while the numbers above were taken. All 25 say
+`EXC_CRASH` with `SIGABRT`, namespace `OBJC`, "crashed on child side of fork pre-exec", with a Ruby as the parent:
+every one is a forked child of a process that never execs, none is the resident itself.
+
+All 25 carry the same stack. The faulting thread runs `libobjc` (the fork-safety abort), `CoreFoundation`,
+`Kerberos __init_log_block_invoke`, `Kerberos cc_initialize`, then the `pg` gem's bundled libpq:
+`api_macos_ptcursor_next`, `krb5_cccol_have_content`, `gss_acquire_cred`, `pg_GSS_have_cred_cache`,
+`init_allowed_encryption_methods`, `PQconnectPoll`, `PQconnectStart`, `gvl_PQconnectStart`. On its first connection
+attempt libpq asks the macOS Kerberos framework whether a credential cache exists, which sets up an Objective-C class,
+and the runtime aborts a process that does that between `fork` and `exec`. A resident child that opens a Postgres
+connection (a spec run in the child against Postgres, a store bound to it) is such a process.
+
+It reproduces without a resident. A Ruby with `pg` loaded that forks three children, each calling
+`PG::Connection.connect_start("host=127.0.0.1 port=1 connect_timeout=1")`, ends all three by signal 6, and the
+runtime prints "+[__NSCFConstantString initialize] may have been in progress in another thread when fork() was
+called ... Crashing instead". The same forks end cleanly in either of two cases:
+
+- the Ruby starts with `OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES`;
+- the parent opens one refused connection before it forks.
+
+The resident does both. `SpawnEnv::FORCE` adds the variable to the environment every resident is started with,
+whoever starts it; the runtime reads it when the process starts, so a child's `ENV.replace` with the caller's
+variables does not undo it, and it is not among the variables a line is compared on (`LOADED_WITH` and the traced
+`HECKS_*`, `CARGO_*`, `PG*` names). `ForkWarmup.run` makes the one refused connection at `settle`, before the first
+fork, on macOS only, and does nothing where `pg` is not installed. `spec/resident_fork_safety_spec.rb` pins the
+environment, the warm-up, and the two clean-fork cases on a real forking Ruby. Lines that never open a Postgres
+connection (the polled reads, the style checks, spec runs that start their own Ruby) never met the abort, so a replay
+of them proves nothing about it: the reproduction above does.

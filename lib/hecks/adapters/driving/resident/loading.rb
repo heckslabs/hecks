@@ -119,6 +119,7 @@ module Hecks
           # copying them.
           def settle
             Hecks::Bluebook::MetaValidator::VerdictCache.flush
+            ForkWarmup.run
             Process.warmup
           end
 

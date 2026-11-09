@@ -33,9 +33,11 @@ RSpec.describe "a resident's environment" do
         "PGHOST" => "db", "CLAUDE_CODE_SESSION_ID" => "s", "SSH_AUTH_SOCK" => "/s" }
     end
 
-    it "keeps where its programs and cache are, who it is and its locale", :aggregate_failures do
+    it "keeps where its programs and cache are, who it is and its locale, and adds the fork switch",
+       :aggregate_failures do
       built = resident::SpawnEnv.build(caller_env)
-      expect(built.keys).to contain_exactly("PATH", "HOME", "TMPDIR", "LC_ALL", "XDG_CACHE_HOME", "HECKS_CACHE_DIR")
+      expect(built.keys).to contain_exactly("PATH", "HOME", "TMPDIR", "LC_ALL", "XDG_CACHE_HOME", "HECKS_CACHE_DIR",
+                                            "OBJC_DISABLE_INITIALIZE_FORK_SAFETY")
       expect(built["HOME"]).to eq("/h")
     end
 

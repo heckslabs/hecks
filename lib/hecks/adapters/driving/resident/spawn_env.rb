@@ -19,15 +19,23 @@ module Hecks
                     HECKS_RESIDENT_PROTOCOL].freeze
           # The locale variables, kept as a family.
           KEEP_PREFIX = "LC_".freeze
+          # Set for every resident, whatever its starter had. The resident forks a child per line
+          # and the child never execs. On macOS the Objective-C runtime aborts a forked child that
+          # sets up a system class for the first time (`pg`'s libpq does, through Kerberos), and
+          # this variable turns that abort off. The runtime reads it when the process starts, so a
+          # child's `ENV.replace` with the caller's variables does not undo it. No line is compared
+          # on it: the resident's baseline names only the variables the loaded code read.
+          FORCE = { "OBJC_DISABLE_INITIALIZE_FORK_SAFETY" => "YES" }.freeze
 
           module_function
 
           # @param env [#to_h] the starting launcher's environment
-          # @return [Hash{String => String}] only what a resident keeps; every other variable
-          #   (`HECKS_*`, `CARGO_*`, `PG*`, `BUNDLE_*`, `GEM_*`, `RUBYOPT`, `RUBYLIB`, `CLAUDE_*`
-          #   and the rest) is dropped
+          # @return [Hash{String => String}] only what a resident keeps, and the `FORCE` pair;
+          #   every other variable (`HECKS_*`, `CARGO_*`, `PG*`, `BUNDLE_*`, `GEM_*`, `RUBYOPT`,
+          #   `RUBYLIB`, `CLAUDE_*` and the rest) is dropped
           def build(env = ENV)
-            env.to_h.select { |name, _value| KEEP.include?(name) || name.start_with?(KEEP_PREFIX) }
+            kept = env.to_h.select { |name, _value| KEEP.include?(name) || name.start_with?(KEEP_PREFIX) }
+            kept.merge(FORCE)
           end
         end
       end
