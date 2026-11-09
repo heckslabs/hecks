@@ -214,7 +214,7 @@ module Hecks
       # What a stream follows: the aggregate, the entry cap, the deadline, the check interval and
       # the event names.
       def bounds_for(aggregate, limit, timeout, interval, names)
-        Bounds.new(plain(aggregate), plain(limit)&.to_i, deadline_for(timeout), plain(interval), event_names(names))
+        Bounds.new(plain(aggregate), plain(limit)&.to_i, deadline_for(timeout), plain(interval), plain(names).to_s.split(","))
       end
 
       # The repository whose event log a follow reads: the named aggregate's when it keeps one, else
@@ -240,9 +240,6 @@ module Hecks
         (filter.nil? || Naming.demodulise(event.aggregate).casecmp?(filter) || event.aggregate == filter) &&
           (names.empty? || names.include?(event.name))
       end
-
-      # The event names a comma-separated `names` argument lists.
-      def event_names(argument) = Text.comma_list(plain(argument).to_s)
     end
   end
 end
