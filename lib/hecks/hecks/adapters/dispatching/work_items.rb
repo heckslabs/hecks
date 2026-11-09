@@ -86,7 +86,9 @@ module Hecks
 
         def item(record)
           Plan::Item.new(key: field(record, :work).to_s, title: field(record, :title).to_s,
-                         detail: field(record, :detail).to_s, area: StartedWork.words(field(record, :area)))
+                         detail: field(record, :detail).to_s, area: StartedWork.words(field(record, :area)),
+                         yield_kind: field(record, :yield_kind).to_s, retry_at: field(record, :retry_at).to_s,
+                         yield_count: field(record, :yield_count).to_i)
         end
 
         def state(run) = { status: field(run, :status).to_s, condition: field(run, :condition).to_s }

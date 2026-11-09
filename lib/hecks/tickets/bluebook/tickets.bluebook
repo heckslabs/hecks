@@ -274,6 +274,9 @@ Hecks.bluebook "Tickets" do
     attribute :detail, WorkText, optional: true
     attribute :step,   Step, optional: true
     attribute :reason, WorkText, optional: true
+    attribute :yield_kind, WorkText, optional: true
+    attribute :retry_at, WorkText, optional: true
+    attribute :yield_count, YieldCount, optional: true
     attribute :claimed_by, Claimant, optional: true
     attribute :claimed_at, ClaimedAt, optional: true
     attribute :area,   list_of(Word), optional: true
@@ -341,6 +344,13 @@ Hecks.bluebook "Tickets" do
     end
 
     value_object "WorkText", String
+
+    # How many times a work item has been sent back to the plan; its backoff grows with it.
+    value_object "YieldCount" do
+      attribute :value, Integer
+
+      invariant("a yield count is not negative") { !value.negative? }
+    end
 
     # Where the work stands in its plan: step 0 comes first.
     value_object "Step" do
@@ -501,6 +511,9 @@ Hecks.bluebook "Tickets" do
 
       reference_to Work
       attribute :reason, WorkText, sets: true
+      attribute :yield_kind, WorkText, optional: true, sets: true
+      attribute :retry_at, WorkText, optional: true, sets: true
+      attribute :yield_count, YieldCount, optional: true, sets: true
 
       sets :claimed_by, to: ""
       sets :claimed_at, to: ""

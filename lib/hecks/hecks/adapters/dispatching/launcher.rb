@@ -5,6 +5,7 @@ require "time"
 require_relative "../shell"
 require_relative "../console_capture"
 require_relative "brief_text"
+require_relative "parking"
 require_relative "step_outcome"
 
 module Hecks
@@ -63,14 +64,23 @@ module Hecks
         # @param key [String] the Work item to send back to the plan
         # @param reason [String] why
         # @return [String] the line that says so, and why the yield was not recorded when it was not
-        def yield_back(key, reason)
+        def yield_back(key, reason, now: Time.now.utc)
+          count = key.respond_to?(:yield_count) ? key.yield_count.to_i + 1 : 1
           key = key.key if key.respond_to?(:key)
-          outcome = StepOutcome.new(@runner.call(["tickets", "Work.yield!", "to=#{key}", "reason.value=#{reason}", "--wait"]))
+          kind = Parking.classify(reason, count: count, now: now)
+          outcome = StepOutcome.new(@runner.call(yield_argv(key, reason, kind, count)))
           line = "yielded #{key}: #{reason}"
           outcome.ok? ? line : "#{line} (the yield was not recorded: #{outcome.reason})"
         end
 
         private
+
+        # The `Work.yield!` line: the reason, and the kind that says when to try the item again.
+        def yield_argv(key, reason, kind, count)
+          retry_at = kind.retry_at ? kind.retry_at.utc.iso8601 : ""
+          ["tickets", "Work.yield!", "to=#{key}", "reason.value=#{reason}", "yield_kind.value=#{kind.name}",
+           "retry_at.value=#{retry_at}", "yield_count.value=#{count}", "--wait"]
+        end
 
         # Runs one step and answers its outcome; a step whose command did not do its part raises
         # with the command's own reason.

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../area_overlap"
+require_relative "parking"
 
 module Hecks
   module Adapters
@@ -10,7 +11,8 @@ module Hecks
       # the
       # work items it is given and starts nothing.
       #
-      # A planned work item waits when it sits in a frozen area, when its area overlaps a started
+      # A planned work item waits when its last yield parked it ({Parking}), when it sits in a
+      # frozen area, when its area overlaps a started
       # work item's or
       # an
       # earlier chosen work item's (by {AreaOverlap}), or when the machine is loaded or the cap is
@@ -18,7 +20,8 @@ module Hecks
       # which also hold back every work item after it.
       class Plan
         # A work item, as {WorkItems} reads it.
-        Item = Struct.new(:key, :title, :detail, :area, keyword_init: true)
+        # `yield_kind`, `retry_at` and `yield_count` are what its last yield recorded ({Parking}).
+        Item = Struct.new(:key, :title, :detail, :area, :yield_kind, :retry_at, :yield_count, keyword_init: true)
 
         # The top level of this checkout: the root an absolute area is made relative to.
         REPOSITORY = File.expand_path("../../../../..", __dir__)
@@ -37,7 +40,9 @@ module Hecks
 
         # @param planned [Array<Item>] the planned work items, in plan order
         # @param started [Array<Item>] the started work items
-        # @param limits [Hash] `cap:` (Integer), `load:` and `max_load:` (Float), `frozen:` (Array)
+        # @param limits [Hash] `runs:` (callable answering the AgentRun states by run key, optional)
+        #   and `now:` (Time, optional), `cap:` (Integer), `load:` and `max_load:` (Float),
+        #   `frozen:` (Array)
         #   and `paused:` (String, optional: why every work item waits, "skipped: paused by load")
         #   and `root:` (String, optional: this repository's top level, to tell its areas from
         #   another checkout's; the checkout holding this file by default)
@@ -57,8 +62,13 @@ module Hecks
         private
 
         def consider(item)
-          reason = stop_reason || frozen_reason(item) || overlap_reason(item)
+          reason = parked_reason(item) || stop_reason || frozen_reason(item) || overlap_reason(item)
           reason ? @skipped << Skip.new(item.key, reason) : @chosen << item
+        end
+
+        # A yielded item waits out its backoff or its blocker, and does not count against the cap.
+        def parked_reason(item)
+          Parking.reason(item, runs: @limits[:runs] || -> { {} }, now: @limits[:now] || Time.now.utc)
         end
 
         def stop_reason = @limits[:paused] || overloaded || capped
