@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "time"
+require_relative "../board_restart"
 
 module Hecks
   module Adapters
@@ -13,13 +14,30 @@ module Hecks
         WAITING = { unknown: "the first read is still in progress" }.freeze
         STALE_AFTER = 2
 
+        # A snapshot read at the Hecks world's `board_restart` period, that restarts the board
+        # when it has grown or stood too long.
+        #
+        # @param source [#call] answers the state hash
+        # @param registry [Runtime::Registry, nil] whose world declares the limits
+        # @param settings [Hash] `background:` and `restart:` (a {BoardRestart} stand-in)
+        # @return [Snapshot]
+        def self.kept_small(source:, registry:, settings:)
+          limits = BoardRestart.limits(registry)
+          restart = settings.fetch(:restart) { BoardRestart.new(limits: limits) }
+          new(source: source, background: settings.fetch(:background, true), every: limits[:refresh_seconds],
+              after_read: restart.method(:check))
+        end
+
         # @param source [#call] answers the state hash
         # @param every [Numeric] seconds between reads
         # @param background [Boolean] read on a thread, not on request
         # @param now [#call] answers the current time
-        def initialize(source:, every: 10, background: true, now: -> { Time.now.utc })
+        # @param after_read [#call, nil] runs after each read, such as the check that restarts a
+        #   board grown too large
+        def initialize(source:, every: 30, background: true, now: -> { Time.now.utc }, after_read: nil)
           @source = source
           @every = every
+          @after_read = after_read
           @background = background
           @now = now
           @lock = Mutex.new
@@ -57,6 +75,7 @@ module Hecks
         def refresh_forever
           loop do
             read_once
+            @after_read&.call
             @wake.pop(timeout: @every)
           end
         end

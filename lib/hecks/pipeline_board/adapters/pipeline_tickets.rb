@@ -2,6 +2,7 @@
 
 require "json"
 require_relative "probe"
+require_relative "live_store"
 require_relative "pipeline_tickets/run_detail"
 require_relative "../../hecks/adapters/started_work"
 
@@ -24,8 +25,11 @@ module Hecks
       # @param settings [Hash] `work_items:` and `landings:` stand in for the registry's Work and
       #   Landing records
       # @param root [String, nil] unused
+      # `live_store:` in `settings` stands in for the {PipelineBoard::LiveStore} read when the board
+      # is told where the live store is (`PIPELINE_BOARD_LAUNCHER_ROOT`).
       def initialize(registry: nil, aggregate: nil, settings: {}, root: nil)
         @registry = registry
+        @live = settings.fetch(:live_store) { live_store_named }
         @standin = settings[:work_items]
         @landed = settings[:landings]
       end
@@ -47,21 +51,14 @@ module Hecks
         @runs_held[:value]
       end
 
-      # The AgentRun records: the launcher's running and finished runs when the board is told where
-      # the live store is, else the booted registry's.
-      def run_records
-        root = ENV.fetch("PIPELINE_BOARD_LAUNCHER_ROOT", "")
-        return records_of("Hecks", "AgentRun") if root.empty?
-
-        %w[AgentRun.running AgentRun.tidyable].flat_map do |query|
-          PipelineBoard::Probe.json("exe/hecks", query, chdir: root).map { |row| row.transform_keys(&:to_sym) }
-        end
-      end
+      # The AgentRun records of the live store when the board is told where it is, else the booted
+      # registry's.
+      def run_records = @live ? @live.records("Hecks", "AgentRun") : records_of("Hecks", "AgentRun")
 
       # @return [Array<String>] the branches the Landing records say were merged onto main, with any
       #   leading `qa/` taken off
       def landed_branches
-        landings = @landed || records_of("Hecks", "Landing")
+        landings = @landed || landing_records
         landed = landings.select { |land| field(land, :status).to_s == "landed" }
         landed.map { |land| field(land, :branch).to_s.delete_prefix("qa/") }
       end
@@ -69,25 +66,27 @@ module Hecks
       private
 
       def items
-        found = @standin || from_launcher || records_of("Tickets", "Work").map { |record| item(record) }
+        found = @standin || from_live_store || records_of("Tickets", "Work").map { |record| item(record) }
         raise PipelineBoard::Unavailable, EMPTY if found.empty?
 
         found
       end
 
-      # The undone Work items as the launcher reads them in the checkout that holds the live
-      # store, when the board is told where that is (PIPELINE_BOARD_LAUNCHER_ROOT). Nil otherwise.
-      def from_launcher
+      # The undone Work items of the live store, when the board is told where it is. Nil otherwise.
+      def from_live_store
+        return nil unless @live
+
+        @live.records("Tickets", "Work").map { |record| item(record) }.reject { |work| DONE.include?(work[:status]) }
+      end
+
+      # The live store held by the checkout named in `PIPELINE_BOARD_LAUNCHER_ROOT`, if any.
+      def live_store_named
         root = ENV.fetch("PIPELINE_BOARD_LAUNCHER_ROOT", "")
-        return nil if root.empty?
-
-        PipelineBoard::Probe.json("exe/hecks", "tickets", "Work.undone", chdir: root).map { |row| launched(row) }
+        PipelineBoard::LiveStore.new(root: root) unless root.empty?
       end
 
-      def launched(row)
-        { slug: row["work"].to_s, status: row["status"].to_s, title: row["title"].to_s,
-          area: Array(row["area"]).map(&:to_s), claimed_by: row["claimed_by"].to_s, claimed_at: row["claimed_at"].to_s }
-      end
+      # The Landing records: the live store's, else the booted registry's.
+      def landing_records = @live ? @live.records("Hecks", "Landing") : records_of("Hecks", "Landing")
 
       def item(record)
         { slug: field(record, :work).to_s, status: field(record, :status).to_s, title: field(record, :title).to_s,

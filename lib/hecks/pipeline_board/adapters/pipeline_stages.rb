@@ -3,6 +3,7 @@
 require "json"
 require "time"
 require_relative "probe"
+require_relative "live_store"
 require_relative "rules"
 require_relative "pipeline_github"
 require_relative "pipeline_git"
@@ -115,11 +116,20 @@ module Hecks
       end
 
       def wire_work(readers, registry)
-        @tickets = readers.fetch(:tickets) { PipelineTickets.new(registry: registry) }
+        live = live_store_named
+        @tickets = readers.fetch(:tickets) { PipelineTickets.new(registry: registry, settings: { live_store: live }) }
         @jobs = readers.fetch(:jobs) { PipelineJobs.new(settings: { runs: -> { guard { @tickets.runs } } }) }
         @trains = readers.fetch(:trains) do
-          PipelineBoard::TrainDetail.new(root: ENV.fetch("PIPELINE_BOARD_LAUNCHER_ROOT", @root))
+          PipelineBoard::TrainDetail.new(root:       ENV.fetch("PIPELINE_BOARD_LAUNCHER_ROOT", @root),
+                                         live_store: live || PipelineBoard::LiveStore.new(root: @root))
         end
+      end
+
+      # The one in-process reader of the checkout `PIPELINE_BOARD_LAUNCHER_ROOT` names, shared by
+      # the readers that need its store; nil when the board is not pointed at another checkout.
+      def live_store_named
+        root = ENV.fetch("PIPELINE_BOARD_LAUNCHER_ROOT", "")
+        PipelineBoard::LiveStore.new(root: root) unless root.empty?
       end
 
       # The pinned agents panel: each role with its live sessions and last event, and the open
