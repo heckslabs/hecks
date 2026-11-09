@@ -69,14 +69,19 @@ before raising the number. A refusal never stops a `red-*` item.
 ## Diagnosing CPU
 
 The usage log (`~/.cache/hecks/usage.jsonl`) has one JSON line per launcher run: `typed`, `resolved`, `status`, `ms`
-(the command), `date`, `at`, `boot_ms` (process start to the command), `cold` (a bluebook had to be judged) and
-`caller` (`HECKS_CALLER`, else `CLAUDE_SESSION_ID`). The event tap is `~/.claude/hecks-dev/events.jsonl`, one line per
+(the command), `date`, `at`, `boot_ms` (process start to the command), `cold` (a bluebook had to be judged; never
+true for a line a resident served), `caller` (`HECKS_CALLER`, else `CLAUDE_SESSION_ID`; sessions are named
+`role:run`, the board `board`, the guard hook `hook:orchestrator_guard`) and `resident` (how the line met the
+resident: `served`, `none`, `started`, `bypass`, `unstable` or `refused:<reason>`, with reasons `stale`, `env`,
+`changed`, `script`, `busy`, `dropped`, `unsafe`, `path` and `crowded`). `exe/hecks usage` sums the outcomes, the
+share served, the refusal reasons and the last hour's boots per caller. The event tap is `~/.claude/hecks-dev/events.jsonl`, one line per
 event with `event`, `policy`, `command`, `outcome`, `at`.
 
 | Symptom | Likely cause | Look with |
 |---|---|---|
 | Load high, many short `ruby` processes | launcher boots with no resident (`HECKS_NO_RESIDENT`, unstable cache dir, more than 8 checkouts) | `ps -Ao pid,etime,command \| grep -c 'exe/hecks'`; `exe/hecks usage` cold/warm |
 | Same work id started again and again | a refusal that parks wrongly, or a run holding the key | count `WorkStarted` per id in the tap; `exe/hecks Dispatch.Preview` parked lines |
+| Few lines served by the resident | the `resident` field says why: `refused:changed` (code edits retire it), `refused:env`, `refused:busy`, `none`/`started` (no resident yet), `unstable` or `refused:crowded` | `exe/hecks usage` resident section (outcomes, share served, refusal reasons) |
 | Fill refuses with "boot budget spent" | measured boot hours over `cpu_budget` | `exe/hecks usage` by caller; the "Boot hours today" tile |
 | Parked item never starts | a time-based park with no event to wake the roll | `exe/hecks Dispatch.Preview`; any planned item event rolls it |
 | `rustc` at full CPU in a worktree | a build outside the dispatcher's environment | `ps -Ao pid,pcpu,command \| grep rustc`; `exe/hecks config domain.value=lib/hecks/hecks` |

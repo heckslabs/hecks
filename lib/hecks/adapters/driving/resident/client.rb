@@ -5,6 +5,7 @@ require "hecks/adapters/driving/resident/paths"
 require "hecks/adapters/driving/resident/wire"
 require "hecks/adapters/driving/resident/peer"
 require "hecks/adapters/driving/resident/crowd"
+require "hecks/adapters/driving/resident/outcome"
 
 module Hecks
   module Adapters
@@ -37,16 +38,30 @@ module Hecks
           # @param script [String] the launcher's own path (`__FILE__`)
           # @return [void] ends the process with the line's status when the resident ran it
           def run(script)
-            return if defined?(::Hecks::Adapters::Driving::Resident::CHILD) || bypass?
+            return if defined?(::Hecks::Adapters::Driving::Resident::CHILD)
+            return Outcome.note(Outcome::BYPASS) if bypass?
 
             root = Paths.root_for(script)
-            return unless Paths.usable?(root)
-
-            status = ask(root, script)
-            exit(status) if status
-            spawn_resident(root, script)
+            reason = Paths.unusable_reason(root)
+            Outcome.note(reason ? unusable(reason) : attempt(root, script))
           rescue *LOST
-            nil
+            Outcome.note(Outcome::NONE)
+          end
+
+          # @return [String] the outcome for a root no resident may serve
+          def unusable(reason) = reason == "unstable" ? Outcome::UNSTABLE : Outcome.refused(reason)
+
+          # Asks the resident, ends the process with its status when it ran the line, and otherwise
+          # starts one for the next line, whether or not one refused this line: a resident whose
+          # code changed has retired, and the next line needs a new one.
+          #
+          # @return [String] the outcome when the launcher goes on to boot on its own: the reason a
+          #   resident gave for not serving the line, else what starting one came to
+          def attempt(root, script)
+            status, why = ask(root, script)
+            exit(status) if status
+            spawned = spawn_resident(root, script)
+            why ? Outcome.refused(why) : spawned
           end
 
           # @return [Boolean] whether this line is one the launcher runs itself
@@ -71,14 +86,17 @@ module Hecks
           # launcher boots on its own, so a resident that is slow never runs a line this launcher
           # then runs itself.
           #
-          # @return [Integer, nil] the line's exit status, or nil when the resident did not take it
+          # @return [Array(Integer, nil), Array(nil, String)] the line's exit status and nil, or nil
+          #   and why the resident did not take it (nil when there was nothing to ask)
           def ask(root, script)
-            return unless Paths.trusted_socket?(root)
+            return [nil, (Paths.socket_present?(root) ? "unsafe" : nil)] unless Paths.trusted_socket?(root)
 
             socket = UNIXSocket.new(Paths.socket(root))
-            Peer.trusted?(socket) ? converse(socket, script) : nil
+            Peer.trusted?(socket) ? converse(socket, script) : [nil, "unsafe"]
+          rescue Wire::Slow
+            [nil, "busy"]
           rescue *LOST
-            nil
+            [nil, nil]
           ensure
             socket&.close
           end
@@ -87,14 +105,23 @@ module Hecks
           def converse(socket, script)
             Wire.write_request(socket, request(script), seconds: HANDSHAKE)
             [$stdin, $stdout, $stderr].each { |stream| socket.send_io(stream) }
-            return unless ready?(socket)
+            word = answer(socket)
+            return [nil, refusal(word)] unless word == Wire::READY
 
             Wire.reply(socket, Wire::GO)
-            finish(socket)
+            [finish(socket), nil]
           end
 
-          # @return [Boolean] whether the resident said it would run the line
-          def ready?(socket) = socket.wait_readable(HANDSHAKE) && Wire.read_reply(socket) == Wire::READY
+          # @return [String] what the resident said to the request: `busy` when it said nothing in
+          #   time, `dropped` when it hung up
+          def answer(socket)
+            return "busy" unless socket.wait_readable(HANDSHAKE)
+
+            Wire.read_reply(socket) || "dropped"
+          end
+
+          # @return [String] the reason a reply that was not `ready` gives: `stale:env` is `env`
+          def refusal(word) = word.delete_prefix("#{Wire::STALE}:")
 
           # @return [Integer] the status the resident reports once it has the line; 1 if it vanishes
           def finish(socket)
@@ -112,13 +139,18 @@ module Hecks
           # Starts the resident that will serve the next line, unless the cap of residents is met;
           # it takes its own lock, so a second start exits at once. It leaves the launcher's
           # session, so it keeps no terminal.
+          #
+          # @return [String] the outcome: `started`, `none` when one is already coming up, or
+          #   `refused:crowded`
           def spawn_resident(root, script)
-            return if lock_held?(root) || Crowd.crowded?(root)
+            return Outcome::NONE if lock_held?(root)
+            return Outcome.refused("crowded") if Crowd.crowded?(root)
 
             server = File.join(__dir__, "server.rb")
             lib = File.expand_path("../../../..", __dir__)
             quiet = { in: File::NULL, out: File::NULL, err: File::NULL }
             Process.detach(Process.spawn(RbConfig.ruby, "-I", lib, server, root, File.realpath(script), **quiet))
+            Outcome::STARTED
           end
 
           # @return [Boolean] whether a resident holds the checkout's lock, so it is up or coming up

@@ -1,3 +1,5 @@
+require_relative "residency"
+
 module Hecks
   module Adapters
     module Driving
@@ -10,6 +12,10 @@ module Hecks
           CALLER_VARIABLE = "HECKS_CALLER".freeze
           # The variable the Claude Code harness sets to the running session's id.
           SESSION_VARIABLE = "CLAUDE_SESSION_ID".freeze
+          # What a caller name may not carry: anything but letters, digits and `_.:/-`.
+          UNSAFE_CHARACTERS = %r{[^\w.:/-]}
+          # The most characters a caller name keeps.
+          LONGEST_CALLER = 64
           # The top-level constant a launcher defines as its first act, a monotonic clock reading.
           LAUNCHED_AT = :HECKS_LAUNCHED_AT
 
@@ -18,9 +24,11 @@ module Hecks
           # The fields a run adds to its line.
           #
           # @param started [Float] the monotonic clock reading when the command began
-          # @return [Hash{String => Object}] `boot_ms`, `cold` and `caller`, leaving out the unknown
+          # @return [Hash{String => Object}] `boot_ms`, `cold`, `caller` and `resident`, leaving out
+          #   the unknown
           def fields(started)
-            { "boot_ms" => boot_ms(started), "cold" => cold?, "caller" => caller_name }.compact
+            { "boot_ms" => boot_ms(started), "cold" => cold?, "caller" => caller_name,
+              "resident" => Residency.outcome }.compact
           end
 
           # @param started [Float] the monotonic clock reading when the command began
@@ -31,16 +39,26 @@ module Hecks
             launched.is_a?(Float) ? ((started - launched) * 1000).round : nil
           end
 
+          # Cold means the long boot: this process judged a bluebook the verdict cache did not hold.
+          # A line a resident's child ran never is, since the resident held the declarations; the
+          # child inherits the resident's count of judgements, which says nothing about this line.
+          #
           # @return [Boolean, nil] whether this process judged a bluebook the cache did not hold
           def cold?
+            return false if Residency.served?
+
             Hecks::Bluebook::MetaValidator::VerdictCache.misses.positive?
           rescue NameError
             nil
           end
 
-          # @return [String, nil] the session that ran the command, when it says so
+          # @return [String, nil] who ran the command, when it says so: `HECKS_CALLER`, else the
+          #   harness's session id; at most 64 characters of letters, digits and `._:/-`, so
+          #   neither an argument nor a secret passes through it
           def caller_name
-            [ENV.fetch(CALLER_VARIABLE, nil), ENV.fetch(SESSION_VARIABLE, nil)].find { |name| !name.to_s.empty? }
+            name = [ENV.fetch(CALLER_VARIABLE, nil), ENV.fetch(SESSION_VARIABLE, nil)].find { |value| !value.to_s.empty? }
+            clean = name.to_s.gsub(UNSAFE_CHARACTERS, "")[0, LONGEST_CALLER]
+            clean.empty? ? nil : clean
           end
 
           # The runs per caller and per boot temperature in the window, as lines of text.

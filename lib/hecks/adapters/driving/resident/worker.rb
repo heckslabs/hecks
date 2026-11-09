@@ -1,5 +1,6 @@
 require "English"
 require "tempfile"
+require "hecks/adapters/driving/resident/outcome"
 
 module Hecks
   module Adapters
@@ -107,6 +108,7 @@ module Hecks
             $stderr.reopen(@streams[2])
             Dir.chdir(@request[:cwd])
             ENV.replace(@request[:env])
+            Outcome.note(Outcome::SERVED)
             ARGV.replace(@request[:argv])
             $PROGRAM_NAME = @request[:script]
             %w[INT TERM HUP].each { |signal| Signal.trap(signal, "DEFAULT") }

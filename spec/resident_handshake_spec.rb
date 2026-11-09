@@ -76,8 +76,8 @@ RSpec.describe "the resident's handshake" do
   describe "a line the resident will not serve" do
     let(:request) { super().merge(env: { "HOME" => "/other" }) }
 
-    it "is answered stale and is not run", :aggregate_failures do
-      serve_line { |caller_end| expect(wire.read_reply(caller_end)).to eq("stale") }
+    it "is answered stale with the reason, here the environment, and is not run", :aggregate_failures do
+      serve_line { |caller_end| expect(wire.read_reply(caller_end)).to eq("stale:env") }
       expect(server).not_to have_received(:launch)
     end
   end
@@ -161,7 +161,7 @@ RSpec.describe "the resident's handshake" do
     it "closes its end of the socket before it boots on its own, so a late resident finds it gone", :aggregate_failures do
       stub_const("Hecks::Adapters::Driving::Resident::Client::HANDSHAKE", 0.3)
       answer, accepted = late_accept("/c")
-      expect(answer).to be_nil
+      expect(answer).to eq([nil, "busy"])
       expect(closed_by_caller?(accepted)).to be(true)
     end
   end

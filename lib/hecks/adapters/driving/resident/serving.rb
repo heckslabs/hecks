@@ -24,7 +24,8 @@ module Hecks
 
             request = Wire.read_request(client, seconds: REQUEST_WAIT)
             receive(client, streams)
-            servable?(request) ? offer(client, request, streams) : refuse(client, streams)
+            reason = unservable(request)
+            reason ? refuse(client, streams, reason) : offer(client, request, streams)
           rescue StandardError, NoMemoryError
             drop(client, streams)
           end
@@ -40,13 +41,18 @@ module Hecks
           # A line is served when it was made by this checkout's own launcher, with the environment
           # the code loaded under, and the code and declarations are as they were loaded; when they
           # changed, the resident retires.
-          def servable?(request)
-            return false unless same_script?(request)
-            return false unless request[:env].slice(*loaded_names) == @environment
-            return true unless @fingerprint.changed?
+          def servable?(request) = unservable(request).nil?
+
+          # @return [String, nil] why the line cannot be served: `script` (not this checkout's
+          #   launcher), `env` (an environment variable the code loaded under differs) or
+          #   `changed` (the code or declarations changed, so the resident retires); nil when it can
+          def unservable(request)
+            return "script" unless same_script?(request)
+            return "env" unless request[:env].slice(*loaded_names) == @environment
+            return nil unless @fingerprint.changed?
 
             retire
-            false
+            "changed"
           end
 
           # The child loads the launcher the request names, so it must be this checkout's own.
@@ -58,8 +64,8 @@ module Hecks
             File.expand_path(path.to_s)
           end
 
-          def refuse(client, streams)
-            Wire.reply(client, Wire::STALE)
+          def refuse(client, streams, reason)
+            Wire.reply(client, "#{Wire::STALE}:#{reason}")
             drop(client, streams)
           end
 

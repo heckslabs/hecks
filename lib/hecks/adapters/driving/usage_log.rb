@@ -11,8 +11,8 @@ module Hecks
       #
       # A run appends one JSON line to `usage.jsonl` in the directory `UsageCache` already uses:
       # the name as typed, the name it resolved to, the exit status, the duration in milliseconds,
-      # the date and the time, and (`Telemetry`) the boot time, whether the boot was cold and the
-      # caller.
+      # the date and the time, and (`Telemetry`) the boot time, whether the boot was cold, the
+      # caller, and how the line met the checkout's resident (`Residency`).
       # No arguments, values or paths are written. The record is on unless
       # `HECKS_USAGE=off` is set or a `usage.off` marker sits in that directory. The first run that
       # writes prints one line on standard error saying so, then leaves a `usage.noticed` marker.
@@ -109,7 +109,7 @@ module Hecks
           counts = resolved_names(runs)
           unrun = known.sort - counts.keys
           ["runs in the last #{window} days, most used first:", *tally_lines(counts),
-           *Telemetry.lines(runs),
+           *Telemetry.lines(runs), *Residency.lines(runs),
            "", "never run in that window:", *unrun.map { |name| "  #{name}" }].join("\n")
         end
 

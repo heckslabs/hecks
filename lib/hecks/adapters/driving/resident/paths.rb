@@ -45,10 +45,20 @@ module Hecks
           # @return [Boolean] whether a resident may be asked for or started: the socket's path
           #   fits in the system's limit, the cache directory is one a later launcher finds again,
           #   and the directories are this user's and closed to everyone else
-          def usable?(root)
-            socket(root).bytesize <= LONGEST_SOCKET && persistent? && trusted_directory?(directory) &&
-              trusted_directory?(File.dirname(directory))
+          def usable?(root) = unusable_reason(root).nil?
+
+          # @return [String, nil] why no resident may be asked for or started: `path` (the socket's
+          #   path is too long), `unstable` (the cache root changes each launcher) or `unsafe` (a
+          #   directory is not this user's alone); nil when one may
+          def unusable_reason(root)
+            return "path" if socket(root).bytesize > LONGEST_SOCKET
+            return "unstable" unless persistent?
+
+            "unsafe" unless trusted_directory?(directory) && trusted_directory?(File.dirname(directory))
           end
+
+          # @return [Boolean] whether something stands at the resident's socket path
+          def socket_present?(root) = File.symlink?(socket(root)) || File.exist?(socket(root))
 
           # @return [Boolean] whether the cache directory is named, or is the stable cache root: a
           #   launcher with a fresh temporary directory each time would start a resident each time

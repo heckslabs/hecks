@@ -11,6 +11,7 @@ require_relative "architect_verdict"
 require_relative "coder_job_facts"
 require_relative "claude_agent_list"
 require_relative "claude_session_listing"
+require_relative "session_caller"
 require_relative "dispatching/settings"
 require_relative "session_mcp"
 require_relative "session_line"
@@ -76,7 +77,7 @@ module Hecks
       # @raise [ConsoleCapture::Failure] when the command fails or names no session
       def start(**held)
         line = session_line
-        result = @shell.capture(*line.arguments(held), env: @session.session_environment, chdir: plain(held[:repo]))
+        result = @shell.capture(*line.arguments(held), env: named(held), chdir: plain(held[:repo]))
         { session: { value: session_id(result) } }.merge(line.report)
       end
 
@@ -195,7 +196,7 @@ module Hecks
       def resume(**held)
         id = plain(held[:session])
         ClaudeResumption.new(@command, @shell, nice: niceness)
-                        .call(id, listed(id), plain(held[:answer]), env: @session.session_environment, chdir: plain(held[:repo]))
+                        .call(id, listed(id), plain(held[:answer]), env: named(held), chdir: plain(held[:repo]))
       end
 
       # Says whether `claude agents` still lists the run's session. A session `claude rm` deleted is
@@ -214,6 +215,9 @@ module Hecks
       end
 
       private
+
+      # @return [Hash{String => String}] the session environment, with the run's name as the caller
+      def named(held) = SessionCaller.environment(@session.session_environment, held)
 
       def agent_listing(repo, agent)
         return { listed: true, note: "no agent named: the session runs the default agent" } unless agent

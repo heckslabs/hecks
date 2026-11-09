@@ -6,11 +6,27 @@ RSpec.describe Hecks::Adapters::Driving::UsageLog::Telemetry do
   let(:now) { Process.clock_gettime(Process::CLOCK_MONOTONIC) }
 
   around do |example|
-    saved = ENV.to_h.slice("HECKS_CALLER", "CLAUDE_SESSION_ID")
-    ENV.delete("HECKS_CALLER")
-    ENV.delete("CLAUDE_SESSION_ID")
+    names = %w[HECKS_CALLER CLAUDE_SESSION_ID HECKS_RESIDENT_OUTCOME]
+    saved = ENV.to_h.slice(*names)
+    names.each { |name| ENV.delete(name) }
     example.run
+    names.each { |name| ENV.delete(name) }
     ENV.update(saved)
+  end
+
+  it "records how the line met the resident, and never calls a served line cold", :aggregate_failures do
+    ENV["HECKS_RESIDENT_OUTCOME"] = "served"
+    expect(described_class.fields(now)).to include("resident" => "served", "cold" => false)
+  end
+
+  it "leaves the resident out when no client noted an outcome" do
+    expect(described_class.fields(now)).not_to have_key("resident")
+  end
+
+  it "keeps a caller to 64 characters of letters, digits and punctuation that cannot carry an argument", :aggregate_failures do
+    ENV["HECKS_CALLER"] = "coder:fix it $(rm)#{"x" * 80}"
+    expect(described_class.caller_name.length).to eq(64)
+    expect(described_class.caller_name).not_to match(/[ $()]/)
   end
 
   it "measures from the launcher's first line to the command" do
