@@ -52,8 +52,14 @@ module Hecks
         # @return [Hash] one role's card: its live count, last event, the sessions working now and
         #   the work it has completed (finished sessions and events it handled, newest first)
         def card(name, sessions, events)
-          mine = sessions.select { |s| s[:agent].to_s == name || s[:name].to_s.start_with?(name) }
+          mine = sessions.select { |s| plays?(s, name) }
           { name: name, last: last_of(name, events), handled: handled(name, events) }.merge(shown(mine))
+        end
+
+        # @return [Boolean] whether the session's run names the role as its agent or the part it
+        #   works as, or claude titled the session with the role's name
+        def plays?(session, name)
+          [session[:agent], session[:works_as]].any? { |held| held.to_s == name } || session[:name].to_s.start_with?(name)
         end
 
         # @return [Hash] the live count, the sessions working now and the three newest finished
