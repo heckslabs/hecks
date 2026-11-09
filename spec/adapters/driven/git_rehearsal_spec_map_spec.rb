@@ -123,4 +123,32 @@ RSpec.describe Hecks::Adapters::GitRehearsal::SpecMap do
     mapping = map.map(["lib/hecks/widgets/gear_box.rb"], limit: 60, skip: skip)
     expect(mapping.skipped).to eq("spec/requires_spec.rb" => "needs cargo")
   end
+
+  context "with a spec tagged :repo_scan, which reads the whole tree" do
+    let(:scan) { "spec/tree_scan_spec.rb" }
+
+    before { add(scan, %(RSpec.describe "a scan of the tree", :io, :repo_scan do\nend\n)) }
+
+    it "runs it for a change no spec mentions, ahead of the specs the change reaches", :aggregate_failures do
+      expect(specs("lib/hecks/shop/shop.bluebook").first).to eq(scan)
+      expect(specs("lib/hecks/widgets/gear_box.rb")[0..1]).to eq([scan, "spec/gear_box_spec.rb"])
+    end
+
+    it "keeps it when the limit leaves specs out" do
+      expect(specs("lib/hecks/widgets/gear_box.rb", limit: 1)).to eq([scan])
+    end
+
+    it "runs it even when the skip rules would leave it out" do
+      expect(specs("lib/hecks/widgets/gear_box.rb", skip: ->(_spec) { "needs cargo" })).to include(scan)
+    end
+
+    it "runs none when nothing changed" do
+      expect(specs).to eq([])
+    end
+
+    it "does not take a spec that only mentions the tag in its text" do
+      add("spec/mentions_spec.rb", %(# the tag is ", :repo_scan" in a describe\n))
+      expect(specs("lib/hecks/widgets/gear_box.rb")).not_to include("spec/mentions_spec.rb")
+    end
+  end
 end

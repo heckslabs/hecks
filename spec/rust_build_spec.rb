@@ -5,7 +5,7 @@ require "hecks/rust_build"
 require_relative "support/rust_conformance_helpers"
 
 # The build tools the gem carries, reached in this process through `Hecks::RustBuild.run`.
-RSpec.describe Hecks::RustBuild do
+RSpec.describe Hecks::RustBuild, :repo_scan do
   let(:root) { File.expand_path("..", __dir__) }
 
   # Runs a tool with HECKS_RUST_DIR set to a scratch directory; answers the result and what the
