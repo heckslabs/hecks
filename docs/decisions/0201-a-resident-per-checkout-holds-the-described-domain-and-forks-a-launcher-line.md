@@ -163,8 +163,19 @@ The build is in `lib/hecks/adapters/driving/resident/`: `client.rb` (what a laun
 - **The ceiling on residents refuses, it does not evict.** Decision 3's "the oldest idle one exits first" is not
   built: a resident that finds `max_residents` others standing exits at once and its launcher boots on its own. Both
   numbers are the Hecks world's `resident` line (`idle_seconds` 600, `max_residents` 8).
-- **The servers a session starts are not yet clients (decision 6).** The two MCP servers still load their own copy.
-  That change is its own step.
+- **A resident leaves when its checkout does.** Once a second, when no line is waiting, it checks that its checkout
+  directory and its own socket still exist (`Server#orphaned?`, with a stat seam for specs) and retires when either
+  is gone: a worktree that was retired, a temporary directory that was removed, or a cache that was cleared. It no
+  longer waits out the idle time for a checkout nobody has.
+- **The servers a session starts are not yet clients (decision 6).** The two MCP servers still load their own copy,
+  and idle each hold about 55 MB (sampled from `ps`). Making them clients is not a small change, for three reasons
+  found when it was tried. A tool call is a JSON-RPC request to a long-lived process, not a launcher line, so the
+  resident would need a new request type that runs a tool call in a fork and returns its reply, and the restricted
+  modes (`McpScope`) would have to be proved to refuse exactly what they refuse now. The role's `RoutingRule`
+  patterns end in `.*` while `HECKS_SERVER_COMMANDS` takes exact command names, so a role's list must be expanded
+  against the booted domain when its session starts. And `.mcp.json` is one static file with no per-role
+  environment, and whether Claude Code hands a session's environment to the servers it starts is not established
+  here. That change is its own step.
 
 ### Measured
 

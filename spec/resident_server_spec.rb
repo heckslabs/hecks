@@ -65,6 +65,40 @@ RSpec.describe Hecks::Adapters::Driving::Resident::Server do
     end
   end
 
+  describe "an orphaned resident" do
+    let(:there) { { "/checkout" => true } }
+    let(:orphan) { described_class.new("/checkout", "/checkout/exe/hecks", exists: ->(path) { there.fetch(path, false) }) }
+
+    before { there[paths.socket("/checkout")] = true }
+
+    it "is not orphaned while its checkout and its socket stand" do
+      expect(orphan.send(:orphaned?)).to be(false)
+    end
+
+    it "is orphaned once its checkout directory is gone" do
+      there.delete("/checkout")
+      expect(orphan.send(:orphaned?)).to be(true)
+    end
+
+    it "is orphaned once its socket is gone, as when the cache was cleared" do
+      there.delete(paths.socket("/checkout"))
+      expect(orphan.send(:orphaned?)).to be(true)
+    end
+
+    it "stays up on a quiet second while its checkout stands" do
+      allow(orphan).to receive(:retire)
+      orphan.send(:retire_when_orphaned)
+      expect(orphan).not_to have_received(:retire)
+    end
+
+    it "retires on a quiet second once its checkout is gone" do
+      allow(orphan).to receive(:retire)
+      there.delete("/checkout")
+      orphan.send(:retire_when_orphaned)
+      expect(orphan).to have_received(:retire).once
+    end
+  end
+
   describe "serving a line" do
     let(:fingerprint) { instance_double(Hecks::Adapters::Driving::Resident::Fingerprint, current: 1) }
     let(:listener) { instance_double(UNIXServer, closed?: false, close: nil) }

@@ -26,9 +26,11 @@ module Hecks
           # @param script [String] the launcher the lines come from
           def self.start(root, script) = new(root, script).run
 
-          def initialize(root, script)
+          # @param exists [#call] answers whether a path is still there; a spec stands in
+          def initialize(root, script, exists: File.method(:exist?))
             @root = root
             @script = script
+            @exists = exists
             @owner = Process.pid
             @monitors = []
             @notes = Queue.new
@@ -69,11 +71,19 @@ module Hecks
             until idle? || @retired
               ready = @server.wait_readable(1.0)
               learn
-              handle(@server.accept) if ready
+              ready ? handle(@server.accept) : retire_when_orphaned
             end
           end
 
           def idle? = @monitors.none?(&:alive?) && Time.now - @active > @settings[:idle_seconds]
+
+          # Whether the checkout it serves, or the socket it listens on, is gone: a worktree that
+          # was retired, a temporary directory that was removed, or a cache that was cleared. A
+          # resident nobody can reach, for a checkout nobody has, would only wait out the idle time.
+          def orphaned? = !@exists.call(@root) || !@exists.call(Paths.socket(@root))
+
+          # Retires when {#orphaned?}; checked once a second, when no line is waiting.
+          def retire_when_orphaned = (retire if orphaned?)
 
           # Stops taking lines, so the next launcher starts a resident from the code as it now is.
           def retire
