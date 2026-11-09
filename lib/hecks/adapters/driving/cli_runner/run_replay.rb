@@ -7,7 +7,9 @@ module Hecks
         # Where the aggregate persists (SQLite, Postgres), a repeat with the same key and the same
         # arguments answers the record written first, and a repeat with other arguments is refused:
         # the key names a different run. Memory holds nothing across processes, so it cannot
-        # answer a repeat; it refuses the key and says which store would answer it.
+        # answer a repeat; it refuses the key and says which store would answer it. A record whose
+        # lifecycle has ended frees its key (`Lifecycle#reusable?`), so the command runs and starts
+        # a new record under it.
         module RunReplay
           MEMORY = "Memory".freeze
 
@@ -17,13 +19,13 @@ module Hecks
           # @param spec [Hash] the command's projected spec
           # @param args [Hash] the parsed arguments, including `run` when one was given
           # @return [Array(String, Integer), nil] the answer and its status, or nil when the
-          #   key is not recorded and the command should run
+          #   key is not recorded, or its record has ended, and the command should run
           def answer(runtime, spec, args)
             return unless replayable?(runtime, spec, args)
 
             target = target(runtime, spec)
             record = target && recorded(target, run_key(args))
-            return unless record
+            return if record.nil? || freed?(target, record)
 
             return memory_refusal(args) if memory?(target)
 
@@ -41,6 +43,12 @@ module Hecks
             domain = registry.first_domain_name
             aggregate = registry.bluebook(domain)&.aggregate(spec[:group].to_s)
             aggregate && { registry: registry, domain: domain, aggregate: aggregate }
+          end
+
+          # Whether the held record has ended and freed its key for a new record.
+          def freed?(target, record)
+            lifecycle = target[:aggregate].lifecycle
+            lifecycle ? lifecycle.reusable?(record.state[lifecycle.field]) : false
           end
 
           # Whether the aggregate's authoritative store is Memory.

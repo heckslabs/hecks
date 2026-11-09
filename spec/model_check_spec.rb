@@ -92,6 +92,18 @@ RSpec.describe "the model checker" do
       expect(findings.select { |f| f.subject == "Ticket" }.map(&:kind)).to be_empty
     end
 
+    def ended_twice_lifecycle
+      finish = ["Finish", Hecks::Bluebook::StateTransition.new(target: "finished", from: "open")]
+      tidy = ["Tidy", Hecks::Bluebook::StateTransition.new(target: "tidied", from: "finished")]
+      Hecks::Bluebook::Lifecycle.new(field: :status, default: "open", transitions: [finish, tidy],
+                                     marks: { reusable: %w[finished tidied] })
+    end
+
+    it "raises no finding for a :reusable state left only for another :reusable state" do
+      checker = Class.new { include Hecks::Bluebook::ModelCheck::LifecycleChecks }.new
+      expect(checker.reusable_findings(ended_twice_lifecycle, "Run")).to be_empty
+    end
+
     it "errors on a :reusable state the lifecycle does not declare" do
       lifecycle = Hecks::Bluebook::Lifecycle.new(field: :status, default: "open", marks: { reusable: ["gone"] })
       checker = Class.new { include Hecks::Bluebook::ModelCheck::LifecycleChecks }.new

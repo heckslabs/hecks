@@ -58,6 +58,17 @@ module Hecks
       # @return [Array<String>, nil] the states in declared order, or nil when no such mark
       def marked(name) = marks[name.to_s]
 
+      # Whether a record in this state has ended and frees its id for a new record: the state is
+      # marked `:reusable`, or is no state the lifecycle declares.
+      #
+      # @param status [String, Symbol, nil] the record's lifecycle field
+      # @return [Boolean] false for a record with no status
+      def reusable?(status)
+        return false if status.nil?
+
+        (marked(:reusable) || []).include?(status.to_s) || !states.include?(status.to_s)
+      end
+
       # `marks` is left out when the lifecycle declares none, so IR written before the word
       # existed stays byte-identical.
       def to_h

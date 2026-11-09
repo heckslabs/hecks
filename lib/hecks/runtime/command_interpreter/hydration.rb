@@ -68,8 +68,9 @@ module Hecks
           id = creation_identity(ctx)
           # An occupied identity refuses (`AlreadyExists`), except under ATOMIC_PUT: that adapter
           # enforces the same refusal itself, atomically, via `insert_only:` in `step_save` —
-          # reading here too would race the write for nothing.
-          claim_creation_id(ctx, id, ctx.repository.find(id)) if ctx.strategy != DependencyPlanning::ATOMIC_PUT
+          # reading here too would race the write for nothing, unless the aggregate frees ended
+          # ids and must tell an ended occupant from a live one (`reads_occupant?`).
+          claim_creation_id(ctx, id, ctx.repository.find(id)) if reads_occupant?(ctx)
 
           fresh_instance(ctx, id)
         end

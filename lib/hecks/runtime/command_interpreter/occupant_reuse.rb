@@ -23,10 +23,20 @@ module Hecks
         # A record with no status, or an aggregate with no lifecycle, is never reusable.
         def reusable_occupant?(aggregate, occupant)
           lifecycle = aggregate.lifecycle
-          status    = lifecycle && occupant[lifecycle.field]
-          return false if status.nil?
+          lifecycle ? lifecycle.reusable?(occupant[lifecycle.field]) : false
+        end
 
-          (lifecycle.marked(:reusable) || []).include?(status.to_s) || !lifecycle.states.include?(status.to_s)
+        # Whether a creating command reads the occupant before it saves. Under ATOMIC_PUT the
+        # adapter refuses an occupied id itself, so only an aggregate that marks states
+        # `:reusable` reads, to tell an ended occupant from a live one.
+        def reads_occupant?(ctx)
+          ctx.strategy != DependencyPlanning::ATOMIC_PUT || frees_ended_ids?(ctx.aggregate)
+        end
+
+        # Whether the aggregate's lifecycle marks any state `:reusable`.
+        def frees_ended_ids?(aggregate)
+          lifecycle = aggregate.lifecycle
+          !lifecycle&.marked(:reusable).nil?
         end
 
         # Saves the remembered occupant, fields kept, under the first free `<id>~<n>`.

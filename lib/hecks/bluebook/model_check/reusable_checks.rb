@@ -23,7 +23,8 @@ module Hecks
         end
 
         # Finds every declared `:reusable` state that is live: the default a new record starts in,
-        # or one a constrained transition leaves.
+        # or one a constrained transition leaves for a state that is not `:reusable` too. A move
+        # between ended states, such as tidying a finished run, keeps the occupant ended.
         def reusable_live_findings(lifecycle, subject)
           declared = reusable_states(lifecycle) & full_states(lifecycle)
           declared.select { |state| live_state?(lifecycle, state) }.map do |state|
@@ -34,8 +35,16 @@ module Hecks
         end
 
         # @return [Boolean] whether the state is the lifecycle's default or a transition leaves it
+        #   for a state that has not ended
         def live_state?(lifecycle, state)
-          state == lifecycle.default || leaves?(lifecycle, state)
+          state == lifecycle.default || leaves_for_live?(lifecycle, state)
+        end
+
+        # @return [Boolean] whether a constrained transition leaves `state` for one not `:reusable`
+        def leaves_for_live?(lifecycle, state)
+          lifecycle.transitions.any? do |_, t|
+            t.constrained? && Array(t.from).include?(state) && !reusable_states(lifecycle).include?(t.target)
+          end
         end
       end
     end
