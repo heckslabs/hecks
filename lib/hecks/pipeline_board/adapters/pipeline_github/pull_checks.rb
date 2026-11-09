@@ -9,7 +9,10 @@ module Hecks
       # pull request is one on a `train/` branch.
       module PullChecks
         BRANCH_PREFIX = "train/"
-        FIELDS = "number,headRefName,statusCheckRollup"
+        FIELDS = "number,headRefName,statusCheckRollup,createdAt"
+
+        # How many pull requests one `gh pr list` asks for.
+        LIMIT = 30
         WAITING = %w[pending expected queued in_progress waiting requested].freeze
 
         module_function
@@ -20,6 +23,16 @@ module Hecks
         def train(listed)
           trains = Array(listed).select { |pull| pull["headRefName"].to_s.start_with?(BRANCH_PREFIX) }
           trains.map { |pull| counted(pull) }
+        end
+
+        # @param listed [Array<Hash>] `gh pr list --json` rows
+        # @return [Hash] `count`, the `oldest` `createdAt` (nil when none), the newest `train`
+        #   pull request's number (nil when none) and `capped`: the list may hold more than it shows
+        def open(listed)
+          rows = Array(listed)
+          trains = rows.select { |pull| pull["headRefName"].to_s.start_with?(BRANCH_PREFIX) }
+          { count: rows.size, oldest: rows.filter_map { |pull| pull["createdAt"] }.min,
+            train: trains.map { |pull| pull["number"].to_i }.max, capped: rows.size >= LIMIT }
         end
 
         # @return [Hash] one pull request with its checks counted by how they stand

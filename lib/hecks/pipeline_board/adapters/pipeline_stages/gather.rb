@@ -22,7 +22,7 @@ module Hecks
           red_flag: %i[git red_flag plain], fill: %i[fill preview plain], events: [:journal, :recent, :plain, 40],
           finished: [:journal, :named, :plain, "WorkFinished", 200],
           landed_times: %i[journal landed_times plain], promotions: %i[journal promotions plain], disk: %i[disk free plain],
-          boots: %i[boots today plain]
+          boots: %i[boots today plain], open_prs: %i[github open_prs plain]
         }.freeze
 
         private
