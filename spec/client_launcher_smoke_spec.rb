@@ -46,7 +46,7 @@ RSpec.describe "client launcher smoke" do
 
     # The Ruby this boot compiles and the load path it searches are kept between boots.
     begin
-      unless defined?(::Bootsnap)
+      unless defined?(Bootsnap)
         require "bootsnap"
         require "hecks/cache_dir"
         if Hecks::CacheDir.stable?
