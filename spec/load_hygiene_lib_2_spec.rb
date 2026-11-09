@@ -3,7 +3,7 @@ require_relative "support/lib_loading_slice"
 
 # Slice 2 of 3 of "every lib file loads standalone in a fresh process"; the slices and the checks
 # they share are in spec/support/lib_loading_slice.rb.
-RSpec.describe "load hygiene, lib files, slice 2 of 3", :io do
+RSpec.describe "load hygiene, lib files, slice 2 of 3", :io, :repo_scan do
   include LibLoadingSlice
 
   it "loads its slice of the lib files standalone, in a fresh process" do
