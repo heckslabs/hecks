@@ -74,7 +74,7 @@ module Hecks
         def connect(subject)
           return PostgresEra.connect_for(subject.bluebook_name, subject.settings) unless reads_only?
 
-          require "pg"
+          require "hecks/pg_options"
           PG.connect(url).tap do |db|
             db.exec("SET default_transaction_read_only = on")
             db.exec("SET search_path TO #{db.quote_ident(subject.settings[:schema])}") if subject.settings[:schema]

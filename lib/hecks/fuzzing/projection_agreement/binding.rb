@@ -43,7 +43,7 @@ module Hecks
         def settings_for(copy, projection, database: nil, schema: nil)
           return { database: File.join(copy, "data", "hecks_fuzz_projection.sqlite3") } if projection == :sqlite
 
-          require "pg"
+          require "hecks/pg_options"
           database ||= IsolatedBoot::FUZZ_POSTGRES_DATABASE
           schema ||= scratch_schema(database)
           IsolatedBoot.ensure_fuzz_schema!(database, schema)

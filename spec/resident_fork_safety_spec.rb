@@ -40,7 +40,8 @@ RSpec.describe "a resident child opening a Postgres connection" do
 
   def children(env, *args)
     root = File.expand_path("..", __dir__)
-    out, = Open3.capture3({ "BUNDLE_GEMFILE" => File.join(root, "Gemfile") }.merge(env), RbConfig.ruby,
+    plain = { "BUNDLE_GEMFILE" => File.join(root, "Gemfile"), "PGGSSENCMODE" => nil }
+    out, = Open3.capture3(plain.merge(env), RbConfig.ruby,
                           "-rbundler/setup", "-e", forking, "--", *args, chdir: root)
     out.strip
   end
@@ -54,7 +55,8 @@ RSpec.describe "a resident child opening a Postgres connection" do
   end
 
   it "still drops the starter's other variables" do
-    expect(spawn_env.build({ "HECKS_CALLER" => "x", "PGHOST" => "h" })).to eq(variable => "YES")
+    expect(spawn_env.build({ "HECKS_CALLER" => "x", "PGHOST" => "h" }))
+      .to eq(variable => "YES", "PGGSSENCMODE" => "disable")
   end
 
   it "does not make the switch part of what a line is compared on", :aggregate_failures do

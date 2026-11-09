@@ -579,3 +579,22 @@ fork, on macOS only, and does nothing where `pg` is not installed. `spec/residen
 environment, the warm-up, and the two clean-fork cases on a real forking Ruby. Lines that never open a Postgres
 connection (the polled reads, the style checks, spec runs that start their own Ruby) never met the abort, so a replay
 of them proves nothing about it: the reproduction above does.
+
+**The switch and the warm-up were not enough.** Two reports were written after they landed (04:59:53, the minute
+they landed, and 07:17:12), with the same libpq and Kerberos stack, and the later one was a `SIGSEGV`
+(`EXC_BAD_ACCESS`), not the abort: a child (pid 74704) of the running resident (parent pid 99222). The switch
+silences the runtime's abort only; the warm-up initialises the framework in the resident, not in the child's
+threads, and the resident is multithreaded (the worker pool and the upkeep thread), so the framework's state at the
+moment of a fork is not one a single-threaded repetition recreates. A forked single-threaded Ruby with the switch
+set ran 20 refused connections cleanly, so the crash was not reproduced; the fault site, though, is the same
+`pg_GSS_have_cred_cache`, which libpq takes only when it may use GSS.
+
+The cure is to keep libpq off that path. Every Postgres connection of the process carries `gssencmode=disable`
+(libpq 12 and later), unless its caller named `gssencmode`: `Hecks::PgOptions` (`lib/hecks/pg_options.rb`)
+prepends to `PG::Connection`'s class methods `parse_connect_args` (what `new`, `connect` and a reset build their
+string from), `connect_start` and `ping`, and every file in `lib/` that needs `pg` requires that file in place of
+`pg` (`spec/pg_options_spec.rb` fails on a bare `require "pg"`). The option rides on the connection, not on the
+environment: libpq reads `PGGSSENCMODE` when it connects, and a child's `ENV.replace` with the caller's variables
+drops it. `SpawnEnv::FORCE` and `spec_helper` still set it, for the resident itself and for a spec's subprocesses.
+Without the keyword, ten children of a plain Ruby with `pg` loaded died by signal 6; with it, ten and then twenty
+exited 0.

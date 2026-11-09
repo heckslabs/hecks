@@ -38,7 +38,7 @@ module Hecks
           # @return [void]
           # @raise [LoadError] when the `pg` gem is not installed
           def connect
-            require "pg"
+            require "hecks/pg_options"
             PG::Connection.connect_start(PROBE).finish
           end
         end

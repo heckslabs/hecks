@@ -25,7 +25,13 @@ module Hecks
           # this variable turns that abort off. The runtime reads it when the process starts, so a
           # child's `ENV.replace` with the caller's variables does not undo it. No line is compared
           # on it: the resident's baseline names only the variables the loaded code read.
-          FORCE = { "OBJC_DISABLE_INITIALIZE_FORK_SAFETY" => "YES" }.freeze
+          #
+          # `PGGSSENCMODE` keeps libpq from probing the security service in the resident itself. A
+          # forked child still crashed in the Kerberos framework (a segmentation fault, not the
+          # abort), so the cure is the option on the connection (`Hecks::PgOptions`). libpq reads
+          # this variable when it connects, and a child's `ENV.replace` drops it, so the children
+          # use that option.
+          FORCE = { "OBJC_DISABLE_INITIALIZE_FORK_SAFETY" => "YES", "PGGSSENCMODE" => "disable" }.freeze
 
           module_function
 

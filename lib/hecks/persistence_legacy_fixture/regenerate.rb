@@ -41,7 +41,7 @@ module Hecks
       # @return [String] `wrote <dir>`
       def call
         require "hecks/ports/persistence/plugins/era"
-        require "pg"
+        require "hecks/pg_options"
         instances = PersistenceLegacyFixture.instances
         write_file_stores(instances)
         with_scratch_databases do

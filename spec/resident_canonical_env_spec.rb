@@ -37,7 +37,7 @@ RSpec.describe "a resident's environment" do
        :aggregate_failures do
       built = resident::SpawnEnv.build(caller_env)
       expect(built.keys).to contain_exactly("PATH", "HOME", "TMPDIR", "LC_ALL", "XDG_CACHE_HOME", "HECKS_CACHE_DIR",
-                                            "OBJC_DISABLE_INITIALIZE_FORK_SAFETY")
+                                            "OBJC_DISABLE_INITIALIZE_FORK_SAFETY", "PGGSSENCMODE")
       expect(built["HOME"]).to eq("/h")
     end
 

@@ -76,7 +76,7 @@ module Hecks
       def provision(database, role)
         done = []
         skipped = []
-        require "pg"
+        require "hecks/pg_options"
         admin = PG.connect(dbname: "postgres")
         create_role(admin, role, done, skipped)
         take_database(admin, database, role, done, skipped)

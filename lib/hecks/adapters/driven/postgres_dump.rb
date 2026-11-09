@@ -29,7 +29,7 @@ module Hecks
 
       # Writes a custom-format dump of the schema and proves it restores.
       def call(dest)
-        require "pg"
+        require "hecks/pg_options"
         raise Error, "schema #{@schema} has no tables in #{@source.database}" if source_counts.empty?
 
         run("pg_dump", @source, "--format=custom", "--no-owner", "--no-privileges", "--schema=#{@schema}", "--file=#{dest}")
