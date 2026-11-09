@@ -56,7 +56,7 @@ module Hecks
           metrics: PipelineBoard::Metrics.tiles(data.merge(@limits), now),
           ci_runs: data[:ci_runs], slowest_jobs: data[:slowest_jobs],
           open_work: data[:open_work], sessions: data[:sessions], events: data[:events],
-          fanout: fanout(data) }.merge(agents(data))
+          fanout: fanout(data), live_store_problem: @live&.problem }.merge(agents(data))
       end
 
       # The state the page shows, drawn as a text panel for a terminal. It reads what `/api/state`
@@ -123,7 +123,7 @@ module Hecks
       end
 
       def wire_work(readers, registry)
-        live = live_store_named
+        live = @live = live_store_named
         @tickets = readers.fetch(:tickets) { PipelineTickets.new(registry: registry, settings: { live_store: live }) }
         @jobs = readers.fetch(:jobs) { PipelineJobs.new(settings: { runs: -> { guard { @tickets.runs } } }) }
         @trains = readers.fetch(:trains) do

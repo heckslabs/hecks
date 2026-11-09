@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "time"
 require_relative "cache"
 require_relative "../../hecks/adapters/started_work"
 
@@ -7,28 +8,33 @@ module Hecks
   module Adapters
     # Reads the last filling of the queue: which planned Work items it would start, which it skips
     # and why, plus the load and cap it saw. A rolling fill records its report on its `Roll`, so
-    # the tile reads that record through the booted registry and starts no process. Where the
-    # registry holds no report, or the newest one has stood unchanged past the fresh window,
-    # `Dispatch.Preview` is asked of a launcher and that answer is kept for a minute.
+    # the tile reads that record through the booted registry and starts no process. The report's
+    # header ends with the time the fill ran (`at <ISO 8601>`), and a report is current for a
+    # while after it. Where the registry holds no report, or only a stale one or one that states no
+    # time, `Dispatch.Preview` is asked of a launcher: its answer is kept for a minute when there
+    # is no report at all, and for five when a stale one stands, since a quiet queue rolls rarely.
     class PipelineFill
       HEADER = /\Aload ([\d.]+) \(limit ([\d.]+), (\d+) cpus\); started (\d+) of cap (\d+);/
+      # The time a report's header ends with.
+      RAN_AT = /; at (\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ)\z/
       WOULD = /\Awould start (\S+): (.*)\z/
       LAUNCHED = /\Astarted (\S+)(?: \(then refused: (.*)\))?\z/
       YIELDED = /\Ayielded (\S+): (.*)\z/
       SKIPPED = /\A(\S+) skipped: (.*)\z/
-      # Seconds a launcher's preview is kept.
+      # Seconds a launcher's preview is kept when no report is recorded.
       PREVIEW_TTL = 60
-      # Seconds a recorded report stays current once the board has seen it. A roll records no
-      # time, so age is how long the newest report has stood unchanged; a quiet queue rolls
-      # rarely, and then a launcher's preview is the fresher answer.
+      # Seconds it is kept when the only report recorded is stale.
+      STALE_PREVIEW_TTL = 300
+      # Seconds a recorded report stays current after the time it states.
       FRESH_SECONDS = 900
 
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] `report:` stands in for the last recorded report (a callable
       #   answering its text or nil), `runner:` for the launcher (a callable taking the arguments,
-      #   answering its standard output), `ttl:` for how long a launcher's preview is kept,
-      #   `fresh_seconds:` for how long an unchanged recorded report stays current, `clock:` for
-      #   the time in seconds
+      #   answering its standard output), `ttl:` and `stale_ttl:` for how long a launcher's
+      #   preview is kept, `fresh_seconds:` for how long a recorded report stays current, `now:` for
+      #   the time as a callable answering a `Time`, `cache_clock:` for the seconds the previews'
+      #   keeping counts in
       # @param root [String, nil] the checkout the launcher runs in
       # @param registry [Runtime::Registry, nil] the booted registry the `Roll` records are read
       #   from
@@ -37,10 +43,9 @@ module Hecks
         @registry = registry
         @recorded = settings[:report] || method(:recorded_report)
         @runner = settings[:runner] || ->(*args) { PipelineBoard::Probe.run(*args, chdir: @root, seconds: 120) }
-        @cache = PipelineBoard::Cache.new(ttl: settings.fetch(:ttl, PREVIEW_TTL))
         @fresh_seconds = settings.fetch(:fresh_seconds, FRESH_SECONDS)
-        @clock = settings[:clock] || -> { Process.clock_gettime(Process::CLOCK_MONOTONIC) }
-        @seen = nil
+        @now = settings[:now] || -> { Time.now.utc }
+        @cache, @stale_cache = caches(settings)
       end
 
       # @return [Hash] `load`, `limit`, `cap`, `started`, `would_start` (slug and title), `launched`
@@ -48,19 +53,37 @@ module Hecks
       # @raise [PipelineBoard::Unavailable] when no current report is recorded and the launcher
       #   cannot answer
       def preview
-        text = current(@recorded.call.to_s)
-        parse(text.empty? ? @cache.fetch(:fill) { launcher_report } : text)
+        text = @recorded.call.to_s
+        return parse(text) if current?(text)
+
+        parse(cache_for(text).fetch(:fill) { launcher_report })
       end
 
       private
 
-      # The recorded text while it is fresh, else an empty string.
-      def current(text)
-        return "" if text.empty?
+      # The cache that holds a launcher's answer: the longer one where a stale report stands, since
+      # a report that old says the queue is quiet.
+      def cache_for(text) = text.empty? ? @cache : @stale_cache
 
-        now = @clock.call
-        @seen = { text: text, at: now } unless @seen && @seen[:text] == text
-        now - @seen[:at] < @fresh_seconds ? text : ""
+      # Whether the report states a time and that time is within the fresh window. A report that
+      # states none is stale: nothing says when it was true.
+      def current?(text)
+        stated = RAN_AT.match(first_line(text))
+        return false unless stated
+
+        (@now.call - Time.iso8601(stated[1])) < @fresh_seconds
+      rescue ArgumentError
+        false
+      end
+
+      def first_line(text) = text.partition("\n").first.strip
+
+      # @return [Array<PipelineBoard::Cache>] the cache for a launcher's answer where no report
+      #   stands, and the longer-lived one for where a stale report does
+      def caches(settings)
+        held = settings.slice(:cache_clock).transform_keys { :clock }
+        [PipelineBoard::Cache.new(ttl: settings.fetch(:ttl, PREVIEW_TTL), **held),
+         PipelineBoard::Cache.new(ttl: settings.fetch(:stale_ttl, STALE_PREVIEW_TTL), **held)]
       end
 
       def launcher_report

@@ -43,6 +43,10 @@ module Hecks
           self
         end
 
+        # @return [String, nil] why the last reload failed while the old runtime serves, nil when
+        #   the store is current
+        def problem = @opening.problem
+
         private
 
         def registry = @opening.registry

@@ -14,6 +14,12 @@ RSpec.describe Hecks::RustBuild::Prune do
     path
   end
 
+  # Dates a directory and everything in it back, so it counts as untouched for that long.
+  def back_date(path, days)
+    stamp = Time.now - (days * 86_400)
+    ([path] + Dir.glob(File.join(path, "**", "*"), File::FNM_DOTMATCH)).each { |entry| File.utime(stamp, stamp, entry) }
+  end
+
   describe ".stale" do
     let!(:old) { touch(File.join(dir, "debug", "deps", "old.rlib"), age_days: 30) }
     let!(:fresh) { touch(File.join(dir, "debug", "deps", "new.rlib")) }
@@ -39,12 +45,18 @@ RSpec.describe Hecks::RustBuild::Prune do
   end
 
   describe ".unlisted_slots" do
-    let(:live_tree) { File.join(dir, "trees", "live") }
-    let!(:live_slot) { touch(File.join(dir, "shared", Hecks::RustBuild::SessionBuild.slug(live_tree), "debug", "a")) }
-    let!(:dead_slot) { touch(File.join(dir, "shared", "gone-0123abcd", "debug", "a")) }
-    let!(:crate_dir) { touch(File.join(dir, "shared", "codegen", "debug", "a")) }
+    def shared = File.join(dir, "shared")
 
-    before { described_class.unlisted_slots(File.join(dir, "shared"), [live_tree]) }
+    def live_tree = File.join(dir, "trees", "live")
+
+    let!(:live_slot) { touch(File.join(shared, Hecks::RustBuild::SessionBuild.slug(live_tree), "debug", "a")) }
+    let!(:dead_slot) { touch(File.join(shared, "gone-0123abcd", "debug", "a")) }
+    let!(:crate_dir) { touch(File.join(shared, "codegen", "debug", "a")) }
+
+    before do
+      Dir.children(shared).each { |name| back_date(File.join(shared, name), 5) }
+      described_class.unlisted_slots(shared, [live_tree])
+    end
 
     it "removes the directory of a worktree git no longer lists" do
       expect(File.exist?(dead_slot)).to be(false)
@@ -52,6 +64,63 @@ RSpec.describe Hecks::RustBuild::Prune do
 
     it "keeps a listed worktree's directory and a crate's", :aggregate_failures do
       expect([File.exist?(live_slot), File.exist?(crate_dir)]).to eq([true, true])
+    end
+  end
+
+  describe ".unlisted_slots for a slot git does not list" do
+    def shared = File.join(dir, "shared")
+
+    def make_slot(name, owner: nil, days: 5)
+      slot = File.join(shared, name)
+      touch(File.join(slot, "debug", "a"))
+      File.write(File.join(slot, Hecks::RustBuild::SessionBuild::OWNER), owner) if owner
+      back_date(slot, days)
+      slot
+    end
+
+    def prune(listed = [], **options) = described_class.unlisted_slots(shared, listed, **options)
+
+    it "keeps a slot whose recorded owner still exists" do
+      slot = make_slot("other-clone-0123abcd", owner: dir)
+      prune
+
+      expect(File.directory?(slot)).to be(true)
+    end
+
+    it "removes a slot whose recorded owner is gone" do
+      slot = make_slot("gone-owner-0123abcd", owner: File.join(dir, "no-such-tree"))
+      prune
+
+      expect(File.directory?(slot)).to be(false)
+    end
+
+    it "keeps a slot something changed in within the last day" do
+      slot = make_slot("busy-0123abcd", days: 0)
+      prune
+
+      expect(File.directory?(slot)).to be(true)
+    end
+
+    # A worktree git lists as `link/real`, whose slot was named from the path the file system spells.
+    def listed_through_a_link
+      real = File.join(dir, "trees", "real")
+      FileUtils.mkdir_p(real)
+      File.symlink(File.join(dir, "trees"), File.join(dir, "link"))
+      [File.join(dir, "link", "real"), make_slot(Hecks::RustBuild::SessionBuild.slug(File.realpath(real)))]
+    end
+
+    it "keeps a slot git lists under the other spelling of its path" do
+      listed, slot = listed_through_a_link
+      prune([listed])
+
+      expect(File.directory?(slot)).to be(true)
+    end
+
+    it "deletes nothing on a dry run" do
+      slot = make_slot("dry-0123abcd")
+      prune(dry_run: true)
+
+      expect(File.directory?(slot)).to be(true)
     end
   end
 

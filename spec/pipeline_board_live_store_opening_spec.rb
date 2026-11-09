@@ -71,6 +71,90 @@ RSpec.describe Hecks::Adapters::PipelineBoard::LiveStore do
     time[0] += 10
   end
 
+  # A store whose second boot (the first reload) fails and whose later ones succeed.
+  def store_with_failing_reload
+    FileUtils.mkdir_p(File.dirname(declaration))
+    File.write(declaration, "one")
+    store(lambda do |_|
+      nth = boots.push(1).size
+      raise "reload broke" if nth == 2
+
+      runtime(nth == 1 ? %i[old] : %i[new])
+    end)
+  end
+
+  def wait_for_problem(reader)
+    Timeout.timeout(5) { Thread.pass until reader.problem }
+  end
+
+  def wait_for_boots(count)
+    Timeout.timeout(5) { Thread.pass until boots.size >= count }
+  end
+
+  describe "a reload that fails" do
+    let(:reader) { store_with_failing_reload }
+
+    before do
+      edit_after_first_read(reader)
+      attempt(reader)
+      wait_for_problem(reader)
+    end
+
+    it "leaves the old runtime serving", :aggregate_failures do
+      expect(attempt(reader)).to eq(%i[old])
+      expect(reader.problem).to include("reload broke")
+    end
+
+    it "is not tried again within the retry window" do
+      time[0] += 10
+      attempt(reader)
+
+      expect(boots.size).to eq(2)
+    end
+
+    it "is tried again after the retry window, and the new runtime serves" do
+      time[0] += 70
+      attempt(reader)
+      wait_for_boots(3)
+
+      expect(eventually(reader, %i[new])).to eq(%i[new])
+    end
+
+    it "stops reporting a problem once a reload succeeds" do
+      time[0] += 70
+      attempt(reader)
+      wait_for_boots(3)
+      eventually(reader, %i[new])
+
+      expect(reader.problem).to be_nil
+    end
+  end
+
+  def port = File.join(root, "lib/hecks/ports/clock.port")
+
+  def write_declarations
+    FileUtils.mkdir_p([File.dirname(port), File.dirname(declaration)])
+    [declaration, port].each { |file| File.write(file, "one") }
+  end
+
+  def edit_port
+    File.write(port, "two, longer")
+    time[0] += 10
+  end
+
+  # A store over a domain declaration and one shared port, read once, then the port edited.
+  def store_with_edited_port
+    write_declarations
+    reader = store(->(_) { runtime(boots.push(1).size == 1 ? %i[old] : %i[new]) })
+    attempt(reader)
+    edit_port
+    reader
+  end
+
+  it "boots again when a shared port declaration changes" do
+    expect(eventually(store_with_edited_port, %i[new])).to eq(%i[new])
+  end
+
   it "does not boot again within the retry window after a failure" do
     broken = store(failing)
     3.times { attempt(broken) }

@@ -4,14 +4,18 @@ require_relative "support/pipeline_board_world"
 # The board's fill tile reads the report the last rolling fill recorded and starts no process; only
 # without one does it ask a launcher, and it keeps that answer.
 RSpec.describe Hecks::Adapters::PipelineFill do
+  let(:ran_at) { Time.utc(2026, 11, 9, 7, 0, 0) }
   let(:report) do
-    ["load 3.0 (limit 8.0, 12 cpus); started 4 of cap 6; this fill would start 1; frozen: none",
+    ["load 3.0 (limit 8.0, 12 cpus); started 4 of cap 6; this fill would start 1; frozen: none; at 2026-11-09T07:00:00Z",
      "would start alpha: Outcome: alpha",
      "beta skipped: cap 6 reached"].join("\n")
   end
   let(:runner) { instance_double(Proc, call: report) }
 
-  def reader(recorded, **settings) = described_class.new(settings: { report: -> { recorded }, runner: runner }.merge(settings))
+  # A reader whose clock stands one minute after the report was made.
+  def reader(recorded, **settings)
+    described_class.new(settings: { report: -> { recorded }, runner: runner, now: -> { ran_at + 60 } }.merge(settings))
+  end
 
   it "parses the recorded report", :aggregate_failures do
     fill = reader(report).preview
@@ -44,27 +48,61 @@ RSpec.describe Hecks::Adapters::PipelineFill do
     expect(fill[:skipped]).to eq([{ slug: "gamma", reason: "cap" }])
   end
 
-  # Previews a recorded report at each of the given times, in seconds.
-  def previews_at(*times)
-    now = [times.first]
-    fill = reader(report, clock: -> { now.first }, fresh_seconds: 900)
-    times.each do |at|
-      now[0] = at
-      fill.preview
-    end
+  # Previews the recorded report with the clock this many seconds after the time it states.
+  def preview_after(seconds, **settings)
+    reader(report, now: -> { ran_at + seconds }, fresh_seconds: 900, **settings).preview
   end
 
-  it "asks the launcher once an unchanged report has stood past the fresh window" do
-    previews_at(0.0, 901.0)
+  it "asks the launcher once the time a report states is past the fresh window" do
+    preview_after(901)
     expect(runner).to have_received(:call).once
   end
 
-  it "keeps a report current while it is young" do
-    previews_at(0.0, 899.0)
+  it "keeps a report current while the time it states is young" do
+    preview_after(899)
     expect(runner).not_to have_received(:call)
   end
 
+  it "does not take a report for fresh because the board has just started and not seen it before" do
+    fill = reader(report, now: -> { ran_at + 86_400 })
+    fill.preview
+    expect(runner).to have_received(:call).once
+  end
+
+  it "treats a report that states no time as stale" do
+    old_form = report.sub("; at 2026-11-09T07:00:00Z", "")
+    reader(old_form).preview
+    expect(runner).to have_received(:call).once
+  end
+
+  # Previews twice with the previews' own clock this many seconds apart, a day after the recorded
+  # report was made; answers how many times the launcher ran.
+  def launcher_runs(recorded, gap)
+    ticks = [0.0]
+    runs = []
+    counting = ->(*) { (runs << 1) && report }
+    fill = reader(recorded, runner: counting, now: -> { ran_at + 86_400 }, cache_clock: -> { ticks.first })
+    fill.preview
+    ticks[0] += gap
+    fill.preview
+    runs.size
+  end
+
+  it "keeps a launcher's answer past a minute where only a stale report stands" do
+    expect(launcher_runs(report, 200)).to eq(1)
+  end
+
+  it "asks the launcher again after five minutes where only a stale report stands" do
+    expect(launcher_runs(report, 301)).to eq(2)
+  end
+
+  it "asks the launcher again after a minute where no report stands" do
+    expect(launcher_runs(nil, 61)).to eq(2)
+  end
+
   it "refuses a report it cannot read" do
-    expect { reader("not a fill report").preview }.to raise_error(Hecks::Adapters::PipelineBoard::Unavailable)
+    garbled = ->(*) { "not a fill report" }
+
+    expect { reader(nil, runner: garbled).preview }.to raise_error(Hecks::Adapters::PipelineBoard::Unavailable)
   end
 end

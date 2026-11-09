@@ -24,8 +24,7 @@ module Hecks
           # @return [Hash{Integer => Symbol}] each pid's outcome: `:stopped`, `:still_running`,
           #   `:reused` (not the process that was listed) or `:denied`
           def call(entries)
-            current = @table.entries
-            outcome = entries.to_h { |entry| [entry.pid, signal(entry, current)] }
+            outcome = entries.to_h { |entry| [entry.pid, signal(entry)] }
             return outcome unless outcome.value?(:signalled)
 
             @pause.call
@@ -34,8 +33,10 @@ module Hecks
 
           private
 
-          def signal(entry, current)
-            found = current.find { |candidate| candidate.pid == entry.pid }
+          # Looks the process up in the table as it is now, immediately before its own stop: the
+          # more a sweep stops, the longer the first listing is out of date by the last one.
+          def signal(entry)
+            found = @table.entries.find { |candidate| candidate.pid == entry.pid }
             return :stopped unless found
             return :reused unless found.command == entry.command && found.age >= entry.age
 

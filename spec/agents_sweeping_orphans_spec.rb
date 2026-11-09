@@ -76,6 +76,41 @@ RSpec.describe Hecks::Adapters::Sweeping::Orphans do
     expect(killed).to eq([905, 906])
   end
 
+  it "spares a session or a build by the program it runs, not by a word in its command", :aggregate_failures do
+    orphans(children_of_a_leftover).reap
+
+    expect(killed).to eq([970, 971, 974])
+  end
+
+  # A leftover launcher and what runs below it: an editor, a build, a session and a grep.
+  def children_of_a_leftover
+    session = "/Users/me/.local/share/claude/versions/2.1.3 --resume x"
+    [entry(970, 777, late, "exe/hecks x"), entry(971, 970, 5, "vim /Users/me/.claude/notes.md"),
+     entry(972, 970, 5, "nice -n 15 cargo build"), entry(973, 970, 5, session),
+     entry(974, 970, 5, "grep cargo rustc claude log.txt")]
+  end
+
+  # The table as each step of a reap reads it: the second leftover has changed by its turn.
+  def reads_with_second_changed(first, second)
+    [[first, second], [first, second], [first, entry(second.pid, 1, 5, "vim notes")], [first]]
+  end
+
+  def reaper = described_class.new(table: table, killer: ->(pid) { killed << pid }, tmp: dir, pause: -> {})
+
+  # Reaps two leftovers whose table is read anew at each step.
+  def reap_with_second_changed
+    both = [entry(980, 1, late, "exe/hecks a"), entry(981, 1, late, "exe/hecks b")]
+    stub_table(both, [])
+    allow(table).to receive(:entries).and_return(*reads_with_second_changed(*both))
+    reaper.reap
+  end
+
+  it "looks each process up again just before its own stop", :aggregate_failures do
+    lines = reap_with_second_changed
+
+    expect([killed, lines.join]).to match([[980], /left alone, the pid was reused/])
+  end
+
   it "leaves a process whose pid was reused since the listing", :aggregate_failures do
     listed = [entry(940, 1, late, "exe/hecks x")]
     stub_table(listed, [])

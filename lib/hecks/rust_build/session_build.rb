@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "digest"
+require "fileutils"
 
 module Hecks
   module RustBuild
@@ -48,7 +49,7 @@ module Hecks
         given = base["CARGO_TARGET_DIR"]
         return {} if shared.nil? || (given && !(binary && File.expand_path(given) == shared))
 
-        { "CARGO_TARGET_DIR" => binary ? File.join(shared, slug(root)) : shared }
+        { "CARGO_TARGET_DIR" => binary ? slot(shared, root) : shared }
       end
 
       # @param root [String] a hecks checkout
@@ -57,7 +58,23 @@ module Hecks
       #   it names none
       def target_dir(root: ROOT, binary: false)
         shared = environment_of(row(root))["CARGO_TARGET_DIR"]
-        shared && binary ? File.join(shared, slug(root)) : shared
+        shared && binary ? slot(shared, root) : shared
+      end
+
+      # The directory a build that runs its own binary writes to, for a workspace in +root+. A
+      # directory named by hand wins, except the world's shared one, which a dispatched session
+      # inherits and which no two worktrees may write a binary to. Outside a linked worktree the
+      # world names no directory, and the workspace keeps its own `target/`.
+      #
+      # @param root [String] a hecks checkout
+      # @param base [#[]] the environment the child would otherwise inherit
+      # @return [String, nil] the directory, nil when the workspace's own `target/` serves
+      def binary_dir(root: ROOT, base: ENV)
+        given = base["CARGO_TARGET_DIR"]
+        shared = declared_target_dir(root: root)
+        return File.expand_path(given) if given && (shared.nil? || File.expand_path(given) != shared)
+
+        target_dir(root: root, binary: true)
       end
 
       # @param root [String] a hecks checkout
@@ -71,6 +88,42 @@ module Hecks
       def slug(root)
         path = File.expand_path(root)
         "#{File.basename(path)}-#{Digest::SHA256.hexdigest(path)[0, 8]}"
+      end
+
+      # The names a checkout's slot may carry: its path as given and as the file system spells it,
+      # which differ where a path crosses a symlink (`/var` and `/private/var`).
+      #
+      # @param root [String] a hecks checkout
+      # @return [Array<String>] the distinct slot names
+      def slugs(root)
+        [slug(root), slug(File.realpath(root))].uniq
+      rescue SystemCallError
+        [slug(root)]
+      end
+
+      # File in a slot naming the checkout it belongs to, so a prune can tell a slot whose
+      # checkout is gone from one whose checkout git lists under another spelling.
+      OWNER = ".owner"
+
+      # @param shared [String] the world's shared target directory
+      # @param root [String] the checkout the slot belongs to
+      # @return [String] the slot below +shared+, with its owner recorded where possible
+      def slot(shared, root)
+        dir = File.join(shared, slug(root))
+        claim(dir, root)
+        dir
+      end
+
+      # Records +root+ as the slot's owner; a slot that cannot be written to is left unrecorded.
+      def claim(dir, root)
+        file = File.join(dir, OWNER)
+        owner = File.realpath(root)
+        return if File.file?(file) && File.read(file) == owner
+
+        FileUtils.mkdir_p(dir)
+        File.write(file, owner)
+      rescue SystemCallError
+        nil
       end
 
       # @param path [String] a file or directory in a hecks checkout

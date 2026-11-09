@@ -2,6 +2,7 @@
 
 require "digest"
 require_relative "../probe"
+require_relative "../boot_lock"
 require_relative "../registry_store"
 
 module Hecks
@@ -13,13 +14,24 @@ module Hecks
         # reader that gives up finds the boot still going. A failed boot is remembered and not
         # tried again for a minute. While the checkout's declaration files stand as they were the
         # runtime is kept; when one changes the domain is booted again in the background and the
-        # old runtime serves until the new one is ready.
+        # old runtime serves until the new one is ready. A reload that fails leaves the old runtime
+        # serving and is tried again after the retry window; `problem` says why.
+        #
+        # The replaced runtime is not closed: a runtime has no close, and the Sqlite handles and the
+        # relay thread it holds cannot be released without one. They go when the runtime is
+        # collected, and the board's own restart (`board_restart`: memory or age) bounds what a
+        # long run of reloads keeps meanwhile. Boots take turns through {BootLock}.
         class Opening
           RETRY_SECONDS = 60
           CHECK_SECONDS = 30
           WAIT_SECONDS = 15
-          # The files that declare a domain.
-          DECLARATIONS = "**/*.{bluebook,hecksagon,world,adapter}"
+          # The files that declare a domain and the ports and adapters it plugs into.
+          DECLARATIONS = "**/*.{bluebook,hecksagon,world,adapter,port}"
+          # Where the checkout keeps the shared ports and adapters `Hecks.describe` loads for its
+          # domain (the nearest ancestor of the domain directory holding a `ports` or `adapters`
+          # folder). The bluebooks the domain attaches are read from the board's own code, not from
+          # the checkout, so they are not watched: the board's own restart picks them up.
+          SHARED_ROOTS = %w[lib/hecks/ports lib/hecks/adapters].freeze
 
           # @param root [String] the checkout, named in what is raised
           # @param directory [String] the checkout's Hecks domain directory
@@ -56,20 +68,29 @@ module Hecks
           # @raise [Unavailable] while the first boot is going, and when it failed
           def registry = runtime.registry
 
+          # @return [String, nil] why the last reload failed while the old runtime serves, nil when
+          #   the runtime is current or none has opened yet
+          def problem
+            @lock.synchronize { "reload of #{@root} failed: #{@failed[:message]}" if @runtime && @failed }
+          end
+
           private
 
+          # The fingerprint a boot is judged against is the one of the files it read: it replaces
+          # the last one only when the boot succeeds, so a reload that fails is tried again once
+          # the retry window passes, and meanwhile the old runtime serves.
           def start
             return @thread if @thread&.alive?
             return @thread unless wanted?
 
-            @fingerprint = fingerprint
-            @thread = Thread.new { open }
+            reading = fingerprint
+            @thread = Thread.new { boot_into(reading) }
           end
 
           def wanted?
             return !backing_off? unless @runtime
 
-            changed?
+            !backing_off? && changed?
           end
 
           def backing_off? = @failed && @clock.call - @failed[:at] < @retry_seconds
@@ -81,10 +102,11 @@ module Hecks
             fingerprint != @fingerprint
           end
 
-          def open
-            booted = @booter.call(@directory)
+          def boot_into(reading)
+            booted = BootLock.exclusive { @booter.call(@directory) }
             @lock.synchronize do
               @runtime = booted
+              @fingerprint = reading
               @failed = nil
             end
           rescue StandardError => e
@@ -99,12 +121,19 @@ module Hecks
             raise Unavailable, "the live store at #{@root} is still opening"
           end
 
-          # A digest of the path, size and time of each declaration file of the domain.
+          # A digest of the path, size and time of each declaration file the checkout's domain
+          # reads: the files under its own directory and under the shared roots it attaches.
           def fingerprint
-            files = Dir.glob(File.join(@directory, DECLARATIONS))
+            files = watched.flat_map { |dir| Dir.glob(File.join(dir, DECLARATIONS)) }.uniq.sort
             Digest::SHA256.hexdigest(files.map { |file| stamp(file) }.join("\n"))
           rescue SystemCallError
             nil
+          end
+
+          # The directories the domain's declarations come from: its own, and the checkout's
+          # shared bluebooks (the language and framework bluebooks it attaches), when it has them.
+          def watched
+            [@directory, *SHARED_ROOTS.map { |dir| File.join(@root, dir) }].select { |dir| File.directory?(dir) }
           end
 
           def stamp(file)

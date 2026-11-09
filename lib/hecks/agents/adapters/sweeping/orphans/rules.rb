@@ -24,8 +24,14 @@ module Hecks
           KEPT = /serve!|present!|compose!|preview!|\bmcp\b|mcp!|SendTrain|send_train|sweep\.tick|quality_control|
                   Operation\.(run|follow)|gate_run|run_impacted_specs|run_spec_|push_rehearsal|landing\.(land|finish|train)/ix
           # What a leftover launcher's children keep running: a session and a build are not stopped
-          # with the launcher that started them.
-          KEEP_BELOW = /\bclaude\b|\bcargo\b|\brustc\b/
+          # with the launcher that started them. It is the program a process runs that counts, the
+          # first word of its command (past a `nice`), not any word in it: a command that only
+          # mentions `.claude/` or `cargo` in an argument is not one.
+          KEEP_BELOW = Regexp.union(
+            %r{\A(?:nice(?:\s+-n\s*\d+)?\s+)?(?:\S*/)?(?:claude|cargo|rustc)(?=\s|\z)},
+            %r{\A\S*/claude/versions/\S+},
+            %r{\A\S*/ClaudeCode\.app/}
+          )
           # The marker a push rehearsal puts in its temp directory and in its processes' command
           # lines.
           # Only the spec of the isolated push makes such a directory; the train pushes from a

@@ -142,8 +142,12 @@ module Hecks
 
       def header(plan)
         "#{load_line}; started #{work_items.started.size} of cap #{machine.cap}; " \
-          "this fill would start #{plan.chosen.size}; frozen: #{frozen_line}"
+          "this fill would start #{plan.chosen.size}; frozen: #{frozen_line}; at #{ran_at}"
       end
+
+      # The time the report was made, in UTC: a reader that finds the report later can tell how old
+      # it is, which the record of a roll does not say.
+      def ran_at = (@standins[:now]&.call || Time.now).utc.strftime("%Y-%m-%dT%H:%M:%SZ")
 
       def load_line = "load #{machine.load.round(1)} (limit #{machine.max_load.round(1)}, #{machine.cpus} cpus)"
 

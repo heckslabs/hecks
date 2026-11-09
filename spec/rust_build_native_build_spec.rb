@@ -79,6 +79,66 @@ RSpec.describe Hecks::RustBuild::NativeBuild do
     expect(described_class).to have_received(:build_and_pin).once
   end
 
+  describe "where a linked worktree's build writes" do
+    let(:checkout) { Dir.mktmpdir("native_checkout") }
+    let(:shared) { File.join(checkout, "shared-target") }
+    let(:rust) { File.join(checkout, "rust") }
+    let(:session) { Hecks::RustBuild::SessionBuild }
+
+    before do
+      FileUtils.mkdir_p([File.join(checkout, "lib/hecks/hecks"), rust])
+      File.write(File.join(checkout, ".git"), "gitdir: elsewhere")
+      File.write(File.join(checkout, session::WORLD), <<~RUBY)
+        Hecks.world "Tickets" do
+          session_environment "Sessions", cargo_target_dir: "#{shared}", nice: 7
+        end
+      RUBY
+      session.reset!
+    end
+
+    after do
+      session.reset!
+      FileUtils.rm_rf(checkout)
+    end
+
+    def with_target_env(value)
+      stub_const("ENV", ENV.to_h.except("CARGO_TARGET_DIR").merge(value ? { "CARGO_TARGET_DIR" => value } : {}))
+    end
+
+    it "is a directory of the worktree's own, though the dispatcher exports the shared one" do
+      with_target_env(shared)
+
+      expect(described_class.target_dir(rust)).to eq(File.join(shared, session.slug(checkout)))
+    end
+
+    it "is the worktree's own directory when none is exported" do
+      with_target_env(nil)
+
+      expect(described_class.target_dir(rust)).to eq(File.join(shared, session.slug(checkout)))
+    end
+
+    it "is a directory named by hand when one is exported" do
+      with_target_env("/by-hand")
+
+      expect(described_class.target_dir(rust)).to eq("/by-hand")
+    end
+
+    # The environment the cargo child of a build in the worktree starts with.
+    def cargo_environment
+      captured = []
+      ok = instance_double(Process::Status, success?: true)
+      allow(Open3).to receive(:capture3) { |env, *_command, **_options| (captured << env) && ["", "", ok] }
+      described_class.cargo(%w[cargo build], rust, "pizzas")
+      captured.first
+    end
+
+    it "gives the cargo child the same directory, so a build and its pinned binary agree" do
+      with_target_env(shared)
+
+      expect(cargo_environment).to eq("CARGO_TARGET_DIR" => File.join(shared, session.slug(checkout)))
+    end
+  end
+
   describe "a binary pinned ahead of the build" do
     let(:pinned) { File.join(dir, "target", "debug", "rust-pizzas") }
 

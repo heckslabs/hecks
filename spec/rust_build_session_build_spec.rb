@@ -57,6 +57,26 @@ RSpec.describe Hecks::RustBuild::SessionBuild do
       expect(described_class.environment(root: root, base: { "CARGO_TARGET_DIR" => shared })).to eq({})
     end
 
+    it "records the checkout that owns the slot", :aggregate_failures do
+      described_class.environment(root: root, base: no_target, binary: true)
+
+      expect(File.read(File.join(own, described_class::OWNER))).to eq(File.realpath(root))
+    end
+
+    it "gives a native build the worktree's own slot when it inherits the shared directory" do
+      expect(described_class.binary_dir(root: root, base: { "CARGO_TARGET_DIR" => shared })).to eq(own)
+    end
+
+    it "gives a native build a directory named by hand, not the shared one" do
+      expect(described_class.binary_dir(root: root, base: { "CARGO_TARGET_DIR" => "/own" })).to eq("/own")
+    end
+
+    it "gives a native build in a checkout that is not a linked worktree its own target directory" do
+      FileUtils.rm(File.join(root, ".git"))
+
+      expect(described_class.binary_dir(root: root, base: no_target)).to be_nil
+    end
+
     it "names the same directory for one checkout however its path is spelled" do
       expect(described_class.slug("#{root}/")).to eq(described_class.slug(root))
     end

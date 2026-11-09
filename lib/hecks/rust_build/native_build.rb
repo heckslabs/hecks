@@ -112,13 +112,18 @@ module Hecks
         File.join(target_dir(rust_dir), "debug", "rust-#{domain_feature}")
       end
 
-      # Where Cargo writes: `CARGO_TARGET_DIR` when set, else the workspace's own `target/`. The
-      # pinned binary is current when no source is newer than it, a rule that cannot tell two
-      # worktrees' sources apart, so this build never takes the world's shared directory.
+      # Where Cargo writes: a directory named by hand, else a directory of the worktree's own below
+      # the world's shared one, else the workspace's own `target/`. The pinned binary is current
+      # when no source is newer than it, a rule that cannot tell two worktrees' sources apart, so
+      # this build never writes to the shared directory a dispatched session inherits.
       #
       # @param rust_dir [String] the workspace
       # @return [String] the directory holding `debug/`
-      def target_dir(rust_dir) = ENV.fetch("CARGO_TARGET_DIR") { File.join(rust_dir, "target") }
+      def target_dir(rust_dir)
+        root = SessionBuild.root_of(rust_dir)
+        inside = File.expand_path(rust_dir).start_with?("#{root}/")
+        (inside && SessionBuild.binary_dir(root: root)) || File.join(rust_dir, "target")
+      end
 
       # A binary pinned ahead of time, by an earlier run whose build was restored from a cache, is
       # current when no source is newer than it: the rule `make` applies to any target.
@@ -140,7 +145,8 @@ module Hecks
 
       def cargo(command, rust_dir, domain_feature)
         root = SessionBuild.root_of(rust_dir)
-        _stdout, stderr, status = Open3.capture3(*SessionBuild.command(command, root: root), chdir: rust_dir)
+        env = { "CARGO_TARGET_DIR" => target_dir(rust_dir) }
+        _stdout, stderr, status = Open3.capture3(env, *SessionBuild.command(command, root: root), chdir: rust_dir)
         return if status.success?
 
         raise BuildFailed, "`#{command.join(" ")}` failed in #{rust_dir} (exit #{status.exitstatus}) — " \

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "json"
+require_relative "boot_lock"
 require_relative "cache"
 require_relative "pipeline_journal/tap"
 require_relative "pipeline_journal/chain"
@@ -135,7 +136,9 @@ module Hecks
         raise PipelineBoard::Unavailable, "journal: #{e.message[0, 80]}"
       end
 
-      def registry = @registry ||= Hecks.describe(File.join(owner_root, DEFAULT_DOMAIN)).registry
+      def registry
+        @registry ||= PipelineBoard::BootLock.exclusive { Hecks.describe(File.join(owner_root, DEFAULT_DOMAIN)).registry }
+      end
 
       # The checkout whose local overlays name the stores: a linked worktree has none, so its main
       # checkout is read instead.
