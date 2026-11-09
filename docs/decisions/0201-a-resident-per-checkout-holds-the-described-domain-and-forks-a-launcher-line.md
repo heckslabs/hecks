@@ -519,6 +519,20 @@ So rubygems costs about 20 ms, `env -S` about 1 ms, and the shim about 35 ms tha
 machine-specific and is not hardcoded). Inside the launcher the client reaches the end 22.6 ms after its first line with
 `Gem` still absent, and the resident's forked child, which has the gems, takes about 5 ms.
 
+The three lines the pipeline polls, timed in the main checkout with the resident standing (millisecond clock, 60 runs
+each after four warm-up runs; the old shebang is main before this landed, the new one is main after it):
+
+| line | p50 old | p50 new, two runs | p90 old | p90 new, two runs |
+|---|---|---|---|---|
+| `exe/hecks --help` | 85.9 ms | 60.5, 66.5 ms | 89.6 ms | 73.6, 137.1 ms |
+| `exe/hecks agents Role.guard ...` | 110.8 ms | 91.8, 86.8 ms | 168.6 ms | 185.2, 187.1 ms |
+| `exe/hecks tickets Work.undone` | 141.9 ms | 122.0, 116.8 ms | 190.6 ms | 208.1, 223.6 ms |
+
+The medians fall by about 20 ms on every line. The p90s did not fall: the runs after the change were made with the
+machine busier (load average 3.8, and `ReportCrash` using half a core), and a tail of 140 to 220 ms appears in both
+sets, so the p90 target of 0.15 s is not shown to be met or missed by these runs. `Role.guard` now meets 0.15 s at the
+median with room (87 to 92 ms), and `Work.undone` at 117 to 122 ms.
+
 What was checked about the other ways to start it:
 
 - `ruby exe/hecks`: Ruby reads the options on a script's own shebang line, so `--disable-gems` applies here too and the
@@ -533,3 +547,12 @@ What was checked about the other ways to start it:
   not run here.
 - `spec/launcher_shebang_spec.rb` starts the launcher cold through its shebang, under `bundle exec` and as a script
   argument to `ruby`, and pins both shebangs and the position of the `require "rubygems"` after the probe.
+
+Seen while measuring, and not addressed here: `~/Library/Logs/DiagnosticReports` holds eight `ruby-2026-11-09-*.ips`
+reports (a run at 00:17 to 00:21, one a minute, then single ones at 01:19, 02:48 and 04:36). The one read says
+`EXC_CRASH` with `SIGABRT`, namespace `OBJC`, and "crashed on child side of fork pre-exec", with a Ruby as its parent
+process: the macOS Objective-C runtime aborts a forked child that touches a class whose initializer was running in
+another thread at the fork. The resident forks a child per line, so a resident child is the likely source, and
+`ReportCrash` used half a core while the latest numbers above were taken. The usual remedy for a Ruby that forks
+without exec on macOS is `OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES` in the resident's environment
+(`Resident::SpawnEnv`); it has not been tried, and the library that triggers the abort has not been identified.
