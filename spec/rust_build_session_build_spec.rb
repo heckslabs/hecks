@@ -36,6 +36,63 @@ RSpec.describe Hecks::RustBuild::SessionBuild do
     expect(described_class.environment(root: root, base: { "CARGO_TARGET_DIR" => "/elsewhere" })).to eq({})
   end
 
+  describe "a build whose binary is run afterwards" do
+    let(:own) { File.join(shared, described_class.slug(root)) }
+
+    it "takes a directory of the worktree's own below the shared one" do
+      expect(described_class.environment(root: root, base: no_target, binary: true)).to eq("CARGO_TARGET_DIR" => own)
+    end
+
+    it "replaces the shared directory a dispatched session inherits" do
+      inherited = { "CARGO_TARGET_DIR" => shared }
+
+      expect(described_class.environment(root: root, base: inherited, binary: true)).to eq("CARGO_TARGET_DIR" => own)
+    end
+
+    it "leaves a directory named by hand alone" do
+      expect(described_class.environment(root: root, base: { "CARGO_TARGET_DIR" => "/own" }, binary: true)).to eq({})
+    end
+
+    it "leaves the shared directory a test build inherits alone" do
+      expect(described_class.environment(root: root, base: { "CARGO_TARGET_DIR" => shared })).to eq({})
+    end
+
+    it "names the same directory for one checkout however its path is spelled" do
+      expect(described_class.slug("#{root}/")).to eq(described_class.slug(root))
+    end
+
+    it "names a different directory for another checkout" do
+      other = Dir.mktmpdir("session-build")
+
+      expect(described_class.slug(other)).not_to eq(described_class.slug(root))
+    ensure
+      FileUtils.remove_entry(other)
+    end
+
+    it "names a directory ending in the checkout's name and eight hex digits" do
+      expect(described_class.slug(root)).to match(/\A#{Regexp.escape(File.basename(root))}-\h{8}\z/)
+    end
+  end
+
+  describe "the checkout a build belongs to" do
+    it "is the nearest directory above the build with a .git" do
+      crate = File.join(root, "rust", "codegen")
+      FileUtils.mkdir_p(crate)
+
+      expect(described_class.root_of(crate)).to eq(File.expand_path(root))
+    end
+
+    it "is the checkout this code runs from when nothing above the path names one" do
+      expect(described_class.root_of("/")).to eq(Hecks::RustBuild::ROOT)
+    end
+
+    it "reads the world's directory for a checkout that is not a linked worktree" do
+      FileUtils.rm(File.join(root, ".git"))
+
+      expect(described_class.declared_target_dir(root: root)).to eq(shared)
+    end
+  end
+
   it "puts the build under the world's nice increment" do
     expect(described_class.command(%w[cargo build], root: root)).to eq(%w[nice -n 7 cargo build])
   end
@@ -75,6 +132,14 @@ RSpec.describe Hecks::RustBuild::SessionBuild do
         .with(hash_including("CARGO_TARGET_DIR" => shared), "nice", "-n", "7", "cargo", "build", any_args)
     end
 
+    it "follows the workspace it builds in, not the checkout running the code" do
+      stub_const("Hecks::RustBuild::ROOT", "/running-checkout")
+      Hecks::RustBuild.command!("cargo", "build", chdir: File.join(root, "rust"))
+
+      expect(Hecks::RustBuild).to have_received(:system)
+        .with(hash_including("CARGO_TARGET_DIR" => shared), "nice", "-n", "7", "cargo", "build", any_args)
+    end
+
     it "lets a command's own environment win over the world's" do
       Hecks::RustBuild.command!("cargo", "build", env: { "CARGO_TARGET_DIR" => "/own" })
 
@@ -95,6 +160,20 @@ RSpec.describe Hecks::RustBuild::SessionBuild do
       FileUtils.cp(File.join(root, described_class::WORLD), File.join(worktree, described_class::WORLD))
 
       expect(Hecks::RustBuild::TargetDir.for(File.join(worktree, "rust/host"), root: worktree)).to eq(shared)
+    end
+
+    it "builds a binary the worktree runs into a directory of its own below the shared one" do
+      stub_const("ENV", ENV.to_h.except("CARGO_TARGET_DIR"))
+      host = File.join(root, "rust/host")
+
+      expect(Hecks::RustBuild::TargetDir.for(host, root: root, binary: true)).to eq(File.join(shared, described_class.slug(root)))
+    end
+
+    it "builds a binary into its own directory even when the shared one is inherited" do
+      stub_const("ENV", ENV.to_h.merge("CARGO_TARGET_DIR" => shared))
+      host = File.join(root, "rust/host")
+
+      expect(Hecks::RustBuild::TargetDir.for(host, root: root, binary: true)).to eq(File.join(shared, described_class.slug(root)))
     end
   end
 

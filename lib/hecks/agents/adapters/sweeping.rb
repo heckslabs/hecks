@@ -34,7 +34,7 @@ module Hecks
         @shell = settings[:shell] || Shell.new
         @log = settings[:log] || File.join(Dir.home, ".claude", "daemon.log")
         @killer = settings[:killer] || ->(pid) { Process.kill("TERM", pid) }
-        @tmp = settings[:tmp] || Dir.tmpdir
+        @tmps = settings[:tmp] ? [settings[:tmp]] : ["/tmp", Dir.tmpdir].uniq
         @residue = residue_for(settings)
       end
 
@@ -113,7 +113,7 @@ module Hecks
 
       def table = (@table ||= ProcessTable.new(shell: @shell))
 
-      def orphans = Orphans.new(table: table, killer: @killer, tmp: @tmp)
+      def orphans = Orphans.new(table: table, killer: @killer, tmp: @tmps)
 
       def footprint = Footprint.new(shell: @shell, table: ProcessTable.new(shell: @shell))
     end

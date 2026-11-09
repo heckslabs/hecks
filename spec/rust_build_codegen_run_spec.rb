@@ -47,17 +47,35 @@ RSpec.describe Hecks::RustBuild::ProjectRust::CodegenRun do
     end
   end
 
+  describe ".build" do
+    let(:finished) { instance_double(Process::Status, success?: true) }
+    let(:own) { { "CARGO_TARGET_DIR" => "/shared/target/tree-0123abcd" } }
+
+    before do
+      allow(Open3).to receive(:capture2e).and_return(["", finished])
+      allow(Hecks::RustBuild::SessionBuild).to receive_messages(environment: own, command: %w[nice cargo build])
+    end
+
+    it "asks for the worktree's own target directory, the one the binary is then run from", :aggregate_failures do
+      described_class.build(checkout_crate)
+
+      expect(Hecks::RustBuild::SessionBuild).to have_received(:environment).with(hash_including(binary: true))
+      expect(Open3).to have_received(:capture2e).with(own, "nice", "cargo", "build", chdir: checkout_crate)
+    end
+  end
+
   describe ".binary" do
     it "is in the crate's own target directory by default" do
-      allow(Hecks::RustBuild::SessionBuild).to receive(:target_dir).and_return(nil)
+      allow(Hecks::RustBuild::SessionBuild).to receive(:environment).and_return({})
 
       expect(described_class.binary(@dir, env: {})).to eq(File.join(checkout_crate, "target/debug/hecks-codegen"))
     end
 
-    it "is in the Tickets world's shared directory for a linked worktree with none named" do
-      allow(Hecks::RustBuild::SessionBuild).to receive(:target_dir).and_return("/shared/target")
+    it "is in the worktree's own directory below the Tickets world's shared one, as the build puts it" do
+      own = { "CARGO_TARGET_DIR" => "/shared/target/tree-0123abcd" }
+      allow(Hecks::RustBuild::SessionBuild).to receive(:environment).with(hash_including(binary: true)).and_return(own)
 
-      expect(described_class.binary(@dir, env: {})).to eq("/shared/target/debug/hecks-codegen")
+      expect(described_class.binary(@dir, env: {})).to eq("/shared/target/tree-0123abcd/debug/hecks-codegen")
     end
 
     it "is under CARGO_TARGET_DIR when a build sets it, so nothing lands inside an installed gem" do

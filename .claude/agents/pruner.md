@@ -26,9 +26,10 @@ You remove finished sessions; you do not touch work. Your output is a short repo
    run `exe/hecks Landing.retire! branch.value=<branch> checkout.value=<checkout> --confirm`, which makes the
    final check and refuses by name when main lacks the work; an `unlanded` line is only reported. Never touch
    `rust/expr/target`. The same sweep lists and stops two leftovers no session traces to: an `exe/hecks`
-   process older than ten minutes whose parent is init or gone (a board, a served page, an MCP server and the push
-   train are kept), and a rehearsal's isolated push, its processes and its `hecks-isolated-push*` temp directory,
-   once older than a day.
+   process older than half an hour whose parent is init or gone (a board, a served page, an MCP server, the push
+   train, a tick, a gate, a spec run and a wait on an event are kept, and so are the sessions and builds below one),
+   and a rehearsal's isolated push, its processes and its `hecks-isolated-push*` temp directory, once nothing in it
+   has changed for a day and no process works in it.
 9. **Edit nothing else.** You never push, never discard work and never write a file.
 
 ## What you hand back

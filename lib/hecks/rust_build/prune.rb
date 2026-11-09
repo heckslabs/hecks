@@ -25,10 +25,33 @@ module Hecks
       # @return [Integer] bytes freed (or that would be)
       def run(root: ROOT, days: DAYS, dry_run: false)
         listing = Worktrees.listing(root)
+        shared = TargetDir.shared_root(root: root)
+        freed = worktree_targets(listing, root, dry_run) + unlisted_slots(shared, Worktrees.paths(listing), dry_run: dry_run)
+        freed + stale(shared_targets(shared), days: days, dry_run: dry_run)
+      end
+
+      # @return [Integer] bytes freed (or that would be) from the `target/` of worktrees git no
+      #   longer lists and of those whose branch landed
+      def worktree_targets(listing, root, dry_run)
         dir = File.join(Worktrees.paths(listing).first, ".claude", "worktrees")
         gone = File.directory?(dir) ? orphans(dir, live: Worktrees.paths(listing), dry_run: dry_run) : 0
-        landed = targets_of(Worktrees.merged(listing, running: root), dry_run: dry_run)
-        gone + landed + stale(Dir.glob(TargetDir.shared("*")), days: days, dry_run: dry_run)
+        gone + targets_of(Worktrees.merged(listing, running: root), dry_run: dry_run)
+      end
+
+      # @param shared [String] the directory every shared target lives in
+      # @return [Array<String>] the shared directory itself, which is a target when sessions build
+      #   there directly, and each directory in it: a worktree's own, or a crate's from before
+      def shared_targets(shared) = [shared] + Dir.glob(File.join(shared, "*")).select { |path| File.directory?(path) }
+
+      # Deletes the directory a worktree's binary builds kept in the shared target, once git no
+      # longer lists that worktree.
+      # @param shared [String] the directory every shared target lives in
+      # @param live [Array<String>] worktree paths git still lists
+      # @return [Integer] bytes freed (or that would be)
+      def unlisted_slots(shared, live, dry_run: false)
+        names = live.map { |path| SessionBuild.slug(path) }
+        slots = Dir.glob(File.join(shared, "*-#{"[0-9a-f]" * 8}")).select { |path| File.directory?(path) }
+        slots.reject { |path| names.include?(File.basename(path)) }.sum { |path| remove(path, dry_run) }
       end
 
       # Deletes the artifacts under each target's `<profile>/{deps,incremental,build}` not touched

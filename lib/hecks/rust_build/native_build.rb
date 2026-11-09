@@ -139,7 +139,8 @@ module Hecks
       end
 
       def cargo(command, rust_dir, domain_feature)
-        _stdout, stderr, status = Open3.capture3(*SessionBuild.command(command), chdir: rust_dir)
+        root = SessionBuild.root_of(rust_dir)
+        _stdout, stderr, status = Open3.capture3(*SessionBuild.command(command, root: root), chdir: rust_dir)
         return if status.success?
 
         raise BuildFailed, "`#{command.join(" ")}` failed in #{rust_dir} (exit #{status.exitstatus}) — " \

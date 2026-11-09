@@ -38,6 +38,38 @@ RSpec.describe Hecks::RustBuild::Prune do
     end
   end
 
+  describe ".unlisted_slots" do
+    let(:live_tree) { File.join(dir, "trees", "live") }
+    let!(:live_slot) { touch(File.join(dir, "shared", Hecks::RustBuild::SessionBuild.slug(live_tree), "debug", "a")) }
+    let!(:dead_slot) { touch(File.join(dir, "shared", "gone-0123abcd", "debug", "a")) }
+    let!(:crate_dir) { touch(File.join(dir, "shared", "codegen", "debug", "a")) }
+
+    before { described_class.unlisted_slots(File.join(dir, "shared"), [live_tree]) }
+
+    it "removes the directory of a worktree git no longer lists" do
+      expect(File.exist?(dead_slot)).to be(false)
+    end
+
+    it "keeps a listed worktree's directory and a crate's", :aggregate_failures do
+      expect([File.exist?(live_slot), File.exist?(crate_dir)]).to eq([true, true])
+    end
+  end
+
+  describe ".shared_targets" do
+    it "names the shared directory and each directory in it" do
+      FileUtils.mkdir_p([File.join(dir, "a-0123abcd"), File.join(dir, "codegen")])
+
+      expect(described_class.shared_targets(dir)).to contain_exactly(dir, File.join(dir, "a-0123abcd"), File.join(dir, "codegen"))
+    end
+
+    it "reaches the artifacts of a worktree's own directory" do
+      old = touch(File.join(dir, "a-0123abcd", "debug", "deps", "old.rlib"), age_days: 30)
+      described_class.stale(described_class.shared_targets(dir), days: 14)
+
+      expect(File.exist?(old)).to be(false)
+    end
+  end
+
   describe ".targets_of" do
     let!(:done) { touch(File.join(dir, "done", "rust", "host", "target", "a")) }
     let!(:open_one) { touch(File.join(dir, "open", "rust", "target", "a")) }

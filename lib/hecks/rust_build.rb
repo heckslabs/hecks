@@ -105,7 +105,8 @@ module Hecks
       def command!(*command, chdir: nil, env: {})
         options = { out: $stdout, err: $stderr }
         options[:chdir] = chdir if chdir
-        return if system(SessionBuild.environment.merge(env), *SessionBuild.command(command), **options)
+        root = chdir ? SessionBuild.root_of(chdir) : ROOT
+        return if system(SessionBuild.environment(root: root).merge(env), *SessionBuild.command(command, root: root), **options)
 
         raise Failure, "`#{command.join(" ")}` failed#{" in #{chdir}" if chdir}"
       end

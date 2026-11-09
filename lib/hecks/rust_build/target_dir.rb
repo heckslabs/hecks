@@ -22,18 +22,29 @@ module Hecks
 
       # @param crate_dir [String] the crate's directory
       # @param root [String] the hecks copy the crate belongs to
+      # @param binary [Boolean] whether the build's binary is run or published afterwards, which
+      #   takes a directory of the worktree's own below the shared one
       # @return [String] the directory Cargo writes the crate's output to
-      def for(crate_dir, root: ROOT)
-        ENV.fetch("CARGO_TARGET_DIR") do
-          installed?(root) || worktree?(root) ? shared_for(crate_dir, root) : File.join(crate_dir, "target")
-        end
+      def for(crate_dir, root: ROOT, binary: false)
+        SessionBuild.environment(root: root, binary: binary)["CARGO_TARGET_DIR"] ||
+          ENV.fetch("CARGO_TARGET_DIR") do
+            installed?(root) || worktree?(root) ? shared_for(crate_dir, root, binary: binary) : File.join(crate_dir, "target")
+          end
       end
 
       # @param crate_dir [String] the crate's directory
       # @param root [String] the hecks copy the crate belongs to
+      # @param binary [Boolean] whether the build's binary is run or published afterwards
       # @return [String] the world's shared target directory, else the per-crate cache directory
-      def shared_for(crate_dir, root)
-        SessionBuild.target_dir(root: root) || shared(File.basename(crate_dir))
+      def shared_for(crate_dir, root, binary: false)
+        SessionBuild.target_dir(root: root, binary: binary) || shared(File.basename(crate_dir))
+      end
+
+      # @param root [String] the hecks copy to read the world of
+      # @return [String] the directory every shared target lives in: the one the Tickets world
+      #   names, else the per-user cache's `cargo-target`
+      def shared_root(root: ROOT)
+        SessionBuild.declared_target_dir(root: root) || shared("").chomp("/")
       end
 
       # @param root [String] a hecks copy's directory

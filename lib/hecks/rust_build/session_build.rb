@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "digest"
+
 module Hecks
   module RustBuild
     # What the Tickets world's `session_environment` line says every Rust build child runs with:
@@ -30,17 +32,60 @@ module Hecks
       # @return [Integer, nil] the `nice` increment, nil for none
       def nice_of(row) = row[:nice]
 
+      # A build that only tests shares the one target directory, since Cargo's lock serialises a
+      # build. A build that runs or publishes a binary Cargo produced (`binary: true`) takes a
+      # directory of its own below it, so another worktree cannot replace the binary between the
+      # build and the run. A session inherits the shared directory from the dispatcher; a binary
+      # build replaces that one too, while a directory named by hand always wins.
+      #
       # @param root [String] a hecks checkout
-      # @param base [#key?] the environment the child would otherwise inherit
+      # @param base [#[]] the environment the child would otherwise inherit
+      # @param binary [Boolean] whether the build's binary is run or published afterwards
       # @return [Hash{String => String}] the variables to add; none when the caller already named
       #   a target directory, so `CARGO_TARGET_DIR` set by hand still wins
-      def environment(root: ROOT, base: ENV)
-        base.key?("CARGO_TARGET_DIR") ? {} : environment_of(row(root))
+      def environment(root: ROOT, base: ENV, binary: false)
+        shared = environment_of(row(root))["CARGO_TARGET_DIR"]
+        given = base["CARGO_TARGET_DIR"]
+        return {} if shared.nil? || (given && !(binary && File.expand_path(given) == shared))
+
+        { "CARGO_TARGET_DIR" => binary ? File.join(shared, slug(root)) : shared }
       end
 
       # @param root [String] a hecks checkout
-      # @return [String, nil] the shared target directory the world names, nil when it names none
-      def target_dir(root: ROOT) = environment_of(row(root))["CARGO_TARGET_DIR"]
+      # @param binary [Boolean] whether the build's binary is run or published afterwards
+      # @return [String, nil] the target directory the world names for a build in +root+, nil when
+      #   it names none
+      def target_dir(root: ROOT, binary: false)
+        shared = environment_of(row(root))["CARGO_TARGET_DIR"]
+        shared && binary ? File.join(shared, slug(root)) : shared
+      end
+
+      # @param root [String] a hecks checkout
+      # @return [String, nil] the shared target directory the world names, whether or not +root+ is
+      #   a linked worktree
+      def declared_target_dir(root: ROOT) = environment_of(declared(root))["CARGO_TARGET_DIR"]
+
+      # @param root [String] a hecks checkout
+      # @return [String] the name of the directory a binary build in +root+ keeps below the shared
+      #   one: the checkout's name and a digest of its path, so two checkouts never share one
+      def slug(root)
+        path = File.expand_path(root)
+        "#{File.basename(path)}-#{Digest::SHA256.hexdigest(path)[0, 8]}"
+      end
+
+      # @param path [String] a file or directory in a hecks checkout
+      # @return [String] the checkout it is in: the nearest directory above it with a `.git` or a
+      #   `hecks.gemspec`, else the checkout this code runs from
+      def root_of(path)
+        dir = File.expand_path(path.to_s)
+        until File.exist?(File.join(dir, ".git")) || File.file?(File.join(dir, "hecks.gemspec"))
+          parent = File.dirname(dir)
+          return ROOT if parent == dir
+
+          dir = parent
+        end
+        dir
+      end
 
       # @param command [Array<String>] a build command and its arguments
       # @param root [String] a hecks checkout
@@ -56,9 +101,11 @@ module Hecks
       # @param root [String] a hecks checkout
       # @return [Hash] the world's `session_environment` row, empty for a checkout that is not a
       #   linked worktree or when none can be read
-      def row(root)
-        return {} unless File.file?(File.join(root, ".git"))
+      def row(root) = File.file?(File.join(root, ".git")) ? declared(root) : {}
 
+      # @param root [String] a hecks checkout
+      # @return [Hash] the world's `session_environment` row, read once per checkout
+      def declared(root)
         @rows ||= {}
         @rows.fetch(root) { @rows[root] = load_row(root) }
       end
