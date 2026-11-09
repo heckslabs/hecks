@@ -78,11 +78,17 @@ RSpec.describe Hecks::Adapters::ClaudeAgents do
                              started_at: { value: /\A\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ\z/ })
     end
 
-    it "starts it in the directory, with the agent, in the background, and the brief after --", :aggregate_failures do
+    it "starts it in the directory, with the agent and its caller name, in the background, brief after --", :aggregate_failures do
       start(agent: { value: "miette" })
 
-      expect(asked).to eq(["--agent", "miette", "--bg", "--", "say ok"])
+      expect(asked).to eq(["--agent", "miette", "--settings", %({"env":{"HECKS_CALLER":"miette"}}), "--bg", "--", "say ok"])
       expect(File.read(File.join(scratch, "cwd")).strip).to eq(scratch)
+    end
+
+    it "names the run in the settings env block, so its commands are logged under it" do
+      start(run: { value: "fix-it" }, agent: { value: "coder" })
+
+      expect(asked).to include(%({"env":{"HECKS_CALLER":"coder:fix-it"}}))
     end
 
     it "adds the verdict format to the architect's brief, and to no other agent's", :aggregate_failures do
