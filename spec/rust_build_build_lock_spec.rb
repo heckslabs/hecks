@@ -68,6 +68,14 @@ RSpec.describe Hecks::RustBuild::BuildLock do
       expect(err.string).to include("waiting for another Rust build (pid 4242)", "building anyway")
     end
 
+    it "names the machine's one-minute load in the note" do
+      allow(described_class).to receive(:`).with("uptime 2>/dev/null")
+                                           .and_return("8:35  up 4 days, load averages: 16.52 9.1 5.3")
+      described_class.say_waiting(File.open(file, File::CREAT | File::RDWR), err)
+
+      expect(err.string).to include("to finish; load 16.52")
+    end
+
     it "says so only once", :aggregate_failures do
       stub_const("Hecks::RustBuild::BuildLock::GIVE_UP_AFTER", 8)
       hold(**ticking) { :built }

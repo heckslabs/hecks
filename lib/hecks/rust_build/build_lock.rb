@@ -28,6 +28,9 @@ module Hecks
       # How often a waiting build looks at the lock again.
       POLL = 0.25
 
+      # The one-minute figure in `uptime`'s line, as macOS and Linux print it.
+      ONE_MINUTE_LOAD = /load averages?:\s*([\d.]+)/
+
       module_function
 
       # Runs the block while holding the lock.
@@ -116,10 +119,19 @@ module Hecks
       # @return [Boolean] true, once the note is out
       def say_waiting(handle, err)
         holder = File.read(handle.path).to_s.strip
-        err.puts("hecks: waiting for another Rust build#{" (pid #{holder})" unless holder.empty?} to finish")
+        err.puts("hecks: waiting for another Rust build#{" (pid #{holder})" unless holder.empty?} to finish" \
+                 "#{load_note}")
         true
       rescue SystemCallError
         true
+      end
+
+      # @return [String] the machine's one-minute load, for the waiting note; empty when unreadable
+      def load_note
+        one_minute = `uptime 2>/dev/null`[ONE_MINUTE_LOAD, 1]
+        one_minute ? "; load #{one_minute}" : ""
+      rescue SystemCallError
+        ""
       end
     end
   end

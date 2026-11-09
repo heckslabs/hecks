@@ -91,6 +91,28 @@ Revisit it when one of these holds:
 Effort: about a week for step 1 and a day or two for the rest, with the conformance sweep as the check that nothing
 moved.
 
+## A gate check takes the lock too (2026-11-09)
+
+The first run of the pipeline showed a gap: `gate_run.gate! stage=ci only=rust_clippy`, run by a dispatched
+session in its worktree, compiled `rust/host`'s 402 packages with every core (load 22 with 21 `rustc`). The
+build lock, job cap and `nice` covered only the builds hecks starts through `RustBuild`; a gate check is a shell
+script from a Vocabulary row (`sh -ec`, a loop of `cargo clippy` over seven crates), and its `cargo` is inside
+the script text, which the lock's test of the argument words cannot see. `RustBuild::GateBuild` reads the script
+(comment lines left out), and a check that names `cargo` or `rustc` runs under `BuildLock.hold` for the whole
+script, with the job cap, under `nice`, and in the worktree's own target slot. The check's command text is
+unchanged, so CI runs the same row. Any other check runs as before.
+
+The slot, not the shared directory, because of a measurement. `cargo check` of the main crate (five units: the
+regex crates, `hecks_expr` and `rust`) took 3.7 s into a scratch target. The same crate copied to a second path and
+checked into that target needed 0 units and 0.03 s: Cargo keys a path crate by its place in the workspace, not its
+absolute path, and then judges it fresh by file times. A third copy with `compile_error!` appended and its file times
+set to 2020 was also fresh in the shared target (`Finished ... 0.00s`, green) and red in a target of its own. So a
+shared target is safe for registry crates, whose content is fixed by version, and unsafe for the workspace's own
+crates when two worktrees' sources differ. This also holds for `cargo test` in the shared directory that a
+dispatched session inherits from the dispatcher: a test binary built from another worktree's sources can be taken
+as fresh. The registry packages therefore compile once per worktree (under the lock, the job cap and `nice`) until
+`sccache`, which caches by content, is installed.
+
 ## Not done, and why
 
 - **Sharing the host's dependencies across worktrees.** A binary build takes a per-worktree target directory
