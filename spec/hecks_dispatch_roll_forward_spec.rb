@@ -21,7 +21,7 @@ RSpec.describe "a rolling fill" do
   it "records a repeated report once", :aggregate_failures do
     roller = rolling({})
 
-    expect(roller.roll[:report][:value]).to include("would start 0")
+    expect(roller.roll[:report][:value]).to include("this fill: 0 started, 0 yielded of 0")
     expect { roller.roll }.to raise_error(Failure, /unchanged/)
   end
 

@@ -7,6 +7,7 @@ require_relative "dispatching/plan"
 require_relative "dispatching/launcher"
 require_relative "dispatching/in_process_runner"
 require_relative "dispatching/filling"
+require_relative "dispatching/fill_report"
 require_relative "dispatching/lesson_traps"
 require_relative "dispatching/settler"
 require_relative "dispatching/last_roll"
@@ -74,12 +75,15 @@ module Hecks
 
       private
 
-      # The load, each work item that starts or would, then each left waiting with its reason.
+      # The load, each work item that starts or would, then each left waiting with its reason. A
+      # confirmed filling counts what its launches did instead of saying what would start.
       def filling_lines(plan, held, confirmed)
-        note_stops(plan) if confirmed
-        chosen = confirmed ? launch(plan, held) : plan.chosen.map { |item| chosen_line(item) }
-        PlannedCache.clear! if confirmed
-        [header(plan)] + chosen + plan.skipped.map { |skip| skipped_line(skip) }
+        return report_lines(plan) unless confirmed
+
+        note_stops(plan)
+        report = FillReport.new(launch(plan, held))
+        PlannedCache.clear!
+        [header(plan, report.tally(plan.chosen.size))] + report.lines + plan.skipped.map { |skip| skipped_line(skip) }
       end
 
       # A confirmed filling finishes or yields the work items whose sessions ended before the plan
@@ -144,9 +148,9 @@ module Hecks
 
       def header_of(report) = report.partition("\n").first
 
-      def header(plan)
+      def header(plan, tally = "this fill would start #{plan.chosen.size}")
         "#{load_line}; started #{work_items.started.size} of cap #{machine.cap}; " \
-          "this fill would start #{plan.chosen.size}; frozen: #{frozen_line}; at #{ran_at}"
+          "#{tally}; frozen: #{frozen_line}; at #{ran_at}"
       end
 
       # The time the report was made, in UTC: a reader that finds the report later can tell how old
@@ -166,13 +170,15 @@ module Hecks
         minutes = plain(held[:budget_minutes]) || Settings::BUDGET_MINUTES
         plan.chosen.each_with_index.map do |item, index|
           launched(launcher, item) do
-            launcher.launch(item, held: holding(plan, index), minutes: minutes, limit: machine.spec_files_limit,
-                                  frozen: machine.frozen, traps: traps_for(item))
+            outcome(*launcher.attempt(item, held: holding(plan, index), minutes: minutes, limit: machine.spec_files_limit,
+                                            frozen: machine.frozen, traps: traps_for(item)))
           end
         end
       end
 
-      # One work item's launch line. An error the launcher did not expect yields that work item
+      def outcome(kind, line) = FillReport::Outcome.new(kind, line)
+
+      # One work item's outcome. An error the launcher did not expect yields that work item
       # with the error's class and message, so the next chosen work item still launches and the
       # report still says why; a yield that fails too is named on the line.
       def launched(launcher, item)
@@ -180,9 +186,10 @@ module Hecks
       rescue StandardError => e
         reason = "#{e.class}: #{e.message}"
         begin
-          launcher.yield_back(item, reason)
+          outcome(:yielded, launcher.yield_back(item, reason))
         rescue StandardError => failure
-          "#{item.key} could not be started or yielded: #{reason} (yield failed: #{failure.class}: #{failure.message})"
+          outcome(:stuck, "#{item.key} could not be started or yielded: #{reason} " \
+                          "(yield failed: #{failure.class}: #{failure.message})")
         end
       end
 

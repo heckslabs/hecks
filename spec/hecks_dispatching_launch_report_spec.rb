@@ -73,6 +73,22 @@ RSpec.describe Hecks::Adapters::Dispatching, "#choose" do
     expect(text).not_to match(/would start [a-z]/)
   end
 
+  it "counts what started and what yielded in the header, with a line for each", :aggregate_failures do
+    failing = ->(argv) { argv.include?("run.value=a") ? result("", "AgentRun cannot start", success: false) : result("") }
+    text = report(%w[a b], "AgentRun.dispatch!" => failing)
+
+    expect(text).to include("this fill: 1 started, 1 yielded of 2", "yielded a: dispatch of a failed", "started b")
+    expect(text).not_to include("would start")
+  end
+
+  it "counts a work item that could neither start nor yield as stuck" do
+    failing = ->(_argv) { raise IOError, "closed" }
+
+    text = report(["a"], "LinkedTree.pull_main!" => failing, "Work.yield!" => failing)
+
+    expect(text).to include("0 started, 0 yielded, 1 stuck of 1")
+  end
+
   it "names a work item that could neither start nor be yielded" do
     failing = ->(_argv) { raise IOError, "closed" }
     text = report(["a"], "LinkedTree.pull_main!" => failing, "Work.yield!" => failing)

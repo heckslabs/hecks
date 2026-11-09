@@ -40,14 +40,25 @@ module Hecks
         # @param lines [Hash] `traps:` a line for each known trap the work item's area meets
         # @return [String] one line: the session started, with what a later reaction refused, or why
         #   the work item went back to the plan
-        def launch(item, held:, minutes:, limit: nil, **lines)
+        def launch(item, **asked) = attempt(item, **asked).last
+
+        # Starts one work item like {#launch} and says how it ended, so a report counts outcomes
+        # and never reads the text of a line.
+        #
+        # @param item [Plan::Item] the work item to start
+        # @param held [Array<String>] a line for each area another started work item holds
+        # @param minutes [Integer] the time budget of the work item
+        # @param limit [Integer, nil] the most spec files a session runs per call
+        # @param lines [Hash] `traps:` a line for each known trap the work item's area meets
+        # @return [Array(Symbol, String)] `:started` or `:yielded`, then the line
+        def attempt(item, held:, minutes:, limit: nil, **lines)
           step(item, "pull main", pull_argv)
           started = step(item, "start", start_argv(item, minutes), reaches: "started")
           text = BriefText.new(composed(item)).render(item.key, area: item.area, limit: limit, main: main, held: held, **lines)
           dispatch(item, text)
-          started_line(item, started.note)
+          [:started, started_line(item, started.note)]
         rescue ConsoleCapture::Failure => e
-          yield_back(item, e.message)
+          [:yielded, yield_back(item, e.message)]
         end
 
         # Checks every started run's session in one launcher boot, so each run's change of state is
