@@ -4,8 +4,8 @@ require "rbconfig"
 require "tmpdir"
 require "hecks/hecks/adapters/git_worktree_warm"
 
-# A new worktree gets its resident started, from the worktree's own code, so its first launcher lines
-# are served and not booted cold.
+# A new worktree gets its resident started, from the worktree's own code, so its first
+# launcher lines are served and not booted cold.
 RSpec.describe Hecks::Adapters::GitWorktreeWarm do
   let(:root) { Dir.mktmpdir("hecks-warm") }
   let(:script) { File.join(root, "exe", "hecks") }
