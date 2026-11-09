@@ -92,9 +92,8 @@ module Hecks
         #   its project's Gemfile pins; an executable one takes the checkout's, and defaults Memory
         #   ones
         def handoff_for(executable, memory_commands, site, ledgers)
-          return render(PROJECT_GEMS, up: site.up) unless executable
-
-          render(PINNED_GEMS, up: site.up) + memory_default(Array(memory_commands)) + ledger_route(ledgers)
+          gems = render(executable ? PINNED_GEMS : PROJECT_GEMS, up: site.up) + COMPILED_RUBY_CACHE
+          executable ? gems + memory_default(Array(memory_commands)) + ledger_route(ledgers) : gems
         end
 
         # @api private

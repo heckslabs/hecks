@@ -28,6 +28,16 @@ if File.exist?(File.expand_path("../hecks.gemspec", __dir__)) && File.exist?(gem
   end
 end
 
+# The Ruby this boot compiles and the load path it searches are kept between boots.
+begin
+  require "bootsnap"
+  require "hecks/cache_dir"
+  Bootsnap.setup(cache_dir: Hecks::CacheDir.path("bootsnap"), development_mode: true,
+                 load_path_cache: true, compile_cache_iseq: true, compile_cache_yaml: false)
+rescue LoadError, StandardError
+  nil
+end
+
 # These commands keep nothing worth a database, so they run on Memory unless told otherwise.
 # A person is at them: they wait for their result, say why when they are refused, and print
 # no record when they end well.

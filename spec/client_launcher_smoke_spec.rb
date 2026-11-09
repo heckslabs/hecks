@@ -44,6 +44,16 @@ RSpec.describe "client launcher smoke" do
       end
     end
 
+    # The Ruby this boot compiles and the load path it searches are kept between boots.
+    begin
+      require "bootsnap"
+      require "hecks/cache_dir"
+      Bootsnap.setup(cache_dir: Hecks::CacheDir.path("bootsnap"), development_mode: true,
+                     load_path_cache: true, compile_cache_iseq: true, compile_cache_yaml: false)
+    rescue LoadError, StandardError
+      nil
+    end
+
     require "hecks"
     # Every secret a world hands an adapter is masked in whatever this process prints.
     Hecks::Secrets.guard!
@@ -260,7 +270,7 @@ RSpec.describe "client launcher smoke" do
   end
 
   describe "a launcher the current generator wrote for a domain that did not opt in" do
-    it "is the launcher the 2.9 generator wrote, plus the project-Gemfile block, byte for byte", :aggregate_failures do
+    it "is the launcher the 2.9 generator wrote, plus the project-Gemfile and compiled-Ruby blocks, byte for byte", :aggregate_failures do
       expect(File.read(File.join(@plain_root, "pizzas/pizzas"))).to eq(PRE_3_0_LAUNCHER)
       expect(@out).to include("pizzas/pizzas  ->  Pizzas")
       expect(File.executable?(File.join(@plain_root, "pizzas/pizzas"))).to be(true)

@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "net/http"
-require "openssl"
 require_relative "../../../projections/site/probe"
 
 module Hecks
@@ -14,8 +13,15 @@ module Hecks
         # Seconds to wait to connect to the site, and again for its answer.
         TIMEOUT = 10
 
-        # The failures of the network that fail one check rather than the whole run.
-        NETWORK = [SystemCallError, Timeout::Error, SocketError, OpenSSL::SSL::SSLError].freeze
+        # The failures of the network that fail one check rather than the whole run. OpenSSL loads
+        # with the first failure, not with this file: every launcher boot loads this adapter, and
+        # only a probe of a live site can meet a TLS failure.
+        #
+        # @return [Array<Class>] the exception classes one check rescues
+        def self.network_failures
+          require "openssl"
+          [SystemCallError, Timeout::Error, SocketError, OpenSSL::SSL::SSLError]
+        end
 
         # @param rows [Array<Projections::Site::Table::Row>] the checked rows of the route table
         # @param run [String] the run's name
@@ -39,7 +45,7 @@ module Hecks
         def judged(check)
           why = @probe.verdict(check, answer_to(check))
           ["  #{check.label}... #{why ? "FAILED: #{why}" : "ok"}", !why.nil?]
-        rescue *NETWORK => e
+        rescue *self.class.network_failures => e
           ["  #{check.label}... FAILED: #{e.class}: #{e.message}", true]
         end
 

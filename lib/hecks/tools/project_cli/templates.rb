@@ -140,6 +140,22 @@ module Hecks
           end
         RUBY
 
+        # The lines that cache the Ruby a launcher compiles and the load path it searches, under the
+        # hecks cache directory, when the bootsnap gem is at hand. A launcher without the gem, or
+        # whose cache directory cannot be found, boots as it would without them.
+        COMPILED_RUBY_CACHE = <<~RUBY.freeze
+
+          # The Ruby this boot compiles and the load path it searches are kept between boots.
+          begin
+            require "bootsnap"
+            require "hecks/cache_dir"
+            Bootsnap.setup(cache_dir: Hecks::CacheDir.path("bootsnap"), development_mode: true,
+                           load_path_cache: true, compile_cache_iseq: true, compile_cache_yaml: false)
+          rescue LoadError, StandardError
+            nil
+          end
+        RUBY
+
         # Fills a template's `{{name}}` placeholders.
         #
         # @param template [String] the template text

@@ -42,8 +42,9 @@ module Hecks
               end
             end
 
-            # Not memoised: a bluebook split across files is validated once per file, and a
-            # cached index would miss the commands later files add.
+            # Built per validation pass, not memoised across them: a bluebook split across files is
+            # validated once per file, and an index kept between passes would miss the commands
+            # later files add. Within a pass the callers hand the one index down.
             def event_emitters(aggregates)
               each_command(aggregates).with_object(Hash.new { |h, k| h[k] = [] }) do |(owner, command), index|
                 command.emits.each { |event_name| index[event_name] << [owner, command] }
@@ -81,8 +82,8 @@ module Hecks
               aggregates.find { |a| a.hecks_name == owner.to_s.split(".").first }
             end
 
-            def event_shape_for(event_name, aggregates)
-              pairs = event_emitters(aggregates).fetch(event_name.to_s, [])
+            def event_shape_for(event_name, aggregates, emitters = event_emitters(aggregates))
+              pairs = emitters.fetch(event_name.to_s, [])
               return nil if pairs.empty?
 
               owner_name, command = pairs.first
@@ -91,8 +92,8 @@ module Hecks
 
             # An entity's event is stamped with its owning aggregate's identity, so
             # "Game.Knight" answers Game's heads.
-            def event_identity_heads_for(event_name, aggregates)
-              pairs = event_emitters(aggregates).fetch(event_name.to_s, [])
+            def event_identity_heads_for(event_name, aggregates, emitters = event_emitters(aggregates))
+              pairs = emitters.fetch(event_name.to_s, [])
               return [] if pairs.empty?
 
               owner_name, = pairs.first
