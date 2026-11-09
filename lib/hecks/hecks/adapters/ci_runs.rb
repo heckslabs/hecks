@@ -2,13 +2,16 @@
 
 require "json"
 require_relative "console_capture"
+require_relative "ci_runs/pull_request"
 require_relative "main_integration/command_runner"
 
 module Hecks
   module Adapters
     # The `CiRuns` port's adapter for `Integration.Observe`: reads, through `gh`, the CI run of a
-    # push of main at a landed commit. It answers `running` while there is no run yet or it has not
-    # completed, `passed` when it succeeded, and `failed` with the jobs that did not succeed.
+    # push of main at a landed commit, or at the commit GitHub merged the boarding's train pull
+    # request as. It answers `running` while the pull request is open, there is no run yet or it has
+    # not completed, `passed` when it succeeded, `failed` with the jobs that did not succeed, and
+    # `closed` when the pull request was closed without merging (main never moved).
     class CiRuns
       # The workflow whose run is read, as GitHub names it.
       WORKFLOW = "CI"
@@ -32,15 +35,33 @@ module Hecks
       def watch(**held)
         landed = plain(held[:landed]).to_s
         @checkout = plain(held[:checkout]) || Dir.pwd
-        run = latest_run(landed)
-        return answer("running", "#{landed[0, 10]}: no #{WORKFLOW} run yet") unless run
+        pull = PullRequest.new(runner, @checkout, landed).read
+        return observe(landed, landed) unless pull
+
+        via_pull_request(landed, pull)
+      end
+
+      private
+
+      # A boarding that went as a pull request is judged on the commit GitHub merged it as: running
+      # while the pull request is open, closed (main never moved) when it was closed unmerged.
+      def via_pull_request(landed, pull)
+        number = pull["number"]
+        case pull["state"]
+        when "MERGED" then observe(landed, pull.dig("mergeCommit", "oid") || landed)
+        when "CLOSED" then answer("closed", "#{landed[0, 10]}: PR #{number} closed without merging")
+        else answer("running", "#{landed[0, 10]}: PR #{number} not merged yet")
+        end
+      end
+
+      def observe(landed, commit)
+        run = latest_run(commit)
+        return answer("running", "#{landed[0, 10]}: no #{WORKFLOW} run yet for #{commit[0, 10]}") unless run
         return answer("running", "#{landed[0, 10]}: #{WORKFLOW} run #{run["databaseId"]} is #{run["status"]}") unless
           run["status"] == "completed"
 
         verdict(landed, run)
       end
-
-      private
 
       # The run of the commit on main, or nil when GitHub has none for it yet.
       def latest_run(landed)
