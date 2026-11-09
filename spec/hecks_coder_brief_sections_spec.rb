@@ -46,6 +46,11 @@ RSpec.describe "the Coder brief's standing sections" do
                                         "changes: revise the plan", "Work.yield! to={work}", "Quote the verdict")
   end
 
+  it "waits for the verdict by event name and reads the listing after every return" do
+    expect(section(:review)).to include("names.value=PlanReviewed,PlanReviewRecorded", "domain.value=lib/hecks/hecks",
+                                        "at most four times", "the read, not the follow")
+  end
+
   it "names the spec path, stash and the comment check" do
     expect(section(:verification)).to include("run_spec_example!", "Never use git stash", "check_comments!",
                                               "600000 ms", "poll loop")
