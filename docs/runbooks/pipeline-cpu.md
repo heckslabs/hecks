@@ -82,6 +82,7 @@ event with `event`, `policy`, `command`, `outcome`, `at`.
 | `rustc` at full CPU in a worktree | a build outside the dispatcher's environment | `ps -Ao pid,pcpu,command \| grep rustc`; `exe/hecks config domain.value=lib/hecks/hecks` |
 | Many `claude`-owned `ruby` processes | two MCP servers per session | `ps -Ao rss,command \| grep -E 'tools/(mcp\|serve_query)'` |
 | Board slow or memory growing | live store reload or restart limits | the `board_restart` line; `ps -o rss= -p <board pid>` |
+| A refusal that names a `save_saga` or outbox warning | the warning is a boot notice, not the cause; the cause is the first line of the refusal and the notices follow `-- boot notices --` | read the refusal's first line; `Hecks::BootNotices` lists the notices |
 
 ## Known gaps
 

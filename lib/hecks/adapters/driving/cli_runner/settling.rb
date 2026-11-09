@@ -71,16 +71,19 @@ module Hecks
           end
 
           # The sentence for a record that ended in a failure state: the state, then the record's
-          # own
-          # `refusal` when it keeps one, without the class name an adapter's failure carries.
+          # own `refusal` when it keeps one, without the class name an adapter's failure carries
+          # and without the boot notices that follow its words.
           def failure_sentence(aggregate, state, field)
             sentence = "#{aggregate.hecks_name} ended in the failure state #{state[field.to_sym].to_s.inspect}"
-            refusal  = state[:refusal]
-            refusal  = refusal.value if refusal.respond_to?(:value)
-            refusal  = refusal[:value] if refusal.is_a?(Hash)
-            return sentence if refusal.to_s.strip.empty?
+            said     = refusal_words(state[:refusal])
+            said.empty? ? sentence : "#{sentence}: #{said}"
+          end
 
-            "#{sentence}: #{refusal.to_s.strip.sub(QUALIFIED_CLASS_PREFIX, "")}"
+          # What a record's refusal says, as one string: no class name, no boot notices.
+          def refusal_words(refusal)
+            refusal = refusal.value if refusal.respond_to?(:value)
+            refusal = refusal[:value] if refusal.is_a?(Hash)
+            BootNotices.cause(refusal.to_s.strip.sub(QUALIFIED_CLASS_PREFIX, ""))
           end
 
           # The answer and its status: `ANSWERED` when nothing failed, else `REFUSED` with the

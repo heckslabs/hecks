@@ -34,7 +34,8 @@ module Hecks
           exit status
         LAUNCHER_TAIL
 
-        # What a Memory command does when refused: say why, from the record's `refusal`.
+        # What a Memory command does when refused: say why, from the record's `refusal`, which is
+        # the command's own words without the boot notices after them (`Hecks::BootNotices`).
         MEMORY_REFUSAL = <<~'LAUNCHER_REFUSAL'.gsub(/^/, "  ").freeze
           if MEMORY_COMMANDS.include?(ARGV.first.to_s.chomp("!"))
             why = begin
@@ -43,7 +44,7 @@ module Hecks
             rescue JSON::ParserError
               nil
             end
-            warn(why ? why.sub(/\A(\w+::)+\w+: /, "") : reason)
+            warn(why ? Hecks::BootNotices.cause(why.sub(/\A(\w+::)+\w+: /, "")) : reason)
           else
             puts text
             warn reason

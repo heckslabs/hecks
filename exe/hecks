@@ -109,7 +109,7 @@ if reason
     rescue JSON::ParserError
       nil
     end
-    warn(why ? why.sub(/\A(\w+::)+\w+: /, "") : reason)
+    warn(why ? Hecks::BootNotices.cause(why.sub(/\A(\w+::)+\w+: /, "")) : reason)
   else
     puts text
     warn reason
