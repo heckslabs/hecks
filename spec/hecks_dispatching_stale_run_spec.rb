@@ -17,13 +17,14 @@ RSpec.describe Hecks::Adapters::Dispatching::Launcher do
   def brief = JSON.generate("state" => { "outcome" => "A", "rules" => "RULES" })
 
   # Dispatch answers each reply in turn, then the last one for any further call.
-  def runner(dispatches)
+  def runner(dispatches, retire: result(""))
     lambda do |argv|
       calls << argv
       name = argv.find { |word| word.end_with?("!") }
       case name
       when "AgentRun.dispatch!" then dispatches.size > 1 ? dispatches.shift : dispatches.first
       when "Brief.compose!" then result(brief)
+      when "AgentRun.retire!" then retire
       else result("")
       end
     end
@@ -31,7 +32,9 @@ RSpec.describe Hecks::Adapters::Dispatching::Launcher do
 
   def names = calls.filter_map { |argv| argv.find { |word| word.end_with?("!") } }
 
-  def launch(*dispatches) = described_class.new("/repo", runner: runner(dispatches)).launch(item, held: [], minutes: 30)
+  def launch(*dispatches, retire: result(""))
+    described_class.new("/repo", runner: runner(dispatches, retire: retire)).launch(item, held: [], minutes: 30)
+  end
 
   it "retires the run whose session is gone and dispatches again", :aggregate_failures do
     line = launch(result("", taken, success: false), result("{}"))
@@ -58,5 +61,26 @@ RSpec.describe Hecks::Adapters::Dispatching::Launcher do
 
     expect(line).to start_with("yielded a")
     expect(names).not_to include("AgentRun.retire!")
+  end
+
+  it "does not dispatch again when the retire is refused, and says why", :aggregate_failures do
+    refused = result("", "[refused] AgentRun a is not started", success: false)
+    line = launch(result("", taken, success: false), result("{}"), retire: refused)
+
+    expect(names.count("AgentRun.dispatch!")).to eq(1)
+    expect(line).to include("retire of a refused", "is not started")
+  end
+
+  it "keeps the key held as a held key when the retire is refused", :aggregate_failures do
+    refused = result("", "[refused] gone", success: false)
+    yield_line = calls_of_yield { launch(result("", taken, success: false), retire: refused) }
+
+    expect(yield_line).to include("yield_kind.value=already_recorded")
+  end
+
+  # The `Work.yield!` line the launch ended with.
+  def calls_of_yield
+    yield
+    calls.find { |argv| argv.include?("Work.yield!") }
   end
 end

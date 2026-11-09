@@ -14,6 +14,21 @@ RSpec.describe Hecks::Adapters::Dispatching::InProcessRunner do
     expect(JSON.parse(result.out[/\[.*\]/m])).to eq([])
   end
 
+  it "does not fail a step whose reaction starts a roll that is refused", :aggregate_failures do
+    planned = Hecks::Adapters::Dispatching::Filling.during(true) do
+      runner.call(["tickets", "Work.plan!", "work.value=nested", "title.value=N", "--wait"])
+    end
+
+    expect(planned.ok?).to be(true)
+    expect(roll_statuses).to include("refused")
+  end
+
+  # The status of every Roll the reactions recorded.
+  def roll_statuses
+    aggregate = registry.bluebook("Hecks").aggregates.find { |candidate| candidate.hecks_name == "Roll" }
+    registry.repository("Hecks", aggregate).all.map { |roll| Hecks::Adapters::StartedWork.value(roll, :status).to_s }
+  end
+
   it "answers a line the domain refuses as a failed line with the reason", :aggregate_failures do
     result = runner.call(["tickets", "Work.start!", "to=no-such-work", "claimed_by.value=dispatch", "--wait"])
 

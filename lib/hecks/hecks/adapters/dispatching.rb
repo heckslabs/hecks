@@ -91,8 +91,21 @@ module Hecks
       end
 
       # A confirmed filling finishes or yields the work items whose sessions ended before the plan
-      # counts started rows, so the cap holds only live work.
-      def settle_ended(held) = Settler.new(work_items, launcher_for(held)).call
+      # counts started rows, so the cap holds only live work, then frees the run keys of the work
+      # items parked behind a run whose session is gone.
+      def settle_ended(held)
+        launcher = launcher_for(held)
+        Settler.new(work_items, launcher).call
+        release_taken(launcher)
+      end
+
+      # A planned work item parked behind a run still recorded started is never launched, so the
+      # retire the launcher makes on a refused dispatch cannot reach it: ask for the retire here.
+      # `AgentRun.Retire` closes the run only when `claude agents` does not list its session.
+      def release_taken(launcher)
+        runs = work_items.runs
+        planned("").each { |item| launcher.retire(item.key) if Parking.key_held?(item, runs) }
+      end
 
       def work_items = @standins[:work_items] || WorkItems.new(@registry)
 
@@ -112,13 +125,16 @@ module Hecks
       def in_process_runner(repo) = InProcessRunner.fits?(@registry, repo) ? InProcessRunner.new(@registry) : nil
 
       def plan_for(only = "")
-        Plan.new(planned(only), work_items.started, cap: machine.cap, load: machine.load, max_load: machine.max_load,
-                                                    frozen: machine.frozen, paused: paused_reason,
-                                                    runs: -> { work_items.runs })
+        Plan.new(planned(only), work_items.started, **limits)
       end
 
-      # Why every work item waits: the machine's crossings say so, or the boots spent the budget.
-      def paused_reason = machine.paused || machine.boot_stop
+      # What bounds a filling: the machine's cap and load, what pauses every work item, and the
+      # boot budget, which a red-* work item is exempt from.
+      def limits
+        gauge = machine
+        { cap: gauge.cap, load: gauge.load, max_load: gauge.max_load, frozen: gauge.frozen, paused: gauge.paused,
+          budget: gauge.boot_stop, exempt: WorkItems.method(:red?), runs: -> { work_items.runs } }
+      end
 
       # The key prefix a filling is held to; empty when none is named.
       def prefix(held) = plain(held[:only]).to_s

@@ -30,10 +30,10 @@ RSpec.describe Hecks::Adapters::Dispatching do
     context "when the session stopped" do
       let(:runs) { { "a" => { status: "finished", condition: "stopped" } } }
 
-      it "yields the work item with the condition as the reason" do
+      it "yields the work item itself, which carries its yield count, with the condition as the reason" do
         described_class::Settler.new(work_items, launcher).call
 
-        expect(launcher).to have_received(:yield_back).with("a", "its session ended stopped")
+        expect(launcher).to have_received(:yield_back).with(started_item, "its session ended stopped")
       end
     end
 

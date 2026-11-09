@@ -44,6 +44,9 @@ module Hecks
         #   and `now:` (Time, optional), `cap:` (Integer), `load:` and `max_load:` (Float),
         #   `frozen:` (Array)
         #   and `paused:` (String, optional: why every work item waits, "skipped: paused by load")
+        #   and `budget:` (String, optional: why every work item waits once the boots spent their
+        #   budget)
+        #   with `exempt:` (callable, optional: answers whether a work item starts despite it)
         #   and `root:` (String, optional: this repository's top level, to tell its areas from
         #   another checkout's; the checkout holding this file by default)
         def initialize(planned, started, **limits)
@@ -62,7 +65,7 @@ module Hecks
         private
 
         def consider(item)
-          reason = parked_reason(item) || stop_reason || frozen_reason(item) || overlap_reason(item)
+          reason = parked_reason(item) || stop_reason(item) || frozen_reason(item) || overlap_reason(item)
           reason ? @skipped << Skip.new(item.key, reason) : @chosen << item
         end
 
@@ -71,7 +74,13 @@ module Hecks
           Parking.reason(item, runs: @limits[:runs] || -> { {} }, now: @limits[:now] || Time.now.utc)
         end
 
-        def stop_reason = @limits[:paused] || overloaded || capped
+        def stop_reason(item) = @limits[:paused] || budget_reason(item) || overloaded || capped
+
+        # A spent boot budget holds back every work item but the ones `exempt:` names, so the fix
+        # of a red main still starts.
+        def budget_reason(item)
+          @limits[:budget] unless @limits[:exempt]&.call(item)
+        end
 
         # The backstop: the load average alone refuses a fill, whatever the events said.
         def overloaded

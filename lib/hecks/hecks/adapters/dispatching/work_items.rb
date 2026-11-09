@@ -22,6 +22,13 @@ module Hecks
         # The priority tiers a planned work item ranks by, highest first; none ranks last.
         TIERS = %w[now next later].freeze
 
+        # @param item [Plan::Item] a work item
+        # @return [Boolean] whether it says main is red: a `red-` key, or the `push-due` work item
+        #   once its title says the push is urgent
+        def self.red?(item)
+          item.key.start_with?(RED) || (item.key == "push-due" && item.title.start_with?(PushSize::URGENT))
+        end
+
         # @return [Array<Plan::Item>] the planned work items: a red one first, then by priority
         #   (`now`, `next`, `later`, none), then in plan order (lowest step first, no step last,
         #   ties by key)
@@ -74,7 +81,7 @@ module Hecks
 
         def rank(record) = TIERS.index(field(record, :priority).to_s) || TIERS.size
 
-        def red?(item) = item.key.start_with?(RED) || (item.key == "push-due" && item.title.start_with?(PushSize::URGENT))
+        def red?(item) = self.class.red?(item)
 
         def having(status)
           work = find("Tickets", "Work")

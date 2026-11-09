@@ -59,6 +59,17 @@ module Hecks
           end
         end
 
+        # Whether an item is parked behind a run still recorded started. Such a run's session may be
+        # gone, and then only `AgentRun.Retire` frees the key; a parked item is never launched, so
+        # the filling asks for the retire for it.
+        #
+        # @param item [#key, #yield_kind] a planned work item
+        # @param runs [Hash{String => Hash}] the AgentRun states by run key
+        # @return [Boolean]
+        def key_held?(item, runs)
+          item.yield_kind.to_s == "already_recorded" && runs.fetch(item.key, {})[:status].to_s == "started"
+        end
+
         def taken_reason(item, runs)
           status = runs.fetch(item.key, {})[:status].to_s
           return if status.empty? || RUN_ENDED.include?(status)

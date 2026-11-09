@@ -56,6 +56,13 @@ module Hecks
         # @return [void]
         def check_all = @runner.call(["AgentRun.check_all!", "--wait"])
 
+        # Asks `AgentRun.Retire` to close the run named for a work item, which it does only when the
+        # run's session is not listed by `claude agents`; a session still listed keeps its key.
+        #
+        # @param key [String] the run, which is also the Work item's key
+        # @return [StepOutcome] what the command did
+        def retire(key) = StepOutcome.new(@runner.call(retire_argv(key)))
+
         # @param key [String] the Work item to record as done
         # @return [String] the line that says so
         def finish(key)
@@ -63,7 +70,9 @@ module Hecks
           "finished #{key}"
         end
 
-        # @param key [String] the Work item to send back to the plan
+        # @param key [Plan::Item, String] the Work item to send back to the plan; an item carries
+        #   how many times it has yielded, so repeated failures back off longer, and a bare key
+        #   counts as a first yield
         # @param reason [String] why
         # @return [String] the line that says so, and why the yield was not recorded when it was not
         def yield_back(key, reason, now: Time.now.utc)
@@ -100,10 +109,22 @@ module Hecks
         def dispatch(item, text)
           step(item, "dispatch", dispatch_argv(item, text))
         rescue ConsoleCapture::Failure => e
-          raise unless KEY_HELD.match?(e.message) && @runner.call(["AgentRun.retire!", "to=#{item.key}", "--wait"])
+          raise unless KEY_HELD.match?(e.message)
 
+          retire_held(item, e)
           step(item, "dispatch", dispatch_argv(item, text))
         end
+
+        # Retires the run that holds the key before the second dispatch. A retire the domain refuses
+        # ends the launch, naming both refusals, so the yield says why the key stayed held.
+        def retire_held(item, held)
+          outcome = retire(item.key)
+          return if outcome.ok?
+
+          raise ConsoleCapture::Failure, "#{held.message} (retire of #{item.key} refused: #{outcome.reason})"
+        end
+
+        def retire_argv(key) = ["AgentRun.retire!", "to=#{key}", "--wait"]
 
         def started_line(item, note) = note.empty? ? "started #{item.key}" : "started #{item.key} (then refused: #{note})"
 

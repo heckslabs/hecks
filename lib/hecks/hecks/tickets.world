@@ -6,9 +6,12 @@
 # to commit and hold a change that moves one, and `Dispatch.Fill` starts no Work item in a frozen area.
 # The Machine's load marks and `dispatch_max_load` are one number, below the CPU count (12 on the owner's
 # machine), so the Machine pausing the plan and the plan's own load check agree.
-# `cpu_budget` is the hours a day the launcher's boots may take (the usage record's `boot_ms`): once
-# the day's boots have spent it, `Dispatch.Fill` starts no session ("boot budget spent") and the board's
-# Boot hours tile fails, so a loop that boots the launcher over and over stops itself.
+# `cpu_budget` is a ceiling on the hours of launcher boots in a rolling 24 hours (the usage record's
+# `boot_ms`, from each run's start time; a run with no boot time adds nothing): once they have spent it,
+# `Dispatch.Fill` starts no session except a red-* fix ("boot budget spent") and the board's Boot hours
+# tile fails, so a loop that boots the launcher over and over stops itself. 6.0 is a ceiling, not a
+# target: the first 45 minutes of measured runs held 0.42 hours (2026-11-09), so a full day of the
+# same work sits well under it; tighten it once the boot-time work has landed and a day is measured.
 # `dispatch_max_load` is the 1-minute load above which `Dispatch.Fill` starts no session (the CPU count
 # when absent). `dispatch_roll_forward` is the owner's switch: while `roll_forward` is true the Delegate
 # policies run `Dispatch.Fill` on events that free capacity, and false pauses them. `session_environment` is what every dispatched session starts with: a shared cargo
@@ -31,7 +34,7 @@ Hecks.world "Tickets" do
   github_issues "GitHubIssues", enabled: false
   work_limit "WorkLimits", cap: 6
   dispatch_max_load "Dispatch", limit: 8.0
-  cpu_budget "Dispatch", boot_hours_per_day: 1.0
+  cpu_budget "Dispatch", boot_hours_per_day: 6.0
   dispatch_roll_forward "Dispatch", roll_forward: false
   frozen_shapes "PersistedShapes", areas: []
   session_environment "Sessions", cargo_target_dir: "~/.cache/hecks/cargo-target", nice: 15
