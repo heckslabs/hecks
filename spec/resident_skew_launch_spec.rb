@@ -9,12 +9,12 @@ require_relative "support/resident_launch"
 RSpec.describe "a launcher meeting a resident of another protocol" do
   include ResidentLaunch
 
-  LINE = %w[tickets Work.undone].freeze
+  SKEW_LINE = %w[tickets Work.undone].freeze
 
   # Runs a launcher line with the usage log on, under the protocol the spec process names.
   def launch_logged
     environment = env(true).merge("HECKS_USAGE" => nil)
-    Open3.capture3(environment, File.join(ResidentLaunch::ROOT, "exe/hecks"), *LINE, chdir: ResidentLaunch::ROOT)
+    Open3.capture3(environment, File.join(ResidentLaunch::ROOT, "exe/hecks"), *SKEW_LINE, chdir: ResidentLaunch::ROOT)
   end
 
   # @return [String, nil] how the last logged line met a resident
