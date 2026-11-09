@@ -60,8 +60,9 @@ module Hecks
         # run's session is not listed by `claude agents`; a session still listed keeps its key.
         #
         # @param key [String] the run, which is also the Work item's key
-        # @return [StepOutcome] what the command did
-        def retire(key) = StepOutcome.new(@runner.call(retire_argv(key)))
+        # @return [StepOutcome] what the command did; the run's status decides, since a run keeps
+        #   the reason of an earlier refused retire after a later one succeeds
+        def retire(key) = StepOutcome.new(@runner.call(retire_argv(key)), reaches: "retired", decided_by_status: true)
 
         # @param key [String] the Work item to record as done
         # @return [String] the line that says so

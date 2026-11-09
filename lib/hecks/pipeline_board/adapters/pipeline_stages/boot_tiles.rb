@@ -44,7 +44,14 @@ module Hecks
 
         def budget_part(reading) = reading[:budget] ? "budget #{reading[:budget]} h" : "no budget set"
 
-        def unmeasured_part(reading) = reading[:unmeasured].positive? ? " (#{reading[:unmeasured]} unmeasured)" : ""
+        # What qualifies the boot count: runs nobody measured, runs placed by their day alone, and a
+        # window the byte limit cut short.
+        def unmeasured_part(reading)
+          notes = [("#{reading[:unmeasured]} unmeasured" if reading[:unmeasured].to_i.positive?),
+                   ("#{reading[:approximate]} placed by day" if reading[:approximate].to_i.positive?),
+                   ("window truncated" if reading[:truncated])].compact
+          notes.empty? ? "" : " (#{notes.join(", ")})"
+        end
 
         def last_hour_part(callers)
           return "none in the last hour" if callers.empty?

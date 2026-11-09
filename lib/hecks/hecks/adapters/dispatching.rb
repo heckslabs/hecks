@@ -10,6 +10,9 @@ require_relative "dispatching/filling"
 require_relative "dispatching/lesson_traps"
 require_relative "dispatching/settler"
 require_relative "dispatching/last_roll"
+require_relative "dispatching/pending"
+require_relative "dispatching/wake"
+require_relative "dispatching/rolls"
 
 module Hecks
   module Adapters
@@ -23,6 +26,8 @@ module Hecks
     # (the `WorkAreas` and `WorkLimits` ports refuse a start that clashes or goes over the cap). The
     # default is a dry run, which writes nothing.
     class Dispatching
+      include Rolls
+
       # @param registry [Runtime::Registry, nil] the booted registry whose work items are read
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] `load:`, `cpus:` and `runner:` stand in for the machine and the
@@ -55,22 +60,6 @@ module Hecks
       # @return [Hash{Symbol => String}] `text:` the report, one line per work item
       def preview(**held)
         { text: "#{report_lines(plan_for(prefix(held))).join("\n")}\n" }
-      end
-
-      # Fills the queue because capacity freed or work arrived, unless the owner paused rolling.
-      # A report that repeats the last one is refused, so a repeated skip is recorded once.
-      #
-      # @param _held [Hash] the `Roll` record
-      # @return [Hash{Symbol => Hash}] `report:` the filling's report
-      # @raise [ConsoleCapture::Failure] when rolling is paused or the report repeats the last one
-      def roll(**_held)
-        raise ConsoleCapture::Failure, "paused: dispatch_roll_forward is false" unless machine.roll_forward?
-        raise ConsoleCapture::Failure, "unchanged: a filling is already running" if Filling.running?
-
-        text = choose(repo: { value: Dir.pwd }, confirm: true).dig(:report, :value)
-        raise ConsoleCapture::Failure, "unchanged: #{header_of(text)}" if LastRoll.repeat?(text)
-
-        { report: { value: text } }
       end
 
       # Checks every started session and settles the work item of each that ended: done finishes it.
@@ -132,8 +121,10 @@ module Hecks
       # boot budget, which a red-* work item is exempt from.
       def limits
         gauge = machine
+        budget = gauge.boot_stop
+        Pending.budget_stopped = !budget.nil?
         { cap: gauge.cap, load: gauge.load, max_load: gauge.max_load, frozen: gauge.frozen, paused: gauge.paused,
-          budget: gauge.boot_stop, exempt: WorkItems.method(:red?), runs: -> { work_items.runs } }
+          budget: budget, exempt: WorkItems.method(:red?), runs: -> { work_items.runs } }
       end
 
       # The key prefix a filling is held to; empty when none is named.

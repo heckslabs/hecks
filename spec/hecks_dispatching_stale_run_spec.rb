@@ -16,8 +16,14 @@ RSpec.describe Hecks::Adapters::Dispatching::Launcher do
 
   def brief = JSON.generate("state" => { "outcome" => "A", "rules" => "RULES" })
 
+  # The record `AgentRun.retire!` prints: the run's status, and the refusal it keeps from an
+  # earlier command.
+  def retired(status = "retired", refusal: nil)
+    result(JSON.generate("state" => { "status" => status, "refusal" => refusal }))
+  end
+
   # Dispatch answers each reply in turn, then the last one for any further call.
-  def runner(dispatches, retire: result(""))
+  def runner(dispatches, retire: retired)
     lambda do |argv|
       calls << argv
       name = argv.find { |word| word.end_with?("!") }
@@ -32,7 +38,7 @@ RSpec.describe Hecks::Adapters::Dispatching::Launcher do
 
   def names = calls.filter_map { |argv| argv.find { |word| word.end_with?("!") } }
 
-  def launch(*dispatches, retire: result(""))
+  def launch(*dispatches, retire: retired)
     described_class.new("/repo", runner: runner(dispatches, retire: retire)).launch(item, held: [], minutes: 30)
   end
 
@@ -69,6 +75,22 @@ RSpec.describe Hecks::Adapters::Dispatching::Launcher do
 
     expect(names.count("AgentRun.dispatch!")).to eq(1)
     expect(line).to include("retire of a refused", "is not started")
+  end
+
+  it "dispatches again when the retire succeeds after an earlier refused one left its reason", :aggregate_failures do
+    after_unretired = retired("retired", refusal: "the session is still listed")
+    line = launch(result("", taken, success: false), result("{}"), retire: after_unretired)
+
+    expect(line).to eq("started a")
+    expect(names.count("AgentRun.dispatch!")).to eq(2)
+  end
+
+  it "does not dispatch again when the record says the run was not retired", :aggregate_failures do
+    still_listed = retired("started", refusal: "the session is still listed")
+    line = launch(result("", taken, success: false), result("{}"), retire: still_listed)
+
+    expect(names.count("AgentRun.dispatch!")).to eq(1)
+    expect(line).to include("retire of a refused")
   end
 
   it "keeps the key held as a held key when the retire is refused", :aggregate_failures do

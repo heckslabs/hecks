@@ -4,6 +4,7 @@ require "json"
 require "time"
 require_relative "console_capture"
 require_relative "in_process_operations/tailing"
+require_relative "in_process_operations/event_logs"
 require "hecks/tools/run"
 require "hecks/tools/model_check"
 require "hecks/tools/smoke_test"
@@ -25,6 +26,7 @@ module Hecks
     module InProcessOperations
       include Tailing
       include Feeding
+      include EventLogs
 
       # The bluebooks `hecks model_check` sweep when no domain is named need a
       # checkout; an installed gem has none.
@@ -215,23 +217,6 @@ module Hecks
       # the event names.
       def bounds_for(aggregate, limit, timeout, interval, names)
         Bounds.new(plain(aggregate), plain(limit)&.to_i, deadline_for(timeout), plain(interval), plain(names).to_s.split(","))
-      end
-
-      # The repository whose event log a follow reads: the named aggregate's when it keeps one, else
-      # the first that does. A database adapter keeps one log for every aggregate; Memory keeps one
-      # per aggregate, so the filter has to pick the right one.
-      def event_repository(domain, registry = nil, aggregate = nil)
-        logged = logged_repositories(registry || boot(domain).registry)
-        found = logged.find { |declared, _| declared.hecks_name.casecmp?(aggregate.to_s) } || logged.first
-        found&.last or raise Runtime::NotFound, "no adapter in #{plain(domain)} persists an event log"
-      end
-
-      # Each aggregate with its repository, for the repositories that keep an event log.
-      def logged_repositories(registry)
-        pairs = registry.bluebooks.flat_map do |name, bluebook|
-          bluebook.aggregates.map { |declared| [declared, registry.repository(name, declared)] }
-        end
-        pairs.select { |_, repository| repository.respond_to?(:events) }
       end
 
       # Says whether `event` passes the aggregate filter (a bare name, case-insensitive, or exact)

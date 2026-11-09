@@ -546,6 +546,91 @@ Hecks.bluebook "Hecks" do
       end
     end
 
+    # The clock's other question. Almost everything that starts a roll is an event, but three things
+    # become eligible with no event: a yielded item's retry time passes, the boot budget that stopped
+    # every start is no longer spent, and a roll refused while a filling ran freed capacity that
+    # filling did not see. Each beat asks whether any of these happened, and a roll follows only when
+    # one did, so a quiet beat starts no filling. The bluebook reads no clock; the `Waking` port does.
+    aggregate "Wake" do
+      description "One look, on a beat of the clock, at whether the clock alone made something eligible."
+
+      attribute :run,     WakeKey
+      attribute :reason,  WakeNote, optional: true
+      attribute :refusal, WakeNote, optional: true
+      identified_by :run
+
+      value_object "WakeKey" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "WakeNote", String
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "quiet"
+        transition "Hear"    => "due",   from: "requested"
+        transition "Decline" => "quiet", from: "requested"
+        mark :terminal, "due", "quiet"
+      end
+
+      command "Look" do
+        role "System"
+        goal "Ask whether the clock alone made something eligible to start"
+
+        attribute :run, WakeKey, sets: true
+
+        emits WakeRequested
+      end
+
+      command "Hear" do
+        role "System"
+        goal "Record why the queue should roll now"
+
+        reference_to Wake
+        attribute :reason, WakeNote, sets: true
+
+        emits WakeHeard
+      end
+
+      command "Decline" do
+        role "System"
+        goal "Record that nothing became eligible by the clock"
+
+        reference_to Wake
+        attribute :refusal, WakeNote, sets: true
+
+        emits WakeQuieted
+      end
+    end
+
+    # A root, like the sampling and the sweep, so each beat's question begins its own chain.
+    policy "WakeOnHeartbeat" do
+      on      "Heartbeat.Beaten"
+      root
+      trigger Wake::Look, with: { run: :beat }
+    end
+
+    policy "NoticeWhenWaking" do
+      on      "Wake.WakeRequested"
+      ask     :notice, with: { run: :run }
+    end
+
+    policy "RecordWhatIsDue" do
+      on      "Wake.WakeDue"
+      trigger Wake::Hear, with: { reason: :reason }
+    end
+
+    policy "RecordTheQuietBeat" do
+      on      "Wake.WakeQuiet"
+      trigger Wake::Decline, with: { refusal: :refusal }
+    end
+
+    # The roll has its own key, made by the port, so a beat that is both due and moved does not ask
+    # for two rolls under one key.
+    policy "RollWhenSomethingIsDue" do
+      on      "Wake.WakeDue"
+      trigger Roll::Start, with: { run: :roll }
+    end
+
     # The machine's load, heard instead of asked. Each beat of the clock takes one reading through the
     # `Sampling` port: the CPU idle percentage, swap used as a percentage of swap total, the compressor's
     # size in gigabytes and the load average (a third reading, which counts processes waiting on swap and
@@ -862,10 +947,13 @@ Hecks.bluebook "Hecks" do
       ask     :read_job, with: { run: :run }
     end
 
-    # A sweep does not roll the queue itself. Each check below records the session it finds ended,
-    # failed or gone as `SessionFinished`, `SessionFailed` or `AgentRunRetired`, and each of those rolls
-    # on its own (`RollWhenARunEnds`, `RollWhenARunFails`, `RollWhenARunIsRetired`), settling the started
-    # Work items before it counts the cap. A beat that finds nothing changed starts no fill.
+    # A sweep does not roll the queue itself. Each check below records the session it finds ended or
+    # failed as `SessionFinished` or `SessionFailed`, and a session whose job cannot be read at all
+    # (its state file is gone, as after `claude rm`) is looked for by `LookForTheUnreadSession` and
+    # recorded `AgentRunRetired` when `claude agents` no longer lists it. Each of those rolls on its
+    # own (`RollWhenARunEnds`, `RollWhenARunFails`, `RollWhenARunIsRetired`), settling the started
+    # Work items before it counts the cap. A beat that finds nothing changed starts no fill; what
+    # becomes eligible by the clock alone is the `Wake` aggregate's question.
     #
     # Each check is addressed by the Work item's key alone: the sweep's own `run` is not passed on.
     policy "CheckEveryStartedRun" do
@@ -937,6 +1025,18 @@ Hecks.bluebook "Hecks" do
     policy "RecordTheRefusedAnswer" do
       on      "AgentRun.ResumeRefused"
       trigger AgentRun::Unanswered, with: { refusal: :refusal, verdict: :verdict }
+    end
+
+    # A sweep's check that cannot read the job at all (`JobUnreadable`) finds no event to record, so a
+    # run whose session vanished would stay started and keep counting against the cap. It is looked
+    # for in the listing instead; a session still listed is kept, and the run is retired only when
+    # it is gone. The reading right after a start refuses as `JobUnread`, which is expected there
+    # (the job is not written yet) and is not looked for. A root: the chain that follows (the look,
+    # the retire, the roll) is long.
+    policy "LookForTheUnreadSession" do
+      on      "AgentRun.JobUnreadable"
+      root
+      ask     :look_for, with: { run: :run }
     end
 
     # The session is looked for before the run is retired; only one `claude agents` no longer

@@ -14,7 +14,8 @@ module Hecks
         # Minutes a missing Passage parks an item before it is tried again.
         PASSAGE_MINUTES = 60
 
-        # Run statuses that keep the key: a dispatch under it is refused by name.
+        # Run statuses that free the key: a dispatch under one of them starts a new run. A run in
+        # any other status keeps the key, and a dispatch under it is refused by name.
         RUN_ENDED = %w[finished tidied refused retired].freeze
 
         # The refusal of a dispatch under a run key that is still taken.

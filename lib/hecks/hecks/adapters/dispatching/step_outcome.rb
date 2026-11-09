@@ -27,14 +27,19 @@ module Hecks
         # @param result [Shell::Result] the command's output and status
         # @param reaches [String, nil] the status the command's record holds when it did its part,
         #   or nil when only a clean exit counts
-        def initialize(result, reaches: nil)
+        # @param decided_by_status [Boolean] whether the record's status alone says if the command
+        #   did its part, for a record that keeps a refusal from an earlier command (a run keeps the
+        #   reason it was last declined or left unretired after it is retired)
+        def initialize(result, reaches: nil, decided_by_status: false)
           @result = result
           @reaches = reaches
+          @decided_by_status = decided_by_status && !reaches.nil?
         end
 
         # @return [Boolean] whether the command did its part: a clean exit without a refusal, or a
         #   record that reached the status asked for though a later reaction was refused
         def ok?
+          return status == @reaches if @decided_by_status
           return false if refusal
 
           @result.ok? || (!@reaches.nil? && status == @reaches)

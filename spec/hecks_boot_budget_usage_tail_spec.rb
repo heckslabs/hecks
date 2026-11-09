@@ -27,6 +27,32 @@ RSpec.describe Hecks::Adapters::BootBudget::UsageTail do
     expect(rows.map { |row| row["at"] }).to eq(%w[2026-11-09T00:20:00Z 2026-11-09T00:10:00Z])
   end
 
+  it "skips a line with no time instead of ending the window there", :aggregate_failures do
+    rows = tail_of([line(-30), line(10), %({"boot_ms":5}\n), %({"boot_ms":7,"date":"2026-11-09"}\n), line(20)].join)
+
+    expect(rows.size).to eq(4)
+    expect(rows.map { |row| row["boot_ms"] }).to eq([10, 7, 5, 10])
+  end
+
+  it "ends the window at an unstamped line whose day is before it" do
+    rows = tail_of([%({"boot_ms":9,"date":"2026-11-07"}\n), line(10)].join)
+
+    expect(rows.size).to eq(1)
+  end
+
+  it "says when the byte limit cut the window short", :aggregate_failures do
+    cut = tail_of(Array.new(300) { |n| line(n + 1) }.join, LIMIT: 600, CHUNK: 128)
+
+    expect(cut.capped).to be(true)
+    expect(tail_of(line(10)).capped).to be(false)
+  end
+
+  it "does not fail when the file shrinks between its size and its read" do
+    shrunk = instance_double(File, size: 500, seek: 0, read: nil)
+
+    expect { described_class.read_backwards(shrunk, 8_000) { |_line| nil } }.not_to raise_error
+  end
+
   it "skips a torn last line instead of failing" do
     rows = tail_of([line(10), line(20), %({"boot_ms":1,"at":"2026)].join)
 

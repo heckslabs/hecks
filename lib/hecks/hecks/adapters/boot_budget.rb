@@ -23,8 +23,10 @@ module Hecks
 
       # What one reading says. `hours` is the measured boot time in the window; `boots` the runs
       # in it; `unmeasured` those with no `boot_ms`; `last_hour` the runs in the last hour per
-      # caller.
-      Reading = Struct.new(:hours, :boots, :unmeasured, :last_hour, keyword_init: true)
+      # caller; `approximate` the runs that carry no start time, placed in the window by their day
+      # alone; `capped` whether the byte limit cut the read short of the window's start, so `hours`
+      # is a floor.
+      Reading = Struct.new(:hours, :boots, :unmeasured, :last_hour, :approximate, :capped, keyword_init: true)
 
       # @param entries [#call, nil] answers the usage entries since a time; the tail of the
       #   launcher's own record, one bounded read, when nil
@@ -38,23 +40,42 @@ module Hecks
       def today
         now = @now.call
         cutoff = now - WINDOW
-        reading(Array(@entries.call(cutoff)).select { |row| UsageTail.recent?(row, cutoff) }, now)
+        entries = @entries.call(cutoff)
+        reading(Array(entries).select { |row| UsageTail.recent?(row, cutoff) }, now, capped_by?(entries))
       end
 
+      # The budget is spent when the measured hours reach it. When the byte limit cut the read short
+      # of the window's start, the hours are a floor, so a budget the floor has already half spent
+      # is judged probably spent: a runaway of launcher runs is exactly what fills the limit, and it
+      # must not hide itself by overflowing the read. A truncated read below half the budget stops
+      # nothing; the board shows the window as truncated.
+      #
       # @param budget [Numeric] the hours of boots a day allows
       # @return [String, nil] why no session starts: the measured boots of the last day have spent
       #   the budget, else nil
       def stop_reason(budget)
-        spent = today.hours
-        "skipped: boot budget spent: #{spent.round(2)} of #{budget.to_f.round(2)} hours" if spent >= budget.to_f
+        reading = today
+        limit = budget.to_f
+        if reading.hours >= limit
+          spent_line("spent", reading.hours, limit)
+        elsif capped_half?(reading, limit)
+          spent_line("probably spent (the read was cut short)", reading.hours, limit)
+        end
       end
 
       private
 
-      def reading(rows, now)
+      def spent_line(word, hours, limit) = "skipped: boot budget #{word}: #{hours.round(2)} of #{limit.round(2)} hours"
+
+      def capped_half?(reading, limit) = reading.capped && reading.hours >= limit / 2
+
+      def capped_by?(entries) = entries.respond_to?(:capped) && entries.capped == true
+
+      def reading(rows, now, capped)
         measured = rows.select { |row| row["boot_ms"].is_a?(Numeric) }
         Reading.new(hours: hours(measured), boots: rows.size, unmeasured: rows.size - measured.size,
-                    last_hour: last_hour(rows, now))
+                    last_hour: last_hour(rows, now), approximate: rows.count { |row| UsageTail.approximate?(row) },
+                    capped: capped)
       end
 
       def hours(measured) = (measured.sum { |row| row["boot_ms"] } / HOUR_MS).round(3)

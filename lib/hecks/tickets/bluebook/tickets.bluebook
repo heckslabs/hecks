@@ -543,6 +543,11 @@ Hecks.bluebook "Tickets" do
 
       reference_to Work
 
+      # A finished item starts a later life from a clean backoff: its yields no longer count.
+      sets :yield_kind, to: ""
+      sets :retry_at, to: ""
+      sets :yield_count, to: 0
+
       emits "WorkFinished"
     end
 

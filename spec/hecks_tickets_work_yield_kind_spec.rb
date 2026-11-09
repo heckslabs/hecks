@@ -28,6 +28,27 @@ RSpec.describe "the kind a Work yield records" do
     expect(kept).to eq(["planned", "transient", "2026-11-01T09:05:00Z", 1])
   end
 
+  def plain(value) = value.respond_to?(:value) ? value.value : value
+
+  def record
+    aggregate = hecks.registry.bluebook("Tickets").aggregates.find { |declared| declared.hecks_name == "Work" }
+    hecks.registry.repository("Tickets", aggregate).all.last
+  end
+
+  def finish_after_two_yields
+    start
+    yield_with("yield_kind.value=transient", "retry_at.value=2026-11-01T09:05:00Z", "yield_count.value=2")
+    cli("work.start!", "to=k", "claimed_by.value=s", "claimed_at.value=2026-11-01T09:10:00Z")
+    cli("work.finish!", "to=k")
+  end
+
+  it "forgets its yields when the work item is finished", :aggregate_failures do
+    finish_after_two_yields
+
+    expect(plain(record.yield_kind).to_s).to be_empty
+    expect(plain(record.yield_count).to_i).to eq(0)
+  end
+
   it "clears the kind when a later yield names none" do
     start
     yield_with("yield_kind.value=transient", "retry_at.value=2026-11-01T09:05:00Z", "yield_count.value=1")

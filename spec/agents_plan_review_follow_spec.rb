@@ -42,6 +42,10 @@ RSpec.describe "following the Agents plan review events" do
     expect(followed(names: "PlanReviewRequested")).to be_empty
   end
 
+  it "refuses an aggregate no bluebook declares instead of following another one's log" do
+    expect { followed(aggregate: "PlanReveiw") }.to raise_error(Hecks::Runtime::NotFound, /no aggregate "PlanReveiw"/)
+  end
+
   it "picks up a verdict recorded after the cursor, not before it" do
     record("earlier")
     cursor = adapter.stream(domain: root, registry: registry, aggregate: "PlanReview", from_now: true, timeout: 0) { nil }

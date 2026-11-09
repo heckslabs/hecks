@@ -71,6 +71,30 @@ RSpec.describe "the boot budget" do
     expect(reader.today.boots).to eq(0)
   end
 
+  # A read the byte limit cut short of the window's start, as the tail reader answers it.
+  def truncated(*rows)
+    window = Hecks::Adapters::BootBudget::UsageTail::Window.new(rows)
+    window.capped = true
+    Hecks::Adapters::BootBudget.new(entries: ->(_cutoff) { window }, now: -> { now })
+  end
+
+  it "counts the runs placed by their day alone as approximate", :aggregate_failures do
+    early = { "boot_ms" => 1_800_000, "date" => "2026-11-09" }
+    reading = budget(early, row(1_000)).today
+
+    expect(reading.approximate).to eq(1)
+    expect(reading.capped).to be(false)
+  end
+
+  it "judges a budget half spent in a truncated window as probably spent", :aggregate_failures do
+    expect(truncated(row(2_160_000)).stop_reason(1.0)).to include("probably spent", "cut short")
+    expect(truncated(row(1_800_000)).today.capped).to be(true)
+  end
+
+  it "stops nothing for a truncated window below half the budget" do
+    expect(truncated(row(1_000_000)).stop_reason(1.0)).to be_nil
+  end
+
   it "says the budget is spent once the measured hours reach it", :aggregate_failures do
     spent = budget(row(3_600_000))
 

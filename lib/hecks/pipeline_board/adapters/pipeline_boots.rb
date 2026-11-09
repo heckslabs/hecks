@@ -18,13 +18,15 @@ module Hecks
         @machine = Dispatching::Settings.new(registry, load: settings[:load])
       end
 
-      # @return [Hash] `hours`, `boots`, `unmeasured`, `last_hour` (callers to runs), `budget`
-      #   (hours a day, nil when none is set), `load` and `max_load`
+      # @return [Hash] `hours`, `boots`, `unmeasured`, `approximate` (runs placed by their day
+      #   alone), `truncated` (the byte limit cut the read short, so `hours` is a floor),
+      #   `last_hour` (callers to runs), `budget` (hours a day, nil when none is set), `load` and
+      #   `max_load`
       def today
         reading = @budget.today
         { hours: reading.hours, boots: reading.boots, unmeasured: reading.unmeasured,
-          last_hour: reading.last_hour, budget: @machine.boot_budget, load: @machine.load.round(1),
-          max_load: @machine.max_load.round(1) }
+          approximate: reading.approximate, truncated: reading.capped, last_hour: reading.last_hour,
+          budget: @machine.boot_budget, load: @machine.load.round(1), max_load: @machine.max_load.round(1) }
       end
     end
   end
