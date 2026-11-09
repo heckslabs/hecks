@@ -5172,16 +5172,19 @@ impl RehearsalStage {
 pub struct RehearsalScope {
     pub name: &'static str,
     pub stages: &'static str,
+    pub covers: &'static str,
 }
 
 pub const REHEARSAL_SCOPE: &[RehearsalScope] = &[
     RehearsalScope {
         name: "quick",
         stages: "quick",
+        covers: "checks",
     },
     RehearsalScope {
         name: "deep",
         stages: "quick,impacted",
+        covers: "checks,rspec",
     },
 ];
 
@@ -5196,20 +5199,24 @@ impl RehearsalScope {
                 "stages".to_string(),
                 crate::kernel::Json::Str(self.stages.to_string()),
             ),
+            (
+                "covers".to_string(),
+                crate::kernel::Json::Str(self.covers.to_string()),
+            ),
         ])
     }
 
     pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
         // `validate!`'s order: a name the set does not declare, then a field left out, then
         // membership of the whole row.
-        let unknown = v.unknown_keys(&["name", "stages"]);
+        let unknown = v.unknown_keys(&["name", "stages", "covers"]);
         if !unknown.is_empty() {
             let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
             return Err(crate::kernel::Refusal::UnknownArgument(
                 crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
                     command: "RehearsalScope",
                     unknown: &unknown,
-                    declared: &["name", "stages"],
+                    declared: &["name", "stages", "covers"],
                 }
                 .render_args(),
             ));
@@ -5224,9 +5231,15 @@ impl RehearsalScope {
                 "RehearsalScope.stages expects String, got nil".to_string(),
             ));
         }
+        if matches!(v.get("covers"), None | Some(crate::kernel::Json::Null)) {
+            return Err(crate::kernel::Refusal::TypeMismatch(
+                "RehearsalScope.covers expects String, got nil".to_string(),
+            ));
+        }
         for row in REHEARSAL_SCOPE {
             if v.get("name").and_then(crate::kernel::Json::as_str) == Some(row.name)
                 && v.get("stages").and_then(crate::kernel::Json::as_str) == Some(row.stages)
+                && v.get("covers").and_then(crate::kernel::Json::as_str) == Some(row.covers)
             {
                 return Ok(row.clone());
             }

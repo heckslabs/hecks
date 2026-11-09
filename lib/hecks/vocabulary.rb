@@ -480,8 +480,8 @@ module Hecks
         {"refusal"=>"ProjectionAbsent", "site"=>"absent_read", "template"=>"{aggregate} {field} is not yet projected on this record — declared via projects :{field}, but no rebuild sweep has populated it. Run the sweep, or read {reference}.{remote_field} directly if this rule cannot wait"}.freeze
       ].freeze,
       "RehearsalScope" => [
-        {"name"=>"quick", "stages"=>"quick"}.freeze,
-        {"name"=>"deep", "stages"=>"quick,impacted"}.freeze
+        {"name"=>"quick", "stages"=>"quick", "covers"=>"checks"}.freeze,
+        {"name"=>"deep", "stages"=>"quick,impacted", "covers"=>"checks,rspec"}.freeze
       ].freeze,
       "RehearsalStage" => [
         {"name"=>"quick", "kind"=>"gate", "argument"=>"quick"}.freeze,

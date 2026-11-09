@@ -35667,6 +35667,16 @@
               "pattern": null,
               "admits": null,
               "relationship": null
+            },
+            {
+              "name": "covers",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
             }
           ],
           "invariants": [
@@ -35682,6 +35692,10 @@
               [
                 "stages",
                 "quick"
+              ],
+              [
+                "covers",
+                "checks"
               ]
             ],
             [
@@ -35692,6 +35706,10 @@
               [
                 "stages",
                 "quick,impacted"
+              ],
+              [
+                "covers",
+                "checks,rspec"
               ]
             ]
           ]

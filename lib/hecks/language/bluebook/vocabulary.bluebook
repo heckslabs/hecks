@@ -1015,7 +1015,8 @@ Hecks.bluebook "Bluebook" do
     # What a push rehearsal runs, as data `GitRehearsal::Stages` reads. A `RehearsalStage` is one
     # step: `kind` is `gate` (the `GateStage` named by `argument` runs) or `impacted` (the specs
     # the push's changes touch, capped by the local spec limit). A `RehearsalScope` lists, in the order they run, the steps a rehearsal of
-    # that scope runs. `quick` is what a landing asks for and the train's push gate; `deep` adds the
+    # that scope runs; `covers` names the `RequiredCheck` rows the scope runs at least in part (the
+    # report says which CI checks it did not run). `quick` is what a landing asks for and the train's push gate; `deep` adds the
     # impacted specs and runs only when asked for (`scope.value=deep`). Owner decision: the full
     # spec suite runs only in CI, so no scope runs it and only `deep` runs any impacted specs.
     value_object "RehearsalStage" do
@@ -1030,9 +1031,10 @@ Hecks.bluebook "Bluebook" do
     value_object "RehearsalScope" do
       attribute :name, String
       attribute :stages, String
+      attribute :covers, String
 
-      member name: "quick", stages: "quick"
-      member name: "deep", stages: "quick,impacted"
+      member name: "quick", stages: "quick",          covers: "checks"
+      member name: "deep",  stages: "quick,impacted", covers: "checks,rspec"
     end
 
     # The checks a commit must have passed before a `Promotion` moves it onto a guarded lane. Each
