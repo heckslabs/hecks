@@ -6,6 +6,7 @@ require_relative "../../../hecks/adapters/push_size"
 require_relative "work_tiles"
 require_relative "disk_tiles"
 require_relative "boot_tiles"
+require_relative "pr_tiles"
 
 module Hecks
   module Adapters
@@ -17,6 +18,7 @@ module Hecks
         extend WorkTiles
         extend DiskTiles
         extend BootTiles
+        extend PrTiles
 
         # @param data [Hash] the board's sections, each an answer or `{unknown: reason}`
         # @param now [Time] the time the tiles are read at
@@ -38,7 +40,8 @@ module Hecks
           limits = data.fetch(:push_limits, Hecks::Adapters::PushSize::DEFAULTS)
           floors = data.fetch(:disk_health, DiskTiles::HEALTH_DEFAULTS)
           [ahead(data[:local], now, limits), working(data), throughput(data[:finished], data[:open_work], now),
-           release(data[:release], now), disk(data[:disk], floors), boots(data[:boots])]
+           release(data[:release], now), disk(data[:disk], floors), boots(data[:boots]),
+           open_prs(data[:open_prs], now)]
         end
       end
     end
