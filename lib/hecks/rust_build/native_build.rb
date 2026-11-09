@@ -3,6 +3,9 @@
 require "digest"
 require "fileutils"
 require "open3"
+require_relative "session_build"
+require_relative "build_lock"
+require_relative "binary_cache"
 
 module Hecks
   module RustBuild
@@ -93,7 +96,7 @@ module Hecks
       # @return [String] the binary, pinned to `target/debug/rust-<feature>`
       # @raise [BuildFailed] when the build fails or leaves no binary
       def build_and_pin(domain_feature, rust_dir)
-        lock_path = File.join(target_dir(rust_dir), ".build_rust_for.lock")
+        lock_path = lock_path_for(rust_dir)
         FileUtils.mkdir_p(File.dirname(lock_path))
 
         File.open(lock_path, File::CREAT | File::RDWR) do |lock|
@@ -101,21 +104,44 @@ module Hecks
           pinned = pinned_path(rust_dir, domain_feature)
           next pinned if pinned_fresh?(pinned, rust_dir)
 
-          command = ["cargo", "build", "--no-default-features", "--features", domain_feature]
-          cargo(command, rust_dir, domain_feature)
-          pin(rust_dir, domain_feature, command)
+          build_or_restore(domain_feature, rust_dir, pinned)
         end
+      end
+
+      # The lock a build holds, in the directory it is about to write to; that directory is claimed
+      # first when it is the worktree's own slot.
+      def lock_path_for(rust_dir)
+        dir = SessionBuild.claim_slot(target_dir(rust_dir), SessionBuild.root_of(rust_dir))
+        File.join(dir, ".build_rust_for.lock")
+      end
+
+      # Takes the binary another workspace built from the same sources when the cache has it, else
+      # builds, pins and keeps it.
+      def build_or_restore(domain_feature, rust_dir, pinned)
+        kept = BinaryCache.key(rust_dir, domain_feature, source_files(rust_dir))
+        return pinned if BinaryCache.restore(kept, pinned)
+
+        command = ["cargo", "build", "--no-default-features", "--features", domain_feature]
+        cargo(command, rust_dir, domain_feature)
+        pin(rust_dir, domain_feature, command).tap { |binary| BinaryCache.save(kept, binary) }
       end
 
       def pinned_path(rust_dir, domain_feature)
         File.join(target_dir(rust_dir), "debug", "rust-#{domain_feature}")
       end
 
-      # Where Cargo writes: `CARGO_TARGET_DIR` when set, else the workspace's own `target/`.
+      # Where Cargo writes: a directory named by hand, else a directory of the worktree's own below
+      # the world's shared one, else the workspace's own `target/`. The pinned binary is current
+      # when no source is newer than it, a rule that cannot tell two worktrees' sources apart, so
+      # this build never writes to the shared directory a dispatched session inherits.
       #
       # @param rust_dir [String] the workspace
       # @return [String] the directory holding `debug/`
-      def target_dir(rust_dir) = ENV.fetch("CARGO_TARGET_DIR") { File.join(rust_dir, "target") }
+      def target_dir(rust_dir)
+        root = SessionBuild.root_of(rust_dir)
+        inside = File.expand_path(rust_dir).start_with?("#{root}/")
+        (inside && SessionBuild.binary_dir(root: root, relative_to: rust_dir)) || File.join(rust_dir, "target")
+      end
 
       # A binary pinned ahead of time, by an earlier run whose build was restored from a cache, is
       # current when no source is newer than it: the rule `make` applies to any target.
@@ -136,12 +162,13 @@ module Hecks
       end
 
       def cargo(command, rust_dir, domain_feature)
-        _stdout, stderr, status = Open3.capture3(*command, chdir: rust_dir)
+        env = { "CARGO_TARGET_DIR" => target_dir(rust_dir) }
+        printed, status = RustBuild.capture_build(command, chdir: rust_dir, env: env)
         return if status.success?
 
         raise BuildFailed, "`#{command.join(" ")}` failed in #{rust_dir} (exit #{status.exitstatus}) — " \
                            "#{domain_feature} is declared in Cargo.toml, so this is a build failure, " \
-                           "not a missing feature:\n#{stderr}"
+                           "not a missing feature:\n#{printed}"
       rescue SystemCallError => e
         raise BuildFailed, "`#{command.join(" ")}` could not run in #{rust_dir}: #{e.message}"
       end

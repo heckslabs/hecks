@@ -66,11 +66,31 @@ module Hecks
           registry.bluebooks.each_value do |bluebook|
             bluebook.aggregates.each do |aggregate|
               bind = Ports::Persistence::BindingPolicy.resolve(registry, bluebook.name, aggregate)
-              next if bind.adapter == Ports::Persistence::DEFAULT_ADAPTER
+              next if in_memory?(registry, bluebook, bind)
 
               raise Malformed, non_memory_message(bluebook, aggregate, bind)
             end
           end
+        end
+
+        # Adapters that are a plain Memory store while the setting they read files from is unset or
+        # `None`, which a suite's Memory world, or no world at all, leaves.
+        FILE_SETTING = { "DecisionFiles" => :directory }.freeze
+        private_constant :FILE_SETTING
+
+        # @return [Boolean] whether the bind is the default Memory adapter, or an adapter that
+        #   reads no files in this boot
+        def in_memory?(registry, bluebook, bind)
+          return true if bind.adapter == Ports::Persistence::DEFAULT_ADAPTER
+
+          key = FILE_SETTING[bind.adapter.to_s]
+          !key.nil? && reads_no_files?(registry.binding_settings(bluebook.name, Ports::Persistence::VERB, bind.adapter), key)
+        end
+
+        # @return [Boolean] whether the setting that names the files is unset or `None`
+        def reads_no_files?(settings, key)
+          setting = settings.transform_keys(&:to_sym)[key]
+          setting.nil? || setting.to_s.casecmp?("None")
         end
 
         # @return [String] why a behaviors suite refuses an aggregate that is not bound to Memory

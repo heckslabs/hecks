@@ -40,4 +40,21 @@ RSpec.describe Hecks::Adapters::PipelineBoard::TrainDetail do
   it "answers nil when no boarding has the key" do
     expect(detail([]).of("none")).to be_nil
   end
+
+  describe "reading the boarding from the live store" do
+    let(:store) { instance_double(Hecks::Adapters::PipelineBoard::LiveStore, records: nil) }
+    let(:record) { { run: "t-1", status: "faulted", refusal: "main moved", boarded: "" } }
+
+    def detail_from_store
+      allow(store).to receive(:records).with("Hecks", "SendTrain").and_return([record, { run: "t-2" }])
+      described_class.new(root: "/x", live_store: store, pull_request: ->(_) { view })
+    end
+
+    it "finds the boarding by its run and starts no process", :aggregate_failures do
+      probe = Hecks::Adapters::PipelineBoard::Probe
+      allow(probe).to receive(:run)
+      expect(detail_from_store.of("t-1")).to include(status: "faulted", outcome: "faulted: main moved")
+      expect(probe).not_to have_received(:run)
+    end
+  end
 end

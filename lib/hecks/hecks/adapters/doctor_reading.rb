@@ -128,7 +128,7 @@ module Hecks
       # Postgres reachable, and the role the URL names exists; a read of the catalog, nothing
       # written.
       def reach(url)
-        require "pg"
+        require "hecks/pg_options"
         PG.connect(url, connect_timeout: 3) { |conn| role_row(conn, URI.parse(url).user) }
       rescue LoadError
         row("store", :warn, "pg gem not loaded, so postgres was not tested", "bundle install")

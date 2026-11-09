@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "hecks"
+require_relative "boot_lock"
 
 module Hecks
   module Adapters
@@ -91,7 +92,7 @@ module Hecks
         end
 
         def described
-          registry = Hecks.describe(BLUEBOOK_DIR).registry
+          registry = BootLock.exclusive(wait: BootLock::WAIT_SECONDS) { Hecks.describe(BLUEBOOK_DIR).registry }
           registry.bluebooks.fetch("PipelineBoard")
         end
       end

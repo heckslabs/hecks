@@ -23,20 +23,29 @@ module Hecks
 
         # @param key [String] the Work item's key, which names the worktree and branch
         # @param area [Array<String>] the areas the session may edit
-        # @param limit [Integer, nil] the most spec files a session runs per call, from the world's
-        #   `test_scope` setting; fills `{limit}`
+        # @param limit [Integer, nil] spec files per call, from the world's `test_scope`;
+        #   fills `{limit}`
+        # @param main [String, nil] the primary checkout the fill runs from; fills `{main}`
         # @param lines [Hash] `held:` a line for each area another started work item holds,
-        #   `frozen:` the areas and aggregates whose shape may not move, and `traps:` a line for
-        #   each known trap the work item's area meets; each is an Array of strings and defaults
-        #   to none
+        #   `frozen:` the areas whose shape may not move, `traps:` a line for each known trap;
+        #   each is an Array of strings and defaults to none
         # @return [String] the whole text
-        def render(key, area: [], limit: nil, **lines)
+        # @raise [ArgumentError] if the text names `{main}` and no `main:` was given
+        def render(key, area: [], limit: nil, main: nil, **lines)
           parts = [first_line, labelled("Detail", plain("detail")), labelled("Area", area.join(", "))]
           parts += SECTIONS.map { |name| plain(name) } + lists(lines)
-          joined(parts).gsub("{work}", key).gsub("{limit}", limit&.to_s || "the world's spec_files_limit")
+          text = joined(parts).gsub("{work}", key).gsub("{limit}", limit&.to_s || "the world's spec_files_limit")
+          fill_main(text, main)
         end
 
         private
+
+        def fill_main(text, main)
+          return text unless text.include?("{main}")
+          raise ArgumentError, "the brief names {main} and no main checkout was given" if main.to_s.empty?
+
+          text.gsub("{main}", main.to_s.chomp("/"))
+        end
 
         # The lists a caller fills, each under its heading, in the order the brief reads them.
         def lists(lines)

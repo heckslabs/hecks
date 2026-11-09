@@ -1,5 +1,4 @@
 require_relative "../../hecks"
-require "irb"
 # The era/lineage subsystem is a persistence plugin core does not require by default (ADR 0033);
 # a domain passed to the console may bind it.
 require_relative "../ports/persistence/plugins/era"
@@ -38,13 +37,17 @@ module Hecks
       # launcher's `ARGV` holds its own words (`console`, `subject=<domain>`), which IRB would
       # open as a file and then exit without a prompt.
       #
+      # IRB and its line editor load here, not with this file: every launcher boot loads the
+      # adapter that offers the console, and only a console session needs them.
+      #
       # @return [void] when the session ends; `ARGV` is restored
       def irb_session
         words = ARGV.dup
+        require "irb"
         ARGV.clear
         IRB.start(__FILE__)
       ensure
-        ARGV.replace(words)
+        ARGV.replace(words) if words
       end
 
       # @param runtime [Runtime] a booted domain

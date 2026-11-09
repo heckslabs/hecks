@@ -33,6 +33,6 @@ module MachineBeats
   def crossings(names) = names.grep(/\A(LoadFellBelow|LoadRoseAbove|MemoryLow|MemoryRecovered|TestLaneBusy|TestLaneIdle)\z/)
 
   def gauge(idle, swap = 10.0, lane = nil)
-    { cpu_idle: idle, load: 9.0, swap_used: swap, compressor_gb: 2.0, lane_waiting: lane }
+    { cpu_idle: idle, load: 7.0, swap_used: swap, compressor_gb: 2.0, lane_waiting: lane }
   end
 end

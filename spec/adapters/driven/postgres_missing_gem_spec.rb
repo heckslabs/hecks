@@ -10,7 +10,7 @@ RSpec.describe "connecting a Postgres adapter without the pg gem" do
   }.each do |label, adapter|
     it "raises a LoadError from #{label} that says to add the pg gem" do
       hide_const("PG")
-      allow(adapter).to receive(:require).with("pg").and_raise(LoadError, "cannot load such file -- pg")
+      allow(adapter).to receive(:require).with("hecks/pg_options").and_raise(LoadError, "cannot load such file -- pg")
 
       expect { adapter.connect_for("Pizzas", { database: "postgres://localhost/x" }) }
         .to raise_error(LoadError, /Pizzas binds #{label}, which needs the pg gem/)

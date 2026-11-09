@@ -33,7 +33,8 @@ RSpec.describe Hecks::Adapters::Dispatching do
   def reply(argv)
     return "" unless argv[1] == "Brief.compose!"
 
-    state = { "outcome" => "Title a", "rules" => "RULES {work}", "freeze" => "FREEZE:", "coordination" => "COORD:" }
+    state = { "outcome" => "Title a", "rules" => "RULES {work}", "review" => "REVIEW {main}/exe/hecks",
+              "freeze" => "FREEZE:", "coordination" => "COORD:" }
     JSON.generate("state" => state)
   end
 
@@ -160,6 +161,13 @@ RSpec.describe Hecks::Adapters::Dispatching do
 
       expect(brief).to include("RULES a", "COORD:", "- s: Title s (lib/s)")
       expect(brief).not_to include("FREEZE:")
+    end
+
+    it "fills {main} in the brief with the checkout the filling runs from" do
+      report(held)
+      brief = calls.last.find { |word| word.start_with?("brief.value=") }
+
+      expect(brief).to include("REVIEW /repo/exe/hecks")
     end
 
     it "yields the work item back to the plan when a step fails" do

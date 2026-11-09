@@ -10,6 +10,23 @@ RSpec.describe Hecks::CacheDir do
 
   after { FileUtils.rm_rf(scratch) }
 
+  describe ".stable?" do
+    def stable_in?(env) = described_class.stable?(env: env)
+
+    it "is true for the user's own cache directory", :aggregate_failures do
+      allow(described_class).to receive(:root).and_return(File.join(scratch, ".cache", "hecks"))
+
+      expect(stable_in?("HOME" => scratch)).to be(true)
+      expect(stable_in?("HOME" => "/elsewhere")).to be(false)
+    end
+
+    it "is false for a temp-directory fallback" do
+      allow(described_class).to receive(:root).and_return(File.join(scratch, "hecks-abc123"))
+
+      expect(stable_in?("HOME" => scratch, "XDG_CACHE_HOME" => scratch)).to be(false)
+    end
+  end
+
   describe ".resolve" do
     it "prefers $XDG_CACHE_HOME/hecks", :aggregate_failures do
       xdg = File.join(scratch, "xdg")
@@ -39,6 +56,17 @@ RSpec.describe Hecks::CacheDir do
       root = described_class.resolve(env: { "XDG_CACHE_HOME" => blocked, "HOME" => scratch }, tmpdir: scratch)
 
       expect(root).to eq(File.join(scratch, ".cache", "hecks"))
+    end
+
+    it "does not ask the system for the temp directory when the user's cache directory serves" do
+      allow(described_class).to receive(:system_tmpdir)
+      described_class.resolve(env: { "HOME" => scratch })
+      expect(described_class).not_to have_received(:system_tmpdir)
+    end
+
+    it "asks the system for the temp directory when no cache directory serves" do
+      allow(described_class).to receive(:system_tmpdir).and_return(scratch)
+      expect(described_class.resolve(env: {}, uid: 4242)).to eq(File.join(scratch, "hecks-4242"))
     end
 
     it "uses <tmpdir>/hecks-<uid> when neither is available" do

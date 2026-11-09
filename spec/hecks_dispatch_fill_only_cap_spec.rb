@@ -45,7 +45,7 @@ RSpec.describe "a filling held to one work item, read through the launcher" do
     state = fill("only.value=zz-target", "confirm.value=true")
 
     expect(state["status"]).to eq("answered")
-    expect(state["report"]).to include("started 3 of cap 8", "this fill would start 1", "started zz-target")
+    expect(state["report"]).to include("started 3 of cap 8", "this fill: 1 started, 0 yielded of 1", "started zz-target")
   end
 
   it "says without confirm that the named work item would start, and nothing else", :aggregate_failures do

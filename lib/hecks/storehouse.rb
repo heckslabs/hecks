@@ -8,6 +8,8 @@ require_relative "adapters/driving/json"
 require_relative "naming"
 require_relative "projector"
 require_relative "runtime/errors"
+require_relative "storehouse/confinement"
+require_relative "storehouse/source_tags"
 require_relative "storehouse/callers"
 require_relative "storehouse/audit"
 require_relative "storehouse/identity"
@@ -24,19 +26,10 @@ module Hecks
   # module; what is here is what they share: the boot root, the alias table, and the checks on who
   # is calling.
   module Storehouse
-    # Optional on dispatch/query; omitted, source is recorded as nil rather
-    # than guessed.
-    SOURCE_TAGS = %w[process-manager operator hook sidequest-agent cascade daemon].freeze
-
     # Which surface a call came in through, so the audit line says what made it: a person at a shell
     # (`cli`), an agent over the MCP server (`mcp`), or the domain itself (`policy`, `saga`,
     # `reaction`).
     SURFACES = %w[cli mcp policy saga reaction].freeze
-
-    # The root every domain path resolves under; HECKS_STOREHOUSE_ROOT widens it.
-    # Hecks.boot Kernel.loads Ruby files here, so an unconfined path is
-    # arbitrary code execution, not just a wrong-directory mistake.
-    BOOT_ROOT = File.expand_path(ENV["HECKS_STOREHOUSE_ROOT"] || File.expand_path("../..", __dir__))
 
     # One dispatch or query call: the booted domain, what it is asked, and who is asking.
     Request = Struct.new(:runtime, :bluebook, :name, :summary, :args, :source, :dry_run, :role, :actor_id,
@@ -56,18 +49,6 @@ module Hecks
     extend BluebookWords
 
     module_function
-
-    # Refuses a path outside BOOT_ROOT rather than silently clamping it — a
-    # stray relative path and a deliberate escape both deserve a clear refusal.
-    # :nodoc:
-    def confine!(path, label)
-      resolved = File.expand_path(path.to_s, BOOT_ROOT)
-      return resolved if resolved == BOOT_ROOT || resolved.start_with?("#{BOOT_ROOT}#{File::SEPARATOR}")
-
-      raise Runtime::TypeMismatch,
-            "#{label}: #{path.inspect} resolves outside #{BOOT_ROOT} — this bus only boots domains under its " \
-            "own root (HECKS_STOREHOUSE_ROOT to widen it)"
-    end
 
     # The one bluebook this runtime booted; every whole-domain entry point assumes
     # the same one-bluebook-per-boot shape.

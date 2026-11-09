@@ -15,6 +15,10 @@ module Hecks
       # Runs one outside command for a reader and answers its standard output.
       module Probe
         TIMEOUT_SECONDS = 25
+        # The variable a launcher line reads its caller from, and the name the board gives, so the
+        # usage log shows the launcher lines this server runs.
+        CALLER_VARIABLE = "HECKS_CALLER"
+        CALLER = "board"
 
         # @param command [Array<String>] the program and its arguments, never a shell string
         # @param chdir [String, nil] where it runs
@@ -23,7 +27,7 @@ module Hecks
         # @raise [Unavailable] when the program is missing, times out or exits non-zero
         def self.run(*command, chdir: nil, seconds: TIMEOUT_SECONDS, stdin: nil)
           out, err, status = Timeout.timeout(seconds) do
-            Open3.capture3(*command, chdir: chdir || Dir.pwd, stdin_data: stdin.to_s)
+            Open3.capture3({ CALLER_VARIABLE => CALLER }, *command, chdir: chdir || Dir.pwd, stdin_data: stdin.to_s)
           end
           raise Unavailable, "#{command.first} #{command[1]}: #{reason(err)}" unless status.success?
 

@@ -46,3 +46,21 @@ Hecks.hecksagon "Tickets" do
     answers_query "PriorityReport"
   end
 end
+
+# Where the decision records live: their files under docs/decisions, read through the DecisionFiles
+# persistence adapter (adapters/decision_files.rb), so every process that boots Tickets sees the same
+# records and a Work item's `decision` resolves against them. The Tickets world names the directory
+# (`persisted_by("DecisionFiles") do directory "docs/decisions" end`); a world that names none, or
+# `None`, leaves the store a plain Memory one, which a standalone, fuzz or model_check boot and a spec
+# get. A store read from files takes no write (Draft, Accept and Supersede are refused by name) until
+# writing a status line back is built. The bind is Ruby-only, as Tenancy's LocalStorage is: the Rust
+# host runs no Tickets module.
+#
+# Binding one aggregate makes the wiring explicit, so the rest need a default too. It is not a root
+# bind here: a root bind is handed to Governance, which the attaching Hecks domain also hands its own
+# to, and the two would conflict where Hecks is PostgresEra. The Tickets world's `default_adapter`
+# (Memory, the tooling default) covers them where nothing is inherited, and a local overlay still
+# binds Finding and Work to its own store.
+Hecks.hecksagon "Tickets" do
+  Tickets::Adr.persisted_by("DecisionFiles")
+end

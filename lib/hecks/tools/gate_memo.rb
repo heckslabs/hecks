@@ -6,6 +6,8 @@ require "json"
 require "open3"
 require "time"
 require_relative "gate_memo/local_files"
+require_relative "gate_memo/entries"
+require_relative "gate_memo/storage"
 
 module Hecks
   module Tools
@@ -21,6 +23,9 @@ module Hecks
     # The rule itself is declared in the Check bluebook beside `GateRun`, in
     # lib/hecks/hecks/check/check.bluebook.
     module GateMemo
+      extend Entries
+      extend Storage
+
       # Build output is never an input: a Rust target directory is large, and its tool rebuilds
       # it (`target` and `node_modules`).
       BUILD_DIRS = %w[target node_modules .git].freeze
@@ -84,29 +89,6 @@ module Hecks
 
       # @return [String] the memo's file: `HECKS_GATE_MEMO` when set, else `DEFAULT_PATH`
       def path = ENV.fetch("HECKS_GATE_MEMO", DEFAULT_PATH)
-
-      # @param file [String] the memo's file
-      # @return [Array(Hash, String)] the memo and nil; nil and why it could not be read. A missing
-      #   file is an empty memo, not a problem.
-      def read(file = path)
-        return [{}, nil] unless File.exist?(file)
-
-        memo = JSON.parse(File.read(file))
-        memo.is_a?(Hash) ? [memo, nil] : [nil, "#{file} does not hold a JSON object"]
-      rescue SystemCallError, JSON::ParserError => e
-        [nil, "#{file}: #{e.message}"]
-      end
-
-      # @param memo [Hash] the memo to keep
-      # @param file [String] the memo's file
-      # @return [String, nil] nil when it was written, else why it could not be
-      def write(memo, file = path)
-        FileUtils.mkdir_p(File.dirname(file))
-        File.write(file, "#{JSON.pretty_generate(memo)}\n")
-        nil
-      rescue SystemCallError => e
-        "#{file}: #{e.message}"
-      end
 
       # The files a checkout owns: the ones git tracks and the ones it would add. A file git
       # ignores (a run's data directory, a build's output, a log) is never an input: a check's own
@@ -177,13 +159,6 @@ module Hecks
         globs && fingerprint(root, globs, local: LocalFiles::BOOTING.include?(id))
       rescue SystemCallError
         nil
-      end
-
-      # @param entry [Hash, nil] the memo's entry for a check
-      # @param inputs [String, nil] the check's digest now
-      # @return [Boolean] whether the entry is a green run on exactly these inputs
-      def reusable?(entry, inputs)
-        !inputs.nil? && entry.is_a?(Hash) && entry["result"] == "green" && entry["inputs"] == inputs
       end
 
       # @param inputs [String] the digest of the command, the environment and the files

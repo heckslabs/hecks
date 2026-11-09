@@ -333,6 +333,7 @@ Hecks.bluebook "Hecks" do
         attribute :from_now,  Boolean, optional: true
         attribute :wait,      Integer, optional: true
         attribute :interval,  Float,   optional: true
+        attribute :names,     String,  optional: true
         returns Tail
       end
 

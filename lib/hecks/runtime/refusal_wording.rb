@@ -61,7 +61,7 @@ module Hecks
         creator = aggregate.created_by
         return message if creator.nil? || creator.to_s.empty?
 
-        "#{message}: run #{creator} first"
+        "#{message}: run #{creator.respond_to?(:value) ? creator.value : creator} first"
       end
 
       def refuse_wrong_arguments!(refusal, site, declared, offered)

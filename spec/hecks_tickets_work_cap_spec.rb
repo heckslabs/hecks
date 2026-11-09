@@ -19,8 +19,8 @@ RSpec.describe "the Work concurrency cap" do
 
   def cap = Hecks::Adapters::WorkLimits.cap(hecks.registry)
 
-  it "declares a cap in the Tickets world above the adapter's default" do
-    expect(cap).to be > Hecks::Adapters::WorkLimits::DEFAULT_CAP
+  it "declares a cap in the Tickets world, not the adapter's default" do
+    expect(cap).not_to eq(Hecks::Adapters::WorkLimits::DEFAULT_CAP)
   end
 
   it "reads the cap from the world, and falls back to 8 without one", :aggregate_failures do

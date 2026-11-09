@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "net/http"
-require "openssl"
 require_relative "../../../projections/site/probe"
 
 module Hecks
@@ -14,8 +13,19 @@ module Hecks
         # Seconds to wait to connect to the site, and again for its answer.
         TIMEOUT = 10
 
-        # The failures of the network that fail one check rather than the whole run.
-        NETWORK = [SystemCallError, Timeout::Error, SocketError, OpenSSL::SSL::SSLError].freeze
+        # The failures of the network that fail one check rather than the whole run. A TLS failure
+        # is judged separately by `tls_failure?`: OpenSSL is not loaded with this file, because
+        # every launcher boot loads this adapter and only a probe of a live site meets TLS.
+        NETWORK = [SystemCallError, Timeout::Error, SocketError].freeze
+
+        # Whether an error is a TLS failure. An error can only be one when OpenSSL is already
+        # loaded, which a request over https does, so nothing is required here.
+        #
+        # @param error [Exception] what a check raised
+        # @return [Boolean]
+        def self.tls_failure?(error)
+          defined?(::OpenSSL::SSL::SSLError) ? error.is_a?(::OpenSSL::SSL::SSLError) : false
+        end
 
         # @param rows [Array<Projections::Site::Table::Row>] the checked rows of the route table
         # @param run [String] the run's name
@@ -40,6 +50,10 @@ module Hecks
           why = @probe.verdict(check, answer_to(check))
           ["  #{check.label}... #{why ? "FAILED: #{why}" : "ok"}", !why.nil?]
         rescue *NETWORK => e
+          ["  #{check.label}... FAILED: #{e.class}: #{e.message}", true]
+        rescue StandardError => e
+          raise unless self.class.tls_failure?(e)
+
           ["  #{check.label}... FAILED: #{e.class}: #{e.message}", true]
         end
 

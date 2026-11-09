@@ -80,7 +80,8 @@ module Hecks
         return if files.empty?
 
         "hecks: this worktree lacks #{files.join(", ")} from the main checkout; " \
-          "bluebooks that use them store in Memory here, not in the main checkout's store"
+          "bluebooks that use them store in Memory here, not in the main checkout's store; " \
+          "a command that writes one is run in the main checkout (HECKS_NO_FORWARD=1 refuses it instead)"
       end
 
       # The root of the checkout a directory is in, and whether that checkout is a linked worktree.

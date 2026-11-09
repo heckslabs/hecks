@@ -13,10 +13,15 @@ module Hecks
 
         # cannot disagree with a boot.
         def stores(directory)
-          registry = Hecks.describe(directory).registry
-          registry.bluebooks.each_value.flat_map { |declaration| store_rows(registry, declaration) }
+          registry_stores(Hecks.describe(directory).registry)
         rescue StandardError => e
           [["store", "could not be read", first_line(e.message)]]
+        end
+
+        # @param registry [Hecks::Runtime::Registry] a registry already loaded
+        # @return [Array<Array(String, String, String)>] the store rows of every bluebook it holds
+        def registry_stores(registry)
+          registry.bluebooks.each_value.flat_map { |declaration| store_rows(registry, declaration) }
         end
 
         def store_rows(registry, declaration)

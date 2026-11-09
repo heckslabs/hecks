@@ -8,6 +8,7 @@ require_relative "plugin_query_verification"
 require_relative "bluebook_verification"
 require_relative "durability_warnings"
 require_relative "saga_durability_rule"
+require_relative "declaration_checks"
 
 module Hecks
   module Runtime
@@ -23,20 +24,18 @@ module Hecks
         include BluebookVerification
         include DurabilityWarnings
         include SagaDurabilityRule
+        include DeclarationChecks
 
         # Runs every wiring check against this registry's loaded bluebooks, hecksagons, ports
         # and adapters.
-        def verify!
-          verify_default_adapter!
-          verify_world_defaults!
-          verify_singleton_port_answers!
-          refuse_cross_package_bluebook_merge!
-          refuse_reserved_bluebook_names!
-          refuse_membership_without_identity!
-          refuse_unresolved_ports!
-          refuse_unanswerable_queries!
-          refuse_forgetful_sagas!
-          verify_hecksagons!
+        #
+        # @param open_stores [Boolean] whether to build the repository of every bound aggregate
+        #   and check the sagas' checkpoints, as a boot that acts needs; a read-only boot leaves
+        #   a store closed until a line asks it something, and has no saga to resume
+        def verify!(open_stores: true)
+          verify_declarations!
+          refuse_forgetful_sagas! if open_stores
+          verify_hecksagons!(open_stores: open_stores)
         end
 
         # Checks that the framework-wide default persistence adapter is itself wired correctly.
@@ -131,21 +130,23 @@ module Hecks
         private
 
         # Every loaded hecksagon's checks, answering the registry.
-        def verify_hecksagons! = tap { @declared.hecksagons.each_value { |hecksagon| verify_hecksagon!(hecksagon) } }
+        def verify_hecksagons!(open_stores: true)
+          tap { @declared.hecksagons.each_value { |hecksagon| verify_hecksagon!(hecksagon, open_stores: open_stores) } }
+        end
 
         # One hecksagon's checks: its roles, attachments and ACL, every bind, and the durability
         # warnings for its bluebook.
-        def verify_hecksagon!(hecksagon)
+        def verify_hecksagon!(hecksagon, open_stores: true)
           refuse_ungoverned_roles!(hecksagon)
           refuse_unknown_driving!(hecksagon)
           refuse_revisions_on_other_adapter!(hecksagon)
           refuse_unwired_attachments!(hecksagon)
           refuse_bounded_without_acl!(hecksagon)
-          hecksagon.binds.each { |bind| verify_bind!(hecksagon, bind) }
+          hecksagon.binds.each { |bind| verify_bind!(hecksagon, bind, open_stores: open_stores) }
           warn_durability!(hecksagon)
         end
 
-        def verify_bind!(hecksagon, bind)
+        def verify_bind!(hecksagon, bind, open_stores: true)
           # A domain-level default (§0) names no aggregate of its own; still validate its
           # adapter/verb shape. Real aggregates resolving through it are covered by their
           # own dispatch-time `BindingPolicy.resolve`, not required to be exhaustive here.
@@ -156,7 +157,7 @@ module Hecks
 
           check_verb(bind)
 
-          repository(hecksagon.domain, aggregate)
+          repository(hecksagon.domain, aggregate) if open_stores
         end
       end
     end

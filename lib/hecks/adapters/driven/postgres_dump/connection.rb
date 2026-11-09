@@ -40,7 +40,7 @@ module Hecks
 
         # Opens a connection with the `pg` gem; the caller closes it.
         def connect
-          require "pg"
+          require "hecks/pg_options"
           PG.connect(**settings)
         end
 

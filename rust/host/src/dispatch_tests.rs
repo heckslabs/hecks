@@ -1129,12 +1129,123 @@ pub mod tests {
     }
 
     #[test]
-    fn enforcement_reads_off_shadow_and_enforce_and_treats_anything_else_as_off() {
-        assert_eq!(Enforcement::parse(None), Enforcement::Off);
-        assert_eq!(Enforcement::parse(Some("")), Enforcement::Off);
-        assert_eq!(Enforcement::parse(Some("nonsense")), Enforcement::Off);
+    fn enforcement_reads_off_shadow_and_enforce_and_defaults_to_shadow() {
+        assert_eq!(Enforcement::parse(None), Enforcement::Shadow);
+        assert_eq!(Enforcement::parse(Some("")), Enforcement::Shadow);
+        assert_eq!(Enforcement::parse(Some("nonsense")), Enforcement::Shadow);
+        assert_eq!(Enforcement::parse(Some(" off ")), Enforcement::Off);
         assert_eq!(Enforcement::parse(Some("Shadow")), Enforcement::Shadow);
         assert_eq!(Enforcement::parse(Some(" enforce ")), Enforcement::Enforce);
+    }
+
+    #[test]
+    fn the_ir_names_the_roles_a_command_declares_and_none_for_a_command_it_lacks() {
+        let ir = crate::commerce_ir::fixture_ir();
+        let roles = |verb: &str| rust_host_core::ir::command_roles(&ir, verb);
+        assert_eq!(roles("CheckoutFixture::Event.Schedule"), ["Organizer"]);
+        assert_eq!(
+            roles("CheckoutFixture::PaymentConnection.EnablePayments"),
+            ["Operator"]
+        );
+        assert!(roles("CheckoutFixture::Event.Nothing").is_empty());
+        assert!(
+            roles("Governance::RoleAssignment.Assign").is_empty(),
+            "an attached framework bluebook's command is not in the sidecar"
+        );
+        let several = serde_json::json!({"aggregates": [{"name": "A", "commands": [
+            {"name": "Do", "role": "X", "roles": ["X", "Y"]}, {"name": "Open"}]}]});
+        assert_eq!(
+            rust_host_core::ir::command_roles(&several, "D::A.Do"),
+            ["X", "Y"]
+        );
+        assert!(rust_host_core::ir::command_roles(&several, "D::A.Open").is_empty());
+    }
+
+    // Shadow re-runs an unidentified caller as nobody when the kernel refused the anonymous role; a
+    // preview's refusal sits in its dry run, and must be read there too, or shadow refuses a
+    // preview that `off` answers ok.
+    #[test]
+    fn a_role_refusal_is_read_from_a_dispatch_result_and_from_a_previews_dry_run() {
+        let dispatch =
+            serde_json::json!({"refusals": [{"kind": "Unauthorized", "verb": "A::B.C"}]});
+        assert!(refused_for_role(&dispatch));
+        let other = serde_json::json!({"refusals": [{"kind": "GivenNotMet", "verb": "A::B.C"}]});
+        assert!(!refused_for_role(&other));
+        let run_level = serde_json::json!({"dry_runs": [{"verb": "A::B.C", "ok": false,
+            "refusal": "Unauthorized", "kind": "unauthorized", "stage": "role"}]});
+        assert!(refused_for_role(&run_level));
+        let listed = serde_json::json!({"dry_runs": [{"verb": "A::B.C", "ok": false,
+            "refusals": [{"refusal": "Unauthorized", "kind": "unauthorized", "stage": "role"}]}]});
+        assert!(refused_for_role(&listed));
+        let given = serde_json::json!({"dry_runs": [{"verb": "A::B.C", "ok": false,
+            "refusal": "GivenNotMet", "kind": "refused", "stage": "givens"}]});
+        assert!(!refused_for_role(&given));
+        let earlier_only = serde_json::json!({"dry_runs": [
+            {"verb": "A::B.C", "ok": false, "refusal": "Unauthorized"}, {"verb": "A::B.C", "ok": true}]});
+        assert!(
+            !refused_for_role(&earlier_only),
+            "only the last dry run is the answer"
+        );
+    }
+
+    // The log names the sites where the host vouches for a caller the command's role never sees;
+    // a dispatch that states a role or names an actor is the kernel's to check, not a gap.
+    #[test]
+    fn only_an_unidentified_host_internal_dispatch_of_a_role_gated_command_is_a_logged_gap() {
+        let gated = vec!["Organizer".to_string()];
+        let nobody = Caller::default();
+        let stated = Caller {
+            role: Some("Organizer"),
+            actor_id: None,
+        };
+        let identified = Caller {
+            role: None,
+            actor_id: Some("u1"),
+        };
+        for mode in [Enforcement::Shadow, Enforcement::Enforce] {
+            assert!(host_internal_role_gap(
+                mode,
+                Origin::HostInternal,
+                nobody,
+                &gated
+            ));
+            assert!(!host_internal_role_gap(
+                mode,
+                Origin::External,
+                nobody,
+                &gated
+            ));
+            assert!(!host_internal_role_gap(
+                mode,
+                Origin::Request,
+                nobody,
+                &gated
+            ));
+            assert!(!host_internal_role_gap(
+                mode,
+                Origin::HostInternal,
+                nobody,
+                &[]
+            ));
+            assert!(!host_internal_role_gap(
+                mode,
+                Origin::HostInternal,
+                stated,
+                &gated
+            ));
+            assert!(!host_internal_role_gap(
+                mode,
+                Origin::HostInternal,
+                identified,
+                &gated
+            ));
+        }
+        assert!(!host_internal_role_gap(
+            Enforcement::Off,
+            Origin::HostInternal,
+            nobody,
+            &gated
+        ));
     }
 
     #[test]

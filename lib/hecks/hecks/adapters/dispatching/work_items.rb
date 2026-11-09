@@ -22,6 +22,13 @@ module Hecks
         # The priority tiers a planned work item ranks by, highest first; none ranks last.
         TIERS = %w[now next later].freeze
 
+        # @param item [Plan::Item] a work item
+        # @return [Boolean] whether it says main is red: a `red-` key, or the `push-due` work item
+        #   once its title says the push is urgent
+        def self.red?(item)
+          item.key.start_with?(RED) || (item.key == "push-due" && item.title.start_with?(PushSize::URGENT))
+        end
+
         # @return [Array<Plan::Item>] the planned work items: a red one first, then by priority
         #   (`now`, `next`, `later`, none), then in plan order (lowest step first, no step last,
         #   ties by key)
@@ -74,7 +81,7 @@ module Hecks
 
         def rank(record) = TIERS.index(field(record, :priority).to_s) || TIERS.size
 
-        def red?(item) = item.key.start_with?(RED) || (item.key == "push-due" && item.title.start_with?(PushSize::URGENT))
+        def red?(item) = self.class.red?(item)
 
         def having(status)
           work = find("Tickets", "Work")
@@ -86,7 +93,9 @@ module Hecks
 
         def item(record)
           Plan::Item.new(key: field(record, :work).to_s, title: field(record, :title).to_s,
-                         detail: field(record, :detail).to_s, area: StartedWork.words(field(record, :area)))
+                         detail: field(record, :detail).to_s, area: StartedWork.words(field(record, :area)),
+                         yield_kind: field(record, :yield_kind).to_s, retry_at: field(record, :retry_at).to_s,
+                         yield_count: field(record, :yield_count).to_i)
         end
 
         def state(run) = { status: field(run, :status).to_s, condition: field(run, :condition).to_s }

@@ -31,7 +31,12 @@ Hecks.bluebook "Agents" do
       attribute :pattern, String
 
       member role: "orchestrator", pattern: "Work.*"
-      member role: "orchestrator", pattern: "Dispatch.fill!"
+      member role: "orchestrator", pattern: "Dispatch.preview"
+      member role: "orchestrator", pattern: "AgentRun.running"
+      member role: "orchestrator", pattern: "AgentRun.retire!"
+      member role: "orchestrator", pattern: "PushRehearsal.due"
+      member role: "orchestrator", pattern: "Workspace.status"
+      member role: "orchestrator", pattern: "Machine.sample!"
       member role: "orchestrator", pattern: "Dispatch.settle!"
       member role: "orchestrator", pattern: "Planning.request!"
       member role: "orchestrator", pattern: "AgentRun.check_all!"
@@ -62,6 +67,9 @@ Hecks.bluebook "Agents" do
       member role: "orchestrator", pattern: "gh pr view"
       member role: "orchestrator", pattern: "gh pr list"
       member role: "orchestrator", pattern: "gh run view"
+      member role: "orchestrator", pattern: "gh pr close"
+      member role: "orchestrator", pattern: "gh pr comment"
+      member role: "orchestrator", pattern: "gh run rerun"
     end
 
     # The flags a read-only shell row refuses or limits it to, so the guard holds no flag list. `deny`
@@ -77,6 +85,7 @@ Hecks.bluebook "Agents" do
              deny: "--output -o --ext-diff --textconv --exec --force -f --force-with-lease --no-verify --admin"
       member role: "orchestrator", command: "git commit", allow: "", deny: "-n -nm -an -na -anm -amn"
       member role: "orchestrator", command: "gh", allow: "", deny: "--web -w"
+      member role: "orchestrator", command: "gh pr close", allow: "", deny: "--delete-branch -d"
       member role: "orchestrator", command: "git branch", deny: "",
              allow: "-a -r -v -vv --list --show-current --merged --no-merged"
     end
@@ -93,7 +102,7 @@ Hecks.bluebook "Agents" do
       member role: "orchestrator", shape: "git",
              use: "git status, log, diff, show, fetch, switch, merge, cherry-pick, revert, commit, add, tag, worktree or branch --list; other git goes to a role through Work.plan!"
       member role: "orchestrator", shape: "gh",
-             use: "gh pr view, pr list or run view; other gh goes to the reviewer role, or ReviewRequest.status"
+             use: "gh pr view, pr list, run view, pr close (without --delete-branch), pr comment or run rerun; other gh goes to the reviewer role, or ReviewRequest.status"
       member role: "orchestrator", shape: "bundle",
              use: "the coder role through Work.plan!/Dispatch; a spec runs there"
       member role: "orchestrator", shape: "cat",
@@ -101,7 +110,9 @@ Hecks.bluebook "Agents" do
       member role: "orchestrator", shape: "grep",
              use: "the coder or reviewer role through Work.plan!/Dispatch; a search is run there"
       member role: "orchestrator", shape: "settle",
-             use: "Dispatch.settle!, which AgentRun.check_all! and every confirmed Dispatch.fill! already run"
+             use: "Dispatch.settle!, which AgentRun.check_all! and every rolling fill already run"
+      member role: "orchestrator", shape: "uptime",
+             use: "Machine.sample! for the load, or Dispatch.preview for the cap, the started count and what a filling would start"
       member role: "orchestrator", shape: "exe/hecks",
              use: "a verb on the routing list (Operation.follow hears a run), or the planner role through Planning.request!"
     end
@@ -113,7 +124,9 @@ Hecks.bluebook "Agents" do
       attribute :rule, String
 
       member role: "orchestrator",
-             rule: "Do no work in your own session: no spec runs, no CI-log reading, no gh writes, and no git push, force flag or --no-verify (git status, log, diff, show, fetch, switch, merge, cherry-pick, revert, commit, add, tag, worktree, branch --list and gh pr view, pr list, run view are allowed reads, and only the push train pushes), no file reads of code. Every such step is a run dispatched through Hecks: the coder for a change, the reviewer for verifying a claim or judging a failure, the planner for design, the architect for a bluebook or an ADR. A claim is verified by a reviewer run, never by you."
+             rule: "Do no work in your own session: no spec runs, no CI-log reading, no gh write beyond pr close without --delete-branch, pr comment and run rerun, and no git push, force flag or --no-verify (git status, log, diff, show, fetch, switch, merge, cherry-pick, revert, commit, add, tag, worktree, branch --list and gh pr view, pr list, run view are allowed reads, and only the push train pushes), no file reads of code. Every such step is a run dispatched through Hecks: the coder for a change, the reviewer for verifying a claim or judging a failure, the planner for design, the architect for a bluebook or an ADR. A claim is verified by a reviewer run, never by you."
+      member role: "orchestrator",
+             rule: "A coder starts by itself: a planned Work item rolls forward into a session when a run ends, work is planned or reopened, or the machine is read, so you never fill the queue by hand and Dispatch.fill! is not yours (a targeted fill with only= is a custodian's). Dispatch.preview reads what would start and why the rest wait. Rolling is the owner's switch, dispatch_roll_forward in the Tickets world: while it is paused nothing starts and only the owner resumes it; Dispatch.preview does not show the pause."
     end
 
     # The roles whose session is never removed, one row each: the orchestrator holds the pipeline's
@@ -127,17 +140,35 @@ Hecks.bluebook "Agents" do
 
     value_object "GuardedCommand", String
 
+    # The id of the subagent that made the call; blank when the role's own session did.
+    value_object "GuardedAgent", String
+
     value_object "Document" do
       attribute :text, String
     end
 
     # Whether a role may run one Bash command itself. A role with routing rows runs only a command
     # whose verb one of them names, alone (no pipe, chain, redirect or substitution); anything else
-    # is refused by name with the replacement. A role with no rows is allowed.
+    # is refused by name with the replacement. A role with no rows is allowed, and so is a call made by a
+    # delegated run (a subagent that only uses the role's agent file): the rules bind the role's own session.
     query "Guard" do
       description "Allowed, or refused by name with the verb or role to use instead, for one command a role asks to run."
       attribute :role,    RoleName
       attribute :command, GuardedCommand
+      attribute :agent,   GuardedAgent, optional: true
+      returns Document
+    end
+
+    # The `HECKS_SERVER_*` variables that start a role's MCP server restricted to the commands its
+    # routing rows name, one `NAME=value` line each, so the server serves the role's verbs and
+    # keeps the domain booted. A role with no rows gets an empty document and its server stays
+    # unrestricted. A role with rows, none of which names a command of the served domain, gets an
+    # empty document too, and that is not permission: its server serves no tool. The query also
+    # refreshes the file a role's `hecks-mcp` server reads at startup (`RoleServerCache`), which
+    # names the role from `CLAUDE_CODE_AGENT`.
+    query "ServerEnv" do
+      description "The variables that restrict a role's MCP server to the commands its routing rows name, or nothing."
+      attribute :role, RoleName
       returns Document
     end
 
@@ -850,7 +881,7 @@ Hecks.bluebook "Agents" do
   # a daemon that cannot be traced is counted and left running. A worktree whose work is on main is
   # named for `Landing.retire!`, which makes the final check; one with unlanded work is only reported.
   aggregate "Sweep" do
-    description "One sweep of the leftovers of removed sessions: spare daemons traced to them stopped, worktrees named for retirement or reported, stray temp files deleted, with the machine's footprint before and after."
+    description "One sweep of the leftovers of removed sessions: spare daemons traced to them stopped, worktrees named for retirement or reported, stray temp files deleted, launchers left running with no parent and rehearsal pushes older than a day stopped, with the machine's footprint before and after."
 
     identified_by :run
 

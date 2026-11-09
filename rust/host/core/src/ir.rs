@@ -40,6 +40,46 @@ pub fn install(path: Option<&str>) {
     });
 }
 
+/// The roles the command `verb` (`Domain::Aggregate.Command`) declares, as the IR carries them:
+/// its `roles` when several may run it, else its one `role`. Empty when the command is not in
+/// this IR or declares none; a command of an attached framework bluebook is not in the sidecar.
+pub fn command_roles(domain_ir: &Value, verb: &str) -> Vec<String> {
+    let path = verb.rsplit("::").next().unwrap_or(verb);
+    let Some((aggregate, command)) = path.rsplit_once('.') else {
+        return Vec::new();
+    };
+    let named = |value: &Value, name: &str| value.get("name").and_then(Value::as_str) == Some(name);
+    let Some(command) = domain_ir
+        .get("aggregates")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter(|a| named(a, aggregate))
+        .filter_map(|a| a.get("commands").and_then(Value::as_array))
+        .flatten()
+        .find(|c| named(c, command))
+    else {
+        return Vec::new();
+    };
+    let several: Vec<String> = command
+        .get("roles")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .map(str::to_string)
+        .collect();
+    if !several.is_empty() {
+        return several;
+    }
+    command
+        .get("role")
+        .and_then(Value::as_str)
+        .map(str::to_string)
+        .into_iter()
+        .collect()
+}
+
 /// Aggregates bound to a lineage-capable adapter, as `(qualified_name,
 /// storage_name)` — read from `ir.json`'s own `lineage` key.
 pub fn lineage_capable_aggregates(domain_ir: &Value) -> Vec<(String, String)> {
@@ -235,7 +275,10 @@ pub fn mirrored_aggregates(domain_ir: &Value) -> std::collections::BTreeSet<Stri
 /// freely (ADR 0190). The Ruby side decides it once from the committed world and exports it as
 /// `ir.json`'s `kept` key; an IR without the key (an older one) is not kept.
 pub fn kept(domain_ir: &Value) -> bool {
-    domain_ir.get("kept").and_then(Value::as_bool).unwrap_or(false)
+    domain_ir
+        .get("kept")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
 }
 
 pub fn membership_provider(domain_ir: &Value) -> Option<MembershipProvider> {

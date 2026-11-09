@@ -10,8 +10,9 @@ module Hecks
         Tail = Struct.new(:seen, :handed, :batch_done)
 
         # What ends a stream and what it follows: the aggregate filter, the most entries to hand
-        # over, the monotonic time to give up at, and the seconds between checks.
-        Bounds = Struct.new(:aggregate, :cap, :deadline, :interval)
+        # over, the monotonic time to give up at, the seconds between checks, and the event names
+        # to hand over (all when empty).
+        Bounds = Struct.new(:aggregate, :cap, :deadline, :interval, :names)
 
         private
 
@@ -23,7 +24,7 @@ module Hecks
         # @return [Integer] the count of log entries seen
         def watch(repository, tail, bounds, &)
           loop do
-            verdict = drain(repository, tail, bounds.aggregate, bounds.cap, &)
+            verdict = drain(repository, tail, bounds, &)
             return tail.seen if verdict == :stop || tail.batch_done || expired?(bounds.deadline)
 
             sleep((bounds.interval || 0.5).to_f)
@@ -36,14 +37,14 @@ module Hecks
         # Hands over what the log holds past the tail, one entry at a time; answers `:stop` when the
         # block or the limit ends the stream, so the tail's `seen` stays just past the last entry
         # handed over.
-        def drain(repository, tail, filter, cap)
+        def drain(repository, tail, bounds)
           events = repository.events
           while tail.seen < events.size
             event = events[tail.seen]
             tail.seen += 1
-            next unless followed?(event, filter)
+            next unless followed?(event, bounds.aggregate, bounds.names)
 
-            return :stop if handed_over?(tail, yield(JSON.parse(JSON.generate(event.to_h))), cap)
+            return :stop if handed_over?(tail, yield(JSON.parse(JSON.generate(event.to_h))), bounds.cap)
           end
           nil
         end

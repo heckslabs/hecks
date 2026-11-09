@@ -4,6 +4,7 @@ require_relative "../shell"
 require "hecks/vendoring/git_environment"
 require "hecks/vocabulary"
 require_relative "impacted"
+require_relative "coverage"
 
 module Hecks
   module Adapters
@@ -53,8 +54,12 @@ module Hecks
           @shell = Shell.new
         end
 
-        # @return [Array<Result>] each stage's result, in the order the scope's row lists them
-        def run = self.class.rows(@scope).map { |row| step(row) }
+        # @return [Array<Result>] each stage's result, in the order the scope's row lists them,
+        #   then what the rehearsal did not cover of CI
+        def run = self.class.rows(@scope).map { |row| step(row) } << coverage_result
+
+        # @return [Result] a passing result saying which CI checks the scope ran and which not
+        def coverage_result = Result.new("ci coverage", true, Coverage.new(@scope).line)
 
         # @param scope [String] a scope's name
         # @return [Array<Hash>] the scope's `RehearsalStage` rows, in the order it runs them

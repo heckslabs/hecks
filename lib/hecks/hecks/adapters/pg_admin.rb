@@ -168,7 +168,7 @@ module Hecks
       def connect(dbname)
         return self.class.connector.call(dbname: dbname) if self.class.connector
 
-        require "pg"
+        require "hecks/pg_options"
         PG.connect(dbname: dbname)
       end
 

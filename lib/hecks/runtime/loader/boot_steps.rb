@@ -40,16 +40,16 @@ module Hecks
         # era-checking (if a plugin contributes one) before `verify!`, saga
         # rehydration after. No era-specific class is named here — each loaded
         # persistence plugin contributes its own gates generically (ADR 0031).
-        def run_boot_gates!(registry, directory)
+        def run_boot_gates!(registry, directory, open_stores: true)
           gates = BootGates.new
           load_bound_adapters!(registry)
           Ports::Persistence.each_plugin { |plugin| plugin.contribute_boot_gates(registry, gates) }
 
           gates.run!(:pre_verify, registry, directory)
-          registry.verify!
+          registry.verify!(open_stores: open_stores)
 
           gates.register(:saga_rehydration, ->(reg, _dir) { reg.rehydrate_sagas! }, phase: :post_verify) if
-            registry.saga_domains.any? { |domain| registry.saga_durable?(domain) }
+            open_stores && registry.saga_domains.any? { |domain| registry.saga_durable?(domain) }
           gates.run!(:post_verify, registry, directory)
           gates
         end

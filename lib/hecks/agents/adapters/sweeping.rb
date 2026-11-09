@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "json"
+require "tmpdir"
 require "hecks/hecks/adapters/shell"
 require "hecks/hecks/adapters/console_capture"
 require_relative "sweeping/process_table"
@@ -8,13 +9,16 @@ require_relative "sweeping/spare_trace"
 require_relative "sweeping/spare_plan"
 require_relative "sweeping/footprint"
 require_relative "sweeping/residue"
+require_relative "sweeping/orphans"
 
 module Hecks
   module Adapters
     # The `Machine` port's adapter for `Sweep`: finds what removed sessions left behind and clears
     # what it can trace to them. {#leftovers} lists and changes nothing; {#sweep} lists, then stops
     # the spare daemons the daemon's log traces to a removed session, deletes the temp files named
-    # for one, and reports each worktree for `Landing.retire!` or as unlanded.
+    # for one, and reports each worktree for `Landing.retire!` or as unlanded. It also stops the
+    # launchers left running with no parent and the isolated pushes a rehearsal left behind
+    # ({Orphans}), whichever session they trace to.
     #
     # A daemon that cannot be traced to a removed session is counted and left running; so is any
     # session still listed, whatever its state.
@@ -30,15 +34,16 @@ module Hecks
         @shell = settings[:shell] || Shell.new
         @log = settings[:log] || File.join(Dir.home, ".claude", "daemon.log")
         @killer = settings[:killer] || ->(pid) { Process.kill("TERM", pid) }
-        projects = settings[:projects] || File.join(Dir.home, ".claude", "projects")
-        @residue = Residue.new(shell: @shell, projects: projects, tmp: settings[:tmp] || "/tmp")
+        @tmps = settings[:tmp] ? [settings[:tmp]] : ["/tmp", Dir.tmpdir].uniq
+        @residue = residue_for(settings)
       end
 
       # @param removed [Hash, String] the short ids of the removed sessions
       # @return [Hash{Symbol => String}] `text:` what a sweep would do; nothing is changed
       def leftovers(removed:)
         ids = ids_of(removed)
-        { text: (["footprint  #{footprint.line}"] + plan_lines(ids) + residue_lines(ids, delete: false)).join("\n") }
+        lines = ["footprint  #{footprint.line}"] + plan_lines(ids) + residue_lines(ids, delete: false)
+        { text: (lines + orphans.lines).join("\n") }
       end
 
       # @param removed [Hash, String] the short ids of the removed sessions
@@ -48,11 +53,16 @@ module Hecks
       def sweep(removed:, **)
         ids = ids_of(removed)
         before = footprint.line
-        lines = stop_spares(ids) + residue_lines(ids, delete: true)
+        lines = stop_spares(ids) + residue_lines(ids, delete: true) + orphans.reap
         { report: { value: (["before  #{before}"] + lines + ["after   #{footprint.line}"]).join("\n") } }
       end
 
       private
+
+      def residue_for(settings)
+        projects = settings[:projects] || File.join(Dir.home, ".claude", "projects")
+        Residue.new(shell: @shell, projects: projects, tmp: settings[:tmp] || "/tmp")
+      end
 
       def stop_spares(ids)
         verdicts = plan(ids).verdicts
@@ -102,6 +112,8 @@ module Hecks
       end
 
       def table = (@table ||= ProcessTable.new(shell: @shell))
+
+      def orphans = Orphans.new(table: table, killer: @killer, tmp: @tmps)
 
       def footprint = Footprint.new(shell: @shell, table: ProcessTable.new(shell: @shell))
     end

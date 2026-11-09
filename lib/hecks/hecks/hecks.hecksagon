@@ -430,6 +430,17 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  # The outside a beat of the clock reaches to learn whether the clock alone made something eligible:
+  # a retry time that passed, a boot budget no longer spent, or a roll refused while a filling ran.
+  # A beat with none of these is refused as quiet.
+  Hecks::Wake.port "Waking" do
+    asks "Notice", to: Wake do
+      attribute :run, WakeKey
+      answers "WakeDue"
+      refuses "WakeQuiet"
+    end
+  end
+
   # The outside a reading of the machine reaches: the CPU idle percentage, swap used, the compressor's
   # size, the load average and the test lane's queue, judged against the Tickets world's `machine_marks`.
   # It answers each gauge's state and the state it stood in before; a reading within a minute of the last
@@ -492,11 +503,13 @@ Hecks.hecksagon "Hecks" do
       refuses "StartRefused"
     end
 
-    # The state a session's job is in, with the state the run last recorded beside it.
+    # The state a session's job is in, with the state the run last recorded beside it. A sweep's
+    # reading that finds no job is a different refusal from the one right after a start, where a
+    # job not yet written is expected: only the sweep's reads a session that may be gone.
     asks "ReadJob", to: AgentRun do
       attribute :run, RunKey
       answers "JobRead"
-      refuses "JobUnread"
+      refuses "JobUnreadable"
     end
 
     # The same reading, taken once a just-started session has had a few seconds to fail.

@@ -13,3 +13,11 @@ end
 Hecks.world "Governance" do
   default_adapter "Memory"
 end
+
+# The decision records stay out too: with no directory the Adr store is plain Memory, so a spec
+# never reads the checkout's docs/decisions and the Adr commands take writes as Memory does.
+Hecks.world "Tickets" do
+  persisted_by("DecisionFiles") do
+    directory "None"
+  end
+end

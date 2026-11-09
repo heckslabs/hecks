@@ -5,6 +5,7 @@ require "open3"
 require "rbconfig"
 require_relative "tree"
 require_relative "../console_capture"
+require_relative "../../../rust_build/session_build"
 
 module Hecks
   module Adapters
@@ -93,8 +94,18 @@ module Hecks
         def outcome(args, env: {}, fresh: false)
           return with_env(env) { in_process(args) } unless fresh
 
-          printed, status = Open3.capture2e(env, RbConfig.ruby, "-e", FRESH_RUNNER, "--", *args, chdir: @tree.root)
+          printed, status = Open3.capture2e(env, *build_command(args), chdir: @tree.root)
           [status.exitstatus || 1, printed.strip]
+        end
+
+        # The fresh runner starts under the Tickets world's `nice` increment in a linked worktree,
+        # so a spec run yields to the owner's work. It gets no shared target directory: a spec
+        # sees the environment CI gives it, and the Rust builds a spec starts read the setting
+        # themselves.
+        #
+        # @return [Array<String>] the fresh runner's command
+        def build_command(args)
+          Hecks::RustBuild::SessionBuild.command([RbConfig.ruby, "-e", FRESH_RUNNER, "--", *args], root: @tree.root)
         end
 
         private

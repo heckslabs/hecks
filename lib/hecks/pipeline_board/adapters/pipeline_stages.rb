@@ -3,6 +3,7 @@
 require "json"
 require "time"
 require_relative "probe"
+require_relative "live_store"
 require_relative "rules"
 require_relative "pipeline_github"
 require_relative "pipeline_git"
@@ -10,6 +11,7 @@ require_relative "pipeline_tickets"
 require_relative "pipeline_jobs"
 require_relative "pipeline_journal"
 require_relative "pipeline_disk"
+require_relative "pipeline_boots"
 require_relative "pipeline_stages/disk_tiles"
 require_relative "../../hecks/adapters/push_size"
 require_relative "pipeline_stages/agent_roles"
@@ -54,7 +56,7 @@ module Hecks
           metrics: PipelineBoard::Metrics.tiles(data.merge(@limits), now),
           ci_runs: data[:ci_runs], slowest_jobs: data[:slowest_jobs],
           open_work: data[:open_work], sessions: data[:sessions], events: data[:events],
-          fanout: fanout(data) }.merge(agents(data))
+          fanout: fanout(data), live_store_problem: @live&.problem }.merge(agents(data))
       end
 
       # The state the page shows, drawn as a text panel for a terminal. It reads what `/api/state`
@@ -106,20 +108,36 @@ module Hecks
         PipelineBoard::Rules.use(registry)
         @limits = read_limits(registry)
         @roles = PipelineBoard::AgentRoles.declared(registry)
-        @disk = readers.fetch(:disk) { PipelineDisk.new(root: @root) }
+        wire_machine(readers, registry)
         @github = readers.fetch(:github) { PipelineGitHub.new(root: @root) }
         @git = readers.fetch(:git) { PipelineGit.new(root: @root) }
         @journal = readers.fetch(:journal) { PipelineJournal.new(root: @root) }
-        @fill = readers.fetch(:fill) { PipelineFill.new(root: @root) }
+        @fill = readers.fetch(:fill) { PipelineFill.new(root: @root, registry: registry) }
         wire_work(readers, registry)
       end
 
+      # The readers of the machine itself: the room on its disk and what its launcher boots cost.
+      def wire_machine(readers, registry)
+        @disk = readers.fetch(:disk) { PipelineDisk.new(root: @root) }
+        @boots = readers.fetch(:boots) { PipelineBoots.new(registry: registry) }
+      end
+
       def wire_work(readers, registry)
-        @tickets = readers.fetch(:tickets) { PipelineTickets.new(registry: registry) }
+        live = @live = live_store_named
+        @tickets = readers.fetch(:tickets) { PipelineTickets.new(registry: registry, settings: { live_store: live }) }
         @jobs = readers.fetch(:jobs) { PipelineJobs.new(settings: { runs: -> { guard { @tickets.runs } } }) }
         @trains = readers.fetch(:trains) do
-          PipelineBoard::TrainDetail.new(root: ENV.fetch("PIPELINE_BOARD_LAUNCHER_ROOT", @root))
+          PipelineBoard::TrainDetail.new(root:       ENV.fetch("PIPELINE_BOARD_LAUNCHER_ROOT", @root),
+                                         live_store: live || PipelineBoard::RegistryStore.new(registry: registry))
         end
+      end
+
+      # The one in-process reader of the checkout `PIPELINE_BOARD_LAUNCHER_ROOT` names, shared by
+      # the readers that need its store, and already opening; nil when the board is not pointed at
+      # another checkout, which then reads its own registry and boots no second copy of the domain.
+      def live_store_named
+        root = ENV.fetch("PIPELINE_BOARD_LAUNCHER_ROOT", "")
+        PipelineBoard::LiveStore.new(root: root).warm unless root.empty?
       end
 
       # The pinned agents panel: each role with its live sessions and last event, and the open

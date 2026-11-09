@@ -51,6 +51,18 @@ RSpec.describe "the known traps a coder is briefed with" do
       expect(text).to include("Known traps:\n- coder-kind: fix: fix the coder Check: run it.")
     end
 
+    it "fills {main} with the primary checkout, and names the worktree's key in {work}", :aggregate_failures do
+      brief["review"] = "{main}/exe/hecks agents PlanReview.reviews for {work}"
+      expect(described_class.new(brief).render("work/x", main: "/repo/")).to include(
+        "/repo/exe/hecks agents PlanReview.reviews for work/x"
+      )
+    end
+
+    it "refuses to write a brief that names {main} when no main checkout was given" do
+      brief["review"] = "{main}/exe/hecks agents PlanReview.reviews"
+      expect { described_class.new(brief).render("work/x") }.to raise_error(ArgumentError, /\{main\}/)
+    end
+
     it "leaves the known-traps heading out when no lesson meets the area" do
       expect(described_class.new(brief).render("work/x", traps: [])).not_to include("Known traps")
     end

@@ -1,4 +1,4 @@
-require_relative "../../.."
+require_relative "../../../storehouse/source_tags"
 
 module Hecks
   module Adapters

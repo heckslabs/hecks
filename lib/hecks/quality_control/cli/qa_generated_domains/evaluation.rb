@@ -67,8 +67,9 @@ module Hecks
         end
 
         def cargo_build
-          cargo, status = Open3.capture2e("cargo", "build", "--no-default-features", "--features",
-                                          Generator::DIRECTORY, chdir: @scratch)
+          cargo, status = Hecks::RustBuild.capture_build(
+            ["cargo", "build", "--no-default-features", "--features", Generator::DIRECTORY], chdir: @scratch
+          )
           return [nil, rust_failure("rust_build", compiler_errors(cargo))] unless status.success?
 
           binary = File.join(@scratch, "target/debug/rust-#{Generator::DIRECTORY}")

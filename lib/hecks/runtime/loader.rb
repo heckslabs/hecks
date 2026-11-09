@@ -39,12 +39,13 @@ module Hecks
       # @param described [Described] what `describe` answered for the domain to boot
       # @param event_tap [String, nil] a path in place of the Hecks world's event tap; see `boot`
       # @param read_only [Boolean] answer without writing: the outbox, the sagas and the privacy
-      #   markings are left as they are, so a read boots nothing that acts
+      #   markings are left as they are, so a read boots nothing that acts, and a store is
+      #   opened when the line asks it something, not for every aggregate the hecksagon binds
       # @return [Runtime::Dispatcher, Adapters::Lambda::RemoteDispatcher] the booted dispatcher
       # @raise [Runtime::WiringError] if a boot gate finds a wiring problem
       def self.boot_described(described, event_tap: nil, read_only: false)
         registry = described.registry
-        run_boot_gates!(registry, described.directory)
+        run_boot_gates!(registry, described.directory, open_stores: !read_only)
         dispatcher = dispatcher_for(registry, event_tap)
         return dispatcher if read_only
 

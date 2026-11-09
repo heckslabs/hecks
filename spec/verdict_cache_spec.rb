@@ -49,6 +49,9 @@ RSpec.describe Hecks::Bluebook::MetaValidator::VerdictCache do
 
   def refused = { refusals: ["Probe is not well formed"] }
 
+  # Records one verdict and writes the file, as a process that judged it does at exit.
+  def flush_one = cache.record("k1", accepted).then { cache.flush }
+
   # Records a verdict, writes it, and forgets what memory holds, so only the file remains.
   def written_cache
     cache.record("k1", accepted)
@@ -294,6 +297,81 @@ RSpec.describe Hecks::Bluebook::MetaValidator::VerdictCache do
       cache.flush
 
       expect([File.exist?(old), File.exist?(fresh), File.exist?(cache.path)]).to eq([false, true, true])
+    end
+
+    def aged_file(name, age)
+      FileUtils.mkdir_p(cache.dir)
+      file = File.join(cache.dir, name)
+      File.write(file, "{}")
+      File.utime(Time.now - age, Time.now - age, file)
+      file
+    end
+
+    it "keeps another code's file that was used within a day, however old its write" do
+      two_hours = aged_file("verdicts-two-hours.json", 2 * 60 * 60)
+      flush_one
+
+      expect(File.exist?(two_hours)).to be(true)
+    end
+
+    # The process's own file, written three hours ago, with the process's bookkeeping cleared.
+    def own_file_from_three_hours_ago
+      written_cache
+      File.utime(Time.now - (3 * 60 * 60), Time.now - (3 * 60 * 60), cache.path)
+      cache.reset!
+    end
+
+    it "marks its own file as used when it reads it" do
+      own_file_from_three_hours_ago
+      cache.seed
+
+      expect(Time.now - File.mtime(cache.path)).to be < 60
+    end
+
+    it "keeps no more than the newest eight files in all, its own among them", :aggregate_failures do
+      names = (1..12).map { |n| aged_file("verdicts-d#{n}.json", n * 60) }
+      flush_one
+      left = Dir.glob(File.join(cache.dir, "verdicts-*.json"))
+
+      expect(left.size).to eq(described_class::MAX_DIGESTS)
+      expect(names.first(7).all? { |file| left.include?(file) }).to be(true)
+    end
+
+    it "removes a temp file of a dead writer and a lock with no file, and keeps its own lock" do
+      temp = aged_file("verdicts-x.json.99.tmp", 2 * 60 * 60)
+      orphan_lock = aged_file("verdicts-x.json.lock", 60)
+      flush_one
+
+      expect([File.exist?(temp), File.exist?(orphan_lock), File.exist?("#{cache.path}.lock")]).to eq([false, false, true])
+    end
+  end
+
+  describe "when two processes add verdicts" do
+    # One process judges a verdict, writes the file and ends.
+    def add_verdict(key, verdict) = cache.record(key, verdict).then { cache.flush }.then { cache.reset! }
+
+    it "keeps both, whichever writes last" do
+      add_verdict("from-a", accepted)
+      add_verdict("from-b", refused)
+
+      expect(cache.seed.keys.sort).to eq(%w[from-a from-b])
+    end
+
+    # Runs the block while another process holds the file's lock and never lets go.
+    def while_locked
+      FileUtils.mkdir_p(cache.dir)
+      File.open("#{cache.path}.lock", File::RDWR | File::CREAT, 0o600) do |held|
+        held.flock(File::LOCK_EX)
+        yield
+      end
+    end
+
+    it "writes without the merge when the lock cannot be had" do
+      stub_const("#{described_class}::Keeping::LOCK_TRIES", 1)
+      while_locked { flush_one }
+      cache.reset!
+
+      expect(cache.seed.keys).to eq(["k1"])
     end
   end
 

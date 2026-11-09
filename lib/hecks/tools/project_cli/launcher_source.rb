@@ -34,7 +34,8 @@ module Hecks
           exit status
         LAUNCHER_TAIL
 
-        # What a Memory command does when refused: say why, from the record's `refusal`.
+        # What a Memory command does when refused: say why, from the record's `refusal`, which is
+        # the command's own words without the boot notices after them (`Hecks::BootNotices`).
         MEMORY_REFUSAL = <<~'LAUNCHER_REFUSAL'.gsub(/^/, "  ").freeze
           if MEMORY_COMMANDS.include?(ARGV.first.to_s.chomp("!"))
             why = begin
@@ -43,7 +44,7 @@ module Hecks
             rescue JSON::ParserError
               nil
             end
-            warn(why ? why.sub(/\A(\w+::)+\w+: /, "") : reason)
+            warn(why ? Hecks::BootNotices.cause(why.sub(/\A(\w+::)+\w+: /, "")) : reason)
           else
             puts text
             warn reason
@@ -81,7 +82,7 @@ module Hecks
           quiet = !Array(memory_commands).empty?
 
           render(LAUNCHER, name: name, program: site.program, where: site.where, up: site.up,
-                           encoding: opted ? ENCODING : "",
+                           shebang: executable ? EXECUTABLE_SHEBANG : PLAIN_SHEBANG, encoding: opted ? ENCODING : "",
                            handoff: handoff_for(executable, memory_commands, site, ledgers),
                            ending: ending_for(opted, executable && quiet),
                            entry: entry(name, site.boot, site.shown, opted, quiet: quiet))
@@ -92,9 +93,8 @@ module Hecks
         #   its project's Gemfile pins; an executable one takes the checkout's, and defaults Memory
         #   ones
         def handoff_for(executable, memory_commands, site, ledgers)
-          return render(PROJECT_GEMS, up: site.up) unless executable
-
-          render(PINNED_GEMS, up: site.up) + memory_default(Array(memory_commands)) + ledger_route(ledgers)
+          gems = render(executable ? PINNED_GEMS : PROJECT_GEMS, up: site.up) + COMPILED_RUBY_CACHE
+          executable ? RESIDENT_PROBE + gems + memory_default(Array(memory_commands)) + ledger_route(ledgers) : gems
         end
 
         # @api private

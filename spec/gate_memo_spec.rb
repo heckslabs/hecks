@@ -84,6 +84,109 @@ RSpec.describe "Hecks::Tools::GateMemo" do
     expect(run.record("shape_ledger" => ["", true])).to contain_exactly(/not written/)
   end
 
+  describe "checkouts on different trees" do
+    let(:other) { Dir.mktmpdir("gate-memo-other") }
+
+    after { FileUtils.rm_rf(other) }
+
+    before do
+      FileUtils.mkdir_p(File.join(other, "lib"))
+      File.write(File.join(other, "lib/a.rb"), "A = 2\n")
+    end
+
+    def at(dir) = Hecks::Tools::GateMemo::Session.new(root: dir, env: {}, file: memo_file)
+
+    def green_at(dir)
+      run = at(dir)
+      run.record(run.plan([check]).run.to_h { |c| [c["id"], ["", true]] })
+    end
+
+    def red_at(dir)
+      run = at(dir)
+      run.record(run.plan([check]).run.to_h { |c| [c["id"], ["boom", false]] })
+    end
+
+    def skipped_at?(dir) = at(dir).plan([check]).skipped.any?
+
+    it "each find their own green run, taking turns", :aggregate_failures do
+      green_at(root)
+      green_at(other)
+
+      expect(skipped_at?(root)).to be(true)
+      expect(skipped_at?(other)).to be(true)
+    end
+
+    # Both trees ran green; then the other tree changed and its run went red.
+    def other_goes_red
+      green_at(root)
+      green_at(other)
+      File.write(File.join(other, "lib/a.rb"), "A = 3\n")
+      red_at(other)
+    end
+
+    it "are not evicted by a red result on another tree", :aggregate_failures do
+      other_goes_red
+
+      expect(skipped_at?(root)).to be(true)
+      expect(skipped_at?(other)).to be(false)
+    end
+
+    it "forget the runs on the inputs a red result proved wrong" do
+      memo = {}
+      Hecks::Tools::GateMemo.remember(memo, "c", Hecks::Tools::GateMemo.green("one"))
+      Hecks::Tools::GateMemo.remember(memo, "c", Hecks::Tools::GateMemo.green("two"))
+      Hecks::Tools::GateMemo.forget(memo, "c", "two")
+
+      expect(Hecks::Tools::GateMemo.runs(memo["c"]).map { |run| run["inputs"] }).to eq(["one"])
+    end
+
+    it "keep at most the newest four runs of a check" do
+      memo = {}
+      5.times { |n| Hecks::Tools::GateMemo.remember(memo, "c", Hecks::Tools::GateMemo.green("in#{n}")) }
+
+      expect(Hecks::Tools::GateMemo.runs(memo["c"]).map { |run| run["inputs"] }).to eq(%w[in4 in3 in2 in1])
+    end
+  end
+
+  describe "the memo file" do
+    def keep_run(id, inputs) = ->(memo) { Hecks::Tools::GateMemo.remember(memo, id, Hecks::Tools::GateMemo.green(inputs)) }
+
+    # The memo after a run recorded its result while another process recorded its own.
+    def memo_after_concurrent_record
+      run = session
+      run.plan([check])
+      Hecks::Tools::GateMemo.update(memo_file, &keep_run("other_check", "theirs"))
+      run.record("shape_ledger" => ["", true])
+      JSON.parse(File.read(memo_file))
+    end
+
+    it "keeps what another process recorded while a run was going" do
+      expect(memo_after_concurrent_record.keys).to contain_exactly("other_check", "shape_ledger")
+    end
+
+    it "leaves no temp file behind and writes through a rename", :aggregate_failures do
+      Hecks::Tools::GateMemo.update(memo_file, &keep_run("c", "x"))
+
+      expect(Dir.children(File.dirname(memo_file)).sort).to eq(%w[memo.json memo.json.lock])
+      expect(JSON.parse(File.read(memo_file)).keys).to eq(["c"])
+    end
+
+    it "reads a file caught half way through being written once its writer finishes" do
+      allow(File).to receive(:read).and_call_original
+      allow(File).to receive(:read).with(memo_file).and_return('{"a":', "{}")
+      allow(Hecks::Tools::GateMemo).to receive(:sleep)
+      File.write(memo_file, "x")
+
+      expect(Hecks::Tools::GateMemo.read(memo_file)).to eq([{}, nil])
+    end
+
+    it "does not overwrite an unreadable file when it updates" do
+      File.write(memo_file, "not json")
+
+      expect(Hecks::Tools::GateMemo.update(memo_file, &keep_run("c", "x"))).to match(/memo.json/)
+    end
+  end
+
   it "prints a skipped check as skipped, never as passed" do
     plan = Hecks::Tools::GateMemo::Session::Plan.new([], [[check, "then"]], [])
     expect { Hecks::Tools::GateReport.report("quick", plan, {}) }

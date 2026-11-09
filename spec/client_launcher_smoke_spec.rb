@@ -29,6 +29,8 @@ RSpec.describe "client launcher smoke" do
     #   pizzas/pizzas                  every command, and every question
     #   pizzas/pizzas <command> --help    what it wants, and how it refuses
 
+    # When this launcher began, so the usage record can say how long it took to reach the command.
+    HECKS_LAUNCHED_AT = Process.clock_gettime(Process::CLOCK_MONOTONIC)
     $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
     # Where the project's Gemfile pins its gems (a local Hecks among them), this runs on them.
@@ -40,6 +42,20 @@ RSpec.describe "client launcher smoke" do
       rescue LoadError, StandardError
         nil
       end
+    end
+
+    # The Ruby this boot compiles and the load path it searches are kept between boots.
+    begin
+      unless defined?(Bootsnap)
+        require "bootsnap"
+        require "hecks/cache_dir"
+        if Hecks::CacheDir.stable?
+          Bootsnap.setup(cache_dir: Hecks::CacheDir.path("bootsnap"), development_mode: true,
+                         load_path_cache: true, compile_cache_iseq: true, compile_cache_yaml: false)
+        end
+      end
+    rescue ScriptError, StandardError
+      nil
     end
 
     require "hecks"
@@ -258,7 +274,7 @@ RSpec.describe "client launcher smoke" do
   end
 
   describe "a launcher the current generator wrote for a domain that did not opt in" do
-    it "is the launcher the 2.9 generator wrote, plus the project-Gemfile block, byte for byte", :aggregate_failures do
+    it "is the 2.9 launcher plus the project-Gemfile and compiled-Ruby blocks, byte for byte", :aggregate_failures do
       expect(File.read(File.join(@plain_root, "pizzas/pizzas"))).to eq(PRE_3_0_LAUNCHER)
       expect(@out).to include("pizzas/pizzas  ->  Pizzas")
       expect(File.executable?(File.join(@plain_root, "pizzas/pizzas"))).to be(true)

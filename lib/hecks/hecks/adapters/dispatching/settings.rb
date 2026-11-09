@@ -2,7 +2,9 @@
 
 require "etc"
 require_relative "../work_limits"
+require_relative "../boot_budget"
 require_relative "../shell"
+require_relative "../../../rust_build/session_build"
 require_relative "../codebase/test_scope"
 require_relative "../machine_sampling/history"
 
@@ -24,6 +26,16 @@ module Hecks
         # The world verb that carries the owner's roll-forward switch.
         ROLL = "dispatch_roll_forward"
 
+        # The world verb that carries the hours of launcher boots a day allows.
+        BOOT_BUDGET = "cpu_budget"
+
+        # The world verb that carries how long a started session may go unlisted before it is
+        # taken for gone.
+        GRACE = "session_grace"
+
+        # Seconds a session is given to appear in `claude agents` when the world names none.
+        GRACE_SECONDS = 120
+
         # Minutes a started work item may run when the caller names no budget.
         BUDGET_MINUTES = 90
 
@@ -34,11 +46,13 @@ module Hecks
         # @param load [#call, nil] answers the 1-minute load average; the machine's when nil
         # @param cpus [Integer, nil] the CPU count; the machine's when nil
         # @param cap [Integer, nil] the cap on started work items; the world's when nil
-        def initialize(registry, load: nil, cpus: nil, cap: nil)
+        # @param boots [BootBudget, nil] what the day's boots cost; the usage record's when nil
+        def initialize(registry, load: nil, cpus: nil, cap: nil, boots: nil)
           @registry = registry
           @load = load || -> { self.class.uptime_load }
           @cpus = cpus || Etc.nprocessors
           @cap = cap
+          @boots = boots || BootBudget.new
         end
 
         # Ruby's `Etc` has no load average, so the 1-minute figure is read from `uptime`.
@@ -72,6 +86,26 @@ module Hecks
           "skipped: memory low (MemoryLow)" if standing[:memory] == "low"
         end
 
+        # @return [Float, nil] the hours of launcher boots a day the world allows, nil for none
+        def boot_budget = declared(BOOT_BUDGET)[:boot_hours_per_day]&.to_f
+
+        # @return [String, nil] why no session starts: the day's boots have spent the world's
+        #   budget; nil when they have not, or the world sets none
+        def boot_stop
+          hours = boot_budget
+          @boots.stop_reason(hours) if hours
+        end
+
+        # @return [Time, nil] when the oldest counted boots leave the window far enough to free the
+        #   budget; nil when the world sets no budget or the window alone cannot free it
+        def boot_frees_at
+          hours = boot_budget
+          @boots.frees_at(hours) if hours
+        end
+
+        # @return [Integer] the seconds a started session is given to appear in the listing
+        def session_grace = Integer(declared(GRACE)[:seconds] || GRACE_SECONDS)
+
         # @return [Boolean] whether planned work rolls forward by itself; false only when paused
         def roll_forward? = declared(ROLL)[:roll_forward] != false
 
@@ -83,13 +117,10 @@ module Hecks
         def spec_files_limit = Codebase::TestScope.limit(@registry)
 
         # @return [Hash{String => String}] the environment every dispatched session starts with
-        def session_environment
-          dir = declared(SESSION)[:cargo_target_dir]
-          dir ? { "CARGO_TARGET_DIR" => File.expand_path(dir.to_s) } : {}
-        end
+        def session_environment = RustBuild::SessionBuild.environment_of(declared(SESSION))
 
         # @return [Integer, nil] the `nice` increment for a session's processes, nil for none
-        def nice = declared(SESSION)[:nice]
+        def nice = RustBuild::SessionBuild.nice_of(declared(SESSION))
 
         private
 

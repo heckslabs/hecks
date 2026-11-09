@@ -214,6 +214,14 @@ Hecks.bluebook "Pipeline" do
     trigger Passage::Plan, with: { change: :work, title: :title }
   end
 
+  # A Work item planned before the pipeline tracked passages has none when it starts. Opening it
+  # here lets the dispatch below find it; for a Work item that has one, Plan reports the record
+  # already exists, which a reaction treats as benign.
+  policy "PlanWhenWorkStarted" do
+    on      "Work.WorkStarted"
+    trigger Passage::Plan, with: { change: :work }
+  end
+
   policy "DispatchWhenWorkStarted" do
     on      "Work.WorkStarted"
     trigger Passage::Dispatch, with: { change: :work, session: :claimed_by }

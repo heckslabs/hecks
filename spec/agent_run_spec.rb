@@ -12,6 +12,9 @@ RSpec.describe "AgentRun through the Agents port" do
   AGENT_RUN_STAND_IN_CLAUDE = <<~SH.freeze
     #!/bin/sh
     here=$(dirname "$0")
+    if [ "$1" = "agents" ]; then
+      cat "$here/listing" 2>/dev/null || echo '[]'; exit 0
+    fi
     if [ "$1" = "--agent" ] && [ "$3" = "-p" ]; then
       echo "--agent '$2' not found. Available agents: claude, Explore, coder" >&2; exit 1
     fi
@@ -37,8 +40,9 @@ RSpec.describe "AgentRun through the Agents port" do
   end
 
   before do
+    @clock = Time.now.utc
     allow(Hecks::Adapters::ClaudeAgents).to(receive(:new).and_wrap_original do |original, **context|
-      original.call(**context, settings: { jobs: jobs, settle: 0 })
+      original.call(**context, settings: { jobs: jobs, settle: 0, now: -> { @clock } })
     end)
   end
 
@@ -117,6 +121,44 @@ RSpec.describe "AgentRun through the Agents port" do
     Hecks::Runtime::Value.materialize(@hecks.registry.event_log.reverse.find { |event| event.name == name }.payload)
   end
 
+  # The listing `claude agents --json --all` prints, with one session in it.
+  def list(session) = File.write(File.join(scratch, "listing"), JSON.generate([{ "id" => session, "state" => "working" }]))
+
+  # Dispatches a run whose job is there, then takes the job away as `claude rm` does.
+  def vanish(run)
+    next_session("vanished-session")
+    job("vanished-session", "working")
+    dispatch(run)
+    FileUtils.rm_rf(File.join(jobs, "vanished-session"))
+  end
+
+  it "retires a started run whose job can no longer be read when its session is not listed", :aggregate_failures do
+    vanish("a-vanished")
+    @clock += 300
+    out = check("a-vanished")
+
+    expect(out["events"]).to include("AgentRunRetired")
+    expect(out.dig("state", "status")).to eq("retired")
+  end
+
+  it "keeps a run started seconds ago whose job cannot be read yet, though its session is not listed", :aggregate_failures do
+    vanish("a-young")
+    @clock += 10
+    out = check("a-young")
+
+    expect(out["events"]).not_to include("AgentRunRetired")
+    expect(out.dig("state", "status")).to eq("started")
+  end
+
+  it "keeps a started run whose job cannot be read while its session is still listed", :aggregate_failures do
+    vanish("a-listed")
+    list("vanished-session")
+    out = check("a-listed")
+
+    expect(out["events"]).not_to include("AgentRunRetired")
+    expect(out.dig("state", "status")).to eq("started")
+  end
+
   it "records a session whose job died at once as failed, never as started", :aggregate_failures do
     out = dispatch_dead
 
@@ -156,7 +198,9 @@ RSpec.describe "AgentRun through the Agents port" do
     job("sweep-ended", "done")
     dispatch("a-sweep-ended")
     next_session("sweep-live")
+    job("sweep-live", "working")
     dispatch("a-sweep-live")
+    @running_before = running.map { |row| row["run"] }
     checks_during { launch("agent_run.check_all!", "--wait") }
   end
 
@@ -171,7 +215,7 @@ RSpec.describe "AgentRun through the Agents port" do
   it "checks every started run in one sweep, and no run that has ended", :aggregate_failures do
     checked = sweep
 
-    expect(checked).to match_array(running.map { |row| row["run"] })
+    expect(checked).to match_array(@running_before)
     expect(checked).to include("a-sweep-live")
     expect(checked).not_to include("a-sweep-ended")
   end

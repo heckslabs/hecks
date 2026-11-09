@@ -2,6 +2,7 @@ require "json"
 require "open3"
 require "timeout"
 require "tmpdir"
+require_relative "../../lib/hecks/rust_build/build_lock"
 require_relative "parser_differential/mutations"
 require_relative "parser_differential/sweeps"
 
@@ -42,7 +43,9 @@ module ParserDifferential
   def rounds = Integer(ENV.fetch("HECKS_PARSE_FUZZ_ITERATIONS", 120))
 
   def build!
-    built = system("cargo", "build", chdir: PARSER, out: File::NULL, err: File::NULL)
+    built = Hecks::RustBuild::BuildLock.hold do |held|
+      system(held, "cargo", "build", chdir: PARSER, out: File::NULL, err: File::NULL)
+    end
     raise "cargo build failed for rust/parser" unless built && File.executable?(BINARY)
   end
 

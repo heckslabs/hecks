@@ -8,10 +8,16 @@ module Hecks
   module Adapters
     # Wakes a Claude session in place with an answer, for `ClaudeAgents#resume`.
     #
-    # The session is stopped when still listed as running, then `claude --bg --resume <full id> --
-    # <answer>` runs with no `--agent` (the session keeps its saved options) and without the
-    # calling session's `CLAUDE*` variables, so the CLI continues the same session under its own
-    # id. Given flags, a short id, a live session or those variables, it starts a copy instead.
+    # The session is stopped when still listed as running, then `claude [--agent <role>] --bg
+    # --resume <full id> -- <answer>` runs without the calling session's `CLAUDE*` variables, so
+    # the CLI continues the same session under its own id. Given a short id, a live session or
+    # those variables, it starts a copy instead.
+    #
+    # The one flag is `--agent`, and only for a run that has a role. Measured with `claude -p` on
+    # 2026-11-09: it does not start a copy (the session id stays the same), and it is needed, since
+    # a resume without it starts the session's MCP servers with `CLAUDE_CODE_AGENT=claude`, so a
+    # role's `hecks-mcp` server (which narrows itself from that variable) comes back unrestricted.
+    # With it the servers see the role again. Any other flag may still start a copy.
     class ClaudeResumption
       # The line the CLI prints when a resume started a copy instead of waking the session.
       COPY_NOTE = /^.*started a copy.*$/
@@ -44,24 +50,32 @@ module Hecks
       # @param id [String] the id the run holds
       # @param entry [Hash] the session as `claude agents --json` lists it
       # @param answer [String] the prompt to wake it with
-      # @param env [Hash] the session environment to keep (`CARGO_TARGET_DIR`)
-      # @param chdir [String] the run's directory
+      # @param run [Hash] `env:` the session environment to keep (`CARGO_TARGET_DIR`), `chdir:` the
+      #   run's directory and `agent:` the role the run was started as, when it has one
       # @return [Hash{Symbol => Object}] `resumed_at:`, `session:` the id the run follows (its own
       #   unless the CLI started a copy) and, for a copy, `note:` what the CLI said
       # @raise [ConsoleCapture::Failure] when the session has no full id or the command refuses
-      def call(id, entry, answer, env:, chdir:)
+      def call(id, entry, answer, **run)
         full = entry["sessionId"].to_s
         raise ConsoleCapture::Failure, "session #{id} is listed with no full session id" if full.empty?
 
         stop(entry)
-        result = @shell.capture(*@nice, @command, "--bg", "--resume", full, "--", answer,
-                                env: cleared.merge(env), chdir: chdir)
+        result = wake(full, answer, run)
         raise ConsoleCapture::Failure, "#{@command} resume #{id} refused: #{result.err.strip}" unless result.ok?
 
         outcome(id, result)
       end
 
       private
+
+      # Runs the resume: the role flag when the run has one, the full id, and the answer after `--`.
+      def wake(full, answer, run)
+        @shell.capture(*@nice, @command, *role_flag(run[:agent]), "--bg", "--resume", full, "--", answer,
+                       env: cleared.merge(run.fetch(:env)), chdir: run.fetch(:chdir))
+      end
+
+      # @return [Array<String>] `--agent <role>` for a run that has a role, else nothing
+      def role_flag(agent) = agent.to_s.empty? ? [] : ["--agent", agent.to_s]
 
       def stop(entry)
         unless STOPPED_STATES.include?(entry["state"].to_s)

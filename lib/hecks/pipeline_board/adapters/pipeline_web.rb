@@ -39,7 +39,7 @@ module Hecks
           PipelineBoard::Probe.run(*args, chdir: chdir, seconds: ACT_SECONDS, stdin: stdin)
         end
         @interval = settings.fetch(:interval, 1.0)
-        @snapshot = PipelineBoard::Snapshot.new(source: @stages.method(:state), background: settings.fetch(:background, true))
+        @snapshot = PipelineBoard::Snapshot.kept_small(source: @stages.method(:state), registry: registry, settings: settings)
       end
 
       # Runs one step the page asked for, through the launcher. The launcher's own command refuses

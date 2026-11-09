@@ -56,7 +56,10 @@ module Hecks
           return unless File.file?(file) && Bluebook::MetaValidator::VerdictCache.trusted?(file)
 
           guide = JSON.parse(File.read(file))
-          guide if guide.is_a?(Array) && guide.all?(String)
+          return unless guide.is_a?(Array) && guide.all?(String)
+
+          File.utime(nil, nil, file)
+          guide
         rescue StandardError
           nil
         end
@@ -69,8 +72,49 @@ module Hecks
           temp = "#{file}.#{Process.pid}.tmp"
           File.write(temp, JSON.generate(guide), perm: 0o600)
           File.rename(temp, file)
+          prune
         rescue StandardError
           FileUtils.rm_f(temp) if temp
+        end
+
+        # How long an entry that is not read stays, and the most entries kept. Every edit to the
+        # hecks code in any checkout makes a new key, so entries only pile up without this.
+        KEPT_FOR = 30 * 24 * 60 * 60
+        MOST_ENTRIES = 200
+
+        # The directory the guides were kept in when a server was called a door; nothing writes it
+        # now, and its entries age out with the rest.
+        LEGACY_DIR = "mcp_door_guides".freeze
+
+        # Removes the entries unread for `KEPT_FOR`, keeps the newest `MOST_ENTRIES` of the
+        # rest, and clears temp files a dead writer left. Also ages out the legacy directory.
+        #
+        # @param now [Time] the time to judge by
+        # @return [void]
+        def prune(now: Time.now)
+          [dir, Hecks::CacheDir.path(LEGACY_DIR)].each { |directory| prune_directory(directory, now) }
+        end
+
+        # @return [void] removes one directory's aged files and the ones past the newest few
+        def prune_directory(directory, now)
+          files = Dir.glob(File.join(directory, "*")).select { |file| File.file?(file) }
+          aged, fresh = files.partition { |file| now - mtime(file, now) > kept_for(file) }
+          (aged + newest_first(fresh, now).drop(MOST_ENTRIES)).each { |file| FileUtils.rm_f(file) }
+        end
+
+        # @return [Array<String>] the entries (not temp files), the most recently used first
+        def newest_first(files, now)
+          files.reject { |file| file.end_with?(".tmp") }.sort_by { |file| -mtime(file, now).to_f }
+        end
+
+        # @return [Integer] seconds a file stays unread: an hour for a temp file, else `KEPT_FOR`
+        def kept_for(file) = file.end_with?(".tmp") ? 3600 : KEPT_FOR
+
+        # @return [Time] when the file was last read or written; `now` when it cannot be told
+        def mtime(file, now)
+          File.mtime(file)
+        rescue SystemCallError
+          now
         end
       end
     end

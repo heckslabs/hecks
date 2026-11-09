@@ -190,24 +190,75 @@ Hecks.bluebook "Tickets" do
     end
   end
 
+  # The decision records are their files under docs/decisions, read through the DecisionFiles
+  # persistence adapter the Tickets hecksagon binds (tickets.ports.hecksagon). The adapter hands
+  # over what a record says: its number, title, path, the first words of its status line, its date,
+  # and the decisions it says it supersedes or narrows. The `StatusWord` rows say which lifecycle
+  # status a first word means; the adapter only reads them. A record is superseded or narrowed by
+  # every record that says it supersedes or narrows it, whether or not its own status line says so:
+  # `superseded_by` and `narrowed_by` are that derivation. A store read from files takes no write:
+  # Draft, Accept and Supersede are refused by name there until writing the status line back is
+  # built, so `LapseWorkWhenSuperseded` fires only in a Memory boot (a store named no directory).
   aggregate "Adr" do
-    description "A decision record: drafted, accepted, and possibly superseded, linked to the tickets it settles."
+    description "A decision record read from its file under docs/decisions: its status, date, the decisions it supersedes or narrows and those that supersede or narrow it, linked to the finding it settles."
     created_by "Adr.draft!"
 
-    attribute :adr,       AdrNumber
-    attribute :title,     AdrTitle
-    attribute :supersedes, AdrNumber, optional: true
+    attribute :adr,           AdrNumber
+    attribute :title,         AdrTitle
+    attribute :path,          RecordPath, optional: true
+    attribute :wording,       StatusWording, optional: true
+    attribute :date,          DecisionDate, optional: true
+    attribute :supersedes,    list_of(AdrNumber), optional: true
+    attribute :superseded_by, list_of(AdrNumber), optional: true
+    attribute :narrows,       list_of(AdrNumber), optional: true
+    attribute :narrowed_by,   list_of(AdrNumber), optional: true
     reference_to Finding, as: :settles, optional: true
     identified_by :adr
 
+    # Four digits; a letter when a record was split (0054a); NNNN/NN for a record under a numbered
+    # directory (0064/02).
     value_object "AdrNumber" do
-      attribute :value, String, pattern: '\A[0-9]{4}\z'
+      attribute :value, String, pattern: '\A[0-9]{4}[a-z]?(?:/[0-9]{2})?\z'
     end
 
     value_object "AdrTitle" do
       attribute :value, String
 
       invariant("a decision has a title") { !value.to_s.empty? }
+    end
+
+    # The record's file, relative to the checkout.
+    value_object "RecordPath", String
+
+    # The first words of the status line, as written: "Accepted", "Proposed", "Shipped".
+    value_object "StatusWording", String
+
+    # The date the status line gives, YYYY-MM-DD.
+    value_object "DecisionDate" do
+      attribute :value, String, pattern: '\A[0-9]{4}-[0-9]{2}-[0-9]{2}\z'
+    end
+
+    # Which lifecycle status the first word of a status line means, compared without case. A
+    # record whose first word no row names is not loaded, and the adapter says so by name.
+    value_object "StatusWord" do
+      attribute :word,   String
+      attribute :status, String
+
+      member word: "Accepted",     status: "accepted"
+      member word: "Adopted",      status: "accepted"
+      member word: "Built",        status: "accepted"
+      member word: "Decided",      status: "accepted"
+      member word: "Executed",     status: "accepted"
+      member word: "Fixed",        status: "accepted"
+      member word: "Investigated", status: "accepted"
+      member word: "Partly",       status: "accepted"
+      member word: "Resolved",     status: "accepted"
+      member word: "Shipped",      status: "accepted"
+      member word: "In",           status: "draft"
+      member word: "Open",         status: "draft"
+      member word: "Proposed",     status: "draft"
+      member word: "Scoping",      status: "draft"
+      member word: "Superseded",   status: "superseded"
     end
 
     lifecycle :status, default: "draft" do
@@ -218,7 +269,7 @@ Hecks.bluebook "Tickets" do
 
     command "Draft" do
       role "Maintainer"
-      goal "Open a decision record, optionally for the finding it settles"
+      goal "Open a decision record, optionally for the finding it settles; a store read from docs/decisions refuses it: write the file"
 
       attribute :adr,       AdrNumber, sets: true
       attribute :title,     AdrTitle, sets: true
@@ -231,7 +282,7 @@ Hecks.bluebook "Tickets" do
 
     command "Accept" do
       role "Maintainer"
-      goal "Record that the decision was accepted"
+      goal "Record that the decision was accepted; a store read from docs/decisions refuses it: edit the file's status line"
 
       reference_to Adr
 
@@ -240,24 +291,35 @@ Hecks.bluebook "Tickets" do
 
     command "Supersede" do
       role "Maintainer"
-      goal "Record that a later decision replaces this one"
+      goal "Record the later decisions that replace this one; a store read from docs/decisions refuses it: edit the file's status line"
 
       reference_to Adr
-      attribute :supersedes, AdrNumber, sets: true
-
+      attribute :superseded_by, list_of(AdrNumber), sets: true
 
       emits "AdrSuperseded"
     end
 
     query "Standing" do
-      description "Every decision that is accepted and not superseded."
+      description "Every decision whose own status line says it is accepted (shipped, fixed, resolved) and not superseded."
       where(status: "accepted")
       order_by :adr
     end
 
     query "Drafted" do
-      description "Every decision record still in draft, not yet accepted or superseded."
+      description "Every decision record still proposed, not yet accepted or superseded."
       where(status: "draft")
+      order_by :adr
+    end
+
+    query "Superseded" do
+      description "Every decision a later one says it supersedes, in whole or in part, with the decisions that did, whether or not its own status line says so."
+      where(superseded_by: { ne: [] })
+      order_by :adr
+    end
+
+    query "Narrowed" do
+      description "Every decision a later one says it narrows, with the decisions that did."
+      where(narrowed_by: { ne: [] })
       order_by :adr
     end
   end
@@ -274,6 +336,9 @@ Hecks.bluebook "Tickets" do
     attribute :detail, WorkText, optional: true
     attribute :step,   Step, optional: true
     attribute :reason, WorkText, optional: true
+    attribute :yield_kind, WorkText, optional: true
+    attribute :retry_at, WorkText, optional: true
+    attribute :yield_count, YieldCount, optional: true
     attribute :claimed_by, Claimant, optional: true
     attribute :claimed_at, ClaimedAt, optional: true
     attribute :area,   list_of(Word), optional: true
@@ -341,6 +406,13 @@ Hecks.bluebook "Tickets" do
     end
 
     value_object "WorkText", String
+
+    # How many times a work item has been sent back to the plan; its backoff grows with it.
+    value_object "YieldCount" do
+      attribute :value, Integer
+
+      invariant("a yield count is not negative") { !value.negative? }
+    end
 
     # Where the work stands in its plan: step 0 comes first.
     value_object "Step" do
@@ -501,6 +573,9 @@ Hecks.bluebook "Tickets" do
 
       reference_to Work
       attribute :reason, WorkText, sets: true
+      attribute :yield_kind, WorkText, optional: true, sets: true
+      attribute :retry_at, WorkText, optional: true, sets: true
+      attribute :yield_count, YieldCount, optional: true, sets: true
 
       sets :claimed_by, to: ""
       sets :claimed_at, to: ""
@@ -529,6 +604,11 @@ Hecks.bluebook "Tickets" do
       goal "Record that a work item is done"
 
       reference_to Work
+
+      # A finished item starts a later life from a clean backoff: its yields no longer count.
+      sets :yield_kind, to: ""
+      sets :retry_at, to: ""
+      sets :yield_count, to: 0
 
       emits "WorkFinished"
     end

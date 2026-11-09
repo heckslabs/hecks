@@ -105,9 +105,10 @@ RSpec.describe Hecks::Tools::CiGates do
     let(:work) { Dir.mktmpdir("ci_gates_root") }
 
     before do
-      FileUtils.mkdir_p(File.join(work, ".github/workflows"))
-      described_class.gates.map { |gate| gate.fetch("workflow") }.uniq.each do |name|
-        FileUtils.cp(File.join(root, ".github/workflows", name), File.join(work, ".github/workflows", name))
+      described_class.files(root).each do |path|
+        copy = File.join(work, path.delete_prefix("#{root}/"))
+        FileUtils.mkdir_p(File.dirname(copy))
+        FileUtils.cp(path, copy)
       end
     end
 

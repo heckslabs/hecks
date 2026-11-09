@@ -2,6 +2,8 @@
 
 require "hecks"
 require_relative "shell_reads"
+require_relative "role_server_env"
+require "hecks/role_server_cache"
 
 module Hecks
   module Adapters
@@ -22,15 +24,22 @@ module Hecks
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] `rows:` a callable answering a value object's name => its rows
       # @param root [String, nil] unused
-      def initialize(aggregate: nil, settings: {}, root: nil)
+      # @param checkout [String, nil] a checkout whose bluebooks answer, rows and command names
+      #   alike, instead of this one's: the one a session will work in
+      def initialize(aggregate: nil, settings: {}, root: nil, checkout: nil)
         @rows = settings[:rows] || method(:bluebook_rows)
+        @stand_in = settings.key?(:rows)
+        @checkout = checkout
       end
 
       # @param role [Hash, String] the role asking
       # @param command [Hash, String] the Bash text it asks to run
+      # @param agent [Hash, String, nil] the subagent making the call; blank in the role's session
       # @return [Hash{Symbol => String}] `text:` "allowed"
-      # @raise [Refused] when the role has routing rows and the command is not on them
-      def guard(role:, command:)
+      # @raise [Refused] when the role's own session has routing rows and the command is not on them
+      def guard(role:, command:, agent: nil)
+        return { text: "allowed" } unless held(agent).to_s.strip.empty?
+
         name = held(role)
         rules = rows("RoutingRule", name).map { |row| row[:pattern] }
         text = held(command).to_s.strip
@@ -39,7 +48,73 @@ module Hecks
         raise Refused, refusal(name, text)
       end
 
+      # The variables that start the role's MCP server restricted to the commands its rows name.
+      #
+      # @param role [Hash, String] the role asking
+      # @return [Hash{Symbol => String}] `text:` one `NAME=value` line each, empty when the role has
+      #   no rows that name a command of the served domain and so stays unrestricted
+      def server_env(role:)
+        refresh_server_cache
+        { text: server_variables(held(role)).map { |name, value| "#{name}=#{value}" }.join("\n") }
+      end
+
+      # What each role with routing rows may dispatch, for the cache a role's MCP server reads
+      # (`RoleServerCache`): a role with rows is a key, and an empty list means none of its rows
+      # names a command of the served domain, which is not permission.
+      #
+      # @return [Hash{String => Array<String>}] role => the command names its rows name
+      def server_table
+        roles_with_rows.to_h { |name| [name, server_plan(name)[:commands]] }
+      end
+
+      # @param name [String] the role
+      # @return [Hash{String => String}] the `HECKS_SERVER_*` variables, or empty
+      def server_variables(name)
+        server_plan(name)[:variables]
+      end
+
+      # What a session of the role needs from its MCP server: whether the role has routing rows (a
+      # role with none stays unrestricted), the variables that restrict the server to the commands
+      # the rows name, and the patterns that name no command this checkout's domain has.
+      #
+      # @param name [String] the role
+      # @return [Hash{Symbol => Object}] `rows:` true when the role has rows, `variables:` the
+      #   `HECKS_SERVER_*` variables (empty when none names a command), `unserved:` the patterns
+      def server_plan(name)
+        patterns = rows("RoutingRule", name).map { |row| row[:pattern] }
+        return { rows: false, variables: {}, commands: [], unserved: [] } if patterns.empty?
+
+        env = RoleServerEnv.new(patterns: patterns, names: method(:command_names))
+        { rows: true, variables: env.variables, commands: env.expanded, unserved: env.unserved }
+      end
+
       private
+
+      # @return [Array<String>] the roles that have at least one routing row
+      def roles_with_rows = @rows.call("RoutingRule").map { |row| row[:role] }.uniq
+
+      # Writes the table of every role's commands where the role's MCP server reads it, so the next
+      # server starts without the framework. Best effort, and only from the checkout's own rows: a
+      # guard given stand-in rows would otherwise write them under the real checkout's key.
+      def refresh_server_cache
+        return if @stand_in
+
+        RoleServerCache.write(checkout_root, server_table)
+      rescue StandardError
+        nil
+      end
+
+      def checkout_root = @checkout || File.expand_path("../../..", BLUEBOOK_DIR)
+
+      # The command names the served Hecks domain has, as a person types them. Read from this
+      # guard's checkout, so a session is judged against the code it will run.
+      def command_names
+        @command_names ||= Driving::CliRunner.known_command_names(runtime: Hecks.describe(served_domain), program: "mcp")
+      end
+
+      def served_domain = @checkout ? File.join(@checkout, "lib/hecks/hecks") : File.expand_path("../hecks", BLUEBOOK_DIR)
+
+      def agents_dir = @checkout ? File.join(@checkout, "lib/hecks/agents") : BLUEBOOK_DIR
 
       def allowed?(rules, text, name = nil)
         return false if text.match?(CHAINING)
@@ -57,9 +132,21 @@ module Hecks
       end
 
       def refusal(name, text)
-        use = rows("RefusalHint", name).find { |row| text.start_with?(row[:shape]) }&.fetch(:use)
-        use ||= "a verb on the #{name} routing list, or dispatch another role through Work.plan!/Dispatch"
+        use = nearest_verb(name, text) || hint(name, text)
         "#{name} routes only: use #{use}. Refused: #{text}"
+      end
+
+      def hint(name, text)
+        found = rows("RefusalHint", name).find { |row| text.start_with?(row[:shape]) }
+        found ? found[:use] : "a verb on the #{name} routing list, or dispatch another role through Work.plan!"
+      end
+
+      # A routing row of the same aggregate as the launcher call, to name beside the refusal.
+      def nearest_verb(name, text)
+        return unless text.match?(LAUNCHER)
+
+        aggregate = verb_of(text.sub(LAUNCHER, "")).split(".").first
+        rows("RoutingRule", name).map { |row| row[:pattern] }.find { |rule| rule.start_with?("#{aggregate}.") }
       end
 
       def rows(table, role) = @rows.call(table).select { |row| row[:role] == role }
@@ -73,7 +160,7 @@ module Hecks
 
       def bluebook = (@bluebook ||= described.bluebooks.fetch("Agents"))
 
-      def described = Hecks.describe(BLUEBOOK_DIR).registry
+      def described = Hecks.describe(agents_dir).registry
     end
   end
 end

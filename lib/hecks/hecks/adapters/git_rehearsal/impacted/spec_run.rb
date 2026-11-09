@@ -17,8 +17,8 @@ module Hecks
           # @!attribute [r] failures
           #   @return [Array<String>] the failing examples, `./spec/a_spec.rb:12 # description`
           Outcome = Struct.new(:spec, :passed, :failures) do
-            # @return [String] the spec and its first failing example, for the report
-            def line = "failing spec: #{failures.first || spec}"
+            # @return [String] the failing examples, or the spec when none was read, for the report
+            def line = "failing spec: #{failures.empty? ? spec : failures.join(", ")}"
           end
 
           LAUNCHER = %w[exe/hecks test_suite_run.run_spec_example!].freeze

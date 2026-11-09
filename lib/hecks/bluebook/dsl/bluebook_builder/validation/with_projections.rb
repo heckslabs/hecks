@@ -7,8 +7,8 @@ module Hecks
           # and the target command's fields.
           module WithProjections
             # What every `with:` check shares: the bluebook's commands by "Owner.Command", its
-            # aggregates, and the sagas' correlation heads.
-            WithContext = Struct.new(:lookup, :aggregates, :correlation_heads)
+            # aggregates, the sagas' correlation heads, and the commands that emit each event.
+            WithContext = Struct.new(:lookup, :aggregates, :correlation_heads, :emitters)
             # One `with:` to check: the command it targets, the event it reads from, the spec
             # itself, how a refusal names it, and the process manager when it is a saga leg.
             WithSpec = Struct.new(:command_ref, :event_name, :with_spec, :label, :process_manager, :row_names)
@@ -26,7 +26,8 @@ module Hecks
             # only when the query's aggregate is in this bluebook, otherwise only the target is
             # checked.
             def validate_with_projections!(policies, process_managers, aggregates)
-              context = WithContext.new(command_lookup(aggregates), aggregates, correlation_heads(process_managers))
+              context = WithContext.new(command_lookup(aggregates), aggregates, correlation_heads(process_managers),
+                                        event_emitters(aggregates))
 
               policies.each { |policy| check_policy_with!(policy, context) }
               process_managers.each do |pm|
@@ -62,7 +63,7 @@ module Hecks
             # since saga memory starts as that payload.
             def check_with_spec!(spec, context)
               target   = context.lookup[spec.command_ref]
-              readable = readable_sources(spec, context.aggregates)
+              readable = readable_sources(spec, context)
 
               spec.with_spec.each do |field, source|
                 refuse_undeclared_with_field!(spec, field) if target && !command_declares?(target, field, context)
@@ -70,16 +71,25 @@ module Hecks
               end
             end
 
-            def readable_sources(spec, aggregates)
+            def readable_sources(spec, context)
               pm = spec.process_manager
-              event_name = spec.event_name
-              # A policy's source also carries the emitter's identity, under each head and as `:id`
-              # (`PolicyInterpreter#emitter_identity`, `#emitter_id`); a saga leg's source
-              # (`SagaInterpreter#dispatch_args`) merges no such thing.
-              identity = pm.nil? && event_name ? [*event_identity_heads_for(event_name, aggregates), :id] : []
-              shapes = [event_name && event_shape_for(event_name, aggregates),
-                        pm && event_shape_for(pm.starts_on, aggregates)].compact
-              Readable.new(pm&.correlates_by && pm.correlation_head, identity, shapes, spec.row_names.to_a)
+              Readable.new(pm&.correlates_by && pm.correlation_head, emitter_identity(spec, context),
+                           emitted_shapes(spec, context), spec.row_names.to_a)
+            end
+
+            # A policy's source also carries the emitter's identity, under each head and as `:id`
+            # (`PolicyInterpreter#emitter_identity`, `#emitter_id`); a saga leg's source
+            # (`SagaInterpreter#dispatch_args`) merges no such thing.
+            def emitter_identity(spec, context)
+              return [] unless spec.process_manager.nil? && spec.event_name
+
+              [*event_identity_heads_for(spec.event_name, context.aggregates, context.emitters), :id]
+            end
+
+            def emitted_shapes(spec, context)
+              pm = spec.process_manager
+              [spec.event_name && event_shape_for(spec.event_name, context.aggregates, context.emitters),
+               pm && event_shape_for(pm.starts_on, context.aggregates, context.emitters)].compact
             end
 
             def refuse_undeclared_with_field!(spec, field)

@@ -53,6 +53,10 @@ RSpec.describe "a missing record names its creator" do
     expect(refusal_message("CreatedByRefusal::Adr.Accept")).to end_with("run Adr.draft! first")
   end
 
+  it "names the creating command by its text, never as a value object" do
+    expect(refusal_message("CreatedByRefusal::Adr.Accept")).not_to include("#<")
+  end
+
   it "keeps the plain refusal when the aggregate declares no creator" do
     expect(refusal_message("CreatedByRefusal::Note.Revise")).not_to include("run ")
   end

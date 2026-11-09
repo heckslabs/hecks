@@ -237,6 +237,19 @@ RSpec.describe Hecks::Adapters::InProcessOperations do
       expect(answer[:events].map { |event| event["name"] }).to eq(["Shelved"])
     end
 
+    it "hands over only the events named, and no other event ends the wait" do
+      answer = adapter.follow(domain: @dir, names: "Lent,Returned")
+
+      expect(answer[:events].map { |event| event["name"] }).to eq(["Lent"])
+    end
+
+    it "keeps waiting through events that are not named, then answers the cursor", :aggregate_failures do
+      answer, elapsed = follow_on_a_fake_clock(names: "Returned", wait: 1, interval: 0.1)
+
+      expect(answer).to include(cursor: 2, events: [])
+      expect(elapsed.call).to be_between(1.0 - 1e-9, 1.0 + 0.1 + 1e-9)
+    end
+
     it "skips what exists when told to start from now" do
       answer = adapter.follow(domain: @dir, from_now: true)
 

@@ -9,7 +9,8 @@ module Hecks
     #
     # Stdio only and unauthenticated (ADR 0062); the protocol lives in `Hecks::QueryIrMcp` and the
     # query logic in `Hecks::QueryIR`. The stdio guard runs before the runtime loads, so a refused
-    # transport never boots anything.
+    # transport never boots anything, and the runtime itself loads on the first tool call, so an
+    # idle server stays small.
     module ServeQueryIrMcp
       module_function
 
@@ -21,7 +22,6 @@ module Hecks
       def call(argv)
         Hecks::McpStdioGuard.enforce_stdio!(server: "hecks-query-ir")
 
-        require_relative "../../hecks"
         require_relative "../query_ir_mcp"
         Hecks::QueryIrMcp.start(argv: argv)
       end
