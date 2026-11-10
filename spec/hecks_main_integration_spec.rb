@@ -278,6 +278,34 @@ RSpec.describe "integrating main through the MainIntegration saga" do
     expect(stage(older)).to eq("superseded")
   end
 
+  # A defect in an adapter: an ask refuses what the outside world says, but raises this past itself.
+  def defect(*, **) = raise(NoMethodError, "undefined method 'conclusion' for nil")
+
+  # Pushes one run, lands a second behind it, and gives reading GitHub a defect.
+  def push_one_and_land_another_while_github_is_broken
+    pushed = land
+    advance(2)
+    later = land(file: "second.rb")
+    Hecks::Adapters::CiRuns.runner = method(:defect)
+    advance
+    [pushed, later]
+  end
+
+  it "advances the next run when one run's step raises", :aggregate_failures do
+    pushed, later = push_one_and_land_another_while_github_is_broken
+    expect(stage(pushed)).to eq("ci_running")
+    expect(stage(later)).to eq("verified")
+    expect(report("IntegrationAdvanced")).to include("Observe raised NoMethodError")
+  end
+
+  it "parks a run whose verification raises, with the exception's text", :aggregate_failures do
+    Hecks::Adapters::MainVerification.runner = method(:defect)
+    landed = land
+    advance
+    expect(stage(landed)).to eq("needs_human")
+    expect(refusal("MainVerificationFailed")).to include("Verify raised NoMethodError", "'conclusion'")
+  end
+
   it "keeps every step within the reaction depth bound", :aggregate_failures do
     advance(3) if land
     expect(@depths.max).to be < Hecks::Runtime::Dispatcher::MAX_REACTION_DEPTH

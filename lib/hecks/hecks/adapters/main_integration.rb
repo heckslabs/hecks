@@ -55,11 +55,22 @@ module Hecks
         nil
       end
 
+      # A step that raises, or whose reaction met a defect, is recorded on its own run, and the
+      # advance goes on to the next run.
       def dispatch(run, command, confirm)
-        Runtime::Dispatcher.new(@registry).dispatch_flat("Hecks::Integration.#{command}", arguments(run, command, confirm))
-        "#{run.short} #{run.state} -> #{command}: now #{runs.find(run.landed)&.state}"
+        args = arguments(run, command, confirm)
+        result = Runtime::Dispatcher.new(@registry).dispatch_flat("Hecks::Integration.#{command}", args)
+        answered(run, command, args[:run], result.reaction_defects.first)
       rescue *Runtime::DOMAIN_REFUSALS => e
         "#{run.short} #{run.state} -> #{command} refused: #{e.message}"
+      rescue StandardError, ScriptError => e
+        Fault.new(@registry).record(run, command, args&.dig(:run), "#{e.class}: #{e.message}")
+      end
+
+      def answered(run, command, key, defect)
+        return Fault.new(@registry).record(run, command, key, Fault.text_of(defect)) if defect
+
+        "#{run.short} #{run.state} -> #{command}: now #{runs.find(run.landed)&.state}"
       end
 
       def arguments(run, command, confirm)
@@ -75,3 +86,4 @@ module Hecks
 end
 
 require_relative "main_integration/runs"
+require_relative "main_integration/fault"
