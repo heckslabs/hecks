@@ -1250,7 +1250,8 @@ Hecks.bluebook "Hecks" do
         transition "Queue" => "queued",  from: "requested"
         transition "Fault" => "faulted", from: "requested"
         transition "Summarize" => "surveyed", from: "requested"
-        transition "Merge" => "pushed", from: "queued"
+        transition "Fail"  => "red",     from: "queued"
+        transition "Merge" => "pushed", from: %w[queued red]
         mark :terminal, "carried", "faulted", "pushed", "surveyed"
       end
 
@@ -1357,11 +1358,23 @@ Hecks.bluebook "Hecks" do
       # Asks the train whether a queued boarding's pull request has merged. Nothing changes while it is open.
       command "Watch" do
         role "Operator"
-        goal "Look at each queued boarding's pull request, and record any that has merged"
+        goal "Look at each queued boarding's pull request, and record any that merged or ended with failed checks"
 
         reference_to SendTrain
 
         emits ObserveRequested
+      end
+
+      # A queued boarding's required checks ended red: its pull request stays open, and a later
+      # watch still records the merge if the checks come right. It moves to `red` so a tick names it once.
+      command "Fail" do
+        role "System"
+        goal "Record that a queued boarding's pull request ended with failed checks, naming the failed jobs"
+
+        reference_to SendTrain
+        attribute :report, Report, sets: true
+
+        emits TrainChecksFailed
       end
 
       command "Fault" do
@@ -1383,8 +1396,8 @@ Hecks.bluebook "Hecks" do
 
       # The boardings whose pull request has not merged yet: what `Watch` checks on each QA tick.
       query "Queued" do
-        description "Every boarding queued as a pull request, oldest key first; `Watch` records any that merged."
-        where(status: "queued")
+        description "Every boarding queued as a pull request, red ones too, oldest key first; `Watch` records any that merged or ended red."
+        where(status: { in: "queued,red" })
         order_by :run
       end
     end
@@ -1455,6 +1468,13 @@ Hecks.bluebook "Hecks" do
       on      "SendTrain.ObserveAnswered"
       where   { outcome.value == "merged" }
       trigger SendTrain::Merge, with: { checkout: :checkout, boarded: :boarded, pushed: :pushed, report: :report }
+    end
+
+    # A queued boarding whose required checks failed: the answer's report names the failed jobs.
+    policy "RecordTheFailedChecksOfAQueuedBoarding" do
+      on      "SendTrain.ObserveAnswered"
+      where   { outcome.value == "checks_failed" }
+      trigger SendTrain::Fail, with: { report: :report }
     end
 
     # Deploys stay by hand: a push that reached the remote says a deploy is ready, and nothing more.
