@@ -38,6 +38,7 @@ Hecks.hecksagon "PipelineBoard" do
     answers_query "Stages"
     answers_query "Snapshot"
     answers_query "Cycles"
+    answers_query "DailyHealth"
   end
 
   # The page. The adapter opens a server on 127.0.0.1 and answers `GET /` and `GET /api/state`;
