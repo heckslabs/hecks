@@ -52,6 +52,8 @@ require_relative "support/memory_ports"
 require_relative "support/scratch_directory"
 require_relative "support/live_ledger_guard"
 require_relative "support/live_state_guard"
+require_relative "support/live_services"
+require_relative "support/spec_progress"
 
 # A push runs the pre-push hook with GIT_DIR and friends exported, and every
 # `git` the suite starts inherits them. Specs build scratch repositories and
@@ -240,15 +242,15 @@ RSpec.configure do |config|
   # rspec`, `HECKS_PROCESS_SPECS=1 bundle exec rspec` or `bundle exec rspec --tag process`.
   config.filter_run_excluding process: true unless ENV.key?("CI") || ENV.key?("HECKS_PROCESS_SPECS")
 
-  # `cloudfront: true` marks an example that creates a throwaway function in the development stage
-  # of
-  # a real AWS account and runs `aws cloudfront test-function` on it. It runs only when asked for by
-  # tag (`rspec --tag cloudfront`, or `tags.value="--tag cloudfront"` on `run_spec_example!`) and
-  # the
-  # AWS CLI has credentials. It is left out rather than skipped, so CI's skip backstop has nothing
-  # to
-  # account for.
-  config.filter_run_excluding cloudfront: true
+  # A tag that reaches a live service (`cloudfront: true`, which creates a throwaway function in a
+  # real AWS account) runs only when the run opts in by `HECKS_LIVE_SERVICES`, under any filter,
+  # `--example` included; see spec/support/live_services.rb. It is left out rather than skipped,
+  # so CI's skip backstop has nothing to account for.
+  LiveServices.install(config)
+
+  # Each example writes where it is to `HECKS_SPEC_PROGRESS`, when that is set, so a run ended by
+  # its bound names the file and example it was in (spec/support/spec_progress.rb).
+  SpecProgress.install(config)
 
   # `fuzzing: true` tags every example under spec/fuzzing/ by path
   # (`define_derived_metadata`) rather than by hand per file. Slow for a

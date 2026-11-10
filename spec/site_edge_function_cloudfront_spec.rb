@@ -1,10 +1,10 @@
 require "spec_helper"
 require "json"
-require "open3"
 require "securerandom"
 require "tmpdir"
 require "hecks/tools"
 require "hecks/tools/site_routes"
+require "hecks/hecks/adapters/bounded_capture"
 
 # Checks the generated `redirect_host` function against what CloudFront's JavaScript runtime
 # accepts, which `node` does not tell us: CloudFront compiles every regular expression with its own
@@ -13,7 +13,9 @@ require "hecks/tools/site_routes"
 #
 # The first group is a static guard that always runs. The second runs the function through
 # `aws cloudfront test-function` on a throwaway function and is left out unless it is asked for by
-# tag (`--tag cloudfront`) and the AWS CLI has credentials.
+# tag (`--tag cloudfront`) and by `HECKS_LIVE_SERVICES=cloudfront` (spec/support/live_services.rb),
+# and the AWS CLI could have credentials, judged without a network call. Each `aws` call is
+# bounded, so a CLI that answers nothing fails the example instead of holding the run.
 RSpec.describe "the generated redirect_host function, for CloudFront's runtime" do
   let(:rendered) { Hecks::Projections::Site::Edge::FunctionCode.code(fixture_function) }
   let(:fixture_function) do
@@ -75,10 +77,14 @@ RSpec.describe "the generated redirect_host function, for CloudFront's runtime" 
   describe "against CloudFront's test-function", :cloudfront do
     EDGE_TEST_FUNCTION_PREFIX = "tmp-hecks-edge-test-".freeze
 
-    def aws(*args)
-      out, err, status = Open3.capture3("aws", *args)
-      raise "aws #{args.first(2).join(" ")} failed: #{err}" unless status.success?
+    # The most seconds one `aws` call may take: a test-function call answers in a few.
+    AWS_SECONDS = 60
 
+    def aws(*args)
+      result = Hecks::Adapters::BoundedCapture.new(seconds: AWS_SECONDS, setting: "AWS_SECONDS").call(["aws", *args])
+      raise "aws #{args.first(2).join(" ")} failed: #{result.err}" unless result.ok?
+
+      out = result.out
       out.empty? ? {} : JSON.parse(out)
     end
 
@@ -101,6 +107,11 @@ RSpec.describe "the generated redirect_host function, for CloudFront's runtime" 
       aws("cloudfront", "delete-function", "--name", name, "--if-match", etag)
     end
 
+    # Before any function is created, so a run with no credentials makes no call at all.
+    before(:context) do
+      skip "the cloudfront tag was asked for but the AWS CLI has no credentials" unless LiveServices.aws_credentials?
+    end
+
     around do |example|
       @name = "#{EDGE_TEST_FUNCTION_PREFIX}#{SecureRandom.hex(4)}"
       created = false
@@ -115,11 +126,6 @@ RSpec.describe "the generated redirect_host function, for CloudFront's runtime" 
       ensure
         delete(@name) if created
       end
-    end
-
-    before do
-      _, status = Open3.capture2("aws", "sts", "get-caller-identity")
-      skip "the cloudfront tag was asked for but the AWS CLI has no credentials" unless status.success?
     end
 
     def host = fixture_function.host

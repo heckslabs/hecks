@@ -45,6 +45,17 @@ Hecks.world "Tickets" do
   session_environment "Sessions", cargo_target_dir: "~/.cache/hecks/cargo-target", nice: 15
   session_grace "Sessions", seconds: 120
   rust_build "RustBuild", jobs: 4, nice: 15
+  # `live_services` names the spec tags whose examples reach a live service (cloudfront: a real
+  # AWS account). They run only when `HECKS_LIVE_SERVICES` names the tag, under every filter
+  # (spec/support/live_services.rb), and a verification never hands that variable to its checks.
+  live_services "Specs", tags: ["cloudfront"]
+  # `spec_bounds` is the wall clock a spec run may take before it is ended with every process it
+  # started, naming the file and example it was in. `file_seconds` bounds one spec file's process:
+  # the slowest files build a Rust crate cold, a few minutes, so 600 leaves room and still ends a
+  # hang in ten minutes, not the thirty a silent `aws` call held one. `check_seconds` bounds one
+  # check of a verification (a batch of 25 files, the quick gate): a whole verification takes about
+  # 16 minutes when nothing hangs, so 2400 holds any one check with room and ends a hang in 40.
+  spec_bounds "Specs", file_seconds: 600, check_seconds: 2400
   # The decision records' files (Tickets::Adr), relative to the checkout; `None` leaves the Adr
   # store a plain Memory one, as the memory overlay does for specs. Binding Adr makes the wiring
   # explicit, so the other aggregates take this default where no attaching domain hands one down.

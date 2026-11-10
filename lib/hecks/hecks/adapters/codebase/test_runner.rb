@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 
 require "stringio"
-require "open3"
 require "rbconfig"
 require_relative "tree"
 require_relative "../console_capture"
+require_relative "../bounded_capture"
 require_relative "../../../rust_build/session_build"
 
 module Hecks
@@ -41,8 +41,11 @@ module Hecks
         end
 
         # @param tree [Tree] the checkout whose spec is run
-        def initialize(tree)
+        # @param bound [Numeric, nil] the seconds a fresh process may run; the Tickets world's
+        #   `spec_bounds` `file_seconds` when nil
+        def initialize(tree, bound: nil)
           @tree = tree
+          @bound = bound
         end
 
         # Runs one example of one spec file, from the checkout's root.
@@ -89,13 +92,15 @@ module Hecks
         # @param args [Array<String>] the runner's arguments
         # @param env [Hash{String => String}] variables the specs read, set for this run only
         # @param fresh [Boolean] whether to run it in a new process of its own (nothing a spec
-        #   defined, stubbed or registered carries over) or in this one
+        #   defined, stubbed or registered carries over) or in this one. A fresh process is ended,
+        #   with every process it started, once it runs past its bound, and what it printed then
+        #   ends with the file and example it was in.
         # @return [Array(Integer, String)] the exit status and what the runner printed
         def outcome(args, env: {}, fresh: false)
           return with_env(env) { in_process(args) } unless fresh
 
-          printed, status = Open3.capture2e(env, *build_command(args), chdir: @tree.root)
-          [status.exitstatus || 1, printed.strip]
+          result = bounded.call(build_command(args), env: env, chdir: @tree.root)
+          [result.ok? ? 0 : [result.status, 1].max, "#{result.out}#{result.err}".strip]
         end
 
         # The fresh runner starts under the Tickets world's `nice` increment in a linked worktree,
@@ -131,6 +136,11 @@ module Hecks
         end
 
         def at_reaction_depth_zero(&) = self.class.at_reaction_depth_zero(&)
+
+        def bounded
+          seconds = @bound || BoundedCapture.seconds(@tree.root, :file_seconds)
+          BoundedCapture.new(seconds: seconds, setting: "spec_bounds file_seconds")
+        end
 
         # Sets the variables for the block and puts each back as it was.
         def with_env(env)

@@ -41,6 +41,24 @@ RSpec.describe "the environment of a verification's checks" do
     expect(commands.map { |argv| argv.first(checks::RUNS_AS.size) }.uniq).to eq([checks::RUNS_AS])
   end
 
+  def bounded_check(script, bound: 60)
+    runner = Hecks::Adapters::MainIntegration::CommandRunner.new(bound: bound)
+    runner.call([RbConfig.ruby, "-e", script], chdir: Hecks::RustBuild::ROOT)
+  end
+
+  it "never hands a check the opt-in to specs that reach a live service" do
+    ENV["HECKS_LIVE_SERVICES"] = "cloudfront"
+    expect(bounded_check("print ENV.key?('HECKS_LIVE_SERVICES')")).to eq([true, "false"])
+  ensure
+    ENV.delete("HECKS_LIVE_SERVICES")
+  end
+
+  it "ends a check that runs past its bound and says so", :aggregate_failures do
+    ok, output = bounded_check("sleep 30", bound: 1)
+    expect(ok).to be(false)
+    expect(output).to include("ran past the 1-second bound (spec_bounds check_seconds)")
+  end
+
   it "puts rustup's proxies ahead of a cargo earlier on PATH" do
     skip "no rustup cargo on this machine (#{toolchain.proxies})" if toolchain.environment.empty?
 
