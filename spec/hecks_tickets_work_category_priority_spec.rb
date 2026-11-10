@@ -36,6 +36,17 @@ RSpec.describe "Work category and priority" do
     expect(row("work/a")["category"]).to eq("delivery")
   end
 
+  it "takes each of the eight themes as a category", :aggregate_failures do
+    themes = %w[agent-roles-and-handoff autonomous-pipeline pipeline-board landing-review-and-train
+                bluebook-gaps-and-tool-dissolve kernel-parity-and-simulation docs-and-interviews side-projects]
+    themes.each_with_index do |theme, index|
+      plan("work/theme-#{index}")
+      categorize("work/theme-#{index}", theme)
+
+      expect(row("work/theme-#{index}")["category"]).to eq(theme)
+    end
+  end
+
   it "gives a planned item a priority" do
     plan("work/a")
     prioritize("work/a", "now")
