@@ -31,7 +31,7 @@ RSpec.describe Hecks::Adapters::PipelineStages do
       tickets: Hecks::Adapters::PipelineTickets.new(settings: { work_items: work_items, landings: [] }),
       jobs:    jobs_reader,
       journal: instance_double(Hecks::Adapters::PipelineJournal, recent: [], named: [], landed_times: {}, promotions: [],
-                                                                   cycle_events: []),
+                                                                   cycle_events: [], stopped_times: {}),
       fill:    fill_reader }.merge(overrides)
   end
 

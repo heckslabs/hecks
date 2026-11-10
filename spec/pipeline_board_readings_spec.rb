@@ -98,6 +98,17 @@ RSpec.describe "PipelineBoard readings" do
     expect { journal.named("WorkFinished", 200) }.to raise_error(Hecks::Adapters::PipelineBoard::Unavailable, /no store/)
   end
 
+  def stopped_line(id, at)
+    "#{JSON.generate(kind: "event", at: at, aggregate: "Tickets::Finding", id: id, event: "StoppedRunReported")}\n"
+  end
+
+  it "reads each stopped run's first report time from the event log, keyed by its finding" do
+    log = File.join(dir, "events.jsonl")
+    File.write(log, stopped_line("k1", "2026-11-10T10:00:00Z") + stopped_line("k1", "2026-11-10T12:00:00Z"))
+    journal = Hecks::Adapters::PipelineJournal.new(settings: { trace: ->(*) { { events: [] } }, tap: log, ttl: 0 })
+    expect(journal.stopped_times).to eq("k1" => "2026-11-10T10:00:00Z")
+  end
+
   it "counts the day's finished work from the events of that name, not from the recent window" do
     rows = finished(["2026-11-02T19:00:00Z", "2026-11-02T01:00:00Z", "2026-11-01T10:00:00Z"])
     expect(throughput(rows)).to include(value: 2, unit: "items / 24 h")

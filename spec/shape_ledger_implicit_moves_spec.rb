@@ -1,6 +1,7 @@
 require "spec_helper"
 require "tmpdir"
 require "json"
+require "hecks/shape_ledger"
 
 # The shape ledger treats a recorded implicit move as an empty edge: an unrecorded gap is still a
 # problem, a recorded move is not, and writing the same move again adds nothing.

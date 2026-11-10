@@ -64,6 +64,10 @@ module Hecks
           #   environment in, one per line
           def envs(root) = "#{stem(root)}.envs"
 
+          # @return [String] the note a resident leaves when its upkeep raised and it retired: the
+          #   time, the error and where it was raised
+          def upkeep_died(root) = "#{stem(root)}.upkeep-died"
+
           # @return [Boolean] whether a resident of another protocol stands for the checkout: one
           #   that holds a lock of the checkout's, not this protocol's
           def other_protocol?(root)

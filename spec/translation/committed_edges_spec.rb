@@ -1,5 +1,6 @@
 require "spec_helper"
 require "hecks/ports/persistence/plugins/era"
+require "hecks/shape_ledger"
 require_relative "../support/memory_ports"
 
 # Checks every committed bluebook/translations edge without a database: each loads, the chain runs

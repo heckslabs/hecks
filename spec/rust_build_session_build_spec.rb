@@ -153,10 +153,32 @@ RSpec.describe Hecks::RustBuild::SessionBuild do
     expect(described_class.command(%w[cargo build], root: root)).to eq(%w[cargo build])
   end
 
-  it "adds nothing when the world cannot be read" do
-    File.write(File.join(root, described_class::WORLD), "this is not ruby (")
+  describe "a world that cannot be read" do
+    before do
+      File.write(File.join(root, described_class::WORLD), "this is not ruby (")
+      allow(Hecks::RustBuild::WorldRows).to receive(:warn)
+    end
 
-    expect(described_class.environment(root: root, base: no_target)).to eq({})
+    it "adds nothing" do
+      expect(described_class.environment(root: root, base: no_target)).to eq({})
+    end
+
+    it "names the world it could not read and why" do
+      described_class.environment(root: root, base: no_target)
+      expect(described_class.unreadable_world(root)).to include("tickets.world: SyntaxError")
+    end
+
+    it "warns that the settings are left at their defaults" do
+      described_class.environment(root: root, base: no_target)
+      expect(Hecks::RustBuild::WorldRows).to have_received(:warn).with(/could not be read/).once
+    end
+
+    it "keeps no failure as the answer, so a fixed world is read the next time", :aggregate_failures do
+      described_class.environment(root: root, base: no_target)
+      File.write(File.join(root, described_class::WORLD), %(Hecks.world("Tickets") { session_environment "S", nice: 3 }))
+      expect(described_class.command(%w[cargo build], root: root)).to eq(%w[nice -n 3 cargo build])
+      expect(described_class.unreadable_world(root)).to be_nil
+    end
   end
 
   describe "the build commands" do

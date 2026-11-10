@@ -840,11 +840,13 @@ Hecks.bluebook "Tickets" do
     trigger Finding::ReportFailedRun, with: { finding: :run, body: :refusal }
   end
 
-  # An integration run parked in needs_human, or a shipment's step that faulted, files a finding a
-  # person sees on the pipeline board. An integration run is keyed by its landed commit, a shipment
-  # by its run. A CI run that ends red is not here: it raises the red flag (RaiseTheFlagWhenCiFails).
-  # A refused landing is not here either: every refused `landing.finish!` emits it, and its caller
-  # reads the refusal.
+  # An integration run parked in needs_human (MainIntegration), or a shipment parked there
+  # (GateAndBoard, whose stop emits ShipmentStopped), files a finding a person sees on the pipeline
+  # board. An integration run is keyed by its landed commit, a shipment by its run. A faulted style
+  # run or boarding is not here: any caller's run of those commands faults, and only a shipment's
+  # waits on a person. A CI run that ends red is not here: it raises the red flag
+  # (RaiseTheFlagWhenCiFails). A refused landing is not here either: every refused
+  # `landing.finish!` emits it, and its caller reads the refusal.
   policy "ReportWhenVerificationFailed" do
     on      "Integration.MainVerificationFailed"
     root
@@ -863,16 +865,10 @@ Hecks.bluebook "Tickets" do
     trigger Finding::ReportStoppedRun, with: { finding: :landed, commit: :landed, stage: "ci_running", body: :report }
   end
 
-  policy "ReportWhenStyleFaulted" do
-    on      "StyleRun.StyleFaulted"
+  policy "ReportWhenShipmentStopped" do
+    on      "Shipment.ShipmentStopped"
     root
-    trigger Finding::ReportStoppedRun, with: { finding: :run, stage: "fixing", body: :refusal }
-  end
-
-  policy "ReportWhenPushFaulted" do
-    on      "SendTrain.PushFaulted"
-    root
-    trigger Finding::ReportStoppedRun, with: { finding: :run, stage: "boarding", body: :refusal }
+    trigger Finding::ReportStoppedRun, with: { finding: :run, stage: :stage, body: :refusal }
   end
 
   # A spec file that went red on main is a work item QA picks up: `Work.undone` lists it. The spec's own key is

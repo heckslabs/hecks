@@ -776,9 +776,13 @@ Hecks.bluebook "Agents" do
 
   # The pruner removes finished sessions. The bluebook gives: a pruner is woken only from rest, so a
   # second wake while one works is refused by the lifecycle, and the end of its run rests it again.
-  # The policies state: any run but the pruner's own ending (a job read that shows done or stopped)
-  # wakes it, so its finish never loops. The delegate bluebook starts a woken pruner as a run of the
-  # `pruner` agent, since a policy here cannot reach AgentRun; the reaction mints the run key. A
+  # The policies state: a feature landing wakes it (the Landing's LandedWorkFound, once per landed
+  # branch that names an open Work item); a run that ends without landing (a yield, a stop, a
+  # rethink) wakes nothing, and the pruner's own finish only rests it. A landing wakes it while the
+  # landing session still works, so that session is removed at a later landing, not this one; a
+  # session that ends without landing waits for the next feature to land. The delegate bluebook
+  # starts a woken pruner as a run of the `pruner` agent, since a policy here cannot reach
+  # AgentRun; the reaction mints the run key. A
   # role's `starts` field would replace the literals in the first policy. The brief sends the pruner
   # through `SessionCleanup.RemoveSafe` (delegate bluebook), which removes only the sessions of
   # dispatched runs that finished done, so the safety rule holds whatever the session reads.
@@ -803,7 +807,7 @@ Hecks.bluebook "Agents" do
       transition "Rest" => "resting", from: "working"
     end
 
-    # The first finished run seats the pruner; a seat that exists is refused, which is its answer.
+    # The first landed feature seats the pruner; a seat that exists is refused, which is its answer.
     command "Seat" do
       role "System"
       goal "Seat the pruner so it can be woken"
@@ -846,17 +850,15 @@ Hecks.bluebook "Agents" do
       emits "PrunerRested"
     end
 
-    policy "SeatThePrunerWhenARunFinishes" do
-      on      "AgentRun.JobRead"
+    policy "SeatThePrunerWhenWorkLands" do
+      on      "Landing.LandedWorkFound"
       root
-      where   { (state == "done" || state == "stopped") && previous != state && agent != "pruner" }
       trigger Pruning::Seat, with: { role: "pruner" }
     end
 
-    policy "WakeThePrunerWhenARunFinishes" do
-      on      "AgentRun.JobRead"
+    policy "WakeThePrunerWhenWorkLands" do
+      on      "Landing.LandedWorkFound"
       root
-      where   { (state == "done" || state == "stopped") && previous != state && agent != "pruner" }
       trigger Pruning::Wake,
               with: { pruning: "pruner", repo: ".",
                       brief: "Read exe/hecks SessionCleanup.removable, then remove only through " \

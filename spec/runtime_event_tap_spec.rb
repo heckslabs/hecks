@@ -95,6 +95,20 @@ RSpec.describe Hecks::Runtime::EventTap do
                               occurred_at: "2026-11-02T10:00:00Z", correlation: { "landed.value" => "a1b2c3d" })
   end
 
+  it "writes a link held as a value object as the plain string it holds" do
+    described_class.install(registry_with(world(path: path)))
+    log << valued_event
+    expect(lines.first["links"]).to eq("work" => "cycle-a", "landed" => "a1b2c3d")
+  end
+
+  # Links held as built value objects, as a dispatched command's payload holds them.
+  def valued_event
+    wrap = ->(text) { Hecks::Runtime::Value.new(Object.new, value: text) }
+    Hecks::Runtime::Event.new(name: "PlanReviewRequested", aggregate: "Agents::PlanReview", id: "r1",
+                              payload: { work: wrap.call("cycle-a"), landed: wrap.call("a1b2c3d") },
+                              occurred_at: "2026-11-02T10:00:00Z")
+  end
+
   it "writes one line for each policy delivery, with the command it reached and its outcome" do
     described_class.install(registry_with(world(path: path)))
     log.reaction_observer.call({ policy: "AddWorktree", on: "AddRequested", trigger: "LinkedTree.Create", delivered: true }, "t1")

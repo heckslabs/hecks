@@ -110,6 +110,11 @@ RSpec.describe "an MCP server that learns its restriction from the agent it serv
     expect(probe[:framework]).to be(true)
   end
 
+  it "refuses every call of a role whose rows cannot be read, naming why they could not be" do
+    out, = served("orchestrator", {}, call("state"))
+    expect(JSON.parse(out)["result"]["content"].first["text"]).to include("routing rows could not be read")
+  end
+
   it "does not write a table it could not work out" do
     served("orchestrator")
     expect(Dir.glob(File.join(cache_home, "hecks/role-servers/*.json"))).to eq([])

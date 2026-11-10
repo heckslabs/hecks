@@ -21,6 +21,10 @@ module Hecks
         # Where the launcher's JSON answer starts in what it printed.
         RECORD_START = /^\{/
 
+        # How much of a record that will not parse a refusal carries: its tail, bounded so a long
+        # answer never fills the message.
+        RAW_KEPT = 300
+
         # @param runner [#call] takes `(argv, chdir:)` and answers `[ok, output]`
         # @param root [String] the train's copy
         def initialize(runner, root: ROOT)
@@ -62,12 +66,24 @@ module Hecks
 
         def run(*argv) = @runner.call(argv, chdir: @root)
 
+        # The record's state, empty when the train printed no record. A record that will not parse
+        # raises carrying its last {RAW_KEPT} characters, where the train writes its refusal, so the
+        # reason is never lost behind an empty state.
         def record_in(output)
           text = output.to_s
           start = text.index(RECORD_START)
           start ? JSON.parse(text[start..]).fetch("state", {}) : {}
-        rescue JSON::ParserError
-          {}
+        rescue JSON::ParserError => e
+          raise ConsoleCapture::Failure,
+                "the push train answered a record that could not be read (#{tail(e.message, 80)}): " \
+                "#{tail(text[start..], RAW_KEPT)}"
+        end
+
+        # The last `size` characters of a text, marked when it was cut: a parse error quotes the
+        # whole text it read, and neither may fill a refusal.
+        def tail(text, size)
+          flat = text.strip.tr("\n", " ")
+          flat.length > size ? "…#{flat[-size..]}" : flat
         end
       end
     end

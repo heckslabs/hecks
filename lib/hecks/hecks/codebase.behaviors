@@ -174,7 +174,7 @@ Hecks.behaviors "Codebase" do
   test "Canonicalise keeps a file that is not there as a faulted request" do
     tests "Canonicalise", on: "StyleRun"
     input file: { value: "/tmp/hecks-behaviors-absent/file.json" }, run: { value: "canonical" }
-    expect emits: %w[CanonicaliseRequested StyleExamined StyleAccepted StyleRefused StyleFaulted StoppedRunReported]
+    expect emits: %w[CanonicaliseRequested StyleExamined StyleAccepted StyleRefused StyleFaulted]
   end
 
   test "HoistLocalGivens refuses a run that is not named" do
