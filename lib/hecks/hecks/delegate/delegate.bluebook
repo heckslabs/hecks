@@ -263,12 +263,14 @@ Hecks.bluebook "Hecks" do
         emits WorktreeDetached
       end
 
-      # Answers a session that has not ended, working or blocked on a person: its answer is sent as a
-      # resumed background session's prompt, so the session carries on under the same ID. A `step`,
-      # when one is given, leads the prompt: what the session does next with the answer.
+      # Answers a session that has not ended, working or blocked on a person. The session is looked
+      # at first (`AnswerTheSessionWhereItIs` below): one in the middle of a turn takes the answer
+      # through its inbox hook and keeps running, and one that is idle or gone is resumed with the
+      # answer as its prompt, so it carries on under the same ID. A running session is never stopped
+      # to be answered. A `step`, when one is given, leads the answer: what the session does next.
       command "Answer", from: "started" do
         role "Operator"
-        goal "Answer a session that is working or blocked by resuming it with the answer"
+        goal "Answer a session that has not ended: deliver to a working one, resume an idle one"
 
         reference_to AgentRun
         attribute :answer, Brief
@@ -293,7 +295,7 @@ Hecks.bluebook "Hecks" do
 
       command "Answered" do
         role "System"
-        goal "Record when the session was resumed with the answer"
+        goal "Record when the answer reached the session: queued for a working one, or resumed into an idle one"
 
         reference_to AgentRun
         attribute :answered_at, Moment, sets: true
@@ -1221,8 +1223,8 @@ Hecks.bluebook "Hecks" do
       trigger AgentRun::Block, with: { condition: :state, detail: :detail, checkout: :checkout }
     end
 
-    # Delivering an answer stops the session and wakes it again, and the stop runs the session's
-    # own check. A job read `stopped` while the run's answer is on its way (`resuming`, which the
+    # Resuming an idle session with an answer stops it and wakes it again, and the stop runs the
+    # session's own check. A job read `stopped` while the run's answer is on its way (`resuming`, which the
     # reading carries beside `previous`) is that stop, so it ends nothing; the next check reads the
     # woken session, or the stopped one once the answer was refused.
     policy "RecordTheEndedSession" do
@@ -1370,9 +1372,46 @@ Hecks.bluebook "Hecks" do
       trigger AgentRun::Retain, with: { refusal: :refusal }
     end
 
-    policy "ResumeWithTheAnswer" do
+    # How an answer reaches a session is decided here, from what `claude agents` lists of it, never
+    # in the adapter:
+    #
+    #   listed busy (mid-turn)  -> deliver: the answer waits in the session's inbox, and its next
+    #                              tool call or the end of its turn hands it to the model; it is
+    #                              not stopped, so it keeps its process and context
+    #   listed idle, or gone    -> resume with the answer as the prompt
+    #
+    # The listed status decides, not the job's state: a session that ended its turn is listed
+    # `idle` while its job still reads `working`, and an idle session runs no hook to read an inbox.
+    # A busy session started without the inbox hook refuses the delivery by name and is not stopped.
+    # Every refusal on the way is `ResumeRefused`, so an answer is recorded `Unanswered` and a
+    # verdict `Unresumed` (kept waiting and sent again) by the two policies below.
+    policy "AnswerTheSessionWhereItIs" do
       on      "AgentRun.AnswerRequested"
+      ask     :present, with: { run: :run, answer: :answer, step: :step, verdict: :verdict }
+    end
+
+    # Each path is a root: a verdict sent again reaches the look four reactions deep, and what was
+    # seen of the session begins its own chain, so recording the verdict delivered is not refused
+    # at the cap.
+    policy "DeliverToTheWorkingSession" do
+      on      "AgentRun.SessionPresent"
+      root
+      where   { listed == true && status == "busy" }
+      ask     :deliver, with: { run: :run, answer: :answer, step: :step, verdict: :verdict }
+    end
+
+    policy "ResumeTheIdleSession" do
+      on      "AgentRun.SessionPresent"
+      root
+      where   { listed != true || status != "busy" }
       ask     :resume, with: { run: :run, answer: :answer, step: :step, verdict: :verdict }
+    end
+
+    # Queued is answered: the inbox is read at the session's next tool call or turn end. A session
+    # that ends before then leaves the answer unread in its inbox; that window is accepted.
+    policy "RecordTheQueuedAnswer" do
+      on      "AgentRun.AnswerQueued"
+      trigger AgentRun::Answered, with: { answered_at: :queued_at, session: :session, verdict: :verdict }
     end
 
     policy "RecordTheAnswer" do

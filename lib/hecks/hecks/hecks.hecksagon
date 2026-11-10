@@ -655,7 +655,31 @@ Hecks.hecksagon "Hecks" do
       refuses "LookForRefused"
     end
 
-    # The operator's answer goes to the blocked session as the prompt of a resumed background session.
+    # Where a session is before it is answered: whether `claude agents` lists it, and the status
+    # (`busy`, `idle`) and state it is listed with. The bluebook picks the path. An answer that
+    # cannot be given on any path is one refusal, `ResumeRefused`, whichever ask refused it.
+    asks "Present", to: AgentRun do
+      attribute :run, RunKey
+      attribute :answer, Brief
+      attribute :step, Brief
+      attribute :verdict, VerdictKey
+      answers "SessionPresent"
+      refuses "ResumeRefused"
+    end
+
+    # The answer to a working session waits in its inbox, which the session's own hooks hand to the
+    # model at its next tool call or turn end; the session is never stopped. A session started
+    # without the hook cannot take it, and that is refused by name.
+    asks "Deliver", to: AgentRun do
+      attribute :run, RunKey
+      attribute :answer, Brief
+      attribute :step, Brief
+      attribute :verdict, VerdictKey
+      answers "AnswerQueued"
+      refuses "ResumeRefused"
+    end
+
+    # The operator's answer goes to an idle or gone session as the prompt of a resumed background session.
     asks "Resume", to: AgentRun do
       attribute :run, RunKey
       attribute :answer, Brief
