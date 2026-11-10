@@ -11,8 +11,8 @@ RSpec.describe "the fill that follows a movement of the machine" do
 
   def kinds(*idles) = beat_through(idles.map { |idle| gauge(idle) })[:names].grep(/\A(Beaten|RollRequested)\z/)
 
-  it "rolls on the beat whose reading crossed a mark" do
-    expect(kinds(10.0)).to eq(%w[Beaten RollRequested])
+  it "does not roll on the beat whose idle CPU crossed a mark: the load average alone decides" do
+    expect(kinds(10.0)).to eq(%w[Beaten])
   end
 
   it "has no policy that starts a roll on every reading", :aggregate_failures do
