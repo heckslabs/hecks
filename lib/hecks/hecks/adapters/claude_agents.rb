@@ -8,6 +8,8 @@ require_relative "claude_transcript"
 require_relative "claude_jobs"
 require_relative "claude_resumption"
 require_relative "architect_verdict"
+require_relative "architect_findings"
+require_relative "claude_closing_message"
 require_relative "coder_job_facts"
 require_relative "claude_agent_list"
 require_relative "claude_session_listing"
@@ -43,14 +45,15 @@ module Hecks
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] `command:` the program that starts sessions (default `claude`),
       #   `jobs:` the jobs directory, `settle:` the seconds a new session is given to fail,
-      #   `launcher:` the `exe/hecks` its hooks run (default the main checkout's)
+      #   `launcher:` the `exe/hecks` its hooks run (default the main checkout's), `projects:` the
+      #   directory of the per-project transcript folders
       # @param root [String, nil] unused
       # @param registry [Runtime::Registry, nil] whose Tickets world names the session environment
       def initialize(aggregate: nil, settings: {}, root: nil, registry: nil)
         @command = settings[:command] || COMMAND
         @session = Dispatching::Settings.new(registry)
         @shell = Shell.new
-        @transcript = ClaudeTranscript.new(**settings.slice(:projects))
+        transcripts(settings.slice(:projects))
         @jobs = ClaudeJobs.new(directory: settings[:jobs])
         @agents = ClaudeAgentList.new(@command, shell: @shell)
         @lookup = session_lookup(settings[:now])
@@ -102,8 +105,8 @@ module Hecks
                                checkout: plain(held[:repo]))
       end
 
-      # The session's last words: its timeline's tail, else the job's result, else its summary. Not
-      # {#closing_text}, which joins all three, so the report's last word is the session's own.
+      # The session's last words: its timeline's tail, else the job's result, else its summary; the
+      # first that says something, never the three joined, so the last word is the session's own.
       #
       # @return [String] the first of the three that says something, or empty
       def last_words(job, held)
@@ -112,21 +115,15 @@ module Hecks
         end.to_s
       end
 
-      # The most of the architect's closing text a review keeps.
-      FINDINGS_LIMIT = 2000
-
-      # @return [Hash{Symbol => String}] the architect's `verdict` and its `findings` (its closing
-      #   text), both empty for any other agent
+      # @return [Hash{Symbol => String}] the architect's `verdict` and its `findings`, both read
+      #   from one text: its closing message whole from the transcript, else {#last_words}. The
+      #   findings keep that text's head and tail ({ArchitectFindings.clip}); both are empty for
+      #   any other agent
       def architect_facts(job, held)
         return { verdict: "", findings: "" } unless plain(held[:agent]).to_s == "architect"
 
-        text = closing_text(job, held)
-        { verdict: ArchitectVerdict.of(text), findings: text[0, FINDINGS_LIMIT] }
-      end
-
-      # @return [String] what the architect wrote last (the timeline's tail) with the job's summary
-      def closing_text(job, held)
-        [@jobs.closing(plain(held[:session])), job.dig("output", "result"), job["detail"]].compact.join("\n")
+        text = ArchitectFindings.pick(@closing.of(plain(held[:session])), last_words(job, held))
+        { verdict: ArchitectVerdict.of(text), findings: ArchitectFindings.clip(text) }
       end
 
       # The reviewer's judgment as its closing text states it: `real_bug` or `stale_expectation`.
@@ -213,6 +210,12 @@ module Hecks
       def look_for(**held) = @lookup.call(held)
 
       private
+
+      # The readers of the sessions' transcripts: whether a person replied, and the closing message.
+      def transcripts(projects)
+        @transcript = ClaudeTranscript.new(**projects)
+        @closing = ClaudeClosingMessage.new(**projects)
+      end
 
       # @return [Hash{String => String}] the session environment, with the run's name as the caller
       def named(held) = SessionCaller.environment(@session.session_environment, held)

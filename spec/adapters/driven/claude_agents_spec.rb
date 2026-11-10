@@ -283,7 +283,7 @@ RSpec.describe Hecks::Adapters::ClaudeAgents do
 
   describe "#read_job" do
     let(:jobs) { File.join(scratch, "jobs") }
-    let(:adapter) { described_class.new(settings: { command: stand_in, jobs: jobs, settle: 0 }) }
+    let(:adapter) { described_class.new(settings: { command: stand_in, jobs: jobs, settle: 0, projects: scratch }) }
 
     def job(state, detail, output = nil)
       FileUtils.mkdir_p(File.join(jobs, "abc123"))
@@ -344,6 +344,35 @@ RSpec.describe Hecks::Adapters::ClaudeAgents do
       answer = read(agent: { value: "architect" })
       expect(answer).to include(verdict: "changes")
       expect(answer[:findings]).to include("5 findings")
+    end
+
+    # The session's transcript, which holds its closing message whole.
+    def closing_message(text)
+      FileUtils.mkdir_p(File.join(scratch, "-repo"))
+      entry = { type: "assistant", isSidechain: false, message: { content: [{ type: "text", text: text }] } }
+      File.write(File.join(scratch, "-repo", "abc123-0000-full.jsonl"), "#{JSON.generate(entry)}\n")
+    end
+
+    def long_review = "The ports are wrong, so the plan is reworked.\n#{"x" * 5000}\nVerdict: rethink"
+
+    # A job whose timeline keeps only the review's tail, and a transcript that keeps it whole.
+    def long_review_job
+      job("done", "reviewed")
+      timeline(long_review[-2000..])
+      closing_message(long_review)
+    end
+
+    it "keeps a 5000-character finding's first line and its last line", :aggregate_failures do
+      long_review_job
+      answer = read(agent: { value: "architect" })
+      expect(answer).to include(verdict: "rethink", findings: start_with("The ports are wrong"))
+      expect(answer[:findings]).to end_with("\nVerdict: rethink")
+    end
+
+    it "takes the verdict and findings from the first text that says something, not all three joined" do
+      job("done", "sound", { result: "Verdict: rethink" })
+
+      expect(read(agent: { value: "architect" })).to include(verdict: "rethink", findings: "Verdict: rethink")
     end
 
     it "reads the reviewer's judgment off the closed job, and no verdict" do
