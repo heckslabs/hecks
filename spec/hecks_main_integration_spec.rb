@@ -188,7 +188,30 @@ RSpec.describe "integrating main through the MainIntegration saga" do
     expect(stage(landed)).to eq("landed")
   end
 
-  it "walks a run from landed to green, one step per advance" do
+  # Lands one commit ahead of origin and advances it once, then once more.
+  def board_and_advance_again
+    landed = land
+    advance
+    after_one = [stage(landed), @boardings.size, report("IntegrationAdvanced")]
+    advance
+    after_one + [@boardings.size]
+  end
+
+  it "boards a verified landing in the advance that verified it, and never boards it again", :aggregate_failures do
+    stage_after_one, boarded_once, line, boarded_after_two = board_and_advance_again
+    expect([stage_after_one, boarded_once, boarded_after_two]).to eq(["pushed", 1, 1])
+    expect(line).to include("-> Verify: now verified", "-> Board: now pushed; boarded ")
+  end
+
+  it "never boards a landing whose verification failed", :aggregate_failures do
+    stub_outside(gate: [false, "[gate quick] red: rubocop"])
+    land
+    advance(2)
+    expect(@boardings).to be_nil
+    expect(report("IntegrationAdvanced")).to include("-> Verify: now needs_human; needs_human: ")
+  end
+
+  it "walks a run from landed to green" do
     landed = land
     advance(3)
     expect(stages_walked(landed)).to eq(%w[verifying verified boarding pushed ci_running green])
@@ -240,9 +263,9 @@ RSpec.describe "integrating main through the MainIntegration saga" do
     expect(event_names(landed)).not_to include("MainVerificationFailed")
   end
 
-  it "verifies a run on the next advance when its retry passes", :aggregate_failures do
+  it "verifies and boards a run on the next advance when its retry passes", :aggregate_failures do
     landed = land_behind_red_gate(1, 2)
-    expect(stages_walked(landed)).to eq(%w[verifying retrying reverifying verified])
+    expect(stages_walked(landed)).to eq(%w[verifying retrying reverifying verified boarding pushed])
     expect(@gate_runs).to eq(2)
   end
 
@@ -295,9 +318,10 @@ RSpec.describe "integrating main through the MainIntegration saga" do
 
   it "refuses to board a range carrying an agent's trailer, by name", :aggregate_failures do
     landed = land(message: "feature\n\nCo-Authored-By: Claude <noreply@anthropic.com>")
-    advance(2)
+    advance
     expect(stage(landed)).to eq("needs_human")
     expect(refusal("MainPushRefused")).to include("Co-Authored-By: Claude")
+    expect(report("IntegrationAdvanced")).to include("-> Board: now needs_human; needs_human: ")
   end
 
   it "refuses to board a version change, by name", :aggregate_failures do
@@ -316,10 +340,10 @@ RSpec.describe "integrating main through the MainIntegration saga" do
 
   it "holds a verified run back without --confirm, however often it is advanced", :aggregate_failures do
     landed = land
-    advance
-    2.times { launch("Integration.advance!", "--wait") }
+    3.times { launch("Integration.advance!", "--wait") }
     expect(stage(landed)).to eq("verified")
     expect(@boardings).to be_nil
+    expect(report("IntegrationAdvanced")).to include("waiting: advance with --confirm to push main")
   end
 
   it "marks an older landed run superseded when main has moved past it" do
@@ -335,7 +359,7 @@ RSpec.describe "integrating main through the MainIntegration saga" do
   # Pushes one run, lands a second behind it, and gives reading GitHub a defect.
   def push_one_and_land_another_while_github_is_broken
     pushed = land
-    advance(2)
+    advance
     later = land(file: "second.rb")
     Hecks::Adapters::CiRuns.runner = method(:defect)
     advance
@@ -346,7 +370,7 @@ RSpec.describe "integrating main through the MainIntegration saga" do
     pushed, later = push_one_and_land_another_while_github_is_broken
     expect(stage(pushed)).to eq("ci_running")
     expect(stage(later)).to eq("verified")
-    expect(report("IntegrationAdvanced")).to include("Observe raised NoMethodError")
+    expect(report("IntegrationAdvanced")).to include("Observe raised NoMethodError", "waiting: #{pushed[0, 10]} is ci_running")
   end
 
   it "parks a run whose verification raises, with the exception's text", :aggregate_failures do

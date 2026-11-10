@@ -5,9 +5,6 @@ require_relative "support/resting_pruner"
 RSpec.describe "what wakes the pruner" do
   include_context "with a resting pruner"
 
-  # A fresh runtime for each example, so a pruner run one example starts never holds the next.
-  before { @hecks = boot_hecks_in_memory }
-
   def end_architect_run(run)
     launch("agent_run.dispatch!", "run.value=#{run}", "repo.value=#{scratch}", "brief.value=review",
            "agent.value=architect", "--wait")

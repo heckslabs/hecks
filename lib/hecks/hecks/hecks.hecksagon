@@ -181,6 +181,12 @@ Hecks.hecksagon "Hecks" do
     answers_query "Status"
   end
 
+  # Read-only: the event tap's opening lines still waiting for their closing lines, priced by the
+  # clock. The adapter reads the log as the `Feed` query does and boots no domain.
+  Hecks::StallWatch.port "Watching" do
+    answers_query "Unclosed"
+  end
+
   Hecks::SendTrain.port "Alerts" do
     asks "Announce", to: SendTrain do
       attribute :run, RunKey

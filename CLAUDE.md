@@ -214,7 +214,10 @@ impacted specs through the launcher. Branch worktrees through `LinkedTree.add!`,
 `stored_as` (the table an aggregate's rows keep after a rename), `formerly` (a domain's former name) and
 `minting` (the command an unminted boot may write). **QA and dispatch:** `qa_quiesce.hold!`, `release!`
 and `status` quiet QA for a mint; `Dispatch.Fill` starts sessions for planned Work items and
-`Dispatch.Settle` finishes the rows of sessions that ended (`delegate/delegate.bluebook`); a landed
+`Dispatch.Settle` finishes the rows of sessions that ended (`delegate/delegate.bluebook`). **Stalls:**
+each beat runs `StallWatch.detect!` (`stall_watch/stall_watch.bluebook`), whose `StallKind` rows name an
+opening event, its closing events, the minutes allowed and the fixer; each stall found is filed once
+as the Work item `stall-<kind>-<subject>`, which the fill starts after red; a landed
 branch finishes the Work item of the same name (or the same name without a leading `qa/`). The Tickets
 world's `work_limit`, `frozen_shapes` and `session_environment` bound and equip those sessions. The
 CI checks `command_names` and `workflow_pagination` keep the names in docs, workflows and guides

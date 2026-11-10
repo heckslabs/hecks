@@ -54,20 +54,30 @@ RSpec.describe Hecks::Adapters::PipelineBoard::AgentRoles do
     let(:runs) do
       { "s1" => { run: "w1", agent: "architect", status: "finished" }, "s2" => { run: "w2", agent: "coder", status: "started" } }
     end
+    let(:transcripts) { instance_double(Hecks::Adapters::ClaudeClosingMessage, of: "") }
 
-    it "lists one review per architect run, with the verdict and findings its session wrote", :aggregate_failures do
-      reviews = described_class.reviews(runs, jobs)
+    def long_review = "The ports are wrong.\n#{"x" * 5000}\nVerdict: rethink"
+
+    it "keeps a long review's first line and its last line, read whole from the transcript", :aggregate_failures do
+      allow(transcripts).to receive(:of).and_return(long_review)
+      review = described_class.reviews(runs, jobs, transcripts).first
+      expect(review).to include(verdict: "rethink", findings: start_with("The ports are wrong."))
+      expect(review[:findings]).to end_with("\nVerdict: rethink")
+    end
+
+    it "lists one review per architect run, from the job's tail when the transcript holds none", :aggregate_failures do
+      reviews = described_class.reviews(runs, jobs, transcripts)
       expect(reviews.map { |review| review[:work] }).to eq(["w1"])
       expect(reviews.first).to include(verdict: "changes", findings: include("Five findings"))
     end
 
     it "names the Work item a review's run serves, with the review's own run key", :aggregate_failures do
       keyed = { "s3" => { run: "r-7", work_item: "w3", agent: "architect", status: "finished" } }
-      expect(described_class.reviews(keyed, jobs).first).to include(work: "w3", run: "r-7")
+      expect(described_class.reviews(keyed, jobs, transcripts).first).to include(work: "w3", run: "r-7")
     end
 
     it "passes the unknown reason through when the runs could not be read" do
-      expect(described_class.reviews({ unknown: "no launcher" }, jobs)).to eq(unknown: "no launcher")
+      expect(described_class.reviews({ unknown: "no launcher" }, jobs, transcripts)).to eq(unknown: "no launcher")
     end
   end
 

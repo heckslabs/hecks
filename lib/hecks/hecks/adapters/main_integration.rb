@@ -11,11 +11,13 @@ module Hecks
     # or watched one has its CI run read. A run whose first verification failed (retrying, as the
     # saga's rule set it) is verified again, marked as the retry. A run in any other stage (being
     # verified or boarded, green, red, superseded or waiting for a person) is left alone, so a
-    # second advance in the same stage dispatches nothing.
+    # second advance in the same stage dispatches nothing. A verification that leaves its run
+    # verified is followed by its boarding in the same advance, so a verified landing never waits a
+    # listener period for the train.
     #
     # Each step is a dispatch of its own through the boot whose advance asked, not a dispatch from
-    # inside the saga, so it starts its own reaction chain. A boarding needs the advance's
-    # `confirm`, and waits while another run is being pushed or watched.
+    # inside the saga. A boarding needs `confirm` and waits while another run is pushed or watched.
+    # A line ends `boarded <answer>`, `waiting: <reason>` or `needs_human: <refusal>`.
     class MainIntegration
       # The command each stage's next step dispatches.
       NEXT = { "landed" => "Verify", "retrying" => "Verify", "verified" => "Board", "pushed" => "Observe",
@@ -45,17 +47,24 @@ module Hecks
 
       def runs = Runs.new(@registry)
 
+      # A run its verification left verified takes its boarding step in the same advance.
       def advance(run, confirm)
+        line = take(run, confirm)
+        after = runs.find(run.landed) if NEXT[run.state] == "Verify"
+        after&.state == "verified" ? "#{line}; #{take(after, confirm)}" : line
+      end
+
+      def take(run, confirm)
         held_back = boarding_held_back(run, confirm) if NEXT[run.state] == "Board"
-        return "#{run.short} #{run.state}: #{held_back}" if held_back
+        return "#{run.short} #{run.state}: waiting: #{held_back}" if held_back
 
         dispatch(run, NEXT[run.state], confirm)
       end
 
       def boarding_held_back(run, confirm)
         other = runs.in_flight(except: run.landed).first
-        return "waits for #{other.short}, which is #{other.state}" if other
-        return "would board; advance with --confirm to push main" unless confirm
+        return "#{other.short} is #{other.state}" if other
+        return "advance with --confirm to push main" unless confirm
 
         nil
       end
@@ -75,7 +84,8 @@ module Hecks
       def answered(run, command, key, defect)
         return Fault.new(@registry).record(run, command, key, Fault.text_of(defect)) if defect
 
-        "#{run.short} #{run.state} -> #{command}: now #{runs.find(run.landed)&.state}"
+        stage = runs.find(run.landed)&.state
+        "#{run.short} #{run.state} -> #{command}: now #{stage}#{Outcome.new(@registry).of(command, stage, key)}"
       end
 
       def arguments(run, command, confirm)
@@ -93,3 +103,4 @@ end
 
 require_relative "main_integration/runs"
 require_relative "main_integration/fault"
+require_relative "main_integration/outcome"

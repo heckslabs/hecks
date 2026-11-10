@@ -29,11 +29,12 @@ module Hecks
           item.key.start_with?(RED) || (item.key == "push-due" && item.title.start_with?(PushSize::URGENT))
         end
 
-        # @return [Array<Plan::Item>] the planned work items: a red one first, then by priority
-        #   (`now`, `next`, `later`, none), then in plan order (lowest step first, no step last,
-        #   ties by key)
+        # @return [Array<Plan::Item>] the planned work items: a red one first, then a filed stall,
+        #   then by priority (`now`, `next`, `later`, none), then in plan order (lowest step first,
+        #   no step last, ties by key)
         def planned
-          having("planned").sort_by.with_index { |entry, index| order(entry, index) }.map(&:last)
+          stalls = stall_prefixes
+          having("planned").sort_by.with_index { |entry, index| order(entry, index, stalls) }.map(&:last)
         end
 
         # @return [Array<Plan::Item>] the started work items
@@ -74,9 +75,23 @@ module Hecks
 
         private
 
-        def order(entry, index)
+        def order(entry, index, stalls)
           step, rank, item = entry
-          [red?(item) ? 0 : 1, rank, step, item.key, index]
+          [urgency(item, stalls), rank, step, item.key, index]
+        end
+
+        # Red first, then a stall the StallWatch filed, then the rest.
+        def urgency(item, stalls)
+          return 0 if red?(item)
+
+          stalls.any? { |prefix| item.key.start_with?(prefix) } ? 1 : 2
+        end
+
+        # The key prefix of each kind of stall the StallWatch bluebook's `StallKind` rows declare,
+        # `stall-<kind>-`, so a planned work item merely named `stall-...` ranks as any other.
+        def stall_prefixes
+          rows = find("Hecks", "StallWatch")&.value_objects&.find { |object| object.hecks_name == "StallKind" }
+          Array(rows&.members).map { |row| "stall-#{row[:kind]}-" }
         end
 
         def rank(record) = TIERS.index(field(record, :priority).to_s) || TIERS.size

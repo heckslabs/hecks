@@ -890,6 +890,13 @@ Hecks.bluebook "Tickets" do
     trigger Work::Finish, with: { work: :spec }
   end
 
+  # A filed stall is one work item for its fixer, keyed as the stall is (`stall-<kind>-<subject>`), so a
+  # stall filed again after a restart plans nothing twice: the key is already taken.
+  policy "PlanWorkWhenStallFiled" do
+    on      "Stall.StallFiled"
+    trigger Work::Plan, with: { work: :stall, title: :title, detail: :detail }
+  end
+
   # QA's push check: a push that is due beyond the world's thresholds is one work item, `push-due`. A look
   # that finds it already open revises its detail; a look that finds it no longer due finishes it.
   policy "PlanWorkWhenPushDue" do

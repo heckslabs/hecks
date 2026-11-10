@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "boarding"
+
 module Hecks
   module Adapters
     module GitMainPull
@@ -7,12 +9,12 @@ module Hecks
       # as one commit titled "Train: main at <sha>", so the commits of local `main` up to that sha
       # are already on `origin/main` and only the ones after it still need to move.
       #
-      # The title names the boarded commit, and the claim is checked on the trees: the boarded
-      # commit must be reachable from the ref asked about and hold exactly the squash commit's tree.
+      # `Boarding` checks the claim on the trees; here the boarded commit must also be reachable
+      # from the ref asked about.
       #
       # An includer is `GitMainPull`, which has the `GitWorktrees` helpers and sets `@git`.
       module Carried
-        BOARDING = /\ATrain: main at ([0-9a-f]{7,40})/
+        include Boarding
 
         private
 
@@ -20,24 +22,14 @@ module Hecks
         # @param within [String] the ref the boarded commit must be reachable from
         # @return [String, nil] the full sha of the boarded commit the squash carried, if any
         def carried_boarding(range = "main..#{REMOTE_MAIN}", within = "main")
-          read("log", "--format=%H %s", range).lines.each do |line|
-            squash, subject = line.chomp.split(" ", 2)
-            sha = boarded_commit(subject[BOARDING, 1], squash, within)
-            return sha if sha
-          end
-          nil
+          boardings(range).find { |sha| reachable?(sha, within) }
         end
 
-        def boarded_commit(abbrev, squash, within)
-          return unless abbrev
-
-          sha = read("rev-parse", "--verify", "--quiet", "#{abbrev}^{commit}")
-          sha if !sha.empty? && ancestor?(sha, within) && same_tree?(sha, squash)
+        def reachable?(sha, within)
+          ancestor?(sha, within)
         rescue ConsoleCapture::Failure
-          nil
+          false
         end
-
-        def same_tree?(sha, squash) = @git.capture("diff", "--quiet", sha, squash, chdir: @checkout).ok?
 
         # The arguments of the rebase onto `origin/main`: after a carried train, only what follows
         # the boarded commit.
