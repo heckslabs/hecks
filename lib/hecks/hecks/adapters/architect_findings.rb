@@ -22,8 +22,8 @@ module Hecks
       end
 
       # @param text [String] the architect's closing message
-      # @return [String] the text whole when it is at most HEAD + TAIL characters, else its first
-      #   HEAD and last TAIL characters with a marker between them naming how many were left out
+      # @return [String] the text whole when it is at most `HEAD + TAIL` characters, else its first
+      #   `HEAD` and last `TAIL` characters with a marker between them naming how many were left out
       def self.clip(text)
         return text if text.length <= HEAD + TAIL
 
