@@ -33,6 +33,14 @@ RSpec.describe "StallWatch" do
     expect(registry.event_log.map(&:name).count("StallFiled")).to eq(1)
   end
 
+  it "files a blocked run nobody answered in 15 minutes, naming the run", :aggregate_failures do
+    write_blocked_tap
+    detect("look-1")
+
+    expect(keys("Hecks", "Stall", :stall)).to eq(%w[stall-agent-run-blocked-stuck])
+    expect(keys("Tickets", "Work", :work)).to eq(%w[stall-agent-run-blocked-stuck])
+  end
+
   it "looks for stalls on every beat of the clock" do
     File.write(tap, "")
     with_tap { dispatch("Hecks::Heartbeat.Beat", beat: { value: "beat-1" }) }
