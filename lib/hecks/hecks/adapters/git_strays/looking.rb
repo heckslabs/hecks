@@ -38,10 +38,13 @@ module Hecks
         end
 
         # How many commits a head holds that main lacks, and how many of those no remote has either.
+        # A head whose commits cannot be counted raises: it is never reported as holding none.
+        #
+        # @raise [ConsoleCapture::Failure] naming the head when its commits cannot be counted
         def unreachable(head)
           [count("main..#{head}"), read("rev-list", "--count", head, "--not", "main", "--remotes").to_i]
-        rescue ConsoleCapture::Failure
-          [0, 0]
+        rescue ConsoleCapture::Failure => e
+          raise ConsoleCapture::Failure, "the commits of #{head} could not be counted: #{e.message}"
         end
       end
     end

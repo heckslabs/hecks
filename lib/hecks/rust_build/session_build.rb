@@ -3,6 +3,7 @@
 require "digest"
 require "fileutils"
 require_relative "build_policy"
+require_relative "world_rows"
 
 module Hecks
   module RustBuild
@@ -12,14 +13,15 @@ module Hecks
     # A dispatched session gets both from the dispatcher (`Dispatching::Settings`). A build the
     # owner, a gate, the spec runner or the landing path starts reads the same line here, so every
     # `cargo` on the machine writes to one target directory and yields to the owner's work. The
-    # line is read once per worktree from the committed world file, and a world that cannot be
-    # read answers nothing: a build never fails for want of a setting.
+    # line is read once per worktree from the committed world file ({WorldRows}). A world that
+    # cannot be read answers nothing, so a build never fails for want of a setting, but the failure
+    # is warned, named by {.unreadable_world} and read again next time, never kept as the answer.
     module SessionBuild
       # The world verb that carries the setting.
       VERB = "session_environment"
 
       # The world file that declares it, under a hecks checkout.
-      WORLD = "lib/hecks/hecks/tickets.world"
+      WORLD = WorldRows::WORLD
 
       module_function
 
@@ -188,33 +190,18 @@ module Hecks
 
       # @param root [String] a hecks checkout
       # @param verb [String] a world verb of the Tickets world
-      # @return [Hash] that verb's row, read once per checkout and verb; empty for a checkout with
-      #   no Tickets world or no such line
-      def world_row(root, verb)
-        @rows ||= {}
-        @rows.fetch([root, verb]) { @rows[[root, verb]] = load_row(root, verb) }
-      end
+      # @return [Hash] that verb's row, read once per checkout and verb ({WorldRows.row}); empty for
+      #   a checkout with no Tickets world, no such line, or a world that could not be read
+      def world_row(root, verb) = WorldRows.row(root, verb)
+
+      # @param root [String] a hecks checkout
+      # @return [String, nil] why the checkout's world could not be read, nil when it was read
+      def unreadable_world(root) = WorldRows.unreadable(root)
 
       # Forgets what was read, so the next call reads the world again.
       #
       # @return [void]
-      def reset! = @rows = {}
-
-      # @return [Hash] the row, read by loading the world file against a collector that keeps the
-      #   world it declares
-      def load_row(root, verb)
-        file = File.join(root, WORLD)
-        return {} unless File.file?(file) && defined?(Hecks.with_registry)
-
-        worlds = []
-        collector = Object.new
-        collector.define_singleton_method(:add_world) { |world| worlds << world }
-        Hecks.with_registry(collector) { Kernel.load(file) }
-        worlds.first&.for_verb(verb) || {}
-      rescue StandardError, ScriptError
-        {}
-      end
-      private_class_method :load_row
+      def reset! = WorldRows.reset!
     end
   end
 end

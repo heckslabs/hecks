@@ -57,7 +57,8 @@ module Hecks
 
           # What the resident does between lines: reaps finished lines, loads what children named
           # as missing (while no child is being forked), watches the code and the declarations, and
-          # retires when they change or the checkout is gone.
+          # retires when they change or the checkout is gone. An upkeep that raises retires the
+          # resident ({#upkeep_died}), since one nobody watches would serve code that has changed.
           def upkeep
             until @retired
               sleep(UPKEEP_SECONDS)
@@ -66,8 +67,15 @@ module Hecks
               @changed ||= @fingerprint.changed?
               @changed ? retire : retire_when_orphaned
             end
-          rescue StandardError
-            nil
+          rescue StandardError => e
+            upkeep_died(e)
+          end
+
+          # Notes the error that ended the upkeep beside the socket, then retires.
+          def upkeep_died(error)
+            where = error.backtrace&.first
+            File.write(Paths.upkeep_died(@root), "#{Time.now.utc} #{error.class}: #{error.message}\n#{where}\n")
+            retire unless @retired
           end
 
           # Whether the code or the declarations have changed. The upkeep thread watches them, so

@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require_relative "../../text"
 require_relative "git_strays/looking"
 require_relative "git_strays/shelf"
 
@@ -59,11 +60,17 @@ module Hecks
       def tree_detail(tree)
         state = tree.branch ? "branch #{tree.branch}" : "detached #{short(tree.head)}"
         saved = dirty(tree.path).empty? ? "clean" : "dirty"
+        ["worktree", "#{state}; #{saved}; #{commits_verdict(tree, saved)}"]
+      end
+
+      # What a tree's commits say about moving it. A head whose commits cannot be counted is kept,
+      # and the line says why, since an uncounted head may hold work nothing else has.
+      def commits_verdict(tree, saved)
         off_main, off_remote = unreachable(tree.head)
-        safe = saved == "clean" && off_remote.zero?
-        verdict = safe ? "safe to move: Landing.set_aside!" : "keep: unsaved or unpushed work"
-        counts = "#{off_main} commit(s) not on main, #{off_remote} on no main or remote ref"
-        ["worktree", "#{state}; #{saved}; #{counts}; #{verdict}"]
+        verdict = saved == "clean" && off_remote.zero? ? "safe to move: Landing.set_aside!" : "keep: unsaved or unpushed work"
+        "#{off_main} commit(s) not on main, #{off_remote} on no main or remote ref; #{verdict}"
+      rescue ConsoleCapture::Failure => e
+        "commits unreadable (#{Hecks::Text.first_line(e.message)}); keep: its commits could not be counted"
       end
 
       # A file main deleted is stale and recoverable; anything else is unknown.
