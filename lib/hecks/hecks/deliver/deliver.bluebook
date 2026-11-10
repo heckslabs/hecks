@@ -1954,6 +1954,26 @@ Hecks.bluebook "Hecks" do
       trigger Integration::Close, with: { landed: :landed, report: :report }
     end
 
+    # CI's verdict on a pushed commit, green or red, means origin/main holds it: GitHub merged the
+    # train's pull request, as a squash that local main does not share. The checkout that boarded
+    # brings its main level (LinkedTree.PullMain), keeping its unpushed commits, once per landed
+    # commit, since the run leaves ci_running on that verdict. A refusal (a dirty or mid-rebase
+    # checkout, a conflict) is recorded as PullDeclinedRecorded and nothing retries it. The pull
+    # is a root reaction: it starts at depth zero, past the bound the Observe chain has reached.
+    policy "PullMainWhenCiPasses" do
+      on      "Integration.ObserveAnswered"
+      root
+      where   { outcome.value == "passed" }
+      trigger LinkedTree::PullMain, with: { run: :landed, checkout: :checkout }
+    end
+
+    policy "PullMainWhenCiFails" do
+      on      "Integration.ObserveAnswered"
+      root
+      where   { outcome.value == "failed" }
+      trigger LinkedTree::PullMain, with: { run: :landed, checkout: :checkout }
+    end
+
     aggregate "ReviewRequest" do
       description "One pull request opened or squash-merged on GitHub, and what GitHub answered."
 
