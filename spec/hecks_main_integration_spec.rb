@@ -203,9 +203,60 @@ RSpec.describe "integrating main through the MainIntegration saga" do
   it "parks a run whose verification fails in needs_human, naming the failing check", :aggregate_failures do
     stub_outside(gate: [false, "[gate quick] red: rubocop"])
     landed = land
-    advance
+    advance(2)
     expect(stage(landed)).to eq("needs_human")
     expect(refusal("MainVerificationFailed")).to include("quick gate", "rubocop")
+  end
+
+  # A quick gate that is red for its first `times` runs and green after, counting every run.
+  def red_gate(times)
+    @gate_runs = 0
+    Hecks::Adapters::MainVerification.runner = lambda do |argv, chdir:|
+      next [true, "ok in #{chdir}"] unless argv.include?("gate_run.gate!")
+
+      @gate_runs += 1
+      @gate_runs <= times ? [false, "[gate quick] red: rubocop, try #{@gate_runs}"] : [true, "green"]
+    end
+  end
+
+  # The names of the events that carry `landed`: the log is shared by every example of the file.
+  def event_names(landed)
+    @hecks.registry.event_log.select { |event| Hecks::Runtime::Value.materialize(event.payload).dig(:landed, :value) == landed }
+          .map(&:name)
+  end
+
+  # Lands a run behind a gate red for its first `red` runs, advances it `times` and answers it.
+  def land_behind_red_gate(red, times)
+    red_gate(red)
+    landed = land
+    advance(times)
+    landed
+  end
+
+  it "holds a run whose first verification fails for one more, parking nothing", :aggregate_failures do
+    landed = land_behind_red_gate(1, 1)
+    expect(stage(landed)).to eq("retrying")
+    expect(event_names(landed)).to include("MainVerificationFailedOnce")
+    expect(event_names(landed)).not_to include("MainVerificationFailed")
+  end
+
+  it "verifies a run on the next advance when its retry passes", :aggregate_failures do
+    landed = land_behind_red_gate(1, 2)
+    expect(stages_walked(landed)).to eq(%w[verifying retrying reverifying verified])
+    expect(@gate_runs).to eq(2)
+  end
+
+  it "parks a run whose retry fails too, keeping both refusals", :aggregate_failures do
+    landed = land_behind_red_gate(2, 2)
+    expect(stage(landed)).to eq("needs_human")
+    expect(refusal("MainVerificationFailedOnce")).to include("quick gate", "try 1")
+    expect(refusal("MainVerificationFailed")).to include("quick gate", "try 2")
+  end
+
+  it "never retries a run's verification twice", :aggregate_failures do
+    landed = land_behind_red_gate(5, 4)
+    expect(@gate_runs).to eq(2)
+    expect(stages_walked(landed)).to eq(%w[verifying retrying reverifying needs_human])
   end
 
   it "ends a run whose CI fails in red, naming the failed jobs", :aggregate_failures do
