@@ -21,12 +21,15 @@ module Hecks
         # @return [Array<String>] one line for each work item settled, empty when none was
         def call
           @launcher.check_all unless checkable.empty?
-          ended.map { |key, run| settle(key, run[:condition]) }
+          ended.filter_map { |key, run| settle(key, run[:condition]) }
         end
 
         private
 
+        # A run an answer resumed since the listing is working again: its Work item stays started.
+        # The re-read narrows the window; the guard that closes it belongs on `Work.yield!`.
         def settle(key, condition)
+          return unless @work_items.runs.dig(key, :status) == "finished"
           return @launcher.finish(key) if condition == "done"
 
           @launcher.yield_back(item_of(key), "its session ended #{condition}")
