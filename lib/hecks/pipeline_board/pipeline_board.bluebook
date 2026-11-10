@@ -156,6 +156,12 @@ Hecks.bluebook "PipelineBoard" do
       member stage: "Open PRs", position: 1, measure: "oldest_hours", op: ">=",     than: "open_pr_stale_hours", scale: 1, state: "attention"
       member stage: "Open PRs", position: 2, measure: "",             op: "always", than: "",                    scale: 1, state: "ok"
 
+      # The daily health line's tile counts what only the events show (the `counted` checks):
+      # anything found needs attention.
+      member stage: "Pipeline health", position: 1, measure: "found", op: "missing", than: "",  scale: 1, state: "unknown"
+      member stage: "Pipeline health", position: 2, measure: "found", op: ">",       than: "0", scale: 1, state: "attention"
+      member stage: "Pipeline health", position: 3, measure: "",      op: "always",  than: "",  scale: 1, state: "ok"
+
       # ---- a session's status, from what its job and `claude agents` say ----
       # `waiting` is 1 when the job says blocked and is listed or recently written; `needs` is 1
       # when the job set `needs`, which is how it says it waits on a person. A session paused on a
@@ -193,6 +199,58 @@ Hecks.bluebook "PipelineBoard" do
       # stable lane's `alert_after` (4) on purpose, unlinked: by then a stop has outlived any CI
       # run, queue and verification (about 25 minutes) many times over, and a person's session.
       member name: "stopped_run_overdue_hours", value: 4
+      # The bounds of the daily health line. Its day is the last `health_window_hours`. A
+      # verification takes about 16 minutes when nothing hangs (the Tickets world's `spec_bounds`),
+      # so one past 25 has waited on something. A session left blocked or stopped for an hour waits
+      # on nobody who is watching. A finding open two days is not being worked.
+      member name: "health_window_hours",     value: 24
+      member name: "verify_bound_minutes",    value: 25
+      member name: "session_bound_minutes",   value: 60
+      member name: "finding_bound_hours",     value: 48
+    end
+
+    # One check of the daily health line: what the pipeline reports of its own day, which a person
+    # would otherwise find by watching. A check opens at each of its `opens` events in the day and
+    # is answered by one of its `closes` events (several are separated by a space) of the same key,
+    # as `joins` says: `id` is the event's id, and `<link> <link>` is the opener's first link and
+    # the closer's second, compared by their first seven characters (a link of fewer than seven hex
+    # characters names no commit and is reported as unreadable). The `test` says what is found:
+    # - `unanswered`: no closer at or before the opener.
+    # - `over`: the first closer after the opener came later than the `bound` setting, in minutes,
+    #   or none has come and the bound has passed.
+    # - `stuck`: the newest closer at or before the opener left stuck rows: the parts of its brief
+    #   the run named as not delivered.
+    # - `aged`: the key is open in the ledger and its opener is older than the `bound`, in hours,
+    #   or the event log does not reach back to it.
+    # - `left`: a session whose Jobs reading matches one of the `opens` words (`status:blocked`
+    #   is the session's status, `state:stopped` its job's state), for longer than the `bound`,
+    #   in minutes.
+    # `counted` is `yes` for a check only the events show, which the board's tile counts; the
+    # sessions and the findings already have their own stage and row.
+    value_object "HealthCheck" do
+      attribute :kind,    String
+      attribute :opens,   String
+      attribute :closes,  String
+      attribute :joins,   String
+      attribute :test,    String
+      attribute :bound,   String
+      attribute :counted, String
+      attribute :says,    String
+
+      member kind: "boarded_by_hand",    opens: "Hecks::SendTrain.BoardingQueued", closes: "Hecks::Integration.MainBoardingStarted",
+             joins: "boarded landed", test: "unanswered", bound: "", counted: "yes", says: "boarded by hand"
+      member kind: "boarded_unverified", opens: "Hecks::SendTrain.BoardingQueued", closes: "Hecks::Integration.MainVerified",
+             joins: "boarded landed", test: "unanswered", bound: "", counted: "yes", says: "boarded unverified"
+      member kind: "slow_verification",  opens: "Hecks::Integration.MainVerificationStarted",
+             closes: "Hecks::Integration.MainVerified Hecks::Integration.MainVerificationFailed Hecks::Integration.MainVerificationFailedOnce Hecks::Integration.IntegrationSuperseded",
+             joins: "id", test: "over", bound: "verify_bound_minutes", counted: "yes", says: "slow verifications"
+      member kind: "half_delivered",     opens: "Tickets::Work.WorkFinished", closes: "Agents::Turn.TurnFinished",
+             joins: "id", test: "stuck", bound: "", counted: "yes", says: "finished half-delivered"
+      member kind: "left_session",       opens: "status:blocked state:stopped", closes: "", joins: "", test: "left", bound: "session_bound_minutes",
+             counted: "no", says: "sessions left blocked or stopped"
+      member kind: "stale_finding",
+             opens: "Tickets::Finding.FindingReported Tickets::Finding.RunFindingReported Tickets::Finding.StoppedRunReported",
+             closes: "", joins: "id", test: "aged", bound: "finding_bound_hours", counted: "no", says: "stale findings"
     end
 
     # One stage of a Work item's cycle, in `position` order. The first stage starts at its `opens`
@@ -368,6 +426,11 @@ Hecks.bluebook "PipelineBoard" do
     query "Cycles" do
       description "One cycle per recent Work item, newest first: each stage's start, end and seconds, the stage still open for an item in flight, and per stage the median and the cycle_percentile over the last cycle_items items."
       attribute :limit, Limit, optional: true
+      returns Document
+    end
+
+    query "DailyHealth" do
+      description "What the pipeline found of its own day by the HealthCheck rows: boardings made by hand or of an unverified commit, verifications over their bound, Work items finished with parts not delivered, sessions left blocked or stopped and findings left open, each with its age, and one line that says it all. It reads only and alerts no one."
       returns Document
     end
 

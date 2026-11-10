@@ -23,6 +23,7 @@ require_relative "pipeline_stages/fanout"
 require_relative "pipeline_stages/train_detail"
 require_relative "pipeline_stages/commit_link"
 require_relative "pipeline_stages/panel"
+require_relative "pipeline_stages/daily_health"
 
 module Hecks
   module Adapters
@@ -52,8 +53,9 @@ module Hecks
       def state
         data = sections
         now = @now.call
-        { generated_at: now.iso8601, stages: PipelineBoard::Strip.build(data, now),
-          metrics: PipelineBoard::Metrics.tiles(data.merge(@limits), now),
+        health = PipelineBoard::DailyHealth.build(data, now)
+        { generated_at: now.iso8601, stages: PipelineBoard::Strip.build(data, now), daily_health: health,
+          metrics: metrics(data, now, health),
           ci_runs: data[:ci_runs], slowest_jobs: data[:slowest_jobs],
           open_work: data[:open_work], sessions: data[:sessions], events: data[:events],
           fanout: fanout(data), live_store_problem: @live&.problem }.merge(panels(data))
@@ -64,6 +66,15 @@ module Hecks
       #   and percentile, as JSON
       def cycles(limit: nil)
         { text: JSON.generate(cycle_reading(guard { @journal.cycle_events }, held(limit))) }
+      end
+
+      # The pipeline's own day, read from the event log, the sessions and the open findings only.
+      #
+      # @return [Hash{Symbol => String}] `text:` each check's findings and the line, as JSON
+      def daily_health
+        data = { health_events: guard { @journal.health_events }, sessions: queried { @jobs.sessions },
+                 open_findings: guard { @tickets.open_findings } }
+        { text: JSON.generate(PipelineBoard::DailyHealth.build(data, @now.call)) }
       end
 
       # The state the page shows, drawn as a text panel for a terminal. It reads what `/api/state`
@@ -101,6 +112,11 @@ module Hecks
       end
 
       private
+
+      # The metric tiles, the daily health line's last.
+      def metrics(data, now, health)
+        PipelineBoard::Metrics.tiles(data.merge(@limits), now) + [PipelineBoard::DailyHealth.tile(health)]
+      end
 
       # The panels beside the strip: the pinned agents and the Work items' cycles.
       def panels(data) = agents(data).merge(cycles: cycle_reading(data[:cycle_events]))

@@ -7,15 +7,15 @@ module Hecks
   module Adapters
     module PipelineBoard
       # The board's rules, read from the PipelineBoard bluebook's rows (`Verdict`, `Setting`,
-      # `Finding`, `StaleStatus`, `ActionRule`, `CycleStage`). The adapters hold no rule of their
-      # own: they hand this module what they read and it answers from the rows, so a change to a
-      # rule is a change to `pipeline_board.bluebook`.
+      # `Finding`, `StaleStatus`, `ActionRule`, `CycleStage`, `HealthCheck`). The adapters hold no
+      # rule of their own: they hand this module what they read and it answers from the rows, so a
+      # change to a rule is a change to `pipeline_board.bluebook`.
       #
       # Inside a booted domain the rows come from the registry's own PipelineBoard bluebook ({use}).
       # Standing alone, the bluebook beside these adapters is described once and kept.
       module Rules
         BLUEBOOK_DIR = File.expand_path("..", __dir__)
-        TABLES = %w[Verdict Setting Finding StaleStatus ActionRule CycleStage].freeze
+        TABLES = %w[Verdict Setting Finding StaleStatus ActionRule CycleStage HealthCheck].freeze
 
         module_function
 

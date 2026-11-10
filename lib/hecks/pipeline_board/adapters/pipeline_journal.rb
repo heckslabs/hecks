@@ -7,6 +7,7 @@ require_relative "pipeline_journal/tap"
 require_relative "pipeline_journal/chain"
 require_relative "pipeline_turns"
 require_relative "pipeline_stages/cycles"
+require_relative "pipeline_stages/daily_health"
 
 module Hecks
   module Adapters
@@ -49,6 +50,14 @@ module Hecks
       # @return [Array<Hash>] the matching events as board rows, oldest first
       def cycle_events(names = PipelineBoard::Cycles.event_names)
         @cache.fetch([:cycle, names]) { @tap.named(names) }
+      end
+
+      # Every logged event a `HealthCheck` row opens or closes on, from the whole event log.
+      #
+      # @param names [Array<String>] bare event names (the `HealthCheck` rows' when none are named)
+      # @return [Array<Hash>] the matching events as board rows, oldest first
+      def health_events(names = PipelineBoard::DailyHealth.event_names)
+        @cache.fetch([:health, names]) { @tap.named(names) }
       end
 
       # The first time each landed sha was recorded, from the tapped `BranchLanded` rows.
