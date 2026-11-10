@@ -19,6 +19,7 @@ module Hecks
           train: %i[git train plain], stable: %i[git stable plain],
           open_work: [:tickets, :open_work, :query], counts: %i[tickets counts plain],
           landed: %i[tickets landed_branches plain], stopped_runs: %i[tickets stopped_runs plain],
+          stopped_times: %i[journal stopped_times plain],
           sessions: [:jobs, :sessions, :query],
           red_flag: %i[git red_flag plain], fill: %i[fill preview plain], events: [:journal, :recent, :plain, 40],
           finished: [:journal, :named, :plain, "WorkFinished", 200],

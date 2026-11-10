@@ -20,6 +20,9 @@ module Hecks
 
       PROMOTION_EVENTS = %w[PromotionRecommended PromotionSettled].freeze
 
+      # The event a stopped run's finding is filed with.
+      STOPPED = "StoppedRunReported"
+
       DEFAULT_DOMAIN = "lib/hecks/hecks"
 
       # Where the opt-in event log is written when a world turns it on.
@@ -58,6 +61,15 @@ module Hecks
         end
       rescue PipelineBoard::Unavailable
         {}
+      end
+
+      # The first time each stopped run's finding was reported, from the logged and stored
+      # `StoppedRunReported` events; an event's id is the finding's key.
+      #
+      # @return [Hash{String => String}] the finding's key to the time it was reported
+      def stopped_times
+        found = @tap.named([STOPPED]) + stored_named(STOPPED)
+        found.sort_by { |row| row[:at].to_s }.each_with_object({}) { |row, times| times[row[:id].to_s] ||= row[:at] }
       end
 
       def events(limit: nil)

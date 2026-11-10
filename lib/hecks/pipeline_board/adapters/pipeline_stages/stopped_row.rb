@@ -7,8 +7,9 @@ module Hecks
     module PipelineBoard
       # The strip's row for the open findings stopped integration runs and shipments filed: how
       # many are open, and for each its run, the stage it stopped at and the first line of the
-      # reason. A log of stops, not a count of runs stopped now. Nothing while none is open or the
-      # read failed, as the red flag row.
+      # reason, for the stops still under `stopped_run_overdue_hours` ({OverdueRow} has the rest).
+      # A log of stops, not a count of runs stopped now. Nothing while none is open or the read
+      # failed, as the red flag row.
       module StoppedRow
         NAME = "Stopped runs"
 
