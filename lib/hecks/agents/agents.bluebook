@@ -779,7 +779,9 @@ Hecks.bluebook "Agents" do
   # The policies state: any run but the pruner's own ending (a job read that shows done or stopped)
   # wakes it, so its finish never loops. The delegate bluebook starts a woken pruner as a run of the
   # `pruner` agent, since a policy here cannot reach AgentRun; the reaction mints the run key. A
-  # role's `starts` field would replace the literals in the first policy.
+  # role's `starts` field would replace the literals in the first policy. The brief sends the pruner
+  # through `SessionCleanup.RemoveSafe` (delegate bluebook), which removes only the sessions of
+  # dispatched runs that finished done, so the safety rule holds whatever the session reads.
   aggregate "Pruning" do
     description "The pruner role's standing: resting, or working on one dispatched run, so a second pruner is never started while one works."
 
@@ -857,8 +859,10 @@ Hecks.bluebook "Agents" do
       where   { (state == "done" || state == "stopped") && previous != state && agent != "pruner" }
       trigger Pruning::Wake,
               with: { pruning: "pruner", repo: ".",
-                      brief: "List the sessions and remove the finished ones that are safe to remove. " \
-                             "Leave any that is working or blocked, and report what was refused." }
+                      brief: "Read exe/hecks SessionCleanup.removable, then remove only through " \
+                             "exe/hecks SessionCleanup.remove_safe! run.value=<a name> --confirm --wait, which removes " \
+                             "only the sessions of dispatched runs that finished done. Never run claude rm or " \
+                             "claude stop yourself. Report what it removed and each session it kept, with the reason." }
     end
 
     policy "WakeTheSummonedPruner" do

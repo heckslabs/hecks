@@ -1224,14 +1224,18 @@ Hecks.bluebook "Hecks" do
       end
     end
 
-    # Clearing away finished sessions in one cleanup. A session is safe to remove when it is not
-    # working or waiting on a person and its own worktree holds nothing `claude rm` would lose; the
-    # port looks (the session list, each worktree's files and commits) and removes with a plain
-    # `claude rm`, never `--discard-unpushed`. The `Removable` query is the same reading with no
-    # removal, so what a cleanup would do is seen first. Removing one session on its own stays with
-    # `AgentRun.Tidy` and `PlainSession.Remove`.
+    # Clearing away finished sessions in one cleanup. Only the session of a dispatched run is a
+    # candidate: the AgentRun ledger binds a run to it, that run is `finished` with condition
+    # `done`, the listing says `done` and no person spoke in it. A session with no run, a working
+    # or blocked one, one a person stopped and the pruner's own (its run is still started) are kept
+    # by name, whatever `claude agents` lists. A candidate is safe when its own worktree holds
+    # nothing `claude rm` would lose; the port looks (the session list, the ledger, each
+    # transcript, each worktree's files and commits) and removes with a plain `claude rm`, never
+    # `--discard-unpushed`. The `Removable` query is the same reading with no removal, so what a
+    # cleanup would do is seen first. Removing one session on its own stays with `AgentRun.Tidy`
+    # and `PlainSession.Remove`.
     aggregate "SessionCleanup" do
-      description "One cleanup of the Claude sessions, run sessions and plain ones: those safe to remove are removed, the others are kept with the reason."
+      description "One cleanup of the Claude sessions: only the session of a dispatched run that finished done, with no person in it and nothing unsaved in its worktree, is removed; every other session is kept with the reason."
 
       attribute :run,   CleanupName
       attribute :confirm, Confirmation, optional: true
@@ -1256,7 +1260,7 @@ Hecks.bluebook "Hecks" do
 
       command "RemoveSafe" do
         role "Operator"
-        goal "Remove every session that is safe to remove and report each one kept with the reason; refused without confirm"
+        goal "Remove the sessions of dispatched runs that finished done and are safe to remove, and report each one kept with the reason; refused without confirm"
 
         attribute :run,   CleanupName, sets: true
         attribute :confirm, Confirmation, optional: true, sets: true
@@ -1287,7 +1291,7 @@ Hecks.bluebook "Hecks" do
       end
 
       query "Removable" do
-        description "Every Claude session, run or plain, with whether it is safe to remove and, when not, why: it is working, waits on a person, or its own worktree has uncommitted files or commits origin lacks. Reads only."
+        description "Every Claude session with whether it is safe to remove and, when not, why: no dispatched run holds it, its run is not finished done, it is not listed done, a person spoke in it, or its own worktree has uncommitted files or commits origin lacks. Reads only."
         returns Document
       end
     end
