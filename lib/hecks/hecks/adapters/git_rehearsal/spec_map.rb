@@ -2,6 +2,7 @@
 
 require_relative "spec_map/corpus"
 require_relative "spec_map/needles"
+require_relative "spec_map/triggers"
 
 module Hecks
   module Adapters
@@ -14,7 +15,8 @@ module Hecks
       # behaviors file runs the specs that mention its path or domain name (and, for the language's
       # own bluebooks, the shape-ledger, conformance, corpus, golden and vocabulary specs). A
       # changed `rust/` file runs the Ruby specs that drive it, never cargo; a changed `docs/`
-      # file runs the docs specs.
+      # file runs the docs specs. A changed path the world's `triggered_specs` rule names runs that
+      # rule's specs first, ahead of the limit (`Triggers`).
       class SpecMap
         # What was mapped.
         #
@@ -45,6 +47,7 @@ module Hecks
         def initialize(root)
           @root = root
           @corpus = Corpus.new(root)
+          @triggers = Triggers.new(root)
         end
 
         # @param changed [Array<String>] changed paths relative to the root
@@ -60,13 +63,14 @@ module Hecks
 
         private
 
-        # The closest tier each spec is reached at: -1 a repository scan, 0 itself, 1 named for the
-        # file, 2 mentions it.
+        # The closest tier each spec is reached at: -1 a repository scan or a triggered spec, 0
+        # itself, 1 named for the file, 2 mentions it.
         def tiers(changed)
           found = changed.each_with_object({}) do |path, reached|
             reach(path).each { |spec, tier| reached[spec] = [reached[spec], tier].compact.min }
           end
-          changed.empty? ? found : found.merge(scans.to_h { |spec| [spec, SCAN_TIER] })
+          first = changed.empty? ? [] : scans | @triggers.specs(changed)
+          found.merge(first.to_h { |spec| [spec, SCAN_TIER] })
         end
 
         # The specs tagged `:repo_scan`: each reads the whole tree, so no changed file points at it

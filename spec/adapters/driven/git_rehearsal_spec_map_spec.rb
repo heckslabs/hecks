@@ -124,6 +124,34 @@ RSpec.describe Hecks::Adapters::GitRehearsal::SpecMap do
     expect(mapping.skipped).to eq("spec/requires_spec.rb" => "needs cargo")
   end
 
+  context "with the triggered behaviors spec, which no changed file names" do
+    let(:behaviors) { "spec/behaviors_examples_spec.rb" }
+
+    before { add(behaviors, "# runs every .behaviors file\n") }
+
+    it "runs it for a changed bluebook" do
+      expect(specs("lib/hecks/shop/shop.bluebook")).to include(behaviors)
+    end
+
+    it "runs it for a changed .behaviors file" do
+      expect(specs("examples/shop/shop.behaviors")).to include(behaviors)
+    end
+
+    it "does not run it for a change to a doc alone" do
+      expect(specs("docs/guide.md")).not_to include(behaviors)
+    end
+
+    it "keeps it when the limit leaves specs out" do
+      expect(specs("lib/hecks/widgets/gear_box.rb", "lib/hecks/shop/shop.bluebook", limit: 1)).to eq([behaviors])
+    end
+
+    it "takes the rule the Tickets world declares" do
+      add("lib/hecks/hecks/tickets.world", %(Hecks.world "Tickets" do\n  triggered_specs "Specs", ) +
+                                           %(paths: ["docs/**/*.md"], specs: ["spec/gear_box_spec.rb"]\nend\n))
+      expect(specs("docs/guide.md")).to include("spec/gear_box_spec.rb")
+    end
+  end
+
   context "with a spec tagged :repo_scan, which reads the whole tree" do
     let(:scan) { "spec/tree_scan_spec.rb" }
 

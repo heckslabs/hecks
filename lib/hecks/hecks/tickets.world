@@ -56,6 +56,17 @@ Hecks.world "Tickets" do
   # check of a verification (a batch of 25 files, the quick gate): a whole verification takes about
   # 16 minutes when nothing hangs, so 2400 holds any one check with room and ends a hang in 40.
   spec_bounds "Specs", file_seconds: 600, check_seconds: 2400
+  # `triggered_specs` is the rule that a change to `paths` (File.fnmatch patterns from the root)
+  # runs `specs` in every impacted-spec run: `run_impacted_specs!`, a deep rehearsal and a landed
+  # commit's verification. A `.behaviors` file expects an exact list of events, so a policy, event
+  # or command added to any bluebook can break one that no name or path points at, and
+  # spec/behaviors_examples_spec.rb runs every such file in about 25 s. A change outside the
+  # paths adds no time. The Ruby runtime's own files are left out on purpose: nearly every change
+  # touches one, and CI runs the behaviors on every push. A world that cannot be read takes the
+  # same rule (`GitRehearsal::SpecMap::Triggers::DEFAULTS`).
+  triggered_specs "Specs", paths: ["lib/hecks/**/*.bluebook", "lib/hecks/**/*.hecksagon", "**/*.behaviors",
+                                   "lib/hecks/hecks/tickets.world"],
+                           specs: ["spec/behaviors_examples_spec.rb"]
   # The decision records' files (Tickets::Adr), relative to the checkout; `None` leaves the Adr
   # store a plain Memory one, as the memory overlay does for specs. Binding Adr makes the wiring
   # explicit, so the other aggregates take this default where no attaching domain hands one down.
