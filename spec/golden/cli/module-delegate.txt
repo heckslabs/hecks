@@ -23,16 +23,16 @@ commands:
     remove!       Remove a finished session that waits on nobody
     retire!       Retire a session bound to no run, so the fleet does not settle and re-claim it
   SessionCleanup:
-    One cleanup of the Claude sessions, run sessions and plain ones: those safe to remove are removed, the others are kept with the reason.
-    remove_safe!  Remove every session that is safe to remove and report each one kept with the reason; refused without confirm
+    One cleanup of the Claude sessions: only the session of a dispatched run that finished done, with no person in it and nothing unsaved in its worktree, is removed; every other session is kept with the reason.
+    remove_safe!  Remove the sessions of dispatched runs that finished done and are safe to remove, and report each one kept with the reason; refused without confirm
 
 queries (nothing here changes anything):
   Dispatch:
     One filling of the Work queue: the planned Work items that start a session now, and why each other waits.
     preview    What a filling would start now and why each other waits, read without filling: the same report as `Fill`, with no record and no start.
   SessionCleanup:
-    One cleanup of the Claude sessions, run sessions and plain ones: those safe to remove are removed, the others are kept with the reason.
-    removable  Every Claude session, run or plain, with whether it is safe to remove and, when not, why: it is working, waits on a person, or its own worktree has uncommitted files or commits origin lacks.
+    One cleanup of the Claude sessions: only the session of a dispatched run that finished done, with no person in it and nothing unsaved in its worktree, is removed; every other session is kept with the reason.
+    removable  Every Claude session with whether it is safe to remove and, when not, why: no dispatched run holds it, its run is not finished done, it is not listed done, a person spoke in it, or its own worktree has uncommitted files or commits origin lacks.
 
 bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
   deploy           Generate, check and compare deploy recipes, project OIDC manifests and provision tenants.

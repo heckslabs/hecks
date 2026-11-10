@@ -3,6 +3,7 @@
 require_relative "panel/kit"
 require_relative "panel/overview"
 require_relative "panel/work"
+require_relative "panel/cycle_rows"
 
 module Hecks
   module Adapters
@@ -34,7 +35,8 @@ module Hecks
         def boxes(state, overview, work)
           [["Pipeline board #{state[:generated_at]}", overview.counts], ["Stages", overview.stages],
            ["Metrics", overview.tiles], ["Main CI", overview.runs], ["Sessions", work.sessions],
-           ["Open train PRs", work.pulls], ["Planned work", work.planned], ["Agents", work.agents]]
+           ["Open train PRs", work.pulls], ["Planned work", work.planned], ["Agents", work.agents],
+           ["Cycles", CycleRows.new(state[:cycles], work.limit).rows]]
         end
       end
     end

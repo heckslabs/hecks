@@ -19,7 +19,13 @@ RSpec.describe Hecks::Adapters::PipelineBoard::Panel do
 
   it "draws every box, top to bottom" do
     expect(titles).to eq(["Pipeline board 2026-11-07T12:00:00Z", "Stages", "Metrics", "Main CI", "Sessions", "Open train PRs",
-                          "Planned work", "Agents"])
+                          "Planned work", "Agents", "Cycles"])
+  end
+
+  it "draws each stage's median and percentile, then each item's time and open stage", :aggregate_failures do
+    expect(lines).to include(a_string_matching(/implementing\s+median 13m09s\s+p90 1h02m\s+over 2/))
+    expect(lines).to include(a_string_matching(/busy  20m00s  in planning/),
+                             a_string_matching(/ci-observe  22m25s  through implementing/))
   end
 
   it "draws each line exactly as wide as asked, at 80 and at 120 columns", :aggregate_failures do

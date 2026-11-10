@@ -5,24 +5,25 @@ require_relative "shell"
 require_relative "console_capture"
 require_relative "claude_transcript"
 require_relative "claude_cleaning/worktree_check"
+require_relative "claude_cleaning/candidate_rule"
 require_relative "dispatching/work_items"
 
 module Hecks
   module Adapters
-    # The `Cleaning` port's adapter for `SessionCleanup`: lists the Claude sessions, run sessions
-    # and plain ones, says which are safe to remove, and removes those with a plain `claude rm`.
+    # The `Cleaning` port's adapter for `SessionCleanup`: lists the Claude sessions, says which are
+    # safe to remove, and removes those with a plain `claude rm`.
     #
-    # A session is safe when it ended `done` or `stopped` (so it is not working or waiting on a
-    # person) and its own worktree has no uncommitted files and no commits `origin` lacks. Its own
-    # worktree is the one its transcript recorded, not the directory `claude agents` reports. A
-    # worktree that is gone counts as safe; a transcript or worktree that cannot be read does not.
-    # `--discard-unpushed` is never passed, so `claude rm` itself refuses what the check missed.
+    # Only the session of a dispatched run is ever a candidate: the AgentRun ledger binds a run to
+    # it, that run is `finished` with condition `done`, the listing says `done` and no person spoke
+    # in it ({CandidateRule}). A session with no run, a blocked or working one, one a person
+    # stopped and the pruner's own are kept by name, whatever `claude agents` lists. A candidate is
+    # then safe when its own worktree, the one its transcript recorded, has no uncommitted files
+    # and no commits `origin` lacks. Just before each `claude rm` it asks again whether a person
+    # spoke in the session. `--discard-unpushed` is never passed, so `claude rm` itself refuses what
+    # the check missed.
     class ClaudeCleaning
       # The command that lists and removes sessions.
       COMMAND = "claude"
-
-      # The states that mean a session ended and waits on nobody.
-      ENDED = %w[done stopped].freeze
 
       # One session as the cleanup judges it.
       #
@@ -32,7 +33,9 @@ module Hecks
       #   @return [String] the session's kind, `run <key>` or `plain`, and its name
       # @!attribute [r] why_not
       #   @return [String, nil] why it is not safe to remove, nil when it is safe
-      Verdict = Struct.new(:id, :label, :why_not) do
+      # @!attribute [r] entry
+      #   @return [Hash] the session as `claude agents` listed it
+      Verdict = Struct.new(:id, :label, :why_not, :entry) do
         # @return [Boolean] whether the session is safe to remove
         def safe? = why_not.nil?
 
@@ -76,6 +79,9 @@ module Hecks
       private
 
       def remove(verdict)
+        spoken = @rule.spoken(verdict.entry)
+        return "kept  #{verdict.id}  #{verdict.label}  kept: #{spoken}" if spoken
+
         result = @shell.capture(@command, "rm", verdict.id)
         return "removed  #{verdict.id}  #{verdict.label}" if result.ok?
 
@@ -83,23 +89,14 @@ module Hecks
       end
 
       def judged
-        runs = @runs.run_sessions
-        listing.map { |entry| verdict(entry, runs) }
+        sessions = @runs.run_sessions
+        @rule = CandidateRule.new(runs: @runs.runs, transcript: @transcript)
+        listing.map { |entry| verdict(entry, sessions.values_at(entry["id"], entry["sessionId"]).compact.first) }
       end
 
-      def verdict(entry, runs)
-        key = runs.values_at(entry["id"], entry["sessionId"]).compact.first
+      def verdict(entry, key)
         label = "#{key ? "run #{key}" : "plain"} #{entry["name"]}".strip
-        Verdict.new(entry["id"], label, why_not(entry))
-      end
-
-      def why_not(entry)
-        state = entry["state"].to_s
-        return "still working" if state == "working"
-        return "waiting on a person" if state == "blocked"
-        return "ended #{state}, not done or stopped" unless ENDED.include?(state)
-
-        worktree_reason(entry["sessionId"].to_s)
+        Verdict.new(entry["id"], label, @rule.why_not(entry, key) || worktree_reason(entry["sessionId"].to_s), entry)
       end
 
       def worktree_reason(full)

@@ -68,6 +68,15 @@ section { background: var(--surface); border: 1px solid var(--border); border-ra
 .hbar .track { height: 12px; }
 .hbar .fill { height: 100%; background: var(--series1); border-radius: 0 4px 4px 0; }
 .hbar .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cycle { display: grid; grid-template-columns: minmax(90px, 30%) 1fr 64px; gap: 8px; align-items: center; margin: 5px 0; font-size: 12px; }
+.cycle .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cycle .bar { display: flex; height: 12px; }
+.cycle .seg { height: 100%; min-width: 2px; }
+.cycle .s0 { background: var(--series1); } .cycle .s1 { background: var(--series2); }
+.cycle .s2 { background: var(--good); } .cycle .s3 { background: var(--warning); }
+.cycle .open { background-image: repeating-linear-gradient(45deg, transparent 0 4px, var(--page) 4px 7px); }
+.legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--ink2); margin: 4px 0 8px; }
+.legend .seg { display: inline-block; width: 10px; height: 10px; margin-right: 4px; vertical-align: middle; }
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
 th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--grid); vertical-align: top; }
 th { color: var(--ink2); font-weight: 600; font-size: 12px; }
@@ -216,6 +225,7 @@ details.panel > .scroll, details.panel > .feed, details.panel > .strip, details.
   
 
   <details class="panel"><summary data-tip="Open Work items and which session holds each one"><h2 id="h-work">Work items</h2><span class="sum" id="sum-work"></span></summary><div class="scroll" id="work"></div><h2 class="sub">Work by session</h2><div class="scroll" id="mapping"></div></details>
+  <details class="panel"><summary data-tip="How long each recent Work item spent in each stage, from the events it emitted. A striped stage is still open"><h2 id="h-cyc">Cycles</h2><span class="sum" id="sum-cyc"></span></summary><div id="cyclelegend"></div><div id="cycles"></div><h2 class="sub">Each stage over the recent items</h2><div class="scroll" id="cyclestats"></div></details>
   <details class="panel"><summary data-tip="Each event the pipeline heard, and the reactions it caused. Hover a row for its full context"><h2 id="h-ev">Events</h2><span class="sum" id="sum-ev"></span></summary><div class="feed" id="feed" aria-live="polite"></div></details>
 </main>
 <dialog id="resolve" aria-labelledby="resolve-title">
@@ -492,6 +502,32 @@ function renderWork(work) {
   summarize("work", [counted("planned") + " planned", [counted("started") + " started", counted("started") ? "working" : ""],
     nextUp && "next: " + nextUp.slug]);
   put("work", pager("work", ["Work item", "Status", "Area", "Claimed by", "Claimed at"], work.map((w) => [w.slug, w.status, (w.area || []).join(", ") || "-", w.claimed_by || "(nobody)", w.claimed_at || "-"]), 10));
+}
+// A span of seconds as 1h02m, 13m09s or 39s.
+function span(s) {
+  if (s === null || s === undefined) return "-";
+  const two = (n) => String(n).padStart(2, "0");
+  if (s >= 3600) return Math.floor(s / 3600) + "h" + two(Math.floor((s % 3600) / 60)) + "m";
+  return s >= 60 ? Math.floor(s / 60) + "m" + two(s % 60) + "s" : s + "s";
+}
+// Each recent Work item's cycle as one bar, a segment per stage, the open stage striped.
+function renderCycles(c) {
+  if (isUnknown(c) || !c || !Array.isArray(c.cycles)) {
+    summarize("cyc", [["unknown: " + ((c && c.unknown) || "no data"), "attention"]]);
+    return put("cycles", unknown(c || { unknown: "no data" }));
+  }
+  const order = c.stats.map((st) => st.stage);
+  const max = Math.max(1, ...c.cycles.map((cy) => cy.seconds));
+  const slowest = c.stats.filter((st) => st.percentile !== null).sort((a, b) => b.percentile - a.percentile)[0];
+  const flying = c.cycles.filter((cy) => cy.open);
+  summarize("cyc", [slowest && ["slowest stage " + slowest.stage + " (p" + c.rank + " " + span(slowest.percentile) + ")", "ok"],
+    [flying.length + " in flight", flying.length ? "working" : ""]]);
+  put("cyclelegend", h("div", { class: "legend" }, order.map((name, i) => h("span", {}, h("span", { class: "seg s" + (i % 4) }), name))));
+  put("cycles", c.cycles.map((cy) => h("div", { class: "cycle", tip: cy.stages.map((st) => st.stage + " " + span(st.seconds) + (st.open ? " (open)" : "")).join(" · ") },
+    h("div", { class: "name" }, cy.work),
+    h("div", { class: "bar" }, cy.stages.map((st) => h("div", { class: "seg s" + (order.indexOf(st.stage) % 4) + (st.open ? " open" : ""), style: "width:" + (100 * st.seconds / max).toFixed(2) + "%" }))),
+    h("div", {}, span(cy.seconds) + (cy.open ? " so far" : "")))));
+  put("cyclestats", table(["Stage", "Median", "p" + c.rank, "Items"], c.stats.map((st) => [st.stage, span(st.median), span(st.percentile), st.items]), [1, 2, 3]));
 }
 // Everything that asks for a person: attention and failed pills, and sessions blocked on a reply.
 function renderAttention(metrics, stages, sessions, recommendations) {
@@ -774,7 +810,7 @@ function replyNote(s) {
 function render(s) {
   lastState = s;
   renderTiles(s.metrics); renderAttention(s.metrics, s.stages, s.sessions, s.recommendations); renderStrip(s.stages); renderCi(s.ci_runs, s.slowest_jobs);
-  renderRoles(s.roles); renderWork(s.open_work); renderSessions(s.sessions); renderFan(s.fanout); renderEvents(s.events);
+  renderRoles(s.roles); renderWork(s.open_work); renderSessions(s.sessions); renderFan(s.fanout); renderCycles(s.cycles); renderEvents(s.events);
   $("updated").textContent = "updated " + clock(s.generated_at);
   renderStale(s);
 }

@@ -7,12 +7,38 @@ require "open3"
 # `SessionCleanup.Removable` and `SessionCleanup.RemoveSafe` through the booted Hecks domain. The
 # stand-in `claude` lists the sessions and records each `rm` in a log, `HOME` points at a scratch
 # directory holding the transcripts, and the worktrees are throwaway git clones, so no real session
-# is listed or removed.
+# is listed or removed. The AgentRun ledger is a stand-in: each session but `hhhh` has a run, and
+# only a run `finished` with condition `done` makes its session a candidate.
 RSpec.describe "SessionCleanup through the Cleaning port" do
   include_context "with a stand-in claude"
 
   before(:all) do
     @hecks = boot_hecks_in_memory
+  end
+
+  before do
+    allow(Hecks::Adapters::Dispatching::WorkItems).to(receive(:new).and_wrap_original do |original, *args|
+      original.call(*args).tap { |reader| stand_in_ledger(reader) }
+    end)
+  end
+
+  # The run each listed session belongs to, with the run's status and condition.
+  def ledger
+    { "aaaa-clean" => %w[finished done], "bbbb-dirty" => %w[finished done], "cccc-ahead" => %w[finished done],
+      "dddd-gone" => %w[finished done], "eeee-none" => %w[finished done], "ffff-work" => %w[started],
+      "gggg-wait" => %w[started], "iiii-halt" => %w[finished stopped], "zzzz-lost" => %w[finished done] }
+  end
+
+  # What the fleet's listing must say: the safe sessions and each kept one's reason.
+  def judged
+    ["aaaa  run r-aaaa n-aaaa  safe", "dddd  run r-dddd n-dddd  safe", "eeee  run r-eeee n-eeee  safe",
+     "uncommitted", "origin lacks", "its run r-ffff is started", "its run r-gggg is started",
+     "hhhh  plain n-hhhh  kept: no dispatched run holds it", "its run r-iiii is finished stopped"]
+  end
+
+  def stand_in_ledger(reader)
+    runs = ledger.to_h { |id, (status, condition)| ["r-#{id[0, 4]}", { status: status, condition: condition.to_s }] }
+    allow(reader).to receive_messages(run_sessions: ledger.to_h { |id, _| [id, "r-#{id[0, 4]}"] }, runs: runs)
   end
 
   def git(dir, *)
@@ -57,8 +83,9 @@ RSpec.describe "SessionCleanup through the Cleaning port" do
 
   def fleet
     list(session("aaaa-clean", "done", worktree("clean")), session("bbbb-dirty", "done", worktree("dirty", :dirty)),
-         session("cccc-ahead", "stopped", worktree("ahead", :ahead)), session("dddd-gone", "done", File.join(scratch, "gone")),
-         session("eeee-none", "done", :none), session("ffff-work", "working", :none), session("gggg-wait", "blocked", :none))
+         session("cccc-ahead", "done", worktree("ahead", :ahead)), session("dddd-gone", "done", File.join(scratch, "gone")),
+         session("eeee-none", "done", :none), session("ffff-work", "working", :none), session("gggg-wait", "blocked", :none),
+         session("hhhh-plain", "done", :none), session("iiii-halt", "done", :none))
   end
 
   def launch(*argv) = Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, argv: argv, program: "hecks").first.to_s
@@ -69,8 +96,7 @@ RSpec.describe "SessionCleanup through the Cleaning port" do
     fleet
     out = launch("session_cleanup.removable")
 
-    expect(out).to include("aaaa  plain n-aaaa  safe", "dddd  plain n-dddd  safe", "eeee  plain n-eeee  safe")
-    expect(out).to include("uncommitted", "origin lacks", "still working", "waiting on a person")
+    expect(out).to include(*judged)
     expect(removed).to be_empty
   end
 
@@ -90,9 +116,9 @@ RSpec.describe "SessionCleanup through the Cleaning port" do
     expect(removed).to be_empty
   end
 
-  it "keeps a session whose transcript cannot be found" do
+  it "keeps a session whose transcript cannot be read, as one a person may have spoken in" do
     list({ id: "zzzz", sessionId: "zzzz-lost", name: "lost", kind: "background", state: "done" })
 
-    expect(launch("session_cleanup.removable")).to include("kept: its worktree cannot be found")
+    expect(launch("session_cleanup.removable")).to include("zzzz  run r-zzzz lost  kept: a person spoke in it")
   end
 end

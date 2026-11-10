@@ -176,6 +176,25 @@ Hecks.bluebook "PipelineBoard" do
       member name: "session_fresh_seconds",   value: 600
       member name: "session_window_hours",    value: 24
       member name: "open_pr_stale_hours",     value: 24
+      member name: "cycle_items",             value: 20
+      member name: "cycle_percentile",        value: 90
+    end
+
+    # One stage of a Work item's cycle, in `position` order. The first stage starts at its `opens`
+    # event; every later one starts where the stage before it ended, at its `opens` event. A stage
+    # ends at the first `closes` event at or after its start that belongs to the item: its `work`
+    # or `branch` link, or its id, is the Work item's key, or its id is that of the event that
+    # started the stage. Each event is named with the aggregate that emits it.
+    value_object "CycleStage" do
+      attribute :stage,    String
+      attribute :position, Integer
+      attribute :opens,    String
+      attribute :closes,   String
+
+      member stage: "fill",         position: 1, opens: "Tickets::Work.WorkPlanned",              closes: "Tickets::Work.WorkStarted"
+      member stage: "planning",     position: 2, opens: "Tickets::Work.WorkStarted",              closes: "Agents::PlanReview.PlanReviewRequested"
+      member stage: "review",       position: 3, opens: "Agents::PlanReview.PlanReviewRequested", closes: "Agents::PlanReview.PlanReviewed"
+      member stage: "implementing", position: 4, opens: "Agents::PlanReview.PlanReviewed",        closes: "Hecks::Landing.BranchLanded"
     end
 
     # What the fan-out can flag on a Work item.
@@ -308,6 +327,12 @@ Hecks.bluebook "PipelineBoard" do
       attribute :width,  Width,  optional: true
       attribute :colour, Colour, optional: true
       attribute :limit,  Limit,  optional: true
+      returns Document
+    end
+
+    query "Cycles" do
+      description "One cycle per recent Work item, newest first: each stage's start, end and seconds, the stage still open for an item in flight, and per stage the median and the cycle_percentile over the last cycle_items items."
+      attribute :limit, Limit, optional: true
       returns Document
     end
 
