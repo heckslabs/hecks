@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "constants"
+
 module Hecks
   module Adapters
     class GitRehearsal
@@ -40,7 +42,12 @@ module Hecks
             [@path, bare, bare.split("/").last(2).join("/")].uniq
           end
 
-          def names = (DOMAIN.match?(@path) ? domain_names : [nesting]).compact.reject { |name| GENERIC.include?(name) }.uniq
+          def names = (DOMAIN.match?(@path) ? domain_names : [nesting, *constants]).compact.reject { |name| generic?(name) }.uniq
+
+          def generic?(name) = name.split("::").all? { |segment| GENERIC.include?(segment) }
+
+          # The qualified leaf constants the Ruby file declares.
+          def constants = Constants.new(@text).leaves
 
           def domain_names = @text.scan(DOMAIN_NAME).flatten
 
