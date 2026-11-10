@@ -2,13 +2,15 @@
 
 require "hecks/vendoring/git_environment"
 require_relative "../shell"
+require_relative "toolchain"
 
 module Hecks
   module Adapters
     class MainIntegration
       # Runs one command in a directory for an integration step, with the variables that would
-      # point it at another checkout, or let it push as the owner, left out. It answers whether
-      # the command ended well and what it printed.
+      # point it at another checkout, or let it push as the owner, left out, and with rustup's
+      # `cargo` first on `PATH` (`Toolchain`). It answers whether the command ended well and what
+      # it printed.
       class CommandRunner
         # The variables of the calling process that are never handed on: Bundler's, which would
         # run the command against the calling checkout, and the owner's push override.
@@ -25,7 +27,9 @@ module Hecks
 
         private
 
-        def environment = Vendoring::GitEnvironment.clean.merge(DROPPED.to_h { |name| [name, nil] })
+        def environment
+          Vendoring::GitEnvironment.clean.merge(DROPPED.to_h { |name| [name, nil] }, Toolchain.environment)
+        end
       end
     end
   end
