@@ -213,8 +213,8 @@ Hecks.bluebook "PipelineBoard" do
     # would otherwise find by watching. A check opens at each of its `opens` events in the day and
     # is answered by one of its `closes` events (several are separated by a space) of the same key,
     # as `joins` says: `id` is the event's id, and `<link> <link>` is the opener's first link and
-    # the closer's second, compared by their first seven characters. The `test` says what is
-    # found:
+    # the closer's second, compared by their first seven characters (a link of fewer than seven hex
+    # characters names no commit and is reported as unreadable). The `test` says what is found:
     # - `unanswered`: no closer at or before the opener.
     # - `over`: the first closer after the opener came later than the `bound` setting, in minutes,
     #   or none has come and the bound has passed.
@@ -222,8 +222,9 @@ Hecks.bluebook "PipelineBoard" do
     #   the run named as not delivered.
     # - `aged`: the key is open in the ledger and its opener is older than the `bound`, in hours,
     #   or the event log does not reach back to it.
-    # - `left`: a session the Jobs reading says is blocked or stopped, for longer than the
-    #   `bound`, in minutes.
+    # - `left`: a session whose Jobs reading matches one of the `opens` words (`status:blocked`
+    #   is the session's status, `state:stopped` its job's state), for longer than the `bound`,
+    #   in minutes.
     # `counted` is `yes` for a check only the events show, which the board's tile counts; the
     # sessions and the findings already have their own stage and row.
     value_object "HealthCheck" do
@@ -245,7 +246,7 @@ Hecks.bluebook "PipelineBoard" do
              joins: "id", test: "over", bound: "verify_bound_minutes", counted: "yes", says: "slow verifications"
       member kind: "half_delivered",     opens: "Tickets::Work.WorkFinished", closes: "Agents::Turn.TurnFinished",
              joins: "id", test: "stuck", bound: "", counted: "yes", says: "finished half-delivered"
-      member kind: "left_session",       opens: "", closes: "", joins: "", test: "left", bound: "session_bound_minutes",
+      member kind: "left_session",       opens: "status:blocked state:stopped", closes: "", joins: "", test: "left", bound: "session_bound_minutes",
              counted: "no", says: "sessions left blocked or stopped"
       member kind: "stale_finding",
              opens: "Tickets::Finding.FindingReported Tickets::Finding.RunFindingReported Tickets::Finding.StoppedRunReported",

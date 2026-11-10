@@ -21,10 +21,15 @@ module Hecks
         # @return [Array<Hash>] the `HealthCheck` rows, in the order they are written
         def checks = Rules.rows("HealthCheck")
 
-        # @return [Array<String>] the bare event names the rows open and close on
-        def event_names
-          checks.flat_map { |row| "#{row[:opens]} #{row[:closes]}".split }.map { |name| name.split(".").last }.uniq
-        end
+        # @return [Array<String>] the bare event names the rows open and close on (a `left` row's
+        #   `opens` names session states, not events)
+        def event_names = event_checks.flat_map { |row| bare_names(row) }.uniq
+
+        # @return [Array<String>] a row's opening and closing events, without their aggregates
+        def bare_names(row) = "#{row[:opens]} #{row[:closes]}".split.map { |name| name.split(".").last }
+
+        # @return [Array<Hash>] the rows that open and close on events
+        def event_checks = checks.reject { |row| row[:test] == "left" }
 
         # @param data [Hash] `health_events` (board rows), `sessions` (the Jobs reading) and
         #   `open_findings`, each an answer or `{unknown: reason}`

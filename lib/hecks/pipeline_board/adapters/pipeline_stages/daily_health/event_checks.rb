@@ -11,7 +11,8 @@ module Hecks
         # and `stuck` on a `HealthCheck` row. The row names the events and the join; this module
         # lines the events up and measures. It reads nothing.
         module EventChecks
-          # A commit a link names: seven or more hex characters.
+          # A commit a link names: seven or more hex characters, as the `HealthCheck` rows' join
+          # says. This measures; which links match is the row's to say.
           SHA = /\A\h{7,}\z/
 
           module_function

@@ -11,9 +11,6 @@ module Hecks
         # bound added: `left` on the Jobs reading of the sessions, and `aged` on the open findings
         # of the ledger, aged by the event that opened each. It reads nothing.
         module LedgerChecks
-          # The session statuses and job states the `left` check reports.
-          LEFT = { status: %w[blocked], state: %w[stopped] }.freeze
-
           module_function
 
           # @param row [Hash] a `HealthCheck` row whose test is `left`
@@ -24,7 +21,8 @@ module Hecks
           #   `minutes`
           def left(row, sessions, now)
             bound = Rules.setting(row[:bound])
-            sessions.select { |session| left?(session) }.filter_map do |session|
+            words = row[:opens].split
+            sessions.select { |session| left?(session, words) }.filter_map do |session|
               minutes = minutes_since(session, now)
               { key: session[:id], name: session[:name], state: session[:state], minutes: minutes } if minutes.to_i > bound
             end
@@ -61,8 +59,9 @@ module Hecks
             end
           end
 
-          def left?(session)
-            LEFT[:status].include?(session[:status].to_s) || LEFT[:state].include?(session[:state].to_s)
+          # Whether the session matches one of the row's `field:value` words.
+          def left?(session, words)
+            words.any? { |word| word.split(":", 2).then { |field, value| session[field.to_sym].to_s == value } }
           end
         end
       end

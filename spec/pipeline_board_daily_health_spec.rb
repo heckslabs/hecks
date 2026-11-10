@@ -96,6 +96,11 @@ RSpec.describe "the pipeline's daily health line" do
     expect(report[:left_session].map { |row| row[:minutes] }).to eq([180, 540])
   end
 
+  it "takes the states a left session is in from its HealthCheck row" do
+    left = health::LedgerChecks.left({ opens: "state:done", bound: "session_bound_minutes" }, sessions, HealthJournal::NOW)
+    expect(left.map { |session| session[:key] }).to eq(%w[s-done])
+  end
+
   it "names open findings older than the bound, and those opened before the log" do
     expect(ids(:stale_finding)).to eq(%w[old unlogged])
   end
