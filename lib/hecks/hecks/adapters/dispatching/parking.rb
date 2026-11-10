@@ -59,7 +59,7 @@ module Hecks
         end
 
         # Why an item whose run is working is not started again: the run keeps its key, whatever
-        # its last yield said, so no second run starts and no yield touches the Work row.
+        # its last yield said, so no second run starts and no yield touches the work item.
         #
         # @param item [#key] a planned work item
         # @param runs [Hash{String => Hash}] the AgentRun states by run key

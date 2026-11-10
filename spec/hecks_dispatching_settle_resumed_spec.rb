@@ -11,7 +11,7 @@ RSpec.describe Hecks::Adapters::Dispatching::Settler do
 
   def run(status, condition) = { "a" => { status: status, condition: condition } }
 
-  it "does not yield the Work row once an answer resumed the run", :aggregate_failures do
+  it "does not yield the work item once an answer resumed the run", :aggregate_failures do
     stale = run("finished", "stopped")
     allow(items).to receive(:runs).and_return(stale, stale, run("started", "working"))
 
