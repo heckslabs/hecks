@@ -1,0 +1,159 @@
+Hecks.bluebook "Hecks" do
+  domain_module "StallWatch" do
+    vision "A stall is noticed by data, not by a person watching: each kind is a row, and every stall found becomes one Work item for its fixer."
+
+    # One look at the event tap for stalls. The clock's beat asks it (`DetectOnHeartbeat`), and so may
+    # anyone (`StallWatch.detect!`). The `Watching` port reads the tap and answers the opening lines
+    # whose closing line has not come; each is offered to `Stall.File`, which decides by its kind's
+    # row whether it is a stall. The look itself writes nothing outside this domain.
+    aggregate "StallWatch" do
+      description "One look at the event tap for opening events whose closing event has not come."
+      created_by "StallWatch.detect!"
+
+      attribute :run, RunKey
+      identified_by :run
+
+      value_object "RunKey" do
+        attribute :value, String, matches: :present
+      end
+
+      # One kind of stall, one row each: the aggregate and event that open it, the events on the same
+      # aggregate id that close it (comma separated), the minutes it may stay open before it is a
+      # stall, the minutes after which an open line is history rather than a stall, and the role that
+      # fixes it. The opening line's aggregate id is the stall's subject.
+      value_object "StallKind" do
+        attribute :kind,      String
+        attribute :aggregate, String
+        attribute :opens,     String
+        attribute :closes,    String
+        attribute :minutes,   Integer
+        attribute :forgets,   Integer
+        attribute :fixer,     String
+
+        member kind: "plan-review", aggregate: "Agents::PlanReview", opens: "PlanReviewRequested",
+               closes: "PlanReviewed,PlanReviewRecorded", minutes: 20, forgets: 1440, fixer: "orchestrator"
+        member kind: "agent-run-start", aggregate: "Hecks::AgentRun", opens: "AgentRunRequested",
+               closes: "AgentRunStarted,AgentRunDeclined", minutes: 10, forgets: 1440, fixer: "orchestrator"
+        member kind: "agent-run-session", aggregate: "Hecks::AgentRun", opens: "AgentRunStarted",
+               closes: "SessionFinished,SessionFailed,AgentRunRetired,AgentTrialRunRetired", minutes: 240,
+               forgets: 1440, fixer: "orchestrator"
+      end
+
+      # One opening line still waiting for its closing line, as the tap shows it and its kind's row
+      # prices it: the facts `Stall.File` judges. `id` is the look that found it.
+      value_object "Sighting" do
+        attribute :id,         String
+        attribute :stall,      String
+        attribute :stall_kind, String
+        attribute :subject,    String
+        attribute :opened_at,  String
+        attribute :waited,     Integer
+        attribute :minutes,    Integer
+        attribute :forgets,    Integer
+        attribute :fixer,      String
+        attribute :title,      String
+        attribute :detail,     String
+      end
+
+      command "Detect" do
+        role "System"
+        goal "Look at the event tap for opening events whose closing event has not come"
+
+        attribute :run, RunKey, sets: true
+
+        emits StallDetectRequested
+      end
+
+      query "Unclosed" do
+        description "The opening lines of every stall kind whose closing line has not come, within the kind's window, with how long each has waited. Read-only: it reads the tap and boots nothing."
+        attribute :run, String
+        returns list_of(Sighting)
+      end
+    end
+
+    # One stall, filed once: `stall-<kind>-<subject>`. Its key is the dedupe, so a stall seen by a
+    # later look is refused as already filed; the Work item it becomes carries the same key, so a
+    # look after a restart, when this store is empty again, is refused by Tickets instead.
+    aggregate "Stall" do
+      description "One stall: an opening event whose closing event did not come within its kind's minutes, and the role that fixes it."
+      created_by "Stall.file!"
+
+      attribute :stall,     StallKey
+      attribute :kind,      Word
+      attribute :subject,   Word
+      attribute :opened_at, Word
+      attribute :waited,    Minutes
+      attribute :minutes,   Minutes
+      attribute :forgets,   Minutes
+      attribute :fixer,     Fixer
+      attribute :title,     Line
+      attribute :detail,    Line
+      reference_to StallWatch, as: :watch
+      identified_by :stall
+
+      value_object "StallKey" do
+        attribute :value, String, pattern: '\Astall-[a-z0-9-]+-[A-Za-z0-9._-]+\z'
+      end
+
+      value_object "Word" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Line" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Minutes" do
+        attribute :value, Integer
+
+        invariant("minutes are not negative") { !value.negative? }
+      end
+
+      # The role a stall's Work item is for: one of the pipeline's agent roles.
+      value_object "Fixer" do
+        attribute :value, String, one_of: %w[orchestrator coder architect planner reviewer pruner release_manager]
+      end
+
+      command "File" do
+        role "System"
+        goal "File a stall once: an opening event left open past its kind's minutes, for the role that fixes it"
+
+        reference_to StallWatch, as: :watch
+        attribute :stall,     StallKey, sets: true
+        attribute :kind,      Word, sets: true
+        attribute :subject,   Word, sets: true
+        attribute :opened_at, Word, sets: true
+        attribute :waited,    Minutes, sets: true
+        attribute :minutes,   Minutes, sets: true
+        attribute :forgets,   Minutes, sets: true
+        attribute :fixer,     Fixer, sets: true
+        attribute :title,     Line, sets: true
+        attribute :detail,    Line, sets: true
+
+        sets :watch
+
+        given("a stall has waited past its kind's minutes") { waited.value >= minutes.value }
+        given("a stall is younger than its kind's window") { waited.value < forgets.value }
+
+        emits StallFiled
+      end
+    end
+
+    # Each beat of the clock looks once, keyed by the beat. A root, so the look starts its own chain.
+    policy "DetectOnHeartbeat" do
+      on      "Heartbeat.Beaten"
+      root
+      trigger StallWatch::Detect, with: { run: :beat }
+    end
+
+    # Every opening line the look found is offered to `File`; a refusal (not yet past its minutes,
+    # already filed) is recorded per line and the rest go on.
+    policy "FileEveryStallWhenDetected" do
+      on       "StallWatch.StallDetectRequested"
+      for_each "StallWatch.Unclosed"
+      trigger  Stall::File, with: { watch: :id, stall: :stall, kind: :stall_kind, subject: :subject, opened_at: :opened_at,
+                                    waited: :waited, minutes: :minutes, forgets: :forgets, fixer: :fixer,
+                                    title: :title, detail: :detail }
+    end
+  end
+end
