@@ -88,6 +88,9 @@ Hecks.bluebook "PipelineBoard" do
 
       # ---- the strip: one stage each, left to right ----
       member stage: "Red flag",   position: 1, measure: "",             op: "always",  than: "",  scale: 1, state: "failed"
+      # The open findings stopped integration runs and shipments filed; the row is only built
+      # while one is open. A log of stops, not a count of runs stopped now.
+      member stage: "Stopped runs", position: 1, measure: "",           op: "always",  than: "",  scale: 1, state: "attention"
 
       member stage: "Work items", position: 1, measure: "started",      op: ">",       than: "0", scale: 1, state: "working"
       member stage: "Work items", position: 2, measure: "",             op: "always",  than: "",  scale: 1, state: "ok"
