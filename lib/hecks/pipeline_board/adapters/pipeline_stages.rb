@@ -56,7 +56,14 @@ module Hecks
           metrics: PipelineBoard::Metrics.tiles(data.merge(@limits), now),
           ci_runs: data[:ci_runs], slowest_jobs: data[:slowest_jobs],
           open_work: data[:open_work], sessions: data[:sessions], events: data[:events],
-          fanout: fanout(data), live_store_problem: @live&.problem }.merge(agents(data))
+          fanout: fanout(data), live_store_problem: @live&.problem }.merge(panels(data))
+      end
+
+      # @param limit [Hash, Integer, nil] how many Work items (the `cycle_items` setting when nil)
+      # @return [Hash{Symbol => String}] `text:` the cycles, newest first, and each stage's median
+      #   and percentile, as JSON
+      def cycles(limit: nil)
+        { text: JSON.generate(cycle_reading(guard { @journal.cycle_events }, held(limit))) }
       end
 
       # The state the page shows, drawn as a text panel for a terminal. It reads what `/api/state`
@@ -94,6 +101,16 @@ module Hecks
       end
 
       private
+
+      # The panels beside the strip: the pinned agents and the Work items' cycles.
+      def panels(data) = agents(data).merge(cycles: cycle_reading(data[:cycle_events]))
+
+      # The cycles laid from the stage events, or the events' `{unknown: reason}` as it was read.
+      def cycle_reading(events, limit = nil)
+        return events unless events.is_a?(Array)
+
+        PipelineBoard::Cycles.build(events, @now.call, limit)
+      end
 
       # An argument as the query hands it: the value inside a value object, or the value itself.
       def held(argument) = argument.is_a?(Hash) ? argument[:value] : argument

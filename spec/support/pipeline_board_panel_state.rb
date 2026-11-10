@@ -44,6 +44,14 @@ module PipelineBoardPanelState
       open_work: open_work, roles: [{ name: "coder", live: 1 }, { name: "planner", live: 0 }],
       reviews: [{ work: "alpha", verdict: "sound" }, { work: "bravo", verdict: "" }],
       recommendations: [{ change: "36f689057", reasons: "" }],
-      train_prs: [{ number: 1272, branch: "train/main-5543822", total: 89, passed: 87, failed: 2, pending: 0 }] }
+      train_prs: [{ number: 1272, branch: "train/main-5543822", total: 89, passed: 87, failed: 2, pending: 0 }],
+      cycles: cycles }
+  end
+
+  def cycles
+    { rank:   90,
+      stats:  [{ stage: "implementing", items: 2, median: 789, percentile: 3720 }],
+      cycles: [{ work: "busy", seconds: 1200, open: "planning", stages: [{ stage: "planning" }] },
+               { work: "ci-observe", seconds: 1345, open: nil, stages: [{ stage: "implementing" }] }] }
   end
 end

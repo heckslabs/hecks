@@ -21,6 +21,9 @@ module Hecks
             @size = size
           end
 
+          # @return [Integer] how many rows a long list shows
+          attr_reader :limit
+
           # @return [Array<Array(String, String)>] the sessions by state, blocked first, each state
           #   under a heading
           def sessions

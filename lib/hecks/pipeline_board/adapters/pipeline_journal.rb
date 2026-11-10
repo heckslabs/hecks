@@ -6,6 +6,7 @@ require_relative "cache"
 require_relative "pipeline_journal/tap"
 require_relative "pipeline_journal/chain"
 require_relative "pipeline_turns"
+require_relative "pipeline_stages/cycles"
 
 module Hecks
   module Adapters
@@ -38,6 +39,15 @@ module Hecks
 
       # @param limit [Hash, Integer, nil] how many events (40 when none is named)
       # @return [Hash{Symbol => String}] `text:` the events as JSON, newest first
+      # Every logged event a cycle stage opens or closes on, read from the whole event log rather
+      # than its tail, so a cycle is laid from the events alone.
+      #
+      # @param names [Array<String>] bare event names (the `CycleStage` rows' when none are named)
+      # @return [Array<Hash>] the matching events as board rows, oldest first
+      def cycle_events(names = PipelineBoard::Cycles.event_names)
+        @cache.fetch([:cycle, names]) { @tap.named(names) }
+      end
+
       # The first time each landed sha was recorded, from the tapped `BranchLanded` rows.
       #
       # @return [Hash{String => String}] the sha (seven characters) to the time it was landed

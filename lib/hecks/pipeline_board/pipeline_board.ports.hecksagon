@@ -37,6 +37,7 @@ Hecks.hecksagon "PipelineBoard" do
   PipelineBoard::PipelineBoard.port "Pipeline" do
     answers_query "Stages"
     answers_query "Snapshot"
+    answers_query "Cycles"
   end
 
   # The page. The adapter opens a server on 127.0.0.1 and answers `GET /` and `GET /api/state`;
