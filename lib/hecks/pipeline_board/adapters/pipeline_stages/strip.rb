@@ -3,6 +3,7 @@
 require "time"
 require "hecks/hecks/adapters/red_flag_report"
 require_relative "../rules"
+require_relative "stopped_row"
 
 module Hecks
   module Adapters
@@ -17,9 +18,13 @@ module Hecks
         # @param now [Time] the time the stages are read at
         # @return [Array<Hash>] `name`, `state`, `count` and `detail` for each stage
         def build(data, now)
-          [*flag(data[:red_flag], now), work(data[:counts]), sessions(data[:sessions]), local(data[:local]),
+          [*alerts(data, now), work(data[:counts]), sessions(data[:sessions]), local(data[:local]),
            train(data[:train], now), ci(data[:ci_runs]), promote(data[:stable]), release(data[:release])]
         end
+
+        # The rows built only while something needs a person: the red flag, then the open
+        # findings of stopped runs.
+        def alerts(data, now) = [*flag(data[:red_flag], now), *StoppedRow.build(data[:stopped_runs])]
 
         # The red flag row, first in the strip while a flag stands: its commit, the minutes main has
         # been red, and who has checked in. Nothing while main is not flagged or the read failed.
