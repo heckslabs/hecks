@@ -77,7 +77,7 @@ module Hecks
         runs = MainIntegration::Runs.new(@registry)
         run = runs.find(landed) or refuse!("no integration run is keyed by #{landed[0, 10]}")
         refuse!("#{run.short} is #{run.state}, not verified") unless run.state == "boarding"
-        other = runs.in_flight(except: landed).first
+        other, = MainIntegration::TrainChecks.new.blocking(runs.in_flight(except: landed))
         refuse!("#{other.short} is #{other.state}; one run boards at a time") if other
       end
 

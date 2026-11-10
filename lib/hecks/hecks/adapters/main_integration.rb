@@ -62,8 +62,8 @@ module Hecks
       end
 
       def boarding_held_back(run, confirm)
-        other = runs.in_flight(except: run.landed).first
-        return "#{other.short} is #{other.state}" if other
+        other, checks = TrainChecks.new.blocking(runs.in_flight(except: run.landed))
+        return "#{other.short} is #{other.state}#{" (#{checks.counts})" if checks}" if other
         return "advance with --confirm to push main" unless confirm
 
         nil
@@ -104,3 +104,4 @@ end
 require_relative "main_integration/runs"
 require_relative "main_integration/fault"
 require_relative "main_integration/outcome"
+require_relative "main_integration/train_checks"
