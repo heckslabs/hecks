@@ -57,7 +57,18 @@ module Hecks
         record = train.board(checkout)
         pushed = [record["pushed"], record["boarded"], landed].compact.first
         { outcome: { value: "pushed" }, pushed: { value: pushed.to_s },
-          report: { value: "#{landed[0, 10]} #{record["status"]} as #{pushed.to_s[0, 10]}; #{note}" } }
+          report: { value: "#{landed[0, 10]} #{record["status"]} as #{pushed.to_s[0, 10]}#{answer_of(record)}; #{note}" } }
+      end
+
+      # The last line of the train's own report, where a queued boarding names its pull request.
+      def answer_of(record)
+        said = last_line(record["report"].to_s)
+        said.empty? ? "" : " (#{said})"
+      end
+
+      def last_line(text)
+        lines = text.strip.lines
+        lines.empty? ? "" : lines.last.strip
       end
 
       # The run must have come to boarding from verified (the saga moved it as the boarding
