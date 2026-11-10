@@ -20,6 +20,14 @@ module StallWatchLooks
       event: event, seq: seq }
   end
 
+  # Runs blocked 20 and 5 minutes ago, and one blocked then answered.
+  def write_blocked_tap
+    rows = [["SessionBlocked", "stuck", 20], ["SessionBlocked", "fresh", 5], ["SessionBlocked", "replied", 30],
+            ["AgentRunAnswered", "replied", 25]]
+    lines = rows.each_with_index.map { |(event, id, ago), seq| line(seq + 1, event, id, ago).merge(aggregate: "Hecks::AgentRun") }
+    File.write(tap, lines.map { |entry| JSON.generate(entry) }.join("\n") << "\n")
+  end
+
   def watching
     aggregate = registry.bluebook("Hecks").aggregate("StallWatch")
     Hecks::Adapters::StallWatching.new(registry: registry, aggregate: aggregate, tap: tap)

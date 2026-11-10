@@ -127,7 +127,7 @@ commands:
     One push of a checkout's branch, taken in turn: carried by an earlier push, pushed, or refused.
     board!                        Push this checkout's branch once the push ahead of it lands, unless that push already carried it
     survey!                       List every checkout under a directory whose branch has commits its remote does not
-    watch!                        Look at each queued boarding's pull request, and record any that has merged
+    watch!                        Look at each queued boarding's pull request, and record any that merged or ended with failed checks
   PushOutcome:
     How one boarding of the push train ended, as the boarded checkout records it: pushed, carried or faulted.
     record!                       Record how one boarding of the push train ended, in the checkout that boarded it
@@ -423,6 +423,6 @@ bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
   expression       The subset of regular Ruby a predicate is allowed to be — small enough that every target can…
 
   hecks <command> --help       what one command wants, and every way it refuses
-  hecks --all                  also list the 361 internal commands and queries
+  hecks --all                  also list the 362 internal commands and queries
   a command is called with its aggregate — Build.project_rust!
   exit status: 0 answered, 1 refused or failed, 2 a line it could not read

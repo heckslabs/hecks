@@ -37,6 +37,9 @@ Hecks.bluebook "Hecks" do
         member kind: "agent-run-session", aggregate: "Hecks::AgentRun", opens: "AgentRunStarted",
                closes: "SessionFinished,SessionFailed,AgentRunRetired,AgentTrialRunRetired", minutes: 240,
                forgets: 1440, fixer: "orchestrator"
+        member kind: "agent-run-blocked", aggregate: "Hecks::AgentRun", opens: "SessionBlocked",
+               closes: "AgentRunAnswered,SessionWorking,SessionFinished,SessionFailed,AgentRunRetired,AgentTrialRunRetired",
+               minutes: 15, forgets: 1440, fixer: "orchestrator"
       end
 
       # One opening line still waiting for its closing line, as the tap shows it and its kind's row
