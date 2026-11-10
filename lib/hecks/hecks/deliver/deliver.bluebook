@@ -1582,12 +1582,20 @@ Hecks.bluebook "Hecks" do
     # boarding the train already carried is recorded as pushed. A run is checkpointed with the
     # Landing records that start it, so a copy that keeps those keeps its runs across a restart.
     # A run in needs_human is taken up again by verifying it again (`Integration.verify!`).
+    #
+    # A verification that fails is retried once, since a check can fail on load and pass when run
+    # again. The run's state is the marker: a first failure moves it to retrying, the next advance
+    # verifies it again as a retry (reverifying), and a retry that fails parks it in needs_human.
+    # Reverifying has no retrying leg, so no run is retried twice. A step that raised is recorded
+    # by Fail and parks the run at once: a check that could not run is not retried.
     process_manager "MainIntegration" do
       correlates_by :"landed.value"
       starts_on Landing::BranchLanded
 
       transition Integration::MainVerificationStarted => "verifying", from: %w[landed needs_human]
-      transition Integration::MainVerified => "verified", from: "verifying"
+      transition Integration::MainVerificationFailedOnce => "retrying", from: "verifying"
+      transition Integration::MainVerificationStarted => "reverifying", from: "retrying"
+      transition Integration::MainVerified => "verified", from: %w[verifying reverifying]
       transition Integration::MainBoardingStarted => "boarding", from: "verified"
       transition Integration::MainPushed => "pushed", from: "boarding"
       transition Integration::CiObservationStarted => "ci_running", from: %w[pushed ci_running]
@@ -1598,9 +1606,9 @@ Hecks.bluebook "Hecks" do
       transition Integration::PullRequestClosed => "needs_human", from: "ci_running"
 
       # A newer landing on main carries this one: the run stops, and the newer run integrates both.
-      transition Integration::IntegrationSuperseded => "superseded", from: %w[verifying boarding]
+      transition Integration::IntegrationSuperseded => "superseded", from: %w[verifying reverifying boarding]
 
-      transition Integration::MainVerificationFailed => "needs_human", from: "verifying"
+      transition Integration::MainVerificationFailed => "needs_human", from: %w[verifying reverifying]
       transition Integration::MainPushRefused => "needs_human", from: "boarding"
     end
 
@@ -1622,6 +1630,8 @@ Hecks.bluebook "Hecks" do
       attribute :pushed,   Word,   optional: true
       attribute :report,   Report, optional: true
       attribute :refusal,  Report, optional: true
+      # Whether a verification is the one retry of a run whose first verification failed.
+      attribute :retried,  Switch, optional: true
       identified_by :run
 
       value_object "RunKey" do
@@ -1642,13 +1652,15 @@ Hecks.bluebook "Hecks" do
         transition "Summarize" => "advanced",   from: "requested"
         transition "Pass"      => "verified",   from: "requested"
         transition "Fail"      => "failed",     from: "requested"
+        transition "FailOnce"  => "retrying",   from: "requested"
         transition "Send"      => "pushed",     from: "requested"
         transition "Reject"    => "refused",    from: "requested"
         transition "Green"     => "passed",     from: "requested"
         transition "Red"       => "red",        from: "requested"
         transition "Close"     => "closed",     from: "requested"
         transition "Supersede" => "superseded", from: "requested"
-        mark :terminal, "advanced", "verified", "failed", "pushed", "refused", "passed", "red", "closed", "superseded"
+        mark :terminal, "advanced", "verified", "failed", "retrying", "pushed", "refused", "passed", "red", "closed",
+             "superseded"
       end
 
       command "Advance" do
@@ -1680,6 +1692,8 @@ Hecks.bluebook "Hecks" do
         attribute :run,      RunKey, sets: true
         attribute :landed,   Word, sets: true
         attribute :checkout, Word, optional: true, sets: true
+        # An advance sets it on the one retry of a run whose first verification failed.
+        attribute :retried,  Switch, default: false, sets: true
 
         emits MainVerificationStarted
         emits MainVerificationRequested
@@ -1705,6 +1719,17 @@ Hecks.bluebook "Hecks" do
         attribute :refusal, Report, sets: true
 
         emits MainVerificationFailed
+      end
+
+      command "FailOnce" do
+        role "System"
+        goal "Record why a landed commit failed its first verification, so its run is verified once more before it waits for a person"
+
+        reference_to Integration
+        attribute :landed,  Word,   sets: true
+        attribute :refusal, Report, sets: true
+
+        emits MainVerificationFailedOnce
       end
 
       command "Board" do
@@ -1826,7 +1851,7 @@ Hecks.bluebook "Hecks" do
 
     policy "VerifyMainWhenRequested" do
       on      "Integration.MainVerificationRequested"
-      ask     :check, with: { run: :run, landed: :landed }
+      ask     :check, with: { run: :run, landed: :landed, retried: :retried }
     end
 
     policy "RecordTheVerification" do
@@ -1841,8 +1866,18 @@ Hecks.bluebook "Hecks" do
       trigger Integration::Supersede, with: { landed: :landed, report: :report }
     end
 
+    # A first verification that fails is held for one more try; the retry's failure is the one a
+    # person is asked about. Both refusals stay in the log: MainVerificationFailedOnce carries the
+    # first, MainVerificationFailed the second.
+    policy "RetryTheFailedVerification" do
+      on      "Integration.VerifyRefused"
+      where   { retried.value == false }
+      trigger Integration::FailOnce, with: { landed: :landed, refusal: :refusal }
+    end
+
     policy "RecordTheFailedVerification" do
       on      "Integration.VerifyRefused"
+      where   { retried.value == true }
       trigger Integration::Fail, with: { landed: :landed, refusal: :refusal }
     end
 
