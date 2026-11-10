@@ -1244,7 +1244,7 @@ Hecks.bluebook "Hecks" do
       end
 
       lifecycle :status, default: "requested" do
-        mark :failure, "faulted"
+        mark :failure, "faulted", "red"
         transition "Send"  => "pushed",  from: "requested"
         transition "Ride"  => "carried", from: "requested"
         transition "Queue" => "queued",  from: "requested"
