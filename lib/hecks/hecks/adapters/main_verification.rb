@@ -12,10 +12,11 @@ module Hecks
     # clean detached copy of it, holding no local Hecks files, by running every check `Checks`
     # names there. A commit other than the head of local main is answered `superseded` without a
     # check: the run for the head verifies both. A check that fails refuses the
-    # verification, naming each failing check and what it printed last.
+    # verification: the first line names every failing check, and a block for each keeps the
+    # last `TAIL` lines it printed, so the run parked in needs_human says why.
     class MainVerification
-      # How much of a failing check's output a refusal keeps.
-      TAIL = 400
+      # How many of a failing check's last output lines a refusal keeps.
+      TAIL = 60
 
       class << self
         # @return [#call, nil] takes `(argv, chdir:)` and answers `[ok, output]`; the command
@@ -57,12 +58,14 @@ module Hecks
 
       def record(name, argv, directory)
         ok, output = runner.call(argv, chdir: directory)
-        @failures << "#{name}: #{tail(output)}" unless ok
+        @failures << [name, tail(output)] unless ok
         ok
       end
 
       def refuse!(landed)
-        raise ConsoleCapture::Failure, "#{landed[0, 10]} failed verification: #{@failures.join("; ")}"
+        names = @failures.map(&:first).join(", ")
+        blocks = @failures.map { |name, text| "--- #{name}, the last #{TAIL} lines:\n#{text}" }
+        raise ConsoleCapture::Failure, ["#{landed[0, 10]} failed verification: #{names}", *blocks].join("\n")
       end
 
       def superseded(landed, head)
@@ -71,15 +74,9 @@ module Hecks
 
       def answer(outcome, report) = { outcome: { value: outcome }, report: { value: report } }
 
-      def tail(output)
-        text = last_lines(output).split.join(" ")
-        text.length > TAIL ? text[-TAIL..] : text
-      end
+      def tail(output) = output_lines(output).last(TAIL).join.chomp
 
-      def last_lines(output)
-        lines = output.to_s.strip.lines
-        lines.last(3).join(" ")
-      end
+      def output_lines(output) = output.to_s.strip.lines
 
       def runner = self.class.runner || MainIntegration::CommandRunner.new
 
