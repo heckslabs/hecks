@@ -4,6 +4,7 @@ require "json"
 require_relative "probe"
 require_relative "live_store"
 require_relative "pipeline_tickets/run_detail"
+require_relative "pipeline_tickets/stopped_runs"
 require_relative "../../hecks/adapters/started_work"
 
 module Hecks
@@ -13,6 +14,7 @@ module Hecks
     # session ran each work item from the AgentRun records. It only reads.
     class PipelineTickets
       include PipelineBoard::RunDetail
+      include PipelineBoard::StoppedRuns
 
       DONE = %w[done dropped].freeze
       # The AgentRun statuses the `Running` and `Tidyable` queries select.
@@ -24,8 +26,8 @@ module Hecks
 
       # @param registry [Runtime::Registry, nil] the booted registry whose work items are read
       # @param aggregate [Object, nil] unused
-      # @param settings [Hash] `work_items:` and `landings:` stand in for the registry's Work and
-      #   Landing records
+      # @param settings [Hash] `work_items:`, `landings:` and `findings:` stand in for the
+      #   registry's Work, Landing and Finding records
       # @param root [String, nil] unused
       # `live_store:` in `settings` stands in for the {PipelineBoard::LiveStore} read when the board
       # is told where the live store is (`PIPELINE_BOARD_LAUNCHER_ROOT`).
@@ -34,6 +36,7 @@ module Hecks
         @live = settings.fetch(:live_store) { live_store_named }
         @standin = settings[:work_items]
         @landed = settings[:landings]
+        @stopped = settings[:findings]
       end
 
       # @return [Hash{Symbol => String}] `text:` the open work items as JSON: slug, status, area,

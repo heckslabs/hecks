@@ -31,7 +31,20 @@ Hecks.bluebook "Tickets" do
     attribute :fix_pr_number,  Number, optional: true
     attribute :dismissal,      Body, optional: true
     attribute :sync_failure,   Body, optional: true
+    attribute :stage,          Stage, optional: true
+    attribute :commit,         Commit, optional: true
     identified_by :finding
+
+    # Where a stopped run or shipment stood when it was reported: the state it parked in, or the
+    # step that faulted. A finding not about a run has none.
+    value_object "Stage" do
+      attribute :value, String, matches: :present
+    end
+
+    # The commit a stopped integration run was keyed by, as a plain string.
+    value_object "Commit" do
+      attribute :value, String, matches: :present
+    end
 
     value_object "FindingKey" do
       attribute :value, String, matches: :present
@@ -57,9 +70,10 @@ Hecks.bluebook "Tickets" do
       attribute :value, String, one_of: ["low", "medium", "high"]
     end
 
-    # Where it came from: the QA loop, work for a client, a parity check, or a maintainer by hand.
+    # Where it came from: the QA loop, work for a client, a parity check, a maintainer by hand, or
+    # the delivery pipeline, when an integration run or a shipment stopped for a person.
     value_object "Source" do
-      attribute :value, String, one_of: ["qa_loop", "client_work", "parity_check", "maintainer"]
+      attribute :value, String, one_of: ["qa_loop", "client_work", "parity_check", "maintainer", "pipeline"]
     end
 
     # The same finding refiled by the QA loop carries the same fingerprint, so a report of it while an
@@ -107,6 +121,26 @@ Hecks.bluebook "Tickets" do
       sets :source, to: "qa_loop"
 
       emits "RunFindingReported"
+    end
+
+    # An integration run or a shipment that stopped for a person reports itself: the run's key names
+    # the finding, so it is filed once per run and names the first stop only. A later stop of the
+    # same run (parked again after it was taken up) is refused as already reported and files
+    # nothing; the finding keeps the first stage and reason. It opens no GitHub issue: the pipeline
+    # board lists the open ones.
+    command "ReportStoppedRun" do
+      goal "Record that an integration run or a shipment stopped for a person, with the stage and the reason"
+
+      attribute :finding, FindingKey, sets: true
+      attribute :body,    Body, sets: true
+      attribute :stage,   Stage, sets: true
+      attribute :commit,  Commit, optional: true, sets: true
+
+      sets :fingerprint, to: :finding
+      sets :title,  to: "A run stopped for a person"
+      sets :source, to: "pipeline"
+
+      emits "StoppedRunReported"
     end
 
     command "Triage" do
@@ -186,6 +220,14 @@ Hecks.bluebook "Tickets" do
     query "Open" do
       description "Every finding not yet resolved or dismissed."
       where(status: { in: "reported,triaged" })
+      order_by :finding
+    end
+
+    # A log of stops, not a count of runs stopped now: a run taken up again keeps its finding open
+    # until a person resolves or dismisses it.
+    query "Stopped" do
+      description "Every open finding a stopped integration run or shipment filed."
+      where(source: "pipeline", status: { in: "reported,triaged" })
       order_by :finding
     end
   end
@@ -796,6 +838,41 @@ Hecks.bluebook "Tickets" do
     on      "GateRun.GateFaulted"
     root
     trigger Finding::ReportFailedRun, with: { finding: :run, body: :refusal }
+  end
+
+  # An integration run parked in needs_human, or a shipment's step that faulted, files a finding a
+  # person sees on the pipeline board. An integration run is keyed by its landed commit, a shipment
+  # by its run. A CI run that ends red is not here: it raises the red flag (RaiseTheFlagWhenCiFails).
+  # A refused landing is not here either: every refused `landing.finish!` emits it, and its caller
+  # reads the refusal.
+  policy "ReportWhenVerificationFailed" do
+    on      "Integration.MainVerificationFailed"
+    root
+    trigger Finding::ReportStoppedRun, with: { finding: :landed, commit: :landed, stage: "verifying", body: :refusal }
+  end
+
+  policy "ReportWhenMainPushRefused" do
+    on      "Integration.MainPushRefused"
+    root
+    trigger Finding::ReportStoppedRun, with: { finding: :landed, commit: :landed, stage: "boarding", body: :refusal }
+  end
+
+  policy "ReportWhenPullRequestClosed" do
+    on      "Integration.PullRequestClosed"
+    root
+    trigger Finding::ReportStoppedRun, with: { finding: :landed, commit: :landed, stage: "ci_running", body: :report }
+  end
+
+  policy "ReportWhenStyleFaulted" do
+    on      "StyleRun.StyleFaulted"
+    root
+    trigger Finding::ReportStoppedRun, with: { finding: :run, stage: "fixing", body: :refusal }
+  end
+
+  policy "ReportWhenPushFaulted" do
+    on      "SendTrain.PushFaulted"
+    root
+    trigger Finding::ReportStoppedRun, with: { finding: :run, stage: "boarding", body: :refusal }
   end
 
   # A spec file that went red on main is a work item QA picks up: `Work.undone` lists it. The spec's own key is

@@ -46,6 +46,24 @@ RSpec.describe Hecks::Adapters::PipelineStages do
     expect(names).to eq(["Work items", "Sessions", "Local main", "Train", "CI", "Promote", "Release"])
   end
 
+  def findings_reader(*findings)
+    { tickets: Hecks::Adapters::PipelineTickets.new(settings: { work_items: work_items, landings: [], findings: findings }) }
+  end
+
+  def stopped_finding(finding, status: "reported", source: "pipeline")
+    { finding: finding, stage: "verifying", commit: finding, body: "quick gate red\nmore", source: source, status: status }
+  end
+
+  it "shows the open findings stopped runs filed, after the red flag and before the Work items" do
+    row = stage("Stopped runs", findings_reader(stopped_finding("abc1234567890"), stopped_finding("old", status: "resolved")))
+    expect(row).to include(state: "attention", count: "1", detail: "abc1234567 at verifying: quick gate red")
+  end
+
+  it "builds no Stopped runs row while no stopped run's finding is open" do
+    names = board(findings_reader(stopped_finding("x", source: "qa_loop"))).state[:stages].map { |row| row[:name] }
+    expect(names).not_to include("Stopped runs")
+  end
+
   it "counts the Work items by status" do
     expect(stage("Work items")).to include(count: "1/1/1")
   end
