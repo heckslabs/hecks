@@ -32,7 +32,10 @@ module Hecks
 
         # @param reason [String] a stop's reason
         # @return [String] its first line, trimmed
-        def first_line(reason) = reason.lines.first.to_s.strip
+        def first_line(reason)
+          line = reason.lines.first
+          line.to_s.strip
+        end
       end
     end
   end
