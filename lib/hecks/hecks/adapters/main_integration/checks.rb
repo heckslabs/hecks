@@ -20,6 +20,10 @@ module Hecks
         # The launcher, as the copy holds it.
         LAUNCHER = "exe/hecks"
 
+        # What every launcher command runs under, as CI runs it: `bundle exec` hands Bundler to
+        # each process the command starts, a spec's own subprocess included.
+        RUNS_AS = %w[bundle exec].freeze
+
         # The checks that do not depend on what changed, by name.
         FIXED = {
           "quick gate"    => %w[gate_run.gate! stage=quick --wait],
@@ -37,7 +41,7 @@ module Hecks
 
         # @return [Array<Array(String, Array<String>)>] each check's name and its command line
         def all
-          named = FIXED.map { |name, args| [name, [LAUNCHER, *args]] }
+          named = FIXED.map { |name, args| [name, [*RUNS_AS, LAUNCHER, *args]] }
           named.first(1) + spec_batches + named.drop(1)
         end
 
@@ -54,7 +58,7 @@ module Hecks
           batches = specs.each_slice(BATCH).to_a
           batches.each_with_index.map do |batch, index|
             ["specs #{index + 1}/#{batches.size}",
-             [LAUNCHER, "test_suite_run.run_spec_files!", "files.value=#{batch.join(" ")}", "--wait"]]
+             [*RUNS_AS, LAUNCHER, "test_suite_run.run_spec_files!", "files.value=#{batch.join(" ")}", "--wait"]]
           end
         end
       end
