@@ -50,7 +50,7 @@ module Hecks
         case pull["state"]
         when "MERGED" then observe(landed, pull.dig("mergeCommit", "oid") || landed)
         when "CLOSED" then answer("closed", "#{landed[0, 10]}: PR #{number} closed without merging")
-        else answer("running", "#{landed[0, 10]}: PR #{number} not merged yet")
+        else answer("running", "#{landed[0, 10]}: PR #{number} not merged yet (#{Checks.new(pull["statusCheckRollup"]).counts})")
         end
       end
 
