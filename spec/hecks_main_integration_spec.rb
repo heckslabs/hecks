@@ -183,6 +183,34 @@ RSpec.describe "integrating main through the MainIntegration saga" do
     expect(land_two_behind_an_open_pull_request.map { |landed| stage(landed) }).to eq(%w[green green])
   end
 
+  # An open train pull request whose checks are the given (name, status, conclusion) rows.
+  def open_pull_with(*checks)
+    rollup = checks.map { |name, status, conclusion| { name: name, status: status, conclusion: conclusion } }
+    { number: 12, state: "OPEN", mergeCommit: nil, statusCheckRollup: rollup }
+  end
+
+  # Pushes one run behind an open pull request with these checks, then lands a second and advances.
+  def land_behind_train_with(*checks)
+    @pull = open_pull_with(*checks)
+    first = land
+    advance(3)
+    second = land(file: "second.rb")
+    advance(2)
+    [first, second]
+  end
+
+  it "boards a verified landing behind a train whose checks failed", :aggregate_failures do
+    _first, second = land_behind_train_with(["rspec 8/12", "COMPLETED", "FAILURE"], ["lint", "COMPLETED", "SUCCESS"])
+    expect(@boardings.size).to eq(2)
+    expect(stage(second)).to eq("ci_running")
+  end
+
+  it "waits on a train whose checks are still running, naming the counts", :aggregate_failures do
+    first, second = land_behind_train_with(["rspec 8/12", "IN_PROGRESS", ""], ["lint", "COMPLETED", "SUCCESS"])
+    expect(stage(second)).to eq("verified")
+    expect(report("IntegrationAdvanced")).to include("waiting: #{first[0, 10]} is ci_running (1 of 2 checks)")
+  end
+
   it "starts a run in landed when a branch lands on main" do
     landed = land
     expect(stage(landed)).to eq("landed")

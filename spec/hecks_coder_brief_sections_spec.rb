@@ -46,18 +46,16 @@ RSpec.describe "the Coder brief's standing sections" do
                                         "changes: revise the plan", "Work.yield! to={work}", "Quote the verdict")
   end
 
-  it "waits for the verdict by event name and reads the listing after every return" do
-    expect(section(:review)).to include("names.value=PlanReviewed,PlanReviewRecorded",
-                                        "domain.value={main}/lib/hecks/hecks",
-                                        "at most four times", "the read, not the follow")
+  it "ends its turn on a [review] question to be resumed, and never polls for the verdict", :aggregate_failures do
+    review = section(:review)
+    expect(review).to include("end your turn by asking one question that begins [review]", "resumes this same session")
+    expect(review).not_to include("Operation.follow", "wait=150", "at most four times")
   end
 
   it "runs every review command through the main checkout's launcher", :aggregate_failures do
     review = section(:review)
-    expect(review).to include("{main}/exe/hecks agents PlanReview.request!",
-                              "{main}/exe/hecks agents PlanReview.reviews", "{main}/exe/hecks Operation.follow")
-    bare = review.gsub("{main}/exe/hecks", "")
-    expect(bare).not_to include("exe/hecks agents PlanReview", "exe/hecks Operation.follow")
+    expect(review).to include("{main}/exe/hecks agents PlanReview.request!", "{main}/exe/hecks agents PlanReview.reviews")
+    expect(review.gsub("{main}/exe/hecks", "")).not_to include("exe/hecks agents PlanReview")
   end
 
   it "listens for the red flag through the main checkout too" do

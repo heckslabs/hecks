@@ -54,8 +54,24 @@ module Hecks
         # @param now [Time] the time to judge against
         # @return [String, nil] the reason, worded `parked: ...`
         def reason(item, runs:, now: Time.now.utc)
+          states = runs.call
+          live_reason(item, states) || timed_reason(item, states, now)
+        end
+
+        # Why an item whose run is working is not started again: the run keeps its key, whatever
+        # its last yield said, so no second run starts and no yield touches the work item.
+        #
+        # @param item [#key] a planned work item
+        # @param runs [Hash{String => Hash}] the AgentRun states by run key
+        # @return [String, nil] the reason, worded `parked: ...`
+        def live_reason(item, runs)
+          taken_reason(item, runs) if runs.fetch(item.key, {})[:status].to_s == "started"
+        end
+
+        # An `already_recorded` yield parks while its run holds the key; the others wait out a time.
+        def timed_reason(item, runs, now)
           case item.yield_kind.to_s
-          when "already_recorded" then taken_reason(item, runs.call)
+          when "already_recorded" then taken_reason(item, runs)
           when "missing_passage", "transient" then waiting_reason(item, now)
           end
         end

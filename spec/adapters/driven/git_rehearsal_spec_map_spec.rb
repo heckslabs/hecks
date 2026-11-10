@@ -152,6 +152,43 @@ RSpec.describe Hecks::Adapters::GitRehearsal::SpecMap do
     end
   end
 
+  context "with a lib file that declares several constants and a spec that never requires it" do
+    let(:ledger) { "lib/hecks/shape_ledger/edge.rb" }
+    let(:source) do
+      "module Hecks\n  module ShapeLedger\n    class Edge\n    end\n\n    class EdgeHygiene\n    end\n  end\nend\n"
+    end
+
+    before do
+      add(ledger, source)
+      add("spec/hygiene_spec.rb", "RSpec.describe Hecks::ShapeLedger::EdgeHygiene do\nend\n")
+      add("spec/namespace_spec.rb", "Hecks::ShapeLedger.freeze\n")
+    end
+
+    it "runs a spec that names any constant the file declares, not only the first" do
+      expect(specs(ledger)).to include("spec/hygiene_spec.rb")
+    end
+
+    it "leaves out a spec that names only a namespace the file passes through" do
+      expect(specs(ledger)).not_to include("spec/namespace_spec.rb")
+    end
+
+    it "runs nothing extra for a change to a doc alone" do
+      expect(specs("docs/guide.md")).not_to include("spec/hygiene_spec.rb")
+    end
+
+    it "keeps a constant whose namespaces are generic but whose own name is not" do
+      add("lib/hecks/adapters/thing.rb", "module Hecks\n  module Adapters\n    class Thing\n    end\n  end\nend\n")
+      add("spec/thing_spec.rb", "Hecks::Adapters::Thing.new\n")
+      expect(specs("lib/hecks/adapters/thing.rb")).to include("spec/thing_spec.rb")
+    end
+
+    it "takes nothing from a file that declares only generic namespaces" do
+      add("lib/hecks/adapters/bare.rb", "module Hecks\n  module Adapters\n  end\nend\n")
+      add("spec/adapters_spec.rb", "Hecks::Adapters.freeze\n")
+      expect(specs("lib/hecks/adapters/bare.rb")).not_to include("spec/adapters_spec.rb")
+    end
+  end
+
   context "with a spec tagged :repo_scan, which reads the whole tree" do
     let(:scan) { "spec/tree_scan_spec.rb" }
 
