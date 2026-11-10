@@ -14,6 +14,7 @@ RSpec.describe "the fill that follows a movement of the machine" do
   it "does not roll on the beat whose idle CPU crossed a mark: the load average alone decides" do
     expect(kinds(10.0)).to eq(%w[Beaten])
   end
+
   it "has no policy that starts a roll on every reading", :aggregate_failures do
     heard = policies.map { |policy| policy.on_event.to_s }
 
