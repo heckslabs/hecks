@@ -123,6 +123,11 @@ RSpec.describe Hecks::Adapters::PipelineBoard::Rules do
       expect(actions.before("promote", {})).to be_nil
     end
 
+    it "has an answer fall back to a reply when its run has ended, and no other step a fallback", :aggregate_failures do
+      expect(actions.ended("answer")).to eq("reply")
+      expect(actions.ended("promote")).to be_nil
+    end
+
     it "knows no other step" do
       expect(actions.known?("rm")).to be(false)
     end

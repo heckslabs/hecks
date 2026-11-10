@@ -224,6 +224,10 @@ Hecks.bluebook "PipelineBoard" do
     # `{field}` filled from the request. A step runs only when every field it needs is present.
     # `before` is a launcher command that runs first when it is not empty: an answer first checks
     # the run, so the run records the state the job is in and the answer's own rule can hold.
+    # `ended` is the step taken instead when that first command is refused because the run has
+    # ended: an answer to a run that finished while its session still waits on a person goes to that
+    # session as a reply, which resumes it in place. With no waiting session the step is refused by
+    # name, and the page keeps what the person typed.
     value_object "ActionRule" do
       attribute :action,  String
       attribute :needs,   String
@@ -231,8 +235,9 @@ Hecks.bluebook "PipelineBoard" do
       attribute :program, String
       attribute :argv,    String
       attribute :before,  String, default: ""
+      attribute :ended,   String, default: ""
 
-      member action: "answer",      needs: "target text",          confirm: "no",  program: "exe/hecks", argv: "AgentRun.answer! to={target} answer.value={text} --wait", before: "AgentRun.check! to={target} --wait"
+      member action: "answer",      needs: "target text",          confirm: "no",  program: "exe/hecks", argv: "AgentRun.answer! to={target} answer.value={text} --wait", before: "AgentRun.check! to={target} --wait", ended: "reply"
       member action: "reply",       needs: "target text",          confirm: "no",  program: "claude",    argv: "attach {attach}"
       member action: "auto_reply",  needs: "target",               confirm: "no",  program: "exe/hecks", argv: ""
       member action: "board_train", needs: "",                     confirm: "yes", program: "exe/hecks", argv: "SendTrain.board! --confirm"

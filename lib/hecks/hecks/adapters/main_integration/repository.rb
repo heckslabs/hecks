@@ -1,8 +1,12 @@
 # frozen_string_literal: true
 
-require "tmpdir"
+require "digest"
+require "fileutils"
+require "hecks/cache_dir"
 require_relative "../git"
 require_relative "../console_capture"
+require_relative "../bounded_capture"
+require_relative "copy_lock"
 
 module Hecks
   module Adapters
@@ -10,8 +14,11 @@ module Hecks
       # The checkout a run landed in, as an integration step reads it: where local main and
       # origin/main stand, what a range changed and says, and a clean detached copy of a commit.
       class Repository
-        # The prefix of the scratch directory a clean copy is made in.
-        COPY_PREFIX = "hecks-main-integration"
+        # The cache directory, under `Hecks::CacheDir`, that each checkout's clean copy is made in.
+        COPY_PREFIX = "main-integration"
+
+        # The lock file's name in the repository's git directory.
+        LOCK = "hecks-main-integration.lock"
 
         # The files a development checkout keeps for itself and a clean copy must not hold.
         LOCAL_FILES = "lib/**/*.local.{hecksagon,world}"
@@ -45,24 +52,49 @@ module Hecks
         def messages(base, tip) = read("log", "--format=%B%x1e", "#{base}..#{tip}").split("\x1e").map(&:strip)
 
         # Yields a clean detached copy of a commit, holding only what the commit tracks, and
-        # removes it once the block ends.
+        # removes it once the block ends. The copy sits at one path for this checkout, under the
+        # cache directory, so a Rust build keyed by the copy's path (a binary build's slot) finds
+        # the last copy's output; verifications take turns at it (`CopyLock`), waiting at most the
+        # world's `spec_bounds` `check_seconds`. A copy a crash left behind is removed first.
         #
         # @param tip [String] the commit to copy
         # @yieldparam directory [String] the copy
         # @return [Object] what the block answered
-        def clean_copy(tip)
-          Dir.mktmpdir(COPY_PREFIX) do |scratch|
+        # @raise [ConsoleCapture::Failure] when another verification holds the turn past the wait
+        def clean_copy(tip, &)
+          CopyLock.hold(lock_file, wait: BoundedCapture.seconds(@checkout, :check_seconds)) do
             directory = File.join(scratch, "main")
+            discard(directory)
             read("worktree", "add", "--quiet", "--detach", directory, tip)
-            begin
-              yield refuse_local_files!(directory)
-            ensure
-              @git.capture("worktree", "remove", "--force", directory, chdir: @checkout)
-            end
+            in_copy(directory, &)
           end
         end
 
+        # @return [String] the directory this checkout's copies are made in: its name and a digest
+        #   of its path, so two checkouts never share one
+        def scratch
+          real = File.realpath(@checkout)
+          CacheDir.path(File.join(COPY_PREFIX, "#{File.basename(real)}-#{Digest::SHA256.hexdigest(real)[0, 8]}"))
+        end
+
+        # @return [String] the lock file of the turn at the copy, in the repository's git
+        #   directory, so it goes when the repository does
+        def lock_file = File.join(read("rev-parse", "--path-format=absolute", "--git-common-dir").strip, LOCK)
+
         private
+
+        def in_copy(directory)
+          yield refuse_local_files!(directory)
+        ensure
+          discard(directory)
+          Dir.rmdir(scratch) if Dir.exist?(scratch) && Dir.empty?(scratch)
+        end
+
+        def discard(directory)
+          @git.capture("worktree", "remove", "--force", directory, chdir: @checkout) if File.exist?(directory)
+          FileUtils.rm_rf(directory)
+          @git.capture("worktree", "prune", chdir: @checkout)
+        end
 
         def refuse_local_files!(directory)
           found = Dir.glob(LOCAL_FILES, base: directory)

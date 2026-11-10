@@ -5,6 +5,7 @@ require_relative "main_integration"
 require_relative "main_integration/repository"
 require_relative "main_integration/checks"
 require_relative "main_integration/command_runner"
+require_relative "main_integration/cargo_target"
 
 module Hecks
   module Adapters
@@ -13,7 +14,9 @@ module Hecks
     # names there. A commit other than the head of local main is answered `superseded` without a
     # check: the run for the head verifies both. A check that fails refuses the
     # verification: the first line names every failing check, and a block for each keeps the
-    # last `TAIL` lines it printed, so the run parked in needs_human says why.
+    # last `TAIL` lines it printed, so the run parked in needs_human says why. The copy's crates
+    # build into the Cargo targets every verification of their toolchain shares (`CargoTarget`),
+    # so a second verification reuses the first one's compiled dependencies.
     class MainVerification
       # How many of a failing check's last output lines a refusal keeps.
       TAIL = 60
@@ -49,6 +52,7 @@ module Hecks
       def run_checks(repository, landed)
         changed = repository.changed(repository.remote_main, landed)
         repository.clean_copy(landed) do |directory|
+          MainIntegration::CargoTarget.link(directory)
           checks = MainIntegration::Checks.new(directory, changed).all
           failed = checks.reject { |name, argv| record(name, argv, directory) }
           refuse!(landed) unless failed.empty?

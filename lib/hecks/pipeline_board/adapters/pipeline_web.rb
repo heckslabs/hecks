@@ -3,6 +3,7 @@
 require_relative "pipeline_stages"
 require_relative "pipeline_wiring"
 require_relative "pipeline_web/actions"
+require_relative "pipeline_web/ended_run"
 require_relative "pipeline_web/server"
 require_relative "pipeline_web/stream"
 require_relative "pipeline_web/snapshot"
@@ -58,18 +59,21 @@ module Hecks
         program = PipelineBoard::Actions.program(action)
         stdin = action == "reply" ? "#{fields[:text]}\r" : nil
         first = PipelineBoard::Actions.before(action, fields)
-        check_first(program, first) if first
+        ended = first && !PipelineBoard::EndedRun.checked?(@launcher, @launcher_root, program, first)
+        return instead(action, fields, confirm) if ended
+
         @launcher.call(program, *argv, chdir: @launcher_root, stdin: stdin)
         @snapshot.refresh_now if action == "reply"
         { ran: "#{program} #{argv.first}" }
       end
 
-      # Runs the command a step names to run first (an answer checks the run), so the run holds the
-      # job's own state before the step's rule is asked. Its refusal ends the step.
-      def check_first(program, argv)
-        @launcher.call(program, *argv, chdir: @launcher_root, stdin: nil)
-      rescue PipelineBoard::Unavailable => e
-        raise PipelineBoard::Unavailable, "the session could not be checked first: #{e.message}"
+      # The run a step names has ended. When the step declares an `ended` step and the run's session
+      # still waits on a person, that step sends the text to the session; otherwise the step is
+      # refused by name and the page keeps the text.
+      def instead(action, fields, confirm)
+        step = PipelineBoard::Actions.ended(action)
+        waiting = PipelineBoard::EndedRun.waiting(step, @snapshot.latest[:sessions], fields[:target])
+        act(action: step, fields: fields.merge(target: waiting[:id]), confirm: confirm)
       end
 
       # The step the page asked for, with the fields the launcher needs. An auto reply becomes a
