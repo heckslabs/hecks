@@ -4,9 +4,21 @@ require "spec_helper"
 module StoppedRunsHelpers
   TICKETS_DIR = File.expand_path("../lib/hecks/tickets/bluebook", __dir__)
 
+  # The events that stop a run for a person, each with the stage it files and its reason field.
+  STOPS = {
+    %w[Integration MainVerificationFailed] => ["verifying", :refusal],
+    %w[Integration MainPushRefused]        => ["boarding", :refusal],
+    %w[Integration PullRequestClosed]      => ["ci_running", :report],
+    %w[Shipment ShipmentStopped]           => ["boarding", :refusal]
+  }.freeze
+
+  # Events any run of a command emits, inside a shipment or not: none of them files a finding.
+  ORDINARY = %w[StyleRun.StyleFaulted StyleRun.StyleRefused SendTrain.PushFaulted SendTrain.TrainRefused].freeze
+
   def payload(aggregate, reason_field, reason)
-    key = aggregate == "Integration" ? :landed : :run
-    { key => { value: "abc123" }, reason_field => { value: reason } }
+    key   = aggregate == "Integration" ? :landed : :run
+    facts = { key => { value: "abc123" }, reason_field => { value: reason } }
+    aggregate == "Shipment" ? facts.merge(stage: { value: "boarding" }) : facts
   end
 
   def emit(aggregate, name, reason_field, reason = "it stopped")
@@ -22,23 +34,16 @@ module StoppedRunsHelpers
   end
 end
 
-# An integration run that parks for a person, or a shipment whose step faults, files one Finding
-# in Tickets with the stage and the reason, keyed by the run. The Tickets bluebook boots alone in
-# Memory and hears each event as the Hecks domain emits it.
+# An integration run that parks for a person, or a shipment that parks for one, files one Finding
+# in Tickets with the stage and the reason, keyed by the run. A style run or a boarding that faults
+# outside a shipment files nothing: its caller reads the refusal. The Tickets bluebook boots alone
+# in Memory and hears each event as the Hecks domain emits it.
 RSpec.describe "stopped runs file findings" do
   include StoppedRunsHelpers
 
-  stops = {
-    %w[Integration MainVerificationFailed] => ["verifying", :refusal],
-    %w[Integration MainPushRefused]        => ["boarding", :refusal],
-    %w[Integration PullRequestClosed]      => ["ci_running", :report],
-    %w[StyleRun StyleFaulted]              => ["fixing", :refusal],
-    %w[SendTrain PushFaulted]              => ["boarding", :refusal]
-  }
-
   let(:runtime) { Hecks.boot(StoppedRunsHelpers::TICKETS_DIR) }
 
-  stops.each do |(aggregate, name), (stage, reason_field)|
+  StoppedRunsHelpers::STOPS.each do |(aggregate, name), (stage, reason_field)|
     it "files one finding for #{aggregate}.#{name} with its stage and reason" do
       emit(aggregate, name, reason_field)
       expect(stopped(:finding, :stage, :body)).to eq([["abc123", stage, "it stopped"]])
@@ -48,6 +53,13 @@ RSpec.describe "stopped runs file findings" do
       emit(aggregate, name, reason_field, "first")
       emit(aggregate, name, reason_field, "second")
       expect(stopped(:body)).to eq([["first"]])
+    end
+  end
+
+  StoppedRunsHelpers::ORDINARY.each do |event|
+    it "files nothing for #{event}, which any run of that command emits" do
+      emit(*event.split("."), :refusal)
+      expect(stopped(:finding)).to be_empty
     end
   end
 

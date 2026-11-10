@@ -1,6 +1,7 @@
 require "spec_helper"
 require "tmpdir"
 require "fileutils"
+require "hecks/shape_ledger"
 
 # Edge hygiene reads the edge files of a disposable directory against a ledger label and the current
 # shape. It flags a self-loop, a fork and an orphan by file, and never a sole route.

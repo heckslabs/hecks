@@ -124,6 +124,12 @@ RSpec.describe "the strays of a checkout", :io do
 
       expect(strays).to include("1 commit(s) not on main, 1 on no main or remote ref", "keep:")
     end
+
+    it "is kept, and says its commits could not be counted, when git cannot count them", :aggregate_failures do
+      git("branch", "-m", "main", "trunk")
+      expect(strays).to include("commits unreadable", "keep: its commits could not be counted")
+      expect(strays).not_to include("safe to move")
+    end
   end
 
   describe "setting a path aside" do
@@ -205,6 +211,12 @@ RSpec.describe "the strays of a checkout", :io do
       commit("ahead", dir: inner)
 
       expect { shelve("trees/inner") }.to raise_error(failure, /on no main or remote ref; push them first/)
+      expect(File.directory?(inner)).to be(true)
+    end
+
+    it "refuses one whose commits git cannot count, naming why, and leaves it", :aggregate_failures do
+      git("branch", "-m", "main", "trunk")
+      expect { shelve("trees/inner") }.to raise_error(failure, /commits of \h+ could not be counted/)
       expect(File.directory?(inner)).to be(true)
     end
 

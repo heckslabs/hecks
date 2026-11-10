@@ -17,6 +17,16 @@ module PruningSpecHelpers
     launch("agent_run.check!", "to=#{run}", "--wait")
   end
 
+  # A landing of a Work item: the item is planned, a Landing is recorded (refused, since the
+  # scratch checkout holds no repository), and the LandedWork port answers LandedWorkFound for it.
+  def land(work)
+    launch("tickets", "Work.plan!", "work.value=#{work}", "title.value=#{work}", "--wait")
+    launch("Landing.land!", "run.value=#{work}", "checkout.value=#{scratch}", "branch.value=#{work}", "--confirm", "--wait")
+    launch("Landing.find_landed_work!", "to=#{work}", "branch.value=#{work}", "--wait")
+  end
+
+  def pruners_started = reactions("StartThePrunerWhenWoken").size
+
   def rest_the_pruner
     launch("pruning.seat!", "role.value=pruner", "--wait")
     launch("pruning.rest!", "to=pruner", "--wait")

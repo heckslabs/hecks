@@ -640,7 +640,8 @@ Hecks.bluebook "Hecks" do
 
       # Each step records itself and waits. The caller dispatches the next command at top level:
       # ConformanceRun.CheckShapeLedger, then GateRun.Gate, then Landing.Land, then SendTrain.Board.
-      # A dispatch made from inside this saga would run past the reaction depth bound.
+      # A stage dispatched from inside this saga would run past the reaction depth bound, so the
+      # saga dispatches only Shipment.Stop, a record with no reaction in this domain.
       transition StyleRun::StyleCompleted => "checking", from: "fixing"
       transition ConformanceRun::ConformanceAccepted => "gated", from: %w[checking needs_human]
       transition GateRun::GateCompleted => "landing", from: "gated"
@@ -650,11 +651,20 @@ Hecks.bluebook "Hecks" do
       transition SendTrain::CarriedByEarlierPush => "boarded", from: "boarding"
       transition SendTrain::BoardingQueued => "boarded", from: "boarding"
 
+      # A faulted boarding of this shipment records the park as Shipment.Stop, which Tickets files
+      # as a stopped run; a boarding that faults outside a shipment takes no leg here. The caller
+      # dispatches SendTrain.Board at top level, so Stop and the finding stay inside the reaction
+      # depth bound. The comment fix runs inside Ship, a hop deeper, and a Stop dispatched from its
+      # leg would meet the bound and unwind the leg, so it records nothing more. A faulted ledger
+      # check or gate files its own finding (ReportWhenConformanceFaulted, ReportWhenGateFaulted),
+      # and a refused landing is read by its caller.
       transition StyleRun::StyleFaulted => "needs_human", from: "fixing"
       transition ConformanceRun::ConformanceFaulted => "needs_human", from: "checking"
       transition GateRun::GateFaulted => "needs_human", from: "gated"
       transition Landing::LandingRefused => "needs_human", from: "landing"
-      transition SendTrain::PushFaulted => "needs_human", from: "boarding"
+      transition SendTrain::PushFaulted => "needs_human", from: "boarding" do
+        dispatch Shipment::Stop, with: { shipment: :run, stage: "boarding", refusal: :refusal }
+      end
     end
 
     # Agents merge straight to local main and clean up what they merged. A landing merges a worktree's
@@ -1545,6 +1555,8 @@ Hecks.bluebook "Hecks" do
       attribute :run,    RunKey
       attribute :confirm, Switch, optional: true
       attribute :branch, Word
+      attribute :stage,   Word, optional: true
+      attribute :refusal, Word, optional: true
       identified_by :run
 
       value_object "RunKey" do
@@ -1570,6 +1582,20 @@ Hecks.bluebook "Hecks" do
 
         emits ShipRequested
         emits ShipStarted
+      end
+
+      # The GateAndBoard saga records its own park: a shipment that stopped for a person names the
+      # stage it stopped at and the step's reason. It refuses nothing, since a refusal would unwind
+      # the saga's leg and leave the shipment out of needs_human.
+      command "Stop" do
+        role "System"
+        goal "Record that a shipment parked for a person, with the stage and the reason"
+
+        reference_to Shipment
+        attribute :stage,   Word, sets: true
+        attribute :refusal, Word, sets: true
+
+        emits ShipmentStopped
       end
     end
 
@@ -1926,6 +1952,26 @@ Hecks.bluebook "Hecks" do
       on      "Integration.ObserveAnswered"
       where   { outcome.value == "closed" }
       trigger Integration::Close, with: { landed: :landed, report: :report }
+    end
+
+    # CI's verdict on a pushed commit, green or red, means origin/main holds it: GitHub merged the
+    # train's pull request, as a squash that local main does not share. The checkout that boarded
+    # brings its main level (LinkedTree.PullMain), keeping its unpushed commits, once per landed
+    # commit, since the run leaves ci_running on that verdict. A refusal (a dirty or mid-rebase
+    # checkout, a conflict) is recorded as PullDeclinedRecorded and nothing retries it. The pull
+    # is a root reaction: it starts at depth zero, past the bound the Observe chain has reached.
+    policy "PullMainWhenCiPasses" do
+      on      "Integration.ObserveAnswered"
+      root
+      where   { outcome.value == "passed" }
+      trigger LinkedTree::PullMain, with: { run: :landed, checkout: :checkout }
+    end
+
+    policy "PullMainWhenCiFails" do
+      on      "Integration.ObserveAnswered"
+      root
+      where   { outcome.value == "failed" }
+      trigger LinkedTree::PullMain, with: { run: :landed, checkout: :checkout }
     end
 
     aggregate "ReviewRequest" do

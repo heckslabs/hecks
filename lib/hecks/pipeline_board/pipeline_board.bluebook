@@ -87,6 +87,9 @@ Hecks.bluebook "PipelineBoard" do
       attribute :state,    String
 
       # ---- the strip: one stage each, left to right ----
+      # The open findings of stopped runs that have waited on a person past
+      # `stopped_run_overdue_hours`: first in the strip, ahead of the red flag.
+      member stage: "Overdue for you", position: 1, measure: "",        op: "always",  than: "",  scale: 1, state: "failed"
       member stage: "Red flag",   position: 1, measure: "",             op: "always",  than: "",  scale: 1, state: "failed"
       # The open findings stopped integration runs and shipments filed; the row is only built
       # while one is open. A log of stops, not a count of runs stopped now.
@@ -157,6 +160,11 @@ Hecks.bluebook "PipelineBoard" do
       # `waiting` is 1 when the job says blocked and is listed or recently written; `needs` is 1
       # when the job set `needs`, which is how it says it waits on a person. A session paused on a
       # push or CI is still working, so it is busy, not blocked.
+      # One open stopped run's finding, by the hours since it was reported: overdue past the bound,
+      # open otherwise and when its report time could not be read.
+      member stage: "Stopped run age", position: 1, measure: "hours", op: ">",    than: "stopped_run_overdue_hours", scale: 1, state: "overdue"
+      member stage: "Stopped run age", position: 2, measure: "",      op: "always", than: "", scale: 1, state: "open"
+
       member stage: "Session status", position: 1, measure: "waiting", op: ">",      than: "0", scale: 1, state: "blocked"
       member stage: "Session status", position: 1, measure: "needs",   op: ">",      than: "0", scale: 1, state: "blocked"
       member stage: "Session status", position: 2, measure: "waiting", op: ">",      than: "0", scale: 1, state: "busy"
@@ -181,23 +189,42 @@ Hecks.bluebook "PipelineBoard" do
       member name: "open_pr_stale_hours",     value: 24
       member name: "cycle_items",             value: 20
       member name: "cycle_percentile",        value: 90
+      # Hours a run stopped for a person may wait before the board puts it first. It matches the
+      # stable lane's `alert_after` (4) on purpose, unlinked: by then a stop has outlived any CI
+      # run, queue and verification (about 25 minutes) many times over, and a person's session.
+      member name: "stopped_run_overdue_hours", value: 4
     end
 
     # One stage of a Work item's cycle, in `position` order. The first stage starts at its `opens`
     # event; every later one starts where the stage before it ended, at its `opens` event. A stage
-    # ends at the first `closes` event at or after its start that belongs to the item: its `work`
-    # or `branch` link, or its id, is the Work item's key, or its id is that of the event that
-    # started the stage. Each event is named with the aggregate that emits it.
+    # ends at the first of its `closes` events (several are separated by a space) at or after its
+    # start that belongs to the item, as `belongs` says:
+    # - `item`: its `work` or `branch` link, or its id, is the Work item's key, or its id is that of
+    #   the event that started the stage.
+    # - `carried`: its `landed` commit was landed (a `Hecks::Landing.BranchLanded` naming that
+    #   commit) at or after the item's own landing. Local main is one line, so that commit holds
+    #   the item: a verification of a newer landing carries every landing before it.
+    # - `after`: any one. Main only moves forward, so what reads or boards main after the stage
+    #   started holds the item.
+    # Each event is named with the aggregate that emits it. The train's pull request opens when the
+    # boarding is queued (`BoardingQueued`) and merges when `SendTrain.Merge` records it
+    # (`BranchPushed`, on the same boarding).
     value_object "CycleStage" do
       attribute :stage,    String
       attribute :position, Integer
       attribute :opens,    String
       attribute :closes,   String
+      attribute :belongs,  String
 
-      member stage: "fill",         position: 1, opens: "Tickets::Work.WorkPlanned",              closes: "Tickets::Work.WorkStarted"
-      member stage: "planning",     position: 2, opens: "Tickets::Work.WorkStarted",              closes: "Agents::PlanReview.PlanReviewRequested"
-      member stage: "review",       position: 3, opens: "Agents::PlanReview.PlanReviewRequested", closes: "Agents::PlanReview.PlanReviewed"
-      member stage: "implementing", position: 4, opens: "Agents::PlanReview.PlanReviewed",        closes: "Hecks::Landing.BranchLanded"
+      member stage: "queue",        position: 1, opens: "Tickets::Work.WorkPlanned",              closes: "Tickets::Work.WorkStarted",              belongs: "item"
+      member stage: "dispatch",     position: 2, opens: "Tickets::Work.WorkStarted",              closes: "Hecks::AgentRun.AgentStarted",           belongs: "item"
+      member stage: "planning",     position: 3, opens: "Hecks::AgentRun.AgentStarted",           closes: "Agents::PlanReview.PlanReviewRequested", belongs: "item"
+      member stage: "review",       position: 4, opens: "Agents::PlanReview.PlanReviewRequested", closes: "Agents::PlanReview.PlanReviewed",        belongs: "item"
+      member stage: "implementing", position: 5, opens: "Agents::PlanReview.PlanReviewed",        closes: "Hecks::Landing.BranchLanded",            belongs: "item"
+      member stage: "verify",       position: 6, opens: "Hecks::Landing.BranchLanded",            closes: "Hecks::Integration.MainVerified Hecks::Integration.MainVerificationFailed", belongs: "carried"
+      member stage: "boarding",     position: 7, opens: "Hecks::Integration.MainVerified",        closes: "Hecks::SendTrain.BoardingQueued",        belongs: "after"
+      member stage: "ci",           position: 8, opens: "Hecks::SendTrain.BoardingQueued",        closes: "Hecks::SendTrain.BranchPushed",          belongs: "item"
+      member stage: "sync",         position: 9, opens: "Hecks::SendTrain.BranchPushed",          closes: "Hecks::LinkedTree.MainPulled",           belongs: "after"
     end
 
     # What the fan-out can flag on a Work item.
