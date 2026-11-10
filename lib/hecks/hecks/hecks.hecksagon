@@ -356,6 +356,8 @@ Hecks.hecksagon "Hecks" do
     asks "Check", to: Integration do
       attribute :run, RunKey
       attribute :landed, Word
+      # Carried onto the answer, so the rule that records a refusal knows a retry from a first try.
+      attribute :retried, Switch
       answers "VerifyAnswered"
       refuses "VerifyRefused"
     end

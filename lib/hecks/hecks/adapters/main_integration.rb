@@ -8,16 +8,21 @@ module Hecks
   module Adapters
     # The `Integrating` port's adapter for `Integration.Advance`: dispatches the next step of every
     # open MainIntegration run, once. A landed run is verified, a verified one boarded, and a pushed
-    # or watched one has its CI run read. A run in any other stage (being verified or boarded,
-    # green, red, superseded or waiting for a person) is left alone, so a second advance in the
-    # same stage dispatches nothing.
+    # or watched one has its CI run read. A run whose first verification failed (retrying, as the
+    # saga's rule set it) is verified again, marked as the retry. A run in any other stage (being
+    # verified or boarded, green, red, superseded or waiting for a person) is left alone, so a
+    # second advance in the same stage dispatches nothing.
     #
     # Each step is a dispatch of its own through the boot whose advance asked, not a dispatch from
     # inside the saga, so it starts its own reaction chain. A boarding needs the advance's
     # `confirm`, and waits while another run is being pushed or watched.
     class MainIntegration
       # The command each stage's next step dispatches.
-      NEXT = { "landed" => "Verify", "verified" => "Board", "pushed" => "Observe", "ci_running" => "Observe" }.freeze
+      NEXT = { "landed" => "Verify", "retrying" => "Verify", "verified" => "Board", "pushed" => "Observe",
+               "ci_running" => "Observe" }.freeze
+
+      # The stage whose verification is the run's one retry.
+      RETRYING = "retrying"
 
       # @param registry [Runtime::Registry, nil] the booted registry whose runs are advanced
       # @param aggregate [Object, nil] unused
@@ -77,6 +82,7 @@ module Hecks
         args = { run: SecureRandom.uuid, landed: run.landed }
         args[:checkout] = run.checkout unless run.checkout.empty?
         args[:confirm] = true if command == "Board" && confirm
+        args[:retried] = true if run.state == RETRYING
         args
       end
 
