@@ -392,6 +392,9 @@ queries (nothing here changes anything):
   Package:
     One package of the bluebook registry, vendored into a project and pinned.
     verify                  Check every vendored package against its bluebook.lock, then describe them as the manifest a client image carries.
+  StallWatch:
+    One look at the event tap for opening events whose closing event has not come.
+    unclosed                The opening lines of every stall kind whose closing line has not come, within the kind's window, with how long each has waited.
   TestSuiteRun:
     One piece of work on the test suite: a listing, a baseline, a run or a fixture rewrite.
     shard_specs             The spec files one group of a runtime-balanced split runs.
@@ -420,6 +423,6 @@ bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
   expression       The subset of regular Ruby a predicate is allowed to be — small enough that every target can…
 
   hecks <command> --help       what one command wants, and every way it refuses
-  hecks --all                  also list the 359 internal commands and queries
+  hecks --all                  also list the 361 internal commands and queries
   a command is called with its aggregate — Build.project_rust!
   exit status: 0 answered, 1 refused or failed, 2 a line it could not read

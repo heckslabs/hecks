@@ -6,8 +6,6 @@ require_relative "support/resting_pruner"
 RSpec.describe "summoning the pruner by hand" do
   include_context "with a resting pruner"
 
-  before { @hecks = boot_hecks_in_memory }
-
   def summon
     launch("agents", "pruning.summon!", "role.value=pruner", "repo.value=#{scratch}", "brief.value=sweep", "--wait")
   end
