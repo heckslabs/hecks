@@ -111,10 +111,13 @@ module Hecks
         end
       end
 
-      # A payload value, plain or wrapped as `{value: ...}`, as text of at most `LINK_WIDTH` chars.
+      # A payload value, plain, wrapped as `{value: ...}` or a built one-field value object, as text
+      # of at most `LINK_WIDTH` chars. A value object of several fields is no link: it writes none.
       def link_text(value)
-        text = value.is_a?(Hash) ? value.transform_keys(&:to_sym)[:value] : value
+        text = value.is_a?(Hash) ? value.transform_keys(&:to_sym)[:value] : Value.scalar(value)
         Secrets.redact(text.to_s)[0, LINK_WIDTH]
+      rescue TypeMismatch
+        ""
       end
 
       def outcome(record)

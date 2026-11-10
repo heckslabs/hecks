@@ -185,19 +185,34 @@ Hecks.bluebook "PipelineBoard" do
 
     # One stage of a Work item's cycle, in `position` order. The first stage starts at its `opens`
     # event; every later one starts where the stage before it ended, at its `opens` event. A stage
-    # ends at the first `closes` event at or after its start that belongs to the item: its `work`
-    # or `branch` link, or its id, is the Work item's key, or its id is that of the event that
-    # started the stage. Each event is named with the aggregate that emits it.
+    # ends at the first of its `closes` events (several are separated by a space) at or after its
+    # start that belongs to the item, as `belongs` says:
+    # - `item`: its `work` or `branch` link, or its id, is the Work item's key, or its id is that of
+    #   the event that started the stage.
+    # - `carried`: its `landed` commit was landed (a `Hecks::Landing.BranchLanded` naming that
+    #   commit) at or after the item's own landing. Local main is one line, so that commit holds
+    #   the item: a verification of a newer landing carries every landing before it.
+    # - `after`: any one. Main only moves forward, so what reads or boards main after the stage
+    #   started holds the item.
+    # Each event is named with the aggregate that emits it. The train's pull request opens when the
+    # boarding is queued (`BoardingQueued`) and merges when `SendTrain.Merge` records it
+    # (`BranchPushed`, on the same boarding).
     value_object "CycleStage" do
       attribute :stage,    String
       attribute :position, Integer
       attribute :opens,    String
       attribute :closes,   String
+      attribute :belongs,  String
 
-      member stage: "fill",         position: 1, opens: "Tickets::Work.WorkPlanned",              closes: "Tickets::Work.WorkStarted"
-      member stage: "planning",     position: 2, opens: "Tickets::Work.WorkStarted",              closes: "Agents::PlanReview.PlanReviewRequested"
-      member stage: "review",       position: 3, opens: "Agents::PlanReview.PlanReviewRequested", closes: "Agents::PlanReview.PlanReviewed"
-      member stage: "implementing", position: 4, opens: "Agents::PlanReview.PlanReviewed",        closes: "Hecks::Landing.BranchLanded"
+      member stage: "queue",        position: 1, opens: "Tickets::Work.WorkPlanned",              closes: "Tickets::Work.WorkStarted",              belongs: "item"
+      member stage: "dispatch",     position: 2, opens: "Tickets::Work.WorkStarted",              closes: "Hecks::AgentRun.AgentStarted",           belongs: "item"
+      member stage: "planning",     position: 3, opens: "Hecks::AgentRun.AgentStarted",           closes: "Agents::PlanReview.PlanReviewRequested", belongs: "item"
+      member stage: "review",       position: 4, opens: "Agents::PlanReview.PlanReviewRequested", closes: "Agents::PlanReview.PlanReviewed",        belongs: "item"
+      member stage: "implementing", position: 5, opens: "Agents::PlanReview.PlanReviewed",        closes: "Hecks::Landing.BranchLanded",            belongs: "item"
+      member stage: "verify",       position: 6, opens: "Hecks::Landing.BranchLanded",            closes: "Hecks::Integration.MainVerified Hecks::Integration.MainVerificationFailed", belongs: "carried"
+      member stage: "boarding",     position: 7, opens: "Hecks::Integration.MainVerified",        closes: "Hecks::SendTrain.BoardingQueued",        belongs: "after"
+      member stage: "ci",           position: 8, opens: "Hecks::SendTrain.BoardingQueued",        closes: "Hecks::SendTrain.BranchPushed",          belongs: "item"
+      member stage: "sync",         position: 9, opens: "Hecks::SendTrain.BranchPushed",          closes: "Hecks::LinkedTree.MainPulled",           belongs: "after"
     end
 
     # What the fan-out can flag on a Work item.
