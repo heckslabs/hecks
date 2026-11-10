@@ -6,18 +6,18 @@ require_relative "support/machine_beats"
 RSpec.describe "crossings of the machine's marks" do
   include MachineBeats
 
-  def heard(*idles) = crossings(beat_through(idles.map { |idle| gauge(idle) })[:names])
+  def heard(*loads) = crossings(beat_through(loads.map { |load| gauge(60.0).merge(load: load) })[:names])
 
   it "emits LoadFellBelow once for a falling series" do
-    expect(heard(10.0, 20.0, 45.0, 50.0, 60.0)).to eq(%w[LoadRoseAbove LoadFellBelow])
+    expect(heard(9.0, 9.5, 8.5, 7.0, 6.0)).to eq(%w[LoadRoseAbove LoadFellBelow])
   end
 
   it "emits LoadRoseAbove once for a rising series" do
-    expect(heard(60.0, 50.0, 20.0, 10.0, 5.0)).to eq(%w[LoadRoseAbove])
+    expect(heard(5.0, 7.0, 8.5, 9.0, 12.0)).to eq(%w[LoadRoseAbove])
   end
 
-  it "emits nothing for a series that flaps inside the gap" do
-    expect(heard(30.0, 38.0, 28.0, 35.0, 32.0)).to eq([])
+  it "emits nothing for a series that stays at or under the limit" do
+    expect(heard(5.0, 7.5, 6.0, 8.0, 7.0)).to eq([])
   end
 
   it "hears memory run low and recover", :aggregate_failures do
