@@ -15,6 +15,16 @@
       "Bash(sh -c:*)",
       "Bash(bash -c:*)",
       "Bash(zsh -c:*)"
+    ],
+    "allow": [
+      "Bash(claude agents *)",
+      "Bash(exe/hecks RedFlag.status*)",
+      "Bash(exe/hecks agent_run.running*)",
+      "Bash(exe/hecks agent_run.tidyable*)",
+      "Bash(exe/hecks agents PlanReview.reviews*)",
+      "Bash(exe/hecks style_run.check_comments! *)",
+      "Bash(exe/hecks tickets Finding.open*)",
+      "Bash(exe/hecks tickets Work.undone*)"
     ]
   },
   "hooks": {
