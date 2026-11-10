@@ -39,6 +39,13 @@ module Hecks
           words.map { |word| filled(word, fields) } unless words.empty?
         end
 
+        # @param action [String] a known step
+        # @return [String, nil] the step taken instead when the run the step names has ended
+        def ended(action)
+          step = Rules.action(action)[:ended].to_s
+          step unless step.empty?
+        end
+
         def check(action, rule, fields, confirm)
           missing = rule[:needs].reject { |name| fields[name].is_a?(String) }
           raise PipelineBoard::Unavailable, "#{action} needs #{missing.join(", ")}" unless missing.empty?
