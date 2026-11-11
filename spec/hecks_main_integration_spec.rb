@@ -308,7 +308,9 @@ RSpec.describe "integrating main through the MainIntegration saga" do
   it "walks a run from landed to green" do
     landed = land
     advance(3)
-    expect(stages_walked(landed)).to eq(%w[verifying verified boarding pushed ci_running green])
+    # The verdict frees the line and asks for an advance (`AdvanceWhenCiPasses`) before the run's
+    # own stage moves, so that advance reads the run once more while it still stands in ci_running.
+    expect(stages_walked(landed)).to eq(%w[verifying verified boarding pushed ci_running ci_running green])
   end
 
   it "boards through the train's own copy with a fixed command line", :aggregate_failures do
