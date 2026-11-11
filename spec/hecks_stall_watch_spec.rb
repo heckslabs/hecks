@@ -41,6 +41,39 @@ RSpec.describe "StallWatch" do
     expect(keys("Tickets", "Work", :work)).to eq(%w[stall-agent-run-blocked-stuck])
   end
 
+  describe "the move of each kind" do
+    let(:opening) do
+      { "plan-review"       => ["Agents::PlanReview", "PlanReviewRequested"],
+        "agent-run-start"   => ["Hecks::AgentRun", "AgentRunRequested"],
+        "agent-run-session" => ["Hecks::AgentRun", "AgentRunStarted"],
+        "agent-run-blocked" => ["Hecks::AgentRun", "SessionBlocked"] }
+    end
+
+    def write_opening(kind)
+      aggregate, event = opening.fetch(kind)
+      File.write(tap, "#{JSON.generate(line(1, event, "subject", 300).merge(aggregate: aggregate))}\n")
+    end
+
+    def work_detail = keys("Tickets", "Work", :detail).first
+
+    %w[plan-review agent-run-start agent-run-session agent-run-blocked].each do |kind|
+      it "gives the #{kind} work item the move of its row, once, never stopping a session", :aggregate_failures do
+        write_opening(kind)
+        2.times { |look| detect("look-#{look}") }
+
+        expect(keys("Tickets", "Work", :work)).to eq(["stall-#{kind}-subject"])
+        expect(work_detail).to include("Move: ", "Never stop or kill a session.")
+      end
+    end
+
+    it "names only commands the orchestrator may run", :aggregate_failures do
+      write_opening("agent-run-session")
+      detect("look-1")
+
+      expect(work_detail).to include("AgentRun.check!", "AgentRun.answer!", "Work.yield!")
+    end
+  end
+
   it "looks for stalls on every beat of the clock" do
     File.write(tap, "")
     with_tap { dispatch("Hecks::Heartbeat.Beat", beat: { value: "beat-1" }) }

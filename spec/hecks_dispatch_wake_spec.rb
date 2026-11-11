@@ -66,7 +66,7 @@ RSpec.describe "waking the queue on the clock" do
   end
 
   describe "the adapter's answer" do
-    let(:items) { instance_double(dispatching::WorkItems, planned: [parked("due", now - 5)]) }
+    let(:items) { instance_double(dispatching::WorkItems, rollable: [parked("due", now - 5)]) }
     let(:adapter) do
       dispatching.new(registry: registry_of([]), settings: { work_items: items, now: -> { now }, load: -> { 0.5 }, cpus: 4 })
     end

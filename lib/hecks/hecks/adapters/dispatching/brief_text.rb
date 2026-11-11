@@ -32,13 +32,15 @@ module Hecks
         # @return [String] the whole text
         # @raise [ArgumentError] if the text names `{main}` and no `main:` was given
         def render(key, area: [], limit: nil, main: nil, **lines)
-          parts = [first_line, labelled("Detail", plain("detail")), labelled("Area", area.join(", "))]
+          parts = [first_line, lines[:rethinks].to_s, *detail_parts(area)]
           parts += SECTIONS.map { |name| plain(name) } + lists(lines)
           text = joined(parts).gsub("{work}", key).gsub("{limit}", limit&.to_s || "the world's spec_files_limit")
           fill_main(text, main)
         end
 
         private
+
+        def detail_parts(area) = [labelled("Detail", plain("detail")), labelled("Area", area.join(", "))]
 
         def fill_main(text, main)
           return text unless text.include?("{main}")

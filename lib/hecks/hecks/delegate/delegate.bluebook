@@ -1018,12 +1018,15 @@ Hecks.bluebook "Hecks" do
     # closing words: an architect's verdict, another role's report. A session waiting on a person
     # reads `blocked`, not `working`, so this never ends one. The run then reads `done`, so the
     # architect's verdict is recorded and a coder's session stops being listed as working.
+    #
+    # Closing words that begin `[review]` are a wait, not a report: a coder that asked its plan review
+    # ended its turn to be resumed with the verdict, so its run stays started until then.
     policy "RecordTheIdleSession" do
       on      "AgentRun.JobRead"
       root
       where   do
         state == "working" && listed == "idle" && resuming != true && previous != "done" && agent != "orchestrator" &&
-          (verdict != "" || (agent != "architect" && report != ""))
+          (verdict != "" || (agent != "architect" && report != "" && !report.start_with?("[review]")))
       end
       trigger AgentRun::Finish, with: { condition: "done", detail: :report, checkout: :checkout }
     end

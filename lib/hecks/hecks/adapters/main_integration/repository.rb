@@ -24,6 +24,9 @@ module Hecks
         # The files a development checkout keeps for itself and a clean copy must not hold.
         LOCAL_FILES = "lib/**/*.local.{hecksagon,world}"
 
+        # @return [String] the checkout the repository is read in
+        attr_reader :checkout
+
         # @param checkout [String] a directory inside the repository
         def initialize(checkout)
           @checkout = checkout

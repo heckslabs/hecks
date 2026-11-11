@@ -13,7 +13,7 @@ RSpec.describe Hecks::Adapters::Dispatching, "#choose" do
   def started_now = done.include?("ended") ? [] : [ended]
 
   def stand_in_items
-    items = instance_double(described_class::WorkItems, planned: [waiting], lessons: [])
+    items = instance_double(described_class::WorkItems, planned: [waiting], rollable: [waiting], lessons: [])
     allow(items).to receive(:started) { started_now }
     allow(items).to receive(:runs).and_return("ended" => { status: "finished", condition: "done" })
     items
@@ -22,7 +22,7 @@ RSpec.describe Hecks::Adapters::Dispatching, "#choose" do
   def runner
     lambda do |argv|
       calls << argv
-      done << "ended" if argv.include?("Work.finish!")
+      done << "ended" if argv.include?("Work.yield!") && argv.include?("to=ended")
       Hecks::Adapters::Shell::Result.new("", "", instance_double(Process::Status, success?: true))
     end
   end
@@ -31,31 +31,31 @@ RSpec.describe Hecks::Adapters::Dispatching, "#choose" do
     described_class.new(settings: { load: -> { 0.5 }, cpus: 4, cap: cap, work_items: stand_in_items, runner: runner })
   end
 
-  def finishes = calls.count { |argv| argv.include?("Work.finish!") }
+  def settles = calls.count { |argv| argv.include?("Work.yield!") && argv.include?("to=ended") }
 
-  it "finishes the ended work item before a confirmed filling counts started rows", :aggregate_failures do
+  it "settles the ended work item before a confirmed filling counts started rows", :aggregate_failures do
     report = dispatching.choose(repo: { value: "/repo" }, confirm: true).dig(:report, :value)
 
-    expect(finishes).to eq(1)
+    expect(settles).to eq(1)
     expect(report).to include("started 0 of cap 1")
   end
 
   it "settles nothing in a preview" do
     dispatching.preview(repo: { value: "/repo" })
 
-    expect(finishes).to eq(0)
+    expect(settles).to eq(0)
   end
 
   it "settles nothing in a dry filling" do
     dispatching.choose(repo: { value: "/repo" })
 
-    expect(finishes).to eq(0)
+    expect(settles).to eq(0)
   end
 
   it "settles once when a roll fills" do
     Hecks::Adapters::Dispatching::LastRoll.reset!
     dispatching.roll
 
-    expect(finishes).to eq(1)
+    expect(settles).to eq(1)
   end
 end

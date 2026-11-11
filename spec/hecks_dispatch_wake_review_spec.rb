@@ -9,7 +9,7 @@ RSpec.describe "the waker after its second review" do
   let(:level) { { load: 9.0 } }
   let(:items) { [dispatching::Plan::Item.new(key: "w", title: "w", detail: "", area: ["w"])] }
   let(:work_items) do
-    instance_double(dispatching::WorkItems, planned: items, started: [], runs: {}, lessons: [])
+    instance_double(dispatching::WorkItems, planned: items, rollable: items, started: [], runs: {}, lessons: [])
   end
 
   # The committed world pauses rolling while the pipeline's load is reduced; these examples are
@@ -106,7 +106,7 @@ RSpec.describe "the waker after its second review" do
       subject = adapter
       [1, 2].each { |number| beat(subject, number) }
 
-      expect(work_items).to have_received(:planned).once
+      expect(work_items).to have_received(:rollable).once
     end
 
     it "reads them again after a confirmed fill changed what is planned" do
@@ -115,7 +115,7 @@ RSpec.describe "the waker after its second review" do
       confirmed(subject)
       beat(subject, 2)
 
-      expect(work_items).to have_received(:planned).at_least(4).times
+      expect(work_items).to have_received(:rollable).at_least(2).times
     end
   end
 
@@ -178,7 +178,7 @@ RSpec.describe "the waker after its second review" do
     def roller = Struct.new(:depths) { def roll(**) = (depths << Thread.current[:hecks_reaction_depth].to_i) }.new(depths)
 
     def waking
-      stand_ins = { work_items: instance_double(dispatching::WorkItems, planned: [parked]), now: -> { now },
+      stand_ins = { work_items: instance_double(dispatching::WorkItems, planned: [parked], rollable: [parked]), now: -> { now },
                     load: -> { 0.5 }, cpus: 4 }
       Hecks::Adapters::Waking.new(registry: boot_hecks_in_memory.registry, settings: stand_ins)
     end

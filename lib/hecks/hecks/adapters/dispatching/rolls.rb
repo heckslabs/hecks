@@ -64,7 +64,7 @@ module Hecks
         # The planned items, as the last beat or confirmed filling read them a short while ago.
         def beat_items
           key = [@registry.object_id, @standins[:work_items].object_id]
-          PlannedCache.items(key, clock) { work_items.planned }
+          PlannedCache.items(key, clock) { work_items.rollable }
         end
 
         # What the beat asks of the machine, each asked only once its flag says it could matter.
@@ -94,7 +94,7 @@ module Hecks
           Pending.take_deferred! ? confirmed_report : text
         end
 
-        def confirmed_report = choose(repo: { value: Dir.pwd }, confirm: true).dig(:report, :value)
+        def confirmed_report = choose(repo: { value: Dir.pwd }, confirm: true, rolling: true).dig(:report, :value)
       end
     end
   end

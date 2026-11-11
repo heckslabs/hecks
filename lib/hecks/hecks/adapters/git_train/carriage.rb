@@ -41,12 +41,14 @@ module Hecks
         # Carries one commit: finds it already on the remote, or pushes exactly it.
         #
         # @param boarded [String] the commit to carry, which the local branch must still name
+        # @param named [Boolean] whether the boarding named the commit; the branch then need only
+        #   hold it
         # @return [Hash{Symbol => Hash}] the answer `GitTrain#carry` describes
         # @raise [ConsoleCapture::Failure] when the branch moved since boarding, the remote's branch
         #   moved so the commit is not built on it, or the push is refused
-        def carry(boarded)
+        def carry(boarded, named: false)
           fetch
-          moved_since!(boarded)
+          moved_since!(boarded, named)
           return carried(boarded) if ancestor?(boarded, tracking)
 
           finish(push(boarded), boarded)
@@ -55,9 +57,9 @@ module Hecks
         private
 
         # Refuses, pushing nothing, when the local branch names another commit than the boarded one.
-        def moved_since!(boarded)
+        def moved_since!(boarded, named)
           now = local_head
-          return if now == boarded
+          return if now == boarded || (named && NamedCommit.new(@git, @checkout, branch: @branch).held?(boarded))
 
           raise ConsoleCapture::Failure,
                 "#{@branch} moved since boarding (boarded #{short(boarded)}, now #{short(now)}): board again"

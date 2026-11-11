@@ -50,6 +50,26 @@ RSpec.describe "the orchestrator routing guard" do
     end
   end
 
+  describe "the moves of the StallWatch kinds" do
+    let(:kinds) do
+      Hecks.describe(File.join(root, "lib/hecks/hecks")).registry.bluebooks.fetch("Hecks")
+           .aggregates.find { |aggregate| aggregate.hecks_name == "StallWatch" }
+           .value_objects.find { |object| object.hecks_name == "StallKind" }.members
+    end
+
+    def verbs = kinds.flat_map { |row| row[:move].scan(/\b[A-Z]\w+\.[a-z_]+!?/) }.uniq
+
+    it "names a launcher verb for every kind", :aggregate_failures do
+      expect(kinds.map { |row| row[:move].to_s }).to all(match(/\b[A-Z]\w+\.[a-z_]+!/))
+    end
+
+    it "names only verbs the orchestrator is allowed to run" do
+      expect(verbs.reject { |verb| allowed?(verb) }).to be_empty
+    end
+
+    def allowed?(verb) = verdict("exe/hecks #{verb}") == { text: "allowed" }
+  end
+
   describe "a command on the list" do
     it "allows a launcher call of a listed verb" do
       expect(verdict("exe/hecks AgentRun.check_all!")).to eq(text: "allowed")
