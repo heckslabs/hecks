@@ -1,0 +1,385 @@
+# Triage: what the coordinator does when CI on main goes red, as a domain. An incident opens when
+# CI goes red (Deliver's Integration.CiFailed), not when a flag is raised; it names the batch since
+# the last green head, restores the tree, groups the failing jobs into causes by signature, matches
+# each cause to a known lesson, gives each cause to one coder, tracks the check-ins, and closes the
+# incident when CI on the coder's push is green (Integration.CiPassed).
+#
+# It reads the pieces that exist and rebuilds none of them. CI's verdicts arrive as the events of
+# Deliver's Integration aggregate; the lessons record (Tickets Lesson), the sessions, the Work items
+# and the failing jobs arrive as the arguments of the commands below, supplied by whoever reads
+# them. The bluebook never runs `gh`, git or a clock; the time a claim has been quiet is an
+# argument of Return.
+
+Hecks.bluebook "Triage" do
+  vision "A red main is one incident: its failing jobs are grouped into causes, each cause is held by one coder at a time, and the incident closes when CI is green on the fix."
+
+  supporting
+
+  # One red on main. A repeat red joins the open incident instead of opening a second one; the
+  # incident is keyed by the head the first red run was on.
+  aggregate "Incident" do
+    description "A red on main: its head, CI run, last green head, the batch since it, the restore, and where it stands."
+    created_by "Incident.open!"
+
+    identified_by :incident
+
+    attribute :incident,   Sha
+    attribute :ci_run,     Word
+    attribute :last_green, Sha, optional: true
+    attribute :batch,      list_of(Sha), optional: true
+    attribute :releases,   Count, optional: true
+    attribute :restored,   Sha, optional: true
+    attribute :tree_match, Verdict, optional: true
+    attribute :runs,       Count, optional: true
+    attribute :red_since,  Word, optional: true
+
+    # A git commit: 7 to 40 hex.
+    value_object "Sha" do
+      attribute :value, String, matches: :git_sha
+    end
+
+    # A CI run id or a time as the caller reads it.
+    value_object "Word" do
+      attribute :value, String, matches: :present
+    end
+
+    # How many: release commits in the batch, red runs on the incident, causes still unfixed.
+    value_object "Count" do
+      attribute :value, Integer, default: 0
+      invariant("a count is not negative") { !value.negative? }
+    end
+
+    # "yes" when the restored tree is the last green head's tree.
+    value_object "Verdict" do
+      attribute :value, String, default: ""
+    end
+
+    query "Standing" do
+      description "Every incident not yet closed, oldest head first."
+      where(status: "open")
+      order_by :incident
+    end
+
+    lifecycle :status, default: "open" do
+      mark :terminal, "green"
+      transition "Join"    => "open",     from: "open"
+      transition "Restore" => "restored", from: "open"
+      transition "Mend"    => "fixing",   from: %w[open restored fixing]
+      transition "Close"   => "green",    from: %w[open restored fixing]
+    end
+
+    command "Open" do
+      role "System"
+      goal "Open the incident for a red main, with the head, the CI run, the last green head and the batch since it"
+
+      attribute :incident,   Sha, sets: true
+      attribute :ci_run,     Word, sets: true
+      attribute :last_green, Sha, optional: true, sets: true
+      attribute :batch,      list_of(Sha), optional: true, sets: true
+      attribute :releases,   Count, optional: true, sets: true
+      attribute :red_since,  Word, optional: true, sets: true
+      sets :runs, to: { value: 1 }
+
+      emits IncidentOpened
+    end
+
+    # A second red run on main is the same incident: its run is noted and nothing else opens.
+    command "Join" do
+      role "System"
+      goal "Record another red run on the incident that is already open"
+
+      reference_to Incident
+      attribute :ci_run, Word, sets: true
+      sets :runs, to: { value: 2 }
+
+      emits IncidentJoined
+    end
+
+    command "Restore" do
+      role "Operator"
+      goal "Record that main's tree was restored to the last green head's tree"
+
+      reference_to Incident
+      attribute :restored,   Sha, sets: true
+      attribute :tree_match, Verdict, sets: true
+      attribute :last_green, Verdict
+      attribute :releases,   Count
+
+      given("a green head is recorded before the tree is restored") { !last_green.value.to_s.empty? }
+      given("a batch holding a release commit is not restored") { releases.value.zero? }
+      given("a restore matches the last green head's tree") { tree_match.value == "yes" }
+
+      emits IncidentRestored
+    end
+
+    command "Mend" do
+      role "System"
+      goal "Record that a coder took the first cause, so the incident is being fixed"
+
+      reference_to Incident
+
+      emits IncidentMending
+    end
+
+    command "Close" do
+      role "System"
+      goal "Close the incident when every cause is fixed and CI on the fix is green"
+
+      reference_to Incident
+      attribute :unfixed,    Count
+      attribute :conclusion, Word
+
+      given("every cause of the incident is fixed") { unfixed.value.zero? }
+      given("CI on the fix is green") { conclusion.value == "success" }
+
+      emits IncidentClosed
+    end
+  end
+
+  # One failing job of the red run, as `gh run view --json jobs` lists it.
+  aggregate "FailedJob" do
+    description "One failing CI job: its id, its name and the signature of its failure."
+    created_by "FailedJob.report!"
+
+    identified_by :job
+
+    attribute :job,       JobId
+    attribute :incident,  Sha
+    attribute :name,      JobName
+    attribute :signature, Signature
+
+    value_object "JobId" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Sha" do
+      attribute :value, String, matches: :git_sha
+    end
+
+    value_object "JobName" do
+      attribute :value, String, matches: :present
+    end
+
+    # The failing spec files or the error text that identify the failure.
+    value_object "Signature" do
+      attribute :value, String
+      invariant("a failure has a signature") { !value.to_s.empty? }
+    end
+
+    command "Report" do
+      role "System"
+      goal "Record one failing job of the incident's CI run"
+
+      attribute :job,       JobId, sets: true
+      attribute :incident,  Sha, sets: true
+      attribute :name,      JobName, sets: true
+      attribute :signature, Signature, sets: true
+
+      emits JobReported
+    end
+  end
+
+  # One cause: every failing job with one signature, held by at most one coder at a time.
+  aggregate "Cause" do
+    description "One signature within an incident: its jobs, the lesson it matches, and the coder who holds it."
+    created_by "Cause.name!"
+
+    identified_by :cause
+
+    attribute :cause,      CauseKey
+    attribute :incident,   Sha
+    attribute :signature,  Signature
+    attribute :jobs,       list_of(JobRef)
+    attribute :project,    Word
+    attribute :window,     Seconds, optional: true
+    attribute :lesson,     LessonRef, optional: true
+    attribute :gap,        Word, optional: true
+    attribute :coder,      Word, optional: true
+    attribute :work,       Word, optional: true
+    attribute :checked_in, Word, optional: true
+    attribute :commit,     Sha, optional: true
+
+    value_object "CauseKey" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Sha" do
+      attribute :value, String, matches: :git_sha
+    end
+
+    value_object "Signature" do
+      attribute :value, String
+      invariant("a cause has a signature") { !value.to_s.empty? }
+    end
+
+    # A failing job's id, as the CI run lists it.
+    value_object "JobRef" do
+      attribute :value, String, matches: :present
+    end
+
+    # A project, a session's condition, a lesson reference, a Work item or a time.
+    value_object "Word" do
+      attribute :value, String, matches: :present
+    end
+
+    # The key of the known lesson a cause matches; empty when none matches.
+    value_object "LessonRef" do
+      attribute :value, String, default: ""
+    end
+
+    # How long a claim may go without a check-in before it returns to the pool.
+    value_object "Seconds" do
+      attribute :value, Integer, default: 900
+      invariant("a duration is positive") { value.positive? }
+    end
+
+    value_object "Count" do
+      attribute :value, Integer, default: 0
+    end
+
+    query "Unclaimed" do
+      description "Every cause waiting for a coder: named and never assigned, or returned to the pool."
+      where(status: "open")
+      order_by :cause
+    end
+
+    query "Held" do
+      description "Every cause a coder holds and has not yet fixed."
+      where(status: "assigned")
+      order_by :cause
+    end
+
+    lifecycle :status, default: "open" do
+      mark :terminal, "fixed"
+      transition "Assign"  => "assigned", from: %w[open returned]
+      transition "CheckIn" => "assigned", from: "assigned"
+      transition "Fix"     => "fixed",    from: "assigned"
+      transition "Return"  => "returned", from: "assigned"
+    end
+
+    command "Name" do
+      role "System"
+      goal "Name the cause of one signature, with the failing jobs that carry it"
+
+      attribute :cause,     CauseKey, sets: true
+      attribute :incident,  Sha, sets: true
+      attribute :signature, Signature, sets: true
+      attribute :jobs,      list_of(JobRef), sets: true
+      attribute :project,   Word, sets: true
+      attribute :lesson,    LessonRef, optional: true, sets: true, default: { value: "" }
+
+      emits CauseNamed
+    end
+
+    command "MatchLesson" do
+      role "System"
+      goal "Record the known lesson a cause matches"
+
+      reference_to Cause
+      attribute :lesson, LessonRef, sets: true
+
+      emits CauseMatchedLesson
+    end
+
+    command "ReportGap" do
+      role "System"
+      goal "Record that no known lesson matches the cause, which is reported to the owner"
+
+      reference_to Cause
+      sets :gap, to: { value: "no lesson matches" }
+
+      emits CauseGapReported
+    end
+
+    # One coder holds one cause. A second Assign finds the cause assigned and refuses, so two
+    # coders never work one cause; a session on another project or one that is working is refused.
+    command "Assign" do
+      role "System"
+      goal "Give the cause to one session, under the Work item it works"
+
+      reference_to Cause
+      attribute :incident,        Sha
+      attribute :coder,           Word, sets: true
+      attribute :work,            Word, sets: true
+      attribute :session_project, Word
+      attribute :project,         Word
+      attribute :condition,       Word
+
+      given("a session on another project is not assigned") { session_project.value == project.value }
+      given("a working session is not assigned") { condition.value != "working" }
+
+      emits CauseAssigned
+    end
+
+    command "CheckIn" do
+      role "Coder"
+      goal "Record that the coder checked in on the cause it holds"
+
+      reference_to Cause
+      attribute :checked_in, Word, sets: true
+
+      emits CauseCheckedIn
+    end
+
+    command "Fix" do
+      role "Coder"
+      goal "Record the commit the coder pushed for the cause, and what CI said of it"
+
+      reference_to Cause
+      attribute :incident,   Sha
+      attribute :commit,     Sha, sets: true
+      attribute :unfixed,    Count
+      attribute :conclusion, Word
+
+      emits CauseFixed
+    end
+
+    # A claim with no check-in for its whole window returns to the pool.
+    command "Return" do
+      role "System"
+      goal "Return a cause whose coder has not checked in for the whole window to the pool"
+
+      reference_to Cause
+      attribute :quiet_for, Seconds
+      attribute :window,    Seconds
+
+      given("a claim returns only after its window has passed") { quiet_for.value >= window.value }
+      sets :coder, to: { value: "nobody" }
+
+      emits CauseReturned
+    end
+  end
+
+  # CI going red on a pushed commit opens the incident, keyed by that commit. The same commit red
+  # again is refused as already open; the coordinator joins a later red run to the open incident
+  # with Incident.Join, since only it knows which incident stands.
+  policy "OpenWhenCiFails" do
+    on      "Integration.CiFailed"
+    trigger Incident::Open, with: { incident: :landed, ci_run: :landed }
+  end
+
+  # A cause named with a lesson's key cites it; one named with none is a gap reported to the owner.
+  policy "CiteTheLesson" do
+    on      "Cause.CauseNamed"
+    where   { lesson.value != "" }
+    trigger Cause::MatchLesson, with: { cause: :cause, lesson: :lesson }
+  end
+
+  policy "ReportTheGap" do
+    on      "Cause.CauseNamed"
+    where   { lesson.value == "" }
+    trigger Cause::ReportGap, with: { cause: :cause }
+  end
+
+  policy "MendWhenAssigned" do
+    on      "Cause.CauseAssigned"
+    trigger Incident::Mend, with: { incident: :incident }
+  end
+
+  # The last cause fixed with CI green on the fix closes the incident.
+  policy "CloseWhenFixed" do
+    on      "Cause.CauseFixed"
+    where   { conclusion.value == "success" }
+    trigger Incident::Close, with: { incident: :incident, unfixed: :unfixed, conclusion: :conclusion }
+  end
+end
