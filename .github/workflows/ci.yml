@@ -58,7 +58,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           sparse-checkout: .github/actions
-      - name: rspec_impl (ci_attestation_rspec + both rspec shards) passed
+      - name: rspec_impl (ci_attestation_rspec + the rspec shards + rspec_zsh) passed
         uses: ./.github/actions/require-result
         with:
           job: rspec_impl
