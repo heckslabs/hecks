@@ -9,6 +9,11 @@ RSpec.describe Hecks::Adapters::BoundedCapture do
   let(:dir) { Dir.mktmpdir("bounded-capture") }
   let(:capture) { described_class.new(seconds: 1, setting: "spec_bounds.file_seconds") }
 
+  # The bound for the fake program that hangs. It counts from the spawn, so on a loaded shard a
+  # 1-second bound can pass before ruby has booted, written its pid file and printed "started";
+  # 3 seconds leaves the start room while each example still waits for the bound only once.
+  let(:hanging) { described_class.new(seconds: 3, setting: "spec_bounds.file_seconds") }
+
   after { FileUtils.rm_rf(dir) }
 
   # A fake spec process: it says which file and example it is in, starts a grandchild that
@@ -24,9 +29,30 @@ RSpec.describe Hecks::Adapters::BoundedCapture do
   end
 
   # A run of its own, not one that shares the progress file of the run this spec is in.
-  def bounded(argv) = capture.call(argv, env: { described_class::PROGRESS => nil }, chdir: dir)
+  def bounded(argv, with: capture) = with.call(argv, env: { described_class::PROGRESS => nil }, chdir: dir)
 
-  def stopped = bounded(hanging_spec)
+  def stopped = bounded(hanging_spec, with: hanging)
+
+  # Polls the block every 50 ms until it answers truthy or `within` seconds pass; answers its
+  # last value.
+  # The process being waited for is not a thread of this one, so there is no object to wait on but
+  # the clock; the pause is a timed select, which ends at the deadline and not on a guess.
+  def wait_for(within: 3)
+    deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + within
+    until (value = yield) || Process.clock_gettime(Process::CLOCK_MONOTONIC) > deadline
+      IO.select(nil, nil, nil, 0.05)
+    end
+    value
+  end
+
+  # The tree is signalled before the kernel has reaped it, so a check at once can still see it.
+  def gone?(pid) = wait_for { !alive?(pid) }
+
+  def grandchild_pid
+    path = File.join(dir, "pid")
+    wait_for { File.file?(path) && !File.read(path).strip.empty? }
+    Integer(File.read(path))
+  end
 
   def alive?(pid)
     Process.kill(0, pid)
@@ -44,13 +70,13 @@ RSpec.describe Hecks::Adapters::BoundedCapture do
     result = stopped
     expect([result.stopped, result.status.zero?]).to eq([true, false])
     expect(result.out).to include("started")
-    expect(result.err).to include("ran past the 1-second bound (spec_bounds.file_seconds)",
+    expect(result.err).to include("ran past the 3-second bound (spec_bounds.file_seconds)",
                                   "in ./spec/fake_spec.rb, example \"the fake waits\"")
   end
 
   it "ends the whole process tree, not only the program it started" do
     stopped
-    expect(alive?(Integer(File.read(File.join(dir, "pid"))))).to be(false)
+    expect(gone?(grandchild_pid)).to be(true)
   end
 
   it "says when the program stopped before any example started" do
