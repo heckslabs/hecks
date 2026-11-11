@@ -185,9 +185,10 @@ Hecks.bluebook "PipelineBoard" do
       # rest are shown for what they are, never as waiting on the owner.
       member stage: "Session owner", position: 1, measure: "other_repo", op: ">",      than: "0", scale: 1, state: "other repo"
       member stage: "Session owner", position: 2, measure: "finished",   op: ">",      than: "0", scale: 1, state: "finished leftover"
-      member stage: "Session owner", position: 3, measure: "asked",      op: ">",      than: "0", scale: 1, state: "owner"
-      member stage: "Session owner", position: 4, measure: "review",     op: ">",      than: "0", scale: 1, state: "waiting on a review verdict"
-      member stage: "Session owner", position: 5, measure: "",           op: "always", than: "",  scale: 1, state: "stranded run"
+      member stage: "Session owner", position: 3, measure: "blocked",    op: "<=",     than: "0", scale: 1, state: "running"
+      member stage: "Session owner", position: 4, measure: "asked",      op: ">",      than: "0", scale: 1, state: "owner"
+      member stage: "Session owner", position: 5, measure: "review",     op: ">",      than: "0", scale: 1, state: "waiting on a review verdict"
+      member stage: "Session owner", position: 6, measure: "",           op: "always", than: "",  scale: 1, state: "stranded run"
     end
 
     # A number a rule compares with. A QualityControl world's `ci_health` verb overrides the CI

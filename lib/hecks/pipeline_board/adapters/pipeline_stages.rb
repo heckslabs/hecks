@@ -25,6 +25,7 @@ require_relative "pipeline_stages/commit_link"
 require_relative "pipeline_stages/panel"
 require_relative "pipeline_stages/daily_health"
 require_relative "pipeline_stages/owner_queue"
+require_relative "pipeline_stages/headline"
 
 module Hecks
   module Adapters

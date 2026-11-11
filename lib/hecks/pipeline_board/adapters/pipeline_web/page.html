@@ -374,10 +374,7 @@ const FIX = {
     changes: "Pushes the commits waiting on origin to origin/main. A CI run starts on the newest one." },
   "Promote": { act: "promote", cmd: "hecks promotion_run.promote! lane=stable --confirm --wait", note: "Stable is behind main. This fast-forwards it onto the newest commit every required check passed on.",
     changes: "Moves origin/stable forward to the newest commit every required check passed on. Stable is what clients pin; a bad commit reaches them once it moves." },
-  "Release": { note: "Publishing is the owner's decision. The version bump needs a Release-Approved-By line, and only the owner adds it." },
-  "Dispatched sessions": { note: "Sessions are at the cap or waiting on a person. Answer a blocked session from the Sessions table." },
-  "Work items": { note: "Work is held at the cap or waiting on a person. Answer a blocked session from the Sessions table." },
-  "Sessions": { note: "Sessions are waiting on a person. Click the blocked session to answer it." }
+  "Release": { note: "Publishing is the owner's decision. The version bump needs a Release-Approved-By line, and only the owner adds it." }
 };
 let runAction = null, armed = false;
 function resolve(label, detail) {
@@ -424,7 +421,10 @@ function renderRoles(roles) {
       h("span", { class: "rnote" }, note));
   }));
 }
+// The sentence the server computed for the sessions tile; the meters repeat it, never recount.
+let sessionsHeadline = "";
 function renderTiles(tiles) {
+  sessionsHeadline = (tiles.find((t) => t.id === "working") || {}).detail || "";
   put("tiles", tiles.map((t) => {
     const value = t.value === null || t.value === undefined ? "-" : t.value;
     const tr = t.trend ? h("div", { class: "trend" }, (t.trend.delta > 0 ? "▲ +" : t.trend.delta < 0 ? "▼ " : "= ") + t.trend.delta + " " + t.trend.unit,
@@ -610,6 +610,8 @@ const SESSION_FILTERS = {
   blocked: waitingOnYou,
   working: (s) => s.status === "busy",
   finished: (s) => s.status === "done" || s.status === "failed",
+  leftover: (s) => s.kind === "finished leftover",
+  elsewhere: (s) => s.kind === "other repo",
   deletable: (s) => deletable(s)
 };
 // A session can be deleted when it finished, waits on nobody, and is not a deploy: a deploy's
@@ -646,7 +648,7 @@ function renderSessions(all) {
     by("failed") && [by("failed") + " failed", "failed"], by("done") + " done", all.filter(deletable).length + " deletable"]);
   const at = pageOf("sessions", list.length, SESSION_PAGE);
   const shown = list.slice(at * SESSION_PAGE, (at + 1) * SESSION_PAGE);
-  put("sessions", filterBar(), table(["Session", "Status", "Work item", "Started", "Detail"], shown.map((s) => [sessionLabel(s), [sessionBadge(s), " ", s.state], s.row || "-", clock(s.started), replyNote(s)])),
+  put("sessions", filterBar(), table(["Session", "Status", "Class", "Work item", "Started", "Detail"], shown.map((s) => [sessionLabel(s), [sessionBadge(s), " ", s.state], s.kind || "-", s.row || "-", clock(s.started), replyNote(s)])),
     list.length > SESSION_PAGE ? pageBar("sessions", at, list.length, SESSION_PAGE, () => renderSessions(lastSessions)) : null);
   const rows = $("sessions").querySelectorAll("tbody tr");
   shown.forEach((s, i) => {
@@ -676,7 +678,7 @@ function renderFan(fan) {
     slots.load !== undefined && [slots.load + " load of " + slots.limit, slots.load >= slots.limit ? "attention" : ""],
     flagged && [flagged + " flags", "attention"], next ? "next: " + next.slug : "nothing waiting to start"]);
   const sessions = fan.sessions.filter((s) => s.started), now = Date.now(), span = 24 * 3600 * 1000, start = now - span;
-  const GLYPH = { busy: "◔ busy", blocked: "▲ blocked on you", done: "✓ done", failed: "✕ failed" };
+  const GLYPH = { busy: "◔ busy", blocked: "▲ blocked", done: "✓ done", failed: "✕ failed" };
   put("lanelegend", Object.keys(GLYPH).map((k) => h("span", {}, h("i", { class: "swatch span " + k }), GLYPH[k])));
   put("lanes", h("div", { class: "lanes" }, sessions.map((s) => {
     const a = Math.max(start, Date.parse(s.started)), b = s.ended ? Date.parse(s.ended) : now;
@@ -692,8 +694,8 @@ function renderFan(fan) {
     answerable(laneRows[i], () => openAnswer([{ id: s.id, name: s.name, run: s.run, repo: s.repo, work_item: s.work_item, question: s.detail, context: s.context, attach: s.attach }], s.id));
   });
   const fill = fan.fill, ok = fill && !isUnknown(fill), cap = ok ? fill.cap : 8;
-  const alive = sessions.filter((s) => s.status === "busy" || s.status === "blocked"), busy = alive.filter((s) => s.row).length;
-  put("meters", h("div", {}, h("div", {}, "Dispatched sessions: " + busy + " of " + cap + " (" + alive.length + " alive, " + alive.filter(waitingOnYou).length + " blocked on you)"), h("div", { class: "meter" }, h("div", { style: "width:" + Math.min(100, 100 * busy / cap) + "%" })),
+  const alive = sessions.filter((s) => s.status === "busy" || s.status === "blocked"), busy = ok ? fill.started : alive.filter((s) => s.row && s.kind !== "finished leftover" && s.kind !== "other repo").length;
+  put("meters", h("div", {}, h("div", {}, "Dispatched sessions: " + busy + " of " + cap), h("div", {}, sessionsHeadline), h("div", { class: "meter" }, h("div", { style: "width:" + Math.min(100, 100 * busy / cap) + "%" })),
     ok ? [h("div", {}, "Machine load: " + fill.load + " of " + fill.limit), h("div", { class: "meter" }, h("div", { style: "width:" + Math.min(100, 100 * fill.load / fill.limit) + "%" }))] : h("div", { class: "unknown-note" }, "load: unknown")));
   put("flags", fan.flags.length ? fan.flags.map((f) => h("div", { class: "flag" }, badge("attention"), " ", h("b", {}, f.kind), " ", f.work_item + ": " + f.detail)) : h("div", {}, badge("ok"), " no disagreements between work items and sessions"));
   // Claimed items first, then the rest; each row says who holds it and what is wrong with it.

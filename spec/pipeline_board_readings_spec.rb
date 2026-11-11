@@ -124,11 +124,10 @@ RSpec.describe "PipelineBoard readings" do
   end
 
   it "counts only sessions dispatched for a Work item against the cap, and says how many are alive" do
-    live = [{ status: "busy", work_item: "a" }, { status: "busy", work_item: "" },
-            { status: "blocked", owner: true, work_item: "" },
+    live = [{ status: "busy", work_item: "a", kind: "running" }, { status: "busy", work_item: "", kind: "running" },
+            { status: "blocked", owner: true, work_item: "", kind: "owner" },
             { status: "done", work_item: "b" }]
-    detail = "3 sessions alive, 1 blocked on you; load unknown"
-    expect(working(live)).to include(value: 1, unit: "of #{session_cap}", detail: detail)
+    expect(working(live)).to include(value: 1, unit: "of #{session_cap}", detail: /1 waiting on you; load unknown/)
   end
 
   it "says unknown when the journal could not be read" do

@@ -12,6 +12,8 @@ module Hecks
         include TileKit
 
         DAY = 86_400
+        # The `Session owner` words of sessions that hold no seat against the cap.
+        NOT_SEATED = ["finished leftover", "other repo"].freeze
 
         # The push nudge comes from the QualityControl world's `push_nudge` setting, passed in.
         def ahead(local, now, limits)
@@ -26,22 +28,25 @@ module Hecks
         def working(data)
           return unknown_tile("working", "Dispatched sessions", data[:sessions]) unless data[:sessions].is_a?(Array)
 
-          alive, dispatched, blocked = counted(data[:sessions])
           fill = readable?(data[:fill]) ? data[:fill] : {}
+          dispatched, blocked = seats(data[:sessions], fill)
           cap = fill[:cap] || Rules.setting("session_cap")
-          note = "#{alive} sessions alive, #{blocked} blocked on you; #{load_note(fill)}"
-          tile("working", "Dispatched sessions", dispatched, "of #{cap}", state: pressure(dispatched, cap, blocked), detail: note)
+          state = pressure(dispatched, cap, blocked)
+          tile("working", "Dispatched sessions", dispatched, "of #{cap}", state: state, detail: headline(data))
         end
 
-        # The cap (`work_limit`) bounds sessions dispatched for a Work item; a session started by
-        # hand holds no Work item and no seat.
+        def headline(data) = Headline.sentence(data[:sessions], data[:fill])
+
+        # The cap (`work_limit`) bounds sessions dispatched for a Work item; the fill's own count of
+        # what it started is the seat count when the fill report is readable. Without it, the live
+        # sessions holding a Work item count, a finished leftover or a session of another
+        # repository not among them.
         #
-        # @return [Array(Integer, Integer, Integer)] the live sessions (busy or blocked), those
-        #   among them dispatched for a Work item, and the blocked ones
-        def counted(sessions)
-          alive = sessions.select { |session| %w[busy blocked].include?(session[:status]) }
-          dispatched = alive.count { |session| !session[:work_item].to_s.empty? }
-          [alive.size, dispatched, alive.count { |session| OwnerQueue.waiting?(session) }]
+        # @return [Array(Integer, Integer)] the seats held, and the sessions waiting on the owner
+        def seats(sessions, fill)
+          live = sessions.select { |session| %w[busy blocked].include?(session[:status]) }
+          held = live.count { |session| !session[:work_item].to_s.empty? && !NOT_SEATED.include?(session[:kind]) }
+          [fill[:started] || held, live.count { |session| OwnerQueue.waiting?(session) }]
         end
 
         # Attention when the cap is reached or anyone is waiting on a person.

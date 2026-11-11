@@ -10,32 +10,43 @@ module Hecks
         ASKED = /\A\s*\[owner\]/i
         REVIEW = /\A\s*\[review\]/i
         NEEDS_ANSWER = "needs an answer:"
+        LIVE = %w[busy blocked].freeze
 
         module_function
 
         # @param sessions [Array<Hash>, Object] the board's session rows
         # @param open_work [Array<Hash>, Object] the undone Work items, or `{unknown:}`
         # @param root [String] the checkout the pipeline runs in
-        # @return [Array<Hash>, Object] the rows, each blocked one with `owner:` and, when not the
-        #   owner's, `held:` naming what it is; other rows and an unreadable list pass through
+        # @return [Array<Hash>, Object] the rows, each live one with `kind:` (the `Session owner`
+        #   word: running, owner, finished leftover, other repo, ...) and each blocked one also with
+        #   `owner:` and, when not the owner's, `held:` naming what it is; other rows and an
+        #   unreadable list pass through
         def mark(sessions, open_work, root)
           return sessions unless sessions.is_a?(Array)
 
-          sessions.map { |row| row[:status] == "blocked" ? row.merge(judged(row, open_work, root)) : row }
+          sessions.map { |row| classed(row, open_work, root) }
         end
 
         # @param session [Hash] a session row
         # @return [Boolean] whether the session is blocked on the owner
         def waiting?(session) = session[:status] == "blocked" && session[:owner] == true
 
-        def judged(row, work, root)
+        def classed(row, work, root)
+          return row unless LIVE.include?(row[:status])
+
           state = Rules.verdict("Session owner", measures(row, work, root))
+          row.merge(blocked_marks(row, state)).merge(kind: state)
+        end
+
+        def blocked_marks(row, state)
+          return {} unless row[:status] == "blocked"
+
           state == "owner" ? { owner: true } : { owner: false, held: state }
         end
 
         def measures(row, work, root)
-          { other_repo: flag(elsewhere?(row, root)), finished: flag(finished?(row, work)),
-            asked: flag(asked?(row, work)), review: flag(said(row).match?(REVIEW)) }
+          { blocked: flag(row[:status] == "blocked"), other_repo: flag(elsewhere?(row, root)),
+            finished: flag(finished?(row, work)), asked: flag(asked?(row, work)), review: flag(said(row).match?(REVIEW)) }
         end
 
         def flag(condition) = condition ? 1 : 0
