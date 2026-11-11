@@ -26,8 +26,9 @@ module Hecks
 
         private
 
-        # A run an answer resumed since the listing is working again: its Work item stays started.
-        # The re-read narrows the window; the guard that closes it belongs on `Work.yield!`.
+        # The runs are read again before a Work item is yielded, so only a run still finished ends
+        # its item. An answer's own stop never finishes a run (`RecordTheEndedSession` leaves a
+        # `resuming` run alone), so a session an answer woke keeps its run started.
         def settle(key, condition)
           return unless @work_items.runs.dig(key, :status) == "finished"
           return @launcher.finish(key) if condition == "done"

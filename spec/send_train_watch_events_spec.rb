@@ -1,5 +1,7 @@
 require "spec_helper"
 require "hecks/hecks/adapters/git_train"
+require "hecks/hecks/adapters/git_launcher"
+require "hecks/hecks/adapters/desktop_alert"
 
 # Boots the Hecks domain with the push train's adapters stubbed: a boarding is queued as a pull
 # request, and watching it answers whatever the example sets.
