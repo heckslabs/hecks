@@ -14,7 +14,7 @@ RSpec.describe Hecks::Tools::AgentRoles do
   let(:expected) do
     "---\nname: scout\ndescription: Looks ahead.\ntools: Read, Grep\nmodel: sonnet\n" \
       "# Generated from agents.bluebook, do not edit\n---\n\nYou scout.\n\n## How to work\n\n1. **Look.** Go.\n\n" \
-      "## Handoffs\n\nTell the planner.\n\n## What you hand back\n\nWhat you found.\n"
+      "## What you hand back\n\nWhat you found.\n\n## Handoffs\n\nTell the planner.\n"
   end
 
   after { FileUtils.remove_entry(dir) }
@@ -51,6 +51,12 @@ RSpec.describe Hecks::Tools::AgentRoles do
 
   it "renders a row as the expected file" do
     expect(written).to eq(expected)
+  end
+
+  it "opens with a rules section other than Handoffs, ahead of the steps" do
+    text = Hecks::Tools::AgentRoles::Render.text(row.merge(rules: "## Limits\n\nStay put.\n\n#{row[:rules]}"))
+
+    expect(text.index("## Limits")).to be_between(text.index("You scout."), text.index("## How to work"))
   end
 
   it "keeps the frontmatter as the first block" do
@@ -109,6 +115,10 @@ RSpec.describe Hecks::Tools::AgentRoles do
         expect(front).to include("name: #{real[:role]}\n", "description: #{real[:description]}\n")
         expect(body).to include(real[:purpose], real[:steps], real[:handback])
       end
+    end
+
+    it "leave out the architect, whose file holds frontmatter a row cannot say" do
+      expect(rows.map { |real| real[:role] }).to match_array(%w[coder orchestrator planner pruner release_manager reviewer])
     end
 
     it "are read by --check and never written" do
