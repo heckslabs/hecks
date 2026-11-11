@@ -13,19 +13,25 @@ module Hecks
       #
       # It needs the including adapter's `@transcript`, `@reaping`, `@shell` and `@command`.
       module Removal
+        # What `claude rm` prints when it keeps a session because its worktree still stands, and the
+        # part of it that says where.
+        WORKTREE_KEPT = /kept .*its worktree is still at/
+        WORKTREE_AT = /its worktree is still at.*/
+
         # Says whether a person replied in a session after its brief, and what else decides whether
         # the session may go: whether the run's Work is open, whether the run leaves a product,
         # and what its worktree holds.
         #
         # @param held [Hash] the `AgentRun` record: `session`
         # @return [Hash{Symbol => Object}] `taken_over:` true when a person replied or the
-        #   transcript cannot be read, `note:` that in words, and {SessionReaping#facts}
+        #   transcript cannot be read, `note:` which of those it was in words, and
+        #   {SessionReaping#facts}
         # @raise [ConsoleCapture::Failure] when the sessions cannot be listed or this one is not
         #   among them
         def review(**held)
           full = listed(plain(held[:session]))["sessionId"]
-          taken = @transcript.taken_over?(full)
-          { taken_over: taken, note: taken ? "a person replied, or the transcript cannot be read" : "nobody replied",
+          reading = @transcript.reading(full)
+          { taken_over: reading[:state] != :read || reading[:person_turns].positive?, note: reply_note(reading),
             **@reaping.facts(held, worktree_of(full)) }
         end
 
@@ -51,11 +57,30 @@ module Hecks
         # @raise [ConsoleCapture::Failure] when the command refuses
         def remove(**held)
           id = plain(held[:session])
-          removed?(id) || stopped(id)
+          removed?(id) || kept_or_stopped(id)
           { removed_at: { value: Time.now.utc.iso8601 } }
         end
 
         private
+
+        # Says what the transcript showed: a person's turns, a missing or unreadable transcript, or
+        # nobody.
+        def reply_note(reading)
+          case reading[:state]
+          when :missing then "the transcript is missing"
+          when :unreadable then "the transcript cannot be read"
+          else
+            turns = reading[:person_turns]
+            turns.positive? ? "a person replied (#{turns} turns after the brief)" : "nobody replied"
+          end
+        end
+
+        # `claude rm` keeps a session whose worktree still stands; stopping it would not help.
+        def kept_or_stopped(id)
+          return stopped(id) unless @refusal.match?(WORKTREE_KEPT)
+
+          raise ConsoleCapture::Failure, "session kept: #{@refusal[WORKTREE_AT]}"
+        end
 
         def worktree_of(full)
           path = @transcript.worktree(full)
