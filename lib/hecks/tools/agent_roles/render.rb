@@ -12,14 +12,25 @@ module Hecks
         # The frontmatter keys a row can say.
         KEYS = %w[name description tools model].freeze
 
+        # The rules section that closes a file, after the handback; the other rules open it.
+        CLOSING = "## Handoffs"
+
+        # The start of a `## ` section, where the rules of a row are cut.
+        SECTION_START = /^(?=## )/
+
         module_function
 
         # @param row [Hash] a `RoleFile` row
         # @return [String] the role file
         def text(row)
-          [front(row), row[:purpose].to_s, "## How to work\n\n#{row[:steps]}", row[:rules].to_s,
-           "## What you hand back\n\n#{row[:handback]}"].reject(&:empty?).join("\n\n").then { |body| "#{body}\n" }
+          closing, opening = sections(row[:rules]).partition { |section| section.start_with?(CLOSING) }
+          [front(row), row[:purpose].to_s, *opening, "## How to work\n\n#{row[:steps]}",
+           "## What you hand back\n\n#{row[:handback]}", *closing].reject(&:empty?).join("\n\n").then { |body| "#{body}\n" }
         end
+
+        # @param rules [String, nil] the `rules` of a row, one or more `## ` sections
+        # @return [Array<String>] each section, trimmed
+        def sections(rules) = rules.to_s.split(SECTION_START).map(&:strip)
 
         # @return [String] the frontmatter, closed by a blank line
         def front(row)
