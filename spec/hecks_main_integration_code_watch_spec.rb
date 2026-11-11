@@ -1,4 +1,5 @@
 require "spec_helper"
+require "hecks/hecks/adapters/main_integration/code_watch"
 
 # A MainIntegration advance is one process; it keeps the code it started with, so it ends once the
 # checkout's code has changed instead of dispatching more runs on code that is out of date.
