@@ -51,17 +51,20 @@ module Hecks
         end
 
         # @param checkout [String] the checkout whose main is boarded
+        # @param commit [String, nil] the verified commit when it is not the head of main; the
+        #   head is boarded when nil
         # @return [Array<String>] the command line the boarding runs
-        def command(checkout)
+        def command(checkout, commit: nil)
           [File.join(@root, "exe", "hecks"), "SendTrain.board!", "checkout=#{checkout}", "remote=origin", "branch=main",
-           "--confirm", "--wait"]
+           *("commit=#{commit}" if commit), "--confirm", "--wait"]
         end
 
         # @param checkout [String] the checkout whose main is boarded
+        # @param commit [String, nil] the verified commit when it is not the head of main
         # @return [Hash{String => Object}] the boarding's record as the train answered it
         # @raise [ConsoleCapture::Failure] when the train refused, faulted or answered unreadably
-        def board(checkout)
-          ok, output = run(*command(checkout))
+        def board(checkout, commit: nil)
+          ok, output = run(*command(checkout, commit: commit))
           state = record_in(output)
           return state if ok && BOARDED.include?(state["status"].to_s)
 

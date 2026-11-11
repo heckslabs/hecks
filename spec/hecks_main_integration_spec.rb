@@ -183,6 +183,43 @@ RSpec.describe "integrating main through the MainIntegration saga" do
     expect(land_two_behind_an_open_pull_request.map { |landed| stage(landed) }).to eq(%w[green green])
   end
 
+  # Lands one commit and advances once while a newer commit arrives on local main during its checks.
+  def verify_while_a_newer_landing_arrives
+    arrived = false
+    inner = Hecks::Adapters::MainVerification.runner
+    Hecks::Adapters::MainVerification.runner = lambda do |argv, chdir:|
+      commit(repo, "newer.rb", "newer") unless arrived
+      arrived = true
+      inner.call(argv, chdir: chdir)
+    end
+    land.tap { advance }
+  end
+
+  it "boards the verified commit when a newer landing arrived during its verification", :aggregate_failures do
+    landed = verify_while_a_newer_landing_arrives
+    expect(stage(landed)).to eq("pushed")
+    expect(@boardings.first).to include("commit=#{landed}")
+  end
+
+  it "reports the verified commit boarded and how many newer landings wait" do
+    verify_while_a_newer_landing_arrives
+    expect(report("IntegrationAdvanced")).to include("(verified); 1 newer landing waits")
+  end
+
+  it "passes no commit to the train when the verified commit is the head of main" do
+    land
+    advance
+    expect(@boardings.first.grep(/\Acommit=/)).to be_empty
+  end
+
+  it "verifies only the head when two landings arrive before any verification finishes", :aggregate_failures do
+    first = land
+    second = land(file: "second.rb")
+    advance
+    expect(stage(first)).to eq("superseded")
+    expect(stage(second)).to eq("pushed")
+  end
+
   # An open train pull request whose checks are the given (name, status, conclusion) rows.
   def open_pull_with(*checks)
     rollup = checks.map { |name, status, conclusion| { name: name, status: status, conclusion: conclusion } }
