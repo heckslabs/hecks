@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "time"
+
 module Hecks
   module Adapters
     class Dispatching
@@ -13,9 +15,13 @@ module Hecks
       class Settler
         # @param work items [WorkItems] where the started work items and the runs are read
         # @param launcher [Launcher] runs the commands that check, finish and yield
-        def initialize(work_items, launcher)
+        # @param grace [Integer] seconds after its start that a run's session is read as unknown
+        # @param clock [#call] answers the time, for the grace
+        def initialize(work_items, launcher, grace: 0, clock: -> { Time.now.utc })
           @work_items = work_items
           @launcher = launcher
+          @grace = grace
+          @clock = clock
         end
 
         # @return [Array<String>] one line for each work item settled, empty when none was
@@ -49,7 +55,15 @@ module Hecks
 
         def checkable = mine.select { |_key, run| run[:status] == "started" }
 
-        def ended = mine.select { |_key, run| run[:status] == "finished" }
+        # A clock guard only: a run younger than the grace has not been read long enough to say
+        # how its session ended, so it is left alone. A run with no recorded start counts as old.
+        def ended = mine.select { |_key, run| run[:status] == "finished" && !young?(run) }
+
+        def young?(run)
+          @clock.call - Time.parse(run[:started_at].to_s) < @grace
+        rescue ArgumentError
+          false
+        end
 
         def mine
           @work_items.runs.slice(*started.map(&:key))
