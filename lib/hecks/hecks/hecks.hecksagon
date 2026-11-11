@@ -367,6 +367,22 @@ Hecks.hecksagon "Hecks" do
       answers "TendAnswered"
       refuses "TendRefused"
     end
+
+    # The launchd job that beats the clock once a minute from outside the domain: written and
+    # loaded, or unloaded and removed. Unconfirmed, each answers what it would do.
+    asks "Arrange", to: Integration do
+      attribute :run,     RunKey
+      attribute :confirm, Switch
+      answers "ArrangeAnswered"
+      refuses "ArrangeRefused"
+    end
+
+    asks "Withdraw", to: Integration do
+      attribute :run,     RunKey
+      attribute :confirm, Switch
+      answers "WithdrawAnswered"
+      refuses "WithdrawRefused"
+    end
   end
 
   Hecks::Integration.port "MainVerifying" do
