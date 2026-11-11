@@ -111,8 +111,8 @@ module Hecks
       def work_items = @standins[:work_items] || WorkItems.new(@registry)
 
       def machine
-        Settings.new(@registry, load: @standins[:load], cpus: @standins[:cpus], cap: @standins[:cap],
-                                boots: @standins[:boots])
+        @machine ||= Settings.new(@registry, load: @standins[:load], cpus: @standins[:cpus], cap: @standins[:cap],
+                                             boots: @standins[:boots])
       end
 
       # The launcher for the checkout the filling is for. A stand-in runner wins; otherwise the
@@ -136,8 +136,21 @@ module Hecks
       def limits
         gauge = machine
         { cap: gauge.cap, load: gauge.load, max_load: gauge.max_load, frozen: gauge.frozen, paused: gauge.paused,
-          budget: gauge.boot_stop, exempt: WorkItems.method(:red?), runs: -> { work_items.runs },
-          rethinks: ->(key) { rethinks(gauge.rethink_limit).stop_reason(key) } }
+          budget: gauge.boot_stop, exempt: WorkItems.method(:red?), **cached_reads(gauge) }
+      end
+
+      # The runs and the architect's reviews, each read once for the plan: the plan asks for them
+      # on every planned item, and a read is a scan of the whole repository.
+      def cached_reads(gauge)
+        runs = once { work_items.runs }
+        reviews = once { rethinks(gauge.rethink_limit) }
+        { runs: runs, rethinks: ->(key) { reviews.call.stop_reason(key) } }
+      end
+
+      def once
+        read = false
+        value = nil
+        -> { read ? value : (read = true) && (value = yield) }
       end
 
       # The key prefix a filling is held to; empty when none is named.
@@ -145,7 +158,20 @@ module Hecks
 
       # The load, then each work item that starts or would, then each left waiting with its reason.
       def report_lines(plan)
-        [header(plan)] + plan.chosen.map { |item| chosen_line(item) } + plan.skipped.map { |skip| skipped_line(skip) }
+        [header(plan)] + plan.chosen.map { |item| chosen_line(item) } + waiting_lines(plan.skipped)
+      end
+
+      # The skips, with those the load alone caused said once: the reason, the count and the first
+      # few that start when the load falls.
+      def waiting_lines(skips)
+        loaded, others = skips.partition { |skip| skip.reason.start_with?("skipped: load") }
+        others.map { |skip| skipped_line(skip) } + load_line_for(loaded)
+      end
+
+      def load_line_for(loaded)
+        return [] if loaded.empty?
+
+        ["#{loaded.first.reason}: nothing starts; #{loaded.size} waiting, first #{loaded.first(3).map(&:key).join(", ")}"]
       end
 
       # The planned work items, held to those whose key starts with `only` when one is named, and
