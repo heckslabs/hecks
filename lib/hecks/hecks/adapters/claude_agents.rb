@@ -144,11 +144,16 @@ module Hecks
 
       # @return [Hash{Symbol => String}] the run the job belongs to: its key, the Work item it
       #   serves (empty for a run that serves none), its last known condition, whether an answer
-      #   is on its way to it (`resuming`), and its directory with a trailing slash
+      #   is on its way to it (`resuming`), whether a plan review it asked for is open
+      #   (`reviewing`), and its directory with a trailing slash
       def run_facts(held)
         { previous: plain(held[:condition]).to_s, checkout: File.join(plain(held[:repo]).to_s, ""),
-          run: plain(held[:run]).to_s, work: plain(held[:work]).to_s, resuming: plain(held[:resuming]) == true }
+          run: plain(held[:run]).to_s, work: plain(held[:work]).to_s, **waiting_facts(held) }
       end
+
+      # @return [Hash{Symbol => Boolean}] `resuming:` and `reviewing:`, each true only when the run
+      #   holds it so
+      def waiting_facts(held) = %i[resuming reviewing].to_h { |name| [name, plain(held[name]) == true] }
 
       # Waits the settling time, then reads the job as {#read_job} does: a session that dies at
       # once has reported it by then.

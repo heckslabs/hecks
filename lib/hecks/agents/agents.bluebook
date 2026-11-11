@@ -327,6 +327,26 @@ Hecks.bluebook "Agents" do
       trigger  PlanReview::Unstart, with: { plan_review: :plan_review, work: :work, reason: :refusal }
     end
 
+    # An architect run that failed or was retired will never bring a verdict, so its review is
+    # unstarted with the reason, and the coder waiting on the Work item is told it as it is
+    # for a declined run. A review that already holds a verdict refuses, and a run no review keys
+    # finds no row.
+    policy "UnstartTheFailedReview" do
+      on       "AgentRun.SessionFailed"
+      root
+      for_each "PlanReview.OfRun"
+      trigger  PlanReview::Unstart, with: { plan_review: :plan_review, work: :work,
+                                            reason: "the architect's run failed and gave no verdict" }
+    end
+
+    policy "UnstartTheRetiredReview" do
+      on       "AgentRun.AgentRunRetired"
+      root
+      for_each "PlanReview.OfRun"
+      trigger  PlanReview::Unstart, with: { plan_review: :plan_review, work: :work,
+                                            reason: "the architect's session is gone and gave no verdict" }
+    end
+
     policy "RecordTheVerdictWhenNoReviewWasAsked" do
       on      "AgentRun.JobRead"
       root

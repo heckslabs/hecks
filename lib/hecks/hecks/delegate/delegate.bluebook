@@ -30,6 +30,7 @@ Hecks.bluebook "Hecks" do
       attribute :work,      WorkSlug,  optional: true
       attribute :trial,     Trial,     optional: true
       attribute :resuming,  Resuming,  optional: true
+      attribute :reviewing, Reviewing, optional: true
       identified_by :run
 
       value_object "RunKey" do
@@ -52,6 +53,13 @@ Hecks.bluebook "Hecks" do
       # it again, so a job that reads `stopped` meanwhile is the answer's own stop, not the
       # session's end. `Answer` sets it; `Answered` and `Unanswered` clear it.
       value_object "Resuming", Boolean
+
+      # Whether a plan review the run asked for is open. A coder that asked for one ended its turn to
+      # be resumed with the verdict, so while it is set no reading of the job ends the run: the
+      # verdict can always reach it. `Await` sets it when the review is requested; `Answered` and
+      # `Unanswered` clear it. Every end of a review reaches one of them: a verdict, an unstarted
+      # review, and an architect run that failed or was retired (`Agents` unstarts its review).
+      value_object "Reviewing", Boolean
 
       # The directory the session works in.
       value_object "Path" do
@@ -258,6 +266,16 @@ Hecks.bluebook "Hecks" do
         emits AnswerRequested
       end
 
+      command "Await", from: "started" do
+        role "System"
+        goal "Record that a plan review the run asked for is open, so no reading of the job ends the run"
+
+        reference_to AgentRun
+        attribute :reviewing, Reviewing, default: true, sets: true
+
+        emits ReviewAwaited
+      end
+
       command "Answered" do
         role "System"
         goal "Record when the session was resumed with the answer"
@@ -267,6 +285,7 @@ Hecks.bluebook "Hecks" do
         attribute :session,     SessionId, sets: true
         attribute :verdict,     VerdictKey, default: ""
         attribute :resuming,    Resuming, default: false, sets: true
+        attribute :reviewing,   Reviewing, default: false, sets: true
 
         emits AgentRunAnswered
       end
@@ -279,6 +298,7 @@ Hecks.bluebook "Hecks" do
         attribute :refusal, Report, sets: true
         attribute :verdict, VerdictKey, default: ""
         attribute :resuming, Resuming, default: false, sets: true
+        attribute :reviewing, Reviewing, default: false, sets: true
 
         emits AgentRunUnanswered
       end
@@ -339,6 +359,11 @@ Hecks.bluebook "Hecks" do
         description "Every run whose session was started and is not known to have ended, oldest key first."
         where(status: "started")
         order_by :run
+      end
+
+      query "FinishedOfWork" do
+        description "The finished run keyed by one Work item, the coder a late verdict can no longer reach."
+        where(status: "finished", run: :work)
       end
 
       query "Declined" do
@@ -1008,7 +1033,7 @@ Hecks.bluebook "Hecks" do
     policy "RecordTheEndedSession" do
       on      "AgentRun.JobRead"
       root
-      where   { (state == "done" || (state == "stopped" && resuming != true)) && previous != state }
+      where   { (state == "done" || (state == "stopped" && resuming != true)) && reviewing != true && previous != state }
       trigger AgentRun::Finish, with: { condition: :state, detail: :detail, checkout: :checkout }
     end
 
@@ -1019,14 +1044,14 @@ Hecks.bluebook "Hecks" do
     # reads `blocked`, not `working`, so this never ends one. The run then reads `done`, so the
     # architect's verdict is recorded and a coder's session stops being listed as working.
     #
-    # Closing words that begin `[review]` are a wait, not a report: a coder that asked its plan review
-    # ended its turn to be resumed with the verdict, so its run stays started until then.
+    # A coder whose plan review is open (`reviewing`) is waiting, not reporting: it ended its turn to
+    # be resumed with the verdict, so its run stays started until the review is answered.
     policy "RecordTheIdleSession" do
       on      "AgentRun.JobRead"
       root
       where   do
-        state == "working" && listed == "idle" && resuming != true && previous != "done" && agent != "orchestrator" &&
-          (verdict != "" || (agent != "architect" && report != "" && !report.start_with?("[review]")))
+        state == "working" && listed == "idle" && resuming != true && reviewing != true && previous != "done" &&
+          agent != "orchestrator" && (verdict != "" || (agent != "architect" && report != ""))
       end
       trigger AgentRun::Finish, with: { condition: "done", detail: :report, checkout: :checkout }
     end
@@ -1132,6 +1157,24 @@ Hecks.bluebook "Hecks" do
     policy "StartTheRoleOnReviewRequest" do
       on      "PlanReview.PlanReviewRequested"
       trigger AgentRun::Dispatch, with: { run: :run, work: :work, repo: :repo, brief: :plan, agent: :role }
+    end
+
+    # A verdict judged for a coder run that already finished cannot be delivered (`Answer` takes a
+    # started run). It is not lost: the run is recorded unanswered, which records the verdict
+    # undeliverable with this reason, a finding that names the judge's run and the Work item. A
+    # Work item with no finished run finds no row.
+    policy "RefuseTheVerdictOfAFinishedCoder" do
+      on       "Verdict.VerdictJudged"
+      for_each "AgentRun.FinishedOfWork"
+      trigger  AgentRun::Unanswered, with: { agent_run: :agent_run, verdict: :run,
+                                             refusal: "the coder run already finished: restart the item with the review in its brief" }
+    end
+
+    # The Work item's coder run is marked as waiting on a review the moment it is requested, before any
+    # reading of the job can end it. A review of a Work item with no started coder run finds none.
+    policy "AwaitTheReview" do
+      on      "PlanReview.PlanReviewRequested"
+      trigger AgentRun::Await, with: { run: :work }
     end
 
     # A judge's verdict answers the coder waiting on the Work item, a run keyed by the Work item, in
