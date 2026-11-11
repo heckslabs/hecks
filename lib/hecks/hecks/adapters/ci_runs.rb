@@ -10,8 +10,10 @@ module Hecks
     # The `CiRuns` port's adapter for `Integration.Observe`: reads, through `gh`, the CI run of a
     # push of main at a landed commit, or at the commit GitHub merged the boarding's train pull
     # request as. It answers `running` while the pull request is open, there is no run yet or it has
-    # not completed, `passed` when it succeeded, `failed` with the jobs that did not succeed, and
-    # `closed` when the pull request was closed without merging (main never moved).
+    # not completed, `merged` when the pull request merged and CI on its merge commit has not
+    # completed, `passed` when it succeeded, `failed` with the jobs that did not succeed, and
+    # `closed` when the pull request was closed without merging (main never moved). Each answer
+    # echoes `pulled`, whether the run was already seen merged.
     class CiRuns
       # The workflow whose run is read, as GitHub names it.
       WORKFLOW = "CI"
@@ -35,6 +37,7 @@ module Hecks
       def watch(**held)
         landed = plain(held[:landed]).to_s
         @checkout = plain(held[:checkout]) || Dir.pwd
+        @pulled = plain(held[:pulled]) == true
         pull = PullRequest.new(runner, @checkout, landed).read
         return observe(landed, landed) unless pull
 
@@ -48,19 +51,27 @@ module Hecks
       def via_pull_request(landed, pull)
         number = pull["number"]
         case pull["state"]
-        when "MERGED" then observe(landed, pull.dig("mergeCommit", "oid") || landed)
+        when "MERGED" then observe(landed, pull.dig("mergeCommit", "oid") || landed, merged: number)
         when "CLOSED" then answer("closed", "#{landed[0, 10]}: PR #{number} closed without merging")
         else answer("running", "#{landed[0, 10]}: PR #{number} not merged yet (#{Checks.new(pull["statusCheckRollup"]).counts})")
         end
       end
 
-      def observe(landed, commit)
+      # @param merged [Object, nil] the pull request's number when it merged: CI still running on its
+      #   merge commit then answers `merged` (main is pulled), not `running`
+      def observe(landed, commit, merged: nil)
         run = latest_run(commit)
-        return answer("running", "#{landed[0, 10]}: no #{WORKFLOW} run yet for #{commit[0, 10]}") unless run
-        return answer("running", "#{landed[0, 10]}: #{WORKFLOW} run #{run["databaseId"]} is #{run["status"]}") unless
+        return unfinished(landed, merged, "no #{WORKFLOW} run yet for #{commit[0, 10]}") unless run
+        return unfinished(landed, merged, "#{WORKFLOW} run #{run["databaseId"]} is #{run["status"]}") unless
           run["status"] == "completed"
 
         verdict(landed, run)
+      end
+
+      def unfinished(landed, merged, text)
+        return answer("running", "#{landed[0, 10]}: #{text}") unless merged
+
+        answer("merged", "#{landed[0, 10]}: PR #{merged} merged; #{text}")
       end
 
       # The run of the commit on main, or nil when GitHub has none for it yet.
@@ -91,7 +102,9 @@ module Hecks
         raise ConsoleCapture::Failure, "gh #{args.first(2).join(" ")} answered no JSON"
       end
 
-      def answer(outcome, report) = { outcome: { value: outcome }, report: { value: report }, checkout: { value: @checkout } }
+      def answer(outcome, report)
+        { outcome: { value: outcome }, report: { value: report }, checkout: { value: @checkout }, pulled: { value: @pulled } }
+      end
 
       def runner = self.class.runner || MainIntegration::CommandRunner.new
 

@@ -10,7 +10,7 @@ module Hecks
         SAGA = "MainIntegration"
 
         # The stages in which a run is being pushed or watched; only one run may be in them.
-        IN_FLIGHT = %w[boarding pushed ci_running].freeze
+        IN_FLIGHT = %w[boarding pushed ci_running merged].freeze
 
         # One run: the landed commit it is keyed by, its stage, and the checkout it landed in.
         Run = Struct.new(:landed, :state, :checkout) do
