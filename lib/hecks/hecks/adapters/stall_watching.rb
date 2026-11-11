@@ -33,6 +33,16 @@ module Hecks
         Sightings.new(kinds, SystemClock.now).rows(lines(path), plain(run).to_s)
       end
 
+      # @param run [Hash, String] the look that asks, as its key or the key's value
+      # @return [Array<Hash>] one `Abandoned` row per filed stall whose run has ended and which no
+      #   look has closed; none when the world declares no tap
+      def abandoned(run:)
+        path = tap_path
+        return [] unless path
+
+        Sightings.new(kinds, SystemClock.now).abandoned(lines(path), plain(run).to_s)
+      end
+
       private
 
       def plain(argument) = argument.is_a?(Hash) ? argument[:value] : argument

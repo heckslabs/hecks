@@ -185,6 +185,7 @@ Hecks.hecksagon "Hecks" do
   # clock. The adapter reads the log as the `Feed` query does and boots no domain.
   Hecks::StallWatch.port "Watching" do
     answers_query "Unclosed"
+    answers_query "Abandoned"
   end
 
   Hecks::SendTrain.port "Alerts" do

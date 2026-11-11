@@ -31,9 +31,12 @@ Hecks.bluebook "Hecks" do
         attribute :forgets,   Integer
         attribute :fixer,     String
         attribute :move,      String
+        attribute :ends_aggregate, String
+        attribute :ends,           String
 
         member kind: "plan-review", aggregate: "Agents::PlanReview", opens: "PlanReviewRequested",
                closes: "PlanReviewed,PlanReviewRecorded,ReviewUnstarted", minutes: 20, forgets: 1440, fixer: "orchestrator",
+               ends_aggregate: "Hecks::AgentRun", ends: "SessionFinished,SessionFailed,AgentRunRetired,AgentTrialRunRetired",
                move: "Read the architect's closing report, record its verdict with PlanReview.answer! " \
                      "(PlanReview.record! when no request row exists), then AgentRun.answer! the waiting coder."
         member kind: "train-pr-red", aggregate: "Hecks::TrainPr", opens: "TrainPrFailed",
@@ -84,10 +87,25 @@ Hecks.bluebook "Hecks" do
         emits StallDetectRequested
       end
 
+      # A filed stall whose run (named by the kind's `ends` events, on the same id) has ended: its
+      # closing line will not come, so it is closed with the reason.
+      value_object "Abandoned" do
+        attribute :id,      String
+        attribute :stall,   String
+        attribute :subject, String
+        attribute :reason,  String
+      end
+
       query "Unclosed" do
-        description "The opening lines of every stall kind whose closing line has not come, within the kind's window, with how long each has waited. Read-only: it reads the tap and boots nothing."
+        description "The opening lines of every stall kind whose closing line has not come, within the kind's window, with how long each has waited. A line the tap shows filed already, or whose run has ended, is left out: it is handled once and a later look emits nothing for it. Read-only: it reads the tap and boots nothing."
         attribute :run, String
         returns list_of(Sighting)
+      end
+
+      query "Abandoned" do
+        description "The filed stalls whose run has ended and which no look has closed yet, each with the ending event as its reason. Read-only: it reads the tap and boots nothing."
+        attribute :run, String
+        returns list_of(Abandoned)
       end
     end
 
@@ -108,6 +126,7 @@ Hecks.bluebook "Hecks" do
       attribute :fixer,     Fixer
       attribute :title,     Line
       attribute :detail,    Line
+      attribute :reason,    Line, optional: true
       reference_to StallWatch, as: :watch
       identified_by :stall
 
@@ -157,6 +176,21 @@ Hecks.bluebook "Hecks" do
 
         emits StallFiled
       end
+
+      # A stall whose run ended can no longer close: it is closed here, once, with the reason. Like
+      # `File` it creates the record by its key, so a look in a fresh process can name it.
+      command "Abandon" do
+        role "System"
+        goal "Close a stall whose run has ended, because its closing event will not come"
+
+        reference_to StallWatch, as: :watch
+        attribute :stall,  StallKey, sets: true
+        attribute :reason, Line, sets: true
+
+        sets :watch
+
+        emits StallAbandoned
+      end
     end
 
     # Each beat of the clock looks once, keyed by the beat. A root, so the look starts its own chain.
@@ -174,6 +208,13 @@ Hecks.bluebook "Hecks" do
       trigger  Stall::File, with: { watch: :id, stall: :stall, kind: :stall_kind, subject: :subject, opened_at: :opened_at,
                                     waited: :waited, minutes: :minutes, forgets: :forgets, fixer: :fixer,
                                     title: :title, detail: :detail }
+    end
+
+    # Every filed stall whose run has ended is closed, once: the tap shows it abandoned afterwards.
+    policy "AbandonEveryStallWhenDetected" do
+      on       "StallWatch.StallDetectRequested"
+      for_each "StallWatch.Abandoned"
+      trigger  Stall::Abandon, with: { watch: :id, stall: :stall, reason: :reason }
     end
   end
 end

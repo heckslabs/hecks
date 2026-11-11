@@ -1071,6 +1071,12 @@ Hecks.bluebook "Tickets" do
     trigger Work::Plan, with: { work: :stall, title: :title, detail: :detail }
   end
 
+  # A stall whose run ended can never close, so its work item is set aside with the reason.
+  policy "DropWorkWhenStallAbandoned" do
+    on      "Stall.StallAbandoned"
+    trigger Work::Drop, with: { work: :stall, reason: :reason }
+  end
+
   # A train pull request whose CI failed past its reruns is one red work item, `red-train-<pr>`, for a
   # coder; the fill starts red items over budget. The key is the dedupe: a second exhausted attempt of
   # the same pull request plans nothing twice.

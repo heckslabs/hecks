@@ -13,6 +13,9 @@ Hecks.hecksagon "Tickets" do
 
   # The Hecks domain's stall watch filed a stall: PlanWorkWhenStallFiled plans its work item.
   subscribe "Hecks.StallFiled"
+
+  # The stall watch closed a stall whose run ended: DropWorkWhenStallAbandoned sets its work item aside.
+  subscribe "Hecks.StallAbandoned"
 end
 
 # The anti-corruption layer for Governance, which the bluebook's roles are checked against.
