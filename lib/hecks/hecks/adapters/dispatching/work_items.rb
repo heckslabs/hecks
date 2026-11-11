@@ -55,6 +55,18 @@ module Hecks
           rows&.members&.map { |row| row[:role].to_s }
         end
 
+        # @return [Array<Hash>] every plan review, in the order recorded, as `run:`, `work:`,
+        #   `verdict:` and `findings:`
+        def reviews
+          aggregate = find("Agents", "PlanReview")
+          return [] unless aggregate
+
+          @registry.repository("Agents", aggregate).all.map do |review|
+            { run: field(review, :run).to_s, work: field(review, :work).to_s,
+              verdict: field(review, :verdict).to_s, findings: field(review, :findings).to_s }
+          end
+        end
+
         # @return [Hash{String => Hash}] each agent run's key with its `status:` and `condition:`
         def runs
           aggregate = find("Hecks", "AgentRun")

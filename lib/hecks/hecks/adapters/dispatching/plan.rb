@@ -46,6 +46,7 @@ module Hecks
         #   and `paused:` (String, optional: why every work item waits, "skipped: paused by load")
         #   and `budget:` (String, optional: why every work item waits once the boots spent their
         #   budget)
+        #   with `rethinks:` (callable, optional: answers why a work item waits for a person)
         #   with `exempt:` (callable, optional: answers whether a work item starts despite it)
         #   and `root:` (String, optional: this repository's top level, to tell its areas from
         #   another checkout's; the checkout holding this file by default)
@@ -77,9 +78,12 @@ module Hecks
         private
 
         def consider(item)
-          reason = parked_reason(item) || stop_reason(item) || frozen_reason(item) || overlap_reason(item)
+          reason = rethink_reason(item) || parked_reason(item) || stop_reason(item) || frozen_reason(item) || overlap_reason(item)
           reason ? @skipped << Skip.new(item.key, reason) : @chosen << item
         end
+
+        # A work item the architect said to rethink too often waits for a person.
+        def rethink_reason(item) = @limits[:rethinks]&.call(item.key)
 
         # A yielded item waits out its backoff or its blocker, and does not count against the cap.
         def parked_reason(item)

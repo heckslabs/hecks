@@ -7,6 +7,7 @@ require_relative "../shell"
 require_relative "../../../rust_build/session_build"
 require_relative "../codebase/test_scope"
 require_relative "../machine_sampling/history"
+require_relative "rethinks"
 
 module Hecks
   module Adapters
@@ -105,6 +106,9 @@ module Hecks
 
         # @return [Integer] the seconds a started session is given to appear in the listing
         def session_grace = Integer(declared(GRACE)[:seconds] || GRACE_SECONDS)
+
+        # @return [Integer] the architect rethinks that stop a Work item for a person
+        def rethink_limit = Integer(declared("rethink_limit")[:limit] || Rethinks::LIMIT)
 
         # @return [Boolean] whether planned work rolls forward by itself; false only when paused
         def roll_forward? = declared(ROLL)[:roll_forward] != false

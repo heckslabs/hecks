@@ -15,6 +15,8 @@ require_relative "dispatching/pending"
 require_relative "dispatching/planned_cache"
 require_relative "dispatching/wake"
 require_relative "dispatching/rolls"
+require_relative "dispatching/rethinks"
+require_relative "dispatching/launching"
 
 module Hecks
   module Adapters
@@ -29,6 +31,7 @@ module Hecks
     # default is a dry run, which writes nothing.
     class Dispatching
       include Rolls
+      include Launching
 
       # @param registry [Runtime::Registry, nil] the booted registry whose work items are read
       # @param aggregate [Object, nil] unused
@@ -132,7 +135,8 @@ module Hecks
       def limits
         gauge = machine
         { cap: gauge.cap, load: gauge.load, max_load: gauge.max_load, frozen: gauge.frozen, paused: gauge.paused,
-          budget: gauge.boot_stop, exempt: WorkItems.method(:red?), runs: -> { work_items.runs } }
+          budget: gauge.boot_stop, exempt: WorkItems.method(:red?), runs: -> { work_items.runs },
+          rethinks: ->(key) { rethinks(gauge.rethink_limit).stop_reason(key) } }
       end
 
       # The key prefix a filling is held to; empty when none is named.
@@ -164,44 +168,6 @@ module Hecks
       def chosen_line(item) = "would start #{item.key}: #{BriefText.new("outcome" => item.title).first_line}"
 
       def skipped_line(skip) = "#{skip.key} #{skip.reason}"
-
-      def launch(plan, held)
-        launcher = launcher_for(held)
-        minutes = plain(held[:budget_minutes]) || Settings::BUDGET_MINUTES
-        plan.chosen.each_with_index.map do |item, index|
-          launched(launcher, item) do
-            outcome(*launcher.attempt(item, held: holding(plan, index), minutes: minutes, limit: machine.spec_files_limit,
-                                            frozen: machine.frozen, traps: traps_for(item)))
-          end
-        end
-      end
-
-      def outcome(kind, line) = FillReport::Outcome.new(kind, line)
-
-      # One work item's outcome. An error the launcher did not expect yields that work item
-      # with the error's class and message, so the next chosen work item still launches and the
-      # report still says why; a yield that fails too is named on the line.
-      def launched(launcher, item)
-        yield
-      rescue StandardError => e
-        reason = "#{e.class}: #{e.message}"
-        begin
-          outcome(:yielded, launcher.yield_back(item, reason))
-        rescue StandardError => failure
-          outcome(:stuck, "#{item.key} could not be started or yielded: #{reason} " \
-                          "(yield failed: #{failure.class}: #{failure.message})")
-        end
-      end
-
-      # The known traps the work item's area meets, one line each.
-      def traps_for(item) = LessonTraps.new(work_items.lessons).for(item.area)
-
-      # A line for each other work item, started or chosen before this one, that holds an area.
-      def holding(plan, index)
-        (work_items.started + plan.chosen.first(index)).reject { |other| other.area.empty? }.map { |other| held_line(other) }
-      end
-
-      def held_line(item) = "#{item.key}: #{item.title} (#{item.area.join(", ")})"
 
       def plain(argument) = argument.is_a?(Hash) ? argument[:value] : argument
     end
