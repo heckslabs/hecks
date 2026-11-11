@@ -630,8 +630,8 @@ Hecks.bluebook "Hecks" do
         mark :failure, "refused"
         transition "Begin"   => "ticking", from: "requested"
         transition "Decline" => "refused", from: "requested"
-        transition "Stop"    => "stopped", from: %w[requested ticking]
-        mark :terminal, "refused", "stopped"
+        transition "Stop"    => "ended", from: %w[requested ticking]
+        mark :terminal, "refused", "ended"
       end
 
       command "Start" do

@@ -1,4 +1,5 @@
 require "spec_helper"
+require "hecks/hecks/adapters/github_pull_requests"
 require "json"
 require_relative "support/fake_train_github"
 
