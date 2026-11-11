@@ -15,6 +15,12 @@ module Hecks
         # The spec files an rspec failure summary names: `rspec ./spec/x_spec.rb:12 # description`.
         SPEC_LINE = %r{rspec (?:\./)?(\S+?_spec\.rb)}
 
+        # What a log that reached the specs holds: a summary line or a failed example.
+        SPEC_RAN = %r{Failure/Error|\d+ examples?, \d+ failures?|rspec (?:\./)?\S+_spec\.rb}
+
+        # What a failure before the specs ran is told: nothing in the code is wrong.
+        SETUP_NOTE = "A step before the specs ran failed; no example failed, so there is no code to fix."
+
         # How many of the failed log's lines the report keeps.
         LINES = 12
 
@@ -39,15 +45,26 @@ module Hecks
           id = run["databaseId"].to_s
           log = failed_log(id)
           specs = log.scan(SPEC_LINE).flatten.uniq
-          base(pull, run, specs).merge(report: report(pull, id, specs, log))
+          cause = cause_of(log)
+          base(pull, run, specs, cause).merge(step: step_of(cause, id), report: report(pull, id, specs, log))
         end
 
         private
 
-        def base(pull, run, specs)
+        # A failure where the specs ran is a `spec` failure; one before they ran is `setup`.
+        def cause_of(log) = log.match?(SPEC_RAN) ? "spec" : "setup"
+
+        def step_of(cause, id)
+          return "" unless cause == "setup"
+
+          names = steps(id)
+          names.empty? ? "unknown step" : names
+        end
+
+        def base(pull, run, specs, cause)
           number = pull["number"].to_s
           attempt = run["attempt"].to_i
-          { pr: number, ci_run: run["databaseId"].to_s, attempt: attempt, specs: specs.join(","),
+          { pr: number, ci_run: run["databaseId"].to_s, attempt: attempt, specs: specs.join(","), cause: cause,
             failure_key: "#{@landed[0, 12]}-#{run["databaseId"]}-#{attempt}", work_key: "red-train-#{number}",
             title: "Red train PR #{number}: #{specs.first || "CI failed"}" }
         end
@@ -55,7 +72,7 @@ module Hecks
         def report(pull, id, specs, log)
           what = specs.empty? ? "failed steps: #{steps(id)}" : "specs: #{specs.join(", ")}"
           "PR #{pull["number"]} (#{@landed[0, 10]}) CI run #{id} failed; #{what}; commits: #{commits(pull)}\n" \
-            "#{first_lines(log)}\n#{INSTRUCTION}"
+            "#{first_lines(log)}\n#{cause_of(log) == "spec" ? INSTRUCTION : SETUP_NOTE}"
         end
 
         def first_lines(log)

@@ -1698,6 +1698,8 @@ Hecks.bluebook "Hecks" do
       attribute :failure_key, Report, optional: true
       attribute :work_key,    Report, optional: true
       attribute :title,       Report, optional: true
+      attribute :cause,       Report, optional: true
+      attribute :step,        Report, optional: true
       identified_by :run
 
       value_object "RunKey" do
@@ -2081,7 +2083,7 @@ Hecks.bluebook "Hecks" do
       on      "Integration.ObserveAnswered"
       where   { outcome.value == "pr_failed" }
       trigger TrainPr::Record, with: { key: :failure_key, landed: :landed, pr: :pr, ci_run: :ci_run, attempt: :attempt,
-                                       specs: :specs, work: :work_key, title: :title, failure: :report }
+                                       specs: :specs, work: :work_key, title: :title, cause: :cause, step: :step, failure: :report }
     end
 
     # One failed attempt of a train pull request's CI, recorded once under its key
@@ -2101,6 +2103,8 @@ Hecks.bluebook "Hecks" do
       attribute :specs,   Report, optional: true
       attribute :work,    Word,   optional: true
       attribute :title,   Word,   optional: true
+      attribute :cause,   Word,   optional: true
+      attribute :step,    Report, optional: true
       attribute :failure, Report, optional: true
       attribute :report,  Report, optional: true
       attribute :detail,  Report, optional: true
@@ -2150,6 +2154,8 @@ Hecks.bluebook "Hecks" do
         attribute :specs,   Report, optional: true, sets: true
         attribute :work,    Word, sets: true
         attribute :title,   Word, sets: true
+        attribute :cause,   Word, sets: true
+        attribute :step,    Report, optional: true, sets: true
         attribute :failure, Report, sets: true
 
         emits TrainPrFailed
@@ -2172,6 +2178,8 @@ Hecks.bluebook "Hecks" do
         reference_to TrainPr
         attribute :work,   Word, sets: true
         attribute :title,  Word, sets: true
+        attribute :cause,  Word, sets: true
+        attribute :step,   Report, optional: true, sets: true
         attribute :detail, Report, sets: true
 
         emits TrainPrExhausted
@@ -2180,20 +2188,20 @@ Hecks.bluebook "Hecks" do
 
     policy "RerunTheFailedTrainPr" do
       on      "TrainPr.TrainPrFailed"
-      where   { attempt.value < 2 }
-      ask     :restart, with: { key: :key, ci_run: :ci_run, pr: :pr, work: :work, title: :title, failure: :failure }
+      where   { (cause.value == "spec" && attempt.value < 2) || (cause.value == "setup" && attempt.value < 3) }
+      ask     :restart, with: { key: :key, ci_run: :ci_run, pr: :pr, work: :work, title: :title, cause: :cause, step: :step, failure: :failure }
     end
 
     policy "RerunTheKnownFlakySpec" do
       on      "TrainPr.TrainPrFailed"
-      where   { attempt.value == 2 && specs.value.include?("spec/bounded_capture_spec.rb") }
-      ask     :restart, with: { key: :key, ci_run: :ci_run, pr: :pr, work: :work, title: :title, failure: :failure }
+      where   { cause.value == "spec" && attempt.value == 2 && specs.value.include?("spec/bounded_capture_spec.rb") }
+      ask     :restart, with: { key: :key, ci_run: :ci_run, pr: :pr, work: :work, title: :title, cause: :cause, step: :step, failure: :failure }
     end
 
     policy "ExhaustTheFailedTrainPr" do
       on      "TrainPr.TrainPrFailed"
-      where   { attempt.value >= 3 || (attempt.value == 2 && !specs.value.include?("spec/bounded_capture_spec.rb")) }
-      trigger TrainPr::Exhaust, with: { detail: :failure, work: :work, title: :title }
+      where   { attempt.value >= 3 || (cause.value == "spec" && attempt.value == 2 && !specs.value.include?("spec/bounded_capture_spec.rb")) }
+      trigger TrainPr::Exhaust, with: { detail: :failure, work: :work, title: :title, cause: :cause, step: :step }
     end
 
     policy "RecordTheRerun" do
@@ -2203,7 +2211,7 @@ Hecks.bluebook "Hecks" do
 
     policy "ExhaustTheRefusedRerun" do
       on      "TrainPr.RestartRefused"
-      trigger TrainPr::Exhaust, with: { detail: :failure, work: :work, title: :title }
+      trigger TrainPr::Exhaust, with: { detail: :failure, work: :work, title: :title, cause: :cause, step: :step }
     end
 
     # Every open train pull request is looked at on a beat: one whose tip main already holds, or

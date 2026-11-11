@@ -34,6 +34,29 @@ RSpec.describe "a red train pull request" do
     observe
   end
 
+  def fail_in_setup(times)
+    github.log = FakeTrainGithub::SETUP_LOG
+    (1..times).each do |attempt|
+      github.attempt = attempt
+      observe
+    end
+  end
+
+  it "reruns a setup failure twice and files a finding, not a fix item, when it keeps failing" do
+    fail_in_setup(3)
+    expect([github.reruns.size, names.grep(/WorkPlanned/), names.grep(/StoppedRunReported/).size]).to eq([2, [], 1])
+  end
+
+  it "reruns a setup failure that clears and files nothing" do
+    fail_in_setup(2)
+    expect([github.reruns.size, names.grep(/TrainPrExhausted|WorkPlanned|StoppedRunReported/)]).to eq([2, []])
+  end
+
+  it "names the failed step of a setup failure and tells a spec failure from it" do
+    fail_in_setup(3)
+    expect(@hecks.registry.event_log.map { |e| e.payload.to_s }.join).to include("Install zsh")
+  end
+
   it "reruns a failure once and plans nothing while the rerun is out" do
     observe
     expect([github.reruns.size, names.grep(/TrainPrExhausted/)]).to eq([1, []])

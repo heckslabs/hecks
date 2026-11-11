@@ -404,6 +404,8 @@ Hecks.hecksagon "Hecks" do
       attribute :work, Word
       attribute :title, Word
       attribute :failure, Report
+      attribute :cause, Word
+      attribute :step, Report
       answers "RestartAnswered"
       refuses "RestartRefused"
     end
