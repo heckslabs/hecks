@@ -356,6 +356,14 @@ Hecks.hecksagon "Hecks" do
       answers "AdvanceAnswered"
       refuses "AdvanceRefused"
     end
+
+    # A beat of the clock reads the CI run of each pushed or watched run and verifies or boards
+    # nothing; a beat with no such run is refused as quiet.
+    asks "Tend", to: Integration do
+      attribute :run, RunKey
+      answers "TendAnswered"
+      refuses "TendRefused"
+    end
   end
 
   Hecks::Integration.port "MainVerifying" do

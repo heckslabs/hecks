@@ -42,15 +42,32 @@ module Hecks
         { report: { value: lines.empty? ? "no open integration run" : lines.join("\n") } }
       end
 
+      # Reads the CI run of each pushed or watched run, once, and does nothing else: a beat of the
+      # clock asks it, so a merged train pull request or a finished check is noticed with no person
+      # advancing. The runs are those `NEXT` maps to `Observe`, so `NEXT` stays the one table of which
+      # stage takes which step; a run that took its verdict leaves those stages and is not read twice.
+      #
+      # @param _held [Hash] the `Integration` record, unused
+      # @return [Hash{Symbol => Hash}] `report:` one line per run read
+      # @raise [ConsoleCapture::Failure] when no run is pushed or watched (a quiet beat)
+      def tend(**_held)
+        lines = attend(runs.all.select { |run| NEXT[run.state] == "Observe" }, false)
+        raise ConsoleCapture::Failure, "quiet: no train pull request in flight" if lines.empty?
+
+        { report: { value: lines.join("\n") } }
+      end
+
       private
 
-      # Each open run in turn, until the code on disk differs from the code this process loaded
-      # (`CodeWatch`): the advance then ends with that said, the runs it did not reach wait, and
-      # the next advance starts on the current code.
-      def advance_open(confirm)
+      def advance_open(confirm) = attend(runs.all.select { |run| NEXT.key?(run.state) }, confirm)
+
+      # Each given run in turn, until the code on disk differs from the code this process loaded
+      # (`CodeWatch`): the pass then ends with that said, the runs it did not reach wait, and
+      # the next pass starts on the current code.
+      def attend(open, confirm)
         watch = CodeWatch.shared
         lines = []
-        runs.all.select { |run| NEXT.key?(run.state) }.each do |run|
+        open.each do |run|
           break if watch.moved?
 
           lines << advance(run, confirm)
