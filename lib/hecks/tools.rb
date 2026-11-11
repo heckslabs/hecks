@@ -27,6 +27,7 @@ module Hecks
       "decide_ci_gate"                 => ["tools/ci_gate_decision", "CiGateDecision"],
       "project_ci_pipeline"            => ["tools/ci_workflows", "CiWorkflows"],
       "project_lanes"                  => ["tools/lanes", "Lanes"],
+      "project_agent_roles"            => ["tools/agent_roles", "AgentRoles"],
       "project_tools_doc"              => ["tools/tools_doc", "ToolsDoc"],
       "project_glossary"               => ["tools/project_glossary", "ProjectGlossary"],
       "project_deploy"                 => ["tools/deploy_recipe", "DeployRecipe"],

@@ -73,6 +73,8 @@ RSpec.describe "the Codebase rows of the ADR command table" do
     ["promote", "PromotionRun", "Promote", "promote",
      { args:    %w[lane=stable],
        renamed: "no bin script: moving a branch was a person pushing; without --confirm the verb only rehearses" }],
+    ["project_agent_roles", "RegenerationRun", "ProjectAgentRoles", "project_agent_roles",
+     { renamed: "no bin script: the role files were hand-written; without --confirm the verb only compares" }],
     ["project_tools_doc", "RegenerationRun", "ProjectToolsDoc", "project_tools_doc",
      { renamed: "no bin script: the launcher forms of docs/tools.md were hand-copied; without --confirm the " \
                 "verb only compares" }],

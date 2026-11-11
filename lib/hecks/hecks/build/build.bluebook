@@ -409,6 +409,19 @@ Hecks.bluebook "Hecks" do
         emits ProjectLanesRequested
       end
 
+      command "ProjectAgentRoles" do
+        role "Maintainer"
+        goal "Write .claude/agents from the RoleFile rows of the Role aggregate, or with check only compare them"
+
+        attribute :check,   Switch, optional: true, sets: true
+        attribute :run,     RunKey, sets: true
+        attribute :confirm, Switch, optional: true, sets: true
+
+        sets :operation, to: "project_agent_roles"
+
+        emits ProjectAgentRolesRequested
+      end
+
       command "ProjectToolsDoc" do
         role "Maintainer"
         goal "Write the launcher forms of docs/tools.md from the RetiredScript rows, or with check only compare them"
@@ -470,6 +483,11 @@ Hecks.bluebook "Hecks" do
 
     policy "ExamineWhenProjectLanesRequested" do
       on      "RegenerationRun.ProjectLanesRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "ExamineWhenProjectAgentRolesRequested" do
+      on      "RegenerationRun.ProjectAgentRolesRequested"
       ask     :examine, with: { run: :run }
     end
 
