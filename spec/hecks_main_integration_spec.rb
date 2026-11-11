@@ -110,7 +110,7 @@ RSpec.describe "integrating main through the MainIntegration saga" do
 
   def train(argv, chdir:)
     note_depth
-    return [true, ""] if argv.first == "git"
+    return [true, argv.include?("rev-parse") ? "#{git("rev-parse", "main").strip}\n" : ""] if argv.first == "git"
 
     (@boardings ||= []) << argv
     [true, "#{JSON.generate(state: { status: "pushed", pushed: git("rev-parse", "main").strip })}\n"]
