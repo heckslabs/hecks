@@ -3,6 +3,7 @@
 require "rbconfig"
 require "fileutils"
 require_relative "console_capture"
+require_relative "ticker_persistence"
 
 module Hecks
   module Adapters
@@ -66,15 +67,23 @@ module Hecks
       # @return [Hash{Symbol => Hash}] `limit:` how many beats the world's minutes allow
       # @raise [ConsoleCapture::Failure] when the checkout has no launcher to dispatch through
       def open(**held)
-        launcher = File.join(@root, "exe", "hecks")
-        raise ConsoleCapture::Failure, "no launcher at #{launcher}" unless File.executable?(launcher)
-
+        launcher = launcher!
         run = plain(held[:run])
         spawner.call(*child(run, launcher, logfile(run)))
         { limit: { value: (minutes * 60 / seconds).ceil } }
       end
 
       private
+
+      # The checkout's launcher, once a chain can run: its ticks need the launcher and a Ticker
+      # record that outlives this process.
+      def launcher!
+        launcher = File.join(@root, "exe", "hecks")
+        raise ConsoleCapture::Failure, "no launcher at #{launcher}" unless File.executable?(launcher)
+        raise ConsoleCapture::Failure, persistence.refusal unless persisted?
+
+        launcher
+      end
 
       def child(run, launcher, log)
         [RbConfig.ruby, "-e", CHAIN, run, seconds.to_s, launcher, log]
@@ -87,6 +96,10 @@ module Hecks
         FileUtils.mkdir_p(dir)
         File.join(dir, "#{run.gsub(UNSAFE_IN_FILENAME, "_")}.log")
       end
+
+      def persistence = @persistence ||= TickerPersistence.new(@registry)
+
+      def persisted? = @standins.fetch(:persisted) { persistence.persisted? }
 
       def spawner = @standins[:spawner] || method(:detach)
 

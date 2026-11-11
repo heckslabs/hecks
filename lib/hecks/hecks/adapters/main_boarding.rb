@@ -58,7 +58,7 @@ module Hecks
 
       def push(landed, checkout, newer)
         train = MainIntegration::Train.new(runner, root: self.class.train_root || MainIntegration::Train::ROOT)
-        note = train.refresh(landed)
+        note = "#{train.refresh(landed)}; #{train.write_overlay}"
         record = train.board(checkout, commit: (landed if newer.positive?))
         pushed = [record["pushed"], record["boarded"], landed].compact.first.to_s
         { outcome: { value: "pushed" }, pushed: { value: pushed },

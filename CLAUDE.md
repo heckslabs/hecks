@@ -165,7 +165,10 @@ answered `carried`. Its mint step reports `Memory holds no eras, no mint needed`
 
 - Dev work needs no environment variable: Hecks is in Memory unless a local hecksagon's root
   `persisted_by "PostgresEra"` opts it in (the attached bluebooks inherit it). Do not add local
-  files to a development checkout, and never to the train's copy.
+  files to a development checkout, and none by hand to the train's copy. The one exception is the
+  train's generated, gitignored `hecks.local.hecksagon`, which `Train#write_overlay` writes at each
+  boarding from `TrainOverlay::PERSISTED`: the clock chain's ticks are separate processes and
+  need the Ticker kept, and a hand copy fell behind.
   `exe/hecks config domain.value=<dir>` prints each setting, its value and which source supplied it.
 - The shape ledger (`lib/hecks/hecks/shapes.json`) holds only bluebooks whose committed persistence
   (local overlays left out) is an era adapter, and framework members such as Governance that clients

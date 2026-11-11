@@ -9,7 +9,8 @@ module TickerChain
   def ticking
     @ticking ||= Hecks::Adapters::Ticking.new(
       registry: @hecks.registry, root: Dir.pwd,
-      settings: { spawner: ->(*argv) { started << argv }, seconds: 20, minutes: 1, dir: Dir.mktmpdir("ticker-logs") }
+      settings: { spawner: ->(*argv) { started << argv }, seconds: 20, minutes: 1, persisted: true,
+                  dir: Dir.mktmpdir("ticker-logs") }
     )
   end
 
