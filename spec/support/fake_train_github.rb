@@ -10,7 +10,7 @@ class FakeTrainGithub
   SETUP_LOG = "apt install of zsh failed or timed out (attempt 3 of 3)\n" \
               "##[error]Process completed with exit code 1".freeze
 
-  attr_accessor :attempt, :log, :pulls, :number, :failed_jobs, :state
+  attr_accessor :attempt, :log, :pulls, :number, :failed_jobs, :state, :rollup, :jobs_error, :log_error
   attr_reader :calls
 
   def initialize
@@ -25,6 +25,8 @@ class FakeTrainGithub
   # The runner the `CiRuns` adapter takes: `(argv, chdir:)` answering `[ok, output]`.
   def call(argv, **)
     @calls << argv.join(" ")
+    return [false, "HTTP 502: Server Error"] if broken?(argv)
+
     [true, answer(argv)]
   end
 
@@ -44,6 +46,15 @@ class FakeTrainGithub
   def closed = @calls.grep(/pr close/)
 
   private
+
+  # GitHub's jobs endpoint answering 502: the job listing (`jobs_error`) or the whole failed log
+  # (`log_error`) cannot be read, while the pull request itself can.
+  def broken?(argv)
+    return false unless argv[1..2] == %w[run view]
+    return @jobs_error if argv.include?("--json")
+
+    @log_error && argv.include?("--log-failed") && !argv.include?("--job")
+  end
 
   def answer(argv)
     case argv[1..2]
@@ -75,6 +86,6 @@ class FakeTrainGithub
 
   def view
     { number: @number, state: @state, commits: [{ oid: "b" * 40, messageHeadline: "fix" }],
-      statusCheckRollup: [{ name: "rspec", status: "COMPLETED", conclusion: "FAILURE" }] }
+      statusCheckRollup: @rollup || [{ name: "rspec", status: "COMPLETED", conclusion: "FAILURE" }] }
   end
 end

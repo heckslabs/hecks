@@ -121,8 +121,12 @@ module Hecks
       def answered(run, command, key, defect)
         return Fault.new(@registry).record(run, command, key, Fault.text_of(defect)) if defect
 
+        outcome = Outcome.new(@registry)
+        why = outcome.unobserved(command, key)
+        return "#{run.short} #{run.state} -> #{command}: not observed, refused: #{why}" if why
+
         stage = runs.find(run.landed)&.state
-        "#{run.short} #{run.state} -> #{command}: now #{stage}#{Outcome.new(@registry).of(command, stage, key)}"
+        "#{run.short} #{run.state} -> #{command}: now #{stage}#{outcome.of(command, stage, key)}"
       end
 
       def arguments(run, command, confirm)

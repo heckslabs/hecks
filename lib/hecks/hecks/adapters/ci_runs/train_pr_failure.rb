@@ -48,13 +48,22 @@ module Hecks
 
         private
 
-        # The failed jobs, or the whole failed log as one job when `gh` names none.
+        # The failed jobs, or the whole failed log as one job when `gh` names none or cannot list
+        # them. A log that cannot be read either leaves the failure unclassified: it is refused.
         def jobs_of(id)
-          jobs = FailedJobs.new(@runner, @checkout).read(id)
+          jobs = listed_jobs(id)
           return jobs unless jobs.empty?
 
           ok, output = @runner.call(["gh", "run", "view", id, "--log-failed"], chdir: @checkout)
-          [FailedJobs::Job.new(nil, "CI", ["CI"], ok ? output.to_s : "")]
+          raise ConsoleCapture::Failure, "gh run view failed: #{output.to_s.strip}" unless ok
+
+          [FailedJobs::Job.new(nil, "CI", ["CI"], output.to_s)]
+        end
+
+        def listed_jobs(id)
+          FailedJobs.new(@runner, @checkout).read(id)
+        rescue ConsoleCapture::Failure
+          []
         end
 
         def step_of(cause) = cause == "setup" ? steps : ""

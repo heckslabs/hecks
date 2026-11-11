@@ -67,9 +67,9 @@ module ReapingFleet
   def user(text) = { type: "user", message: { content: text } }
   def at_tree(path) = { type: "worktree-state", worktreeSession: { worktreePath: path } }
 
-  def listing(id, state, name: "n")
-    File.write(File.join(scratch, "sessions.json"),
-               JSON.generate([{ id: id, sessionId: FULL, name: name, kind: "background", state: state }]))
+  def listing(id, state, name: "n", status: nil)
+    entry = { id: id, sessionId: FULL, name: name, kind: "background", state: state, status: status }.compact
+    File.write(File.join(scratch, "sessions.json"), JSON.generate([entry]))
   end
 
   def removed = File.exist?(File.join(scratch, "rm.log")) ? File.readlines(File.join(scratch, "rm.log"), chomp: true) : []
@@ -84,9 +84,9 @@ module ReapingFleet
     launch("agent_run.check!", "to=#{run}", "--wait")
   end
 
-  def done_run(*entries, tree: nil)
+  def done_run(*entries, tree: nil, listed: ["done", nil])
     transcript([user("go"), *entries, *(tree ? [at_tree(tree)] : [])])
-    listing("stand-in-session", "done")
+    listing("stand-in-session", listed.first, status: listed.last)
     finished_run("r-done")
   end
 

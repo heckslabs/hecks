@@ -27,9 +27,20 @@ module Hecks
 
           run = @runs.fetch(key, {})
           return "its run #{key} is #{ended(run)}, not finished done" unless run.slice(:status, :condition) == ENDED
-          return "listed #{entry["state"]}, not done" unless entry["state"].to_s == "done"
+          return "listed #{entry["state"]}, not done" unless ended?(entry)
 
           spoken(entry)
+        end
+
+        # A session has ended when the listing says `done`, or says `working` while its turn is over
+        # (status `idle`): a coder that finished its Work and waits on nobody. A `busy` or `blocked`
+        # session has not ended.
+        #
+        # @param entry [Hash] one session of the `claude agents` listing
+        # @return [Boolean]
+        def ended?(entry)
+          state = entry["state"].to_s
+          state == "done" || (state == "working" && entry["status"].to_s == "idle")
         end
 
         # @param entry [Hash] one session of the `claude agents` listing

@@ -23,7 +23,7 @@ RSpec.describe "the chain of ticks dispatching through the launcher" do
   end
 
   def run_chain(launcher)
-    system(RbConfig.ruby, "-e", Hecks::Adapters::Ticking::CHAIN, "run-x", "0", launcher)
+    system(RbConfig.ruby, "-e", Hecks::Adapters::Ticking::CHAIN, "run-x", "0", launcher, File.join(dir, "chain.log"))
     File.readlines(log, chomp: true)
   end
 

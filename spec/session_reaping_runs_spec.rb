@@ -21,4 +21,9 @@ RSpec.describe "SessionCleanup.Reap of a finished run" do
     done_run
     expect(reap).to include("kept 1: r-done (Work still queued)")
   end
+
+  it "removes a finished run's session the listing reads working while idle" do
+    done_run(listed: %w[working idle])
+    expect(reap).to start_with("removed 1 sessions")
+  end
 end
