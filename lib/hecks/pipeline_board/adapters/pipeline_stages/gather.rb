@@ -15,6 +15,7 @@ module Hecks
         # Each section: the reader, its method, whether it answers a query document, and arguments.
         READS = {
           ci_runs: [:github, :ci_runs, :query], slowest_jobs: [:github, :slowest_jobs, :query],
+          train_ci_runs: [:github, :train_ci_runs, :query], train_slowest_jobs: [:github, :train_slowest_jobs, :query],
           release: %i[github latest_release plain], local: %i[git local_main plain],
           train: %i[git train plain], stable: %i[git stable plain],
           open_work: [:tickets, :open_work, :query], counts: %i[tickets counts plain],

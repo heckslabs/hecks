@@ -5,6 +5,7 @@ require "time"
 require_relative "cache"
 require_relative "pipeline_github/settled_counts"
 require_relative "pipeline_github/runs"
+require_relative "pipeline_github/train_runs"
 require_relative "pipeline_github/pull_checks"
 require_relative "../../cache_dir"
 
@@ -15,6 +16,7 @@ module Hecks
     # seconds.
     class PipelineGitHub
       include PipelineBoard::PipelineRuns
+      include PipelineBoard::TrainRuns
 
       WORKFLOW = "ci.yml"
       BRANCH = "main"
@@ -44,6 +46,21 @@ module Hecks
       # @raise [PipelineBoard::Unavailable] when `gh` cannot answer
       def slowest_jobs(limit: nil)
         { text: JSON.generate(slowest(count(limit, 8))) }
+      end
+
+      # @param limit [Hash, Integer, nil] how many runs (20 when none is named)
+      # @return [Hash{Symbol => String}] `text:` the first-attempt CI runs of train pull requests,
+      #   oldest first, as JSON; reruns are left out
+      # @raise [PipelineBoard::Unavailable] when `gh` cannot answer
+      def train_ci_runs(limit: nil)
+        { text: JSON.generate(train_rows(count(limit, 20))) }
+      end
+
+      # @param limit [Hash, Integer, nil] how many jobs (8 when none is named)
+      # @return [Hash{Symbol => String}] `text:` the slowest jobs of the latest completed train run
+      # @raise [PipelineBoard::Unavailable] when `gh` cannot answer
+      def train_slowest_jobs(limit: nil)
+        { text: JSON.generate(train_slowest(count(limit, 8))) }
       end
 
       # @return [String] the repository's web address, the base of its commit links

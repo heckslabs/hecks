@@ -45,6 +45,11 @@ module Hecks
         def slowest(limit)
           done = read("run", "list", "--branch", self.class::BRANCH, "--workflow", self.class::WORKFLOW,
                       "--status", "completed", "--limit", "1", "--json", RUN_FIELDS).first
+          slowest_of(done, limit)
+        end
+
+        # The jobs of one run, slowest first.
+        def slowest_of(done, limit)
           return [] unless done
 
           timed = jobs_of(done["databaseId"]).filter_map { |job| timed(job) }
