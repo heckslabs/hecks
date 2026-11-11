@@ -13,6 +13,8 @@ Hecks.hecksagon "Hecks" do
   subscribe "Agents.PlanningRequested"
   subscribe "Agents.SubmissionReviewRequested"
   subscribe "Agents.DispatchAdviceRequested"
+  # An exception that wakes the orchestrator starts its session (StartTheCoordinatorWhenWoken).
+  subscribe "Agents.CoordinatorWoken"
   # A woken pruner starts a session through AgentRun (see StartThePrunerWhenWoken in the delegate bluebook).
   subscribe "Agents.PrunerWoken"
   # A judged verdict answers the coder waiting on its Work item (AnswerTheWaitingCoder in the delegate
