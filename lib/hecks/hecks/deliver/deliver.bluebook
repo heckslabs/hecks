@@ -1625,9 +1625,9 @@ Hecks.bluebook "Hecks" do
 
     # Main is integrated by a process: every landing onto local main starts a run keyed by the
     # landed commit, and each run is verified in a clean copy, boarded on the push train and
-    # watched on CI, ending green or red, or parked in needs_human with the reason. The
-    # coordinator drives it with `Integration.advance!`, which dispatches each open run's next step
-    # at top level; a step records itself and waits, so no dispatch runs inside the saga and the
+    # watched on CI, ending green or red, or parked in needs_human with the reason. The clock's
+    # beat reads a pushed run's CI on its own (`ObserveOnHeartbeat`); the coordinator drives the
+    # rest with `Integration.advance!`, which dispatches each open run's next step at top level; a step records itself and waits, so no dispatch runs inside the saga and the
     # reaction depth stays bounded. Shipment's path joins it: its landing starts a run too, and a
     # boarding the train already carried is recorded as pushed. A run is checkpointed with the
     # Landing records that start it, so a copy that keeps those keeps its runs across a restart.
@@ -1723,6 +1723,15 @@ Hecks.bluebook "Hecks" do
         attribute :confirm, Switch, optional: true, sets: true
 
         emits AdvanceRequested
+      end
+
+      command "Poll" do
+        role "System"
+        goal "Read the CI run of every pushed or watched run, once, on a beat of the clock; it verifies and boards nothing"
+
+        attribute :run, RunKey, sets: true
+
+        emits PollRequested
       end
 
       command "Summarize" do
@@ -1887,6 +1896,22 @@ Hecks.bluebook "Hecks" do
     policy "AdvanceWhenAsked" do
       on      "Integration.AdvanceRequested"
       ask     :step, with: { run: :run }
+    end
+
+    # The clock's beat is the timer that notices a train pull request's verdict: each beat reads the
+    # CI run of every pushed or watched run (never verifying or boarding), so a merge or a failed
+    # check is recorded and the checkout pulls main with nobody advancing. A root, so each beat
+    # starts its own chain. `Heartbeat` (delegate.bluebook) owns the beat's period.
+    policy "ObserveOnHeartbeat" do
+      on      "Heartbeat.Beaten"
+      root
+      trigger Integration::Poll, with: { run: :beat }
+    end
+
+    # A quiet beat (no pushed or watched run) is refused by the port and records nothing.
+    policy "PollWhenAsked" do
+      on      "Integration.PollRequested"
+      ask     :tend, with: { run: :run }
     end
 
     policy "RecordTheAdvance" do
