@@ -14,8 +14,8 @@ module Hecks
         PATH = File.join("lib", "hecks", "hecks", "hecks.local.hecksagon")
 
         # The aggregates whose records a later process of the train reads back: the boarding, the
-        # landing and its worktree, the revision, the run of an agent, and the clock chain of a queued
-        # pull request, whose every tick is a launcher call of its own.
+        # landing and its worktree, the revision, the run of an agent, and the clock chain of a
+        # queued pull request, whose every tick is a launcher call of its own.
         PERSISTED = %w[AgentRun Revision Landing LinkedTree SendTrain Ticker].freeze
 
         # The comment that opens the file.
