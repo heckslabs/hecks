@@ -1649,8 +1649,12 @@ Hecks.bluebook "Hecks" do
       transition Integration::MainBoardingStarted => "boarding", from: "verified"
       transition Integration::MainPushed => "pushed", from: "boarding"
       transition Integration::CiObservationStarted => "ci_running", from: %w[pushed ci_running]
-      transition Integration::CiPassed => "green", from: "ci_running"
-      transition Integration::CiFailed => "red", from: "ci_running"
+      # The pull request merged while CI on the merge commit still runs: main is pulled at once, and
+      # the run stays watched in `merged` (a read of it stays there) until that CI has a verdict.
+      transition Integration::TrainMergeSeen => "merged", from: "ci_running"
+      transition Integration::CiObservationStarted => "merged", from: "merged"
+      transition Integration::CiPassed => "green", from: %w[ci_running merged]
+      transition Integration::CiFailed => "red", from: %w[ci_running merged]
       # A train pull request closed without merging: main never moved, so CI did not fail. The run
       # parks for a person and frees the line; verifying it again takes it up.
       transition Integration::PullRequestClosed => "needs_human", from: "ci_running"
@@ -1682,6 +1686,8 @@ Hecks.bluebook "Hecks" do
       attribute :refusal,  Report, optional: true
       # Whether a verification is the one retry of a run whose first verification failed.
       attribute :retried,  Switch, optional: true
+      # Whether a read of a run is of one already seen merged, whose main was pulled at the merge.
+      attribute :pulled,   Switch, optional: true
       identified_by :run
 
       value_object "RunKey" do
@@ -1708,9 +1714,10 @@ Hecks.bluebook "Hecks" do
         transition "Green"     => "passed",     from: "requested"
         transition "Red"       => "red",        from: "requested"
         transition "Close"     => "closed",     from: "requested"
+        transition "Merge"     => "merged",     from: "requested"
         transition "Supersede" => "superseded", from: "requested"
         mark :terminal, "advanced", "verified", "failed", "retrying", "pushed", "refused", "passed", "red", "closed",
-             "superseded"
+             "merged", "superseded"
       end
 
       command "Advance" do
@@ -1836,6 +1843,8 @@ Hecks.bluebook "Hecks" do
         attribute :run,      RunKey, sets: true
         attribute :landed,   Word, sets: true
         attribute :checkout, Word, optional: true, sets: true
+        # Set when the run was already seen merged, so its verdict is not a reason to pull again.
+        attribute :pulled,   Switch, default: false, sets: true
 
         emits CiObservationStarted
         emits CiObservationRequested
@@ -1872,6 +1881,18 @@ Hecks.bluebook "Hecks" do
         attribute :report, Report, sets: true
 
         emits PullRequestClosed
+      end
+
+      command "Merge" do
+        role "System"
+        goal "Record that the train's pull request for a boarded commit merged while CI on the merge commit is still running"
+
+        reference_to Integration
+        attribute :landed,   Word,   sets: true
+        attribute :checkout, Word,   optional: true, sets: true
+        attribute :report,   Report, sets: true
+
+        emits TrainMergeSeen
       end
 
       command "Supersede" do
@@ -1983,6 +2004,12 @@ Hecks.bluebook "Hecks" do
       ask     :watch, with: { run: :run, landed: :landed }
     end
 
+    policy "RecordTheTrainMergeSeen" do
+      on      "Integration.ObserveAnswered"
+      where   { outcome.value == "merged" && pulled.value == false }
+      trigger Integration::Merge, with: { landed: :landed, checkout: :checkout, report: :report }
+    end
+
     # A CI run still in progress answers `running` and nothing is recorded: the next advance reads
     # it again.
     policy "RecordThePassedCi" do
@@ -2003,23 +2030,33 @@ Hecks.bluebook "Hecks" do
       trigger Integration::Close, with: { landed: :landed, report: :report }
     end
 
-    # CI's verdict on a pushed commit, green or red, means origin/main holds it: GitHub merged the
-    # train's pull request, as a squash that local main does not share. The checkout that boarded
-    # brings its main level (LinkedTree.PullMain), keeping its unpushed commits, once per landed
-    # commit, since the run leaves ci_running on that verdict. A refusal (a dirty or mid-rebase
-    # checkout, a conflict) is recorded as PullDeclinedRecorded and nothing retries it. The pull
-    # is a root reaction: it starts at depth zero, past the bound the Observe chain has reached.
+    # The train's pull request merging means origin/main holds the commit: GitHub merged it as a
+    # squash that local main does not share. The checkout that boarded brings its main level
+    # (LinkedTree.PullMain), keeping its unpushed commits, once per landed commit. A merge seen
+    # while CI on the merge commit still runs is recorded (`TrainMergeSeen`) and pulls then; a
+    # merge seen with that CI already finished is pulled on its verdict (`PullMainWhenCiPasses`,
+    # `PullMainWhenCiFails`), and a run already seen merged (`pulled`) is not pulled again. An open
+    # pull request, a red check on it included, answers `running`, so its run stays watched. A
+    # refusal (a dirty or mid-rebase checkout, a conflict) is recorded as PullDeclinedRecorded and
+    # nothing retries it. Each pull is a root reaction: it starts at depth zero, past the bound the
+    # Observe chain has reached.
+    policy "PullMainWhenMerged" do
+      on      "Integration.TrainMergeSeen"
+      root
+      trigger LinkedTree::PullMain, with: { run: :landed, checkout: :checkout }
+    end
+
     policy "PullMainWhenCiPasses" do
       on      "Integration.ObserveAnswered"
       root
-      where   { outcome.value == "passed" }
+      where   { outcome.value == "passed" && pulled.value == false }
       trigger LinkedTree::PullMain, with: { run: :landed, checkout: :checkout }
     end
 
     policy "PullMainWhenCiFails" do
       on      "Integration.ObserveAnswered"
       root
-      where   { outcome.value == "failed" }
+      where   { outcome.value == "failed" && pulled.value == false }
       trigger LinkedTree::PullMain, with: { run: :landed, checkout: :checkout }
     end
 

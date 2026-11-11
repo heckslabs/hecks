@@ -13,7 +13,7 @@ module Hecks
       # GitHub only.
       class TrainChecks
         # The stages whose runs have a train pull request to read.
-        WATCHED = %w[pushed ci_running].freeze
+        WATCHED = %w[pushed ci_running merged].freeze
 
         # @param runner [#call, nil] takes `(argv, chdir:)` and answers `[ok, output]`; the one
         #   `CiRuns` reads GitHub with when nil

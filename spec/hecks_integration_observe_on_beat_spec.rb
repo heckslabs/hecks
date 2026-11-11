@@ -83,7 +83,7 @@ RSpec.describe "noticing a train pull request's verdict on the clock's beat" do
     return [true, JSON.generate(@pull)] if argv[1..2] == %w[pr view]
     return [true, JSON.generate(jobs: [{ name: "rspec", conclusion: "failure" }])] if argv[1..2] == %w[run view]
 
-    [true, JSON.generate([{ databaseId: 7, status: "completed", conclusion: @conclusion || "success" }])]
+    [true, JSON.generate([{ databaseId: 7, status: @run_status || "completed", conclusion: @conclusion || "success" }])]
   end
 
   def real_ports = %w[Integrating CiRuns WorktreeAdding]
@@ -160,6 +160,62 @@ RSpec.describe "noticing a train pull request's verdict on the clock's beat" do
     merge_pull_request
     beat
     expect(git("fetch", "-q", "origin") && ahead_behind).to eq([0, 0])
+  end
+
+  def open_with_failed_check
+    { number: 12, state: "OPEN", statusCheckRollup: [{ status: "COMPLETED", conclusion: "FAILURE" }] }
+  end
+
+  # A check fails on the open pull request, a rerun passes, and the pull request is still open.
+  def beats_through_a_failed_check_and_a_rerun
+    @pull = open_with_failed_check
+    boarded = boarded_run
+    2.times { beat }
+    @pull = { number: 12, state: "OPEN" }
+    beat
+    boarded
+  end
+
+  it "keeps watching a pull request whose check failed, pulling nothing", :aggregate_failures do
+    boarded = beats_through_a_failed_check_and_a_rerun
+    expect(stage(boarded)).to eq("ci_running")
+    expect(pulls).to eq(0)
+  end
+
+  it "pulls once the pull request merges after a failed check and a rerun" do
+    boarded = beats_through_a_failed_check_and_a_rerun
+    merge_pull_request
+    beat
+    expect([stage(boarded), pulls]).to eq(["green", 1])
+  end
+
+  def beats_after_a_merge_with_ci_running
+    @run_status = "in_progress"
+    boarded = boarded_run
+    merge_pull_request
+    3.times { beat }
+    boarded
+  end
+
+  it "pulls main at the merge, once, while CI on the merge commit is still running", :aggregate_failures do
+    boarded = beats_after_a_merge_with_ci_running
+    expect([stage(boarded), pulls]).to eq(["merged", 1])
+    expect(git("fetch", "-q", "origin") && ahead_behind).to eq([0, 0])
+  end
+
+  it "records the verdict of the merge commit after the pull without pulling again", :aggregate_failures do
+    boarded = beats_after_a_merge_with_ci_running
+    @run_status = "completed"
+    beat
+    expect([stage(boarded), pulls]).to eq(["green", 1])
+  end
+
+  it "ends in red when CI on the merge commit fails after the pull, without pulling again", :aggregate_failures do
+    boarded = beats_after_a_merge_with_ci_running
+    @run_status = "completed"
+    @conclusion = "failure"
+    beat
+    expect([stage(boarded), pulls]).to eq(["red", 1])
   end
 
   it "reads nothing on a beat with no run in flight" do
