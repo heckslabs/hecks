@@ -20,15 +20,22 @@ module Hecks
       # Minutes a chain may tick when the world names none.
       MINUTES = 30
 
-      # What the child runs: sleeps, dispatches one tick through the launcher, stops on a refusal.
+      # What the child runs: sleeps, dispatches one tick through the launcher with bare arguments
+      # (`to=`, `tick=`, `beats=`), and when the launcher refuses records the chain's end with
+      # `Ticker.stop!`, naming the refusal's first line, so a chain that ends is an event.
+      # Each statement is one line: the lines are joined with `;` to pass the script to `ruby -e`.
       CHAIN = <<~RUBY.tr("\n", ";").freeze
         run, seconds, launcher = ARGV
         count = 0
         loop do
           sleep(seconds.to_f)
           count += 1
-          break unless system(launcher, "Ticker.tick!", "run.value=\#{run}", "tick.value=\#{run}-\#{count}",
-                              "beats.value=\#{count}", out: File::NULL, err: File::NULL)
+          tick = ["Ticker.tick!", "to=\#{run}", "tick=\#{run}-\#{count}", "beats=\#{count}"]
+          out = IO.popen([launcher, *tick, { err: [:child, :out] }], &:read)
+          next if $?.success?
+          why = out.lines.map(&:strip).reject { |l| l.empty? || l.start_with?("[hecks]") }.first.to_s
+          system(launcher, "Ticker.stop!", "to=\#{run}", "ending=\#{why}", out: File::NULL, err: File::NULL)
+          break
         end
       RUBY
 
