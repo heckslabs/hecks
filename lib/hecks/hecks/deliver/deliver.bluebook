@@ -2176,6 +2176,7 @@ Hecks.bluebook "Hecks" do
         goal "Record that a train pull request's CI failed past the reruns allowed, so a coder is given the fix"
 
         reference_to TrainPr
+        attribute :landed, Word, optional: true, sets: true
         attribute :work,   Word, sets: true
         attribute :title,  Word, sets: true
         attribute :cause,  Word, sets: true
@@ -2201,7 +2202,7 @@ Hecks.bluebook "Hecks" do
     policy "ExhaustTheFailedTrainPr" do
       on      "TrainPr.TrainPrFailed"
       where   { attempt.value >= 3 || (cause.value == "spec" && attempt.value == 2 && !specs.value.include?("spec/bounded_capture_spec.rb")) }
-      trigger TrainPr::Exhaust, with: { detail: :failure, work: :work, title: :title, cause: :cause, step: :step }
+      trigger TrainPr::Exhaust, with: { landed: :landed, detail: :failure, work: :work, title: :title, cause: :cause, step: :step }
     end
 
     policy "RecordTheRerun" do

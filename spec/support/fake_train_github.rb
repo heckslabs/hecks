@@ -10,11 +10,12 @@ class FakeTrainGithub
   SETUP_LOG = "apt install of zsh failed or timed out (attempt 3 of 3)\n" \
               "##[error]Process completed with exit code 1".freeze
 
-  attr_accessor :attempt, :log, :pulls, :number
+  attr_accessor :attempt, :log, :pulls, :number, :failed_jobs, :state
   attr_reader :calls
 
   def initialize
     @attempt = 1
+    @state = "OPEN"
     @number = rand(2000..900_000)
     @log = SPEC_LOG
     @calls = []
@@ -48,19 +49,32 @@ class FakeTrainGithub
     case argv[1..2]
     when %w[pr view] then view.to_json
     when %w[run list] then [{ databaseId: 77, attempt: @attempt }].to_json
-    when %w[run view] then argv.include?("--log-failed") ? @log : jobs.to_json
+    when %w[run view] then argv.include?("--log-failed") ? failed_log(argv) : jobs.to_json
     when %w[pr list] then @pulls.to_json
     else ""
     end
   end
 
-  def jobs
-    { jobs: [{ name: "rspec shard 1", conclusion: "failure",
-               steps: [{ name: "Install zsh", conclusion: "failure" }, { name: "Checkout", conclusion: "success" }] }] }
+  # The failed jobs of the run: `failed_jobs` rows of `name`, `id`, `log` and `step`, or one job
+  # that holds `log`.
+  def rows = @failed_jobs || [{ name: "rspec shard 1", id: 1, log: @log, step: "Install zsh" }]
+
+  def failed_log(argv)
+    job = argv.index("--job")
+    return rows.map { |row| row[:log] }.join("\n") unless job
+
+    rows.find { |row| row[:id].to_s == argv[job + 1] }[:log]
+  end
+
+  def jobs = { jobs: rows.map { |row| job_row(row) } }
+
+  def job_row(row)
+    { databaseId: row[:id], name: row[:name], conclusion: "failure",
+      steps: [{ name: row[:step], conclusion: "failure" }, { name: "Checkout", conclusion: "success" }] }
   end
 
   def view
-    { number: @number, state: "OPEN", commits: [{ oid: "b" * 40, messageHeadline: "fix" }],
+    { number: @number, state: @state, commits: [{ oid: "b" * 40, messageHeadline: "fix" }],
       statusCheckRollup: [{ name: "rspec", status: "COMPLETED", conclusion: "FAILURE" }] }
   end
 end

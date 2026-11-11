@@ -721,6 +721,15 @@ Hecks.bluebook "Hecks" do
       trigger Ticker::Stop, with: { run: :landed, ending: :report }
     end
 
+    # A train pull request whose checks failed past the reruns is given to a coder as a red-train
+    # Work item; nothing more is watched for it, so the chain ends (`Integration.CiFailed` is the
+    # verdict of CI on main, which a pull request that never merged does not reach).
+    policy "StopTickingWhenTrainPrExhausted" do
+      on      "TrainPr.TrainPrExhausted"
+      root
+      trigger Ticker::Stop, with: { run: :landed, ending: :detail }
+    end
+
     policy "StopTickingWhenClosed" do
       on      "Integration.PullRequestClosed"
       root

@@ -3,21 +3,18 @@
 require "json"
 require_relative "../console_capture"
 require_relative "../main_integration/failure_log"
+require_relative "failed_jobs"
 
 module Hecks
   module Adapters
     class CiRuns
       # The facts of a red train pull request, read through `gh`: the CI run and the attempt that
-      # failed, the failed jobs, the spec files the failed log names (or the failed steps when it
-      # names none) with its first failure lines, and the commits the pull request carries.
-      # It decides nothing; the TrainPr policies decide whether to rerun.
+      # failed, each failed job read on its own, the spec files the jobs that reached the specs
+      # name (or the failed steps of the others) with their first failure lines, and the commits
+      # the pull request carries. A pull request is a `spec` failure when any one job reached the
+      # specs, the one roll-up the single `cause` of a `TrainPr` needs; a setup failure in another
+      # job never hides it. The TrainPr policies decide whether to rerun.
       class TrainPrFailure
-        # The spec files an rspec failure summary names: `rspec ./spec/x_spec.rb:12 # description`.
-        SPEC_LINE = %r{rspec (?:\./)?(\S+?_spec\.rb)}
-
-        # What a log that reached the specs holds: a summary line or a failed example.
-        SPEC_RAN = %r{Failure/Error|\d+ examples?, \d+ failures?|rspec (?:\./)?\S+_spec\.rb}
-
         # What a failure before the specs ran is told: nothing in the code is wrong.
         SETUP_NOTE = "A step before the specs ran failed; no example failed, so there is no code to fix."
 
@@ -42,24 +39,27 @@ module Hecks
         # @return [Hash{Symbol => Object}] the answer fields: `outcome`, `report` and the facts
         def facts(pull)
           run = latest_run
-          id = run["databaseId"].to_s
-          log = failed_log(id)
-          specs = log.scan(SPEC_LINE).flatten.uniq
-          cause = cause_of(log)
-          base(pull, run, specs, cause).merge(step: step_of(cause, id), report: report(pull, id, specs, log))
+          @jobs = jobs_of(run["databaseId"].to_s)
+          @spec_jobs = @jobs.select(&:spec?)
+          cause = @spec_jobs.empty? ? "setup" : "spec"
+          specs = @spec_jobs.flat_map(&:specs).uniq
+          base(pull, run, specs, cause).merge(step: step_of(cause), report: report(pull, run, specs, cause))
         end
 
         private
 
-        # A failure where the specs ran is a `spec` failure; one before they ran is `setup`.
-        def cause_of(log) = log.match?(SPEC_RAN) ? "spec" : "setup"
+        # The failed jobs, or the whole failed log as one job when `gh` names none.
+        def jobs_of(id)
+          jobs = FailedJobs.new(@runner, @checkout).read(id)
+          return jobs unless jobs.empty?
 
-        def step_of(cause, id)
-          return "" unless cause == "setup"
-
-          names = steps(id)
-          names.empty? ? "unknown step" : names
+          ok, output = @runner.call(["gh", "run", "view", id, "--log-failed"], chdir: @checkout)
+          [FailedJobs::Job.new(nil, "CI", ["CI"], ok ? output.to_s : "")]
         end
+
+        def step_of(cause) = cause == "setup" ? steps : ""
+
+        def steps = @jobs.flat_map(&:steps).join(", ")
 
         def base(pull, run, specs, cause)
           number = pull["number"].to_s
@@ -69,45 +69,28 @@ module Hecks
             title: "Red train PR #{number}: #{specs.first || "CI failed"}" }
         end
 
-        def report(pull, id, specs, log)
-          what = specs.empty? ? "failed steps: #{steps(id)}" : "specs: #{specs.join(", ")}"
-          "PR #{pull["number"]} (#{@landed[0, 10]}) CI run #{id} failed; #{what}; commits: #{commits(pull)}\n" \
-            "#{first_lines(log)}\n#{cause_of(log) == "spec" ? INSTRUCTION : SETUP_NOTE}"
+        def report(pull, run, specs, cause)
+          what = specs.empty? ? "failed steps: #{steps}" : "specs: #{specs.join(", ")}"
+          "PR #{pull["number"]} (#{@landed[0, 10]}) CI run #{run["databaseId"]} failed; #{what}; " \
+            "commits: #{commits(pull)}\n#{first_lines(cause)}\n#{cause == "spec" ? INSTRUCTION : SETUP_NOTE}"
         end
 
-        def first_lines(log)
-          kept = log.lines.first(LINES)
-          kept.join.strip
+        # The first lines of the failed log of the jobs that explain the failure.
+        def first_lines(cause)
+          lines = explaining_log(cause).lines
+          lines.first(LINES).join.strip
         end
+
+        def explaining_log(cause) = (cause == "spec" ? @spec_jobs : @jobs).map(&:log).join("\n")
 
         def commits(pull) = Array(pull["commits"]).map { |c| "#{c["oid"].to_s[0, 10]} #{c["messageHeadline"]}" }.join("; ")
 
         def latest_run
-          gh("run", "list", "--workflow", CiRuns::WORKFLOW, "--branch", @branch, "--limit", "1",
-             "--json", "databaseId,attempt").first or raise ConsoleCapture::Failure, "no CI run for #{@branch}"
-        end
+          ok, output = @runner.call(["gh", "run", "list", "--workflow", CiRuns::WORKFLOW, "--branch", @branch, "--limit", "1",
+                                     "--json", "databaseId,attempt"], chdir: @checkout)
+          raise ConsoleCapture::Failure, "gh run list failed: #{output.to_s.strip}" unless ok
 
-        def steps(id)
-          jobs = gh("run", "view", id, "--json", "jobs").fetch("jobs", [])
-          failed = jobs.reject { |job| Hecks::CheckConclusion.clean?(job["conclusion"]) }
-          failed.flat_map { |job| failed_steps(job) }.join(", ")
-        end
-
-        def failed_steps(job)
-          bad = Array(job["steps"]).reject { |step| Hecks::CheckConclusion.clean?(step["conclusion"]) }
-          bad.map { |step| "#{job["name"]}/#{step["name"]}" }.then { |names| names.empty? ? [job["name"]] : names }
-        end
-
-        def failed_log(id)
-          ok, output = @runner.call(["gh", "run", "view", id, "--log-failed"], chdir: @checkout)
-          ok ? output.to_s : ""
-        end
-
-        def gh(*args)
-          ok, output = @runner.call(["gh", *args], chdir: @checkout)
-          raise ConsoleCapture::Failure, "gh #{args.first(2).join(" ")} failed: #{output.to_s.strip}" unless ok
-
-          JSON.parse(output)
+          JSON.parse(output).first or raise ConsoleCapture::Failure, "no CI run for #{@branch}"
         end
       end
     end

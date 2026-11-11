@@ -42,6 +42,28 @@ RSpec.describe "a red train pull request" do
     end
   end
 
+  def mixed_jobs
+    [{ name: "rspec zsh", id: 11, log: FakeTrainGithub::SETUP_LOG, step: "Install zsh" },
+     { name: "rspec shard 3", id: 12, log: FakeTrainGithub::SPEC_LOG, step: "Run specs" }]
+  end
+
+  def fail_mixed
+    github.failed_jobs = mixed_jobs
+    fail_twice
+  end
+
+  it "plans a red item naming the spec when a setup job and a spec job failed together", :aggregate_failures do
+    fail_mixed
+    expect(names).to include("WorkPlanned")
+    expect(@hecks.registry.event_log.map { |e| e.payload.to_s }.join).to include("spec/real_spec.rb")
+  end
+
+  it "reads each failed job's own log, one call per job" do
+    github.failed_jobs = mixed_jobs
+    observe
+    expect(github.calls.grep(/--job \d+ --log-failed/).size).to eq(2)
+  end
+
   it "reruns a setup failure twice and files a finding, not a fix item, when it keeps failing" do
     fail_in_setup(3)
     expect([github.reruns.size, names.grep(/WorkPlanned/), names.grep(/StoppedRunReported/).size]).to eq([2, [], 1])
