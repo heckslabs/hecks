@@ -431,7 +431,7 @@ function renderMap(roles, now) {
     const node = svg.querySelector('.node[data-role="' + r.name + '"]');
     if (!node) continue;
     const done = (r.completed || []).length;
-    const blocked = (r.working || []).filter((w) => w.status === "blocked").length + (r.name === "release_manager" ? openRecommendations().length : 0);
+    const blocked = (r.working || []).filter(waitingOnYou).length + (r.name === "release_manager" ? openRecommendations().length : 0);
     node.classList.toggle("busy", r.live > 0);
     node.classList.toggle("blocked", blocked > 0);
     node.querySelector("text.stat").textContent = r.live > 0 ? "● " + r.live + " working" : "idle" + (done ? " · " + done + " done" : "");
@@ -454,8 +454,10 @@ function renderMap(roles, now) {
 const evChip = (name) => h("span", { class: "ev" + (name.endsWith("!") ? " you" : "") }, name.replace(/!$/, ""));
 
 // The sessions waiting on you, with what each asked; you answer them in the shared prompt (/answer.js).
+// Only a session that asks the owner is waiting on you; any other blocked session is held on something else.
+function waitingOnYou(s) { return s.status === "blocked" && s.owner === true; }
 const replies = new Map();
-const blockedSessions = () => (state && Array.isArray(state.sessions) ? state.sessions : []).filter((s) => s.status === "blocked");
+const blockedSessions = () => (state && Array.isArray(state.sessions) ? state.sessions : []).filter(waitingOnYou);
 function answer(id, prefill) {
   const list = blockedSessions();
   if (!list.length) return;
@@ -485,7 +487,7 @@ function asked(s) {
 const answered = new Map(), ANSWERED_HIDE = 120000;
 const justAnswered = (s) => answered.has(s.id) && Date.now() - answered.get(s.id) < ANSWERED_HIDE;
 function renderWaiting(sessions) {
-  const blocked = Array.isArray(sessions) ? sessions.filter((s) => s.status === "blocked") : [];
+  const blocked = Array.isArray(sessions) ? sessions.filter(waitingOnYou) : [];
   for (const id of answered.keys()) if (!blocked.some((s) => s.id === id)) answered.delete(id);
   const list = blocked.filter((s) => !justAnswered(s));
   for (const id of replies.keys()) if (!list.some((s) => s.id === id)) replies.delete(id);
@@ -524,13 +526,13 @@ function card(r) {
   const meta = ROLES[r.name] || { code: r.name.slice(0, 2).toUpperCase(), name: r.name, hears: [], says: [] };
   const working = r.working || [], done = r.completed || [];
   const recs = r.name === "release_manager" ? openRecommendations() : [];
-  const blocked = working.filter((w) => w.status === "blocked").length + recs.length;
+  const blocked = working.filter(waitingOnYou).length + recs.length;
   const busy = working.length > 0;
-  const session = (w) => h("div", { class: "sess" + (w.status === "blocked" ? " blocked" : ""), "data-tip": w.name + "\n" + (w.detail || w.status) },
+  const session = (w) => h("div", { class: "sess" + (waitingOnYou(w) ? " blocked" : ""), "data-tip": w.name + "\n" + (w.detail || w.status) },
     h("a", { class: "n run-link", href: "/runs/" + encodeURIComponent(w.run || w.id), "data-tip": "Highlight this run on the board" },
-      w.name + (w.status === "blocked" ? " · waiting on you" : "")),
+      w.name + (waitingOnYou(w) ? " · waiting on you" : w.status === "blocked" ? " · " + (w.held || "held") : "")),
     h("span", { class: "d" }, w.detail || w.status), h("div", { class: "track" }, h("div")),
-    w.status === "blocked" ? answerButton(w.id) : null);
+    waitingOnYou(w) ? answerButton(w.id) : null);
   return h("article", { class: "card" + (busy ? " busy" : ""), "data-role": r.name, tabindex: "0" },
     h("header", {}, h("span", { class: "code" }, meta.code),
       h("div", {}, h("div", { class: "title" }, meta.name),

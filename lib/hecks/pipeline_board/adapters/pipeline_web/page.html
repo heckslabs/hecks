@@ -214,6 +214,14 @@ details.panel > .scroll, details.panel > .feed, details.panel > .strip, details.
     <h2 style="margin-top:14px">Slowest jobs of the last completed run</h2>
     <div id="slowchart" class="chartview"></div><div class="tableview scroll" id="slowtable"></div>
   </details>
+  <details class="panel" open><summary data-tip="Recent CI runs on train pull requests, first attempts only (a rerun's wall time is not a run's), and the slowest jobs of the last completed one"><h2 id="h-trainci">CI on train PRs</h2><span class="sum" id="sum-trainci"></span></summary>
+    <div class="grid2">
+      <div><div class="label">Failed jobs per run, oldest to newest</div><div id="trainfailedchart" class="chartview"></div><div class="tableview scroll" id="trainfailedtable"></div></div>
+      <div><div class="label">Wall minutes per run, first attempts only (goal 3)</div><div id="trainwallchart" class="chartview"></div><div class="tableview scroll" id="trainwalltable"></div></div>
+    </div>
+    <h2 style="margin-top:14px">Slowest jobs of the last completed train run</h2>
+    <div id="trainslowchart" class="chartview"></div><div class="tableview scroll" id="trainslowtable"></div>
+  </details>
   <details class="panel" id="sessions-panel"><summary data-tip="Claude sessions dispatched or started by hand: their status, work item and what they are doing. Click a blocked session to answer it"><h2 id="h-sess">Sessions</h2><span class="sum" id="sum-sess"></span></summary><div class="scroll" id="sessions"></div></details>
 
   <details class="panel"><summary data-tip="How the work fans out across sessions: lanes, who is running what, and what the dispatcher would start next"><h2 id="h-fan">Fan-out</h2><span class="sum" id="sum-fan"></span></summary>
@@ -262,9 +270,12 @@ function badge(state) {
   return h("span", { class: "badge " + state }, icon, " ", WORD[state] || state);
 }
 /* A blocked session is waiting on a person: amber, not green. */
-function sessionBadge(status) {
-  if (status === "blocked") return h("span", { class: "badge attention" }, ICON.attention, " blocked");
-  return badge(status === "busy" ? "working" : status === "failed" ? "failed" : "ok");
+/* Only a session that asks the owner is waiting on you; any other blocked session shows what it is held on. */
+function waitingOnYou(s) { return s.status === "blocked" && s.owner === true; }
+function sessionBadge(s) {
+  if (waitingOnYou(s)) return h("span", { class: "badge attention" }, ICON.attention, " blocked");
+  if (s.status === "blocked") return h("span", { class: "badge" }, " " + (s.held || "held"));
+  return badge(s.status === "busy" ? "working" : s.status === "failed" ? "failed" : "ok");
 }
 function isUnknown(x) { return x && !Array.isArray(x) && typeof x === "object" && "unknown" in x; }
 // A read still in flight shows a loading bar; a read that failed shows why.
@@ -371,10 +382,7 @@ const FIX = {
     changes: "Pushes the commits waiting on origin to origin/main. A CI run starts on the newest one." },
   "Promote": { act: "promote", cmd: "hecks promotion_run.promote! lane=stable --confirm --wait", note: "Stable is behind main. This fast-forwards it onto the newest commit every required check passed on.",
     changes: "Moves origin/stable forward to the newest commit every required check passed on. Stable is what clients pin; a bad commit reaches them once it moves." },
-  "Release": { note: "Publishing is the owner's decision. The version bump needs a Release-Approved-By line, and only the owner adds it." },
-  "Dispatched sessions": { note: "Sessions are at the cap or waiting on a person. Answer a blocked session from the Sessions table." },
-  "Work items": { note: "Work is held at the cap or waiting on a person. Answer a blocked session from the Sessions table." },
-  "Sessions": { note: "Sessions are waiting on a person. Click the blocked session to answer it." }
+  "Release": { note: "Publishing is the owner's decision. The version bump needs a Release-Approved-By line, and only the owner adds it." }
 };
 let runAction = null, armed = false;
 function resolve(label, detail) {
@@ -413,7 +421,7 @@ const ROLE_CODES = { planner: "PL", orchestrator: "OR", architect: "AR", coder: 
 function renderRoles(roles) {
   if (isUnknown(roles)) return put("roles", unknown(roles));
   put("roles", roles.map((r) => {
-    const blocked = (r.working || []).filter((s) => s.status === "blocked").length;
+    const blocked = (r.working || []).filter(waitingOnYou).length;
     const state = blocked ? " blocked" : r.live > 0 ? " busy" : "";
     const note = blocked ? blocked + " waiting on you" : r.live > 0 ? r.live + " working" : "idle";
     return h("a", { class: "role" + state, href: "/agents", "data-role": r.name, tip: r.name + ": " + note },
@@ -421,7 +429,10 @@ function renderRoles(roles) {
       h("span", { class: "rnote" }, note));
   }));
 }
+// The sentence the server computed for the sessions tile; the meters repeat it, never recount.
+let sessionsHeadline = "";
 function renderTiles(tiles) {
+  sessionsHeadline = (tiles.find((t) => t.id === "working") || {}).detail || "";
   put("tiles", tiles.map((t) => {
     const value = t.value === null || t.value === undefined ? "-" : t.value;
     const tr = t.trend ? h("div", { class: "trend" }, (t.trend.delta > 0 ? "▲ +" : t.trend.delta < 0 ? "▼ " : "= ") + t.trend.delta + " " + t.trend.unit,
@@ -476,27 +487,29 @@ function columns(rows, pick, label, second) {
     h("div", { class: "val" }, String(pick(r))), h("div", { class: "bar" + (second ? " second" : ""), style: "height:" + Math.round(100 * pick(r) / max) + "%" }))));
   return [h("div", { class: "cols" }, cols), h("div", { class: "xlabels" }, rows.map((r) => h("span", {}, r.sha.slice(0, 4))))];
 }
-function renderCi(runs, slow) {
+// Draws one CI panel: main's (no prefix) or the train pull requests' (prefix "train", whose element
+// ids are those of main's with the prefix in front).
+function renderCi(runs, slow, p = "") {
   const last = Array.isArray(runs) && runs.length ? runs[runs.length - 1] : null;
   const green = last && last.conclusion === "success";
   const top = Array.isArray(slow) && slow.length ? slow[0] : null;
-  summarize("ci", last ? [
+  summarize(p + "ci", last ? [
     [(last.conclusion || last.status) + " on " + last.sha + " at " + clock(last.started), green ? "ok" : last.conclusion ? "failed" : "working"],
     [last.wall_minutes + " min wall (goal 3)", last.wall_minutes > 3 ? "attention" : "ok"],
     last.failed_jobs ? [last.failed_jobs + " failed jobs", "failed"] : null,
     top && top.minutes + " min slowest: " + (top.name.length > 48 ? top.name.slice(0, 47) + "…" : top.name)] : [isUnknown(runs) ? "unknown: " + runs.unknown : "no runs yet"]);
-  if (isUnknown(runs)) { for (const id of ["failedchart", "wallchart", "failedtable", "walltable"]) put(id, unknown(runs)); }
+  if (isUnknown(runs)) { for (const id of ["failedchart", "wallchart", "failedtable", "walltable"]) put(p + id, unknown(runs)); }
   else {
-    put("failedchart", columns(runs, (r) => r.failed_jobs || 0, (r) => (r.failed_jobs === null ? "failed jobs unknown" : r.failed_jobs + " failed jobs")));
-    put("wallchart", columns(runs, (r) => r.wall_minutes, (r) => r.wall_minutes + " min", true));
-    put("failedtable", table(["Run", "Started", "Conclusion", "Failed jobs"], runs.map((r) => [linked(r.url, r.sha), clock(r.started), r.conclusion || r.status, r.failed_jobs === null ? "?" : r.failed_jobs]), [3]));
-    put("walltable", table(["Run", "Wall minutes"], runs.map((r) => [linked(r.url, r.sha), r.wall_minutes]), [1]));
+    put(p + "failedchart", columns(runs, (r) => r.failed_jobs || 0, (r) => (r.failed_jobs === null ? "failed jobs unknown" : r.failed_jobs + " failed jobs")));
+    put(p + "wallchart", columns(runs, (r) => r.wall_minutes, (r) => r.wall_minutes + " min", true));
+    put(p + "failedtable", table(["Run", "Started", "Conclusion", "Failed jobs"], runs.map((r) => [linked(r.url, r.sha), clock(r.started), r.conclusion || r.status, r.failed_jobs === null ? "?" : r.failed_jobs]), [3]));
+    put(p + "walltable", table(["Run", "Wall minutes"], runs.map((r) => [linked(r.url, r.sha), r.wall_minutes]), [1]));
   }
-  if (isUnknown(slow)) { put("slowchart", unknown(slow)); put("slowtable", unknown(slow)); return; }
+  if (isUnknown(slow)) { put(p + "slowchart", unknown(slow)); put(p + "slowtable", unknown(slow)); return; }
   const max = Math.max(1, ...slow.map((j) => j.minutes));
-  put("slowchart", slow.map((j) => linked(j.url, h("div", { class: "hbar", tip: j.name + ": " + j.minutes + " min (" + j.conclusion + ")" },
+  put(p + "slowchart", slow.map((j) => linked(j.url, h("div", { class: "hbar", tip: j.name + ": " + j.minutes + " min (" + j.conclusion + ")" },
     h("div", { class: "name" }, j.name), h("div", { class: "track" }, h("div", { class: "fill", style: "width:" + Math.round(100 * j.minutes / max) + "%" })), h("div", {}, j.minutes + " min")))));
-  put("slowtable", table(["Job", "Minutes", "Conclusion"], slow.map((j) => [linked(j.url, j.name), j.minutes, j.conclusion]), [1]));
+  put(p + "slowtable", table(["Job", "Minutes", "Conclusion"], slow.map((j) => [linked(j.url, j.name), j.minutes, j.conclusion]), [1]));
 }
 function renderWork(work) {
   if (isUnknown(work)) { summarize("work", [["unknown: " + work.unknown, "attention"]]); return put("work", unknown(work)); }
@@ -539,7 +552,7 @@ function renderAttention(metrics, stages, sessions, recommendations) {
   const groups = [
     ["Metrics", metrics.filter((t) => needsAttention(t.state)).map((t) => ({ kind: "Metric", item: t.label, state: t.state, value: (t.value ?? "-") + (t.unit || ""), detail: t.detail, since: "-", act: () => resolve(t.label, t.detail) }))],
     ["Pipeline stages", stages.filter((s) => needsAttention(s.state)).map((s) => ({ kind: "Stage", item: s.name, state: s.state, value: "-", detail: s.detail, since: "-", act: () => resolve(s.name, s.detail) }))],
-    ["Sessions waiting on you", sessions.filter((s) => s.status === "blocked").map((s) => ({ kind: "Session", item: s.name + " " + (s.id || ""), state: "attention", value: s.work_item || s.row || "-", detail: s.detail, since: clock(s.started), act: () => openAnswer([{ id: s.id, name: s.name, run: s.run, repo: s.repo, work_item: s.work_item, question: s.detail, context: s.context, attach: s.attach }], s.id) }))]
+    ["Sessions waiting on you", sessions.filter(waitingOnYou).map((s) => ({ kind: "Session", item: s.name + " " + (s.id || ""), state: "attention", value: s.work_item || s.row || "-", detail: s.detail, since: clock(s.started), act: () => openAnswer([{ id: s.id, name: s.name, run: s.run, repo: s.repo, work_item: s.work_item, question: s.detail, context: s.context, attach: s.attach }], s.id) }))]
   ].filter(([, items]) => items.length);
   setTitle("h-attn", "Needs attention", groups.reduce((n, [, items]) => n + items.length, recs.length));
   const sized = Object.fromEntries(groups.map(([title, items]) => [title, items.length]));
@@ -604,9 +617,11 @@ function addDelete(row, s) {
 let sessionFilter = "all";
 const SESSION_FILTERS = {
   all: () => true,
-  blocked: (s) => s.status === "blocked",
+  blocked: waitingOnYou,
   working: (s) => s.status === "busy",
   finished: (s) => s.status === "done" || s.status === "failed",
+  leftover: (s) => s.kind === "finished leftover",
+  elsewhere: (s) => s.kind === "other repo",
   deletable: (s) => deletable(s)
 };
 // A session can be deleted when it finished, waits on nobody, and is not a deploy: a deploy's
@@ -638,12 +653,12 @@ function renderSessions(all) {
   if (highlight && highlight.kind === "runs" && !highlight.placed) aimSessions(all);
   const list = all.filter(SESSION_FILTERS[sessionFilter] || SESSION_FILTERS.all);
   setTitle("h-sess", "Sessions", list.length);
-  const by = (status) => all.filter((s) => s.status === status).length;
+  const by = (status) => all.filter((s) => (status === "blocked" ? waitingOnYou(s) : s.status === status)).length;
   summarize("sess", [by("busy") && [by("busy") + " working", "working"], by("blocked") && [by("blocked") + " waiting on you", "attention"],
     by("failed") && [by("failed") + " failed", "failed"], by("done") + " done", all.filter(deletable).length + " deletable"]);
   const at = pageOf("sessions", list.length, SESSION_PAGE);
   const shown = list.slice(at * SESSION_PAGE, (at + 1) * SESSION_PAGE);
-  put("sessions", filterBar(), table(["Session", "Status", "Work item", "Started", "Detail"], shown.map((s) => [sessionLabel(s), [sessionBadge(s.status), " ", s.state], s.row || "-", clock(s.started), replyNote(s)])),
+  put("sessions", filterBar(), table(["Session", "Status", "Class", "Work item", "Started", "Detail"], shown.map((s) => [sessionLabel(s), [sessionBadge(s), " ", s.state], s.kind || "-", s.row || "-", clock(s.started), replyNote(s)])),
     list.length > SESSION_PAGE ? pageBar("sessions", at, list.length, SESSION_PAGE, () => renderSessions(lastSessions)) : null);
   const rows = $("sessions").querySelectorAll("tbody tr");
   shown.forEach((s, i) => {
@@ -652,7 +667,7 @@ function renderSessions(all) {
     rows[i].dataset.highlight = highlightTokens("runs", [s.run, s.id]);
     if (deletable(s)) addDelete(rows[i], s);
     if (s.status === "blocked" && ["confirm", "retry"].includes(s.question_kind)) addAutoReply(rows[i], s);
-    if (s.status !== "blocked") return;
+    if (!waitingOnYou(s)) return;
     rows[i].classList.add("clickable"); rows[i].title = "Click to answer";
     answerable(rows[i], () => openAnswer([{ id: s.id, name: s.name, run: s.run, repo: s.repo, work_item: s.work_item, question: s.detail, context: s.context, attach: s.attach }], s.id));
   });
@@ -673,7 +688,7 @@ function renderFan(fan) {
     slots.load !== undefined && [slots.load + " load of " + slots.limit, slots.load >= slots.limit ? "attention" : ""],
     flagged && [flagged + " flags", "attention"], next ? "next: " + next.slug : "nothing waiting to start"]);
   const sessions = fan.sessions.filter((s) => s.started), now = Date.now(), span = 24 * 3600 * 1000, start = now - span;
-  const GLYPH = { busy: "◔ busy", blocked: "▲ blocked on you", done: "✓ done", failed: "✕ failed" };
+  const GLYPH = { busy: "◔ busy", blocked: "▲ blocked", done: "✓ done", failed: "✕ failed" };
   put("lanelegend", Object.keys(GLYPH).map((k) => h("span", {}, h("i", { class: "swatch span " + k }), GLYPH[k])));
   put("lanes", h("div", { class: "lanes" }, sessions.map((s) => {
     const a = Math.max(start, Date.parse(s.started)), b = s.ended ? Date.parse(s.ended) : now;
@@ -684,13 +699,13 @@ function renderFan(fan) {
   put("lanetable", table(["Session", "Status", "Started", "Ended", "Work item"], sessions.map((s) => [sessionLabel(s), s.status, clock(s.started), s.ended ? clock(s.ended) : "now", s.row || "-"])));
   const laneRows = $("lanetable").querySelectorAll("tbody tr");
   sessions.forEach((s, i) => {
-    if (s.status !== "blocked" || !laneRows[i]) return;
+    if (!waitingOnYou(s) || !laneRows[i]) return;
     laneRows[i].classList.add("clickable");
     answerable(laneRows[i], () => openAnswer([{ id: s.id, name: s.name, run: s.run, repo: s.repo, work_item: s.work_item, question: s.detail, context: s.context, attach: s.attach }], s.id));
   });
   const fill = fan.fill, ok = fill && !isUnknown(fill), cap = ok ? fill.cap : 8;
-  const alive = sessions.filter((s) => s.status === "busy" || s.status === "blocked"), busy = alive.filter((s) => s.row).length;
-  put("meters", h("div", {}, h("div", {}, "Dispatched sessions: " + busy + " of " + cap + " (" + alive.length + " alive, " + alive.filter((s) => s.status === "blocked").length + " blocked on you)"), h("div", { class: "meter" }, h("div", { style: "width:" + Math.min(100, 100 * busy / cap) + "%" })),
+  const alive = sessions.filter((s) => s.status === "busy" || s.status === "blocked"), busy = ok ? fill.started : alive.filter((s) => s.row && s.kind !== "finished leftover" && s.kind !== "other repo").length;
+  put("meters", h("div", {}, h("div", {}, "Dispatched sessions: " + busy + " of " + cap), h("div", {}, sessionsHeadline), h("div", { class: "meter" }, h("div", { style: "width:" + Math.min(100, 100 * busy / cap) + "%" })),
     ok ? [h("div", {}, "Machine load: " + fill.load + " of " + fill.limit), h("div", { class: "meter" }, h("div", { style: "width:" + Math.min(100, 100 * fill.load / fill.limit) + "%" }))] : h("div", { class: "unknown-note" }, "load: unknown")));
   put("flags", fan.flags.length ? fan.flags.map((f) => h("div", { class: "flag" }, badge("attention"), " ", h("b", {}, f.kind), " ", f.work_item + ": " + f.detail)) : h("div", {}, badge("ok"), " no disagreements between work items and sessions"));
   // Claimed items first, then the rest; each row says who holds it and what is wrong with it.
@@ -811,7 +826,7 @@ function replyNote(s) {
 }
 function render(s) {
   lastState = s;
-  renderTiles(s.metrics); renderAttention(s.metrics, s.stages, s.sessions, s.recommendations); renderStrip(s.stages); renderCi(s.ci_runs, s.slowest_jobs);
+  renderTiles(s.metrics); renderAttention(s.metrics, s.stages, s.sessions, s.recommendations); renderStrip(s.stages); renderCi(s.ci_runs, s.slowest_jobs); renderCi(s.train_ci_runs, s.train_slowest_jobs, "train");
   renderRoles(s.roles); renderWork(s.open_work); renderSessions(s.sessions); renderFan(s.fanout); renderCycles(s.cycles); renderEvents(s.events);
   $("updated").textContent = "updated " + clock(s.generated_at);
   renderStale(s);

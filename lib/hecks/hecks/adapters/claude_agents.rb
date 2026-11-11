@@ -20,6 +20,8 @@ require_relative "session_lookup"
 require_relative "session_line"
 require_relative "session_hooks"
 require_relative "main_launcher"
+require_relative "session_reaping"
+require_relative "claude_agents/removal"
 
 module Hecks
   module Adapters
@@ -32,6 +34,8 @@ module Hecks
     # command is an argument list, never a string for a shell, and a `--` keeps a brief from being
     # taken for a flag.
     class ClaudeAgents
+      include Removal
+
       # The command that starts and lists sessions.
       COMMAND = "claude"
 
@@ -61,6 +65,7 @@ module Hecks
         @lookup = session_lookup(settings[:now])
         @settle = settings.fetch(:settle, SETTLE_SECONDS)
         @hooks = SessionHooks.new(launcher: settings.fetch(:launcher) { MainLauncher.path })
+        @reaping = SessionReaping.new(registry: registry)
       end
 
       # Says the directory a session would work in is there, and whether the `claude` there lists
@@ -164,32 +169,6 @@ module Hecks
       def await_job(**held)
         sleep(@settle) if @settle.positive?
         read_job(**held)
-      end
-
-      # Says whether a person replied in a session after its brief.
-      #
-      # @param held [Hash] the `AgentRun` record: `session`
-      # @return [Hash{Symbol => Object}] `taken_over:` true when a person replied or the transcript
-      #   cannot be read, and `note:` that fact in words
-      # @raise [ConsoleCapture::Failure] when the sessions cannot be listed or this one is not among
-      #   them
-      def review(**held)
-        full = listed(plain(held[:session]))["sessionId"]
-        taken = @transcript.taken_over?(full)
-        { taken_over: taken, note: taken ? "a person replied, or the transcript cannot be read" : "nobody replied" }
-      end
-
-      # Removes a session with `claude rm`.
-      #
-      # @param held [Hash] the `AgentRun` record: `session`
-      # @return [Hash{Symbol => Object}] `removed_at:` when it was removed, as an ISO 8601 string
-      # @raise [ConsoleCapture::Failure] when the command refuses
-      def remove(**held)
-        id = plain(held[:session])
-        result = @shell.capture(@command, "rm", id)
-        raise ConsoleCapture::Failure, "#{@command} rm #{id} refused: #{result.err.strip}" unless result.ok?
-
-        { removed_at: { value: Time.now.utc.iso8601 } }
       end
 
       # Answers a session by waking it in place under its own id (see {ClaudeResumption}). The run

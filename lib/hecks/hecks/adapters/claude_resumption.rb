@@ -3,6 +3,7 @@
 require "json"
 require "time"
 require_relative "console_capture"
+require_relative "claude_transcript"
 
 module Hecks
   module Adapters
@@ -60,7 +61,7 @@ module Hecks
         raise ConsoleCapture::Failure, "session #{id} is listed with no full session id" if full.empty?
 
         stop(entry)
-        result = wake(full, answer, run)
+        result = wake(full, "#{ClaudeTranscript::PIPELINE_MARK}#{answer}", run)
         raise ConsoleCapture::Failure, "#{@command} resume #{id} refused: #{result.err.strip}" unless result.ok?
 
         outcome(id, result)

@@ -395,7 +395,29 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  # Reruns the failed jobs of a train pull request's CI run, once the bluebook has decided to.
+  Hecks::TrainPr.port "CiRuns" do
+    asks "Restart", to: TrainPr do
+      attribute :key, Key
+      attribute :ci_run, Word
+      attribute :pr, Word
+      attribute :work, Word
+      attribute :title, Word
+      attribute :failure, Report
+      attribute :cause, Word
+      attribute :step, Report
+      answers "RestartAnswered"
+      refuses "RestartRefused"
+    end
+  end
+
   Hecks::ReviewRequest.port "GitHubPullRequests" do
+    asks "Tidy", to: ReviewRequest do
+      attribute :run, RunKey
+      answers "TidyAnswered"
+      refuses "TidyRefused"
+    end
+
     asks "Create", to: ReviewRequest do
       attribute :run, RunKey
       answers "OpenAnswered"
@@ -443,6 +465,18 @@ Hecks.hecksagon "Hecks" do
       attribute :run, RollKey
       answers "RollReported"
       refuses "RollRefused"
+    end
+  end
+
+  # The outside a queued train pull request reaches to have the clock beaten for it: it starts one
+  # detached chain of ticks that sleeps the Tickets world's `ticks` period (`seconds`) and dispatches
+  # `Ticker.Tick` each time, and answers how many beats the world's `minutes` allow. It is refused
+  # when the launcher is not there to dispatch from.
+  Hecks::Ticker.port "Ticking" do
+    asks "Open", to: Ticker do
+      attribute :run, TickerKey
+      answers "TickerOpened"
+      refuses "TickerUnopened"
     end
   end
 
@@ -503,6 +537,22 @@ Hecks.hecksagon "Hecks" do
       refuses "CleanupRefused"
     end
 
+    # The moment a reap began, which its report counts from.
+    asks "Mark", to: SessionCleanup do
+      attribute :run, CleanupName
+      answers "ReapMarked"
+      refuses "CleanupRefused"
+    end
+
+    # Removes the sessions no run holds (done or stopped, older than `session_keep`, no worktree)
+    # and reports the whole reap.
+    asks "SweepPlain", to: SessionCleanup do
+      attribute :run, CleanupName
+      attribute :since, Summary
+      answers "CleanupReported"
+      refuses "CleanupRefused"
+    end
+
     answers_query "Removable"
   end
 
@@ -546,6 +596,22 @@ Hecks.hecksagon "Hecks" do
       attribute :run, RunKey
       answers "SessionRemoved"
       refuses "RemoveRefused"
+    end
+
+    # Clears the scratch the world's `reaping` line lists in the run's worktree: only paths git
+    # ignores, never a tracked or untracked file.
+    asks "ClearScratch", to: AgentRun do
+      attribute :run, RunKey
+      answers "ScratchCleared"
+      refuses "ClearRefused"
+    end
+
+    # Removes the run's worktree and its branch once the branch is on main, with the guard
+    # `Landing.retire!` makes.
+    asks "RetireWorktree", to: AgentRun do
+      attribute :run, RunKey
+      answers "WorktreeRetired"
+      refuses "RetireRefused"
     end
 
     # Whether `claude agents` still lists the session, before a run is retired; the bluebook judges it.

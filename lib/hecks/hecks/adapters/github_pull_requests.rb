@@ -3,6 +3,7 @@
 require "json"
 require "open3"
 require_relative "console_capture"
+require_relative "github_pull_requests/train_sweep"
 
 module Hecks
   module Adapters
@@ -21,8 +22,11 @@ module Hecks
       # @param root [String, nil] unused
       # @param runner [#call, nil] runs `gh` with its arguments, answering
       #   `[stdout, stderr, success]`; the real `gh` when nil. A spec replaces it.
-      def initialize(aggregate: nil, settings: {}, root: nil, runner: nil)
+      # @param git_runner [#call, nil] runs `git` with its arguments, answering `[ok, output]`; the
+      #   real `git` when nil. A spec replaces it.
+      def initialize(aggregate: nil, settings: {}, root: nil, runner: nil, git_runner: nil)
         @runner = runner || method(:run_gh)
+        @git_runner = git_runner
       end
 
       # Opens a pull request from a branch onto a base, its title and body taken from the commits.
@@ -78,6 +82,17 @@ module Hecks
 
         { outcome: { value: "edited" }, number: { value: number },
           report: { value: "edited the #{changes.keys.join(" and ")} of ##{number}" } }
+      end
+
+      # Closes the open train pull requests that main already holds or that a newer one supersedes.
+      #
+      # @param _held [Hash] the `ReviewRequest` record, unused
+      # @return [Hash{Symbol => Hash}] `report:` one line per pull request closed, or none closed
+      # @raise [ConsoleCapture::Failure] when GitHub refuses
+      def tidy(**_held)
+        git = @git_runner || method(:run_git)
+        closed = TrainSweep.new(method(:gh!), git).run
+        { report: { value: closed.empty? ? "no train pull request to close" : closed.join("\n") } }
       end
 
       # The state of one pull request, as text: its number, state, URL and checks.
@@ -163,6 +178,13 @@ module Hecks
         return out if ok
 
         raise ConsoleCapture::Failure, "gh #{arguments.first(2).join(" ")} failed: #{err.strip.empty? ? out.strip : err.strip}"
+      end
+
+      def run_git(arguments)
+        out, status = Open3.capture2e("git", *arguments)
+        [status.success?, out]
+      rescue Errno::ENOENT
+        [false, "git is not installed"]
       end
 
       def run_gh(arguments)

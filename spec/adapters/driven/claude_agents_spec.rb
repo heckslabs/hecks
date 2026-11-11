@@ -178,7 +178,7 @@ RSpec.describe Hecks::Adapters::ClaudeAgents do
     it "resumes the session by its full id in the run's directory, with the answer after --", :aggregate_failures do
       result = resume(answer: { value: "--keep-going" })
 
-      expect(asked).to eq(["--bg", "--resume", "abc123-0000-full", "--", "--keep-going"])
+      expect(asked).to eq(["--bg", "--resume", "abc123-0000-full", "--", "[pipeline answer] --keep-going"])
       expect(File.read(File.join(scratch, "cwd")).strip).to eq(scratch)
       expect(result.dig(:resumed_at, :value)).to match(/\A\d{4}-\d{2}-\d{2}T/)
     end
@@ -189,12 +189,12 @@ RSpec.describe Hecks::Adapters::ClaudeAgents do
 
     it "names the run's role with --agent, ahead of the session id, so its MCP server narrows again" do
       resume(answer: { value: "go on" }, agent: { value: "orchestrator" })
-      expect(asked).to eq(["--agent", "orchestrator", "--bg", "--resume", "abc123-0000-full", "--", "go on"])
+      expect(asked).to eq(["--agent", "orchestrator", "--bg", "--resume", "abc123-0000-full", "--", "[pipeline answer] go on"])
     end
 
     it "names no agent for a run that has none, so the session resumes as it did before" do
       resume(answer: { value: "go on" })
-      expect(asked).to eq(["--bg", "--resume", "abc123-0000-full", "--", "go on"])
+      expect(asked).to eq(["--bg", "--resume", "abc123-0000-full", "--", "[pipeline answer] go on"])
     end
 
     it "stops a session that is still running before it resumes it", :aggregate_failures do

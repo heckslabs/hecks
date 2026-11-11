@@ -25,6 +25,13 @@ RSpec.describe "StallWatch" do
     expect(keys("Tickets", "Work", :work)).to eq(%w[stall-plan-review-late])
   end
 
+  it "files a red train pull request nobody reran in 10 minutes, naming it" do
+    write_train_pr_tap
+    detect("look-1")
+
+    expect(keys("Hecks", "Stall", :stall)).to eq(%w[stall-train-pr-red-silent-pr])
+  end
+
   it "files a stall once, however many looks see it" do
     write_tap
     detect("look-1")

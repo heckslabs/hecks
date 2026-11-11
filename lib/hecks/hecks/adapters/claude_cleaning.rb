@@ -6,6 +6,7 @@ require_relative "console_capture"
 require_relative "claude_transcript"
 require_relative "claude_cleaning/worktree_check"
 require_relative "claude_cleaning/candidate_rule"
+require_relative "claude_cleaning/reaping"
 require_relative "dispatching/work_items"
 
 module Hecks
@@ -22,6 +23,8 @@ module Hecks
     # spoke in the session. `--discard-unpushed` is never passed, so `claude rm` itself refuses what
     # the check missed.
     class ClaudeCleaning
+      include Reaping
+
       # The command that lists and removes sessions.
       COMMAND = "claude"
 
@@ -54,6 +57,8 @@ module Hecks
         @transcript = ClaudeTranscript.new(**settings.slice(:projects))
         @worktrees = WorktreeCheck.new(shell: @shell)
         @runs = Dispatching::WorkItems.new(registry)
+        @registry = registry
+        @tuning = settings
       end
 
       # Says, for every session, whether it is safe to remove and why not. Removes nothing.

@@ -121,4 +121,19 @@ Hecks.behaviors "Tickets" do
     input  work: { value: "w11" }, decision: "9999"
     expect refused: "Adr"
   end
+
+  test "Open starts an epic open" do
+    tests "Open", on: "Epic"
+    input epic: { value: "e1" }, title: { value: "Carry out ADR 0204" }, outcome: { value: "Epics are real" }
+    expect status: "open"
+  end
+
+  test "Assign refuses a finished work item" do
+    tests "Assign", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "w12" }, title: { value: "Done already" }
+    setup  "Tickets::Work.Finish", work: { value: "w12" }
+    setup  "Tickets::Epic.Open", epic: { value: "e1" }, title: { value: "An epic" }, outcome: { value: "Something is true" }
+    input  work: { value: "w12" }, epic: "e1"
+    expect refused: "a done work item joins no epic"
+  end
 end

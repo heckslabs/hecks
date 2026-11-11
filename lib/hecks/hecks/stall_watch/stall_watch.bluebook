@@ -36,6 +36,10 @@ Hecks.bluebook "Hecks" do
                closes: "PlanReviewed,PlanReviewRecorded,ReviewUnstarted", minutes: 20, forgets: 1440, fixer: "orchestrator",
                move: "Read the architect's closing report, record its verdict with PlanReview.answer! " \
                      "(PlanReview.record! when no request row exists), then AgentRun.answer! the waiting coder."
+        member kind: "train-pr-red", aggregate: "Hecks::TrainPr", opens: "TrainPrFailed",
+               closes: "TrainPrRerun,TrainPrExhausted", minutes: 10, forgets: 1440, fixer: "orchestrator",
+               move: "Read the failed PR's CI (gh pr view), rerun its failed jobs once (gh run rerun --failed), " \
+                     "and if it fails again Work.plan! red-train-<pr> (category red, priority now) with the failure as its detail."
         member kind: "agent-run-start", aggregate: "Hecks::AgentRun", opens: "AgentRunRequested",
                closes: "AgentRunStarted,AgentRunDeclined", minutes: 10, forgets: 1440, fixer: "orchestrator",
                move: "Work.yield! the run's Work item (AgentRun.running names it) with the reason, " \

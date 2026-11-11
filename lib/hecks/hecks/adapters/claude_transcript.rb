@@ -17,6 +17,10 @@ module Hecks
       # Text a session writes into its own transcript as a user entry without a person typing it.
       AUTOMATIC_TEXT = /\A\s*<(task-notification|system-reminder|command-(name|message)|local-command-|bash-)/
 
+      # What the pipeline puts at the head of an answer it sends to a session, so the transcript
+      # tells that turn from a person typing. {ClaudeResumption} writes it.
+      PIPELINE_MARK = "[pipeline answer] "
+
       # @param projects [String] the directory holding the per-project transcript folders
       def initialize(projects: File.join(Dir.home, PROJECTS))
         @projects = projects
@@ -31,6 +35,16 @@ module Hecks
         human_messages(path).length > 1
       rescue SystemCallError, JSON::ParserError
         true
+      end
+
+      # @param session_id [String] the full session id, which names the transcript file
+      # @return [Time] when the transcript was last written
+      # @raise [SystemCallError] when the transcript cannot be found
+      def modified_at(session_id)
+        path = Dir.glob(File.join(@projects, "*", "#{session_id}.jsonl")).first
+        raise Errno::ENOENT, "no transcript for session #{session_id}" unless path && !session_id.to_s.empty?
+
+        File.mtime(path)
       end
 
       # Where the session's own worktree is: the path its transcript last recorded when it entered a
@@ -75,10 +89,18 @@ module Hecks
         origin.nil? || (origin.is_a?(Hash) && origin["kind"] == "human")
       end
 
+      def typed?(text) = !text.match?(AUTOMATIC_TEXT) && !text.start_with?(PIPELINE_MARK)
+
+      def machine_part?(part)
+        return false unless part.is_a?(Hash)
+
+        part["type"] == "tool_result" || (part["type"] == "text" && !typed?(part["text"].to_s))
+      end
+
       def person_content?(content)
         case content
-        when String then !content.match?(AUTOMATIC_TEXT)
-        when Array then content.none? { |part| part.is_a?(Hash) && part["type"] == "tool_result" }
+        when String then typed?(content)
+        when Array then content.none? { |part| machine_part?(part) }
         else true
         end
       end

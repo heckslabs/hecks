@@ -66,6 +66,12 @@ Hecks.world "Hecks" do
   landing "Queue", stale_minutes: 30, wait_minutes: 40
   # How long a hold on local main for a boarding lasts before it expires on its own, so main is never held longer.
   boarding_hold "Window", max_minutes: 20
+  # What the mechanical cleanup of finished sessions removes. `worktree_scratch` lists the paths, relative to a
+  # worktree, whose ignored contents are cleared before the worktree is retired (a path git does not ignore,
+  # and any tracked or untracked file, is never touched). `session_keep` is the hours a session no run holds
+  # is kept after it is done or stopped. Removing a session only drops it from `claude agents`: its transcript
+  # stays under ~/.claude/projects.
+  reaping "Sessions", worktree_scratch: ["tmp", ".ruby-lsp", "rust/*/target", "rust/target", "target"], session_keep: 24
   # How long an outbox row may stand claimed before a boot settles it as failed (abandoned, not redelivered)
   # and names it once. A claim that old was left by a process that died; nothing else releases it, so without a
   # bound the same rows were named on every boot. Ten minutes is the longest a reaction is expected to run.
