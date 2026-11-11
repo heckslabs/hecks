@@ -5,10 +5,10 @@ require_relative "../tools"
 
 module Hecks
   module Tools
-    # Projects the `RoleFile` rows of the Agents bluebook's `Role` aggregate into the role files of a
-    # checkout, `.claude/agents/<role>.md`: the frontmatter Claude Code reads (name, description,
-    # tools, model) with a generated-file banner inside it, then the purpose, steps, rules and
-    # handback of the role.
+    # Projects the `RoleFile` rows of the Agents bluebook's `Role` aggregate into the role files
+    # of a checkout, `.claude/agents/<role>.md`: the frontmatter Claude Code reads (name,
+    # description, tools, model) with a generated-file banner inside it, then the purpose, steps,
+    # rules and handback of the role.
     #
     # Without a flag the files are written, except that a file whose frontmatter holds a key the row
     # cannot say (an `mcpServers` block) is refused by name and left alone. `--check` writes nothing
