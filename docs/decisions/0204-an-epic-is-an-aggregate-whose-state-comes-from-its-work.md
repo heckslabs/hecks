@@ -1,6 +1,7 @@
 # An epic is an aggregate whose state comes from its work
 
-**Status:** Proposed. Date: 2026-11-11. Proposed by the owner's question "what would a real epic act like?".
+**Status:** Accepted. Date: 2026-11-11. Proposed by the owner's question "what would a real epic act like?";
+accepted by the owner's direction the same day ("I thought the plan was to make epics real").
 
 ## Context
 
@@ -33,7 +34,19 @@ carried out across many items, with nowhere to ask "is it done?".
    anything. An item may have a category and an epic. The three never-ending arcs stay categories and
    do not become epics.
 7. **First epics come from decisions.** ADR 0190, ADR 0194 and ADR 0163 are opened as epics, with
-   their existing rows assigned. The 434 uncategorized rows are not migrated into epics.
+   their existing rows assigned. No undone row is uncategorized today: all of them carry one of the
+   eight areas (`landing-review-and-train`, `agent-roles-and-handoff`, `autonomous-pipeline`,
+   `bluebook-gaps-and-tool-dissolve`, `pipeline-board`, `side-projects`, `kernel-parity-and-simulation`,
+   `docs-and-interviews`). The 434 rows with no category are finished ones (the count covers every row,
+   finished included), and they are not migrated into epics.
+8. **The planning page groups by epic first.** The planning page (`board-planning-page-over-the-work`)
+   groups the undone work by epic, then by edit zone within each epic.
+9. **How it is built.** `Complete` takes the member counts the `EpicMembers` port read (`members`,
+   `open_members`), because a `given` sees its own arguments and not the Work items: it refuses a count of
+   no member or of an open member. A `Review` command, sent for the epic of a work item that closed, asks
+   the port; its answer completes the epic. `Reopen` is sent when a member returns and when an open
+   member is assigned to a complete epic. `Work.Unassign` is not built: `Assign` moves an item to
+   another epic, and nothing in this reading removes one.
 
 ## Consequences
 
@@ -49,4 +62,7 @@ carried out across many items, with nowhere to ask "is it done?".
 ## Open questions
 
 - Whether an epic may contain epics. This ADR says no; one level keeps `EpicProgress` a count.
-- Whether `outcome` should be checkable (a named spec or query) instead of a sentence.
+- `outcome` stays a sentence. It may later carry an optional `check`, the name of a query that answers
+  true when the outcome holds. That attribute is built in a later item. The first real epic, "a landing
+  reaches a merged, synced main with no hand step on three batches running", is a count over events, which
+  a query can answer.

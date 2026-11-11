@@ -366,6 +366,98 @@ Hecks.bluebook "Tickets" do
     end
   end
 
+  # An epic: a body of work with an outcome and an end. Its members are the work items that name it;
+  # its status is read from them (the EpicMembers port counts, the policies below move it), so nobody
+  # sets it by hand. A Category stays a label beside it.
+  aggregate "Epic" do
+    description "One body of work with an outcome: open until every member is done or dropped, complete then, open again when one returns."
+    created_by "Epic.open!"
+
+    attribute :epic,    EpicKey
+    attribute :title,   EpicTitle
+    attribute :outcome, EpicOutcome
+    reference_to Adr, as: :decision, optional: true
+    identified_by :epic
+
+    value_object "EpicKey" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "EpicTitle" do
+      attribute :value, String
+
+      invariant("an epic has a title") { !value.to_s.empty? }
+    end
+
+    # One sentence saying what is true when the epic is finished.
+    value_object "EpicOutcome" do
+      attribute :value, String
+
+      invariant("an epic states its outcome") { !value.to_s.empty? }
+    end
+
+    # How many work items name the epic, or how many of them are still planned or started.
+    value_object "MemberCount" do
+      attribute :value, Integer
+
+      invariant("a member count is not negative") { !value.negative? }
+    end
+
+    lifecycle :status, default: "open" do
+      transition "Complete" => "complete", from: "open"
+      transition "Reopen"   => "open",     from: "complete"
+    end
+
+    command "Open" do
+      role "Maintainer"
+      goal "Open an epic with its outcome, optionally for the decision it carries out"
+
+      attribute :epic,    EpicKey, sets: true
+      attribute :title,   EpicTitle, sets: true
+      attribute :outcome, EpicOutcome, sets: true
+      reference_to Adr, as: :decision, optional: true
+
+      sets :decision
+
+      emits "EpicOpened"
+    end
+
+    # Sent by the CompleteEpicWhenMembersCleared policy with the counts the EpicMembers port read: a
+    # `given` sees its own arguments, not the Work items, so the counts carry the rule.
+    command "Complete" do
+      goal "Record that every member of the epic is done or dropped"
+
+      reference_to Epic
+      attribute :members,      MemberCount
+      attribute :open_members, MemberCount
+
+      given("an epic with no member does not complete") { members.value.positive? }
+      given("an epic with a planned or started member does not complete") { open_members.value.zero? }
+
+      emits "EpicCompleted"
+    end
+
+    # A member closed: the epic is read again. It changes nothing itself; the EpicMembers port's
+    # answer completes the epic.
+    command "Review" do
+      goal "Ask whether every member of the epic is now done or dropped"
+
+      reference_to Epic
+      reference_to Work, as: :closed, optional: true
+
+      emits "EpicReviewed"
+    end
+
+    command "Reopen" do
+      goal "Return a complete epic to open because a member returned"
+
+      reference_to Epic
+      reference_to Work, as: :returned, optional: true
+
+      emits "EpicReopened"
+    end
+  end
+
   # A work item: one planned, started or done piece of Work, keyed by its id and held under the
   # decision it carries out. It drives nothing outside: planned work is the maintainer's own list, not
   # an issue.
@@ -386,6 +478,7 @@ Hecks.bluebook "Tickets" do
     attribute :area,   list_of(Word), optional: true
     attribute :budget_minutes, Minutes, optional: true
     attribute :category, Category, optional: true
+    reference_to Epic, as: :epic, optional: true
     attribute :priority, Priority, optional: true
     reference_to Adr, as: :decision, optional: true
     identified_by :work
@@ -394,6 +487,11 @@ Hecks.bluebook "Tickets" do
     # a work item with no area claims nothing.
     value_object "Word" do
       attribute :value, String, matches: :present
+    end
+
+    # What a query answered from outside the domain returns: its lines.
+    value_object "Document" do
+      attribute :text, String
     end
 
     # The session that claimed a started work item, named as the session names itself. One back in
@@ -414,11 +512,6 @@ Hecks.bluebook "Tickets" do
       attribute :value, Integer
 
       invariant("a time budget is not negative") { !value.negative? }
-    end
-
-    # What a query answered from outside the domain returns: its lines.
-    value_object "Document" do
-      attribute :text, String
     end
 
     # How many lines a report prints.
@@ -573,6 +666,22 @@ Hecks.bluebook "Tickets" do
       given("a done or dropped work item takes no category") { status != "done" && status != "dropped" }
 
       emits "WorkCategorized"
+    end
+
+    # An open work item joins one epic (one per item); assigning it again moves it to the other epic.
+    command "Assign" do
+      role "Maintainer"
+      goal "Make an open work item a member of an epic"
+
+      reference_to Work
+      reference_to Epic, as: :epic
+
+      sets :epic
+
+      given("a done work item joins no epic") { status != "done" }
+      given("a dropped work item joins no epic") { status != "dropped" }
+
+      emits "WorkAssigned"
     end
 
     # An open work item is given how soon it is wanted. The claim, the step and the area stay as they are.
@@ -739,6 +848,71 @@ Hecks.bluebook "Tickets" do
       where(category: :kind, status: { in: "planned,started" })
       order_by :step
     end
+
+    query "UndoneInEpic" do
+      description "Every work item not yet done or dropped in one epic, in plan order."
+      attribute :epic, String
+      where(epic: :epic, status: { in: "planned,started" })
+      order_by :step
+    end
+
+    # The members counted by what became of them, read and never written: the adapter prints the
+    # counts and the next planned member in plan order.
+    query "EpicProgress" do
+      description "One epic's members counted done, dropped and open, with its next planned item in plan order."
+      attribute :epic, String
+      returns Document
+    end
+
+    # The work item itself, so a policy reading an event of it can reach its epic.
+    query "EpicOf" do
+      description "The one work item, whose epic a policy reads."
+      attribute :work, String
+      where(work: :work)
+    end
+
+    query "InEpic" do
+      description "Every work item of one epic, finished or not, in plan order."
+      attribute :epic, String
+      where(epic: :epic)
+      order_by :step
+    end
+  end
+
+  # A member closing asks the EpicMembers port whether its epic has a member and none open. An item
+  # in no epic asks nothing.
+  policy "CheckEpicWhenWorkFinished" do
+    on       "Work.WorkFinished"
+    for_each "Work.EpicOf"
+    trigger  Epic::Review, with: { epic: :epic }
+  end
+
+  policy "CheckEpicWhenWorkDropped" do
+    on       "Work.WorkDropped"
+    for_each "Work.EpicOf"
+    trigger  Epic::Review, with: { epic: :epic }
+  end
+
+  policy "CheckMembersWhenEpicReviewed" do
+    on  "Epic.EpicReviewed"
+    ask :check_members, with: { epic: :epic }
+  end
+
+  policy "CompleteEpicWhenMembersCleared" do
+    on      "Epic.MembersCleared"
+    trigger Epic::Complete, with: { epic: :epic, members: :members, open_members: :open_members }
+  end
+
+  # A member that returns, or a new open member, reopens a complete epic.
+  policy "ReopenEpicWhenMemberReturns" do
+    on       "Work.WorkReopened"
+    for_each "Work.EpicOf"
+    trigger  Epic::Reopen, with: { epic: :epic }
+  end
+
+  policy "ReopenEpicWhenMemberAssigned" do
+    on      "Work.WorkAssigned"
+    trigger Epic::Reopen, with: { epic: :epic }
   end
 
   # Each lifecycle event drives GitHub. A finding's own state never waits on the answer.
