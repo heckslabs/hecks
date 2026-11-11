@@ -35,7 +35,8 @@ module Hecks
 
       # @param held [Hash] the `Integration` record: `landed` and `checkout`
       # @return [Hash{Symbol => Hash}] `outcome:` (`running`, `passed` or `failed`) and `report:`
-      # @raise [ConsoleCapture::Failure] when `gh` cannot be read
+      # @raise [ConsoleCapture::Failure] when `gh` cannot read the pull request or the run; a red
+      #   pull request whose failed jobs cannot be read answers `running` instead
       def watch(**held)
         landed = plain(held[:landed]).to_s
         @checkout = plain(held[:checkout]) || Dir.pwd
@@ -87,6 +88,15 @@ module Hecks
         branch = GitTrain::PullRequestBoarding.branch_for(landed)
         facts = TrainPrFailure.new(runner, @checkout, branch, landed).facts(pull)
         answer("pr_failed", facts.delete(:report)).merge(facts.transform_values { |value| { value: value } })
+      rescue ConsoleCapture::Failure => e
+        answer("running", unreadable(landed, pull, e))
+      end
+
+      # A red pull request whose failure `gh` cannot be read for (a 5xx, a missing run, no `gh`) is
+      # still watched, so the next observation reads it again and records it once it can.
+      def unreadable(landed, pull, error)
+        "#{landed[0, 10]}: PR #{pull["number"]} CI failed; failed jobs unreadable (#{error.message}); " \
+          "retrying next observation"
       end
 
       def still_open(landed, pull, checks, replaced)
