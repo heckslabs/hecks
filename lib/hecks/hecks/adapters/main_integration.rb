@@ -20,10 +20,13 @@ module Hecks
     class MainIntegration
       # The command each stage's next step dispatches.
       NEXT = { "landed" => "Verify", "retrying" => "Verify", "verified" => "Board", "pushed" => "Observe",
-               "ci_running" => "Observe" }.freeze
+               "ci_running" => "Observe", "merged" => "Observe" }.freeze
 
       # The stage whose verification is the run's one retry.
       RETRYING = "retrying"
+
+      # The stage of a run whose pull request merged and whose main was pulled, awaiting CI.
+      MERGED = "merged"
 
       # @param registry [Runtime::Registry, nil] the booted registry whose runs are advanced
       # @param aggregate [Object, nil] unused
@@ -127,6 +130,7 @@ module Hecks
         args[:checkout] = run.checkout unless run.checkout.empty?
         args[:confirm] = true if command == "Board" && confirm
         args[:retried] = true if run.state == RETRYING
+        args[:pulled] = true if run.state == MERGED
         args
       end
 
