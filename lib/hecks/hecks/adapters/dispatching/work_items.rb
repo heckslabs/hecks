@@ -135,7 +135,9 @@ module Hecks
                          yield_count: field(record, :yield_count).to_i, priority: field(record, :priority).to_s)
         end
 
-        def state(run) = { status: field(run, :status).to_s, condition: field(run, :condition).to_s }
+        def state(run)
+          { status: field(run, :status).to_s, condition: field(run, :condition).to_s, started_at: field(run, :started_at).to_s }
+        end
 
         def lesson(record)
           { kind: field(record, :kind).to_s, signature: StartedWork.words(field(record, :signature)),

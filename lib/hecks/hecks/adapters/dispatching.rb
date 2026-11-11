@@ -73,7 +73,7 @@ module Hecks
       # @param held [Hash] the `Dispatch` record: `repo`
       # @return [Hash{Symbol => Hash}] `report:` one line per work item settled
       def conclude(**held)
-        lines = Settler.new(work_items, launcher_for(held)).call
+        lines = Settler.new(work_items, launcher_for(held), grace: machine.session_grace).call
         { report: { value: lines.empty? ? "nothing to settle" : lines.join("\n") } }
       end
 
@@ -95,7 +95,7 @@ module Hecks
       # items parked behind a run whose session is gone.
       def settle_ended(held)
         launcher = launcher_for(held)
-        Settler.new(work_items, launcher).call
+        Settler.new(work_items, launcher, grace: machine.session_grace).call
         release_taken(launcher)
         PlannedCache.clear!
       end
