@@ -1,7 +1,7 @@
 require "spec_helper"
 require "hecks/hecks/adapters/dispatching"
 
-# What the examples share: a clock fixed at the misfire's second, and a run that started so long ago.
+# What the examples share: a fixed clock, and a run that started some seconds before it.
 module SettleYoungHelpers
   def now = Time.utc(2026, 11, 11, 2, 11, 3)
 
