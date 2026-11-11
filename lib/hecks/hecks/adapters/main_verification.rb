@@ -12,11 +12,13 @@ module Hecks
     # The `MainVerifying` port's adapter for `Integration.Verify`: checks a landed commit in a
     # clean detached copy of it, holding no local Hecks files, by running every check `Checks`
     # names there. A commit other than the head of local main is answered `superseded` without a
-    # check: the run for the head verifies both. A check that fails refuses the
-    # verification: the first line names every failing check, and a block for each keeps the
-    # last `TAIL` lines it printed, so the run parked in needs_human says why. The copy's crates
-    # build into the Cargo targets every verification of their toolchain shares (`CargoTarget`),
-    # so a second verification reuses the first one's compiled dependencies.
+    # check: the run for the head verifies both. So is a commit `origin/main` already carries
+    # (contained, or squash-merged by a train), judged after one fetch and again before every
+    # check, so a landing merged mid-run stops the run at its next check. A check that fails
+    # refuses the verification: the first line names every failing check, and a block for each
+    # keeps the last `TAIL` lines it printed, so the run parked in needs_human says why. The
+    # copy's crates build into the Cargo targets every verification of their toolchain shares
+    # (`CargoTarget`), so a second verification reuses the first one's compiled dependencies.
     class MainVerification
       # How many of a failing check's last output lines a refusal keeps.
       TAIL = 60
@@ -32,6 +34,7 @@ module Hecks
       # @param root [String, nil] unused
       def initialize(aggregate: nil, settings: {}, root: nil)
         @failures = []
+        @carried = nil
       end
 
       # @param held [Hash] the `Integration` record: `landed` and `checkout`
@@ -43,8 +46,9 @@ module Hecks
         head = repository.main
         return superseded(landed, head) unless head == landed
 
+        repository.refresh
         passed = run_checks(repository, landed)
-        answer("verified", "#{landed[0, 10]} verified: #{passed.join(", ")}")
+        @carried ? carried(landed) : answer("verified", "#{landed[0, 10]} verified: #{passed.join(", ")}")
       end
 
       private
@@ -54,11 +58,23 @@ module Hecks
         repository.clean_copy(landed) do |directory|
           MainIntegration::CargoTarget.link(directory)
           checks = MainIntegration::Checks.new(directory, changed).all
-          failed = checks.reject { |name, argv| record(name, argv, directory) }
-          refuse!(landed) unless failed.empty?
+          failed = checks.reject { |name, argv| carried_now?(repository, landed) || record(name, argv, directory) }
+          refuse!(landed) unless @carried || failed.empty?
           checks.map(&:first)
         end
       end
+
+      # Asks, before a check, whether `origin/main` has come to carry the commit; once it does,
+      # every check after is skipped.
+      def carried_now?(repository, landed)
+        return true if @carried
+
+        repository.refresh
+        @carried = repository.carried_by(landed)
+        !@carried.nil?
+      end
+
+      def carried(landed) = answer("superseded", "#{landed[0, 10]} #{@carried}; no further check run")
 
       def record(name, argv, directory)
         ok, output = runner.call(argv, chdir: directory)

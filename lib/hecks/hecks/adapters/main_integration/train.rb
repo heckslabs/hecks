@@ -32,16 +32,22 @@ module Hecks
           @root = root
         end
 
-        # Brings the copy up to origin/main, unless it has tracked changes.
+        # Brings the copy to the commit being boarded, so the train runs the shape files it is about
+        # to push. A landing not yet on origin/main is held by the repository the copy is a
+        # worktree of, so the commit itself is checked out, never origin/main. A copy already there
+        # is left alone, tracked changes or not.
         #
-        # @return [String] where the copy stands, or why it was left
-        def refresh
-          changed = run("git", "status", "--porcelain", "--untracked-files=no").last.strip
-          return "train copy left as it is: it has tracked changes" unless changed.empty?
+        # @param landed [String] the commit being boarded
+        # @return [String] where the copy stands: already at the commit, or moved from one to it
+        # @raise [ConsoleCapture::Failure] naming why the copy could not be brought to the commit
+        def refresh(landed)
+          before = head_of("HEAD")
+          target = head_of("#{landed}^{commit}")
+          cannot!(landed, "the commit is not in the train copy") if target.empty?
+          return "train copy already at #{short(target)}" if before == target
 
-          fetched = run("git", "fetch", "-q", "origin", "main").first
-          moved = fetched && run("git", "checkout", "-q", "--detach", "FETCH_HEAD").first
-          moved ? "train copy at origin/main" : "train copy left as it is: it could not be refreshed"
+          move_to(landed, target)
+          "refreshed the train from #{short(before)} to #{short(target)}"
         end
 
         # @param checkout [String] the checkout whose main is boarded
@@ -65,6 +71,22 @@ module Hecks
         private
 
         def run(*argv) = @runner.call(argv, chdir: @root)
+
+        def head_of(rev) = run("git", "rev-parse", "--verify", "-q", rev).last.strip
+
+        def short(sha) = sha.to_s[0, 10]
+
+        def move_to(landed, target)
+          dirty = !run("git", "status", "--porcelain", "--untracked-files=no").last.strip.empty?
+          cannot!(landed, "the train copy has tracked changes") if dirty
+          ok, said = run("git", "checkout", "-q", "--detach", landed)
+          cannot!(landed, tail(said, 120)) unless ok
+          cannot!(landed, "it stayed at #{short(head_of("HEAD"))}") unless head_of("HEAD") == target
+        end
+
+        def cannot!(landed, why)
+          raise ConsoleCapture::Failure, "boarding waits: the train could not be refreshed to #{short(landed)}: #{why}"
+        end
 
         # The record's state, empty when the train printed no record. A record that will not parse
         # raises carrying its last {RAW_KEPT} characters, where the train writes its refusal, so the

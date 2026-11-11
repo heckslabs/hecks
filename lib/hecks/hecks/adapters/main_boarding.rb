@@ -53,7 +53,7 @@ module Hecks
 
       def push(landed, checkout)
         train = MainIntegration::Train.new(runner, root: self.class.train_root || MainIntegration::Train::ROOT)
-        note = train.refresh
+        note = train.refresh(landed)
         record = train.board(checkout)
         pushed = [record["pushed"], record["boarded"], landed].compact.first
         { outcome: { value: "pushed" }, pushed: { value: pushed.to_s },
