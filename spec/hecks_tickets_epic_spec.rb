@@ -131,4 +131,37 @@ RSpec.describe "the Tickets Epic" do
 
     expect(cli("work.epic_progress", "epic=e1")).to include("done 1, dropped 0, open 2", "next: m2")
   end
+
+  def retitle(title, key = "e1") = cli("epic.retitle!", "to=#{key}", "title.value=#{title}")
+
+  def complete_epic
+    epic
+    member("m1")
+    finish("m1")
+  end
+
+  def title_of(key = "e1") = plain(stored("Epic").find { |row| plain(row.epic) == key }.title)
+
+  it "retitles an open epic and keeps its outcome", :aggregate_failures do
+    epic
+    retitle("Plain words")
+
+    expect(title_of).to eq("Plain words")
+    expect(plain(stored("Epic").first.outcome)).to eq("It is carried out")
+  end
+
+  it "retitles a complete epic and keeps its id", :aggregate_failures do
+    complete_epic
+    retitle("Done and renamed")
+
+    expect(status_of).to eq("complete")
+    expect(title_of).to eq("Done and renamed")
+  end
+
+  it "refuses an empty title", :aggregate_failures do
+    epic
+
+    expect(retitle(" ")).to include("an epic has a title")
+    expect(title_of).to eq("Epic e1")
+  end
 end

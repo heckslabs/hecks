@@ -456,6 +456,20 @@ Hecks.bluebook "Tickets" do
 
       emits "EpicReopened"
     end
+
+    # Changes the title only (not the Work.Revise counterpart); the key, outcome, decision and status stay,
+    # so a work item's epic link keeps working. It is a plain set, not a transition, so any state allows it.
+    command "Retitle" do
+      role "Maintainer"
+      goal "Change an epic's title, in any state, keeping its key"
+
+      reference_to Epic
+      attribute :title, EpicTitle, sets: true
+
+      given("an epic has a title") { !title.value.to_s.strip.empty? }
+
+      emits "EpicRetitled"
+    end
   end
 
   # A work item: one planned, started or done piece of Work, keyed by its id and held under the

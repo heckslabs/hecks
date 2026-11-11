@@ -128,6 +128,20 @@ Hecks.behaviors "Tickets" do
     expect status: "open"
   end
 
+  test "Retitle changes the title and keeps the outcome" do
+    tests "Retitle", on: "Epic"
+    setup "Tickets::Epic.Open", epic: { value: "e1" }, title: { value: "Old" }, outcome: { value: "Something is true" }
+    input epic: "e1", title: { value: "Plain words" }
+    expect title: { value: "Plain words" }, outcome: { value: "Something is true" }, status: "open"
+  end
+
+  test "Retitle refuses an empty title" do
+    tests "Retitle", on: "Epic"
+    setup "Tickets::Epic.Open", epic: { value: "e1" }, title: { value: "Old" }, outcome: { value: "Something is true" }
+    input epic: "e1", title: { value: " " }
+    expect refused: "an epic has a title"
+  end
+
   test "Assign refuses a finished work item" do
     tests "Assign", on: "Work"
     setup  "Tickets::Work.Plan", work: { value: "w12" }, title: { value: "Done already" }
