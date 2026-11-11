@@ -16,6 +16,13 @@ module Hecks
 
         module_function
 
+        # @param root [String] the checkout a step runs in unless it names another
+        # @param seconds [Numeric] how long a step may run
+        # @return [#call] the launcher: takes the program and its arguments, answers its output
+        def launcher(root, seconds)
+          ->(*args, chdir: root, stdin: nil) { Probe.run(*args, chdir: chdir, seconds: seconds, stdin: stdin) }
+        end
+
         # @param action [Object] the step the request names
         # @return [Boolean] whether the board knows the step
         def known?(action) = action.is_a?(String) && !Rules.action(action).nil?

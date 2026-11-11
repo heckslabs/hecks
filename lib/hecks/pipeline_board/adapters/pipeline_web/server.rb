@@ -69,6 +69,7 @@ module Hecks
         def stop
           @listener.close
           @open.each { |socket| socket.close unless socket.closed? }
+          @app.close if @app.respond_to?(:close)
         end
 
         private
@@ -138,10 +139,11 @@ module Hecks
 
         def headers(head) = head.map { |key, value| "#{key}: #{value}\r\n" }.join
 
-        # One server-sent event: a `state` push, a `wiring` change or a `board` event, as JSON.
+        # One server-sent event: a `tile` fragment (its `id:` is the journal's seq), a `state` push,
+        # a `wiring` change or a `board` event, as JSON.
         def sse(event)
-          name = %w[state wiring].find { |kind| event.key?(kind.to_sym) } || "board"
-          "event: #{name}\ndata: #{JSON.generate(event)}\n\n"
+          name = %w[state wiring tile].find { |kind| event.key?(kind.to_sym) } || "board"
+          "event: #{name}\n#{"id: #{event[:tile][:seq]}\n" if name == "tile"}data: #{JSON.generate(event[:tile] || event)}\n\n"
         end
 
         def stream(socket)

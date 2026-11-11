@@ -122,6 +122,7 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
 .clickable { cursor: pointer; }
 .clickable:hover { outline: 2px solid var(--warning); outline-offset: 1px; }
 .node.clickable:hover { outline-offset: 0; }
+.tilebody.clickable:hover { outline-offset: 6px; }
 dialog#resolve { width: min(34rem, 92vw); border: 1px solid var(--axis); border-radius: 10px; background: var(--surface); color: var(--ink); padding: 16px; }
 dialog#resolve::backdrop { background: rgba(0,0,0,.35); }
 pre.cmd { background: var(--page); border: 1px solid var(--axis); border-radius: 6px; padding: 8px; white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -204,7 +205,7 @@ details.panel > .scroll, details.panel > .feed, details.panel > .strip, details.
   <section class="agentstrip" aria-labelledby="h-roles"><h2 id="h-roles">Agents</h2><div class="roles" id="roles"></div>
     <a class="open" href="/agents" data-tip="Who hands work to whom, each role's sessions, plan reviews, and the forms that ask the planner and the architect">Open the Agents page →</a></section>
   <details class="panel" open><summary data-tip="Everything that asks for a person: attention pills, failed stages and sessions blocked on a reply. Click a row to act on it"><h2 id="h-attn">Needs attention</h2><span class="sum" id="sum-attn"></span></summary><div class="scroll" id="attention"></div></details>
-  <section aria-labelledby="h-tiles"><h2 id="h-tiles">Key metrics</h2><div class="tiles" id="tiles"></div></section>  <details class="panel" open><summary data-tip="Each stage of a change from planned to released. Click a stage that needs you to resolve it"><h2 id="h-strip">Pipeline</h2><span class="sum" id="sum-strip"></span></summary><div class="strip" id="strip"></div></details>
+  <section aria-labelledby="h-tiles"><h2 id="h-tiles">Key metrics</h2><div class="tiles" id="tiles"></div></section>  <details class="panel" open><summary data-tip="Each stage of a change from planned to released. Click a stage that needs you to resolve it"><h2 id="h-strip">Pipeline</h2><span class="sum" id="sum-strip"></span></summary><div class="strip" id="strip"><div class="node" id="train"><!--tile:train--></div></div></details>
   <details class="panel" open><summary data-tip="Recent CI runs on main, and the slowest jobs of the last completed run"><h2 id="h-ci">CI on main</h2><span class="sum" id="sum-ci"></span></summary>
     <div class="grid2">
       <div><div class="label">Failed jobs per run, oldest to newest</div><div id="failedchart" class="chartview"></div><div class="tableview scroll" id="failedtable"></div></div>
@@ -218,7 +219,7 @@ details.panel > .scroll, details.panel > .feed, details.panel > .strip, details.
   <details class="panel"><summary data-tip="How the work fans out across sessions: lanes, who is running what, and what the dispatcher would start next"><h2 id="h-fan">Fan-out</h2><span class="sum" id="sum-fan"></span></summary>
     <div class="grid2">
       <div><div class="legend" id="lanelegend"></div><div id="lanes" class="chartview"></div><div class="tableview scroll" id="lanetable"></div></div>
-      <div><div id="meters"></div><div id="flags"></div><div id="fill"></div></div>
+      <div><div id="meters"></div><div id="flags"></div><div id="fill"><!--tile:fill--></div></div>
     </div>
   </details>
 
@@ -438,6 +439,7 @@ function renderStrip(stages) {
   const off = stages.filter((s) => s.state !== "ok");
   summarize("strip", off.length ? off.map((s) => [": " + s.detail, s.state, s.name]) : [["all " + stages.length + " stages ok", "ok"]]);
   put("strip", stages.map((s) => {
+    if (s.name === "Train") return $("train"); // drawn and pushed by the server
     const waiting = Array.isArray(s.blocked) ? s.blocked : [];
     const clickable = waiting.length || needsAttention(s.state);
     const node = h("div", { class: "node" + (clickable ? " clickable" : ""), tip: s.name + ": " + s.detail + (waiting.length ? " (click to answer)" : needsAttention(s.state) ? " (click to resolve)" : "") },
@@ -447,6 +449,8 @@ function renderStrip(stages) {
     return node;
   }));
 }
+// A pushed stage that needs a person carries the words to resolve it with, since its node is drawn by the server.
+document.addEventListener("click", (e) => { const t = e.target.closest("[data-resolve]"); if (t) resolve(t.dataset.resolve, t.dataset.detail); });
 /* Opens an answer prompt from a click or from Enter and Space on the keyboard. */
 function answerable(el, open) {
   el.tabIndex = 0;
@@ -663,7 +667,7 @@ function aimSessions(all) {
   pages.set("sessions", Math.floor(listed().findIndex(has) / SESSION_PAGE));
 }
 function renderFan(fan) {
-  if (isUnknown(fan)) { for (const id of ["lanes", "meters", "flags", "fill", "mapping", "lanetable"]) put(id, unknown(fan)); return; }
+  if (isUnknown(fan)) { for (const id of ["lanes", "meters", "flags", "mapping", "lanetable"]) put(id, unknown(fan)); return; }
   const slots = fan.fill && !isUnknown(fan.fill) ? fan.fill : {}, next = (slots.would_start || [])[0], flagged = (fan.flags || []).length;
   summarize("fan", [slots.cap !== undefined && slots.started + " of " + slots.cap + " started",
     slots.load !== undefined && [slots.load + " load of " + slots.limit, slots.load >= slots.limit ? "attention" : ""],
@@ -689,8 +693,6 @@ function renderFan(fan) {
   put("meters", h("div", {}, h("div", {}, "Dispatched sessions: " + busy + " of " + cap + " (" + alive.length + " alive, " + alive.filter((s) => s.status === "blocked").length + " blocked on you)"), h("div", { class: "meter" }, h("div", { style: "width:" + Math.min(100, 100 * busy / cap) + "%" })),
     ok ? [h("div", {}, "Machine load: " + fill.load + " of " + fill.limit), h("div", { class: "meter" }, h("div", { style: "width:" + Math.min(100, 100 * fill.load / fill.limit) + "%" }))] : h("div", { class: "unknown-note" }, "load: unknown")));
   put("flags", fan.flags.length ? fan.flags.map((f) => h("div", { class: "flag" }, badge("attention"), " ", h("b", {}, f.kind), " ", f.work_item + ": " + f.detail)) : h("div", {}, badge("ok"), " no disagreements between work items and sessions"));
-  put("fill", ok ? [h("h2", { style: "margin-top:10px" }, "Dispatch.Fill dry run: would start " + fill.would_start.length),
-    table(["Work item", "Result"], fill.would_start.map((w) => [w.slug, "would start"]).concat(fill.skipped.map((w) => [w.slug, "skipped: " + w.reason])))] : unknown(fill || { unknown: "none" }));
   // Claimed items first, then the rest; each row says who holds it and what is wrong with it.
   const claimedFirst = (r) => (r.claimed_by || r.sessions.length ? 0 : 1);
   const mapRows = [...fan.rows].sort((a, b) => claimedFirst(a) - claimedFirst(b) || a.slug.localeCompare(b.slug));
@@ -835,6 +837,7 @@ function listen() {
     open: () => { $("live").textContent = "stream: live"; },
     error: () => { $("live").textContent = "stream: reconnecting"; },
     pause: () => { $("live").textContent = "stream: paused"; },
+    tile: (t) => { const el = document.getElementById(t.id); if (el) el.innerHTML = t.html; },
     state: (data) => { try { render(data.state); } catch (e) { $("updated").textContent = "update failed: " + e.message; } },
     board: (ev) => { if (ev.key) putEvent(ev, true); }
   });
