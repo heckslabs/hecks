@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "rbconfig"
+require "fileutils"
 require_relative "console_capture"
 
 module Hecks
@@ -20,21 +21,30 @@ module Hecks
       # Minutes a chain may tick when the world names none.
       MINUTES = 30
 
+      # The characters of a run key that are replaced when the key names a log file.
+      UNSAFE_IN_FILENAME = /[^\w.-]/
+
       # What the child runs: sleeps, dispatches one tick through the launcher with bare arguments
       # (`to=`, `tick=`, `beats=`), and when the launcher refuses records the chain's end with
       # `Ticker.stop!`, naming the refusal's first line, so a chain that ends is an event.
       # Each statement is one line: the lines are joined with `;` to pass the script to `ruby -e`.
       CHAIN = <<~RUBY.tr("\n", ";").freeze
-        run, seconds, launcher = ARGV
+        run, seconds, launcher, log = ARGV
+        note = ->(line) { File.open(log, "a") { |f| f.puts("\#{Time.now.utc.strftime("%FT%TZ")} \#{line}") } }
+        note.call("chain begun for \#{run} (pid \#{Process.pid}, period \#{seconds}s)")
         count = 0
         loop do
           sleep(seconds.to_f)
           count += 1
           tick = ["Ticker.tick!", "to=\#{run}", "tick=\#{run}-\#{count}", "beats=\#{count}"]
           out = IO.popen([launcher, *tick, { err: [:child, :out] }], &:read)
+          note.call("tick \#{count}: exit \#{$?.exitstatus.inspect}")
           next if $?.success?
           why = out.lines.map(&:strip).reject { |l| l.empty? || l.start_with?("[hecks]") }.first.to_s
-          system(launcher, "Ticker.stop!", "to=\#{run}", "ending=\#{why}", out: File::NULL, err: File::NULL)
+          why = "the launcher exited \#{$?.exitstatus.inspect} without a refusal" if why.empty?
+          note.call("ended: \#{why}")
+          system(launcher, "Ticker.stop!", "to=\#{run}", "ending=\#{why}", out: [log, "a"], err: [:child, :out])
+          note.call("stop exit \#{$?.exitstatus.inspect}")
           break
         end
       RUBY
@@ -59,20 +69,29 @@ module Hecks
         launcher = File.join(@root, "exe", "hecks")
         raise ConsoleCapture::Failure, "no launcher at #{launcher}" unless File.executable?(launcher)
 
-        spawner.call(*child(plain(held[:run]), launcher))
+        run = plain(held[:run])
+        spawner.call(*child(run, launcher, logfile(run)))
         { limit: { value: (minutes * 60 / seconds).ceil } }
       end
 
       private
 
-      def child(run, launcher)
-        [RbConfig.ruby, "-e", CHAIN, run, seconds.to_s, launcher]
+      def child(run, launcher, log)
+        [RbConfig.ruby, "-e", CHAIN, run, seconds.to_s, launcher, log]
+      end
+
+      # The file the chain writes its beginning, each tick's status and its end to, and where the
+      # child's own stdout and stderr go; its directory exists once a chain is asked for.
+      def logfile(run)
+        dir = @standins[:dir] || File.join(Dir.home, ".claude", "hecks-dev", "ticker")
+        FileUtils.mkdir_p(dir)
+        File.join(dir, "#{run.gsub(UNSAFE_IN_FILENAME, "_")}.log")
       end
 
       def spawner = @standins[:spawner] || method(:detach)
 
       def detach(*argv)
-        Process.detach(Process.spawn(*argv, in: File::NULL, out: File::NULL, err: File::NULL, pgroup: true))
+        Process.detach(Process.spawn(*argv, in: File::NULL, out: [argv.last, "a"], err: [:child, :out], pgroup: true))
       end
 
       def seconds = (@standins[:seconds] || declared[:seconds] || SECONDS).to_f
