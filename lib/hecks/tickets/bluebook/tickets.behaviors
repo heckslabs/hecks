@@ -135,6 +135,20 @@ Hecks.behaviors "Tickets" do
     expect title: { value: "Plain words" }, outcome: { value: "Something is true" }, status: "open"
   end
 
+  test "Rank sets the tier and keeps the title" do
+    tests "Rank", on: "Epic"
+    setup "Tickets::Epic.Open", epic: { value: "e1" }, title: { value: "Old" }, outcome: { value: "Something is true" }
+    input epic: "e1", tier: { value: 3 }
+    expect tier: { value: 3 }, title: { value: "Old" }
+  end
+
+  test "Rank refuses a tier above 9" do
+    tests "Rank", on: "Epic"
+    setup "Tickets::Epic.Open", epic: { value: "e1" }, title: { value: "Old" }, outcome: { value: "Something is true" }
+    input epic: "e1", tier: { value: 10 }
+    expect refused: "an epic tier is from 1 to 9"
+  end
+
   test "Retitle refuses an empty title" do
     tests "Retitle", on: "Epic"
     setup "Tickets::Epic.Open", epic: { value: "e1" }, title: { value: "Old" }, outcome: { value: "Something is true" }

@@ -158,6 +158,32 @@ RSpec.describe "the Tickets Epic" do
     expect(title_of).to eq("Done and renamed")
   end
 
+  def rank(tier, key = "e1") = cli("epic.rank!", "to=#{key}", "tier=#{tier}")
+
+  def tier_of(key = "e1") = plain(stored("Epic").find { |row| plain(row.epic) == key }.tier)
+
+  it "ranks an epic with a tier from 1 to 9", :aggregate_failures do
+    epic
+    rank(3)
+
+    expect(tier_of).to eq(3)
+    expect(title_of).to eq("Epic e1")
+  end
+
+  it "refuses a tier outside 1 to 9", :aggregate_failures do
+    epic
+
+    expect(rank(0)).to include("tier")
+    expect(rank(10)).to include("tier")
+  end
+
+  it "lists epics by tier, lowest first" do
+    %w[a b c].each { |key| epic(key) }
+    { "a" => 5, "b" => 1, "c" => 3 }.each { |key, tier| rank(tier, key) }
+
+    expect(cli("epic.ranked").scan(/\b[abc]\b/).uniq).to eq(%w[b c a])
+  end
+
   it "refuses an empty title", :aggregate_failures do
     epic
 
