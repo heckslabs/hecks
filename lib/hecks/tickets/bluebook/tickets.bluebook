@@ -897,6 +897,21 @@ Hecks.bluebook "Tickets" do
     trigger Work::Plan, with: { work: :stall, title: :title, detail: :detail }
   end
 
+  # A train pull request whose CI failed past its reruns is one red work item, `red-train-<pr>`, for a
+  # coder; the fill starts red items over budget. The key is the dedupe: a second exhausted attempt of
+  # the same pull request plans nothing twice.
+  policy "PlanWorkWhenTrainPrExhausted" do
+    on      "TrainPr.TrainPrExhausted"
+    trigger Work::Plan, with: { work: :work, title: :title, detail: :detail }
+  end
+
+  # The item is red by its key (`red-*`, which the fill starts first and over budget) and wanted now.
+  policy "PrioritizeTheRedTrainWork" do
+    on      "Work.WorkPlanned"
+    where   { work.value.start_with?("red-train-") }
+    trigger Work::Prioritize, with: { work: :work, priority: "now" }
+  end
+
   # QA's push check: a push that is due beyond the world's thresholds is one work item, `push-due`. A look
   # that finds it already open revises its detail; a look that finds it no longer due finishes it.
   policy "PlanWorkWhenPushDue" do

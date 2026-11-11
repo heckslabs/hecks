@@ -395,7 +395,27 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  # Reruns the failed jobs of a train pull request's CI run, once the bluebook has decided to.
+  Hecks::TrainPr.port "CiRuns" do
+    asks "Restart", to: TrainPr do
+      attribute :key, Key
+      attribute :ci_run, Word
+      attribute :pr, Word
+      attribute :work, Word
+      attribute :title, Word
+      attribute :failure, Report
+      answers "RestartAnswered"
+      refuses "RestartRefused"
+    end
+  end
+
   Hecks::ReviewRequest.port "GitHubPullRequests" do
+    asks "Tidy", to: ReviewRequest do
+      attribute :run, RunKey
+      answers "TidyAnswered"
+      refuses "TidyRefused"
+    end
+
     asks "Create", to: ReviewRequest do
       attribute :run, RunKey
       answers "OpenAnswered"

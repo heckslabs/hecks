@@ -17,7 +17,7 @@ module Hecks
         NONE = /no pull requests found/i
 
         # The fields read from the pull request.
-        FIELDS = "number,state,mergeCommit,statusCheckRollup"
+        FIELDS = "number,state,mergeCommit,statusCheckRollup,commits"
 
         # @param runner [#call] takes `(argv, chdir:)` and answers `[ok, output]`
         # @param checkout [String] the directory `gh` runs in
