@@ -1,15 +1,12 @@
 # The Triage bluebook, bound so it boots standing alone (a behaviors or model_check boot of this
-# directory). It persists in Memory like every tooling domain. The ports it shares with every
-# attaching hecksagon are in triage.ports.hecksagon.
+# directory). It persists in Memory like every tooling domain.
 Hecks.hecksagon "Triage" do
   attaches "Governance"
   persisted_by "Memory"
 
-  # The red flag's own events, as the Hecks domain records them: a raised flag opens an incident
-  # and a noted run joins it.
-  subscribe "Hecks.RedFlagRaised"
-  subscribe "Hecks.RedFlagRunNoted"
-  subscribe "Hecks.RedFlagCleared"
+  # CI's verdicts on a pushed commit, as the Hecks domain's Integration aggregate records them: a
+  # red one opens an incident.
+  subscribe "Hecks.CiFailed"
 end
 
 # The anti-corruption layer for Governance, which the bluebook's roles are checked against.

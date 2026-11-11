@@ -1,13 +1,14 @@
-# Triage: what the coordinator does when CI on main goes red, as a domain. The red flag (Hecks
-# RedFlag) says main is red; this domain names the batch since the last green head, restores the
-# tree, groups the failing jobs into causes by signature, matches each cause to a known lesson,
-# gives each cause to one coder, tracks the check-ins, and closes the incident when CI on the
-# coder's push is green.
+# Triage: what the coordinator does when CI on main goes red, as a domain. An incident opens when
+# CI goes red (Deliver's Integration.CiFailed), not when a flag is raised; it names the batch since
+# the last green head, restores the tree, groups the failing jobs into causes by signature, matches
+# each cause to a known lesson, gives each cause to one coder, tracks the check-ins, and closes the
+# incident when CI on the coder's push is green (Integration.CiPassed).
 #
-# It reads the pieces that exist and rebuilds none of them. The flag arrives as the events of the
-# Hecks RedFlag aggregate; the lessons record, the sessions, the Work items and the CI runs arrive
-# as the arguments of the commands below, supplied by whoever reads them. The bluebook never runs
-# `gh`, git or a clock.
+# It reads the pieces that exist and rebuilds none of them. CI's verdicts arrive as the events of
+# Deliver's Integration aggregate; the lessons record (Tickets Lesson), the sessions, the Work items
+# and the failing jobs arrive as the arguments of the commands below, supplied by whoever reads
+# them. The bluebook never runs `gh`, git or a clock; the time a claim has been quiet is an
+# argument of Return.
 
 Hecks.bluebook "Triage" do
   vision "A red main is one incident: its failing jobs are grouped into causes, each cause is held by one coder at a time, and the incident closes when CI is green on the fix."
@@ -23,7 +24,6 @@ Hecks.bluebook "Triage" do
     identified_by :incident
 
     attribute :incident,   Sha
-    attribute :flag,       Word, optional: true
     attribute :ci_run,     Word
     attribute :last_green, Sha, optional: true
     attribute :batch,      list_of(Sha), optional: true
@@ -38,7 +38,7 @@ Hecks.bluebook "Triage" do
       attribute :value, String, matches: :git_sha
     end
 
-    # A flag id, a CI run id or a time as the caller reads it.
+    # A CI run id or a time as the caller reads it.
     value_object "Word" do
       attribute :value, String, matches: :present
     end
@@ -73,7 +73,6 @@ Hecks.bluebook "Triage" do
       goal "Open the incident for a red main, with the head, the CI run, the last green head and the batch since it"
 
       attribute :incident,   Sha, sets: true
-      attribute :flag,       Word, optional: true, sets: true
       attribute :ci_run,     Word, sets: true
       attribute :last_green, Sha, optional: true, sets: true
       attribute :batch,      list_of(Sha), optional: true, sets: true
@@ -84,7 +83,7 @@ Hecks.bluebook "Triage" do
       emits IncidentOpened
     end
 
-    # The flag's second red run is the same incident: its run is noted and nothing else opens.
+    # A second red run on main is the same incident: its run is noted and nothing else opens.
     command "Join" do
       role "System"
       goal "Record another red run on the incident that is already open"
@@ -351,15 +350,12 @@ Hecks.bluebook "Triage" do
     end
   end
 
-  # The red flag raised for a new red opens the incident; a further red run joins it.
-  policy "OpenWhenFlagRaised" do
-    on      "RedFlag.RedFlagRaised"
-    trigger Incident::Open, with: { incident: :commit, flag: :flag, ci_run: :ci_run }
-  end
-
-  policy "JoinWhenRunNoted" do
-    on      "RedFlag.RedFlagRunNoted"
-    trigger Incident::Join, with: { incident: :commit, ci_run: :ci_run }
+  # CI going red on a pushed commit opens the incident, keyed by that commit. The same commit red
+  # again is refused as already open; the coordinator joins a later red run to the open incident
+  # with Incident.Join, since only it knows which incident stands.
+  policy "OpenWhenCiFails" do
+    on      "Integration.CiFailed"
+    trigger Incident::Open, with: { incident: :landed, ci_run: :landed }
   end
 
   # A cause named with a lesson's key cites it; one named with none is a gap reported to the owner.
@@ -380,8 +376,7 @@ Hecks.bluebook "Triage" do
     trigger Incident::Mend, with: { incident: :incident }
   end
 
-  # The last cause fixed with CI green closes the incident; the flag is lowered by the green run
-  # (RedFlag LowerTheFlagWhenCiPasses), and IncidentClosed names the flag for anything listening.
+  # The last cause fixed with CI green on the fix closes the incident.
   policy "CloseWhenFixed" do
     on      "Cause.CauseFixed"
     where   { conclusion.value == "success" }
