@@ -1716,9 +1716,7 @@ Hecks.bluebook "Hecks" do
       value_object "Switch", Boolean
 
       # Which attempt of a CI run failed: 1 is the first.
-      value_object "Tries" do
-        attribute :value, Integer
-      end
+      value_object "Tries", Integer
 
       lifecycle :status, default: "requested" do
         mark :failure, "failed", "refused", "red"
@@ -2122,9 +2120,7 @@ Hecks.bluebook "Hecks" do
       value_object "Report", String
 
       # Which attempt of a CI run failed: 1 is the first.
-      value_object "Tries" do
-        attribute :value, Integer
-      end
+      value_object "Tries", Integer
 
       # The spec files known to fail on load and pass when run again; a failure naming one is rerun
       # twice, not once. The policies `RerunTheKnownFlakySpec` and `ExhaustTheFailedTrainPr` name the same files.

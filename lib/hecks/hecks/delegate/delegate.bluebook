@@ -620,9 +620,7 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, matches: :present
       end
 
-      value_object "Beats" do
-        attribute :value, Integer
-      end
+      value_object "Beats", Integer
 
       value_object "TickerNote", String
 
