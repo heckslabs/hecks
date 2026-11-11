@@ -1,14 +1,20 @@
+require_relative "stalled_notice"
+
 module Hecks
   module Runtime
     module Outbox
       # What the relay does with the rows a crash left behind: a pending row is always safe to
-      # deliver again, a claimed one (claimed, then never settled) is only surfaced until the
-      # caller says its effect did not run. Mixed into `Relay`, which supplies `stores`,
-      # `deliver_row` and `log`.
+      # deliver again, a claimed one (claimed, then never settled) is settled as abandoned once it
+      # stands past the claim bound, and redelivered only when the caller says its effect did not
+      # run. Mixed into `Relay`, which supplies `registry`, `stores`, `deliver_row` and `log`.
       module Redrive
+        include StalledNotice
+
         # `pending` rows are always safe to redrive (never claimed yet).
-        # `claimed` rows are only surfaced — redelivering a maybe-already-run
-        # consumer needs an explicit `claimed: true`.
+        # A `claimed` row past the claim bound was left by a process that is gone. Unless
+        # `claimed: true` says its effect did not run, it is settled as failed (abandoned, not
+        # redelivered: a maybe-already-run consumer could double its effect) and named once, so no
+        # later boot names it again.
         def redrive!(claimed: false)
           stores.flat_map { |repository| redrive_store(repository, claimed) }
         end
@@ -51,7 +57,7 @@ module Hecks
         def stalled_row(delivery_id)
           repository, row = named_claimed_row(delivery_id)
           raise Hecks::Runtime::NotFound, "no claimed outbox row #{delivery_id.inspect}" unless row
-          raise Hecks::Runtime::NotFound, in_flight_wording(row) unless row.stalled?
+          raise Hecks::Runtime::NotFound, in_flight_wording(row) unless row.stalled?(claim_bound)
 
           [repository, row]
         end
@@ -75,11 +81,11 @@ module Hecks
 
         def in_flight_wording(row)
           "outbox row #{row.delivery_id} is in flight, claimed #{row.claimed_seconds_ago}s ago; only a row " \
-            "claimed over #{STALLED_AFTER}s ago is stalled"
+            "claimed over #{claim_bound}s ago is stalled"
         end
 
-        def abandon(row, repository, reason)
-          error = ["abandoned by an operator, not redelivered", reason].compact.join(": ")
+        def abandon(row, repository, reason, by: "an operator")
+          error = ["abandoned by #{by}, not redelivered", reason].compact.join(": ")
           repository.outbox_settle(row.id, status: "failed", error: error)
           row.status = "failed"
           row.error = error
@@ -89,7 +95,7 @@ module Hecks
         # The rows of one store that redrove: its pending rows first, then its claimed ones.
         def redrive_store(repository, claimed)
           redriven = repository.outbox_rows(status: "pending").select { |row| redrive_pending?(row, repository) }
-          stalled = repository.outbox_rows(status: "claimed").select(&:stalled?)
+          stalled = repository.outbox_rows(status: "claimed").select { |row| row.stalled?(claim_bound) }
           redriven + stalled.select { |row| redrive_claimed?(row, repository, claimed) }
         end
 
@@ -97,7 +103,7 @@ module Hecks
 
         def redrive_claimed?(row, repository, claimed)
           unless claimed
-            warn_stalled(row)
+            abandon_stalled(row, repository)
             return false
           end
           return false if withheld?(row)
@@ -105,20 +111,6 @@ module Hecks
           repository.outbox_settle(row.id, status: "pending")
           row.status = "pending"
           deliver_row(row, repository)
-        end
-
-        def warn_stalled(row)
-          warn stalled_wording(row)
-          @log << { outbox: row.delivery_id, consumer: row.consumer, kind: row.kind, stalled: true,
-                    event: row.event[:name], aggregate: row.event[:aggregate], id: row.event[:id] }
-        end
-
-        def stalled_wording(row)
-          "[hecks] outbox row #{row.delivery_id} (#{row.consumer} on #{row.event[:name]} for " \
-            "#{row.event[:aggregate]}##{row.event[:id]}) was claimed before the last crash/restart and never " \
-            "settled — its #{row.kind} may or may not have actually run. hecks does not auto-redrive a claimed " \
-            "row (the outcome is unknown, and redelivering it could double the effect); inspect it and " \
-            "redrive by hand with `runtime.outbox.redrive!(claimed: true)` once you know it is safe."
         end
       end
     end

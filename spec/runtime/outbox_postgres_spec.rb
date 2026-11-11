@@ -144,10 +144,11 @@ RSpec.describe "the transactional outbox, against Postgres", :io do
         expect(runtime.outbox.rows.map(&:status)).to eq(["claimed"])
       end
 
-      it "surfaces a claimed row instead of redriving it", :aggregate_failures do
+      it "abandons a stalled claimed row instead of redriving it, naming it once", :aggregate_failures do
         crash_leaving_stalled_claim
 
         expect { expect(rebooted.outbox.redrive!).to be_empty }.to output(/claimed before the last crash/).to_stderr
+        expect(rebooted.outbox.rows.first).to be_failed
         expect(ledger(rebooted, "o-1")).to be_nil
       end
 

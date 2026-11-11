@@ -10,7 +10,7 @@ RSpec.describe "the transactional outbox" do
   SQLITE_ADAPTER_FILE = File.join(InMemoryDomain::ROOT, "lib/hecks/adapters/driven/sqlite.adapter")
 
   OUTBOX_STALLED_ROW_WARNING =
-    /outbox row .*policy:Shop::RecordOrder.*claimed before the last crash.*redrive!\(claimed: true\)/m
+    /outbox row .*policy:Shop::RecordOrder.*claimed before the last crash.*not redelivered/m
   OUTBOX_HEKI_WARNING = %r{Shop declares policies/process_managers but its persistence adapter \(Heki\) has no outbox}
 
   # Two aggregates, one policy between them: placing an Order owes the
@@ -70,10 +70,19 @@ RSpec.describe "the transactional outbox" do
     Hecks::Runtime::Loader.bind_runtime(Hecks::Runtime::Dispatcher.new(registry))
   end
 
-  def boot_sqlite(dir)
+  def silence_stderr
+    original = $stderr
+    $stderr = StringIO.new
+    yield
+  ensure
+    $stderr = original
+  end
+
+  def boot_sqlite(dir, claim_minutes: nil)
     registry = Hecks::Runtime::Registry.new
     declare_shop(registry)
     Hecks.with_registry(registry) do
+      Hecks.world("Hecks") { outbox "Claims", stalled_minutes: claim_minutes } if claim_minutes
       Hecks.hecksagon("Shop") { persisted_by "SqlitePersistence" }
       Hecks.world("Shop") { persisted_by("SqlitePersistence") { database(File.join(dir, "shop.db")) } }
     end
@@ -238,12 +247,34 @@ RSpec.describe "the transactional outbox" do
       expect(runtime.outbox.rows.map(&:status)).to eq(["claimed"])
     end
 
-    it "surfaces a claimed row instead of redriving it, until told the redrive is safe", :aggregate_failures do
+    it "abandons a stalled claimed row at boot without running it, naming it once", :aggregate_failures do
       crash_leaving_stalled_claim
 
       expect { expect(rebooted.outbox.redrive!).to be_empty }.to output(OUTBOX_STALLED_ROW_WARNING).to_stderr
-      expect(rebooted.outbox.log.last).to include(stalled: true, consumer: "policy:Shop::RecordOrder")
+      expect(rebooted.outbox.rows.first).to be_failed.and have_attributes(error: /by the boot, not redelivered: claimed \d+s/)
       expect(ledger(rebooted, "o-1")).to be_nil
+    end
+
+    it "logs a finding naming the abandoned row" do
+      crash_leaving_stalled_claim
+      silence_stderr { rebooted.outbox.redrive! }
+
+      expect(rebooted.outbox.log.last).to include(stalled: true, abandoned: true, consumer: "policy:Shop::RecordOrder")
+    end
+
+    it "stays silent about the same row on the next boot" do
+      crash_leaving_stalled_claim
+      silence_stderr { rebooted.outbox.redrive! }
+
+      expect { boot_sqlite(dir).outbox.redrive! }.not_to output.to_stderr
+    end
+
+    it "leaves a claim younger than the world's bound alone and abandons an older one", :aggregate_failures do
+      crash_placing(runtime.instance_variable_get(:@policies), :react)
+      claimed_ago(90)
+
+      expect { boot_sqlite(dir, claim_minutes: 5).outbox.redrive! }.not_to output.to_stderr
+      expect { boot_sqlite(dir, claim_minutes: 1).outbox.redrive! }.to output(OUTBOX_STALLED_ROW_WARNING).to_stderr
     end
 
     it "redrives a claimed row once told the redrive is safe", :aggregate_failures do
@@ -340,11 +371,11 @@ RSpec.describe "the transactional outbox" do
           .to raise_error(Hecks::Runtime::NotFound, /is in flight/)
       end
 
-      it "names it as stalled once it has stood claimed past the limit", :aggregate_failures do
+      it "abandons it once it has stood claimed past the limit", :aggregate_failures do
         claimed_ago(Hecks::Runtime::Outbox::STALLED_AFTER + 60)
 
         expect { rebooted.outbox.redrive! }.to output(OUTBOX_STALLED_ROW_WARNING).to_stderr
-        expect(rebooted.outbox.rows.first).to be_stalled
+        expect(rebooted.outbox.rows.first).to be_failed
       end
     end
 
