@@ -25,6 +25,17 @@ module Hecks
           ""
         end
 
+        # @param command [String] the step's command
+        # @param key [String] the step's `Integration` record
+        # @return [String, nil] why an `Observe` was refused, so its read was not made; nil when it
+        #   answered. The refusal is an event only, so it is read from the log.
+        def unobserved(command, key)
+          return nil unless command == "Observe"
+
+          event = @registry.event_log.reverse.find { |logged| logged.name == "ObserveRefused" && logged.id == key }
+          event && Runtime::Value.materialize(event.payload).dig(:refusal, :value).to_s
+        end
+
         private
 
         def field(key, name)

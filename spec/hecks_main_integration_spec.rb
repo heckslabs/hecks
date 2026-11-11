@@ -467,6 +467,20 @@ RSpec.describe "integrating main through the MainIntegration saga" do
     expect(report("IntegrationAdvanced")).to include("Observe raised NoMethodError", "waiting: #{pushed[0, 10]} is ci_running")
   end
 
+  # Pushes one run, then gives reading GitHub a 502 and advances.
+  def push_one_then_lose_github
+    pushed = land
+    advance
+    Hecks::Adapters::CiRuns.runner = ->(*, **) { [false, "HTTP 502"] }
+    advance
+    pushed
+  end
+
+  it "reports an unreadable GitHub as not observed, not as the stored stage", :aggregate_failures do
+    expect(stage(push_one_then_lose_github)).to eq("ci_running")
+    expect(report("IntegrationAdvanced")).to include("Observe: not observed, refused:").and(include("HTTP 502"))
+  end
+
   it "parks a run whose verification raises, with the exception's text", :aggregate_failures do
     Hecks::Adapters::MainVerification.runner = method(:defect)
     landed = land
