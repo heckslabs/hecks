@@ -27,25 +27,35 @@ module Hecks
 
       # What the child runs: sleeps, dispatches one tick through the launcher with bare arguments
       # (`to=`, `tick=`, `beats=`), and when the launcher refuses records the chain's end with
-      # `Ticker.stop!`, naming the refusal's first line, so a chain that ends is an event.
+      # `Ticker.stop!`, naming the refusal's first line, so a chain that ends is an event. The log
+      # path is the last argument and the minutes the chain may run the one before it: a chain past
+      # them ends the same way, naming the bound, whatever its beats count (a tick can take
+      # minutes, so beats alone do not bound the time). Without the minutes only a refusal ends it.
       # Each statement is one line: the lines are joined with `;` to pass the script to `ruby -e`.
       CHAIN = <<~RUBY.tr("\n", ";").freeze
-        run, seconds, launcher, log = ARGV
+        log = ARGV.pop
+        run, seconds, launcher, minutes = ARGV
         note = ->(line) { File.open(log, "a") { |f| f.puts("\#{Time.now.utc.strftime("%FT%TZ")} \#{line}") } }
+        finish = lambda do |why|
+          note.call("ended: \#{why}")
+          system(launcher, "Ticker.stop!", "to=\#{run}", "ending=\#{why}", out: [log, "a"], err: [:child, :out])
+          note.call("stop exit \#{$?.exitstatus.inspect}")
+        end
         note.call("chain begun for \#{run} (pid \#{Process.pid}, period \#{seconds}s)")
+        started = Time.now
         count = 0
         loop do
           sleep(seconds.to_f)
           count += 1
+          outlived = minutes && Time.now - started >= minutes.to_f * 60
+          (finish.call("the chain outlived its \#{minutes} minutes after \#{count - 1} ticks"); break) if outlived
           tick = ["Ticker.tick!", "to=\#{run}", "tick=\#{run}-\#{count}", "beats=\#{count}"]
           out = IO.popen([launcher, *tick, { err: [:child, :out] }], &:read)
           note.call("tick \#{count}: exit \#{$?.exitstatus.inspect}")
           next if $?.success?
           why = out.lines.map(&:strip).reject { |l| l.empty? || l.start_with?("[hecks]") }.first.to_s
           why = "the launcher exited \#{$?.exitstatus.inspect} without a refusal" if why.empty?
-          note.call("ended: \#{why}")
-          system(launcher, "Ticker.stop!", "to=\#{run}", "ending=\#{why}", out: [log, "a"], err: [:child, :out])
-          note.call("stop exit \#{$?.exitstatus.inspect}")
+          finish.call(why)
           break
         end
       RUBY
@@ -86,7 +96,7 @@ module Hecks
       end
 
       def child(run, launcher, log)
-        [RbConfig.ruby, "-e", CHAIN, run, seconds.to_s, launcher, log]
+        [RbConfig.ruby, "-e", CHAIN, run, seconds.to_s, launcher, minutes.to_s, log]
       end
 
       # The file the chain writes its beginning, each tick's status and its end to, and where the
