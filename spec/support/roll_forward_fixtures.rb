@@ -23,6 +23,11 @@ module RollForwardFixtures
     Hecks::Adapters::Dispatching::WorkItems.new(registry_of(entries)).planned.map(&:key)
   end
 
+  def rollable(*specs)
+    entries = specs.map { |key, rest| entry(key, **(rest || {})) }
+    Hecks::Adapters::Dispatching::WorkItems.new(registry_of(entries)).rollable.map(&:key)
+  end
+
   def plan_of(areas)
     planned = areas.map { |key, area| Item.new(key: key, title: key, detail: "", area: area) }
     Hecks::Adapters::Dispatching::Plan.new(planned, [], cap: 5, load: 0.0, max_load: 9.0, frozen: [])
@@ -37,7 +42,8 @@ module RollForwardFixtures
   end
 
   def rolling(world)
-    items = instance_double(Hecks::Adapters::Dispatching::WorkItems, planned: [], started: [], lessons: [], runs: {})
+    items = instance_double(Hecks::Adapters::Dispatching::WorkItems, planned: [], rollable: [], started: [], lessons: [],
+                                                                     runs: {})
     settings = { load: -> { 0.5 }, cpus: 4, work_items: items, runner: ->(*) { raise "no launch" } }
     Hecks::Adapters::Rolling.new(registry: registry_of([], world), settings: settings)
   end

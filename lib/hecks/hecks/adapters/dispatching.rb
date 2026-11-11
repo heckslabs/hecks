@@ -54,7 +54,8 @@ module Hecks
         confirmed = plain(held[:confirm]) == true
         Filling.during(confirmed) do
           settle_ended(held) if confirmed
-          { report: { value: filling_lines(plan_for(prefix(held)), held, confirmed).join("\n") } }
+          plan = plan_for(prefix(held), rolling: plain(held[:rolling]) == true)
+          { report: { value: filling_lines(plan, held, confirmed).join("\n") } }
         end
       end
 
@@ -124,8 +125,8 @@ module Hecks
 
       def in_process_runner(repo) = InProcessRunner.fits?(@registry, repo) ? InProcessRunner.new(@registry) : nil
 
-      def plan_for(only = "")
-        Plan.new(planned(only), work_items.started, **limits)
+      def plan_for(only = "", rolling: false)
+        Plan.new(planned(only, rolling: rolling), work_items.started, **limits)
       end
 
       # What bounds a filling: the machine's cap and load, what pauses every work item, and the
@@ -147,8 +148,12 @@ module Hecks
         [header(plan)] + plan.chosen.map { |item| chosen_line(item) } + plan.skipped.map { |skip| skipped_line(skip) }
       end
 
-      # The planned work items, held to those whose key starts with `only` when one is named.
-      def planned(only) = work_items.planned.select { |item| only.empty? || item.key.to_s.start_with?(only) }
+      # The planned work items, held to those whose key starts with `only` when one is named, and
+      # to those a roll may start when `rolling`.
+      def planned(only, rolling: false)
+        items = rolling ? work_items.rollable : work_items.planned
+        items.select { |item| only.empty? || item.key.to_s.start_with?(only) }
+      end
 
       def header_of(report) = report.partition("\n").first
 

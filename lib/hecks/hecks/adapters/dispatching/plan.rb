@@ -21,7 +21,7 @@ module Hecks
       class Plan
         # A work item, as {WorkItems} reads it.
         # `yield_kind`, `retry_at` and `yield_count` are what its last yield recorded ({Parking}).
-        Item = Struct.new(:key, :title, :detail, :area, :yield_kind, :retry_at, :yield_count, keyword_init: true)
+        Item = Struct.new(:key, :title, :detail, :area, :yield_kind, :retry_at, :yield_count, :priority, keyword_init: true)
 
         # The top level of this checkout: the root an absolute area is made relative to.
         REPOSITORY = File.expand_path("../../../../..", __dir__)

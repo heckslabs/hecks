@@ -37,6 +37,14 @@ module Hecks
           having("planned").sort_by.with_index { |entry, index| order(entry, index, stalls) }.map(&:last)
         end
 
+        # @return [Array<Plan::Item>] the planned work items a roll may start, in the same order: a
+        #   red one, a filed stall, or one the owner marked by giving it a priority. An unmarked
+        #   item waits for a manual fill.
+        def rollable
+          stalls = stall_prefixes
+          planned.select { |item| rolls?(item, stalls) }
+        end
+
         # @return [Array<Plan::Item>] the started work items
         def started = having("started").map(&:last)
 
@@ -110,6 +118,8 @@ module Hecks
 
         def red?(item) = self.class.red?(item)
 
+        def rolls?(item, stalls) = urgency(item, stalls) < 2 || TIERS.include?(item.priority)
+
         def having(status)
           work = find("Tickets", "Work")
           return [] unless work
@@ -122,7 +132,7 @@ module Hecks
           Plan::Item.new(key: field(record, :work).to_s, title: field(record, :title).to_s,
                          detail: field(record, :detail).to_s, area: StartedWork.words(field(record, :area)),
                          yield_kind: field(record, :yield_kind).to_s, retry_at: field(record, :retry_at).to_s,
-                         yield_count: field(record, :yield_count).to_i)
+                         yield_count: field(record, :yield_count).to_i, priority: field(record, :priority).to_s)
         end
 
         def state(run) = { status: field(run, :status).to_s, condition: field(run, :condition).to_s }
