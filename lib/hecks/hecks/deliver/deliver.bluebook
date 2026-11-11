@@ -715,6 +715,7 @@ Hecks.bluebook "Hecks" do
       lifecycle :status, default: "requested" do
         mark :failure, "refused"
         transition "Record"  => "landed",  from: "requested"
+        transition "Adopt"   => "landed",  from: "requested"
         transition "Clear"   => "retired", from: "requested"
         transition "Dispose" => "discarded", from: "requested"
         transition "Shelve"  => "set_aside", from: "requested"
@@ -789,6 +790,18 @@ Hecks.bluebook "Hecks" do
         attribute :branch, Word, sets: true
         attribute :landed, Word, sets: true
         attribute :report, Report, sets: true
+        attribute :checkout, Word, optional: true, sets: true
+
+        emits BranchLanded
+      end
+
+      command "Adopt" do
+        role "System"
+        goal "Record a tip of local main that no integration run covers as landed on main, so its run starts"
+
+        attribute :branch,   Word, sets: true
+        attribute :landed,   Word, sets: true
+        attribute :report,   Report, sets: true
         attribute :checkout, Word, optional: true, sets: true
 
         emits BranchLanded
@@ -1034,8 +1047,12 @@ Hecks.bluebook "Hecks" do
       end
     end
 
+    # Main itself is not a branch to push as ci/<branch>: a tip no run covers, which the integration
+    # adopts (`Landing.Adopt`, from `Integration::Adoption`), is recorded as landed on main and
+    # starts no early CI.
     policy "StartEarlyCiWhenBranchLanded" do
       on      "Landing.BranchLanded"
+      where   { branch.value != "main" }
       trigger EarlyCi::Start, with: { run: :run, branch: :branch }
     end
 
@@ -1953,6 +1970,30 @@ Hecks.bluebook "Hecks" do
     policy "RecordTheAdvance" do
       on      "Integration.AdvanceAnswered"
       trigger Integration::Summarize, with: { report: :report }
+    end
+
+    # A train pull request's verdict frees the line, so the tip held verified behind it boards at
+    # once, with no landing to start the advance. The verdicts are CI on the merge commit (passed
+    # or failed) and the pull request closed unmerged; the merge itself is not one, since the run
+    # stays watched in `merged` until its CI has a verdict. Each is a root reaction, once per
+    # event, and the advance it asks is confirmed because the held tip is boarded by design. The
+    # order rule is the port's: an advance boards nothing while another run is pushed or watched.
+    policy "AdvanceWhenCiPasses" do
+      on      "Integration.CiPassed"
+      root
+      trigger Integration::Advance, with: { run: :landed, confirm: true }
+    end
+
+    policy "AdvanceWhenCiFails" do
+      on      "Integration.CiFailed"
+      root
+      trigger Integration::Advance, with: { run: :landed, confirm: true }
+    end
+
+    policy "AdvanceWhenTrainPrClosed" do
+      on      "Integration.PullRequestClosed"
+      root
+      trigger Integration::Advance, with: { run: :landed, confirm: true }
     end
 
     policy "RecordTheRefusedAdvance" do

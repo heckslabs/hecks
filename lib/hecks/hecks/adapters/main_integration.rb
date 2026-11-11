@@ -42,6 +42,7 @@ module Hecks
       def step(**held)
         confirm = plain(held[:confirm]) == true
         lines = advance_open(confirm)
+        lines += adopted(confirm)
         { report: { value: lines.empty? ? "no open integration run" : lines.join("\n") } }
       end
 
@@ -55,12 +56,21 @@ module Hecks
       # @raise [ConsoleCapture::Failure] when no run is pushed or watched (a quiet beat)
       def tend(**_held)
         lines = attend(runs.all.select { |run| NEXT[run.state] == "Observe" }, false)
+        lines += adopted(true)
         raise ConsoleCapture::Failure, "quiet: no train pull request in flight" if lines.empty?
 
         { report: { value: lines.join("\n") } }
       end
 
       private
+
+      # A tip of main no run covers (a pull rewrote the held tip) gets a run when none is open, and
+      # that run takes its first steps at once: it is boarded like any other, so a beat that finds
+      # such a tip verifies and boards it.
+      def adopted(confirm)
+        opened = Adoption.new(@registry).open_run
+        opened.empty? ? opened : opened + advance_open(confirm)
+      end
 
       def advance_open(confirm) = attend(observing_first(runs.all.select { |run| NEXT.key?(run.state) }), confirm)
 
@@ -145,6 +155,7 @@ end
 
 require_relative "main_integration/code_watch"
 require_relative "main_integration/runs"
+require_relative "main_integration/adoption"
 require_relative "main_integration/fault"
 require_relative "main_integration/outcome"
 require_relative "main_integration/train_checks"
