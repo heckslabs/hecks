@@ -124,7 +124,7 @@ RSpec.describe Hecks::Adapters::PushSize, :io do
       commits(41)
       adapter = train.tap { |t| t.instance_variable_set(:@checkout, work) }
 
-      expect(adapter.send(:push_size, {})).to eq(
+      expect(adapter.send(:push_size, {}, "HEAD")).to eq(
         [41, "pushing 41 commits; URGENT PUSH NOW: 41 commits is over the 15 you set (urgent at 40)"]
       )
     end
