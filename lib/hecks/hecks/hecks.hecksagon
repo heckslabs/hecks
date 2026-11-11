@@ -5,7 +5,7 @@ Hecks.hecksagon "Hecks" do
   # Expression, Tenancy, Deploy, Site, Tickets, Composer and QualityControl (the last three bring
   # their own ports), and Coder and Fixer, whose events Tickets and QualityControl react to.
   %w[Bluebook Hecksagon World Adapter Port Translation Expression Tenancy Deploy Site Tickets Composer QualityControl
-     Coder Fixer PipelineBoard Pipeline Agents]
+     Coder Fixer PipelineBoard Pipeline Agents Triage]
     .each { |declaration| attaches declaration }
   # An architect review asked for by event starts a session through AgentRun, keyed by the review
   # (see StartTheRoleOnReviewRequest in the delegate bluebook).

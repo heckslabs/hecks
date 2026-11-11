@@ -37,6 +37,8 @@ module Hecks
       catcher:   "lib/hecks/catcher",
       # The Agents domain: the roles that work a change, each handing off through a command.
       agents:    "lib/hecks/agents",
+      # The Triage domain: one incident per red main, its causes, and who holds each.
+      triage:    "lib/hecks/triage",
       # A package vendored via `attaches ... from: :vendor` — nested inside the
       # consuming example's own checkout, not this gem's own framework/bluebook/.
       vendored:  "examples/*/vendor/embryonaut_bluebooks/*"
