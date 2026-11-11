@@ -6,7 +6,7 @@ class FakeTrainGithub
   SPEC_LOG = "Failures:\n\n  1) a real example fails\n     Failure/Error: expect(1).to eq(2)\n\n" \
              "1 examples, 1 failures\nrspec ./spec/real_spec.rb:3 # a real example fails".freeze
 
-  # A log from a shard that failed in CI setup, before any spec ran (PR 1335, 2026-11-11).
+  # A log from a shard that failed in CI setup (an apt install), before any spec ran.
   SETUP_LOG = "apt install of zsh failed or timed out (attempt 3 of 3)\n" \
               "##[error]Process completed with exit code 1".freeze
 
