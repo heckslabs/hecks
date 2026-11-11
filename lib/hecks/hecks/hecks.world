@@ -66,6 +66,10 @@ Hecks.world "Hecks" do
   landing "Queue", stale_minutes: 30, wait_minutes: 40
   # How long a hold on local main for a boarding lasts before it expires on its own, so main is never held longer.
   boarding_hold "Window", max_minutes: 20
+  # How long an outbox row may stand claimed before a boot settles it as failed (abandoned, not redelivered)
+  # and names it once. A claim that old was left by a process that died; nothing else releases it, so without a
+  # bound the same rows were named on every boot. Ten minutes is the longest a reaction is expected to run.
+  outbox "Claims", stalled_minutes: 10
   # Owner decision: the full spec suite runs only in CI (the Vocabulary `rspec` check is `runs_in: "ci"`).
   # Locally `test_suite_run.run_suite!` is refused, and `run_spec_files!` and `run_impacted_specs!` run
   # every file they are given; CI is detected by the environment (`CI`, `GITHUB_ACTIONS`).

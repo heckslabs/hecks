@@ -18,7 +18,8 @@ module Hecks
 
       # How long a row stays claimed before it counts as stalled: a claim that old was left by a
       # process that is gone, where a younger one is a reaction running in another process. Ten
-      # minutes is the ceiling a reaction is expected to stay inside.
+      # minutes is the ceiling a reaction is expected to stay inside; the world's
+      # `outbox "Claims", stalled_minutes:` setting moves it.
       STALLED_AFTER = 600
 
       # `claimed_for` is the seconds since the row was claimed, read from the store's own clock; nil
@@ -31,9 +32,11 @@ module Hecks
         def failed?    = status == "failed"
         def refused?   = status == "refused"
 
-        # A claimed row is stalled when its age is unknown or past `STALLED_AFTER`; a younger one is
-        # a reaction still running.
-        def stalled? = claimed? && (claimed_for.nil? || claimed_for >= STALLED_AFTER)
+        # A claimed row is stalled when its age is unknown or past `bound`; a younger one is a
+        # reaction still running.
+        #
+        # @param bound [Numeric] seconds a claim may stand before it counts as stalled
+        def stalled?(bound = STALLED_AFTER) = claimed? && (claimed_for.nil? || claimed_for >= bound)
 
         # @return [Integer, nil] whole seconds since the claim, or nil when the store does not say
         def claimed_seconds_ago = claimed_for&.round
