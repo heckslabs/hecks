@@ -10,7 +10,8 @@ module Hecks
         # Work items and the agents. Each method answers the rows of one box, `[text, tone]` each.
         class Work
           # The session states in the order they are listed, with the heading of each.
-          GROUPS = { "blocked" => "blocked on you", "busy" => "working", "failed" => "failed", "done" => "done" }.freeze
+          GROUPS = { "blocked" => "blocked on you", "held" => "blocked, not on you", "busy" => "working", "failed" => "failed",
+                     "done" => "done" }.freeze
 
           # @param state [Hash] the board's state, with `train_prs` where it was read
           # @param limit [Integer] how many rows a long list shows
@@ -30,7 +31,14 @@ module Hecks
             found = @state[:sessions]
             return [unknown(found)] unless found.is_a?(Array)
 
-            GROUPS.flat_map { |status, heading| group(status, heading, found.select { |row| row[:status] == status }) }
+            GROUPS.flat_map { |status, heading| group(status, heading, found.select { |row| state_of(row) == status }) }
+          end
+
+          # A blocked session is shown as blocked on you only when it is the owner's to answer.
+          def state_of(row)
+            return row[:status] unless row[:status] == "blocked"
+
+            OwnerQueue.waiting?(row) ? "blocked" : "held"
           end
 
           # @return [Array<Array(String, String)>] each open train pull request, its checks counted

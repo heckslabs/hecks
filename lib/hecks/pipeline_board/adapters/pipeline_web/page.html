@@ -262,9 +262,12 @@ function badge(state) {
   return h("span", { class: "badge " + state }, icon, " ", WORD[state] || state);
 }
 /* A blocked session is waiting on a person: amber, not green. */
-function sessionBadge(status) {
-  if (status === "blocked") return h("span", { class: "badge attention" }, ICON.attention, " blocked");
-  return badge(status === "busy" ? "working" : status === "failed" ? "failed" : "ok");
+/* Only a session that asks the owner is waiting on you; any other blocked session shows what it is held on. */
+function waitingOnYou(s) { return s.status === "blocked" && s.owner === true; }
+function sessionBadge(s) {
+  if (waitingOnYou(s)) return h("span", { class: "badge attention" }, ICON.attention, " blocked");
+  if (s.status === "blocked") return h("span", { class: "badge" }, " " + (s.held || "held"));
+  return badge(s.status === "busy" ? "working" : s.status === "failed" ? "failed" : "ok");
 }
 function isUnknown(x) { return x && !Array.isArray(x) && typeof x === "object" && "unknown" in x; }
 // A read still in flight shows a loading bar; a read that failed shows why.
@@ -413,7 +416,7 @@ const ROLE_CODES = { planner: "PL", orchestrator: "OR", architect: "AR", coder: 
 function renderRoles(roles) {
   if (isUnknown(roles)) return put("roles", unknown(roles));
   put("roles", roles.map((r) => {
-    const blocked = (r.working || []).filter((s) => s.status === "blocked").length;
+    const blocked = (r.working || []).filter(waitingOnYou).length;
     const state = blocked ? " blocked" : r.live > 0 ? " busy" : "";
     const note = blocked ? blocked + " waiting on you" : r.live > 0 ? r.live + " working" : "idle";
     return h("a", { class: "role" + state, href: "/agents", "data-role": r.name, tip: r.name + ": " + note },
@@ -539,7 +542,7 @@ function renderAttention(metrics, stages, sessions, recommendations) {
   const groups = [
     ["Metrics", metrics.filter((t) => needsAttention(t.state)).map((t) => ({ kind: "Metric", item: t.label, state: t.state, value: (t.value ?? "-") + (t.unit || ""), detail: t.detail, since: "-", act: () => resolve(t.label, t.detail) }))],
     ["Pipeline stages", stages.filter((s) => needsAttention(s.state)).map((s) => ({ kind: "Stage", item: s.name, state: s.state, value: "-", detail: s.detail, since: "-", act: () => resolve(s.name, s.detail) }))],
-    ["Sessions waiting on you", sessions.filter((s) => s.status === "blocked").map((s) => ({ kind: "Session", item: s.name + " " + (s.id || ""), state: "attention", value: s.work_item || s.row || "-", detail: s.detail, since: clock(s.started), act: () => openAnswer([{ id: s.id, name: s.name, run: s.run, repo: s.repo, work_item: s.work_item, question: s.detail, context: s.context, attach: s.attach }], s.id) }))]
+    ["Sessions waiting on you", sessions.filter(waitingOnYou).map((s) => ({ kind: "Session", item: s.name + " " + (s.id || ""), state: "attention", value: s.work_item || s.row || "-", detail: s.detail, since: clock(s.started), act: () => openAnswer([{ id: s.id, name: s.name, run: s.run, repo: s.repo, work_item: s.work_item, question: s.detail, context: s.context, attach: s.attach }], s.id) }))]
   ].filter(([, items]) => items.length);
   setTitle("h-attn", "Needs attention", groups.reduce((n, [, items]) => n + items.length, recs.length));
   const sized = Object.fromEntries(groups.map(([title, items]) => [title, items.length]));
@@ -604,7 +607,7 @@ function addDelete(row, s) {
 let sessionFilter = "all";
 const SESSION_FILTERS = {
   all: () => true,
-  blocked: (s) => s.status === "blocked",
+  blocked: waitingOnYou,
   working: (s) => s.status === "busy",
   finished: (s) => s.status === "done" || s.status === "failed",
   deletable: (s) => deletable(s)
@@ -638,12 +641,12 @@ function renderSessions(all) {
   if (highlight && highlight.kind === "runs" && !highlight.placed) aimSessions(all);
   const list = all.filter(SESSION_FILTERS[sessionFilter] || SESSION_FILTERS.all);
   setTitle("h-sess", "Sessions", list.length);
-  const by = (status) => all.filter((s) => s.status === status).length;
+  const by = (status) => all.filter((s) => (status === "blocked" ? waitingOnYou(s) : s.status === status)).length;
   summarize("sess", [by("busy") && [by("busy") + " working", "working"], by("blocked") && [by("blocked") + " waiting on you", "attention"],
     by("failed") && [by("failed") + " failed", "failed"], by("done") + " done", all.filter(deletable).length + " deletable"]);
   const at = pageOf("sessions", list.length, SESSION_PAGE);
   const shown = list.slice(at * SESSION_PAGE, (at + 1) * SESSION_PAGE);
-  put("sessions", filterBar(), table(["Session", "Status", "Work item", "Started", "Detail"], shown.map((s) => [sessionLabel(s), [sessionBadge(s.status), " ", s.state], s.row || "-", clock(s.started), replyNote(s)])),
+  put("sessions", filterBar(), table(["Session", "Status", "Work item", "Started", "Detail"], shown.map((s) => [sessionLabel(s), [sessionBadge(s), " ", s.state], s.row || "-", clock(s.started), replyNote(s)])),
     list.length > SESSION_PAGE ? pageBar("sessions", at, list.length, SESSION_PAGE, () => renderSessions(lastSessions)) : null);
   const rows = $("sessions").querySelectorAll("tbody tr");
   shown.forEach((s, i) => {
@@ -652,7 +655,7 @@ function renderSessions(all) {
     rows[i].dataset.highlight = highlightTokens("runs", [s.run, s.id]);
     if (deletable(s)) addDelete(rows[i], s);
     if (s.status === "blocked" && ["confirm", "retry"].includes(s.question_kind)) addAutoReply(rows[i], s);
-    if (s.status !== "blocked") return;
+    if (!waitingOnYou(s)) return;
     rows[i].classList.add("clickable"); rows[i].title = "Click to answer";
     answerable(rows[i], () => openAnswer([{ id: s.id, name: s.name, run: s.run, repo: s.repo, work_item: s.work_item, question: s.detail, context: s.context, attach: s.attach }], s.id));
   });
@@ -684,13 +687,13 @@ function renderFan(fan) {
   put("lanetable", table(["Session", "Status", "Started", "Ended", "Work item"], sessions.map((s) => [sessionLabel(s), s.status, clock(s.started), s.ended ? clock(s.ended) : "now", s.row || "-"])));
   const laneRows = $("lanetable").querySelectorAll("tbody tr");
   sessions.forEach((s, i) => {
-    if (s.status !== "blocked" || !laneRows[i]) return;
+    if (!waitingOnYou(s) || !laneRows[i]) return;
     laneRows[i].classList.add("clickable");
     answerable(laneRows[i], () => openAnswer([{ id: s.id, name: s.name, run: s.run, repo: s.repo, work_item: s.work_item, question: s.detail, context: s.context, attach: s.attach }], s.id));
   });
   const fill = fan.fill, ok = fill && !isUnknown(fill), cap = ok ? fill.cap : 8;
   const alive = sessions.filter((s) => s.status === "busy" || s.status === "blocked"), busy = alive.filter((s) => s.row).length;
-  put("meters", h("div", {}, h("div", {}, "Dispatched sessions: " + busy + " of " + cap + " (" + alive.length + " alive, " + alive.filter((s) => s.status === "blocked").length + " blocked on you)"), h("div", { class: "meter" }, h("div", { style: "width:" + Math.min(100, 100 * busy / cap) + "%" })),
+  put("meters", h("div", {}, h("div", {}, "Dispatched sessions: " + busy + " of " + cap + " (" + alive.length + " alive, " + alive.filter(waitingOnYou).length + " blocked on you)"), h("div", { class: "meter" }, h("div", { style: "width:" + Math.min(100, 100 * busy / cap) + "%" })),
     ok ? [h("div", {}, "Machine load: " + fill.load + " of " + fill.limit), h("div", { class: "meter" }, h("div", { style: "width:" + Math.min(100, 100 * fill.load / fill.limit) + "%" }))] : h("div", { class: "unknown-note" }, "load: unknown")));
   put("flags", fan.flags.length ? fan.flags.map((f) => h("div", { class: "flag" }, badge("attention"), " ", h("b", {}, f.kind), " ", f.work_item + ": " + f.detail)) : h("div", {}, badge("ok"), " no disagreements between work items and sessions"));
   // Claimed items first, then the rest; each row says who holds it and what is wrong with it.

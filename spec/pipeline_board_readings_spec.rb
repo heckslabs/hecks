@@ -124,7 +124,8 @@ RSpec.describe "PipelineBoard readings" do
   end
 
   it "counts only sessions dispatched for a Work item against the cap, and says how many are alive" do
-    live = [{ status: "busy", work_item: "a" }, { status: "busy", work_item: "" }, { status: "blocked", work_item: "" },
+    live = [{ status: "busy", work_item: "a" }, { status: "busy", work_item: "" },
+            { status: "blocked", owner: true, work_item: "" },
             { status: "done", work_item: "b" }]
     detail = "3 sessions alive, 1 blocked on you; load unknown"
     expect(working(live)).to include(value: 1, unit: "of #{session_cap}", detail: detail)

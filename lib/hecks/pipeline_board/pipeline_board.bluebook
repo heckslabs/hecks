@@ -177,6 +177,17 @@ Hecks.bluebook "PipelineBoard" do
       member stage: "Session status", position: 3, measure: "busy",    op: ">",      than: "0", scale: 1, state: "busy"
       member stage: "Session status", position: 4, measure: "failed",  op: ">",      than: "0", scale: 1, state: "failed"
       member stage: "Session status", position: 5, measure: "",        op: "always", than: "",  scale: 1, state: "done"
+
+      # ---- who a blocked session waits on ----
+      # Only a session that asks the owner (`asked`: an open "needs an answer" Work item names its
+      # run, or its latest message begins with [owner]) is the owner's to answer. A session of
+      # another repository, or whose Work item has finished, is not the pipeline's to list. The
+      # rest are shown for what they are, never as waiting on the owner.
+      member stage: "Session owner", position: 1, measure: "other_repo", op: ">",      than: "0", scale: 1, state: "other repo"
+      member stage: "Session owner", position: 2, measure: "finished",   op: ">",      than: "0", scale: 1, state: "finished leftover"
+      member stage: "Session owner", position: 3, measure: "asked",      op: ">",      than: "0", scale: 1, state: "owner"
+      member stage: "Session owner", position: 4, measure: "review",     op: ">",      than: "0", scale: 1, state: "waiting on a review verdict"
+      member stage: "Session owner", position: 5, measure: "",           op: "always", than: "",  scale: 1, state: "stranded run"
     end
 
     # A number a rule compares with. A QualityControl world's `ci_health` verb overrides the CI

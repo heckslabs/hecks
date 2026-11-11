@@ -55,6 +55,14 @@ module Hecks
           threads.transform_values { |thread| answer_of(thread, deadline) }
         end
 
+        # The sessions, each blocked one marked as the owner's to answer or not (see {OwnerQueue}),
+        # against the checkout the board is pointed at, else its own.
+        def owned(data)
+          named = ENV.fetch("PIPELINE_BOARD_LAUNCHER_ROOT", "")
+          root = named.empty? ? @root : named
+          data.merge(sessions: PipelineBoard::OwnerQueue.mark(data[:sessions], data[:open_work], root))
+        end
+
         def read_seconds = @read_seconds || READ_SECONDS
 
         def answer_of(thread, deadline)

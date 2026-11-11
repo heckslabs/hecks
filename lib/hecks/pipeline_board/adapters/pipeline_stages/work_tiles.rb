@@ -41,7 +41,7 @@ module Hecks
         def counted(sessions)
           alive = sessions.select { |session| %w[busy blocked].include?(session[:status]) }
           dispatched = alive.count { |session| !session[:work_item].to_s.empty? }
-          [alive.size, dispatched, alive.count { |session| session[:status] == "blocked" }]
+          [alive.size, dispatched, alive.count { |session| OwnerQueue.waiting?(session) }]
         end
 
         # Attention when the cap is reached or anyone is waiting on a person.

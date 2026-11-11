@@ -24,6 +24,7 @@ require_relative "pipeline_stages/train_detail"
 require_relative "pipeline_stages/commit_link"
 require_relative "pipeline_stages/panel"
 require_relative "pipeline_stages/daily_health"
+require_relative "pipeline_stages/owner_queue"
 
 module Hecks
   module Adapters
@@ -190,7 +191,7 @@ module Hecks
       end
 
       def sections
-        data = gathered
+        data = owned(gathered)
         data.merge(dated(data))
       end
 
