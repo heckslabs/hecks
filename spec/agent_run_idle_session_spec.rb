@@ -39,6 +39,14 @@ RSpec.describe "AgentRun: a session idle after its closing words" do
     expect(check("r-idle-coder")).to include("status" => "finished", "condition" => "done")
   end
 
+  it "leaves an idle coder started when its closing words are a review wait" do
+    started("r-review-coder", "coder")
+    listed("idle")
+    job("[review] some-item: the architect's verdict resumes this session")
+
+    expect(check("r-review-coder")).to include("status" => "started")
+  end
+
   it "leaves a busy session's run started" do
     started("r-busy-coder", "coder")
     listed("busy")

@@ -14,6 +14,7 @@ require_relative "git_train/survey"
 require_relative "git_train/settlement"
 require_relative "git_train/mint_step"
 require_relative "git_train/launcher_shape"
+require_relative "git_train/named_commit"
 
 module Hecks
   module Adapters
@@ -79,8 +80,8 @@ module Hecks
       def carry(**held)
         @checkout = toplevel(plain(held[:checkout]) || Dir.pwd)
         in_turn do
-          size = push_size(held)
           boarded = boarded_commit(held)
+          size = push_size(held, boarded)
           LauncherShape.new(@git, @checkout, domain: @domain).check!(boarded)
           minted = @mint.run(run: plain(held[:run]), confirm: plain(held[:confirm]))
           after_mint(minted, boarded, settle_and_carry(held, boarded), size)
@@ -118,9 +119,15 @@ module Hecks
 
       # The commit the branch names as the boarding begins, read once the line is held.
       def boarded_commit(held)
-        head = Carriage.new(@git, @checkout, branch: branch_of(held), remote: remote_of(held)).local_head
+        head = commit_named(held) || Carriage.new(@git, @checkout, branch: branch_of(held), remote: remote_of(held)).local_head
         RedFlagGuard.new(read("rev-parse", "--path-format=absolute", "--git-common-dir")).boarding!(head)
         head
+      end
+
+      # The commit the boarding names, when it names one rather than the head.
+      def commit_named(held)
+        named = plain(held[:commit])
+        named && NamedCommit.new(@git, @checkout, branch: branch_of(held)).resolve(named)
       end
 
       # Brings the branch up to its remote and settles the shape ledger, then carries the settled
@@ -129,8 +136,9 @@ module Hecks
       def settle_and_carry(held, boarded)
         branch = branch_of(held)
         remote = remote_of(held)
-        settled = Settlement.new(@git, @checkout, branch: branch, remote: remote).run(boarded)
-        [carrier(branch, remote, held).carry(settled), settled]
+        named = !plain(held[:commit]).nil?
+        settled = named ? boarded : Settlement.new(@git, @checkout, branch: branch, remote: remote).run(boarded)
+        [carrier(branch, remote, held).carry(settled, named: named), settled]
       end
 
       def carrier(branch, remote, held)
@@ -144,8 +152,8 @@ module Hecks
 
       # What the push is, said before it is made: how many commits go and, past the world's
       # threshold, the size sentence. It only says; a push of any size is carried.
-      def push_size(held)
-        ahead = read("rev-list", "--count", "#{remote_of(held)}/#{branch_of(held)}..#{branch_of(held)}").to_i
+      def push_size(held, boarded)
+        ahead = read("rev-list", "--count", "#{remote_of(held)}/#{branch_of(held)}..#{boarded}").to_i
         sentence = PushSize.sentence(ahead, PushSize.thresholds(@registry))
         [ahead, sentence.empty? ? "pushing #{ahead} commits" : "pushing #{ahead} commits; #{sentence}"]
       end

@@ -1216,6 +1216,7 @@ Hecks.bluebook "Hecks" do
       attribute :branch,   Word,   optional: true
       attribute :remote,   Word,   optional: true
       attribute :checkout, Word,   optional: true
+      attribute :commit,   Word,   optional: true
       attribute :full_gate, Switch, optional: true
       attribute :boarded,  Word,   optional: true
       attribute :pushed,   Word,   optional: true
@@ -1263,6 +1264,9 @@ Hecks.bluebook "Hecks" do
         attribute :branch,    Word, default: "main", sets: true
         attribute :remote,    Word, default: "origin", sets: true
         attribute :checkout,  Word, optional: true, sets: true
+        # The commit to board when it is not the branch's head: an older commit already on the
+        # branch, the commits above it staying local. Absent, the head is boarded.
+        attribute :commit,    Word, optional: true, sets: true
         # Run the whole `pre_push` stage, the suite included, which also writes the CI attestation
         # note; without it the push runs only the `quick` stage.
         attribute :full_gate, Switch, optional: true, sets: true

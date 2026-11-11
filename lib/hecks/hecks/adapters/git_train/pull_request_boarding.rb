@@ -43,6 +43,8 @@ module Hecks
         end
 
         # @param boarded [String] the commit to carry, which local main must still name
+        # @param named [Boolean] whether the boarding named the commit; local main then need only
+        #   hold it, and the commits above it are reported as left for their own boarding
         # @return [Hash{Symbol => Hash}] `outcome:` `queued` (a PR is open and set to auto-merge),
         #   `pushed` (the repository disallows auto-merge; the checks passed and the train
         #   squash-merged the PR), `checks_failed` (a required check failed; the PR stays open) or
@@ -50,17 +52,13 @@ module Hecks
         # @raise [ConsoleCapture::Failure] when main moved since boarding, the commit is not
         #   built on the remote's main, the push is refused, or `gh` cannot open or auto-merge
         #   the PR
-        def carry(boarded)
+        def carry(boarded, named: false)
           fetch
-          moved_since!(boarded)
-          return carried(boarded) if ancestor?(boarded, tracking)
+          moved_since!(boarded, named)
+          answer = ancestor?(boarded, tracking) ? carried(boarded) : board(boarded)
+          return answer unless named
 
-          branch = self.class.branch_for(boarded)
-          Bench.new(@git, @checkout, branch: branch, remote: @remote, config: @config).push(boarded, tracking)
-          url = open_pr(branch, boarded)
-          return queued(boarded, branch, url) if enable_auto_merge(branch)
-
-          waited(boarded, branch, url)
+          answer.merge(report: { value: [answer.dig(:report, :value), *left_above(boarded)].join("; ") })
         end
 
         # Reads a queued boarding's PR. Open, it answers `open` and nothing else; merged, it answers
@@ -106,13 +104,30 @@ module Hecks
 
         private
 
+        def board(boarded)
+          branch = self.class.branch_for(boarded)
+          Bench.new(@git, @checkout, branch: branch, remote: @remote, config: @config).push(boarded, tracking)
+          url = open_pr(branch, boarded)
+          return queued(boarded, branch, url) if enable_auto_merge(branch)
+
+          waited(boarded, branch, url)
+        end
+
+        # What main holds above the commit carried, named so nobody has to look.
+        def left_above(boarded)
+          waiting = read("log", "--format=%h %s", "#{boarded}..refs/heads/main").lines.map(&:strip)
+          return [] if waiting.empty?
+
+          ["#{waiting.size} commit(s) landed meanwhile and were not pushed (board again): #{waiting.first(5).join(" | ")}"]
+        end
+
         def fetch = read("fetch", "--quiet", @remote, "+refs/heads/main:refs/remotes/#{tracking}")
 
         def tracking = "#{@remote}/main"
 
-        def moved_since!(boarded)
+        def moved_since!(boarded, named)
           now = read("rev-parse", "--verify", "refs/heads/main^{commit}")
-          return if now == boarded
+          return if now == boarded || (named && NamedCommit.new(@git, @checkout, branch: "main").held?(boarded))
 
           raise ConsoleCapture::Failure, "main moved since boarding (boarded #{short(boarded)}, now #{short(now)}): board again"
         end

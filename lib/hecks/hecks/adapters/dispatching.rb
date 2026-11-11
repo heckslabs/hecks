@@ -15,6 +15,8 @@ require_relative "dispatching/pending"
 require_relative "dispatching/planned_cache"
 require_relative "dispatching/wake"
 require_relative "dispatching/rolls"
+require_relative "dispatching/rethinks"
+require_relative "dispatching/launching"
 
 module Hecks
   module Adapters
@@ -29,6 +31,7 @@ module Hecks
     # default is a dry run, which writes nothing.
     class Dispatching
       include Rolls
+      include Launching
 
       # @param registry [Runtime::Registry, nil] the booted registry whose work items are read
       # @param aggregate [Object, nil] unused
@@ -51,7 +54,8 @@ module Hecks
         confirmed = plain(held[:confirm]) == true
         Filling.during(confirmed) do
           settle_ended(held) if confirmed
-          { report: { value: filling_lines(plan_for(prefix(held)), held, confirmed).join("\n") } }
+          plan = plan_for(prefix(held), rolling: plain(held[:rolling]) == true)
+          { report: { value: filling_lines(plan, held, confirmed).join("\n") } }
         end
       end
 
@@ -69,7 +73,7 @@ module Hecks
       # @param held [Hash] the `Dispatch` record: `repo`
       # @return [Hash{Symbol => Hash}] `report:` one line per work item settled
       def conclude(**held)
-        lines = Settler.new(work_items, launcher_for(held)).call
+        lines = Settler.new(work_items, launcher_for(held), grace: machine.session_grace).call
         { report: { value: lines.empty? ? "nothing to settle" : lines.join("\n") } }
       end
 
@@ -91,7 +95,7 @@ module Hecks
       # items parked behind a run whose session is gone.
       def settle_ended(held)
         launcher = launcher_for(held)
-        Settler.new(work_items, launcher).call
+        Settler.new(work_items, launcher, grace: machine.session_grace).call
         release_taken(launcher)
         PlannedCache.clear!
       end
@@ -121,8 +125,8 @@ module Hecks
 
       def in_process_runner(repo) = InProcessRunner.fits?(@registry, repo) ? InProcessRunner.new(@registry) : nil
 
-      def plan_for(only = "")
-        Plan.new(planned(only), work_items.started, **limits)
+      def plan_for(only = "", rolling: false)
+        Plan.new(planned(only, rolling: rolling), work_items.started, **limits)
       end
 
       # What bounds a filling: the machine's cap and load, what pauses every work item, and the
@@ -132,7 +136,8 @@ module Hecks
       def limits
         gauge = machine
         { cap: gauge.cap, load: gauge.load, max_load: gauge.max_load, frozen: gauge.frozen, paused: gauge.paused,
-          budget: gauge.boot_stop, exempt: WorkItems.method(:red?), runs: -> { work_items.runs } }
+          budget: gauge.boot_stop, exempt: WorkItems.method(:red?), runs: -> { work_items.runs },
+          rethinks: ->(key) { rethinks(gauge.rethink_limit).stop_reason(key) } }
       end
 
       # The key prefix a filling is held to; empty when none is named.
@@ -143,8 +148,12 @@ module Hecks
         [header(plan)] + plan.chosen.map { |item| chosen_line(item) } + plan.skipped.map { |skip| skipped_line(skip) }
       end
 
-      # The planned work items, held to those whose key starts with `only` when one is named.
-      def planned(only) = work_items.planned.select { |item| only.empty? || item.key.to_s.start_with?(only) }
+      # The planned work items, held to those whose key starts with `only` when one is named, and
+      # to those a roll may start when `rolling`.
+      def planned(only, rolling: false)
+        items = rolling ? work_items.rollable : work_items.planned
+        items.select { |item| only.empty? || item.key.to_s.start_with?(only) }
+      end
 
       def header_of(report) = report.partition("\n").first
 
@@ -164,44 +173,6 @@ module Hecks
       def chosen_line(item) = "would start #{item.key}: #{BriefText.new("outcome" => item.title).first_line}"
 
       def skipped_line(skip) = "#{skip.key} #{skip.reason}"
-
-      def launch(plan, held)
-        launcher = launcher_for(held)
-        minutes = plain(held[:budget_minutes]) || Settings::BUDGET_MINUTES
-        plan.chosen.each_with_index.map do |item, index|
-          launched(launcher, item) do
-            outcome(*launcher.attempt(item, held: holding(plan, index), minutes: minutes, limit: machine.spec_files_limit,
-                                            frozen: machine.frozen, traps: traps_for(item)))
-          end
-        end
-      end
-
-      def outcome(kind, line) = FillReport::Outcome.new(kind, line)
-
-      # One work item's outcome. An error the launcher did not expect yields that work item
-      # with the error's class and message, so the next chosen work item still launches and the
-      # report still says why; a yield that fails too is named on the line.
-      def launched(launcher, item)
-        yield
-      rescue StandardError => e
-        reason = "#{e.class}: #{e.message}"
-        begin
-          outcome(:yielded, launcher.yield_back(item, reason))
-        rescue StandardError => failure
-          outcome(:stuck, "#{item.key} could not be started or yielded: #{reason} " \
-                          "(yield failed: #{failure.class}: #{failure.message})")
-        end
-      end
-
-      # The known traps the work item's area meets, one line each.
-      def traps_for(item) = LessonTraps.new(work_items.lessons).for(item.area)
-
-      # A line for each other work item, started or chosen before this one, that holds an area.
-      def holding(plan, index)
-        (work_items.started + plan.chosen.first(index)).reject { |other| other.area.empty? }.map { |other| held_line(other) }
-      end
-
-      def held_line(item) = "#{item.key}: #{item.title} (#{item.area.join(", ")})"
 
       def plain(argument) = argument.is_a?(Hash) ? argument[:value] : argument
     end

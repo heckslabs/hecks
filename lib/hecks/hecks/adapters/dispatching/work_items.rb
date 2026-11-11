@@ -37,6 +37,14 @@ module Hecks
           having("planned").sort_by.with_index { |entry, index| order(entry, index, stalls) }.map(&:last)
         end
 
+        # @return [Array<Plan::Item>] the planned work items a roll may start, in the same order: a
+        #   red one, a filed stall, or one the owner marked by giving it a priority. An unmarked
+        #   item waits for a manual fill.
+        def rollable
+          stalls = stall_prefixes
+          planned.select { |item| rolls?(item, stalls) }
+        end
+
         # @return [Array<Plan::Item>] the started work items
         def started = having("started").map(&:last)
 
@@ -53,6 +61,18 @@ module Hecks
         def pinned_roles
           rows = find("Agents", "Role")&.value_objects&.find { |object| object.hecks_name == "PinnedRole" }
           rows&.members&.map { |row| row[:role].to_s }
+        end
+
+        # @return [Array<Hash>] every plan review, in the order recorded, as `run:`, `work:`,
+        #   `verdict:` and `findings:`
+        def reviews
+          aggregate = find("Agents", "PlanReview")
+          return [] unless aggregate
+
+          @registry.repository("Agents", aggregate).all.map do |review|
+            { run: field(review, :run).to_s, work: field(review, :work).to_s,
+              verdict: field(review, :verdict).to_s, findings: field(review, :findings).to_s }
+          end
         end
 
         # @return [Hash{String => Hash}] each agent run's key with its `status:` and `condition:`
@@ -98,6 +118,8 @@ module Hecks
 
         def red?(item) = self.class.red?(item)
 
+        def rolls?(item, stalls) = urgency(item, stalls) < 2 || TIERS.include?(item.priority)
+
         def having(status)
           work = find("Tickets", "Work")
           return [] unless work
@@ -110,10 +132,12 @@ module Hecks
           Plan::Item.new(key: field(record, :work).to_s, title: field(record, :title).to_s,
                          detail: field(record, :detail).to_s, area: StartedWork.words(field(record, :area)),
                          yield_kind: field(record, :yield_kind).to_s, retry_at: field(record, :retry_at).to_s,
-                         yield_count: field(record, :yield_count).to_i)
+                         yield_count: field(record, :yield_count).to_i, priority: field(record, :priority).to_s)
         end
 
-        def state(run) = { status: field(run, :status).to_s, condition: field(run, :condition).to_s }
+        def state(run)
+          { status: field(run, :status).to_s, condition: field(run, :condition).to_s, started_at: field(run, :started_at).to_s }
+        end
 
         def lesson(record)
           { kind: field(record, :kind).to_s, signature: StartedWork.words(field(record, :signature)),
