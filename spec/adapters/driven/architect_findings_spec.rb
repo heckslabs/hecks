@@ -5,16 +5,22 @@ require "hecks/hecks/adapters/architect_findings"
 
 # What a plan review keeps of the architect's closing message: its head and its tail.
 RSpec.describe Hecks::Adapters::ArchitectFindings do
-  def long_review = "Verdict reason first.\n#{"x" * 5000}\nVerdict: sound"
+  def long_review = "Verdict reason first.\n#{"x" * 70_000}\nVerdict: sound"
 
-  it "keeps a 5000-character finding's first line and its last line", :aggregate_failures do
+  def findings_of(size) = "Findings.\n#{"x" * size}\nVerdict: changes"
+
+  it "delivers a review past the old 4000-character cap whole" do
+    expect(described_class.clip(findings_of(12_000))).to eq(findings_of(12_000))
+  end
+
+  it "keeps an oversize review's first line and its Verdict line", :aggregate_failures do
     kept = described_class.clip(long_review)
     expect(kept).to start_with("Verdict reason first.\n")
     expect(kept).to end_with("\nVerdict: sound")
   end
 
-  it "names how much it left out between the head and the tail" do
-    expect(described_class.clip(long_review)).to include("[… #{long_review.length - 4000} characters left out …]")
+  it "says how much it kept of how much, never cutting silently" do
+    expect(described_class.clip(long_review)).to include("findings cut at 60000 of #{long_review.length} characters")
   end
 
   it "keeps a text within the limit whole" do

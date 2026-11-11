@@ -24,6 +24,7 @@ commands:
     project_ci_gates!             Project the CiGate rows into the workflows' marked detector jobs, or with check only compare them
     project_ci_pipeline!          Project the CiWorkflows rows into their workflow files, or with check only compare them
     project_lanes!                Project the Lane rows into the rulesets and the promotion workflow, or with live compare GitHub's rulesets
+    project_agent_roles!          Write .claude/agents from the RoleFile rows of the Role aggregate, or with check only compare them
     project_tools_doc!            Write the launcher forms of docs/tools.md from the RetiredScript rows, or with check only compare them
     project_glossary!             Write a bluebook's Ubiquitous Language glossary into its domain's glossary folder, or with check only compare it
     decide_ci_gate!               Say whether this run's change touches what a CiGate row guards, as the gated job's detector

@@ -19,7 +19,8 @@ module Hecks
       # writes only when it is confirmed.
       module Regeneration
         # Every operation this family carries out.
-        OPERATIONS = %w[regenerate_corpus project_ci_gates project_ci_pipeline project_lanes project_tools_doc
+        OPERATIONS = %w[regenerate_corpus project_ci_gates project_ci_pipeline project_lanes project_agent_roles
+                        project_tools_doc
                         project_glossary decide_ci_gate].freeze
 
         # How many lines of a script's output a refusal keeps.
@@ -51,7 +52,7 @@ module Hecks
           when "project_ci_gates" then project_ci_gates(child, check)
           when "project_ci_pipeline" then project_ci_pipeline(child, check)
           when "project_lanes" then project_lanes(child, check, set?(held, :live), set?(held, :confirm))
-          when "project_tools_doc" then project_tools_doc(child, check)
+          when "project_tools_doc", "project_agent_roles" then project_written_files(operation, child, check)
           when "project_glossary" then project_glossary(child, held, check)
           when "decide_ci_gate" then decide_ci_gate(child, held)
           else regenerate_remembered(child, tree, held, check)
@@ -143,12 +144,16 @@ module Hecks
           child.answer("project_lanes", *("--check" if check))
         end
 
+        # Projects the `RetiredScript` rows into docs/tools.md, or the `RoleFile` rows into
+        # `.claude/agents`: tools that write files and with `check` only compare them.
+        #
+        # @param operation [String] `project_tools_doc` or `project_agent_roles`
         # @param child [RubyChild] the checkout's tool runner
         # @param check [Boolean] whether to only compare
         # @return [String] what the tool printed
-        # @raise [ConsoleCapture::Failure] with the stale sections, when a check finds drift
-        def project_tools_doc(child, check)
-          child.answer("project_tools_doc", *("--check" if check))
+        # @raise [ConsoleCapture::Failure] with the stale files, when a check finds drift
+        def project_written_files(operation, child, check)
+          child.answer(operation, *("--check" if check))
         end
 
         # @param child [RubyChild] the checkout's tool runner

@@ -121,6 +121,9 @@ RSpec.describe "the Codebase rows of the ADR table" do
     AdrRow.new(script: "promote", verbs: %w[promote],
                note: "no bin script: it moves a lane onto a commit that passed every RequiredCheck; without " \
                      "--confirm it only rehearses the move"),
+    AdrRow.new(script: "project_agent_roles", verbs: %w[project_agent_roles],
+               note: "no bin script: it writes .claude/agents from the RoleFile rows of the Role aggregate, and " \
+                     "like regenerate_corpus it only compares without --confirm"),
     AdrRow.new(script: "project_tools_doc", verbs: %w[project_tools_doc],
                note: "no bin script: it writes the launcher forms of docs/tools.md from the RetiredScript rows, " \
                      "and like regenerate_corpus it only compares without --confirm"),
