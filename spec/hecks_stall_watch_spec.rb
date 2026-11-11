@@ -62,12 +62,12 @@ RSpec.describe "StallWatch" do
       expect(keys("Hecks", "Stall", :stall)).to be_empty
     end
 
-    it "carries a move that answers from the brief or files a finding, never asking the owner", :aggregate_failures do
+    it "carries a move that answers from the brief or plans a work item, never asking the owner", :aggregate_failures do
       write_asked
       detect("look-1")
 
       expect(keys("Tickets", "Work", :detail).first)
-        .to include("[choose]", "Work.rescope!", "Finding.report!", "Never ask the owner")
+        .to include("[choose]", "Work.rescope!", "Work.plan!", "Never ask the owner")
     end
   end
 

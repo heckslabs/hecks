@@ -51,8 +51,8 @@ Hecks.bluebook "Hecks" do
                move: "AgentRun.answer! the [confirm] or [retry] question it waits on, and confirm the board did. " \
                      "For a [choose] question answer it with AgentRun.answer! when the answer follows from the brief, " \
                      "the Work item's area or an architect verdict (a wrong area: Work.rescope!, then answer); " \
-                     "otherwise Finding.report! source pipeline with the question text as the body, titled " \
-                     "'needs an answer: <run>'. Never ask the owner."
+                     "otherwise Work.plan! a work item titled 'needs an answer: <run>' with the question text as its detail " \
+                     "(the orchestrator holds Work.*; it needs no other permission). Never ask the owner."
       end
 
       # One opening line still waiting for its closing line, as the tap shows it and its kind's row
