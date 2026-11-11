@@ -463,10 +463,10 @@ Hecks.bluebook "Tickets" do
       invariant("a step is not negative") { !value.negative? }
     end
 
-    # What kind of work an item is, one per item. It never decides whether two items clash: that is the
+    # What kind of work an item is, or which theme it belongs to (the last eight values), one per item. It never decides whether two items clash: that is the
     # path claim in `area`.
     value_object "Category" do
-      attribute :value, String, one_of: %w[bluebook-gap language delivery coder parity host tooling]
+      attribute :value, String, one_of: %w[bluebook-gap language delivery coder parity host tooling agent-roles-and-handoff autonomous-pipeline pipeline-board landing-review-and-train bluebook-gaps-and-tool-dissolve kernel-parity-and-simulation docs-and-interviews side-projects]
     end
 
     # How soon an item is wanted. Unset means nobody has said.
