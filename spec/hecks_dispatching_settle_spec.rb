@@ -7,7 +7,10 @@ RSpec.describe Hecks::Adapters::Dispatching do
   include RegistryDouble
 
   let(:work_items) { instance_double(described_class::WorkItems, started: [started_item], runs: runs) }
-  let(:launcher) { instance_double(described_class::Launcher, check_all: nil, finish: "finished a", yield_back: "yielded a") }
+  let(:launcher) do
+    instance_double(described_class::Launcher, check_all: nil, finish: "finished a", yield_back: "yielded a",
+                                               report_unlanded: "reported a")
+  end
   let(:started_item) { described_class::Plan::Item.new(key: "a", title: "A", detail: "", area: []) }
 
   def world(**verbs)
@@ -21,10 +24,17 @@ RSpec.describe Hecks::Adapters::Dispatching do
   describe "settling" do
     let(:runs) { { "a" => { status: "finished", condition: "done" }, "z" => { status: "finished", condition: "done" } } }
 
-    it "finishes the work item of a session that ended done, and only started work items" do
+    it "never finishes a started work item itself: a landing or a submission finishes it" do
       described_class::Settler.new(work_items, launcher).call
 
-      expect(launcher).to have_received(:finish).with("a").once
+      expect(launcher).not_to have_received(:finish)
+    end
+
+    it "yields a started item whose session ended done with nothing landed, and files a finding", :aggregate_failures do
+      described_class::Settler.new(work_items, launcher).call
+
+      expect(launcher).to have_received(:yield_back).with(started_item, "its session ended done with no landing or submission")
+      expect(launcher).to have_received(:report_unlanded).with("a").once
     end
 
     context "when the session stopped" do

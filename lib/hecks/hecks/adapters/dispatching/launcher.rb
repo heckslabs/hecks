@@ -86,6 +86,19 @@ module Hecks
           "finished #{key}"
         end
 
+        # Files the finding that a session ended `done` while its Work item had landed nothing. The
+        # work key is also the finding's key and fingerprint, so the same item filed again changes
+        # nothing.
+        #
+        # @param key [String] the Work item whose session ended done with no landing
+        # @return [String] the line that says so
+        def report_unlanded(key)
+          @runner.call(["tickets", "Finding.report!", "finding.value=unlanded-#{key}",
+                        "title.value=#{key}: its session ended done and nothing landed", "source.value=settle",
+                        "fingerprint.value=unlanded-#{key}", "--wait"])
+          "reported unlanded-#{key}"
+        end
+
         # @param key [Plan::Item, String] the Work item to send back to the plan; an item carries
         #   how many times it has yielded, so repeated failures back off longer, and a bare key
         #   counts as a first yield

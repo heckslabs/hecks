@@ -29,11 +29,16 @@ module Hecks
         # The runs are read again before a Work item is yielded, so only a run still finished ends
         # its item. An answer's own stop never finishes a run (`RecordTheEndedSession` leaves a
         # `resuming` run alone), so a session an answer woke keeps its run started.
+        #
+        # A landed branch and a submitted branch finish their Work item themselves, so an item still
+        # started when its session ended `done` landed nothing: it goes back to the plan with a
+        # finding, never to `finished`.
         def settle(key, condition)
           return unless @work_items.runs.dig(key, :status) == "finished"
-          return @launcher.finish(key) if condition == "done"
 
-          @launcher.yield_back(item_of(key), "its session ended #{condition}")
+          reason = condition == "done" ? "its session ended done with no landing or submission" : "its session ended #{condition}"
+          line = @launcher.yield_back(item_of(key), reason)
+          condition == "done" ? "#{line}\n#{@launcher.report_unlanded(key)}" : line
         end
 
         # The started work item itself, which carries how many times it has yielded, so a session
