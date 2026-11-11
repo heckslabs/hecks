@@ -11,10 +11,8 @@ module Hecks
     # check is CI on the train pull request), a verified one boarded at once, and a pushed or
     # watched one has its CI run read. A run whose first verification failed (retrying, as the
     # saga's rule set it) is verified again, marked as the retry. A run in any other stage (being
-    # verified or boarded, green, red, superseded or waiting for a person) is left alone, so a
-    # second advance in the same stage dispatches nothing. A verification that leaves its run
-    # verified is followed by its boarding in the same advance, so a verified landing never waits a
-    # listener period for the train.
+    # verified or boarded, green, red, superseded or waiting for a person) is left alone. A
+    # verification that leaves its run verified is followed by its boarding in the same advance.
     #
     # Each step is a dispatch of its own through the boot whose advance asked, not a dispatch from
     # inside the saga. A boarding needs `confirm` and waits while another run is pushed or watched.
