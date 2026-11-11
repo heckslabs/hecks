@@ -13,10 +13,14 @@ module Hecks
   module Adapters
     # The `MainVerifying` port's adapter for `Integration.Verify`: checks a landed commit in a
     # clean detached copy of it, holding no local Hecks files, by running every check `Checks`
-    # names there. A commit other than the head of local main is answered `superseded` without a
-    # check: the run for the head verifies both. So is a commit `origin/main` already carries
-    # (contained, or squash-merged by a train), judged after one fetch and again before every
-    # check, so a landing merged mid-run stops the run at its next check. A check that fails
+    # names there: the quick gate, which is all the listener promises before a push (CI on the
+    # train pull request is the full check). A commit other than the head of local main is
+    # answered `superseded` without a check: the run for the head verifies both. So is a commit
+    # `origin/main` already carries (contained, or squash-merged by a train) and one an open train
+    # pull request holds, whoever boarded it (`BoardedCheck`), judged after one fetch, again
+    # before every check and once after the last, so a boarding or merge mid-run stops the run
+    # at its next check and a verification never answers `verified` for a commit already
+    # boarded. A check that fails
     # refuses the verification: the first line names every failing check, and a block for each
     # keeps the last `TAIL` lines it printed, so the run parked in needs_human says why. The
     # copy's crates build into the Cargo targets every verification of their toolchain shares
@@ -69,6 +73,7 @@ module Hecks
           checks = MainIntegration::Checks.new(directory, changed).all
           failed = checks.reject { |name, argv| carried_now?(repository, landed) || record(landed, name, argv, directory) }
           refuse!(landed) unless @carried || failed.empty?
+          carried_now?(repository, landed)
           checks.map(&:first)
         end
       end

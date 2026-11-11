@@ -7,8 +7,9 @@ require "hecks/runtime/errors"
 module Hecks
   module Adapters
     # The `Integrating` port's adapter for `Integration.Advance`: dispatches the next step of every
-    # open MainIntegration run, once. A landed run is verified, a verified one boarded, and a pushed
-    # or watched one has its CI run read. A run whose first verification failed (retrying, as the
+    # open MainIntegration run, once. A landed run is verified (the quick gate only; the full
+    # check is CI on the train pull request), a verified one boarded at once, and a pushed or
+    # watched one has its CI run read. A run whose first verification failed (retrying, as the
     # saga's rule set it) is verified again, marked as the retry. A run in any other stage (being
     # verified or boarded, green, red, superseded or waiting for a person) is left alone, so a
     # second advance in the same stage dispatches nothing. A verification that leaves its run

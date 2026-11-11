@@ -8,6 +8,7 @@ require_relative "../console_capture"
 require_relative "../bounded_capture"
 require_relative "copy_lock"
 require_relative "carried_check"
+require_relative "boarded_check"
 
 module Hecks
   module Adapters
@@ -54,8 +55,9 @@ module Hecks
         def refresh = @git.capture("fetch", "--quiet", "origin", chdir: @checkout)
 
         # @param landed [String] the commit a run landed
-        # @return [String, nil] why `origin/main` (as fetched) holds it, nil when it does not
-        def carried_by(landed) = CarriedCheck.new(@checkout).by(landed)
+        # @return [String, nil] why `origin/main` (as fetched) holds it, or why an open train pull
+        #   request does (`BoardedCheck`); nil when neither does
+        def carried_by(landed) = CarriedCheck.new(@checkout).by(landed) || BoardedCheck.new(@checkout).by(landed)
 
         # @param base [String] the commit the range starts after
         # @param tip [String] the commit it ends at
