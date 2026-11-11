@@ -77,7 +77,8 @@ RSpec.describe "AgentRun.Answer through the Agents port" do
     started_run("a-working", "working")
 
     expect(answer("a-working", "yes")).to include("answered_at")
-    expect(File.read(resume_args).split("\n")).to eq(["--bg", "--resume", "stand-in-session-0000-full", "--", "yes"])
+    resumed = ["--bg", "--resume", "stand-in-session-0000-full", "--", "[pipeline answer] yes"]
+    expect(File.read(resume_args).split("\n")).to eq(resumed)
   end
 
   it "refuses an answer that says nothing, and resumes nothing", :aggregate_failures do
@@ -93,7 +94,7 @@ RSpec.describe "AgentRun.Answer through the Agents port" do
     out = JSON.parse(answer("a-blocked", "use the staging branch"))
 
     expect(out.dig("state", "answered_at")).not_to be_nil
-    resumed = ["--bg", "--resume", "stand-in-session-0000-full", "--", "use the staging branch"]
+    resumed = ["--bg", "--resume", "stand-in-session-0000-full", "--", "[pipeline answer] use the staging branch"]
     expect(File.read(resume_args).split("\n")).to eq(resumed)
   end
 

@@ -27,6 +27,20 @@ module Hecks
           unpushed(path)
         end
 
+        # @param path [String] the worktree's directory
+        # @return [Integer] the files git lists as changed or untracked and not ignored; ignored
+        #   files are not counted. An unreadable tree counts as one file.
+        def uncommitted(path)
+          lines(path, "status", "--porcelain")&.length || 1
+        end
+
+        # @param path [String] the worktree's directory
+        # @return [Integer] the commits no branch on `origin` holds; an unreadable tree counts as
+        #   one
+        def ahead(path)
+          lines(path, "rev-list", "HEAD", "--not", "--remotes=origin")&.length || 1
+        end
+
         private
 
         def unpushed(path)

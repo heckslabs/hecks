@@ -2,6 +2,7 @@
 
 require_relative "../started_work"
 require_relative "plan"
+require_relative "reap_facts"
 require_relative "../push_size"
 
 module Hecks
@@ -9,6 +10,8 @@ module Hecks
     class Dispatching
       # The Work items and agent runs of a booted registry, read and never written.
       class WorkItems
+        include ReapFacts
+
         # @param registry [Runtime::Registry, nil]
         def initialize(registry)
           @registry = registry
