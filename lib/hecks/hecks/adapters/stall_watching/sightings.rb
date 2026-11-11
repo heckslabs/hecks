@@ -55,8 +55,11 @@ module Hecks
 
         def detail(kind, subject, at, waited)
           "#{kind[:aggregate]} #{subject} recorded #{kind[:opens]} at #{at} and no #{kind[:closes]} after " \
-            "#{waited} minutes (#{kind[:minutes]} allowed). Fixer: #{kind[:fixer]}."
+            "#{waited} minutes (#{kind[:minutes]} allowed). Fixer: #{kind[:fixer]}. #{move(kind)}"
         end
+
+        # The kind's move, and the standing rule that no move stops a session.
+        def move(kind) = "Move: #{kind[:move]} Never stop or kill a session."
       end
     end
   end

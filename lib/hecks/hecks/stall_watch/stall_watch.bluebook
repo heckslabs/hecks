@@ -19,8 +19,9 @@ Hecks.bluebook "Hecks" do
 
       # One kind of stall, one row each: the aggregate and event that open it, the events on the same
       # aggregate id that close it (comma separated), the minutes it may stay open before it is a
-      # stall, the minutes after which an open line is history rather than a stall, and the role that
-      # fixes it. The opening line's aggregate id is the stall's subject.
+      # stall, the minutes after which an open line is history rather than a stall, the role that
+      # fixes it, and the move it makes, in Hecks commands: the stall's Work item carries it as its
+      # detail. The opening line's aggregate id is the stall's subject.
       value_object "StallKind" do
         attribute :kind,      String
         attribute :aggregate, String
@@ -29,17 +30,25 @@ Hecks.bluebook "Hecks" do
         attribute :minutes,   Integer
         attribute :forgets,   Integer
         attribute :fixer,     String
+        attribute :move,      String
 
         member kind: "plan-review", aggregate: "Agents::PlanReview", opens: "PlanReviewRequested",
-               closes: "PlanReviewed,PlanReviewRecorded", minutes: 20, forgets: 1440, fixer: "orchestrator"
+               closes: "PlanReviewed,PlanReviewRecorded", minutes: 20, forgets: 1440, fixer: "orchestrator",
+               move: "Read the architect's closing report, record its verdict with PlanReview.answer! " \
+                     "(PlanReview.record! when no request row exists), then AgentRun.answer! the waiting coder."
         member kind: "agent-run-start", aggregate: "Hecks::AgentRun", opens: "AgentRunRequested",
-               closes: "AgentRunStarted,AgentRunDeclined", minutes: 10, forgets: 1440, fixer: "orchestrator"
+               closes: "AgentRunStarted,AgentRunDeclined", minutes: 10, forgets: 1440, fixer: "orchestrator",
+               move: "Work.yield! the run's Work item (AgentRun.running names it) with the reason, " \
+                     "so the fill restarts it once."
         member kind: "agent-run-session", aggregate: "Hecks::AgentRun", opens: "AgentRunStarted",
                closes: "SessionFinished,SessionFailed,AgentRunRetired,AgentTrialRunRetired", minutes: 240,
-               forgets: 1440, fixer: "orchestrator"
+               forgets: 1440, fixer: "orchestrator",
+               move: "AgentRun.check! the run; if it is unchanged AgentRun.answer! it asking for status once; " \
+                     "then Work.yield! the run's Work item (AgentRun.running names it) with the reason."
         member kind: "agent-run-blocked", aggregate: "Hecks::AgentRun", opens: "SessionBlocked",
                closes: "AgentRunAnswered,SessionWorking,SessionFinished,SessionFailed,AgentRunRetired,AgentTrialRunRetired",
-               minutes: 15, forgets: 1440, fixer: "orchestrator"
+               minutes: 15, forgets: 1440, fixer: "orchestrator",
+               move: "AgentRun.answer! the [confirm] or [retry] question it waits on, and confirm the board did."
       end
 
       # One opening line still waiting for its closing line, as the tap shows it and its kind's row
