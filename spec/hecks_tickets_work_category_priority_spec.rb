@@ -5,6 +5,10 @@ require "spec_helper"
 # Hecks domain, so nothing leaks between them.
 RSpec.describe "Work category and priority" do
   let(:hecks) { boot_hecks_in_memory }
+  let(:themes) do
+    %w[agent-roles-and-handoff autonomous-pipeline pipeline-board landing-review-and-train
+       bluebook-gaps-and-tool-dissolve kernel-parity-and-simulation docs-and-interviews side-projects]
+  end
 
   def cli_text(*argv)
     out, = Hecks::Adapters::Driving::CliRunner.call(runtime: hecks, program: "hecks", argv: ["tickets", *argv])
@@ -37,8 +41,6 @@ RSpec.describe "Work category and priority" do
   end
 
   it "takes each of the eight themes as a category", :aggregate_failures do
-    themes = %w[agent-roles-and-handoff autonomous-pipeline pipeline-board landing-review-and-train
-                bluebook-gaps-and-tool-dissolve kernel-parity-and-simulation docs-and-interviews side-projects]
     themes.each_with_index do |theme, index|
       plan("work/theme-#{index}")
       categorize("work/theme-#{index}", theme)
