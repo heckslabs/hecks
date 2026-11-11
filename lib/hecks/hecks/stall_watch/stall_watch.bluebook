@@ -46,9 +46,13 @@ Hecks.bluebook "Hecks" do
                move: "AgentRun.check! the run; if it is unchanged AgentRun.answer! it asking for status once; " \
                      "then Work.yield! the run's Work item (AgentRun.running names it) with the reason."
         member kind: "agent-run-blocked", aggregate: "Hecks::AgentRun", opens: "SessionBlocked",
-               closes: "AgentRunAnswered,SessionWorking,SessionFinished,SessionFailed,AgentRunRetired,AgentTrialRunRetired",
+               closes: "AnswerRequested,AgentRunAnswered,SessionWorking,SessionFinished,SessionFailed,AgentRunRetired,AgentTrialRunRetired",
                minutes: 15, forgets: 1440, fixer: "orchestrator",
-               move: "AgentRun.answer! the [confirm] or [retry] question it waits on, and confirm the board did."
+               move: "AgentRun.answer! the [confirm] or [retry] question it waits on, and confirm the board did. " \
+                     "For a [choose] question answer it with AgentRun.answer! when the answer follows from the brief, " \
+                     "the Work item's area or an architect verdict (a wrong area: Work.rescope!, then answer); " \
+                     "otherwise Finding.report! source pipeline with the question text as the body, titled " \
+                     "'needs an answer: <run>'. Never ask the owner."
       end
 
       # One opening line still waiting for its closing line, as the tap shows it and its kind's row
