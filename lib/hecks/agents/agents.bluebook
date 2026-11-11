@@ -297,7 +297,7 @@ Hecks.bluebook "Agents" do
     policy "RecordTheVerdictWhenNoReviewWasAsked" do
       on      "AgentRun.JobRead"
       root
-      where   { agent == "architect" && verdict != "" && previous != state }
+      where   { agent == "architect" && verdict != "" && (previous != state || (listed == "idle" && previous != "done")) }
       trigger PlanReview::Record, with: { run: :run, work: :work, verdict: :verdict, findings: :findings }
     end
 
@@ -403,7 +403,7 @@ Hecks.bluebook "Agents" do
     policy "JudgeTheArchitectsVerdict" do
       on      "AgentRun.JobRead"
       root
-      where   { agent == "architect" && verdict != "" && previous != state }
+      where   { agent == "architect" && verdict != "" && (previous != state || (listed == "idle" && previous != "done")) }
       trigger Verdict::Judge, with: { run: :run, work: :work, role: "architect", answer: :findings }
     end
 

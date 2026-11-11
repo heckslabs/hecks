@@ -7,6 +7,7 @@ require_relative "../git"
 require_relative "../console_capture"
 require_relative "../bounded_capture"
 require_relative "copy_lock"
+require_relative "carried_check"
 
 module Hecks
   module Adapters
@@ -42,6 +43,16 @@ module Hecks
 
         # @return [String] the commit origin/main is at, as last fetched; main's when none is
         def remote_main = commit("origin/main") || main
+
+        # Fetches `origin`. A failed fetch leaves `origin/main` as it was: a stale one reads as
+        # "not carried", so a run goes on to verify.
+        #
+        # @return [void]
+        def refresh = @git.capture("fetch", "--quiet", "origin", chdir: @checkout)
+
+        # @param landed [String] the commit a run landed
+        # @return [String, nil] why `origin/main` (as fetched) holds it, nil when it does not
+        def carried_by(landed) = CarriedCheck.new(@checkout).by(landed)
 
         # @param base [String] the commit the range starts after
         # @param tip [String] the commit it ends at

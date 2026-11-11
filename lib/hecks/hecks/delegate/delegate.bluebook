@@ -1012,6 +1012,22 @@ Hecks.bluebook "Hecks" do
       trigger AgentRun::Finish, with: { condition: :state, detail: :detail, checkout: :checkout }
     end
 
+    # A session that finished its turn is listed `idle` while its job still reads `working`, and it
+    # stays listed so until a person or an answer wakes it. A role that works one turn at a time (every
+    # role but the orchestrator, which idles between beats) has ended when it is idle and said its
+    # closing words: an architect's verdict, another role's report. A session waiting on a person
+    # reads `blocked`, not `working`, so this never ends one. The run then reads `done`, so the
+    # architect's verdict is recorded and a coder's session stops being listed as working.
+    policy "RecordTheIdleSession" do
+      on      "AgentRun.JobRead"
+      root
+      where   do
+        state == "working" && listed == "idle" && resuming != true && previous != "done" && agent != "orchestrator" &&
+          (verdict != "" || (agent != "architect" && report != ""))
+      end
+      trigger AgentRun::Finish, with: { condition: "done", detail: :report, checkout: :checkout }
+    end
+
     policy "RecordTheFailedSession" do
       on      "AgentRun.JobRead"
       root

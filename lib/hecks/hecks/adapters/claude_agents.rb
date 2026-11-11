@@ -92,12 +92,13 @@ module Hecks
       # @param held [Hash] the `AgentRun` record: `session`, `repo`, and the `condition` it holds
       # @return [Hash{Symbol => String}] `state:` and `detail:` from the job, `previous:` the held
       #   condition (empty when none), `checkout:` the run's directory with its trailing slash, and
-      #   the {CoderJobFacts}: `agent:`, `report:`, and a done coder's `branch:`, `sha:`, `clean:`
+      #   the {CoderJobFacts}: `agent:`, `report:`, and a done coder's `branch:`, `sha:`, `clean:`;
+      #   and `listed:` the status `claude agents` lists the session with
       # @raise [ConsoleCapture::Failure] when the job's state cannot be read
       def read_job(**held)
         job = @jobs.state(plain(held[:session]))
-        { state: job["state"].to_s, detail: job["detail"].to_s }.merge(architect_facts(job, held), reviewer_facts(job, held),
-                                                                       run_facts(held), session_facts(job, held))
+        { state: job["state"].to_s, detail: job["detail"].to_s, listed: @listing.status(plain(held[:session])) }
+          .merge(architect_facts(job, held), reviewer_facts(job, held), run_facts(held), session_facts(job, held))
       end
 
       # @return [Hash{Symbol => Object}] what {CoderJobFacts} reads of the job and its checkout
