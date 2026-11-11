@@ -65,7 +65,7 @@ RSpec.describe "the Agents verdict reaching the waiting coder" do
       waiting_coder("w-#{role}")
       judge("j-#{role}", "w-#{role}", role)
 
-      expect(resumed_with).to eq("sound with changes")
+      expect(resumed_with).to eq("[pipeline answer] sound with changes")
       expect(verdicts("delivered")).to include("j-#{role}")
     end
   end

@@ -15,6 +15,7 @@ module Hecks
         # Each section: the reader, its method, whether it answers a query document, and arguments.
         READS = {
           ci_runs: [:github, :ci_runs, :query], slowest_jobs: [:github, :slowest_jobs, :query],
+          train_ci_runs: [:github, :train_ci_runs, :query], train_slowest_jobs: [:github, :train_slowest_jobs, :query],
           release: %i[github latest_release plain], local: %i[git local_main plain],
           train: %i[git train plain], stable: %i[git stable plain],
           open_work: [:tickets, :open_work, :query], counts: %i[tickets counts plain],
@@ -53,6 +54,14 @@ module Hecks
           threads = READS.transform_values { |spec| Thread.new { read(spec) } }
           deadline = Time.now + read_seconds
           threads.transform_values { |thread| answer_of(thread, deadline) }
+        end
+
+        # The sessions, each blocked one marked as the owner's to answer or not (see {OwnerQueue}),
+        # against the checkout the board is pointed at, else its own.
+        def owned(data)
+          named = ENV.fetch("PIPELINE_BOARD_LAUNCHER_ROOT", "")
+          root = named.empty? ? @root : named
+          data.merge(sessions: PipelineBoard::OwnerQueue.mark(data[:sessions], data[:open_work], root))
         end
 
         def read_seconds = @read_seconds || READ_SECONDS

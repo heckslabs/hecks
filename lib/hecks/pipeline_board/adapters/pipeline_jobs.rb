@@ -122,7 +122,7 @@ module Hecks
 
       # What the `Session status` rows compare, as 1 or 0.
       def session_measures(state, agent, word, fresh)
-        { waiting: flag(blocked_state?(word, agent, fresh)), needs: flag(waiting_on_person?(state)),
+        { waiting: flag(blocked_state?(word, agent, fresh)), needs: flag(waiting_on_person?(state) && (!agent.nil? || fresh)),
           busy: flag(busy?(word, agent, fresh)), failed: flag(%w[failed error].include?(word)) }
       end
 

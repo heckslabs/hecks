@@ -24,6 +24,8 @@ require_relative "pipeline_stages/train_detail"
 require_relative "pipeline_stages/commit_link"
 require_relative "pipeline_stages/panel"
 require_relative "pipeline_stages/daily_health"
+require_relative "pipeline_stages/owner_queue"
+require_relative "pipeline_stages/headline"
 
 module Hecks
   module Adapters
@@ -55,10 +57,14 @@ module Hecks
         now = @now.call
         health = PipelineBoard::DailyHealth.build(data, now)
         { generated_at: now.iso8601, stages: PipelineBoard::Strip.build(data, now), daily_health: health,
-          metrics: metrics(data, now, health),
-          ci_runs: data[:ci_runs], slowest_jobs: data[:slowest_jobs],
-          open_work: data[:open_work], sessions: data[:sessions], events: data[:events],
-          fanout: fanout(data), live_store_problem: @live&.problem }.merge(panels(data))
+          metrics: metrics(data, now, health), fanout: fanout(data),
+          live_store_problem: @live&.problem }.merge(tables(data), panels(data))
+      end
+
+      # The sections the page shows as they were read: CI on main and on train pull requests, the
+      # Work items, the sessions and the events.
+      def tables(data)
+        data.slice(:ci_runs, :slowest_jobs, :train_ci_runs, :train_slowest_jobs, :open_work, :sessions, :events)
       end
 
       # @param limit [Hash, Integer, nil] how many Work items (the `cycle_items` setting when nil)
@@ -190,7 +196,7 @@ module Hecks
       end
 
       def sections
-        data = gathered
+        data = owned(gathered)
         data.merge(dated(data))
       end
 

@@ -22,6 +22,8 @@ RSpec.describe "the CiPipeline projection of ci-rspec.yml" do
     exit 1
   SH
 
+  ZSH_RUN = "bundle exec rspec spec/driving_adapters/cli_completion_spec.rb --tag zsh_completion\n".freeze
+
   def root = Hecks::Tools::ROOT
 
   def workflow_path = File.join(root, ".github/workflows/ci-rspec.yml")
@@ -39,13 +41,13 @@ RSpec.describe "the CiPipeline projection of ci-rspec.yml" do
 
   # The hand-written workflow with what was changed on purpose since: each shard names the domains
   # it reads, leaves out the specs tagged `generated_all`, which read the whole tree and run in
-  # the drift job, the suite is split across more shards, and each shard installs zsh.
+  # the drift job, the suite is split across more shards, and one job of its own, `rspec_zsh`,
+  # installs zsh and runs the zsh completion example, which the shards leave out.
   def deliberately_changed(document)
     job = document.dig("jobs", "rspec_shard")
     job.dig("strategy", "matrix")["group"] = (1..shard_total).to_a
     steps = job.fetch("steps")
     steps.find { |step| step["uses"] == "./.github/actions/generated-rust" }["with"] = { "domains" => shard_domains }
-    install_zsh(steps)
     planned(document)
   end
 
@@ -58,9 +60,19 @@ RSpec.describe "the CiPipeline projection of ci-rspec.yml" do
       shard["needs"] = %w[ci_attestation_rspec shard_plan]
       shard["env"] = job(projected, "rspec_shard").fetch("env")
       replace_split_steps(shard.fetch("steps"))
-      document["jobs"] = jobs.merge("shard_plan" => job(projected, "shard_plan"), "rspec_shard" => shard)
+      document["jobs"] = jobs.merge("shard_plan" => job(projected, "shard_plan"), "rspec_shard" => shard,
+                                    "rspec_zsh" => zsh_job(shard))
     end
     document
+  end
+
+  # The one job that installs zsh: the shard's setup, then the install, then the tagged example.
+  def zsh_job(shard)
+    setup = shard.fetch("steps").first(2)
+    { "runs-on" => "ubuntu-latest", "timeout-minutes" => 10, "needs" => "ci_attestation_rspec",
+      "if" => shard.fetch("if"), "steps" => setup + [{ "name" => "Install zsh", "run" => ZSH_INSTALL },
+                                                     { "uses" => "./.github/actions/hecks-environment" },
+                                                     { "name" => "rspec: the zsh completion example", "run" => ZSH_RUN }] }
   end
 
   # Swaps the baseline-reading steps for the projection's, and adds the step that reads the plan.
@@ -73,12 +85,6 @@ RSpec.describe "the CiPipeline projection of ci-rspec.yml" do
 
   def projected_step(name)
     job(projected, "rspec_shard").fetch("steps").find { |step| step["name"].to_s.start_with?(name) }
-  end
-
-  # The zsh completion example runs `zsh -n`, and the runner has no zsh.
-  def install_zsh(steps)
-    steps.insert(2, { "name" => "Install zsh",
-                      "run"  => ZSH_INSTALL })
   end
 
   # Rewrites part of the command of the step whose name starts with `name`.
@@ -97,6 +103,8 @@ RSpec.describe "the CiPipeline projection of ci-rspec.yml" do
   def job(document, name) = document.fetch("jobs").fetch(name)
 
   def jobs_of(document) = document.fetch("jobs").keys
+
+  def zsh_installer?(workflow_job) = workflow_job.fetch("steps").any? { |step| step["run"].to_s.include?("apt-get install") }
 
   describe "what the rows project" do
     it "parses to the document the hand-written workflow parsed to" do
@@ -148,6 +156,20 @@ RSpec.describe "the CiPipeline projection of ci-rspec.yml" do
 
       expect(generated.fetch("with")).to eq("domains" => shard_domains)
       expect(parallel.fetch("run")).to include("--tag ~generated_all")
+    end
+
+    it "keeps zsh and apt out of every shard, so a down apt mirror cannot fail them", :aggregate_failures do
+      commands = job(projected, "rspec_shard").fetch("steps").filter_map { |step| step["run"] }.join("\n")
+
+      expect(commands).not_to match(/apt-get|zsh(?!_completion)/)
+      expect(commands).to include("--tag ~zsh_completion")
+    end
+
+    it "installs zsh in exactly one job, which runs the zsh completion example", :aggregate_failures do
+      installers = jobs_of(projected).select { |name| zsh_installer?(job(projected, name)) }
+
+      expect(installers).to eq(["rspec_zsh"])
+      expect(job(projected, "rspec_zsh").fetch("steps").last.fetch("run")).to eq(ZSH_RUN)
     end
 
     it "names domains the corpus regenerates", :aggregate_failures do

@@ -8,6 +8,8 @@ Hecks.hecksagon "PipelineBoard" do
   PipelineBoard::PipelineBoard.port "GitHub" do
     answers_query "CiRuns"
     answers_query "SlowestJobs"
+    answers_query "TrainCiRuns"
+    answers_query "TrainSlowestJobs"
   end
 
   # The Work items, read through the Tickets domain.

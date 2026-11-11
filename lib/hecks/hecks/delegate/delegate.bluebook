@@ -250,6 +250,16 @@ Hecks.bluebook "Hecks" do
         emits AgentRunRetained
       end
 
+      command "Detach" do
+        role "System"
+        goal "Record that the run's worktree was retired, before its session is removed"
+
+        reference_to AgentRun
+        attribute :detail, Report, sets: true
+
+        emits WorktreeDetached
+      end
+
       # Answers a session that has not ended, working or blocked on a person: its answer is sent as a
       # resumed background session's prompt, so the session carries on under the same ID.
       command "Answer", from: "started" do
@@ -588,6 +598,146 @@ Hecks.bluebook "Hecks" do
 
         emits Beaten
       end
+    end
+
+    # A queued train pull request needs the clock beaten until it merges, and nothing else beats it.
+    # One chain of ticks starts per boarded commit (a second start under the key is refused), and
+    # each tick is a short dispatch of its own that beats `Heartbeat`, so no dispatch is held open.
+    # The domain ends the chain: the pull request merged, the beats ran past the limit the port
+    # reported, or the port declined to start. The `Ticking` port only starts a detached process
+    # that sleeps the reported period and dispatches `Ticker.Tick`; it holds no stage rule.
+    aggregate "Ticker" do
+      description "One chain of ticks that beats the clock for a queued train pull request until it ends."
+
+      attribute :run,    TickerKey
+      attribute :tick,   TickerKey, optional: true
+      attribute :beats,  Beats, optional: true
+      attribute :limit,  Beats, optional: true
+      attribute :ending, TickerNote, optional: true
+      identified_by :run
+
+      value_object "TickerKey" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Beats", Integer
+
+      value_object "TickerNote", String
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "refused"
+        transition "Begin"   => "ticking", from: "requested"
+        transition "Decline" => "refused", from: "requested"
+        transition "Stop"    => "ended", from: %w[requested ticking]
+        mark :terminal, "refused", "ended"
+      end
+
+      command "Start" do
+        role "System"
+        goal "Record that a queued train pull request wants the clock beaten until it ends"
+
+        attribute :run, TickerKey, sets: true
+
+        emits TickerRequested
+      end
+
+      command "Begin" do
+        role "System"
+        goal "Record that the chain of ticks started, and how many beats it is allowed"
+
+        reference_to Ticker
+        attribute :limit, Beats, sets: true
+
+        emits TickerBegun
+      end
+
+      command "Decline" do
+        role "System"
+        goal "Record why no chain of ticks started"
+
+        reference_to Ticker
+        attribute :ending, TickerNote, sets: true
+
+        emits TickerDeclined
+      end
+
+      command "Tick", from: "ticking" do
+        role "System"
+        goal "Record one tick of the chain, refused once the chain is over or its beats are spent"
+
+        reference_to Ticker
+        attribute :tick,  TickerKey, sets: true
+        attribute :beats, Beats, sets: true
+
+        given("the beats are within the limit") { beats.value <= limit.value }
+
+        emits Ticked
+      end
+
+      command "Stop" do
+        role "System"
+        goal "Record that the chain of ticks is over, and why"
+
+        reference_to Ticker
+        attribute :ending, TickerNote, sets: true
+
+        emits TickerStopped
+      end
+    end
+
+    policy "TickWhenQueued" do
+      on      "SendTrain.BoardingQueued"
+      root
+      trigger Ticker::Start, with: { run: :boarded }
+    end
+
+    policy "OpenTickerWhenRequested" do
+      on      "Ticker.TickerRequested"
+      ask     :open, with: { run: :run }
+    end
+
+    policy "BeginWhenOpened" do
+      on      "Ticker.TickerOpened"
+      trigger Ticker::Begin, with: { limit: :limit }
+    end
+
+    policy "DeclineWhenUnopened" do
+      on      "Ticker.TickerUnopened"
+      trigger Ticker::Decline, with: { ending: :refusal }
+    end
+
+    # The chain ends on any verdict of the pull request: merged, its checks failed, or closed.
+    policy "StopTickingWhenMerged" do
+      on      "Integration.TrainMergeSeen"
+      root
+      trigger Ticker::Stop, with: { run: :landed, ending: :report }
+    end
+
+    policy "StopTickingWhenChecksFail" do
+      on      "Integration.CiFailed"
+      root
+      trigger Ticker::Stop, with: { run: :landed, ending: :report }
+    end
+
+    # A train pull request whose checks failed past the reruns is given to a coder as a red-train
+    # Work item; nothing more is watched for it, so the chain ends (`Integration.CiFailed` is the
+    # verdict of CI on main, which a pull request that never merged does not reach).
+    policy "StopTickingWhenTrainPrExhausted" do
+      on      "TrainPr.TrainPrExhausted"
+      root
+      trigger Ticker::Stop, with: { run: :landed, ending: :detail }
+    end
+
+    policy "StopTickingWhenClosed" do
+      on      "Integration.PullRequestClosed"
+      root
+      trigger Ticker::Stop, with: { run: :landed, ending: :report }
+    end
+
+    policy "BeatOnTick" do
+      on      "Ticker.Ticked"
+      root
+      trigger Heartbeat::Beat, with: { beat: :tick }
     end
 
     # The clock's other question. Almost everything that starts a roll is an event, but three things
@@ -1069,16 +1219,70 @@ Hecks.bluebook "Hecks" do
       ask     :review, with: { run: :run }
     end
 
-    policy "RemoveWhenNobodyTookOver" do
-      on      "AgentRun.SessionReviewed"
-      where   { taken_over == false }
-      ask     :remove, with: { run: :run }
-    end
-
+    # A finished run's session goes in this order: kept when a person replied, or its Work is still
+    # open and the run left a product (`no_product` is true for the architect, reviewer, planner
+    # and pruner); kept when the worktree holds uncommitted files or commits `origin` lacks; then
+    # the world's scratch is cleared, the worktree retired and the session removed. A refusal at
+    # any step keeps the session with that step's reason, so none is removed ahead of its worktree.
     policy "KeepWhenAPersonTookOver" do
       on      "AgentRun.SessionReviewed"
       where   { taken_over != false }
       trigger AgentRun::Retain, with: { refusal: :note }
+    end
+
+    policy "KeepWhenTheWorkIsStillQueued" do
+      on      "AgentRun.SessionReviewed"
+      where   { taken_over == false && work_open == true && no_product != true }
+      trigger AgentRun::Retain, with: { refusal: "Work still queued" }
+    end
+
+    policy "KeepWhenTheWorktreeHasUnmergedCommits" do
+      on      "AgentRun.SessionReviewed"
+      where   { taken_over == false && (work_open != true || no_product == true) && unmerged == true }
+      trigger AgentRun::Retain, with: { refusal: "worktree has unmerged commits" }
+    end
+
+    policy "KeepWhenTheWorktreeHasUncommittedFiles" do
+      on      "AgentRun.SessionReviewed"
+      where   { taken_over == false && (work_open != true || no_product == true) && unmerged != true && dirty == true }
+      trigger AgentRun::Retain, with: { refusal: "worktree has uncommitted files" }
+    end
+
+    policy "ClearTheScratchOfAFinishedRun" do
+      on      "AgentRun.SessionReviewed"
+      where   { taken_over == false && (work_open != true || no_product == true) && unmerged != true && dirty != true && worktree != "" }
+      ask     :clear_scratch, with: { run: :run }
+    end
+
+    policy "RemoveTheSessionWithNoWorktree" do
+      on      "AgentRun.SessionReviewed"
+      where   { taken_over == false && (work_open != true || no_product == true) && unmerged != true && dirty != true && worktree == "" }
+      ask     :remove, with: { run: :run }
+    end
+
+    policy "RetireTheWorktreeOnceItsScratchIsClear" do
+      on      "AgentRun.ScratchCleared"
+      ask     :retire_worktree, with: { run: :run }
+    end
+
+    policy "KeepWhenTheScratchCannotBeCleared" do
+      on      "AgentRun.ClearRefused"
+      trigger AgentRun::Retain, with: { refusal: :refusal }
+    end
+
+    policy "NoteTheRetiredWorktree" do
+      on      "AgentRun.WorktreeRetired"
+      trigger AgentRun::Detach, with: { detail: :note }
+    end
+
+    policy "RemoveTheSessionOnceItsWorktreeIsRetired" do
+      on      "AgentRun.WorktreeRetired"
+      ask     :remove, with: { run: :run }
+    end
+
+    policy "KeepWhenTheWorktreeCannotBeRetired" do
+      on      "AgentRun.RetireRefused"
+      trigger AgentRun::Retain, with: { refusal: :refusal }
     end
 
     policy "ResumeWithTheAnswer" do
@@ -1336,6 +1540,8 @@ Hecks.bluebook "Hecks" do
         transition "Record"  => "cleaned",   from: "requested"
         transition "Decline" => "refused", from: "requested"
         mark :terminal, "cleaned", "refused"
+        # A finished cleanup frees its key, so a beat or landing that reuses a name starts a new one.
+        mark :reusable, "cleaned", "refused"
       end
 
       command "RemoveSafe" do
@@ -1370,10 +1576,54 @@ Hecks.bluebook "Hecks" do
         emits CleanupDeclined
       end
 
+      # The mechanical cleanup. Every finished run is tidied in its own order (`AgentRun.Tidy`: kept
+      # by name or its scratch cleared, its worktree retired, its session removed), then the sessions
+      # no run holds are removed when they are done or stopped, older than the world's `session_keep`
+      # hours and hold no worktree. The report names what was removed and each session kept, with
+      # the reason. A landing and the clock's beat start it; nobody removes a session by hand.
+      command "Reap" do
+        role "System"
+        goal "Tidy every finished run's session and worktree in order, remove the old sessions no run holds, and report what was removed and kept"
+
+        attribute :run, CleanupName, sets: true
+
+        emits ReapRequested
+      end
+
       query "Removable" do
         description "Every Claude session with whether it is safe to remove and, when not, why: no dispatched run holds it, its run is not finished done, it is not listed done, a person spoke in it, or its own worktree has uncommitted files or commits origin lacks. Reads only."
         returns Document
       end
+    end
+
+    policy "MarkTheStartOfTheReap" do
+      on      "SessionCleanup.ReapRequested"
+      ask     :mark, with: { run: :run }
+    end
+
+    # A root: each run's tidy is a long chain (review, scratch, worktree, session) of its own.
+    policy "TidyEveryFinishedRun" do
+      on       "SessionCleanup.ReapMarked"
+      root
+      for_each "AgentRun.Tidyable"
+      trigger  AgentRun::Tidy, with: { agent_run: :agent_run }
+    end
+
+    policy "RemoveTheOldSessionsNoRunHolds" do
+      on      "SessionCleanup.ReapMarked"
+      ask     :sweep_plain, with: { run: :run, since: :since }
+    end
+
+    policy "ReapWhenWorkLands" do
+      on      "Landing.LandedWorkFound"
+      root
+      trigger SessionCleanup::Reap, with: { run: :branch }
+    end
+
+    policy "ReapOnHeartbeat" do
+      on      "Heartbeat.Beaten"
+      root
+      trigger SessionCleanup::Reap, with: { run: :beat }
     end
 
     policy "CleanWhenAsked" do

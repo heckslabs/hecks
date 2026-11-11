@@ -3,6 +3,7 @@
 require "json"
 require_relative "console_capture"
 require_relative "ci_runs/pull_request"
+require_relative "ci_runs/train_pr_failure"
 require_relative "main_integration/command_runner"
 
 module Hecks
@@ -44,6 +45,20 @@ module Hecks
         via_pull_request(landed, pull)
       end
 
+      # Reruns the failed jobs of one CI run, once the bluebook has decided to.
+      #
+      # @param held [Hash] the `TrainPr` record: `ci_run`, and `pr` for the report
+      # @return [Hash{Symbol => Hash}] `report:`
+      # @raise [ConsoleCapture::Failure] when `gh` refuses
+      def restart(**held)
+        id = plain(held[:ci_run]).to_s
+        @checkout = Dir.pwd
+        ok, output = runner.call(["gh", "run", "rerun", "--failed", id], chdir: @checkout)
+        raise ConsoleCapture::Failure, "gh run rerun failed: #{output.to_s.strip}" unless ok
+
+        { report: { value: "reran the failed jobs of CI run #{id} (PR #{plain(held[:pr])})" } }
+      end
+
       private
 
       # A boarding that went as a pull request is judged on the commit GitHub merged it as: running
@@ -53,8 +68,20 @@ module Hecks
         case pull["state"]
         when "MERGED" then observe(landed, pull.dig("mergeCommit", "oid") || landed, merged: number)
         when "CLOSED" then answer("closed", "#{landed[0, 10]}: PR #{number} closed without merging")
-        else answer("running", "#{landed[0, 10]}: PR #{number} not merged yet (#{Checks.new(pull["statusCheckRollup"]).counts})")
+        else open_pull_request(landed, pull)
         end
+      end
+
+      # An open pull request whose checks all concluded with a failure answers `pr_failed` and the
+      # facts of the failure; any other open one is still running.
+      def open_pull_request(landed, pull)
+        checks = Checks.new(pull["statusCheckRollup"])
+        return answer("running", "#{landed[0, 10]}: PR #{pull["number"]} not merged yet (#{checks.counts})") unless
+          checks.failed_and_complete?
+
+        branch = GitTrain::PullRequestBoarding.branch_for(landed)
+        facts = TrainPrFailure.new(runner, @checkout, branch, landed).facts(pull)
+        answer("pr_failed", facts.delete(:report)).merge(facts.transform_values { |value| { value: value } })
       end
 
       # @param merged [Object, nil] the pull request's number when it merged: CI still running on

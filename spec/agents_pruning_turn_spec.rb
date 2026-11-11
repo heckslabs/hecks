@@ -11,15 +11,14 @@ RSpec.describe "the pruner's turn" do
   end
 
   it "starts no second pruner while one is working" do
-    launch!("agents", "pruning.summon!", "role.value=pruner", "repo.value=#{scratch}", "brief.value=prune", "--wait")
-    land("w-second")
+    2.times { launch("agents", "pruning.summon!", "role.value=pruner", "repo.value=#{scratch}", "brief.value=prune", "--wait") }
     expect(pruners_started).to eq(1)
   end
 
   it "dispatches a pruner again once the first has ended, under a new run key" do
     session_reads_done
-    land("w-a")
-    land("w-b")
+    launch!("agents", "pruning.summon!", "role.value=pruner", "repo.value=#{scratch}", "brief.value=prune", "--wait")
+    launch!("agents", "pruning.wake!", "to=pruner", "repo.value=#{scratch}", "brief.value=prune", "--wait")
     expect(pruners_started).to eq(2)
   end
 end

@@ -12,9 +12,14 @@ RSpec.describe Hecks::Adapters::PipelineBoard::BoardRestart do
   let(:memory) { [100.0] }
   let(:command) { %w[ruby exe/hecks pipeline_board PipelineBoard.serve!] }
 
-  def board
-    described_class.new(limits: limits, command: command, memory: -> { memory.first },
+  def board(code_moved: -> { false })
+    described_class.new(limits: limits, command: command, memory: -> { memory.first }, code_moved: code_moved,
                         now: -> { clock.first }, restart: ->(argv) { restarts << argv })
+  end
+
+  it "restarts at once when its own code changed on disk, even when young and small", :aggregate_failures do
+    expect(board(code_moved: -> { true }).check).to eq(:code)
+    expect(restarts).to eq([command])
   end
 
   it "keeps running while it is small and young", :aggregate_failures do

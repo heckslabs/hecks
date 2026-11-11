@@ -2,6 +2,7 @@
 
 require "rbconfig"
 require_relative "probe"
+require_relative "../../hecks/adapters/main_integration/code_watch"
 
 module Hecks
   module Adapters
@@ -29,32 +30,35 @@ module Hecks
         # @param command [Array<String>] the program and arguments that started the board; the
         #   script is taken as an absolute path so a restart does not depend on the working
         #   directory
-        # @param memory [#call] answers this process's resident memory in megabytes
-        # @param now [#call] answers the time
-        # @param restart [#call] takes the command and replaces this process with it
-        def initialize(limits:, command: [RbConfig.ruby, File.expand_path($PROGRAM_NAME), *ARGV],
-                       memory: method(:resident_mb), now: -> { Time.now }, restart: nil)
+        # @param host [Hash] stand-ins for the outside: `memory:` (answers this process's resident
+        #   memory in megabytes), `now:` (answers the time), `restart:` (takes the command and
+        #   replaces this process with it) and `code_moved:` (answers whether the code on disk is no
+        #   longer the code this process loaded; the watch starts here, so its baseline is the code
+        #   the board began with)
+        def initialize(limits:, command: [RbConfig.ruby, File.expand_path($PROGRAM_NAME), *ARGV], **host)
+          @code_moved = host[:code_moved] || MainIntegration::CodeWatch.shared.method(:moved?)
           @limits = limits
           @command = command
           @directory = Dir.pwd
-          @memory = memory
-          @now = now
-          @restart = restart || method(:replace_process)
-          @started = now.call
+          @memory = host.fetch(:memory) { method(:resident_mb) }
+          @now = host.fetch(:now) { -> { Time.now } }
+          @restart = host[:restart] || method(:replace_process)
+          @started = @now.call
         end
 
         # Restarts the board when it is over a limit and has run for the minimum uptime; does
         # nothing otherwise, so a board that starts above a limit cannot restart in a loop.
         # @return [Symbol, nil] `:memory` or `:age` when it restarted (a stand-in `restart` returns)
         def check
-          return nil if uptime < @limits.fetch(:min_uptime_seconds, 0)
-
-          reason = over
+          reason = @code_moved.call ? :code : settled_reason
           @restart.call(@command) if reason
           reason
         end
 
         private
+
+        # A board whose code changed on disk restarts at once; the limits wait out the uptime.
+        def settled_reason = uptime < @limits.fetch(:min_uptime_seconds, 0) ? nil : over
 
         def uptime = @now.call - @started
 

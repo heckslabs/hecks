@@ -28,6 +28,13 @@ module StallWatchLooks
     File.write(tap, lines.map { |entry| JSON.generate(entry) }.join("\n") << "\n")
   end
 
+  # A train pull request's CI that failed 15 minutes ago and was rerun, and one never rerun.
+  def write_train_pr_tap
+    rows = [["TrainPrFailed", "rerun-pr", 15], ["TrainPrRerun", "rerun-pr", 14], ["TrainPrFailed", "silent-pr", 15]]
+    lines = rows.each_with_index.map { |(event, id, ago), seq| line(seq + 1, event, id, ago).merge(aggregate: "Hecks::TrainPr") }
+    File.write(tap, lines.map { |entry| JSON.generate(entry) }.join("\n") << "\n")
+  end
+
   def watching
     aggregate = registry.bluebook("Hecks").aggregate("StallWatch")
     Hecks::Adapters::StallWatching.new(registry: registry, aggregate: aggregate, tap: tap)

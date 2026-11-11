@@ -112,17 +112,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-ruby
-
-      # cli_completion_spec checks the zsh completion script with `zsh -n`; CI has no zsh,
-      # and the skip backstop turns an unrouted skip into a failure.
-      - name: Install zsh
-        run: |
-          for attempt in 1 2 3; do
-            if sudo DEBIAN_FRONTEND=noninteractive timeout 120 apt-get update -qq && \
-               sudo DEBIAN_FRONTEND=noninteractive timeout 180 apt-get install -y --no-install-recommends zsh; then exit 0; fi
-            echo "::warning::apt install of zsh failed or timed out (attempt $attempt of 3)"
-          done
-          exit 1
       - uses: ./.github/actions/hecks-environment
         with:
           database: ${{ secrets.HECKS_JOURNAL_DATABASE }}
@@ -165,7 +154,7 @@ jobs:
           FILES=()
           while IFS= read -r line; do FILES+=("$line"); done < tmp/rspec_shard_files.txt
           bundle exec parallel_rspec "${FILES[@]}" "${GROUPING[@]}" \
-            -o "--tag ~io --tag ~fuzzing --tag ~generated_all --profile 15 --format documentation --format ParallelTests::RSpec::RuntimeLogger --out tmp/runtime_rspec.log"
+            -o "--tag ~io --tag ~fuzzing --tag ~generated_all --tag ~zsh_completion --profile 15 --format documentation --format ParallelTests::RSpec::RuntimeLogger --out tmp/runtime_rspec.log"
 
       # Artifact only, never restored by this run: the shard_plan job of the next run downloads
       # the artifacts of the newest successful run on main and balances the legs by these seconds.
@@ -177,3 +166,33 @@ jobs:
           path: tmp/runtime_rspec.log
           retention-days: 14
           if-no-files-found: ignore
+
+  # The only job that installs zsh, so a down apt mirror fails this one job and not every shard.
+  # The shards leave out the `zsh_completion` example.
+  rspec_zsh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: ci_attestation_rspec
+    if: >-
+      always() && (needs.ci_attestation_rspec.result != 'success' ||
+      needs.ci_attestation_rspec.outputs.attested != 'true')
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-ruby
+
+      # cli_completion_spec checks the zsh completion script with `zsh -n`; CI has no zsh,
+      # and the skip backstop turns an unrouted skip into a failure.
+      - name: Install zsh
+        run: |
+          for attempt in 1 2 3; do
+            if sudo DEBIAN_FRONTEND=noninteractive timeout 120 apt-get update -qq && \
+               sudo DEBIAN_FRONTEND=noninteractive timeout 180 apt-get install -y --no-install-recommends zsh; then exit 0; fi
+            echo "::warning::apt install of zsh failed or timed out (attempt $attempt of 3)"
+          done
+          exit 1
+      - uses: ./.github/actions/hecks-environment
+
+      # The one example that needs zsh. With no zsh the example skips, and the skip backstop fails the job.
+      - name: "rspec: the zsh completion example"
+        run: |
+          bundle exec rspec spec/driving_adapters/cli_completion_spec.rb --tag zsh_completion

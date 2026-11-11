@@ -141,6 +141,19 @@ Hecks.bluebook "Agents" do
       member role: "orchestrator", reason: "its session holds the pipeline's state and coordinates every run"
     end
 
+    # The roles whose run leaves no Work product to land (they advise, judge or tidy), one row each.
+    # A finished run of one of these is removed whatever state its Work item is in; the cleanup of
+    # `AgentRun.Tidy` reads these rows.
+    value_object "NoProductRole" do
+      attribute :role,   String
+      attribute :reason, String
+
+      member role: "architect",  reason: "it reviews a plan and leaves a verdict"
+      member role: "reviewer",   reason: "it judges a branch and leaves a verdict"
+      member role: "planner",    reason: "it drafts Work items and leaves a plan"
+      member role: "pruner",     reason: "it removes sessions and leaves a report"
+    end
+
     value_object "GuardedCommand", String
 
     # The id of the subagent that made the call; blank when the role's own session did.
@@ -921,17 +934,6 @@ Hecks.bluebook "Agents" do
       on      "Landing.LandedWorkFound"
       root
       trigger Pruning::Seat, with: { role: "pruner" }
-    end
-
-    policy "WakeThePrunerWhenWorkLands" do
-      on      "Landing.LandedWorkFound"
-      root
-      trigger Pruning::Wake,
-              with: { pruning: "pruner", repo: ".",
-                      brief: "Read exe/hecks SessionCleanup.removable, then remove only through " \
-                             "exe/hecks SessionCleanup.remove_safe! run.value=<a name> --confirm --wait, which removes " \
-                             "only the sessions of dispatched runs that finished done. Never run claude rm or " \
-                             "claude stop yourself. Report what it removed and each session it kept, with the reason." }
     end
 
     policy "WakeTheSummonedPruner" do

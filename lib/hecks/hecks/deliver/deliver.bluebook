@@ -1688,6 +1688,18 @@ Hecks.bluebook "Hecks" do
       attribute :retried,  Switch, optional: true
       # Whether a read of a run is of one already seen merged, whose main was pulled at the merge.
       attribute :pulled,   Switch, optional: true
+      # What a read of a train pull request's red checks reports, as facts: the pull request, its CI
+      # run, the attempt that failed, the spec files it names, one key for that attempt
+      # (`<commit>-<run>-<attempt>`) and the Work item key and title a red fix would carry.
+      attribute :pr,          Report, optional: true
+      attribute :ci_run,      Report, optional: true
+      attribute :attempt,     Tries, optional: true
+      attribute :specs,       Report, optional: true
+      attribute :failure_key, Report, optional: true
+      attribute :work_key,    Report, optional: true
+      attribute :title,       Report, optional: true
+      attribute :cause,       Report, optional: true
+      attribute :step,        Report, optional: true
       identified_by :run
 
       value_object "RunKey" do
@@ -1702,6 +1714,9 @@ Hecks.bluebook "Hecks" do
       value_object "Report", String
 
       value_object "Switch", Boolean
+
+      # Which attempt of a CI run failed: 1 is the first.
+      value_object "Tries", Integer
 
       lifecycle :status, default: "requested" do
         mark :failure, "failed", "refused", "red"
@@ -2060,6 +2075,165 @@ Hecks.bluebook "Hecks" do
       trigger LinkedTree::PullMain, with: { run: :landed, checkout: :checkout }
     end
 
+    # A train pull request whose checks all concluded and some failed answers `pr_failed`; the run
+    # stays watched (`ci_running`), since the pull request is still open and a rerun may clear it.
+    policy "RecordTheFailedTrainPr" do
+      on      "Integration.ObserveAnswered"
+      where   { outcome.value == "pr_failed" }
+      trigger TrainPr::Record, with: { key: :failure_key, landed: :landed, pr: :pr, ci_run: :ci_run, attempt: :attempt,
+                                       specs: :specs, work: :work_key, title: :title, cause: :cause, step: :step, failure: :report }
+    end
+
+    # One failed attempt of a train pull request's CI, recorded once under its key
+    # (`<commit>-<run>-<attempt>`), so a second wake for the same failure is refused as already
+    # recorded. The adapter reports facts (attempt, spec files, failed jobs and their first lines);
+    # the policies below decide: a first failure is rerun once, a failure naming a known-flaky spec
+    # is rerun twice, a later one is exhausted and planned as the red-train Work item
+    # (tickets.bluebook).
+    aggregate "TrainPr" do
+      description "One failed attempt of a train pull request's CI: what failed, and whether it was rerun or given to a coder."
+
+      attribute :key,     Key
+      attribute :landed,  Word,   optional: true
+      attribute :pr,      Word,   optional: true
+      attribute :ci_run,  Word,   optional: true
+      attribute :attempt, Tries,  optional: true
+      attribute :specs,   Report, optional: true
+      attribute :work,    Word,   optional: true
+      attribute :title,   Word,   optional: true
+      attribute :cause,   Word,   optional: true
+      attribute :step,    Report, optional: true
+      attribute :failure, Report, optional: true
+      attribute :report,  Report, optional: true
+      attribute :detail,  Report, optional: true
+      attribute :refusal, Report, optional: true
+      identified_by :key
+
+      value_object "Key" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Word" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Report", String
+
+      # Which attempt of a CI run failed: 1 is the first.
+      value_object "Tries", Integer
+
+      # The spec files known to fail on load and pass when run again; a failure naming one is rerun
+      # twice, not once. The policies `RerunTheKnownFlakySpec` and `ExhaustTheFailedTrainPr` name the same files.
+      value_object "KnownFlakySpec" do
+        attribute :spec,   String
+        attribute :reruns, Integer
+
+        member spec: "spec/bounded_capture_spec.rb", reruns: 2
+      end
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "exhausted"
+        transition "Rerun"   => "rerun",     from: "requested"
+        transition "Exhaust" => "exhausted", from: "requested"
+        mark :terminal, "rerun", "exhausted"
+      end
+
+      command "Record" do
+        role "System"
+        goal "Record one failed attempt of a train pull request's CI: the failed jobs, the spec files or step, and the commits it carries"
+
+        attribute :key,     Key, sets: true
+        attribute :landed,  Word, sets: true
+        attribute :pr,      Word, sets: true
+        attribute :ci_run,  Word, sets: true
+        attribute :attempt, Tries, sets: true
+        attribute :specs,   Report, optional: true, sets: true
+        attribute :work,    Word, sets: true
+        attribute :title,   Word, sets: true
+        attribute :cause,   Word, sets: true
+        attribute :step,    Report, optional: true, sets: true
+        attribute :failure, Report, sets: true
+
+        emits TrainPrFailed
+      end
+
+      command "Rerun" do
+        role "System"
+        goal "Record that the failed jobs of a train pull request's CI were rerun"
+
+        reference_to TrainPr
+        attribute :report, Report, sets: true
+
+        emits TrainPrRerun
+      end
+
+      command "Exhaust" do
+        role "System"
+        goal "Record that a train pull request's CI failed past the reruns allowed, so a coder is given the fix"
+
+        reference_to TrainPr
+        attribute :landed, Word, optional: true, sets: true
+        attribute :work,   Word, sets: true
+        attribute :title,  Word, sets: true
+        attribute :cause,  Word, sets: true
+        attribute :step,   Report, optional: true, sets: true
+        attribute :detail, Report, sets: true
+
+        emits TrainPrExhausted
+      end
+    end
+
+    policy "RerunTheFailedTrainPr" do
+      on      "TrainPr.TrainPrFailed"
+      where   { (cause.value == "spec" && attempt.value < 2) || (cause.value == "setup" && attempt.value < 3) }
+      ask     :restart, with: { key: :key, ci_run: :ci_run, pr: :pr, work: :work, title: :title, cause: :cause, step: :step, failure: :failure }
+    end
+
+    policy "RerunTheKnownFlakySpec" do
+      on      "TrainPr.TrainPrFailed"
+      where   { cause.value == "spec" && attempt.value == 2 && specs.value.include?("spec/bounded_capture_spec.rb") }
+      ask     :restart, with: { key: :key, ci_run: :ci_run, pr: :pr, work: :work, title: :title, cause: :cause, step: :step, failure: :failure }
+    end
+
+    policy "ExhaustTheFailedTrainPr" do
+      on      "TrainPr.TrainPrFailed"
+      where   { attempt.value >= 3 || (cause.value == "spec" && attempt.value == 2 && !specs.value.include?("spec/bounded_capture_spec.rb")) }
+      trigger TrainPr::Exhaust, with: { landed: :landed, detail: :failure, work: :work, title: :title, cause: :cause, step: :step }
+    end
+
+    policy "RecordTheRerun" do
+      on      "TrainPr.RestartAnswered"
+      trigger TrainPr::Rerun, with: { report: :report }
+    end
+
+    policy "ExhaustTheRefusedRerun" do
+      on      "TrainPr.RestartRefused"
+      trigger TrainPr::Exhaust, with: { detail: :failure, work: :work, title: :title, cause: :cause, step: :step }
+    end
+
+    # Every open train pull request is looked at on a beat: one whose tip main already holds, or
+    # whose red checks a newer train pull request supersedes, is closed with a comment saying why.
+    policy "SweepTrainPullRequestsOnHeartbeat" do
+      on      "Heartbeat.Beaten"
+      root
+      trigger ReviewRequest::Sweep, with: { run: :beat }
+    end
+
+    policy "SweepWhenAsked" do
+      on      "ReviewRequest.PullRequestSweepRequested"
+      ask     :tidy, with: { run: :run }
+    end
+
+    policy "RecordTheTrainPullRequestSweep" do
+      on      "ReviewRequest.TidyAnswered"
+      trigger ReviewRequest::Swept, with: { report: :report }
+    end
+
+    policy "RecordTheRefusedSweep" do
+      on      "ReviewRequest.TidyRefused"
+      trigger ReviewRequest::Refuse, with: { refusal: :refusal }
+    end
+
     aggregate "ReviewRequest" do
       description "One pull request opened or squash-merged on GitHub, and what GitHub answered."
 
@@ -2107,7 +2281,27 @@ Hecks.bluebook "Hecks" do
         transition "Queue"   => "queued", from: "requested"
         transition "Revise"  => "edited", from: "requested"
         transition "Refuse"  => "refused", from: "requested"
-        mark :terminal, "opened", "merged", "queued", "edited", "refused"
+        transition "Swept"   => "swept",   from: "requested"
+        mark :terminal, "opened", "merged", "queued", "edited", "refused", "swept"
+      end
+
+      command "Sweep" do
+        role "System"
+        goal "Close the open train pull requests that main already holds or that a newer one supersedes, with a comment saying why"
+
+        attribute :run, RunKey, sets: true
+
+        emits PullRequestSweepRequested
+      end
+
+      command "Swept" do
+        role "System"
+        goal "Record which train pull requests a sweep closed"
+
+        reference_to ReviewRequest
+        attribute :report, Report, sets: true
+
+        emits PullRequestsSwept
       end
 
       command "Open" do

@@ -30,7 +30,7 @@ module PipelineBoardPanelState
 
   def sessions
     [{ name: "coder-one", run: "board-snapshot", agent: "coder", status: "busy", detail: "writing the panel" },
-     { name: "planner-one", run: "", agent: "planner", status: "blocked", detail: "which of two plans?" },
+     { name: "planner-one", run: "", agent: "planner", status: "blocked", owner: true, detail: "which of two plans?" },
      { name: "old-one", run: "stall-watch", agent: "architect", status: "done", detail: "reviewed the plan" }]
   end
 

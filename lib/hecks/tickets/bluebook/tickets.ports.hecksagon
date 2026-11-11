@@ -41,6 +41,21 @@ Hecks.hecksagon "Tickets" do
     end
   end
 
+  # Whether an epic has a member and none planned or started, which reads the Work items as a
+  # bluebook rule cannot. The answer completes the epic.
+  Tickets::Epic.port "EpicMembers" do
+    asks "CheckMembers", to: Epic do
+      attribute :epic, EpicKey
+      answers "MembersCleared"
+      refuses "MembersRefused"
+    end
+  end
+
+  # One epic's members counted, read and never written.
+  Tickets::Work.port "EpicProgress" do
+    answers_query "EpicProgress"
+  end
+
   # The backlog in the order the Dispatching port starts it, read and never written.
   Tickets::Work.port "PriorityReport" do
     answers_query "PriorityReport"

@@ -1,7 +1,8 @@
 require "spec_helper"
 require_relative "support/resting_pruner"
 
-# A feature landing wakes the pruner; a run that ends without landing wakes nothing.
+# A landing does not wake the pruner: it starts the mechanical reap of finished sessions instead,
+# and a run that ends without landing wakes nothing.
 RSpec.describe "what wakes the pruner" do
   include_context "with a resting pruner"
 
@@ -16,14 +17,14 @@ RSpec.describe "what wakes the pruner" do
     expect(pruners_started).to eq(0)
   end
 
-  it "starts exactly one pruner when a feature lands" do
+  it "starts no pruner when a feature lands" do
     land("w-landed")
-    expect(pruners_started).to eq(1)
+    expect(pruners_started).to eq(0)
   end
 
-  it "starts one pruner for two landings while it works" do
+  it "starts no pruner for two landings" do
     land("w-first")
     land("w-second")
-    expect(pruners_started).to eq(1)
+    expect(pruners_started).to eq(0)
   end
 end
