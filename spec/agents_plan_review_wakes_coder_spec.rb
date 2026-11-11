@@ -33,6 +33,15 @@ module WakesCoderHelpers
     launch("agent_run.check!", "to=r-#{work}", "--wait")
   end
 
+  # The architect has said its verdict and gone idle: the job still reads `working`, as it did for
+  # a session that never exited, and the listing says `idle`.
+  def architect_idles(work, verdict, status: "idle")
+    state = { state: "working", output: { result: verdict } }
+    File.write(File.join(scratch, "jobs", "stand-in-session", "state.json"), JSON.generate(state))
+    File.write(File.join(scratch, "sessions.json"), JSON.generate([{ id: "stand-in-session", status: status }]))
+    launch("agent_run.check!", "to=r-#{work}", "--wait")
+  end
+
   def runs_woken = woken.map { |held| held.dig(:run, :value).to_s }
 end
 
@@ -57,6 +66,20 @@ RSpec.describe "a recorded plan verdict waking the coder waiting for it" do
     review("w-one", "Verdict: sound. Build it.")
     expect(runs_woken).to eq(["w-one"])
     expect(woken.first[:answer].to_s).to include("Build it.")
+  end
+
+  it "resumes the coder when the architect said its verdict and went idle without exiting" do
+    wait_as_coder("w-idle")
+    request_review("w-idle")
+    architect_idles("w-idle", "Verdict: sound. Build it.")
+    expect(runs_woken).to eq(["w-idle"])
+  end
+
+  it "wakes no coder while the architect is still busy" do
+    wait_as_coder("w-busy")
+    request_review("w-busy")
+    architect_idles("w-busy", "Verdict: sound", status: "busy")
+    expect(runs_woken).to be_empty
   end
 
   it "wakes no coder waiting on a different Work item" do

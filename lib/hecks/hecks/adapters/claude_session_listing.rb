@@ -43,6 +43,18 @@ module Hecks
         lookup(read, id)
       end
 
+      # What the listing says the session is doing: `idle` once its turn is over, `busy` while it
+      # works. What that means for a run is the bluebook's.
+      #
+      # @param id [String] the short or the full session id
+      # @return [String] the listed status, empty when the session is not listed or the sessions
+      #   cannot be listed or read
+      def status(id)
+        find(id.to_s)&.fetch("status", nil).to_s
+      rescue ConsoleCapture::Failure, JSON::ParserError
+        ""
+      end
+
       # Forgets the kept listing, so the next question reads a fresh one. A caller that has just
       # removed or stopped a session calls it, since the kept listing still shows that session.
       #
