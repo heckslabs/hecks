@@ -79,6 +79,28 @@ RSpec.describe "a red train pull request" do
     expect(@hecks.registry.event_log.map { |e| e.payload.to_s }.join).to include("Install zsh")
   end
 
+  it "records the second attempt's failure and plans the item when GitHub cannot list the jobs", :aggregate_failures do
+    github.jobs_error = true
+    fail_twice
+    expect(names.grep(/TrainPrFailed/).size).to eq(2)
+    expect(names).to include("TrainPrExhausted", "WorkPlanned")
+  end
+
+  it "observes nothing, and records no failure, when neither the jobs nor the log can be read", :aggregate_failures do
+    github.jobs_error = true
+    github.log_error = true
+    observe
+    expect(names).to include("ObserveRefused")
+    expect(names).not_to include("TrainPrFailed")
+  end
+
+  it "does not read a pull request with a check still running as failed", :aggregate_failures do
+    github.rollup = [{ name: "rspec", status: "COMPLETED", conclusion: "FAILURE" },
+                     { name: "rspec 2", status: "IN_PROGRESS", conclusion: "" }]
+    observe
+    expect(names).not_to include("TrainPrFailed", "ObserveRefused")
+  end
+
   it "reruns a failure once and plans nothing while the rerun is out" do
     observe
     expect([github.reruns.size, names.grep(/TrainPrExhausted/)]).to eq([1, []])

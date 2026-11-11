@@ -1,3 +1,4 @@
+require "tmpdir"
 require "hecks/hecks/adapters/ticking"
 
 # Drives the Ticker chain against the Delegate domain in Memory, with a recorder where the
@@ -8,7 +9,7 @@ module TickerChain
   def ticking
     @ticking ||= Hecks::Adapters::Ticking.new(
       registry: @hecks.registry, root: Dir.pwd,
-      settings: { spawner: ->(*argv) { started << argv }, seconds: 20, minutes: 1 }
+      settings: { spawner: ->(*argv) { started << argv }, seconds: 20, minutes: 1, dir: Dir.mktmpdir("ticker-logs") }
     )
   end
 
