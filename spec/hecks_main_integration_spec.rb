@@ -30,6 +30,7 @@ RSpec.describe "integrating main through the MainIntegration saga" do
   after do
     [Hecks::Adapters::MainVerification, Hecks::Adapters::MainBoarding, Hecks::Adapters::CiRuns].each { |a| a.runner = nil }
     Hecks::Adapters::MainBoarding.train_root = nil
+    Hecks::Adapters::MainVerification.log_directory = nil
     Hecks::Adapters::MainIntegration::CodeWatch.fingerprint = nil
     FileUtils.remove_entry(dir)
   end
@@ -117,6 +118,7 @@ RSpec.describe "integrating main through the MainIntegration saga" do
       note_depth
       argv.include?("gate_run.gate!") ? gate : [true, "ok in #{chdir}"]
     end
+    Hecks::Adapters::MainVerification.log_directory = File.join(dir, "verification-logs")
     Hecks::Adapters::MainBoarding.runner = method(:train)
     Hecks::Adapters::MainBoarding.train_root = dir
     Hecks::Adapters::CiRuns.runner = ->(argv, **) { github(argv, conclusion, jobs) }
@@ -364,7 +366,7 @@ RSpec.describe "integrating main through the MainIntegration saga" do
   it "parks a run whose retry fails too, keeping both refusals", :aggregate_failures do
     landed = land_behind_red_gate(2, 2)
     expect(stage(landed)).to eq("needs_human")
-    expect(refusal("MainVerificationFailedOnce")).to include("quick gate", "try 1")
+    expect(refusal("MainVerificationFailedOnce")).to include("quick gate", "try 1", "; log #{dir}/verification-logs/")
     expect(refusal("MainVerificationFailed")).to include("quick gate", "try 2")
   end
 

@@ -5,6 +5,7 @@ require_relative "shell"
 require "time"
 require_relative "console_capture"
 require_relative "claude_transcript"
+require_relative "reviewer_judgment"
 require_relative "claude_jobs"
 require_relative "claude_resumption"
 require_relative "architect_verdict"
@@ -93,18 +94,23 @@ module Hecks
       # @return [Hash{Symbol => String}] `state:` and `detail:` from the job, `previous:` the held
       #   condition (empty when none), `checkout:` the run's directory with its trailing slash, and
       #   the {CoderJobFacts}: `agent:`, `report:`, and a done coder's `branch:`, `sha:`, `clean:`;
-      #   and `listed:` the status `claude agents` lists the session with
+      #   and `listed:` the status and `live:` the state `claude agents` lists the session with.
+      #   A job that reads ended (`done`, `stopped`) is read against a fresh listing, so `live:`
+      #   is not stale news; the state itself stays the job's own
       # @raise [ConsoleCapture::Failure] when the job's state cannot be read
       def read_job(**held)
         job = @jobs.state(plain(held[:session]))
-        { state: job["state"].to_s, detail: job["detail"].to_s, listed: @listing.status(plain(held[:session])) }
+        { state: job["state"].to_s, detail: job["detail"].to_s }
           .merge(architect_facts(job, held), reviewer_facts(job, held), run_facts(held), session_facts(job, held))
       end
 
-      # @return [Hash{Symbol => Object}] what {CoderJobFacts} reads of the job and its checkout
+      # @return [Hash{Symbol => Object}] what {CoderJobFacts} reads of the job and its checkout, and
+      #   the listing's `listed:` and `live:`, read afresh when the job reads ended (only freshness:
+      #   whether it ended is the bluebook's)
       def session_facts(job, held)
         CoderJobFacts.new.call(agent: plain(held[:agent]), state: job["state"], report: last_words(job, held),
                                checkout: plain(held[:repo]))
+                     .merge(@listing.facts(plain(held[:session]), fresh: %w[done stopped].include?(job["state"])))
       end
 
       # The session's last words: its timeline's tail, else the job's result, else its summary; the
@@ -128,16 +134,12 @@ module Hecks
         { verdict: ArchitectVerdict.of(text), findings: ArchitectFindings.clip(text) }
       end
 
-      # The reviewer's judgment as its closing text states it: `real_bug` or `stale_expectation`.
-      JUDGMENT_WORDS = /\b(real[ _]bug|stale[ _]expectation)\b/i
-
-      # @return [Hash{Symbol => String}] the reviewer's `judgment`, empty for any other agent or a
-      #   text that names none
+      # @return [Hash{Symbol => String}] the reviewer's `judgment` ({ReviewerJudgment}), empty for
+      #   any other agent or a text that names none
       def reviewer_facts(job, held)
         return { judgment: "" } unless plain(held[:agent]).to_s == "reviewer"
 
-        closing = [job.dig("output", "result"), job["detail"]].compact.join(" ")
-        { judgment: closing[JUDGMENT_WORDS, 1].to_s.downcase.tr(" ", "_") }
+        { judgment: ReviewerJudgment.of([job.dig("output", "result"), job["detail"]].compact.join(" ")) }
       end
 
       # @return [Hash{Symbol => String}] the run the job belongs to: its key, the Work item it

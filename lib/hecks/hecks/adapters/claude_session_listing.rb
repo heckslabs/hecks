@@ -55,6 +55,27 @@ module Hecks
         ""
       end
 
+      # What the listing says the session's state is: `working`, `blocked`, `done` and so on. It is
+      # reported beside the job's own state; what a disagreement between them means is the
+      # bluebook's.
+      #
+      # @param id [String] the short or the full session id
+      # @return [String] the listed state, empty when the session is not listed or the sessions
+      #   cannot be listed or read
+      def state(id)
+        find(id.to_s)&.fetch("state", nil).to_s
+      rescue ConsoleCapture::Failure, JSON::ParserError
+        ""
+      end
+
+      # @param id [String] the short or the full session id
+      # @param fresh [Boolean] read the listing afresh first
+      # @return [Hash{Symbol => String}] `listed:` the status and `live:` the state
+      def facts(id, fresh: false)
+        forget! if fresh
+        { listed: status(id), live: state(id) }
+      end
+
       # Forgets the kept listing, so the next question reads a fresh one. A caller that has just
       # removed or stopped a session calls it, since the kept listing still shows that session.
       #

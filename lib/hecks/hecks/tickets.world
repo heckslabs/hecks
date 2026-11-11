@@ -5,7 +5,7 @@
 # `frozen_shapes` (not `freeze`, which every Ruby object already answers) names the areas and aggregates whose persisted shape may not move: a brief tells its session
 # to commit and hold a change that moves one, and `Dispatch.Fill` starts no Work item in a frozen area.
 # The Machine's load marks and `dispatch_max_load` are one number, below the CPU count (12 on the owner's
-# machine), so the Machine pausing the plan and the plan's own load check agree.
+# machine; 10.0 since 2026-11-11, which leaves about two cores for the desktop), so the Machine pausing the plan and the plan's own load check agree.
 # `cpu_budget` is a ceiling on the hours of launcher boots in a rolling 24 hours (the usage record's
 # `boot_ms`, from each run's start time; a run with no boot time adds nothing): once they have spent it,
 # `Dispatch.Fill` starts no session except a red-* fix ("boot budget spent") and the board's Boot hours
@@ -32,17 +32,17 @@
 # CPU over `cpu_idle_low`); memory is low over `swap_low` percent of swap used or a compressor over
 # `compressor_gb` gigabytes, and recovered under `swap_recovered` percent; the test lane is busy at
 # `lane_busy` waiting and idle at `lane_idle` or fewer; a reading is taken at most every `interval` seconds.
-# `load_low` and `load_high` are `dispatch_max_load` (8.0), so the load rises when the fill starts refusing
+# `load_low` and `load_high` are `dispatch_max_load` (10.0), so the load rises when the fill starts refusing
 # and falls when it would start again; `LoadFellBelow` is what runs the fill. The CPU idle marks are
 # deliberately neutralised (0 and 100) so the load average alone decides the load; only an idle reading
 # of exactly 0 or exactly 100 still overrides it. Keep the three numbers equal.
 Hecks.world "Tickets" do
-  machine_marks "Machine", load_low: 8.0, load_high: 8.0, cpu_idle_low: 0.0, cpu_idle_high: 100.0,
+  machine_marks "Machine", load_low: 10.0, load_high: 10.0, cpu_idle_low: 0.0, cpu_idle_high: 100.0,
                            swap_low: 70.0, swap_recovered: 50.0, compressor_gb: 12.0, lane_busy: 4.0, lane_idle: 1.0,
                            interval: 60.0
   github_issues "GitHubIssues", enabled: false
   work_limit "WorkLimits", cap: 6
-  dispatch_max_load "Dispatch", limit: 8.0
+  dispatch_max_load "Dispatch", limit: 10.0
   cpu_budget "Dispatch", boot_hours_per_day: 6.0
   dispatch_roll_forward "Dispatch", roll_forward: false
   frozen_shapes "PersistedShapes", areas: []

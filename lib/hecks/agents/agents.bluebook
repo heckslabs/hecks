@@ -221,6 +221,7 @@ Hecks.bluebook "Agents" do
     attribute :verdict, Verdict, optional: true
     attribute :findings, FindingsText, optional: true
     attribute :hops, HopCount, optional: true
+    attribute :reason, ReasonText, optional: true
 
     # One review's key, and the key of the architect's run that answers it.
     value_object "RunKey" do
@@ -244,6 +245,9 @@ Hecks.bluebook "Agents" do
     value_object "RepoPath", String
 
     value_object "PlanText", String
+
+    # Why no architect session was started for the review, as the dispatch refused it.
+    value_object "ReasonText", String
 
     # A request is refused at the third hop, so a chain of reviews that ask for reviews stops by name.
     command "Request" do
@@ -297,11 +301,44 @@ Hecks.bluebook "Agents" do
       emits "PlanReviewRecorded"
     end
 
+    # The architect's run was declined, so no verdict can come: the reason is recorded on the review
+    # and the coder waiting on the Work item is told it (`JudgeTheUnstartedReview`). A review that
+    # already holds a verdict refuses by name.
+    command "Unstart" do
+      role "System"
+      goal "Record why the architect's run for a review was never started"
+
+      reference_to PlanReview
+      attribute :work,   WorkKey, sets: true
+      attribute :reason, ReasonText, sets: true
+
+      given("the review has no verdict yet") { verdict.nil? || verdict.to_s.empty? }
+
+      emits "ReviewUnstarted"
+    end
+
+    # A declined run is looked up among the reviews: the one it keys is unstarted, with its Work item
+    # read off the review's row. A declined run no review keys finds no row, so nothing happens. A root,
+    # since the decline sits at the end of a dispatch's chain and the wake after it is four steps long.
+    policy "UnstartTheDeclinedReview" do
+      on       "AgentRun.AgentRunDeclined"
+      root
+      for_each "PlanReview.OfRun"
+      trigger  PlanReview::Unstart, with: { plan_review: :plan_review, work: :work, reason: :refusal }
+    end
+
     policy "RecordTheVerdictWhenNoReviewWasAsked" do
       on      "AgentRun.JobRead"
       root
       where   { agent == "architect" && verdict != "" && (previous != state || (listed == "idle" && previous != "done")) }
       trigger PlanReview::Record, with: { run: :run, work: :work, verdict: :verdict, findings: :findings }
+    end
+
+    # The review a run keys, so a policy reacting to the run's event reads the Work item off its row.
+    query "OfRun" do
+      description "The review keyed by one run, with its Work item and the reason it was never started."
+      attribute :run, RunKey
+      where(run: :run)
     end
 
     query "Reviews" do
@@ -416,6 +453,13 @@ Hecks.bluebook "Agents" do
       root
       where   { agent == "reviewer" && judgment != "" && previous != state }
       trigger Verdict::Judge, with: { run: :run, work: :work, role: "reviewer", answer: :detail }
+    end
+
+    # A review whose architect run was declined can never bring a verdict, so the reason goes to the
+    # coder as the verdict would. The event carries the run; the Work item is read off the review's row.
+    policy "JudgeTheUnstartedReview" do
+      on      "PlanReview.ReviewUnstarted"
+      trigger Verdict::Judge, with: { run: :run, work: :work, role: "architect", answer: :reason }
     end
   end
 

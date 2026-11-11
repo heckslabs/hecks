@@ -6,7 +6,7 @@ require "hecks/hecks/adapters/dispatching"
 RSpec.describe "the waker after its second review" do
   let(:dispatching) { Hecks::Adapters::Dispatching }
   let(:now) { Time.utc(2026, 11, 9, 12, 0, 0) }
-  let(:level) { { load: 9.0 } }
+  let(:level) { { load: 11.0 } }
   let(:items) { [dispatching::Plan::Item.new(key: "w", title: "w", detail: "", area: ["w"])] }
   let(:work_items) do
     instance_double(dispatching::WorkItems, planned: items, rollable: items, started: [], runs: {}, lessons: [])
