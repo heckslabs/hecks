@@ -63,7 +63,7 @@ RSpec.describe "noticing a train pull request's verdict on the clock's beat" do
   end
 
   # Local main boards one commit and the run stands pushed; GitHub squashes it into a new commit
-  # on origin/main, so local main stands ahead by one and behind by one once the pull request merges.
+  # on origin/main, so local main stands ahead by one and behind by one once the request merges.
   def boarded_run(state: "pushed")
     boarded = commit(repo, "boarded.txt", "boarded")
     @hecks.registry.saga_instances["MainIntegration"][boarded] = { state: state, memory: { checkout: repo } }

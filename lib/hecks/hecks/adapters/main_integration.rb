@@ -44,8 +44,8 @@ module Hecks
 
       # Reads the CI run of each pushed or watched run, once, and does nothing else: a beat of the
       # clock asks it, so a merged train pull request or a finished check is noticed with no person
-      # advancing. The runs are those `NEXT` maps to `Observe`, so `NEXT` stays the one table of which
-      # stage takes which step; a run that took its verdict leaves those stages and is not read twice.
+      # advancing. The runs are those `NEXT` maps to `Observe`, so `NEXT` stays the one table of
+      # which stage takes which step; a run that took its verdict leaves them and is not read twice.
       #
       # @param _held [Hash] the `Integration` record, unused
       # @return [Hash{Symbol => Hash}] `report:` one line per run read
