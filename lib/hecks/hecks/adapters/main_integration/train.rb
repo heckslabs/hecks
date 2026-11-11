@@ -2,6 +2,7 @@
 
 require "json"
 require_relative "../console_capture"
+require_relative "train_overlay"
 
 module Hecks
   module Adapters
@@ -48,6 +49,15 @@ module Hecks
 
           move_to(landed, target)
           "refreshed the train from #{short(before)} to #{short(target)}"
+        end
+
+        # Writes the copy's machine-local overlay from {TrainOverlay::PERSISTED}, so what the train
+        # keeps between its processes is declared once and never lags the development checkout.
+        #
+        # @return [String] what was done to the overlay
+        def write_overlay
+          written = TrainOverlay.new(@root).write
+          written ? "wrote the train's overlay #{TrainOverlay::PATH}" : "train overlay current"
         end
 
         # @param checkout [String] the checkout whose main is boarded
