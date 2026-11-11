@@ -29,6 +29,7 @@ Hecks.bluebook "Hecks" do
       attribute :detail,    Report,    optional: true
       attribute :work,      WorkSlug,  optional: true
       attribute :trial,     Trial,     optional: true
+      attribute :resuming,  Resuming,  optional: true
       identified_by :run
 
       value_object "RunKey" do
@@ -46,6 +47,11 @@ Hecks.bluebook "Hecks" do
       # Whether the run is a test run, one whose key starts `live-` or `resume-`. It is set when the
       # run retires itself, so a trial run is told from a real one in the ledger.
       value_object "Trial", Boolean
+
+      # Whether an answer is on its way to the session. Delivering one stops the session and wakes
+      # it again, so a job that reads `stopped` meanwhile is the answer's own stop, not the
+      # session's end. `Answer` sets it; `Answered` and `Unanswered` clear it.
+      value_object "Resuming", Boolean
 
       # The directory the session works in.
       value_object "Path" do
@@ -245,6 +251,7 @@ Hecks.bluebook "Hecks" do
         reference_to AgentRun
         attribute :answer, Brief
         attribute :verdict, VerdictKey, default: ""
+        attribute :resuming, Resuming, default: true, sets: true
 
         given("the answer says something") { !answer.value.to_s.strip.empty? }
 
@@ -259,6 +266,7 @@ Hecks.bluebook "Hecks" do
         attribute :answered_at, Moment, sets: true
         attribute :session,     SessionId, sets: true
         attribute :verdict,     VerdictKey, default: ""
+        attribute :resuming,    Resuming, default: false, sets: true
 
         emits AgentRunAnswered
       end
@@ -270,6 +278,7 @@ Hecks.bluebook "Hecks" do
         reference_to AgentRun
         attribute :refusal, Report, sets: true
         attribute :verdict, VerdictKey, default: ""
+        attribute :resuming, Resuming, default: false, sets: true
 
         emits AgentRunUnanswered
       end
@@ -992,10 +1001,14 @@ Hecks.bluebook "Hecks" do
       trigger AgentRun::Block, with: { condition: :state, detail: :detail, checkout: :checkout }
     end
 
+    # Delivering an answer stops the session and wakes it again, and the stop runs the session's
+    # own check. A job read `stopped` while the run's answer is on its way (`resuming`, which the
+    # reading carries beside `previous`) is that stop, so it ends nothing; the next check reads the
+    # woken session, or the stopped one once the answer was refused.
     policy "RecordTheEndedSession" do
       on      "AgentRun.JobRead"
       root
-      where   { (state == "done" || state == "stopped") && previous != state }
+      where   { (state == "done" || (state == "stopped" && resuming != true)) && previous != state }
       trigger AgentRun::Finish, with: { condition: :state, detail: :detail, checkout: :checkout }
     end
 

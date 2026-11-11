@@ -45,6 +45,7 @@ module Hecks
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] `command:` the program that starts sessions (default `claude`),
       #   `jobs:` the jobs directory, `settle:` the seconds a new session is given to fail,
+      #   `wake_patience:` the seconds a woken session is given to stop reading `stopped`,
       #   `launcher:` the `exe/hecks` its hooks run (default the main checkout's), `projects:` the
       #   directory of the per-project transcript folders
       # @param root [String, nil] unused
@@ -54,7 +55,7 @@ module Hecks
         @session = Dispatching::Settings.new(registry)
         @shell = Shell.new
         transcripts(settings.slice(:projects))
-        @jobs = ClaudeJobs.new(directory: settings[:jobs])
+        @jobs = ClaudeJobs.from(settings)
         @agents = ClaudeAgentList.new(@command, shell: @shell)
         @lookup = session_lookup(settings[:now])
         @settle = settings.fetch(:settle, SETTLE_SECONDS)
@@ -139,11 +140,11 @@ module Hecks
       end
 
       # @return [Hash{Symbol => String}] the run the job belongs to: its key, the Work item it
-      #   serves (empty for a run that serves none), its last known condition, and its directory
-      #   with a trailing slash
+      #   serves (empty for a run that serves none), its last known condition, whether an answer
+      #   is on its way to it (`resuming`), and its directory with a trailing slash
       def run_facts(held)
         { previous: plain(held[:condition]).to_s, checkout: File.join(plain(held[:repo]).to_s, ""),
-          run: plain(held[:run]).to_s, work: plain(held[:work]).to_s }
+          run: plain(held[:run]).to_s, work: plain(held[:work]).to_s, resuming: plain(held[:resuming]) == true }
       end
 
       # Waits the settling time, then reads the job as {#read_job} does: a session that dies at
@@ -191,13 +192,14 @@ module Hecks
       #   itself again
       # @return [Hash{Symbol => Object}] `resumed_at:` when the resume was started, as an ISO 8601
       #   string; `session:` the id the run follows, its own unless the CLI started a copy; and
-      #   `note:` what the CLI said of that copy, when it did
+      #   `note:` what the CLI said of that copy, when it did. It answers once the woken session's
+      #   job reads a state other than `stopped` ({ClaudeJobs#woken})
       # @raise [ConsoleCapture::Failure] when the session is not listed or the command refuses
       def resume(**held)
         id = plain(held[:session])
-        ClaudeResumption.new(@command, @shell, nice: niceness)
-                        .call(id, listed(id), plain(held[:answer]), env: named(held), chdir: plain(held[:repo]),
-                                                                    agent: plain(held[:agent]))
+        @jobs.woken(ClaudeResumption.new(@command, @shell, nice: niceness)
+                                    .call(id, listed(id), plain(held[:answer]), env: named(held), chdir: plain(held[:repo]),
+                                                                                agent: plain(held[:agent])))
       end
 
       # Says whether `claude agents` still lists the run's session. A session `claude rm` deleted is
