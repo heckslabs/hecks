@@ -132,8 +132,15 @@ module Hecks
       end
 
       def refusal(name, text)
-        use = nearest_verb(name, text) || hint(name, text)
+        use = owner_only(name, text) || nearest_verb(name, text) || hint(name, text)
         "#{name} routes only: use #{use}. Refused: #{text}"
+      end
+
+      # The hint of an owner-only command the text names, which outranks the nearest verb: a role
+      # that reaches for one is told whose decision it is, not offered a neighbouring verb.
+      def owner_only(name, text)
+        found = rows("RefusalHint", name).find { |row| row[:use].start_with?("nothing:") && text.include?(row[:shape]) }
+        found && found[:use]
       end
 
       def hint(name, text)

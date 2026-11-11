@@ -1425,6 +1425,12 @@ Hecks.bluebook "Hecks" do
       trigger AgentRun::Dispatch, with: { run: :advice, repo: :repo, brief: :brief, agent: :role }
     end
 
+    # An exception the orchestrator must judge starts its session as a run keyed by the escalation.
+    policy "StartTheCoordinatorWhenWoken" do
+      on      "Escalation.CoordinatorWoken"
+      trigger AgentRun::Dispatch, with: { run: :escalation, repo: :repo, brief: :brief, agent: :role }
+    end
+
     # A session the board started by hand has no run to tidy, so it is removed on its own. The
     # rule is the same as Tidy's: only a finished session that waits on nobody goes.
     aggregate "PlainSession" do
