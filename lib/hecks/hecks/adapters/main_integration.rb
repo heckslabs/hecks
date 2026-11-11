@@ -12,9 +12,7 @@ module Hecks
     # watched one has its CI run read. A run whose first verification failed (retrying, as the
     # saga's rule set it) is verified again, marked as the retry. A run in any other stage (being
     # verified or boarded, green, red, superseded or waiting for a person) is left alone. A
-    # verification that leaves its run verified is followed by its boarding in the same advance. The
-    # runs being pushed or watched are read first, so the run waiting behind one boards in that same
-    # advance once the push turns green.
+    # verification that leaves its run verified is followed by its boarding in the same advance.
     #
     # Each step is a dispatch of its own through the boot whose advance asked, not a dispatch from
     # inside the saga. A boarding needs `confirm` and waits while another run is pushed or watched.
