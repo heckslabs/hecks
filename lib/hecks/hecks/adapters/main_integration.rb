@@ -59,7 +59,11 @@ module Hecks
 
       private
 
-      def advance_open(confirm) = attend(runs.all.select { |run| NEXT.key?(run.state) }, confirm)
+      def advance_open(confirm) = attend(observing_first(runs.all.select { |run| NEXT.key?(run.state) }), confirm)
+
+      # The pushed or watched runs come before the rest, so a run waiting on an earlier push boards
+      # in the advance that sees that push turn green, whatever order the saga lists the runs in.
+      def observing_first(open) = open.partition { |run| NEXT[run.state] == "Observe" }.flatten
 
       # Each given run in turn, until the code on disk differs from the code this process loaded
       # (`CodeWatch`): the pass then ends with that said, the runs it did not reach wait, and
