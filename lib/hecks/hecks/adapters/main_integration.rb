@@ -12,7 +12,9 @@ module Hecks
     # watched one has its CI run read. A run whose first verification failed (retrying, as the
     # saga's rule set it) is verified again, marked as the retry. A run in any other stage (being
     # verified or boarded, green, red, superseded or waiting for a person) is left alone. A
-    # verification that leaves its run verified is followed by its boarding in the same advance.
+    # verification that leaves its run verified is followed by its boarding in the same advance. The
+    # runs being pushed or watched are read first, so the run waiting behind one boards in that same
+    # advance once the push turns green.
     #
     # Each step is a dispatch of its own through the boot whose advance asked, not a dispatch from
     # inside the saga. A boarding needs `confirm` and waits while another run is pushed or watched.
@@ -59,7 +61,11 @@ module Hecks
 
       private
 
-      def advance_open(confirm) = attend(runs.all.select { |run| NEXT.key?(run.state) }, confirm)
+      def advance_open(confirm) = attend(observing_first(runs.all.select { |run| NEXT.key?(run.state) }), confirm)
+
+      # The pushed or watched runs come before the rest, so a run waiting on an earlier push boards
+      # in the advance that sees that push turn green, whatever order the saga lists the runs in.
+      def observing_first(open) = open.partition { |run| NEXT[run.state] == "Observe" }.flatten
 
       # Each given run in turn, until the code on disk differs from the code this process loaded
       # (`CodeWatch`): the pass then ends with that said, the runs it did not reach wait, and
