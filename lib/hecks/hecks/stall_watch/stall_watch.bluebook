@@ -33,7 +33,7 @@ Hecks.bluebook "Hecks" do
         attribute :move,      String
 
         member kind: "plan-review", aggregate: "Agents::PlanReview", opens: "PlanReviewRequested",
-               closes: "PlanReviewed,PlanReviewRecorded", minutes: 20, forgets: 1440, fixer: "orchestrator",
+               closes: "PlanReviewed,PlanReviewRecorded,ReviewUnstarted", minutes: 20, forgets: 1440, fixer: "orchestrator",
                move: "Read the architect's closing report, record its verdict with PlanReview.answer! " \
                      "(PlanReview.record! when no request row exists), then AgentRun.answer! the waiting coder."
         member kind: "agent-run-start", aggregate: "Hecks::AgentRun", opens: "AgentRunRequested",

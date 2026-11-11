@@ -9,15 +9,15 @@ RSpec.describe "crossings of the machine's marks" do
   def heard(*loads) = crossings(beat_through(loads.map { |load| gauge(60.0).merge(load: load) })[:names])
 
   it "emits LoadFellBelow once for a falling series" do
-    expect(heard(9.0, 9.5, 8.5, 7.0, 6.0)).to eq(%w[LoadRoseAbove LoadFellBelow])
+    expect(heard(11.0, 11.5, 10.5, 9.0, 8.0)).to eq(%w[LoadRoseAbove LoadFellBelow])
   end
 
   it "emits LoadRoseAbove once for a rising series" do
-    expect(heard(5.0, 7.0, 8.5, 9.0, 12.0)).to eq(%w[LoadRoseAbove])
+    expect(heard(7.0, 9.0, 10.5, 11.0, 14.0)).to eq(%w[LoadRoseAbove])
   end
 
   it "emits nothing for a series that stays at or under the limit" do
-    expect(heard(5.0, 7.5, 6.0, 8.0, 7.0)).to eq([])
+    expect(heard(7.0, 9.5, 8.0, 10.0, 9.0)).to eq([])
   end
 
   it "hears memory run low and recover", :aggregate_failures do

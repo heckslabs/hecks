@@ -6,27 +6,36 @@ require_relative "main_integration/repository"
 require_relative "main_integration/checks"
 require_relative "main_integration/command_runner"
 require_relative "main_integration/cargo_target"
+require_relative "main_integration/failure_log"
+require_relative "main_integration/refusal"
 
 module Hecks
   module Adapters
     # The `MainVerifying` port's adapter for `Integration.Verify`: checks a landed commit in a
     # clean detached copy of it, holding no local Hecks files, by running every check `Checks`
-    # names there. A commit other than the head of local main is answered `superseded` without a
-    # check: the run for the head verifies both. So is a commit `origin/main` already carries
-    # (contained, or squash-merged by a train), judged after one fetch and again before every
-    # check, so a landing merged mid-run stops the run at its next check. A check that fails
-    # refuses the verification: the first line names every failing check, and a block for each
-    # keeps the last `TAIL` lines it printed, so the run parked in needs_human says why. The
-    # copy's crates build into the Cargo targets every verification of their toolchain shares
-    # (`CargoTarget`), so a second verification reuses the first one's compiled dependencies.
+    # names there: the quick gate, all the listener promises before a push (CI on the train pull
+    # request is the full check). A commit other than the head of local main is answered
+    # `superseded` without a check, as is one `origin/main` carries (contained, or squash-merged
+    # by a train) or an open train pull request holds, whoever boarded it (`BoardedCheck`): judged
+    # after one fetch, before every check and after the last. A check that fails refuses the
+    # verification: the first line names every failing check, and a block for each keeps the last
+    # `TAIL` lines it printed. The copy's crates build into the Cargo targets every verification
+    # of their toolchain shares (`CargoTarget`), so a second one reuses compiled dependencies.
     class MainVerification
       # How many of a failing check's last output lines a refusal keeps.
       TAIL = 60
+
+      # Where a failed check's log is kept, the newest `FailureLog::KEEP` of them.
+      LOG_DIRECTORY = File.join(Dir.home, ".claude", "hecks-dev", "verification-logs")
 
       class << self
         # @return [#call, nil] takes `(argv, chdir:)` and answers `[ok, output]`; the command
         #   runner when nil. A spec replaces it so no check has to run.
         attr_accessor :runner
+
+        # @return [String, nil] where failed checks keep their logs; `LOG_DIRECTORY` when nil. A
+        #   spec sets a temporary one so it never writes under the owner's home.
+        attr_accessor :log_directory
       end
 
       # @param aggregate [Object, nil] unused
@@ -58,8 +67,9 @@ module Hecks
         repository.clean_copy(landed) do |directory|
           MainIntegration::CargoTarget.link(directory)
           checks = MainIntegration::Checks.new(directory, changed).all
-          failed = checks.reject { |name, argv| carried_now?(repository, landed) || record(name, argv, directory) }
+          failed = checks.reject { |name, argv| carried_now?(repository, landed) || record(landed, name, argv, directory) }
           refuse!(landed) unless @carried || failed.empty?
+          carried_now?(repository, landed)
           checks.map(&:first)
         end
       end
@@ -76,16 +86,19 @@ module Hecks
 
       def carried(landed) = answer("superseded", "#{landed[0, 10]} #{@carried}; no further check run")
 
-      def record(name, argv, directory)
+      def record(landed, name, argv, directory)
         ok, output = runner.call(argv, chdir: directory)
-        @failures << [name, tail(output)] unless ok
+        @failures << failure(landed, name, argv, output) unless ok
         ok
       end
 
+      def failure(landed, name, argv, output)
+        log = MainIntegration::FailureLog.new(self.class.log_directory || LOG_DIRECTORY).keep(landed, name, argv, output)
+        MainIntegration::Refusal::Failure.new(name, tail(output), log, MainIntegration::FailureLog.finding(output))
+      end
+
       def refuse!(landed)
-        names = @failures.map(&:first).join(", ")
-        blocks = @failures.map { |name, text| "--- #{name}, the last #{TAIL} lines:\n#{text}" }
-        raise ConsoleCapture::Failure, ["#{landed[0, 10]} failed verification: #{names}", *blocks].join("\n")
+        raise ConsoleCapture::Failure, MainIntegration::Refusal.new(landed, @failures, TAIL).to_s
       end
 
       def superseded(landed, head)
