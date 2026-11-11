@@ -446,6 +446,18 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  # The outside a queued train pull request reaches to have the clock beaten for it: it starts one
+  # detached chain of ticks that sleeps the Tickets world's `ticks` period (`seconds`) and dispatches
+  # `Ticker.Tick` each time, and answers how many beats the world's `minutes` allow. It is refused
+  # when the launcher is not there to dispatch from.
+  Hecks::Ticker.port "Ticking" do
+    asks "Open", to: Ticker do
+      attribute :run, TickerKey
+      answers "TickerOpened"
+      refuses "TickerUnopened"
+    end
+  end
+
   # The outside a beat of the clock reaches to learn whether the clock alone made something eligible:
   # a retry time that passed, a boot budget no longer spent, or a roll refused while a filling ran.
   # A beat with none of these is refused as quiet.

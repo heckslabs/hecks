@@ -36,6 +36,10 @@ Hecks.bluebook "Hecks" do
                closes: "PlanReviewed,PlanReviewRecorded,ReviewUnstarted", minutes: 20, forgets: 1440, fixer: "orchestrator",
                move: "Read the architect's closing report, record its verdict with PlanReview.answer! " \
                      "(PlanReview.record! when no request row exists), then AgentRun.answer! the waiting coder."
+        member kind: "ticker-chain", aggregate: "Hecks::Ticker", opens: "TickerBegun",
+               closes: "TickerStopped", minutes: 45, forgets: 1440, fixer: "orchestrator",
+               move: "The chain of ticks died before its pull request ended it: Integration.advance! the run " \
+                     "to observe the pull request, then Ticker.stop! the chain with the reason."
         member kind: "agent-run-start", aggregate: "Hecks::AgentRun", opens: "AgentRunRequested",
                closes: "AgentRunStarted,AgentRunDeclined", minutes: 10, forgets: 1440, fixer: "orchestrator",
                move: "Work.yield! the run's Work item (AgentRun.running names it) with the reason, " \

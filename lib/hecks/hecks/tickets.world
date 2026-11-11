@@ -48,6 +48,7 @@ Hecks.world "Tickets" do
   frozen_shapes "PersistedShapes", areas: []
   session_environment "Sessions", cargo_target_dir: "~/.cache/hecks/cargo-target", nice: 15
   session_grace "Sessions", seconds: 120
+  ticks "Ticker", seconds: 20, minutes: 30
   rust_build "RustBuild", jobs: 4, nice: 15
   # `live_services` names the spec tags whose examples reach a live service (cloudfront: a real
   # AWS account). They run only when `HECKS_LIVE_SERVICES` names the tag, under every filter

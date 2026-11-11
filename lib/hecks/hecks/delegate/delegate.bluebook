@@ -590,6 +590,139 @@ Hecks.bluebook "Hecks" do
       end
     end
 
+    # A queued train pull request needs the clock beaten until it merges, and nothing else beats it.
+    # One chain of ticks starts per boarded commit (a second start under the key is refused), and
+    # each tick is a short dispatch of its own that beats `Heartbeat`, so no dispatch is held open.
+    # The domain ends the chain: the pull request merged, the beats ran past the limit the port
+    # reported, or the port declined to start. The `Ticking` port only starts a detached process
+    # that sleeps the reported period and dispatches `Ticker.Tick`; it holds no stage rule.
+    aggregate "Ticker" do
+      description "One chain of ticks that beats the clock for a queued train pull request until it ends."
+
+      attribute :run,    TickerKey
+      attribute :tick,   TickerKey, optional: true
+      attribute :beats,  Beats, optional: true
+      attribute :limit,  Beats, optional: true
+      attribute :ending, TickerNote, optional: true
+      identified_by :run
+
+      value_object "TickerKey" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Beats" do
+        attribute :value, Integer
+      end
+
+      value_object "TickerNote", String
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "refused"
+        transition "Begin"   => "ticking", from: "requested"
+        transition "Decline" => "refused", from: "requested"
+        transition "Stop"    => "stopped", from: %w[requested ticking]
+        mark :terminal, "refused", "stopped"
+      end
+
+      command "Start" do
+        role "System"
+        goal "Record that a queued train pull request wants the clock beaten until it ends"
+
+        attribute :run, TickerKey, sets: true
+
+        emits TickerRequested
+      end
+
+      command "Begin" do
+        role "System"
+        goal "Record that the chain of ticks started, and how many beats it is allowed"
+
+        reference_to Ticker
+        attribute :limit, Beats, sets: true
+
+        emits TickerBegun
+      end
+
+      command "Decline" do
+        role "System"
+        goal "Record why no chain of ticks started"
+
+        reference_to Ticker
+        attribute :ending, TickerNote, sets: true
+
+        emits TickerDeclined
+      end
+
+      command "Tick", from: "ticking" do
+        role "System"
+        goal "Record one tick of the chain, refused once the chain is over or its beats are spent"
+
+        reference_to Ticker
+        attribute :tick,  TickerKey, sets: true
+        attribute :beats, Beats, sets: true
+
+        given("the beats are within the limit") { beats.value <= limit.value }
+
+        emits Ticked
+      end
+
+      command "Stop" do
+        role "System"
+        goal "Record that the chain of ticks is over, and why"
+
+        reference_to Ticker
+        attribute :ending, TickerNote, sets: true
+
+        emits TickerStopped
+      end
+    end
+
+    policy "TickWhenQueued" do
+      on      "SendTrain.BoardingQueued"
+      root
+      trigger Ticker::Start, with: { run: :boarded }
+    end
+
+    policy "OpenTickerWhenRequested" do
+      on      "Ticker.TickerRequested"
+      ask     :open, with: { run: :run }
+    end
+
+    policy "BeginWhenOpened" do
+      on      "Ticker.TickerOpened"
+      trigger Ticker::Begin, with: { limit: :limit }
+    end
+
+    policy "DeclineWhenUnopened" do
+      on      "Ticker.TickerUnopened"
+      trigger Ticker::Decline, with: { ending: :refusal }
+    end
+
+    # The chain ends on any verdict of the pull request: merged, its checks failed, or closed.
+    policy "StopTickingWhenMerged" do
+      on      "Integration.TrainMergeSeen"
+      root
+      trigger Ticker::Stop, with: { run: :landed, ending: :report }
+    end
+
+    policy "StopTickingWhenChecksFail" do
+      on      "Integration.CiFailed"
+      root
+      trigger Ticker::Stop, with: { run: :landed, ending: :report }
+    end
+
+    policy "StopTickingWhenClosed" do
+      on      "Integration.PullRequestClosed"
+      root
+      trigger Ticker::Stop, with: { run: :landed, ending: :report }
+    end
+
+    policy "BeatOnTick" do
+      on      "Ticker.Ticked"
+      root
+      trigger Heartbeat::Beat, with: { beat: :tick }
+    end
+
     # The clock's other question. Almost everything that starts a roll is an event, but three things
     # become eligible with no event: a yielded item's retry time passes, the boot budget that stopped
     # every start is no longer spent, and a roll refused while a filling ran freed capacity that
