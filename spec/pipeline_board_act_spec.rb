@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require_relative "support/fake_journal"
 require "net/http"
 require "json"
 require "hecks/pipeline_board/adapters/pipeline_web"
@@ -11,14 +12,14 @@ require "hecks/pipeline_board/adapters/pipeline_web"
 RSpec.describe "POST /api/act on the board" do
   let(:sent) { [] }
   let(:refuse) { false }
-  let(:app) { Hecks::Adapters::PipelineWeb.new(settings: { stages: stages, background: false, launcher: launcher }) }
+  let(:app) { Hecks::Adapters::PipelineWeb.new(settings: { stages: stages, background: false, launcher: launcher, journal: FakeJournal.source }) }
   let!(:server) { Hecks::Adapters::PipelineBoard::Server.new(port: 0, app: app).start }
 
   after { server.stop }
 
   def stdins = (@stdins ||= [])
 
-  def stages = instance_double(Hecks::Adapters::PipelineStages, state: { stages: [] })
+  def stages = instance_double(Hecks::Adapters::PipelineStages, state: { stages: [] }, **FakeJournal::TILES)
 
   def launcher
     lambda do |*args, **opts|
@@ -73,7 +74,7 @@ RSpec.describe "POST /api/act on the board" do
     let(:refuse) { :ended }
     let(:sessions) { [{ id: "s1", status: "blocked", attach: "s1", run: "run-1" }] }
 
-    def stages = instance_double(Hecks::Adapters::PipelineStages, state: { stages: [], sessions: sessions })
+    def stages = instance_double(Hecks::Adapters::PipelineStages, state: { stages: [], sessions: sessions }, **FakeJournal::TILES)
 
     it "sends the answer to that session as a reply, after the refused check", :aggregate_failures do
       response = post("action" => "answer", "target" => "run-1", "text" => "your call")
@@ -184,7 +185,7 @@ RSpec.describe "POST /api/act on the board" do
        { id: "s2", status: "done", resume: "other-uuid", cwd: "/work/other" }]
     end
 
-    def stages = instance_double(Hecks::Adapters::PipelineStages, state: { stages: [], sessions: sessions })
+    def stages = instance_double(Hecks::Adapters::PipelineStages, state: { stages: [], sessions: sessions }, **FakeJournal::TILES)
 
     it "resumes the blocked session with the reply, in the session's own directory", :aggregate_failures do
       response = post("action" => "reply", "target" => "s1", "text" => "use staging")

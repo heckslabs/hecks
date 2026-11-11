@@ -6,6 +6,7 @@ require_relative "pipeline_web/actions"
 require_relative "pipeline_web/ended_run"
 require_relative "pipeline_web/server"
 require_relative "pipeline_web/stream"
+require_relative "pipeline_web/pushed"
 require_relative "pipeline_web/snapshot"
 
 module Hecks
@@ -27,21 +28,23 @@ module Hecks
 
       # @param registry [Runtime::Registry, nil] handed to the readers
       # @param aggregate [Object, nil] unused
-      # @param settings [Hash] `stages:` stands in for {PipelineStages}, `interval:` is the seconds
-      #   between looks at the journal on a stream, `launcher:` a callable taking the launcher's
-      #   arguments and answering its standard output (it stands in for the launcher)
+      # @param settings [Hash] `stages:` stands in for {PipelineStages}, `hub:` and `tap:` stand in
+      #   for the journal follower and its file, `journal:` for the source it follows, `launcher:`
+      #   a callable taking the launcher's arguments and answering its standard output (it stands
+      #   in for the launcher)
       # @param root [String, nil] the checkout the readers and the launcher run in
       def initialize(registry: nil, aggregate: nil, settings: {}, root: nil)
         @root = root || Dir.pwd
         @launcher_root = ENV.fetch("PIPELINE_BOARD_LAUNCHER_ROOT", @root)
         @stages = settings[:stages] || PipelineStages.new(registry: registry, root: root)
         @wiring = settings[:wiring] || PipelineWiring.new(registry: registry)
-        @launcher = settings[:launcher] || lambda do |*args, chdir: @root, stdin: nil|
-          PipelineBoard::Probe.run(*args, chdir: chdir, seconds: ACT_SECONDS, stdin: stdin)
-        end
-        @interval = settings.fetch(:interval, 1.0)
+        @launcher = settings[:launcher] || PipelineBoard::Actions.launcher(@root, ACT_SECONDS)
         @snapshot = PipelineBoard::Snapshot.kept_small(source: @stages.method(:state), registry: registry, settings: settings)
+        @pushed = PipelineBoard::Pushed.new(stages: @stages, settings: settings)
       end
+
+      # Stops following the journal and reading the state; the server calls it when it stops.
+      def close = [@pushed, @snapshot].each(&:stop)
 
       # Runs one step the page asked for, through the launcher. The launcher's own command refuses
       # what it should (an answer to a session not blocked on a person, a push without confirm);
@@ -158,11 +161,13 @@ module Hecks
       # @return [PipelineBoard::Server] a running server
       def open_at(port)
         @snapshot.start
+        @pushed.start
         PipelineBoard::Server.new(port: port || DEFAULT_PORT, app: self).start
       end
 
-      # @return [String] the page
-      def page = File.read(PAGE)
+      # @return [String] the page, with each pushed tile drawn into its place, so it reads whole
+      #   with the stream off
+      def page = @pushed.page(File.read(PAGE))
 
       # @return [Hash] every section the page shows
       def state = @snapshot.latest
@@ -204,14 +209,15 @@ module Hecks
       end
 
       # Yields each event of the journal once and again when its reactions change, the state
-      # whenever it changes, and the wiring's digest whenever the bluebooks are drawn differently,
-      # until the reader goes away.
+      # whenever it changes, the wiring's digest whenever the bluebooks are drawn differently, and
+      # the HTML of each tile a journal line changed, until the reader goes away. It acts when the
+      # journal grows, not on a clock.
       #
-      # @yieldparam event [Hash] an event row, an `unknown` note, a `state` hash, a `wiring` digest
-      #   or a heartbeat
+      # @yieldparam event [Hash] an event row, an `unknown` note, a `state` hash, a `wiring` digest,
+      #   a `tile` fragment or a heartbeat
       def stream(&)
-        PipelineBoard::Stream.new(feed: @stages.method(:feed), state: method(:state), wiring: method(:wiring),
-                                  interval: @interval).each(&)
+        PipelineBoard::Stream.new(feed: @stages.method(:feed), hub: @pushed.hub, state: method(:state),
+                                  wiring: method(:wiring)).each(&)
       end
     end
   end

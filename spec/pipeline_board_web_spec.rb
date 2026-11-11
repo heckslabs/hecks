@@ -25,9 +25,10 @@ RSpec.describe Hecks::Adapters::PipelineWeb do
   def board
     journal = Hecks::Adapters::PipelineJournal.new(settings: { trace: ->(*) { { events: [] } }, tap: log, ttl: 0 })
     rows = names.map { |name| { name: name, state: "ok", count: "1", detail: "d" } }
-    stages = instance_double(Hecks::Adapters::PipelineStages, state: { stages: rows })
+    stages = instance_double(Hecks::Adapters::PipelineStages, state: { stages: rows }, fill_tile: { unknown: "none" },
+                                                              train_tile: rows[3])
     allow(stages).to receive(:feed) { journal.recent(40) }
-    described_class.new(settings: { stages: stages, background: false, interval: 0.05 })
+    described_class.new(settings: { stages: stages, background: false, tap: log })
   end
 
   def line(name, at) = JSON.generate("at" => at, "aggregate" => "Landing", "id" => "l1", "event" => name)

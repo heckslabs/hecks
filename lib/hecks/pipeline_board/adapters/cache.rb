@@ -28,6 +28,10 @@ module Hecks
           end
         end
 
+        # Forgets every held answer, so the next read asks again.
+        # @return [void]
+        def clear = @lock.synchronize { @held.clear }
+
         private
 
         def fresh?(kept) = @clock.call - kept.first < @ttl

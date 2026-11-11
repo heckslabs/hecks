@@ -207,6 +207,23 @@ Hecks.bluebook "PipelineBoard" do
       member name: "verify_bound_minutes",    value: 25
       member name: "session_bound_minutes",   value: 60
       member name: "finding_bound_hours",     value: 48
+      # The board's one timer, a named safety net: seconds between a recompute of every pushed tile
+      # and a heartbeat when no journal line arrived. The board learns of a change from the journal
+      # (`events.jsonl`), never from this clock; it only catches a line the file watch missed and
+      # tells a dead connection from a quiet one.
+      member name: "safety_net_seconds",      value: 300
+    end
+
+    # A tile the board pushes as HTML, and the aggregates it reads. A journal line carries the
+    # aggregate of its event, so any event of a read aggregate makes the server recompute the tile,
+    # and a changed render is pushed. A tile names no event: a new event of a read aggregate needs
+    # no change here. `reads` lists aggregates by their journal names, separated by a comma.
+    value_object "Tile" do
+      attribute :tile,  String
+      attribute :reads, String
+
+      member tile: "fill",  reads: "Tickets::Work, Hecks::AgentRun, Hecks::Roll, Hecks::Dispatch"
+      member tile: "train", reads: "Hecks::SendTrain, Hecks::LinkedTree, Hecks::Landing, Hecks::BoardingRelease, Hecks::PushOutcome"
     end
 
     # One check of the daily health line: what the pipeline reports of its own day, which a person
