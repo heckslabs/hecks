@@ -16,10 +16,12 @@ RSpec.describe Hecks::Adapters::MainVerification do
     checks = instance_double(Hecks::Adapters::MainIntegration::Checks, all: CHECKS)
     allow(Hecks::Adapters::MainIntegration::Checks).to receive(:new).and_return(checks)
     described_class.runner = method(:fake_run)
+    described_class.log_directory = File.join(dir, "verification-logs")
   end
 
   after do
     described_class.runner = nil
+    described_class.log_directory = nil
     FileUtils.remove_entry(dir)
   end
 

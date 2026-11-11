@@ -20,6 +20,7 @@ RSpec.describe Hecks::Adapters::MainVerification, "#check" do
     checks = instance_double(Hecks::Adapters::MainIntegration::Checks, all: [["one", %w[one]], ["two", %w[two]]])
     allow(Hecks::Adapters::MainIntegration::Checks).to receive(:new).and_return(checks)
     described_class.runner = method(:fake_run)
+    described_class.log_directory = File.join(Dir.tmpdir, "hecks-carried-logs-#{Process.pid}")
   end
 
   def fake_run(argv, chdir:)
@@ -29,6 +30,8 @@ RSpec.describe Hecks::Adapters::MainVerification, "#check" do
 
   after do
     described_class.runner = nil
+    FileUtils.rm_rf(described_class.log_directory)
+    described_class.log_directory = nil
     FileUtils.remove_entry(dir)
   end
 
