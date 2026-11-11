@@ -8,8 +8,8 @@ module Hecks
   module Adapters
     class CiRuns
       # The facts of a red train pull request, read through `gh`: the CI run and the attempt that
-      # failed, the failed jobs, the spec files the failed log names (or the failed steps when it names
-      # none) with its first failure lines, and the commits the pull request carries. It decides
+      # failed, the failed jobs, the spec files the failed log names (or the failed steps when it
+      # names none) with its first failure lines, and the commits the pull request carries. It decides
       # nothing; the TrainPr policies decide whether to rerun.
       class TrainPrFailure
         # The spec files an rspec failure summary names: `rspec ./spec/x_spec.rb:12 # description`.

@@ -2,7 +2,7 @@ require "spec_helper"
 require "json"
 require_relative "support/fake_train_github"
 
-# Open train pull requests that no longer need to be open are closed with a comment naming why: one
+# Open train pull requests that do not need to be open are closed with a comment naming why: one
 # whose tip main already holds, and a red one a newer train pull request carries the tip of.
 RSpec.describe Hecks::Adapters::GithubPullRequests do
   let(:github) { FakeTrainGithub.new }

@@ -7,7 +7,7 @@ require_relative "../ci_runs/checks"
 module Hecks
   module Adapters
     class GithubPullRequests
-      # Closes the open train pull requests that no longer need to be open: one whose tip
+      # Closes the open train pull requests that do not need to be open: one whose tip
       # origin/main already holds, and one with failed checks whose tip a newer open train pull
       # request carries. Each is closed with a comment naming why. It reads facts (ancestry and
       # check results) and closes; a closed pull request is not listed again, so a second sweep
@@ -19,7 +19,7 @@ module Hecks
         # The fields read of each open pull request.
         FIELDS = "number,headRefName,headRefOid,createdAt,statusCheckRollup"
 
-        # @param github [#call] takes the `gh` arguments and answers their stdout, raising on failure
+        # @param github [#call] takes the `gh` arguments and answers their stdout; raises on failure
         # @param git [#call] takes the `git` arguments and answers `[ok, output]`
         def initialize(github, git)
           @gh = github

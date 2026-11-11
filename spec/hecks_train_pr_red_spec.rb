@@ -3,7 +3,7 @@ require "json"
 require "securerandom"
 require_relative "support/fake_train_github"
 
-# A red train pull request is handled by the pipeline: its failed CI is read through `gh` and recorded,
+# A red train pull request is handled by the pipeline: its failed CI is read through `gh`, recorded,
 # rerun once (twice for a known-flaky spec), and given to a coder as a red-train Work item when the
 # reruns fail too. The domain is in Memory and GitHub is a scripted fake.
 RSpec.describe "a red train pull request" do
