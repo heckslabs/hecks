@@ -39,11 +39,25 @@ module Hecks
       #   the stage it left the run in, or why nothing was
       def step(**held)
         confirm = plain(held[:confirm]) == true
-        lines = runs.all.select { |run| NEXT.key?(run.state) }.map { |run| advance(run, confirm) }
+        lines = advance_open(confirm)
         { report: { value: lines.empty? ? "no open integration run" : lines.join("\n") } }
       end
 
       private
+
+      # Each open run in turn, until the code on disk differs from the code this process loaded
+      # (`CodeWatch`): the advance then ends with that said, the runs it did not reach wait, and
+      # the next advance starts on the current code.
+      def advance_open(confirm)
+        watch = CodeWatch.shared
+        lines = []
+        runs.all.select { |run| NEXT.key?(run.state) }.each do |run|
+          break if watch.moved?
+
+          lines << advance(run, confirm)
+        end
+        watch.moved? ? lines << watch.report : lines
+      end
 
       def runs = Runs.new(@registry)
 
@@ -101,6 +115,7 @@ module Hecks
   end
 end
 
+require_relative "main_integration/code_watch"
 require_relative "main_integration/runs"
 require_relative "main_integration/fault"
 require_relative "main_integration/outcome"

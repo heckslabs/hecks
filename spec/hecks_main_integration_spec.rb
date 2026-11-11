@@ -24,11 +24,13 @@ RSpec.describe "integrating main through the MainIntegration saga" do
     @hecks.registry.saga_log.clear
     @depths = []
     stub_outside
+    Hecks::Adapters::MainIntegration::CodeWatch.fingerprint = steady_code
   end
 
   after do
     [Hecks::Adapters::MainVerification, Hecks::Adapters::MainBoarding, Hecks::Adapters::CiRuns].each { |a| a.runner = nil }
     Hecks::Adapters::MainBoarding.train_root = nil
+    Hecks::Adapters::MainIntegration::CodeWatch.fingerprint = nil
     FileUtils.remove_entry(dir)
   end
 
@@ -75,6 +77,18 @@ RSpec.describe "integrating main through the MainIntegration saga" do
     launch("landing.land!", "run=l-#{SecureRandom.hex(4)}", "checkout.value=#{tree}", "branch.value=#{branch}",
            "--confirm", "--wait")
     git("rev-parse", "main").strip
+  end
+
+  # A fingerprint of code that never changes, so the real tree is not listed on every advance.
+  def steady_code = instance_double(Hecks::Adapters::Driving::Resident::Fingerprint, current: 1)
+
+  # A fingerprint that reads 1 until the first run's check, then 2: the watch's own start and the
+  # first run's check read 1, the second run's check reads 2.
+  def code_changing_after_the_first_run
+    reads = 0
+    instance_double(Hecks::Adapters::Driving::Resident::Fingerprint).tap do |fake|
+      allow(fake).to receive(:current) { (reads += 1) > 2 ? 2 : 1 }
+    end
   end
 
   def advance(times = 1) = times.times { launch("Integration.advance!", "--confirm", "--wait") }
@@ -134,6 +148,19 @@ RSpec.describe "integrating main through the MainIntegration saga" do
   end
 
   def merged_as(sha) = { number: 12, state: "MERGED", mergeCommit: { oid: sha } }
+
+  # Lands two runs and advances once while the code on disk changes after the first run.
+  def advance_while_the_code_changes
+    runs = [land, land(file: "second.rb")]
+    Hecks::Adapters::MainIntegration::CodeWatch.fingerprint = code_changing_after_the_first_run
+    advance
+    runs.map { |landed| stage(landed) }
+  end
+
+  it "ends an advance before the next run when the code changed, saying so", :aggregate_failures do
+    expect(advance_while_the_code_changes).to eq(%w[superseded landed])
+    expect(report("IntegrationAdvanced")).to include("advance restarted: code changed from 00000001 to 00000002")
+  end
 
   it "judges CI on the commit GitHub merged the train pull request as", :aggregate_failures do
     @pull = merged_as("f" * 40)
