@@ -17,14 +17,14 @@ RSpec.describe "the fill that follows a reading of the machine" do
   end
 
   it "rolls once for the reading that freed capacity, not for a rise or a quiet one", :aggregate_failures do
-    beats = beat_through([9.0, 7.0, 7.0].map { |load| gauge(60.0).merge(load: load) })
+    beats = beat_through([11.0, 9.0, 9.0].map { |load| gauge(60.0).merge(load: load) })
 
     expect(beats[:rolls].size).to eq(1)
     expect(crossings(beats[:names])).to eq(%w[LoadRoseAbove LoadFellBelow])
   end
 
   it "pauses the fill after LoadRoseAbove, naming the load" do
-    expect(paused_after(7.0, 9.0)).to include("paused by load")
+    expect(paused_after(9.0, 11.0)).to include("paused by load")
   end
 
   it "lets the fill start work after LoadFellBelow" do
