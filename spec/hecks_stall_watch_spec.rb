@@ -41,6 +41,36 @@ RSpec.describe "StallWatch" do
     expect(keys("Tickets", "Work", :work)).to eq(%w[stall-agent-run-blocked-stuck])
   end
 
+  describe "a coder blocked on a [choose] question" do
+    def write_asked(*closing)
+      rows = [["SessionBlocked", "asker", 20], *closing]
+      lines = rows.each_with_index.map { |(event, id, ago), seq| line(seq + 1, event, id, ago).merge(aggregate: "Hecks::AgentRun") }
+      File.write(tap, lines.map { |entry| JSON.generate(entry) }.join("\n") << "\n")
+    end
+
+    it "stays a stall until the answer is requested" do
+      write_asked
+      detect("look-1")
+
+      expect(keys("Hecks", "Stall", :stall)).to eq(%w[stall-agent-run-blocked-asker])
+    end
+
+    it "is closed by AnswerRequested, before the session reports being answered" do
+      write_asked(["AnswerRequested", "asker", 18])
+      detect("look-1")
+
+      expect(keys("Hecks", "Stall", :stall)).to be_empty
+    end
+
+    it "carries a move that answers from the brief or files a finding, never asking the owner", :aggregate_failures do
+      write_asked
+      detect("look-1")
+
+      expect(keys("Tickets", "Work", :detail).first)
+        .to include("[choose]", "Work.rescope!", "Finding.report!", "Never ask the owner")
+    end
+  end
+
   describe "the move of each kind" do
     let(:opening) do
       { "plan-review"       => ["Agents::PlanReview", "PlanReviewRequested"],
