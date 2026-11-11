@@ -35,6 +35,34 @@ module StallWatchLooks
     File.write(tap, lines.map { |entry| JSON.generate(entry) }.join("\n") << "\n")
   end
 
+  # A plan review asked 30 minutes ago and never answered, whose run (the same id) has not ended.
+  def write_open_review
+    File.write(tap, "#{JSON.generate(line(1, "PlanReviewRequested", "lost", 30))}\n")
+  end
+
+  # Appends a tap line, as the live tap does for each event a process emits.
+  def append_tap(event, id, aggregate)
+    entry = line(File.readlines(tap).size + 1, event, id, 0).merge(aggregate: aggregate)
+    File.open(tap, "a") { |file| file.puts(JSON.generate(entry)) }
+  end
+
+  # One beat in a process of its own: the Stall store starts empty, and what the beat emitted is
+  # written to the tap as the live tap would.
+  def beat(run)
+    registry.repository("Hecks", registry.bluebook("Hecks").aggregate("Stall")).reset!
+    before = registry.event_log.size
+    detect(run)
+    registry.event_log.drop(before).each { |event| tap_emitted(event) }
+  end
+
+  def tap_emitted(event)
+    return unless %w[StallFiled StallAbandoned].include?(event.name)
+
+    append_tap(event.name, "stall-plan-review-lost", "Hecks::Stall")
+  end
+
+  def events_named(name) = registry.event_log.map(&:name).count(name)
+
   def watching
     aggregate = registry.bluebook("Hecks").aggregate("StallWatch")
     Hecks::Adapters::StallWatching.new(registry: registry, aggregate: aggregate, tap: tap)
