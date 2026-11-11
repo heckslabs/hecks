@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require_relative "support/fake_journal"
 require "net/http"
 require_relative "support/pipeline_board_world"
 require "hecks/pipeline_board/adapters/pipeline_web"
@@ -20,12 +21,12 @@ RSpec.describe Hecks::Adapters::PipelineBoard::DeepLinks do
             checks: [{ name: "rspec", result: "SUCCESS", url: "https://github.com/o/r/actions/runs/5" }] } }
   end
   let(:stages) do
-    instance_double(Hecks::Adapters::PipelineStages, state: { stages: [] }).tap do |double|
+    instance_double(Hecks::Adapters::PipelineStages, state: { stages: [] }, **FakeJournal::TILES).tap do |double|
       allow(double).to receive(:run_detail) { |key| ["r-1", "abc123"].include?(key) ? run : nil }
       allow(double).to receive(:train_detail) { |key| key == "t-1" ? train : nil }
     end
   end
-  let!(:server) { Hecks::Adapters::PipelineWeb.new(settings: { stages: stages, background: false }).open_at(0) }
+  let!(:server) { Hecks::Adapters::PipelineWeb.new(settings: { stages: stages, background: false, journal: FakeJournal.source }).open_at(0) }
 
   after { server.stop }
 
@@ -40,7 +41,7 @@ RSpec.describe Hecks::Adapters::PipelineBoard::DeepLinks do
   end
 
   it "answers a boarding's link with the board page too" do
-    expect(get("/trains/t-1").body.force_encoding("UTF-8")).to eq(page)
+    expect(get("/trains/t-1").body.force_encoding("UTF-8")).to eq(get("/").body.force_encoding("UTF-8"))
   end
 
   it "answers the board page for a run no one has, and the page says so in its banner" do

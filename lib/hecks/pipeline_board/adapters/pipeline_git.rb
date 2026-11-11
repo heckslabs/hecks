@@ -43,6 +43,16 @@ module Hecks
         { sha: sha, at: at, pushed: contains?("origin/main", sha) }
       end
 
+      # The train's checkout read again now, past the kept answers: a journal line says it moved,
+      # so a kept answer is the one thing that would hide it.
+      #
+      # @return [Hash] as {#train}
+      # @raise [PipelineBoard::Unavailable] when the train's checkout cannot be read
+      def train_now
+        @cache.clear
+        train
+      end
+
       # @return [String, nil] when the oldest commit on local main that origin/main lacks was made
       def oldest_unpushed = ask(@root, "log", "--format=%cI", "origin/main..main").lines.last&.strip
 

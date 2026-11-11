@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require_relative "support/fake_journal"
 require "net/http"
 require "tmpdir"
 require "hecks/pipeline_board/adapters/pipeline_web"
@@ -90,7 +91,7 @@ RSpec.describe Hecks::Adapters::PipelineWiring do
 
     def web
       wiring = described_class.new(registry: registry([add]))
-      Hecks::Adapters::PipelineWeb.new(settings: { stages: nil, wiring: wiring, background: false })
+      Hecks::Adapters::PipelineWeb.new(settings: { stages: nil, wiring: wiring, background: false, journal: FakeJournal.source })
     end
 
     after { server.stop }

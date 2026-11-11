@@ -89,6 +89,15 @@ module Hecks
         { text: PipelineBoard::Panel.render(drawn, width: held(width), colour: held(colour).to_s == "true", limit: held(limit)) }
       end
 
+      # @return [Hash] the next fill's dry run (see {PipelineFill#preview}), or `{unknown: reason}`
+      def fill_tile = guard { @fill.preview }
+
+      # The Train stage read again now, past the kept git answers: the tile is drawn because the
+      # journal said the train moved.
+      #
+      # @return [Hash] the Train row of the strip
+      def train_tile = PipelineBoard::Strip.train(guard { @git.train_now }, @now.call)
+
       # @return [Array<Hash>, Hash] the newest events with the policies that reacted, or
       #   `{unknown: reason}`
       def feed = guard { @journal.recent(40) }

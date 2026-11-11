@@ -152,15 +152,26 @@ RSpec.describe "the live wiring diagram" do
   end
 
   describe "the event stream" do
-    # What a reader is sent when the wiring's digest is `digests[tick]`, the last one holding after.
-    def sent(digests, ticks)
-      tick = -1
-      feed = lambda do
-        throw :done if (tick += 1) >= ticks
+    # A hub whose reader is woken once for each look it makes, as a journal that grew would.
+    def hub(wakes)
+      instance_double(Hecks::Adapters::PipelineBoard::Hub, join: wakes, leave: nil, current: [])
+    end
+
+    # A feed that counts its looks in `tick`, wakes the reader after each, and ends at `ticks`.
+    def counting(ticks, tick, wakes)
+      lambda do
+        throw :done if (tick[0] += 1) >= ticks
+        wakes << Hecks::Adapters::PipelineBoard::Hub::Wake.new(1, [], false)
         []
       end
-      wiring = -> { { digest: digests[[tick, digests.size - 1].min] } }
-      stream = Hecks::Adapters::PipelineBoard::Stream.new(feed: feed, interval: 0, wiring: wiring)
+    end
+
+    # What a reader is sent when the wiring's digest is `digests[tick]`, the last one holding after.
+    def sent(digests, ticks)
+      wakes = Queue.new
+      tick = [-1]
+      wiring = -> { { digest: digests[[tick.first, digests.size - 1].min] } }
+      stream = Hecks::Adapters::PipelineBoard::Stream.new(feed: counting(ticks, tick, wakes), hub: hub(wakes), wiring: wiring)
       [].tap { |events| catch(:done) { stream.each { |event| events << event } } }
     end
 
@@ -174,7 +185,7 @@ RSpec.describe "the live wiring diagram" do
 
     it "says nothing when the wiring is unknown" do
       wiring = -> { { unknown: "no domain" } }
-      stream = Hecks::Adapters::PipelineBoard::Stream.new(feed: -> { throw :done }, interval: 0, wiring: wiring)
+      stream = Hecks::Adapters::PipelineBoard::Stream.new(feed: -> { throw :done }, hub: hub(Queue.new), wiring: wiring)
       expect(catch(:done) { stream.each { |event| event } }).to be_nil
     end
   end
@@ -183,12 +194,17 @@ RSpec.describe "the live wiring diagram" do
     let(:server) { board.open_at(0) }
 
     def board
-      stages = instance_double(Hecks::Adapters::PipelineStages, state: { stages: [] }, feed: [])
+      train = { name: "Train", state: "ok", count: "1", detail: "d" }
+      stages = instance_double(Hecks::Adapters::PipelineStages, state: { stages: [] }, feed: [],
+                                                                fill_tile: { unknown: "x" }, train_tile: train)
       wiring = double(reading: { nodes: [], edges: [], digest: "d1" })
-      Hecks::Adapters::PipelineWeb.new(settings: { stages: stages, wiring: wiring, background: false, interval: 0.05 })
+      settings = { stages: stages, wiring: wiring, background: false, tap: quiet_journal }
+      Hecks::Adapters::PipelineWeb.new(settings: settings)
     end
 
     after { server.stop }
+
+    def quiet_journal = File.join(Dir.tmpdir, "no-such-events.jsonl")
 
     def open_stream
       TCPSocket.new("127.0.0.1", server.port).tap { |socket| socket.write("GET /api/events HTTP/1.1\r\nHost: x\r\n\r\n") }
