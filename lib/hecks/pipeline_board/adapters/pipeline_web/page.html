@@ -214,6 +214,14 @@ details.panel > .scroll, details.panel > .feed, details.panel > .strip, details.
     <h2 style="margin-top:14px">Slowest jobs of the last completed run</h2>
     <div id="slowchart" class="chartview"></div><div class="tableview scroll" id="slowtable"></div>
   </details>
+  <details class="panel" open><summary data-tip="Recent CI runs on train pull requests, first attempts only (a rerun's wall time is not a run's), and the slowest jobs of the last completed one"><h2 id="h-trainci">CI on train PRs</h2><span class="sum" id="sum-trainci"></span></summary>
+    <div class="grid2">
+      <div><div class="label">Failed jobs per run, oldest to newest</div><div id="trainfailedchart" class="chartview"></div><div class="tableview scroll" id="trainfailedtable"></div></div>
+      <div><div class="label">Wall minutes per run, first attempts only (goal 3)</div><div id="trainwallchart" class="chartview"></div><div class="tableview scroll" id="trainwalltable"></div></div>
+    </div>
+    <h2 style="margin-top:14px">Slowest jobs of the last completed train run</h2>
+    <div id="trainslowchart" class="chartview"></div><div class="tableview scroll" id="trainslowtable"></div>
+  </details>
   <details class="panel" id="sessions-panel"><summary data-tip="Claude sessions dispatched or started by hand: their status, work item and what they are doing. Click a blocked session to answer it"><h2 id="h-sess">Sessions</h2><span class="sum" id="sum-sess"></span></summary><div class="scroll" id="sessions"></div></details>
 
   <details class="panel"><summary data-tip="How the work fans out across sessions: lanes, who is running what, and what the dispatcher would start next"><h2 id="h-fan">Fan-out</h2><span class="sum" id="sum-fan"></span></summary>
@@ -479,27 +487,29 @@ function columns(rows, pick, label, second) {
     h("div", { class: "val" }, String(pick(r))), h("div", { class: "bar" + (second ? " second" : ""), style: "height:" + Math.round(100 * pick(r) / max) + "%" }))));
   return [h("div", { class: "cols" }, cols), h("div", { class: "xlabels" }, rows.map((r) => h("span", {}, r.sha.slice(0, 4))))];
 }
-function renderCi(runs, slow) {
+// Draws one CI panel: main's (no prefix) or the train pull requests' (prefix "train", whose element
+// ids are those of main's with the prefix in front).
+function renderCi(runs, slow, p = "") {
   const last = Array.isArray(runs) && runs.length ? runs[runs.length - 1] : null;
   const green = last && last.conclusion === "success";
   const top = Array.isArray(slow) && slow.length ? slow[0] : null;
-  summarize("ci", last ? [
+  summarize(p + "ci", last ? [
     [(last.conclusion || last.status) + " on " + last.sha + " at " + clock(last.started), green ? "ok" : last.conclusion ? "failed" : "working"],
     [last.wall_minutes + " min wall (goal 3)", last.wall_minutes > 3 ? "attention" : "ok"],
     last.failed_jobs ? [last.failed_jobs + " failed jobs", "failed"] : null,
     top && top.minutes + " min slowest: " + (top.name.length > 48 ? top.name.slice(0, 47) + "…" : top.name)] : [isUnknown(runs) ? "unknown: " + runs.unknown : "no runs yet"]);
-  if (isUnknown(runs)) { for (const id of ["failedchart", "wallchart", "failedtable", "walltable"]) put(id, unknown(runs)); }
+  if (isUnknown(runs)) { for (const id of ["failedchart", "wallchart", "failedtable", "walltable"]) put(p + id, unknown(runs)); }
   else {
-    put("failedchart", columns(runs, (r) => r.failed_jobs || 0, (r) => (r.failed_jobs === null ? "failed jobs unknown" : r.failed_jobs + " failed jobs")));
-    put("wallchart", columns(runs, (r) => r.wall_minutes, (r) => r.wall_minutes + " min", true));
-    put("failedtable", table(["Run", "Started", "Conclusion", "Failed jobs"], runs.map((r) => [linked(r.url, r.sha), clock(r.started), r.conclusion || r.status, r.failed_jobs === null ? "?" : r.failed_jobs]), [3]));
-    put("walltable", table(["Run", "Wall minutes"], runs.map((r) => [linked(r.url, r.sha), r.wall_minutes]), [1]));
+    put(p + "failedchart", columns(runs, (r) => r.failed_jobs || 0, (r) => (r.failed_jobs === null ? "failed jobs unknown" : r.failed_jobs + " failed jobs")));
+    put(p + "wallchart", columns(runs, (r) => r.wall_minutes, (r) => r.wall_minutes + " min", true));
+    put(p + "failedtable", table(["Run", "Started", "Conclusion", "Failed jobs"], runs.map((r) => [linked(r.url, r.sha), clock(r.started), r.conclusion || r.status, r.failed_jobs === null ? "?" : r.failed_jobs]), [3]));
+    put(p + "walltable", table(["Run", "Wall minutes"], runs.map((r) => [linked(r.url, r.sha), r.wall_minutes]), [1]));
   }
-  if (isUnknown(slow)) { put("slowchart", unknown(slow)); put("slowtable", unknown(slow)); return; }
+  if (isUnknown(slow)) { put(p + "slowchart", unknown(slow)); put(p + "slowtable", unknown(slow)); return; }
   const max = Math.max(1, ...slow.map((j) => j.minutes));
-  put("slowchart", slow.map((j) => linked(j.url, h("div", { class: "hbar", tip: j.name + ": " + j.minutes + " min (" + j.conclusion + ")" },
+  put(p + "slowchart", slow.map((j) => linked(j.url, h("div", { class: "hbar", tip: j.name + ": " + j.minutes + " min (" + j.conclusion + ")" },
     h("div", { class: "name" }, j.name), h("div", { class: "track" }, h("div", { class: "fill", style: "width:" + Math.round(100 * j.minutes / max) + "%" })), h("div", {}, j.minutes + " min")))));
-  put("slowtable", table(["Job", "Minutes", "Conclusion"], slow.map((j) => [linked(j.url, j.name), j.minutes, j.conclusion]), [1]));
+  put(p + "slowtable", table(["Job", "Minutes", "Conclusion"], slow.map((j) => [linked(j.url, j.name), j.minutes, j.conclusion]), [1]));
 }
 function renderWork(work) {
   if (isUnknown(work)) { summarize("work", [["unknown: " + work.unknown, "attention"]]); return put("work", unknown(work)); }
@@ -816,7 +826,7 @@ function replyNote(s) {
 }
 function render(s) {
   lastState = s;
-  renderTiles(s.metrics); renderAttention(s.metrics, s.stages, s.sessions, s.recommendations); renderStrip(s.stages); renderCi(s.ci_runs, s.slowest_jobs);
+  renderTiles(s.metrics); renderAttention(s.metrics, s.stages, s.sessions, s.recommendations); renderStrip(s.stages); renderCi(s.ci_runs, s.slowest_jobs); renderCi(s.train_ci_runs, s.train_slowest_jobs, "train");
   renderRoles(s.roles); renderWork(s.open_work); renderSessions(s.sessions); renderFan(s.fanout); renderCycles(s.cycles); renderEvents(s.events);
   $("updated").textContent = "updated " + clock(s.generated_at);
   renderStale(s);

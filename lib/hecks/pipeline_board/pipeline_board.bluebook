@@ -434,6 +434,18 @@ Hecks.bluebook "PipelineBoard" do
       returns Document
     end
 
+    query "TrainCiRuns" do
+      description "The last CI runs on train pull requests, oldest first, first attempts only (a rerun's wall time is not a run's): sha, started, wall minutes, conclusion and how many jobs failed."
+      attribute :limit, Limit, optional: true
+      returns Document
+    end
+
+    query "TrainSlowestJobs" do
+      description "The jobs of the last completed first-attempt CI run on a train pull request, slowest first, in minutes."
+      attribute :limit, Limit, optional: true
+      returns Document
+    end
+
     query "OpenWork" do
       description "The Work items that are not done: slug, status and area."
       returns Document
