@@ -57,8 +57,8 @@ module Hecks
         end
       end
 
-      # @param merged [Object, nil] the pull request's number when it merged: CI still running on its
-      #   merge commit then answers `merged` (main is pulled), not `running`
+      # @param merged [Object, nil] the pull request's number when it merged: CI still running on
+      #   its merge commit then answers `merged` (main is pulled), not `running`
       def observe(landed, commit, merged: nil)
         run = latest_run(commit)
         return unfinished(landed, merged, "no #{WORKFLOW} run yet for #{commit[0, 10]}") unless run

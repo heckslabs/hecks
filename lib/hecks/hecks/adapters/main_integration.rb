@@ -25,7 +25,7 @@ module Hecks
       # The stage whose verification is the run's one retry.
       RETRYING = "retrying"
 
-      # The stage of a run whose pull request merged and whose main was pulled, awaiting CI's verdict.
+      # The stage of a run whose pull request merged and whose main was pulled, awaiting CI.
       MERGED = "merged"
 
       # @param registry [Runtime::Registry, nil] the booted registry whose runs are advanced
