@@ -9,9 +9,9 @@ module Hecks
     class GithubPullRequests
       # Closes the open train pull requests that do not need to be open: one whose tip
       # origin/main already holds, and one with failed checks whose tip a newer open train pull
-      # request carries, or that local main has moved past. Each is closed with a comment naming why. It reads facts (ancestry and
-      # check results) and closes; a closed pull request is not listed again, so a second sweep
-      # closes nothing twice.
+      # request carries, or that local main has moved past. Each is closed with a comment naming
+      # why. It reads facts (ancestry and check results) and closes; a closed pull request is not
+      # listed again, so a second sweep closes nothing twice.
       class TrainSweep
         # The branch prefix of a train pull request.
         PREFIX = "train/main-"
