@@ -7,6 +7,7 @@ require_relative "pipeline_web/ended_run"
 require_relative "pipeline_web/server"
 require_relative "pipeline_web/stream"
 require_relative "pipeline_web/pushed"
+require_relative "pipeline_web/plan_page"
 require_relative "pipeline_web/snapshot"
 
 module Hecks

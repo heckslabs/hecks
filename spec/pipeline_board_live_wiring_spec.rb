@@ -196,7 +196,8 @@ RSpec.describe "the live wiring diagram" do
     def board
       train = { name: "Train", state: "ok", count: "1", detail: "d" }
       stages = instance_double(Hecks::Adapters::PipelineStages, state: { stages: [] }, feed: [],
-                                                                fill_tile: { unknown: "x" }, train_tile: train)
+                                                                fill_tile: { unknown: "x" }, plan_tile: { unknown: "x" },
+                                                                train_tile: train)
       wiring = double(reading: { nodes: [], edges: [], digest: "d1" })
       settings = { stages: stages, wiring: wiring, background: false, tap: quiet_journal }
       Hecks::Adapters::PipelineWeb.new(settings: settings)

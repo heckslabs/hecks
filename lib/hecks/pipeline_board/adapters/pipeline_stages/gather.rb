@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "json"
+require_relative "plan_tile"
 
 module Hecks
   module Adapters
@@ -9,6 +10,8 @@ module Hecks
       # could not answer, so one failed read never takes the others down. The reads run side by
       # side and each has {READ_SECONDS} to answer, so one slow reader never holds the rest.
       module Gather
+        include PlanTile
+
         # Seconds one reader may take before its section is given as unknown.
         READ_SECONDS = 20
 

@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pipeline Planning</title>
+<style>
+/* The Planning page: the work as the Tickets store holds it, drawn by the server and pushed from the journal. */
+:root {
+  color-scheme: light;
+  --page: #f6f7f8; --surface: #fdfdfd; --ink: #0d1116; --ink2: #4d5560; --muted: #868d96;
+  --border: rgba(13,17,22,.10); --signal: #2a78d6; --you: #b37a00;
+  --body: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark; --page: #0b0d10; --surface: #14171b; --ink: #eef0f2; --ink2: #b9c0c8; --muted: #7d858f;
+    --border: rgba(255,255,255,.09); --signal: #4b9bf0; --you: #f4b42a;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark; --page: #0b0d10; --surface: #14171b; --ink: #eef0f2; --ink2: #b9c0c8; --muted: #7d858f;
+  --border: rgba(255,255,255,.09); --signal: #4b9bf0; --you: #f4b42a;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--ink); font: 14px/1.5 var(--body); }
+main { max-width: 1280px; margin: 0 auto; padding: 16px; display: grid; gap: 16px; }
+header.top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 18px; }
+h1 { font-size: 20px; margin: 0; } h2, h3, h4 { margin: 0; }
+nav.pages { display: flex; gap: 14px; margin-right: auto; font-size: 13px; font-weight: 600; }
+a { color: var(--signal); }
+.note, .counts, .facts, .outcome, .next { color: var(--ink2); font-size: 12px; }
+.strip4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+.card4, .epic { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+.card4 h3 { font-size: 13px; } .card4 ul { margin: 6px 0 0; padding-left: 18px; font-size: 12px; overflow-wrap: anywhere; }
+.epic { margin-bottom: 10px; } .epic summary { cursor: pointer; }
+.group { margin: 10px 0 0 8px; } .group h4 { font: 600 12px var(--mono); color: var(--ink2); }
+.item { padding: 6px 0; border-top: 1px solid var(--border); font-size: 13px; overflow-wrap: anywhere; }
+.chip { font: 600 11px var(--mono); border: 1px solid var(--border); border-radius: 999px; padding: 1px 8px; }
+.review summary { cursor: pointer; font-size: 12px; color: var(--ink2); }
+.review pre { white-space: pre-wrap; background: var(--page); border-radius: 6px; padding: 6px 8px; font-size: 12px; }
+.filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; font-size: 13px; }
+.unknown-note { color: var(--you); }
+</style>
+</head>
+<body>
+<main>
+  <header class="top">
+    <h1>Planning</h1>
+    <nav class="pages" aria-label="Board pages"><a href="/">Board</a><a href="/agents">Agents</a><a href="/diagrams">Diagrams</a></nav>
+    <span class="note" id="live">stream: connecting</span>
+  </header>
+  <section class="filters" aria-label="Filters">
+    <label>Epic <select id="f-epic"><option value="">all</option></select></label>
+    <label>Priority <select id="f-priority"><option value="">all</option><option>now</option><option>next</option><option>later</option><option>unset</option></select></label>
+    <label>Status <select id="f-status"><option value="">all</option><option>planned</option><option>started</option><option>yielded</option></select></label>
+    <label>Area <select id="f-area"><option value="">all</option></select></label>
+    <span class="note">Read-only: change an item with its Hecks command.</span>
+  </section>
+  <section id="plan"><!--tile:plan--></section>
+</main>
+<script src="/stream.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const FIELDS = { "f-epic": "epic", "f-priority": "priority", "f-status": "status", "f-area": "area" };
+// A filter hides rows with one style rule, so a redrawn tile keeps what the owner chose.
+const sheet = document.head.appendChild(document.createElement("style"));
+function apply() {
+  sheet.textContent = Object.entries(FIELDS).map(([id, field]) => {
+    const value = $(id).value;
+    return value ? '#plan .item:not([data-' + field + '="' + CSS.escape(value).replace(/\\/g, "\\\\") + '"]) { display: none; }' : "";
+  }).join("\n");
+}
+// The epic and area menus list what the drawn tile holds.
+function options(id, attr, selector) {
+  const select = $(id), chosen = select.value;
+  const seen = [...new Set([...document.querySelectorAll(selector)].map((el) => el.getAttribute(attr)).filter(Boolean))].sort();
+  select.replaceChildren(new Option("all", ""), ...seen.map((v) => new Option(v, v)));
+  select.value = seen.includes(chosen) ? chosen : "";
+}
+function menus() { options("f-epic", "data-epic", "#plan details.epic"); options("f-area", "data-area", "#plan .group"); apply(); }
+Object.keys(FIELDS).forEach((id) => $(id).addEventListener("change", apply));
+menus();
+if (window.boardStream) boardStream({
+  open: () => { $("live").textContent = "stream: live"; },
+  error: () => { $("live").textContent = "stream: reconnecting"; },
+  pause: () => { $("live").textContent = "stream: paused"; },
+  tile: (t) => { const el = t.id === "plan" ? $("plan") : null; if (el) { el.innerHTML = t.html; menus(); } }
+});
+else $("live").textContent = "stream: unsupported";
+</script>
+</body>
+</html>
