@@ -10,6 +10,7 @@ Hecks.hecksagon "PipelineBoard" do
     answers_query "SlowestJobs"
     answers_query "TrainCiRuns"
     answers_query "TrainSlowestJobs"
+    answers_query "TrainFlakes"
   end
 
   # The Work items, read through the Tickets domain.

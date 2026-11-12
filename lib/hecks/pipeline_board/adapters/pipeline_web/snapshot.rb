@@ -108,7 +108,7 @@ module Hecks
 
         def placeholder
           { generated_at: @now.call.iso8601, stages: [], metrics: [], ci_runs: WAITING, slowest_jobs: WAITING,
-            train_ci_runs: WAITING, train_slowest_jobs: WAITING,
+            train_ci_runs: WAITING, train_slowest_jobs: WAITING, train_flakes: WAITING,
             open_work: WAITING, sessions: WAITING, events: WAITING, fanout: WAITING }
         end
       end

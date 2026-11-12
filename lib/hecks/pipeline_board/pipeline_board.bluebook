@@ -447,6 +447,12 @@ Hecks.bluebook "PipelineBoard" do
       returns Document
     end
 
+    query "TrainFlakes" do
+      description "The flakes of the last 14 days on train pull requests, most often first: an item is a flake when an earlier attempt of a run failed it and a later attempt of the same run concluded success, counted once per run. A spec failure is told by its spec file, a failure before the specs by its job and step. A run that was closed, never passed or is still running is not counted. The answer says how far back the runs read reach (reaches_back) and how many runs could not be read."
+      attribute :limit, Limit, optional: true
+      returns Document
+    end
+
     query "OpenWork" do
       description "The Work items that are not done: slug, status and area."
       returns Document
