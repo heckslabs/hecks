@@ -77,7 +77,7 @@ RSpec.describe Hecks::Adapters::PipelineBoard::Hub do
   it "reads the Tile rows of the bluebook, which name aggregates and no event", :aggregate_failures do
     declared = Hecks::Adapters::PipelineBoard::Rules.rows("Tile")
 
-    expect(declared.map { |row| row[:tile] }).to eq(%w[fill train])
+    expect(declared.map { |row| row[:tile] }).to eq(%w[fill plan train])
     expect(declared.flat_map { |row| row[:reads].split(",").map(&:strip) }).to all(match(/\A\w+::\w+\z/))
   end
 

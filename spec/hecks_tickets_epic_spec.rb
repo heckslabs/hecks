@@ -60,6 +60,37 @@ RSpec.describe "the Tickets Epic" do
     expect(status_of).to eq("complete")
   end
 
+  def event_count(name) = hecks.registry.event_log.map(&:name).count(name)
+
+  def two_members
+    epic
+    %w[m1 m2].each { |key| member(key) }
+  end
+
+  it "does nothing when the first of two members finishes, and completes once when the second does",
+     :aggregate_failures do
+    two_members
+    finish("m1")
+    expect(event_count("EpicCompleted")).to eq(0)
+    finish("m2")
+    expect(event_count("EpicCompleted")).to eq(1)
+  end
+
+  it "joins an open member to an open epic without a refused reopen", :aggregate_failures do
+    epic
+    member("m1")
+
+    expect(status_of).to eq("open")
+    expect(event_count("EpicReopened")).to eq(0)
+  end
+
+  it "assigns a work item to no epic without reopening anything" do
+    epic
+    cli("work.plan!", "work.value=solo", "title.value=Solo")
+
+    expect(event_count("EpicReopened")).to eq(0)
+  end
+
   it "reopens when a member returns" do
     epic
     member("m1")

@@ -161,15 +161,6 @@ svg.focusing .edge.lit, svg.focusing .node.lit { opacity: 1; }
 .ask .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .send { font: 600 12px var(--body); color: #fff; background: var(--signal); border: 0; border-radius: 6px; padding: 5px 12px; cursor: pointer; }
 .send:disabled { opacity: .5; }
-.verdicts { display: grid; gap: 8px; }
-.verdict { display: grid; grid-template-columns: auto 1fr; gap: 4px 8px; align-items: baseline; font-size: 12px; }
-.vchip { font: 600 11px var(--mono); border-radius: 999px; padding: 1px 8px; border: 1px solid; white-space: nowrap; }
-.vchip.sound { color: var(--good); } .vchip.changes { color: var(--signal); } .vchip.rethink { color: var(--serious); }
-.vchip.waiting { color: var(--muted); border-style: dashed; }
-.verdict .w { font-family: var(--mono); overflow-wrap: anywhere; }
-.verdict details { grid-column: 2; color: var(--ink2); }
-.verdict summary { cursor: pointer; overflow-wrap: anywhere; }
-.verdict .full { white-space: pre-wrap; margin-top: 4px; padding: 6px 8px; background: var(--page); border-radius: 6px; overflow-wrap: anywhere; }
 .unknown { color: var(--ink2); font-style: italic; }
 .waiting { border: 1px solid var(--you); border-left-width: 4px; border-radius: 10px; background: var(--you-soft); padding: 10px 14px; display: grid; gap: 8px; }
 .waiting[hidden] { display: none; }
@@ -323,10 +314,8 @@ svg.focusing .edge.lit, svg.focusing .node.lit { opacity: 1; }
         <label for="ask-work">Ask the architect to review a plan</label>
         <select id="ask-work"></select>
         <textarea id="ask-plan" rows="2" placeholder="What you will build, which files it touches, how it is checked"></textarea>
-        <div class="row"><button class="send" type="submit" id="ask-send">Ask the architect</button><span class="note" id="ask-note">The verdict appears below.</span></div>
+        <div class="row"><button class="send" type="submit" id="ask-send">Ask the architect</button><span class="note" id="ask-note">The verdict goes to the coder; the planning page shows it on the work item.</span></div>
       </form>
-      <h2 style="margin-top:6px">Plan reviews</h2>
-      <div class="verdicts" id="reviews"></div>
     </section>
   </div>
 </main>
@@ -385,7 +374,6 @@ function render(s) {
   renderCards(s.roles);
   renderWire();
   fillWork(s.open_work);
-  renderReviews(s.reviews);
   $("updated").textContent = "updated " + clock(s.generated_at);
 }
 
@@ -573,25 +561,6 @@ function fillWork(work) {
   select.dataset.slugs = slugs.join("|");
   if (slugs.includes(chosen)) select.value = chosen;
 }
-
-// One line of the findings, without the verdict line or markdown marks; the full text opens below it.
-function firstLine(text) {
-  const lines = text.split("\n").map((l) => l.replace(/[*_`#>]/g, "").replace(/^verdict:\s*(sound with changes|sound|rethink)[.:]?\s*/i, "").trim());
-  return (lines.find((l) => l && !/^findings:?$/i.test(l)) || "Findings").slice(0, 140);
-}
-function renderReviews(reviews) {
-  if (isUnknown(reviews)) return $("reviews").replaceChildren(h("p", { class: "unknown" }, "Reviews unknown: " + reviews.unknown));
-  if (!Array.isArray(reviews) || !reviews.length) return $("reviews").replaceChildren(h("p", { class: "idle" }, "No plan reviews yet."));
-  const open = new Set([...$("reviews").querySelectorAll("details[open]")].map((d) => d.dataset.work));
-  $("reviews").replaceChildren(...reviews.map((r) => {
-    const verdict = r.verdict || "waiting";
-    const label = verdict === "changes" ? "sound with changes" : verdict;
-    return h("div", { class: "verdict" }, h("span", { class: "vchip " + verdict }, label), h("span", { class: "w" }, r.work),
-      r.findings ? h("details", { "data-work": r.work, open: open.has(r.work) ? "" : null }, h("summary", {}, firstLine(r.findings)), h("div", { class: "full" }, r.findings))
-        : h("span", { class: "note", style: "grid-column:2" }, "The architect has not answered yet."));
-  }));
-}
-
 // Focus: one role lights its own lines and card; everything else dims. A second click clears it.
 let focused = null;
 function markFocus(role) {

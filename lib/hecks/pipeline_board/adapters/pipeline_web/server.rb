@@ -27,13 +27,13 @@ module Hecks
           "/wiring"     => [HTML_TYPE, :wiring_page],
           "/sequence"   => [HTML_TYPE, :sequence_page],
           "/agents"     => [HTML_TYPE, :agents_page],
+          "/plan"       => [HTML_TYPE, :plan_page],
           "/diagrams"   => [HTML_TYPE, :diagrams_page],
           "/stream.js"  => [SCRIPT_TYPE, :stream_script],
           "/answer.js"  => [SCRIPT_TYPE, :answer_script],
           "/api/state"  => [JSON_TYPE, :state],
           "/api/wiring" => [JSON_TYPE, :wiring]
         }.freeze
-        ROUTES = [*SERVED.keys, "/api/events"].freeze
         STATUS = { 200 => "OK", 400 => "Bad Request", 403 => "Forbidden", 404 => "Not Found",
                    405 => "Method Not Allowed", 415 => "Unsupported Media Type",
                    422 => "Unprocessable Entity", 503 => "Service Unavailable" }.freeze
@@ -107,7 +107,7 @@ module Hecks
 
           deep = DeepLinks.match(path)
           return reply(socket, *DeepLinks.answer(@app, deep)) if deep
-          return reply(socket, 404, "text/plain", "not found") unless ROUTES.include?(path)
+          return reply(socket, 404, "text/plain", "not found") unless SERVED.key?(path) || path == "/api/events"
 
           route(socket, path)
         end

@@ -192,7 +192,7 @@ details.panel > .scroll, details.panel > .feed, details.panel > .strip, details.
 <main>
   <header>
     <h1>Pipeline Board</h1>
-    <nav class="pages" aria-label="Board pages"><a href="/agents">Agents</a><a href="/diagrams" data-tip="The wiring and sequence diagrams, on their own page">Diagrams</a></nav>
+    <nav class="pages" aria-label="Board pages"><a href="/plan" data-tip="Epics, what runs, what is next and what needs you">Plan</a><a href="/agents">Agents</a><a href="/diagrams" data-tip="The wiring and sequence diagrams, on their own page">Diagrams</a></nav>
     <div class="meta">
       <span id="updated">loading</span>
       <span class="live" id="live">stream: connecting</span>
@@ -203,7 +203,7 @@ details.panel > .scroll, details.panel > .feed, details.panel > .strip, details.
   <div id="highlight-banner" class="highlight-banner" role="status" aria-live="polite" hidden></div>
 
   <section class="agentstrip" aria-labelledby="h-roles"><h2 id="h-roles">Agents</h2><div class="roles" id="roles"></div>
-    <a class="open" href="/agents" data-tip="Who hands work to whom, each role's sessions, plan reviews, and the forms that ask the planner and the architect">Open the Agents page →</a></section>
+    <a class="open" href="/agents" data-tip="Who hands work to whom, each role's sessions, and the forms that ask the planner and the architect">Open the Agents page →</a></section>
   <details class="panel" open><summary data-tip="Everything that asks for a person: attention pills, failed stages and sessions blocked on a reply. Click a row to act on it"><h2 id="h-attn">Needs attention</h2><span class="sum" id="sum-attn"></span></summary><div class="scroll" id="attention"></div></details>
   <section aria-labelledby="h-tiles"><h2 id="h-tiles">Key metrics</h2><div class="tiles" id="tiles"></div></section>  <details class="panel" open><summary data-tip="Each stage of a change from planned to released. Click a stage that needs you to resolve it"><h2 id="h-strip">Pipeline</h2><span class="sum" id="sum-strip"></span></summary><div class="strip" id="strip"><div class="node" id="train"><!--tile:train--></div></div></details>
   <details class="panel" open><summary data-tip="Recent CI runs on main, and the slowest jobs of the last completed run"><h2 id="h-ci">CI on main</h2><span class="sum" id="sum-ci"></span></summary>

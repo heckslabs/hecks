@@ -26,6 +26,8 @@ require_relative "pipeline_stages/panel"
 require_relative "pipeline_stages/daily_health"
 require_relative "pipeline_stages/owner_queue"
 require_relative "pipeline_stages/headline"
+require_relative "pipeline_stages/plan_reading"
+require_relative "pipeline_stages/plan_tile"
 
 module Hecks
   module Adapters
