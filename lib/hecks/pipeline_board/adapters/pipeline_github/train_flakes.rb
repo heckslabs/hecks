@@ -7,15 +7,16 @@ module Hecks
   module Adapters
     module PipelineBoard
       # What failed on an earlier attempt of a train pull request's CI run that a later attempt of
-      # the same run passed. GitHub keeps every attempt of a run, so the reading is durable and needs
-      # no record of the board's own. A spec failure is told by its spec file (a shard holds other
-      # files from one run to the next and a line moves), a failure before the specs by its job and
-      # step. An item counts once per run, however many attempts it failed.
+      # the same run passed. GitHub keeps every attempt of a run, so the reading is durable and
+      # needs no record of the board's own. A spec failure is told by its spec file (a shard holds
+      # other files from one run to the next and a line moves), a failure before the specs by its
+      # job and step. An item counts once per run, however many attempts it failed.
       module TrainFlakes
         # How many days back the flakes reach.
         WINDOW_DAYS = 14
 
-        # How many passed reruns are read for one answer: each costs a job list and a log per attempt.
+        # How many passed reruns are read for one answer: each costs a job list and a log per
+        # earlier attempt.
         RUN_CAP = 20
 
         private
