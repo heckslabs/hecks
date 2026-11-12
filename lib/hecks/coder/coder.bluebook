@@ -330,6 +330,10 @@ Hecks.bluebook "Coder" do
     attribute :report,       BriefRules, optional: true
     attribute :coordination, BriefRules, optional: true
     attribute :freeze,       BriefRules, optional: true
+    attribute :epic_title,    BriefEpicTitle, optional: true
+    attribute :epic_outcome,  BriefEpicOutcome, optional: true
+    attribute :epic_tier,     BriefEpicTier, optional: true
+    attribute :epic_decision, BriefEpicDecision, optional: true
     identified_by :work
 
     value_object "BriefWork" do
@@ -352,6 +356,17 @@ Hecks.bluebook "Coder" do
 
     value_object "BriefRules", String
 
+    # A snapshot, taken when the brief is composed, of the epic the Work item belongs to; the Tickets
+    # Epic owns the facts. A Work item in no epic leaves all four unset.
+    value_object "BriefEpicTitle", String
+
+    value_object "BriefEpicOutcome", String
+
+    value_object "BriefEpicTier", Integer
+
+    # The number of the epic's decision (ADR), as written in docs/decisions.
+    value_object "BriefEpicDecision", String
+
     value_object "BriefVerification", String
 
     # The brief a coder session reads for the next planned Work item: the Brief keyed by that item.
@@ -369,6 +384,10 @@ Hecks.bluebook "Coder" do
       attribute :outcome, BriefOutcome, sets: true
       attribute :detail,  BriefDetail, optional: true, sets: true
       attribute :area,    list_of(AreaWord), optional: true, sets: true
+      attribute :epic_title,    BriefEpicTitle, optional: true, sets: true
+      attribute :epic_outcome,  BriefEpicOutcome, optional: true, sets: true
+      attribute :epic_tier,     BriefEpicTier, optional: true, sets: true
+      attribute :epic_decision, BriefEpicDecision, optional: true, sets: true
 
       sets :rules, to: "Map the whole picture before acting. Act on everything within the area. Stop only for (a) a risk of losing data, (b) an action the owner alone may take: a push, a mint, a release, deleting something that is not yours, or (c) a change outside the area. When stopped, report what was stuck first, then finish everything that does not depend on the stuck part. When you must ask a question and wait, begin it with its kind in brackets: [confirm] a yes or no you could assume, [retry] whether to try again, [choose] a pick among options, or [owner] an owner-only decision. The board answers only [confirm] and [retry] by itself. A line starting [choose], [confirm], [retry] or [owner] is a question for the orchestrator; [review] is a normal wait for a verdict. These five are the whole set of markers."
       sets :review, to: "Before you edit anything, have your plan reviewed. Write the plan: what you will build, which aggregates, commands, policies, ports, adapters and files it touches, and how it will be checked. Run the three review commands below through the main checkout's launcher, {main}/exe/hecks, never your worktree's: the reviews are stored there, and from a worktree the write is refused and the reads are empty. Ask the architect by event: {main}/exe/hecks agents PlanReview.request! work.value={work} hops.value=1 role.value=architect repo.value=<your worktree's absolute path> plan.value=\"<the plan>\" --wait. A refusal that names the hop limit means a chain of reviews has gone too far: stop and report it. The request's result names its run (each review has its own, so {work} may have several). Then do not wait in a loop and do not poll: end your turn by asking one question that begins [review] and names {work}. The architect's verdict resumes this same session, with its findings as the answer. When you are resumed, read it with {main}/exe/hecks agents PlanReview.reviews and find your review's run: it holds the verdict and the findings, and the read, not the answer, is what you act on. If you are resumed and the listing holds no verdict for your run, report that the architect did not answer and edit nothing. Act on the verdict. sound: build it. changes: revise the plan as its findings say, then build it. rethink: edit nothing, hand the Work item back with exe/hecks tickets Work.yield! to={work} reason.value=\"architect: rethink. <its verdict and first finding>\" --wait, and end. Quote the verdict and each finding you acted on or set aside, with your reason, in your report."
