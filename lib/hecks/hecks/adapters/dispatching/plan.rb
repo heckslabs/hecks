@@ -21,7 +21,8 @@ module Hecks
       class Plan
         # A work item, as {WorkItems} reads it.
         # `yield_kind`, `retry_at` and `yield_count` are what its last yield recorded ({Parking}).
-        Item = Struct.new(:key, :title, :detail, :area, :yield_kind, :retry_at, :yield_count, :priority, keyword_init: true)
+        Item = Struct.new(:key, :title, :detail, :area, :yield_kind, :retry_at, :yield_count, :priority,
+                          :epic, keyword_init: true)
 
         # The top level of this checkout: the root an absolute area is made relative to.
         REPOSITORY = File.expand_path("../../../../..", __dir__)
@@ -42,7 +43,7 @@ module Hecks
         # @param started [Array<Item>] the started work items
         # @param limits [Hash] `runs:` (callable answering the AgentRun states by run key, optional)
         #   and `now:` (Time, optional), `cap:` (Integer), `load:` and `max_load:` (Float),
-        #   `frozen:` (Array)
+        #   `frozen:` (Array), `epic_wip:` (Integer, optional: most started items of one epic)
         #   and `paused:` (String, optional: why every work item waits, "skipped: paused by load")
         #   and `budget:` (String, optional: why every work item waits once the boots spent their
         #   budget)
@@ -78,7 +79,8 @@ module Hecks
         private
 
         def consider(item)
-          reason = rethink_reason(item) || parked_reason(item) || stop_reason(item) || frozen_reason(item) || overlap_reason(item)
+          reason = rethink_reason(item) || parked_reason(item) || stop_reason(item) || frozen_reason(item) || epic_reason(item) ||
+                   overlap_reason(item)
           reason ? @skipped << Skip.new(item.key, reason) : @chosen << item
         end
 
@@ -114,6 +116,16 @@ module Hecks
         def frozen_reason(item)
           hit = @limits[:frozen].find { |name| item.area.any? { |word| squash(word).include?(squash(name)) } }
           "skipped: frozen (#{hit})" if hit
+        end
+
+        # An epic holding its limit of work items, started or chosen by this fill, holds the next
+        # one back. A work item with no epic, and the fix of a red main, are not held.
+        def epic_reason(item)
+          limit = @limits[:epic_wip]
+          return if limit.nil? || item.epic.to_s.empty? || @limits[:exempt]&.call(item)
+
+          count = holders.count { |other| other.epic == item.epic }
+          "skipped: held: epic #{item.epic} already has #{count} started" if count >= limit
         end
 
         def overlap_reason(item)

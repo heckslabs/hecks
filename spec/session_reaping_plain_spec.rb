@@ -9,7 +9,7 @@ RSpec.describe "SessionCleanup.Reap of other sessions" do
 
   it "keeps a run's session an owner typed into, and names it" do
     done_run(user("do it my way"))
-    expect(reap).to include("r-done (a person replied, or the transcript cannot be read)")
+    expect(reap).to include("r-done (a person replied (1 turns after the brief))")
   end
 
   it "removes a done session no run holds when it is older than a day and holds no worktree" do

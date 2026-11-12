@@ -135,8 +135,9 @@ module Hecks
       # next beat does.
       def limits
         gauge = machine
-        { cap: gauge.cap, load: gauge.load, max_load: gauge.max_load, frozen: gauge.frozen, paused: gauge.paused,
-          budget: gauge.boot_stop, exempt: WorkItems.method(:red?), **cached_reads(gauge) }
+        { cap: gauge.cap, load: gauge.load, max_load: gauge.max_load, frozen: gauge.frozen,
+          epic_wip: gauge.epic_wip_limit, paused: gauge.paused, budget: gauge.boot_stop,
+          exempt: WorkItems.method(:red?), **cached_reads(gauge) }
       end
 
       # The runs and the architect's reviews, each read once for the plan: the plan asks for them
