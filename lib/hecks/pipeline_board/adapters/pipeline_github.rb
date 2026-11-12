@@ -6,6 +6,7 @@ require_relative "cache"
 require_relative "pipeline_github/settled_counts"
 require_relative "pipeline_github/runs"
 require_relative "pipeline_github/train_runs"
+require_relative "pipeline_github/train_flakes"
 require_relative "pipeline_github/pull_checks"
 require_relative "../../cache_dir"
 
@@ -17,6 +18,7 @@ module Hecks
     class PipelineGitHub
       include PipelineBoard::PipelineRuns
       include PipelineBoard::TrainRuns
+      include PipelineBoard::TrainFlakes
 
       WORKFLOW = "ci.yml"
       BRANCH = "main"
@@ -30,6 +32,7 @@ module Hecks
       # @param root [String, nil] the checkout `gh` runs in
       def initialize(aggregate: nil, settings: {}, root: nil)
         @gh = settings[:gh] || ->(*args) { PipelineBoard::Probe.json("gh", *args, chdir: root) }
+        @text = settings[:gh_text] || ->(*args) { PipelineBoard::Probe.run("gh", *args, chdir: root) }
         @cache = PipelineBoard::Cache.new(ttl: settings.fetch(:ttl, 20))
         @settled = PipelineBoard::SettledCounts.new(settled_path(settings))
       end
@@ -61,6 +64,14 @@ module Hecks
       # @raise [PipelineBoard::Unavailable] when `gh` cannot answer
       def train_slowest_jobs(limit: nil)
         { text: JSON.generate(train_slowest(count(limit, 8))) }
+      end
+
+      # @param limit [Hash, Integer, nil] how many flakes (5 when none is named)
+      # @return [Hash{Symbol => String}] `text:` the items that failed on an earlier attempt of a
+      #   train run a later attempt passed, most often first, as JSON with the days it reaches back
+      # @raise [PipelineBoard::Unavailable] when `gh` cannot list the runs
+      def train_flakes(limit: nil)
+        { text: JSON.generate(flake_document(count(limit, 5))) }
       end
 
       # @return [String] the repository's web address, the base of its commit links

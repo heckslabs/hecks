@@ -221,6 +221,8 @@ details.panel > .scroll, details.panel > .feed, details.panel > .strip, details.
     </div>
     <h2 style="margin-top:14px">Slowest jobs of the last completed train run</h2>
     <div id="trainslowchart" class="chartview"></div><div class="tableview scroll" id="trainslowtable"></div>
+    <h2 style="margin-top:14px">Flakes: failed, then passed on rerun</h2>
+    <div class="label" id="trainflakenote"></div><div class="scroll" id="trainflaketable"></div>
   </details>
   <details class="panel" id="sessions-panel"><summary data-tip="Claude sessions dispatched or started by hand: their status, work item and what they are doing. Click a blocked session to answer it"><h2 id="h-sess">Sessions</h2><span class="sum" id="sum-sess"></span></summary><div class="scroll" id="sessions"></div></details>
 
@@ -510,6 +512,12 @@ function renderCi(runs, slow, p = "") {
   put(p + "slowchart", slow.map((j) => linked(j.url, h("div", { class: "hbar", tip: j.name + ": " + j.minutes + " min (" + j.conclusion + ")" },
     h("div", { class: "name" }, j.name), h("div", { class: "track" }, h("div", { class: "fill", style: "width:" + Math.round(100 * j.minutes / max) + "%" })), h("div", {}, j.minutes + " min")))));
   put(p + "slowtable", table(["Job", "Minutes", "Conclusion"], slow.map((j) => [linked(j.url, j.name), j.minutes, j.conclusion]), [1]));
+}
+function renderFlakes(doc) {
+  if (isUnknown(doc)) { put("trainflakenote", unknown(doc)); return put("trainflaketable"); }
+  const rows = doc.flakes || [];
+  put("trainflakenote", "last " + doc.window_days + " days, runs read back to " + String(doc.reaches_back || "-").slice(0, 10) + (doc.unreadable ? "; " + doc.unreadable + " runs unreadable" : ""));
+  put("trainflaketable", table(["Item", "Kind", "Times", "Train PRs"], rows.map((f) => [f.item, f.kind, f.count, f.prs.map((p) => p.branch.replace("train/main-", "")).join(", ")]), [2]));
 }
 function renderWork(work) {
   if (isUnknown(work)) { summarize("work", [["unknown: " + work.unknown, "attention"]]); return put("work", unknown(work)); }
@@ -826,7 +834,7 @@ function replyNote(s) {
 }
 function render(s) {
   lastState = s;
-  renderTiles(s.metrics); renderAttention(s.metrics, s.stages, s.sessions, s.recommendations); renderStrip(s.stages); renderCi(s.ci_runs, s.slowest_jobs); renderCi(s.train_ci_runs, s.train_slowest_jobs, "train");
+  renderTiles(s.metrics); renderAttention(s.metrics, s.stages, s.sessions, s.recommendations); renderStrip(s.stages); renderCi(s.ci_runs, s.slowest_jobs); renderCi(s.train_ci_runs, s.train_slowest_jobs, "train"); renderFlakes(s.train_flakes);
   renderRoles(s.roles); renderWork(s.open_work); renderSessions(s.sessions); renderFan(s.fanout); renderCycles(s.cycles); renderEvents(s.events);
   $("updated").textContent = "updated " + clock(s.generated_at);
   renderStale(s);
