@@ -34,6 +34,12 @@ module Hecks
         # taken for gone.
         GRACE = "session_grace"
 
+        # The world verb that carries the most started work items of one epic.
+        EPIC_WIP = "epic_wip_limit"
+
+        # Started work items of one epic allowed at once when the world names no limit.
+        EPIC_WIP_LIMIT = 2
+
         # Seconds a session is given to appear in `claude agents` when the world names none.
         GRACE_SECONDS = 120
 
@@ -109,6 +115,9 @@ module Hecks
 
         # @return [Integer] the architect rethinks that stop a Work item for a person
         def rethink_limit = Integer(declared("rethink_limit")[:limit] || Rethinks::LIMIT)
+
+        # @return [Integer] the most work items of one epic started at once
+        def epic_wip_limit = Integer(declared(EPIC_WIP)[:limit] || EPIC_WIP_LIMIT)
 
         # @return [Boolean] whether planned work rolls forward by itself; false only when paused
         def roll_forward? = declared(ROLL)[:roll_forward] != false

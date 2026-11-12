@@ -18,6 +18,10 @@
 # target directory and a `nice` increment. `session_grace` is how many seconds a started session is
 # given to appear in `claude agents` before a run whose session is not listed is retired as gone.
 #
+# `epic_wip_limit` is the most work items of one epic the dispatcher has started at once (2 when absent):
+# the next one waits, naming the epic, until one finishes. It is the dispatcher's own limit; a work item
+# started by hand is not held. Work items are picked from the epic with the lowest tier first.
+#
 # `rust_build` is how hard any Rust build hecks starts may work, in every checkout, the owner's too: `jobs` caps the
 # Cargo jobs at once (a third of the cores when absent) and `nice` is the increment. Builds also queue behind one
 # lock, so two never run at once (`HECKS_NO_BUILD_LOCK=1` skips it).
@@ -43,6 +47,7 @@ Hecks.world "Tickets" do
   github_issues "GitHubIssues", enabled: false
   work_limit "WorkLimits", cap: 6
   dispatch_max_load "Dispatch", limit: 10.0
+  epic_wip_limit "Dispatch", limit: 2
   cpu_budget "Dispatch", boot_hours_per_day: 6.0
   dispatch_roll_forward "Dispatch", roll_forward: false
   frozen_shapes "PersistedShapes", areas: []
