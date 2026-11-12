@@ -2,6 +2,7 @@
 
 require_relative "../started_work"
 require_relative "plan"
+require_relative "epic_tiers"
 require_relative "reap_facts"
 require_relative "../push_size"
 
@@ -33,7 +34,8 @@ module Hecks
         end
 
         # @return [Array<Plan::Item>] the planned work items: a red one first, then a filed stall,
-        #   then by priority (`now`, `next`, `later`, none), then in plan order (lowest step first,
+        #   then by the tier of the work item's epic (1 to 9, lowest first, none last), then by
+        #   priority (`now`, `next`, `later`, none), then in plan order (lowest step first,
         #   no step last, ties by key)
         def planned
           stalls = stall_prefixes
@@ -117,7 +119,9 @@ module Hecks
           Array(rows&.members).map { |row| "stall-#{row[:kind]}-" }
         end
 
-        def rank(record) = TIERS.index(field(record, :priority).to_s) || TIERS.size
+        def rank(record, tiers)
+          [tiers.fetch(field(record, :epic).to_s, EpicTiers::UNRANKED), TIERS.index(field(record, :priority).to_s) || TIERS.size]
+        end
 
         def red?(item) = self.class.red?(item)
 
@@ -128,14 +132,21 @@ module Hecks
           return [] unless work
 
           records = @registry.repository("Tickets", work).all
-          records.select { |record| field(record, :status) == status }.map { |record| [step(record), rank(record), item(record)] }
+          tiers = EpicTiers.of(@registry)
+          records = records.select { |record| field(record, :status) == status }
+          records.map { |record| [step(record), rank(record, tiers), item(record)] }
         end
 
         def item(record)
           Plan::Item.new(key: field(record, :work).to_s, title: field(record, :title).to_s,
                          detail: field(record, :detail).to_s, area: StartedWork.words(field(record, :area)),
-                         yield_kind: field(record, :yield_kind).to_s, retry_at: field(record, :retry_at).to_s,
-                         yield_count: field(record, :yield_count).to_i, priority: field(record, :priority).to_s)
+                         priority: field(record, :priority).to_s, epic: field(record, :epic).to_s,
+                         **yielded(record))
+        end
+
+        def yielded(record)
+          { yield_kind: field(record, :yield_kind).to_s, retry_at: field(record, :retry_at).to_s,
+            yield_count: field(record, :yield_count).to_i }
         end
 
         def state(run)

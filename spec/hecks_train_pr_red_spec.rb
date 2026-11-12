@@ -86,12 +86,24 @@ RSpec.describe "a red train pull request" do
     expect(names).to include("TrainPrExhausted", "WorkPlanned")
   end
 
-  it "observes nothing, and records no failure, when neither the jobs nor the log can be read", :aggregate_failures do
+  it "watches on, and records no failure, when neither the jobs nor the log can be read", :aggregate_failures do
     github.jobs_error = true
     github.log_error = true
     observe
-    expect(names).to include("ObserveRefused")
-    expect(names).not_to include("TrainPrFailed")
+    expect(names).to include("ObserveAnswered")
+    expect(names).not_to include("TrainPrFailed", "ObserveRefused")
+  end
+
+  def observe_unreadable_then_readable
+    github.jobs_error = github.log_error = true
+    observe
+    github.jobs_error = github.log_error = false
+    observe
+  end
+
+  it "records the failure once when a later observation can read it" do
+    observe_unreadable_then_readable
+    expect(names.grep(/TrainPrFailed/).size).to eq(1)
   end
 
   it "does not read a pull request with a check still running as failed", :aggregate_failures do

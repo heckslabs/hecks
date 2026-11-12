@@ -189,6 +189,22 @@ RSpec.describe "noticing a train pull request's verdict on the clock's beat" do
     expect([stage(boarded), pulls]).to eq(["green", 1])
   end
 
+  # The beats come from outside (no Ticker chain is started anywhere in this spec): the pull
+  # request's check has finished red, the first beat records the failure and reruns it once.
+  it "records a finished red check once and reruns it once, on beats from outside", :aggregate_failures do
+    @pull = open_with_failed_check
+    boarded_run
+    seen = logged_since { 3.times { beat } }
+    expect(%w[TrainPrFailed TrainPrRerun TickerRequested].map { |name| seen.count(name) }).to eq([1, 1, 0])
+  end
+
+  # The names of the events the block recorded: the examples share the booted domain's event log.
+  def logged_since
+    before = @hecks.registry.event_log.size
+    yield
+    @hecks.registry.event_log.map(&:name).drop(before)
+  end
+
   def beats_after_a_merge_with_ci_running
     @run_status = "in_progress"
     boarded = boarded_run

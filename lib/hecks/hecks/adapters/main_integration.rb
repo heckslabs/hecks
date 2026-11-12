@@ -62,6 +62,18 @@ module Hecks
         { report: { value: lines.join("\n") } }
       end
 
+      # Writes and loads the launchd job that beats the clock once a minute (`BeatSchedule`).
+      #
+      # @param held [Hash] the `Integration` record: `confirm` lets the launch agents be written
+      # @return [Hash{Symbol => Hash}] `report:` what was done, or would be
+      def arrange(**held) = { report: { value: BeatSchedule.new.install(confirm: plain(held[:confirm]) == true) } }
+
+      # Unloads and removes the launchd job.
+      #
+      # @param held [Hash] the `Integration` record: `confirm` lets the launch agents be written
+      # @return [Hash{Symbol => Hash}] `report:` what was done, or would be
+      def withdraw(**held) = { report: { value: BeatSchedule.new.uninstall(confirm: plain(held[:confirm]) == true) } }
+
       private
 
       # A tip of main no run covers (a pull rewrote the held tip) gets a run when none is open, and
@@ -159,3 +171,4 @@ require_relative "main_integration/adoption"
 require_relative "main_integration/fault"
 require_relative "main_integration/outcome"
 require_relative "main_integration/train_checks"
+require_relative "main_integration/beat_schedule"

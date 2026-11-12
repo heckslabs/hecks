@@ -29,12 +29,23 @@ module Hecks
       # @param session_id [String] the full session id, which names the transcript file
       # @return [Boolean] true when a person replied after the brief, or when this cannot be told
       def taken_over?(session_id)
-        path = Dir.glob(File.join(@projects, "*", "#{session_id}.jsonl")).first
-        return true unless path && !session_id.to_s.empty?
+        found = reading(session_id)
+        found[:state] != :read || found[:person_turns].positive?
+      end
 
-        human_messages(path).length > 1
+      # How the transcript read and how many turns a person typed after the brief; the pipeline's
+      # own answers (see {PIPELINE_MARK}) and automatic entries are not counted.
+      #
+      # @param session_id [String] the full session id, which names the transcript file
+      # @return [Hash{Symbol => Object}] `state:` `:read`, `:missing` or `:unreadable`, and
+      #   `person_turns:` the count (0 unless the transcript was read)
+      def reading(session_id)
+        path = Dir.glob(File.join(@projects, "*", "#{session_id}.jsonl")).first
+        return { state: :missing, person_turns: 0 } unless path && !session_id.to_s.empty?
+
+        { state: :read, person_turns: [human_messages(path).length - 1, 0].max }
       rescue SystemCallError, JSON::ParserError
-        true
+        { state: :unreadable, person_turns: 0 }
       end
 
       # @param session_id [String] the full session id, which names the transcript file

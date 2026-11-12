@@ -138,6 +138,8 @@ commands:
   Integration:
     One step of integrating main (verify, board, observe CI) or one advance of the open runs, and how it ended.
     advance!                      Dispatch the next step of every open integration run, once: verify a landed run, board a verified one, observe a pushed one
+    schedule!                     Ask for the launchd job that beats the clock once a minute to be written and loaded; unconfirmed, it says what it would write
+    unschedule!                   Ask for the launchd job that beats the clock to be unloaded and removed; unconfirmed, it says what it would remove
     verify!                       Verify a landed commit in a clean detached copy of local main: the quick gate, the specs its changes touch, the command names, the CI pipeline and the generated corpus
     board!                        Push a verified commit of main by boarding the push train in its own copy, refusing an agent's trailer, a version change or a release approval
     observe!                      Read the CI run of a pushed commit on GitHub: passed, failed with the failed jobs, or still running
@@ -425,6 +427,6 @@ bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
   expression       The subset of regular Ruby a predicate is allowed to be — small enough that every target can…
 
   hecks <command> --help       what one command wants, and every way it refuses
-  hecks --all                  also list the 388 internal commands and queries
+  hecks --all                  also list the 390 internal commands and queries
   a command is called with its aggregate — Build.project_rust!
   exit status: 0 answered, 1 refused or failed, 2 a line it could not read

@@ -376,6 +376,7 @@ Hecks.bluebook "Tickets" do
     attribute :epic,    EpicKey
     attribute :title,   EpicTitle
     attribute :outcome, EpicOutcome
+    attribute :tier,    EpicTier, optional: true
     reference_to Adr, as: :decision, optional: true
     identified_by :epic
 
@@ -394,6 +395,13 @@ Hecks.bluebook "Tickets" do
       attribute :value, String
 
       invariant("an epic states its outcome") { !value.to_s.empty? }
+    end
+
+    # How soon the epic is wanted, 1 to 9: the lower, the sooner. An epic nobody ranked has none.
+    value_object "EpicTier" do
+      attribute :value, Integer
+
+      invariant("an epic tier is from 1 to 9") { value >= 1 && value <= 9 }
     end
 
     # How many work items name the epic, or how many of them are still planned or started.
@@ -455,6 +463,40 @@ Hecks.bluebook "Tickets" do
       reference_to Work, as: :returned, optional: true
 
       emits "EpicReopened"
+    end
+
+    # Changes the title only (not the Work.Revise counterpart); the key, outcome, decision and status stay,
+    # so a work item's epic link keeps working. It is a plain set, not a transition, so any state allows it.
+    command "Retitle" do
+      role "Maintainer"
+      goal "Change an epic's title, in any state, keeping its key"
+
+      reference_to Epic
+      attribute :title, EpicTitle, sets: true
+
+      given("an epic has a title") { !title.value.to_s.strip.empty? }
+
+      emits "EpicRetitled"
+    end
+
+    # Sets the tier only; the title, outcome, decision and status stay as they were.
+    command "Rank" do
+      role "Maintainer"
+      goal "Say how soon an epic is wanted, from 1 (soonest) to 9"
+
+      reference_to Epic
+      attribute :tier, EpicTier, sets: true
+
+      given("an epic tier is from 1 to 9") { tier.value >= 1 && tier.value <= 9 }
+
+      emits "EpicRanked"
+    end
+
+    # The board's epic list: every epic, lowest tier first (one sort key, so epics of a tier keep the
+    # order the store holds them in).
+    query "Ranked" do
+      description "Every epic with its tier, lowest tier first."
+      order_by :tier
     end
   end
 

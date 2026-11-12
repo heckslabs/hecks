@@ -1773,6 +1773,29 @@ Hecks.bluebook "Hecks" do
         emits PollRequested
       end
 
+      # The outside source of the beat: a launchd job that dispatches `Heartbeat.Beat` once a minute,
+      # so a train pull request is observed after its per-boarding chain of ticks has ended. The
+      # request records nothing about the job; the port answers or refuses it.
+      command "Schedule" do
+        role "Operator"
+        goal "Ask for the launchd job that beats the clock once a minute to be written and loaded; unconfirmed, it says what it would write"
+
+        attribute :run,     RunKey, sets: true
+        attribute :confirm, Switch, optional: true, sets: true
+
+        emits ScheduleRequested
+      end
+
+      command "Unschedule" do
+        role "Operator"
+        goal "Ask for the launchd job that beats the clock to be unloaded and removed; unconfirmed, it says what it would remove"
+
+        attribute :run,     RunKey, sets: true
+        attribute :confirm, Switch, optional: true, sets: true
+
+        emits UnscheduleRequested
+      end
+
       command "Summarize" do
         role "System"
         goal "Record what one advance dispatched for each open run"
@@ -1965,6 +1988,16 @@ Hecks.bluebook "Hecks" do
     policy "PollWhenAsked" do
       on      "Integration.PollRequested"
       ask     :tend, with: { run: :run }
+    end
+
+    policy "ScheduleWhenAsked" do
+      on      "Integration.ScheduleRequested"
+      ask     :arrange, with: { run: :run, confirm: :confirm }
+    end
+
+    policy "UnscheduleWhenAsked" do
+      on      "Integration.UnscheduleRequested"
+      ask     :withdraw, with: { run: :run, confirm: :confirm }
     end
 
     policy "RecordTheAdvance" do

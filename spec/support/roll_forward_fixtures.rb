@@ -4,12 +4,13 @@ require "hecks/hecks/adapters/rolling"
 # read by the real {WorkItems}.
 module RollForwardFixtures
   Entry = Struct.new(:work, :title, :status, :priority, :step, :area, :detail, :yield_kind, :retry_at, :yield_count,
-                     keyword_init: true)
+                     :epic, keyword_init: true)
   Item = Hecks::Adapters::Dispatching::Plan::Item
   Word = Struct.new(:value)
 
-  def entry(key, priority: nil, step: nil)
-    Entry.new(work: key, title: key, status: "planned", priority: priority, step: step, area: [Word.new(key)], detail: "")
+  def entry(key, priority: nil, step: nil, epic: nil)
+    Entry.new(work: key, title: key, status: "planned", priority: priority, step: step, area: [Word.new(key)], detail: "",
+              epic: epic)
   end
 
   def registry_of(entries, world = {})
