@@ -35,6 +35,7 @@ module Hecks
         @registry = registry
         @live = settings.fetch(:live_store) { live_store_named }
         @standin = settings[:work_items]
+        @epics_standin = settings[:epics]
         @landed = settings[:landings]
         @stopped = settings[:findings]
       end
@@ -43,6 +44,15 @@ module Hecks
       #   and
       #   who claimed each and when
       def open_work = { text: JSON.generate(items.reject { |item| DONE.include?(item[:status]) }) }
+
+      # @return [Array<Hash>] each Epic with its title, outcome, tier and how many members are done
+      #   or dropped; none when the Tickets domain holds no epic
+      def epics
+        return @epics_standin if @epics_standin
+
+        works = work_records
+        epic_records.map { |record| epic_row(record, works) }
+      end
 
       # @return [Hash{String => Integer}] every Work item counted by status
       def counts = items.map { |item| item[:status] }.tally
@@ -102,7 +112,26 @@ module Hecks
       def item(record)
         { slug: field(record, :work).to_s, status: field(record, :status).to_s, title: field(record, :title).to_s,
           area: StartedWork.words(field(record, :area)), claimed_by: field(record, :claimed_by).to_s,
-          claimed_at: field(record, :claimed_at).to_s }
+          claimed_at: field(record, :claimed_at).to_s }.merge(plan_fields(record))
+      end
+
+      # What the planning page shows of an item beyond its claim.
+      def plan_fields(record)
+        { priority: field(record, :priority).to_s, category: field(record, :category).to_s,
+          epic: field(record, :epic).to_s, budget_minutes: field(record, :budget_minutes),
+          yield_count: field(record, :yield_count).to_i, reason: field(record, :reason).to_s,
+          step: field(record, :step).to_s }
+      end
+
+      def work_records = @live ? @live.records("Tickets", "Work") : records_of("Tickets", "Work")
+
+      def epic_records = @live ? @live.records("Tickets", "Epic") : records_of("Tickets", "Epic")
+
+      def epic_row(record, works)
+        key = field(record, :epic).to_s
+        mine = works.select { |work| field(work, :epic).to_s == key }.map { |work| field(work, :status).to_s }
+        { epic: key, title: field(record, :title).to_s, outcome: field(record, :outcome).to_s,
+          tier: field(record, :tier).to_s, done: mine.count("done"), dropped: mine.count("dropped") }
       end
 
       def run_item(run)

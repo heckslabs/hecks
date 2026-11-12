@@ -2,6 +2,7 @@
 
 require_relative "hub"
 require_relative "tile_html"
+require_relative "plan_html"
 require_relative "tiles"
 require_relative "../rules"
 require_relative "../pipeline_journal"
@@ -43,6 +44,7 @@ module Hecks
 
         def tiles_of(stages)
           drawn = { "fill"  => -> { TileHtml.fill(stages.fill_tile) },
+                    "plan"  => -> { PlanHtml.draw(stages.plan_tile) },
                     "train" => -> { TileHtml.stage(stages.train_tile) } }
           Tiles.new(rows: Rules.rows("Tile"), renderers: drawn)
         end

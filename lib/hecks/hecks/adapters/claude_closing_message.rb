@@ -28,18 +28,41 @@ module Hecks
       #   it holds no text, or it cannot be read
       def of(session)
         path = transcript(session.to_s)
-        path ? last_text(path) : ""
+        path ? remembered(path) : ""
       rescue SystemCallError, JSON::ParserError
         ""
       end
 
+      # What every reader of a transcript shares: where each session's file was found, and the text
+      # last read from a file with the size and time it had then.
+      MEMORY = { paths: {}, texts: {}, lock: Mutex.new }.freeze
+
       private
+
+      # A transcript's closing text, read again only when the file's size or time has moved, so a
+      # finished session is parsed once however many pages ask.
+      def remembered(path)
+        stat = File.stat(path)
+        stamp = [stat.size, stat.mtime]
+        held = MEMORY[:lock].synchronize { MEMORY[:texts][path] }
+        return held.last if held && held.first == stamp
+
+        last_text(path).tap { |text| MEMORY[:lock].synchronize { MEMORY[:texts][path] = [stamp, text] } }
+      end
 
       # The one transcript whose name begins with the id; none when the id is empty or matches
       # more than one.
       def transcript(session)
         return nil if session.empty?
 
+        key = [@projects, session]
+        known = MEMORY[:lock].synchronize { MEMORY[:paths][key] }
+        return known if known && File.file?(known)
+
+        glob(session)&.tap { |found| MEMORY[:lock].synchronize { MEMORY[:paths][key] = found } }
+      end
+
+      def glob(session)
         paths = Dir.glob(File.join(@projects, "*", "#{session.gsub(GLOB) { "\\#{_1}" }}*.jsonl"))
         paths.length == 1 ? paths.first : nil
       end

@@ -235,6 +235,7 @@ Hecks.bluebook "PipelineBoard" do
       attribute :reads, String
 
       member tile: "fill",  reads: "Tickets::Work, Hecks::AgentRun, Hecks::Roll, Hecks::Dispatch"
+      member tile: "plan",  reads: "Tickets::Work, Tickets::Epic, Hecks::AgentRun, Agents::PlanReview, Hecks::SendTrain, Hecks::Dispatch"
       member tile: "train", reads: "Hecks::SendTrain, Hecks::LinkedTree, Hecks::Landing, Hecks::BoardingRelease, Hecks::PushOutcome"
     end
 
