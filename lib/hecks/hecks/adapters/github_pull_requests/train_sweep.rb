@@ -9,7 +9,7 @@ module Hecks
     class GithubPullRequests
       # Closes the open train pull requests that do not need to be open: one whose tip
       # origin/main already holds, and one with failed checks whose tip a newer open train pull
-      # request carries. Each is closed with a comment naming why. It reads facts (ancestry and
+      # request carries, or that local main has moved past. Each is closed with a comment naming why. It reads facts (ancestry and
       # check results) and closes; a closed pull request is not listed again, so a second sweep
       # closes nothing twice.
       class TrainSweep
@@ -41,7 +41,7 @@ module Hecks
         end
 
         def close_if_moot(pull, open)
-          why = landed_on_main(pull) || superseded_by(pull, open)
+          why = landed_on_main(pull) || superseded_by(pull, open) || passed_by_main(pull)
           return unless why
 
           @gh.call("pr", "close", pull["number"].to_s, "--comment", why)
@@ -57,6 +57,15 @@ module Hecks
 
           newer = open.find { |other| other["number"] != pull["number"] && newer?(other, pull) }
           "superseded by ##{newer["number"]}, which carries its tip #{pull["headRefOid"][0, 10]}" if newer
+        end
+
+        # A red pull request whose tip local main has passed: the commits after it are the fix, and
+        # the order rule keeps their tip from boarding while this pull request stands.
+        def passed_by_main(pull)
+          return unless CiRuns::Checks.new(pull["statusCheckRollup"]).failed_and_complete?
+          return unless ancestor?(pull["headRefOid"], "main") && !ancestor?("main", pull["headRefOid"])
+
+          "local main carries its tip #{pull["headRefOid"][0, 10]} and newer commits"
         end
 
         def newer?(other, pull)
