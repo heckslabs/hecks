@@ -97,7 +97,7 @@ module Hecks
 
         def script
           log = File.join(@home, ".claude", "hecks-dev", "train-beat.log")
-          "cd #{@root} || exit 1\nexe/hecks Heartbeat.Beat beat.value=launchd-$(date +%s) --wait > \"#{log}\" 2>&1"
+          "cd #{@root} || exit 1\nexe/hecks Heartbeat.Beat! beat=launchd-$(date +%s) --wait > \"#{log}\" 2>&1"
         end
 
         def domain = "gui/#{Process.uid}"
