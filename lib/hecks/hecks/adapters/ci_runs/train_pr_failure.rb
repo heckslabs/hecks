@@ -43,7 +43,7 @@ module Hecks
           @spec_jobs = @jobs.select(&:spec?)
           cause = @spec_jobs.empty? ? "setup" : "spec"
           specs = @spec_jobs.flat_map(&:specs).uniq
-          base(pull, run, specs, cause).merge(step: step_of(cause), report: report(pull, run, specs, cause))
+          base(pull, run, specs, cause).merge(step: steps, report: report(pull, run, specs, cause))
         end
 
         private
@@ -65,8 +65,6 @@ module Hecks
         rescue ConsoleCapture::Failure
           []
         end
-
-        def step_of(cause) = cause == "setup" ? steps : ""
 
         def steps = @jobs.flat_map(&:steps).join(", ")
 

@@ -66,7 +66,7 @@ module Hecks
       # The sections the page shows as they were read: CI on main and on train pull requests, the
       # Work items, the sessions and the events.
       def tables(data)
-        data.slice(:ci_runs, :slowest_jobs, :train_ci_runs, :train_slowest_jobs, :open_work, :sessions, :events)
+        data.slice(:ci_runs, :slowest_jobs, :train_ci_runs, :train_slowest_jobs, :train_flakes, :open_work, :sessions, :events)
       end
 
       # @param limit [Hash, Integer, nil] how many Work items (the `cycle_items` setting when nil)
