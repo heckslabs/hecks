@@ -59,6 +59,9 @@ Hecks.bluebook "Hecks" do
       # verdict can always reach it. `Await` sets it when the review is requested; `Answered` and
       # `Unanswered` clear it. Every end of a review reaches one of them: a verdict, an unstarted
       # review, and an architect run that failed or was retired (`Agents` unstarts its review).
+      # A verdict whose resume the session refused leaves it set (`Unresumed`): the verdict is sent
+      # again each sweep, and once its tries are spent the run is finished `unanswered`
+      # (`FinishTheCoderWhoseVerdictWasAbandoned`), so a waiting run always ends.
       value_object "Reviewing", Boolean
 
       # The directory the session works in.
@@ -313,6 +316,21 @@ Hecks.bluebook "Hecks" do
         attribute :reviewing, Reviewing, default: false, sets: true
 
         emits AgentRunUnanswered
+      end
+
+      # A verdict's resume was refused while the run waits on it. The run keeps waiting (`reviewing`
+      # stays as it was), so no reading of its idle job ends it; the verdict is sent again
+      # (`Agents` `Verdict.Redeliver`) until the session takes it or the tries are spent.
+      command "Unresumed" do
+        role "System"
+        goal "Record that the session refused a verdict's resume, and keep the run waiting on it"
+
+        reference_to AgentRun
+        attribute :refusal, Report, sets: true
+        attribute :verdict, VerdictKey
+        attribute :resuming, Resuming, default: false, sets: true
+
+        emits AgentRunUnresumed
       end
 
       # A verdict came for a run that has finished. Only the run that holds the key takes it: a run
@@ -1364,7 +1382,42 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheRefusedAnswer" do
       on      "AgentRun.ResumeRefused"
+      where   { verdict == "" }
       trigger AgentRun::Unanswered, with: { refusal: :refusal, verdict: :verdict }
+    end
+
+    # A refused verdict is not the end of the wait: the run keeps waiting and the verdict is retried.
+    policy "RecordTheRefusedVerdict" do
+      on      "AgentRun.ResumeRefused"
+      where   { verdict != "" }
+      trigger AgentRun::Unresumed, with: { refusal: :refusal, verdict: :verdict }
+    end
+
+    # A verdict sent again after its resume was refused answers the waiting coder in place, as the
+    # judged verdict did. An architect's verdict leads with the step: whatever its word, the brief
+    # says what the coder does with it, so the read of the review is a step, not the end of the turn.
+    policy "AnswerTheWaitingCoderAgain" do
+      on      "Verdict.VerdictRedelivered"
+      where   { word != "" }
+      trigger AgentRun::Answer,
+              with: { run: :work, answer: :answer, verdict: :run,
+                      step: "Your plan review's verdict is in, sent again after your session could not be " \
+                            "resumed. Read your review with PlanReview.reviews and act on its verdict as your " \
+                            "brief says, in this session: the read is a step, not the end of your turn." }
+    end
+
+    policy "AnswerTheWaitingCoderAgainWithTheJudgment" do
+      on      "Verdict.VerdictRedelivered"
+      where   { word == "" }
+      trigger AgentRun::Answer, with: { run: :work, answer: :answer, verdict: :run }
+    end
+
+    # A verdict the coder's session refused on every try ends the coder's run as `unanswered`, so
+    # the settle yields its Work item saying so, not as a coder that finished. A coder run that has
+    # already ended refuses it (`Finish` takes a started run) and nothing changes.
+    policy "FinishTheCoderWhoseVerdictWasAbandoned" do
+      on      "Verdict.VerdictAbandoned"
+      trigger AgentRun::Finish, with: { run: :work, condition: "unanswered", detail: :reason, checkout: "" }
     end
 
     # A sweep's check that cannot read the job at all (`JobUnreadable`) finds no event to record, so a

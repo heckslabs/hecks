@@ -527,9 +527,10 @@ Hecks.bluebook "Agents" do
   # never a lookup the coder does: when an architect or reviewer run finishes, it is judged here
   # whether or not a PlanReview or SubmissionReview row exists. The Hecks hecksagon subscribes to
   # `VerdictJudged` and answers the coder's run (`AgentRun.Answer`); the answer's outcome comes back
-  # as `Deliver` or `Undeliver`. Several judges of one Work item each have their own run key.
+  # as `Deliver`, `Unresume` (the coder's session refused the resume, and the verdict is retried) or
+  # `Undeliver`. Several judges of one Work item each have their own run key.
   aggregate "Verdict" do
-    description "One judge run's verdict, bound for the coder waiting on its Work item: judged, then delivered or undeliverable with the reason."
+    description "One judge run's verdict, bound for the coder waiting on its Work item: judged, then delivered, retried while the coder's session refuses the resume, or undeliverable with the reason."
 
     identified_by :run
 
@@ -539,6 +540,7 @@ Hecks.bluebook "Agents" do
     attribute :answer, AnswerText, optional: true
     attribute :reason, ReasonText, optional: true
     attribute :word, VerdictWord, optional: true
+    attribute :tries, TryCount, optional: true
 
     value_object "RunKey" do
       attribute :value, String, matches: :present
@@ -560,9 +562,16 @@ Hecks.bluebook "Agents" do
     # judgment and an unstarted review. The coder's next step is chosen by it.
     value_object "VerdictWord", String
 
+    # How many times a verdict the coder's session refused was sent again.
+    value_object "TryCount", Integer
+
     lifecycle :status, default: "judged" do
       transition "Deliver" => "delivered", from: "judged"
       transition "Undeliver" => "undeliverable", from: "judged"
+      transition "Unresume" => "unresumed", from: "judged"
+      transition "Redeliver" => "judged", from: "unresumed"
+      transition "Abandon" => "undeliverable", from: "unresumed"
+      mark :terminal, "delivered", "undeliverable"
     end
 
     command "Judge" do
@@ -574,11 +583,59 @@ Hecks.bluebook "Agents" do
       attribute :role,   RoleRef, sets: true
       attribute :answer, AnswerText, sets: true
       attribute :word,   VerdictWord, default: "", sets: true
+      attribute :tries,  TryCount, default: 0, sets: true
 
       given("the judge is the architect or the reviewer") { role.value == "architect" || role.value == "reviewer" }
       given("the verdict says something") { !answer.value.to_s.strip.empty? }
 
       emits "VerdictJudged"
+    end
+
+    # The coder's run is still started and waiting on the verdict, but its session refused the
+    # resume (the `claude` that resumes it could not be run, say). The verdict is kept to be sent
+    # again, and the coder's run keeps waiting (`AgentRun.Unanswered` leaves `reviewing` set).
+    command "Unresume", from: "judged" do
+      role "System"
+      goal "Record that the coder's session refused the resume, so the verdict is sent again"
+
+      reference_to Verdict
+      attribute :reason, ReasonText, sets: true
+
+      emits "VerdictUnresumed"
+    end
+
+    # Sends a refused verdict again, as it was judged, so the coder waiting on it is answered once
+    # its session takes the resume. It is refused once the tries are spent; `Abandon` then ends it.
+    command "Redeliver", from: "unresumed" do
+      role "System"
+      goal "Send a verdict the coder's session refused to the waiting coder again"
+
+      reference_to Verdict
+      attribute :work,   WorkKey, sets: true
+      attribute :answer, AnswerText, sets: true
+      attribute :word,   VerdictWord, default: "", sets: true
+
+      given("the verdict has tries left") { tries.nil? || tries.value < 3 }
+
+      sets :tries, increment: { value: 1 }
+
+      emits "VerdictRedelivered"
+    end
+
+    # A verdict the coder's session refused on every try never reaches it. The coder's run is
+    # finished `unanswered` (`FinishTheCoderWhoseVerdictWasAbandoned` in the delegate bluebook), so
+    # its Work item goes back to the plan saying so, never as a coder that finished.
+    command "Abandon", from: "unresumed" do
+      role "System"
+      goal "Give up a verdict the coder's session refused on every try"
+
+      reference_to Verdict
+      attribute :work,   WorkKey, sets: true
+      attribute :reason, ReasonText, sets: true
+
+      given("the verdict's tries are spent") { !tries.nil? && tries.value >= 3 }
+
+      emits "VerdictAbandoned"
     end
 
     command "Deliver", from: "judged" do
@@ -619,6 +676,28 @@ Hecks.bluebook "Agents" do
       description "Every verdict no coder received, by run, each with the reason."
       where(status: "undeliverable")
       order_by :run
+    end
+
+    query "Unresumed" do
+      description "Every verdict the waiting coder's session refused, to be sent again, by run, each with the reason."
+      where(status: "unresumed")
+      order_by :run
+    end
+
+    # Each sweep of the sessions sends every refused verdict again, until its coder takes it or the
+    # tries are spent. Only a refused resume is retried: a verdict with no started coder run is
+    # `undeliverable` and stays so. Of the two policies one passes its given, the other refuses.
+    policy "RedeliverTheUnresumedVerdict" do
+      on       "SessionSweep.SweepRequested"
+      for_each "Verdict.Unresumed"
+      trigger  Verdict::Redeliver, with: { verdict: :verdict, work: :work, answer: :answer, word: :word }
+    end
+
+    policy "AbandonTheUnresumedVerdict" do
+      on       "SessionSweep.SweepRequested"
+      for_each "Verdict.Unresumed"
+      trigger  Verdict::Abandon, with: { verdict: :verdict, work: :work,
+                                         reason: "the coder's session refused the verdict on every try" }
     end
 
     # The architect's closing text is its findings; the verdict word leads them.
