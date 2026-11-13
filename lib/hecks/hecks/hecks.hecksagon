@@ -513,13 +513,15 @@ Hecks.hecksagon "Hecks" do
   # The outside a reading of the machine reaches: the CPU idle percentage, swap used, the compressor's
   # size, the load average and the test lane's queue, judged against the Tickets world's `machine_marks`.
   # It answers each gauge's state and the state it stood in before; a reading within a minute of the last
-  # one is refused.
+  # one is refused. `Busiest` reads the process table: each class, its CPU and the session above it.
   Hecks::Machine.port "Sampling" do
     asks "Read", to: Machine do
       attribute :run, MachineKey
       answers "MachineSampled"
       refuses "MachineUnreadable"
     end
+
+    answers_query "Busiest"
   end
 
   # The outside an agent run reaches: it finds the directory and the agents, starts the background

@@ -5,6 +5,7 @@ require_relative "machine_sampling/marks"
 require_relative "machine_sampling/states"
 require_relative "machine_sampling/readings"
 require_relative "machine_sampling/history"
+require_relative "machine_sampling/process_classes"
 
 module Hecks
   module Adapters
@@ -26,13 +27,20 @@ module Hecks
 
       # @param registry [Runtime::Registry, nil] the booted registry whose world is read
       # @param aggregate [Object, nil] unused
-      # @param settings [Hash] stand-ins: `readings:` answers the gauges, `clock:` answers seconds
+      # @param settings [Hash] stand-ins: `readings:` answers the gauges, `clock:` answers seconds,
+      #   `processes:` answers the process classes ({ProcessClasses} when absent)
       # @param root [String, nil] unused
       def initialize(registry: nil, aggregate: nil, settings: {}, root: nil)
         @registry = registry
         @readings = settings[:readings] || -> { Readings.new.call }
         @clock = settings[:clock] || MONOTONIC
+        @processes = settings[:processes] || ProcessClasses.new
       end
+
+      # The `Busiest` query: which process classes use the CPU and whose child they are. Read-only.
+      #
+      # @return [Array<Hash>] `name`, `count`, `cpu` and `session` per class, busiest first
+      def busiest(**) = @processes.rows
 
       # @param held [Hash] the `Machine` record
       # @return [Hash{Symbol => Object}] the gauges, and the states they leave and stood in before

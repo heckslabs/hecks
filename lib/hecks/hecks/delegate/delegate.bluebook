@@ -870,6 +870,22 @@ Hecks.bluebook "Hecks" do
 
       value_object "MachineNote", String
 
+      # One class of process (the program's name) under one owner: how many run, their summed CPU
+      # percentage, and the background session whose shell they run under (empty for none).
+      value_object "ProcessClass" do
+        attribute :name,    String
+        attribute :count,   Integer
+        attribute :cpu,     Float
+        attribute :session, String
+      end
+
+      # Read-only: which process classes use the CPU and whose child they are, busiest first. It
+      # stops nothing; the load stall's move reads it to find the session to ask.
+      query "Busiest" do
+        description "Which process classes use the CPU and whose child they are: each class's count, summed CPU percentage and the background session whose shell owns it, busiest first. Read-only: it stops no process and no session."
+        returns list_of(ProcessClass)
+      end
+
       lifecycle :status, default: "requested" do
         mark :failure, "unread"
         transition "Record"  => "read",   from: "requested"
