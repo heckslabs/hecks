@@ -1,5 +1,7 @@
 require "spec_helper"
 require "securerandom"
+require "hecks/hecks/adapters/ci_runs"
+require "hecks/hecks/adapters/github_pull_requests"
 require_relative "support/fake_unstarted_github"
 require_relative "support/stall_watch_looks"
 

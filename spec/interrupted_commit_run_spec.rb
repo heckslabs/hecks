@@ -13,7 +13,8 @@ RSpec.describe "an interrupted Commit run" do
     def adapter.commit(**) = raise(Interrupt)
     allow(Hecks::Runtime::AdapterLookup).to receive(:call).and_return(adapter)
     dispatcher = Hecks::Runtime::Dispatcher.new(@hecks.registry)
-    dispatcher.dispatch_flat("Hecks::Revision.Make", run: { value: "C1" }, checkout: { value: "/tmp/x" }, message: { value: "m" })
+    dispatcher.dispatch_flat("Delivery::Revision.Make",
+                             run: { value: "C1" }, checkout: { value: "/tmp/x" }, message: { value: "m" })
     @hecks.registry.event_log.to_a.map { |event| event.to_h.to_s }.join("\n")
   end
 

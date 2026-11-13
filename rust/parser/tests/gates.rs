@@ -872,6 +872,13 @@ fn a_top_level_require_line_is_skipped() {
 }
 
 #[test]
+fn a_require_by_the_files_own_place_is_skipped() {
+    let (code, out, _) = run_adapter(&["adapter_require_by_place.adapter"]);
+    assert_eq!(code, 0);
+    assert!(out.contains("\"port\": \"Publishing\""), "got: {out}");
+}
+
+#[test]
 fn adapter_refusals_exit_one_and_say_why() {
     let cases: &[(&str, &str)] = &[
         ("adapter_bad_default_float.adapter", "default (1.5)"),
@@ -882,6 +889,10 @@ fn adapter_refusals_exit_one_and_say_why() {
             "'persisted_by' is not a word",
         ),
         ("adapter_bad_toplevel.adapter", "'puts' is not a word"),
+        (
+            "adapter_require_elsewhere.adapter",
+            "'require' is not a word",
+        ),
     ];
     for (name, needle) in cases {
         let (code, out, err) = run_adapter(&[name]);

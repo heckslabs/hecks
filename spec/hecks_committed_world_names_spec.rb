@@ -10,9 +10,12 @@ RSpec.describe "the Hecks domain's committed world names" do
   let(:hecks) { registry.bluebook("Hecks") }
 
   it "stores each renamed aggregate under the table its earlier name wrote" do
-    stored = %w[Workspace Revision SendTrain ReviewRequest].to_h { |name| [name, hecks.aggregate(name).storage_name] }
-    expect(stored).to eq("Workspace" => "checkout", "Revision" => "commit", "SendTrain" => "push_train",
-                         "ReviewRequest" => "pull_request")
+    stored = %w[Workspace SendTrain ReviewRequest].to_h { |name| [name, hecks.aggregate(name).storage_name] }
+    expect(stored).to eq("Workspace" => "checkout", "SendTrain" => "push_train", "ReviewRequest" => "pull_request")
+  end
+
+  it "stores the delivery package's Revision under the table its earlier name wrote" do
+    expect(registry.bluebook("Delivery").aggregate("Revision").storage_name).to eq("commit")
   end
 
   it "keeps formerly_known_as out of the Hecks bluebooks" do

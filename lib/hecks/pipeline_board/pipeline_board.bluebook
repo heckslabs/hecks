@@ -236,7 +236,7 @@ Hecks.bluebook "PipelineBoard" do
 
       member tile: "fill",  reads: "Tickets::Work, Hecks::AgentRun, Hecks::Roll, Hecks::Dispatch"
       member tile: "plan",  reads: "Tickets::Work, Tickets::Epic, Hecks::AgentRun, Agents::PlanReview, Hecks::SendTrain, Hecks::Dispatch"
-      member tile: "train", reads: "Hecks::SendTrain, Hecks::LinkedTree, Hecks::Landing, Hecks::BoardingRelease, Hecks::PushOutcome"
+      member tile: "train", reads: "Hecks::SendTrain, Delivery::LinkedTree, Delivery::Landing, Hecks::BoardingRelease, Hecks::PushOutcome"
     end
 
     # One check of the daily health line: what the pipeline reports of its own day, which a person
@@ -289,7 +289,7 @@ Hecks.bluebook "PipelineBoard" do
     # start that belongs to the item, as `belongs` says:
     # - `item`: its `work` or `branch` link, or its id, is the Work item's key, or its id is that of
     #   the event that started the stage.
-    # - `carried`: its `landed` commit was landed (a `Hecks::Landing.BranchLanded` naming that
+    # - `carried`: its `landed` commit was landed (a `Delivery::Landing.BranchLanded` naming that
     #   commit) at or after the item's own landing. Local main is one line, so that commit holds
     #   the item: a verification of a newer landing carries every landing before it.
     # - `after`: any one. Main only moves forward, so what reads or boards main after the stage

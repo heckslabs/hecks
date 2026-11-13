@@ -44,7 +44,11 @@ module DocReferences
   UNQUALIFIED = (RETIRED + %w[console init interview version help]).freeze
 
   # Launchers that take a verb of their own after them: `hecks deploy recipe.project`.
-  BLUEBOOK_LAUNCHERS = %w[query ask deploy site quality_control].freeze
+  BLUEBOOK_LAUNCHERS = %w[query ask deploy site quality_control delivery].freeze
+
+  # The bluebooks the Hecks domain attaches whose verbs the launcher also takes with no bluebook
+  # written before them: `hecks landing.land!` reaches the delivery package.
+  ATTACHED = %w[delivery].freeze
 
   PATH_ROOTS = %w[lib spec rust examples exe docs editors].freeze
   PATH = %r{\A(?:#{PATH_ROOTS.join("|")})/[\w./-]+\z}
@@ -115,9 +119,11 @@ module DocReferences
   end
 
   def known_verbs
-    @known_verbs ||= { [] => listed + UNQUALIFIED + BLUEBOOK_LAUNCHERS }.merge(
-      %w[deploy site quality_control].to_h { |bluebook| [[bluebook], listed(bluebook)] }
-    )
+    @known_verbs ||= begin
+      own = (BLUEBOOK_LAUNCHERS - %w[query ask]).to_h { |bluebook| [[bluebook], listed(bluebook)] }
+      attached = ATTACHED.flat_map { |bluebook| own.fetch([bluebook]) }
+      own.merge([] => listed + attached + UNQUALIFIED + BLUEBOOK_LAUNCHERS)
+    end
   end
 
   def resolves?(argv)
