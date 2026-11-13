@@ -1,7 +1,4 @@
-# Delivery: the repository verbs. Read a checkout, make a commit, open a worktree, land a branch on
-# local main. Nothing here pushes, and nothing here knows about agents, a push train or CI: those are
-# the pipeline's, which stands on this bluebook. A project that wants the verbs and no pipeline
-# vendors this package alone (Hecks ADR 0205).
+# The repository verbs, with no pushing and no pipeline (Hecks ADR 0205).
 Hecks.bluebook "Delivery" do
   vision "Take finished work onto local main."
 
@@ -303,10 +300,8 @@ Hecks.bluebook "Delivery" do
       emits BranchPublishDeclined
     end
 
-    # A rebase of a worktree's branch onto a base, by the `Rebasing` port. It never rebases main, never
-    # onto the branch itself, never forces and never discards uncommitted work. A conflict stops it with
-    # nothing changed and names every conflicted path, unless `resolve` names the side each path takes;
-    # in a rebase `ours` is the base and `theirs` is the branch's own commit being replayed.
+    # Never rebases main, never forces, never discards uncommitted work.
+    # In a rebase `ours` is the base and `theirs` is the branch's commit being replayed.
     command "Rebase" do
       role "Operator"
       goal "Rebase a branch onto a base, or report the files that conflict and stop with nothing changed"
@@ -460,16 +455,8 @@ Hecks.bluebook "Delivery" do
     trigger LinkedTree::Decline, with: { refusal: :refusal }
   end
 
-  # Agents merge straight to local main and clean up what they merged. A landing merges a worktree's
-  # branch onto main, fast-forward first and as a merge commit when main moved; a conflict is
-  # reported and never settled, and nothing is forced or pushed. A retirement removes the worktree
-  # and its branch once the branch is on main, and refuses while it holds uncommitted work or
-  # commits main lacks, so no unpushed work is deleted. Landings queue: each takes a ticket in a line kept in
-  # the main checkout's git directory and waits its turn, first come first served, for up to the world's
-  # `landing` wait window, saying its place and the holder. The holder beats a heartbeat while it works; a
-  # ticket silent for the stale window is abandoned and removed, which the next landing's report says. A
-  # train holds the front place and lands every ready branch behind it in order, skipping one that
-  # conflicts, fails the quick gate or overlaps a started Work item, and telling its waiting landing why.
+  # A landing merges and never settles a conflict, forces or pushes; a retirement deletes no
+  # unlanded work. Landings wait in one first-come line, and a train lands every ready branch.
   aggregate "Landing" do
     description "One branch landed on local main, or one worktree retired: done, or refused with the reason."
     acknowledges :key_by_value, "the run id of the LinkedTree this landing takes its checkout and branch from, and a landing whose id names no recorded tree falls back to the explicit checkout and branch, so a reference that refused an unknown tree would break the fallback",
@@ -552,10 +539,7 @@ Hecks.bluebook "Delivery" do
       emits FinishRequested
     end
 
-    # A coder submits and ends its turn: the landing runs as a job of its own. `Submit` hands the
-    # branch to that job and answers at once; the job runs `Carry`, which is a finish that keeps
-    # the worktree, since the reviewer works in it and a reopened Work item's next coder starts
-    # from it. The job reports by event from its own process: `BranchLanded` or `LandingRefused`.
+    # The job runs `Carry` and reports by event: `BranchLanded` or `LandingRefused`.
     command "Submit" do
       role "Operator"
       goal "Hand a worktree's branch to a landing job of its own and return at once, landing nothing from here"
