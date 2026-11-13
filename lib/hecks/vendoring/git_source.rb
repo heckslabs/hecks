@@ -70,6 +70,21 @@ module Hecks
         end.sort
       end
 
+      # Lists the files under a directory of a commit, at any depth.
+      #
+      # @param ref [String] the commit-ish to read from
+      # @param subtree [String] a repository-relative directory, such as `"delivery/lib"`
+      # @param glob [String] a `File.fnmatch` pattern the file's own name must match
+      # @return [Array<String>] repository-relative paths, sorted; none when the commit holds no
+      #   such directory
+      def tree(ref, subtree, glob = "*")
+        out, _err, status = git("ls-tree", "-r", "--name-only", ref, "--", subtree)
+        return [] unless status.success?
+
+        listed = out.lines.map(&:chomp)
+        listed.select { |file| File.fnmatch(glob, File.basename(file), File::FNM_EXTGLOB) }.sort
+      end
+
       # Extracts named files of a commit into a directory with `git archive`,
       # keeping their repository-relative paths.
       #
