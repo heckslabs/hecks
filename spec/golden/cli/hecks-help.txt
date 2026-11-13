@@ -86,6 +86,7 @@ commands:
     dispatch!                     Hand one brief to a background Claude session working in a directory
     check!                        Read the state a started session's job is in, and record it when it changed
     tidy!                         Remove the finished session of one run, unless it is still working, waiting on a person, or taken over
+    release!                      Review a kept run at the next reap, without waiting for its retry time
     answer!                       Answer a session that has not ended: deliver to a working one, resume an idle one
     retire!                       Close a started run whose session is gone, so the ledger stops listing it as started
   SessionSweep:
