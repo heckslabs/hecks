@@ -5,8 +5,9 @@ require "tmpdir"
 
 # A finished run whose session was pruned, through the booted Hecks domain. A stand-in `claude` is
 # first on the search path and lists the sessions the example writes, so no real session is listed,
-# read or removed. Its tidy cannot review a session the listing does not hold, so the run is looked
-# for and retired, and the reap does not review it again.
+# read or removed. Its tidy finds the listing does not hold the session, so the run is recorded
+# tidied, the reap does not review it again, and a plan review it left without a verdict is
+# unstarted.
 RSpec.describe "A finished run whose session was pruned" do
   PRUNED_STAND_IN = <<~SH.freeze
     #!/bin/sh
@@ -80,23 +81,23 @@ RSpec.describe "A finished run whose session was pruned" do
     @clock += 3600
   end
 
-  it "retires the run, saying the listing no longer holds its session", :aggregate_failures do
+  it "records the run tidied, since the listing no longer holds its session", :aggregate_failures do
     pruned_run("p-gone")
     outcome = tidy("p-gone")
-    expect(outcome.dig("state", "status")).to eq("retired")
-    expect(outcome.dig("state", "detail")).to eq("session stand-in-session is not listed")
+    expect(outcome.dig("state", "status")).to eq("tidied")
+    expect(outcome["events"]).to include("SessionReviewed")
   end
 
-  it "leaves the retired run out of the runs a reap tidies", :aggregate_failures do
+  it "leaves the tidied run out of the runs a reap tidies", :aggregate_failures do
     pruned_run("p-once")
     tidy("p-once")
     expect(launch("AgentRun.tidyable").first.to_s).not_to include("p-once")
     expect(launch("agent_run.tidy!", "to=p-once", "--wait").first.to_s).not_to include("ReviewRefused")
   end
 
-  it "unstarts the plan review a retired architect run left without a verdict", :aggregate_failures do
+  it "unstarts the plan review a tidied architect run left without a verdict", :aggregate_failures do
     pruned_run("p-review", start: method(:request_review))
-    expect(tidy("p-review").dig("state", "status")).to eq("retired")
+    expect(tidy("p-review").dig("state", "status")).to eq("tidied")
     expect(review_of("p-review")).to include("the architect's session is gone and gave no verdict")
   end
 
