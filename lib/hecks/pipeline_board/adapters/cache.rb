@@ -6,7 +6,8 @@ module Hecks
   module Adapters
     module PipelineBoard
       # Keeps each outside read for a few seconds, failures included, so a page polling every ten
-      # seconds cannot hammer `gh` or the disk.
+      # seconds cannot hammer `gh` or the disk. Each fetch forgets the answers and failures older
+      # than the ttl, so it holds only what was asked within it, however many keys a board asks.
       class Cache
         # @param ttl [Numeric] seconds an answer is kept
         # @param clock [#call] the time in seconds; the monotonic clock when none is given
@@ -22,6 +23,7 @@ module Hecks
         #   {Unavailable} is held as the failure and raised again until it expires
         def fetch(key, &block)
           @lock.synchronize do
+            sweep
             kept = @held[key]
             kept = @held[key] = [@clock.call, attempt(&block)] unless kept && fresh?(kept)
             kept.last.is_a?(Unavailable) ? raise(kept.last) : kept.last
@@ -32,7 +34,12 @@ module Hecks
         # @return [void]
         def clear = @lock.synchronize { @held.clear }
 
+        # @return [Integer] how many answers are held
+        def size = @lock.synchronize { @held.size }
+
         private
+
+        def sweep = @held.select! { |_, kept| fresh?(kept) }
 
         def fresh?(kept) = @clock.call - kept.first < @ttl
 
