@@ -34,6 +34,7 @@ module Hecks
         @gh = settings[:gh] || ->(*args) { PipelineBoard::Probe.json("gh", *args, chdir: root) }
         @text = settings[:gh_text] || ->(*args) { PipelineBoard::Probe.run("gh", *args, chdir: root) }
         @cache = PipelineBoard::Cache.new(ttl: settings.fetch(:ttl, 20))
+        @attempts = PipelineBoard::FlakeMemo.new
         @settled = PipelineBoard::SettledCounts.new(settled_path(settings))
       end
 
