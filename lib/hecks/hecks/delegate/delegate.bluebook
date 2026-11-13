@@ -103,7 +103,7 @@ Hecks.bluebook "Hecks" do
         transition "Finish"  => "finished", from: "started"
         transition "Fail"    => "finished", from: "started"
         transition "Tidied"  => "tidied",   from: "finished"
-        transition "Retired" => "retired",  from: "started"
+        transition "Retired" => "retired",  from: ["started", "finished"]
         transition "RetireTrial" => "retired", from: "started"
         mark :terminal, "tidied", "refused", "retired"
         # A run that has ended frees its key: a dispatch under it starts a new run, and the ended
@@ -1228,6 +1228,21 @@ Hecks.bluebook "Hecks" do
     policy "ReviewBeforeTidy" do
       on      "AgentRun.TidyRequested"
       ask     :review, with: { run: :run }
+    end
+
+    # A finished run whose session was pruned (by the pruner, a plain sweep or `claude rm`) cannot
+    # be reviewed: the port refuses that no session is listed, and the run would stay finished and
+    # be reviewed again at every reap. It is looked for instead, and retired when the listing does
+    # not hold it (`RetireWhenTheSessionIsGone`); retiring it rolls its Work and unstarts a plan
+    # review it left without a verdict, as for a started run. A review refused for any other reason
+    # is left as it was, so its own refusal is not replaced. Retiring is the trade for ending the
+    # loop: the reap never reaches the run again, so a worktree its session left stays on disk until
+    # it is retired by hand (`Landing.retire!`). A root: the look, the retire and the roll are long.
+    policy "LookForTheUnreviewedSession" do
+      on      "AgentRun.ReviewRefused"
+      root
+      where   { refusal && refusal.value.include?("no session ") }
+      ask     :look_for, with: { run: :run }
     end
 
     # A finished run's session goes in this order: kept when a person replied, or its Work is still
