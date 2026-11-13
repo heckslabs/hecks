@@ -342,10 +342,10 @@ RSpec.describe Hecks::Projector::CliProjector do
         expect(port_verb[:internal]).to be(true)
       end
 
-      it "stay out of the usage, which says how many were left out", :aggregate_failures do
+      it "stay out of the usage, which says how to list them and gives no count", :aggregate_failures do
         expect(payments[:usage]).not_to include("internal — what a run records about itself")
         expect(payments[:usage]).not_to include(described_class.send(:label, port_verb))
-        expect(payments[:usage]).to match(/--all\s+also list the \d+ internal/)
+        expect(payments[:usage]).to match(/--all\s+also list the internal commands and queries$/)
       end
 
       it "are listed when all is asked for", :aggregate_failures do
@@ -375,10 +375,10 @@ RSpec.describe Hecks::Projector::CliProjector do
         described_class.call(bluebook: registry.bluebook("Banking"), options: { hide: %w[Account], program: "hecks" })
       end
 
-      it "leaves the hidden aggregates out of the lists and says how many, and how to list them", :aggregate_failures do
+      it "leaves the hidden aggregates out of the lists and says how to list them, with no count", :aggregate_failures do
         expect(hidden[:usage]).not_to match(/^  Account:$/)
         expect(hidden[:usage]).to match(/^  Customer:$/)
-        expect(hidden[:usage]).to match(/hecks --maintainer\s+also list the \d+ commands and queries for working on hecks itself/)
+        expect(hidden[:usage]).to match(/hecks --maintainer\s+also list the commands and queries for working on hecks itself$/)
       end
 
       it "keeps the hidden commands in the surface the runner dispatches from" do
