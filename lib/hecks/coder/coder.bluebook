@@ -236,6 +236,54 @@ Hecks.bluebook "Coder" do
     end
   end
 
+  # The end of one turn of a coder's work on a Work item. `End` holds the rule and nothing else: a
+  # turn that ends done hands its branch on first. The caller measures the four facts and judges
+  # none of them; the bluebook reads no git, ledger or transcript. A refused `End` is what the
+  # coder reads at turn end, so the given's own words say what to do next.
+  aggregate "Turn" do
+    description "One turn of a coder's work on a Work item, and whether it may end."
+
+    identified_by :work
+
+    attribute :work, TurnWork
+
+    value_object "TurnWork" do
+      attribute :value, String, matches: :present
+      invariant("a turn names the work item it works") { !value.to_s.empty? }
+    end
+
+    # Whether the turn's last words ask the pipeline a question: a line that begins with one of the
+    # five markers of the brief's rules, or the closing word `blocked`.
+    value_object "TurnAsking", Boolean
+
+    # Whether the Work item's branch landed since the item started.
+    value_object "TurnLanded", Boolean
+
+    # Whether a Submission of the checkout's tip is recorded.
+    value_object "TurnSubmitted", Boolean
+
+    # Whether the Work item is still started. A coder that yielded it holds it no longer.
+    value_object "TurnHeld", Boolean
+
+    command "End" do
+      role "Coder"
+      goal "End a turn of work on a Work item"
+
+      attribute :work,      TurnWork
+      attribute :asking,    TurnAsking
+      attribute :landed,    TurnLanded
+      attribute :submitted, TurnSubmitted
+      attribute :held,      TurnHeld
+
+      given("a coder ends done only after landing or submitting its branch: commit, then land with " \
+            "landing.finish! --confirm or submit with coder Submission.submit!, or ask a question that begins [owner]") do
+        asking.value == true || landed.value == true || submitted.value == true || held.value != true
+      end
+
+      emits "TurnEnded"
+    end
+  end
+
   # A Patch is one pull request opened for a bug's fix, recorded so its CI status is a lookup.
   # Named `Patch`, as QualityControl names its own; `identified_by :number` keeps it a lookup.
   aggregate "Patch" do
