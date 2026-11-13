@@ -245,3 +245,16 @@ Step 2 of the order of work, on 2026-11-13.
   for a release before the pipeline saw the fix.
 - **Depend on the released gem.** A pipeline fix that needs a framework change would wait for a release. The pinned
   worktree gives the same isolation and moves in seconds.
+
+Decisions 1 to 3, on 2026-11-13: Hecks runs the vendored package.
+
+- Hecks attaches `delivery` from `lib/hecks/vendor/embryonaut_bluebooks/delivery`, pinned at Switchyard's
+  `delivery-v0.1.0` by its `bluebook.lock`. Its own declarations of the repository verbs, their ports and their
+  adapters' Ruby are gone; `Workspace` keeps the settings, the doctor and `where`.
+- A typed `Landing.land!` resolves in the attached bluebook, so no caller's spelling changed.
+- A saga hears an event of any loaded bluebook by its name, which is how `GateAndBoard` hears a landing.
+- What Hecks' pipeline adds to a landing (the Work item a branch was cut for, landing a submitted branch, pulling main
+  after a merge) is declared on `Delivery::Landing` in Hecks' hecksagon.
+- A checkout that keeps the landing records binds `Delivery::Revision`, `Delivery::Landing` and `Delivery::LinkedTree`
+  (the `KeptAggregate` rows) and names their database in its local world.
+- Still Hecks' own: the red flag, the boarding hold and the started-Work overlap, which the package reaches by name.
