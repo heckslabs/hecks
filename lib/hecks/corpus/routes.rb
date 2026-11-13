@@ -55,7 +55,10 @@ module Hecks
                 "the Rust host's checkout fixture, pinned by its web and /api tests"),
       Route.new(%r{\Apackages/hecks-rails/spec/fixtures/}, :named_in, "packages/hecks-rails/spec/support/ledger_app.rb",
                 :each_file,
-                "the hecks-rails gem's fixture app; its own specs boot it under Rails, which this sweep cannot")
+                "the hecks-rails gem's fixture app; its own specs boot it under Rails, which this sweep cannot"),
+      Route.new(%r{\Alib/hecks/vendor/embryonaut_bluebooks/}, :named_in, "spec/hecks_vendored_delivery_spec.rb", :each_file,
+                "a package the Hecks domain vendors; it declares roles and attaches no Governance of its own, so it " \
+                "boots only attached. The spec holds it to its lock and Switchyard checks it")
     ].freeze
   end
 end
