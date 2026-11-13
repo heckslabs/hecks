@@ -81,11 +81,58 @@ RSpec.describe "the Tickets bluebook" do
     expect(JSON.parse(out).map { |row| row["finding"] }).to include("f-open")
   end
 
-  it "files a finding when a conformance or gate run faults", :aggregate_failures do
+  it "files a finding and plans its work item when a conformance or gate run faults", :aggregate_failures do
     policies = @bluebook.policies.map(&:hecks_name)
 
-    expect(policies).to include("ReportWhenConformanceFaulted", "ReportWhenGateFaulted", "OpenIssueWhenRunReported")
+    expect(policies).to include("ReportWhenConformanceFaulted", "ReportWhenGateFaulted", "OpenIssueWhenRunReported",
+                                "PlanWorkWhenRunFindingReported")
     expect(@bluebook.aggregate("Finding").commands.map(&:hecks_name)).to include("ReportFailedRun")
+  end
+
+  # Reports a failed run with GitHub stubbed to raise; answers the policies that reacted.
+  def report_failed_run(key, body = "gate red")
+    allow(Open3).to receive(:capture3) { raise "GitHub must not be called: a run finding opens no issue" }
+    before = @hecks.registry.reaction_log.size
+    @hecks.dispatch_flat("Tickets::Finding.ReportFailedRun", finding: key, body: body)
+    @hecks.registry.reaction_log.drop(before).map { |reaction| reaction[:policy] }
+  end
+
+  # The rows a Tickets query answers through the launcher.
+  def rows_of(query)
+    out, = Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, program: "hecks", argv: ["tickets", "query", query])
+    JSON.parse(out)
+  end
+
+  def undone_work(key) = rows_of("work.undone").select { |row| row["work"] == key }
+
+  it "plans a run finding as a work item, with no GitHub call", :aggregate_failures do
+    reacted = report_failed_run("run-planned", "shape ledger refused")
+
+    expect(reacted).to include("PlanWorkWhenRunFindingReported")
+    expect(undone_work("run-planned").map { |row| row["detail"] }).to eq(["shape ledger refused"])
+    expect(Open3).not_to have_received(:capture3)
+  end
+
+  it "titles the work item as the run finding is titled" do
+    report_failed_run("run-titled")
+    finding = rows_of("finding.open").find { |row| row["finding"] == "run-titled" }
+
+    expect(undone_work("run-titled").map { |row| row["title"] }).to eq([finding["title"]])
+  end
+
+  it "plans nothing twice when the same run faults again while its finding is open", :aggregate_failures do
+    report_failed_run("run-again")
+
+    expect { report_failed_run("run-again", "red again") }.to raise_error(Hecks::Runtime::AlreadyExists, /run-again/)
+    expect(undone_work("run-again").map { |row| row["detail"] }).to eq(["gate red"])
+  end
+
+  it "plans nothing again for a run whose finding is closed and whose work item is dropped", :aggregate_failures do
+    report_failed_run("run-closed")
+    @hecks.dispatch_flat("Tickets::Finding.Dismiss", finding: "run-closed", dismissal: "not a fault")
+    @hecks.dispatch_flat("Tickets::Work.Drop", work: "run-closed", reason: "not a fault")
+    expect { report_failed_run("run-closed") }.to raise_error(Hecks::Runtime::AlreadyExists, /run-closed/)
+    expect(undone_work("run-closed")).to be_empty
   end
 
   it "drives GitHub from each lifecycle event, and records the answer or the refusal" do

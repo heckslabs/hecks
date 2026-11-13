@@ -964,10 +964,19 @@ Hecks.bluebook "Tickets" do
   end
 
   # Switched off by the Tickets world's `github_issues` setting (`enabled: false`): the ask is
-  # refused naming the setting before any GitHub call, and the run finding stays a work item.
+  # refused naming the setting before any GitHub call. PlanWorkWhenRunFindingReported is what
+  # makes the run finding a work item.
   policy "OpenIssueWhenRunReported" do
     on      "Finding.RunFindingReported"
     ask     :open_issue, with: { finding: :finding }
+  end
+
+  # A run finding is one work item under the run's key; its title is the twin of the one
+  # `Finding.ReportFailedRun` sets, which does not ride the event. A run's second report is refused,
+  # open or closed, so nothing is planned twice and a finished work item is not planned again.
+  policy "PlanWorkWhenRunFindingReported" do
+    on      "Finding.RunFindingReported"
+    trigger Work::Plan, with: { work: :finding, title: "A Codebase run failed", detail: :body }
   end
 
   policy "LabelIssueWhenTriaged" do
