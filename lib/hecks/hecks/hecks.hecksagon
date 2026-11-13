@@ -7,8 +7,7 @@ Hecks.hecksagon "Hecks" do
   %w[Bluebook Hecksagon World Adapter Port Translation Expression Tenancy Deploy Site Tickets Composer QualityControl
      Coder Fixer PipelineBoard Pipeline Agents Triage]
     .each { |declaration| attaches declaration }
-  # The repository verbs (a checkout's state, a commit, a worktree, a landing) are the delivery
-  # package's, vendored from Switchyard with its ports and the Ruby its adapters run (ADR 0205).
+  # The repository verbs, vendored from Switchyard (ADR 0205).
   attaches "delivery", from: :vendor
   # An architect review asked for by event starts a session through AgentRun, keyed by the review
   # (see StartTheRoleOnReviewRequest in the delegate bluebook).
@@ -1315,13 +1314,9 @@ Hecks.hecksagon "Coder" do
   end
 end
 
-# The delivery package's `Landing`, as this repository's pipeline reaches past it: the Work item a
-# branch was cut for. The package knows nothing of Work items, so the port is declared here, on its
-# aggregate, and the policies that ask it sit in the deliver module. A project that vendors the
-# package with no ticket board declares none of this.
+# What this repository's pipeline adds to the delivery package's `Landing` (ADR 0205).
 Hecks.hecksagon "Delivery" do
-  # The Work item a landed branch was cut for: the port reads the Work items and answers the open
-  # one the branch names, refusing when there is none.
+  # Finds the Work item a branch was cut for, which the package knows nothing of.
   Delivery::Landing.port "LandedWork" do
     asks "FindLandedWork", to: Landing do
       attribute :branch, Word
@@ -1329,8 +1324,6 @@ Hecks.hecksagon "Delivery" do
       refuses "NoLandedWork"
     end
 
-    # The finished Work item the branch of a refused landing names, with the landing's refusal
-    # added to its detail and how many landing refusals the detail already held.
     asks "FindRefusedWork", to: Landing do
       attribute :run, RunKey
       attribute :refusal, Report
@@ -1339,55 +1332,31 @@ Hecks.hecksagon "Delivery" do
     end
   end
 
-  # A job's landing that was refused for a cause a coder can fix, a conflict or a quick gate red
-  # on the branch, goes back to a coder: the LandedWork port finds the finished Work item the
-  # landing's branch names, and the Tickets bluebook plans it again with the reason
-  # (ReopenWorkWhenLandingRefused). A busy queue and a red main are no coder's to fix: the job
-  # tries those again and no Work item moves. A finish a person ran is theirs to read and fix.
+  # Only a conflict or a red gate is a coder's to fix; Tickets plans the item again.
   translates "FindWorkWhenTheJobsLandingIsRefused" do
     on      Landing::CarryRefused
     where   { refusal.value.include?("conflict: ") || refusal.value.include?("gate red: ") }
     ask     :find_refused_work, with: { run: :run, refusal: :refusal }
   end
 
-  # A landed branch finishes the Work item it was cut for. The LandedWork port finds the open Work item the
-  # branch names (the whole branch name, else the name without a leading `qa/`) and answers its key;
-  # a branch with no open Work item is refused by the port and nothing follows. The Tickets bluebook finishes
-  # the Work item that was found (FinishWorkWhenBranchLanded).
   translates "FindWorkWhenBranchLanded" do
     on      Landing::BranchLanded
     ask     :find_landed_work, with: { branch: :branch }
   end
 
-  # What this repository's pipeline asks of the package: a submitted branch is handed to a landing
-  # job, and local main is pulled once a boarded commit has merged. The events are the Coder
-  # bluebook's and this domain's own; the commands are the package's.
   subscribe "Coder.WorkSubmitted"
   subscribe "Hecks.TrainMergeSeen"
   subscribe "Hecks.ObserveAnswered"
 
-  # A coder's submitted branch is landed without the coder: the run is keyed by the submitted
-  # commit. A root, as `SubmitWhenTheCoderSaysSubmitted` in the Hecks hecksagon is: counted from the
-  # check that read the coder's job, the job's start sits past the reaction depth limit. The same
-  # event starts QualityControl's maintenance of main (StartOnSubmission), which gates and
-  # reconciles main as it stands and takes no place in the landing line: the two do not contend.
-  # A second submission of one commit is refused by the run key, so one commit has one job.
+  # A root: the job's start sits past the reaction depth limit, counted from the job's read.
   translates "LandWhenWorkIsSubmitted" do
     on      Submission::WorkSubmitted
     root
     trigger Landing::Submit, with: { run: :sha, checkout: :checkout, branch: :branch, confirm: true }
   end
 
-  # The train's pull request merging means origin/main holds the commit: GitHub merged it as a
-  # squash that local main does not share. The checkout that boarded brings its main level
-  # (LinkedTree.PullMain), keeping its unpushed commits, once per landed commit. A merge seen
-  # while CI on the merge commit still runs is recorded (`TrainMergeSeen`) and pulls then; a
-  # merge seen with that CI already finished is pulled on its verdict (`PullMainWhenCiPasses`,
-  # `PullMainWhenCiFails`), and a run already seen merged (`pulled`) is not pulled again. An open
-  # pull request, a red check on it included, answers `running`, so its run stays watched. A
-  # refusal (a dirty or mid-rebase checkout, a conflict) is recorded as PullDeclinedRecorded and
-  # nothing retries it. Each pull is a root reaction: it starts at depth zero, past the bound the
-  # Observe chain has reached.
+  # GitHub merges the train's pull request as a squash local main does not share, so main is
+  # pulled once per landed commit. Each pull is a root: the Observe chain is already at the bound.
   translates "PullMainWhenMerged" do
     on      Integration::TrainMergeSeen
     root

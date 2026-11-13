@@ -33,9 +33,11 @@ module Hecks
         own = read.call(scope)
         return own if own.known? || !scope.equal?(@scopes.fetch(""))
 
-        elsewhere = @scopes.reject { |word, _| word.empty? }.values.map(&read).select(&:known?)
+        elsewhere = attached_scopes.map(&read).select(&:known?)
         elsewhere.size == 1 ? elsewhere.first : own
       end
+
+      def attached_scopes = @scopes.reject { |word, _| word.empty? }.values
 
       # An attached bluebook's word hands the rest of the line to that bluebook.
       def scope_of(words)
