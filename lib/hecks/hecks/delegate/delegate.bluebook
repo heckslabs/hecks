@@ -1266,39 +1266,50 @@ Hecks.bluebook "Hecks" do
     # and pruner); kept when the worktree holds uncommitted files or commits `origin` lacks; then
     # the world's scratch is cleared, the worktree retired and the session removed. A refusal at
     # any step keeps the session with that step's reason, so none is removed ahead of its worktree.
+    #
+    # A session `claude agents` does not list (`listed` false) was removed elsewhere: there is no
+    # session left to keep or remove, so the run is recorded tidied and leaves `Tidyable`, and no
+    # later beat reviews it again. Its worktree, if one stands, is not looked for here: the run
+    # names no worktree once its session is gone, and `Landing.retire!` or a person removes it.
+    policy "RecordTheSessionAlreadyGone" do
+      on      "AgentRun.SessionReviewed"
+      where   { listed == false }
+      trigger AgentRun::Tidied, with: { tidied_at: :gone_at }
+    end
+
     policy "KeepWhenAPersonTookOver" do
       on      "AgentRun.SessionReviewed"
-      where   { taken_over != false }
+      where   { listed != false && taken_over != false }
       trigger AgentRun::Retain, with: { refusal: :note }
     end
 
     policy "KeepWhenTheWorkIsStillQueued" do
       on      "AgentRun.SessionReviewed"
-      where   { taken_over == false && work_open == true && no_product != true }
+      where   { listed != false && taken_over == false && work_open == true && no_product != true }
       trigger AgentRun::Retain, with: { refusal: "Work still queued" }
     end
 
     policy "KeepWhenTheWorktreeHasUnmergedCommits" do
       on      "AgentRun.SessionReviewed"
-      where   { taken_over == false && (work_open != true || no_product == true) && unmerged == true }
+      where   { listed != false && taken_over == false && (work_open != true || no_product == true) && unmerged == true }
       trigger AgentRun::Retain, with: { refusal: "worktree has unmerged commits" }
     end
 
     policy "KeepWhenTheWorktreeHasUncommittedFiles" do
       on      "AgentRun.SessionReviewed"
-      where   { taken_over == false && (work_open != true || no_product == true) && unmerged != true && dirty == true }
+      where   { listed != false && taken_over == false && (work_open != true || no_product == true) && unmerged != true && dirty == true }
       trigger AgentRun::Retain, with: { refusal: "worktree has uncommitted files" }
     end
 
     policy "ClearTheScratchOfAFinishedRun" do
       on      "AgentRun.SessionReviewed"
-      where   { taken_over == false && (work_open != true || no_product == true) && unmerged != true && dirty != true && worktree != "" }
+      where   { listed != false && taken_over == false && (work_open != true || no_product == true) && unmerged != true && dirty != true && worktree != "" }
       ask     :clear_scratch, with: { run: :run }
     end
 
     policy "RemoveTheSessionWithNoWorktree" do
       on      "AgentRun.SessionReviewed"
-      where   { taken_over == false && (work_open != true || no_product == true) && unmerged != true && dirty != true && worktree == "" }
+      where   { listed != false && taken_over == false && (work_open != true || no_product == true) && unmerged != true && dirty != true && worktree == "" }
       ask     :remove, with: { run: :run }
     end
 

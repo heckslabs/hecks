@@ -11,7 +11,8 @@ module Hecks
       # facts a finished run's session is judged on, and the three steps that take it away, each
       # a plain action the `AgentRun` bluebook asks for in its own order.
       #
-      # It needs the including adapter's `@transcript`, `@reaping`, `@shell` and `@command`.
+      # It needs the including adapter's `@transcript`, `@reaping`, `@listing`, `@shell` and
+      # `@command`.
       module Removal
         # What `claude rm` prints when it keeps a session because its worktree still stands, and the
         # part of it that says where.
@@ -22,17 +23,22 @@ module Hecks
         # the session may go: whether the run's Work is open, whether the run leaves a product,
         # and what its worktree holds.
         #
+        # A session the listing does not hold was removed elsewhere, and is answered as gone.
+        #
         # @param held [Hash] the `AgentRun` record: `session`
-        # @return [Hash{Symbol => Object}] `taken_over:` true when a person replied or the
-        #   transcript cannot be read, `note:` which of those it was in words, and
-        #   {SessionReaping#facts}
-        # @raise [ConsoleCapture::Failure] when the sessions cannot be listed or this one is not
-        #   among them
+        # @return [Hash{Symbol => Object}] `listed:` whether `claude agents` lists the session; for
+        #   a listed one `taken_over:` true when a person replied or the transcript cannot be read,
+        #   `note:` which of those it was in words, and {SessionReaping#facts}; for a gone one
+        #   `gone_at:`, when it was found gone, as an ISO 8601 string
+        # @raise [ConsoleCapture::Failure] when the sessions cannot be listed
         def review(**held)
-          full = listed(plain(held[:session]))["sessionId"]
+          entry = @listing.find(plain(held[:session]).to_s)
+          return gone unless entry
+
+          full = entry["sessionId"]
           reading = @transcript.reading(full)
-          { taken_over: reading[:state] != :read || reading[:person_turns].positive?, note: reply_note(reading),
-            **@reaping.facts(held, worktree_of(full)) }
+          { listed: true, taken_over: reading[:state] != :read || reading[:person_turns].positive?,
+            note: reply_note(reading), **@reaping.facts(held, worktree_of(full)) }
         end
 
         # Clears the scratch the world lists in the run's worktree.
@@ -62,6 +68,8 @@ module Hecks
         end
 
         private
+
+        def gone = { listed: false, note: "the session is not listed", gone_at: { value: Time.now.utc.iso8601 } }
 
         # Says what the transcript showed: a person's turns, a missing or unreadable transcript, or
         # nobody.
