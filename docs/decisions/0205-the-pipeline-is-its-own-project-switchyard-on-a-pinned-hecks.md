@@ -47,6 +47,12 @@ There is prior art for a project that stands on Hecks from outside. miette_tools
 `gem "hecks", path: ENV.fetch("HECKS_CHECKOUT", ...)`, attach gem bluebooks by name and keep their own stores. The
 push train already runs from a copy of its own (`~/.claude/hecks-train`), moved on purpose.
 
+There is also prior art for a bluebook one project carries and another uses. The `embryonaut_bluebooks` registry holds
+packages (`<package>/bluebook/`, each with its own version, changelog and release tag). A project pins one into
+`vendor/embryonaut_bluebooks/` with `hecks vendor`, a lock records the commit and digest, and
+`attaches "<package>", from: :vendor` loads it. A package may answer a query with its own code, a wasm module beside
+the bluebook that Hecks binds with no wiring in the project (`calendar` is the first).
+
 ## Decision
 
 1. **The pipeline moves to a project of its own, named Switchyard.** It is a Hecks project like any client: its own
@@ -108,19 +114,23 @@ yet chosen.
 - A client that uses the repository verbs gains a second dependency. miette_tools, shorts and miette2 name
   `Workspace.status`, `LinkedTree.add!`, `Revision.make!` and `Landing.land!` in their instructions; each takes
   Switchyard's delivery bluebook and its launcher lines change.
-- `attaches` cannot do that yet. It finds a name in a fixed list of the Hecks gem's own bluebooks
-  (`FrameworkBluebooks::GLOBS`) or in a vendored package (`from: :vendor`). A bluebook another project carries, with
-  Ruby adapters, needs a third source or a package form that holds them. This is built before any client is moved.
+- They take it the way they would take any shared bluebook: the delivery bluebook is a vendored package, pinned by
+  version and attached with `from: :vendor`. Nothing new is needed to carry the bluebook and its ports.
+- Its adapters are the open point. A package's own code today is a wasm module that answers a query. The delivery
+  adapters run git and answer asks that change a repository, which no package does yet. Either a package learns to
+  carry an adapter of that kind, or the package carries the bluebook and ports and the git adapters come from a gem
+  beside it. This is settled before a client is moved; an earlier draft of this ADR said `attaches` could not reach
+  another project's bluebook at all, which was wrong.
 - `Workspace` is split in two: its git questions leave, and what stays is no longer about a working copy, so the
   aggregate left in Hecks wants a truer name.
 
 ## Order of work
 
 1. The `Gate` port, in this repository (decision 4).
-2. A way to attach a bluebook another project carries (decision 7's consequence), since the lower layer is of no use
-   to a client without it.
-3. Switchyard's repository with the delivery bluebook, on the pinned Hecks, and this repository attaching it. The old
-   commands stay here until the new ones have made a commit, opened a worktree and landed a branch.
+2. How a vendored package's adapter runs git (decision 7's consequence): the one thing vendoring does not yet carry.
+3. Switchyard's repository with the delivery bluebook as a package, on the pinned Hecks, and this repository
+   vendoring it. The old commands stay here until the new ones have made a commit, opened a worktree and landed a
+   branch.
 4. `delegate`, the rest of `deliver`, the watchers and their adapters. The old commands stay until the new ones have
    run a dispatch and a boarding.
 5. The board and the Agents, Coder, Fixer, Triage and Pipeline bluebooks.
