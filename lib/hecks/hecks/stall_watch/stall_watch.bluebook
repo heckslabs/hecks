@@ -49,6 +49,17 @@ Hecks.bluebook "Hecks" do
                closes: "TrainPrRerun,TrainPrExhausted", minutes: 10, forgets: 1440, fixer: "orchestrator",
                move: "Read the failed PR's CI (gh pr view), rerun its failed jobs once (gh run rerun --failed), " \
                      "and if it fails again Work.plan! red-train-<pr> (category red, priority now) with the failure as its detail."
+        # A queued train pull request asks for a chain of ticks keyed by the boarded commit
+        # (`TickWhenQueued`); a chain that never beats within 3 minutes has no live worker. A healthy
+        # chain's first beat comes about half a minute after it is asked for. Every verdict on the
+        # pull request stops the chain (`TickerStopped`), so a closed run is not a stall; a declined
+        # start is no worker and stays one. A chain that beats and then dies is not this kind: the
+        # line closes on its first beat.
+        member kind: "train-pr-unbeaten", aggregate: "Hecks::Ticker", opens: "TickerRequested",
+               closes: "Ticked,TickerStopped", minutes: 3, forgets: 1440, fixer: "orchestrator",
+               move: "Heartbeat.beat! --wait once, then Integration.advance! confirm=true, so the pushed run " \
+                     "is observed; then read the chain's log (~/.claude/hecks-dev/ticker/<commit>.log) and " \
+                     "report a declined or ended chain as the cause."
         member kind: "agent-run-start", aggregate: "Hecks::AgentRun", opens: "AgentRunRequested",
                closes: "AgentRunStarted,AgentRunDeclined", minutes: 10, forgets: 1440, fixer: "orchestrator",
                move: "Work.yield! the run's Work item (AgentRun.running names it) with the reason, " \
