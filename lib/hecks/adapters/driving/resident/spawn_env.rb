@@ -12,11 +12,14 @@ module Hecks
         # It uses only the standard library: the client runs before anything else loads.
         module SpawnEnv
           # The variables a resident keeps, by name: where its programs and cache are, who it
-          # runs as, its locale and terminal, and the two that name where its own files live
+          # runs as, its locale and terminal, the two that name where its own files live
           # (`HECKS_CACHE_DIR`, and `HECKS_RESIDENT_PROTOCOL`, which a spec uses to stand in for a
-          # resident of another protocol).
+          # resident of another protocol), and the spec runner's switch `HECKS_WRITES_LOCAL`. The
+          # boot reads that switch to stay off the main checkout's dev databases, so a resident a
+          # spec starts keeps it: it writes where it stands, as its launchers do, and serves them.
+          # A terminal never sets it, so a developer's resident is started without it.
           KEEP = %w[PATH HOME USER LOGNAME SHELL LANG TMPDIR TERM XDG_CACHE_HOME HECKS_CACHE_DIR
-                    HECKS_RESIDENT_PROTOCOL].freeze
+                    HECKS_RESIDENT_PROTOCOL HECKS_WRITES_LOCAL].freeze
           # The locale variables, kept as a family.
           KEEP_PREFIX = "LC_".freeze
           # Set for every resident, whatever its starter had. The resident forks a child per line
