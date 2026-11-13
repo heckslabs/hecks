@@ -353,6 +353,10 @@ Hecks.bluebook "Agents" do
   # run key, which is also the key of the architect's run, so a Work item is reviewed again once a
   # review has ended; the launcher mints the key when a request leaves it out. Each request carries
   # a hop count so a review that asks another review stops.
+  #
+  # A review has a time limit, kept on its own record: one still open when the limit has passed is
+  # lapsed at the next sweep of the sessions, and the coder waiting on it is told to build. A review
+  # ends once, with a verdict, unstarted or lapsed; a verdict that comes after is refused by name.
   aggregate "PlanReview" do
     description "One review of a Work item's plan by the architect role: asked as an event, answered with a verdict, and refused past the hop limit."
 
@@ -366,6 +370,9 @@ Hecks.bluebook "Agents" do
     attribute :findings, FindingsText, optional: true
     attribute :hops, HopCount, optional: true
     attribute :reason, ReasonText, optional: true
+    attribute :requested_at, Instant, optional: true
+    attribute :limit, TimeLimit, optional: true
+    attribute :ended_at, Instant, optional: true
 
     # One review's key, and the key of the architect's run that answers it.
     value_object "RunKey" do
@@ -393,6 +400,20 @@ Hecks.bluebook "Agents" do
     # Why no architect session was started for the review, as the dispatch refused it.
     value_object "ReasonText", String
 
+    # Seconds since the epoch, 0 when the moment has not come: a review that has not ended reads
+    # `ended_at` 0. A number, not a timestamp type: a rule compares only numbers.
+    value_object "Instant" do
+      attribute :value, Integer, default: 0
+      invariant("an instant is not before the epoch") { !value.negative? }
+    end
+
+    # How many seconds a review may stay open. A verdict comes about a minute after it is asked
+    # for, so ten minutes without one means none is coming.
+    value_object "TimeLimit" do
+      attribute :value, Integer, default: 600
+      invariant("a time limit is positive") { value.positive? }
+    end
+
     # A request is refused at the third hop, so a chain of reviews that ask for reviews stops by name.
     command "Request" do
       role "System"
@@ -404,13 +425,20 @@ Hecks.bluebook "Agents" do
       attribute :role, RoleRef
       attribute :repo, RepoPath
       attribute :plan, PlanText
+      attribute :limit, TimeLimit, default: 600, sets: true
+      # `now:` is filled from the clock port; an explicit value wins.
+      attribute :now,  Instant
+      needs :now
 
       given("the request is under the hop limit") { hops.value < 3 }
+
+      sets :requested_at, to: :now
 
       emits "PlanReviewRequested"
     end
 
-    # The architect answers with a verdict: sound, changes, or rethink.
+    # The architect answers with a verdict: sound, changes, or rethink. A review that ended without
+    # one keeps its end: the coder was already told, so a late verdict is refused by name.
     command "Answer" do
       role "System"
       goal "Record the architect's verdict on the plan"
@@ -422,6 +450,7 @@ Hecks.bluebook "Agents" do
       given("the verdict is one the architect gives") do
         verdict.value == "sound" || verdict.value == "changes" || verdict.value == "rethink"
       end
+      given("the review did not end without a verdict") { ended_at.nil? || ended_at.value == 0 }
 
       emits "PlanReviewed"
     end
@@ -455,10 +484,49 @@ Hecks.bluebook "Agents" do
       reference_to PlanReview
       attribute :work,   WorkKey, sets: true
       attribute :reason, ReasonText, sets: true
+      attribute :now,    Instant
+      needs :now
 
       given("the review has no verdict yet") { verdict.nil? || verdict.to_s.empty? }
+      given("the review has not ended already") { ended_at.nil? || ended_at.value == 0 }
+
+      sets :ended_at, to: :now
 
       emits "ReviewUnstarted"
+    end
+
+    # No verdict came within the review's time limit: the architect's run ended without one, or
+    # its verdict was lost. It ends as an unstarted review does, with the same event, so the coder
+    # waiting on the Work item is told the reason (`JudgeTheUnstartedReview`) and builds its plan.
+    # `+` because a rule has no `-`: it stands for `now - requested_at >= limit`.
+    command "Lapse" do
+      role "System"
+      goal "End a review whose time limit passed with no verdict, so its coder stops waiting"
+
+      reference_to PlanReview
+      attribute :work,   WorkKey, sets: true
+      attribute :reason, ReasonText, sets: true
+      attribute :now,    Instant
+      needs :now
+
+      given("the review has no verdict yet") { verdict.nil? || verdict.to_s.empty? }
+      given("the review has not ended already") { ended_at.nil? || ended_at.value == 0 }
+      given("the review's time limit has passed") { requested_at.value + limit.value <= now.value }
+
+      sets :ended_at, to: :now
+
+      emits "ReviewUnstarted"
+    end
+
+    # Each sweep of the sessions lapses every open review past its time limit. One inside its limit
+    # refuses by its given, so a sweep ends only the reviews that are late.
+    policy "LapseTheOverdueReview" do
+      on       "SessionSweep.SweepRequested"
+      for_each "PlanReview.Open"
+      trigger  PlanReview::Lapse,
+               with: { plan_review: :plan_review, work: :work,
+                       reason: "no verdict came within the review's time limit: build your plan as written, " \
+                               "and say in your report that it was not reviewed" }
     end
 
     # A declined run is looked up among the reviews: the one it keys is unstarted, with its Work item
@@ -515,6 +583,13 @@ Hecks.bluebook "Agents" do
       description "The review keyed by one run, with its Work item and the reason it was never started."
       attribute :run, RunKey
       where(run: :run)
+    end
+
+    # A review asked for before reviews carried a time is not listed: it has no limit to pass.
+    query "Open" do
+      description "Every plan review still waiting for a verdict, by Work item, each with when it was asked for and its time limit."
+      where(verdict: nil, "ended_at.value": 0, "requested_at.value": { gt: 0 })
+      order_by :work
     end
 
     query "Reviews" do
