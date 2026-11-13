@@ -57,6 +57,19 @@ RSpec.describe Hecks::Adapters::PipelineFill do
     expect(fill[:skipped]).to eq([{ slug: "gamma", reason: "cap" }])
   end
 
+  it "reads the newest Roll report the store holds, the live store's when it is named" do
+    store = instance_double(Hecks::Adapters::PipelineBoard::RegistryStore, records: [{ report: report }, { report: "x" }])
+    fill = described_class.new(settings: { runner: runner }, store: store)
+    expect(fill.preview[:would_start]).to eq([{ slug: "alpha", title: "Outcome: alpha" }])
+  end
+
+  it "asks the launcher when the store cannot be read" do
+    store = instance_double(Hecks::Adapters::PipelineBoard::RegistryStore)
+    allow(store).to receive(:records).and_raise(Hecks::Adapters::PipelineBoard::Unavailable, "still opening")
+    described_class.new(settings: { runner: runner }, store: store).preview
+    expect(runner).to have_received(:call).once
+  end
+
   it "refuses a report it cannot read" do
     garbled = ->(*) { "not a fill report" }
 

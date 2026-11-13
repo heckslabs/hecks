@@ -1,8 +1,7 @@
 # frozen_string_literal: true
 
 require "json"
-require "open3"
-require "timeout"
+require_relative "probe/child"
 
 module Hecks
   module Adapters
@@ -12,9 +11,11 @@ module Hecks
       # A read that could not be answered. The message is the reason a stage shows after `unknown:`.
       class Unavailable < StandardError; end
 
-      # Runs one outside command for a reader and answers its standard output.
+      # Runs one outside command for a reader and answers its standard output. The command never
+      # outlives the read (see {Child}), and its bound is under the {Gather} bound, so a read that
+      # is given up on has already stopped its child.
       module Probe
-        TIMEOUT_SECONDS = 25
+        TIMEOUT_SECONDS = 15
         # The variable a launcher line reads its caller from, and the name the board gives, so the
         # usage log shows the launcher lines this server runs.
         CALLER_VARIABLE = "HECKS_CALLER"
@@ -24,16 +25,16 @@ module Hecks
         # @param chdir [String, nil] where it runs
         # @param stdin [String, nil] what is written to its standard input, then closed
         # @return [String] standard output
-        # @raise [Unavailable] when the program is missing, times out or exits non-zero
+        # @raise [Unavailable] when the program is missing, times out (it is stopped first) or
+        #   exits non-zero
         def self.run(*command, chdir: nil, seconds: TIMEOUT_SECONDS, stdin: nil)
-          out, err, status = Timeout.timeout(seconds) do
-            Open3.capture3({ CALLER_VARIABLE => CALLER }, *command, chdir: chdir || Dir.pwd, stdin_data: stdin.to_s)
-          end
+          child = Child.new(command, environment: { CALLER_VARIABLE => CALLER }, chdir: chdir || Dir.pwd, seconds: seconds)
+          out, err, status = child.call(stdin.to_s)
           raise Unavailable, "#{command.first} #{command[1]}: #{reason(err)}" unless status.success?
 
           out
         rescue Errno::ENOENT then raise Unavailable, "#{command.first} is not installed"
-        rescue Timeout::Error then raise Unavailable, "#{command.first} did not answer in #{seconds}s"
+        rescue Child::Overdue then raise Unavailable, "#{command.first} did not answer in #{seconds}s"
         end
 
         # The launcher's notices (boot warnings and the worktree's missing local files) come before

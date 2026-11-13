@@ -162,8 +162,8 @@ module Hecks
         @github = readers.fetch(:github) { PipelineGitHub.new(root: @root) }
         @git = readers.fetch(:git) { PipelineGit.new(root: @root) }
         @journal = readers.fetch(:journal) { PipelineJournal.new(root: @root) }
-        @fill = readers.fetch(:fill) { PipelineFill.new(root: @root, registry: registry) }
         wire_work(readers, registry)
+        @fill = readers.fetch(:fill) { PipelineFill.new(root: @root, registry: registry, store: @live) }
       end
 
       # The readers of the machine itself: the room on its disk and what its launcher boots cost.
