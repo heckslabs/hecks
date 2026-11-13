@@ -4,6 +4,7 @@ require_relative "spec_files"
 require_relative "impacted_specs"
 require_relative "run_options"
 require_relative "test_runner"
+require_relative "heavy_slots"
 
 module Hecks
   module Adapters
@@ -13,6 +14,10 @@ module Hecks
       module BatchRuns
         # The operations this module carries out.
         OPERATIONS = %w[run_spec_example run_spec_files run_impacted_specs].freeze
+
+        # The heavy-job class a run of several files takes a place as ({HeavySlots}); one example
+        # is light and takes none.
+        JOB = "spec_batch"
 
         module_function
 
@@ -41,8 +46,10 @@ module Hecks
         # @param tree [Tree] the checkout
         # @return [String] each file's counts and the total
         def spec_files(args, tree)
-          SpecFiles.new(tree).run(files: args[:files], example: args[:example], isolation: args[:isolation] || "process",
-                                  env: RunOptions.spec_env(args), tags: args[:tags])
+          HeavySlots.admitted(tree.root, JOB) do
+            SpecFiles.new(tree).run(files: args[:files], example: args[:example], isolation: args[:isolation] || "process",
+                                    env: RunOptions.spec_env(args), tags: args[:tags])
+          end
         end
 
         # @param args [Hash] `base` (`main` when absent), `cap`, `dry`, `isolation`, `example`
@@ -50,9 +57,11 @@ module Hecks
         # @param tree [Tree] the checkout
         # @return [String] the mapping and, unless dry, how each spec file ended
         def impacted(args, tree)
-          ImpactedSpecs.new(tree).call(base: args[:base] || "main", cap: args[:cap] || ImpactedSpecs::DEFAULT_CAP,
-                                       dry: args[:dry] == true, isolation: args[:isolation] || "process",
-                                       example: args[:example], env: RunOptions.spec_env(args), tags: args[:tags])
+          HeavySlots.admitted(tree.root, JOB) do
+            ImpactedSpecs.new(tree).call(base: args[:base] || "main", cap: args[:cap] || ImpactedSpecs::DEFAULT_CAP,
+                                         dry: args[:dry] == true, isolation: args[:isolation] || "process",
+                                         example: args[:example], env: RunOptions.spec_env(args), tags: args[:tags])
+          end
         end
       end
     end
