@@ -48,7 +48,13 @@ RSpec.describe "the CiPipeline projection of ci-rspec.yml" do
     job.dig("strategy", "matrix")["group"] = (1..shard_total).to_a
     steps = job.fetch("steps")
     steps.find { |step| step["uses"] == "./.github/actions/generated-rust" }["with"] = { "domains" => shard_domains }
+    drilled(document)
     planned(document)
+  end
+
+  # A pull request with the red-drill label is never attested (spec/red_drill_switch_spec.rb).
+  def drilled(document)
+    document.dig("jobs", "ci_attestation_rspec")["outputs"] = job(projected, "ci_attestation_rspec").fetch("outputs")
   end
 
   # The split read a committed runtime baseline; now a `shard_plan` job makes it once from the last

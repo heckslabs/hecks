@@ -2,21 +2,21 @@
 
 # The switch of the red drill: whether the drill spec is defined, and so fails, in this run.
 #
-# The switch is on when `HECKS_RED_DRILL` is `1` in the environment, or when the checkout holds
-# the tracked file `spec/support/red_drill.on` reading `1`. The file is per commit, not per
-# pull request: a train pull request carries the boarded commit's tree, so a commit that holds the
-# file turns the drill on for that commit's pull request and for the CI run of `main` there.
+# The switch is the environment alone: it is on when `HECKS_RED_DRILL` is `1`. In CI the rspec
+# shards set it from the pull request's labels, `1` only on a pull request that carries the
+# `red-drill` label, so the drill is per pull request and never per commit: the same tree is
+# green on `main`, in the merge queue and on every unlabelled pull request, and raises no flag.
+#
+# A drill: board as usual, then `gh pr edit <number> --add-label red-drill` on that train pull
+# request. The labelled run fails, the red path reruns it and files the `red-train-<pr>` work
+# item; removing the label runs CI again, green, and auto-merge takes the pull request.
 module RedDrill
-  # The file that turns the drill on for the commit that holds it, relative to a checkout.
-  FILE = File.join("spec", "support", "red_drill.on")
+  # The pull request label that turns the drill on for that pull request's CI runs.
+  LABEL = "red-drill"
 
   # @param env [#[]] the environment to read
-  # @param root [String] the checkout to look in
   # @return [Boolean] whether the drill is on
-  def self.on?(env: ENV, root: File.expand_path("../..", __dir__))
-    return true if env["HECKS_RED_DRILL"] == "1"
-
-    path = File.join(root, FILE)
-    File.file?(path) && File.read(path).strip == "1"
+  def self.on?(env: ENV)
+    env["HECKS_RED_DRILL"] == "1"
   end
 end

@@ -24,8 +24,12 @@ name: CI
 # A `merge_group` run is the merge queue's test of a pull request on top of main and every entry
 # ahead of it (the `main` Lane row, pushers `queue`); main moves only when it is green. Path gates
 # diff it against the queue's base, as `regeneration_run.decide_ci_gate!` already does.
+#
+# A label added or removed runs a pull request again: the `red-drill` label turns the red drill on
+# for that pull request's run alone (spec/support/red_drill.rb, the rspec_shard env in ci-rspec.yml).
 on:
   pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
   merge_group:
   push:
     branches: [main]
