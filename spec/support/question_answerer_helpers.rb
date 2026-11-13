@@ -25,5 +25,17 @@ module QuestionAnswererHelpers
 
   def answer(work) = launch("agent_run.answer!", "to=#{work}", "answer.value=Take A.", "--wait")
 
+  # The coder's session ended: its job reads `done`, and the check records the end.
+  def run_ends(work)
+    File.write(File.join(scratch, "jobs", "stand-in-session", "state.json"), JSON.generate(state: "done"))
+    launch("agent_run.check!", "to=#{work}", "--wait")
+  end
+
+  # The runs whose questions still wait on an answer, asked or seated.
+  def open_questions
+    rows = JSON.parse(launch("Question.open").first.to_s[/\[.*\]/m] || "[]")
+    rows.map { |row| row["run"].is_a?(Hash) ? row["run"]["value"] : row["run"] }
+  end
+
   def desk = JSON.parse(launch("answer_desk.desks").first.to_s[/\[.*\]/m] || "[]").first.to_h
 end

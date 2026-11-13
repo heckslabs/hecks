@@ -12,11 +12,10 @@ RSpec.describe "a coder blocked on a question" do
 
   let(:woken) { [] }
 
-  # A runtime per example: the desk's seats are the state under test.
-  before do
-    @hecks = boot_hecks_in_memory
-    fake_runner(woken)
-  end
+  # A runtime per example: the desk's seats are the state under test. Booted ahead of the
+  # stand-in's own hook, which stubs a class the boot loads.
+  prepend_before { @hecks = boot_hecks_in_memory }
+  before { fake_runner(woken) }
 
   it "starts one orchestrator run for the question", :aggregate_failures do
     blocked_on("q-one", "[choose] A or B?")
@@ -51,6 +50,25 @@ RSpec.describe "a coder blocked on a question" do
     blocked_on("q-ends", "[choose] A or B?")
     answerer_closes(answerers("q-ends").first["run"], "Told it to take A. answered")
     expect(answerers("q-ends")).to be_empty
+  end
+
+  it "records the end of a run that asked no question with nothing refused" do
+    wait_as_coder("q-none")
+    expect(run_ends("q-none").last).to eq(0)
+  end
+
+  it "closes a seated question when its run ends", :aggregate_failures do
+    blocked_on("q-seated-end", "[choose] A or B?")
+    run_ends("q-seated-end")
+    expect(open_questions).not_to include("q-seated-end")
+    expect(desk["seated"]).to eq(0)
+  end
+
+  it "drops a question that found no seat when its run ends", :aggregate_failures do
+    %w[q-full-1 q-full-2 q-asked-end].each { |work| blocked_on(work, "[choose] A or B?") }
+    run_ends("q-asked-end")
+    expect(open_questions).to contain_exactly("q-full-1", "q-full-2")
+    expect(desk["seated"]).to eq(2)
   end
 
   it "treats a review wait as no question" do

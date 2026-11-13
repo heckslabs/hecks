@@ -1765,8 +1765,23 @@ Hecks.bluebook "Hecks" do
 
       query "Open" do
         description "Every question still waiting on an answer, asked or seated."
-        where(status: %w[asked seated])
+        where(status: { in: "asked,seated" })
         order_by :run
+      end
+
+      # The seated question one run asks, so a reaction to any run's end or answer closes it when
+      # there is one and fires nothing when the run asked none.
+      query "SeatedOfRun" do
+        description "The seated question one run asks, when it asks one."
+        attribute :run, QuestionRun
+        where(status: "seated", run: :run)
+      end
+
+      # The question one run asks that has found no seat yet, which the run's end or answer drops.
+      query "AskedOfRun" do
+        description "The question one run asks that waits for a seat, when it asks one."
+        attribute :run, QuestionRun
+        where(status: "asked", run: :run)
       end
 
       policy "AskTheOrchestratorWhenBlocked" do
@@ -1812,34 +1827,42 @@ Hecks.bluebook "Hecks" do
                                "End your turn with the word answered or escalated." }
       end
 
+      # Every run's answer, end and failure looks its question up: a run that asked none finds no
+      # row, so nothing fires and nothing is refused; a seated question is closed, an asked one dropped.
       policy "CloseTheAnsweredQuestion" do
-        on      "AgentRun.AgentRunAnswered"
-        trigger Question::Close, with: { run: :run }
+        on       "AgentRun.AgentRunAnswered"
+        for_each "Question.SeatedOfRun"
+        trigger  Question::Close, with: { run: :run }
       end
 
       policy "DropTheAnsweredQuestion" do
-        on      "AgentRun.AgentRunAnswered"
-        trigger Question::Drop, with: { run: :run }
+        on       "AgentRun.AgentRunAnswered"
+        for_each "Question.AskedOfRun"
+        trigger  Question::Drop, with: { run: :run }
       end
 
       policy "CloseTheQuestionOfAnEndedRun" do
-        on      "AgentRun.SessionFinished"
-        trigger Question::Close, with: { run: :run }
+        on       "AgentRun.SessionFinished"
+        for_each "Question.SeatedOfRun"
+        trigger  Question::Close, with: { run: :run }
       end
 
       policy "DropTheQuestionOfAnEndedRun" do
-        on      "AgentRun.SessionFinished"
-        trigger Question::Drop, with: { run: :run }
+        on       "AgentRun.SessionFinished"
+        for_each "Question.AskedOfRun"
+        trigger  Question::Drop, with: { run: :run }
       end
 
       policy "CloseTheQuestionOfAFailedRun" do
-        on      "AgentRun.SessionFailed"
-        trigger Question::Close, with: { run: :run }
+        on       "AgentRun.SessionFailed"
+        for_each "Question.SeatedOfRun"
+        trigger  Question::Close, with: { run: :run }
       end
 
       policy "DropTheQuestionOfAFailedRun" do
-        on      "AgentRun.SessionFailed"
-        trigger Question::Drop, with: { run: :run }
+        on       "AgentRun.SessionFailed"
+        for_each "Question.AskedOfRun"
+        trigger  Question::Drop, with: { run: :run }
       end
 
       policy "FreeTheSeatOfAClosedQuestion" do
