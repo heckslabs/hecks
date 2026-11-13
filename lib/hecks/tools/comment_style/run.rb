@@ -4,6 +4,7 @@ require "English"
 require "pathname"
 require_relative "../../tools"
 require_relative "source_file"
+require_relative "declarations"
 require_relative "baseline"
 require_relative "dictionary"
 
@@ -12,6 +13,8 @@ module Hecks
     module CommentStyle
       # Lints a set of paths and renders the result.
       class Run
+        include Declarations
+
         # A shebang line that runs Ruby, matched as bytes.
         RUBY_SHEBANG = /\A#!.*ruby/n
 
@@ -19,19 +22,22 @@ module Hecks
         # @param only [Array<String>, nil] categories to keep
         # @param baseline [Hash{String => Hash{String => Integer}}] the long blocks to tolerate
         def initialize(paths, only: nil, baseline: Baseline.load)
-          @files = paths.flat_map { |p| File.directory?(p) ? ruby_files(p) : [p] }.sort.uniq
+          @declarations = declaration_files(paths)
+          @files = paths.flat_map { |p| File.directory?(p) ? ruby_files(p) : [p] }.sort.uniq - @declarations
           @only = only
           @baseline = baseline
         end
 
-        # Every block over `MAX_BLOCK` lines in these files, in the baseline's own shape.
+        # Every block over its cap in these files (`MAX_BLOCK` lines in Ruby,
+        # `MAX_DECLARATION_BLOCK` in a declaration file), in the baseline's own shape.
         #
         # @return [Hash{String => Hash{String => Integer}}] file path to block key to length
         def long_block_baseline
-          @files.each_with_object({}) do |path, held|
+          ruby = @files.each_with_object({}) do |path, held|
             blocks = SourceFile.new(path).long_blocks
             held[path.delete_prefix("./")] = blocks.to_h { |block| [block.key, block.lines] } if blocks.any?
           end
+          ruby.merge(declaration_baseline)
         end
 
         # Files whose code differs from `ref`, comments and whitespace aside.
@@ -62,7 +68,7 @@ module Hecks
           @violations ||= begin
             sources = @files.map { |path| SourceFile.new(path) }
             found = sources.flat_map { |source| source.violations(only: @only, baseline: @baseline) } +
-                    undocumented_types(sources)
+                    undocumented_types(sources) + declaration_violations
             @only ? found.select { |v| @only.include?(v.category) } : found
           end
         end
