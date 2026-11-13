@@ -177,6 +177,29 @@ Decision 4, on 2026-11-13.
 - `GitTrain::Settlement` still names two checks of this repository's `ci` stage (`vocabulary_drift`, `ci_gates`).
   That is a second edge of the same kind, found while building, and it is not cut yet.
 
+Step 2 of the order of work, on 2026-11-13.
+
+- Switchyard is a local repository (`~/Projects/switchyard`, no remote) on a pinned Hecks: its Gemfile names
+  `~/.claude/switchyard-hecks`, a detached worktree of this repository, and `script/move_pin` moves the pin and puts
+  it back when Switchyard's specs go red on the new commit.
+- It holds the delivery bluebook (`delivery/bluebook/`, bluebook `Delivery`): `Workspace` with its git questions,
+  `Revision`, `LinkedTree` and `Landing`, the policies that act on those four alone, their ports and their adapter
+  declarations. Two scripts wrote them from this repository's `deliver` module and `hecks.hecksagon`, so the copy is
+  exact and can be written again while the declarations still live here.
+- Through Switchyard's own launcher a worktree was opened, a commit made in it and its branch landed on a scratch
+  repository's main, which is the bar this step set. Its specs repeat that, and hold that the bluebook declares the
+  four aggregates and names nothing of the pipeline.
+- The policies of `deliver` that reach past the four stayed behind for the upper layer: the early CI start, the
+  finishing of a landed branch's Work item, and the pulls of main after a merge.
+- The Ruby the adapters run was not copied. Each `.adapter` file requires the pinned Hecks' class by name. That code
+  changes here daily, and a second copy would start to drift at once; it moves in one step when the old declarations
+  leave. Until then a fix to a delivery adapter is still made in Hecks and reaches Switchyard when the pin moves,
+  so the quick fix this ADR is for is not yet had for that code.
+- Two things in the borrowed code still speak of Hecks. A landing's gate runs `exe/hecks gate_run.gate!` in the
+  checkout, so `Landing.finish!` passes only in a repository with that launcher; and some refusals name
+  `hecks Workspace.strays`. The gate's command belongs in what a repository declares about itself.
+- The old commands are untouched here and nothing calls Switchyard yet.
+
 ## Alternatives considered
 
 - **Leave it in place and make landings faster.** It shortens the first of the three delays and leaves the other two:
