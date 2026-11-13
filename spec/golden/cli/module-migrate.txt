@@ -40,6 +40,7 @@ queries (nothing here changes anything):
     latest                The newest seal a domain holds.
 
 bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
+  delivery         Take finished work onto local main.
   deploy           Generate, check and compare deploy recipes, project OIDC manifests and provision tenants.
   governance       Organizational authority is explicit, reviewable, and historically explainable.
   tenancy          Which tenants exist, which realm and storage each one owns, and whether each is currently…

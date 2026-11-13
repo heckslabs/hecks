@@ -15,6 +15,7 @@ queries (nothing here changes anything):
   Codebase.declaration  Where a named construct is declared across the corpus, as path:from-to, with its text on request.
 
 bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
+  delivery         Take finished work onto local main.
   deploy           Generate, check and compare deploy recipes, project OIDC manifests and provision tenants.
   governance       Organizational authority is explicit, reviewable, and historically explainable.
   tenancy          Which tenants exist, which realm and storage each one owns, and whether each is currently…
