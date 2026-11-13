@@ -11,6 +11,9 @@ Hecks.hecksagon "Tickets" do
   # The Hecks domain's landing found the step a landed branch was cut for: FinishWorkWhenBranchLanded reacts.
   subscribe "Hecks.LandedWorkFound"
 
+  # The Hecks domain's landing job refused a branch a coder can fix: ReopenWorkWhenLandingRefused reacts.
+  subscribe "Hecks.RefusedWorkFound"
+
   # The Hecks domain's stall watch filed a stall: PlanWorkWhenStallFiled plans its work item.
   subscribe "Hecks.StallFiled"
 

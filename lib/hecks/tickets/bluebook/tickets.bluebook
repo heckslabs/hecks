@@ -1043,6 +1043,15 @@ Hecks.bluebook "Tickets" do
     trigger Work::Finish, with: { work: :branch }
   end
 
+  # A landing job refused a submitted branch for a cause a coder can fix: the work item it names is
+  # planned again, its detail ending with the refusal, so the next coder reads why. A third refusal
+  # of one work item reopens nothing: it stays done and unlanded for a person to look at.
+  policy "ReopenWorkWhenLandingRefused" do
+    on      "Landing.RefusedWorkFound"
+    where   { refusals.value < 2 }
+    trigger Work::Reopen, with: { work: :work, title: :title, detail: :detail }
+  end
+
   # A conformance or gate run that faults files its own finding.
   policy "ReportWhenConformanceFaulted" do
     on      "ConformanceRun.ConformanceFaulted"

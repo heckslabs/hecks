@@ -723,7 +723,8 @@ Hecks.bluebook "Hecks" do
         transition "Refuse"  => "refused", from: "requested"
         transition "Decline" => "refused", from: "requested"
         transition "Convoy"  => "convoyed", from: "requested"
-        mark :terminal, "landed", "refused", "retired", "discarded", "convoyed", "set_aside"
+        transition "Hand"    => "handed", from: "requested"
+        mark :terminal, "landed", "refused", "retired", "discarded", "convoyed", "set_aside", "handed"
       end
 
       command "Land" do
@@ -755,6 +756,50 @@ Hecks.bluebook "Hecks" do
         given("rebases, lands and tidies needs --confirm; without it this only reports") { confirm.value == true }
 
         emits FinishRequested
+      end
+
+      # A coder submits and ends its turn: the landing runs as a job of its own. `Submit` hands the
+      # branch to that job and answers at once; the job runs `Carry`, which is a finish that keeps
+      # the worktree, since the reviewer works in it and a reopened Work item's next coder starts
+      # from it. The job reports by event from its own process: `BranchLanded` or `LandingRefused`.
+      command "Submit" do
+        role "Operator"
+        goal "Hand a worktree's branch to a landing job of its own and return at once, landing nothing from here"
+
+        attribute :run,      RunKey, sets: true
+        attribute :checkout, Word, optional: true, sets: true
+        attribute :branch,   Word, optional: true, sets: true
+        attribute :onto,     Word, default: "main", sets: true
+        attribute :confirm,  Switch, optional: true, sets: true
+
+        given("starts a job that lands the branch needs --confirm; without it this only reports") { confirm.value == true }
+
+        emits LandingSubmitted
+      end
+
+      command "Hand" do
+        role "System"
+        goal "Record that a submitted branch's landing job was started, and where it logs"
+
+        reference_to Landing
+        attribute :report, Report, sets: true
+
+        emits LandingHanded
+      end
+
+      command "Carry" do
+        role "Operator"
+        goal "Finish a submitted branch as its landing job: rebase, quick gate and land through the queue, keeping the worktree"
+
+        attribute :run,      RunKey, sets: true
+        attribute :checkout, Word, optional: true, sets: true
+        attribute :branch,   Word, optional: true, sets: true
+        attribute :onto,     Word, default: "main", sets: true
+        attribute :confirm,  Switch, optional: true, sets: true
+
+        given("rebases and lands needs --confirm; without it this only reports") { confirm.value == true }
+
+        emits CarryRequested
       end
 
       command "Train" do
@@ -1070,6 +1115,55 @@ Hecks.bluebook "Hecks" do
     policy "FinishWhenFinishing" do
       on      "Landing.FinishRequested"
       ask     :finish_branch, with: { run: :run }
+    end
+
+    # A coder's submitted branch is landed without the coder: the run is keyed by the submitted
+    # commit. A root, as `SubmitWhenTheCoderSaysSubmitted` in the Hecks hecksagon is: counted from the
+    # check that read the coder's job, the job's start sits past the reaction depth limit. The same
+    # event starts QualityControl's maintenance of main (StartOnSubmission), which gates and
+    # reconciles main as it stands and takes no place in the landing line: the two do not contend.
+    # A second submission of one commit is refused by the run key, so one commit has one job.
+    policy "LandWhenWorkIsSubmitted" do
+      on      "Submission.WorkSubmitted"
+      root
+      trigger Landing::Submit, with: { run: :sha, checkout: :checkout, branch: :branch, confirm: true }
+    end
+
+    # The adapter starts one detached launcher process that runs `Landing.carry!`, and answers at once.
+    policy "StartTheLandingJobWhenSubmitted" do
+      on      "Landing.LandingSubmitted"
+      ask     :start_landing, with: { run: :run }
+    end
+
+    policy "RecordTheHandedLanding" do
+      on      "Landing.LandingJobStarted"
+      trigger Landing::Hand, with: { report: :report }
+    end
+
+    policy "RecordTheLandingThatCouldNotBeHanded" do
+      on      "Landing.HandoffRefused"
+      trigger Landing::Refuse, with: { refusal: :refusal }
+    end
+
+    policy "CarryWhenCarrying" do
+      on      "Landing.CarryRequested"
+      ask     :carry_branch, with: { run: :run }
+    end
+
+    policy "RecordTheRefusedCarry" do
+      on      "Landing.CarryRefused"
+      trigger Landing::Refuse, with: { refusal: :refusal }
+    end
+
+    # A job's landing that was refused for a cause a coder can fix, a conflict or a quick gate red
+    # on the branch, goes back to a coder: the LandedWork port finds the finished Work item the
+    # landing's branch names, and the Tickets bluebook plans it again with the reason
+    # (ReopenWorkWhenLandingRefused). A busy queue and a red main are no coder's to fix: the job
+    # tries those again and no Work item moves. A finish a person ran is theirs to read and fix.
+    policy "FindWorkWhenTheJobsLandingIsRefused" do
+      on      "Landing.CarryRefused"
+      where   { refusal.value.include?("conflict: ") || refusal.value.include?("gate red: ") }
+      ask     :find_refused_work, with: { run: :run, refusal: :refusal }
     end
 
     policy "RecordTheLanding" do

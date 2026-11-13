@@ -25,6 +25,8 @@ Hecks.hecksagon "Hecks" do
   subscribe "Agents.VerdictAbandoned"
   # A verdict sent again answers the waiting coder as a judged one does (AnswerTheWaitingCoderAgain).
   subscribe "Agents.VerdictRedelivered"
+  # A coder's submitted branch starts its landing job (LandWhenWorkIsSubmitted in the deliver bluebook).
+  subscribe "Coder.WorkSubmitted"
   # Persistence is not bound here, so the domain is in Memory. A copy opts in with a
   # hecks.local.hecksagon whose `persisted_by` the attached bluebooks inherit (ADR 0136).
 
@@ -329,6 +331,18 @@ Hecks.hecksagon "Hecks" do
       refuses "MergeRefused"
     end
 
+    asks "StartLanding", to: Landing do
+      attribute :run, RunKey
+      answers "LandingJobStarted"
+      refuses "HandoffRefused"
+    end
+
+    asks "CarryBranch", to: Landing do
+      attribute :run, RunKey
+      answers "MergeAnswered"
+      refuses "CarryRefused"
+    end
+
     asks "Convene", to: Landing do
       attribute :run, RunKey
       answers "ConveneAnswered"
@@ -363,6 +377,15 @@ Hecks.hecksagon "Hecks" do
       attribute :branch, Word
       answers "LandedWorkFound"
       refuses "NoLandedWork"
+    end
+
+    # The finished Work item the branch of a refused landing names, with the landing's refusal
+    # added to its detail and how many landing refusals the detail already held.
+    asks "FindRefusedWork", to: Landing do
+      attribute :run, RunKey
+      attribute :refusal, Report
+      answers "RefusedWorkFound"
+      refuses "NoRefusedWork"
     end
   end
 

@@ -213,6 +213,10 @@ not require the flag.
 ## Landings, era inspection and the QA dispatcher
 
 Each command's `--help` says what it takes; this names where they live. **Landing and the queue:**
+`Landing.submit!` hands a branch to a landing job of its own and returns at once: the job runs `Landing.carry!`
+(a finish that keeps the worktree) from the main checkout, logs to `.git/hecks-landings/<branch>.log`, reports
+`BranchLanded` or `LandingRefused`, and a conflict or a red gate plans the finished Work item again with the
+reason. A coder's `coder Submission.submit!` starts it.
 `landing.finish!` (rebase onto local `main`, quick gate, land, tidy), `landing.land!` and `landing.train!`
 (`lib/hecks/hecks/deliver/deliver.bluebook`) take a place in one first-come, first-served line; the
 world's `landing "Queue"` (`hecks.world`) sets how long a ticket may go without a heartbeat and how long

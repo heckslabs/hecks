@@ -10,6 +10,7 @@ require_relative "git_landing/finisher"
 require_relative "git_landing/lineup"
 require_relative "git_landing/flagged"
 require_relative "git_landing/held"
+require_relative "git_landing/handoff"
 require_relative "../../indifferent_key"
 
 module Hecks
@@ -25,6 +26,7 @@ module Hecks
       include Flagged
       include Held
       include Sheltering
+      include Handoff
 
       # Accepts the arguments every driven adapter is built with; only the registry and the
       # overrides are kept.
@@ -176,7 +178,7 @@ module Hecks
       end
 
       def tidy(landed, branch, onto)
-        said = @retiring ? retire_from_primary(branch, onto) : Tidy.new(@git, @checkout, branch: branch, onto: onto).call
+        said = tidied(branch, onto)
         landed.merge(report: { value: "#{landed[:report][:value]}; #{said}" })
       end
 
