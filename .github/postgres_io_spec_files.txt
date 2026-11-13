@@ -5,6 +5,7 @@ spec/adapters/driven/git_rehearsal_spec.rb
 spec/adapters/driven/git_spec.rb
 spec/adapters/driven/git_strays_spec.rb
 spec/adapters/driven/git_train_isolated_push_spec.rb
+spec/adapters/driven/git_train_overtaken_spec.rb
 spec/adapters/driven/git_train_settlement_spec.rb
 spec/adapters/driven/git_train_spec.rb
 spec/adapters/driven/host_http_spec.rb
