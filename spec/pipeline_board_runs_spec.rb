@@ -40,7 +40,7 @@ RSpec.describe Hecks::Adapters::PipelineTickets do
   def tickets_from_live_store
     work = [{ work: "w1", status: "planned", title: "t" }, { work: "w2", status: "done", title: "u" }]
     allow(store).to receive(:records).with("Tickets", "Work").and_return(work)
-    allow(store).to receive(:records).with("Hecks", "Landing").and_return([{ status: "landed", branch: "qa/b" }])
+    allow(store).to receive(:records).with("Delivery", "Landing").and_return([{ status: "landed", branch: "qa/b" }])
     described_class.new(settings: { live_store: store })
   end
 
