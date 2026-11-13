@@ -16,6 +16,7 @@ RSpec.describe Hecks::Adapters::MainIntegration::BeatSchedule do
   it "beats once a minute through the train's launcher, with no pull request test of its own", :aggregate_failures do
     plist = schedule.plist
     expect(plist).to include("<integer>60</integer>", "cd /train || exit 1", "exe/hecks Heartbeat.Beat!")
+    expect(plist).to include("<key>HECKS_PIPELINE_TIMING</key>", "#{home}/.claude/hecks-dev/pipeline-timing.jsonl")
     expect(plist).not_to include("gh ", "Ticker")
   end
 

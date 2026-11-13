@@ -23,11 +23,14 @@ module Hecks
         # @param root [String] the checkout whose launcher each beat dispatches through; the push
         #   train's copy by default, the one whose records a beat reads
         # @param home [String] the home directory whose launch agents and log are used
+        # @param timing_path [String] the shared JSONL log for pipeline timing samples
         # @param runner [#call, nil] runs `launchctl` from its argument list and answers
         #   `[output, success]`; a stand-in in specs
-        def initialize(root: File.join(Dir.home, ".claude", "hecks-train"), home: Dir.home, runner: nil)
+        def initialize(root: File.join(Dir.home, ".claude", "hecks-train"), home: Dir.home,
+                       timing_path: File.join(home, ".claude", "hecks-dev", "pipeline-timing.jsonl"), runner: nil)
           @root = root
           @home = home
+          @timing_path = timing_path
           @runner = runner || method(:launchctl)
         end
 
@@ -43,6 +46,11 @@ module Hecks
             <dict>
               <key>Label</key>
               <string>#{LABEL}</string>
+              <key>EnvironmentVariables</key>
+              <dict>
+                <key>HECKS_PIPELINE_TIMING</key>
+                <string>#{CGI.escapeHTML(@timing_path)}</string>
+              </dict>
               <key>ProgramArguments</key>
               <array>
                 <string>/bin/zsh</string>

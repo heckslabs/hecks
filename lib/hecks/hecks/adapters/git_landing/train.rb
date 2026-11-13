@@ -2,6 +2,7 @@
 
 require "open3"
 require_relative "../git_worktrees"
+require_relative "../pipeline_timing"
 
 module Hecks
   module Adapters
@@ -71,6 +72,7 @@ module Hecks
 
         def carry(ticket)
           held = ticket.data
+          PipelineTiming.record("landing_queue", branch: held[:branch], seconds: Time.now.to_f - held[:at]) if held[:at]
           ticket.update(handled: true)
           answer = lands(held)
           ticket.deliver(landed: answer)
@@ -81,8 +83,10 @@ module Hecks
         end
 
         def lands(held)
-          rebase(held[:branch])
-          why = @crew.gate.call(worktree_on(held[:branch])&.path || @checkout)
+          branch = held[:branch]
+          PipelineTiming.measure("landing_rebase", branch: branch) { rebase(branch) }
+          directory = worktree_on(branch)&.path || @checkout
+          why = PipelineTiming.measure("landing_quick_gate", branch: branch) { @crew.gate.call(directory) }
           raise ConsoleCapture::Failure, why if why
 
           @crew.land.call(held[:checkout], held[:branch], @onto)

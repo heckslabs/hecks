@@ -3,6 +3,7 @@
 require "securerandom"
 require "hecks/runtime/dispatcher"
 require "hecks/runtime/errors"
+require_relative "pipeline_timing"
 
 module Hecks
   module Adapters
@@ -110,13 +111,20 @@ module Hecks
       def advance(run, confirm)
         line = take(run, confirm)
         after = runs.find(run.landed) if NEXT[run.state] == "Verify"
-        after&.state == "verified" ? "#{line}; #{take(after, confirm)}" : line
+        return line unless after&.state == "verified"
+
+        PipelineTiming.record("verified", landed: run.landed)
+        "#{line}; #{take(after, confirm)}"
       end
 
       def take(run, confirm)
         held_back = boarding_held_back(run, confirm) if NEXT[run.state] == "Board"
-        return "#{run.short} #{run.state}: waiting: #{held_back}" if held_back
+        if held_back
+          PipelineTiming.record("boarding_wait", landed: run.landed, reason: held_back)
+          return "#{run.short} #{run.state}: waiting: #{held_back}"
+        end
 
+        PipelineTiming.record("boarding_attempt", landed: run.landed) if NEXT[run.state] == "Board"
         dispatch(run, NEXT[run.state], confirm)
       end
 
@@ -148,7 +156,14 @@ module Hecks
         return "#{run.short} #{run.state} -> #{command}: not observed, refused: #{why}" if why
 
         stage = runs.find(run.landed)&.state
+        record_boarding_success(run, command, stage)
         "#{run.short} #{run.state} -> #{command}: now #{stage}#{outcome.of(command, stage, key)}"
+      end
+
+      def record_boarding_success(run, command, stage)
+        return unless command == "Board" && stage == "pushed"
+
+        PipelineTiming.record("boarding_succeeded", landed: run.landed)
       end
 
       def arguments(run, command, confirm)
