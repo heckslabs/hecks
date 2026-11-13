@@ -169,6 +169,12 @@ answered `carried`. Its mint step reports `Memory holds no eras, no mint needed`
   train's generated, gitignored `hecks.local.hecksagon`, which `Train#write_overlay` writes at each
   boarding from `TrainOverlay::PERSISTED`: the clock chain's ticks are separate processes and
   need the Ticker kept, and a hand copy fell behind.
+  A linked worktree that keeps no local file of its own loads the main checkout's
+  (`WorktreeBorrow`, `lib/hecks/adapters/driven/worktree_borrow.rb`), so its commands use the same dev
+  databases under `~/.claude/hecks-dev`. Nothing is lent to the spec runner (`HECKS_WRITES_LOCAL`, which
+  spec_helper sets) or a `memory`/`test` environment, to a worktree with its own local file (the train),
+  or from a main checkout whose local world turns on `mint_eras` or `disposable_ledger`.
+  `exe/hecks workspace.where` names the borrowed checkout.
   `exe/hecks config domain.value=<dir>` prints each setting, its value and which source supplied it.
 - The shape ledger (`lib/hecks/hecks/shapes.json`) holds only bluebooks whose committed persistence
   (local overlays left out) is an era adapter, and framework members such as Governance that clients

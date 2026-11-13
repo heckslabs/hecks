@@ -52,6 +52,9 @@ module Hecks
       end
 
       def missing_line(directory)
+        borrowed = WorktreeBorrow.from(directory)
+        return ["overlay files: the main checkout's at #{borrowed} (this worktree keeps none of its own)"] if borrowed
+
         main, files = WorktreeOverlay.gap(directory)
         return [] if files.empty?
 
