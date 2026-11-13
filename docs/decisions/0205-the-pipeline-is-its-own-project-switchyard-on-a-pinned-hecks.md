@@ -180,12 +180,12 @@ Decision 4, on 2026-11-13.
 Step 2 of the order of work, on 2026-11-13.
 
 - Switchyard is a local repository (`~/Projects/switchyard`, no remote) on a pinned Hecks: its Gemfile names
-  `~/.claude/switchyard-hecks`, a detached worktree of this repository, and `script/move_pin` moves the pin and puts
-  it back when Switchyard's specs go red on the new commit.
+  `~/.claude/switchyard-hecks`, a detached worktree of this repository. `Pin.move!` moves the pin, asks the project's
+  gate on the new commit and puts the pin back when it is red, with the gate's reason on the record.
 - It holds the delivery bluebook (`delivery/bluebook/`, bluebook `Delivery`): `Workspace` with its git questions,
   `Revision`, `LinkedTree` and `Landing`, the policies that act on those four alone, their ports and their adapter
-  declarations. Two scripts wrote them from this repository's `deliver` module and `hecks.hecksagon`, so the copy is
-  exact and can be written again while the declarations still live here.
+  declarations. `Transcription.write!` writes them from this repository's `deliver` module and `hecks.hecksagon`, so
+  the copy is exact and can be written again while the declarations still live here.
 - Through Switchyard's own launcher a worktree was opened, a commit made in it and its branch landed on a scratch
   repository's main, which is the bar this step set. Its specs repeat that, and hold that the bluebook declares the
   four aggregates and names nothing of the pipeline.
@@ -195,9 +195,24 @@ Step 2 of the order of work, on 2026-11-13.
   changes here daily, and a second copy would start to drift at once; it moves in one step when the old declarations
   leave. Until then a fix to a delivery adapter is still made in Hecks and reaches Switchyard when the pin moves,
   so the quick fix this ADR is for is not yet had for that code.
-- Two things in the borrowed code still speak of Hecks. A landing's gate runs `exe/hecks gate_run.gate!` in the
-  checkout, so `Landing.finish!` passes only in a repository with that launcher; and some refusals name
-  `hecks Workspace.strays`. The gate's command belongs in what a repository declares about itself.
+- The owner asked for no scripts: what a project does is a command of a bluebook, its outside behind a port. The first
+  build had a `script/` folder (move the pin, run the gate, write the declarations); each is now a command
+  (`Pin.move!`, the `SpecGate` adapter on the `Gate` port, `Transcription.write!`).
+- A landing asks the gate its project bound. `Landing.finish!` and the landing train ran a fixed
+  `exe/hecks gate_run.gate!` line; they now ask the adapter bound to the `Gate` port (`GitLanding::BoundGate`). Hecks
+  binds `CheckoutGate` and is judged as before; Switchyard binds `SpecGate`, its specs on the pinned Hecks. A project
+  that binds none is refused by name. Switchyard landed a branch of its own with `finish!` through that gate.
+- A vendored package carries its ports. It did not: `from: :vendor` loaded bluebooks and query plugins only, so the
+  consequence above ("nothing new is needed to carry the bluebook and its ports") was wrong about ports. A package
+  now declares them in `<name>.ports.hecksagon`, loaded with it and counted in its lock.
+- Switchyard has a domain of its own (`bluebook/`) and attaches delivery from its own tree: the vendor slot
+  `vendor/embryonaut_bluebooks/delivery` is a link to `delivery/`. That settles how decision 9 is met, with nothing
+  added to `attaches`.
+- One thing in the borrowed code still stops a landing elsewhere. After the gate, `finish!` runs this repository's
+  shallow check (named spec files in a depth-1 clone), and refuses in a repository that has none of them. It is
+  skipped for a change that touches no code, which is why Switchyard's first `finish!` passed and its second did
+  not. The shallow check belongs behind the port it already has, bound by the project, as the gate now is.
+- Some refusals still name `hecks Workspace.strays` where the line to type is the project's own launcher's.
 - The old commands are untouched here and nothing calls Switchyard yet.
 
 ## Alternatives considered
