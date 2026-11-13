@@ -356,6 +356,17 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  # The gate of the checkout a shipment names: the port is asked to judge that checkout and answers
+  # that it passed, or refuses with the end of what the gate printed. The checkout decides what its
+  # gate holds; delivery names no check (ADR 0205).
+  Hecks::Shipment.port "Gate" do
+    asks "Judge", to: Shipment do
+      attribute :run, RunKey
+      answers "JudgementAnswered"
+      refuses "JudgementRefused"
+    end
+  end
+
   # The outside an integration of main reaches: the open runs an advance steps, a clean copy of
   # main for a verification, the push train's own copy for a boarding, and GitHub's CI runs.
   Hecks::Integration.port "Integrating" do

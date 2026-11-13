@@ -2,6 +2,7 @@
 
 require "open3"
 require_relative "../git_worktrees"
+require_relative "../checkout_gate"
 
 module Hecks
   module Adapters
@@ -35,7 +36,7 @@ module Hecks
 
         # The quick gate, run from the branch's own worktree.
         QUICK_GATE = lambda do |dir|
-          out, status = Open3.capture2e("exe/hecks", "gate_run.gate!", "stage=quick", "--wait", chdir: dir)
+          out, status = Open3.capture2e(*CheckoutGate::COMMAND, chdir: dir)
           "the quick gate failed: #{Train.tail(out, 3)}" unless status.success?
         end
 

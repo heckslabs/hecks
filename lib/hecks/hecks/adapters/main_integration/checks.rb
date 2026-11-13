@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "../checkout_gate"
+
 module Hecks
   module Adapters
     class MainIntegration
@@ -15,10 +17,10 @@ module Hecks
         RUNS_AS = %w[bundle exec].freeze
 
         # The launcher, as the copy holds it.
-        LAUNCHER = "exe/hecks"
+        LAUNCHER = CheckoutGate::LAUNCHER
 
-        # The checks, by name.
-        FIXED = { "quick gate" => %w[gate_run.gate! stage=quick --wait] }.freeze
+        # The checks, by name: the copy's own gate.
+        FIXED = { "quick gate" => CheckoutGate::ARGUMENTS }.freeze
 
         # @param directory [String] the clean copy the checks run in
         # @param changed [Array<String>] the paths the landed range changed; unused, since no

@@ -1,7 +1,8 @@
 # The pipeline is its own project, Switchyard, on a pinned Hecks
 
 **Status:** Proposed. The owner raised the split on 2026-11-13 ("we could move the pipeline into its own project")
-while asking how a pipeline fix can be applied locally and judged at once. Nothing is built. Date: 2026-11-13.
+while asking how a pipeline fix can be applied locally and judged at once. Decision 4 was built the same day (see
+"As built"); nothing else is. Date: 2026-11-13.
 Builds on [0201](0201-a-resident-per-checkout-holds-the-described-domain-and-forks-a-launcher-line.md), whose
 fingerprint decides when running code is replaced, and on
 [0202](0202-a-write-from-a-worktree-to-a-shared-ledger-runs-in-the-main-checkout.md), whose forwarding is why a
@@ -101,6 +102,32 @@ Items 6 and 7 are the recommendation; the owner has not chosen yet.
    pinned Hecks. The old commands stay here until the new ones have run a landing and a boarding.
 3. The board and the Agents, Coder, Fixer, Triage and Pipeline bluebooks.
 4. The old code and its lines of `hecks.world` leave this repository, in a release that names the break.
+
+## As built
+
+Decision 4, on 2026-11-13.
+
+- `Shipment` has a `Gate` port with one ask, `Judge`, answered `JudgementAnswered` and refused `JudgementRefused`.
+  `Adapters::CheckoutGate` runs `exe/hecks gate_run.gate! stage=quick --wait` in the checkout the shipment names and
+  reads whether the launcher ended well and reported a completed run.
+- `GateAndBoard` hears the port's two events and no check's. Its stages are `judging`, `landing` and `boarding`.
+  `Shipment.Rejudge` asks the gate again for a parked shipment, and is what `hecks resume` runs for `judging`.
+- `hecks resume` was mended on the way. It wrote the saga's saved arguments as typed value objects and handed every
+  one to the stage's command, so a resume of a real saga was refused. `CliRunner::ResumeLine` now writes the arguments
+  the command declares, as bare values, and names the run as the receiver of a command on a record already made.
+- A resume from a later launcher call needs the saga kept. `GateAndBoard` is stored with `Shipment`
+  (`Registry::SagaAnchor`), and `Shipment` is Memory in every checkout today, so the saga ends with the process that
+  shipped. Binding `Hecks::Shipment.persisted_by("SqlitePersistence")` in a checkout's local hecksagon keeps it. That
+  file is the machine's own and is not changed here.
+- The comment fix left the shipment. A gate judges and edits nothing, so a branch with a fixable comment offense now
+  stops at its gate. `StyleRun.FixComments` is still there to run by hand.
+- A refused gate parks the saga and files no finding of its own. The gate runs in the checkout's own process, so its
+  `GateFaulted` is reported there and not in the process that shipped.
+- `GitLanding::Finisher`, `GitLanding::Train` and `MainIntegration::Checks` take the command line from
+  `CheckoutGate`. They still run it themselves inside their own steps; moving a landing's gate behind the port means
+  splitting the `FinishBranch` ask, which is left for the move.
+- `GitTrain::Settlement` still names two checks of this repository's `ci` stage (`vocabulary_drift`, `ci_gates`).
+  That is a second edge of the same kind, found while building, and it is not cut yet.
 
 ## Alternatives considered
 

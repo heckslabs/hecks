@@ -4,6 +4,7 @@ require_relative "../git_worktrees"
 require_relative "../git_main_pull"
 require_relative "../shell"
 require_relative "../git_shallow_check"
+require_relative "../checkout_gate"
 
 module Hecks
   module Adapters
@@ -18,11 +19,11 @@ module Hecks
         include GitWorktrees
         include GitMainPull
 
-        # The command that runs the seconds-long checks in a worktree.
-        GATE = %w[exe/hecks gate_run.gate! stage=quick --wait].freeze
+        # The command that runs the seconds-long checks in a worktree: the checkout's own gate.
+        GATE = CheckoutGate::COMMAND
 
         # What a completed gate run prints.
-        COMPLETED = /"status":\s*"completed"/
+        COMPLETED = CheckoutGate::COMPLETED
 
         # @param git [Git] the adapter every git call goes through
         # @param checkout [String] the worktree the branch is checked out in

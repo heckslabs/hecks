@@ -616,16 +616,22 @@ Hecks.bluebook "Hecks" do
       trigger LinkedTree::Decline, with: { refusal: :refusal }
     end
 
-    # Lands a branch on main after its mechanical gate work: comment style is fixed, the shape
-    # ledger is checked, the quick gate runs, then the branch lands and boards the push train. Rubocop
-    # autocorrect is not a step yet (no command), so offenses it would fix still stop the gate. A
-    # refusal parks the instance in needs_human; a person confirms the ledger and starts it again.
-    # A saga cannot dispatch when it starts, so a policy starts the fix. It hears ShipStarted, emitted
+    # Lands a branch on main once its checkout's gate passes: the Gate port judges the checkout, then
+    # the branch lands and boards the push train. What the gate holds is the checkout's own business
+    # (ADR 0205): this bluebook names no check, and nothing here edits the branch, so an offense a
+    # fix command would mend still stops the gate. A refusal parks the instance in needs_human; a
+    # person mends the branch and asks for the gate again (`Shipment.Rejudge`).
+    # A saga cannot dispatch when it starts, so a policy asks the gate. It hears ShipStarted, emitted
     # after ShipRequested is handled, because policies run before sagas for one event: on ShipRequested
-    # the fix would finish before the saga exists to hear it.
-    policy "StartTheCommentFix" do
+    # the gate would answer before the saga exists to hear it.
+    policy "JudgeWhenShipStarted" do
       on      "Shipment.ShipStarted"
-      trigger StyleRun::FixComments, with: { run: :run, paths: :paths, confirm: :confirm }
+      ask     :judge, with: { run: :run }
+    end
+
+    policy "JudgeWhenRejudging" do
+      on      "Shipment.JudgementRequested"
+      ask     :judge, with: { run: :run }
     end
 
     process_manager "GateAndBoard" do
@@ -633,18 +639,15 @@ Hecks.bluebook "Hecks" do
       starts_on Shipment::ShipRequested
 
       # The command a caller dispatches to resume each stage of a faulted run (`hecks resume`).
-      resumes "gated=GateRun.Gate"
-      resumes "checking=ConformanceRun.CheckShapeLedger"
+      resumes "judging=Shipment.Rejudge"
       resumes "landing=Landing.Land"
       resumes "boarding=SendTrain.Board"
 
       # Each step records itself and waits. The caller dispatches the next command at top level:
-      # ConformanceRun.CheckShapeLedger, then GateRun.Gate, then Landing.Land, then SendTrain.Board.
-      # A stage dispatched from inside this saga would run past the reaction depth bound, so the
-      # saga dispatches only Shipment.Stop, a record with no reaction in this domain.
-      transition StyleRun::StyleCompleted => "checking", from: "fixing"
-      transition ConformanceRun::ConformanceAccepted => "gated", from: %w[checking needs_human]
-      transition GateRun::GateCompleted => "landing", from: "gated"
+      # Landing.Land once the gate answered, then SendTrain.Board. A stage dispatched from inside
+      # this saga would run past the reaction depth bound, so the saga dispatches only
+      # Shipment.Stop, a record with no reaction in this domain.
+      transition Shipment::JudgementAnswered => "landing", from: %w[judging needs_human]
       transition Landing::BranchLanded => "boarding", from: "landing"
 
       transition SendTrain::BranchPushed => "boarded", from: "boarding"
@@ -654,13 +657,9 @@ Hecks.bluebook "Hecks" do
       # A faulted boarding of this shipment records the park as Shipment.Stop, which Tickets files
       # as a stopped run; a boarding that faults outside a shipment takes no leg here. The caller
       # dispatches SendTrain.Board at top level, so Stop and the finding stay inside the reaction
-      # depth bound. The comment fix runs inside Ship, a hop deeper, and a Stop dispatched from its
-      # leg would meet the bound and unwind the leg, so it records nothing more. A faulted ledger
-      # check or gate files its own finding (ReportWhenConformanceFaulted, ReportWhenGateFaulted),
-      # and a refused landing is read by its caller.
-      transition StyleRun::StyleFaulted => "needs_human", from: "fixing"
-      transition ConformanceRun::ConformanceFaulted => "needs_human", from: "checking"
-      transition GateRun::GateFaulted => "needs_human", from: "gated"
+      # depth bound. A refused gate carries its reason in the refusal the caller reads, as a refused
+      # landing does, and records nothing more.
+      transition Shipment::JudgementRefused => "needs_human", from: "judging"
       transition Landing::LandingRefused => "needs_human", from: "landing"
       transition SendTrain::PushFaulted => "needs_human", from: "boarding" do
         dispatch Shipment::Stop, with: { shipment: :run, stage: "boarding", refusal: :refusal }
@@ -1591,11 +1590,12 @@ Hecks.bluebook "Hecks" do
     # The request that starts GateAndBoard, under its own identity so the Landing record it leads to
     # is a separate one: Land creates a Landing under the same run key, and that would collide.
     aggregate "Shipment" do
-      description "One request to fix, gate, land and board a branch: the gate-and-board saga starts on it."
+      description "One request to gate, land and board a branch: the gate-and-board saga starts on it."
 
       attribute :run,    RunKey
       attribute :confirm, Switch, optional: true
       attribute :branch, Word
+      attribute :checkout, Word, optional: true
       attribute :stage,   Word, optional: true
       attribute :refusal, Word, optional: true
       identified_by :run
@@ -1611,18 +1611,28 @@ Hecks.bluebook "Hecks" do
 
       command "Ship" do
         role "Operator"
-        goal "Start the gate-and-board saga for a branch: fix comment style, check the ledger, gate, land on main, board the push train"
+        goal "Start the gate-and-board saga for a branch: ask its checkout's gate, land on main, board the push train"
 
         attribute :run,      RunKey, sets: true
         attribute :branch,   Word, sets: true
-        attribute :checkout, Word
-        attribute :paths,    Word, default: "lib/hecks,spec"
+        attribute :checkout, Word, sets: true
         attribute :confirm,  Switch, optional: true, sets: true
 
         given("lands the branch and pushes it to the remote needs --confirm; without it this only reports") { confirm.value == true }
 
         emits ShipRequested
         emits ShipStarted
+      end
+
+      # A shipment parked at its gate is judged again once the branch is mended: the Gate port is
+      # asked for the checkout the shipment recorded.
+      command "Rejudge" do
+        role "Operator"
+        goal "Ask the checkout's gate to judge a shipment again, after a gate that refused it"
+
+        reference_to Shipment
+
+        emits JudgementRequested
       end
 
       # The GateAndBoard saga records its own park: a shipment that stopped for a person names the
