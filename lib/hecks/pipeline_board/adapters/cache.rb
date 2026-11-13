@@ -6,7 +6,10 @@ module Hecks
   module Adapters
     module PipelineBoard
       # Keeps each outside read for a few seconds, failures included, so a page polling every ten
-      # seconds cannot hammer `gh` or the disk.
+      # seconds cannot hammer `gh` or the disk. Each fetch forgets the answers and failures older
+      # than the ttl, so it holds only what was asked within it, however many keys a board asks.
+      # Readers of one key take turns, so a key is read once however many ask; readers of
+      # different keys never wait on each other, so one slow read holds up no other.
       class Cache
         # @param ttl [Numeric] seconds an answer is kept
         # @param clock [#call] the time in seconds; the monotonic clock when none is given
@@ -14,6 +17,7 @@ module Hecks
           @ttl = ttl
           @clock = clock
           @held = {}
+          @turns = {}
           @lock = Mutex.new
         end
 
@@ -21,18 +25,35 @@ module Hecks
         # @return [Object] the held answer while it is fresh, else the block's; a block that raises
         #   {Unavailable} is held as the failure and raised again until it expires
         def fetch(key, &block)
-          @lock.synchronize do
-            kept = @held[key]
-            kept = @held[key] = [@clock.call, attempt(&block)] unless kept && fresh?(kept)
-            kept.last.is_a?(Unavailable) ? raise(kept.last) : kept.last
-          end
+          kept = turn_of(key).synchronize { fresh_held(key) || hold(key, attempt(&block)) }
+          kept.last.is_a?(Unavailable) ? raise(kept.last) : kept.last
         end
 
         # Forgets every held answer, so the next read asks again.
         # @return [void]
         def clear = @lock.synchronize { @held.clear }
 
+        # @return [Integer] how many answers are held
+        def size = @lock.synchronize { @held.size }
+
         private
+
+        # The key's turn, made when none is held; a turn whose key is neither held nor being read
+        # goes with the expired answers.
+        def turn_of(key)
+          @lock.synchronize do
+            @held.select! { |_, kept| fresh?(kept) }
+            @turns.select! { |name, turn| turn.locked? || @held.key?(name) }
+            @turns[key] ||= Mutex.new
+          end
+        end
+
+        def fresh_held(key)
+          kept = @lock.synchronize { @held[key] }
+          kept if kept && fresh?(kept)
+        end
+
+        def hold(key, value) = @lock.synchronize { @held[key] = [@clock.call, value] }
 
         def fresh?(kept) = @clock.call - kept.first < @ttl
 

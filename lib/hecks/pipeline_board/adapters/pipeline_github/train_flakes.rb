@@ -2,6 +2,7 @@
 
 require "time"
 require "hecks/hecks/adapters/ci_runs/failed_jobs"
+require_relative "flake_memo"
 
 module Hecks
   module Adapters
@@ -22,10 +23,17 @@ module Hecks
         private
 
         def flake_document(limit)
-          found = flaked_runs.first(RUN_CAP).map { |run| flaked(run) }
+          found = windowed_runs.map { |run| flaked(run) }
           rows = tally(found.compact).first(limit)
           { window_days: WINDOW_DAYS, reaches_back: train_page.map { |run| run["createdAt"] }.compact.min,
             unreadable: found.count(&:nil?), flakes: rows }
+        end
+
+        # The passed reruns read for one answer; the memo forgets the attempts of any other run.
+        def windowed_runs
+          runs = flaked_runs.first(RUN_CAP)
+          @attempts.keep(runs.flat_map { |run| attempts_of(run) })
+          runs
         end
 
         def flaked_runs
@@ -41,14 +49,19 @@ module Hecks
 
         # The items one passed rerun cleared, or nil when an earlier attempt could not be read.
         def flaked(run)
-          items = (1...run["attempt"].to_i).flat_map { |attempt| failed_items(run["databaseId"], attempt) }
+          items = attempts_of(run).flat_map { |key| @attempts.fetch(key) { failed_items(*key) } }
           { branch: run["headBranch"], url: run["url"], items: items.uniq }
         rescue PipelineBoard::Unavailable
           nil
         end
 
+        # The earlier attempts of a passed rerun, each as its run id and attempt number.
+        def attempts_of(run) = (1...run["attempt"].to_i).map { |attempt| [run["databaseId"], attempt] }
+
+        # An attempt's job list is read straight from `gh`, not through the cache, so its read
+        # holds no lock the other GitHub readers wait on; {FlakeMemo} keeps what it found.
         def failed_items(id, attempt)
-          jobs = read("run", "view", id.to_s, "--attempt", attempt.to_s, "--json", "jobs")["jobs"] || []
+          jobs = @gh.call("run", "view", id.to_s, "--attempt", attempt.to_s, "--json", "jobs")["jobs"] || []
           jobs.select { |job| failed?(job) }.flat_map { |job| job_items(id, attempt, job) }
         end
 
@@ -64,8 +77,7 @@ module Hecks
         end
 
         def log_of(id, attempt, job)
-          args = ["run", "view", id.to_s, "--attempt", attempt.to_s, "--job", job.to_s, "--log-failed"]
-          @cache.fetch(args) { @text.call(*args) }.to_s
+          @text.call("run", "view", id.to_s, "--attempt", attempt.to_s, "--job", job.to_s, "--log-failed").to_s
         end
 
         def tally(found)
