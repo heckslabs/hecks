@@ -182,14 +182,12 @@ module Hecks
         landed.merge(report: { value: "#{landed[:report][:value]}; #{said}" })
       end
 
-      # A finish runs inside the worktree it retires, so the process leaves it first; a worktree
-      # that
-      # holds ignored files is kept and said so.
+      # A finish runs inside the worktree it retires, so the process leaves it for good first: there
+      # is no worktree to come back to. A worktree that holds ignored files is kept and said so.
       def retire_from_primary(branch, onto)
-        Dir.chdir(primary.path) do
-          kept, said = Tidy.new(@git, @checkout, branch: branch, onto: onto, mode: :retire).retire
-          kept ? "kept #{branch}: #{said}" : said
-        end
+        Dir.chdir(primary.path)
+        kept, said = Tidy.new(@git, @checkout, branch: branch, onto: onto, mode: :retire).retire
+        kept ? "kept #{branch}: #{said}" : said
       end
 
       def branches = read("for-each-ref", "--format=%(refname:short)", "refs/heads").split("\n")
