@@ -4,6 +4,7 @@ require "json"
 require "open3"
 require_relative "console_capture"
 require_relative "github_pull_requests/train_sweep"
+require_relative "github_pull_requests/train_reopen"
 
 module Hecks
   module Adapters
@@ -17,6 +18,10 @@ module Hecks
       # A pull request number: digits only.
       NUMBER = /\A\d+\z/
 
+      # @return [#call, nil] the `gh` runner an adapter the runtime builds uses, answering
+      #   `[stdout, stderr, success]`; the real `gh` when nil. A spec replaces it.
+      singleton_class.attr_accessor :runner
+
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] unused
       # @param root [String, nil] unused
@@ -25,7 +30,7 @@ module Hecks
       # @param git_runner [#call, nil] runs `git` with its arguments, answering `[ok, output]`; the
       #   real `git` when nil. A spec replaces it.
       def initialize(aggregate: nil, settings: {}, root: nil, runner: nil, git_runner: nil)
-        @runner = runner || method(:run_gh)
+        @runner = runner || self.class.runner || method(:run_gh)
         @git_runner = git_runner
       end
 
@@ -95,6 +100,15 @@ module Hecks
         { report: { value: closed.empty? ? "no train pull request to close" : closed.join("\n") } }
       end
 
+      # Closes and reopens a train pull request whose CI never started, once the bluebook has
+      # decided to.
+      #
+      # @param held [Hash] the `TrainPrReopen` record: `pr` (required)
+      # @return [Hash{Symbol => Hash}] `report:`
+      # @raise [ConsoleCapture::Failure] when the pull request is not open, has checks, or GitHub
+      #   refuses
+      def cycle(**held) = { report: { value: TrainReopen.new(method(:gh!)).run(pull_request_number(held[:pr], "reopen")) } }
+
       # The state of one pull request, as text: its number, state, URL and checks.
       #
       # @param held [Hash] the query's arguments: `number` (required)
@@ -147,9 +161,8 @@ module Hecks
       # Refuses a pull request that is not open, so a merged or closed one is never edited.
       def ensure_open!(number)
         state = JSON.parse(gh!("pr", "view", number, "--json", "state"))["state"]
-        return if state == "OPEN"
-
-        raise ConsoleCapture::Failure, "pull request ##{number} is not open (#{state}); only an open one is edited"
+        raise ConsoleCapture::Failure, "pull request ##{number} is not open (#{state}); only an open one is edited" unless
+          state == "OPEN"
       end
 
       # A pull request's number, digits only: gh reads a value that starts with a dash as an option.

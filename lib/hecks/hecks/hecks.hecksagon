@@ -435,6 +435,16 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  # Closes and reopens a train pull request whose CI never started, leaving the marker comment that
+  # makes it once; it refuses one that has checks by the time it is asked.
+  Hecks::TrainPrReopen.port "GitHubPullRequests" do
+    asks "Cycle", to: TrainPrReopen do
+      attribute :pr, PrNumber
+      answers "CycleAnswered"
+      refuses "CycleRefused"
+    end
+  end
+
   Hecks::ReviewRequest.port "GitHubPullRequests" do
     asks "Tidy", to: ReviewRequest do
       attribute :run, RunKey

@@ -1717,7 +1717,18 @@ Hecks.bluebook "Hecks" do
       attribute :title,       Report, optional: true
       attribute :cause,       Report, optional: true
       attribute :step,        Report, optional: true
+      # What a read of an open train pull request reports about its CI having started: how many
+      # checks GitHub lists, the minutes since the pull request opened, the status of the newest CI
+      # run of its tip (`none` when there is no run), and whether the pipeline already closed and
+      # reopened it to start CI. The policies on `ObserveAnswered` compare them with the bounds.
+      attribute :checks,      Count, optional: true
+      attribute :waited,      Count, optional: true
+      attribute :ci_status,   Report, optional: true
+      attribute :reopened,    Switch, optional: true
       identified_by :run
+
+      # A count of checks or of minutes.
+      value_object "Count", Integer
 
       value_object "RunKey" do
         attribute :value, String, matches: :present
@@ -2306,6 +2317,169 @@ Hecks.bluebook "Hecks" do
     policy "RecordTheRefusedSweep" do
       on      "ReviewRequest.TidyRefused"
       trigger ReviewRequest::Refuse, with: { refusal: :refusal }
+    end
+
+    # A train pull request whose CI never started: GitHub lists no check on it and the newest CI run
+    # of its tip is absent or still queued (`awaiting_ci`), as when GitHub Actions is down. It is
+    # recorded once the pull request has waited past the bound below, ten minutes, and that record
+    # opens the `ci-not-started` stall (StallWatch), filed once for the orchestrator under the pull
+    # request's number. A later read that finds checks on a pull request past the bound records
+    # that its CI started, which closes the stall if it was not filed yet.
+    aggregate "TrainPrCi" do
+      description "One train pull request whose CI had not started past its bound, and whether it started after."
+
+      attribute :pr,        PrNumber
+      attribute :landed,    Word,   optional: true
+      attribute :waited,    Count,  optional: true
+      attribute :ci_status, Report, optional: true
+      attribute :report,    Report, optional: true
+      identified_by :pr
+
+      # A pull request number.
+      value_object "PrNumber" do
+        attribute :value, String, pattern: '\A[0-9]+\z'
+      end
+
+      value_object "Word" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Report", String
+
+      # Minutes.
+      value_object "Count", Integer
+
+      command "Await" do
+        role "System"
+        goal "Record that a train pull request has no checks and no started CI run past its bound"
+
+        attribute :pr,        PrNumber, sets: true
+        attribute :landed,    Word, sets: true
+        attribute :waited,    Count, sets: true
+        attribute :ci_status, Report, sets: true
+        attribute :report,    Report, sets: true
+
+        emits TrainPrCiAwaited
+      end
+
+      command "Start" do
+        role "System"
+        goal "Record that GitHub lists checks on a train pull request that waited past its bound"
+
+        attribute :pr,     PrNumber, sets: true
+        attribute :report, Report, sets: true
+
+        emits TrainPrCiStarted
+      end
+    end
+
+    policy "AwaitTheUnstartedTrainPrCi" do
+      on      "Integration.ObserveAnswered"
+      where   { outcome.value == "awaiting_ci" && waited.value >= 10 }
+      trigger TrainPrCi::Await, with: { pr: :pr, landed: :landed, waited: :waited, ci_status: :ci_status, report: :report }
+    end
+
+    policy "StartTheAwaitedTrainPrCi" do
+      on      "Integration.ObserveAnswered"
+      where   { outcome.value == "checking" && waited.value >= 10 }
+      trigger TrainPrCi::Start, with: { pr: :pr, report: :report }
+    end
+
+    # A train pull request whose CI still has not started past the second bound, twenty minutes, is
+    # closed and reopened once, which makes GitHub start its CI run again. Once is held by GitHub,
+    # the only store that outlives a beat's process: the reopening leaves a marker comment on the
+    # pull request, the read reports it (`reopened`), and a request for a marked one is refused. A
+    # pull request with checks is never touched. While the reopening runs the read answers a closed
+    # pull request carrying the marker as still running, so a beat between the close and the reopen
+    # does not record it closed and free the line.
+    aggregate "TrainPrReopen" do
+      description "One close and reopen of a train pull request whose CI never started, to start it again."
+
+      attribute :pr,       PrNumber
+      attribute :landed,   Word,   optional: true
+      attribute :checks,   Count,  optional: true
+      attribute :reopened, Switch, optional: true
+      attribute :report,   Report, optional: true
+      attribute :refusal,  Report, optional: true
+      identified_by :pr
+
+      # A pull request number.
+      value_object "PrNumber" do
+        attribute :value, String, pattern: '\A[0-9]+\z'
+      end
+
+      value_object "Word" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Report", String
+
+      value_object "Switch", Boolean
+
+      value_object "Count", Integer
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "declined"
+        transition "Reopen"  => "reopened", from: "requested"
+        transition "Decline" => "declined", from: "requested"
+        mark :terminal, "reopened", "declined"
+      end
+
+      command "Request" do
+        role "System"
+        goal "Ask for a train pull request whose CI never started to be closed and reopened, once, refusing one with checks"
+
+        attribute :pr,       PrNumber, sets: true
+        attribute :landed,   Word, optional: true, sets: true
+        attribute :checks,   Count, sets: true
+        attribute :reopened, Switch, sets: true
+
+        given("a pull request with checks is not reopened") { checks.value == 0 }
+        given("a pull request is reopened once") { reopened.value == false }
+
+        emits TrainPrReopenRequested
+      end
+
+      command "Reopen" do
+        role "System"
+        goal "Record that a train pull request was closed and reopened to start its CI"
+
+        reference_to TrainPrReopen
+        attribute :report, Report, sets: true
+
+        emits TrainPrReopened
+      end
+
+      command "Decline" do
+        role "System"
+        goal "Record why a train pull request was not closed and reopened"
+
+        reference_to TrainPrReopen
+        attribute :refusal, Report, sets: true
+
+        emits TrainPrReopenDeclined
+      end
+    end
+
+    policy "ReopenTheUnstartedTrainPr" do
+      on      "Integration.ObserveAnswered"
+      where   { outcome.value == "awaiting_ci" && waited.value >= 20 && reopened.value == false }
+      trigger TrainPrReopen::Request, with: { pr: :pr, landed: :landed, checks: :checks, reopened: :reopened }
+    end
+
+    policy "ReopenWhenRequested" do
+      on      "TrainPrReopen.TrainPrReopenRequested"
+      ask     :cycle, with: { pr: :pr }
+    end
+
+    policy "RecordTheReopen" do
+      on      "TrainPrReopen.CycleAnswered"
+      trigger TrainPrReopen::Reopen, with: { report: :report }
+    end
+
+    policy "RecordTheDeclinedReopen" do
+      on      "TrainPrReopen.CycleRefused"
+      trigger TrainPrReopen::Decline, with: { refusal: :refusal }
     end
 
     aggregate "ReviewRequest" do
