@@ -35,8 +35,11 @@ module Hecks
 
         # @param registry [Runtime::Registry, nil] the booted registry whose Tickets world is read
         # @return [Hash{Symbol => Float}] the marks, the world's laid over the defaults
-        def self.of(registry)
-          declared = registry&.world("Tickets")&.for_verb(VERB) || {}
+        def self.of(registry) = laid_over(registry&.world("Tickets")&.for_verb(VERB) || {})
+
+        # @param declared [Hash] a `machine_marks` line, as the world declares it
+        # @return [Hash{Symbol => Float}] the line's marks laid over the defaults
+        def self.laid_over(declared)
           DEFAULTS.merge(declared.slice(*DEFAULTS.keys)) { |_key, _default, given| given.to_f }
         end
       end
