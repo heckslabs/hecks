@@ -2738,8 +2738,10 @@ Hecks.bluebook "Hecks" do
     end
 
     # The failure it prevents: a deep rehearsal takes minutes, another session lands on local main in
-    # between, and `SendTrain.board!` refuses with "main moved since boarding: board again", so the
-    # rehearsal repeats. A hold is named for the commit rehearsed. While it stands a landing onto main
+    # between, and `SendTrain.board!` then boards a head the rehearsal never judged, so the
+    # rehearsal repeats. A boarding itself needs no hold: a landing that arrives while its checks run
+    # stays on local main for the next boarding, and the pull request opens for the commit boarded.
+    # A hold is named for the commit rehearsed. While it stands a landing onto main
     # is refused by name, except the fix of a red-* Work item. The rehearsal takes it; a boarding, a
     # refused boarding or a red rehearsal lifts it; and one nobody lifted expires at the
     # `boarding_hold` window of the world (20 minutes), so main is never held for longer than that.

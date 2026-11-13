@@ -120,13 +120,22 @@ RSpec.describe Hecks::Adapters::GitTrain, :io do
 
   def carriage = described_class::Carriage.new(Hecks::Adapters::Git.new, work, branch: "main", remote: "origin")
 
-  it "refuses a branch that moved on after boarding, and pushes nothing", :aggregate_failures do
+  it "pushes the boarded commit and leaves on the branch what landed after boarding", :aggregate_failures do
+    commit("second")
     boarded = git("rev-parse", "main")
     commit("newer")
 
+    expect(carriage.carry(boarded)[:report][:value]).to include("1 commit(s) landed meanwhile and were not pushed")
+    expect(git("rev-parse", "origin/main")).to eq(boarded)
+  end
+
+  it "refuses a branch that no longer holds the boarded commit, and pushes nothing", :aggregate_failures do
+    boarded = commit("second") && git("rev-parse", "main")
+    git("reset", "-q", "--hard", "HEAD~1")
+
     expect { carriage.carry(boarded) }
       .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /main moved since boarding.*board again/)
-    expect(git("rev-parse", "origin/main")).to eq(boarded)
+    expect(git("rev-parse", "origin/main")).not_to eq(boarded)
   end
 
   it "pushes exactly the boarded commit by its id", :aggregate_failures do

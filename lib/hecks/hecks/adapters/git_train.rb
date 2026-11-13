@@ -27,8 +27,9 @@ module Hecks
     # Holding the line, a boarding names the commit the branch holds (`boarded`), checks that the
     # train runs that commit's shape (`LauncherShape`), runs the Hecks mint (`MintStep`), then
     # settles and pushes: one step after the other, so a refusal stops the boarding before
-    # anything is pushed. What is pushed is that commit, settled, and nothing else: a branch that
-    # moved meanwhile is refused.
+    # anything is pushed. What is pushed is that commit, settled, and nothing else: commits that
+    # land on the branch while the settlement's checks run stay local for the next boarding, and
+    # only a branch that has lost the commit is refused.
     class GitTrain
       include Reading
 
@@ -74,8 +75,8 @@ module Hecks
       # @return [Hash{Symbol => Hash}] `outcome:` (`pushed`, `carried` or `queued`), `checkout:`,
       #   `boarded:` (the commit named at boarding), `pushed:` and `report:`, opened by the mint
       # @raise [ConsoleCapture::Failure] when the checkout is not a repository, the branch moved
-      #   since boarding, the train is not at the boarded commit, the branch and the remote
-      #   conflict, or the push is refused
+      #   before it was settled or has lost the boarded commit, the train is not at the
+      #   boarded commit, the branch and the remote conflict, or the push is refused
       # @raise [Runtime::WiringError] when the mint refuses, before anything is pushed
       def carry(**held)
         @checkout = toplevel(plain(held[:checkout]) || Dir.pwd)
@@ -138,7 +139,7 @@ module Hecks
         remote = remote_of(held)
         named = !plain(held[:commit]).nil?
         settled = named ? boarded : Settlement.new(@git, @checkout, branch: branch, remote: remote).run(boarded)
-        [carrier(branch, remote, held).carry(settled, named: named), settled]
+        [carrier(branch, remote, held).carry(settled), settled]
       end
 
       def carrier(branch, remote, held)

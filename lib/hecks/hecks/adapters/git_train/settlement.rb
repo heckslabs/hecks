@@ -3,6 +3,8 @@
 require "open3"
 require_relative "reading"
 require_relative "branch_guard"
+require_relative "named_commit"
+require_relative "drift_checks"
 
 module Hecks
   module Adapters
@@ -12,7 +14,8 @@ module Hecks
       #
       # It works on the boarded branch only: to change anything, the checkout must have that branch
       # checked out and clean, and the branch must still name the boarded commit. Its own commit
-      # names the ledger paths it wrote, so nothing already staged is swept in.
+      # names the ledger paths it wrote, so nothing already staged is swept in. Coders land on the
+      # branch while the drift checks run: the settled commit is carried if the branch holds it.
       #
       # A rebase stops only on the ledger file, which is regenerated rather than merged: the
       # upstream copy is taken and the ledger is settled after. Any other conflict aborts the
@@ -58,9 +61,9 @@ module Hecks
 
         # @param boarded [String] the commit the branch named at boarding
         # @return [String] the commit the branch names now, which the carriage then carries
-        # @raise [ConsoleCapture::Failure] when the branch moved since boarding, the checkout is not
-        #   on the branch or not clean, the rebase conflicts outside the ledger, or the ledger
-        #   cannot be settled
+        # @raise [ConsoleCapture::Failure] when the branch moved before it was settled or has lost
+        #   the settled commit, the checkout is not on the branch or not clean, the rebase
+        #   conflicts outside the ledger, the ledger cannot be settled, or a check finds drift
         def run(boarded)
           fetch
           @expected = boarded
@@ -70,7 +73,7 @@ module Hecks
           rebase if rebasing
           settle_ledger if ledger?
           check_drift if hecks_checkout?
-          @guard.unmoved!(@expected)
+          held!
           @expected
         end
 
@@ -88,6 +91,7 @@ module Hecks
         # it, and continues; any other conflicted path aborts the rebase.
         def rebase
           @guard.clean!
+          @guard.unmoved!(@expected)
           rebase_onto_remote
         end
 
@@ -131,21 +135,14 @@ module Hecks
           raise ConsoleCapture::Failure, "#{LEDGER} or #{EDGES} has uncommitted changes; commit or discard them before boarding"
         end
 
-        # Runs each drift check in check mode. The first that finds drift refuses the boarding and
-        # names the check and the end of what it printed; nothing is rewritten here.
-        def check_drift
-          @drift.each do |argv|
-            out, status = Open3.capture2e(*argv, chdir: @checkout)
-            next if status.success?
+        def check_drift = DriftChecks.new(@checkout, @guard, @drift).run(@expected)
 
-            raise ConsoleCapture::Failure, "#{argv.drop(2).join(" ")} found drift; regenerate and commit it first: #{tail(out)}"
-          end
-        end
+        # Landings above the settled commit are left for the next boarding; a branch that has
+        # lost the commit is refused.
+        def held!
+          return if NamedCommit.new(@git, @checkout, branch: @branch).held?(@expected)
 
-        # The last three lines of what a check printed, as one line.
-        def tail(out)
-          last = out.lines.last(3)
-          last.join.strip
+          @guard.unmoved!(@expected)
         end
 
         def commit_ledger
@@ -153,11 +150,23 @@ module Hecks
           return if changed.empty?
 
           @guard.clean!(except: [LEDGER, EDGES])
+          ours_to_commit!
 
           written = [LEDGER, EDGES].select { |path| File.exist?(File.join(@checkout, path)) }
           read("add", "--", *written)
           read("commit", "-q", "-m", "Settle the shape ledger before boarding", "--", *written)
           @expected = @guard.head
+        end
+
+        # A landing that arrived while the ledger was settled must not go out under the
+        # settlement's commit, which would carry a commit nobody boarded: what the settlement wrote
+        # is dropped, so the next boarding finds the ledger untouched, and the boarding is refused.
+        def ours_to_commit!
+          return if @guard.head == @expected
+
+          [LEDGER, EDGES].each { |path| git(["checkout", "-q", "HEAD", "--", path]) }
+          git(["clean", "-fdq", "--", EDGES])
+          @guard.unmoved!(@expected)
         end
 
         def git(args) = @git.capture(*args, chdir: @checkout)
