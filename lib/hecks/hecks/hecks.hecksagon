@@ -188,6 +188,16 @@ Hecks.hecksagon "Hecks" do
     answers_query "Status"
   end
 
+  # Writes one gitignored file, a checkout's local overlay, from the bluebook's kept rows; it
+  # touches no ledger and no git state.
+  Hecks::LocalOverlay.port "Overlaying" do
+    asks "Lay", to: LocalOverlay do
+      attribute :run, RunKey
+      answers "OverlayAnswered"
+      refuses "OverlayRefused"
+    end
+  end
+
   # Read-only: the event tap's opening lines still waiting for their closing lines, priced by the
   # clock. The adapter reads the log as the `Feed` query does and boots no domain.
   Hecks::StallWatch.port "Watching" do

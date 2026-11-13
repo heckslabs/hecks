@@ -1,4 +1,138 @@
 Hecks.bluebook "Hecks" do
   vision "What this install is, what version it runs, and whether its grammar cache can be trusted."
   namespace "Hecks::Domain"
+
+  domain_module "Keep" do
+    vision "Say once which records the development pipeline reads back in a later process, so no copy forgets one."
+
+    # The aggregates the pipeline keeps across processes, declared once: the train's overlay, the
+    # main checkout's overlay, the refusal of a write that would be forgotten and the saga warning
+    # all read these rows. A row names no adapter; which store keeps it is the overlay writer's.
+    # `checkout` is the copy that needs it: `main` (the development checkout), `train` (the push
+    # train's copy) or `both`. Persistence stays a machine-local opt-in (ADR 0136): a committed
+    # hecksagon binds none of these, and a copy with no local overlay keeps them in Memory.
+    #
+    # LocalOverlay holds no record worth reading back: it is the command surface that writes a
+    # copy's gitignored overlay from the rows, and each write is one run.
+    aggregate "LocalOverlay" do
+      description "One write of a checkout's machine-local overlay from the kept rows: written, current, or refused."
+      created_by "LocalOverlay.write!"
+
+      attribute :run,      RunKey
+      attribute :root,     OverlayRoot
+      attribute :copy,     Word
+      attribute :output,   Report, optional: true
+      attribute :refusal,  Report, optional: true
+      identified_by :run
+
+      value_object "RunKey" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "OverlayRoot" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Word" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Report", String
+
+      value_object "KeptAggregate" do
+        attribute :domain,    String
+        attribute :aggregate, String
+        attribute :checkout,  String
+        attribute :reason,    String
+
+        member domain: "Hecks", aggregate: "AgentRun", checkout: "both",
+               reason: "a dispatch is checked from a later command by its run"
+        member domain: "Hecks", aggregate: "Revision", checkout: "both",
+               reason: "a landing reads back the revision it landed by run id"
+        member domain: "Hecks", aggregate: "Landing", checkout: "both",
+               reason: "a landing names its worktree by id to a later command"
+        member domain: "Hecks", aggregate: "LinkedTree", checkout: "both",
+               reason: "a landing finds the worktree a session opened earlier"
+        member domain: "Hecks", aggregate: "SendTrain", checkout: "both",
+               reason: "a boarding is read back by the process that watches it"
+        member domain: "Hecks", aggregate: "Ticker", checkout: "both",
+               reason: "each tick of a queued pull request's clock chain is a launcher call of its own"
+        member domain: "Hecks", aggregate: "TrainPr", checkout: "both",
+               reason: "a failed CI attempt's jobs are read after the rerun that cleared them"
+        member domain: "Tickets", aggregate: "Finding", checkout: "main",
+               reason: "findings are the ledger every session reads (ADR 0163)"
+        member domain: "Tickets", aggregate: "Work", checkout: "main",
+               reason: "work items are the ledger every session reads (ADR 0163)"
+        member domain: "Tickets", aggregate: "Epic", checkout: "main",
+               reason: "an opened epic is read by the next command that files work under it"
+        member domain: "Agents", aggregate: "Role", checkout: "main",
+               reason: "the board reads which roles are pinned between calls"
+        member domain: "Agents", aggregate: "PlanReview", checkout: "main",
+               reason: "a review's verdict is read by the session that asked, in a later call"
+        member domain: "Agents", aggregate: "SubmissionReview", checkout: "main",
+               reason: "a submission's verdict is read by the session that asked, in a later call"
+        member domain: "Agents", aggregate: "Planning", checkout: "main",
+               reason: "a plan is confirmed in a later call than the one that drafted it"
+        member domain: "Agents", aggregate: "Routing", checkout: "main",
+               reason: "a routing is answered in a later call than the one that asked"
+        member domain: "Agents", aggregate: "PromotionRecommendation", checkout: "main",
+               reason: "a recommendation is read by the orchestrator in a later call"
+        member domain: "Pipeline", aggregate: "Passage", checkout: "main",
+               reason: "a passage planned in one call is there for the call that starts its work"
+      end
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "refused"
+        transition "Settle"  => "settled", from: "requested"
+        transition "Decline" => "refused", from: "requested"
+        mark :terminal, "settled", "refused"
+      end
+
+      command "Write" do
+        role "Operator"
+        goal "Write a checkout's machine-local overlay so it keeps every row its copy needs, and nothing more"
+
+        attribute :run,      RunKey, sets: true
+        attribute :root,     OverlayRoot, sets: true
+        attribute :copy,     Word, sets: true
+
+        emits OverlayWriteRequested
+      end
+
+      command "Settle" do
+        role "System"
+        goal "Record what the write did"
+
+        reference_to LocalOverlay
+        attribute :output, Report, sets: true
+
+        emits OverlaySettled
+      end
+
+      command "Decline" do
+        role "System"
+        goal "Record why the write was refused"
+
+        reference_to LocalOverlay
+        attribute :refusal, Report, sets: true
+
+        emits OverlayDeclined
+      end
+    end
+
+    policy "WriteTheOverlayWhenRequested" do
+      on      "LocalOverlay.OverlayWriteRequested"
+      ask     :lay, with: { run: :run }
+    end
+
+    policy "RecordTheOverlay" do
+      on      "LocalOverlay.OverlayAnswered"
+      trigger LocalOverlay::Settle, with: { output: :output }
+    end
+
+    policy "RecordTheRefusedOverlay" do
+      on      "LocalOverlay.OverlayRefused"
+      trigger LocalOverlay::Decline, with: { refusal: :refusal }
+    end
+  end
 end

@@ -167,8 +167,11 @@ answered `carried`. Its mint step reports `Memory holds no eras, no mint needed`
   `persisted_by "PostgresEra"` opts it in (the attached bluebooks inherit it). Do not add local
   files to a development checkout, and none by hand to the train's copy. The one exception is the
   train's generated, gitignored `hecks.local.hecksagon`, which `Train#write_overlay` writes at each
-  boarding from `TrainOverlay::PERSISTED`: the clock chain's ticks are separate processes and
-  need the Ticker kept, and a hand copy fell behind.
+  boarding from the `KeptAggregate` rows of `lib/hecks/hecks/hecks.bluebook`: the clock chain's
+  ticks are separate processes and need the Ticker kept, and a hand copy fell behind. The same rows
+  write the main checkout's overlay (`exe/hecks LocalOverlay.write! root.value=<checkout>
+  copy.value=main`), and a write to a kept aggregate that a checkout with a local overlay binds to
+  Memory is refused by the aggregate's name.
   A linked worktree that keeps no local file of its own loads the main checkout's
   (`WorktreeBorrow`, `lib/hecks/adapters/driven/worktree_borrow.rb`), so its commands use the same dev
   databases under `~/.claude/hecks-dev`. Nothing is lent to the spec runner (`HECKS_WRITES_LOCAL`, which
