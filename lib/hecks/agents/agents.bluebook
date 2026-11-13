@@ -37,6 +37,7 @@ Hecks.bluebook "Agents" do
       member role: "orchestrator", pattern: "PushRehearsal.due"
       member role: "orchestrator", pattern: "Workspace.status"
       member role: "orchestrator", pattern: "Machine.sample!"
+      member role: "orchestrator", pattern: "Machine.busiest"
       member role: "orchestrator", pattern: "Dispatch.settle!"
       member role: "orchestrator", pattern: "Planning.request!"
       member role: "orchestrator", pattern: "AgentRun.check_all!"
