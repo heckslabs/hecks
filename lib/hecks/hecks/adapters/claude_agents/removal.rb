@@ -7,9 +7,10 @@ require_relative "../console_capture"
 module Hecks
   module Adapters
     class ClaudeAgents
-      # The `Review`, `ClearScratch`, `RetireWorktree` and `Remove` asks of the `Agents` port: the
-      # facts a finished run's session is judged on, and the three steps that take it away, each
-      # a plain action the `AgentRun` bluebook asks for in its own order.
+      # The `Review`, `StopSession`, `ClearScratch`, `RetireWorktree` and `Remove` asks of the
+      # `Agents` port: the facts a finished run's session is judged on, the stop of one it keeps,
+      # and the three steps that take one away, each a plain action the `AgentRun` bluebook asks
+      # for in its own order.
       #
       # It needs the including adapter's `@transcript`, `@reaping`, `@listing`, `@shell` and
       # `@command`.
@@ -20,16 +21,14 @@ module Hecks
         WORKTREE_AT = /its worktree is still at.*/
 
         # Says whether a person replied in a session after its brief, and what else decides whether
-        # the session may go: whether the run's Work is open, whether the run leaves a product,
-        # and what its worktree holds.
-        #
-        # A session the listing does not hold was removed elsewhere, and is answered as gone.
+        # the session may go: its listed state now (the run's recorded condition can be older), the
+        # run's Work, its product and its worktree. One the listing does not hold is answered gone.
         #
         # @param held [Hash] the `AgentRun` record: `session`
         # @return [Hash{Symbol => Object}] `listed:` whether `claude agents` lists the session; for
-        #   a listed one `taken_over:` true when a person replied or the transcript cannot be read,
-        #   `note:` which of those it was in words, and {SessionReaping#facts}; for a gone one
-        #   `gone_at:`, when it was found gone, as an ISO 8601 string
+        #   a listed one `live:` the state it is listed in, `taken_over:` true when a person replied
+        #   or the transcript cannot be read, `note:` which of those it was in words, and
+        #   {SessionReaping#facts}; for a gone one `gone_at:`, when it was found gone, ISO 8601
         # @raise [ConsoleCapture::Failure] when the sessions cannot be listed
         def review(**held)
           entry = @listing.find(plain(held[:session]).to_s)
@@ -37,8 +36,22 @@ module Hecks
 
           full = entry["sessionId"]
           reading = @transcript.reading(full)
-          { listed: true, taken_over: reading[:state] != :read || reading[:person_turns].positive?,
+          { listed: true, live: entry["state"].to_s, taken_over: reading[:state] != :read || reading[:person_turns].positive?,
             note: reply_note(reading), **@reaping.facts(held, worktree_of(full)) }
+        end
+
+        # Stops a session with `claude stop`, never by its pid: its process ends, and with it the
+        # MCP servers it started, while the session stays listed.
+        #
+        # @param held [Hash] the `AgentRun` record: `session`
+        # @return [Hash] nothing: the stop is the answer
+        # @raise [ConsoleCapture::Failure] with what the command said, when it refuses
+        def stop_session(**held)
+          id = plain(held[:session])
+          result = @shell.capture(@command, "stop", id)
+          raise ConsoleCapture::Failure, "#{@command} stop #{id} refused: #{result.err.strip}" unless result.ok?
+
+          {}
         end
 
         # Clears the scratch the world lists in the run's worktree.

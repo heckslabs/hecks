@@ -1266,6 +1266,7 @@ Hecks.bluebook "Hecks" do
     # and pruner); kept when the worktree holds uncommitted files or commits `origin` lacks; then
     # the world's scratch is cleared, the worktree retired and the session removed. A refusal at
     # any step keeps the session with that step's reason, so none is removed ahead of its worktree.
+    # A session kept for its Work or its worktree that reads done is stopped, not removed.
     #
     # A session `claude agents` does not list (`listed` false) was removed elsewhere: there is no
     # session left to keep or remove, so the run is recorded tidied and leaves `Tidyable`, and no
@@ -1299,6 +1300,19 @@ Hecks.bluebook "Hecks" do
       on      "AgentRun.SessionReviewed"
       where   { listed != false && taken_over == false && (work_open != true || no_product == true) && unmerged != true && dirty == true }
       trigger AgentRun::Retain, with: { refusal: "worktree has uncommitted files" }
+    end
+
+    # A session kept for its Work or its worktree that the listing shows `done` (`live`) still
+    # holds its process and the MCP servers that process started, though nobody is in it: the
+    # board starts a new session for the Work, never this one. It is stopped, so its process ends
+    # and the session stays listed for a person to resume or remove. A session a person took over
+    # may be attached right now and is never stopped, nor one working or blocked; a stopped one
+    # reads `stopped` at the next reap, so it is asked once. A refused stop is asked again at the
+    # next reap, and the refusal is in the journal as `StopRefused`.
+    policy "StopTheKeptDoneSession" do
+      on      "AgentRun.SessionReviewed"
+      where   { listed != false && taken_over == false && live == "done" && ((work_open == true && no_product != true) || unmerged == true || dirty == true) }
+      ask     :stop_session, with: { run: :run }
     end
 
     policy "ClearTheScratchOfAFinishedRun" do

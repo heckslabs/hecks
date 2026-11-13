@@ -12,6 +12,7 @@ RSpec.describe "AgentRun.Tidy through the Agents port" do
     here=$(dirname "$0")
     if [ "$1" = "agents" ]; then cat "$here/sessions.json"; exit 0; fi
     if [ "$1" = "rm" ]; then echo "$2" >> "$here/rm.log"; exit 0; fi
+    if [ "$1" = "stop" ]; then echo "$2" >> "$here/stop.log"; exit 0; fi
     printf 'backgrounded · stand-in-session\\n'
   SH
 
@@ -22,7 +23,10 @@ RSpec.describe "AgentRun.Tidy through the Agents port" do
   end
 
   let(:scratch) { File.realpath(Dir.mktmpdir("agent-tidy")) }
-  let(:removed) { File.exist?(File.join(scratch, "rm.log")) ? File.readlines(File.join(scratch, "rm.log"), chomp: true) : [] }
+  let(:removed) { logged("rm.log") }
+  let(:stopped) { logged("stop.log") }
+
+  def logged(name) = File.exist?(File.join(scratch, name)) ? File.readlines(File.join(scratch, name), chomp: true) : []
 
   around do |example|
     env = ENV.to_h.slice("PATH", "HOME")
@@ -58,6 +62,13 @@ RSpec.describe "AgentRun.Tidy through the Agents port" do
     dir = File.join(scratch, ".claude", "projects", "p")
     FileUtils.mkdir_p(dir)
     File.write(File.join(dir, "#{FULL_ID}.jsonl"), entries.map { |entry| JSON.generate(entry) }.join("\n"))
+  end
+
+  # A worktree `git` cannot read, which the reaping counts as holding uncommitted work.
+  def worktree_state
+    path = File.join(scratch, "unreadable-worktree")
+    FileUtils.mkdir_p(path)
+    { type: "worktree-state", worktreeSession: { worktreePath: path } }
   end
 
   def user(text) = { type: "user", message: { content: text } }
@@ -109,5 +120,37 @@ RSpec.describe "AgentRun.Tidy through the Agents port" do
   it "refuses a run that was never dispatched, and removes nothing", :aggregate_failures do
     expect(refusal("t-unknown")).not_to include("tidied")
     expect(removed).to be_empty
+  end
+
+  it "stops a done session kept for its worktree, and keeps it listed", :aggregate_failures do
+    transcript(user("say ok"), tool_result, worktree_state)
+    finished_run("t-kept", "done")
+
+    expect(status(JSON.parse(tidy("t-kept")))).to eq("finished")
+    expect([stopped, removed]).to eq([["stand-in-session"], []])
+  end
+
+  it "does not stop a kept session a person replied in", :aggregate_failures do
+    transcript(user("say ok"), tool_result, worktree_state, user("actually, also do this"))
+    finished_run("t-kept-human", "done")
+
+    tidy("t-kept-human")
+    expect(stopped).to be_empty
+  end
+
+  it "does not stop a kept session that already reads stopped", :aggregate_failures do
+    transcript(user("say ok"), tool_result, worktree_state)
+    finished_run("t-kept-stopped", "stopped")
+
+    tidy("t-kept-stopped")
+    expect(stopped).to be_empty
+  end
+
+  it "does not stop a session it removes", :aggregate_failures do
+    transcript(user("say ok"), tool_result)
+    finished_run("t-removed", "done")
+
+    tidy("t-removed")
+    expect([stopped, removed]).to eq([[], ["stand-in-session"]])
   end
 end

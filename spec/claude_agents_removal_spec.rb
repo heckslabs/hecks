@@ -22,7 +22,8 @@ RSpec.describe Hecks::Adapters::ClaudeAgents::Removal do
 
       def initialize(transcript, shell, listed: true)
         @transcript = transcript
-        @listing = Struct.new(:entry) { def find(_id) = entry }.new(listed ? { "sessionId" => "full-id" } : nil)
+        entry = listed ? { "sessionId" => "full-id", "state" => "done" } : nil
+        @listing = Struct.new(:entry) { def find(_id) = entry }.new(entry)
         @shell = shell
         @command = "claude"
         @reaping = Struct.new(:x) { def facts(*) = { unmerged: false } }.new
@@ -74,5 +75,14 @@ RSpec.describe Hecks::Adapters::ClaudeAgents::Removal do
   it "does not stop a session whose worktree still stands", :aggregate_failures do
     expect { remove }.to raise_error(failure)
     expect(shell.calls).to eq([%w[claude rm abc]])
+  end
+
+  it "says the state the listing shows now" do
+    expect(review(state: :read, person_turns: 0)).to include(live: "done")
+  end
+
+  it "stops a session with claude stop, naming what a refusal said", :aggregate_failures do
+    expect { host({}).stop_session(session: { value: "abc" }) }.to raise_error(failure, /claude stop abc refused: kept abc/)
+    expect(shell.calls).to eq([%w[claude stop abc]])
   end
 end
