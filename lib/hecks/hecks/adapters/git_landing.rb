@@ -90,7 +90,7 @@ module Hecks
         onto = plain(held[:onto]) || "main"
         refuse_landing(branch, onto)
 
-        Finisher.new(@git, @checkout, branch: branch, onto: onto, gate: held[:gate], shallow: held[:shallow]).prepare
+        Finisher.prepare(@git, @checkout, held, registry: @registry, branch: branch, onto: onto)
         @retiring = true
         gated(onto) { merge(**held) }
       ensure
@@ -169,7 +169,7 @@ module Hecks
       # The line of this repository, with the limits of the world's `landing "Queue"` setting.
       def lineup
         setting = (@registry&.world("Hecks")&.settings || {})["landing"]
-        Lineup.new(common_git_dir, setting: setting, **@tune)
+        Lineup.new(common_git_dir, setting: setting, gate: BoundGate.new(@registry).method(:refusal), **@tune)
       end
 
       def refuse_rival(branch, onto)

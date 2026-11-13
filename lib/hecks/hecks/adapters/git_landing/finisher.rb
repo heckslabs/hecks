@@ -5,6 +5,7 @@ require_relative "../git_main_pull"
 require_relative "../shell"
 require_relative "../git_shallow_check"
 require_relative "../checkout_gate"
+require_relative "bound_gate"
 
 module Hecks
   module Adapters
@@ -19,25 +20,38 @@ module Hecks
         include GitWorktrees
         include GitMainPull
 
-        # The command that runs the seconds-long checks in a worktree: the checkout's own gate.
-        GATE = CheckoutGate::COMMAND
-
-        # What a completed gate run prints.
+        # What a completed run of a stand-in launcher prints.
         COMPLETED = CheckoutGate::COMPLETED
+
+        # Runs the steps for a landing's record, judged by the project's gate unless the record
+        # hands a stand-in.
+        #
+        # @param git [Git] the adapter every git call goes through
+        # @param checkout [String] the worktree the branch is checked out in
+        # @param held [Hash] the `Landing` record, which may hold `gate:` and `shallow:` stand-ins
+        # @param registry [Runtime::Registry, nil] the booted registry
+        # @param place [Hash] `branch:` (the one to finish) and `onto:` (the one to rebase onto)
+        # @return [void]
+        # @raise [ConsoleCapture::Failure] as {#prepare}
+        def self.prepare(git, checkout, held, registry:, **place)
+          new(git, checkout, registry: registry, gate: held[:gate], shallow: held[:shallow], **place).prepare
+        end
 
         # @param git [Git] the adapter every git call goes through
         # @param checkout [String] the worktree the branch is checked out in
         # @param branch [String] the branch to finish
         # @param onto [String] the branch to rebase onto
-        # @param steps [Hash] `gate:` (answers the {Shell::Result} of the quick gate run in a
-        #   directory) and `shallow:` (given the checkout, branch and onto, raises when one of CI's
-        #   failing checks is red in a depth-1 clone)
+        # @param steps [Hash] `registry:` (the booted registry, whose `Gate` port's adapter judges
+        #   the worktree), `gate:` (a stand-in for that adapter: answers the {Shell::Result} of a
+        #   gate run in a directory) and `shallow:` (given the checkout, branch and onto, raises
+        #   when one of CI's failing checks is red in a depth-1 clone)
         def initialize(git, checkout, branch:, onto:, **steps)
           @git = git
           @checkout = checkout
           @branch = ref(branch)
           @onto = ref(onto)
-          @gate = steps[:gate] || ->(dir) { Shell.new.capture(*GATE, chdir: dir) }
+          @gate = steps[:gate]
+          @bound = BoundGate.new(steps[:registry])
           @shallow = steps[:shallow] || method(:shallow_check)
         end
 
@@ -80,7 +94,15 @@ module Hecks
           boarded ? ["--onto", @onto, boarded] : [@onto]
         end
 
+        # Asks the project's gate, or the stand-in a caller handed over, and refuses when it is red.
         def run_gate
+          return run_stand_in if @gate
+
+          why = @bound.refusal(@checkout)
+          raise ConsoleCapture::Failure, why if why
+        end
+
+        def run_stand_in
           result = @gate.call(@checkout)
           return if result.ok? && result.out.match?(COMPLETED)
 
