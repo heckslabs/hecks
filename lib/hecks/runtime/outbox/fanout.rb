@@ -42,7 +42,7 @@ module Hecks
         def sagas(registry, event, domain, uid)
           Outbox.bluebooks_home_first(registry, domain).flat_map do |bluebook|
             hearing = bluebook.process_managers.select { |process_manager| listens?(process_manager, event) }
-            hearing.map { |process_manager| row_for(event, domain, uid, "saga:#{bluebook.name}::#{process_manager.name}", "reaction") }
+            hearing.map { |heard| row_for(event, domain, uid, "saga:#{bluebook.name}::#{heard.name}", "reaction") }
           end
         end
 

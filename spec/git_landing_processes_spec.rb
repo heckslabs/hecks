@@ -10,6 +10,7 @@ RSpec.describe Hecks::Adapters::GitLanding::Lineup do
 
   let(:script) do
     <<~RUBY
+      require "hecks/hecks/adapters/delivery_library"
       Hecks::Adapters::DeliveryLibrary.require("git_landing/lineup")
       mark = lambda do |text|
         File.open(ARGV[2], "a") { |file| file.flock(File::LOCK_EX) && file.puts(text) }

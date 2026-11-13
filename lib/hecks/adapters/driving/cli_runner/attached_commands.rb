@@ -24,6 +24,18 @@ module Hecks
             found.first if found.size == 1
           end
 
+          # What a line is read against: a bluebook, its launcher settings and its projection.
+          #
+          # @return [Hash] `runtime`, `bluebook`, `launcher`, `options`, `shown`, `cli`, `program`
+          def scope_of(runtime, bluebook, program)
+            launcher = LauncherOptions.settings(runtime, bluebook.name)
+            options  = LauncherOptions.projection(launcher, program)
+            shown = options.merge(audience(runtime, launcher))
+            cli = Projector.call(:cli, bluebook: bluebook, options: shown)
+            { runtime: runtime, bluebook: bluebook, launcher: launcher, options: options,
+              shown: shown, cli: cli, program: program }
+          end
+
           private
 
           # The attached bluebooks that declare the aggregate a line names, so only those are
@@ -41,8 +53,11 @@ module Hecks
             word = argv.find { |entry| !CliRunner::QUERY_WORDS.include?(entry) }.to_s
             return "" unless word.include?(".")
 
-            Naming.snake(word.split(".").first.split("::").last.to_s)
+            Naming.snake(unqualified(word.split(".").first))
           end
+
+          # An aggregate's name without the bluebook written before it (`Delivery::Landing`).
+          def unqualified(name) = name.split("::").last.to_s
 
           def declares?(bluebook, aggregate)
             bluebook.aggregates.any? { |declared| Naming.snake(declared.hecks_name) == aggregate }

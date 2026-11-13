@@ -112,16 +112,13 @@ module Hecks
 
       # Runs the declared process managers against `event`: begins, advances or ends each matching
       # saga instance. A process manager hears an event by its name from any loaded bluebook, as a
-      # policy does, so a domain's saga reacts to an event of a bluebook it attaches: the emitting
-      # domain's own process managers run first, then the others' in load order (C10.2). Each runs
-      # in its own bluebook: its checkpoints and its dispatches are that bluebook's.
+      # policy does: the emitting domain's own run first, then the others' in load order (C10.2),
+      # each in its own bluebook, whose checkpoints and dispatches are its own.
       #
       # @param event [Runtime::Event] the just-emitted event to react to
       # @param domain [String, Symbol] the domain that emitted the event
-      # @param only [Bluebook::ProcessManager, nil] one process manager to run exactly, instead
-      #   of every one that is loaded
-      # @param home [String, Symbol, nil] the bluebook that declares `only`; the emitting domain
-      #   when nil
+      # @param only [Bluebook::ProcessManager, nil] one process manager to run, not all loaded
+      # @param home [String, Symbol, nil] the bluebook declaring `only`; the emitting one when nil
       # @return [void]
       def advance(event, domain, only: nil, home: nil)
         hearers(domain, only, home).each do |process_manager, own|

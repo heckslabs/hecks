@@ -349,19 +349,6 @@ Hecks.bluebook "Hecks" do
       trigger AgentRun::Answer, with: { run: :agent_run, answer: :report }
     end
 
-    # A coder's submitted branch is landed without the coder: the run is keyed by the submitted
-    # commit. A root, as `SubmitWhenTheCoderSaysSubmitted` in the Hecks hecksagon is: counted from the
-    # check that read the coder's job, the job's start sits past the reaction depth limit. The same
-    # event starts QualityControl's maintenance of main (StartOnSubmission), which gates and
-    # reconciles main as it stands and takes no place in the landing line: the two do not contend.
-    # A second submission of one commit is refused by the run key, so one commit has one job.
-    policy "LandWhenWorkIsSubmitted" do
-      on      "Submission.WorkSubmitted"
-      root
-      across  "Delivery"
-      trigger Landing::Submit, with: { run: :sha, checkout: :checkout, branch: :branch, confirm: true }
-    end
-
     # A restore that was asked for is made by the git port, which answers with what it restored or refuses with why.
     policy "RestoreWhenMade" do
       on      "Restoration.RestoreRequested"
@@ -1333,39 +1320,6 @@ Hecks.bluebook "Hecks" do
       on      "Integration.ObserveAnswered"
       where   { outcome.value == "closed" }
       trigger Integration::Close, with: { landed: :landed, report: :report }
-    end
-
-    # The train's pull request merging means origin/main holds the commit: GitHub merged it as a
-    # squash that local main does not share. The checkout that boarded brings its main level
-    # (LinkedTree.PullMain), keeping its unpushed commits, once per landed commit. A merge seen
-    # while CI on the merge commit still runs is recorded (`TrainMergeSeen`) and pulls then; a
-    # merge seen with that CI already finished is pulled on its verdict (`PullMainWhenCiPasses`,
-    # `PullMainWhenCiFails`), and a run already seen merged (`pulled`) is not pulled again. An open
-    # pull request, a red check on it included, answers `running`, so its run stays watched. A
-    # refusal (a dirty or mid-rebase checkout, a conflict) is recorded as PullDeclinedRecorded and
-    # nothing retries it. Each pull is a root reaction: it starts at depth zero, past the bound the
-    # Observe chain has reached.
-    policy "PullMainWhenMerged" do
-      on      "Integration.TrainMergeSeen"
-      root
-      across  "Delivery"
-      trigger LinkedTree::PullMain, with: { run: :landed, checkout: :checkout }
-    end
-
-    policy "PullMainWhenCiPasses" do
-      on      "Integration.ObserveAnswered"
-      root
-      where   { outcome.value == "passed" && pulled.value == false }
-      across  "Delivery"
-      trigger LinkedTree::PullMain, with: { run: :landed, checkout: :checkout }
-    end
-
-    policy "PullMainWhenCiFails" do
-      on      "Integration.ObserveAnswered"
-      root
-      where   { outcome.value == "failed" && pulled.value == false }
-      across  "Delivery"
-      trigger LinkedTree::PullMain, with: { run: :landed, checkout: :checkout }
     end
 
     # A train pull request whose checks all concluded and some failed answers `pr_failed`; the run

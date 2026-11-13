@@ -1358,4 +1358,53 @@ Hecks.hecksagon "Delivery" do
     on      Landing::BranchLanded
     ask     :find_landed_work, with: { branch: :branch }
   end
+
+  # What this repository's pipeline asks of the package: a submitted branch is handed to a landing
+  # job, and local main is pulled once a boarded commit has merged. The events are the Coder
+  # bluebook's and this domain's own; the commands are the package's.
+  subscribe "Coder.WorkSubmitted"
+  subscribe "Hecks.TrainMergeSeen"
+  subscribe "Hecks.ObserveAnswered"
+
+  # A coder's submitted branch is landed without the coder: the run is keyed by the submitted
+  # commit. A root, as `SubmitWhenTheCoderSaysSubmitted` in the Hecks hecksagon is: counted from the
+  # check that read the coder's job, the job's start sits past the reaction depth limit. The same
+  # event starts QualityControl's maintenance of main (StartOnSubmission), which gates and
+  # reconciles main as it stands and takes no place in the landing line: the two do not contend.
+  # A second submission of one commit is refused by the run key, so one commit has one job.
+  translates "LandWhenWorkIsSubmitted" do
+    on      Submission::WorkSubmitted
+    root
+    trigger Landing::Submit, with: { run: :sha, checkout: :checkout, branch: :branch, confirm: true }
+  end
+
+  # The train's pull request merging means origin/main holds the commit: GitHub merged it as a
+  # squash that local main does not share. The checkout that boarded brings its main level
+  # (LinkedTree.PullMain), keeping its unpushed commits, once per landed commit. A merge seen
+  # while CI on the merge commit still runs is recorded (`TrainMergeSeen`) and pulls then; a
+  # merge seen with that CI already finished is pulled on its verdict (`PullMainWhenCiPasses`,
+  # `PullMainWhenCiFails`), and a run already seen merged (`pulled`) is not pulled again. An open
+  # pull request, a red check on it included, answers `running`, so its run stays watched. A
+  # refusal (a dirty or mid-rebase checkout, a conflict) is recorded as PullDeclinedRecorded and
+  # nothing retries it. Each pull is a root reaction: it starts at depth zero, past the bound the
+  # Observe chain has reached.
+  translates "PullMainWhenMerged" do
+    on      Integration::TrainMergeSeen
+    root
+    trigger LinkedTree::PullMain, with: { run: :landed, checkout: :checkout }
+  end
+
+  translates "PullMainWhenCiPasses" do
+    on      Integration::ObserveAnswered
+    root
+    where   { outcome.value == "passed" && pulled.value == false }
+    trigger LinkedTree::PullMain, with: { run: :landed, checkout: :checkout }
+  end
+
+  translates "PullMainWhenCiFails" do
+    on      Integration::ObserveAnswered
+    root
+    where   { outcome.value == "failed" && pulled.value == false }
+    trigger LinkedTree::PullMain, with: { run: :landed, checkout: :checkout }
+  end
 end
