@@ -46,40 +46,27 @@ RSpec.describe Hecks::Adapters::RoleServerEnv do
 
   describe "the Agents bluebook's rows" do
     let(:guard) { Hecks::Adapters::RoutingGuard.new }
+    let(:scribe_rows) do
+      [{ role: "scribe", pattern: "AgentRun.check_all!" }, { role: "scribe", pattern: "SendTrain.board!" }]
+    end
+    let(:scribe) { Hecks::Adapters::RoutingGuard.new(settings: { rows: ->(_table) { scribe_rows } }) }
 
     def lines(role) = guard.server_env(role: { value: role })[:text].lines.map(&:chomp)
 
-    it "restricts the orchestrator to the commands of its rows the Hecks domain has", :aggregate_failures do
-      expect(lines("orchestrator")).to include("HECKS_SERVER_TOOLS=commands", "HECKS_SERVER_DOMAINS=lib/hecks/hecks")
-      expect(lines("orchestrator").last).to include("agent_run.check_all", "send_train.board")
-    end
-
-    it "leaves a role with no rows unrestricted" do
+    it "leaves the orchestrator and a role with no rows unrestricted", :aggregate_failures do
+      expect(lines("orchestrator")).to eq([])
       expect(lines("coder")).to eq([])
     end
 
-    it "plans the orchestrator as a role with rows, and the coder as one with none", :aggregate_failures do
-      expect(guard.server_plan("orchestrator")).to include(rows: true)
-      expect(guard.server_plan("coder")).to eq(rows: false, variables: {}, commands: [], unserved: [])
-    end
-
-    it "lists every role with rows and the commands its rows name, for the server's cache", :aggregate_failures do
-      expect(guard.server_table.keys).to include("orchestrator")
-      expect(guard.server_table.fetch("orchestrator")).to include("agent_run.check_all", "send_train.board")
-    end
-
-    it "writes that table where a role's server reads it, when the query is asked" do
-      with_cache_root do
-        guard.server_env(role: { value: "orchestrator" })
-        expect(Hecks::RoleServerCache.lookup(File.expand_path("..", __dir__), "orchestrator")).to include("agent_run.check_all")
-      end
+    it "plans a role with rows as restricted, and the orchestrator as one with none", :aggregate_failures do
+      expect(scribe.server_plan("scribe")).to include(rows: true)
+      expect(guard.server_plan("orchestrator")).to eq(rows: false, variables: {}, commands: [], unserved: [])
     end
 
     it "does not write a table made of stand-in rows" do
-      stand_in = Hecks::Adapters::RoutingGuard.new(settings: { rows: ->(_table) { [] } })
       with_cache_root do
-        stand_in.server_env(role: { value: "orchestrator" })
-        expect(Hecks::RoleServerCache.lookup(File.expand_path("..", __dir__), "orchestrator")).to eq(:miss)
+        scribe.server_env(role: { value: "scribe" })
+        expect(Hecks::RoleServerCache.lookup(File.expand_path("..", __dir__), "scribe")).to eq(:miss)
       end
     end
 
@@ -93,12 +80,6 @@ RSpec.describe Hecks::Adapters::RoleServerEnv do
       ENV["XDG_CACHE_HOME"] = saved
       Hecks::CacheDir.reset!
       FileUtils.remove_entry(home)
-    end
-
-    it "reads the rows and the commands from the checkout it is given", :aggregate_failures do
-      plan = Hecks::Adapters::RoutingGuard.new(checkout: File.expand_path("..", __dir__)).server_plan("orchestrator")
-      expect(plan[:variables]).to eq(guard.server_plan("orchestrator")[:variables])
-      expect(plan[:unserved]).to include("Work.*")
     end
 
     it "refuses a checkout that has no Agents bluebook, so a caller can fall back" do
