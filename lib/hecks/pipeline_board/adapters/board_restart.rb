@@ -2,6 +2,7 @@
 
 require "rbconfig"
 require_relative "probe"
+require_relative "board_footprint"
 require_relative "../../hecks/adapters/main_integration/code_watch"
 
 module Hecks
@@ -72,15 +73,22 @@ module Hecks
         # environment, which holds RUBYOPT, carries over; other interpreter flags do not.
         def replace_process(argv) = exec(*argv, chdir: @directory)
 
-        # Resident megabytes from `/proc` where there is one, else from `ps`; 0 when neither
-        # answers.
+        # Megabytes held: resident from `/proc` where there is one, else the physical footprint
+        # where `footprint` answers (macOS, whose resident size counts freed pages), else resident
+        # from `ps`; 0 when none answers.
         def resident_mb
           status = "/proc/self/status"
           return File.read(status)[PROC_RSS, 1].to_i / 1024.0 if File.exist?(status)
 
-          Probe.run("ps", "-o", "rss=", "-p", Process.pid.to_s).to_i / 1024.0
+          footprint_mb || (Probe.run("ps", "-o", "rss=", "-p", Process.pid.to_s).to_i / 1024.0)
         rescue Unavailable, SystemCallError
           0.0
+        end
+
+        def footprint_mb
+          BoardFootprint.megabytes(Process.pid) if BoardFootprint.available?
+        rescue Unavailable
+          nil
         end
       end
     end

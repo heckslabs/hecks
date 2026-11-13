@@ -3,6 +3,7 @@
 require "spec_helper"
 require "timeout"
 require "hecks/pipeline_board/adapters/pipeline_github"
+require "hecks/pipeline_board/adapters/board_footprint"
 
 # What the board keeps between reads stays bounded however long it serves: its kept answers are
 # only those asked within their ttl, and its memo of train attempts only the attempts of the runs
@@ -47,6 +48,17 @@ RSpec.describe "the board's kept reads" do
       clock[0] = 21.0
       cache.fetch(:other) { clock.first }
       expect(cache.size).to eq(1)
+    end
+  end
+
+  describe Hecks::Adapters::PipelineBoard::BoardFootprint do
+    it "reads the physical footprint in megabytes, whatever unit footprint prints it in", :aggregate_failures do
+      expect(described_class.parse("    phys_footprint: 584 MB\n")).to eq(584.0)
+      expect(described_class.parse("    phys_footprint: 1.5 GB\n")).to eq(1536.0)
+    end
+
+    it "answers nil for text with no footprint, so the restart falls back to ps" do
+      expect(described_class.parse("footprint: no process\n")).to be_nil
     end
   end
 
