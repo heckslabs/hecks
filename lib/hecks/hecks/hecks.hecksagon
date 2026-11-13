@@ -7,6 +7,9 @@ Hecks.hecksagon "Hecks" do
   %w[Bluebook Hecksagon World Adapter Port Translation Expression Tenancy Deploy Site Tickets Composer QualityControl
      Coder Fixer PipelineBoard Pipeline Agents Triage]
     .each { |declaration| attaches declaration }
+  # The repository verbs (a checkout's state, a commit, a worktree, a landing) are the delivery
+  # package's, vendored from Switchyard with its ports and the Ruby its adapters run (ADR 0205).
+  attaches "delivery", from: :vendor
   # An architect review asked for by event starts a session through AgentRun, keyed by the review
   # (see StartTheRoleOnReviewRequest in the delegate bluebook).
   subscribe "Agents.PlanReviewRequested"
@@ -155,7 +158,6 @@ Hecks.hecksagon "Hecks" do
     answers_query "Status"
   end
 
-
   Hecks::BoardingHold.port "Holding" do
     asks "Mark", to: BoardingHold do
       attribute :run, RunKey
@@ -225,15 +227,6 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
-  Hecks::Workspace.port "Reading" do
-    answers_query "Status"
-    answers_query "Strays"
-    answers_query "Changes"
-    answers_query "History"
-    answers_query "Stashes"
-    answers_query "DanglingCommits"
-  end
-
   Hecks::Workspace.port "Settings" do
     answers_query "Settings"
   end
@@ -244,14 +237,6 @@ Hecks.hecksagon "Hecks" do
 
   Hecks::Workspace.port "Where" do
     answers_query "Where"
-  end
-
-  Hecks::Revision.port "Committing" do
-    asks "Commit", to: Revision do
-      attribute :run, RunKey
-      answers "CommitAnswered"
-      refuses "CommitRefused"
-    end
   end
 
   Hecks::Restoration.port "Restoring" do
@@ -274,100 +259,6 @@ Hecks.hecksagon "Hecks" do
       answers "ShallowSwitchAnswered"
       refuses "ShallowSwitchRefused"
     end
-  end
-
-  Hecks::LinkedTree.port "WorktreeAdding" do
-    asks "Create", to: LinkedTree do
-      attribute :run, RunKey
-      answers "CreateAnswered"
-      refuses "CreateRefused"
-    end
-
-    asks "Pull", to: LinkedTree do
-      attribute :run, RunKey
-      answers "PullAnswered"
-      refuses "PullRefused"
-    end
-  end
-
-  Hecks::LinkedTree.port "Publishing" do
-    asks "Push", to: LinkedTree do
-      attribute :run, RunKey
-      answers "BranchPublishAnswered"
-      refuses "BranchPublishRefused"
-    end
-  end
-
-  # Rebasing a worktree's branch onto a base: the git port runs the rebase and answers the sha, or refuses
-  # with the conflicted files and the sides they came from.
-  Hecks::LinkedTree.port "Rebasing" do
-    asks "Replay", to: LinkedTree do
-      attribute :run, RunKey
-      answers "RebaseAnswered"
-      refuses "RebaseRefused"
-    end
-  end
-
-  # Applying one commit onto a worktree's branch: the git port cherry-picks it and answers the sha, or refuses
-  # with the conflicted files and aborts, so nothing is left half-applied.
-  Hecks::LinkedTree.port "Picking" do
-    asks "Apply", to: LinkedTree do
-      attribute :run, RunKey
-      answers "PickAnswered"
-      refuses "PickRefused"
-    end
-  end
-
-  Hecks::Landing.port "Worktrees" do
-    asks "Merge", to: Landing do
-      attribute :run, RunKey
-      answers "MergeAnswered"
-      refuses "MergeRefused"
-    end
-
-    asks "FinishBranch", to: Landing do
-      attribute :run, RunKey
-      answers "MergeAnswered"
-      refuses "MergeRefused"
-    end
-
-    asks "StartLanding", to: Landing do
-      attribute :run, RunKey
-      answers "LandingJobStarted"
-      refuses "HandoffRefused"
-    end
-
-    asks "CarryBranch", to: Landing do
-      attribute :run, RunKey
-      answers "MergeAnswered"
-      refuses "CarryRefused"
-    end
-
-    asks "Convene", to: Landing do
-      attribute :run, RunKey
-      answers "ConveneAnswered"
-      refuses "ConveneRefused"
-    end
-
-    asks "Remove", to: Landing do
-      attribute :run, RunKey
-      answers "RemovalAnswered"
-      refuses "RemovalRefused"
-    end
-
-    asks "DropBranch", to: Landing do
-      attribute :run, RunKey
-      answers "DiscardAnswered"
-      refuses "DiscardRefused"
-    end
-
-    asks "MoveAside", to: Landing do
-      attribute :run, RunKey
-      answers "SetAsideAnswered"
-      refuses "SetAsideRefused"
-    end
-
-    answers_query "Unlanded"
   end
 
   # The Work item a landed branch was cut for: the port reads the Work items and answers the open

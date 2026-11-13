@@ -1,0 +1,7 @@
+# This package's own Ruby, beside its bluebook. Required by its place, so it loads whatever put
+# the package on the load path.
+require File.expand_path("../lib/adapters/git_landing", __dir__)
+
+Hecks.adapter "GitLanding" do
+  port "Worktrees"
+end

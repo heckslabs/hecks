@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
-require_relative "git_landing"
+require_relative "delivery_library"
+Hecks::Adapters::DeliveryLibrary.require("git_landing")
 require_relative "landed_branches"
 
 module Hecks

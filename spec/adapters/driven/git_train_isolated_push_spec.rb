@@ -4,7 +4,8 @@ require "open3"
 require "tmpdir"
 require "timeout"
 require "hecks/hecks/adapters/git_train"
-require "hecks/hecks/adapters/git_landing/lineup"
+require "hecks/hecks/adapters/delivery_library"
+Hecks::Adapters::DeliveryLibrary.require("git_landing/lineup")
 
 # The push is made from a throwaway detached worktree at the boarded commit, so nothing that
 # happens to the primary checkout (a landing, an edit) reaches the gate or the push. Temp

@@ -1,5 +1,6 @@
 require "spec_helper"
-require "hecks/hecks/adapters/git_landing"
+require "hecks/hecks/adapters/delivery_library"
+Hecks::Adapters::DeliveryLibrary.require("git_landing")
 require_relative "support/stand_in_checkout"
 
 # The gate a landing asks: the adapter the booted project bound to the Gate port, judged against a

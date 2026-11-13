@@ -1,0 +1,7 @@
+# This package's own Ruby, beside its bluebook. Required by its place, so it loads whatever put
+# the package on the load path.
+require File.expand_path("../lib/adapters/git_pick", __dir__)
+
+Hecks.adapter "GitPick" do
+  port "Picking"
+end

@@ -1,8 +1,9 @@
 require "spec_helper"
 require "tmpdir"
 require "open3"
-require "hecks/hecks/adapters/git_landing"
-require "hecks/hecks/adapters/git_worktree_add"
+require "hecks/hecks/adapters/delivery_library"
+Hecks::Adapters::DeliveryLibrary.require("git_landing")
+Hecks::Adapters::DeliveryLibrary.require("git_worktree_add")
 
 # A train squash-merged on origin: local main's commits up to the boarded sha are carried and only
 # the ones after it are rebased. Every example builds throwaway repositories on a local bare remote.

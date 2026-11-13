@@ -1,5 +1,6 @@
 require "spec_helper"
-require "hecks/hecks/adapters/git_landing"
+require "hecks/hecks/adapters/delivery_library"
+Hecks::Adapters::DeliveryLibrary.require("git_landing")
 
 # The shallow check a landing runs: the adapter the booted project bound to the ShallowChecks port,
 # or nothing when it binds none.
