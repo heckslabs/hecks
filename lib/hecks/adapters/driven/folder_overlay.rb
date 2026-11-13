@@ -30,7 +30,9 @@ module Hecks
 
       # Loads the copy's own overlay, then its local files (beside the domain, then in the working
       # directory), then an environment's overlay, each `.hecksagon` then `.world`, when present.
-      # The environment loads last, so `memory` still wins over a local database.
+      # The environment loads last, so `memory` still wins over a local database. A linked
+      # worktree that keeps no local file reads the domain's own from the main checkout instead
+      # (WorktreeBorrow); the working directory's files are read where they stand either way.
       #
       # @param directory [String] the directory holding the `environments/` folder
       # @param environment [String, nil] the environment name; nil loads no named overlay
@@ -39,10 +41,14 @@ module Hecks
         return if Thread.current[:hecks_committed_only]
 
         WorktreeOverlay.warn_once(directory)
-        load_each(directory, overlay_files(LOCAL_OVERLAY))
-        [directory, Dir.pwd].uniq.each { |where| load_each(where, LOCAL_FILES) }
+        own = WorktreeBorrow.directory(directory, env: overlay_env) || directory
+        load_each(own, overlay_files(LOCAL_OVERLAY))
+        [own, Dir.pwd].uniq.each { |where| load_each(where, LOCAL_FILES) }
         load_each(directory, overlay_files(environment)) if environment && environment != LOCAL_OVERLAY
       end
+
+      # @return [#[]] the variables the worktree borrow reads: the process environment
+      def overlay_env = ENV
 
       # The `.hecksagon` and `.world` files of one named overlay, relative to the domain.
       #

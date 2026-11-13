@@ -43,6 +43,10 @@ module Hecks
 
       SQL_TYPES = { "Integer" => "INTEGER", "Float" => "REAL" }.freeze
 
+      # Milliseconds a statement waits for a file another connection holds before it fails as
+      # "database is locked", when the world's `busy_timeout_ms` names no other.
+      BUSY_TIMEOUT_MS = 10_000
+
       attr_reader :aggregate, :path
 
       # Names the optional persistence capabilities `Ports::Persistence::AppendOnly` may rely on.
@@ -57,8 +61,9 @@ module Hecks
       #
       # @param aggregate [Bluebook::Aggregate] the aggregate whose table this adapter owns
       # @param settings [Hash{Symbol, String => Object}] world settings for the binding:
-      #   `database` (file path, default `data/<table>.db`) and `domain` (scopes saga rows,
-      #   default the aggregate's name), each read under a Symbol or a String key
+      #   `database` (file path, default `data/<table>.db`), `domain` (scopes saga rows,
+      #   default the aggregate's name) and `busy_timeout_ms` (how long a statement waits for a
+      #   held file, default {BUSY_TIMEOUT_MS}), each read under a Symbol or a String key
       # @param root [String, nil] directory a relative `database` path resolves against; nil
       #   means the process working directory
       # @raise [LoadError] if the `sqlite3` gem is not installed
@@ -71,6 +76,7 @@ module Hecks
         @path      = resolve_path(settings, root)
         # Scopes saga rows; falls back to the aggregate's name for a directly built adapter.
         @domain = settings.fetch(:domain) { aggregate.name }.to_s
+        @busy_timeout_ms = Integer(settings.fetch(:busy_timeout_ms, BUSY_TIMEOUT_MS))
         open_database
         refuse_orphaned_rows!
         create_tables!
@@ -88,9 +94,7 @@ module Hecks
       def transaction(&)
         return yield if @db.transaction_active?
 
-        # Immediate, so the write lock is taken up front: a deferred transaction that reads and then
-        # writes fails at once when another process holds the file, and the busy timeout never runs.
-        @db.transaction(:immediate, &)
+        immediately(&)
       end
 
       # Names the aggregate's table; the journal table and outbox rows are keyed off it.
@@ -100,12 +104,27 @@ module Hecks
 
       private
 
+      # Immediate, so the write lock is taken up front: a deferred transaction that reads and then
+      # writes fails at once when another process holds the file, and the busy timeout never runs.
+      # Whatever leaves the block without its COMMIT succeeding rolls back: an exception, an
+      # interrupt, a killed thread, or a COMMIT that found the file busy. A transaction left open
+      # keeps the lock that turns every other connection away until this process exits.
+      def immediately
+        @db.execute("BEGIN IMMEDIATE TRANSACTION")
+        result = yield
+        @db.execute("COMMIT TRANSACTION")
+        result
+      ensure
+        @db.execute("ROLLBACK TRANSACTION") if @db.transaction_active?
+      end
+
       def open_database
         FileUtils.mkdir_p(File.dirname(@path))
         @db = SQLite3::Database.new(@path)
         # Several processes may boot one journal at once (the gate's checks do), so a busy file
-        # is waited for rather than refused as "database is locked".
-        @db.busy_timeout = 10_000
+        # is waited for rather than refused as "database is locked". The handler sleeps in Ruby,
+        # so the process's other threads (a landing ticket's heartbeat) run while it waits.
+        @db.busy_handler_timeout = @busy_timeout_ms
         @db.results_as_hash = true
         # The append is the recovery commit point, so the fsync policy is explicit.
         @db.execute("PRAGMA synchronous = FULL")

@@ -276,6 +276,34 @@ RSpec.describe Hecks::Adapters::InProcessOperations do
     end
   end
 
+  # The scratch Shelf domain stands in for the Hecks domain, so a bare word is read as its names.
+  describe "#follow by a bluebook name" do
+    before do
+      stub_const("Hecks::Adapters::InProcessOperations::DomainNames::HOME", @dir)
+      shelved = Hecks::Runtime::Event.new(name: "Shelved", aggregate: "Shelf::Book", id: "Dune", payload: {}, occurred_at: "now")
+      allow(adapter).to receive(:event_repository).and_return(double(events: [shelved]))
+    end
+
+    it "follows the domain that boots the named bluebook" do
+      expect(adapter.follow(domain: "Shelf")[:events].map { |event| event["name"] }).to eq(["Shelved"])
+    end
+
+    it "takes the name in any case" do
+      expect(adapter.follow(domain: { value: "shelf" })[:cursor]).to eq(1)
+    end
+
+    it "boots the home domain for a name, never a directory of that name" do
+      allow(adapter).to receive(:boot).and_call_original
+      adapter.follow(domain: "Shelf")
+      expect(adapter).to have_received(:boot).with(@dir).once
+    end
+
+    it "refuses a word that names no bluebook and no directory, listing the names it takes" do
+      expect { adapter.follow(domain: "Shelves") }
+        .to raise_error(Hecks::Runtime::NotFound, /no such domain "Shelves": .* one of Shelf\z/)
+    end
+  end
+
   describe "#stream" do
     let(:entries) do
       [Hecks::Runtime::Event.new(name: "Shelved", aggregate: "Shelf::Book", id: "Dune", payload: {}, occurred_at: "now")]

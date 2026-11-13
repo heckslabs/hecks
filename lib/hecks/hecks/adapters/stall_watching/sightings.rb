@@ -2,6 +2,7 @@
 
 require "time"
 require_relative "standing"
+require_relative "openings"
 
 module Hecks
   module Adapters
@@ -11,11 +12,14 @@ module Hecks
       # has waited and what its row allows. Whether that is a stall is `Stall.File`'s rule.
       class Sightings
         # @param kinds [Array<Hash>] the `StallKind` rows: `kind`, `aggregate`, `opens`,
-        #   `closes`, `minutes`, `forgets`, `fixer`
+        #   `closes`, `closed_by`, `evidence`, `minutes`, `forgets`, `fixer`
         # @param now [Integer] the clock's answer, in Unix epoch seconds
-        def initialize(kinds, now)
+        # @param evidence [#call] answers a kind's `evidence` read as one line, or nil; asked only
+        #   for a line past its kind's minutes, so a young line reads nothing
+        def initialize(kinds, now, evidence: ->(_kind) {})
           @kinds = kinds
           @now = now
+          @evidence = evidence
         end
 
         # @param lines [Array<Hash>] tap lines in sequence order
@@ -58,19 +62,7 @@ module Hecks
 
         # Each subject the kind's opening line named and no closing line has closed, with when it
         # first opened.
-        def unclosed(kind, lines)
-          mine = lines.select { |line| line["kind"] == "event" && line["aggregate"] == kind[:aggregate] }
-          closed = subjects(mine, kind[:closes].to_s.split(",").map(&:strip))
-          opened(mine, kind[:opens]).reject { |subject, _| subject.empty? || closed.include?(subject) }
-        end
-
-        # The first time each subject recorded the opening event.
-        def opened(lines, event)
-          lines.select { |line| line["event"] == event }
-               .each_with_object({}) { |line, first| first[line["id"].to_s] ||= line["at"] }
-        end
-
-        def subjects(lines, events) = lines.select { |line| events.include?(line["event"]) }.map { |line| line["id"].to_s }
+        def unclosed(kind, lines) = Openings.new(kind, lines).unclosed
 
         def sighting(kind, subject, at, run)
           waited = [(@now - Time.iso8601(at.to_s).to_i) / 60, 0].max
@@ -83,7 +75,15 @@ module Hecks
 
         def detail(kind, subject, at, waited)
           "#{kind[:aggregate]} #{subject} recorded #{kind[:opens]} at #{at} and no #{kind[:closes]} after " \
-            "#{waited} minutes (#{kind[:minutes]} allowed). Fixer: #{kind[:fixer]}. #{move(kind)}"
+            "#{waited} minutes (#{kind[:minutes]} allowed). Fixer: #{kind[:fixer]}. #{seen(kind, waited)}#{move(kind)}"
+        end
+
+        # What the kind's `evidence` read says now, for a line past its minutes; empty otherwise.
+        def seen(kind, waited)
+          return "" unless kind[:evidence] && waited >= kind[:minutes].to_i
+
+          line = @evidence.call(kind)
+          line ? "#{line}. " : ""
         end
 
         # The kind's move, and the standing rule that no move stops a session.

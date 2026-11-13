@@ -21,12 +21,18 @@ Hecks.bluebook "Hecks" do
       # aggregate id that close it (comma separated), the minutes it may stay open before it is a
       # stall, the minutes after which an open line is history rather than a stall, the role that
       # fixes it, and the move it makes, in Hecks commands: the stall's Work item carries it as its
-      # detail. The opening line's aggregate id is the stall's subject.
+      # detail. The opening line's aggregate id is the stall's subject. `closed_by` says which
+      # closing lines close an opening line: "id" (the default) those on the same aggregate id,
+      # "any" every closing line on the aggregate after it, whatever its id. `evidence` names a
+      # read the stall's detail carries when it is filed: "processes" is the busiest process class
+      # and the session whose shell owns it.
       value_object "StallKind" do
         attribute :kind,      String
         attribute :aggregate, String
         attribute :opens,     String
         attribute :closes,    String
+        attribute :closed_by, String
+        attribute :evidence,  String
         attribute :minutes,   Integer
         attribute :forgets,   Integer
         attribute :fixer,     String
@@ -43,6 +49,17 @@ Hecks.bluebook "Hecks" do
                closes: "TrainPrRerun,TrainPrExhausted", minutes: 10, forgets: 1440, fixer: "orchestrator",
                move: "Read the failed PR's CI (gh pr view), rerun its failed jobs once (gh run rerun --failed), " \
                      "and if it fails again Work.plan! red-train-<pr> (category red, priority now) with the failure as its detail."
+        # A queued train pull request asks for a chain of ticks keyed by the boarded commit
+        # (`TickWhenQueued`); a chain that never beats within 3 minutes has no live worker. A healthy
+        # chain's first beat comes about half a minute after it is asked for. Every verdict on the
+        # pull request stops the chain (`TickerStopped`), so a closed run is not a stall; a declined
+        # start is no worker and stays one. A chain that beats and then dies is not this kind: the
+        # line closes on its first beat.
+        member kind: "train-pr-unbeaten", aggregate: "Hecks::Ticker", opens: "TickerRequested",
+               closes: "Ticked,TickerStopped", minutes: 3, forgets: 1440, fixer: "orchestrator",
+               move: "Heartbeat.beat! --wait once, then Integration.advance! confirm=true, so the pushed run " \
+                     "is observed; then read the chain's log (~/.claude/hecks-dev/ticker/<commit>.log) and " \
+                     "report a declined or ended chain as the cause."
         member kind: "agent-run-start", aggregate: "Hecks::AgentRun", opens: "AgentRunRequested",
                closes: "AgentRunStarted,AgentRunDeclined", minutes: 10, forgets: 1440, fixer: "orchestrator",
                move: "Work.yield! the run's Work item (AgentRun.running names it) with the reason, " \
@@ -67,6 +84,15 @@ Hecks.bluebook "Hecks" do
                move: "Relief.plan! run.value=<stall> to see what frees space, then Relief.relieve! " \
                      "run.value=<stall>-relief state.value=high --confirm, which retires merged worktrees and " \
                      "tidies done runs only; report unpushed, dirty and pinned subjects by path, never remove them."
+        # The machine's load over its mark for five minutes. Each crossing is keyed by the beat that
+        # heard it, so any later fall closes the rise, and the subject is the beat of the rise.
+        member kind: "load", aggregate: "Hecks::Machine", opens: "LoadRoseAbove", closes: "LoadFellBelow",
+               closed_by: "any", evidence: "processes", minutes: 5, forgets: 1440, fixer: "orchestrator",
+               move: "The detail names the busiest process class and the session whose shell owns it " \
+                     "(Machine.busiest reads every class again); AgentRun.running names that session's started run. " \
+                     "AgentRun.answer! that run naming the processes and asking it to end the processes its " \
+                     "commands start and to bound how many it starts. Never kill a pid. If no pipeline " \
+                     "session owns them, Work.plan! a work item with the process list as its detail and leave it to the owner."
       end
 
       # One opening line still waiting for its closing line, as the tap shows it and its kind's row

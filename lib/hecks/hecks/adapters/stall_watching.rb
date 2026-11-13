@@ -3,6 +3,7 @@
 require "hecks/runtime/event_feed"
 require "hecks/adapters/driven/system_clock"
 require_relative "stall_watching/sightings"
+require_relative "machine_sampling/process_classes"
 
 module Hecks
   module Adapters
@@ -17,10 +18,13 @@ module Hecks
       # @param registry [Runtime::Registry, nil] the booted registry; its Hecks world names the tap
       # @param aggregate [Bluebook::Aggregate, nil] `StallWatch`, whose `StallKind` rows are read
       # @param tap [String, nil] a log in place of the world's, for a spec; a boot never passes it
-      def initialize(registry: nil, aggregate: nil, tap: nil)
+      # @param processes [#line, nil] the `processes` evidence read, for a spec; the machine's
+      #   {MachineSampling::ProcessClasses} when nil
+      def initialize(registry: nil, aggregate: nil, tap: nil, processes: nil)
         @registry = registry
         @aggregate = aggregate
         @tap = tap
+        @processes = processes
       end
 
       # @param run [Hash, String] the look that asks, as its key or the key's value
@@ -30,7 +34,7 @@ module Hecks
         path = tap_path
         return [] unless path
 
-        Sightings.new(kinds, SystemClock.now).rows(lines(path), plain(run).to_s)
+        Sightings.new(kinds, SystemClock.now, evidence: method(:evidence)).rows(lines(path), plain(run).to_s)
       end
 
       # @param run [Hash, String] the look that asks, as its key or the key's value
@@ -46,6 +50,14 @@ module Hecks
       private
 
       def plain(argument) = argument.is_a?(Hash) ? argument[:value] : argument
+
+      # The one evidence read a row may name: `processes`, the busiest process class and the
+      # session that owns it. It reads the process table and changes nothing.
+      def evidence(kind)
+        return unless kind[:evidence] == "processes"
+
+        (@processes ||= MachineSampling::ProcessClasses.new).line
+      end
 
       def lines(path) = Runtime::EventFeed.new(path: path).read(since: 0, limit: EVERY_LINE)[:events]
 

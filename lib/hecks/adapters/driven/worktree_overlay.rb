@@ -1,8 +1,8 @@
 module Hecks
   module Adapters
     # Says, once per process, when a linked worktree lacks the gitignored overlay files its main
-    # checkout keeps. Those files exist only in the main checkout, so a command run from a
-    # worktree stores in Memory without saying so. This warns; it never blocks the command.
+    # checkout keeps and does not borrow them (WorktreeBorrow), as under the spec runner: a
+    # command run there stores in Memory. This warns; it never blocks the command.
     module WorktreeOverlay
       # The line a linked worktree's `.git` file holds, naming the directory in the main checkout.
       GITDIR_LINE = /\Agitdir: (.+)\s*\z/
@@ -30,25 +30,31 @@ module Hecks
         text
       end
 
-      # The warning for a directory inside a linked worktree, or nil when none applies.
+      # The warning for a directory inside a linked worktree, or nil when none applies. It asks
+      # what a boot with no named environment would lack, so a Memory boot beside it (the
+      # resident loads one) says nothing about files a default boot borrows.
       #
       # @param directory [String] a directory inside a checkout
+      # @param env [#to_h] the process environment
       # @return [String, nil]
-      def warning_for(directory)
-        _main, files = gap(directory)
+      def warning_for(directory, env: ENV)
+        _main, files = gap(directory, env: env.to_h.except("HECKS_ENVIRONMENT"))
         message(files)
       end
 
       # The main checkout a linked worktree was made from, and the overlay files that checkout
-      # holds and this worktree lacks. Nothing is returned for a checkout that is not a worktree.
+      # holds and this worktree lacks. Nothing is returned for a checkout that is not a worktree,
+      # and nothing is missing while the worktree borrows the main checkout's (WorktreeBorrow).
       #
       # @param directory [String] a directory inside a checkout
+      # @param env [#[]] where the borrow reads the spec switch and the environment
       # @return [Array(String, Array<String>), Array(nil, Array)] the main checkout's root, then the
       #   relative paths of the overlay files it holds and the worktree lacks
-      def gap(directory)
+      def gap(directory, env: ENV)
         worktree = checkout_root(directory)
         main = worktree && main_checkout(worktree)
         return [nil, []] unless main
+        return [main, []] if WorktreeBorrow.from(directory, env: env)
 
         [main, missing(overlay_files(main), overlay_files(worktree))]
       end
@@ -116,3 +122,5 @@ module Hecks
     end
   end
 end
+
+require_relative "worktree_borrow"

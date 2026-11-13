@@ -326,7 +326,7 @@ Hecks.bluebook "Hecks" do
       # `hecks follow <domain> --stream` asks again from each cursor and prints every entry as it
       # arrives, until interrupted (the world's `launcher` setting lists the question under `streams`).
       query "Follow" do
-        description "A domain's persisted event log past a cursor, for tailing it call by call."
+        description "A domain's persisted event log past a cursor, for tailing it call by call. The domain is a directory (a word with a path separator) or the name of a bluebook the Hecks domain boots, such as Hecks or Tickets; a bare word is a bluebook name first, then a directory."
         attribute :domain,    Subject
         attribute :aggregate, Verb,    optional: true
         attribute :since,     Integer, optional: true

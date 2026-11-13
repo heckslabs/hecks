@@ -87,7 +87,7 @@ module Hecks
           aggregate = find("Hecks", "AgentRun")
           return {} unless aggregate
 
-          @registry.repository("Hecks", aggregate).all.to_h { |run| [field(run, :run).to_s, state(run)] }
+          holders_last(@registry.repository("Hecks", aggregate).all).to_h { |run| [field(run, :run).to_s, state(run)] }
         end
 
         # @return [Hash{String => String}] each agent run's session id with the run's key, for the
@@ -150,6 +150,14 @@ module Hecks
           { yield_kind: field(record, :yield_kind).to_s, retry_at: field(record, :retry_at).to_s,
             yield_count: field(record, :yield_count).to_i }
         end
+
+        # A run key reused after its run ended keeps the ended record under another id with the
+        # same `run`, and the store lists the records in no set order. The record whose id is its
+        # run key holds the key, so it is placed last and its state is the one the key answers; an
+        # archive is read only when no record holds its key.
+        def holders_last(runs) = runs.sort_by.with_index { |run, index| [holder?(run) ? 1 : 0, index] }
+
+        def holder?(run) = run.id.to_s == field(run, :run).to_s
 
         def state(run)
           { status: field(run, :status).to_s, condition: field(run, :condition).to_s, started_at: field(run, :started_at).to_s }

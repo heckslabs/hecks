@@ -46,6 +46,11 @@ RSpec.describe "a resident's environment" do
       expect(built["HECKS_RESIDENT_PROTOCOL"]).to eq("1")
     end
 
+    it "keeps the spec runner's switch, so a spec's resident writes where it stands" do
+      built = resident::SpawnEnv.build(caller_env.merge("HECKS_WRITES_LOCAL" => "1"))
+      expect(built["HECKS_WRITES_LOCAL"]).to eq("1")
+    end
+
     it "drops the HECKS, CARGO, PG, Bundler, Ruby and session variables, and the rest" do
       dropped = %w[HECKS_FOO HECKS_ENVIRONMENT BUNDLE_GEMFILE RUBYOPT RUBYLIB GEM_HOME CARGO_TARGET_DIR PGHOST
                    CLAUDE_CODE_SESSION_ID SSH_AUTH_SOCK]
@@ -72,6 +77,11 @@ RSpec.describe "a resident's environment" do
       resident::Baseline.write(root, names)
       expect(names).to be_empty
       expect(resident::Baseline.atypical?(root)).to be(false)
+    end
+
+    it "is plain when it also holds the spec runner's switch" do
+      names = resident::Baseline.odd({ "HOME" => "/h", "HECKS_CACHE_DIR" => "/hc", "HECKS_WRITES_LOCAL" => "1" })
+      expect(names).to be_empty
     end
 
     it "is not plain when it holds more, and the file names the variables", :aggregate_failures do

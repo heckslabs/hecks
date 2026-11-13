@@ -109,11 +109,12 @@ RSpec.describe "the Agents verdict reaching the waiting coder" do
     expect(verdicts("undelivered")).not_to include("j-restarted")
   end
 
-  it "records a verdict undeliverable, with the reason, when the coder's session refuses the resume" do
+  # A refused resume is retried, not settled; `agents_verdict_redelivery_spec.rb` follows it on.
+  it "keeps a verdict to send again, with the reason, when the coder's session refuses the resume" do
     waiting_coder("w-refused")
     File.write(File.join(scratch, "refuse"), "yes")
     judge("j-refused", "w-refused", "architect")
 
-    expect(verdicts("undelivered")).to include("j-refused")
+    expect(verdicts("unresumed")).to include("j-refused")
   end
 end

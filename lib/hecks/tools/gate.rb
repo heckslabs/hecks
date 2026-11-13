@@ -130,7 +130,7 @@ module Hecks
 
       # @return [Array(String, Boolean)] what the check printed, and whether it exited 0
       def run_one(check, env, root)
-        argv = check.fetch("run").map { |word| word.to_s.sub("{workers}", workers.to_s) }
+        argv = check.fetch("run").map { |word| word.to_s.sub("{workers}", workers(root).to_s) }
         env = { "RUBOCOP_CACHE_ROOT" => RUBOCOP_CACHE_ROOT }.merge(ENV.slice("RUBOCOP_CACHE_ROOT")).merge(env)
         output, status = RustBuild::GateBuild.capture(argv, env, root)
         [output, status.success?]
@@ -138,11 +138,13 @@ module Hecks
         ["could not start #{argv.first}: #{e.message}", false]
       end
 
-      # @return [Integer] half the machine's cores, at least one; the parallel suite at full width
-      #   starves the fuzzing run beside it
-      def workers
+      # @param root [String] the checkout whose Tickets world sets the `spec_workers` cap
+      # @return [Integer] half the machine's cores, held to the cap, at least one; the parallel
+      #   suite at full width starves the fuzzing run beside it
+      def workers(root)
         require "etc"
-        [Etc.nprocessors / 2, 1].max
+        require "hecks/hecks/adapters/codebase/spec_workers"
+        Hecks::Adapters::Codebase::SpecWorkers.count(root, cores: Etc.nprocessors / 2)
       end
 
       def list(stages)

@@ -1,4 +1,5 @@
 require "fileutils"
+require_relative "../../lib/hecks/hecks/adapters/codebase/spec_workers"
 
 # Makes a bare `rspec` run the whole suite in parallel.
 #
@@ -20,11 +21,13 @@ module ParallelDefault
       env["CI"].to_s.empty? && env["HECKS_SERIAL"].to_s.empty?
   end
 
+  # @param workers [Integer] the workers to start; the Tickets world's `spec_workers` cap, never
+  #   more than the cores, when absent
   # @return [Array<String>] the `parallel_rspec` command for the whole suite
-  def command
+  def command(workers: Hecks::Adapters::Codebase::SpecWorkers.count(Dir.pwd))
     grouping = File.exist?(RUNTIME_LOG) ? ["--group-by", "runtime", "--runtime-log", RUNTIME_LOG, "--allowed-missing", "100"] : []
     worker_options = "--format progress --format ParallelTests::RSpec::RuntimeLogger --out #{RUNTIME_LOG}"
-    ["bundle", "exec", "parallel_rspec", "spec", *grouping, "-o", worker_options]
+    ["bundle", "exec", "parallel_rspec", "spec", "-n", workers.to_s, *grouping, "-o", worker_options]
   end
 end
 
