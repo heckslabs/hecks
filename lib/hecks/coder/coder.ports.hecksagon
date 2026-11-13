@@ -1,0 +1,13 @@
+# The port Coder declares, for every hecksagon that attaches the bluebook (`Bluebooks` loads this
+# file with it). The end of a turn asks the TurnFacts port, which measures what the bluebook cannot
+# read: the run, its Work item, a landing since the item started, and the session's closing
+# message. It judges none of it; a reading it cannot take is refused, and the turn then ends.
+Hecks.hecksagon "Coder" do
+  Coder::Turn.port "TurnFacts" do
+    asks "MeasureTurn", to: Turn do
+      attribute :run, TurnRun
+      answers "TurnMeasured"
+      refuses "TurnUnmeasured"
+    end
+  end
+end

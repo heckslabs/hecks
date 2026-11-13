@@ -30,8 +30,26 @@ module Hecks
       def for(run)
         return {} if @launcher.to_s.empty? || run.to_s.empty?
 
-        { "PostToolUse" => entry(@inbox.hook(run)), "Stop" => entry(@inbox.hook(run), command(run)),
+        { "PostToolUse" => entry(@inbox.hook(run)), "Stop" => entry(@inbox.hook(run), turn_end(run), command(run)),
           "SessionEnd" => entry(command(run)) }
+      end
+
+      # The words the launcher's report carries when the Coder bluebook held the turn.
+      HELD = 'failure state "held"'
+
+      # The `Stop` command that asks the Coder bluebook whether the turn may end. Claude Code gives
+      # the hook `stop_hook_active` on its input when this stop follows one a hook refused, which
+      # goes to the bluebook as `again`. Only a turn the bluebook held prints its refusal on stderr
+      # and exits 2, which Claude Code shows the model instead of ending the turn; any other
+      # outcome, a launcher that failed included, exits 0.
+      #
+      # @param run [String] the key of the run the session belongs to
+      # @return [String] the shell command
+      def turn_end(run)
+        ask = "#{Shellwords.escape(@launcher)} coder Turn.end! run.value=#{Shellwords.escape(run)} again.value=$a --wait"
+        "a=false; grep -q '\"stop_hook_active\": *true' && a=true; out=$(#{ask} 2>&1 >/dev/null); " \
+          "case \"$out\" in *#{Shellwords.escape(HELD)}*) " \
+          "printf '%s\\n' \"$out\" | grep -F #{Shellwords.escape(HELD)} >&2; exit 2;; esac; exit 0"
       end
 
       private

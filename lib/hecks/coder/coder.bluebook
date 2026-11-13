@@ -236,6 +236,76 @@ Hecks.bluebook "Coder" do
     end
   end
 
+  # The end of one turn of a run's session, asked by the session's own hook each time a turn ends. A
+  # coder that still holds its started Work item, asks the pipeline nothing and has landed nothing
+  # is held: the hook hands the refusal to the model instead of ending the turn. A submitted or
+  # yielded Work item is no longer started, so submitting is what lets the turn end.
+  #
+  # The bluebook reads no ledger, git or transcript: the TurnFacts port measures and judges nothing,
+  # and the two policies below judge what it measured. A turn that cannot be measured ends, so a
+  # failed reading never traps a session, and one that ends again after being held ends too
+  # (`again`): a turn is held once, and `Dispatch.Settle` still yields the Work item of a coder
+  # that hands nothing in.
+  aggregate "Turn" do
+    description "One end of a turn of a run's session: asked, then ended or held."
+
+    identified_by :run
+
+    attribute :run,     TurnRun
+    attribute :again,   TurnAgain, optional: true
+    attribute :refusal, TurnRefusal, optional: true
+
+    # The key of the `AgentRun` whose session is ending a turn.
+    value_object "TurnRun" do
+      attribute :value, String, matches: :present
+      invariant("a turn names the run it belongs to") { !value.to_s.empty? }
+    end
+
+    # Whether this end follows one that was held: the session was told once and is ending again.
+    value_object "TurnAgain", Boolean
+
+    # What a held coder is told to do.
+    value_object "TurnRefusal", String
+
+    lifecycle :status, default: "asked" do
+      mark :failure, "held"
+      transition "Close" => "ended", from: "asked"
+      transition "Hold"  => "held",  from: "asked"
+      mark :terminal, "ended", "held"
+      # Each end of a turn is asked anew under the run's key.
+      mark :reusable, "ended", "held"
+    end
+
+    command "End" do
+      role "Coder"
+      goal "Ask whether a turn of the run's session may end"
+
+      attribute :run,   TurnRun, sets: true
+      attribute :again, TurnAgain, optional: true, sets: true
+
+      emits "TurnEndAsked"
+    end
+
+    command "Close" do
+      role "System"
+      goal "Record that the turn ended"
+
+      reference_to Turn
+
+      emits "TurnEnded"
+    end
+
+    command "Hold" do
+      role "System"
+      goal "Record that the turn may not end yet, and what the coder is told"
+
+      reference_to Turn
+      attribute :refusal, TurnRefusal, sets: true
+
+      emits "TurnHeld"
+    end
+  end
+
   # A Patch is one pull request opened for a bug's fix, recorded so its CI status is a lookup.
   # Named `Patch`, as QualityControl names its own; `identified_by :number` keeps it a lookup.
   aggregate "Patch" do
@@ -417,5 +487,48 @@ Hecks.bluebook "Coder" do
   policy "RetireStubOnFix" do
     on      "Assignment.AssignmentFixed"
     trigger Stub::Retire, with: { stub: :bug }
+  end
+
+  policy "MeasureTheTurnWhenItEnds" do
+    on  "Turn.TurnEndAsked"
+    ask :measure_turn, with: { run: :run }
+  end
+
+  # The one rule. `role` is the part the run plays, `held` whether its Work item is still started,
+  # `landed` whether its branch landed since the item started, `reviewing` whether a plan review it
+  # asked for is open, `question` the first line of its closing message that begins with a bracket,
+  # and `word` that message's last word. A question to the pipeline begins with one of the five
+  # markers of the brief's rules; `blocked` and `submitted` are a coder's two closing words.
+  policy "HoldTheCoderWhoHandedNothingIn" do
+    on      "Turn.TurnMeasured"
+    where   do
+      role == "coder" && held == true && landed != true && reviewing != true && again != true &&
+        word != "blocked" && word != "submitted" &&
+        !(question.start_with?("[review]") || question.start_with?("[confirm]") || question.start_with?("[retry]") ||
+          question.start_with?("[choose]") || question.start_with?("[owner]"))
+    end
+    trigger Turn::Hold,
+            with: { turn: :run, refusal: "Your turn ended done, but your Work item is still started and its branch has neither " \
+                             "landed nor been submitted, so it would start over. Commit, then submit: exe/hecks coder " \
+                             "Submission.submit! branch.value=<your branch> sha.value=<its tip> " \
+                             "checkout.value=<your worktree> clean.value=true --wait, and end your turn. If you " \
+                             "cannot finish, ask a question that begins [owner], or hand the item back with " \
+                             "exe/hecks tickets Work.yield! to=<work item> reason.value=<why> --wait." }
+  end
+
+  policy "EndTheTurnOtherwise" do
+    on      "Turn.TurnMeasured"
+    where   do
+      !(role == "coder" && held == true && landed != true && reviewing != true && again != true &&
+        word != "blocked" && word != "submitted" &&
+        !(question.start_with?("[review]") || question.start_with?("[confirm]") || question.start_with?("[retry]") ||
+          question.start_with?("[choose]") || question.start_with?("[owner]")))
+    end
+    trigger Turn::Close, with: { turn: :run }
+  end
+
+  policy "EndTheTurnThatCannotBeMeasured" do
+    on      "Turn.TurnUnmeasured"
+    trigger Turn::Close, with: { turn: :run }
   end
 end
