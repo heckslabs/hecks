@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "timeout"
 require "hecks/pipeline_board/adapters/pipeline_github"
 
 # What the board keeps between reads stays bounded however long it serves: its kept answers are
@@ -25,6 +26,20 @@ RSpec.describe "the board's kept reads" do
     it "holds only the answers asked within the ttl, after thousands of distinct reads" do
       ask_many(5000)
       expect(cache.size).to be <= 21
+    end
+
+    # Starts a read of `:slow` that answers only once `release` is given a value.
+    def slow_read(release)
+      started = Queue.new
+      Thread.new { cache.fetch(:slow) { (started << true) && release.pop } }.tap { started.pop }
+    end
+
+    it "answers another key while a slow read holds its own", :aggregate_failures do
+      release = Queue.new
+      slow = slow_read(release)
+      expect(Timeout.timeout(1) { cache.fetch(:quick) { release.size } }).to eq(0)
+      release << :done
+      expect(slow.value).to eq(:done)
     end
 
     it "forgets a failure on the same rule as an answer", :aggregate_failures do
