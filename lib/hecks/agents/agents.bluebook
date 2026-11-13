@@ -525,6 +525,7 @@ Hecks.bluebook "Agents" do
     attribute :role, RoleRef, optional: true
     attribute :answer, AnswerText, optional: true
     attribute :reason, ReasonText, optional: true
+    attribute :word, VerdictWord, optional: true
 
     value_object "RunKey" do
       attribute :value, String, matches: :present
@@ -542,6 +543,10 @@ Hecks.bluebook "Agents" do
 
     value_object "ReasonText", String
 
+    # The architect's closing word, `sound`, `changes` or `rethink`; empty for a reviewer's
+    # judgment and an unstarted review. The coder's next step is chosen by it.
+    value_object "VerdictWord", String
+
     lifecycle :status, default: "judged" do
       transition "Deliver" => "delivered", from: "judged"
       transition "Undeliver" => "undeliverable", from: "judged"
@@ -555,6 +560,7 @@ Hecks.bluebook "Agents" do
       attribute :work,   WorkKey, sets: true
       attribute :role,   RoleRef, sets: true
       attribute :answer, AnswerText, sets: true
+      attribute :word,   VerdictWord, default: "", sets: true
 
       given("the judge is the architect or the reviewer") { role.value == "architect" || role.value == "reviewer" }
       given("the verdict says something") { !answer.value.to_s.strip.empty? }
@@ -607,7 +613,7 @@ Hecks.bluebook "Agents" do
       on      "AgentRun.JobRead"
       root
       where   { agent == "architect" && verdict != "" && (previous != state || (listed == "idle" && previous != "done")) }
-      trigger Verdict::Judge, with: { run: :run, work: :work, role: "architect", answer: :findings }
+      trigger Verdict::Judge, with: { run: :run, work: :work, role: "architect", answer: :findings, word: :verdict }
     end
 
     # The reviewer's closing text is the job's detail; its judgment word is in it.

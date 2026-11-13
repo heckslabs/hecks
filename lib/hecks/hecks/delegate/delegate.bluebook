@@ -261,13 +261,15 @@ Hecks.bluebook "Hecks" do
       end
 
       # Answers a session that has not ended, working or blocked on a person: its answer is sent as a
-      # resumed background session's prompt, so the session carries on under the same ID.
+      # resumed background session's prompt, so the session carries on under the same ID. A `step`,
+      # when one is given, leads the prompt: what the session does next with the answer.
       command "Answer", from: "started" do
         role "Operator"
         goal "Answer a session that is working or blocked by resuming it with the answer"
 
         reference_to AgentRun
         attribute :answer, Brief
+        attribute :step, Brief, default: ""
         attribute :verdict, VerdictKey, default: ""
         attribute :resuming, Resuming, default: true, sets: true
 
@@ -311,6 +313,20 @@ Hecks.bluebook "Hecks" do
         attribute :reviewing, Reviewing, default: false, sets: true
 
         emits AgentRunUnanswered
+      end
+
+      # A verdict came for a run that has finished. Only the run that holds the key takes it: a run
+      # an earlier attempt left as `<run>~<n>` is not addressed by the key, so a restarted Work item
+      # whose new run is answered records no refusal for its earlier attempt.
+      command "Unreached", from: "finished" do
+        role "System"
+        goal "Record that a verdict came for a coder run that had already finished"
+
+        reference_to AgentRun
+        attribute :verdict, VerdictKey
+        attribute :refusal, Report
+
+        emits AgentRunUnreached
       end
 
       # Closes a run still recorded started whose session is gone: `claude agents` no longer lists
@@ -369,11 +385,6 @@ Hecks.bluebook "Hecks" do
         description "Every run whose session was started and is not known to have ended, oldest key first."
         where(status: "started")
         order_by :run
-      end
-
-      query "FinishedOfWork" do
-        description "The finished run keyed by one Work item, the coder a late verdict can no longer reach."
-        where(status: "finished", run: :work)
       end
 
       query "Declined" do
@@ -1287,7 +1298,7 @@ Hecks.bluebook "Hecks" do
 
     policy "ResumeWithTheAnswer" do
       on      "AgentRun.AnswerRequested"
-      ask     :resume, with: { run: :run, answer: :answer, verdict: :verdict }
+      ask     :resume, with: { run: :run, answer: :answer, step: :step, verdict: :verdict }
     end
 
     policy "RecordTheAnswer" do
@@ -1364,14 +1375,14 @@ Hecks.bluebook "Hecks" do
     end
 
     # A verdict judged for a coder run that already finished cannot be delivered (`Answer` takes a
-    # started run). It is not lost: the run is recorded unanswered, which records the verdict
-    # undeliverable with this reason, a finding that names the judge's run and the Work item. A
-    # Work item with no finished run finds no row.
+    # started run). It is not lost: the run keyed by the Work item is recorded unreached, which
+    # records the verdict undeliverable with this reason, a finding that names the judge's run and
+    # the Work item. `Unreached` takes only a finished run, so a started run (answered by
+    # AnswerTheWaitingCoder) or a Work item with no run refuses it and records nothing.
     policy "RefuseTheVerdictOfAFinishedCoder" do
-      on       "Verdict.VerdictJudged"
-      for_each "AgentRun.FinishedOfWork"
-      trigger  AgentRun::Unanswered, with: { agent_run: :agent_run, verdict: :run,
-                                             refusal: "the coder run already finished: restart the item with the review in its brief" }
+      on      "Verdict.VerdictJudged"
+      trigger AgentRun::Unreached, with: { run: :work, verdict: :run,
+                                           refusal: "the coder run already finished: restart the item with the review in its brief" }
     end
 
     # The Work item's coder run is marked as waiting on a review the moment it is requested, before any
@@ -1383,10 +1394,35 @@ Hecks.bluebook "Hecks" do
 
     # A judge's verdict answers the coder waiting on the Work item, a run keyed by the Work item, in
     # place. The judge's run names the verdict, so the outcome settles it (Agents translations
-    # RecordTheVerdictDelivered and RecordTheVerdictUndeliverable).
+    # RecordTheVerdictDelivered and RecordTheVerdictUndeliverable). A verdict to build leads with
+    # the coder's next step, so the read of its review is not taken for the end of its turn; a
+    # rethink, a reviewer's judgment and an unstarted review go as written, for the brief decides
+    # what the coder does with them.
     policy "AnswerTheWaitingCoder" do
       on      "Verdict.VerdictJudged"
+      where   { word != "sound" && word != "changes" }
       trigger AgentRun::Answer, with: { run: :work, answer: :answer, verdict: :run }
+    end
+
+    policy "AnswerTheWaitingCoderToBuild" do
+      on      "Verdict.VerdictJudged"
+      where   { word == "sound" }
+      trigger AgentRun::Answer,
+              with: { run: :work, answer: :answer, verdict: :run,
+                      step: "Your plan review's verdict is sound. Read your review with PlanReview.reviews as " \
+                            "your brief says, then continue in this session and build the Work item now: the " \
+                            "read is a step, not the end of your turn." }
+    end
+
+    policy "AnswerTheWaitingCoderToReviseAndBuild" do
+      on      "Verdict.VerdictJudged"
+      where   { word == "changes" }
+      trigger AgentRun::Answer,
+              with: { run: :work, answer: :answer, verdict: :run,
+                      step: "Your plan review's verdict is sound with changes. Read your review with " \
+                            "PlanReview.reviews as your brief says, then continue in this session: revise the " \
+                            "plan as its findings say and build the Work item now. The read is a step, not the " \
+                            "end of your turn." }
     end
 
     # A planning request starts the planner's session as a run keyed by the request, with the goal as
