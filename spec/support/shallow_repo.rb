@@ -5,11 +5,13 @@ require "open3"
 require "rbconfig"
 require "fileutils"
 
-# A scratch repository whose one check spec passes on a full history and fails on a shallow one.
-# `main` holds two commits and the spec; branch `work/a` changes one file on top of them in `tree`.
-# The real repository, `~/.claude` and GitHub are never touched.
+# A scratch repository whose one check spec passes on a full history and fails on a shallow one
+# that holds a `lib` directory. `main` holds two commits and the spec; branch `work/a` changes one
+# file on top of them in `tree`, so a branch that adds `lib/` is red in a depth-1 clone and `main`
+# is green there. The real repository, `~/.claude` and GitHub are never touched.
 module ShallowRepo
-  DEPTH_SPEC = "RSpec.describe('history') { it('is deep') { expect(`git rev-list --count HEAD`.to_i).to be > 1 } }\n"
+  DEPTH_SPEC = "RSpec.describe('history') { it('is deep where lib is') { " \
+               "expect(`git rev-list --count HEAD`.to_i).to be > (Dir.exist?('lib') ? 1 : 0) } }\n"
 
   def self.included(base)
     base.after { FileUtils.remove_entry(dir) }
@@ -39,13 +41,21 @@ module ShallowRepo
     git("commit", "-m", file, chdir: where)
   end
 
-  def build_repo(changed)
+  # @param changed [String] the file the branch adds
+  # @param main_holds [String] a second file of `main`: under `lib/` it makes a shallow `main` red
+  def build_repo(changed, main_holds: "README")
     FileUtils.mkdir_p(repo)
     git("init", "-b", "main")
     commit(repo, "spec/depth_spec.rb", DEPTH_SPEC)
-    commit(repo, "README", "two")
+    commit(repo, main_holds, "two")
     git("worktree", "add", "-b", "work/a", tree)
     commit(tree, changed)
+  end
+
+  # A runner that writes the clone's commit count and then each spec file it was handed.
+  def recorder(seen)
+    script = "File.write(#{seen.inspect}, [`git rev-list --count HEAD`.strip, *ARGV].join(%(\\n)))"
+    [RbConfig.ruby, "-e", script]
   end
 
   def shallow(**tune) = shallow_in(tree, "work/a", "main", **tune)
