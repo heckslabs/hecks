@@ -162,6 +162,13 @@ new one, and fails an old one that grows. Put the rationale in an ADR under
 code each one explains. The threshold is the named constant `MAX_BLOCK` in
 `lib/hecks/tools/comment_style.rb`, set by ADR 0075.
 
+A declaration file is held to less: a run longer than 3 comment lines in a declaration file
+(a bluebook, hecksagon, world, adapter or behaviors file) is a `long_block` too
+(`MAX_DECLARATION_BLOCK`). A declaration says what the domain is. When it takes a paragraph
+to explain one, the declaration is unclear and the comment is pasted over it: say it in a
+name, a `description` or a `goal`, and keep the comment for the one reason the declaration
+cannot carry. A vendored package's files are checked in the project they come from.
+
 The blocks that already exceed it are listed in `.standardize_comments_baseline.json`, so
 that only new and grown blocks fail. The file maps a path to its long blocks, and each
 block to its length:

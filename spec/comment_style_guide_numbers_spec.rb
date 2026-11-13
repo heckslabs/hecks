@@ -30,6 +30,11 @@ RSpec.describe "the comment style guides' thresholds" do
     expect(stated(ruby_guide, /more than (\d+) consecutive comment lines/)).to eq([style::MAX_BLOCK])
   end
 
+  it "state the cap a declaration file's comment block is held to" do
+    stated_cap = stated(ruby_guide, /a run longer than (\d+) comment lines in a declaration file/)
+    expect(stated_cap).to eq([style::MAX_DECLARATION_BLOCK])
+  end
+
   it "call no threshold provisional while the linter enforces it" do
     expect(ruby_guide).not_to include("is provisional")
   end
