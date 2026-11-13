@@ -11,7 +11,8 @@ module Hecks
   module Adapters
     # The `Tickets` port's adapter: answers `OpenWork` with the Work items that are not done, read
     # through the booted Tickets domain's repository (never from its database), and reports which
-    # session ran each work item from the AgentRun records. It only reads.
+    # session ran each work item from the AgentRun records. Each aggregate is loaded once for the
+    # readers of a refresh, from the live store or the board's own registry. It only reads.
     class PipelineTickets
       include PipelineBoard::RunDetail
       include PipelineBoard::StoppedRuns
@@ -32,8 +33,8 @@ module Hecks
       # `live_store:` in `settings` stands in for the {PipelineBoard::LiveStore} read when the board
       # is told where the live store is (`PIPELINE_BOARD_LAUNCHER_ROOT`).
       def initialize(registry: nil, aggregate: nil, settings: {}, root: nil)
-        @registry = registry
         @live = settings.fetch(:live_store) { live_store_named }
+        @own = PipelineBoard::RegistryStore.new(registry: registry)
         @standin = settings[:work_items]
         @epics_standin = settings[:epics]
         @landed = settings[:landings]
@@ -146,13 +147,10 @@ module Hecks
         named.empty? ? field(run, :brief).to_s[WORK_ITEM_LINE, 1].to_s : named
       end
 
-      def records_of(domain, name)
-        bluebook = @registry&.bluebook(domain)
-        aggregate = bluebook&.aggregates&.find { |candidate| candidate.hecks_name == name }
-        raise PipelineBoard::Unavailable, "the #{domain} domain is not booted here" unless aggregate
-
-        @registry.repository(domain, aggregate).all
-      end
+      # The booted registry's records, through the store that keeps each aggregate for a few
+      # seconds, so the readers of one refresh (the open work, its counts, the epics, the plan
+      # tile) share a single load of it.
+      def records_of(domain, name) = @own.records(domain, name)
 
       def field(record, name) = StartedWork.value(record, name)
     end

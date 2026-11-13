@@ -21,7 +21,7 @@ RSpec.describe Hecks::Adapters::PipelineBoard::Stream do
   end
 
   before do
-    stream = described_class.new(feed: -> { [] }, hub: hub)
+    stream = described_class.new(hub: hub)
     @reader = Thread.new { stream.each { |event| sent << event } }
   end
 

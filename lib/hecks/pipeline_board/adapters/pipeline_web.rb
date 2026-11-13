@@ -209,7 +209,7 @@ module Hecks
         { unknown: e.message }
       end
 
-      # Yields each event of the journal once and again when its reactions change, the state
+      # Yields each event the held state lists once and again when its reactions change, the state
       # whenever it changes, the wiring's digest whenever the bluebooks are drawn differently, and
       # the HTML of each tile a journal line changed, until the reader goes away. It acts when the
       # journal grows, not on a clock.
@@ -217,8 +217,7 @@ module Hecks
       # @yieldparam event [Hash] an event row, an `unknown` note, a `state` hash, a `wiring` digest,
       #   a `tile` fragment or a heartbeat
       def stream(&)
-        PipelineBoard::Stream.new(feed: @stages.method(:feed), hub: @pushed.hub, state: method(:state),
-                                  wiring: method(:wiring)).each(&)
+        PipelineBoard::Stream.new(hub: @pushed.hub, state: method(:state), wiring: method(:wiring)).each(&)
       end
     end
   end
