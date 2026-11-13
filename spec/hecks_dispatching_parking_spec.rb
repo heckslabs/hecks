@@ -1,6 +1,7 @@
 require "spec_helper"
 require "time"
 require "hecks/hecks/adapters/dispatching"
+require_relative "support/agent_run_records"
 
 # A yield records a kind, and the plan leaves a parked item out of a fill and says why.
 RSpec.describe Hecks::Adapters::Dispatching::Parking do
@@ -52,5 +53,34 @@ RSpec.describe Hecks::Adapters::Dispatching::Parking do
     plan = plan_class.new([parked, item("b")], [], cap: 1, load: 0.0, max_load: 8.0, frozen: [], now: now)
 
     expect(plan.chosen.map(&:key)).to eq(["b"])
+  end
+
+  describe "a run key that holds archived records" do
+    include AgentRunRecords
+
+    def runs_of(*records) = work_items_over(*records).runs
+
+    it "is read from the record that holds the key, though an archive is listed after it", :aggregate_failures do
+      runs = runs_of(run_record("a", "started"), run_record("a~1", "tidied"))
+
+      expect(runs["a"][:status]).to eq("started")
+      expect(plan_of([item("a")], runs).skipped.first.reason).to include("run a is started")
+    end
+
+    it "parks an already_recorded item behind the live run, whatever the archive says" do
+      held = item("a", yield_kind: "already_recorded", yield_count: 1)
+
+      expect(plan_of([held], runs_of(run_record("a", "started"), run_record("a~1", "finished"))).chosen).to be_empty
+    end
+
+    it "reads as ended when only an archive is left, so its item starts" do
+      expect(plan_of([item("a")], runs_of(run_record("a~1", "tidied"))).chosen.map(&:key)).to eq(["a"])
+    end
+
+    it "starts the item in none of ten rolls while its run is live" do
+      runs = runs_of(run_record("a", "started"), run_record("a~1", "tidied"))
+
+      expect(Array.new(10) { plan_of([item("a")], runs).chosen }.flatten).to be_empty
+    end
   end
 end
