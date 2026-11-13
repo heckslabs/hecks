@@ -212,6 +212,17 @@ Step 2 of the order of work, on 2026-11-13.
   shallow check (named spec files in a depth-1 clone), and refuses in a repository that has none of them. It is
   skipped for a change that touches no code, which is why Switchyard's first `finish!` passed and its second did
   not. The shallow check belongs behind the port it already has, bound by the project, as the gate now is.
+- The shallow check is behind its port as well (`GitLanding::BoundShallowCheck`): a project that binds none runs
+  none, and Switchyard binds none. A code change of Switchyard's then landed with `finish!`.
+- The delivery adapters' Ruby moved to Switchyard after all (`delivery/lib/adapters/`), on the owner's word. Borrowing
+  it had meant three fixes in a row were made here for Switchyard's sake. It was copied once, without the release and
+  vendoring code this repository's `Git` adapter also holds, `CheckoutGate` and `GitShallowCheck`; from the gem it
+  needs the adapter lookup, the clean git environment and a few small helpers. This repository still holds and runs
+  the copy it was made from, so the two can drift until the commands here are switched to the package, which is the
+  next step. The specs of that code did not move with it; Switchyard's own cover a worktree, a commit, a landing and
+  a finish end to end, and no more.
+- Three things in the moved code reach above delivery and should each become a port the pipeline binds: the red flag
+  that stops a landing, the boarding hold on main, and the started Work items a landing must not overlap.
 - Some refusals still name `hecks Workspace.strays` where the line to type is the project's own launcher's.
 - The old commands are untouched here and nothing calls Switchyard yet.
 
