@@ -53,6 +53,8 @@ Hecks.bluebook "Hecks" do
                reason: "each tick of a queued pull request's clock chain is a launcher call of its own"
         member domain: "Hecks", aggregate: "TrainPr", checkout: "both",
                reason: "a failed CI attempt's jobs are read after the rerun that cleared them"
+        member domain: "Hecks", aggregate: "Shipment", checkout: "main",
+               reason: "a shipment is judged, landed and boarded by launcher calls of their own"
         member domain: "Delivery", aggregate: "Revision", checkout: "both",
                reason: "a landing reads back the revision it landed by run id"
         member domain: "Delivery", aggregate: "Landing", checkout: "both",
