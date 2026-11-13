@@ -16,9 +16,9 @@ RSpec.describe "the coordinator's standing rules" do
     expect(role_rows("StandingRule").map { |row| [row[:reason], row[:evidence]].none?(&:empty?) }).to all(be(true))
   end
 
-  it "holds the nine rules" do
+  it "holds the ten rules" do
     names = %w[revert-first all-hands-on-red board-when-level report-when-green remove-when-pushed rely-on-events
-               say-work-item-and-coder release-is-the-owners discard-is-the-owners]
+               say-work-item-and-coder release-is-the-owners discard-is-the-owners answer-within-the-brief]
     expect(role_rows("StandingRule").map { |row| row[:rule] }).to match_array(names)
   end
 
