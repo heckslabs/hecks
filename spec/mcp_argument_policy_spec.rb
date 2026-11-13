@@ -19,11 +19,20 @@ RSpec.describe Hecks::Adapters::Driving::McpScope do
       ref: described_class::REF_ARGUMENTS, plain: PLAIN_ARGUMENTS }
   end
 
-  let(:public_argument_names) do
+  # The Hecks bluebook and the delivery package it attaches, which holds the repository verbs.
+  let(:served_bluebooks) do
     declaration = boot_hecks_in_memory
-    cli = Hecks::Projector.call(:cli, bluebook: Hecks::Storehouse.bluebook_for(declaration), options: { program: "mcp" })
+    [Hecks::Storehouse.bluebook_for(declaration), declaration.registry.bluebook("Delivery")]
+  end
+
+  let(:public_argument_names) do
+    served_bluebooks.flat_map { |bluebook| public_commands(bluebook) }
+                    .flat_map { |spec| spec[:arguments].map { |argument| argument[:path].split(".").first } }.uniq
+  end
+
+  def public_commands(bluebook)
+    cli = Hecks::Projector.call(:cli, bluebook: bluebook, options: { program: "mcp" })
     cli[:commands].values.reject { |spec| spec[:internal] }
-                  .flat_map { |spec| spec[:arguments].map { |argument| argument[:path].split(".").first } }.uniq
   end
 
   it "classifies every argument name of every public command of the Hecks bluebook" do

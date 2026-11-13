@@ -60,8 +60,15 @@ module Hecks
         end
       end
 
+      # A translation of the context's own event couples it to no other context.
+      #
       # @api private
       def translate_edges(registry, hecksagon, owners)
+        translations(registry, hecksagon, owners).reject { |edge| edge.from == edge.to }
+      end
+
+      # @api private
+      def translations(registry, hecksagon, owners)
         policies = registry.bluebook(hecksagon.domain)&.policies || []
         hecksagon.translates.filter_map do |name|
           policy = policies.find { |candidate| candidate.name.to_s == name.to_s }
