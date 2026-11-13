@@ -74,8 +74,6 @@ module Hecks
         def call(runtime:, argv:, program: "hecks run", usage_log: false, err: $stderr)
           level, argv = split_verbosity(argv)
           return [Verbosity::CONFLICT, USAGE] if level == :conflict
-          # A resume that names a run runs a saga, so it needs a booted domain.
-          return if argv.first == "resume" && argv[1]
 
           with_verbosity(level) { answer_line(runtime, argv, program, usage_log, err) }
         rescue Interrupt
@@ -172,6 +170,17 @@ module Hecks
           names.reject { |_, id| specs.dig(id, :internal) }.keys.sort
         end
 
+        # Whether the line is a resume that names a run. It runs a saga, so it needs a booted
+        # domain: the usage path answers nothing for it, and the launcher boots and calls `call`.
+        # A resume with no run, or one that asks for help, is still only a request for usage.
+        #
+        # @api private
+        # @param argv [Array<String>] the line, without its verbosity flags
+        # @return [Boolean]
+        def runs_a_saga?(argv)
+          argv.first == "resume" && !argv[1].nil? && !argv.drop(1).intersect?(Resolution::HELP_WORDS)
+        end
+
         # Answers a command line that asks only for usage, from the projection alone.
         #
         # Needs a registry and no bound adapter, so a `Runtime::Loader::Described` serves: the
@@ -186,6 +195,7 @@ module Hecks
         def usage(runtime:, argv:, program: "hecks run")
           level, argv = split_verbosity(argv)
           return [Verbosity::CONFLICT, USAGE] if level == :conflict
+          return if runs_a_saga?(argv)
 
           UsageCache.fetch(runtime, argv, program, audience: audience_key) { resolve(runtime, argv, program)[:answer] }
         end
