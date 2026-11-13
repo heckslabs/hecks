@@ -3,9 +3,9 @@
 require_relative "../git_worktrees"
 require_relative "../git_main_pull"
 require_relative "../shell"
-require_relative "../git_shallow_check"
 require_relative "../checkout_gate"
 require_relative "bound_gate"
+require_relative "bound_shallow_check"
 
 module Hecks
   module Adapters
@@ -42,9 +42,10 @@ module Hecks
         # @param branch [String] the branch to finish
         # @param onto [String] the branch to rebase onto
         # @param steps [Hash] `registry:` (the booted registry, whose `Gate` port's adapter judges
-        #   the worktree), `gate:` (a stand-in for that adapter: answers the {Shell::Result} of a
-        #   gate run in a directory) and `shallow:` (given the checkout, branch and onto, raises
-        #   when one of CI's failing checks is red in a depth-1 clone)
+        #   the worktree and whose `ShallowChecks` port's adapter, when one is bound, checks it in a
+        #   depth-1 clone), `gate:` (a stand-in for the first: answers the {Shell::Result} of a gate
+        #   run in a directory) and `shallow:` (a stand-in for the second: given the checkout,
+        #   branch and onto, raises when the check is red)
         def initialize(git, checkout, branch:, onto:, **steps)
           @git = git
           @checkout = checkout
@@ -52,14 +53,15 @@ module Hecks
           @onto = ref(onto)
           @gate = steps[:gate]
           @bound = BoundGate.new(steps[:registry])
-          @shallow = steps[:shallow] || method(:shallow_check)
+          @shallow = steps[:shallow] || BoundShallowCheck.new(steps[:registry])
         end
 
-        # Refuses unsaved work, pulls `main` when it is the target, rebases and runs the gate.
+        # Refuses unsaved work, pulls `main` when it is the target, rebases, asks the gate and runs
+        # the project's shallow check when it has one.
         #
         # @return [void]
-        # @raise [ConsoleCapture::Failure] naming the step that failed: unsaved work, conflict or
-        #   gate red
+        # @raise [ConsoleCapture::Failure] naming the step that failed: unsaved work, conflict,
+        #   gate red or shallow check red
         def prepare
           refuse_unsaved
           pull_main if @onto == "main"
@@ -69,10 +71,6 @@ module Hecks
         end
 
         private
-
-        def shallow_check(checkout, branch, onto)
-          GitShallowCheck.new.shallow_check(checkout: checkout, branch: branch, onto: onto)
-        end
 
         def refuse_unsaved
           changed = dirty(@checkout)
