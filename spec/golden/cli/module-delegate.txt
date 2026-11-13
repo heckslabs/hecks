@@ -25,6 +25,9 @@ commands:
   SessionCleanup:
     One cleanup of the Claude sessions: only the session of a dispatched run that finished done, with no person in it and nothing unsaved in its worktree, is removed; every other session is kept with the reason.
     remove_safe!  Remove the sessions of dispatched runs that finished done and are safe to remove, and report each one kept with the reason; refused without confirm
+  Question:
+    One question a blocked run asks the orchestrator: asked, seated with an orchestrator run that answers it, then closed when the run is answered or escalated as the owner's.
+    escalate!     Hand a seated question to the owner, unanswered, and free its seat
 
 queries (nothing here changes anything):
   Dispatch:
@@ -33,6 +36,9 @@ queries (nothing here changes anything):
   SessionCleanup:
     One cleanup of the Claude sessions: only the session of a dispatched run that finished done, with no person in it and nothing unsaved in its worktree, is removed; every other session is kept with the reason.
     removable  Every Claude session with whether it is safe to remove and, when not, why: no dispatched run holds it, its run is not finished done, it is not listed done, a person spoke in it, or its own worktree has uncommitted files or commits origin lacks.
+  AnswerDesk:
+    The seats of the orchestrator runs that answer questions, at most two taken at once.
+    desks      The desk and how many of its seats are taken.
 
 bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
   deploy           Generate, check and compare deploy recipes, project OIDC manifests and provision tenants.
@@ -51,7 +57,7 @@ bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
   expression       The subset of regular Ruby a predicate is allowed to be — small enough that every target can…
 
   hecks <command> --help       what one command wants, and every way it refuses
-  hecks --all                  also list the 68 internal commands and queries
-  hecks --maintainer           also list the 552 commands and queries for working on hecks itself
+  hecks --all                  also list the 78 internal commands and queries
+  hecks --maintainer           also list the 554 commands and queries for working on hecks itself
   a command is called with its aggregate — AgentRun.dispatch!
   exit status: 0 answered, 1 refused or failed, 2 a line it could not read

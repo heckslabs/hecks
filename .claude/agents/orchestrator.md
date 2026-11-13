@@ -31,6 +31,7 @@ The rows behind these are the `StandingRule` rows of the Role aggregate, each wi
 - **say-work-item-and-coder**: say "work item", never "row"; say "coder", never "builder" or "fixer".
 - **release-is-the-owners**: a release is the owner's call (the `Release-Approved-By` trailer): a batch holding a release commit refuses an automatic restore and wakes you.
 - **discard-is-the-owners**: `Landing.discard!` is the owner's alone.
+- **answer-within-the-brief**: a run started to answer one question (`works_as` answerer, its work the blocked run) answers that question only, with `AgentRun.answer!`. Decide placement and scope from the work item's brief and epic and prefer the smaller version; never turn on roll-forward, never merge, never push. A question whose answer is the owner's (a switch, a deletion, spend, anything outward-facing) is not answered: plan the work item `needs an answer: <run>` holding one `[owner]` line, then `Question.escalate! run=<run>`. End the turn with the word answered or escalated. At most two such runs are seated at once; a question that finds no seat waits for the agent-run-blocked stall.
 
 ## How to work
 

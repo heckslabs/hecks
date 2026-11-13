@@ -174,9 +174,10 @@ module Hecks
       # Answers a session by waking it in place under its own id (see {ClaudeResumption}). The run
       # holds the short id `claude agents` shows; `--resume` takes only the full session id.
       #
-      # @param held [Hash] the `AgentRun` record: `session`, `repo` and `answer`, and `agent` when
-      #   the run has a role, which the resume passes as `--agent` so the role's MCP server narrows
-      #   itself again
+      # @param held [Hash] the `AgentRun` record: `session`, `repo` and `answer`, `step` when the
+      #   answer comes with the session's next step (it leads the prompt), and `agent` when the run
+      #   has a role, which the resume passes as `--agent` so the role's MCP server narrows itself
+      #   again
       # @return [Hash{Symbol => Object}] `resumed_at:` when the resume was started, as an ISO 8601
       #   string; `session:` the id the run follows, its own unless the CLI started a copy; and
       #   `note:` what the CLI said of that copy, when it did. It answers once the woken session's
@@ -185,8 +186,8 @@ module Hecks
       def resume(**held)
         id = plain(held[:session])
         @jobs.woken(ClaudeResumption.new(@command, @shell, nice: niceness)
-                                    .call(id, listed(id), plain(held[:answer]), env: named(held), chdir: plain(held[:repo]),
-                                                                                agent: plain(held[:agent])))
+                                    .call(id, listed(id), prompt(held), env: named(held), chdir: plain(held[:repo]),
+                                                                        agent: plain(held[:agent])))
       end
 
       # Says whether `claude agents` still lists the run's session. A session `claude rm` deleted is
@@ -205,6 +206,9 @@ module Hecks
         @transcript = ClaudeTranscript.new(**projects)
         @closing = ClaudeClosingMessage.new(**projects)
       end
+
+      # The answer a session is woken with: the step, when the answer has one, then the answer.
+      def prompt(held) = [plain(held[:step]), plain(held[:answer])].map(&:to_s).reject(&:empty?).join("\n\n")
 
       # @return [Hash{String => String}] the session environment, with the run's name as the caller
       def named(held) = SessionCaller.environment(@session.session_environment, held)

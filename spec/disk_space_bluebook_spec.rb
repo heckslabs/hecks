@@ -5,8 +5,8 @@ require_relative "support/disk_space_rows"
 RSpec.describe "the DiskSpace level", :aggregate_failures do
   include DiskSpaceRows
 
-  it "declares the four aggregates" do
-    names = %w[Reading Level Relief Cache]
+  it "declares the five aggregates" do
+    names = %w[Reading Level Volume Relief Cache]
 
     expect(names.map { |name| hecks_bluebook.aggregate(name).hecks_name }).to eq(names)
   end

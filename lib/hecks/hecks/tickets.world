@@ -55,6 +55,13 @@ Hecks.world "Tickets" do
   session_grace "Sessions", seconds: 120
   ticks "Ticker", seconds: 20, minutes: 30
   rust_build "RustBuild", jobs: 4, nice: 15
+  # `heavy_jobs` caps how many heavy jobs (a gate run, a run of several spec files) run at once on
+  # the machine, in every checkout: the next one waits, saying so and in its report, until one ends
+  # (`Codebase::HeavySlots`; the Rust build lock above already holds compiles to one at a time).
+  # Measured 2026-11-11 at load 14.5 on 12 cores, one gate's two comment checks and a full RuboCop
+  # pass peaked near 4 cores and a spec run at 1, while five coders at once had raised the load to
+  # 19; three jobs keep the pipeline near the `dispatch_max_load` of 10.0 with the desktop's share.
+  heavy_jobs "HeavyJobs", cap: 3
   # `live_services` names the spec tags whose examples reach a live service (cloudfront: a real
   # AWS account). They run only when `HECKS_LIVE_SERVICES` names the tag, under every filter
   # (spec/support/live_services.rb), and a verification never hands that variable to its checks.
