@@ -5,6 +5,7 @@ require_relative "console_capture"
 require_relative "ci_runs/pull_request"
 require_relative "ci_runs/replaced_runs"
 require_relative "ci_runs/train_pr_failure"
+require_relative "ci_runs/ci_start"
 require_relative "main_integration/command_runner"
 
 module Hecks
@@ -24,6 +25,9 @@ module Hecks
         # @return [#call, nil] takes `(argv, chdir:)` and answers `[ok, output]`; the command
         #   runner when nil. A spec replaces it with a fake GitHub.
         attr_accessor :runner
+
+        # @return [#now, nil] the clock a pull request's age is measured by; `Time` when nil
+        attr_accessor :clock
       end
 
       # @param aggregate [Object, nil] unused
@@ -69,19 +73,32 @@ module Hecks
         number = pull["number"]
         case pull["state"]
         when "MERGED" then observe(landed, pull.dig("mergeCommit", "oid") || landed, merged: number)
-        when "CLOSED" then answer("closed", "#{landed[0, 10]}: PR #{number} closed without merging")
+        when "CLOSED" then closed_pull_request(landed, pull)
         else open_pull_request(landed, pull)
         end
       end
 
+      # A pull request closed while the pipeline reopens it to start its CI is still running, so a
+      # beat between the close and the reopen does not free the line; any other one is closed.
+      def closed_pull_request(landed, pull)
+        number = pull["number"]
+        return answer("running", "#{landed[0, 10]}: PR #{number} is being reopened to start CI") if
+          ReopenMarker.reopening?(pull["comments"])
+
+        answer("closed", "#{landed[0, 10]}: PR #{number} closed without merging")
+      end
+
       # An open pull request whose checks all concluded with a failure answers `pr_failed` and the
-      # facts of the failure; any other open one is still running.
+      # facts of the failure. One with no check and no started CI run answers `awaiting_ci`, one
+      # with checks `checking`, and one whose CI run started before GitHub lists its checks
+      # `running`; each carries the facts of its CI start, which the bluebook's bounds judge.
       def open_pull_request(landed, pull)
         replaced = ReplacedRuns.new(runner, @checkout, pull.dig("commits", -1, "oid"))
         checks = Checks.new(replaced.keep(pull["statusCheckRollup"]))
-        return answer("running", still_open(landed, pull, checks, replaced)) unless checks.failed_and_complete?
+        return pr_failed(landed, pull) if checks.failed_and_complete?
 
-        pr_failed(landed, pull)
+        start = CiStart.new(pull, checks, replaced.newest_status(WORKFLOW), now)
+        answer(start.outcome, still_open(landed, pull, start, replaced)).merge(start.facts)
       end
 
       def pr_failed(landed, pull)
@@ -99,8 +116,10 @@ module Hecks
           "retrying next observation"
       end
 
-      def still_open(landed, pull, checks, replaced)
-        text = "#{landed[0, 10]}: PR #{pull["number"]} not merged yet (#{checks.counts})"
+      def still_open(landed, pull, start, replaced)
+        return "#{landed[0, 10]}: #{start.report}" if start.unstarted?
+
+        text = "#{landed[0, 10]}: PR #{pull["number"]} not merged yet (#{start.counts})"
         replaced.unread ? "#{text}; replaced runs unread: #{replaced.unread}" : text
       end
 
@@ -154,6 +173,8 @@ module Hecks
       end
 
       def runner = self.class.runner || MainIntegration::CommandRunner.new
+
+      def now = (self.class.clock || Time).now
 
       def plain(argument) = argument.is_a?(Hash) ? argument[:value] : argument
     end

@@ -20,6 +20,9 @@ everyday:
   Codebase.search                   The lines of the checkout's text files that match a pattern, as…
 
 commands:
+  LocalOverlay:
+    One write of a checkout's machine-local overlay from the kept rows: written, current, or refused.
+    write!                        Write a checkout's machine-local overlay so it keeps every row its copy needs, and nothing more
   Build:
     One build of a domain for the Rust host, or a check of that build against Ruby.
     project_rust!                 Generate a domain's Rust source for the Rust host
@@ -438,5 +441,5 @@ bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
 
   hecks <command> --help       what one command wants, and every way it refuses
   hecks --all                  also list the internal commands and queries
-  a command is called with its aggregate — Build.project_rust!
+  a command is called with its aggregate — LocalOverlay.write!
   exit status: 0 answered, 1 refused or failed, 2 a line it could not read

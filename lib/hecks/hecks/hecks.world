@@ -125,7 +125,7 @@ Hecks.world "Hecks" do
                        executable: "exe/hecks",
                        maintainer: %w[LanguageRun KernelRun ConformanceRun RegenerationRun GateRun StyleRun InspectionRun
                                       CodemodRun TestSuiteRun CorpusRun Server PublishingRun PromotionRun Release ScriptRun
-                                      SyntaxBootCache],
+                                      SyntaxBootCache LocalOverlay],
                        newcomer: %w[launch.init launch.interview operation.open_console],
                        everyday: %w[operation.run operation.open_console gate_run.gate
                                     test_suite_run.run_changed test_suite_run.run_spec_example
