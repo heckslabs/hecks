@@ -60,6 +60,13 @@ Hecks.bluebook "Hecks" do
                      "the Work item's area or an architect verdict (a wrong area: Work.rescope!, then answer); " \
                      "otherwise Work.plan! a work item titled 'needs an answer: <run>' with the question text as its detail " \
                      "(the orchestrator holds Work.*; it needs no other permission). Never ask the owner."
+        # A volume at high past half an hour is a stall for the pruner, once per volume, ever: the
+        # DiskSpace `Volume` it opens on rises once.
+        member kind: "disk", aggregate: "Hecks::Volume", opens: "VolumeRose", closes: "VolumeEased",
+               minutes: 30, forgets: 10080, fixer: "pruner",
+               move: "Relief.plan! run.value=<stall> to see what frees space, then Relief.relieve! " \
+                     "run.value=<stall>-relief state.value=high --confirm, which retires merged worktrees and " \
+                     "tidies done runs only; report unpushed, dirty and pinned subjects by path, never remove them."
       end
 
       # One opening line still waiting for its closing line, as the tap shows it and its kind's row
