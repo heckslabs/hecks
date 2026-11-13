@@ -20,6 +20,11 @@ Hecks.hecksagon "Hecks" do
   # A judged verdict answers the coder waiting on its Work item (AnswerTheWaitingCoder in the delegate
   # bluebook); the outcome comes back as a delivered or an undeliverable verdict.
   subscribe "Agents.VerdictJudged"
+  # A verdict the coder's session refused on every try finishes the coder's run `unanswered`
+  # (FinishTheCoderWhoseVerdictWasAbandoned in the delegate bluebook).
+  subscribe "Agents.VerdictAbandoned"
+  # A verdict sent again answers the waiting coder as a judged one does (AnswerTheWaitingCoderAgain).
+  subscribe "Agents.VerdictRedelivered"
   # Persistence is not bound here, so the domain is in Memory. A copy opts in with a
   # hecks.local.hecksagon whose `persisted_by` the attached bluebooks inherit (ADR 0136).
 
@@ -513,13 +518,15 @@ Hecks.hecksagon "Hecks" do
   # The outside a reading of the machine reaches: the CPU idle percentage, swap used, the compressor's
   # size, the load average and the test lane's queue, judged against the Tickets world's `machine_marks`.
   # It answers each gauge's state and the state it stood in before; a reading within a minute of the last
-  # one is refused.
+  # one is refused. `Busiest` reads the process table: each class, its CPU and the session above it.
   Hecks::Machine.port "Sampling" do
     asks "Read", to: Machine do
       attribute :run, MachineKey
       answers "MachineSampled"
       refuses "MachineUnreadable"
     end
+
+    answers_query "Busiest"
   end
 
   # The outside an agent run reaches: it finds the directory and the agents, starts the background
@@ -631,6 +638,14 @@ Hecks.hecksagon "Hecks" do
       attribute :run, RunKey
       answers "WorktreeRetired"
       refuses "RetireRefused"
+    end
+
+    # `claude stop` on a kept session the bluebook says holds its process for nothing; never a kill
+    # by pid. The session stays listed.
+    asks "StopSession", to: AgentRun do
+      attribute :run, RunKey
+      answers "SessionStopped"
+      refuses "StopRefused"
     end
 
     # Whether `claude agents` still lists the session, before a run is retired; the bluebook judges it.
@@ -1271,6 +1286,9 @@ end
 # it, and the plan review records it. The run's key is the Work item, so it names the review.
 Hecks.hecksagon "Agents" do
   subscribe "Hecks.JobRead"
+  # Each sweep of the sessions sends a verdict the coder's session refused again (Agents
+  # RedeliverTheUnresumedVerdict), or gives it up once its tries are spent.
+  subscribe "Hecks.SweepRequested"
   subscribe "Coder.WorkSubmitted"
   subscribe "Pipeline.PassageVerified"
 
@@ -1299,11 +1317,13 @@ Hecks.hecksagon "Agents" do
                            "Only recommend: the owner confirms any promotion on the board." }
   end
 
-  # The architect's session closes with its verdict; the run's key is the review's, so it names the
-  # review it answers.
+  # The architect's session closes with its verdict, or says it and goes idle; the run's key is the
+  # review's, so it names the review it answers. It reads the job as `RecordTheVerdictWhenNoReviewWasAsked`
+  # and `JudgeTheArchitectsVerdict` in the Agents bluebook do, so a review that exists is answered
+  # on the read that judges its verdict, and one no request made is recorded by `Record`.
   translates "RecordTheArchitectsVerdict" do
     on AgentRun::JobRead
-    where { verdict != "" && previous != state }
+    where { verdict != "" && (previous != state || (listed == "idle" && previous != "done")) }
     trigger PlanReview::Answer, with: { run: :run, verdict: :verdict, findings: :findings }
   end
 
@@ -1314,11 +1334,11 @@ Hecks.hecksagon "Agents" do
     trigger Verdict::Deliver, with: { run: :verdict }
   end
 
-  # No session could take the verdict: the reason is a finding on the verdict, not a question for the orchestrator.
-  translates "RecordTheVerdictUndeliverable" do
-    on AgentRun::AgentRunUnanswered
-    where { verdict != "" }
-    trigger Verdict::Undeliver, with: { run: :verdict, reason: :refusal }
+  # The waiting coder's session refused the verdict's resume: the verdict is kept to be sent again
+  # (Agents `RedeliverTheUnresumedVerdict`), with the reason, not settled as undeliverable.
+  translates "RecordTheVerdictUnresumed" do
+    on AgentRun::AgentRunUnresumed
+    trigger Verdict::Unresume, with: { run: :verdict, reason: :refusal }
   end
 
   # The verdict came after the coder's run had finished: the reason is the same kind of finding.

@@ -1,5 +1,6 @@
 require "spec_helper"
 require_relative "support/registry_double"
+require_relative "support/agent_run_records"
 require "hecks/hecks/adapters/dispatching"
 
 # Settling the started work items, and the settings Dispatch.Fill reads from the Tickets world.
@@ -55,6 +56,18 @@ RSpec.describe Hecks::Adapters::Dispatching do
 
         expect(lines).to eq([])
         expect(launcher).to have_received(:check_all)
+      end
+    end
+
+    context "when the run is live and an archived run of the same key ended" do
+      include AgentRunRecords
+
+      it "yields nothing, since the live run holds the key" do
+        items = work_items_over(run_record("a", "started"), run_record("a~1", "finished"))
+        allow(items).to receive(:started).and_return([started_item])
+        described_class::Settler.new(items, launcher).call
+
+        expect(launcher).not_to have_received(:yield_back)
       end
     end
 

@@ -14,7 +14,7 @@ module Hecks
         # @raise [Runtime::NotFound] when the aggregate is declared by no bluebook, or no adapter
         #   keeps an event log
         def event_repository(domain, registry = nil, aggregate = nil)
-          registry ||= boot(domain).registry
+          registry ||= followed_registry(domain)
           refuse_unknown_aggregate!(domain, registry, aggregate)
           logged = logged_repositories(registry)
           found = logged.find { |declared, _| declared.hecks_name.casecmp?(bare(aggregate)) } || logged.first

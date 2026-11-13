@@ -20,8 +20,10 @@ RSpec.describe Hecks::Adapters::ClaudeAgents::Removal do
     Class.new do
       include Hecks::Adapters::ClaudeAgents::Removal
 
-      def initialize(transcript, shell)
+      def initialize(transcript, shell, listed: true)
         @transcript = transcript
+        entry = listed ? { "sessionId" => "full-id", "state" => "done" } : nil
+        @listing = Struct.new(:entry) { def find(_id) = entry }.new(entry)
         @shell = shell
         @command = "claude"
         @reaping = Struct.new(:x) { def facts(*) = { unmerged: false } }.new
@@ -35,7 +37,9 @@ RSpec.describe Hecks::Adapters::ClaudeAgents::Removal do
   let(:shell) { shell_class.new([]) }
   let(:failure) { Hecks::Adapters::ConsoleCapture::Failure }
 
-  def host(reading) = host_class.new(instance_double(Hecks::Adapters::ClaudeTranscript, reading: reading), shell)
+  def host(reading, listed: true)
+    host_class.new(instance_double(Hecks::Adapters::ClaudeTranscript, reading: reading), shell, listed: listed)
+  end
 
   def review(reading) = host(reading).review(session: { value: "abc" })
 
@@ -48,6 +52,11 @@ RSpec.describe Hecks::Adapters::ClaudeAgents::Removal do
   it "keeps a session the owner typed into, naming it" do
     expect(review(state: :read, person_turns: 2))
       .to include(taken_over: true, note: "a person replied (2 turns after the brief)")
+  end
+
+  it "answers a session the listing does not hold as gone, without a claude call", :aggregate_failures do
+    expect(host({}, listed: false).review(session: { value: "abc" })).to include(listed: false, gone_at: Hash)
+    expect(shell.calls).to be_empty
   end
 
   it "names a transcript that is missing" do
@@ -66,5 +75,14 @@ RSpec.describe Hecks::Adapters::ClaudeAgents::Removal do
   it "does not stop a session whose worktree still stands", :aggregate_failures do
     expect { remove }.to raise_error(failure)
     expect(shell.calls).to eq([%w[claude rm abc]])
+  end
+
+  it "says the state the listing shows now" do
+    expect(review(state: :read, person_turns: 0)).to include(live: "done")
+  end
+
+  it "stops a session with claude stop, naming what a refusal said", :aggregate_failures do
+    expect { host({}).stop_session(session: { value: "abc" }) }.to raise_error(failure, /claude stop abc refused: kept abc/)
+    expect(shell.calls).to eq([%w[claude stop abc]])
   end
 end

@@ -5,6 +5,7 @@ require "time"
 require_relative "console_capture"
 require_relative "in_process_operations/tailing"
 require_relative "in_process_operations/event_logs"
+require_relative "in_process_operations/domain_names"
 require "hecks/tools/run"
 require "hecks/tools/model_check"
 require "hecks/tools/smoke_test"
@@ -27,6 +28,7 @@ module Hecks
       include Tailing
       include Feeding
       include EventLogs
+      include DomainNames
 
       # The bluebooks `hecks model_check` sweep when no domain is named need a
       # checkout; an installed gem has none.
@@ -132,7 +134,7 @@ module Hecks
       # A domain's event log past a cursor, answered once, at the first entries or after `wait`.
       # Pass the answered `cursor` back as `since` to keep tailing.
       #
-      # @param domain [Hash, String] a domain directory
+      # @param domain [Hash, String] a domain directory, or a bluebook name such as `Tickets`
       # @param aggregate [Hash, String, nil] only entries of this aggregate, by bare name
       # @param since [Hash, Integer, nil] how many entries were already seen; all when absent
       # @param from_now [Hash, Boolean, nil] skip what exists; answer only a cursor at its end
@@ -142,7 +144,7 @@ module Hecks
       # @return [Hash] the `Tail` row: `cursor:`, `events:` (payloads as JSON text) and `taken_at:`
       # @raise [Runtime::NotFound] if the domain cannot be found or keeps no event log
       def follow(domain:, aggregate: nil, since: nil, from_now: nil, wait: nil, interval: nil, names: nil)
-        registry = boot(domain).registry
+        registry = followed_registry(domain)
         entries = []
         cursor = stream(domain: domain, aggregate: aggregate, since: since, from_now: from_now,
                         timeout: [plain(wait).to_f, MAX_FOLLOW_WAIT].min, interval: interval,
@@ -156,7 +158,7 @@ module Hecks
       # Tails a domain's event log, handing each entry to the block, until it returns `:stop` (or
       # `:batch`), `limit` entries were handed over, `timeout` seconds pass or the reader goes away.
       #
-      # @param domain [Hash, String] a domain directory
+      # @param domain [Hash, String] a domain directory, or a bluebook name of the Hecks domain
       # @param aggregate [Hash, String, nil] only entries of this aggregate, by bare name
       # @param since [Hash, Integer, nil] entries already seen; `from_now` skips what exists
       # @param limit [Hash, Integer, nil] entries to hand over at most, or `timeout` seconds

@@ -14,8 +14,9 @@ module Hecks
         # It uses only the standard library: the client runs before anything else loads.
         module Baseline
           # The variables a plain resident has set among the ones it matches a line on: where the
-          # cache is.
-          PLAIN = %w[HOME XDG_CACHE_HOME HECKS_CACHE_DIR].freeze
+          # cache is, and the spec runner's switch that keeps a spec's resident writing where it
+          # stands (`SpawnEnv::KEEP`).
+          PLAIN = %w[HOME XDG_CACHE_HOME HECKS_CACHE_DIR HECKS_WRITES_LOCAL].freeze
 
           module_function
 

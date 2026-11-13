@@ -15,6 +15,14 @@ RSpec.describe ParallelDefault do
     expect(described_class.applies?(argv: [], env: { "CI" => "1" }, program: "rspec")).to be(false)
   end
 
+  it "hands over at the world's worker count, not one worker per core" do
+    expect(described_class.command(workers: 6).each_cons(2)).to include(["-n", "6"])
+  end
+
+  it "takes its worker count from the spec workers cap" do
+    expect(described_class.command.each_cons(2).to_a).to include(["-n", Hecks::Adapters::Codebase::SpecWorkers.count(Dir.pwd).to_s])
+  end
+
   it "leaves another program alone even with an empty argv, such as an MCP server running one example" do
     expect(described_class.applies?(argv: [], env: quiet, program: "-e")).to be(false)
   end

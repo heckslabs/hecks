@@ -4,6 +4,7 @@ require "fileutils"
 require "hecks/cache_dir"
 require "hecks/rust_build/build_lock"
 require "hecks/rust_build/world_rows"
+require_relative "memory_wait"
 
 module Hecks
   module Adapters
@@ -15,7 +16,8 @@ module Hecks
       # A place is a kernel `flock` on one of `cap` files under the cache directory, so a holder
       # that dies, even killed, frees its place at once and none is ever held for a dead process.
       # The job's own time bounds start inside the block, so waiting never counts toward them.
-      # Nothing running is stopped or paused: a place only decides when a job starts.
+      # Nothing running is stopped or paused: a place only decides when a job starts. Before it
+      # looks for a place, a job waits while memory is low ({MemoryWait}).
       #
       # A job does not wait with `HECKS_NO_HEAVY_SLOT=1`, in CI, or when a parent that holds a
       # place started it (`HELD`, set for the children of a holder), which would wait for itself.
@@ -47,7 +49,7 @@ module Hecks
         # @yieldreturn [String] the job's report
         # @return [String] the report, after the line that names the wait when there was one
         def self.admitted(root, job, &)
-          report, note = new(cap: cap_of(root)).hold(job, &)
+          report, note = new(cap: cap_of(root), memory: MemoryWait.of(root)).hold(job, &)
           note.empty? ? report : "#{note}\n#{report}"
         end
 
@@ -62,15 +64,17 @@ module Hecks
         # @param dir [String] the directory the places live in
         # @param base [#[]] the environment, for the switches above
         # @param err [#puts] where the waiting note goes
-        # @param timing [Hash] `clock:` answers the time in seconds and `pause:` sleeps the given
-        #   seconds; the monotonic clock and `sleep` when absent
-        def initialize(cap:, dir: self.class.directory, base: ENV, err: $stderr, **timing)
+        # @param options [Hash] `clock:` answers the time in seconds and `pause:` sleeps the given
+        #   seconds, the monotonic clock and `sleep` when absent; `memory:` ({MemoryWait}) is waited
+        #   on before a place is taken, none when absent
+        def initialize(cap:, dir: self.class.directory, base: ENV, err: $stderr, **options)
           @cap = cap
           @dir = dir
           @base = base
           @err = err
-          @clock = timing.fetch(:clock) { -> { Process.clock_gettime(Process::CLOCK_MONOTONIC) } }
-          @pause = timing.fetch(:pause) { ->(seconds) { sleep(seconds) } }
+          @memory = options[:memory]
+          @clock = options.fetch(:clock) { -> { Process.clock_gettime(Process::CLOCK_MONOTONIC) } }
+          @pause = options.fetch(:pause) { ->(seconds) { sleep(seconds) } }
         end
 
         # Runs the block in a place, waiting for one when every place is taken.
@@ -81,7 +85,9 @@ module Hecks
         def hold(job, &)
           return [yield, ""] if bypass?
 
-          place, note = acquire(job)
+          memory = @memory ? @memory.wait(job) : ""
+          place, slot = acquire(job)
+          note = [memory, slot].reject(&:empty?).join("; ")
           return [yield, note] unless place
 
           begin

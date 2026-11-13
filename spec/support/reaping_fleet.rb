@@ -90,6 +90,13 @@ module ReapingFleet
     finished_run("r-done")
   end
 
+  # A run that finished done whose session `claude agents` does not list: removed elsewhere.
+  def gone_run
+    transcript([user("go")])
+    File.write(File.join(scratch, "sessions.json"), "[]")
+    finished_run("r-done")
+  end
+
   def plain_session(age_hours, tree: nil)
     transcript([user("hello"), *(tree ? [at_tree(tree)] : [])], mtime: now - (age_hours * 3600))
     listing("plain-1", "done", name: "chat")
