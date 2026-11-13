@@ -1301,11 +1301,13 @@ Hecks.hecksagon "Agents" do
                            "Only recommend: the owner confirms any promotion on the board." }
   end
 
-  # The architect's session closes with its verdict; the run's key is the review's, so it names the
-  # review it answers.
+  # The architect's session closes with its verdict, or says it and goes idle; the run's key is the
+  # review's, so it names the review it answers. It reads the job as `RecordTheVerdictWhenNoReviewWasAsked`
+  # and `JudgeTheArchitectsVerdict` in the Agents bluebook do, so a review that exists is answered
+  # on the read that judges its verdict, and one no request made is recorded by `Record`.
   translates "RecordTheArchitectsVerdict" do
     on AgentRun::JobRead
-    where { verdict != "" && previous != state }
+    where { verdict != "" && (previous != state || (listed == "idle" && previous != "done")) }
     trigger PlanReview::Answer, with: { run: :run, verdict: :verdict, findings: :findings }
   end
 
