@@ -93,8 +93,11 @@ Hecks.bluebook "CiWorkflows" do
       attribute :key,      String
       attribute :value,    String
 
+      # A pull request carrying the red-drill label is never attested, so its shards run and fail.
       member workflow: "ci-rspec.yml", job: "ci_attestation_rspec", key: "attested",
-             value: "${{ steps.attest.outputs.attested }}"
+             value: "${{ github.event_name == 'pull_request' && " \
+                    "contains(github.event.pull_request.labels.*.name, 'red-drill') && " \
+                    "'false' || steps.attest.outputs.attested }}"
     end
 
     value_object "Env" do
@@ -105,6 +108,10 @@ Hecks.bluebook "CiWorkflows" do
 
       member workflow: "ci-rspec.yml", job: "shard_plan", key: "GH_TOKEN", value: "${{ github.token }}"
       member workflow: "ci-rspec.yml", job: "rspec_shard", key: "GH_TOKEN", value: "${{ github.token }}"
+      # The red drill's switch (spec/support/red_drill.rb): on only for a pull request with its label.
+      member workflow: "ci-rspec.yml", job: "rspec_shard", key: "HECKS_RED_DRILL",
+             value: "${{ github.event_name == 'pull_request' && " \
+                    "contains(github.event.pull_request.labels.*.name, 'red-drill') && '1' || '0' }}"
     end
 
     value_object "Step" do
