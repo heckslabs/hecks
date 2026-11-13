@@ -57,7 +57,12 @@ RSpec.describe "the orchestrator routing guard" do
            .value_objects.find { |object| object.hecks_name == "StallKind" }.members
     end
 
-    def verbs = kinds.flat_map { |row| row[:move].scan(/\b[A-Z]\w+\.[a-z_]+!?/) }.uniq
+    # The moves the orchestrator runs: a kind whose fixer is another role (the disk kind's pruner)
+    # is that role's to run, and the orchestrator's list does not hold it.
+    def verbs
+      kinds.select { |row| row[:fixer] == "orchestrator" }
+           .flat_map { |row| row[:move].scan(/\b[A-Z]\w+\.[a-z_]+!?/) }.uniq
+    end
 
     it "names a launcher verb for every kind", :aggregate_failures do
       expect(kinds.map { |row| row[:move].to_s }).to all(match(/\b[A-Z]\w+\.[a-z_]+!/))

@@ -85,6 +85,7 @@ Hecks.bluebook "Hecks" do
       attribute :free_gb,      Count, optional: true
       attribute :used_percent, Count, optional: true
       attribute :state,        Word,  optional: true
+      attribute :previous,     Word,  optional: true
       identified_by :run
 
       value_object "RunKey" do
@@ -136,9 +137,66 @@ Hecks.bluebook "Hecks" do
         attribute :free_gb,      Count, sets: true
         attribute :used_percent, Count, sets: true
         attribute :state,        Word, sets: true
+        attribute :previous,     Word, optional: true, sets: true
 
         emits LevelJudged
       end
+    end
+
+    # A volume while it stands at high: the subject the StallWatch `disk` row opens and closes on.
+    # A volume rises once and eases once, so it is one stall per volume, ever: a later high of the
+    # same volume finds it already risen and is refused by name. Nothing dispatches `Level.Judge`
+    # yet (the adapter of the DiskSpace hecksagon will), so no volume rises until one does.
+    aggregate "Volume" do
+      description "A volume that went high, until it eases below high."
+      created_by "Volume.rise!"
+
+      attribute :volume, VolumeName
+      identified_by :volume
+
+      # A volume's name. It is narrower than a `Word` because it is the subject of the stall key
+      # `stall-disk-<volume>`, which takes no slash or space.
+      value_object "VolumeName" do
+        attribute :value, String, pattern: '\A[A-Za-z0-9._-]+\z'
+      end
+
+      lifecycle :status, default: "high" do
+        transition "Ease" => "eased", from: "high"
+        mark :terminal, "eased"
+      end
+
+      command "Rise" do
+        role "System"
+        goal "Record that a volume reached the high level"
+
+        attribute :volume, VolumeName, sets: true
+
+        emits VolumeRose
+      end
+
+      command "Ease" do
+        role "System"
+        goal "Record that a high volume came back below high"
+
+        reference_to Volume
+
+        emits VolumeEased
+      end
+    end
+
+    # A judge that moves a volume to high raises it; one that moves it from high eases it. The
+    # judge's `previous` is the level the volume was at, so a level that stays where it was moves
+    # nothing and no judge records a refused line.
+    policy "RiseWhenJudgedHigh" do
+      on      "Level.LevelJudged"
+      where   { state == "high" && previous != "high" }
+      trigger Volume::Rise, with: { volume: :volume }
+    end
+
+    policy "EaseWhenJudgedBelowHigh" do
+      on      "Level.LevelJudged"
+      where   { previous == "high" && state != "high" }
+      trigger Volume::Ease, with: { volume: :volume }
     end
 
     # What frees each kind of owner, and what is never freed.

@@ -644,6 +644,7 @@ Hecks.hecksagon "Hecks" do
     asks "Resume", to: AgentRun do
       attribute :run, RunKey
       attribute :answer, Brief
+      attribute :step, Brief
       attribute :verdict, VerdictKey
       answers "AgentResumed"
       refuses "ResumeRefused"
@@ -1317,6 +1318,12 @@ Hecks.hecksagon "Agents" do
   translates "RecordTheVerdictUndeliverable" do
     on AgentRun::AgentRunUnanswered
     where { verdict != "" }
+    trigger Verdict::Undeliver, with: { run: :verdict, reason: :refusal }
+  end
+
+  # The verdict came after the coder's run had finished: the reason is the same kind of finding.
+  translates "RecordTheVerdictOfAFinishedRun" do
+    on AgentRun::AgentRunUnreached
     trigger Verdict::Undeliver, with: { run: :verdict, reason: :refusal }
   end
 end

@@ -6,22 +6,21 @@ module Hecks
   module Adapters
     class Dispatching
       # Settles the started work items whose sessions have ended: asks each running session how it
-      # is,
-      # then
-      # finishes the work item of one that ended `done` and yields the work item of one that ended
-      # any other
-      # way,
+      # is, then finishes the work item whose branch landed since it started and yields any other,
       # with the condition as the reason. A session still working is left alone.
       class Settler
-        # @param work items [WorkItems] where the started work items and the runs are read
+        # @param work_items [WorkItems] where the started work items and the runs are read
         # @param launcher [Launcher] runs the commands that check, finish and yield
         # @param grace [Integer] seconds after its start that a run's session is read as unknown
         # @param clock [#call] answers the time, for the grace
-        def initialize(work_items, launcher, grace: 0, clock: -> { Time.now.utc })
+        # @param landed [#call, nil] answers the commit a work item's branch landed as since it
+        #   started, or nil; when none is given no landing is asked for
+        def initialize(work_items, launcher, grace: 0, clock: -> { Time.now.utc }, landed: nil)
           @work_items = work_items
           @launcher = launcher
           @grace = grace
           @clock = clock
+          @landed = landed
         end
 
         # @return [Array<String>] one line for each work item settled, empty when none was
@@ -36,12 +35,22 @@ module Hecks
         # its item. An answer's own stop never finishes a run (`RecordTheEndedSession` leaves a
         # `resuming` run alone), so a session an answer woke keeps its run started.
         #
-        # A landed branch and a submitted branch finish their Work item themselves, so an item still
-        # started when its session ended `done` landed nothing: it goes back to the plan with a
-        # finding, never to `finished`.
+        # A landed branch and a submitted branch finish their Work item by their own reactions. When
+        # that reaction is lost the item is still started here, so a landing since its start
+        # refuses the yield and finishes it instead, however the session ended. An item with no
+        # landing that ended `done` goes back to the plan with a finding.
         def settle(key, condition)
           return unless @work_items.runs.dig(key, :status) == "finished"
 
+          sha = @landed&.call(key)
+          return finish_landed(key, sha) if sha
+
+          yield_ended(key, condition)
+        end
+
+        def finish_landed(key, sha) = "#{@launcher.finish(key)}: landed as #{sha[0, 9]}, finishing instead"
+
+        def yield_ended(key, condition)
           reason = condition == "done" ? "its session ended done with no landing or submission" : "its session ended #{condition}"
           line = @launcher.yield_back(item_of(key), reason)
           condition == "done" ? "#{line}\n#{@launcher.report_unlanded(key)}" : line

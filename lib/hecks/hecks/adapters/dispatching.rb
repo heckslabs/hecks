@@ -10,6 +10,7 @@ require_relative "dispatching/filling"
 require_relative "dispatching/fill_report"
 require_relative "dispatching/lesson_traps"
 require_relative "dispatching/settler"
+require_relative "dispatching/landed_since"
 require_relative "dispatching/last_roll"
 require_relative "dispatching/pending"
 require_relative "dispatching/planned_cache"
@@ -73,7 +74,7 @@ module Hecks
       # @param held [Hash] the `Dispatch` record: `repo`
       # @return [Hash{Symbol => Hash}] `report:` one line per work item settled
       def conclude(**held)
-        lines = Settler.new(work_items, launcher_for(held), grace: machine.session_grace).call
+        lines = settler(held, launcher_for(held)).call
         { report: { value: lines.empty? ? "nothing to settle" : lines.join("\n") } }
       end
 
@@ -95,9 +96,16 @@ module Hecks
       # items parked behind a run whose session is gone.
       def settle_ended(held)
         launcher = launcher_for(held)
-        Settler.new(work_items, launcher, grace: machine.session_grace).call
+        settler(held, launcher).call
         release_taken(launcher)
         PlannedCache.clear!
+      end
+
+      # The settle of the ended sessions, which reads the landed commits in the checkout the
+      # filling is for, so a work item whose branch landed is finished and never yielded.
+      def settler(held, launcher)
+        items = work_items
+        Settler.new(items, launcher, grace: machine.session_grace, landed: LandedSince.new(items, repo: plain(held[:repo])))
       end
 
       # A planned work item parked behind a run still recorded started is never launched, so the

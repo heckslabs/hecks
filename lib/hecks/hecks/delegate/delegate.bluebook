@@ -261,13 +261,15 @@ Hecks.bluebook "Hecks" do
       end
 
       # Answers a session that has not ended, working or blocked on a person: its answer is sent as a
-      # resumed background session's prompt, so the session carries on under the same ID.
+      # resumed background session's prompt, so the session carries on under the same ID. A `step`,
+      # when one is given, leads the prompt: what the session does next with the answer.
       command "Answer", from: "started" do
         role "Operator"
         goal "Answer a session that is working or blocked by resuming it with the answer"
 
         reference_to AgentRun
         attribute :answer, Brief
+        attribute :step, Brief, default: ""
         attribute :verdict, VerdictKey, default: ""
         attribute :resuming, Resuming, default: true, sets: true
 
@@ -311,6 +313,20 @@ Hecks.bluebook "Hecks" do
         attribute :reviewing, Reviewing, default: false, sets: true
 
         emits AgentRunUnanswered
+      end
+
+      # A verdict came for a run that has finished. Only the run that holds the key takes it: a run
+      # an earlier attempt left as `<run>~<n>` is not addressed by the key, so a restarted Work item
+      # whose new run is answered records no refusal for its earlier attempt.
+      command "Unreached", from: "finished" do
+        role "System"
+        goal "Record that a verdict came for a coder run that had already finished"
+
+        reference_to AgentRun
+        attribute :verdict, VerdictKey
+        attribute :refusal, Report
+
+        emits AgentRunUnreached
       end
 
       # Closes a run still recorded started whose session is gone: `claude agents` no longer lists
@@ -369,11 +385,6 @@ Hecks.bluebook "Hecks" do
         description "Every run whose session was started and is not known to have ended, oldest key first."
         where(status: "started")
         order_by :run
-      end
-
-      query "FinishedOfWork" do
-        description "The finished run keyed by one Work item, the coder a late verdict can no longer reach."
-        where(status: "finished", run: :work)
       end
 
       query "Declined" do
@@ -1287,7 +1298,7 @@ Hecks.bluebook "Hecks" do
 
     policy "ResumeWithTheAnswer" do
       on      "AgentRun.AnswerRequested"
-      ask     :resume, with: { run: :run, answer: :answer, verdict: :verdict }
+      ask     :resume, with: { run: :run, answer: :answer, step: :step, verdict: :verdict }
     end
 
     policy "RecordTheAnswer" do
@@ -1364,14 +1375,14 @@ Hecks.bluebook "Hecks" do
     end
 
     # A verdict judged for a coder run that already finished cannot be delivered (`Answer` takes a
-    # started run). It is not lost: the run is recorded unanswered, which records the verdict
-    # undeliverable with this reason, a finding that names the judge's run and the Work item. A
-    # Work item with no finished run finds no row.
+    # started run). It is not lost: the run keyed by the Work item is recorded unreached, which
+    # records the verdict undeliverable with this reason, a finding that names the judge's run and
+    # the Work item. `Unreached` takes only a finished run, so a started run (answered by
+    # AnswerTheWaitingCoder) or a Work item with no run refuses it and records nothing.
     policy "RefuseTheVerdictOfAFinishedCoder" do
-      on       "Verdict.VerdictJudged"
-      for_each "AgentRun.FinishedOfWork"
-      trigger  AgentRun::Unanswered, with: { agent_run: :agent_run, verdict: :run,
-                                             refusal: "the coder run already finished: restart the item with the review in its brief" }
+      on      "Verdict.VerdictJudged"
+      trigger AgentRun::Unreached, with: { run: :work, verdict: :run,
+                                           refusal: "the coder run already finished: restart the item with the review in its brief" }
     end
 
     # The Work item's coder run is marked as waiting on a review the moment it is requested, before any
@@ -1383,10 +1394,35 @@ Hecks.bluebook "Hecks" do
 
     # A judge's verdict answers the coder waiting on the Work item, a run keyed by the Work item, in
     # place. The judge's run names the verdict, so the outcome settles it (Agents translations
-    # RecordTheVerdictDelivered and RecordTheVerdictUndeliverable).
+    # RecordTheVerdictDelivered and RecordTheVerdictUndeliverable). A verdict to build leads with
+    # the coder's next step, so the read of its review is not taken for the end of its turn; a
+    # rethink, a reviewer's judgment and an unstarted review go as written, for the brief decides
+    # what the coder does with them.
     policy "AnswerTheWaitingCoder" do
       on      "Verdict.VerdictJudged"
+      where   { word != "sound" && word != "changes" }
       trigger AgentRun::Answer, with: { run: :work, answer: :answer, verdict: :run }
+    end
+
+    policy "AnswerTheWaitingCoderToBuild" do
+      on      "Verdict.VerdictJudged"
+      where   { word == "sound" }
+      trigger AgentRun::Answer,
+              with: { run: :work, answer: :answer, verdict: :run,
+                      step: "Your plan review's verdict is sound. Read your review with PlanReview.reviews as " \
+                            "your brief says, then continue in this session and build the Work item now: the " \
+                            "read is a step, not the end of your turn." }
+    end
+
+    policy "AnswerTheWaitingCoderToReviseAndBuild" do
+      on      "Verdict.VerdictJudged"
+      where   { word == "changes" }
+      trigger AgentRun::Answer,
+              with: { run: :work, answer: :answer, verdict: :run,
+                      step: "Your plan review's verdict is sound with changes. Read your review with " \
+                            "PlanReview.reviews as your brief says, then continue in this session: revise the " \
+                            "plan as its findings say and build the Work item now. The read is a step, not the " \
+                            "end of your turn." }
     end
 
     # A planning request starts the planner's session as a run keyed by the request, with the goal as
@@ -1645,6 +1681,288 @@ Hecks.bluebook "Hecks" do
     policy "RecordTheDeclinedCleanup" do
       on      "SessionCleanup.CleanupRefused"
       trigger SessionCleanup::Decline, with: { refusal: :refusal }
+    end
+
+    # A session's question for the orchestrator: a job read blocked whose question begins [choose],
+    # [confirm] or [retry]. It is keyed by the blocked run, so a run asks one question at a time and a
+    # second reading of the same block asks nothing; an ended question frees the key. An [owner]
+    # question is not one: the board's Waiting-on-you panel lists its session as the owner's, and
+    # no run answers it. A [review] wait is not one either.
+    aggregate "Question" do
+      description "One question a blocked run asks the orchestrator: asked, seated with an orchestrator run that answers it, then closed when the run is answered or escalated as the owner's."
+
+      identified_by :run
+
+      attribute :run,  QuestionRun
+      attribute :text, QuestionText
+
+      value_object "QuestionRun" do
+        attribute :value, String, matches: :present
+        invariant("a question names the run that asks it") { !value.to_s.empty? }
+      end
+
+      value_object "QuestionText", String
+
+      # `asked` waits for a seat; `seated` has an orchestrator run answering it. A question that
+      # found no seat waits for the agent-run-blocked stall, which wakes the orchestrator.
+      lifecycle :status, default: "asked" do
+        transition "Seat"     => "seated",    from: "asked"
+        transition "Close"    => "closed",    from: "seated"
+        transition "Drop"     => "dropped",   from: "asked"
+        transition "Escalate" => "escalated", from: "seated"
+        mark :terminal, "closed", "dropped", "escalated"
+        mark :reusable, "closed", "dropped", "escalated"
+      end
+
+      command "Ask" do
+        role "System"
+        goal "Record the question a blocked run asks the orchestrator"
+
+        attribute :run,  QuestionRun, sets: true
+        attribute :text, QuestionText, sets: true
+
+        emits "QuestionAsked"
+      end
+
+      command "Seat" do
+        role "System"
+        goal "Record that an orchestrator run was seated to answer the question"
+
+        reference_to Question
+
+        emits "QuestionSeated"
+      end
+
+      command "Close" do
+        role "System"
+        goal "Close a seated question once its run was answered or moved on"
+
+        reference_to Question
+
+        emits "QuestionClosed"
+      end
+
+      command "Drop" do
+        role "System"
+        goal "Drop a question no run was seated for once its run was answered or moved on"
+
+        reference_to Question
+
+        emits "QuestionDropped"
+      end
+
+      # The orchestrator's verb for a question whose answer is the owner's: it plans the work item
+      # `needs an answer: <run>` with one [owner] line, which the Waiting-on-you panel lists, and
+      # escalates the question, which frees its seat. Nobody answers the run in its place.
+      command "Escalate" do
+        role "Operator"
+        goal "Hand a seated question to the owner, unanswered, and free its seat"
+
+        reference_to Question
+
+        emits "QuestionEscalated"
+      end
+
+      query "Open" do
+        description "Every question still waiting on an answer, asked or seated."
+        where(status: { in: "asked,seated" })
+        order_by :run
+      end
+
+      # The seated question one run asks, so a reaction to any run's end or answer closes it when
+      # there is one and fires nothing when the run asked none.
+      query "SeatedOfRun" do
+        description "The seated question one run asks, when it asks one."
+        attribute :run, QuestionRun
+        where(status: "seated", run: :run)
+      end
+
+      # The question one run asks that has found no seat yet, which the run's end or answer drops.
+      query "AskedOfRun" do
+        description "The question one run asks that waits for a seat, when it asks one."
+        attribute :run, QuestionRun
+        where(status: "asked", run: :run)
+      end
+
+      policy "AskTheOrchestratorWhenBlocked" do
+        on      "AgentRun.JobRead"
+        root
+        where   do
+          state == "blocked" && previous != state && agent != "orchestrator" &&
+            (detail.start_with?("[choose]") || detail.start_with?("[confirm]") || detail.start_with?("[retry]"))
+        end
+        trigger Question::Ask, with: { run: :run, text: :detail }
+      end
+
+      policy "OpenTheAnswerDesk" do
+        on      "Question.QuestionAsked"
+        trigger AnswerDesk::Open, with: { desk: "orchestrator", run: :run }
+      end
+
+      policy "TakeAnAnswerSeat" do
+        on      "Question.QuestionAsked"
+        trigger AnswerDesk::Take, with: { desk: "orchestrator", run: :run }
+      end
+
+      policy "SeatTheQuestion" do
+        on      "AnswerDesk.AnswerSeatTaken"
+        trigger Question::Seat, with: { run: :run }
+      end
+
+      policy "SeatTheFirstQuestion" do
+        on      "AnswerDesk.AnswerDeskOpened"
+        trigger Question::Seat, with: { run: :run }
+      end
+
+      # The answerer is an orchestrator run, its key minted, its `work` the run it answers. It is a
+      # root: its start sits deeper than the reaction cap counts from the job reading.
+      policy "StartTheAnswererWhenSeated" do
+        on      "Question.QuestionSeated"
+        root
+        trigger AgentRun::Dispatch,
+                with: { repo: ".", agent: "orchestrator", works_as: "answerer", work: :run,
+                        brief: "A coder's run is blocked on a question for you: your run's work names it " \
+                               "(AgentRun.running). Answer it with AgentRun.answer! under your standing rule " \
+                               "answer-within-the-brief, or escalate it when the answer is the owner's. " \
+                               "End your turn with the word answered or escalated." }
+      end
+
+      # Every run's answer, end and failure looks its question up: a run that asked none finds no
+      # row, so nothing fires and nothing is refused; a seated question is closed, an asked one dropped.
+      policy "CloseTheAnsweredQuestion" do
+        on       "AgentRun.AgentRunAnswered"
+        for_each "Question.SeatedOfRun"
+        trigger  Question::Close, with: { run: :run }
+      end
+
+      policy "DropTheAnsweredQuestion" do
+        on       "AgentRun.AgentRunAnswered"
+        for_each "Question.AskedOfRun"
+        trigger  Question::Drop, with: { run: :run }
+      end
+
+      policy "CloseTheQuestionOfAnEndedRun" do
+        on       "AgentRun.SessionFinished"
+        for_each "Question.SeatedOfRun"
+        trigger  Question::Close, with: { run: :run }
+      end
+
+      policy "DropTheQuestionOfAnEndedRun" do
+        on       "AgentRun.SessionFinished"
+        for_each "Question.AskedOfRun"
+        trigger  Question::Drop, with: { run: :run }
+      end
+
+      policy "CloseTheQuestionOfAFailedRun" do
+        on       "AgentRun.SessionFailed"
+        for_each "Question.SeatedOfRun"
+        trigger  Question::Close, with: { run: :run }
+      end
+
+      policy "DropTheQuestionOfAFailedRun" do
+        on       "AgentRun.SessionFailed"
+        for_each "Question.AskedOfRun"
+        trigger  Question::Drop, with: { run: :run }
+      end
+
+      policy "FreeTheSeatOfAClosedQuestion" do
+        on      "Question.QuestionClosed"
+        trigger AnswerDesk::Free, with: { desk: "orchestrator" }
+      end
+
+      policy "FreeTheSeatOfAnEscalatedQuestion" do
+        on      "Question.QuestionEscalated"
+        trigger AnswerDesk::Free, with: { desk: "orchestrator" }
+      end
+
+      # The answerer closes with its word, as a coder closes with `submitted`: an orchestrator run
+      # otherwise idles between beats and is never read finished.
+      policy "RecordTheAnswerersEnd" do
+        on      "AgentRun.JobRead"
+        root
+        where   do
+          state == "working" && listed == "idle" && resuming != true && previous != "done" && agent == "orchestrator" &&
+            (report.rstrip.end_with?("answered") || report.rstrip.end_with?("escalated"))
+        end
+        trigger AgentRun::Finish, with: { condition: "done", detail: :report, checkout: :checkout }
+      end
+    end
+
+    # The seats of the orchestrator runs that answer questions: at most two at once, so a burst of
+    # blocked runs cannot start a crowd of orchestrators. A question that finds no seat waits for the
+    # agent-run-blocked stall. The one desk is created by the first question; `last` names the
+    # question that took the latest seat, so the first question, seated by `Open`, is not seated again
+    # by `Take` whichever of the two reacts first.
+    aggregate "AnswerDesk" do
+      description "The seats of the orchestrator runs that answer questions, at most two taken at once."
+
+      identified_by :desk
+
+      attribute :desk,   DeskName
+      attribute :seated, Seats
+      attribute :last,   SeatedRun
+
+      value_object "DeskName" do
+        attribute :value, String, matches: :present
+        invariant("a desk has a name") { !value.to_s.empty? }
+      end
+
+      value_object "Seats" do
+        attribute :value, Integer, default: 0
+        invariant("seats taken are not negative") { !value.negative? }
+      end
+
+      value_object "SeatedRun" do
+        attribute :value, String, default: ""
+      end
+
+      command "Open" do
+        role "System"
+        goal "Open the desk with its first seat taken by the question that found it missing"
+
+        attribute :desk, DeskName, sets: true
+        attribute :run,  SeatedRun
+
+        sets :seated, to: { value: 1 }
+        sets :last, to: :run
+
+        emits "AnswerDeskOpened"
+      end
+
+      command "Take" do
+        role "System"
+        goal "Take a seat for a question, refused while two are taken"
+
+        reference_to AnswerDesk
+        attribute :run, SeatedRun
+
+        given("at most two answerers run at once") { seated.value < 2 }
+        given("the question does not hold the latest seat already") { last.value != run.value }
+
+        sets :seated, increment: { value: 1 }
+        sets :last, to: :run
+
+        emits "AnswerSeatTaken"
+      end
+
+      command "Free" do
+        role "System"
+        goal "Free the seat of a question that was answered or escalated"
+
+        reference_to AnswerDesk
+
+        given("a seat is taken") { seated.value.positive? }
+
+        sets :seated, decrement: { value: 1 }
+        sets :last, to: { value: "" }
+
+        emits "AnswerSeatFreed"
+      end
+
+      query "Desks" do
+        description "The desk and how many of its seats are taken."
+        order_by :desk
+      end
     end
   end
 end

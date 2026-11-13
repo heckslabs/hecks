@@ -37,7 +37,7 @@ module Hecks
         DENIED_ARGUMENTS = %w[
           adapter answer artifact bluebook brief claimed confirm expected force from gem_only header health_path host live
           condition no_wait npm_local npm_only output path payload payload_file port prebuilt remote resolve row rust_binary
-          scheme stage_dir state_path stdio url write
+          scheme stage_dir state_path stdio step url write
         ].freeze
 
         # Argument names whose values are paths (a comma-separated list for some). A restricted

@@ -2,6 +2,7 @@
 
 require_relative "tree"
 require_relative "ruby_child"
+require_relative "heavy_slots"
 
 module Hecks
   module Adapters
@@ -10,7 +11,8 @@ module Hecks
       #
       # It runs `Hecks::Tools::Gate` in this process. The tool starts the stage's checks together,
       # each as its own process, and answers 1 when any is red; the refusal is what the red checks
-      # printed, so `--wait` and the journal both say which check failed.
+      # printed, so `--wait` and the journal both say which check failed. A run takes a heavy-job
+      # place first ({HeavySlots}), so the gates and spec batches of many sessions queue.
       module Gate
         # Every operation this family carries out.
         OPERATIONS = %w[gate].freeze
@@ -29,9 +31,16 @@ module Hecks
           plain = ->(name) { held[name].is_a?(Hash) ? held[name][:value] : held[name] }
           only = plain.call(:only).to_s
           argv = [plain.call(:stage).to_s, *("only=#{only}" unless only.empty?)]
-          out = RubyChild.new(tree).answer("gate", *argv).strip
+          out = run(tree, argv)
           { report: { value: out } }.merge(counts_of(out))
         end
+
+        # Runs the gate tool once a heavy-job place is free.
+        #
+        # @param tree [Tree] the checkout
+        # @param argv [Array<String>] the stage and its `only=` filter
+        # @return [String] what the gate printed, after the line naming any wait for a place
+        def run(tree, argv) = HeavySlots.admitted(tree.root, "gate") { RubyChild.new(tree).answer("gate", *argv).strip }
 
         # The counts the gate tool prints for the verdict; a run that printed none claims zero.
         COUNTS_LINE = /^gate-counts expected=(\d+) recorded=(\d+)$/

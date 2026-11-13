@@ -80,10 +80,13 @@ module Hecks
         def retire(key) = StepOutcome.new(@runner.call(retire_argv(key)), reaches: "retired", decided_by_status: true)
 
         # @param key [String] the Work item to record as done
-        # @return [String] the line that says so
+        # @return [String] the line that says so, with what a later reaction refused, or why the
+        #   finish was not recorded when it was not
         def finish(key)
-          @runner.call(["tickets", "Work.finish!", "to=#{key}", "--wait"])
-          "finished #{key}"
+          outcome = StepOutcome.new(@runner.call(["tickets", "Work.finish!", "to=#{key}", "--wait"]), reaches: "done")
+          return "finished #{key} (the finish was not recorded: #{outcome.reason})" unless outcome.ok?
+
+          outcome.note.empty? ? "finished #{key}" : "finished #{key} (then refused: #{outcome.note})"
         end
 
         # Files the finding that a session ended `done` while its Work item had landed nothing. The
