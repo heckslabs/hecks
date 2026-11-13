@@ -52,8 +52,9 @@ push train already runs from a copy of its own (`~/.claude/hecks-train`), moved 
 1. **The pipeline moves to a project of its own, named Switchyard.** It is a Hecks project like any client: its own
    repository, bluebook, hecksagon, world, launcher, specs and gate. It works on a checkout it is told, as
    `SendTrain.board! checkout=` does today, so it serves Hecks and the client repositories alike.
-2. **What moves.** The delivery aggregates past a commit (`Landing`, `SendTrain`, `Integration`, `TrainPr`,
-   `ReviewRequest`, `EarlyCi`, `BoardingHold`, `BoardingRelease`, `PushOutcome`, `Shipment`); the whole of `delegate`
+2. **What moves.** The whole of `deliver` but the two questions decision 7 keeps (`Revision`, `LinkedTree`,
+   `Landing`, `SendTrain`, `Integration`, `TrainPr`, `ReviewRequest`, `EarlyCi`, `BoardingHold`, `BoardingRelease`,
+   `PushOutcome`, `Shipment`, and the git questions of `Workspace`); the whole of `delegate`
    (`AgentRun`, `Dispatch`, `Heartbeat`, `Ticker`, `Wake`, `Machine`, the session aggregates, `Question`,
    `AnswerDesk`); `RedFlag`, `StallWatch`, `PushRehearsal` and `QaQuiesce`; the bluebooks Pipeline, PipelineBoard,
    Agents, Coder, Fixer and Triage; the adapters and specs of all of these; the pipeline's lines of `hecks.world`; the
@@ -71,13 +72,21 @@ push train already runs from a copy of its own (`~/.claude/hecks-train`), moved 
    fingerprint covers the gem's `lib/`.
 6. **Tickets stays in Hecks and Switchyard attaches it.** Client projects attach Tickets as their own board, so it is
    a shipped bluebook and not only the pipeline's.
-7. **The commit-side delivery verbs stay in Hecks.** `Workspace`, `Revision` and `LinkedTree` are what a client's
-   agents use for repository work without a pipeline. `Landing` moves; a client that wants landings attaches or runs
-   Switchyard.
-8. **QualityControl stays for now.** It drives fuzzing, the corpus and era mints, which judge the framework, and it
+7. **The git verbs move with `Landing`, and Hecks keeps none.** `Revision`, `LinkedTree`, `Landing` and the git
+   questions of `Workspace` (`Status`, `Strays`, `Changes`) are one set: a landing names its worktree by id, the four
+   share the git adapters, and their records sit in one store. They move together, as a delivery bluebook of
+   Switchyard's that a project can attach without the rest of the pipeline. `Workspace.Settings`, `Workspace.Doctor`
+   and `Workspace.Where` say how Hecks itself is set up (`hecks config` and `hecks doctor` run them) and stay.
+   Hecks runs its own repository through Switchyard, as any client does.
+8. **Switchyard is in two layers.** The delivery bluebook of decision 7 is the lower one: commit, open a worktree,
+   land. The pipeline is the upper one: agent runs, the train, integration, the board and the watchers. A client that
+   wants repository verbs and no pipeline takes the lower layer alone.
+9. **QualityControl stays for now.** It drives fuzzing, the corpus and era mints, which judge the framework, and it
    also feeds Fixer and Coder. Where it is cut is a later decision, taken once Switchyard stands.
 
-Items 6 and 7 are the recommendation; the owner has not chosen yet.
+The owner chose decision 7 on 2026-11-13. The first draft kept `Workspace`, `Revision` and `LinkedTree` in Hecks and
+moved `Landing`; "Alternatives considered" says why that was dropped. Decision 6 is still the recommendation and not
+yet chosen.
 
 ## Consequences
 
@@ -94,14 +103,29 @@ Items 6 and 7 are the recommendation; the owner has not chosen yet.
 - The records in `~/.claude/hecks-dev` keep their files. Their bluebooks change name from `Hecks` to `Switchyard`, so
   the tables are either renamed once or declared with `stored_as`, as the earlier renames were.
 - The context map loses the Hecks to Agents and Hecks to Coder pairs, which become relationships inside Switchyard.
+- A worktree fault (a tidy, a retirement, a scratch clearing) is mended in Switchyard like any other pipeline fault.
+  With `LinkedTree` left in Hecks it would have gone through Hecks and waited for the pin to move.
+- A client that uses the repository verbs gains a second dependency. miette_tools, shorts and miette2 name
+  `Workspace.status`, `LinkedTree.add!`, `Revision.make!` and `Landing.land!` in their instructions; each takes
+  Switchyard's delivery bluebook and its launcher lines change.
+- `attaches` cannot do that yet. It finds a name in a fixed list of the Hecks gem's own bluebooks
+  (`FrameworkBluebooks::GLOBS`) or in a vendored package (`from: :vendor`). A bluebook another project carries, with
+  Ruby adapters, needs a third source or a package form that holds them. This is built before any client is moved.
+- `Workspace` is split in two: its git questions leave, and what stays is no longer about a working copy, so the
+  aggregate left in Hecks wants a truer name.
 
 ## Order of work
 
 1. The `Gate` port, in this repository (decision 4).
-2. Switchyard's repository with `delegate`, the moved part of `deliver`, the watchers and their adapters, on the
-   pinned Hecks. The old commands stay here until the new ones have run a landing and a boarding.
-3. The board and the Agents, Coder, Fixer, Triage and Pipeline bluebooks.
-4. The old code and its lines of `hecks.world` leave this repository, in a release that names the break.
+2. A way to attach a bluebook another project carries (decision 7's consequence), since the lower layer is of no use
+   to a client without it.
+3. Switchyard's repository with the delivery bluebook, on the pinned Hecks, and this repository attaching it. The old
+   commands stay here until the new ones have made a commit, opened a worktree and landed a branch.
+4. `delegate`, the rest of `deliver`, the watchers and their adapters. The old commands stay until the new ones have
+   run a dispatch and a boarding.
+5. The board and the Agents, Coder, Fixer, Triage and Pipeline bluebooks.
+6. The client projects take the delivery bluebook.
+7. The old code and its lines of `hecks.world` leave this repository, in a release that names the break.
 
 ## As built
 
@@ -116,9 +140,11 @@ Decision 4, on 2026-11-13.
   one to the stage's command, so a resume of a real saga was refused. `CliRunner::ResumeLine` now writes the arguments
   the command declares, as bare values, and names the run as the receiver of a command on a record already made.
 - A resume from a later launcher call needs the saga kept. `GateAndBoard` is stored with `Shipment`
-  (`Registry::SagaAnchor`), and `Shipment` is Memory in every checkout today, so the saga ends with the process that
-  shipped. Binding `Hecks::Shipment.persisted_by("SqlitePersistence")` in a checkout's local hecksagon keeps it. That
-  file is the machine's own and is not changed here.
+  (`Registry::SagaAnchor`), and `Shipment` is Memory unless a checkout's local hecksagon binds it
+  (`Hecks::Shipment.persisted_by("SqlitePersistence")`); the owner's main checkout binds it since 2026-11-13.
+- The launcher never ran a resume. It answered `resume <run>` with the usage line, and once that was mended it ran the
+  resume twice in one call (`CliRunner.stream` resolved the line before `CliRunner.call` did). Both are mended, and a
+  shipment parked by one launcher process was resumed by another against a SQLite store.
 - The comment fix left the shipment. A gate judges and edits nothing, so a branch with a fixable comment offense now
   stops at its gate. `StyleRun.FixComments` is still there to run by hand.
 - A refused gate parks the saga and files no finding of its own. The gate runs in the checkout's own process, so its
@@ -137,5 +163,9 @@ Decision 4, on 2026-11-13.
   that is being changed. It keeps the shared fingerprint and the shared `main`.
 - **Let a worktree run the pipeline against the shared ledgers.** ADR 0202 turned this down: it would send a
   worktree's specs and gates to the live stores.
+- **Keep `Workspace`, `Revision` and `LinkedTree` in Hecks and move only `Landing`.** This was the first draft, on
+  the view that a client uses the first three without a pipeline. The clients' own instructions name `Landing.land!`
+  beside them, so the line matched no one's use. It also cut one cluster in two and left worktree faults, a common
+  kind of pipeline fault, to be mended through Hecks.
 - **Depend on the released gem.** A pipeline fix that needs a framework change would wait for a release. The pinned
   worktree gives the same isolation and moves in seconds.
