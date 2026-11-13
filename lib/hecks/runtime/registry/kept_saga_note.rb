@@ -12,17 +12,19 @@ module Hecks
         # @param undurable [Array<Bluebook::ProcessManager>] the process managers no store keeps
         # @return [String] the sentence, empty when none starts on a kept aggregate
         def kept_saga_note(domain, undurable)
-          kept = kept_aggregate_names(domain)
           starters = undurable.flat_map { |declared| starting_aggregates(domain, declared.starts_on.to_s) }
-          names = starters.map { |aggregate| aggregate.hecks_name.to_s }.select { |name| kept.include?(name) }.uniq
+          names = starters.select { |aggregate| kept?(home_of(domain, aggregate), aggregate) }
+                          .map { |aggregate| aggregate.hecks_name.to_s }.uniq
           return "" if names.empty?
 
           " #{names.join(", ")} is on the dev pipeline's kept list: write this " \
             "checkout's overlay with `exe/hecks LocalOverlay.write!`."
         end
 
-        def kept_aggregate_names(domain)
-          kept_rows.select { |row| row[:domain].to_s == domain.to_s }.map { |row| row[:aggregate].to_s }
+        # Whether a row keeps the aggregate, under the bluebook that declares it: a process manager
+        # may start on an aggregate of a bluebook its domain attaches.
+        def kept?(home, aggregate)
+          kept_rows.any? { |row| row[:domain].to_s == home.to_s && row[:aggregate].to_s == aggregate.hecks_name.to_s }
         end
 
         def kept_rows

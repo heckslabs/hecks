@@ -110,23 +110,24 @@ module Hecks
         @dispatcher = dispatcher
       end
 
-      # Runs `domain`'s declared process managers against `event`: begins,
-      # advances or ends each matching saga instance.
+      # Runs the declared process managers against `event`: begins, advances or ends each matching
+      # saga instance. A process manager hears an event by its name from any loaded bluebook, as a
+      # policy does, so a domain's saga reacts to an event of a bluebook it attaches: the emitting
+      # domain's own process managers run first, then the others' in load order (C10.2). Each runs
+      # in its own bluebook: its checkpoints and its dispatches are that bluebook's.
       #
       # @param event [Runtime::Event] the just-emitted event to react to
-      # @param domain [String, Symbol] the domain whose declared process managers
-      #   are checked
-      # @param only [Bluebook::ProcessManager, nil] one process manager to run
-      #   exactly, instead of every manager `domain` declares
+      # @param domain [String, Symbol] the domain that emitted the event
+      # @param only [Bluebook::ProcessManager, nil] one process manager to run exactly, instead
+      #   of every one that is loaded
+      # @param home [String, Symbol, nil] the bluebook that declares `only`; the emitting domain
+      #   when nil
       # @return [void]
-      def advance(event, domain, only: nil)
-        bluebook = @registry.bluebook(domain)
-        return unless bluebook
-
-        (only ? [only] : bluebook.process_managers).each do |process_manager|
-          begin_saga(process_manager, event, domain)
-          advance_saga(process_manager, event, domain)
-          end_saga(process_manager, event, domain)
+      def advance(event, domain, only: nil, home: nil)
+        hearers(domain, only, home).each do |process_manager, own|
+          begin_saga(process_manager, event, own)
+          advance_saga(process_manager, event, own)
+          end_saga(process_manager, event, own)
         end
       end
 
@@ -149,6 +150,15 @@ module Hecks
       end
 
       private
+
+      # Each process manager that may hear an event the domain emitted, with the bluebook that
+      # declares it: the emitting domain's own first, then the others' in load order.
+      def hearers(domain, only, home)
+        return [[only, (home || domain).to_s]] if only
+
+        own, others = @registry.bluebooks.each_value.partition { |bluebook| bluebook.name == domain.to_s }
+        (own + others).flat_map { |bluebook| bluebook.process_managers.map { |declared| [declared, bluebook.name] } }
+      end
 
       # Moves a needs_human instance back to the stage it faulted from, forgets that record, and
       # checkpoints the move.

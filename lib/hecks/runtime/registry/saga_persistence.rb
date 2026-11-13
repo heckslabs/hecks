@@ -85,10 +85,12 @@ module Hecks
           Ports::Persistence::NULL_SAGA_STORE
         end
 
-        # The starting aggregate's store when it can checkpoint sagas, else the domain's own.
-        # Called under the resolution mutex, so the domain's store is memoized here directly.
+        # The starting aggregate's store when it can checkpoint sagas, else the domain's own. The
+        # aggregate may be another loaded bluebook's, whose store is then asked for by that
+        # bluebook's name. Called under the resolution mutex, so the domain's store is memoized
+        # here directly.
         def anchored_saga_store(domain, anchor)
-          store = persisting_adapter(domain, anchor)
+          store = persisting_adapter(home_of(domain, anchor), anchor)
           store.equal?(Ports::Persistence::NULL_SAGA_STORE) ? domain_saga_store(domain) : store
         rescue WiringError
           domain_saga_store(domain)
