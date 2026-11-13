@@ -87,12 +87,19 @@ the bluebook that Hecks binds with no wiring in the project (`calendar` is the f
 8. **Switchyard is in two layers.** The delivery bluebook of decision 7 is the lower one: commit, open a worktree,
    land. The pipeline is the upper one: agent runs, the train, integration, the board and the watchers. A client that
    wants repository verbs and no pipeline takes the lower layer alone.
-9. **QualityControl stays for now.** It drives fuzzing, the corpus and era mints, which judge the framework, and it
-   also feeds Fixer and Coder. Where it is cut is a later decision, taken once Switchyard stands.
+9. **The pipeline is a running project; only the delivery bluebook is a package.** A vendored copy is pinned and
+   locked, and a change reaches it by a release and a re-vendor. That suits what several projects share and seldom
+   change, which the delivery bluebook is. The pipeline has one consumer, this machine, and is what gets mended many
+   times a day, so it stays a project whose code runs where it is edited. The delivery package's source lives in
+   Switchyard's repository (`delivery/bluebook/`, with its `bluebook.yml` and release tags), which `hecks vendor`
+   already takes as a source. Switchyard runs that bluebook from its own tree and never from a pinned copy, so a
+   worktree fault is mended as fast as any other; every other project vendors it.
+10. **QualityControl stays for now.** It drives fuzzing, the corpus and era mints, which judge the framework, and it
+    also feeds Fixer and Coder. Where it is cut is a later decision, taken once Switchyard stands.
 
-The owner chose decision 7 on 2026-11-13. The first draft kept `Workspace`, `Revision` and `LinkedTree` in Hecks and
-moved `Landing`; "Alternatives considered" says why that was dropped. Decision 6 is still the recommendation and not
-yet chosen.
+The owner chose decisions 7 and 9 on 2026-11-13. The first draft kept `Workspace`, `Revision` and `LinkedTree` in
+Hecks and moved `Landing`; "Alternatives considered" says why that was dropped. Decision 6 is still the recommendation
+and not yet chosen.
 
 ## Consequences
 
@@ -117,25 +124,30 @@ yet chosen.
 - They take it the way they would take any shared bluebook: the delivery bluebook is a vendored package, pinned by
   version and attached with `from: :vendor`. Nothing new is needed to carry the bluebook and its ports.
 - Its adapters are the open point. A package's own code today is a wasm module that answers a query. The delivery
-  adapters run git and answer asks that change a repository, which no package does yet. Either a package learns to
-  carry an adapter of that kind, or the package carries the bluebook and ports and the git adapters come from a gem
-  beside it. This is settled before a client is moved; an earlier draft of this ADR said `attaches` could not reach
-  another project's bluebook at all, which was wrong.
+  adapters run git and answer asks that change a repository, which no package does yet. For now the package carries
+  the bluebook and ports and the git adapters come from a gem beside it, so a client pins two things. The adapters
+  are also fat: the landing line and the merge live in Ruby. Thinned until what is left is the `Git` and `Shell`
+  adapters Hecks already has, the package would need no gem; that is a later piece of work and nothing waits on it.
+  An earlier draft of this ADR said `attaches` could not reach another project's bluebook at all, which was wrong.
+- `attaches` loads a gem bluebook or one under `vendor/`. Switchyard running the delivery bluebook from its own tree
+  (decision 9) is neither, so that needs a small addition or the delivery files kept in Switchyard's own domain
+  directory. It is settled when Switchyard is stood up.
 - `Workspace` is split in two: its git questions leave, and what stays is no longer about a working copy, so the
   aggregate left in Hecks wants a truer name.
 
 ## Order of work
 
 1. The `Gate` port, in this repository (decision 4).
-2. How a vendored package's adapter runs git (decision 7's consequence): the one thing vendoring does not yet carry.
-3. Switchyard's repository with the delivery bluebook as a package, on the pinned Hecks, and this repository
-   vendoring it. The old commands stay here until the new ones have made a commit, opened a worktree and landed a
-   branch.
-4. `delegate`, the rest of `deliver`, the watchers and their adapters. The old commands stay until the new ones have
-   run a dispatch and a boarding.
-5. The board and the Agents, Coder, Fixer, Triage and Pipeline bluebooks.
-6. The client projects take the delivery bluebook.
-7. The old code and its lines of `hecks.world` leave this repository, in a release that names the break.
+2. Switchyard's repository on the pinned Hecks, holding the delivery bluebook as a part that stands apart from the
+   rest and run from its own tree. The old commands stay here until the new ones have made a commit, opened a
+   worktree and landed a branch.
+3. `delegate`, the rest of `deliver`, the watchers and their adapters. The old commands stay until the new ones have
+   run a dispatch and a boarding. From here a pipeline fix is made and judged in Switchyard, which is what the split
+   is for.
+4. The board and the Agents, Coder, Fixer, Triage and Pipeline bluebooks.
+5. The old code and its lines of `hecks.world` leave this repository, in a release that names the break.
+6. The delivery bluebook is released as a package, with its git adapters in a gem beside it, and the client projects
+   vendor it. This comes last: it is the lesser gain, and nothing before it depends on it.
 
 ## As built
 
@@ -177,5 +189,10 @@ Decision 4, on 2026-11-13.
   the view that a client uses the first three without a pipeline. The clients' own instructions name `Landing.land!`
   beside them, so the line matched no one's use. It also cut one cluster in two and left worktree faults, a common
   kind of pipeline fault, to be mended through Hecks.
+- **Make the whole pipeline a set of vendored packages.** The registry would carry it and no project would run it
+  from source. Every fix would then go through a release and a re-vendor, which is the delay the split is meant to
+  remove, and the packages would have one consumer.
+- **Have Switchyard vendor its own delivery package.** One rule for every consumer, but a worktree fault would wait
+  for a release before the pipeline saw the fix.
 - **Depend on the released gem.** A pipeline fix that needs a framework change would wait for a release. The pinned
   worktree gives the same isolation and moves in seconds.
