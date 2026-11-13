@@ -19,6 +19,7 @@ require_relative "dispatching/settings"
 require_relative "session_lookup"
 require_relative "session_line"
 require_relative "session_hooks"
+require_relative "claude_answering"
 require_relative "main_launcher"
 require_relative "session_reaping"
 require_relative "claude_agents/removal"
@@ -35,6 +36,7 @@ module Hecks
     # taken for a flag.
     class ClaudeAgents
       include Removal
+      include ClaudeAnswering
 
       # The command that starts and lists sessions.
       COMMAND = "claude"
@@ -52,7 +54,8 @@ module Hecks
       #   `jobs:` the jobs directory, `settle:` the seconds a new session is given to fail,
       #   `wake_patience:` the seconds a woken session is given to stop reading `stopped`,
       #   `launcher:` the `exe/hecks` its hooks run (default the main checkout's), `projects:` the
-      #   directory of the per-project transcript folders
+      #   directory of the per-project transcript folders, `inbox:` the directory of the sessions'
+      #   inboxes
       # @param root [String, nil] unused
       # @param registry [Runtime::Registry, nil] whose Tickets world names the session environment
       def initialize(aggregate: nil, settings: {}, root: nil, registry: nil)
@@ -64,7 +67,7 @@ module Hecks
         @agents = ClaudeAgentList.new(@command, shell: @shell)
         @lookup = session_lookup(settings[:now])
         @settle = settings.fetch(:settle, SETTLE_SECONDS)
-        @hooks = SessionHooks.new(launcher: settings.fetch(:launcher) { MainLauncher.path })
+        @hooks = session_hooks(settings)
         @reaping = SessionReaping.new(registry: registry)
       end
 
@@ -169,25 +172,6 @@ module Hecks
       def await_job(**held)
         sleep(@settle) if @settle.positive?
         read_job(**held)
-      end
-
-      # Answers a session by waking it in place under its own id (see {ClaudeResumption}). The run
-      # holds the short id `claude agents` shows; `--resume` takes only the full session id.
-      #
-      # @param held [Hash] the `AgentRun` record: `session`, `repo` and `answer`, `step` when the
-      #   answer comes with the session's next step (it leads the prompt), and `agent` when the run
-      #   has a role, which the resume passes as `--agent` so the role's MCP server narrows itself
-      #   again
-      # @return [Hash{Symbol => Object}] `resumed_at:` when the resume was started, as an ISO 8601
-      #   string; `session:` the id the run follows, its own unless the CLI started a copy; and
-      #   `note:` what the CLI said of that copy, when it did. It answers once the woken session's
-      #   job reads a state other than `stopped` ({ClaudeJobs#woken})
-      # @raise [ConsoleCapture::Failure] when the session is not listed or the command refuses
-      def resume(**held)
-        id = plain(held[:session])
-        @jobs.woken(ClaudeResumption.new(@command, @shell, nice: niceness)
-                                    .call(id, listed(id), prompt(held), env: named(held), chdir: plain(held[:repo]),
-                                                                        agent: plain(held[:agent])))
       end
 
       # Says whether `claude agents` still lists the run's session. A session `claude rm` deleted is

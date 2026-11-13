@@ -67,6 +67,43 @@ RSpec.describe Hecks::Adapters::PipelineGitHub, "#train_flakes" do
     expect([doc["unreadable"], doc["flakes"].first["count"]]).to eq([1, 1])
   end
 
+  # An adapter whose `gh` records each job list and log it is asked for; `fail` names the runs
+  # whose job list cannot be read yet.
+  def counting(asked, fail: [])
+    gh = lambda do |*args|
+      next [run(1), run(2)] if args[0..1] == %w[run list]
+      raise Hecks::Adapters::PipelineBoard::Unavailable, "502" if fail.include?(args[2])
+
+      asked << args.first(5)
+      { "jobs" => [job("a")] }
+    end
+    described_class.new(settings: { gh: gh, gh_text: ->(*args) { (asked << args.first(5)) && spec_log }, ttl: 0 })
+  end
+
+  it "reads each finished attempt once, however often the flakes are read", :aggregate_failures do
+    asked = []
+    github = counting(asked)
+    first = flakes(github)
+    expect { flakes(github) }.not_to(change { asked.size })
+    expect(flakes(github)).to eq(first)
+  end
+
+  # Reads the flakes while run 1's job list cannot be read, then again once it can.
+  # @return [Hash] the second read
+  def read_after_failure(asked)
+    fail = ["1"]
+    github = counting(asked, fail: fail)
+    flakes(github)
+    fail.clear
+    flakes(github)
+  end
+
+  it "reads again an attempt that could not be read, and keeps the ones it could", :aggregate_failures do
+    asked = []
+    expect(read_after_failure(asked)["unreadable"]).to eq(0)
+    expect(asked.map { |args| args[2] }.tally).to eq("1" => 2, "2" => 2)
+  end
+
   it "says how far back the runs reach" do
     expect(flakes(adapter([run(1)]))["reaches_back"]).to eq(today)
   end
