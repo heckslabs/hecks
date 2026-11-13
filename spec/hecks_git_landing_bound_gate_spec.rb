@@ -32,9 +32,9 @@ RSpec.describe Hecks::Adapters::GitLanding::BoundGate do
     end
   end
 
-  it "judges with the launcher's gate when a landing is made with no registry" do
-    in_checkout(gate: :red) do |directory|
-      expect(described_class.new(nil).refusal(directory)).to include("gate red")
+  it "refuses a landing made with no booted project, which has no gate to ask" do
+    in_checkout(gate: :green) do |directory|
+      expect(described_class.new(nil).refusal(directory)).to include("no gate")
     end
   end
 end

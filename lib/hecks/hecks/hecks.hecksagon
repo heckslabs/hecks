@@ -261,25 +261,6 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
-  # The Work item a landed branch was cut for: the port reads the Work items and answers the open
-  # one the branch names, refusing when there is none.
-  Hecks::Landing.port "LandedWork" do
-    asks "FindLandedWork", to: Landing do
-      attribute :branch, Word
-      answers "LandedWorkFound"
-      refuses "NoLandedWork"
-    end
-
-    # The finished Work item the branch of a refused landing names, with the landing's refusal
-    # added to its detail and how many landing refusals the detail already held.
-    asks "FindRefusedWork", to: Landing do
-      attribute :run, RunKey
-      attribute :refusal, Report
-      answers "RefusedWorkFound"
-      refuses "NoRefusedWork"
-    end
-  end
-
   # The gate of the checkout a shipment names: the port is asked to judge that checkout and answers
   # that it passed, or refuses with the end of what the gate printed. The checkout decides what its
   # gate holds; delivery names no check (ADR 0205).
@@ -1331,5 +1312,50 @@ Hecks.hecksagon "Coder" do
     root
     where { state == "done" && previous != state && agent == "coder" && report.rstrip.end_with?("submitted") }
     trigger Submission::Submit, with: { branch: :branch, sha: :sha, checkout: :checkout, clean: :clean }
+  end
+end
+
+# The delivery package's `Landing`, as this repository's pipeline reaches past it: the Work item a
+# branch was cut for. The package knows nothing of Work items, so the port is declared here, on its
+# aggregate, and the policies that ask it sit in the deliver module. A project that vendors the
+# package with no ticket board declares none of this.
+Hecks.hecksagon "Delivery" do
+  # The Work item a landed branch was cut for: the port reads the Work items and answers the open
+  # one the branch names, refusing when there is none.
+  Delivery::Landing.port "LandedWork" do
+    asks "FindLandedWork", to: Landing do
+      attribute :branch, Word
+      answers "LandedWorkFound"
+      refuses "NoLandedWork"
+    end
+
+    # The finished Work item the branch of a refused landing names, with the landing's refusal
+    # added to its detail and how many landing refusals the detail already held.
+    asks "FindRefusedWork", to: Landing do
+      attribute :run, RunKey
+      attribute :refusal, Report
+      answers "RefusedWorkFound"
+      refuses "NoRefusedWork"
+    end
+  end
+
+  # A job's landing that was refused for a cause a coder can fix, a conflict or a quick gate red
+  # on the branch, goes back to a coder: the LandedWork port finds the finished Work item the
+  # landing's branch names, and the Tickets bluebook plans it again with the reason
+  # (ReopenWorkWhenLandingRefused). A busy queue and a red main are no coder's to fix: the job
+  # tries those again and no Work item moves. A finish a person ran is theirs to read and fix.
+  translates "FindWorkWhenTheJobsLandingIsRefused" do
+    on      Landing::CarryRefused
+    where   { refusal.value.include?("conflict: ") || refusal.value.include?("gate red: ") }
+    ask     :find_refused_work, with: { run: :run, refusal: :refusal }
+  end
+
+  # A landed branch finishes the Work item it was cut for. The LandedWork port finds the open Work item the
+  # branch names (the whole branch name, else the name without a leading `qa/`) and answers its key;
+  # a branch with no open Work item is refused by the port and nothing follows. The Tickets bluebook finishes
+  # the Work item that was found (FinishWorkWhenBranchLanded).
+  translates "FindWorkWhenBranchLanded" do
+    on      Landing::BranchLanded
+    ask     :find_landed_work, with: { branch: :branch }
   end
 end

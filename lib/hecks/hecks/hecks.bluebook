@@ -47,18 +47,18 @@ Hecks.bluebook "Hecks" do
 
         member domain: "Hecks", aggregate: "AgentRun", checkout: "both",
                reason: "a dispatch is checked from a later command by its run"
-        member domain: "Hecks", aggregate: "Revision", checkout: "both",
-               reason: "a landing reads back the revision it landed by run id"
-        member domain: "Hecks", aggregate: "Landing", checkout: "both",
-               reason: "a landing names its worktree by id to a later command"
-        member domain: "Hecks", aggregate: "LinkedTree", checkout: "both",
-               reason: "a landing finds the worktree a session opened earlier"
         member domain: "Hecks", aggregate: "SendTrain", checkout: "both",
                reason: "a boarding is read back by the process that watches it"
         member domain: "Hecks", aggregate: "Ticker", checkout: "both",
                reason: "each tick of a queued pull request's clock chain is a launcher call of its own"
         member domain: "Hecks", aggregate: "TrainPr", checkout: "both",
                reason: "a failed CI attempt's jobs are read after the rerun that cleared them"
+        member domain: "Delivery", aggregate: "Revision", checkout: "both",
+               reason: "a landing reads back the revision it landed by run id"
+        member domain: "Delivery", aggregate: "Landing", checkout: "both",
+               reason: "a landing names its worktree by id to a later command"
+        member domain: "Delivery", aggregate: "LinkedTree", checkout: "both",
+               reason: "a landing finds the worktree a session opened earlier"
         member domain: "Tickets", aggregate: "Finding", checkout: "main",
                reason: "findings are the ledger every session reads (ADR 0163)"
         member domain: "Tickets", aggregate: "Work", checkout: "main",

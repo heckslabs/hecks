@@ -21,13 +21,21 @@ module Hecks
             return { answer: [refused, ExitStatus::REFUSED] } if refused
 
             bluebook, argv, program = bluebook_for(runtime, argv, program)
+            scope = scope_of(runtime, bluebook, program)
+            plan = answer_for(scope, argv) || command_plan(scope, argv)
+            plan[:unknown] ? attached_plan(runtime, argv, program) || plan : plan
+          end
+
+          # What a line is read against: a bluebook, its launcher settings and its projection.
+          #
+          # @return [Hash] `runtime`, `bluebook`, `launcher`, `options`, `shown`, `cli`, `program`
+          def scope_of(runtime, bluebook, program)
             launcher = LauncherOptions.settings(runtime, bluebook.name)
             options  = LauncherOptions.projection(launcher, program)
             shown = options.merge(audience(runtime, launcher))
             cli = Projector.call(:cli, bluebook: bluebook, options: shown)
-            scope = { runtime: runtime, bluebook: bluebook, launcher: launcher, options: options,
-                      shown: shown, cli: cli, program: program }
-            answer_for(scope, argv) || command_plan(scope, argv)
+            { runtime: runtime, bluebook: bluebook, launcher: launcher, options: options,
+              shown: shown, cli: cli, program: program }
           end
 
           # The answer a line gets without naming a command, or nil when it names one.
@@ -64,7 +72,7 @@ module Hecks
             return { answer: [cli[:usage], ExitStatus::USAGE] } if name.nil?
 
             spec = find_spec(cli, asking, name)
-            return { answer: [unknown(cli, name, asking, scope[:program]), ExitStatus::USAGE] } unless spec
+            return { answer: [unknown(cli, name, asking, scope[:program]), ExitStatus::USAGE], unknown: true } unless spec
 
             answer = early_answer(scope, cli, { asking: asking, word: word, name: name, argv: argv })
             return { answer: answer } if answer

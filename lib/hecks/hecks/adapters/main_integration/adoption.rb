@@ -41,7 +41,7 @@ module Hecks
         def record(head, checkout)
           report = "#{head[0, 10]} is ahead of origin/main with no run: opened one"
           args = { run: { value: SecureRandom.uuid }, branch: "main", landed: head, checkout: checkout, report: report }
-          Runtime::Dispatcher.new(@registry).dispatch_flat("Hecks::Landing.Adopt", args)
+          Runtime::Dispatcher.new(@registry).dispatch_flat("Delivery::Landing.Adopt", args)
           [report]
         end
 

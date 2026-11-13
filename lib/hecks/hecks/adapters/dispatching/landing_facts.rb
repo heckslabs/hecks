@@ -16,7 +16,7 @@ module Hecks
         # @return [Array<String>] the commit of each landed `Landing` whose branch names the work
         #   item, empty when none did or the Hecks bluebook holds no Landing
         def landed_commits(key)
-          aggregate = find("Hecks", "Landing")
+          aggregate = find("Delivery", "Landing")
           return [] unless aggregate && !key.to_s.empty?
 
           branches = [key.to_s, "#{LandedWork::QA_PREFIX}#{key}"]

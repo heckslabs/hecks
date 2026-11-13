@@ -358,27 +358,8 @@ Hecks.bluebook "Hecks" do
     policy "LandWhenWorkIsSubmitted" do
       on      "Submission.WorkSubmitted"
       root
+      across  "Delivery"
       trigger Landing::Submit, with: { run: :sha, checkout: :checkout, branch: :branch, confirm: true }
-    end
-
-    # A job's landing that was refused for a cause a coder can fix, a conflict or a quick gate red
-    # on the branch, goes back to a coder: the LandedWork port finds the finished Work item the
-    # landing's branch names, and the Tickets bluebook plans it again with the reason
-    # (ReopenWorkWhenLandingRefused). A busy queue and a red main are no coder's to fix: the job
-    # tries those again and no Work item moves. A finish a person ran is theirs to read and fix.
-    policy "FindWorkWhenTheJobsLandingIsRefused" do
-      on      "Landing.CarryRefused"
-      where   { refusal.value.include?("conflict: ") || refusal.value.include?("gate red: ") }
-      ask     :find_refused_work, with: { run: :run, refusal: :refusal }
-    end
-
-    # A landed branch finishes the Work item it was cut for. The LandedWork port finds the open Work item the
-    # branch names (the whole branch name, else the name without a leading `qa/`) and answers its key;
-    # a branch with no open Work item is refused by the port and nothing follows. The Tickets bluebook finishes
-    # the Work item that was found (FinishWorkWhenBranchLanded).
-    policy "FindWorkWhenBranchLanded" do
-      on      "Landing.BranchLanded"
-      ask     :find_landed_work, with: { branch: :branch }
     end
 
     # A restore that was asked for is made by the git port, which answers with what it restored or refuses with why.
@@ -1367,6 +1348,7 @@ Hecks.bluebook "Hecks" do
     policy "PullMainWhenMerged" do
       on      "Integration.TrainMergeSeen"
       root
+      across  "Delivery"
       trigger LinkedTree::PullMain, with: { run: :landed, checkout: :checkout }
     end
 
@@ -1374,6 +1356,7 @@ Hecks.bluebook "Hecks" do
       on      "Integration.ObserveAnswered"
       root
       where   { outcome.value == "passed" && pulled.value == false }
+      across  "Delivery"
       trigger LinkedTree::PullMain, with: { run: :landed, checkout: :checkout }
     end
 
@@ -1381,6 +1364,7 @@ Hecks.bluebook "Hecks" do
       on      "Integration.ObserveAnswered"
       root
       where   { outcome.value == "failed" && pulled.value == false }
+      across  "Delivery"
       trigger LinkedTree::PullMain, with: { run: :landed, checkout: :checkout }
     end
 

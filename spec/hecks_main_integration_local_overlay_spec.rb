@@ -29,7 +29,7 @@ RSpec.describe Hecks::Adapters::MainIntegration::LocalOverlay do
 
   it "binds no aggregate the list leaves out, and nothing of main's alone on the train", :aggregate_failures do
     expect(binds("main")).not_to include(%w[Tickets Adr])
-    expect(binds("train").map(&:first).uniq).to eq(%w[Hecks])
+    expect(binds("train").map(&:first).uniq).to eq(%w[Hecks Delivery])
   end
 
   it "writes once and leaves a current overlay alone", :aggregate_failures do

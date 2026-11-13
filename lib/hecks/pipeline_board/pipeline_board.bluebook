@@ -308,11 +308,11 @@ Hecks.bluebook "PipelineBoard" do
       member stage: "dispatch",     position: 2, opens: "Tickets::Work.WorkStarted",              closes: "Hecks::AgentRun.AgentStarted",           belongs: "item"
       member stage: "planning",     position: 3, opens: "Hecks::AgentRun.AgentStarted",           closes: "Agents::PlanReview.PlanReviewRequested", belongs: "item"
       member stage: "review",       position: 4, opens: "Agents::PlanReview.PlanReviewRequested", closes: "Agents::PlanReview.PlanReviewed",        belongs: "item"
-      member stage: "implementing", position: 5, opens: "Agents::PlanReview.PlanReviewed",        closes: "Hecks::Landing.BranchLanded",            belongs: "item"
-      member stage: "verify",       position: 6, opens: "Hecks::Landing.BranchLanded",            closes: "Hecks::Integration.MainVerified Hecks::Integration.MainVerificationFailed", belongs: "carried"
+      member stage: "implementing", position: 5, opens: "Agents::PlanReview.PlanReviewed",        closes: "Delivery::Landing.BranchLanded",            belongs: "item"
+      member stage: "verify",       position: 6, opens: "Delivery::Landing.BranchLanded",            closes: "Hecks::Integration.MainVerified Hecks::Integration.MainVerificationFailed", belongs: "carried"
       member stage: "boarding",     position: 7, opens: "Hecks::Integration.MainVerified",        closes: "Hecks::SendTrain.BoardingQueued",        belongs: "after"
       member stage: "ci",           position: 8, opens: "Hecks::SendTrain.BoardingQueued",        closes: "Hecks::SendTrain.BranchPushed",          belongs: "item"
-      member stage: "sync",         position: 9, opens: "Hecks::SendTrain.BranchPushed",          closes: "Hecks::LinkedTree.MainPulled",           belongs: "after"
+      member stage: "sync",         position: 9, opens: "Hecks::SendTrain.BranchPushed",          closes: "Delivery::LinkedTree.MainPulled",           belongs: "after"
     end
 
     # What the fan-out can flag on a Work item.

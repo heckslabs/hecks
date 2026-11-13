@@ -107,7 +107,7 @@ module Hecks
       end
 
       # The Landing records: the live store's, else the booted registry's.
-      def landing_records = @live ? @live.records("Hecks", "Landing") : records_of("Hecks", "Landing")
+      def landing_records = @live ? @live.records("Delivery", "Landing") : records_of("Delivery", "Landing")
 
       def item(record)
         { slug: field(record, :work).to_s, status: field(record, :status).to_s, title: field(record, :title).to_s,

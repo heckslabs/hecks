@@ -13,6 +13,7 @@ require_relative "../../projector"
 require_relative "../../ports/clock"
 require_relative "cli_runner/answers"
 require_relative "cli_runner/resolution"
+require_relative "cli_runner/attached_commands"
 require_relative "cli_runner/run_replay"
 require_relative "cli_runner/search_words"
 require_relative "cli_runner/completion_words"
@@ -44,6 +45,7 @@ module Hecks
         QUERY_WORDS = %w[query ask].freeze
 
         extend Resolution
+        extend AttachedCommands
         extend SearchWords
         extend CompletionWords
         extend TourWords

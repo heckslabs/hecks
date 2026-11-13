@@ -1,0 +1,16 @@
+# The delivery package's settings in this repository. The package is vendored from Switchyard
+# (`lib/hecks/vendor/embryonaut_bluebooks/delivery`, ADR 0205) and carries no world of its own:
+# each project that attaches it says here how its launcher treats the package's commands and where
+# its records are kept.
+#
+# **stored_as** keeps the commits where they were written before `Revision` was a delivery
+# aggregate: the table is `commit`, from when the aggregate was `Commit`.
+#
+# **launcher** mints a `run` key for a command given none, and names the commands that always wait
+# for their reactions, as if `--wait` were given, so a refusal is an exit status and a reason on
+# standard error.
+Hecks.world "Delivery" do
+  stored_as Revision: "commit"
+  launcher "Launcher", run_keys: true,
+                       settled: %w[landing.land landing.train landing.retire landing.discard]
+end
