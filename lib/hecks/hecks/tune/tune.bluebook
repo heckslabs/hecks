@@ -1,0 +1,119 @@
+Hecks.bluebook "Hecks" do
+  domain_module "Tune" do
+    vision "Turn one of this machine's operating settings from a command, so the owner changes a cap without editing a file."
+
+    # A `Turnable` row: `setting` is `verb.key` as the world file writes it, `kind` is `integer`, `number`
+    # or `switch`, `least` and `most` bound it (empty for a switch), `context` is where the board shows it.
+    aggregate "Dial" do
+      description "One turn of a machine-local setting, turned or refused. A turn writes the value to this checkout's gitignored turned.local.world, which loads after every other local world, so the next process reads it. The Turnable rows are the whole list: a setting with no row cannot be turned, and a value outside its row's bounds is refused by name."
+      created_by "Dial.turn!"
+
+      attribute :run,     RunKey
+      attribute :setting, Word
+      attribute :becomes, Word
+      attribute :output,  Report, optional: true
+      attribute :refusal, Report, optional: true
+      identified_by :run
+
+      value_object "RunKey" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Word" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Report", String
+
+      value_object "Turnable" do
+        attribute :world,   String
+        attribute :setting, String
+        attribute :kind,    String
+        attribute :least,   String
+        attribute :most,    String
+        attribute :context, String
+        attribute :says,    String
+
+        member world: "Tickets", setting: "work_limit.cap", kind: "integer", least: "1", most: "20",
+               context: "Hecks / Delegate", says: "Work items that may be started at once"
+        member world: "Tickets", setting: "work_limit.urgent_reserve", kind: "integer", least: "0", most: "5",
+               context: "Hecks / Delegate", says: "Red Work items that may start past a full cap"
+        member world: "Tickets", setting: "epic_wip_limit.limit", kind: "integer", least: "1", most: "20",
+               context: "Hecks / Delegate", says: "Work items of one epic that may be started at once"
+        member world: "Tickets", setting: "dispatch_roll_forward.roll_forward", kind: "switch", least: "", most: "",
+               context: "Hecks / Delegate", says: "Whether the fill starts work by itself when a place frees"
+        member world: "Tickets", setting: "dispatch_max_load.limit", kind: "number", least: "2", most: "40",
+               context: "Hecks / Delegate", says: "The load above which the fill starts no session"
+        member world: "Tickets", setting: "machine_marks.load_high", kind: "number", least: "2", most: "40",
+               context: "Hecks / Delegate", says: "The load the machine counts as loaded above, which asks a session to yield"
+        member world: "Tickets", setting: "machine_marks.load_low", kind: "number", least: "1", most: "40",
+               context: "Hecks / Delegate", says: "The load the machine counts as recovered under, which runs the fill again"
+        member world: "Tickets", setting: "load_shed.at_once", kind: "integer", least: "1", most: "5",
+               context: "Hecks / Delegate", says: "Started items asked to yield at once when the load rises"
+        member world: "Tickets", setting: "load_shed.min_coders", kind: "integer", least: "1", most: "10",
+               context: "Hecks / Delegate", says: "Coders that must be running before one is asked to yield"
+        member world: "Tickets", setting: "cpu_budget.boot_hours_per_day", kind: "number", least: "1", most: "48",
+               context: "Hecks / Delegate", says: "Hours of launcher boots a day before the fill stops"
+        member world: "Tickets", setting: "heavy_jobs.cap", kind: "integer", least: "1", most: "8",
+               context: "Hecks / Test", says: "Heavy jobs (a gate run, a run of several spec files) at once on the machine"
+        member world: "Tickets", setting: "spec_workers.max", kind: "integer", least: "1", most: "16",
+               context: "Hecks / Test", says: "Workers one parallel spec run may start"
+        member world: "Tickets", setting: "rust_build.jobs", kind: "integer", least: "1", most: "16",
+               context: "Hecks / Build", says: "Jobs one Rust build may run"
+      end
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "refused"
+        transition "Settle"  => "settled", from: "requested"
+        transition "Decline" => "refused", from: "requested"
+        mark :terminal, "settled", "refused"
+      end
+
+      command "Turn" do
+        role "Operator"
+        goal "Set one turnable setting of this machine to a value inside its bounds"
+
+        attribute :run,     RunKey, sets: true
+        attribute :setting, Word, sets: true
+        attribute :becomes, Word, sets: true
+
+        emits DialTurnRequested
+      end
+
+      command "Settle" do
+        role "System"
+        goal "Record what the turn set, and what it was before"
+
+        reference_to Dial
+        attribute :output, Report, sets: true
+
+        emits DialSettled
+      end
+
+      command "Decline" do
+        role "System"
+        goal "Record why the turn was refused"
+
+        reference_to Dial
+        attribute :refusal, Report, sets: true
+
+        emits DialDeclined
+      end
+    end
+
+    policy "SetTheDialWhenTurned" do
+      on      "Dial.DialTurnRequested"
+      ask     :set, with: { run: :run }
+    end
+
+    policy "RecordTheTurn" do
+      on      "Dial.DialSet"
+      trigger Dial::Settle, with: { output: :output }
+    end
+
+    policy "RecordTheRefusedTurn" do
+      on      "Dial.DialRefused"
+      trigger Dial::Decline, with: { refusal: :refusal }
+    end
+  end
+end
