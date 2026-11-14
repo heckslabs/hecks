@@ -2,7 +2,7 @@
 
 require "json"
 require_relative "../console_capture"
-require_relative "train_overlay"
+require_relative "local_overlay"
 
 module Hecks
   module Adapters
@@ -13,7 +13,7 @@ module Hecks
       # command line is fixed: no plain push, no force, no skipped hook, no owner override.
       class Train
         # Where the train's copy is.
-        ROOT = File.join(Dir.home, ".claude", "hecks-train")
+        ROOT = KeptRows::TRAIN_ROOT
 
         # The statuses of a boarding the remote holds: pushed now, carried by an earlier push, or
         # queued as a pull request, where CI judges it before the merge.
@@ -51,13 +51,17 @@ module Hecks
           "refreshed the train from #{short(before)} to #{short(target)}"
         end
 
-        # Writes the copy's machine-local overlay from {TrainOverlay::PERSISTED}, so what the train
-        # keeps between its processes is declared once and never lags the development checkout.
+        # Writes the copy's machine-local overlay from the kept rows the `train` copy needs, so what
+        # the train keeps between its processes is declared once and never lags the bluebook.
         #
+        # @param rows [Array<Hash>] the kept rows, as {KeptRows.from_registry} reads them
         # @return [String] what was done to the overlay
-        def write_overlay
-          written = TrainOverlay.new(@root).write
-          written ? "wrote the train's overlay #{TrainOverlay::PATH}" : "train overlay current"
+        # @raise [ConsoleCapture::Failure] when no row was read, naming why the overlay was kept
+        def write_overlay(rows)
+          written = LocalOverlay.new(@root, rows, "train").write
+          written ? "wrote the train's overlay #{LocalOverlay::PATH}" : "train overlay current"
+        rescue LocalOverlay::Empty => e
+          raise ConsoleCapture::Failure, e.message
         end
 
         # @param checkout [String] the checkout whose main is boarded

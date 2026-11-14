@@ -2,8 +2,9 @@ require "spec_helper"
 require "fileutils"
 require "open3"
 require "tmpdir"
-require "hecks/hecks/adapters/git_landing"
-require "hecks/hecks/adapters/git_checkout"
+require "hecks/hecks/adapters/delivery_library"
+Hecks::Adapters::DeliveryLibrary.require("git_landing")
+Hecks::Adapters::DeliveryLibrary.require("git_checkout")
 
 # The Checkout and Landing adapters, against a throwaway repository: a landing fast-forwards or
 # merges onto main and reports a conflict, a retirement keeps unmerged or dirty work, and the

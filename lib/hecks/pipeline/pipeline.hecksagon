@@ -6,7 +6,7 @@ Hecks.hecksagon "Pipeline" do
   persisted_by "Memory"
 
   # The events that move a passage, as the Tickets and Hecks domains emit them.
-  %w[Tickets.WorkPlanned Tickets.WorkReopened Tickets.WorkStarted Hecks.LandedWorkFound Hecks.MainPushed
+  %w[Tickets.WorkPlanned Tickets.WorkReopened Tickets.WorkStarted Delivery.LandedWorkFound Hecks.MainPushed
      Hecks.RedFlagRaised Hecks.RedFlagCleared Hecks.PromotionCompleted Hecks.Published]
     .each { |event| subscribe event }
 end

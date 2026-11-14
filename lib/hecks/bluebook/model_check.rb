@@ -81,7 +81,7 @@ module Hecks
           *bluebook.aggregates.flat_map { |aggregate| aggregate_lifecycle_findings(aggregate) },
           *reference_findings(bluebook),
           *aggregate_findings(bluebook),
-          *bluebook.process_managers.flat_map { |process_manager| saga_findings(bluebook, process_manager) },
+          *saga_findings_of(bluebook, options[:global_emitted_events]),
           *reaction_findings(bluebook, options),
           *unused_ask_findings(bluebook),
           *reaction_depth_findings(bluebook)

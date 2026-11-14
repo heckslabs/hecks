@@ -1,0 +1,891 @@
+# The repository verbs, with no pushing and no pipeline (Hecks ADR 0205).
+Hecks.bluebook "Delivery" do
+  vision "Take finished work onto local main."
+
+  # A checkout's state, read and never written: nothing needs a raw `git status`, `git diff` or
+  # `git log`. The `Reading` port's adapter answers each query; the aggregate keeps no record.
+  aggregate "Workspace" do
+    description "A look at a checkout: its branch, what it changed and what it committed."
+    acknowledges :no_command_surface, "a look at a checkout: it answers the state of a checkout and changes nothing"
+
+    attribute :checkout, Place
+    identified_by :checkout
+
+    # A directory inside the repository; the current directory when a query names none.
+    value_object "Place" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Word" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Document" do
+      attribute :text, String
+    end
+
+    query "Status" do
+      description "The checkout's branch, whether it is a linked worktree, where it stands against main and origin/main, and what is changed or untracked."
+      attribute :checkout, Place, optional: true
+      returns Document
+    end
+
+    query "Strays" do
+      description "What each untracked or changed path in the checkout is: a stale copy of a file main deleted, a linked worktree sitting inside it (dirty or clean, pushed or not), a tracked file with uncommitted changes, or unknown."
+      attribute :checkout, Place, optional: true
+      returns Document
+    end
+
+    query "Changes" do
+      description "What the checkout changed since a ref (main by default): the diffstat, or the paths alone."
+      attribute :checkout,   Place,   optional: true
+      attribute :since,      Word,    optional: true
+      attribute :names_only, Boolean, optional: true
+      returns Document
+    end
+
+    query "History" do
+      description "The commits in a range, newest first (the last 20 when none is named)."
+      attribute :checkout, Place, optional: true
+      attribute :range,    Word,  optional: true
+      returns Document
+    end
+
+    query "Stashes" do
+      description "The checkout's stash entries: each one's ref (stash@{0}), its time, the branch it records when the message names one, and its message. Read only: nothing is applied, popped, dropped or branched."
+      attribute :checkout, Place, optional: true
+      returns Document
+    end
+
+    query "DanglingCommits" do
+      description "The commits no ref reaches, as `git fsck --unreachable --no-reflogs` reports them: each one's short sha, author date and subject, newest first. Read only: nothing is pruned, collected or repaired."
+      attribute :checkout, Place, optional: true
+      returns Document
+    end
+  end
+
+  # A commit made in a checkout under a message: asked of the git port, then recorded or declined. It commits
+  # what is staged, or the named paths, and never pushes, amends, forces, or commits onto main. Those go
+  # through `Landing` and `SendTrain`.
+  aggregate "Revision" do
+    description "One commit made in a checkout, or declined with the reason: what it says and what it is on."
+
+    attribute :run,      RunKey
+    attribute :checkout, Word,   optional: true
+    attribute :message,  Text,   optional: true
+    attribute :paths,    Text,   optional: true
+    attribute :sha,      Word,   optional: true
+    attribute :report,   Report, optional: true
+    attribute :refusal,  Report, optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, matches: :present
+    end
+
+    # A directory or a commit.
+    value_object "Word" do
+      attribute :value, String, matches: :present
+    end
+
+    # What a commit says, and which paths it stages first, separated by spaces.
+    value_object "Text", String
+
+    value_object "Report", String
+
+    lifecycle :status, default: "requested" do
+      mark :failure, "declined"
+      transition "Record"  => "committed", from: "requested"
+      transition "Decline" => "declined",  from: "requested"
+      mark :terminal, "committed", "declined"
+    end
+
+    command "Make" do
+      role "Operator"
+      goal "Commit what is staged in a checkout under a message: never pushed, never amended, never onto main"
+
+      attribute :run,      RunKey, sets: true
+      attribute :checkout, Word, optional: true, sets: true
+      attribute :message,  Text, sets: true
+      attribute :paths,    Text, optional: true, sets: true
+
+      given("a commit says what it commits") do
+        message.value.to_s.strip != ""
+      end
+
+      emits CommitRequested
+    end
+
+    command "Record" do
+      role "System"
+      goal "Record the commit a checkout made, by the sha it has"
+
+      reference_to Revision
+      attribute :sha,    Word,   sets: true
+      attribute :report, Report, sets: true
+
+      emits CommitRecorded
+    end
+
+    command "Decline" do
+      role "System"
+      goal "Record why a commit could not be made"
+
+      reference_to Revision
+      attribute :refusal, Report, sets: true
+
+      emits CommitDeclined
+    end
+  end
+
+  # A linked worktree opened on a new branch from main: asked of the git port, then recorded or declined. The
+  # path is the one the caller names, or a directory under the checkout's `.claude/worktrees`. `Landing` and
+  # `Landing.retire!` take it from there, so a session that cannot run `git worktree add` itself can still open one.
+  aggregate "LinkedTree" do
+    description "A linked worktree opened on a new branch from main, or declined with the reason."
+
+    attribute :run,      RunKey
+    attribute :checkout, Word,   optional: true
+    attribute :branch,   Word,   optional: true
+    attribute :path,     Word,   optional: true
+    attribute :sha,      Word,   optional: true
+    attribute :report,   Report, optional: true
+    attribute :refusal,  Report, optional: true
+    attribute :confirm,  Switch, optional: true
+    attribute :onto,     Word,   optional: true
+    attribute :resolve,  Resolution, optional: true
+    attribute :base,     Word,   optional: true
+    attribute :commit,   Word,   optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, matches: :present
+    end
+
+    # A directory or a branch name.
+    value_object "Word" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Report", String
+
+    value_object "Switch", Boolean
+
+    # Comma-separated `path=ours` or `path=theirs` pairs: the side each conflicted path takes.
+    value_object "Resolution", String
+
+    lifecycle :status, default: "requested" do
+      mark :failure, "declined"
+      transition "Record"  => "opened",   from: "requested"
+      transition "Decline" => "declined", from: "requested"
+      transition "Pulled"  => "pulled",   from: "requested"
+      transition "PullDeclined" => "declined", from: "requested"
+      transition "Published"    => "published", from: "requested"
+      transition "PublishDeclined" => "declined", from: "requested"
+      transition "Rebased"      => "rebased",   from: "requested"
+      transition "RebaseDeclined" => "declined", from: "requested"
+      transition "Picked"      => "picked",    from: "requested"
+      transition "PickDeclined" => "declined", from: "requested"
+      mark :terminal, "opened", "declined", "pulled", "published", "rebased", "picked"
+    end
+
+    command "Add" do
+      role "Operator"
+      goal "Open a linked worktree on a new branch from main (or from a base named), never on main itself"
+
+      attribute :run,      RunKey, sets: true
+      attribute :checkout, Word, optional: true, sets: true
+      attribute :branch,   Word, sets: true
+      attribute :path,     Word, optional: true, sets: true
+      attribute :base,     Word, default: "main", sets: true
+
+      given("a worktree is opened on a branch other than main") do
+        branch.value.to_s.strip != "" && branch.value.to_s.strip != "main"
+      end
+
+      emits AddRequested
+    end
+
+    command "PullMain" do
+      role "Operator"
+      goal "Bring local main up to date with origin/main: fetch, fast-forward when behind, rebase its unpushed commits when diverged, refusing a dirty or mid-rebase checkout"
+
+      attribute :run,      RunKey, sets: true
+      attribute :checkout, Word, optional: true, sets: true
+
+      emits PullRequested
+    end
+
+    command "Pulled" do
+      role "System"
+      goal "Record where main stands once it is up to date with origin/main"
+
+      reference_to LinkedTree
+      attribute :sha,    Word,   sets: true
+      attribute :report, Report, sets: true
+
+      emits MainPulled
+    end
+
+    command "PullDeclined" do
+      role "System"
+      goal "Record why main could not be pulled"
+
+      reference_to LinkedTree
+      attribute :refusal, Report, sets: true
+
+      emits PullDeclinedRecorded
+    end
+
+    command "Record" do
+      role "System"
+      goal "Record the worktree a checkout opened, by the sha it stands on"
+
+      reference_to LinkedTree
+      attribute :path,   Word,   optional: true, sets: true
+      attribute :sha,    Word,   sets: true
+      attribute :report, Report, sets: true
+
+      emits AddRecorded
+    end
+
+    command "Decline" do
+      role "System"
+      goal "Record why a worktree could not be opened"
+
+      reference_to LinkedTree
+      attribute :refusal, Report, sets: true
+
+      emits AddDeclined
+    end
+
+    # A push of a worktree's branch to origin, under its own name, so a pull request can be opened from it. It
+    # never pushes main and never forces; a branch with no commits to publish is refused by the git port.
+    command "Publish" do
+      role "Operator"
+      goal "Push a worktree's branch to origin, so a pull request can be opened from it; never main, never forced"
+
+      attribute :run,      RunKey, sets: true
+      attribute :checkout, Word, optional: true, sets: true
+      attribute :branch,   Word, sets: true
+      attribute :confirm,  Switch, optional: true, sets: true
+
+      given("publishes a branch other than main, never main") do
+        branch.value != "main"
+      end
+
+      given("pushes the branch to origin needs --confirm; without it this only reports") { confirm.value == true }
+
+      emits BranchPublishRequested
+    end
+
+    command "Published" do
+      role "System"
+      goal "Record the branch a worktree published to origin, by the sha it stands on"
+
+      reference_to LinkedTree
+      attribute :sha,    Word,   sets: true
+      attribute :report, Report, sets: true
+
+      emits BranchPublished
+    end
+
+    command "PublishDeclined" do
+      role "System"
+      goal "Record why a branch could not be published to origin"
+
+      reference_to LinkedTree
+      attribute :refusal, Report, sets: true
+
+      emits BranchPublishDeclined
+    end
+
+    # Never rebases main, never forces, never discards uncommitted work.
+    # In a rebase `ours` is the base and `theirs` is the branch's commit being replayed.
+    command "Rebase" do
+      role "Operator"
+      goal "Rebase a branch onto a base, or report the files that conflict and stop with nothing changed"
+
+      attribute :run,      RunKey, sets: true
+      attribute :checkout, Word, optional: true, sets: true
+      attribute :branch,   Word, sets: true
+      attribute :onto,     Word, default: "origin/main", sets: true
+      attribute :resolve,  Resolution, optional: true, sets: true
+
+      given("rebases a branch other than main, never main") { branch.value != "main" }
+      given("rebases onto a base other than the branch itself") { onto.value != branch.value }
+      given("resolve names each path as path=ours or path=theirs") do
+        resolve.value.to_s.empty? || resolve.value.split(",").all? { |pair| pair.match?(/\A[^=, \t]+=(ours|theirs)\z/) }
+      end
+
+      emits RebaseRequested
+    end
+
+    command "Rebased" do
+      role "System"
+      goal "Record the sha a branch stands on once it is rebased"
+
+      reference_to LinkedTree
+      attribute :sha,    Word,   sets: true
+      attribute :report, Report, sets: true
+
+      emits BranchRebased
+    end
+
+    command "RebaseDeclined" do
+      role "System"
+      goal "Record why a branch could not be rebased"
+
+      reference_to LinkedTree
+      attribute :refusal, Report, sets: true
+
+      emits BranchRebaseDeclined
+    end
+
+    # Applies one commit's change onto a worktree's branch, by the `Picking` port. It never picks onto main,
+    # never forces and never discards uncommitted work. A conflict stops it with nothing changed and names
+    # every conflicted path; it is never resolved silently.
+    command "Pick" do
+      role "Operator"
+      goal "Apply one commit's change onto a worktree's branch, or report the files that conflict and stop with nothing changed"
+
+      attribute :run,    RunKey, sets: true
+      attribute :branch, Word, sets: true
+      attribute :commit, Word, sets: true
+
+      given("picks onto a branch other than main, never main") { branch.value != "main" }
+
+      emits PickRequested
+    end
+
+    command "Picked" do
+      role "System"
+      goal "Record the sha a branch stands on once a commit is picked onto it"
+
+      reference_to LinkedTree
+      attribute :sha,    Word,   sets: true
+      attribute :report, Report, sets: true
+
+      emits CommitPicked
+    end
+
+    command "PickDeclined" do
+      role "System"
+      goal "Record why a commit could not be picked onto a branch"
+
+      reference_to LinkedTree
+      attribute :refusal, Report, sets: true
+
+      emits CommitPickDeclined
+    end
+  end
+
+  policy "AddWorktreeWhenRequested" do
+    on      "LinkedTree.AddRequested"
+    ask     :create, with: { run: :run }
+  end
+
+  policy "PullMainWhenRequested" do
+    on      "LinkedTree.PullRequested"
+    ask     :pull, with: { run: :run }
+  end
+
+  policy "PublishBranchWhenRequested" do
+    on      "LinkedTree.BranchPublishRequested"
+    ask     :push, with: { run: :run }
+  end
+
+  policy "RebaseWhenRequested" do
+    on      "LinkedTree.RebaseRequested"
+    ask     :replay, with: { run: :run }
+  end
+
+  policy "PickWhenRequested" do
+    on      "LinkedTree.PickRequested"
+    ask     :apply, with: { run: :run }
+  end
+
+  policy "RecordThePick" do
+    on      "LinkedTree.PickAnswered"
+    trigger LinkedTree::Picked, with: { sha: :sha, report: :report }
+  end
+
+  policy "DeclineThePick" do
+    on      "LinkedTree.PickRefused"
+    trigger LinkedTree::PickDeclined, with: { refusal: :refusal }
+  end
+
+  policy "RecordTheRebase" do
+    on      "LinkedTree.RebaseAnswered"
+    trigger LinkedTree::Rebased, with: { sha: :sha, report: :report }
+  end
+
+  policy "DeclineTheRebase" do
+    on      "LinkedTree.RebaseRefused"
+    trigger LinkedTree::RebaseDeclined, with: { refusal: :refusal }
+  end
+
+  policy "RecordThePublish" do
+    on      "LinkedTree.BranchPublishAnswered"
+    trigger LinkedTree::Published, with: { sha: :sha, report: :report }
+  end
+
+  policy "DeclineThePublish" do
+    on      "LinkedTree.BranchPublishRefused"
+    trigger LinkedTree::PublishDeclined, with: { refusal: :refusal }
+  end
+
+  policy "RecordThePull" do
+    on      "LinkedTree.PullAnswered"
+    trigger LinkedTree::Pulled, with: { sha: :sha, report: :report }
+  end
+
+  policy "DeclineThePull" do
+    on      "LinkedTree.PullRefused"
+    trigger LinkedTree::PullDeclined, with: { refusal: :refusal }
+  end
+
+  policy "RecordTheWorktree" do
+    on      "LinkedTree.CreateAnswered"
+    trigger LinkedTree::Record, with: { path: :path, sha: :sha, report: :report }
+  end
+
+  policy "DeclineTheWorktree" do
+    on      "LinkedTree.CreateRefused"
+    trigger LinkedTree::Decline, with: { refusal: :refusal }
+  end
+
+  # A landing merges and never settles a conflict, forces or pushes; a retirement deletes no
+  # unlanded work. Landings wait in one first-come line, and a train lands every ready branch.
+  aggregate "Landing" do
+    description "One branch landed on local main, or one worktree retired: done, or refused with the reason."
+    acknowledges :key_by_value, "the run id of the LinkedTree this landing takes its checkout and branch from, and a landing whose id names no recorded tree falls back to the explicit checkout and branch, so a reference that refused an unknown tree would break the fallback",
+                 of: :from
+    created_by "Landing.land!"
+
+    attribute :run,      RunKey
+    attribute :confirm, Switch, optional: true
+    attribute :checkout, Word,   optional: true
+    attribute :branch,   Word,   optional: true
+    attribute :onto,     Word,   optional: true
+    attribute :from,     RunKey, optional: true
+    attribute :landed,   Word,   optional: true
+    attribute :path,     Word,   optional: true
+    attribute :holding,  Word,   optional: true
+    attribute :reason,   Report, optional: true
+    attribute :report,   Report, optional: true
+    attribute :refusal,  Report, optional: true
+    identified_by :run
+
+    value_object "RunKey" do
+      attribute :value, String, matches: :present
+    end
+
+    # A branch, a directory or a commit.
+    value_object "Word" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Report", String
+
+    value_object "Document" do
+      attribute :text, String
+    end
+
+    lifecycle :status, default: "requested" do
+      mark :failure, "refused"
+      transition "Record"  => "landed",  from: "requested"
+      transition "Adopt"   => "landed",  from: "requested"
+      transition "Clear"   => "retired", from: "requested"
+      transition "Dispose" => "discarded", from: "requested"
+      transition "Shelve"  => "set_aside", from: "requested"
+      transition "Withhold" => "refused", from: "requested"
+      transition "Spare"   => "refused", from: "requested"
+      transition "Refuse"  => "refused", from: "requested"
+      transition "Decline" => "refused", from: "requested"
+      transition "Convoy"  => "convoyed", from: "requested"
+      transition "Hand"    => "handed", from: "requested"
+      mark :terminal, "landed", "refused", "retired", "discarded", "convoyed", "set_aside", "handed"
+    end
+
+    command "Land" do
+      role "Operator"
+      goal "Merge a worktree's branch onto local main: fast-forward when it can be, a merge commit when main moved, never forced, never pushed"
+
+      attribute :run,      RunKey, sets: true
+      attribute :checkout, Word, optional: true, sets: true
+      attribute :branch,   Word, optional: true, sets: true
+      attribute :from,     RunKey, optional: true, sets: true
+      attribute :onto,     Word, default: "main", sets: true
+      attribute :confirm,  Switch, optional: true, sets: true
+
+      given("merges the branch onto local main needs --confirm; without it this only reports") { confirm.value == true }
+
+      emits LandingRequested
+    end
+
+    command "Finish" do
+      role "Operator"
+      goal "Rebase a worktree's branch onto local main, run the quick gate, land it through the queue and tidy, refusing by name at the first failure"
+
+      attribute :run,      RunKey, sets: true
+      attribute :checkout, Word, optional: true, sets: true
+      attribute :branch,   Word, optional: true, sets: true
+      attribute :onto,     Word, default: "main", sets: true
+      attribute :confirm,  Switch, optional: true, sets: true
+
+      given("rebases, lands and tidies needs --confirm; without it this only reports") { confirm.value == true }
+
+      emits FinishRequested
+    end
+
+    # The job runs `Carry` and reports by event: `BranchLanded` or `LandingRefused`.
+    command "Submit" do
+      role "Operator"
+      goal "Hand a worktree's branch to a landing job of its own and return at once, landing nothing from here"
+
+      attribute :run,      RunKey, sets: true
+      attribute :checkout, Word, optional: true, sets: true
+      attribute :branch,   Word, optional: true, sets: true
+      attribute :onto,     Word, default: "main", sets: true
+      attribute :confirm,  Switch, optional: true, sets: true
+
+      given("starts a job that lands the branch needs --confirm; without it this only reports") { confirm.value == true }
+
+      emits LandingSubmitted
+    end
+
+    command "Hand" do
+      role "System"
+      goal "Record that a submitted branch's landing job was started, and where it logs"
+
+      reference_to Landing
+      attribute :report, Report, sets: true
+
+      emits LandingHanded
+    end
+
+    command "Carry" do
+      role "Operator"
+      goal "Finish a submitted branch as its landing job: rebase, quick gate and land through the queue, keeping the worktree"
+
+      attribute :run,      RunKey, sets: true
+      attribute :checkout, Word, optional: true, sets: true
+      attribute :branch,   Word, optional: true, sets: true
+      attribute :onto,     Word, default: "main", sets: true
+      attribute :confirm,  Switch, optional: true, sets: true
+
+      given("rebases and lands needs --confirm; without it this only reports") { confirm.value == true }
+
+      emits CarryRequested
+    end
+
+    command "Train" do
+      role "Operator"
+      goal "Hold the front place in the landing line and land every ready branch behind it, in ticket order"
+
+      attribute :run,      RunKey, sets: true
+      attribute :checkout, Word, optional: true, sets: true
+      attribute :onto,     Word, default: "main", sets: true
+      attribute :confirm,  Switch, optional: true, sets: true
+
+      given("lands every ready branch onto local main needs --confirm; without it this only reports") { confirm.value == true }
+
+      emits TrainRequested
+    end
+
+    command "Convoy" do
+      role "System"
+      goal "Record which branches the train landed and which it skipped, with the reasons"
+
+      reference_to Landing
+      attribute :report, Report, sets: true
+
+      emits TrainRan
+    end
+
+    command "Record" do
+      role "System"
+      goal "Record the commit main names once the branch is on it"
+
+      reference_to Landing
+      attribute :branch, Word, sets: true
+      attribute :landed, Word, sets: true
+      attribute :report, Report, sets: true
+      attribute :checkout, Word, optional: true, sets: true
+
+      emits BranchLanded
+    end
+
+    command "Adopt" do
+      role "System"
+      goal "Record a tip of local main that no integration run covers as landed on main, so its run starts"
+
+      attribute :branch,   Word, sets: true
+      attribute :landed,   Word, sets: true
+      attribute :report,   Report, sets: true
+      attribute :checkout, Word, optional: true, sets: true
+
+      emits BranchLanded
+    end
+
+    command "Refuse" do
+      role "System"
+      goal "Record why a branch could not be landed"
+
+      reference_to Landing
+      attribute :refusal, Report, sets: true
+
+      emits LandingRefused
+    end
+
+    command "Retire" do
+      role "Operator"
+      goal "Remove a merged worktree and delete its branch, unless it holds uncommitted work or commits main lacks"
+
+      attribute :run,      RunKey, sets: true
+      attribute :checkout, Word, optional: true, sets: true
+      attribute :branch,   Word, optional: true, sets: true
+      attribute :onto,     Word, default: "main", sets: true
+      attribute :confirm,  Switch, optional: true, sets: true
+
+      given("removes the worktree and deletes its branch needs --confirm; without it this only reports") { confirm.value == true }
+
+      emits RetirementRequested
+    end
+
+    command "Discard" do
+      role "Operator"
+      goal "Remove a worktree and delete its branch even though main lacks its commits, for a stated reason: refused for a protected branch, a worktree in use, or uncommitted work"
+
+      attribute :run,      RunKey, sets: true
+      attribute :checkout, Word, optional: true, sets: true
+      attribute :branch,   Word, optional: true, sets: true
+      attribute :onto,     Word, default: "main", sets: true
+      attribute :reason,   Report, sets: true
+      attribute :confirm,  Switch, optional: true, sets: true
+
+      given("a discard says why") { reason.value != "" }
+      given("discards the branch's commits that main lacks needs --confirm; without it this only reports") { confirm.value == true }
+
+      emits DiscardRequested
+    end
+
+    # A stray in the checkout that blocks a landing is moved out, never deleted: an untracked file or
+    # directory with nothing tracked inside it, or a clean linked worktree whose commits are all on main
+    # or a remote. `Workspace.strays` says which paths those are.
+    command "SetAside" do
+      role "Operator"
+      goal "Move an untracked path, or a clean pushed linked worktree, out of a checkout into a holding directory, never deleting it"
+
+      attribute :run,      RunKey, sets: true
+      attribute :checkout, Word, optional: true, sets: true
+      attribute :path,     Word, sets: true
+      attribute :holding,  Word, optional: true, sets: true
+      attribute :confirm,  Switch, optional: true, sets: true
+
+      given("a set-aside names the path to move") { path.value.to_s.strip != "" }
+      given("moves the path out of the checkout needs --confirm; without it this only reports") { confirm.value == true }
+
+      emits SetAsideRequested
+    end
+
+    command "Shelve" do
+      role "System"
+      goal "Record where a stray was moved to"
+
+      reference_to Landing
+      attribute :report, Report, sets: true
+
+      emits StraySetAside
+    end
+
+    command "Withhold" do
+      role "System"
+      goal "Record why a stray was left where it is"
+
+      reference_to Landing
+      attribute :refusal, Report, sets: true
+
+      emits StrayKept
+    end
+
+    command "Dispose" do
+      role "System"
+      goal "Record that the worktree and its branch were discarded, with the tip they were at"
+
+      reference_to Landing
+      attribute :branch, Word, sets: true
+      attribute :report, Report, sets: true
+
+      emits WorktreeDiscarded
+    end
+
+    command "Spare" do
+      role "System"
+      goal "Record why a worktree was not discarded"
+
+      reference_to Landing
+      attribute :refusal, Report, sets: true
+
+      emits DiscardDeclined
+    end
+
+    command "Clear" do
+      role "System"
+      goal "Record that the worktree and its branch are gone"
+
+      reference_to Landing
+      attribute :branch, Word, sets: true
+      attribute :report, Report, sets: true
+
+      emits WorktreeRetired
+    end
+
+    command "Decline" do
+      role "System"
+      goal "Record why a worktree was kept"
+
+      reference_to Landing
+      attribute :refusal, Report, sets: true
+
+      emits RetirementDeclined
+    end
+
+    query "Outcome" do
+      description "How one landing or retirement ended: the commit main names, or why it was refused."
+      attribute :run, RunKey
+      where(run: :run)
+      order_by :run
+    end
+
+    query "Unlanded" do
+      description "Every branch with commits that are not on main, or with uncommitted work, and where its worktree is."
+      attribute :checkout, Word, optional: true
+      attribute :onto,     Word, optional: true
+      returns Document
+    end
+  end
+
+  policy "MergeWhenLanding" do
+    on      "Landing.LandingRequested"
+    ask     :merge, with: { run: :run }
+  end
+
+  policy "FinishWhenFinishing" do
+    on      "Landing.FinishRequested"
+    ask     :finish_branch, with: { run: :run }
+  end
+
+  # The adapter starts one detached launcher process that runs `Landing.carry!`, and answers at once.
+  policy "StartTheLandingJobWhenSubmitted" do
+    on      "Landing.LandingSubmitted"
+    ask     :start_landing, with: { run: :run }
+  end
+
+  policy "RecordTheHandedLanding" do
+    on      "Landing.LandingJobStarted"
+    trigger Landing::Hand, with: { report: :report }
+  end
+
+  policy "RecordTheLandingThatCouldNotBeHanded" do
+    on      "Landing.HandoffRefused"
+    trigger Landing::Refuse, with: { refusal: :refusal }
+  end
+
+  policy "CarryWhenCarrying" do
+    on      "Landing.CarryRequested"
+    ask     :carry_branch, with: { run: :run }
+  end
+
+  policy "RecordTheRefusedCarry" do
+    on      "Landing.CarryRefused"
+    trigger Landing::Refuse, with: { refusal: :refusal }
+  end
+
+  policy "RecordTheLanding" do
+    on      "Landing.MergeAnswered"
+    trigger Landing::Record, with: { branch: :branch, landed: :landed, report: :report, checkout: :checkout }
+  end
+
+  policy "RunTheTrain" do
+    on      "Landing.TrainRequested"
+    ask     :convene, with: { run: :run }
+  end
+
+  policy "RecordTheTrain" do
+    on      "Landing.ConveneAnswered"
+    trigger Landing::Convoy, with: { report: :report }
+  end
+
+  policy "RecordTheRefusedTrain" do
+    on      "Landing.ConveneRefused"
+    trigger Landing::Refuse, with: { refusal: :refusal }
+  end
+
+  policy "RecordTheRefusedLanding" do
+    on      "Landing.MergeRefused"
+    trigger Landing::Refuse, with: { refusal: :refusal }
+  end
+
+  policy "RemoveWhenRetiring" do
+    on      "Landing.RetirementRequested"
+    ask     :remove, with: { run: :run }
+  end
+
+  policy "DiscardWhenAsked" do
+    on      "Landing.DiscardRequested"
+    ask     :drop_branch, with: { run: :run }
+  end
+
+  policy "SetAsideWhenAsked" do
+    on      "Landing.SetAsideRequested"
+    ask     :move_aside, with: { run: :run }
+  end
+
+  policy "RecordTheSetAside" do
+    on      "Landing.SetAsideAnswered"
+    trigger Landing::Shelve, with: { report: :report }
+  end
+
+  policy "RecordTheKeptStray" do
+    on      "Landing.SetAsideRefused"
+    trigger Landing::Withhold, with: { refusal: :refusal }
+  end
+
+  policy "RecordTheDiscard" do
+    on      "Landing.DiscardAnswered"
+    trigger Landing::Dispose, with: { branch: :branch, report: :report }
+  end
+
+  policy "RecordTheSparedWorktree" do
+    on      "Landing.DiscardRefused"
+    trigger Landing::Spare, with: { refusal: :refusal }
+  end
+
+  policy "RecordTheRetirement" do
+    on      "Landing.RemovalAnswered"
+    trigger Landing::Clear, with: { branch: :branch, report: :report }
+  end
+
+  policy "RecordTheKeptWorktree" do
+    on      "Landing.RemovalRefused"
+    trigger Landing::Decline, with: { refusal: :refusal }
+  end
+
+  # A commit that was asked for is made by the git port, which answers with its sha or refuses with why.
+  policy "CommitWhenMade" do
+    on      "Revision.CommitRequested"
+    ask     :commit, with: { run: :run }
+  end
+
+  policy "RecordTheCommit" do
+    on      "Revision.CommitAnswered"
+    trigger Revision::Record, with: { sha: :sha, report: :report }
+  end
+
+  policy "DeclineTheCommit" do
+    on      "Revision.CommitRefused"
+    trigger Revision::Decline, with: { refusal: :refusal }
+  end
+end

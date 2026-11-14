@@ -1,5 +1,6 @@
 require "spec_helper"
-require "hecks/hecks/adapters/git_checkout"
+require "hecks/hecks/adapters/delivery_library"
+Hecks::Adapters::DeliveryLibrary.require("git_checkout")
 
 # The stash entries and the unreachable commits of a checkout, read from canned git output, with no
 # repository touched. Every git call the reads make is recorded: each is a read, and none applies,

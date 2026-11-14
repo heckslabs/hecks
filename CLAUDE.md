@@ -167,8 +167,11 @@ answered `carried`. Its mint step reports `Memory holds no eras, no mint needed`
   `persisted_by "PostgresEra"` opts it in (the attached bluebooks inherit it). Do not add local
   files to a development checkout, and none by hand to the train's copy. The one exception is the
   train's generated, gitignored `hecks.local.hecksagon`, which `Train#write_overlay` writes at each
-  boarding from `TrainOverlay::PERSISTED`: the clock chain's ticks are separate processes and
-  need the Ticker kept, and a hand copy fell behind.
+  boarding from the `KeptAggregate` rows of `lib/hecks/hecks/hecks.bluebook`: the clock chain's
+  ticks are separate processes and need the Ticker kept, and a hand copy fell behind. The same rows
+  write the main checkout's overlay (`exe/hecks LocalOverlay.write! root.value=<checkout>
+  copy.value=main`), and a write to a kept aggregate that a checkout with a local overlay binds to
+  Memory is refused by the aggregate's name.
   A linked worktree that keeps no local file of its own loads the main checkout's
   (`WorktreeBorrow`, `lib/hecks/adapters/driven/worktree_borrow.rb`), so its commands use the same dev
   databases under `~/.claude/hecks-dev`. Nothing is lent to the spec runner (`HECKS_WRITES_LOCAL`, which
@@ -210,6 +213,10 @@ not require the flag.
 ## Landings, era inspection and the QA dispatcher
 
 Each command's `--help` says what it takes; this names where they live. **Landing and the queue:**
+`Landing.submit!` hands a branch to a landing job of its own and returns at once: the job runs `Landing.carry!`
+(a finish that keeps the worktree) from the main checkout, logs to `.git/hecks-landings/<branch>.log`, reports
+`BranchLanded` or `LandingRefused`, and a conflict or a red gate plans the finished Work item again with the
+reason. A coder's `coder Submission.submit!` starts it.
 `landing.finish!` (rebase onto local `main`, quick gate, land, tidy), `landing.land!` and `landing.train!`
 (`lib/hecks/hecks/deliver/deliver.bluebook`) take a place in one first-come, first-served line; the
 world's `landing "Queue"` (`hecks.world`) sets how long a ticket may go without a heartbeat and how long

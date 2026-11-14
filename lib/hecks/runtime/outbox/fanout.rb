@@ -36,13 +36,13 @@ module Hecks
           policy.event_name == event.name && (policy.event_qualifier.nil? || policy.event_qualifier == emitting)
         end
 
-        # A saga only ever reacts within its own domain.
+        # A saga hears an event by its name from any loaded bluebook, as a policy does: the emitting
+        # domain's own sagas first, then the others' in load order, each named with the bluebook
+        # that declares it.
         def sagas(registry, event, domain, uid)
-          bluebook = registry.bluebook(domain)
-          return [] unless bluebook
-
-          bluebook.process_managers.select { |process_manager| listens?(process_manager, event) }.map do |process_manager|
-            row_for(event, domain, uid, "saga:#{bluebook.name}::#{process_manager.name}", "reaction")
+          Outbox.bluebooks_home_first(registry, domain).flat_map do |bluebook|
+            hearing = bluebook.process_managers.select { |process_manager| listens?(process_manager, event) }
+            hearing.map { |heard| row_for(event, domain, uid, "saga:#{bluebook.name}::#{heard.name}", "reaction") }
           end
         end
 

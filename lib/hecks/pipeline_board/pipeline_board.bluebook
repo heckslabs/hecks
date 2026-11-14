@@ -236,7 +236,7 @@ Hecks.bluebook "PipelineBoard" do
 
       member tile: "fill",  reads: "Tickets::Work, Hecks::AgentRun, Hecks::Roll, Hecks::Dispatch"
       member tile: "plan",  reads: "Tickets::Work, Tickets::Epic, Hecks::AgentRun, Agents::PlanReview, Hecks::SendTrain, Hecks::Dispatch"
-      member tile: "train", reads: "Hecks::SendTrain, Hecks::LinkedTree, Hecks::Landing, Hecks::BoardingRelease, Hecks::PushOutcome"
+      member tile: "train", reads: "Hecks::SendTrain, Delivery::LinkedTree, Delivery::Landing, Hecks::BoardingRelease, Hecks::PushOutcome"
     end
 
     # One check of the daily health line: what the pipeline reports of its own day, which a person
@@ -289,7 +289,7 @@ Hecks.bluebook "PipelineBoard" do
     # start that belongs to the item, as `belongs` says:
     # - `item`: its `work` or `branch` link, or its id, is the Work item's key, or its id is that of
     #   the event that started the stage.
-    # - `carried`: its `landed` commit was landed (a `Hecks::Landing.BranchLanded` naming that
+    # - `carried`: its `landed` commit was landed (a `Delivery::Landing.BranchLanded` naming that
     #   commit) at or after the item's own landing. Local main is one line, so that commit holds
     #   the item: a verification of a newer landing carries every landing before it.
     # - `after`: any one. Main only moves forward, so what reads or boards main after the stage
@@ -308,11 +308,11 @@ Hecks.bluebook "PipelineBoard" do
       member stage: "dispatch",     position: 2, opens: "Tickets::Work.WorkStarted",              closes: "Hecks::AgentRun.AgentStarted",           belongs: "item"
       member stage: "planning",     position: 3, opens: "Hecks::AgentRun.AgentStarted",           closes: "Agents::PlanReview.PlanReviewRequested", belongs: "item"
       member stage: "review",       position: 4, opens: "Agents::PlanReview.PlanReviewRequested", closes: "Agents::PlanReview.PlanReviewed",        belongs: "item"
-      member stage: "implementing", position: 5, opens: "Agents::PlanReview.PlanReviewed",        closes: "Hecks::Landing.BranchLanded",            belongs: "item"
-      member stage: "verify",       position: 6, opens: "Hecks::Landing.BranchLanded",            closes: "Hecks::Integration.MainVerified Hecks::Integration.MainVerificationFailed", belongs: "carried"
+      member stage: "implementing", position: 5, opens: "Agents::PlanReview.PlanReviewed",        closes: "Delivery::Landing.BranchLanded",            belongs: "item"
+      member stage: "verify",       position: 6, opens: "Delivery::Landing.BranchLanded",            closes: "Hecks::Integration.MainVerified Hecks::Integration.MainVerificationFailed", belongs: "carried"
       member stage: "boarding",     position: 7, opens: "Hecks::Integration.MainVerified",        closes: "Hecks::SendTrain.BoardingQueued",        belongs: "after"
       member stage: "ci",           position: 8, opens: "Hecks::SendTrain.BoardingQueued",        closes: "Hecks::SendTrain.BranchPushed",          belongs: "item"
-      member stage: "sync",         position: 9, opens: "Hecks::SendTrain.BranchPushed",          closes: "Hecks::LinkedTree.MainPulled",           belongs: "after"
+      member stage: "sync",         position: 9, opens: "Hecks::SendTrain.BranchPushed",          closes: "Delivery::LinkedTree.MainPulled",           belongs: "after"
     end
 
     # What the fan-out can flag on a Work item.
@@ -362,7 +362,10 @@ Hecks.bluebook "PipelineBoard" do
       member action: "discard",     needs: "target condition",     confirm: "yes", program: "exe/hecks", argv: "PlainSession.remove! to={target} condition.value={condition}"
       member action: "review",      needs: "target text",          confirm: "no",  program: "exe/hecks", argv: "agents PlanReview.request! work.value={target} hops.value=1 role.value=architect repo.value={repo} plan.value={text} --wait"
       member action: "plan",        needs: "text",                 confirm: "no",  program: "exe/hecks", argv: "agents Planning.request! plan.value={key} goal.value={text} role.value=planner repo.value={repo} --wait"
-      member action: "settle",      needs: "target",               confirm: "no",  program: "exe/hecks", argv: "agents PromotionRecommendation.settle! to={target} --wait"
+      member action: "pause_pruning",  needs: "",                 confirm: "no",  program: "exe/hecks", argv: "agents Pruning.pause! to=pruner --wait"
+      member action: "hold_pruning",   needs: "",                 confirm: "no",  program: "exe/hecks", argv: "agents Pruning.hold! role.value=pruner --wait"
+      member action: "resume_pruning", needs: "",                 confirm: "no",  program: "exe/hecks", argv: "agents Pruning.resume! to=pruner --wait"
+      member action: "settle",     needs: "target",               confirm: "no",  program: "exe/hecks", argv: "agents PromotionRecommendation.settle! to={target} --wait"
     end
 
     # A step from `ActionRule`.

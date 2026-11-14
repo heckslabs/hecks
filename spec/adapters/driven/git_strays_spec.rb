@@ -2,8 +2,9 @@ require "spec_helper"
 require "fileutils"
 require "open3"
 require "tmpdir"
-require "hecks/hecks/adapters/git_landing"
-require "hecks/hecks/adapters/git_checkout"
+require "hecks/hecks/adapters/delivery_library"
+Hecks::Adapters::DeliveryLibrary.require("git_landing")
+Hecks::Adapters::DeliveryLibrary.require("git_checkout")
 
 # What a dirty checkout holds, and moving it out of the way, against a throwaway repository: a stale
 # copy of a file main deleted, a linked worktree sitting inside the checkout and a tracked file with

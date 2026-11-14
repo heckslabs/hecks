@@ -24,7 +24,16 @@ module Hecks
         # @param checkout [String] the directory `gh` runs in
         # @param tip [String, nil] the pull request's head commit
         def initialize(runner, checkout, tip)
-          @ids = replaced(read(runner, checkout, tip.to_s))
+          @runs = read(runner, checkout, tip.to_s)
+          @ids = replaced(@runs)
+        end
+
+        # @param workflow [String] the workflow's name, as GitHub names it
+        # @return [String] the status of the workflow's newest run of the tip (`queued`,
+        #   `in_progress`, `completed`, ...), `none` when it has no run
+        def newest_status(workflow)
+          newest = @runs.select { |run| run["workflowName"] == workflow }.max_by { |run| run["createdAt"].to_s }
+          newest ? newest["status"].to_s.downcase : "none"
         end
 
         # @param rollup [Array<Hash>, nil] a pull request's `statusCheckRollup`
@@ -38,7 +47,7 @@ module Hecks
           return [] if tip.empty?
 
           ok, output = runner.call(["gh", "run", "list", "--commit", tip, "--event", "pull_request", "--limit", LIMIT,
-                                    "--json", "databaseId,workflowName,event,headSha,createdAt"], chdir: checkout)
+                                    "--json", "databaseId,workflowName,event,headSha,createdAt,status"], chdir: checkout)
           return JSON.parse(output) if ok
 
           @unread = output.to_s.strip

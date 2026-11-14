@@ -20,7 +20,7 @@ RSpec.describe "the Agents plan review" do
 
   def request(hops, run: "r1")
     review.request!(run: { value: run }, work: { value: "w1" }, hops: { value: hops }, role: { value: "architect" },
-                    repo: { value: "/tmp" }, plan: { value: "a plan" })
+                    repo: { value: "/tmp" }, plan: { value: "a plan" }, now: { value: 1000 })
   end
 
   it "accepts a request under the hop limit" do

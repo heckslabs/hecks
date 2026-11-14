@@ -4,11 +4,14 @@ require_relative "git_worktrees"
 require_relative "git_shallow_check/trigger"
 require_relative "git_shallow_check/switch"
 require_relative "git_shallow_check/clone_run"
+require_relative "git_shallow_check/on_main"
 
 module Hecks
   module Adapters
     # The `ShallowChecks` port's adapter for `ShallowCheck`: runs CI's failing checks in a fresh
-    # `--depth 1` clone of a branch tip, when the branch changes something those checks read.
+    # `--depth 1` clone of a branch tip, when the branch changes something those checks read. A
+    # red is compared with a depth-1 clone of the branch it lands on: only a spec green there
+    # refuses.
     #
     # It never writes to the repository it reads. The clone lives in a temporary directory and is
     # removed whether the checks pass or not.
@@ -29,7 +32,8 @@ module Hecks
       #
       # @param held [Hash] the `ShallowCheck` record: `checkout`, `branch`, `onto`
       # @return [Hash{Symbol => Hash}] `report:` what ran or why nothing did
-      # @raise [ConsoleCapture::Failure] naming the spec and its first failure line
+      # @raise [ConsoleCapture::Failure] naming the failed specs, the first failure's message and
+      #   whether the branch it lands on fails them too
       def shallow_check(**held)
         settle(held)
         branch = plain(held[:branch]) || current_branch
@@ -59,10 +63,19 @@ module Hecks
         paths = read("diff", "--name-only", "#{onto}...#{ref(branch)}").lines.map(&:strip)
         return "shallow check skipped: no changed path is read by the check set" if Trigger.watched(paths).empty?
 
-        refusal = CloneRun.new(@checkout, branch, **@run).call(fuzz: fuzz_for(paths))
-        raise ConsoleCapture::Failure, "shallow check red: #{refusal}" if refusal
+        red = CloneRun.new(@checkout, branch, **@run).call(fuzz: fuzz_for(paths))
+        red ? compared(OnMain.new(@checkout, onto, red, **@run)) : green(branch)
+      end
 
+      def green(branch)
         "shallow check green: #{@run.fetch(:specs, CloneRun::SPECS).size} specs in a depth-1 clone of #{branch}"
+      end
+
+      # A spec red where the branch lands too is reported, not refused: the branch did not cause it.
+      def compared(on_main)
+        return "shallow check passed: #{on_main}" if on_main.excused?
+
+        raise ConsoleCapture::Failure, "shallow check red: #{on_main}"
       end
 
       def fuzz_for(paths)

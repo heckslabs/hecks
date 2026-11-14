@@ -13,13 +13,14 @@ everyday:
   TestSuiteRun.run_spec_files!      Run several spec files in one launcher boot, each in a new process or…
   TestSuiteRun.run_impacted_specs!  Map the branch's changed files to the specs they touch and run them, or…
   Build.build_host!                 Build the Rust host for a domain, with its wasm and IR, ready to copy…
-  Shipment.ship!                    Start the gate-and-board saga for a branch: fix comment style, check…
-  Landing.land!                     Merge a worktree's branch onto local main: fast-forward when it can be,…
+  Shipment.ship!                    Start the gate-and-board saga for a branch: ask its checkout's gate,…
   SendTrain.board!                  Push this checkout's branch once the push ahead of it lands, unless…
-  Workspace.status                  The checkout's branch, whether it is a linked worktree, where it stands…
   Codebase.search                   The lines of the checkout's text files that match a pattern, as…
 
 commands:
+  LocalOverlay:
+    One write of a checkout's machine-local overlay from the kept rows: written, current, or refused.
+    write!                        Write a checkout's machine-local overlay so it keeps every row its copy needs, and nothing more
   Build:
     One build of a domain for the Rust host, or a check of that build against Ruby.
     project_rust!                 Generate a domain's Rust source for the Rust host
@@ -83,7 +84,8 @@ commands:
     dispatch!                     Hand one brief to a background Claude session working in a directory
     check!                        Read the state a started session's job is in, and record it when it changed
     tidy!                         Remove the finished session of one run, unless it is still working, waiting on a person, or taken over
-    answer!                       Answer a session that is working or blocked by resuming it with the answer
+    release!                      Review a kept run at the next reap, without waiting for its retry time
+    answer!                       Answer a session that has not ended: deliver to a working one, resume an idle one
     retire!                       Close a started run whose session is gone, so the ledger stops listing it as started
   SessionSweep:
     One check of every started run's session: each change of state is recorded on its run.
@@ -102,9 +104,6 @@ commands:
   Question:
     One question a blocked run asks the orchestrator: asked, seated with an orchestrator run that answers it, then closed when the run is answered or escalated as the owner's.
     escalate!                     Hand a seated question to the owner, unanswered, and free its seat
-  Revision:
-    One commit made in a checkout, or declined with the reason: what it says and what it is on.
-    make!                         Commit what is staged in a checkout under a message: never pushed, never amended, never onto main
   Restoration:
     The changed files of a checkout that already match origin/main, restored, or declined with the reason.
     make!                         Restore each changed file of a checkout that already matches origin/main, and leave every other file alone
@@ -112,21 +111,6 @@ commands:
     CI's failing checks run in a depth-1 clone of a branch: passed or skipped, or refused with the spec and its first failure line.
     run!                          Run CI's failing checks in a depth-1 clone of a branch when it changes something they read, refusing with the spec and its first failure line
     switch!                       Turn the shallow check on or off for the whole repository
-  LinkedTree:
-    A linked worktree opened on a new branch from main, or declined with the reason.
-    add!                          Open a linked worktree on a new branch from main (or from a base named), never on main itself
-    pull_main!                    Bring local main up to date with origin/main: fetch, fast-forward when behind, rebase its unpushed commits when diverged, refusing a dirty or mid-rebase checkout
-    publish!                      Push a worktree's branch to origin, so a pull request can be opened from it; never main, never forced
-    rebase!                       Rebase a branch onto a base, or report the files that conflict and stop with nothing changed
-    pick!                         Apply one commit's change onto a worktree's branch, or report the files that conflict and stop with nothing changed
-  Landing:
-    One branch landed on local main, or one worktree retired: done, or refused with the reason.
-    land!                         Merge a worktree's branch onto local main: fast-forward when it can be, a merge commit when main moved, never forced, never pushed
-    finish!                       Rebase a worktree's branch onto local main, run the quick gate, land it through the queue and tidy, refusing by name at the first failure
-    train!                        Hold the front place in the landing line and land every ready branch behind it, in ticket order
-    retire!                       Remove a merged worktree and delete its branch, unless it holds uncommitted work or commits main lacks
-    discard!                      Remove a worktree and delete its branch even though main lacks its commits, for a stated reason: refused for a protected branch, a worktree in use, or uncommitted work
-    set_aside!                    Move an untracked path, or a clean pushed linked worktree, out of a checkout into a holding directory, never deleting it
   SendTrain:
     One push of a checkout's branch, taken in turn: carried by an earlier push, pushed, or refused.
     board!                        Push this checkout's branch once the push ahead of it lands, unless that push already carried it
@@ -136,8 +120,9 @@ commands:
     How one boarding of the push train ended, as the boarded checkout records it: pushed, carried or faulted.
     record!                       Record how one boarding of the push train ended, in the checkout that boarded it
   Shipment:
-    One request to fix, gate, land and board a branch: the gate-and-board saga starts on it.
-    ship!                         Start the gate-and-board saga for a branch: fix comment style, check the ledger, gate, land on main, board the push train
+    One request to gate, land and board a branch: the gate-and-board saga starts on it.
+    ship!                         Start the gate-and-board saga for a branch: ask its checkout's gate, land on main, board the push train
+    rejudge!                      Ask the checkout's gate to judge a shipment again, after a gate that refused it
   Integration:
     One step of integrating main (verify, board, observe CI) or one advance of the open runs, and how it ended.
     advance!                      Dispatch the next step of every open integration run, once: verify a landed run, board a verified one, observe a pushed one
@@ -317,19 +302,10 @@ queries (nothing here changes anything):
     The seats of the orchestrator runs that answer questions, at most two taken at once.
     desks                   The desk and how many of its seats are taken.
   Workspace:
-    A look at a checkout: its branch, what it changed and what it committed.
-    status                  The checkout's branch, whether it is a linked worktree, where it stands against main and origin/main, and what is changed or untracked.
-    strays                  What each untracked or changed path in the checkout is: a stale copy of a file main deleted, a linked worktree sitting inside it (dirty or clean, pushed or not), a tracked file with uncommitted changes, or unknown.
-    changes                 What the checkout changed since a ref (main by default): the diffstat, or the paths alone.
-    history                 The commits in a range, newest first (the last 20 when none is named).
-    stashes                 The checkout's stash entries: each one's ref (stash@{0}), its time, the branch it records when the message names one, and its message.
-    dangling_commits        The commits no ref reaches, as `git fsck --unreachable --no-reflogs` reports them: each one's short sha, author date and subject, newest first.
+    A look at how this copy of Hecks is set up: its settings, its stores and whether it can run here.
     settings                What this copy resolves for each setting that can come from a variable, its own world or a default, and which one supplied it. (also: config)
     doctor                  Whether this checkout can run Hecks here: overlay files parse, the stores answer, the toolchain pin matches, and what this worktree cannot see.
     where                   Where this checkout's domain resolves: the store each bluebook uses and why, the audience and environment with their reasons, and any overlay file this worktree lacks.
-  Landing:
-    One branch landed on local main, or one worktree retired: done, or refused with the reason.
-    unlanded                Every branch with commits that are not on main, or with uncommitted work, and where its worktree is.
   ReviewRequest:
     One pull request opened or squash-merged on GitHub, and what GitHub answered.
     status                  The state of one pull request on GitHub: its number, state, URL and checks, as text.
@@ -420,6 +396,7 @@ queries (nothing here changes anything):
     releases_by_state       How many releases stand in each state.
 
 bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
+  delivery         Take finished work onto local main.
   deploy           Generate, check and compare deploy recipes, project OIDC manifests and provision tenants.
   governance       Organizational authority is explicit, reviewable, and historically explainable.
   tenancy          Which tenants exist, which realm and storage each one owns, and whether each is currently…
@@ -436,6 +413,6 @@ bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
   expression       The subset of regular Ruby a predicate is allowed to be — small enough that every target can…
 
   hecks <command> --help       what one command wants, and every way it refuses
-  hecks --all                  also list the 404 internal commands and queries
-  a command is called with its aggregate — Build.project_rust!
+  hecks --all                  also list the internal commands and queries
+  a command is called with its aggregate — LocalOverlay.write!
   exit status: 0 answered, 1 refused or failed, 2 a line it could not read

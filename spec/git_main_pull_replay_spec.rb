@@ -1,5 +1,6 @@
 require "spec_helper"
-require "hecks/hecks/adapters/git_main_pull"
+require "hecks/hecks/adapters/delivery_library"
+Hecks::Adapters::DeliveryLibrary.require("git_main_pull")
 require "hecks/hecks/adapters/shell"
 
 # A rebase that stops with no file in conflict says why in git's words, and one run on a machine

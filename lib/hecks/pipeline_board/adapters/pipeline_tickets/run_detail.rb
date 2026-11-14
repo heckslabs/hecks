@@ -24,7 +24,7 @@ module Hecks
         def landed_commits(work)
           return [] if work.empty?
 
-          landings = @landed || records_of("Hecks", "Landing")
+          landings = @landed || records_of("Delivery", "Landing")
           mine = landings.select { |land| field(land, :branch).to_s.delete_prefix("qa/") == work }
           mine.map { |land| field(land, :landed).to_s }.reject(&:empty?).uniq
         rescue PipelineBoard::Unavailable

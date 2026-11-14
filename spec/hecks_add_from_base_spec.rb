@@ -1,7 +1,8 @@
 require "spec_helper"
 require "tmpdir"
 require "open3"
-require "hecks/hecks/adapters/git_worktree_add"
+require "hecks/hecks/adapters/delivery_library"
+Hecks::Adapters::DeliveryLibrary.require("git_worktree_add")
 
 # Opening a linked worktree from a base other than main, against a real repository in a temporary
 # directory. Local main is the one ref every example checks it did not move.

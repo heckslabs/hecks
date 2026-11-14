@@ -1,5 +1,6 @@
 require "spec_helper"
-require "hecks/hecks/adapters/git_landing"
+require "hecks/hecks/adapters/delivery_library"
+Hecks::Adapters::DeliveryLibrary.require("git_landing")
 require "tmpdir"
 
 # Four processes race for the line: they land in the order they joined, one at a time.
@@ -9,7 +10,8 @@ RSpec.describe Hecks::Adapters::GitLanding::Lineup do
 
   let(:script) do
     <<~RUBY
-      require "hecks/hecks/adapters/git_landing/lineup"
+      require "hecks/hecks/adapters/delivery_library"
+      Hecks::Adapters::DeliveryLibrary.require("git_landing/lineup")
       mark = lambda do |text|
         File.open(ARGV[2], "a") { |file| file.flock(File::LOCK_EX) && file.puts(text) }
         puts text

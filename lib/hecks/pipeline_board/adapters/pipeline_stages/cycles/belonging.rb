@@ -9,7 +9,7 @@ module Hecks
         # bluebook defines them. It only compares what the events already hold.
         module Belonging
           # The event that lands a branch on local main.
-          LANDED = "Hecks::Landing.BranchLanded"
+          LANDED = "Delivery::Landing.BranchLanded"
 
           module_function
 

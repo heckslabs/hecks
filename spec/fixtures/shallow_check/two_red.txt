@@ -1,0 +1,22 @@
+Failures:
+
+  1) McpScope classifies every argument name
+     Failure/Error:
+       expect(unclassified).to be_empty,
+                               "names are not classified"
+
+       ["depth"] are argument names the server policy does not classify
+     # ./spec/mcp_argument_policy_spec.rb:41:in `block (2 levels) in <top (required)>'
+
+  2) CLI help matches the snapshot of hecks
+     Failure/Error: expect(first_difference(File.read(golden_path(name)), actual)).to be_nil
+
+       expected: nil
+            got: "line 4: expected a got b"
+     # ./spec/cli_help_snapshot_spec.rb:56:in `block (3 levels) in <top (required)>'
+
+Failed examples:
+
+rspec ./spec/mcp_argument_policy_spec.rb:39 # McpScope classifies every argument name
+rspec './spec/cli_help_snapshot_spec.rb[1:1:1]' # CLI help matches the snapshot of hecks
+rspec './spec/cli_help_snapshot_spec.rb[1:1:2]' # CLI help matches the snapshot of module-build

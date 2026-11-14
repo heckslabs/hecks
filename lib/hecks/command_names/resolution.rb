@@ -27,6 +27,9 @@ module Hecks
         @name = RUNNER.canonical_name(@cli, @typed)
       end
 
+      # @return [Boolean] whether the scope declares a command or a query of this name
+      def known? = !(command || question).nil?
+
       # @return [Problem, nil] nil when the launcher would run the line
       def problem
         return unknown unless command || question

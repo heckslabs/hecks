@@ -43,6 +43,10 @@ Hecks.bluebook "Agents" do
       member role: "orchestrator", pattern: "AgentRun.check_all!"
       member role: "orchestrator", pattern: "AgentRun.answer!"
       member role: "orchestrator", pattern: "AgentRun.check!"
+      # A message is an event the run's session hears; AgentRun.answer! stays for a session not following.
+      member role: "orchestrator", pattern: "Message.send!"
+      member role: "orchestrator", pattern: "Message.read!"
+      member role: "orchestrator", pattern: "Message.inbox"
       member role: "orchestrator", pattern: "PlanReview.answer!"
       # Hands a question whose answer is the owner's to the owner, unanswered, and frees its seat.
       member role: "orchestrator", pattern: "Question.escalate!"
@@ -353,6 +357,10 @@ Hecks.bluebook "Agents" do
   # run key, which is also the key of the architect's run, so a Work item is reviewed again once a
   # review has ended; the launcher mints the key when a request leaves it out. Each request carries
   # a hop count so a review that asks another review stops.
+  #
+  # A review has a time limit, kept on its own record: one still open when the limit has passed is
+  # lapsed at the next sweep of the sessions, and the coder waiting on it is told to build. A review
+  # ends once, with a verdict, unstarted or lapsed; a verdict that comes after is refused by name.
   aggregate "PlanReview" do
     description "One review of a Work item's plan by the architect role: asked as an event, answered with a verdict, and refused past the hop limit."
 
@@ -366,6 +374,9 @@ Hecks.bluebook "Agents" do
     attribute :findings, FindingsText, optional: true
     attribute :hops, HopCount, optional: true
     attribute :reason, ReasonText, optional: true
+    attribute :requested_at, Instant, optional: true
+    attribute :limit, TimeLimit, optional: true
+    attribute :ended_at, Instant, optional: true
 
     # One review's key, and the key of the architect's run that answers it.
     value_object "RunKey" do
@@ -393,6 +404,20 @@ Hecks.bluebook "Agents" do
     # Why no architect session was started for the review, as the dispatch refused it.
     value_object "ReasonText", String
 
+    # Seconds since the epoch, 0 when the moment has not come: a review that has not ended reads
+    # `ended_at` 0. A number, not a timestamp type: a rule compares only numbers.
+    value_object "Instant" do
+      attribute :value, Integer, default: 0
+      invariant("an instant is not before the epoch") { !value.negative? }
+    end
+
+    # How many seconds a review may stay open. A verdict comes about a minute after it is asked
+    # for, so ten minutes without one means none is coming.
+    value_object "TimeLimit" do
+      attribute :value, Integer, default: 600
+      invariant("a time limit is positive") { value.positive? }
+    end
+
     # A request is refused at the third hop, so a chain of reviews that ask for reviews stops by name.
     command "Request" do
       role "System"
@@ -404,13 +429,20 @@ Hecks.bluebook "Agents" do
       attribute :role, RoleRef
       attribute :repo, RepoPath
       attribute :plan, PlanText
+      attribute :limit, TimeLimit, default: 600, sets: true
+      # `now:` is filled from the clock port; an explicit value wins.
+      attribute :now,  Instant
+      needs :now
 
       given("the request is under the hop limit") { hops.value < 3 }
+
+      sets :requested_at, to: :now
 
       emits "PlanReviewRequested"
     end
 
-    # The architect answers with a verdict: sound, changes, or rethink.
+    # The architect answers with a verdict: sound, changes, or rethink. A review that ended without
+    # one keeps its end: the coder was already told, so a late verdict is refused by name.
     command "Answer" do
       role "System"
       goal "Record the architect's verdict on the plan"
@@ -422,6 +454,7 @@ Hecks.bluebook "Agents" do
       given("the verdict is one the architect gives") do
         verdict.value == "sound" || verdict.value == "changes" || verdict.value == "rethink"
       end
+      given("the review did not end without a verdict") { ended_at.nil? || ended_at.value == 0 }
 
       emits "PlanReviewed"
     end
@@ -455,10 +488,49 @@ Hecks.bluebook "Agents" do
       reference_to PlanReview
       attribute :work,   WorkKey, sets: true
       attribute :reason, ReasonText, sets: true
+      attribute :now,    Instant
+      needs :now
 
       given("the review has no verdict yet") { verdict.nil? || verdict.to_s.empty? }
+      given("the review has not ended already") { ended_at.nil? || ended_at.value == 0 }
+
+      sets :ended_at, to: :now
 
       emits "ReviewUnstarted"
+    end
+
+    # No verdict came within the review's time limit: the architect's run ended without one, or
+    # its verdict was lost. It ends as an unstarted review does, with the same event, so the coder
+    # waiting on the Work item is told the reason (`JudgeTheUnstartedReview`) and builds its plan.
+    # `+` because a rule has no `-`: it stands for `now - requested_at >= limit`.
+    command "Lapse" do
+      role "System"
+      goal "End a review whose time limit passed with no verdict, so its coder stops waiting"
+
+      reference_to PlanReview
+      attribute :work,   WorkKey, sets: true
+      attribute :reason, ReasonText, sets: true
+      attribute :now,    Instant
+      needs :now
+
+      given("the review has no verdict yet") { verdict.nil? || verdict.to_s.empty? }
+      given("the review has not ended already") { ended_at.nil? || ended_at.value == 0 }
+      given("the review's time limit has passed") { requested_at.value + limit.value <= now.value }
+
+      sets :ended_at, to: :now
+
+      emits "ReviewUnstarted"
+    end
+
+    # Each sweep of the sessions lapses every open review past its time limit. One inside its limit
+    # refuses by its given, so a sweep ends only the reviews that are late.
+    policy "LapseTheOverdueReview" do
+      on       "SessionSweep.SweepRequested"
+      for_each "PlanReview.Open"
+      trigger  PlanReview::Lapse,
+               with: { plan_review: :plan_review, work: :work,
+                       reason: "no verdict came within the review's time limit: build your plan as written, " \
+                               "and say in your report that it was not reviewed" }
     end
 
     # A declined run is looked up among the reviews: the one it keys is unstarted, with its Work item
@@ -515,6 +587,13 @@ Hecks.bluebook "Agents" do
       description "The review keyed by one run, with its Work item and the reason it was never started."
       attribute :run, RunKey
       where(run: :run)
+    end
+
+    # A review asked for before reviews carried a time is not listed: it has no limit to pass.
+    query "Open" do
+      description "Every plan review still waiting for a verdict, by Work item, each with when it was asked for and its time limit."
+      where(verdict: nil, "ended_at.value": 0, "requested_at.value": { gt: 0 })
+      order_by :work
     end
 
     query "Reviews" do
@@ -721,6 +800,91 @@ Hecks.bluebook "Agents" do
     policy "JudgeTheUnstartedReview" do
       on      "PlanReview.ReviewUnstarted"
       trigger Verdict::Judge, with: { run: :run, work: :work, role: "architect", answer: :reason }
+    end
+  end
+
+  # A message is information: no policy acts on its body or its sender, which is the sender's own
+  # word and proves nothing. A session hears its messages with `Operation.follow` on this aggregate;
+  # one that is not following is still answered with `AgentRun.answer!`.
+  aggregate "Message" do
+    description "One message from a session to a run: sent as an event the run's session hears, then read. It grants no approval and changes no permission; a reply is a message whose in_reply_to names the one it answers."
+
+    identified_by :message
+
+    attribute :message, MessageKey
+    attribute :recipient, RunKey
+    attribute :sender, SenderName
+    attribute :kind, MessageKind
+    attribute :body, BodyText
+    attribute :in_reply_to, MessageRef, optional: true
+    attribute :reader, ReaderName, optional: true
+
+    value_object "MessageKey" do
+      attribute :value, String, matches: :present
+    end
+
+    # The run a message is for: the key its session follows and reads its inbox by.
+    value_object "RunKey" do
+      attribute :value, String, matches: :present
+    end
+
+    # The run or session that sent it, as it names itself.
+    value_object "SenderName" do
+      attribute :value, String, matches: :present
+    end
+
+    # What the message is, to a session or back from one: `owner` holds the owner's verbatim words.
+    value_object "MessageKind" do
+      attribute :value, String, one_of: %w[answer brief-change stand-down question owner report blocked done]
+    end
+
+    # Free text. Nothing reads it as a command: it reaches no port and no policy.
+    value_object "BodyText", String
+
+    # The key of the message this one answers; empty when it answers none.
+    value_object "MessageRef", String
+
+    # The session that read the message, so the sender can see who has it.
+    value_object "ReaderName" do
+      attribute :value, String, matches: :present
+    end
+
+    lifecycle :status, default: "sent" do
+      transition "Read" => "read", from: "sent"
+      mark :terminal, "read"
+    end
+
+    command "Send" do
+      role "Operator"
+      goal "Tell a run something as an event its session hears: an answer, a changed brief, a stand-down, a question or a report"
+
+      attribute :message,     MessageKey, sets: true
+      attribute :recipient,   RunKey, sets: true
+      attribute :sender,      SenderName, sets: true
+      attribute :kind,        MessageKind, sets: true
+      attribute :body,        BodyText, sets: true
+      attribute :in_reply_to, MessageRef, default: "", sets: true
+
+      given("the message says something") { !body.value.to_s.strip.empty? }
+
+      emits "MessageSent"
+    end
+
+    command "Read", from: "sent" do
+      role "Operator"
+      goal "Record that a session read a message (to=<message>), so it leaves the run's inbox"
+
+      reference_to Message
+      attribute :reader, ReaderName, sets: true
+
+      emits "MessageRead"
+    end
+
+    query "Inbox" do
+      description "The unread messages for one run, each with its sender, kind, body and the message it answers."
+      attribute :recipient, RunKey
+      where(status: "sent", recipient: :recipient)
+      order_by :message
     end
   end
 
@@ -1163,7 +1327,7 @@ Hecks.bluebook "Agents" do
   # through `SessionCleanup.RemoveSafe` (delegate bluebook), which removes only the sessions of
   # dispatched runs that finished done, so the safety rule holds whatever the session reads.
   aggregate "Pruning" do
-    description "The pruner role's standing: resting, or working on one dispatched run, so a second pruner is never started while one works."
+    description "The pruner role's standing: resting, working on one dispatched run, or paused by the owner, so a second pruner is never started while one works and none while pruning is paused."
 
     identified_by :role
 
@@ -1181,6 +1345,8 @@ Hecks.bluebook "Agents" do
     lifecycle :status, default: "resting" do
       transition "Wake" => "working", from: "resting"
       transition "Rest" => "resting", from: "working"
+      transition "Pause" => "paused", from: ["resting", "working"]
+      transition "Resume" => "resting", from: "paused"
     end
 
     # The first landed feature seats the pruner; a seat that exists is refused, which is its answer.
@@ -1224,6 +1390,47 @@ Hecks.bluebook "Agents" do
       reference_to Pruning
 
       emits "PrunerRested"
+    end
+
+    # The owner's switch, taken on a seated pruner. Wake moves only from resting, so a paused Wake
+    # is refused naming `paused`; a run paused while it works ends with the seat still paused.
+    command "Pause", from: ["resting", "working"] do
+      role "Maintainer"
+      goal "Pause pruning (to=pruner): the pruner is woken by nothing until it is resumed; a run already working is not stopped"
+
+      reference_to Pruning
+
+      emits "PrunerPaused"
+    end
+
+    command "Resume", from: "paused" do
+      role "Maintainer"
+      goal "Resume pruning (to=pruner): the pruner rests and may be woken again"
+
+      reference_to Pruning
+
+      emits "PrunerResumed"
+    end
+
+    # The same switch for a pruner no one has seated: one command seats it and pauses it, so no
+    # Summon can seat and wake it in between.
+    command "Hold" do
+      role "Maintainer"
+      goal "Seat the pruner already paused, when no seat exists yet (to= is not needed)"
+
+      attribute :role, PrunerRole, sets: true
+
+      emits "PrunerHeld"
+    end
+
+    query "Standing" do
+      description "Each pruner seat with its status: resting, working or paused."
+      order_by :role
+    end
+
+    policy "PauseTheHeldPruner" do
+      on      "Pruning.PrunerHeld"
+      trigger Pruning::Pause, with: { pruning: :role }
     end
 
     policy "SeatThePrunerWhenWorkLands" do

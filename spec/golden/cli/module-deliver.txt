@@ -4,15 +4,10 @@ deliver — Take finished work into the shared line.
   hecks <Aggregate.query> [name=value …]       read something
 
 everyday:
-  Shipment.ship!    Start the gate-and-board saga for a branch: fix comment style, check…
-  Landing.land!     Merge a worktree's branch onto local main: fast-forward when it can be,…
+  Shipment.ship!    Start the gate-and-board saga for a branch: ask its checkout's gate,…
   SendTrain.board!  Push this checkout's branch once the push ahead of it lands, unless…
-  Workspace.status  The checkout's branch, whether it is a linked worktree, where it stands…
 
 commands:
-  Revision:
-    One commit made in a checkout, or declined with the reason: what it says and what it is on.
-    make!        Commit what is staged in a checkout under a message: never pushed, never amended, never onto main
   Restoration:
     The changed files of a checkout that already match origin/main, restored, or declined with the reason.
     make!        Restore each changed file of a checkout that already matches origin/main, and leave every other file alone
@@ -20,21 +15,6 @@ commands:
     CI's failing checks run in a depth-1 clone of a branch: passed or skipped, or refused with the spec and its first failure line.
     run!         Run CI's failing checks in a depth-1 clone of a branch when it changes something they read, refusing with the spec and its first failure line
     switch!      Turn the shallow check on or off for the whole repository
-  LinkedTree:
-    A linked worktree opened on a new branch from main, or declined with the reason.
-    add!         Open a linked worktree on a new branch from main (or from a base named), never on main itself
-    pull_main!   Bring local main up to date with origin/main: fetch, fast-forward when behind, rebase its unpushed commits when diverged, refusing a dirty or mid-rebase checkout
-    publish!     Push a worktree's branch to origin, so a pull request can be opened from it; never main, never forced
-    rebase!      Rebase a branch onto a base, or report the files that conflict and stop with nothing changed
-    pick!        Apply one commit's change onto a worktree's branch, or report the files that conflict and stop with nothing changed
-  Landing:
-    One branch landed on local main, or one worktree retired: done, or refused with the reason.
-    land!        Merge a worktree's branch onto local main: fast-forward when it can be, a merge commit when main moved, never forced, never pushed
-    finish!      Rebase a worktree's branch onto local main, run the quick gate, land it through the queue and tidy, refusing by name at the first failure
-    train!       Hold the front place in the landing line and land every ready branch behind it, in ticket order
-    retire!      Remove a merged worktree and delete its branch, unless it holds uncommitted work or commits main lacks
-    discard!     Remove a worktree and delete its branch even though main lacks its commits, for a stated reason: refused for a protected branch, a worktree in use, or uncommitted work
-    set_aside!   Move an untracked path, or a clean pushed linked worktree, out of a checkout into a holding directory, never deleting it
   SendTrain:
     One push of a checkout's branch, taken in turn: carried by an earlier push, pushed, or refused.
     board!       Push this checkout's branch once the push ahead of it lands, unless that push already carried it
@@ -44,8 +24,9 @@ commands:
     How one boarding of the push train ended, as the boarded checkout records it: pushed, carried or faulted.
     record!      Record how one boarding of the push train ended, in the checkout that boarded it
   Shipment:
-    One request to fix, gate, land and board a branch: the gate-and-board saga starts on it.
-    ship!        Start the gate-and-board saga for a branch: fix comment style, check the ledger, gate, land on main, board the push train
+    One request to gate, land and board a branch: the gate-and-board saga starts on it.
+    ship!        Start the gate-and-board saga for a branch: ask its checkout's gate, land on main, board the push train
+    rejudge!     Ask the checkout's gate to judge a shipment again, after a gate that refused it
   Integration:
     One step of integrating main (verify, board, observe CI) or one advance of the open runs, and how it ended.
     advance!     Dispatch the next step of every open integration run, once: verify a landed run, board a verified one, observe a pushed one
@@ -68,28 +49,20 @@ commands:
 
 queries (nothing here changes anything):
   Workspace:
-    A look at a checkout: its branch, what it changed and what it committed.
-    status            The checkout's branch, whether it is a linked worktree, where it stands against main and origin/main, and what is changed or untracked.
-    strays            What each untracked or changed path in the checkout is: a stale copy of a file main deleted, a linked worktree sitting inside it (dirty or clean, pushed or not), a tracked file with uncommitted changes, or unknown.
-    changes           What the checkout changed since a ref (main by default): the diffstat, or the paths alone.
-    history           The commits in a range, newest first (the last 20 when none is named).
-    stashes           The checkout's stash entries: each one's ref (stash@{0}), its time, the branch it records when the message names one, and its message.
-    dangling_commits  The commits no ref reaches, as `git fsck --unreachable --no-reflogs` reports them: each one's short sha, author date and subject, newest first.
-    settings          What this copy resolves for each setting that can come from a variable, its own world or a default, and which one supplied it. (also: config)
-    doctor            Whether this checkout can run Hecks here: overlay files parse, the stores answer, the toolchain pin matches, and what this worktree cannot see.
-    where             Where this checkout's domain resolves: the store each bluebook uses and why, the audience and environment with their reasons, and any overlay file this worktree lacks.
-  Landing:
-    One branch landed on local main, or one worktree retired: done, or refused with the reason.
-    unlanded          Every branch with commits that are not on main, or with uncommitted work, and where its worktree is.
+    A look at how this copy of Hecks is set up: its settings, its stores and whether it can run here.
+    settings  What this copy resolves for each setting that can come from a variable, its own world or a default, and which one supplied it. (also: config)
+    doctor    Whether this checkout can run Hecks here: overlay files parse, the stores answer, the toolchain pin matches, and what this worktree cannot see.
+    where     Where this checkout's domain resolves: the store each bluebook uses and why, the audience and environment with their reasons, and any overlay file this worktree lacks.
   ReviewRequest:
     One pull request opened or squash-merged on GitHub, and what GitHub answered.
-    status            The state of one pull request on GitHub: its number, state, URL and checks, as text.
-    timeline          Who merged a pull request, who turned auto-merge on or off, who closed, reopened or was asked to review it, and when: read from its timeline on GitHub, oldest first.
+    status    The state of one pull request on GitHub: its number, state, URL and checks, as text.
+    timeline  Who merged a pull request, who turned auto-merge on or off, who closed, reopened or was asked to review it, and when: read from its timeline on GitHub, oldest first.
   BoardingHold:
     One hold of local main for a boarding: held, or refused.
-    status            Whether local main is held for a boarding: the commit, owner, reason and age, or that the hold expired or is absent.
+    status    Whether local main is held for a boarding: the commit, owner, reason and age, or that the hold expired or is absent.
 
 bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
+  delivery         Take finished work onto local main.
   deploy           Generate, check and compare deploy recipes, project OIDC manifests and provision tenants.
   governance       Organizational authority is explicit, reviewable, and historically explainable.
   tenancy          Which tenants exist, which realm and storage each one owns, and whether each is currently…
@@ -106,7 +79,7 @@ bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
   expression       The subset of regular Ruby a predicate is allowed to be — small enough that every target can…
 
   hecks <command> --help       what one command wants, and every way it refuses
-  hecks --all                  also list the 106 internal commands and queries
-  hecks --maintainer           also list the 500 commands and queries for working on hecks itself
-  a command is called with its aggregate — Revision.make!
+  hecks --all                  also list the internal commands and queries
+  hecks --maintainer           also list the commands and queries for working on hecks itself
+  a command is called with its aggregate — Restoration.make!
   exit status: 0 answered, 1 refused or failed, 2 a line it could not read

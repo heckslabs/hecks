@@ -7,6 +7,8 @@ Hecks.hecksagon "Hecks" do
   %w[Bluebook Hecksagon World Adapter Port Translation Expression Tenancy Deploy Site Tickets Composer QualityControl
      Coder Fixer PipelineBoard Pipeline Agents Triage]
     .each { |declaration| attaches declaration }
+  # The repository verbs, vendored from Switchyard (ADR 0205).
+  attaches "delivery", from: :vendor
   # An architect review asked for by event starts a session through AgentRun, keyed by the review
   # (see StartTheRoleOnReviewRequest in the delegate bluebook).
   subscribe "Agents.PlanReviewRequested"
@@ -25,6 +27,8 @@ Hecks.hecksagon "Hecks" do
   subscribe "Agents.VerdictAbandoned"
   # A verdict sent again answers the waiting coder as a judged one does (AnswerTheWaitingCoderAgain).
   subscribe "Agents.VerdictRedelivered"
+  # A coder's submitted branch starts its landing job (LandWhenWorkIsSubmitted in the deliver bluebook).
+  subscribe "Coder.WorkSubmitted"
   # Persistence is not bound here, so the domain is in Memory. A copy opts in with a
   # hecks.local.hecksagon whose `persisted_by` the attached bluebooks inherit (ADR 0136).
 
@@ -153,7 +157,6 @@ Hecks.hecksagon "Hecks" do
     answers_query "Status"
   end
 
-
   Hecks::BoardingHold.port "Holding" do
     asks "Mark", to: BoardingHold do
       attribute :run, RunKey
@@ -188,6 +191,16 @@ Hecks.hecksagon "Hecks" do
     answers_query "Status"
   end
 
+  # Writes one gitignored file, a checkout's local overlay, from the bluebook's kept rows; it
+  # touches no ledger and no git state.
+  Hecks::LocalOverlay.port "Overlaying" do
+    asks "Lay", to: LocalOverlay do
+      attribute :run, RunKey
+      answers "OverlayAnswered"
+      refuses "OverlayRefused"
+    end
+  end
+
   # Read-only: the event tap's opening lines still waiting for their closing lines, priced by the
   # clock. The adapter reads the log as the `Feed` query does and boots no domain.
   Hecks::StallWatch.port "Watching" do
@@ -213,15 +226,6 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
-  Hecks::Workspace.port "Reading" do
-    answers_query "Status"
-    answers_query "Strays"
-    answers_query "Changes"
-    answers_query "History"
-    answers_query "Stashes"
-    answers_query "DanglingCommits"
-  end
-
   Hecks::Workspace.port "Settings" do
     answers_query "Settings"
   end
@@ -232,14 +236,6 @@ Hecks.hecksagon "Hecks" do
 
   Hecks::Workspace.port "Where" do
     answers_query "Where"
-  end
-
-  Hecks::Revision.port "Committing" do
-    asks "Commit", to: Revision do
-      attribute :run, RunKey
-      answers "CommitAnswered"
-      refuses "CommitRefused"
-    end
   end
 
   Hecks::Restoration.port "Restoring" do
@@ -264,95 +260,14 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
-  Hecks::LinkedTree.port "WorktreeAdding" do
-    asks "Create", to: LinkedTree do
+  # The gate of the checkout a shipment names: the port is asked to judge that checkout and answers
+  # that it passed, or refuses with the end of what the gate printed. The checkout decides what its
+  # gate holds; delivery names no check (ADR 0205).
+  Hecks::Shipment.port "Gate" do
+    asks "Judge", to: Shipment do
       attribute :run, RunKey
-      answers "CreateAnswered"
-      refuses "CreateRefused"
-    end
-
-    asks "Pull", to: LinkedTree do
-      attribute :run, RunKey
-      answers "PullAnswered"
-      refuses "PullRefused"
-    end
-  end
-
-  Hecks::LinkedTree.port "Publishing" do
-    asks "Push", to: LinkedTree do
-      attribute :run, RunKey
-      answers "BranchPublishAnswered"
-      refuses "BranchPublishRefused"
-    end
-  end
-
-  # Rebasing a worktree's branch onto a base: the git port runs the rebase and answers the sha, or refuses
-  # with the conflicted files and the sides they came from.
-  Hecks::LinkedTree.port "Rebasing" do
-    asks "Replay", to: LinkedTree do
-      attribute :run, RunKey
-      answers "RebaseAnswered"
-      refuses "RebaseRefused"
-    end
-  end
-
-  # Applying one commit onto a worktree's branch: the git port cherry-picks it and answers the sha, or refuses
-  # with the conflicted files and aborts, so nothing is left half-applied.
-  Hecks::LinkedTree.port "Picking" do
-    asks "Apply", to: LinkedTree do
-      attribute :run, RunKey
-      answers "PickAnswered"
-      refuses "PickRefused"
-    end
-  end
-
-  Hecks::Landing.port "Worktrees" do
-    asks "Merge", to: Landing do
-      attribute :run, RunKey
-      answers "MergeAnswered"
-      refuses "MergeRefused"
-    end
-
-    asks "FinishBranch", to: Landing do
-      attribute :run, RunKey
-      answers "MergeAnswered"
-      refuses "MergeRefused"
-    end
-
-    asks "Convene", to: Landing do
-      attribute :run, RunKey
-      answers "ConveneAnswered"
-      refuses "ConveneRefused"
-    end
-
-    asks "Remove", to: Landing do
-      attribute :run, RunKey
-      answers "RemovalAnswered"
-      refuses "RemovalRefused"
-    end
-
-    asks "DropBranch", to: Landing do
-      attribute :run, RunKey
-      answers "DiscardAnswered"
-      refuses "DiscardRefused"
-    end
-
-    asks "MoveAside", to: Landing do
-      attribute :run, RunKey
-      answers "SetAsideAnswered"
-      refuses "SetAsideRefused"
-    end
-
-    answers_query "Unlanded"
-  end
-
-  # The Work item a landed branch was cut for: the port reads the Work items and answers the open
-  # one the branch names, refusing when there is none.
-  Hecks::Landing.port "LandedWork" do
-    asks "FindLandedWork", to: Landing do
-      attribute :branch, Word
-      answers "LandedWorkFound"
-      refuses "NoLandedWork"
+      answers "JudgementAnswered"
+      refuses "JudgementRefused"
     end
   end
 
@@ -432,6 +347,16 @@ Hecks.hecksagon "Hecks" do
       attribute :step, Report
       answers "RestartAnswered"
       refuses "RestartRefused"
+    end
+  end
+
+  # Closes and reopens a train pull request whose CI never started, leaving the marker comment that
+  # makes it once; it refuses one that has checks by the time it is asked.
+  Hecks::TrainPrReopen.port "GitHubPullRequests" do
+    asks "Cycle", to: TrainPrReopen do
+      attribute :pr, PrNumber
+      answers "CycleAnswered"
+      refuses "CycleRefused"
     end
   end
 
@@ -655,7 +580,31 @@ Hecks.hecksagon "Hecks" do
       refuses "LookForRefused"
     end
 
-    # The operator's answer goes to the blocked session as the prompt of a resumed background session.
+    # Where a session is before it is answered: whether `claude agents` lists it, and the status
+    # (`busy`, `idle`) and state it is listed with. The bluebook picks the path. An answer that
+    # cannot be given on any path is one refusal, `ResumeRefused`, whichever ask refused it.
+    asks "Present", to: AgentRun do
+      attribute :run, RunKey
+      attribute :answer, Brief
+      attribute :step, Brief
+      attribute :verdict, VerdictKey
+      answers "SessionPresent"
+      refuses "ResumeRefused"
+    end
+
+    # The answer to a working session waits in its inbox, which the session's own hooks hand to the
+    # model at its next tool call or turn end; the session is never stopped. A session started
+    # without the hook cannot take it, and that is refused by name.
+    asks "Deliver", to: AgentRun do
+      attribute :run, RunKey
+      attribute :answer, Brief
+      attribute :step, Brief
+      attribute :verdict, VerdictKey
+      answers "AnswerQueued"
+      refuses "ResumeRefused"
+    end
+
+    # The operator's answer goes to an idle or gone session as the prompt of a resumed background session.
     asks "Resume", to: AgentRun do
       attribute :run, RunKey
       attribute :answer, Brief
@@ -1362,5 +1311,69 @@ Hecks.hecksagon "Coder" do
     root
     where { state == "done" && previous != state && agent == "coder" && report.rstrip.end_with?("submitted") }
     trigger Submission::Submit, with: { branch: :branch, sha: :sha, checkout: :checkout, clean: :clean }
+  end
+end
+
+# What this repository's pipeline adds to the delivery package's `Landing` (ADR 0205).
+Hecks.hecksagon "Delivery" do
+  # Finds the Work item a branch was cut for, which the package knows nothing of.
+  Delivery::Landing.port "LandedWork" do
+    asks "FindLandedWork", to: Landing do
+      attribute :branch, Word
+      answers "LandedWorkFound"
+      refuses "NoLandedWork"
+    end
+
+    asks "FindRefusedWork", to: Landing do
+      attribute :run, RunKey
+      attribute :refusal, Report
+      answers "RefusedWorkFound"
+      refuses "NoRefusedWork"
+    end
+  end
+
+  # Only a conflict or a red gate is a coder's to fix; Tickets plans the item again.
+  translates "FindWorkWhenTheJobsLandingIsRefused" do
+    on      Landing::CarryRefused
+    where   { refusal.value.include?("conflict: ") || refusal.value.include?("gate red: ") }
+    ask     :find_refused_work, with: { run: :run, refusal: :refusal }
+  end
+
+  translates "FindWorkWhenBranchLanded" do
+    on      Landing::BranchLanded
+    ask     :find_landed_work, with: { branch: :branch }
+  end
+
+  subscribe "Coder.WorkSubmitted"
+  subscribe "Hecks.TrainMergeSeen"
+  subscribe "Hecks.ObserveAnswered"
+
+  # A root: the job's start sits past the reaction depth limit, counted from the job's read.
+  translates "LandWhenWorkIsSubmitted" do
+    on      Submission::WorkSubmitted
+    root
+    trigger Landing::Submit, with: { run: :sha, checkout: :checkout, branch: :branch, confirm: true }
+  end
+
+  # GitHub merges the train's pull request as a squash local main does not share, so main is
+  # pulled once per landed commit. Each pull is a root: the Observe chain is already at the bound.
+  translates "PullMainWhenMerged" do
+    on      Integration::TrainMergeSeen
+    root
+    trigger LinkedTree::PullMain, with: { run: :landed, checkout: :checkout }
+  end
+
+  translates "PullMainWhenCiPasses" do
+    on      Integration::ObserveAnswered
+    root
+    where   { outcome.value == "passed" && pulled.value == false }
+    trigger LinkedTree::PullMain, with: { run: :landed, checkout: :checkout }
+  end
+
+  translates "PullMainWhenCiFails" do
+    on      Integration::ObserveAnswered
+    root
+    where   { outcome.value == "failed" && pulled.value == false }
+    trigger LinkedTree::PullMain, with: { run: :landed, checkout: :checkout }
   end
 end

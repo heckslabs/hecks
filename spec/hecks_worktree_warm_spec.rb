@@ -2,7 +2,8 @@ require "spec_helper"
 require "fileutils"
 require "rbconfig"
 require "tmpdir"
-require "hecks/hecks/adapters/git_worktree_warm"
+require "hecks/hecks/adapters/delivery_library"
+Hecks::Adapters::DeliveryLibrary.require("git_worktree_warm")
 
 # A new worktree gets its resident started, from the worktree's own code, so its first
 # launcher lines are served and not booted cold.

@@ -20,6 +20,9 @@ module Hecks
       # The prefix QA puts on a branch whose work item carries the bare name.
       QA_PREFIX = "qa/"
 
+      # What opens each landing refusal recorded in a work item's detail.
+      REFUSED = "Landing refused: "
+
       # @param registry [Runtime::Registry, nil] the booted registry whose Work items are read
       # @param aggregate [Object, nil] unused
       def initialize(registry: nil, aggregate: nil)
@@ -37,7 +40,37 @@ module Hecks
         { branch: { value: found } }
       end
 
+      # Finds the finished work item a refused landing job's branch names. It judges nothing:
+      # whether the item is planned again is the Tickets bluebook's, from the count answered here.
+      #
+      # @param held [Hash] the `Landing` record's `branch`, and the `refusal` its job was given
+      # @return [Hash{Symbol => Hash}] `work:` the item's key, `title:` its title, `detail:` its
+      #   detail ending with the refusal, `refusals:` how many landing refusals the detail held
+      # @raise [ConsoleCapture::Failure] when no finished work item is named by the branch
+      def find_refused_work(**held)
+        branch = plain(held[:branch]).to_s
+        item = finished.find { |record| candidates(branch).include?(StartedWork.value(record, :work).to_s) }
+        raise ConsoleCapture::Failure, "no finished work item is named #{branch}" unless item
+
+        refused(item, plain(held[:refusal]).to_s)
+      end
+
       private
+
+      def refused(item, refusal)
+        detail = StartedWork.value(item, :detail).to_s
+        { work:     { value: StartedWork.value(item, :work).to_s },
+          title:    { value: StartedWork.value(item, :title).to_s },
+          detail:   { value: [detail, "#{REFUSED}#{refusal}"].reject(&:empty?).join("\n\n") },
+          refusals: { value: detail.scan(REFUSED).size } }
+      end
+
+      def finished
+        aggregate = StartedWork.work_aggregate(@registry)
+        return [] unless aggregate
+
+        @registry.repository("Tickets", aggregate).all.select { |item| StartedWork.value(item, :status) == "done" }
+      end
 
       def candidates(branch) = [branch, branch.delete_prefix(QA_PREFIX)].reject(&:empty?).uniq
 

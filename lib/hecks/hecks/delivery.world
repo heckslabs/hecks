@@ -1,0 +1,7 @@
+# This repository's settings for the vendored delivery package (ADR 0205).
+Hecks.world "Delivery" do
+  # The table is `commit`, from when `Revision` was `Commit`.
+  stored_as Revision: "commit"
+  launcher "Launcher", run_keys: true,
+                       settled: %w[landing.land landing.train landing.retire landing.discard]
+end

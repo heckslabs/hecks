@@ -15,6 +15,7 @@ queries (nothing here changes anything):
   Codebase.declaration  Where a named construct is declared across the corpus, as path:from-to, with its text on request.
 
 bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
+  delivery         Take finished work onto local main.
   deploy           Generate, check and compare deploy recipes, project OIDC manifests and provision tenants.
   governance       Organizational authority is explicit, reviewable, and historically explainable.
   tenancy          Which tenants exist, which realm and storage each one owns, and whether each is currently…
@@ -31,6 +32,6 @@ bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
   expression       The subset of regular Ruby a predicate is allowed to be — small enough that every target can…
 
   hecks <command> --help       what one command wants, and every way it refuses
-  hecks --maintainer           also list the 646 commands and queries for working on hecks itself
+  hecks --maintainer           also list the commands and queries for working on hecks itself
   a command is called with its aggregate — 
   exit status: 0 answered, 1 refused or failed, 2 a line it could not read

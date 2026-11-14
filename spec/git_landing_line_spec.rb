@@ -1,5 +1,6 @@
 require "spec_helper"
-require "hecks/hecks/adapters/git_landing"
+require "hecks/hecks/adapters/delivery_library"
+Hecks::Adapters::DeliveryLibrary.require("git_landing")
 require "tmpdir"
 
 # The landing line: tickets taken in order, a wait that wakes by lock rather than by polling, a

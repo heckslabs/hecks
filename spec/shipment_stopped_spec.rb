@@ -10,7 +10,7 @@ module ShipmentStoppedHelpers
 
   def ship(run)
     hecks.dispatch("Hecks::Shipment.Ship", with: { run: { value: run }, branch: { value: "feature" },
-                                                   checkout: { value: absent }, paths: { value: absent },
+                                                   checkout: { value: absent },
                                                    confirm: { value: true } })
     hecks.registry.saga_instances[SAGA][run][:state] = "boarding"
   end

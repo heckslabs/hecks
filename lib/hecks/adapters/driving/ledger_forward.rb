@@ -62,11 +62,25 @@ module Hecks
         # @return [Boolean] whether the process writes where it stands, by `HECKS_WRITES_LOCAL`
         def local?(seams) = !seams.fetch(:env, ENV)[LOCAL].to_s.empty?
 
-        # @return [WriteGuard::Verdict] what the guard decides for the line's aggregate
+        # @return [WriteGuard::Verdict] what the guard decides for the line's aggregate: the
+        #   worktree's verdict, else whether this checkout keeps the aggregate it must
         def verdict_for(plan, directory, seams)
           env = seams.fetch(:env, ENV)
-          WriteGuard.verdict(directory, plan[:bluebook]&.name, aggregate: plan[:spec][:group],
-                                                               stores: stores_for(directory, seams), env: env)
+          bluebook = plan[:bluebook]&.name
+          aggregate = plan[:spec][:group]
+          stores = stores_for(directory, seams)
+          guard = WriteGuard.verdict(directory, bluebook, aggregate: aggregate, stores: stores, env: env)
+          return guard unless guard.allowed?
+
+          WriteGuard.kept_verdict(directory, bluebook, aggregate: aggregate, kept: KeptCheck.new(kept_rows(seams), stores, env))
+        end
+
+        # @return [Array<Hash>] the injected kept rows, else the runtime registry's
+        def kept_rows(seams)
+          seams.fetch(:kept) do
+            require "hecks/hecks/adapters/main_integration/kept_rows"
+            MainIntegration::KeptRows.from_registry(seams[:runtime]&.registry)
+          end
         end
 
         # @return [#call] the injected store rows, else the runtime's own and the main checkout's
@@ -74,7 +88,8 @@ module Hecks
           return seams[:stores] if seams[:stores]
           return WriteGuard::STORES unless seams[:runtime]
 
-          LedgerStores.for_runtime(seams[:runtime], WorktreeOverlay.checkout_root(directory))
+          here = WorktreeOverlay.checkout_root(directory) || WorktreeOverlay.ascend_to_git(File.expand_path(directory))
+          LedgerStores.for_runtime(seams[:runtime], here)
         end
 
         # The line as the main checkout runs it: the worktree is named when the command takes a

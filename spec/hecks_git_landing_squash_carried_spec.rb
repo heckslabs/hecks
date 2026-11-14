@@ -1,8 +1,9 @@
 require "spec_helper"
 require "tmpdir"
 require "open3"
-require "hecks/hecks/adapters/git_landing"
-require "hecks/hecks/adapters/git_worktree_add"
+require "hecks/hecks/adapters/delivery_library"
+Hecks::Adapters::DeliveryLibrary.require("git_landing")
+Hecks::Adapters::DeliveryLibrary.require("git_worktree_add")
 
 # Retiring a worktree whose branch reached main inside a squash-merged train: the branch's commits
 # are no ancestors of main and no single patch matches them, yet the boarded commit the squash

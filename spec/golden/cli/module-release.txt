@@ -33,6 +33,7 @@ queries (nothing here changes anything):
     verify   Check every vendored package against its bluebook.lock, then describe them as the manifest a client image carries.
 
 bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
+  delivery         Take finished work onto local main.
   deploy           Generate, check and compare deploy recipes, project OIDC manifests and provision tenants.
   governance       Organizational authority is explicit, reviewable, and historically explainable.
   tenancy          Which tenants exist, which realm and storage each one owns, and whether each is currently…
@@ -49,7 +50,7 @@ bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
   expression       The subset of regular Ruby a predicate is allowed to be — small enough that every target can…
 
   hecks <command> --help       what one command wants, and every way it refuses
-  hecks --all                  also list the 31 internal commands and queries
-  hecks --maintainer           also list the 608 commands and queries for working on hecks itself
+  hecks --all                  also list the internal commands and queries
+  hecks --maintainer           also list the commands and queries for working on hecks itself
   a command is called with its aggregate — Release.tag!
   exit status: 0 answered, 1 refused or failed, 2 a line it could not read

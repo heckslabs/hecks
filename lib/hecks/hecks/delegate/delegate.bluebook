@@ -31,6 +31,8 @@ Hecks.bluebook "Hecks" do
       attribute :trial,     Trial,     optional: true
       attribute :resuming,  Resuming,  optional: true
       attribute :reviewing, Reviewing, optional: true
+      attribute :kept_at,   Instant,   optional: true
+      attribute :review_wait, Wait,    optional: true
       identified_by :run
 
       value_object "RunKey" do
@@ -94,6 +96,18 @@ Hecks.bluebook "Hecks" do
 
       # When the outside removed a session, as the port reports it.
       value_object "Moment", String
+
+      # When the tidy review kept the run, in epoch seconds. A released run reads zero.
+      value_object "Instant" do
+        attribute :value, Integer, default: 0
+        invariant("an instant is not before the epoch") { !value.negative? }
+      end
+
+      # The seconds a kept run waits before the tidy review looks at it again.
+      value_object "Wait" do
+        attribute :value, Integer, default: 3600
+        invariant("a wait is positive") { value.positive? }
+      end
 
       # The directory a session works in, written with its trailing slash, so a watch that filters
       # on a checkout's directory matches the checkout and every worktree under it.
@@ -218,14 +232,25 @@ Hecks.bluebook "Hecks" do
       # A finished run's session is removed when it ended `done` or `stopped`; a session still
       # `working` or `blocked` on a person is kept, and so is one a person has taken over (the port
       # says so).
+      #
+      # A run the review kept (`Retain`) stays finished, and every reap sends `Tidy` for it. It is
+      # refused here, before the port is asked, until its wait has passed, so a kept run is
+      # reviewed once per wait and not at every beat. `Release` ends the wait early. `+` because a
+      # rule has no `-`: it stands for `now - kept_at >= review_wait`.
       command "Tidy", from: "finished" do
         role "Operator"
         goal "Remove the finished session of one run, unless it is still working, waiting on a person, or taken over"
 
         reference_to AgentRun
+        # `now:` is filled from the clock port; an explicit value wins.
+        attribute :now, Instant
+        needs :now
 
         given("the session ended done or stopped: a working or blocked session is kept") do
           condition.value == "done" || condition.value == "stopped"
+        end
+        given("a kept run is reviewed again once its wait has passed") do
+          kept_at.nil? || review_wait.nil? || kept_at.value + review_wait.value <= now.value
         end
 
         emits TidyRequested
@@ -242,15 +267,35 @@ Hecks.bluebook "Hecks" do
         emits AgentRunTidied
       end
 
+      # Why the session was kept, when, and the seconds before `Tidy` reviews the run again.
       command "Retain" do
         role "System"
-        goal "Record why a finished session was kept"
+        goal "Record why a finished session was kept, when, and how long before it is reviewed again"
 
         reference_to AgentRun
         attribute :refusal, Report, sets: true
+        attribute :review_wait, Wait, sets: true
+        attribute :now, Instant
+        needs :now
 
+        sets :kept_at, to: :now
 
         emits AgentRunRetained
+      end
+
+      # Ends a kept run's wait, so the next reap reviews it. The landing of the run's branch does
+      # it (`ReleaseTheRunWhoseWorkLanded`): its worktree and its Work have changed. A change the
+      # ledger does not hear of, such as a person resuming the session or committing in the
+      # worktree, is seen when the wait ends, or at once when a person runs this.
+      command "Release", from: "finished" do
+        role "Operator"
+        goal "Review a kept run at the next reap, without waiting for its retry time"
+
+        reference_to AgentRun
+
+        sets :kept_at, to: { value: 0 }
+
+        emits AgentRunReleased
       end
 
       command "Detach" do
@@ -263,12 +308,14 @@ Hecks.bluebook "Hecks" do
         emits WorktreeDetached
       end
 
-      # Answers a session that has not ended, working or blocked on a person: its answer is sent as a
-      # resumed background session's prompt, so the session carries on under the same ID. A `step`,
-      # when one is given, leads the prompt: what the session does next with the answer.
+      # Answers a session that has not ended, working or blocked on a person. The session is looked
+      # at first (`AnswerTheSessionWhereItIs` below): one in the middle of a turn takes the answer
+      # through its inbox hook and keeps running, and one that is idle or gone is resumed with the
+      # answer as its prompt, so it carries on under the same ID. A running session is never stopped
+      # to be answered. A `step`, when one is given, leads the answer: what the session does next.
       command "Answer", from: "started" do
         role "Operator"
-        goal "Answer a session that is working or blocked by resuming it with the answer"
+        goal "Answer a session that has not ended: deliver to a working one, resume an idle one"
 
         reference_to AgentRun
         attribute :answer, Brief
@@ -293,7 +340,7 @@ Hecks.bluebook "Hecks" do
 
       command "Answered" do
         role "System"
-        goal "Record when the session was resumed with the answer"
+        goal "Record when the answer reached the session: queued for a working one, or resumed into an idle one"
 
         reference_to AgentRun
         attribute :answered_at, Moment, sets: true
@@ -394,7 +441,7 @@ Hecks.bluebook "Hecks" do
       end
 
       query "Tidyable" do
-        description "Every finished run, oldest key first; `Tidy` keeps those that did not end done."
+        description "Every finished run, oldest key first; `Tidy` keeps those that did not end done, and refuses one the review kept until its wait has passed."
         where(status: "finished")
         order_by :run
       end
@@ -1221,8 +1268,8 @@ Hecks.bluebook "Hecks" do
       trigger AgentRun::Block, with: { condition: :state, detail: :detail, checkout: :checkout }
     end
 
-    # Delivering an answer stops the session and wakes it again, and the stop runs the session's
-    # own check. A job read `stopped` while the run's answer is on its way (`resuming`, which the
+    # Resuming an idle session with an answer stops it and wakes it again, and the stop runs the
+    # session's own check. A job read `stopped` while the run's answer is on its way (`resuming`, which the
     # reading carries beside `previous`) is that stop, so it ends nothing; the next check reads the
     # woken session, or the stopped one once the answer was refused.
     policy "RecordTheEndedSession" do
@@ -1279,6 +1326,18 @@ Hecks.bluebook "Hecks" do
       ask     :look_for, with: { run: :run }
     end
 
+    # A review the port refused for another reason (the sessions could not be listed, a console
+    # capture failed) is kept with that refusal and a short wait, so a failing listing is asked
+    # again after five minutes and not at every reap.
+    policy "KeepWhenTheReviewFailed" do
+      on      "AgentRun.ReviewRefused"
+      where   { !(refusal && refusal.value.include?("no session ")) }
+      trigger AgentRun::Retain, with: { refusal: :refusal, review_wait: 300 }
+    end
+
+    # A run the review keeps is recorded kept with its reason, the time and a wait (`Retain`), and
+    # `Tidy` refuses it until the wait has passed, so a kept run is reviewed once per wait.
+    #
     # A finished run's session goes in this order: kept when a person replied, or its Work is still
     # open and the run left a product (`no_product` is true for the architect, reviewer, planner
     # and pruner); kept when the worktree holds uncommitted files or commits `origin` lacks; then
@@ -1299,25 +1358,25 @@ Hecks.bluebook "Hecks" do
     policy "KeepWhenAPersonTookOver" do
       on      "AgentRun.SessionReviewed"
       where   { listed != false && taken_over != false }
-      trigger AgentRun::Retain, with: { refusal: :note }
+      trigger AgentRun::Retain, with: { refusal: :note, review_wait: 3600 }
     end
 
     policy "KeepWhenTheWorkIsStillQueued" do
       on      "AgentRun.SessionReviewed"
       where   { listed != false && taken_over == false && work_open == true && no_product != true }
-      trigger AgentRun::Retain, with: { refusal: "Work still queued" }
+      trigger AgentRun::Retain, with: { refusal: "Work still queued", review_wait: 3600 }
     end
 
     policy "KeepWhenTheWorktreeHasUnmergedCommits" do
       on      "AgentRun.SessionReviewed"
       where   { listed != false && taken_over == false && (work_open != true || no_product == true) && unmerged == true }
-      trigger AgentRun::Retain, with: { refusal: "worktree has unmerged commits" }
+      trigger AgentRun::Retain, with: { refusal: "worktree has unmerged commits", review_wait: 3600 }
     end
 
     policy "KeepWhenTheWorktreeHasUncommittedFiles" do
       on      "AgentRun.SessionReviewed"
       where   { listed != false && taken_over == false && (work_open != true || no_product == true) && unmerged != true && dirty == true }
-      trigger AgentRun::Retain, with: { refusal: "worktree has uncommitted files" }
+      trigger AgentRun::Retain, with: { refusal: "worktree has uncommitted files", review_wait: 3600 }
     end
 
     # A session kept for its Work or its worktree that the listing shows `done` (`live`) still
@@ -1352,7 +1411,7 @@ Hecks.bluebook "Hecks" do
 
     policy "KeepWhenTheScratchCannotBeCleared" do
       on      "AgentRun.ClearRefused"
-      trigger AgentRun::Retain, with: { refusal: :refusal }
+      trigger AgentRun::Retain, with: { refusal: :refusal, review_wait: 3600 }
     end
 
     policy "NoteTheRetiredWorktree" do
@@ -1367,12 +1426,49 @@ Hecks.bluebook "Hecks" do
 
     policy "KeepWhenTheWorktreeCannotBeRetired" do
       on      "AgentRun.RetireRefused"
-      trigger AgentRun::Retain, with: { refusal: :refusal }
+      trigger AgentRun::Retain, with: { refusal: :refusal, review_wait: 3600 }
     end
 
-    policy "ResumeWithTheAnswer" do
+    # How an answer reaches a session is decided here, from what `claude agents` lists of it, never
+    # in the adapter:
+    #
+    #   listed busy (mid-turn)  -> deliver: the answer waits in the session's inbox, and its next
+    #                              tool call or the end of its turn hands it to the model; it is
+    #                              not stopped, so it keeps its process and context
+    #   listed idle, or gone    -> resume with the answer as the prompt
+    #
+    # The listed status decides, not the job's state: a session that ended its turn is listed
+    # `idle` while its job still reads `working`, and an idle session runs no hook to read an inbox.
+    # A busy session started without the inbox hook refuses the delivery by name and is not stopped.
+    # Every refusal on the way is `ResumeRefused`, so an answer is recorded `Unanswered` and a
+    # verdict `Unresumed` (kept waiting and sent again) by the two policies below.
+    policy "AnswerTheSessionWhereItIs" do
       on      "AgentRun.AnswerRequested"
+      ask     :present, with: { run: :run, answer: :answer, step: :step, verdict: :verdict }
+    end
+
+    # Each path is a root: a verdict sent again reaches the look four reactions deep, and what was
+    # seen of the session begins its own chain, so recording the verdict delivered is not refused
+    # at the cap.
+    policy "DeliverToTheWorkingSession" do
+      on      "AgentRun.SessionPresent"
+      root
+      where   { listed == true && status == "busy" }
+      ask     :deliver, with: { run: :run, answer: :answer, step: :step, verdict: :verdict }
+    end
+
+    policy "ResumeTheIdleSession" do
+      on      "AgentRun.SessionPresent"
+      root
+      where   { listed != true || status != "busy" }
       ask     :resume, with: { run: :run, answer: :answer, step: :step, verdict: :verdict }
+    end
+
+    # Queued is answered: the inbox is read at the session's next tool call or turn end. A session
+    # that ends before then leaves the answer unread in its inbox; that window is accepted.
+    policy "RecordTheQueuedAnswer" do
+      on      "AgentRun.AnswerQueued"
+      trigger AgentRun::Answered, with: { answered_at: :queued_at, session: :session, verdict: :verdict }
     end
 
     policy "RecordTheAnswer" do
@@ -1472,7 +1568,7 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheKeptSession" do
       on      "AgentRun.RemoveRefused"
-      trigger AgentRun::Retain, with: { refusal: :refusal }
+      trigger AgentRun::Retain, with: { refusal: :refusal, review_wait: 3600 }
     end
 
     # A plan review asked for by event starts the named role's session as a run keyed by the review,
@@ -1763,6 +1859,14 @@ Hecks.bluebook "Hecks" do
     policy "RemoveTheOldSessionsNoRunHolds" do
       on      "SessionCleanup.ReapMarked"
       ask     :sweep_plain, with: { run: :run, since: :since }
+    end
+
+    # The landed branch's run has a worktree and a Work that just changed, so its wait ends and
+    # the reap this landing starts reviews it. Declared ahead of that reap; a branch no finished
+    # run is keyed by refuses, and nothing follows.
+    policy "ReleaseTheRunWhoseWorkLanded" do
+      on      "Landing.LandedWorkFound"
+      trigger AgentRun::Release, with: { agent_run: :branch }
     end
 
     policy "ReapWhenWorkLands" do
