@@ -706,6 +706,15 @@ Hecks.bluebook "Tickets" do
       member kind: "load",             waits: "load", counted: false, first: true
     end
 
+    # What a standup covers when the caller names no time: the work items finished in the last
+    # `hours`, and the first `upcoming` planned work items in the order Dispatch starts them.
+    value_object "StandupWindow" do
+      attribute :hours,    Integer
+      attribute :upcoming, Integer
+
+      member hours: 24, upcoming: 3
+    end
+
     # How many times a work item has been sent back to the plan; its backoff grows with it.
     value_object "YieldCount" do
       attribute :value, Integer
@@ -985,6 +994,15 @@ Hecks.bluebook "Tickets" do
       attribute :tier,  String, optional: true
       attribute :limit, Rows, optional: true
       attribute :width, Columns, optional: true
+      returns Document
+    end
+
+    # The standup, read and never written: the event tap says what finished, the PriorityReport
+    # ordering says what starts next, and the machine says its own load and memory. What is blocked
+    # is left out until the stall ledger can list its open stalls.
+    query "Standup" do
+      description "A standup anyone can read: the work items finished since a time (the last 24 hours when none is given), the next three planned work items in the order Dispatch would start them with why each starts or waits, and the machine's load and memory. Read-only."
+      attribute :since, WorkText, optional: true
       returns Document
     end
 
