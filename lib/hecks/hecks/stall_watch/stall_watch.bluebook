@@ -80,6 +80,15 @@ Hecks.bluebook "Hecks" do
                forgets: 1440, fixer: "orchestrator",
                move: "AgentRun.check! the run; if it is unchanged AgentRun.answer! it asking for status once; " \
                      "then Work.yield! the run's Work item (AgentRun.running names it) with the reason."
+        # A verdict's resume was refused while the coder waits on it. Each sweep sends it again up to
+        # three times and then finishes the run, which closes this line, so a line open for ten minutes
+        # means the sweep or its retry chain is broken: the dead run still holds its Work item's area.
+        member kind: "agent-run-unresumed", not_about: "stall-", aggregate: "Hecks::AgentRun", opens: "AgentRunUnresumed",
+               closes: "AgentRunAnswered,SessionFinished,SessionFailed,AgentRunRetired,AgentTrialRunRetired",
+               minutes: 10, forgets: 1440, fixer: "orchestrator",
+               move: "The sweep already sends the verdict again and then ends the run, so a stall here means the " \
+                     "sweep or its retry chain is broken: report that as the finding. AgentRun.check! the run, then " \
+                     "Work.yield! the run's Work item (AgentRun.running names it) with the reason, so its area claim is freed."
         member kind: "agent-run-blocked", not_about: "stall-", aggregate: "Hecks::AgentRun", opens: "SessionBlocked",
                closes: "AnswerRequested,AgentRunAnswered,SessionWorking,SessionFinished,SessionFailed,AgentRunRetired,AgentTrialRunRetired",
                minutes: 15, forgets: 1440, fixer: "orchestrator",
