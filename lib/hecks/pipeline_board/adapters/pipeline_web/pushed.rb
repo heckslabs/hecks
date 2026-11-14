@@ -23,7 +23,7 @@ module Hecks
         # @return [Hub] what wakes a stream
         attr_reader :hub
 
-        # @param stages [#fill_tile, #train_tile] answers each tile's reading
+        # @param stages [#fill_tile, #train_tile, #integration_tile] answers each tile's reading
         # @param settings [Hash] `tiles:` and `hub:` stand in for the real ones, `tap:` is the
         #   journal's path, `journal:` stands in for the follower's source, `net_seconds:` for
         #   the `safety_net_seconds` setting, `gap:` for the rest between drawings, and
@@ -46,9 +46,10 @@ module Hecks
         private
 
         def tiles_of(stages)
-          drawn = { "fill"  => -> { TileHtml.fill(stages.fill_tile) },
-                    "plan"  => -> { PlanHtml.draw(stages.plan_tile) },
-                    "train" => -> { TileHtml.stage(stages.train_tile) } }
+          drawn = { "fill"        => -> { TileHtml.fill(stages.fill_tile) },
+                    "plan"        => -> { PlanHtml.draw(stages.plan_tile) },
+                    "train"       => -> { TileHtml.stage(stages.train_tile) },
+                    "integration" => -> { TileHtml.integration(stages.integration_tile) } }
           Tiles.new(rows: Rules.rows("Tile"), renderers: drawn)
         end
 

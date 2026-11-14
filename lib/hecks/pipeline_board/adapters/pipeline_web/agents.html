@@ -4,43 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pipeline Agents</title>
-<style>
+<!--style--><style>
 /* The Agents page: one map of who hands work to whom, one card per role, the handoffs heard, and the ask forms. */
-:root {
-  color-scheme: light;
-  --page: #f6f7f8; --surface: #fdfdfd; --ink: #0d1116; --ink2: #4d5560; --muted: #868d96;
-  --grid: #e3e6ea; --axis: #c4c9d0; --border: rgba(13,17,22,.10);
-  --signal: #2a78d6; --signal-soft: rgba(42,120,214,.14);
-  --you: #b37a00; --you-soft: rgba(250,178,25,.16);
-  --good: #0a8f0a; --serious: #c45a30; --critical: #d03b3b;
-  --body: system-ui, -apple-system, "Segoe UI", sans-serif;
-  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --page: #0b0d10; --surface: #14171b; --ink: #eef0f2; --ink2: #b9c0c8; --muted: #7d858f;
-    --grid: #22272d; --axis: #343a42; --border: rgba(255,255,255,.09);
-    --signal: #4b9bf0; --signal-soft: rgba(75,155,240,.16);
-    --you: #f4b42a; --you-soft: rgba(244,180,42,.14);
-    --good: #2bbf4b; --serious: #ec835a; --critical: #ef5a5a;
-  }
-}
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --page: #0b0d10; --surface: #14171b; --ink: #eef0f2; --ink2: #b9c0c8; --muted: #7d858f;
-  --grid: #22272d; --axis: #343a42; --border: rgba(255,255,255,.09);
-  --signal: #4b9bf0; --signal-soft: rgba(75,155,240,.16);
-  --you: #f4b42a; --you-soft: rgba(244,180,42,.14);
-  --good: #2bbf4b; --serious: #ec835a; --critical: #ef5a5a;
-}
-* { box-sizing: border-box; }
-body { margin: 0; background: var(--page); color: var(--ink); font: 14px/1.5 var(--body); }
-main { max-width: 1280px; margin: 0 auto; padding: 16px; display: grid; gap: 16px; }
+main { display: grid; gap: 16px; }
 header.top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 18px; }
-h1 { font-size: 20px; font-weight: 600; margin: 0; }
-h2 { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ink2); margin: 0; }
-a { color: var(--signal); }
+h2 { font-size: 14px; font-weight: 650; color: var(--ink); margin: 0; }
 .meta { margin-left: auto; display: flex; gap: 12px; font-size: 12px; color: var(--ink2); }
 .note { color: var(--muted); font-size: 12px; }
 .totals { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--ink2); }
@@ -119,12 +87,12 @@ svg.focusing .edge.lit, svg.focusing .node.lit { opacity: 1; }
 .pill.busy .dot { animation: blink 1.6s ease-in-out infinite; }
 @keyframes blink { 50% { opacity: .25; } }
 .io { display: grid; grid-template-columns: 44px 1fr; gap: 4px 8px; font-size: 11px; align-items: baseline; }
-.io .k { color: var(--muted); text-transform: uppercase; letter-spacing: .05em; font-size: 10px; }
+.io .k { color: var(--muted); font-size: 10px; }
 .io .v { display: flex; flex-wrap: wrap; gap: 4px; }
 .ev { font: 500 11px var(--mono); padding: 1px 6px; border-radius: 4px; background: var(--page); border: 1px solid var(--border); color: var(--ink2); }
 .ev.you { color: var(--you); border-color: color-mix(in srgb, var(--you) 45%, transparent); }
 .list { display: grid; gap: 6px; }
-.list h3 { margin: 0; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.list h3 { margin: 0; font-size: 10px; color: var(--muted); font-weight: 600; }
 .sess { display: grid; gap: 3px; font-size: 12px; }
 .sess .n { font-family: var(--mono); overflow-wrap: anywhere; }
 .sess .d { color: var(--ink2); overflow-wrap: anywhere; }
@@ -199,7 +167,7 @@ svg.focusing .edge.lit, svg.focusing .node.lit { opacity: 1; }
 <main>
   <header class="top">
     <h1>Agents</h1>
-    <a href="/">← Pipeline Board</a>
+    <!--nav-->
     <div class="meta"><span id="updated">loading</span><span id="live">stream: connecting</span></div>
   </header>
   <div class="totals" id="totals"></div>

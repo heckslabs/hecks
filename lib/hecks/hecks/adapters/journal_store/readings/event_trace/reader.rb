@@ -25,6 +25,18 @@ module Hecks
               run(sql, binds).reverse
             end
 
+            # @param aggregates [Array<String>] the names events are stored under, as
+            #   `"Domain::Aggregate"`
+            # @param since [String] an ISO 8601 UTC time; earlier events are left out
+            # @return [Array<Hash>] every event of those aggregates from that time on, oldest first
+            def window(aggregates, since)
+              return [] if aggregates.empty? || !table?("events")
+
+              marks = (["?"] * aggregates.size).join(", ")
+              sql = "SELECT #{COLUMNS} FROM events WHERE aggregate IN (#{marks}) AND occurred_at >= ? ORDER BY id"
+              run(sql, [*aggregates, since])
+            end
+
             # @return [Array<Hash>] every distinct `name`/`aggregate` pair the log holds
             def occurred
               table?("events") ? run("SELECT DISTINCT name, aggregate FROM events", []) : []

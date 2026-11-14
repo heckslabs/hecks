@@ -16,6 +16,7 @@ require "hecks/adapters/driving/resident/stores"
 require "hecks/adapters/driving/resident/pool"
 require "hecks/adapters/driving/resident/serving"
 require "hecks/adapters/driving/resident/stopping"
+require "hecks/adapters/driving/resident/title"
 require "hecks/adapters/driving/resident/worker"
 
 module Hecks
@@ -38,8 +39,8 @@ module Hecks
           include Serving
           include Stopping
 
-          # Leaves the session the launcher that started it was in, so it keeps no terminal, and
-          # serves.
+          # Leaves the session the launcher that started it was in, so it keeps no terminal, names
+          # its process for the checkout ({Title}), and serves.
           #
           # @param root [String] the checkout
           # @param script [String] the launcher the lines come from
@@ -49,6 +50,7 @@ module Hecks
             rescue SystemCallError
               nil
             end
+            Title.apply(Title.resident(root))
             new(root, script).run
           end
 

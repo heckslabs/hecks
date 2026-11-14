@@ -5,6 +5,7 @@ require "time"
 require_relative "probe"
 require_relative "live_store"
 require_relative "load_history"
+require_relative "load_causes"
 require_relative "rules"
 require_relative "pipeline_github"
 require_relative "pipeline_git"
@@ -138,11 +139,11 @@ module Hecks
         PipelineBoard::Metrics.tiles(data.merge(@limits), now) + [PipelineBoard::DailyHealth.tile(health)]
       end
 
-      # The panels beside the strip: the pinned agents and the Work items' cycles.
+      # The panels beside the strip: the pinned agents, the Work items' cycles and the runs.
       def panels(data)
         days = PipelineBoard::ThroughputDays.build(data[:finished_times], @now.call)
         agents(data).merge(cycles: cycle_reading(data[:cycle_events]), throughput_days: days,
-                           load_history: PipelineBoard::LoadHistory.reading)
+                           integration: data[:integration], **PipelineBoard::LoadCauses.with_history)
       end
 
       # The cycles laid from the stage events, or the events' `{unknown: reason}` as it was read.
@@ -169,7 +170,7 @@ module Hecks
         @github = readers.fetch(:github) { PipelineGitHub.new(root: @root) }
         @git = readers.fetch(:git) { PipelineGit.new(root: @root) }
         @journal = readers.fetch(:journal) { PipelineJournal.new(root: @root) }
-        wire_work(readers, registry)
+        wire_stores(readers, registry)
         @fill = readers.fetch(:fill) { PipelineFill.new(root: @root, registry: registry, store: @live) }
       end
 
@@ -193,7 +194,7 @@ module Hecks
       # is paused, and the open plan reviews and promotion recommendations.
       def agents(data)
         { roles: PipelineBoard::AgentRoles.of(data[:sessions], @roles, data[:events]), pruning: PipelineBoard::PruningStanding.of(@seats),
-          reviews: PipelineBoard::AgentRoles.reviews(guard { @tickets.runs }), recommendations: PipelineBoard::AgentRoles.recommendations(data[:promotions]) }
+          reviews: PipelineBoard::AgentRoles.review_lines(guard { @tickets.runs }), recommendations: PipelineBoard::AgentRoles.recommendations(data[:promotions]) }
       end
 
       def sections

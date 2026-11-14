@@ -41,9 +41,20 @@ RSpec.describe Hecks::Adapters::PipelineStages do
 
   def stage(name, overrides = {}) = board(overrides).state[:stages].find { |row| row[:name] == name }
 
+  it "says why the integration runs are unknown while the other stages still answer", :aggregate_failures do
+    rows = board.state[:stages].to_h { |row| [row[:name], row] }
+    expect(rows["Integration"][:detail]).to match(/unknown: .*resolves no saga store/)
+    expect(rows["Work items"][:state]).not_to eq("unknown")
+  end
+
+  it "gives the integration runs in the state the page reads" do
+    runs = instance_double(Hecks::Adapters::PipelineIntegration, reading: { runs: [], needs_human: 0, in_flight: 0, stages: {} })
+    expect(board(integration: runs).state[:integration]).to include(needs_human: 0)
+  end
+
   it "answers a row for every stage of the pipeline", :aggregate_failures do
     names = board.state[:stages].map { |row| row[:name] }
-    expect(names).to eq(["Work items", "Sessions", "Local main", "Train", "CI", "Promote", "Release"])
+    expect(names).to eq(["Work items", "Sessions", "Local main", "Integration", "Train", "CI", "Promote", "Release"])
   end
 
   def findings_reader(*findings)

@@ -265,6 +265,26 @@ RSpec.describe Hecks::Adapters::InProcessOperations do
       expect(elapsed.call).to be_between(1.0 - 1e-9, 1.0 + 0.1 + 1e-9)
     end
 
+    # A log that can read past a position and count itself, and fails if it is read whole.
+    def positional_log
+      log = double(events_past: entries.drop(1), event_count: 2)
+      allow(log).to receive(:events).and_raise("the whole log was read")
+      log
+    end
+
+    it "reads only past the cursor from a log that can", :aggregate_failures do
+      allow(adapter).to receive(:event_repository).and_return(log = positional_log)
+
+      expect(adapter.follow(domain: @dir, since: 1)).to include(cursor: 2)
+      expect(log).to have_received(:events_past).with(1)
+    end
+
+    it "counts a log that can count itself when told to start from now" do
+      allow(adapter).to receive(:event_repository).and_return(double(events_past: [], event_count: 2))
+
+      expect(adapter.follow(domain: @dir, from_now: true)).to include(cursor: 2, events: [])
+    end
+
     # Follows the log with `monotonic` and `sleep` replaced by a clock that `sleep` advances.
     #
     # @return [Array(Hash, Proc)] the answer, and a lambda reading the fake seconds that passed

@@ -28,10 +28,16 @@ module Hecks
       # @param held [Hash] the query's `tier` (red, now, next, later or none), `limit` and `width`
       # @return [Hash{Symbol => String}] `text:` the header and the lines, ending in a newline
       def priority_report(**held)
-        rows = Backlog.new(items, plan, @registry).rows
         lines = Lines.new(rows, started: items.started.size, cap: cap)
         { text: lines.text(tier: plain(held[:tier]), limit: plain(held[:limit]), width: plain(held[:width])) }
       end
+
+      # @return [Array<Backlog::Row>] every open work item in dispatch order, the started ones
+      #   first, each planned one with whether it would start or why it waits
+      def rows = Backlog.new(items, plan, @registry).rows
+
+      # @return [Float] the load average above which Dispatch starts nothing
+      def max_load = machine.max_load
 
       private
 

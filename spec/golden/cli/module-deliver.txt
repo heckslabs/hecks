@@ -53,6 +53,9 @@ queries (nothing here changes anything):
     settings  What this copy resolves for each setting that can come from a variable, its own world or a default, and which one supplied it. (also: config)
     doctor    Whether this checkout can run Hecks here: overlay files parse, the stores answer, the toolchain pin matches, and what this worktree cannot see.
     where     Where this checkout's domain resolves: the store each bluebook uses and why, the audience and environment with their reasons, and any overlay file this worktree lacks.
+  LandingPace:
+    A measure of the landings a ledger recorded: how many a day, and how long a change waited.
+    pace      Landings per UTC day over the last days (14 unless given), the refusals, and the wait from ready to landed as median, 90th percentile and longest.
   ReviewRequest:
     One pull request opened or squash-merged on GitHub, and what GitHub answered.
     status    The state of one pull request on GitHub: its number, state, URL and checks, as text.
