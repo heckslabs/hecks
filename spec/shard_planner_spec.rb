@@ -80,4 +80,16 @@ RSpec.describe Hecks::Tools::ShardPlanner do
       expect(described_class.partition(%w[a], 3, { "a" => 1.0 }).map(&:size)).to eq([1, 0, 0])
     end
   end
+
+  describe "the Postgres io shape recorded on 2026-11-14 (runs 43634597500 and 43629587925)" do
+    let(:recorded) { [150.0, 148.0, 146.0] + Array.new(60) { |index| 2.0 + ((index % 9) * 4.0) } }
+    let(:table) { recorded.each_with_index.to_h { |seconds, index| ["spec/io#{index}_spec.rb", seconds] } }
+
+    def longest(table) = described_class.partition(table.keys, 20, table).map { |group| load_of(group, table) }.max
+
+    it "keeps the longest of twenty legs within 5 percent of the largest file, the floor", :aggregate_failures do
+      expect(longest(table)).to be <= table.values.max * 1.05
+      expect(longest(table)).to be >= table.values.max
+    end
+  end
 end

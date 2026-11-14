@@ -33,9 +33,13 @@ module Hecks
           built.merge(state: Rules.verdict("CI success", { value: built[:value] }, health))
         end
 
+        # A push run of main skips the heavy jobs when the train PR run already proved the tree, so
+        # its wall is that reused verdict's, not what the checks cost; the detail says so when the
+        # runs carry a push event.
         def wall(runs, health)
+          reused = runs.any? { |run| run[:event] == "push" } ? "; verdict reused from the train PR run" : ""
           spec = { id: "wall", label: "Median CI wall", unit: "min", lower: true,
-                   detail: "goal #{health[:wall_goal_minutes]} min" }
+                   detail: "goal #{health[:wall_goal_minutes]} min#{reused}" }
           built = windowed(spec, runs.select { |run| run[:status] == "completed" }) do |list|
             median(list.map { |run| run[:wall_minutes] })
           end
