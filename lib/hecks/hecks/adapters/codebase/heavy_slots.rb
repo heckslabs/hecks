@@ -5,6 +5,7 @@ require "hecks/cache_dir"
 require "hecks/rust_build/build_lock"
 require "hecks/rust_build/world_rows"
 require_relative "memory_wait"
+require_relative "spec_workers"
 
 module Hecks
   module Adapters
@@ -15,12 +16,11 @@ module Hecks
       #
       # A place is a kernel `flock` on one of `cap` files under the cache directory, so a holder
       # that dies, even killed, frees its place at once and none is ever held for a dead process.
-      # The job's own time bounds start inside the block, so waiting never counts toward them.
-      # Nothing running is stopped or paused: a place only decides when a job starts. Before it
-      # looks for a place, a job waits while memory is low ({MemoryWait}).
-      #
-      # A job does not wait with `HECKS_NO_HEAVY_SLOT=1`, in CI, or when a parent that holds a
-      # place started it (`HELD`, set for the children of a holder), which would wait for itself.
+      # Waiting never counts toward a job's own time bounds, and nothing running is stopped. A job
+      # waits while memory is low first ({MemoryWait}); while it holds a place, its children's
+      # workers are held to the world's `spec_workers` (`PARALLEL_PROCESSOR_COUNT`, which RuboCop
+      # reads, unless already set). A job does not wait in CI or when a parent holding a place
+      # started it (`HELD`); no switch skips the places.
       class HeavySlots
         # The Tickets world verb that carries the cap.
         VERB = "heavy_jobs"
@@ -30,6 +30,9 @@ module Hecks
 
         # The environment variable a holder sets for the children it starts.
         HELD = "HECKS_HEAVY_SLOT_HELD"
+
+        # The environment variable the parallel gem reads for its worker count.
+        WORKERS = "PARALLEL_PROCESSOR_COUNT"
 
         # Seconds a job waits before it gives up and runs anyway: the Rust build lock's figure, so
         # a job never waits longer for a place than a build waits for its lock.
@@ -49,7 +52,7 @@ module Hecks
         # @yieldreturn [String] the job's report
         # @return [String] the report, after the line that names the wait when there was one
         def self.admitted(root, job, &)
-          report, note = new(cap: cap_of(root), memory: MemoryWait.of(root)).hold(job, &)
+          report, note = new(cap: cap_of(root), memory: MemoryWait.of(root), workers: SpecWorkers.count(root)).hold(job, &)
           note.empty? ? report : "#{note}\n#{report}"
         end
 
@@ -66,13 +69,14 @@ module Hecks
         # @param err [#puts] where the waiting note goes
         # @param options [Hash] `clock:` answers the time in seconds and `pause:` sleeps the given
         #   seconds, the monotonic clock and `sleep` when absent; `memory:` ({MemoryWait}) is waited
-        #   on before a place is taken, none when absent
+        #   on before a place is taken, none when absent; `workers:` is the worker count the held
+        #   job's children are held to, none when absent
         def initialize(cap:, dir: self.class.directory, base: ENV, err: $stderr, **options)
           @cap = cap
           @dir = dir
           @base = base
           @err = err
-          @memory = options[:memory]
+          @memory, @workers = options.values_at(:memory, :workers)
           @clock = options.fetch(:clock) { -> { Process.clock_gettime(Process::CLOCK_MONOTONIC) } }
           @pause = options.fetch(:pause) { ->(seconds) { sleep(seconds) } }
         end
@@ -100,7 +104,7 @@ module Hecks
         private
 
         def bypass?
-          @base["HECKS_NO_HEAVY_SLOT"] == "1" || !@base[HELD].to_s.empty? || !@base["CI"].to_s.empty?
+          !@base[HELD].to_s.empty? || !@base["CI"].to_s.empty?
         end
 
         # @return [Array(File, String), Array(nil, String)] the place taken and the wait's note;
@@ -146,11 +150,12 @@ module Hecks
         end
 
         def with_held
-          before = ENV.fetch(HELD, nil)
+          before = ENV.values_at(HELD, WORKERS)
           ENV[HELD] = Process.pid.to_s
+          ENV[WORKERS] ||= @workers.to_s if @workers
           yield
         ensure
-          ENV[HELD] = before
+          ENV[HELD], ENV[WORKERS] = before
         end
 
         def waited(started)
