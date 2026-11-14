@@ -174,7 +174,8 @@ answered `carried`. Its mint step reports `Memory holds no eras, no mint needed`
   Memory is refused by the aggregate's name.
   A linked worktree that keeps no local file of its own loads the main checkout's
   (`WorktreeBorrow`, `lib/hecks/adapters/driven/worktree_borrow.rb`), so its commands use the same dev
-  databases under `~/.claude/hecks-dev`. Nothing is lent to the spec runner (`HECKS_WRITES_LOCAL`, which
+  databases under `~/.claude/hecks-dev`. A lent bind to an aggregate the worktree's own code does not declare is
+  left out and said once, not refused; rebase onto `main` to keep it too. Nothing is lent to the spec runner (`HECKS_WRITES_LOCAL`, which
   spec_helper sets) or a `memory`/`test` environment, to a worktree with its own local file (the train),
   or from a main checkout whose local world turns on `mint_eras` or `disposable_ledger`.
   `exe/hecks workspace.where` names the borrowed checkout.

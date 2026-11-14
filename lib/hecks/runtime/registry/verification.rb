@@ -9,6 +9,7 @@ require_relative "bluebook_verification"
 require_relative "durability_warnings"
 require_relative "saga_durability_rule"
 require_relative "declaration_checks"
+require_relative "lent_binds"
 
 module Hecks
   module Runtime
@@ -25,6 +26,7 @@ module Hecks
         include DurabilityWarnings
         include SagaDurabilityRule
         include DeclarationChecks
+        include LentBinds
 
         # Runs every wiring check against this registry's loaded bluebooks, hecksagons, ports
         # and adapters.
@@ -142,6 +144,7 @@ module Hecks
           refuse_revisions_on_other_adapter!(hecksagon)
           refuse_unwired_attachments!(hecksagon)
           refuse_bounded_without_acl!(hecksagon)
+          drop_lent_strangers!(hecksagon)
           hecksagon.binds.each { |bind| verify_bind!(hecksagon, bind, open_stores: open_stores) }
           warn_durability!(hecksagon)
         end

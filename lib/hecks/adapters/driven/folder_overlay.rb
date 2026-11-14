@@ -32,7 +32,7 @@ module Hecks
       # directory), then an environment's overlay, each `.hecksagon` then `.world`, when present.
       # The environment loads last, so `memory` still wins over a local database. A linked
       # worktree that keeps no local file reads the domain's own from the main checkout instead
-      # (WorktreeBorrow); the working directory's files are read where they stand either way.
+      # (WorktreeBorrow), marked as lent; the working directory's files are read where they stand.
       #
       # @param directory [String] the directory holding the `environments/` folder
       # @param environment [String, nil] the environment name; nil loads no named overlay
@@ -42,8 +42,11 @@ module Hecks
 
         WorktreeOverlay.warn_once(directory)
         own = WorktreeBorrow.directory(directory, env: overlay_env) || directory
-        load_each(own, overlay_files(LOCAL_OVERLAY))
-        [own, Dir.pwd].uniq.each { |where| load_each(where, LOCAL_FILES) }
+        Bluebook::Lent.during(own != directory) do
+          load_each(own, overlay_files(LOCAL_OVERLAY))
+          load_each(own, LOCAL_FILES)
+        end
+        load_each(Dir.pwd, LOCAL_FILES) unless Dir.pwd == own
         load_each(directory, overlay_files(environment)) if environment && environment != LOCAL_OVERLAY
       end
 

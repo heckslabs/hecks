@@ -51,7 +51,8 @@ module Hecks
             aggregate: @fqn,
             verb:      verb.to_s,
             adapter:   args.first.to_s,
-            role:      kwargs[:role]&.to_s
+            role:      kwargs[:role]&.to_s,
+            lent:      Lent.now?
           )
           block&.call
           self
