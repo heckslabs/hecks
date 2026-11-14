@@ -36,4 +36,18 @@ RSpec.describe Hecks::Adapters::PipelineBoard::Metrics do
     run[:pushed] = nil
     expect(tile(data, "carry")[:value]).to be_nil
   end
+
+  describe "the median CI wall tile's detail" do
+    def wall_detail(event)
+      described_class.ci({}, [run.merge(event: event)], now).find { |found| found[:id] == "wall" }[:detail]
+    end
+
+    it "says a push run's wall is a verdict reused from the train PR run" do
+      expect(wall_detail("push")).to eq("goal 3 min; verdict reused from the train PR run")
+    end
+
+    it "says nothing of reuse when the run carries no push event" do
+      expect(wall_detail(nil)).to eq("goal 3 min")
+    end
+  end
 end

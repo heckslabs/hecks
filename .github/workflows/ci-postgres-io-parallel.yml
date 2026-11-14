@@ -118,12 +118,28 @@ jobs:
           rust-toolchain: "false"
       - uses: ./.github/actions/hecks-environment
 
+      # The newest successful main run is usually a push of an attested tree, which skips the shards
+      # and keeps no runtime log, so `timings_from: main` found nothing and every plan fell back to
+      # file size (runs 43634597500 and 43629587925: legs from 3 s to 175 s of test time). The pull
+      # request run that tested the tree has the logs, so take them from the newest of the ten latest
+      # successful ci.yml runs, any branch, that kept them. A stopgap: when TimingsSource itself reads
+      # the newest recent run that kept timings (Work item
+      # shard-plan-reads-timings-from-the-newest-run-that-has-them), delete this step and set
+      # `timings_from` back to `main`.
+      - name: Read the newest recent run's shard timings
+        run: |
+          mkdir -p tmp/timings
+          for id in $(gh run list --workflow ci.yml --status success --limit 10 --json databaseId --jq '.[].databaseId'); do
+            gh run download "$id" --pattern 'postgres-io-runtime-group-*' --dir tmp/timings 2>/dev/null && break
+          done || true
+          ls tmp/timings | head -3
+
       # `shards` is the matrix's group count in rspec_postgres_io_parallel_shard.
-      - name: "Plan the shards: ShardPlan.Request, from the last main run's timings or file size"
+      - name: "Plan the shards: ShardPlan.Request, from the recent run's timings or file size"
         run: |
           mkdir -p tmp/shard-plan-trace
           cat > tmp/shard-plan-steps.json <<'JSON'
-          {"steps":[{"verb":"CiSpeed::ShardPlan.Request","args":{"name":{"value":"postgres_io"},"shards":{"value":20},"items_from":{"value":"list:.github/postgres_io_spec_files.txt"},"timings_from":{"value":"main"},"out_dir":{"value":"tmp/plan"}}}]}
+          {"steps":[{"verb":"CiSpeed::ShardPlan.Request","args":{"name":{"value":"postgres_io"},"shards":{"value":20},"items_from":{"value":"list:.github/postgres_io_spec_files.txt"},"timings_from":{"value":"tmp/timings"},"out_dir":{"value":"tmp/plan"}}}]}
           JSON
           bundle exec exe/hecks Operation.run! subject.value=lib/hecks/ci_speed script.value=tmp/shard-plan-steps.json --wait \
             > tmp/shard-plan-trace/run.json \
