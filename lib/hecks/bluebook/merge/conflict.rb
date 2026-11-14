@@ -22,12 +22,14 @@ module Hecks
           owners.find { |owner_word, _| owner_word == "aggregate" }&.last
         end
 
-        # The member's path: its owners below the file's own declaration, then its name, as in
-        # `Order.Place` or `Order.total`. A member of the declaration itself is named by it.
+        # The member's path: its owners from the aggregate down, then its name, as in
+        # `Order.Place` or `Order.total`. Outside an aggregate the path starts below the file's
+        # own declaration, and a member of the declaration itself is named by it.
         #
         # @return [String] the dotted path
         def subject
-          path = (owners.size > 1 ? owners.drop(1) : owners).map(&:last)
+          from = owners.index { |owner_word, _| owner_word == "aggregate" } || [owners.size - 1, 1].min
+          path = owners.drop(from).map(&:last)
           path << name if named
           path.compact.join(".")
         end
