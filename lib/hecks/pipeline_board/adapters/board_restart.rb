@@ -14,13 +14,15 @@ module Hecks
       # line's `refresh_seconds`. The check runs in the snapshot loop after each read.
       class BoardRestart
         # The limits when the Hecks world declares no `board_restart` line.
-        DEFAULTS = { rss_mb: 1024, age_hours: 24, refresh_seconds: 30, min_uptime_seconds: 600 }.freeze
+        DEFAULTS = { rss_mb: 1024, age_hours: 24, refresh_seconds: 30, min_uptime_seconds: 600,
+                     loaded_refresh_seconds: 60 }.freeze
         # The resident-memory line of `/proc/self/status`, in kilobytes.
         PROC_RSS = /VmRSS:\s+(\d+)/
 
         # @param registry [Runtime::Registry, nil]
-        # @return [Hash{Symbol => Numeric}] `rss_mb`, `age_hours`, `refresh_seconds` and
-        #   `min_uptime_seconds`, the time a board runs before any limit can restart it
+        # @return [Hash{Symbol => Numeric}] `rss_mb`, `age_hours`, `refresh_seconds`,
+        #   `min_uptime_seconds` (the time a board runs before any limit can restart it) and
+        #   `loaded_refresh_seconds` (the read period while the machine is loaded)
         def self.limits(registry)
           world = registry&.world("Hecks")
           declared = world ? world.for_verb("board_restart") : {}

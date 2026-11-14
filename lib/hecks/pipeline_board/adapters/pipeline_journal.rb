@@ -4,6 +4,7 @@ require "json"
 require_relative "boot_lock"
 require_relative "cache"
 require_relative "pipeline_journal/tap"
+require_relative "pipeline_journal/owner_root"
 require_relative "pipeline_journal/chain"
 require_relative "pipeline_turns"
 require_relative "pipeline_stages/cycles"
@@ -30,16 +31,24 @@ module Hecks
       # Where the opt-in event log is written when a world turns it on.
       TAP_PATH = File.join(Dir.home, ".claude", "hecks-dev", "events.jsonl")
 
+      # How many of the newest stored events one read of the stores asks for.
+      STORE_ROWS = 200
+
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] `trace:` stands in for the reader (a callable taking the row
       #   count and an event name or nil, answering its report), `tap:` the event log's path,
-      #   `ttl:` how long a read is kept
+      #   `ttl:` how long a read of the event log is kept, and of the persisted stores too when
+      #   it is given. With none the stores are kept for the `stores_keep_seconds` setting: the
+      #   event log says at once what happened, the stores are read for what it does not hold,
+      #   and one read of them costs more than any other reader, so a run of journal lines
+      #   shares one.
       # @param root [String, nil] the checkout whose domain directory is read
       def initialize(aggregate: nil, settings: {}, root: nil)
         @root = root || Dir.pwd
         @trace = settings[:trace] || method(:trace)
         @tap = PipelineBoard::Tap.new(settings.fetch(:tap) { TAP_PATH }, names: method(:indexed_names))
         @cache = PipelineBoard::Cache.new(ttl: settings.fetch(:ttl, 2))
+        @stored = PipelineBoard::Cache.kept(settings, "stores_keep_seconds")
       end
 
       # @param limit [Hash, Integer, nil] how many events (40 when none is named)
@@ -136,7 +145,7 @@ module Hecks
       # @raise [PipelineBoard::Unavailable] when no store can be read, so the tile says unknown
       #   rather than counting nothing
       def named(event, count)
-        @cache.fetch([:named, event, count]) { chained(@trace.call(count, event)).sort_by { |row| row[:at].to_s }.reverse }
+        @stored.fetch([:named, event, count]) { chained(@trace.call(count, event)).sort_by { |row| row[:at].to_s }.reverse }
       end
 
       private
@@ -159,8 +168,11 @@ module Hecks
         []
       end
 
+      # The newest stored events, at least {STORE_ROWS} of them, so the feed and the landed times
+      # share one read of the stores; the caller takes as many as it asked for.
       def journal(count)
-        @cache.fetch([:trace, count]) { chained(@trace.call(count, nil)) }
+        asked = [count, STORE_ROWS].max
+        @stored.fetch([:trace, asked]) { chained(@trace.call(asked, nil)) }
       rescue PipelineBoard::Unavailable
         []
       end
@@ -177,17 +189,8 @@ module Hecks
 
       def registry
         @registry ||= PipelineBoard::BootLock.exclusive(wait: PipelineBoard::BootLock::WAIT_SECONDS) do
-          Hecks.describe(File.join(owner_root, DEFAULT_DOMAIN)).registry
+          Hecks.describe(File.join(PipelineBoard::OwnerRoot.of(@root), DEFAULT_DOMAIN)).registry
         end
-      end
-
-      # The checkout whose local overlays name the stores: a linked worktree has none, so its main
-      # checkout is read instead.
-      def owner_root
-        common = PipelineBoard::Probe.run("git", "-C", @root, "rev-parse", "--git-common-dir").strip
-        File.basename(common) == ".git" ? File.dirname(File.expand_path(common, @root)) : @root
-      rescue PipelineBoard::Unavailable
-        @root
       end
     end
   end

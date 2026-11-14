@@ -77,14 +77,31 @@ module Hecks
           return note(rows[:unknown], &emit) if rows.is_a?(Hash)
 
           Array(rows).reverse_each { |row| once(row, &emit) }
+          forget(Array(rows))
+        end
+
+        # Forgets the events that have left the feed, so what a stream remembers stays the size of
+        # the feed however long it is open.
+        def forget(rows)
+          shown = rows.to_h { |row| [row[:key], true] }
+          @seen.select! { |key, _| key == :unknown || shown[key] }
         end
 
         def look_state(current)
-          digest = Digest::SHA1.hexdigest(JSON.generate(current.except(:generated_at, :stale_seconds)))
-          return if digest == @state_digest
+          mark = mark_of(current)
+          return if mark == @state_digest
 
-          @state_digest = digest
+          @state_digest = mark
           yield({ state: current })
+        end
+
+        # What tells one state from the next: the `version` a held state carries, with whether it
+        # is stale and its last error, so a wake compares three values. A state with no version
+        # is digested whole.
+        def mark_of(current)
+          return current.values_at(:version, :stale, :refresh_error) if current.key?(:version)
+
+          Digest::SHA1.hexdigest(JSON.generate(current.except(:generated_at, :stale_seconds)))
         end
 
         def once(row)

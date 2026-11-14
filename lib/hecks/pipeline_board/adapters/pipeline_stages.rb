@@ -60,8 +60,8 @@ module Hecks
         now = @now.call
         health = PipelineBoard::DailyHealth.build(data, now)
         { generated_at: now.iso8601, stages: PipelineBoard::Strip.build(data, now), daily_health: health,
-          metrics: metrics(data, now, health), fanout: fanout(data),
-          live_store_problem: @live&.problem }.merge(tables(data), panels(data))
+          metrics: metrics(data, now, health), fanout: fanout(data), live_store_problem: @live&.problem,
+          stale_sections: stale_sections, load_guard: PipelineBoard::LoadGuard.standing }.merge(tables(data), panels(data))
       end
 
       # The sections the page shows as they were read: CI on main and on train pull requests, the
@@ -101,11 +101,11 @@ module Hecks
       # @return [Hash] the next fill's dry run (see {PipelineFill#preview}), or `{unknown: reason}`
       def fill_tile = guard { @fill.preview }
 
-      # The Train stage read again now, past the kept git answers: the tile is drawn because the
-      # journal said the train moved.
+      # The Train stage, from the git answers the reader keeps for its few seconds: a run of
+      # journal lines draws the tile from one read and starts no `git` per line.
       #
       # @return [Hash] the Train row of the strip
-      def train_tile = PipelineBoard::Strip.train(guard { @git.train_now }, @now.call)
+      def train_tile = PipelineBoard::Strip.train(guard { @git.train }, @now.call)
 
       # @return [Array<Hash>, Hash] the newest events with the policies that reacted, or
       #   `{unknown: reason}`
@@ -174,21 +174,13 @@ module Hecks
       end
 
       def wire_work(readers, registry)
-        live = @live = live_store_named
+        live = @live = PipelineBoard::LiveStore.named
         @tickets = readers.fetch(:tickets) { PipelineTickets.new(registry: registry, settings: { live_store: live }) }
         @seats = readers.fetch(:seats) { live || PipelineBoard::RegistryStore.new(registry: registry) }
         @jobs = readers.fetch(:jobs) { PipelineJobs.new(settings: { runs: -> { guard { @tickets.runs } } }) }
         @trains = readers.fetch(:trains) do
           PipelineBoard::TrainDetail.new(root: ENV.fetch("PIPELINE_BOARD_LAUNCHER_ROOT", @root), live_store: @seats)
         end
-      end
-
-      # The one in-process reader of the checkout `PIPELINE_BOARD_LAUNCHER_ROOT` names, shared by
-      # the readers that need its store, and already opening; nil when the board is not pointed at
-      # another checkout, which then reads its own registry and boots no second copy of the domain.
-      def live_store_named
-        root = ENV.fetch("PIPELINE_BOARD_LAUNCHER_ROOT", "")
-        PipelineBoard::LiveStore.new(root: root).warm unless root.empty?
       end
 
       # The pinned agents panel: each role with its live sessions and last event, whether pruning

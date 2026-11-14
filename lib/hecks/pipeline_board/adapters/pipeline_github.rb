@@ -28,12 +28,13 @@ module Hecks
 
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] `gh:` stands in for the program (a callable taking the arguments and
-      #   answering parsed JSON), `ttl:` for how long a read is kept
+      #   answering parsed JSON), `ttl:` for how long a read is kept (the `github_keep_seconds`
+      #   setting when none is given)
       # @param root [String, nil] the checkout `gh` runs in
       def initialize(aggregate: nil, settings: {}, root: nil)
         @gh = settings[:gh] || ->(*args) { PipelineBoard::Probe.json("gh", *args, chdir: root) }
         @text = settings[:gh_text] || ->(*args) { PipelineBoard::Probe.run("gh", *args, chdir: root) }
-        @cache = PipelineBoard::Cache.new(ttl: settings.fetch(:ttl, 20))
+        @cache = PipelineBoard::Cache.kept(settings, "github_keep_seconds")
         @attempts = PipelineBoard::FlakeMemo.new
         @settled = PipelineBoard::SettledCounts.new(settled_path(settings))
       end

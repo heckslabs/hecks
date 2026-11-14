@@ -5,6 +5,8 @@ require_relative "tile_html"
 require_relative "plan_html"
 require_relative "tiles"
 require_relative "../rules"
+require_relative "../board_restart"
+require_relative "../load_guard"
 require_relative "../pipeline_journal"
 
 module Hecks
@@ -23,8 +25,9 @@ module Hecks
 
         # @param stages [#fill_tile, #train_tile] answers each tile's reading
         # @param settings [Hash] `tiles:` and `hub:` stand in for the real ones, `tap:` is the
-        #   journal's path, `journal:` stands in for the follower's source and `net_seconds:` for
-        #   the `safety_net_seconds` setting
+        #   journal's path, `journal:` stands in for the follower's source, `net_seconds:` for
+        #   the `safety_net_seconds` setting, `gap:` for the rest between drawings, and
+        #   `registry:` is the one whose world sets the loaded period
         def initialize(stages:, settings: {})
           @tiles = settings[:tiles] || tiles_of(stages)
           @hub = settings[:hub] || hub_of(settings)
@@ -52,7 +55,14 @@ module Hecks
         def hub_of(settings)
           net = settings.fetch(:net_seconds) { Rules.setting("safety_net_seconds") }
           watch = Watch.new(path: settings.fetch(:tap, PipelineJournal::TAP_PATH), source: settings[:journal])
-          Hub.new(tiles: @tiles, watch: watch, net_seconds: net)
+          Hub.new(tiles: @tiles, watch: watch, net_seconds: net, gap: settings.fetch(:gap) { gap_of(settings[:registry]) })
+        end
+
+        # The seconds between two drawings of the tiles: the `tile_redraw_seconds` setting, or the
+        # `board_restart` line's `loaded_refresh_seconds` while the machine is loaded.
+        def gap_of(registry)
+          loaded = BoardRestart.limits(registry)[:loaded_refresh_seconds]
+          -> { LoadGuard.loaded? ? loaded : Rules.setting("tile_redraw_seconds") }
         end
       end
     end

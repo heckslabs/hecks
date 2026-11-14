@@ -43,7 +43,7 @@ RSpec.describe Hecks::Adapters::PipelineBoard::BoardRestart do
     world = Struct.new(:rows) { def for_verb(_verb) = rows }.new({ refresh_seconds: 60, rss_mb: 512 })
     registry = Struct.new(:world) { def world(*) = self[:world] }.new(world)
     expect(described_class.limits(registry)).to eq(refresh_seconds: 60.0, rss_mb: 512.0, age_hours: 24.0,
-                                                   min_uptime_seconds: 600.0)
+                                                   min_uptime_seconds: 600.0, loaded_refresh_seconds: 60.0)
   end
 
   def large_board
