@@ -15,12 +15,17 @@ module Hecks
           # line is done. The monitor ends this when the child has gone.
           def stop_when_gone(client, pid)
             client.read(1)
+            escalate(pid)
+          rescue SystemCallError, IOError
+            nil
+          end
+
+          # Signals the child's group with each signal of the escalation in turn, after its wait.
+          def escalate(pid)
             ESCALATION.each do |wait, signal|
               sleep(wait)
               signal_group(signal, pid)
             end
-          rescue SystemCallError, IOError
-            nil
           end
 
           # Signals the group the child leads, else the child alone when the group is not yet made.

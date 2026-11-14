@@ -15,8 +15,9 @@ module Hecks
             writer.sync = true
             pid = @fork_lock.synchronize { fork_child(client, request, streams, [reader, writer]) }
             writer.close
-            close_streams(streams)
-            watch = Thread.new { monitor(pid, client, reader) }
+            said = keep_for_limit(streams)
+            watch = Thread.new { monitor(pid, client, reader, said) }
+            label(watch, pid, request[:argv])
             @guard.synchronize { @monitors << watch }
           end
 
@@ -48,18 +49,25 @@ module Hecks
           end
 
           # Waits for the child, ends the caller's wait with its status, and stops the child if the
-          # caller goes.
-          def monitor(pid, client, reader)
-            watcher = Thread.new { stop_when_gone(client, pid) }
+          # caller goes or the line's time limit passes ({LineLimit}).
+          def monitor(pid, client, reader, said = nil)
+            watchers = [Thread.new { stop_when_gone(client, pid) }, Thread.new { end_when_overdue(pid, said) }]
             _, status = Process.wait2(pid)
-            watcher.kill
+            watchers.each(&:kill)
             finish_line(client, status)
             remember(reader)
           rescue SystemCallError, IOError
             nil
           ensure
-            release(client)
-            client.close unless client.closed?
+            let_go(client, said)
+          end
+
+          # Closes what the resident still held of a line that has ended.
+          def let_go(*ios)
+            ios.compact.each do |io|
+              release(io)
+              io.close unless io.closed?
+            end
           end
 
           # Marks the end of a line as use, so the resident is not idle the moment a long line ends,

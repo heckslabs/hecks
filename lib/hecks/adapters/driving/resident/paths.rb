@@ -68,6 +68,10 @@ module Hecks
           #   time, the error and where it was raised
           def upkeep_died(root) = "#{stem(root)}.upkeep-died"
 
+          # @return [String] the note a resident keeps while a line it forked has run longer than
+          #   its idle time: the resident, and each such line's process id, start and first words
+          def overdue(root) = "#{stem(root)}.overdue"
+
           # @return [Boolean] whether a resident of another protocol stands for the checkout: one
           #   that holds a lock of the checkout's, not this protocol's
           def other_protocol?(root)
@@ -123,10 +127,14 @@ module Hecks
           # written through a temp file and renamed, so a launcher never reads half a number.
           #
           # @return [void]
-          def remember(name, value)
-            file = File.join(directory, name)
+          def remember(name, value) = put(File.join(directory, name), value.to_s)
+
+          # Writes a file through a temp file and a rename, so a reader never sees half of it.
+          #
+          # @return [void]
+          def put(file, text)
             temp = "#{file}.#{Process.pid}.tmp"
-            File.write(temp, value.to_s)
+            File.write(temp, text)
             File.rename(temp, file)
           rescue SystemCallError
             nil

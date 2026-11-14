@@ -1,6 +1,7 @@
 require "English"
 require "tempfile"
 require "hecks/adapters/driving/resident/outcome"
+require "hecks/adapters/driving/resident/stores"
 require "hecks/adapters/driving/resident/trace"
 
 module Hecks
@@ -70,10 +71,11 @@ module Hecks
           # shares with the resident, which costs more than the line did; the operating system
           # does it for nothing. What that teardown would have done that matters is done here:
           # output flushed, an uncaught error reported, and the temporary files this line made
-          # removed.
+          # removed. A store an exit handler opened is closed with the rest ({Stores}).
           def self.leave
             error = $ERROR_INFO
             warn(error.full_message) if error && !error.is_a?(SystemExit)
+            Stores.close
             tempfiles.each { |file| close_quietly(file) }
             $stdout.flush
             $stderr.flush
@@ -107,16 +109,26 @@ module Hecks
             Trace.mark("child_took_over")
             install
             report_loads
-            load @request[:script]
+            run_line
             exit(0)
           end
 
           private
 
-          # Puts in place what a line run in a child needs: the cached domains, the temp-file
-          # record, and the phase marks when asked for.
+          # Runs the launcher, and closes the stores the line opened the moment its command ends,
+          # however it ends and before any exit handler runs: a child that then takes long to
+          # leave holds no store while it does.
+          def run_line
+            load @request[:script]
+          ensure
+            Stores.close
+          end
+
+          # Puts in place what a line run in a child needs: the cached domains, the temp-file and
+          # store records, and the phase marks when asked for.
           def install
             Trace.install
+            Stores.record
             Tempfile.singleton_class.prepend(Tempfiles)
             Describing.cache = @cache
             Describing.notes = @notes
