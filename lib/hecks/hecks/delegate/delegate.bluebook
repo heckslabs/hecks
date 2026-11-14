@@ -1943,6 +1943,19 @@ Hecks.bluebook "Hecks" do
       trigger AgentRun::Finish, with: { condition: "done", detail: :report, checkout: :checkout }
     end
 
+    # Listed `stopped` (`live`) while the job reads `working`, with nothing to lose (`dirty`, `unmerged`
+    # read true for an unreadable tree): the coder has ended, as `RecordTheEndedSession` ends one the
+    # job reads stopped. Unsaved work matches nothing, so `stopped_session_after` and the stall report keep it.
+    policy "RecordTheStoppedListedSession" do
+      on      "AgentRun.JobRead"
+      root
+      where   do
+        state == "working" && live == "stopped" && agent == "coder" && dirty == false && unmerged == false &&
+          resuming != true && reviewing != true && previous != "stopped"
+      end
+      trigger AgentRun::Finish, with: { condition: "stopped", detail: :report, checkout: :checkout }
+    end
+
     policy "RecordTheFailedSession" do
       on      "AgentRun.JobRead"
       root

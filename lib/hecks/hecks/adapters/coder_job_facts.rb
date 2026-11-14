@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "git"
+require_relative "claude_cleaning/worktree_check"
 
 module Hecks
   module Adapters
@@ -10,29 +11,40 @@ module Hecks
     #
     # It reads and judges nothing: whether the report hands the branch in, and whether the branch
     # and tree may be submitted, are the Coder bluebook's and the Hecks hecksagon's. Git is read
-    # only for a coder's finished job, so polling a working session costs no git call. A checkout
+    # only for a coder's finished job, or one the listing shows `stopped`, so polling a working
+    # session costs no git call. A checkout
     # git cannot read answers empty facts, which `Submission.Submit` refuses by name, so the job
     # read itself is never refused for it.
     class CoderJobFacts
       # @param git [Git] the adapter that runs `git`
-      def initialize(git: Git.new)
+      # @param check [ClaudeCleaning::WorktreeCheck] counts a worktree's unsaved files and commits
+      def initialize(git: Git.new, check: ClaudeCleaning::WorktreeCheck.new)
         @git = git
+        @check = check
       end
 
       # @param agent [String] the agent the run named, empty for the default
       # @param state [String] the state the job is in
       # @param report [String] the session's last words
       # @param checkout [String] the run's directory
-      # @return [Hash{Symbol => Object}] `agent:` and `report:`, and for a done coder job
-      #   `branch:`, `sha:` and `clean:`
-      def call(agent:, state:, report:, checkout:)
+      # @param live [String] the state `claude agents` lists the session with, empty when unknown
+      # @return [Hash{Symbol => Object}] `agent:` and `report:`; for a done coder job `branch:`,
+      #   `sha:` and `clean:`; for a coder listed `stopped` whose job reads otherwise `dirty:` and
+      #   `unmerged:`, true when the tree holds unsaved files or commits no branch on origin holds
+      #   (true as well when the tree cannot be read, so unknown never reads as nothing to lose)
+      def call(agent:, state:, report:, checkout:, live: "")
         facts = { agent: agent.to_s, report: report.to_s }
-        return facts unless agent.to_s == "coder" && state.to_s == "done"
+        return facts unless agent.to_s == "coder"
+        return facts.merge(checkout_facts(checkout)) if state.to_s == "done"
 
-        facts.merge(checkout_facts(checkout))
+        live.to_s == "stopped" ? facts.merge(loss_facts(checkout)) : facts
       end
 
       private
+
+      def loss_facts(checkout)
+        { dirty: @check.uncommitted(checkout.to_s).positive?, unmerged: @check.ahead(checkout.to_s).positive? }
+      end
 
       def checkout_facts(checkout)
         return { branch: "", sha: "", clean: false } unless File.directory?(checkout.to_s)
