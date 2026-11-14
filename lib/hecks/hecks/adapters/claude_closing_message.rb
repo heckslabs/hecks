@@ -41,6 +41,10 @@ module Hecks
       # project folder, and a board asks for each of many runs on every read.
       MISS_SECONDS = 60
 
+      # The most paths and texts the shared memory holds; past it the oldest are forgotten and read
+      # again when asked, so a board that runs for days holds a bounded number of sessions.
+      KEPT = 500
+
       private
 
       # A transcript's closing text, read again only when the file's size or time has moved, so a
@@ -51,7 +55,7 @@ module Hecks
         held = MEMORY[:lock].synchronize { MEMORY[:texts][path] }
         return held.last if held && held.first == stamp
 
-        last_text(path).tap { |text| MEMORY[:lock].synchronize { MEMORY[:texts][path] = [stamp, text] } }
+        last_text(path).tap { |text| remember(:texts, path, [stamp, text]) }
       end
 
       # The one transcript whose name begins with the id; none when the id is empty or matches
@@ -69,10 +73,25 @@ module Hecks
 
       def searched(key, session)
         found = glob(session)
-        MEMORY[:lock].synchronize do
-          found ? MEMORY[:paths][key] = found : MEMORY[:misses][key] = monotonic
-        end
+        found ? remember(:paths, key, found) : forget_expired_then { MEMORY[:misses][key] = monotonic }
         found
+      end
+
+      # Holds one entry, the oldest of the table going when it is past {KEPT}.
+      def remember(table, key, value)
+        MEMORY[:lock].synchronize do
+          MEMORY[table].delete(key)
+          MEMORY[table][key] = value
+          MEMORY[table].shift while MEMORY[table].size > KEPT
+        end
+      end
+
+      # Records a miss after dropping the misses that are old enough to be searched for again.
+      def forget_expired_then
+        MEMORY[:lock].synchronize do
+          MEMORY[:misses].delete_if { |_, at| monotonic - at >= MISS_SECONDS }
+          yield
+        end
       end
 
       def missed?(key)
