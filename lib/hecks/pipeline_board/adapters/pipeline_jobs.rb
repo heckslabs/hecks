@@ -62,7 +62,7 @@ module Hecks
       def build(id, state, agent, age, timeline)
         edges = edges_of(timeline)
         status = status_of(state, agent, age)
-        { id: id, name: name_of(id, agent), status: status, state: live_state(state, agent),
+        { id: id, name: name_of(id, agent, state), status: status, state: live_state(state, agent),
           detail: state["detail"].to_s.slice(0, 140), started: stamp(agent, edges),
           ended: ended_of(status, edges) }.merge(ran_of(id)).merge(context_of(status, state))
       end
@@ -107,7 +107,11 @@ module Hecks
           works_as: ran[:works_as].to_s }
       end
 
-      def name_of(id, agent) = (agent && agent["name"]) || id
+      # The name `claude agents` lists, else the one the job recorded before cleanup removed the
+      # session from that list, else the id.
+      def name_of(id, agent, state)
+        [agent && agent["name"], state["name"]].map(&:to_s).find { |name| !name.empty? } || id
+      end
 
       # A session is `blocked` when its job says so and it is still alive: it waits on a person.
       # A session that claude agents lists reports its own live state, which is current even while
