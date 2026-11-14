@@ -377,6 +377,8 @@ Hecks.bluebook "Tickets" do
     attribute :title,   EpicTitle
     attribute :outcome, EpicOutcome
     attribute :tier,    EpicTier, optional: true
+    attribute :measure,  MeasureName, optional: true
+    attribute :evidence, Evidence, optional: true
     reference_to Adr, as: :decision, optional: true
     identified_by :epic
 
@@ -411,6 +413,66 @@ Hecks.bluebook "Tickets" do
       invariant("a member count is not negative") { !value.negative? }
     end
 
+    # The `OutcomeMeasure` row an epic's outcome is measured by. An epic that names none never completes.
+    value_object "MeasureName" do
+      attribute :value, String
+    end
+
+    # What the last measurement read, in words: the number, the events counted and the bounds; or why
+    # nothing could be read.
+    value_object "Evidence" do
+      attribute :value, String
+    end
+
+    # A number read from the event tap, or a bound on one.
+    value_object "Reading" do
+      attribute :value, Integer
+
+      invariant("a reading is not negative") { !value.negative? }
+    end
+
+    # The work item a missed outcome is planned as: `<epic>-outcome-<n>`.
+    value_object "EvidenceKey" do
+      attribute :value, String, matches: :present
+    end
+
+    # One way to measure an outcome, one row each: a number read from the event tap and the bounds it
+    # must lie within. `events` (comma separated) of `aggregate` are counted over the last `minutes`.
+    # `per: "id"` reads the most lines one aggregate id records inside any `span` minutes, in place of
+    # the count of all. `at_least` is 0 and `at_most` unbounded when the row leaves them out. The
+    # OutcomeReadings port reads the number; `Epic.Complete` and `Epic.Miss` compare it with the
+    # bounds. A row with only `at_most: 0` is met by an hour in which nothing ran: pair an epic with
+    # the row that counts what its outcome produces when one exists.
+    value_object "OutcomeMeasure" do
+      attribute :measure,   String
+      attribute :aggregate, String
+      attribute :events,    String
+      attribute :minutes,   Integer
+      attribute :per,       String
+      attribute :span,      Integer
+      attribute :at_least,  Integer
+      attribute :at_most,   Integer
+
+      # The machine's load never crossed its mark in the hour, whatever number of coders ran.
+      member measure: "load-stays-under-its-mark", aggregate: "Hecks::Machine", events: "LoadRoseAbove",
+             minutes: 60, at_most: 0
+      # No work item was started twice within one minute: the fill did not start what it had started.
+      member measure: "no-item-started-twice-a-minute", aggregate: "Tickets::Work", events: "WorkStarted",
+             minutes: 60, per: "id", span: 1, at_most: 1
+      # Three boarded batches of main were verified in the hour.
+      member measure: "main-is-verified-three-times", aggregate: "Hecks::Integration", events: "MainVerified",
+             minutes: 60, at_least: 3
+      # No train pull request ran out of reruns and was left for a hand.
+      member measure: "no-train-pr-is-left-for-a-hand", aggregate: "Hecks::TrainPr", events: "TrainPrExhausted",
+             minutes: 60, at_most: 0
+      # Two branches landed in the hour.
+      member measure: "two-branches-land", aggregate: "Delivery::Landing", events: "BranchLanded",
+             minutes: 60, at_least: 2
+      # The stall watch filed nothing in the hour: no run sat past its time limit.
+      member measure: "no-stall-is-filed", aggregate: "Hecks::Stall", events: "StallFiled",
+             minutes: 60, at_most: 0
+    end
+
     lifecycle :status, default: "open" do
       transition "Complete" => "complete", from: "open"
       transition "Reopen"   => "open",     from: "complete"
@@ -430,19 +492,70 @@ Hecks.bluebook "Tickets" do
       emits "EpicOpened"
     end
 
-    # Sent by the CompleteEpicWhenMembersCleared policy with the counts the EpicMembers port read: a
-    # `given` sees its own arguments, not the Work items, so the counts carry the rule.
+    # Sent by the CompleteEpicWhenOutcomeRead policy with the counts the EpicMembers port read and the
+    # number the OutcomeReadings port read beside its measure's bounds: a `given` sees its own
+    # arguments, not the Work items or the tap, so the arguments carry the rules. The rules judge the
+    # numbers they are handed; a caller who dispatches it by hand vouches for them.
     command "Complete" do
-      goal "Record that every member of the epic is done or dropped"
+      goal "Record that every member of the epic is done or dropped and its outcome was measured as met"
 
       reference_to Epic
       attribute :members,      MemberCount
       attribute :open_members, MemberCount
+      attribute :reading,      Reading
+      attribute :at_least,     Reading
+      attribute :at_most,      Reading
+      attribute :evidence,     Evidence, sets: true
 
       given("an epic with no member does not complete") { members.value.positive? }
       given("an epic with a planned or started member does not complete") { open_members.value.zero? }
+      given("an outcome read under its least does not complete") { reading.value >= at_least.value }
+      given("an outcome read over its most does not complete") { reading.value <= at_most.value }
 
       emits "EpicCompleted"
+    end
+
+    # The twin of Complete for the same reading: sent by MissEpicWhenOutcomeRead, it passes only a
+    # reading outside its bounds. It records the evidence and changes no status; the policies on its
+    # event plan the evidence as a member and return a complete epic to open.
+    command "Miss" do
+      goal "Record that the epic's outcome was measured and not met"
+
+      reference_to Epic
+      attribute :reading,  Reading
+      attribute :at_least, Reading
+      attribute :at_most,  Reading
+      attribute :evidence, Evidence, sets: true
+      attribute :finding,  EvidenceKey
+
+      given("an outcome read within its bounds is not missed") { reading.value < at_least.value || reading.value > at_most.value }
+
+      emits "EpicOutcomeMissed"
+    end
+
+    # Names the row the epic's outcome is measured by. Epics are data, so this is a command and no
+    # bluebook edit; a name no row carries is refused when the outcome is read.
+    command "MeasureBy" do
+      role "Maintainer"
+      goal "Say which OutcomeMeasure row measures an epic's outcome"
+
+      reference_to Epic
+      attribute :measure, MeasureName, sets: true
+
+      given("an epic names its measure") { !measure.value.to_s.strip.empty? }
+
+      emits "EpicMeasureStated"
+    end
+
+    # Nothing could be read (no measure named, a name no row carries, no event tap): the epic stays
+    # as it is and keeps the reason. It plans no work, since no work item changes what was unread.
+    command "LeaveUnmeasured" do
+      goal "Record why the epic's outcome could not be measured"
+
+      reference_to Epic
+      attribute :evidence, Evidence, sets: true
+
+      emits "EpicLeftUnmeasured"
     end
 
     # A member closed: the epic is read again. It changes nothing itself; the EpicMembers port's
@@ -631,8 +744,11 @@ Hecks.bluebook "Tickets" do
       attribute :step,   Step, optional: true, sets: true
       attribute :area,   list_of(Word), optional: true, sets: true, default: []
       reference_to Adr, as: :decision, optional: true
+      # A work item may be born a member of an epic, as the evidence of a missed outcome is.
+      reference_to Epic, as: :epic, optional: true
 
       sets :decision
+      sets :epic
 
       emits "WorkPlanned"
     end
@@ -940,9 +1056,42 @@ Hecks.bluebook "Tickets" do
     ask :check_members, with: { epic: :epic }
   end
 
-  policy "CompleteEpicWhenMembersCleared" do
-    on      "Epic.MembersCleared"
-    trigger Epic::Complete, with: { epic: :epic, members: :members, open_members: :open_members }
+  # Cleared members do not complete the epic: its outcome is read first. The OutcomeReadings port
+  # answers a number and the bounds of the epic's measure, and both commands below are handed them:
+  # their rules pass exactly one, so the epic completes or records a miss.
+  policy "ReadOutcomeWhenMembersCleared" do
+    on  "Epic.MembersCleared"
+    ask :read_outcome, with: { epic: :epic, members: :members, open_members: :open_members }
+  end
+
+  policy "CompleteEpicWhenOutcomeRead" do
+    on      "Epic.OutcomeRead"
+    trigger Epic::Complete, with: { epic: :epic, members: :members, open_members: :open_members, reading: :reading,
+                                    at_least: :at_least, at_most: :at_most, evidence: :evidence }
+  end
+
+  policy "MissEpicWhenOutcomeRead" do
+    on      "Epic.OutcomeRead"
+    trigger Epic::Miss, with: { epic: :epic, reading: :reading, at_least: :at_least, at_most: :at_most,
+                                evidence: :evidence, finding: :finding }
+  end
+
+  # A missed outcome is one new member carrying the evidence, so the epic has open work again; an
+  # epic that was complete returns to open (an open one refuses the reopen and stays open).
+  policy "PlanEvidenceWhenOutcomeMissed" do
+    on      "Epic.EpicOutcomeMissed"
+    trigger Work::Plan, with: { work: :finding, title: "An epic's outcome was measured and not met",
+                                detail: :evidence, epic: :epic }
+  end
+
+  policy "ReopenEpicWhenOutcomeMissed" do
+    on      "Epic.EpicOutcomeMissed"
+    trigger Epic::Reopen, with: { epic: :epic }
+  end
+
+  policy "NoteWhenOutcomeUnread" do
+    on      "Epic.OutcomeUnread"
+    trigger Epic::LeaveUnmeasured, with: { epic: :epic, evidence: :refusal }
   end
 
   # A member that returns, or a new open member, reopens a complete epic.

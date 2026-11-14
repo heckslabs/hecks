@@ -1,18 +1,16 @@
 require "spec_helper"
+require_relative "support/epic_outcome_looks"
 
 # ADR 0204: an epic's status comes from its members. The last open member closing completes it, a
 # member returning reopens it, an epic with no members cannot complete, and only an open work item
 # joins an epic.
 RSpec.describe "the Tickets Epic" do
-  let(:hecks) { boot_hecks_in_memory }
-
-  def cli(*argv)
-    out, = Hecks::Adapters::Driving::CliRunner.call(runtime: hecks, program: "hecks", argv: ["tickets", *argv])
-    out
-  end
+  # The outcome is read from an empty tap, which the measure named below is met by (ADR 0206).
+  include_context "with an epic outcome tap"
 
   def epic(key = "e1")
     cli("epic.open!", "epic.value=#{key}", "title.value=Epic #{key}", "outcome.value=It is carried out")
+    cli("epic.measure_by!", "to=#{key}", "measure.value=load-stays-under-its-mark")
   end
 
   def member(key, epic: "e1")
@@ -34,7 +32,8 @@ RSpec.describe "the Tickets Epic" do
   def work_row(key) = stored("Work").find { |row| plain(row.work) == key }
 
   def complete(members, open_members)
-    cli("epic.complete!", "to=e1", "members.value=#{members}", "open_members.value=#{open_members}")
+    cli("epic.complete!", "to=e1", "members.value=#{members}", "open_members.value=#{open_members}",
+        "reading.value=0", "at_least.value=0", "at_most.value=0", "evidence.value=by hand")
   end
 
   it "opens an epic with its outcome" do

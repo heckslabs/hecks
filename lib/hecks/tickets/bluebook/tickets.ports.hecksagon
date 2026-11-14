@@ -51,6 +51,20 @@ Hecks.hecksagon "Tickets" do
     end
   end
 
+  # The number an epic's measure reads from the event tap, with the measure's bounds beside it. The
+  # port reads and compares nothing: `Epic.Complete` and `Epic.Miss` judge the answer. It refuses when
+  # nothing can be read (no measure named, a name no row carries, no tap), which plans no work. It is
+  # a port of its own, beside EpicMembers, because that port reads the Work items and this the tap.
+  Tickets::Epic.port "OutcomeReadings" do
+    asks "ReadOutcome", to: Epic do
+      attribute :epic, EpicKey
+      attribute :members, MemberCount
+      attribute :open_members, MemberCount
+      answers "OutcomeRead"
+      refuses "OutcomeUnread"
+    end
+  end
+
   # One epic's members counted, read and never written.
   Tickets::Work.port "EpicProgress" do
     answers_query "EpicProgress"
