@@ -11,8 +11,17 @@ module Hecks
       # Runs CI's failing checks in a fresh `--depth 1` clone of a branch tip, the way CI sees it:
       # no history, no git identity, `CI` set.
       #
-      # It names the spec and the first failure line of the first red, and removes the clone.
+      # It names the specs that failed and the first failure's message, and removes the clone.
       class CloneRun
+        # A red run: the spec files that failed (none for a clone or a fuzz that failed) and what
+        # to say about it.
+        #
+        # @!attribute [r] specs
+        #   @return [Array<String>] the failed spec files, relative to the clone
+        # @!attribute [r] text
+        #   @return [String] the specs and the first failure's message
+        Red = Struct.new(:specs, :text)
+
         # The specs that went red in CI on a checkout that was green: shallow history, load
         # hygiene, shard order, git identity.
         SPECS = %w[
@@ -42,11 +51,11 @@ module Hecks
         end
 
         # @param fuzz [Proc, nil] given the clone's path, answers the domains to fuzz there
-        # @return [String, nil] the refusal naming the spec and first failure line; nil when green
+        # @return [Red, nil] the failed specs and the first failure's message; nil when green
         def call(fuzz: nil)
           Dir.mktmpdir("hecks-shallow") do |dir|
             clone = File.join(dir, "clone")
-            return "clone failed: #{@branch} could not be cloned at depth 1" unless cloned?(clone)
+            return Red.new([], "clone failed: #{@branch} could not be cloned at depth 1") unless cloned?(clone)
 
             specs(clone) || fuzzing(clone, fuzz&.call(clone) || [])
           end
@@ -61,15 +70,22 @@ module Hecks
 
         def specs(clone)
           done = run(clone, *@command, *@specs)
-          done.ok? ? nil : "#{Culprit.new(said(done))} failed in a depth-1 clone of #{@branch}"
+          return if done.ok?
+
+          culprit = Culprit.new(said(done))
+          Red.new(culprit.specs, "#{culprit} failed in a depth-1 clone of #{@branch}")
         end
 
         def fuzzing(clone, domains)
           domains.each do |domain|
             done = run(clone, "bundle", "exec", "exe/hecks", "fuzz_run.fuzz!", "domain.value=#{domain}", "--wait")
-            return "fuzz of #{File.basename(domain)} failed in a depth-1 clone: #{Culprit.new(said(done)).reason}" unless done.ok?
+            return fuzz_red(domain, done) unless done.ok?
           end
           nil
+        end
+
+        def fuzz_red(domain, done)
+          Red.new([], "fuzz of #{File.basename(domain)} failed in a depth-1 clone: #{Culprit.new(said(done)).reason}")
         end
 
         def run(clone, *command)

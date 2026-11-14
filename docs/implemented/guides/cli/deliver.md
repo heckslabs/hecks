@@ -26,9 +26,10 @@ Fast-forwards main when it can, and makes a merge commit when main has moved.
 **Example: run the gate, land and send finished work**
 
 ```sh
-hecks Shipment.ship! branch.value=my-branch
+hecks Shipment.ship! --confirm branch.value=my-branch checkout.value=/path/to/worktree
 ```
 
-Starts the gate-and-board saga for the branch.
+Starts the gate-and-board saga for the branch: the checkout's own gate judges it, and a green
+answer leaves it ready to land. `hecks Shipment.rejudge!` asks the gate again after a refusal.
 
 Run `hecks deliver` for every command in this module, grouped by aggregate.

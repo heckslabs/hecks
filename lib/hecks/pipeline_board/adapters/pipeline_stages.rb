@@ -15,6 +15,7 @@ require_relative "pipeline_boots"
 require_relative "pipeline_stages/disk_tiles"
 require_relative "../../hecks/adapters/push_size"
 require_relative "pipeline_stages/agent_roles"
+require_relative "pipeline_stages/pruning_standing"
 require_relative "pipeline_fill"
 require_relative "pipeline_stages/gather"
 require_relative "pipeline_stages/strip"
@@ -162,8 +163,8 @@ module Hecks
         @github = readers.fetch(:github) { PipelineGitHub.new(root: @root) }
         @git = readers.fetch(:git) { PipelineGit.new(root: @root) }
         @journal = readers.fetch(:journal) { PipelineJournal.new(root: @root) }
-        @fill = readers.fetch(:fill) { PipelineFill.new(root: @root, registry: registry) }
         wire_work(readers, registry)
+        @fill = readers.fetch(:fill) { PipelineFill.new(root: @root, registry: registry, store: @live) }
       end
 
       # The readers of the machine itself: the room on its disk and what its launcher boots cost.
@@ -175,10 +176,10 @@ module Hecks
       def wire_work(readers, registry)
         live = @live = live_store_named
         @tickets = readers.fetch(:tickets) { PipelineTickets.new(registry: registry, settings: { live_store: live }) }
+        @seats = readers.fetch(:seats) { live || PipelineBoard::RegistryStore.new(registry: registry) }
         @jobs = readers.fetch(:jobs) { PipelineJobs.new(settings: { runs: -> { guard { @tickets.runs } } }) }
         @trains = readers.fetch(:trains) do
-          PipelineBoard::TrainDetail.new(root:       ENV.fetch("PIPELINE_BOARD_LAUNCHER_ROOT", @root),
-                                         live_store: live || PipelineBoard::RegistryStore.new(registry: registry))
+          PipelineBoard::TrainDetail.new(root: ENV.fetch("PIPELINE_BOARD_LAUNCHER_ROOT", @root), live_store: @seats)
         end
       end
 
@@ -190,10 +191,10 @@ module Hecks
         PipelineBoard::LiveStore.new(root: root).warm unless root.empty?
       end
 
-      # The pinned agents panel: each role with its live sessions and last event, and the open
-      # plan reviews and promotion recommendations.
+      # The pinned agents panel: each role with its live sessions and last event, whether pruning
+      # is paused, and the open plan reviews and promotion recommendations.
       def agents(data)
-        { roles: PipelineBoard::AgentRoles.of(data[:sessions], @roles, data[:events]),
+        { roles: PipelineBoard::AgentRoles.of(data[:sessions], @roles, data[:events]), pruning: PipelineBoard::PruningStanding.of(@seats),
           reviews: PipelineBoard::AgentRoles.reviews(guard { @tickets.runs }), recommendations: PipelineBoard::AgentRoles.recommendations(data[:promotions]) }
       end
 

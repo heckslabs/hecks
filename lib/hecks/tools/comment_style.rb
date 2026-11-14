@@ -27,6 +27,16 @@ module Hecks
       # ADR 0075 ticket 01 sets this value, amending ADR 0069's provisional 50.
       MAX_BLOCK = 12
 
+      # The same in a declaration file, where a long comment stands in for an unclear declaration:
+      # most blocks there are two lines, and nine in ten are three or fewer.
+      MAX_DECLARATION_BLOCK = 3
+
+      # The files that declare, by name.
+      DECLARATION_FILES = "*.{bluebook,hecksagon,world,adapter,behaviors}"
+
+      # A path segment that marks another project's vendored files.
+      VENDORED = "/vendor/"
+
       # Longest anchor kept in a block's baseline key.
       MAX_ANCHOR = 80
 
@@ -44,7 +54,8 @@ module Hecks
         "unknown_capitals"       => "capitalised token is not an English word: backtick it or list it as an acronym",
         "design_history"         => "narrates design history instead of citing an ADR",
         "long_line"              => "comment line exceeds #{MAX_LINE} characters",
-        "long_block"             => "comment block exceeds #{MAX_BLOCK} lines and is new or has grown past its baseline"
+        "long_block"             => "comment block exceeds #{MAX_BLOCK} lines (#{MAX_DECLARATION_BLOCK} in a declaration file) " \
+                                    "and is new or has grown past its baseline"
       }.freeze
 
       FIXABLE = %w[all_caps long_bold long_line].freeze

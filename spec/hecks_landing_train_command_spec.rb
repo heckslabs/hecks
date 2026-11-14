@@ -3,7 +3,7 @@ require "fileutils"
 require "open3"
 require "tmpdir"
 
-# `landing.train!` reaches the adapter through the Hecks bluebook, and records what the train did.
+# `landing.train!` reaches the adapter through the delivery package, and records what the train did.
 RSpec.describe "the landing.train! command" do
   let(:dir) { File.realpath(Dir.mktmpdir("hecks-landing-train-command")) }
   let(:repo) { File.join(dir, "main") }
@@ -36,7 +36,7 @@ RSpec.describe "the landing.train! command" do
   end
 
   def landings
-    @hecks.registry.repository("Hecks", @hecks.registry.bluebook("Hecks").aggregate("Landing"))
+    @hecks.registry.repository("Delivery", @hecks.registry.bluebook("Delivery").aggregate("Landing"))
   end
 
   it "records that no branch was waiting when the line is empty", :aggregate_failures do

@@ -420,12 +420,14 @@ $("resolve-copy").addEventListener("click", async () => {
 // The agent roles, pinned at the top: one chip per role with how many of its sessions are live.
 // The whole picture (who hands work to whom, reviews, the ask forms) is on the Agents page.
 const ROLE_CODES = { planner: "PL", orchestrator: "OR", architect: "AR", coder: "CO", reviewer: "RV", release_manager: "RM" };
-function renderRoles(roles) {
+// The pruner's chip also says when the owner has paused pruning; the switch is on the Agents page.
+function renderRoles(roles, pruning) {
   if (isUnknown(roles)) return put("roles", unknown(roles));
   put("roles", roles.map((r) => {
     const blocked = (r.working || []).filter(waitingOnYou).length;
     const state = blocked ? " blocked" : r.live > 0 ? " busy" : "";
-    const note = blocked ? blocked + " waiting on you" : r.live > 0 ? r.live + " working" : "idle";
+    const paused = r.name === "pruner" && pruning && pruning.state === "paused";
+    const note = (blocked ? blocked + " waiting on you" : r.live > 0 ? r.live + " working" : "idle") + (paused ? " · paused" : "");
     return h("a", { class: "role" + state, href: "/agents", "data-role": r.name, tip: r.name + ": " + note },
       h("span", { class: "code" }, ROLE_CODES[r.name] || r.name.slice(0, 2).toUpperCase()), h("span", { class: "rname" }, r.name.replace("_", " ")),
       h("span", { class: "rnote" }, note));
@@ -835,7 +837,7 @@ function replyNote(s) {
 function render(s) {
   lastState = s;
   renderTiles(s.metrics); renderAttention(s.metrics, s.stages, s.sessions, s.recommendations); renderStrip(s.stages); renderCi(s.ci_runs, s.slowest_jobs); renderCi(s.train_ci_runs, s.train_slowest_jobs, "train"); renderFlakes(s.train_flakes);
-  renderRoles(s.roles); renderWork(s.open_work); renderSessions(s.sessions); renderFan(s.fanout); renderCycles(s.cycles); renderEvents(s.events);
+  renderRoles(s.roles, s.pruning); renderWork(s.open_work); renderSessions(s.sessions); renderFan(s.fanout); renderCycles(s.cycles); renderEvents(s.events);
   $("updated").textContent = "updated " + clock(s.generated_at);
   renderStale(s);
 }

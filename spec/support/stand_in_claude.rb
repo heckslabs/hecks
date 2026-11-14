@@ -3,6 +3,7 @@
 require "fileutils"
 require "json"
 require "tmpdir"
+require "hecks/hecks/adapters/claude_agents"
 
 # A spec that starts agent runs gets a stand-in `claude` first, so it can never start a real
 # session. The stand-in names the agents the roles use, lists one session, and starts nothing. The

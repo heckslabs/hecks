@@ -39,7 +39,7 @@ module Hecks
           process_manager = @registry.bluebook(home)&.process_managers&.find { |candidate| candidate.name == name } ||
                             raise(WiringError,
                                   "outbox row #{row.delivery_id} names process_manager #{fqn}, which no bluebook declares")
-          @sagas.advance(event, row.domain, only: process_manager)
+          @sagas.advance(event, row.domain, only: process_manager, home: home)
           nil
         end
       end

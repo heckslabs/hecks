@@ -55,11 +55,12 @@ module Hecks
       end
 
       # The line saying the commands for working on hecks itself were left out and how to list
-      # them, or no line when none were.
+      # them, or no line when none were. It says no number: a count would change the help each
+      # time a command is added.
       def maintainer_hint(program, count)
         return [] unless count.positive?
 
-        ["  #{program} --maintainer           also list the #{count} commands and queries for working on hecks itself"]
+        ["  #{program} --maintainer           also list the commands and queries for working on hecks itself"]
       end
     end
   end

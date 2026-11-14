@@ -59,8 +59,8 @@ module Hecks
       # @return [Array(Vendoring::Pin, Array<String>)] what was pinned, and the storage shape staged
       def pin_files(tag, version, previous)
         shape = nil
-        pin = Vendoring.pin(from: @source.path, ref: tag || @ref, subtree: "#{@name}/bluebook",
-                            into: package_dir, glob: Lock::PACKAGE_FILES) do |staged, commit|
+        pin = Vendoring.pin(from: @source.path, ref: tag || @ref, subtree: "#{@name}/bluebook", into: package_dir,
+                            glob: Lock::PACKAGE_FILES, beside: Lock::BESIDE) do |staged, commit|
           shape = Shape.labels(staged)
           next nil unless tag
 

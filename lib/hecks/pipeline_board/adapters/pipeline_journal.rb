@@ -14,8 +14,9 @@ module Hecks
     # The `Journal` port's adapter: answers `Events` with the newest events the tooling recorded
     # and, for each, the policies that reacted, what became of the delivery and the command it
     # reached. The persisted stores are read by `schema_revision.event_trace`, opened
-    # read-only; an opt-in local event log (`events.jsonl`) is tailed for the domains that persist
-    # nothing. The board writes to neither.
+    # read-only; an opt-in local event log (`events.jsonl`) is tailed by byte offset for the
+    # domains that persist nothing, so a read costs what the log gained. The board writes to
+    # neither.
     class PipelineJournal
       include PipelineBoard::Chain
 
@@ -37,7 +38,7 @@ module Hecks
       def initialize(aggregate: nil, settings: {}, root: nil)
         @root = root || Dir.pwd
         @trace = settings[:trace] || method(:trace)
-        @tap = PipelineBoard::Tap.new(settings.fetch(:tap) { TAP_PATH })
+        @tap = PipelineBoard::Tap.new(settings.fetch(:tap) { TAP_PATH }, names: method(:indexed_names))
         @cache = PipelineBoard::Cache.new(ttl: settings.fetch(:ttl, 2))
       end
 
@@ -139,6 +140,13 @@ module Hecks
       end
 
       private
+
+      # Every event name this reader asks the whole log for, so one pass over a rotated file of
+      # the log serves them all.
+      def indexed_names
+        PipelineBoard::Cycles.event_names + PipelineBoard::DailyHealth.event_names +
+          PROMOTION_EVENTS + [STOPPED, PipelineBoard::Turns::EVENT]
+      end
 
       def count_of(limit)
         count = (limit.is_a?(Hash) ? limit[:value] : limit).to_i

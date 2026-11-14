@@ -1,134 +1,537 @@
 {
-  "lib/hecks/adapters/driven/memory.rb": {
-    "The language's own bootstrap saves its self-description quadratically": 68
+  "examples/assurance/bluebook/assurance.bluebook": {
+    "One engine for every kind of claim. Performance and compliance differ only in th": 6,
+    "One row per claim this release depends on. The claim is the row's identity withi": 6
   },
-  "lib/hecks/bluebook/dsl/aggregate_builder.rb": {
-    "Declares a rule this aggregate's own commands must satisfy, or references one a": 62
+  "examples/banking/bluebook/bulk.hecksagon": {
+    "Bulk runs (ADR 0125): one command sent to every row of one query, each row's out": 6
   },
-  "lib/hecks/bluebook/dsl/attribute_collector.rb": {
-    "Declares one field on the owning construct, with its type and, optionally, a def": 64
+  "examples/banking/bluebook/customer_and_compliance_views.bluebook": {
+    "ADR 0078: sum/avg/min/max/percentile are siblings of count/median, same seal, sa": 4
   },
-  "lib/hecks/bluebook/dsl/command_builder.rb": {
-    "Declares a synchronous, atomic delegation of this command's own dispatch to one": 79,
-    "Declares that this command amends a past event, rather than rewriting it.": 53,
-    "`sets` is the word; `then_set` is the spelling every existing": 70
+  "examples/banking/bluebook/deposit_accounts.bluebook": {
+    "One suspension freezes every open account the customer holds.": 8,
+    "Shared by Amend and Reverse, and bare-referenced by SafeDepositBox::Visit as": 4,
+    "Shared by every acting command on Account. `Open` does not reference it: it crea": 4
   },
-  "lib/hecks/bluebook/dsl/entity_builder.rb": {
-    "A precondition shared across this piece's own commands, declared": 68
+  "examples/banking/bluebook/transfers_and_payments.bluebook": {
+    "Debit never declared :destination; the credit leg reads it from the saga's": 6,
+    "Self-triggering on purpose: a re-presentment against an account still short of": 6
   },
-  "lib/hecks/bluebook/dsl/generic_dispatch.rb": {
-    "Item #13's full metaprogrammed dispatch — slices 1-2 of 4, whole-": 118
+  "examples/compliance/bluebook/compliance.bluebook": {
+    "Supports both modes from one source: `attaches \"Compliance\"` merges it in-proces": 12
   },
-  "lib/hecks/bluebook/dsl/read_model_builder.rb": {
-    "`on:` (ADR 0055) — overrides of `QuerySpecification::Common::DSL`'s": 57
+  "examples/compliance/bluebook/compliance.hecksagon": {
+    "Every command here declares `role \"Compliance officer\"` — only real": 5
   },
-  "lib/hecks/bluebook/dsl/word_gate.rb": {
-    "The Ruby-side `word_gate` (`rust/parser/src/parse/mod.rs`'s own,": 87
+  "examples/pizzas/bluebook/pizzas.behaviors": {
+    "`pizzas_behaviors.hecksagon` is a Memory-persisted sibling of": 4
   },
-  "lib/hecks/bluebook/expression/ast_json.rb": {
-    "Walks the real Evaluator/Resolver AST (the same objects a live": 54
+  "lib/hecks/adapters/driven/d1.adapter": {
+    "No \"D1Projection\" declared yet, unlike Sqlite/SqliteProjection —": 5
   },
-  "lib/hecks/bluebook/expression/resolver.rb": {
-    "Found live via the type-directed bounded-exhaustive expression": 52,
-    "Unwraps a single-field value object to its own scalar, so": 58
+  "lib/hecks/adapters/driven/postgres_era.adapter": {
+    "Declares the store a disposable tooling ledger: a shape change needs no era, edg": 4
   },
-  "lib/hecks/bluebook/meta_validator/syntax_boot.rb": {
-    "Cross-process persistence for the same ~1s-per-build work `call`": 52
+  "lib/hecks/agents/agents.bluebook": {
+    "A judge's verdict on its way to the coder waiting on it. The verdict is a comman": 6,
+    "After the pruner removes finished sessions, one sweep clears what they left behi": 6,
+    "An architect run that failed or was retired will never bring a verdict, so its r": 4,
+    "How a role ends a turn. Every role closes with one `TurnFinished` carrying the f": 4,
+    "No verdict came within the review's time limit: the architect's run ended withou": 4,
+    "The `HECKS_SERVER_*` variables that start a role's MCP server restricted to the ": 7,
+    "The architect's review of a plan, asked by event instead of by prose. Each revie": 8,
+    "The exceptions that wake the orchestrator, and the only things that do. Each is ": 5,
+    "The pruner removes finished sessions. The bluebook gives: a pruner is woken only": 12,
+    "What each role's agent file says, one row per role, lifted word for word from `.": 5,
+    "Whether a role may run one Bash command itself. A role with routing rows runs on": 4
   },
-  "lib/hecks/codemod.rb": {
-    "Shared machinery for a codemod that migrates real `.bluebook` source.": 55
+  "lib/hecks/agents/agents.hecksagon": {
+    "The Agents bluebook, bound so it boots standing alone (a behaviors or model_chec": 6
   },
-  "lib/hecks/embryonaut_bluebook.rb": {
-    "A vendored, external bluebook.": 71
+  "lib/hecks/bulk/bluebook/bulk.bluebook": {
+    "The Bulk bluebook: one command sent to every row one query answers, and what eac": 7
   },
-  "lib/hecks/fuzzing/bounded_exhaustive_expressions.rb": {
-    "Phase 7 (equivalence-gap plan) — the one place in this codebase a": 53
+  "lib/hecks/bulk/bluebook/bulk.ports.hecksagon": {
+    "The port Bulk declares, for every hecksagon that attaches the bluebook (`Blueboo": 4
   },
-  "lib/hecks/fuzzing/concurrent_dispatch.rb": {
-    "**A generated sequence, raced for real** — `spec/adapters/driven/": 57
+  "lib/hecks/catcher/catcher.bluebook": {
+    "The Catcher bluebook: the actions a session takes outside any declared command. ": 14,
+    "The DSL block that would bring the pattern under a declared command, aggregate, ": 4
   },
-  "lib/hecks/fuzzing/isolated_boot.rb": {
-    "A fresh, in-process adapter for every ephemeral boot.": 57,
-    "The shared rewrite — factored out of `rebind_to_memory!` when": 53
+  "lib/hecks/catcher/catcher.hecksagon": {
+    "The tally of recurring patterns, asked once per detection run. The answer is the": 5
   },
-  "lib/hecks/fuzzing/persistence_parity.rb": {
-    "## The second differential axis": 60
+  "lib/hecks/ci_pipeline/ci_pipeline.bluebook": {
+    "CI pipeline: the GitHub Actions workflows under .github/workflows are a projecti": 22,
+    "One job as the workflow file declares it: the YAML facts the projector writes, i": 8,
+    "One job's run within one build. Its identity is the job's name, because a policy": 5,
+    "One step of a job, in order. `name` is the step's handle within its job, which a": 5,
+    "One workflow file under .github/workflows. The file name is its identity. `reusa": 5
   },
-  "lib/hecks/fuzzing/properties/dispatch_and_mutations.rb": {
-    "Closes Command#mutations — the last of the five, and the": 83,
-    "`EntityElement#appended_to_element`'s own field-mapping half,": 59,
-    "`EntityElement#apply_to_element`'s own `:set` branch (entity_": 58
+  "lib/hecks/ci_speed/ci_speed.behaviors": {
+    "The experiments below are answered by `spec/fixtures/ci_speed/replayed_runner.ad": 4
   },
-  "lib/hecks/fuzzing/properties/guards.rb": {
-    "Angle-8's own write-side half. `authorize_scopes_or_refuses`": 58
+  "lib/hecks/ci_speed/ci_speed.bluebook": {
+    "CI speed: main CI is measured run by run against a wall-time budget. A change to": 29,
+    "How one family of sharded CI jobs (the rspec shards, the postgres io shards) spl": 14,
+    "One local measurement of a change to the pipeline: the same steps run in a check": 21,
+    "The answer is written as the adapter computed it. `reestimates` restates the lev": 4,
+    "What has been learned about where main CI loses time: the way it showed, what ca": 7
   },
-  "lib/hecks/fuzzing/properties/outbox.rb": {
-    "The transactional outbox's own contract (`Runtime::Outbox`, that": 60
+  "lib/hecks/ci_workflows/ci_workflows.bluebook": {
+    "Hecks's own workflows as rows: the client of the CiPipeline bluebook. Each workf": 15
   },
-  "lib/hecks/fuzzing/self_consistency.rb": {
-    "**A second comparison axis** — every other check this practice runs is": 64,
-    "Check 5 — redelivery idempotency of the checkpoint-then-load path.": 72
+  "lib/hecks/coder/coder.bluebook": {
+    "Coder: the coder side of the QA loop. It works the bugs QualityControl logs, and": 4,
+    "The coder side only submits. `Submit` records that a branch at a commit is ready": 6,
+    "The end of one turn of a run's session, asked by the session's own hook each tim": 10,
+    "The one automatic reaction. A fix retires the workaround standing in for it: the": 4,
+    "The one rule. `role` is the part the run plays, `held` whether its Work item is ": 5
   },
-  "lib/hecks/ports/persistence/plugins/era/era_guard.rb": {
-    "Parses held source into its own IR, in a scratch registry so a past": 60
+  "lib/hecks/coder/coder.ports.hecksagon": {
+    "The port Coder declares, for every hecksagon that attaches the bluebook (`Bluebo": 4
   },
-  "lib/hecks/adapters/driven/postgres_era/lineage.rb": {
-    "The lineage topology inside one Postgres database: one journal": 80
+  "lib/hecks/composer/bluebook/composer.bluebook": {
+    "The Composer bluebook: a bluebook being written in an editor, by hand or by aski": 7
   },
-  "lib/hecks/adapters/driven/postgres_era/lineage/head_compiler.rb": {
-    "Builds one aggregate's head for a minted era: the ancestor matview, its": 51,
-    "Builds the ancestor-tail SQL for era N by applying only the last edge to": 64
+  "lib/hecks/deploy/bluebook/deploy.bluebook": {
+    "\"Postgres\" (plain RDS, the default when `deployed_to` names none) or \"Aurora\"": 5,
+    "\"Rust\" (default) or \"None\": a domain with no `.bluebook` command surface to disp": 4,
+    "The Deploy bluebook: what `deployed_to(...)` may declare, and the commands that ": 8,
+    "`hecks deploy bluebook_diff.run <project> [old=<json> new=<json>] [script=<path>": 6,
+    "`hecks deploy box_roll.run <project> [taskdef=<family[:rev]> | tags=\"name=tag ..": 7,
+    "`hecks deploy companion_roll.run <project> taskdef=<family:rev> [companion=umami": 6,
+    "`hecks deploy data_copy.restore <project> bastion=<i-...> source=<host> source_s": 7,
+    "`hecks deploy data_copy.verify <project> bastion= source= source_secret= target=": 5,
+    "`hecks deploy preview_run.<name|url|list|deploy|destroy|login> <project> [branch": 7,
+    "`hecks deploy service_roll.run <project> service=<name> [existing_tag=<tag>] [lo": 5,
+    "`hecks deploy smoke_run.run <project> [script=<path>] [taskdef=<family[:rev]>] [": 6,
+    "`hecks deploy tenant.provision <directory> slug=s domain= realm= schema= databas": 5
   },
-  "lib/hecks/ports/persistence/state_codec.rb": {
-    "One spelling of an aggregate's state across the store boundary": 52
+  "lib/hecks/deploy/bluebook/deploy.hecksagon": {
+    "Each run below asks the DeployToolchain adapter, which the Hecks domain supplies": 4
   },
-  "lib/hecks/projections/deploy/fargate.rb": {
-    "The AWS Fargate deploy target. An export": 103
+  "lib/hecks/fixer/fixer.bluebook": {
+    "An investigation starts from the real entry point: the command run, what it prin": 4
   },
-  "lib/hecks/projections/deploy/preview.rb": {
-    "Per-branch preview stacks for a `deployed_to(\"AwsFargate\")` domain: one": 67
+  "lib/hecks/framework/bluebook/compliance.bluebook": {
+    "Supports both modes from one source: `attaches \"Compliance\"` merges it in-proces": 12
   },
-  "lib/hecks/projections/deploy/scripts.rb": {
-    "The hosting scripts an AWS Fargate deploy ships beside its template:": 57
+  "lib/hecks/framework/bluebook/console_settings.bluebook": {
+    "Scopes everything presentation.yml carries except a collection's own": 4
   },
-  "lib/hecks/projections/diagrams.rb": {
-    "A domain's own shape, projected as Mermaid diagrams — the same": 76,
-    "Renders one holder's own commands (and what each writes) and queries": 53
+  "lib/hecks/framework/bluebook/governance.bluebook": {
+    "What this bluebook answers for every attaching domain: the role check at dispatc": 4,
+    "Whether role X may act as role Y, which `act_as` needs before a caller dispatche": 4
   },
-  "lib/hecks/projector.rb": {
-    "A named registry of \"canonical IR in, external artifact out\" tools —": 56
+  "lib/hecks/framework/bluebook/privacy.bluebook": {
+    "A key is asked for, then the vault issues it, then its reference is recorded (AD": 5
   },
-  "lib/hecks/projector/target.rb": {
-    "Registering at declaration time means `require`ing a target is": 61
+  "lib/hecks/framework/bluebook/privacy.ports.hecksagon": {
+    "The port Privacy declares, for every hecksagon that attaches the bluebook (`Fram": 4
   },
-  "lib/hecks/query_ir.rb": {
-    "`given` only (not `invariant`/`ensures`) also covers cross-entity": 53
+  "lib/hecks/hecks/agents.world": {
+    "The Agents bluebook's launcher when the Hecks domain attaches it: `hecks agents ": 6
   },
-  "lib/hecks/runtime/command_interpreter.rb": {
-    "Wave 8 (equivalence-gap plan, item 1.6) — not done, and this": 55
+  "lib/hecks/hecks/build/build.bluebook": {
+    "Corpus: what this repository's committed domains are, and what the language's ow": 7
   },
-  "lib/hecks/runtime/command_rules/admissibility.rb": {
-    "`domain:` is only needed to dereference a reference-typed field": 61
+  "lib/hecks/hecks/check/check.bluebook": {
+    "A journaled command whose work happens outside the runtime (ADR 0080, section 11": 11,
+    "Gate: the checks a stage holds a change against before it is let through. The ch": 15
   },
-  "lib/hecks/runtime/command_rules/arithmetic.rb": {
-    "Reads what a mutation's source means: an argument's value for a Symbol, the lite": 54
+  "lib/hecks/hecks/coder.world": {
+    "The Coder bluebook's launcher when the Hecks domain attaches it: `hecks coder <v": 7
   },
-  "lib/hecks/runtime/entity_element.rb": {
-    "Refuses a caller-supplied or composite identity that already names an": 53,
-    "S17, ADR 0026 — `:append`/`:remove`/`:multiply`/`:clamp`, an": 59
+  "lib/hecks/hecks/delegate/delegate.bluebook": {
+    "A finished run whose session was pruned (by the pruner, a plain sweep or `claude": 8,
+    "A finished run's session is removed when it ended `done` or `stopped`; a session": 8,
+    "A job's state becomes an event only when it differs from the state the run last ": 4,
+    "A judge's verdict answers the coder waiting on the Work item, a run keyed by the": 6,
+    "A planning request starts the planner's session as a run keyed by the request, w": 4,
+    "A queued train pull request needs the clock beaten until it merges, and nothing ": 6,
+    "A run that has ended frees its key: a dispatch under it starts a new run, and th": 4,
+    "A run the review keeps is recorded kept with its reason, the time and a wait (`R": 14,
+    "A session can die within seconds of its start (an agent that fails to load). Its": 4,
+    "A session kept for its Work or its worktree that the listing shows `done` (`live": 7,
+    "A session that finished its turn is listed `idle` while its job still reads `wor": 9,
+    "A session's question for the orchestrator: a job read blocked whose question beg": 5,
+    "A sweep does not roll the queue itself. Each check below records the session it ": 9,
+    "A sweep's check that cannot read the job at all (`JobUnreadable`) finds no event": 6,
+    "A verdict judged for a coder run that already finished cannot be delivered (`Ans": 5,
+    "Agents: handing one brief to a background Claude session (ADR 0141). A dispatch ": 9,
+    "Answers a session that has not ended, working or blocked on a person. The sessio": 5,
+    "Clearing away finished sessions in one cleanup. Only the session of a dispatched": 10,
+    "Closes a run still recorded started whose session is gone: `claude agents` no lo": 4,
+    "Ends a kept run's wait, so the next reap reviews it. The landing of the run's br": 4,
+    "How an answer reaches a session is decided here, from what `claude agents` lists": 13,
+    "Planned Work items start by themselves: a reaction to an event that frees capaci": 4,
+    "Resuming an idle session with an answer stops it and wakes it again, and the sto": 4,
+    "The clock's other question. Almost everything that starts a roll is an event, bu": 5,
+    "The fill that follows a reading. It runs after the reading is recorded, so it se": 8,
+    "The machine's load, heard instead of asked. Each beat of the clock takes one rea": 8,
+    "The mechanical cleanup. Every finished run is tidied in its own order (`AgentRun": 5,
+    "The seats of the orchestrator runs that answer questions: at most two at once, s": 5,
+    "Whether a plan review the run asked for is open. A coder that asked for one ende": 8
   },
-  "lib/hecks/runtime/entity_interpreter.rb": {
-    "BUG#30 — the entity-level half of `CommandInterpreter#step_enforce_": 55
+  "lib/hecks/hecks/deliver/deliver.bluebook": {
+    "A coder submits and ends its turn: the landing runs as a job of its own. `Submit": 4,
+    "A coder's submitted branch is landed without the coder: the run is keyed by the ": 6,
+    "A faulted boarding of this shipment records the park as Shipment.Stop, which Tic": 5,
+    "A job's landing that was refused for a cause a coder can fix, a conflict or a qu": 5,
+    "A landed branch finishes the Work item it was cut for. The LandedWork port finds": 4,
+    "A rebase of a worktree's branch onto a base, by the `Rebasing` port. It never re": 4,
+    "A repository that disallows auto-merge has the train wait for the PR's required ": 4,
+    "A train pull request whose CI never started: GitHub lists no check on it and the": 6,
+    "A train pull request whose CI still has not started past the second bound, twent": 7,
+    "A train pull request's verdict frees the line, so the tip held verified behind i": 6,
+    "Agents merge straight to local main and clean up what they merged. A landing mer": 10,
+    "CI starts early: a landed coder branch is pushed as `ci/<branch>` with a draft p": 5,
+    "CI's failing checks, run at landing in a fresh `--depth 1` clone of the branch t": 5,
+    "Each step records itself and waits. The caller dispatches the next command at to": 4,
+    "Lands a branch on main once its checkout's gate passes: the Gate port judges the": 8,
+    "Main is integrated by a process: every landing onto local main starts a run keye": 15,
+    "One failed attempt of a train pull request's CI, recorded once under its key": 6,
+    "One step of integrating main, or one advance of every open run: what was asked, ": 8,
+    "The clock's beat is the timer that notices a train pull request's verdict: each ": 4,
+    "The failure it prevents: a deep rehearsal takes minutes, another session lands o": 11,
+    "The train runs in Memory, in a checkout of its own, so its outcome is recorded w": 4,
+    "The train's pull request merging means origin/main holds the commit: GitHub merg": 10,
+    "What a read of an open train pull request reports about its CI having started: h": 4
   },
-  "lib/hecks/runtime/outbox.rb": {
-    "**The transactional outbox** — the durable hand-off between \"a command": 68
+  "lib/hecks/hecks/deploy.world": {
+    "The Deploy bluebook's launcher when the Hecks domain attaches it: `hecks deploy ": 6
   },
-  "lib/hecks/runtime/value/coercion.rb": {
-    "A reference is an ID, so anything else is not one.": 59,
-    "The four `SHAPES` above, in the order this method actually checks": 54,
-    "`build`'s own recursive twin of `for_attribute`'s single-level": 53
+  "lib/hecks/hecks/disk_space/disk_space.bluebook": {
+    "A volume while it stands at high: the subject the StallWatch `disk` row opens an": 4,
+    "One condition of a rule that names a level. The rules are tried in `position` or": 4,
+    "The domain names no disk, clock, path or shell. A reading is something an adapte": 8
   },
-  "lib/hecks/storehouse.rb": {
-    "**The bus, not a door** — `docs/archive/hecks-survey-what-we-wish-we-had.md` and": 79
+  "lib/hecks/hecks/environments/memory.world": {
+    "The Memory selection for the Hecks domain: nothing is written to a database. Spe": 7
+  },
+  "lib/hecks/hecks/evolve/evolve.bluebook": {
+    "Codebase: working on this repository. Each aggregate here is a concern only a ma": 9,
+    "The language: the tables the Bluebook bluebook declares and everything projected": 4
+  },
+  "lib/hecks/hecks/hecks.bluebook": {
+    "The aggregates the pipeline keeps across processes, declared once: the train's o": 9
+  },
+  "lib/hecks/hecks/hecks.hecksagon": {
+    "A coder's session closes with its report, and the adapter reads the branch, comm": 6,
+    "A rehearsal that would mint is the record a mint reads: QualityControl's Mainten": 5,
+    "Queries answered from outside the domain. The bluebook declares the question and": 4,
+    "Rehearsal: what a client's domain does against a copy of its data. A rehearsal k": 5,
+    "The architect's session closes with its verdict, or says it and goes idle; the r": 4,
+    "The outside a queued train pull request reaches to have the clock beaten for it:": 4,
+    "The outside a reading of the machine reaches: the CPU idle percentage, swap used": 4
+  },
+  "lib/hecks/hecks/hecks.world": {
+    "How long a checkout's resident (ADR 0201) waits with nothing to run before it ex": 5,
+    "What the mechanical cleanup of finished sessions removes. `worktree_scratch` lis": 5,
+    "Where the Hecks domain keeps its journal: every command's events, one entry per ": 55
+  },
+  "lib/hecks/hecks/migrate/migrate.bluebook": {
+    "Ledger: a journal that proves it was not rewritten. A seal records the head a jo": 5,
+    "Mints the Hecks domain's next era when its shape moved, through the mint transac": 4,
+    "Moves the history a domain held under its `formerly_known_as` name to its curren": 4,
+    "Rehearsal: operating a domain, in the Operations module (ADR 0096). Whether a do": 13,
+    "The boot status of each bluebook under a domain directory, resolved as its boot ": 4,
+    "The environment overlay the subject was loaded under and where that was decided:": 4,
+    "The seven requests. Each records what was asked and names its operation; the jou": 4,
+    "`requested` is the rehearsal and its store being prepared; `booted` the domain l": 5
+  },
+  "lib/hecks/hecks/operate/operate.bluebook": {
+    "A launcher answers once, so a follow is a bounded poll: it answers the entries p": 4,
+    "Redelivers what a domain's outbox left behind. A row never claimed is always saf": 4,
+    "`hecks check_era <url> expected=era-file [timeout=]` records the first check of ": 4,
+    "`hecks operation.bootstrap_admin! <domain> email=<email> [name=<name>] [role=<ro": 7
+  },
+  "lib/hecks/hecks/redflag/redflag.bluebook": {
+    "One request against the standing flag of the repository: raise it, note another ": 6
+  },
+  "lib/hecks/hecks/rehearse/rehearse.bluebook": {
+    "A rehearsal runs, against local `main` and without pushing, the stages of its sc": 8
+  },
+  "lib/hecks/hecks/release/release.bluebook": {
+    "Promotion: moving a lane forward onto a commit that has passed every `RequiredCh": 15,
+    "Publishing: cutting a release of this gem. The run holds the facts the Git adapt": 5,
+    "`hecks package.digest <package> [root=path]`: a read of the package's files, so ": 4,
+    "`hecks vendor <package[@version]> [from=path] [root=path]`. The record is named ": 4
+  },
+  "lib/hecks/hecks/serve/serve.bluebook": {
+    "A stdio server runs until its client closes stdin, so it cannot be asked and ans": 4
+  },
+  "lib/hecks/hecks/site.world": {
+    "The Site bluebook's launcher when the Hecks domain attaches it: `hecks site <ver": 9
+  },
+  "lib/hecks/hecks/stall_watch/stall_watch.bluebook": {
+    "A queued train pull request asks for a chain of ticks keyed by the boarded commi": 6,
+    "One kind of stall, one row each: the aggregate and event that open it, the event": 9,
+    "One look at the event tap for stalls. The clock's beat asks it (`DetectOnHeartbe": 4
+  },
+  "lib/hecks/hecks/start/start.bluebook": {
+    "Writes the files a Rails app needs to drive its domain through hecks-rails: a co": 4
+  },
+  "lib/hecks/hecks/test/test.bluebook": {
+    "A sweep replays generated command and query sequences and checks properties over": 7,
+    "Measures each persistence adapter, and the Rust binary when there is one to buil": 4,
+    "Mutation-tests a domain's own checks: changes its bluebooks in small ways and ke": 4,
+    "TestSuite: the tooling around this repository's specs. Listings of which files a": 4
+  },
+  "lib/hecks/hecks/tickets.world": {
+    "The Tickets domain's settings. `work_limit` caps how many Work items may be star": 42,
+    "`heavy_jobs` caps how many heavy jobs (a gate run, a run of several spec files) ": 9,
+    "`spec_bounds` is the wall clock a spec run may take before it is ended with ever": 6,
+    "`triggered_specs` is the rule that a change to `paths` (File.fnmatch patterns fr": 8
+  },
+  "lib/hecks/language/bluebook/aggregate.bluebook": {
+    "Builders validate at `build`, but a given fires at dispatch, before later declar": 5
+  },
+  "lib/hecks/language/bluebook/projection.bluebook": {
+    "ADR 0055: which many-side `include`d aggregate (by type) this option applies to ": 4
+  },
+  "lib/hecks/language/bluebook/query.bluebook": {
+    "One entry of one option. `option` names which specification it belongs to": 5
+  },
+  "lib/hecks/language/bluebook/syntax.bluebook": {
+    "How a bluebook is spelled: every word, the body it opens and the field it fills.": 5,
+    "Keyword and Argument are entities so each can carry a real `lifecycle :status`.": 5,
+    "What a `pairs` argument's pairs do:": 5,
+    "What a word's block is:": 5
+  },
+  "lib/hecks/language/bluebook/vocabulary.bluebook": {
+    "A binary hecks builds once per change to its crate and publishes, so a client th": 13,
+    "A check is one command run from the repository root, all of a stage's checks at ": 19,
+    "A read model's reducers as algebra (ADR 0126): `identity` is the answer over no ": 6,
+    "EntityInterpreter#call — the same shape as AggregateDispatchOrder, one": 6,
+    "Regexes `text_field` matches a text attribute's name against": 10,
+    "Rust keywords (strict + reserved) a generated identifier must not": 5,
+    "S12, ADR 0025 — the same silent-wrong-answer class AttributeAbsent": 4,
+    "The branches a change travels along. `main` takes only pull requests that GitHub": 17,
+    "The checks a commit must have passed before a `Promotion` moves it onto a guarde": 17,
+    "The conclusion words GitHub gives a check run or a job, and what each one means ": 12,
+    "The dials of the hecks_qa loop: what each is called, the type of value it takes ": 7,
+    "The files a release bump edits, and the lines of each it may change. A commit wh": 5,
+    "The fuzz sweeps run as three shards each, one CI job leg apiece, so the corpus i": 5,
+    "The keys a domain's own name must not take, because that name doubles": 6,
+    "The order CommandInterpreter#call follows, ending at the events it": 7,
+    "The path gates the workflows run before an expensive job: one detector job": 15,
+    "The stages of the gate: the `checks` a stage runs, as a comma list of `GateCheck": 5,
+    "The terms of the tooling's own ubiquitous language, declared once so the blueboo": 7,
+    "The wording for every DomainRefusal site not already carried by data": 9,
+    "What a push rehearsal runs, as data `GitRehearsal::Stages` reads. A `RehearsalSt": 7,
+    "What each retired `bin/` script became in hecks 3.0.0 (ADR 0080, section 7): one": 15,
+    "What sort of no each DomainRefusal is, and the dispatch stage it comes from. A d": 5,
+    "Which stage each dispatch step belongs to, for the aggregate and entity orders a": 4,
+    "Which values a RefusalTemplate site takes (in placeholder order) and how": 11,
+    "`ci_suite` is the full spec suite. It is a `runs_in: \"ci\"` check: CI runs it on ": 15
+  },
+  "lib/hecks/pipeline/pipeline.bluebook": {
+    "Pipeline: one change's passage from a planned Work item to a release, declared a": 20
+  },
+  "lib/hecks/pipeline_board/pipeline_board.behaviors": {
+    "Only a request the aggregate refuses before it asks to listen is stated here. A ": 4
+  },
+  "lib/hecks/pipeline_board/pipeline_board.bluebook": {
+    "---- a session's status, from what its job and `claude agents` say ----": 6,
+    "---- who a blocked session waits on ----": 5,
+    "A step the page may take. `needs` are the fields it must send, `confirm` is `yes": 9,
+    "A tile the board pushes as HTML, and the aggregates it reads. A journal line car": 4,
+    "One check of the daily health line: what the pipeline reports of its own day, wh": 18,
+    "One condition of a rule that names a state. Rows of one `stage` that share a `po": 5,
+    "One stage of a Work item's cycle, in `position` order. The first stage starts at": 14,
+    "PipelineBoard: the pipeline from coding to release, read live and shown on one l": 24,
+    "The board's one timer, a named safety net: seconds between a recompute of every ": 4,
+    "The bounds of the daily health line. Its day is the last `health_window_hours`. ": 4
+  },
+  "lib/hecks/quality_control/adapters/github_checks.adapter": {
+    "Binds the `CI` port to `GithubChecks` for any boot that loads the QualityControl": 4
+  },
+  "lib/hecks/quality_control/adapters/image_roll.adapter": {
+    "Binds the `ImageRoll` port to `ImageRoll`, which classifies a green commit of em": 4
+  },
+  "lib/hecks/quality_control/quality_control.bluebook": {
+    "---- The push nudge ------------------------------------------------------------": 6,
+    "A PR for deliberate, non-bugfix work: a sibling of `Patch`, because `Bug` means ": 7,
+    "Dispatched by `hecks quality_control patch.open --improvement`, which then dispa": 4,
+    "Dispatched only by `hecks quality_control patch.open --bug`, which reads the fac": 5,
+    "How many pull requests the practice has opened on one UTC day, and the rule that": 6,
+    "Not a lifecycle move, and reachable whatever the bluebook's status: a recorded p": 4,
+    "One policy's reaction to one event, recorded once the policy's command has answe": 4,
+    "One release PR: the bump of the version on main, opened as a PR and approved on ": 4,
+    "One spec file that is red on main, keyed `red-<spec path slug>`. A red run repor": 4,
+    "Puts `Bug.Fix`'s commit and CI's `Clearance` for it back together, dispatching `": 4,
+    "The auto-mint rule, declared. A mint without the owner's confirm runs only when ": 12,
+    "The commands that enrol, generate and judge bluebooks. TargetTools answers each ": 4,
+    "The commands that work a whole pass. SweepTools answers each by running the scri": 5,
+    "The four conditions an approval needs, each named so a refusal says which one fa": 4,
+    "The image roll of one commit of embryonaut_platform's main. A commit whose remot": 5,
+    "The image roll's chain. A green remote CI on embryonaut_platform's main is class": 4,
+    "The main-maintenance chain, one policy per event. Each `ask` is answered by the ": 5,
+    "The maintenance of local main as events and policies. A coder's `Submission.Work": 4,
+    "The mint chain. `MintRequested` carries the rehearsal's verdict and the watermar": 4,
+    "The rotation's one automatic reaction. Releasing on `SweepConcluded` cannot work": 4,
+    "The single entry point for a mint of a domain's next era. It is the only command": 6,
+    "What remote CI said about one commit of a repository's main, once every job it r": 7,
+    "`from: [\"waiting\", \"held\"]` is deliberate: a held target is claimable once its c": 4,
+    "`hecks quality_control main_check.check_main` is the tick's step. It answers fro": 4,
+    "`now` is the argument and `last_swept` the field, so the entry point can fill th": 5
+  },
+  "lib/hecks/quality_control/quality_control.hecksagon": {
+    "The QualityControl bluebook, bound so it boots standing alone (a fuzz or model_c": 4
+  },
+  "lib/hecks/quality_control/quality_control.ports.hecksagon": {
+    "Remote CI's verdict on one commit of a repository's main, answered by `adapters/": 4,
+    "The mint answers `Minted`; a refusal (no would_mint, a stranded landing, the era": 7,
+    "The ports QualityControl declares, for every hecksagon that attaches the blueboo": 4
+  },
+  "lib/hecks/rails_app/bluebook/rails_app.bluebook": {
+    "The RailsApp bluebook: what a Rails app says of its own pages, beside the domain": 11
+  },
+  "lib/hecks/site/bluebook/site.bluebook": {
+    "The Site bluebook: the route table a client declares for its website, and the co": 20,
+    "Where a page's content comes from, one of `none`, `global:<slug>` (a CMS global)": 4,
+    "`hecks site site_projection.check_live <project> live=<saved-config.json> | dist": 7,
+    "`hecks site site_projection.check_roles <project> url=<http://127.0.0.1:port>`. ": 5,
+    "`hecks site site_projection.check_site <project> url=<https://example.org>`. Ask": 6
+  },
+  "lib/hecks/site/bluebook/site.ports.hecksagon": {
+    "The port Site declares, for every hecksagon that attaches the bluebook (`Blueboo": 6
+  },
+  "lib/hecks/sme/bluebook/sme.bluebook": {
+    "SME: learn a business from the people who know it (ADR 0088).": 6
+  },
+  "lib/hecks/tenancy/bluebook/tenancy.hecksagon": {
+    "The one seam where Deploy's \"Tenant\" (a validated request) becomes Tenancy's \"Te": 7
+  },
+  "lib/hecks/tickets/bluebook/tickets.bluebook": {
+    "A started work item that may not go on goes back to the plan with the refusal as": 4,
+    "A work item still open takes what a later look at it found: its title and detail": 4,
+    "An integration run or a shipment that stopped for a person reports itself: the r": 5,
+    "An integration run parked in needs_human (MainIntegration), or a shipment parked": 7,
+    "One kind of red cause the coordinator has triaged. Its signature says how to rec": 5,
+    "The Tickets bluebook: what a maintainer observed about Hecks that needs a decisi": 15,
+    "The decision records are their files under docs/decisions, read through the Deci": 9
+  },
+  "lib/hecks/tickets/bluebook/tickets.ports.hecksagon": {
+    "The port Tickets declares, for every hecksagon that attaches the bluebook (`Blue": 9,
+    "Where the decision records live: their files under docs/decisions, read through ": 14
+  },
+  "lib/hecks/triage/triage.behaviors": {
+    "`triage.hecksagon` binds every aggregate to Memory and attaches Governance. The ": 4
+  },
+  "lib/hecks/triage/triage.bluebook": {
+    "Triage: what the coordinator does when CI on main goes red, as a domain. An inci": 11
+  },
+  "spec/behaviors/fixtures/sqlite_binding.behaviors": {
+    "`loads` resolving an aggregate to a non-Memory adapter (here: the": 5
+  },
+  "spec/corpus/semantics/domains/courier/bluebook/courier.bluebook": {
+    "A CORPUS-OWNED DOMAIN (docs/semantics/bluebook-semantics.md, C10.2).": 11
+  },
+  "spec/corpus/semantics/domains/echo/bluebook/echo.bluebook": {
+    "A CORPUS-OWNED DOMAIN (docs/semantics/bluebook-semantics.md, C10.4).": 4,
+    "THE SAME BOUND, SEEN FROM A SAGA (C10.4). A lamp flickers into another flicker f": 4
+  },
+  "spec/corpus/semantics/domains/ledgerbook/bluebook/ledgerbook.bluebook": {
+    "A CORPUS-OWNED DOMAIN (docs/semantics/bluebook-semantics.md).": 4
+  },
+  "spec/corpus/semantics/domains/meter/bluebook/meter.bluebook": {
+    "A CORPUS-OWNED DOMAIN (docs/semantics/bluebook-semantics.md, C4.2).": 10
+  },
+  "spec/corpus/semantics/domains/outbound/bluebook/outbound.bluebook": {
+    "A CORPUS-OWNED DOMAIN (docs/semantics/bluebook-semantics.md).": 4
+  },
+  "spec/corpus/semantics/domains/relay/bluebook/relay.bluebook": {
+    "A CORPUS-OWNED DOMAIN (docs/semantics/bluebook-semantics.md, C10.3).": 10
+  },
+  "spec/corpus/semantics/domains/tally/bluebook/tally.bluebook": {
+    "A CORPUS-OWNED DOMAIN (docs/semantics/bluebook-semantics.md, §3 —": 7,
+    "NIL (C3.5): an absent optional equals only nil; ordering against": 4,
+    "THE ENSURES READS THE SETTLED STATE (C2.3): `count` is both this": 4,
+    "THE GIVEN READS THE ARGUMENT FIRST (C2.2): `count` is both this": 4
+  },
+  "spec/fixtures/ci_speed/ci_speed.hecksagon": {
+    "The CiSpeed bluebook bound as `ci_speed.hecksagon` binds it, for `ci_speed.behav": 4
+  },
+  "spec/fixtures/entity_list_mutations/entity_list_mutations.bluebook": {
+    "A `list_of` element type with its own declared default: `AddPrice` never maps": 4,
+    "Never set by any command — every board gets `Instance.defaults`' own fill,": 4
+  },
+  "spec/fixtures/pizza_fixture/bluebook/pizza_fixture.behaviors": {
+    "`pizza_fixture_behaviors.hecksagon` is a Memory-persisted sibling of": 4
+  },
+  "spec/fixtures/rust_host/checkout_fixture/bluebook/checkout_fixture.bluebook": {
+    "Archiving takes a registration off the guest list and gives its seat back;": 5
+  },
+  "spec/fixtures/rust_host/checkout_fixture/bluebook/checkout_fixture.hecksagon": {
+    "ConsoleSettings gets its own binding block because BindingPolicy.resolve": 4
+  },
+  "spec/fixtures/rust_host/checkout_fixture/bluebook/payments.bluebook": {
+    "The Payments bluebook checkout_fixture's routes dispatch into": 5,
+    "What this bluebook answers for every domain that attaches it: start a": 5
+  },
+  "spec/fixtures/rust_project/attribute_constraints_fixture/bluebook/attribute_constraints_fixture.bluebook": {
+    "Smallest domain that declares every attribute-level constraint the DSL has, at t": 8
+  },
+  "spec/fixtures/rust_project/bug28_existence_fixture/bluebook/bug28_existence_fixture.bluebook": {
+    "Pins the order of the existence check and invariant enforcement: `Vault.Open` is": 9
+  },
+  "spec/fixtures/rust_project/computed_sets_fixture/bluebook/computed_sets_fixture.bluebook": {
+    "Pins `sets` taking arithmetic as its source: `*`, `-` and floor `/` over command": 4
+  },
+  "spec/fixtures/rust_project/fan_out_row_fields_fixture/bluebook/fan_out_row_fields_fixture.bluebook": {
+    "Pins a `for_each` policy's `with:` reading a fan-out row's own fields: `:charged": 6
+  },
+  "spec/fixtures/rust_project/for_each_identity_fixture/bluebook/for_each_identity_fixture.bluebook": {
+    "Pins a `for_each` policy whose query argument is the emitting aggregate's identi": 6
+  },
+  "spec/fixtures/rust_project/optional_nested_value_object_fixture/bluebook/optional_nested_value_object_fixture.bluebook": {
+    "Smallest domain with an optional value object held inside a value object (Panel.": 5
+  },
+  "spec/fixtures/rust_project/projected_single_field_fixture/bluebook/projected_single_field_fixture.bluebook": {
+    "Pins `projects` over a remote field typed by a single-field value object: the pr": 6
+  },
+  "spec/fixtures/rust_project/read_model_on_target_fixture/bluebook/read_model_on_target_fixture.bluebook": {
+    "Smallest domain reaching ADR 0055's `on:` codegen path: a read model with TWO ma": 4
+  },
+  "spec/fixtures/sentence/cms_page/ruby_form.bluebook": {
+    "**A page is the facts a site lists and links by**: its slug, its title,": 10
+  },
+  "spec/fixtures/site/editor/domain/bluebook/press.bluebook": {
+    "A small publisher's content domain, as the neutral fixture the editor generator ": 5
+  },
+  "spec/fixtures/site/editor_bluebooks/domain/bluebook/library.bluebook": {
+    "A small publisher's pictures, as the second bluebook of the multi-bluebook edito": 4
+  },
+  "spec/fixtures/site/editor_bluebooks/domain/bluebook/press.bluebook": {
+    "A small publisher's writing, as the first bluebook of the multi-bluebook editor ": 6
+  },
+  "spec/fixtures/site/editor_fixed_pages/domain/bluebook/leaflets.bluebook": {
+    "Pages with a fixed structure, filled in as a form: the neutral fixture the edito": 4
+  },
+  "spec/fixtures/site/editor_sections/domain/bluebook/layouts.bluebook": {
+    "A page as an ordered list of mixed panels, as its own bounded context: the list ": 4,
+    "Which slots of a panel each kind uses: one row per kind, the slots it must have ": 4
+  },
+  "spec/fixtures/site/editor_workflow/bluebook/newsroom_site.bluebook": {
+    "A small newsroom's site whose editor works on a post or a page as one thing: the": 4
+  },
+  "spec/fixtures/site/editor_workflow/domain/bluebook/publishing.bluebook": {
+    "A small newsroom's posts and pages, as the first bluebook of the editor-workflow": 4
+  },
+  "spec/fixtures/site/editor_workflow/domain/bluebook/schedule.bluebook": {
+    "Actions to run later on a post or a page, as their own bounded context. A record": 4
+  },
+  "spec/fixtures/site/gallery/bluebook/gallery_site.bluebook": {
+    "A gallery's site: a second neutral sample project beside the studio. It exercise": 5
+  },
+  "spec/fixtures/site/members/bluebook/members_site.bluebook": {
+    "A members' club's site: a third neutral sample project beside the studio and the": 4
+  },
+  "spec/fixtures/till.bluebook": {
+    "A clerk may say why a taking was unusual, or say nothing — the one OPTIONAL": 4
   }
 }

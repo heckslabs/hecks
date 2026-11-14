@@ -146,8 +146,9 @@ RSpec.describe "the live wiring diagram" do
 
     it "reads the files into a registry of its own and boots nothing", :aggregate_failures do
       File.write(path, scratch)
+      held = Hecks.current_registry
       expect(described_class.new(booted).read.bluebooks.keys).to eq(["Scratch"])
-      expect(Hecks.current_registry).to be_nil
+      expect(Hecks.current_registry).to equal(held)
     end
   end
 
@@ -157,12 +158,12 @@ RSpec.describe "the live wiring diagram" do
       instance_double(Hecks::Adapters::PipelineBoard::Hub, join: wakes, leave: nil, current: [])
     end
 
-    # A feed that counts its looks in `tick`, wakes the reader after each, and ends at `ticks`.
+    # A state that counts its looks in `tick`, wakes the reader after each, and ends at `ticks`.
     def counting(ticks, tick, wakes)
       lambda do
         throw :done if (tick[0] += 1) >= ticks
         wakes << Hecks::Adapters::PipelineBoard::Hub::Wake.new(1, [], false)
-        []
+        { events: [] }
       end
     end
 
@@ -171,7 +172,7 @@ RSpec.describe "the live wiring diagram" do
       wakes = Queue.new
       tick = [-1]
       wiring = -> { { digest: digests[[tick.first, digests.size - 1].min] } }
-      stream = Hecks::Adapters::PipelineBoard::Stream.new(feed: counting(ticks, tick, wakes), hub: hub(wakes), wiring: wiring)
+      stream = Hecks::Adapters::PipelineBoard::Stream.new(state: counting(ticks, tick, wakes), hub: hub(wakes), wiring: wiring)
       [].tap { |events| catch(:done) { stream.each { |event| events << event } } }
     end
 
@@ -185,8 +186,33 @@ RSpec.describe "the live wiring diagram" do
 
     it "says nothing when the wiring is unknown" do
       wiring = -> { { unknown: "no domain" } }
-      stream = Hecks::Adapters::PipelineBoard::Stream.new(feed: -> { throw :done }, hub: hub(Queue.new), wiring: wiring)
-      expect(catch(:done) { stream.each { |event| event } }).to be_nil
+      wakes = Queue.new
+      stream = Hecks::Adapters::PipelineBoard::Stream.new(state: counting(2, [-1], wakes), hub: hub(wakes), wiring: wiring)
+      events = [].tap { |seen| catch(:done) { stream.each { |event| seen << event } } }
+      expect(events.count { |event| event.key?(:wiring) }).to eq(0)
+    end
+
+    # What a reader is sent when the state reads as each of `states` in turn.
+    def pushed(states)
+      wakes = Queue.new
+      state = counting(states.size, tick = [-1], wakes) >> ->(_) { states[tick.first] }
+      stream = Hecks::Adapters::PipelineBoard::Stream.new(state: state, hub: hub(wakes))
+      [].tap { |events| catch(:done) { stream.each { |event| events << event } } }
+    end
+
+    it "pushes each event the state lists once, oldest first, with no read of its own" do
+      rows = [{ key: "b", name: "Second" }, { key: "a", name: "First" }]
+      expect(pushed([{ events: rows }] * 3).filter_map { |event| event[:name] }).to eq(%w[First Second])
+    end
+
+    it "pushes an event again when the reactions to it change" do
+      states = [[], ["Carry"]].map { |reactions| { events: [{ key: "a", name: "First", reactions: reactions }] } }
+      expect(pushed(states).filter_map { |event| event[:reactions] }).to eq([[], ["Carry"]])
+    end
+
+    it "notes once that the events are unknown while the first read is in progress" do
+      waiting = { events: Hecks::Adapters::PipelineBoard::Snapshot::WAITING }
+      expect(pushed([waiting, waiting]).count { |event| event.key?(:unknown) }).to eq(1)
     end
   end
 

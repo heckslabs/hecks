@@ -28,9 +28,10 @@ RSpec.describe "the Coder brief's standing sections" do
                                           "no Claude attribution trailer", "ignored files")
   end
 
-  it "tells the session how to land" do
+  it "tells the session to submit and end its turn, not to wait for the landing" do
     expect(section(:landing)).to include("regenerate_corpus!", "check_shape_ledger!", "--confirm --additive",
-                                         "landing.finish!", "rebases onto local main", "in flight", "it queues")
+                                         "coder Submission.submit!", "end your turn", "Do not wait for the landing",
+                                         "reports by event")
   end
 
   it "says a claim is verified by a reviewer run, never by the orchestrator" do

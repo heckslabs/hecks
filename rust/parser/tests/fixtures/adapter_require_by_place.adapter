@@ -1,0 +1,6 @@
+# the implementation is required by its place, as a vendored package's adapter does
+require File.expand_path("../lib/adapters/placed", __dir__)
+
+Hecks.adapter "Placed" do
+  port "Publishing"
+end

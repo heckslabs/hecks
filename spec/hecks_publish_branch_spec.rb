@@ -1,6 +1,7 @@
 require "spec_helper"
 require "tmpdir"
-require "hecks/hecks/adapters/git_publish"
+require "hecks/hecks/adapters/delivery_library"
+Hecks::Adapters::DeliveryLibrary.require("git_publish")
 
 # Publishing a worktree's branch: the git adapter, run against a stand-in runner, so no push
 # reaches a remote. The stand-in answers the reads a publish makes and records each push it makes.

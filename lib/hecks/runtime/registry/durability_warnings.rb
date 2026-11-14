@@ -1,9 +1,13 @@
+require_relative "kept_saga_note"
+
 module Hecks
   module Runtime
     class Registry
       # Warns, never refuses, when a domain's reactions or sagas would not survive a crash.
       # Mixed into {Verification}.
       module DurabilityWarnings
+        include KeptSagaNote
+
         # The durability warnings for one hecksagon, in the order boot prints them.
         def warn_durability!(hecksagon)
           refuse_undurable_outbox!(hecksagon)
@@ -113,7 +117,7 @@ module Hecks
                "persistence adapter has no save_saga — saga state advances correctly in-process " \
                "and is LOST on restart (no checkpoint, no rehydration, no compensation replay). " \
                "Bind this domain to an adapter that implements save_saga if this process_manager " \
-               "must survive a crash."
+               "must survive a crash.#{kept_saga_note(hecksagon.domain, undurable)}"
         end
 
         # The process managers whose checkpoints no store keeps: each is held by its starting

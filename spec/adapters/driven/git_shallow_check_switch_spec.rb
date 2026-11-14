@@ -1,7 +1,8 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-require "hecks/hecks/adapters/git_landing"
+require "hecks/hecks/adapters/delivery_library"
+Hecks::Adapters::DeliveryLibrary.require("git_landing")
 require "hecks/hecks/adapters/git_shallow_check"
 require_relative "../../support/shallow_repo"
 

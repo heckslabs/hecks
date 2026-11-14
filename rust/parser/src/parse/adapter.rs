@@ -9,7 +9,8 @@ use crate::ruby_value::{self, Value};
 
 /// Parses every top-level `adapter` block of one `.adapter` file, in file order.
 ///
-/// A top-level line that is exactly `require "path"` is plain Ruby, not grammar, and is skipped;
+/// A top-level line that is exactly `require "path"`, or `require File.expand_path("path", __dir__)`,
+/// is plain Ruby, not grammar, and is skipped;
 /// any other top-level word goes through the normal gates and refuses there.
 pub fn parse_file(path: &str, source: &str) -> ParseResult<Vec<ir::Adapter>> {
     let joined = lex::join_continuations(source);
@@ -40,16 +41,30 @@ pub fn parse_file(path: &str, source: &str) -> ParseResult<Vec<ir::Adapter>> {
     Ok(adapters)
 }
 
-/// `require` followed by exactly one double-quoted string, nothing else.
+/// `require` followed by exactly one double-quoted string, or by that string resolved from the
+/// file's own directory (`File.expand_path("path", __dir__)`), nothing else. A vendored package is
+/// on no load path, so its adapter requires its Ruby by its place.
 fn is_require_line(text: &str) -> bool {
     let Some(rest) = text.strip_prefix("require ") else {
         return false;
     };
     let rest = rest.trim();
-    rest.len() >= 2
-        && rest.starts_with('"')
-        && rest.ends_with('"')
-        && !rest[1..rest.len() - 1].contains(['"', '\\'])
+    is_quoted(rest) || by_place(rest).is_some_and(is_quoted)
+}
+
+/// The path of `File.expand_path(<path>, __dir__)`, or None when the text is anything else.
+fn by_place(text: &str) -> Option<&str> {
+    let inner = text.strip_prefix("File.expand_path(")?.strip_suffix(')')?;
+    let (path, base) = inner.rsplit_once(',')?;
+    (base.trim() == "__dir__").then(|| path.trim())
+}
+
+/// One double-quoted string with no quote or escape inside it.
+fn is_quoted(text: &str) -> bool {
+    text.len() >= 2
+        && text.starts_with('"')
+        && text.ends_with('"')
+        && !text[1..text.len() - 1].contains(['"', '\\'])
 }
 
 fn parse_body(

@@ -1,3 +1,5 @@
+require_relative "resume_line"
+
 module Hecks
   module Adapters
     module Driving
@@ -5,7 +7,8 @@ module Hecks
         # The launcher word `resume <run>` (ADR 0163, plan step 31): continues a saga that faulted
         # from the stage it faulted in. The saga saved its arguments and the stage; the process
         # manager's `resumes` list names the command that re-runs that stage, and that command is
-        # dispatched with the saved arguments through the ordinary line path.
+        # dispatched through the ordinary line path with the saved arguments it takes
+        # ({ResumeLine}).
         module ResumeWords
           SAGA = "GateAndBoard".freeze
           USAGE = "resume <run>  continue a GateAndBoard saga that faulted, from the stage it faulted in".freeze
@@ -18,7 +21,7 @@ module Hecks
             outcome = scope[:runtime].saga_interpreter.resume(scope[:bluebook].name, SAGA, argv[1])
             return { answer: [resume_refusal(outcome), ExitStatus::REFUSED] } unless outcome[:resumed]
 
-            resume_stage(scope, outcome)
+            resume_stage(scope, outcome.merge(run: argv[1]))
           end
 
           # Whether the line runs against a booted domain: a describe-only runtime (the usage path)
@@ -27,25 +30,31 @@ module Hecks
             scope[:runtime].respond_to?(:saga_interpreter)
           end
 
-          # Dispatches the stage's resume command with the saved arguments, or refuses when the
-          # stage declares none.
+          # Dispatches the stage's resume command with the saved arguments it takes, or refuses
+          # when the stage declares none.
           def resume_stage(scope, outcome)
-            command = resume_command(scope[:bluebook], outcome[:stage])
-            unless command
+            verb = resume_verb(scope[:bluebook], outcome[:stage])
+            unless verb
               return { answer: ["resume refused: stage #{outcome[:stage]} declares no resume command",
                                 ExitStatus::REFUSED] }
             end
 
-            line = [command, *outcome[:arguments].map { |key, value| "#{key}=#{value}" }]
+            line = ResumeLine.new(scope[:bluebook], verb).words(outcome[:run], outcome[:arguments])
             text, status = CliRunner.call(runtime: scope[:runtime], argv: line, program: scope[:program])
             { answer: [text, status] }
           end
 
           # The command the process manager's `resumes` list names for a stage, as a bang line.
           def resume_command(bluebook, stage)
+            verb = resume_verb(bluebook, stage)
+            verb && "#{verb}!"
+          end
+
+          # The command the `resumes` list names for a stage, as `Aggregate.Command`.
+          def resume_verb(bluebook, stage)
             process_manager = bluebook.process_managers.find { |pm| pm.name == SAGA }
             entry = process_manager&.resumes&.find { |line| line.start_with?("#{stage}=") }
-            entry && "#{entry.split("=", 2).last}!"
+            entry&.split("=", 2)&.last
           end
 
           # The reason a resume refuses: the saga is missing, or it is not waiting for a person.

@@ -2,17 +2,19 @@
 
 require "time"
 require_relative "cache"
+require_relative "registry_store"
 require_relative "../../hecks/adapters/started_work"
 
 module Hecks
   module Adapters
     # Reads the last filling of the queue: which planned Work items it would start, which it skips
     # and why, plus the load and cap it saw. A rolling fill records its report on its `Roll`, so
-    # the tile reads that record through the booted registry and starts no process. The report's
-    # header ends with the time the fill ran (`at <ISO 8601>`), which the preview carries as `at`;
-    # a report is shown however old, since a quiet queue rolls rarely. Only where the registry
-    # holds no report at all is `Dispatch.Preview` asked of a launcher, and its answer is kept for
-    # a minute so a run of journal lines cannot boot it again and again.
+    # the tile reads that record in this process (through the live store when the board is pointed
+    # at one, else the booted registry) and starts no process. The report's header ends with the
+    # time the fill ran (`at <ISO 8601>`), which the preview carries as `at`; a report is shown
+    # however old, since a quiet queue rolls rarely. Only where the store holds no report at all
+    # is `Dispatch.Preview` asked of a launcher, and its answer is kept for a minute so a run of
+    # journal lines cannot boot it again and again.
     class PipelineFill
       HEADER = /\Aload ([\d.]+) \(limit ([\d.]+), (\d+) cpus\); started (\d+) of cap (\d+);/
       # The time a report's header ends with.
@@ -31,10 +33,12 @@ module Hecks
       #   `cache_clock:` for the seconds the keeping counts in
       # @param root [String, nil] the checkout the launcher runs in
       # @param registry [Runtime::Registry, nil] the booted registry the `Roll` records are read
-      #   from
-      def initialize(aggregate: nil, settings: {}, root: nil, registry: nil)
+      #   from when no `store:` is named
+      # @param store [#records, nil] where the `Roll` records are read: the live store when the
+      #   board is pointed at one, so a report recorded by another process is found
+      def initialize(aggregate: nil, settings: {}, root: nil, registry: nil, store: nil)
         @root = root || Dir.pwd
-        @registry = registry
+        @store = store || PipelineBoard::RegistryStore.new(registry: registry)
         @recorded = settings[:report] || method(:recorded_report)
         @runner = settings[:runner] || ->(*args) { PipelineBoard::Probe.run(*args, chdir: @root, seconds: 120) }
         held = settings.slice(:cache_clock).transform_keys { :clock }
@@ -57,23 +61,15 @@ module Hecks
         @runner.call("exe/hecks", "Dispatch.Preview", "repo.value=#{@root}", "budget_minutes.value=30").to_s
       end
 
-      # The report of the newest `Roll` that holds one, or nil when the registry has none.
-      def recorded_report
-        aggregate = roll_aggregate
-        return nil unless aggregate
+      # The report of the newest `Roll` that holds one, or nil when the store has none.
+      def recorded_report = newest_first.find { |report| HEADER.match?(report.lines.first.to_s) }
 
-        newest_first(aggregate).find { |report| HEADER.match?(report.lines.first.to_s) }
-      end
-
-      def roll_aggregate
-        bluebook = @registry&.bluebook("Hecks")
-        bluebook&.aggregates&.find { |candidate| candidate.hecks_name == "Roll" }
-      end
-
-      # @return [Array<String>] the report of each `Roll` record, the newest first
-      def newest_first(aggregate)
-        rolls = @registry.repository("Hecks", aggregate).all.to_a
-        rolls.reverse.map { |roll| StartedWork.value(roll, :report).to_s }
+      # @return [Array<String>] the report of each `Roll` record, the newest first; none when the
+      #   store cannot be read or declares no `Roll`
+      def newest_first
+        @store.records("Hecks", "Roll").reverse.map { |roll| StartedWork.value(roll, :report).to_s }
+      rescue PipelineBoard::Unavailable
+        []
       end
 
       def parse(text)

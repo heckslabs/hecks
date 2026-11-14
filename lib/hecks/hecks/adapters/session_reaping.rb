@@ -58,7 +58,8 @@ module Hecks
       # @return [Hash{Symbol => Object}] `note:` what the retirement reported
       # @raise [ConsoleCapture::Failure] when the worktree holds anything that would be lost
       def retire(path)
-        require_relative "git_landing"
+        require_relative "delivery_library"
+        Hecks::Adapters::DeliveryLibrary.require("git_landing")
         branch = @shell.capture("git", "-C", path, "rev-parse", "--abbrev-ref", "HEAD").out.strip
         said = GitLanding.new(registry: @registry).remove(checkout: path, branch: branch, onto: "main")
         { note: "worktree retired: #{said.dig(:report, :value)}" }

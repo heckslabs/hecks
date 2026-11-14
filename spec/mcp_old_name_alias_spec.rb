@@ -15,12 +15,6 @@ RSpec.describe "MCP door resolves old command names" do
     expect(Hecks::Storehouse.verbs_for(runtime, ["pull_request.merge"]).first).to end_with("ReviewRequest.Take")
   end
 
-  it "resolves checkout.log to the renamed history query" do
-    cli = Hecks::Storehouse.send(:cli_for, runtime, Hecks::Storehouse.send(:bluebook_for, runtime))
-    spec = Hecks::Storehouse.send(:resolve!, cli, "checkout.log", asking: true)
-    expect(spec.key?(:command) ? spec[:command] : spec[:question]).to include("Workspace")
-  end
-
   it "refuses an unknown name" do
     expect(Hecks::Storehouse.verbs_for(runtime, ["no_such.thing"]).first).to be_nil
   end

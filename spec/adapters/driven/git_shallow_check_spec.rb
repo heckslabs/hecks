@@ -1,7 +1,8 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-require "hecks/hecks/adapters/git_landing"
+require "hecks/hecks/adapters/delivery_library"
+Hecks::Adapters::DeliveryLibrary.require("git_landing")
 require "hecks/hecks/adapters/git_shallow_check"
 require_relative "../../support/shallow_repo"
 
@@ -16,9 +17,10 @@ RSpec.describe Hecks::Adapters::GitShallowCheck, "#shallow_check" do
     expect(git("rev-list", "--count", "HEAD", chdir: tree).to_i).to be > 1
   end
 
-  it "refuses a landing a depth-1 clone fails, naming the spec and the first failure line" do
+  it "refuses a landing a depth-1 clone fails, naming the spec and what the failure said" do
     build_repo("lib/a.rb")
-    expect { shallow }.to raise_error(failure, %r{shallow check red: spec/depth_spec\.rb: Failure/Error: .* depth-1 clone})
+    said = %r{shallow check red: spec/depth_spec\.rb: expected: > 1 got: 1 failed in a depth-1 clone of work/a}
+    expect { shallow }.to raise_error(failure, said)
   end
 
   it "passes a hecksagon change when the clone is green" do

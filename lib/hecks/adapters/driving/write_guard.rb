@@ -2,6 +2,7 @@
 
 require_relative "context_line"
 require_relative "../driven/worktree_overlay"
+require_relative "kept_check"
 
 module Hecks
   module Adapters
@@ -54,6 +55,18 @@ module Hecks
         # @return [String, nil] the refusal, or nil when the write may proceed or be forwarded
         def refusal(directory, bluebook, aggregate: nil, stores: STORES, env: {})
           verdict(directory, bluebook, aggregate: aggregate, stores: stores, env: env.merge(NO_FORWARD => "1")).refusal
+        end
+
+        # The verdict on a write the worktree check let through: refused when the checkout has
+        # opted into persistence but binds a kept aggregate to Memory ({KeptCheck}).
+        #
+        # @param directory [String] the checkout the command runs in
+        # @param bluebook [String, nil] the bluebook the command belongs to
+        # @param aggregate [String, nil] the aggregate the command acts on
+        # @param kept [KeptCheck] the kept rows with the stores and environment they are judged by
+        # @return [Verdict]
+        def kept_verdict(directory, bluebook, aggregate:, kept:)
+          Verdict.new(refusal: kept.refusal(directory, bluebook, aggregate))
         end
 
         # The main checkout and what it stores, when this worktree would lose the write.

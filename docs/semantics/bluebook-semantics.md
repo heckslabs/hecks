@@ -318,12 +318,22 @@ it, except for one law they must uphold (C8.4).
   (C7.1) before any reaction to any of them runs. Reactions then run
   per event, in `emits` order: for each event, its policies — the
   emitting domain's own in declaration order, then other domains' in
-  load order — and then its sagas in declaration order. So a two-event
+  load order — and then its sagas, in the same order: the emitting
+  domain's own in declaration order, then other domains' in load
+  order. A saga hears an event by its name from any loaded bluebook,
+  so a domain's saga may start or move on an event of a bluebook it
+  attaches; it runs in its own bluebook, where its checkpoints and its
+  dispatches belong. The Rust kernel's merged process-manager table
+  has always matched this way; the Ruby runtime held a saga to its own
+  domain's events until ADR 0205 needed the pipeline's sagas to hear a
+  vendored package's `BranchLanded`. So a two-event
   command's second event precedes the first event's reactions in the
   history, and the first event's saga leg lands before the second
   event's policy. (fixture: `reaction_order_per_event.json` — on the
   corpus-owned `spec/corpus/semantics/domains/courier`, because no
-  example command emits twice)
+  example command emits twice; a saga across bluebooks is pinned in
+  Ruby by `spec/saga_hears_attached_bluebook_spec.rb` and has no
+  two-runtime fixture yet)
 - **C10.3 (settled)** A saga leg is selected by (event, *current
   state*): of the legs answering an event, the one whose `from:` is the
   instance's current state runs; if none is, the instance is left where

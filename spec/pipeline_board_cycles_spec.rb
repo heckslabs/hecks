@@ -21,7 +21,7 @@ module CycleJournal
      line(stamp("21:37:18", offset), "Hecks::AgentRun", key, "AgentStarted"),
      line(stamp("21:38:37", offset), "Agents::PlanReview", review, "PlanReviewRequested", "work" => key),
      line(stamp("21:39:16", offset), "Agents::PlanReview", review, "PlanReviewed"),
-     line(stamp("21:52:25", offset), "Hecks::Landing", "landing-#{review}", "BranchLanded",
+     line(stamp("21:52:25", offset), "Delivery::Landing", "landing-#{review}", "BranchLanded",
           "branch" => key, "landed" => sha(key))]
   end
 
@@ -30,7 +30,7 @@ module CycleJournal
     [line(stamp("21:58:00", offset), "Hecks::Integration", "run-#{key}", "MainVerified", "landed" => sha(key)),
      line(stamp("22:05:13", offset), "Hecks::SendTrain", "train-#{key}", "BoardingQueued", "boarded" => sha(key)),
      line(stamp("22:18:09", offset), "Hecks::SendTrain", "train-#{key}", "BranchPushed", "boarded" => sha(key)),
-     line(stamp("22:19:00", offset), "Hecks::LinkedTree", "pull-#{key}", "MainPulled")]
+     line(stamp("22:19:00", offset), "Delivery::LinkedTree", "pull-#{key}", "MainPulled")]
   end
 
   def sha(key) = "#{key}0000000"[0, 7]

@@ -1,8 +1,9 @@
 require "spec_helper"
 require "tmpdir"
 require "open3"
-require "hecks/hecks/adapters/git_landing"
-require "hecks/hecks/adapters/git_worktree_add"
+require "hecks/hecks/adapters/delivery_library"
+Hecks::Adapters::DeliveryLibrary.require("git_landing")
+Hecks::Adapters::DeliveryLibrary.require("git_worktree_add")
 
 # Pulling main first: the adapter operation, and the commands that lean on it. Every example builds
 # a throwaway repository with a local bare remote, so nothing reaches a network.

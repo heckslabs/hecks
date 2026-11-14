@@ -58,7 +58,7 @@ Hecks.world "Hecks" do
   # The tables the renamed aggregates keep: Workspace was Checkout, Revision was Commit, SendTrain was
   # PushTrain and ReviewRequest was PullRequest, and their rows stay where they were written.
   # A boot that found them empty beside the old tables' rows would refuse by name.
-  stored_as Workspace: "checkout", Revision: "commit", SendTrain: "push_train", ReviewRequest: "pull_request"
+  stored_as Workspace: "checkout", SendTrain: "push_train", ReviewRequest: "pull_request"
   # The command whose own record an unminted boot is let write: a mint cannot start from a boot whose
   # shape no era holds yet. This domain's PostgresEra binding lives in uncommitted local files, so the
   # name is said here, where every copy reads it.
@@ -110,10 +110,10 @@ Hecks.world "Hecks" do
                                   preview_run.url preview_run.list preview_run.deploy
                                   preview_run.destroy preview_run.login companion_roll.run
                                   handover.clear rehearsal_run.request send_train.board
-                                  landing.land landing.train landing.retire landing.discard agent_run.dispatch agent_run.check
+                                  agent_run.dispatch agent_run.check
                                   dispatch.fill],
                        unknown_runs: %w[rehearsal_run.rehearsal_outcome],
-                       renamed: { "push_train.push" => "send_train.send", "pull_request.merge" => "review_request.take", "checkout.log" => "workspace.history" },
+                       renamed: { "push_train.push" => "send_train.send", "pull_request.merge" => "review_request.take" },
                        names: { "config" => "workspace.settings", "doctor" => "workspace.doctor", "mcp" => "server.serve_mcp", "console" => "operation.open_console", "init" => "launch.init",
                                 "interview" => "launch.interview", "package.check" => "registry.check",
                                 "agent_run.check_all" => "session_sweep.check_all",
@@ -125,14 +125,14 @@ Hecks.world "Hecks" do
                        executable: "exe/hecks",
                        maintainer: %w[LanguageRun KernelRun ConformanceRun RegenerationRun GateRun StyleRun InspectionRun
                                       CodemodRun TestSuiteRun CorpusRun Server PublishingRun PromotionRun Release ScriptRun
-                                      SyntaxBootCache],
+                                      SyntaxBootCache LocalOverlay],
                        newcomer: %w[launch.init launch.interview operation.open_console],
                        everyday: %w[operation.run operation.open_console gate_run.gate
                                     test_suite_run.run_changed test_suite_run.run_spec_example
                                     test_suite_run.run_spec_files test_suite_run.run_impacted_specs
-                                    build.build_host shipment.ship landing.land send_train.board
-                                    workspace.status codebase.search],
-                       bluebooks: %w[Deploy Governance Tenancy Site Tickets Composer QualityControl],
+                                    build.build_host shipment.ship send_train.board
+                                    codebase.search],
+                       bluebooks: %w[Delivery Deploy Governance Tenancy Site Tickets Composer QualityControl],
                        maintainer_bluebooks: %w[Bluebook Hecksagon World Adapter Port Translation Expression],
                        memory_commands: %w[console init interview]
 end

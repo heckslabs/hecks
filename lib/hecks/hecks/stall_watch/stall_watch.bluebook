@@ -60,6 +60,13 @@ Hecks.bluebook "Hecks" do
                move: "Heartbeat.beat! --wait once, then Integration.advance! confirm=true, so the pushed run " \
                      "is observed; then read the chain's log (~/.claude/hecks-dev/ticker/<commit>.log) and " \
                      "report a declined or ended chain as the cause."
+        # A train pull request whose CI never started: `TrainPrCi.Await` records it only once its
+        # bound has passed (deliver.bluebook), so it is a stall as soon as a look sees it.
+        member kind: "ci-not-started", aggregate: "Hecks::TrainPrCi", opens: "TrainPrCiAwaited",
+               closes: "TrainPrCiStarted", minutes: 0, forgets: 1440, fixer: "orchestrator",
+               move: "Read githubstatus.com for GitHub Actions and the PR (gh pr view <pr> --json statusCheckRollup). " \
+                     "The pipeline closes and reopens it once after 20 minutes (TrainPrReopen); if CI still has not " \
+                     "started once Actions is up, run Heartbeat.beat! --wait, then close and reopen it by hand (gh pr close, gh pr reopen, gh pr merge --auto --squash)."
         member kind: "agent-run-start", aggregate: "Hecks::AgentRun", opens: "AgentRunRequested",
                closes: "AgentRunStarted,AgentRunDeclined", minutes: 10, forgets: 1440, fixer: "orchestrator",
                move: "Work.yield! the run's Work item (AgentRun.running names it) with the reason, " \

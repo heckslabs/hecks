@@ -3,10 +3,13 @@ require "fileutils"
 require "json"
 require "tmpdir"
 
-# `AgentRun.Answer` through the booted Hecks domain: a session that has not ended, working or
-# blocked, is resumed with the answer, and an empty answer is refused. A stand-in `claude`
-# records each `--resume` call, so no real session is resumed. The adapter's argument list and
-# directory are in claude_agents_spec.rb.
+# `AgentRun.Answer` through the booted Hecks domain, by the paths of the
+# `AnswerTheSessionWhereItIs` rule: a session listed busy that carries the inbox hook gets the
+# answer in its inbox and is never stopped, a busy one without the hook is refused by name and
+# not stopped, and an idle or gone one is resumed with the answer. An empty answer is refused. A
+# stand-in `claude` (the session lister and the port's commands) records each `stop` and
+# `--resume`, so no real session is touched, and the inbox is a temporary directory. The
+# adapter's argument list and directory are in claude_agents_spec.rb.
 RSpec.describe "AgentRun.Answer through the Agents port" do
   ANSWER_STAND_IN = <<~SH.freeze
     #!/bin/sh
@@ -51,27 +54,86 @@ RSpec.describe "AgentRun.Answer through the Agents port" do
 
   before do
     allow(Hecks::Adapters::ClaudeAgents).to(receive(:new).and_wrap_original do |original, **context|
-      original.call(**context, settings: { jobs: File.join(scratch, "jobs"), settle: 0 })
+      original.call(**context, settings: { jobs: File.join(scratch, "jobs"), settle: 0, inbox: inbox })
     end)
   end
 
-  # The session as `claude agents` lists it, and its job's state, both in `state`.
-  def sessions(state)
-    listed = { id: "stand-in-session", sessionId: "stand-in-session-0000-full", state: state }
+  def inbox = File.join(scratch, "inbox")
+
+  def job_dir = File.join(scratch, "jobs", "stand-in-session")
+
+  # The session as `claude agents` lists it (`status:` busy or idle, when given), and its job's
+  # state in `state`, with any other job fields (`respawnFlags`).
+  def sessions(state, status: nil, **job)
+    listed = { id: "stand-in-session", sessionId: "stand-in-session-0000-full", state: state, status: status }.compact
     File.write(File.join(scratch, "sessions.json"), JSON.generate([listed]))
-    FileUtils.mkdir_p(File.join(scratch, "jobs", "stand-in-session"))
-    File.write(File.join(scratch, "jobs", "stand-in-session", "state.json"), JSON.generate(state: state))
+    FileUtils.mkdir_p(job_dir)
+    File.write(File.join(job_dir, "state.json"), JSON.generate(state: state, **job))
   end
+
+  # The job fields of a session started with the run's inbox hook in its settings.
+  def hooked(run) = { respawnFlags: ["--settings", JSON.generate(hooks: "f=#{File.join(inbox, "#{run}.md")}")] }
 
   def launch(*argv) = Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, argv: argv, program: "hecks")
 
-  def started_run(run, state)
+  def started_run(run, state, **listing)
     launch("agent_run.dispatch!", "run.value=#{run}", "repo.value=#{scratch}", "brief.value=say ok", "--wait")
-    sessions(state)
+    sessions(state, **listing)
     launch("agent_run.check!", "to=#{run}", "--wait")
   end
 
-  def answer(run, text) = launch("agent_run.answer!", "to=#{run}", "answer.value=#{text}", "--wait").first.to_s
+  def answer(run, text, *more) = launch("agent_run.answer!", "to=#{run}", "answer.value=#{text}", *more, "--wait").first.to_s
+
+  def touched? = File.exist?(File.join(scratch, "stopped")) || File.exist?(resume_args)
+
+  def check(run) = JSON.parse(launch("agent_run.check!", "to=#{run}", "--wait").first.to_s).fetch("state")
+
+  it "leaves the answer in a busy session's inbox and records it answered, never stopping it", :aggregate_failures do
+    started_run("a-busy", "working", status: "busy", **hooked("a-busy"))
+
+    expect(answer("a-busy", "yes")).to include("answered_at")
+    expect(File.read(File.join(inbox, "a-busy.md"))).to eq("yes")
+    expect(touched?).to be(false)
+  end
+
+  it "leads the queued answer with its step" do
+    started_run("a-step", "working", status: "busy", **hooked("a-step"))
+    answer("a-step", "yes", "step.value=Read your review.")
+
+    expect(File.read(File.join(inbox, "a-step.md"))).to eq("Read your review.\n\nyes")
+  end
+
+  it "refuses by name a busy session without the inbox hook, never stopping it", :aggregate_failures do
+    started_run("a-unhooked", "working", status: "busy")
+
+    expect(answer("a-unhooked", "yes")).to include("carries no inbox hook")
+    expect(touched?).to be(false)
+  end
+
+  it "keeps a busy unhooked session's run waiting on a verdict, to be sent again", :aggregate_failures do
+    started_run("a-verdict", "working", status: "busy")
+    launch("agent_run.await!", "to=a-verdict", "--wait")
+    answer("a-verdict", "sound", "verdict.value=j-1")
+
+    expect(check("a-verdict")).to include("status" => "started", "reviewing" => true, "resuming" => false)
+    expect(touched?).to be(false)
+  end
+
+  it "resumes a session listed idle whose job still reads working, since an idle one runs no hook", :aggregate_failures do
+    started_run("a-idle", "working", status: "idle", **hooked("a-idle"))
+
+    expect(answer("a-idle", "yes")).to include("answered_at")
+    expect(File.exist?(File.join(inbox, "a-idle.md"))).to be(false)
+    expect(File.read(resume_args)).to include("[pipeline answer] yes")
+  end
+
+  it "ends the run when a session whose answer was queued then reads stopped", :aggregate_failures do
+    started_run("a-queued", "working", status: "busy", **hooked("a-queued"))
+    answer("a-queued", "yes")
+    sessions("stopped")
+
+    expect(check("a-queued")).to include("status" => "finished", "condition" => "stopped", "resuming" => false)
+  end
 
   it "resumes a working session with the answer as its prompt", :aggregate_failures do
     started_run("a-working", "working")

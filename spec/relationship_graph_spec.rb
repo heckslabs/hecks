@@ -63,7 +63,10 @@ RSpec.describe "relationship graph validation" do
     end
   end
 
-  def build_bluebook(name, &block) = Hecks::Bluebook::DSL::BluebookBuilder.build(name, &block)
+  # Built with no ambient registry: these examples check the graph a declaration alone makes.
+  def build_bluebook(name, &block)
+    Hecks.with_registry(nil) { Hecks::Bluebook::DSL::BluebookBuilder.build(name, &block) }
+  end
 
   it "treats relationship declarations as aggregate-boundary edges" do
     expect { build_bluebook("RelationshipCycle", &OWNER_TEAM_RING) }.to raise_error(

@@ -17,7 +17,7 @@ module Hecks
         NONE = /no pull requests found/i
 
         # The fields read from the pull request.
-        FIELDS = "number,state,mergeCommit,statusCheckRollup,commits"
+        FIELDS = "number,state,mergeCommit,statusCheckRollup,commits,createdAt,comments"
 
         # @param runner [#call] takes `(argv, chdir:)` and answers `[ok, output]`
         # @param checkout [String] the directory `gh` runs in
@@ -28,8 +28,9 @@ module Hecks
           @branch = GitTrain::PullRequestBoarding.branch_for(landed)
         end
 
-        # @return [Hash, nil] `number`, `state` (`OPEN`, `MERGED`, `CLOSED`), `mergeCommit` and
-        #   `statusCheckRollup`; nil when the boarding has no pull request
+        # @return [Hash, nil] `number`, `state` (`OPEN`, `MERGED`, `CLOSED`), `mergeCommit`,
+        #   `statusCheckRollup`, `commits`, `createdAt` and `comments`; nil when the boarding has
+        #   no pull request
         # @raise [ConsoleCapture::Failure] when `gh` cannot read the branch for another reason
         def read
           ok, output = @runner.call(["gh", "pr", "view", @branch, "--json", FIELDS], chdir: @checkout)

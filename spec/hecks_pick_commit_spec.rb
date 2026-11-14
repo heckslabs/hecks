@@ -1,7 +1,8 @@
 require "spec_helper"
 require "tmpdir"
 require "open3"
-require "hecks/hecks/adapters/git_pick"
+require "hecks/hecks/adapters/delivery_library"
+Hecks::Adapters::DeliveryLibrary.require("git_pick")
 
 # Picking a commit onto a worktree's branch, run against a real repository in a temporary directory.
 # Each example builds its own repository, so no checkout of the owner's is touched.

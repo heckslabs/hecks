@@ -1,0 +1,10 @@
+# The Coder bluebook's launcher when the Hecks domain attaches it: `hecks coder <verb>` reads the
+# world named for the bluebook, as `agents.world` does for the Agents bluebook. Its store is not set
+# here: the bluebook takes the one the Hecks domain gives the bluebooks it attaches.
+#
+# The launcher setting makes a `--wait` call report a record that ends in a state its lifecycle
+# marks a failure, which is how a session's hook reads that `Turn.End` held its turn. No run key is
+# minted: a turn is keyed by the run that asks.
+Hecks.world "Coder" do
+  launcher "Launcher"
+end

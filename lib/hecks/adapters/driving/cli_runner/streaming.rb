@@ -20,8 +20,8 @@ module Hecks
           # @param max_polls [Integer, nil] stop after this many asks; unbounded when nil
           # @return [Integer, nil] the stream's `ExitStatus`, nil when `call` should run the line
           def stream(runtime:, argv:, program: "hecks run", out: $stdout, err: $stderr, max_polls: nil)
-            plan  = resolve(runtime, split_verbosity(argv).last, program)
-            words = stream_words(plan)
+            plan  = stream_plan(runtime, argv, program)
+            words = plan && stream_words(plan)
             return unless words
 
             run_stream(runtime, plan[:spec], words, out, max_polls)
@@ -31,6 +31,13 @@ module Hecks
             refuse(err, "#{e.message}\n\n  #{program} #{plan[:name]} --help", ExitStatus::USAGE)
           rescue *Runtime::DOMAIN_REFUSALS => e
             refuse(err, e.message)
+          end
+
+          # The plan of a line that may be a stream, or nil for a resume: resolving a resume runs
+          # it, and `call` resolves the line again, so a resume is never read as a stream.
+          def stream_plan(runtime, argv, program)
+            line = split_verbosity(argv).last
+            resolve(runtime, line, program) unless runs_a_saga?(line)
           end
 
           # Tails the question the line names and answers `ANSWERED`, the status of a stream that

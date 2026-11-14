@@ -2,9 +2,9 @@ require "spec_helper"
 require "hecks/hecks/adapters/landed_branches"
 
 # The branches `Landing` recorded as landed, read from a registry. The aggregate is looked up in the
-# real Hecks bluebook; the rows are canned, so no journal is read.
+# delivery package the Hecks domain attaches; the rows are canned, so no journal is read.
 RSpec.describe Hecks::Adapters::LandedBranches do
-  let(:bluebook) { Hecks.describe(File.expand_path("../lib/hecks/hecks", __dir__)).registry.bluebooks["Hecks"] }
+  let(:bluebook) { Hecks.describe(File.expand_path("../lib/hecks/hecks", __dir__)).registry.bluebooks["Delivery"] }
   let(:rows) { [] }
   let(:repository) { Struct.new(:all).new(rows) }
   let(:registry) { instance_double(Hecks::Runtime::Registry, bluebook: bluebook, repository: repository) }
@@ -12,7 +12,7 @@ RSpec.describe Hecks::Adapters::LandedBranches do
 
   def row(status, branch) = { status: named.new(status), branch: named.new(branch) }
 
-  it "finds the Landing aggregate in the Hecks bluebook" do
+  it "finds the Landing aggregate in the delivery bluebook" do
     expect(described_class.landing_aggregate(registry).hecks_name).to eq("Landing")
   end
 

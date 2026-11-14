@@ -97,8 +97,16 @@ RSpec.describe Hecks::Adapters::ClaudeAgents do
       start(run: { value: "fix-it" }, agent: { value: "coder" })
 
       hooks = JSON.parse(settings_asked).fetch("hooks")
-      expect(hooks.keys).to eq(%w[Stop SessionEnd])
-      expect(hooks["Stop"].first["hooks"].first["command"]).to include("/main/exe/hecks AgentRun.check! to=fix-it")
+      expect(hooks.keys).to eq(%w[PostToolUse Stop SessionEnd])
+      expect(hooks["Stop"].first["hooks"].last["command"]).to include("/main/exe/hecks AgentRun.check! to=fix-it")
+    end
+
+    it "adds a PostToolUse and a Stop hook that read the run's inbox", :aggregate_failures do
+      start(run: { value: "fix-it" }, agent: { value: "coder" })
+
+      hooks = JSON.parse(settings_asked).fetch("hooks")
+      expect(hooks["PostToolUse"].first["hooks"].first["command"]).to include("inbox/fix-it.md")
+      expect(hooks["Stop"].first["hooks"].first["command"]).to include("inbox/fix-it.md")
     end
 
     it "adds no hooks to a session that names no run" do

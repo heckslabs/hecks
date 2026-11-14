@@ -13,6 +13,9 @@ module Hecks
     # path that `load!` evaluates as Ruby, so `../x` or an absolute path must never reach it.
     PACKAGE_NAME = /\A[a-z][a-z0-9_]*\z/
 
+    # The files in which a package declares its ports, beside its bluebooks.
+    PORTS = "*.ports.hecksagon".freeze
+
     # Loads a vendored embryonaut bluebook package's `.bluebook` files, once
     # per registry.
     #
@@ -35,10 +38,14 @@ module Hecks
       declaration
     end
 
-    # Loads the package's bluebooks, then its plugin adapters, which answer its queries with the
-    # wasm modules beside them.
+    # Loads the package's bluebooks, then the ports it declares (`<name>.ports.hecksagon`, a
+    # `Hecks.hecksagon` block that merges into the attaching project's, as a gem bluebook's does),
+    # then its adapters: the plugins that answer its queries with the wasm modules beside them, and
+    # the adapters bound to its ports. A package that asks the outside therefore brings the asking
+    # with it, and a project that vendors it declares none of it again.
     def self.load_package(files, dir)
       files.each { |file| Kernel.load(file) }
+      Dir.glob(File.join(dir, PORTS)).each { |file| Kernel.load(file) }
       Dir.glob(File.join(dir, "*.adapter")).each { |file| Kernel.load(file) }
     end
     private_class_method :load_package

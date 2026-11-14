@@ -1,0 +1,114 @@
+# The outside delivery reaches: git, through one port for each kind of work. A project that
+# attaches this package gets these ports with it and declares none of them again.
+Hecks.hecksagon "Delivery" do
+  Delivery::Workspace.port "Reading" do
+    answers_query "Status"
+    answers_query "Strays"
+    answers_query "Changes"
+    answers_query "History"
+    answers_query "Stashes"
+    answers_query "DanglingCommits"
+  end
+
+  Delivery::Revision.port "Committing" do
+    asks "Commit", to: Revision do
+      attribute :run, RunKey
+      answers "CommitAnswered"
+      refuses "CommitRefused"
+    end
+  end
+
+  Delivery::LinkedTree.port "WorktreeAdding" do
+    asks "Create", to: LinkedTree do
+      attribute :run, RunKey
+      answers "CreateAnswered"
+      refuses "CreateRefused"
+    end
+
+    asks "Pull", to: LinkedTree do
+      attribute :run, RunKey
+      answers "PullAnswered"
+      refuses "PullRefused"
+    end
+  end
+
+  Delivery::LinkedTree.port "Publishing" do
+    asks "Push", to: LinkedTree do
+      attribute :run, RunKey
+      answers "BranchPublishAnswered"
+      refuses "BranchPublishRefused"
+    end
+  end
+
+  # Rebasing a worktree's branch onto a base: the git port runs the rebase and answers the sha, or refuses
+  # with the conflicted files and the sides they came from.
+  Delivery::LinkedTree.port "Rebasing" do
+    asks "Replay", to: LinkedTree do
+      attribute :run, RunKey
+      answers "RebaseAnswered"
+      refuses "RebaseRefused"
+    end
+  end
+
+  # Applying one commit onto a worktree's branch: the git port cherry-picks it and answers the sha, or refuses
+  # with the conflicted files and aborts, so nothing is left half-applied.
+  Delivery::LinkedTree.port "Picking" do
+    asks "Apply", to: LinkedTree do
+      attribute :run, RunKey
+      answers "PickAnswered"
+      refuses "PickRefused"
+    end
+  end
+
+  Delivery::Landing.port "Worktrees" do
+    asks "Merge", to: Landing do
+      attribute :run, RunKey
+      answers "MergeAnswered"
+      refuses "MergeRefused"
+    end
+
+    asks "FinishBranch", to: Landing do
+      attribute :run, RunKey
+      answers "MergeAnswered"
+      refuses "MergeRefused"
+    end
+
+    asks "StartLanding", to: Landing do
+      attribute :run, RunKey
+      answers "LandingJobStarted"
+      refuses "HandoffRefused"
+    end
+
+    asks "CarryBranch", to: Landing do
+      attribute :run, RunKey
+      answers "MergeAnswered"
+      refuses "CarryRefused"
+    end
+
+    asks "Convene", to: Landing do
+      attribute :run, RunKey
+      answers "ConveneAnswered"
+      refuses "ConveneRefused"
+    end
+
+    asks "Remove", to: Landing do
+      attribute :run, RunKey
+      answers "RemovalAnswered"
+      refuses "RemovalRefused"
+    end
+
+    asks "DropBranch", to: Landing do
+      attribute :run, RunKey
+      answers "DiscardAnswered"
+      refuses "DiscardRefused"
+    end
+
+    asks "MoveAside", to: Landing do
+      attribute :run, RunKey
+      answers "SetAsideAnswered"
+      refuses "SetAsideRefused"
+    end
+
+    answers_query "Unlanded"
+  end
+end

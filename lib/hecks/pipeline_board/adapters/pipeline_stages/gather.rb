@@ -15,6 +15,9 @@ module Hecks
         # Seconds one reader may take before its section is given as unknown.
         READ_SECONDS = 20
 
+        # A section whose reader from an earlier refresh has not finished.
+        STILL_RUNNING = { unknown: "the last read is still running" }.freeze
+
         # Each section: the reader, its method, whether it answers a query document, and arguments.
         READS = {
           ci_runs: [:github, :ci_runs, :query], slowest_jobs: [:github, :slowest_jobs, :query],
@@ -55,9 +58,18 @@ module Hecks
         end
 
         def gathered
-          threads = READS.transform_values { |spec| Thread.new { read(spec) } }
+          threads = READS.to_h { |section, spec| [section, reading(section, spec)] }
           deadline = Time.now + read_seconds
-          threads.transform_values { |thread| answer_of(thread, deadline) }
+          threads.to_h { |section, thread| [section, thread ? answer_of(section, thread, deadline) : STILL_RUNNING] }
+        end
+
+        # A new read of the section, or nil while the last one is still running, so a slow reader is
+        # never asked twice at once and its threads cannot pile up.
+        def reading(section, spec)
+          running = (@running ||= {})
+          return nil if running[section]&.alive?
+
+          running[section] = Thread.new { read(spec) }
         end
 
         # The sessions, each blocked one marked as the owner's to answer or not (see {OwnerQueue}),
@@ -70,11 +82,18 @@ module Hecks
 
         def read_seconds = @read_seconds || READ_SECONDS
 
-        def answer_of(thread, deadline)
-          return thread.value if thread.join([deadline - Time.now, 0].max)
+        # The reader's answer, or unknown past the deadline. The thread is left to finish rather
+        # than killed: its command stops itself at the Probe bound, and the next refresh skips the
+        # section until it has.
+        def answer_of(section, thread, deadline)
+          return finished(section, thread) if thread.join([deadline - Time.now, 0].max)
 
-          thread.kill
           { unknown: "reader did not answer in #{read_seconds}s" }
+        end
+
+        def finished(section, thread)
+          @running.delete(section) if @running[section].equal?(thread)
+          thread.value
         end
 
         def dated(data)

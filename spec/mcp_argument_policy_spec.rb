@@ -6,9 +6,9 @@ require "spec_helper"
 RSpec.describe Hecks::Adapters::Driving::McpScope do
   # Names that carry data and reach nothing outside the domain's own files.
   PLAIN_ARGUMENTS = %w[
-    additive agent aggregates arguments at body budget budget_minutes cap check commits context crate
+    additive agent aggregates arguments at body budget budget_minutes cap check commits context copy crate
     declaration_cache days dry dry_run email environment era example exclude expert fills format full_gate
-    gate inner isolation iterations kind lane landed list_shards message name named new_name no_ai number only
+    gate inner isolation iterations kind lane landed list_shards message name named new_name no_ai now number only
     opens outcome owner package pairs_shape parallel persist_regressions pin profile pulled pushed reason rehearsal_verdict
     report required resuming retried role run runs scope seed_start seeds session shard stage state stdout steps strict subject
     tags taking target targets timeout title to top verb verdict warmup watermark winners word work workers works_as
@@ -19,11 +19,20 @@ RSpec.describe Hecks::Adapters::Driving::McpScope do
       ref: described_class::REF_ARGUMENTS, plain: PLAIN_ARGUMENTS }
   end
 
-  let(:public_argument_names) do
+  # The Hecks bluebook and the delivery package it attaches, which holds the repository verbs.
+  let(:served_bluebooks) do
     declaration = boot_hecks_in_memory
-    cli = Hecks::Projector.call(:cli, bluebook: Hecks::Storehouse.bluebook_for(declaration), options: { program: "mcp" })
+    [Hecks::Storehouse.bluebook_for(declaration), declaration.registry.bluebook("Delivery")]
+  end
+
+  let(:public_argument_names) do
+    served_bluebooks.flat_map { |bluebook| public_commands(bluebook) }
+                    .flat_map { |spec| spec[:arguments].map { |argument| argument[:path].split(".").first } }.uniq
+  end
+
+  def public_commands(bluebook)
+    cli = Hecks::Projector.call(:cli, bluebook: bluebook, options: { program: "mcp" })
     cli[:commands].values.reject { |spec| spec[:internal] }
-                  .flat_map { |spec| spec[:arguments].map { |argument| argument[:path].split(".").first } }.uniq
   end
 
   it "classifies every argument name of every public command of the Hecks bluebook" do

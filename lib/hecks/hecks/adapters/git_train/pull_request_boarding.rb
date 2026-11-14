@@ -3,6 +3,7 @@
 require "json"
 require_relative "reading"
 require_relative "bench"
+require_relative "named_commit"
 require_relative "merge_when_green"
 
 module Hecks
@@ -42,22 +43,19 @@ module Hecks
           @runner = runner
         end
 
-        # @param boarded [String] the commit to carry, which local main must still name
-        # @param named [Boolean] whether the boarding named the commit; local main then need only
-        #   hold it, and the commits above it are reported as left for their own boarding
+        # @param boarded [String] the commit to carry, which local main must still hold: the commits
+        #   that landed above it meanwhile are reported as left for their own boarding
         # @return [Hash{Symbol => Hash}] `outcome:` `queued` (a PR is open and set to auto-merge),
         #   `pushed` (the repository disallows auto-merge; the checks passed and the train
         #   squash-merged the PR), `checks_failed` (a required check failed; the PR stays open) or
         #   `carried` (main already carries the commit), with `boarded:` and `report:`
-        # @raise [ConsoleCapture::Failure] when main moved since boarding, the commit is not
+        # @raise [ConsoleCapture::Failure] when main has lost the commit, the commit is not
         #   built on the remote's main, the push is refused, or `gh` cannot open or auto-merge
         #   the PR
-        def carry(boarded, named: false)
+        def carry(boarded)
           fetch
-          moved_since!(boarded, named)
+          moved_since!(boarded)
           answer = ancestor?(boarded, tracking) ? carried(boarded) : board(boarded)
-          return answer unless named
-
           answer.merge(report: { value: [answer.dig(:report, :value), *left_above(boarded)].join("; ") })
         end
 
@@ -125,10 +123,12 @@ module Hecks
 
         def tracking = "#{@remote}/main"
 
-        def moved_since!(boarded, named)
-          now = read("rev-parse", "--verify", "refs/heads/main^{commit}")
-          return if now == boarded || (named && NamedCommit.new(@git, @checkout, branch: "main").held?(boarded))
+        # Landings above the boarded commit are no refusal: the pull request is for that commit, and
+        # they stay local. A main that has lost it is refused, pushing nothing.
+        def moved_since!(boarded)
+          return if NamedCommit.new(@git, @checkout, branch: "main").held?(boarded)
 
+          now = read("rev-parse", "--verify", "refs/heads/main^{commit}")
           raise ConsoleCapture::Failure, "main moved since boarding (boarded #{short(boarded)}, now #{short(now)}): board again"
         end
 

@@ -1,4 +1,5 @@
 require_relative "../indifferent_key"
+require_relative "shrinker/value_simplification"
 
 module Hecks
   module Fuzzing

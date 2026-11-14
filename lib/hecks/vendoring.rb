@@ -30,29 +30,32 @@ module Hecks
     # @param ref [String] the commit-ish to export
     # @param subtree [String] repository-relative directory to export
     # @param into [String] the directory to replace with the export
-    # @param options [Hash] `glob:`, the pattern each exported file's name must match (`"*"`),
-    #   and `marker:`, the name of the file recording the commit (`MARKER`)
+    # @param options [Hash] `glob:` (the pattern of each exported file's name, `"*"`), `marker:`
+    #   (the file recording the commit, `MARKER`) and `beside:` (see {.beside_files})
     # @return [Pin] the commit and where the files landed
     # @raise [Vendoring::Error] if the source or a matching file is missing
     # @raise [ArgumentError] for any other keyword
     def self.pin(from:, ref:, subtree:, into:, **options, &)
-      unknown = options.keys - %i[glob marker]
+      unknown = options.keys - %i[glob marker beside]
       raise ArgumentError, "unknown keyword: #{unknown.first.inspect}" unless unknown.empty?
 
       request = request_for(from, ref, subtree, into, options)
       Dir.mktmpdir("hecks-vendoring") do |stage|
-        request.source.export(request.commit, request.files, stage)
+        request.source.export(request.commit, request.files + request.beside, stage)
         pinned(stage, request, &)
       end
     end
 
     # What one pin exports, and where it goes.
-    Request = Struct.new(:source, :commit, :files, :subtree, :into, :marker) do
+    Request = Struct.new(:source, :commit, :files, :subtree, :into, :marker, :beside) do
       # @return [String] the directory the exported subtree lands in
       def pin_dir = File.join(into, File.basename(subtree))
 
       # @return [Array<String>] the exported files' names
       def names = files.map { |file| File.basename(file) }
+
+      # @return [Array<String>] the directories next to the subtree that were exported with it
+      def beside_dirs = beside.map { |file| file.delete_prefix("#{File.dirname(subtree)}/").split("/").first }.uniq
     end
 
     # @return [Request] the commit and files to export
@@ -64,26 +67,41 @@ module Hecks
       files = source.files(commit, subtree, glob)
       raise Error, "no #{glob} files in #{subtree} at #{ref} in #{source.path}" if files.empty?
 
-      Request.new(source, commit, files, subtree, into, options.fetch(:marker, MARKER))
+      beside = beside_files(source, commit, subtree, options.fetch(:beside, {}))
+      Request.new(source, commit, files, subtree, into, options.fetch(:marker, MARKER), beside)
+    end
+
+    # The files of the directories exported whole beside the subtree, at any depth: `beside:`
+    # names each directory next to it with the pattern of its files' names (`{ "lib" => "*.rb" }`).
+    #
+    # @return [Array<String>] repository-relative paths; none for a directory the commit lacks
+    def self.beside_files(source, commit, subtree, beside)
+      beside.flat_map { |dir, pattern| source.tree(commit, File.join(File.dirname(subtree), dir), pattern) }
     end
 
     # Runs the optional hook on the staged export, installs what it leaves, and describes it.
     def self.pinned(stage, request)
       staged = File.join(stage, request.subtree)
       extras = block_given? ? yield(staged, request.commit) : nil
-      install(staged, request.into, request.marker, request.commit, extras || {})
+      install(staged, request, extras || {})
       Pin.new(commit: request.commit, dir: request.pin_dir, files: request.names)
     end
-    private_class_method :request_for, :pinned
+    private_class_method :request_for, :pinned, :beside_files
 
-    # Replaces `into` with the staged files, the marker and any extras.
-    def self.install(staged, into, marker, commit, extras)
+    # Replaces `into` with the staged files, the directories exported beside them, the marker and
+    # any extras.
+    def self.install(staged, request, extras)
+      into = request.into
       FileUtils.rm_rf(into)
       FileUtils.mkdir_p(into)
-      FileUtils.cp_r(staged, File.join(into, File.basename(staged)))
-      File.write(File.join(into, marker), "#{commit}\n")
+      copy_staged(File.dirname(staged), [File.basename(staged), *request.beside_dirs], into)
+      File.write(File.join(into, request.marker), "#{request.commit}\n")
       extras.each { |name, text| File.write(File.join(into, name), text) }
     end
-    private_class_method :install
+
+    def self.copy_staged(stage, dirs, into)
+      dirs.each { |dir| FileUtils.cp_r(File.join(stage, dir), File.join(into, dir)) }
+    end
+    private_class_method :install, :copy_staged
   end
 end

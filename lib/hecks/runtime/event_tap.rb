@@ -4,6 +4,7 @@ require "json"
 require "fileutils"
 require "time"
 require_relative "event"
+require_relative "event_tap/rotation"
 
 module Hecks
   module Runtime
@@ -18,6 +19,7 @@ module Hecks
     # the owner's log. The log holds names, identities and outcomes, the few link keys of `LINKS`
     # (short identifiers that tie one record to another) and nothing else of a payload. A write
     # that fails is dropped: logging never refuses a command.
+    # A generation past the last numbered file is kept in the {Archive} for `keep_hours`.
     class EventTap
       # The world verb that switches the tap on.
       VERB = "event_log"
@@ -25,8 +27,19 @@ module Hecks
       # Bytes after which the log moves to `<path>.1`; older generations shift up one number.
       DEFAULT_MAX_BYTES = 5_000_000
 
-      # Rotated generations kept beside the live log. The oldest past this count is dropped.
+      # Rotated generations kept as plain text beside the live log. The oldest past this count is
+      # archived.
       KEPT = 5
+
+      # Hours an archived generation is kept: `keep_hours` of the world's `event_log`.
+      DEFAULT_KEEP_HOURS = 48
+
+      # The most bytes the archive holds, whatever its age: `archive_max_bytes` of the `event_log`.
+      DEFAULT_ARCHIVE_MAX_BYTES = 200_000_000
+
+      # The `event_log` settings a tap is built from, besides its path.
+      LIMITS = { max_bytes: DEFAULT_MAX_BYTES, keep_hours: DEFAULT_KEEP_HOURS,
+                 archive_max_bytes: DEFAULT_ARCHIVE_MAX_BYTES }.freeze
 
       # Payload keys that tie one record to another: a landed or pushed sha, a branch, a Work item's
       # slug. Only these payload values reach the log.
@@ -48,7 +61,7 @@ module Hecks
         path = path_for(settings, override)
         return nil unless path
 
-        tap = new(path: path, max_bytes: settings.fetch(:max_bytes, DEFAULT_MAX_BYTES))
+        tap = new(path: path, **LIMITS.merge(settings.slice(*LIMITS.keys)))
         registry.event_log.observer = tap.method(:event)
         registry.event_log.reaction_observer = tap.method(:reaction)
         tap
@@ -68,11 +81,18 @@ module Hecks
 
       # @param path [String] the log file; `~` is the home directory
       # @param max_bytes [Integer] the size at which the log rotates
-      def initialize(path:, max_bytes: DEFAULT_MAX_BYTES)
+      # @param keep_hours [Numeric] hours an archived generation is kept
+      # @param archive_max_bytes [Integer] the most bytes the archive holds
+      def initialize(path:, max_bytes: DEFAULT_MAX_BYTES, keep_hours: DEFAULT_KEEP_HOURS,
+                     archive_max_bytes: DEFAULT_ARCHIVE_MAX_BYTES)
         @path = File.expand_path(path.to_s)
-        @max_bytes = max_bytes.to_i
+        @archive = Archive.new(@path, keep_hours: keep_hours, max_bytes: archive_max_bytes)
+        @rotation = Rotation.new(@path, max_bytes: max_bytes.to_i, kept: KEPT, archive: @archive)
         @lock = Mutex.new
       end
+
+      # @return [Archive] the compressed generations older than the numbered files
+      attr_reader :archive
 
       # Appends one line for an emitted event.
       #
@@ -133,24 +153,12 @@ module Hecks
           FileUtils.mkdir_p(File.dirname(@path))
           File.open("#{@path}.lock", File::RDWR | File::CREAT) do |lock|
             lock.flock(File::LOCK_EX)
-            rotate
+            @rotation.call
             File.open(@path, "a") { |file| file.puts(JSON.generate(line.merge("seq" => next_seq))) }
           end
         end
       rescue SystemCallError, IOError
         nil
-      end
-
-      def rotate
-        return unless File.exist?(@path) && File.size(@path) >= @max_bytes
-
-        (KEPT - 1).downto(1) { |n| shift_generation(n) }
-        File.rename(@path, "#{@path}.1")
-      end
-
-      def shift_generation(number)
-        from = "#{@path}.#{number}"
-        File.rename(from, "#{@path}.#{number + 1}") if File.exist?(from)
       end
 
       def next_seq = (last_seq || 0) + 1

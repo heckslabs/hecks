@@ -1,6 +1,7 @@
 require "spec_helper"
 require "tmpdir"
-require "hecks/hecks/adapters/git_rebase"
+require "hecks/hecks/adapters/delivery_library"
+Hecks::Adapters::DeliveryLibrary.require("git_rebase")
 
 # Rebasing a worktree's branch: the git adapter, run against a stand-in runner, so no rebase
 # happens. The stand-in holds the conflicted paths, clears one when it is staged, and records each

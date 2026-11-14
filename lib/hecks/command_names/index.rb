@@ -21,10 +21,23 @@ module Hecks
         typed = rest.drop(asking ? 1 : 0).first
         return if typed.nil? || free?(scope, typed)
 
-        Resolution.new(scope, typed, asking, old_spelling: rest.first == "query").problem
+        resolution(scope, rest, typed, asking).problem
       end
 
       private
+
+      # The line read against its scope, or, when the first bluebook does not know the name and
+      # exactly one attached bluebook does, against that one, as the launcher reads it.
+      def resolution(scope, rest, typed, asking)
+        read = ->(against) { Resolution.new(against, typed, asking, old_spelling: rest.first == "query") }
+        own = read.call(scope)
+        return own if own.known? || !scope.equal?(@scopes.fetch(""))
+
+        elsewhere = attached_scopes.map(&read).select(&:known?)
+        elsewhere.size == 1 ? elsewhere.first : own
+      end
+
+      def attached_scopes = @scopes.reject { |word, _| word.empty? }.values
 
       # An attached bluebook's word hands the rest of the line to that bluebook.
       def scope_of(words)

@@ -24,6 +24,7 @@ Hecks.context_map "Hecks" do
   context "Pipeline"
   context "Agents"
   context "Triage"
+  context "Delivery"
 
   # Deploy's `Tenant` is a validated request; Tenancy's `Tenant` is a fact. Tenancy's hecksagon
   # translates Deploy's `TenantProvisioned` into its own `Register`, so Deploy's model never reaches it.
@@ -48,4 +49,10 @@ Hecks.context_map "Hecks" do
   # so the pair also shares a kernel, which has no direction.
   relate "Hecks"    => "Coder", as: :anti_corruption_layer
   relate "Coder"    => "Hecks", as: :shared_kernel
+
+  # Delivery's hecksagon block here translates a submitted change, a seen merge and a CI answer
+  # into its own commands. Hecks attaches Delivery as well, so that pair also shares a kernel.
+  relate "Coder"    => "Delivery", as: :anti_corruption_layer
+  relate "Hecks"    => "Delivery", as: :anti_corruption_layer
+  relate "Delivery" => "Hecks", as: :shared_kernel
 end

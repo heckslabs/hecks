@@ -102,12 +102,12 @@ module Hecks
         end
 
         # The line saying the internal commands and queries were left out and how to list them,
-        # or no line when there are none.
+        # or no line when there are none. It says no number: a count would change the help each
+        # time a command is added.
         def all_hint(program, commands, questions)
-          hidden = (commands.values + questions.values).count { |spec| spec[:internal] }
-          return [] if hidden.zero?
+          return [] unless (commands.values + questions.values).any? { |spec| spec[:internal] }
 
-          ["  #{program} --all                  also list the #{hidden} internal commands and queries"]
+          ["  #{program} --all                  also list the internal commands and queries"]
         end
 
         # The first sentence of each aggregate's description, keyed by aggregate name; an aggregate

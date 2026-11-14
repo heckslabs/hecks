@@ -184,6 +184,7 @@ RSpec.describe "every live DSL word, used somewhere real" do
     "convert (TranslationAggregate)"    => TRANSLATION_RULE_GAP,
     "rename (TranslationAggregate)"     => TRANSLATION_RULE_GAP,
     "retype (TranslationAggregate)"     => TRANSLATION_RULE_GAP,
+    "split (TranslationAggregate)"      => TRANSLATION_RULE_GAP,
     "handles (PortOperation)"           =>
                                            "binds one operation to one value of a command, so one command can be answered " \
                                            "by several operations. No port in this corpus answers a single command by value; " \

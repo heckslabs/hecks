@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "reading"
+require_relative "named_commit"
 
 module Hecks
   module Adapters
@@ -9,9 +10,9 @@ module Hecks
       # the boarded commit already on it or push exactly that commit.
       #
       # What is pushed is the commit the boarding named, never the local branch as it stands at push
-      # time: a branch that moved on since is refused by name (its new commits were not minted for
-      # or settled), and a remote that moved so the commit is not built on it is refused too.
-      # Commits that land during the push stay local and are named in the report.
+      # time: commits that landed on the branch since were not minted for or settled, so they stay
+      # local and are named in the report. A branch that has lost the commit is refused by
+      # name, and a remote that moved so the commit is not built on it is refused too.
       #
       # A push the remote turns away because its branch moved meanwhile (a push from another
       # machine, which the line does not hold back) is fetched again and retried.
@@ -40,15 +41,13 @@ module Hecks
 
         # Carries one commit: finds it already on the remote, or pushes exactly it.
         #
-        # @param boarded [String] the commit to carry, which the local branch must still name
-        # @param named [Boolean] whether the boarding named the commit; the branch then need only
-        #   hold it
+        # @param boarded [String] the commit to carry, which the local branch must still hold
         # @return [Hash{Symbol => Hash}] the answer `GitTrain#carry` describes
-        # @raise [ConsoleCapture::Failure] when the branch moved since boarding, the remote's branch
-        #   moved so the commit is not built on it, or the push is refused
-        def carry(boarded, named: false)
+        # @raise [ConsoleCapture::Failure] when the branch has lost the commit, the remote's
+        #   branch moved so the commit is not built on it, or the push is refused
+        def carry(boarded)
           fetch
-          moved_since!(boarded, named)
+          moved_since!(boarded)
           return carried(boarded) if ancestor?(boarded, tracking)
 
           finish(push(boarded), boarded)
@@ -56,11 +55,11 @@ module Hecks
 
         private
 
-        # Refuses, pushing nothing, when the local branch names another commit than the boarded one.
-        def moved_since!(boarded, named)
-          now = local_head
-          return if now == boarded || (named && NamedCommit.new(@git, @checkout, branch: @branch).held?(boarded))
+        # Refuses, pushing nothing, when the local branch has lost the boarded commit.
+        def moved_since!(boarded)
+          return if NamedCommit.new(@git, @checkout, branch: @branch).held?(boarded)
 
+          now = local_head
           raise ConsoleCapture::Failure,
                 "#{@branch} moved since boarding (boarded #{short(boarded)}, now #{short(now)}): board again"
         end

@@ -1,0 +1,6 @@
+# a require resolved from anywhere but the file's own directory is not admitted
+require File.expand_path("../lib/adapters/placed", Dir.pwd)
+
+Hecks.adapter "Elsewhere" do
+  port "Publishing"
+end

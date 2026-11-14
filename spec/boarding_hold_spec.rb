@@ -1,5 +1,6 @@
 require "spec_helper"
-require "hecks/hecks/adapters/git_landing"
+require "hecks/hecks/adapters/delivery_library"
+Hecks::Adapters::DeliveryLibrary.require("git_landing")
 require "hecks/hecks/adapters/boarding_holding"
 require "hecks/hecks/adapters/boarding_releasing"
 require "tmpdir"
