@@ -2,7 +2,6 @@
 
 require_relative "context_line"
 require_relative "../driven/worktree_overlay"
-require "hecks/hecks/adapters/main_integration/kept_rows"
 
 module Hecks
   module Adapters
@@ -47,9 +46,16 @@ module Hecks
           root if root && File.file?(File.join(root, OVERLAY))
         end
 
+        # The kept-row reader, loaded when a command is checked: a boot loads no Ruby from an
+        # applied tree before the grammar table is built.
+        def kept_rows
+          require "hecks/hecks/adapters/main_integration/kept_rows"
+          MainIntegration::KeptRows
+        end
+
         def kept_row(root, bluebook, aggregate)
-          rows = MainIntegration::KeptRows.for_copy(@rows, MainIntegration::KeptRows.copy_of(root))
-          MainIntegration::KeptRows.find(rows, bluebook, aggregate)
+          rows = kept_rows.for_copy(@rows, kept_rows.copy_of(root))
+          kept_rows.find(rows, bluebook, aggregate)
         end
 
         def memory?(root, bluebook, aggregate)
@@ -57,7 +63,7 @@ module Hecks
         end
 
         def message(root, row)
-          copy = MainIntegration::KeptRows.copy_of(root)
+          copy = kept_rows.copy_of(root)
           "hecks: refused: #{row[:domain]}::#{row[:aggregate]} is kept across processes (#{row[:reason]}), but this " \
             "checkout binds it to Memory, so the next command would forget it. Write the overlay with " \
             "`exe/hecks LocalOverlay.write! root.value=#{root} copy.value=#{copy}`."

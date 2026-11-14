@@ -77,7 +77,10 @@ module Hecks
 
         # @return [Array<Hash>] the injected kept rows, else the runtime registry's
         def kept_rows(seams)
-          seams.fetch(:kept) { MainIntegration::KeptRows.from_registry(seams[:runtime]&.registry) }
+          seams.fetch(:kept) do
+            require "hecks/hecks/adapters/main_integration/kept_rows"
+            MainIntegration::KeptRows.from_registry(seams[:runtime]&.registry)
+          end
         end
 
         # @return [#call] the injected store rows, else the runtime's own and the main checkout's
