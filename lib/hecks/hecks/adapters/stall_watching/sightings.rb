@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "digest"
 require "time"
 require_relative "standing"
 require_relative "openings"
@@ -11,6 +12,9 @@ module Hecks
       # row each, read against the `StallKind` rows. It reports facts only: how long each line
       # has waited and what its row allows. Whether that is a stall is `Stall.File`'s rule.
       class Sightings
+        # The longest stall key, and so Work id, a look files.
+        KEY_LIMIT = 120
+
         # @param kinds [Array<Hash>] the `StallKind` rows: `kind`, `aggregate`, `opens`,
         #   `closes`, `closed_by`, `evidence`, `minutes`, `forgets`, `fixer`
         # @param now [Integer] the clock's answer, in Unix epoch seconds
@@ -46,9 +50,22 @@ module Hecks
 
         private
 
-        def pending(lines) = @kinds.flat_map { |kind| unclosed(kind, lines).map { |subject, at| [kind, subject, at] } }
+        def pending(lines)
+          @kinds.flat_map do |kind|
+            unclosed(kind, lines).reject { |subject, _| about?(kind, subject) }.map { |subject, at| [kind, subject, at] }
+          end
+        end
 
-        def key(kind, subject) = "stall-#{kind[:kind]}-#{subject}"
+        # Whether the kind's `not_about` prefix names the subject; a stall item is never one.
+        def about?(kind, subject) = !kind[:not_about].to_s.empty? && subject.start_with?(kind[:not_about])
+
+        # `stall-<kind>-<subject>`; past {KEY_LIMIT} characters the tail is a digest of the whole.
+        def key(kind, subject)
+          full = "stall-#{kind[:kind]}-#{subject}"
+          return full if full.length <= KEY_LIMIT
+
+          "#{full[0, KEY_LIMIT - 17]}-#{Digest::SHA256.hexdigest(full)[0, 16]}"
+        end
 
         # Filed already, or its run ended: a look emits nothing more for it.
         def handled?(standing, kind, subject)
