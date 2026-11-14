@@ -105,7 +105,8 @@ module Hecks
       # filling is for, so a work item whose branch landed is finished and never yielded.
       def settler(held, launcher)
         items = work_items
-        Settler.new(items, launcher, grace: machine.session_grace, landed: LandedSince.new(items, repo: plain(held[:repo])))
+        Settler.new(items, launcher, grace: machine.session_grace, landed: LandedSince.new(items, repo: plain(held[:repo])),
+                                     gone: machine)
       end
 
       # A planned work item parked behind a run still recorded started is never launched, so the
