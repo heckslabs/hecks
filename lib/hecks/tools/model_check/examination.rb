@@ -99,7 +99,8 @@ module Hecks
                                profile: options.profile)
           declarations = registry.bluebooks.values
           findings = declarations.flat_map do |declaration|
-            Bluebook::ModelCheck.call(declaration, hecksagon: registry.hecksagon(declaration.name), **scope)
+            Bluebook::ModelCheck.call(declaration, hecksagon: registry.hecksagon(declaration.name),
+                                                   timeouts:  timeout_rows(declaration), **scope)
           end
 
           remaining = without_allowlisted(name, findings) or return false

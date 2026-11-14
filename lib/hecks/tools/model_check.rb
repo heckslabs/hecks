@@ -1,6 +1,7 @@
 require_relative "../../hecks"
 require_relative "../bluebook/model_check"
 require_relative "model_check/sources"
+require_relative "model_check/timeout_rows"
 require_relative "model_check/examination"
 
 module Hecks
@@ -23,6 +24,7 @@ module Hecks
       Options = Struct.new(:strict, :profile, :rust_dir)
 
       extend Sources
+      extend TimeoutRows
       extend Examination
 
       module_function
