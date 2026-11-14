@@ -1,18 +1,24 @@
 require "spec_helper"
 require_relative "support/machine_readings"
 
-# Memory is read as swap used and the compressor's size; the test lane as its waiting count.
+# Memory is read as swap used in megabytes, the compressor's size and free memory; the test lane as its waiting count.
 RSpec.describe "the memory and lane states of a machine reading" do
   include MachineReadings
 
-  it "runs memory low over the swap mark or the compressor mark", :aggregate_failures do
-    expect(states(gauges(swap: 86.0))[:memory_state]).to eq("low")
-    expect(states(gauges(compressor: 17.0))[:memory_state]).to eq("low")
+  it "runs memory low over the swap or compressor mark while free memory is short", :aggregate_failures do
+    expect(states(gauges(swap_mb: 5000.0, free: 1.0))[:memory_state]).to eq("low")
+    expect(states(gauges(compressor: 17.0, free: 1.0))[:memory_state]).to eq("low")
   end
 
-  it "recovers memory only under the recovery mark", :aggregate_failures do
-    expect(states(gauges(swap: 60.0), memory: "low")[:memory_state]).to eq("low")
-    expect(states(gauges(swap: 40.0), memory: "low")[:memory_state]).to eq("ok")
+  it "does not run memory low on large idle swap or a big compressor with free memory", :aggregate_failures do
+    expect(states(gauges(swap_mb: 5000.0, free: 13.0))[:memory_state]).to eq("ok")
+    expect(states(gauges(compressor: 17.0, free: 13.0))[:memory_state]).to eq("ok")
+  end
+
+  it "recovers memory when free memory is back or swap is small, and keeps low in the gap", :aggregate_failures do
+    expect(states(gauges(swap_mb: 5000.0, free: 4.0), memory: "low")[:memory_state]).to eq("low")
+    expect(states(gauges(swap_mb: 5000.0, free: 8.0), memory: "low")[:memory_state]).to eq("ok")
+    expect(states(gauges(swap_mb: 1000.0, free: 1.0), memory: "low")[:memory_state]).to eq("ok")
   end
 
   it "keeps the lane's state when the queue cannot be read" do
