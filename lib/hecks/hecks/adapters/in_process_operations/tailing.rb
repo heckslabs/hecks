@@ -38,15 +38,24 @@ module Hecks
         # block or the limit ends the stream, so the tail's `seen` stays just past the last entry
         # handed over.
         def drain(repository, tail, bounds)
-          events = repository.events
-          while tail.seen < events.size
-            event = events[tail.seen]
+          entries_past(repository, tail.seen).each do |event|
             tail.seen += 1
             next unless followed?(event, bounds.aggregate, bounds.names)
 
             return :stop if handed_over?(tail, yield(JSON.parse(JSON.generate(event.to_h))), bounds.cap)
           end
           nil
+        end
+
+        # The log's entries past the first `seen`: the repository's own read when it has one, so a
+        # check of a long log costs only what is new, else a cut of the whole log.
+        def entries_past(repository, seen)
+          repository.respond_to?(:events_past) ? repository.events_past(seen) : repository.events.drop(seen)
+        end
+
+        # How many entries the log holds, counted by the repository when it can.
+        def entry_count(repository)
+          repository.respond_to?(:event_count) ? repository.event_count : repository.events.size
         end
 
         # Records that an entry was handed over, and whether its verdict or the limit ends the
