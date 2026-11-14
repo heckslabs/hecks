@@ -66,7 +66,7 @@ Hecks.bluebook "Hecks" do
                closes: "TrainPrCiStarted", minutes: 0, forgets: 1440, fixer: "orchestrator",
                move: "Read githubstatus.com for GitHub Actions and the PR (gh pr view <pr> --json statusCheckRollup). " \
                      "The pipeline closes and reopens it once after 20 minutes (TrainPrReopen); if CI still has not " \
-                     "started once Actions is up, close and reopen it by hand with TrainPrReopen.cycle! (gh pr merge --auto --squash after)."
+                     "started once Actions is up, run Heartbeat.beat! --wait, then close and reopen it by hand (gh pr close, gh pr reopen, gh pr merge --auto --squash)."
         member kind: "agent-run-start", aggregate: "Hecks::AgentRun", opens: "AgentRunRequested",
                closes: "AgentRunStarted,AgentRunDeclined", minutes: 10, forgets: 1440, fixer: "orchestrator",
                move: "Work.yield! the run's Work item (AgentRun.running names it) with the reason, " \

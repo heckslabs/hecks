@@ -146,8 +146,9 @@ RSpec.describe "the live wiring diagram" do
 
     it "reads the files into a registry of its own and boots nothing", :aggregate_failures do
       File.write(path, scratch)
+      held = Hecks.current_registry
       expect(described_class.new(booted).read.bluebooks.keys).to eq(["Scratch"])
-      expect(Hecks.current_registry).to be_nil
+      expect(Hecks.current_registry).to equal(held)
     end
   end
 
