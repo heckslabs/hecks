@@ -143,7 +143,7 @@ module Hecks
       # next beat does.
       def limits
         gauge = machine
-        { cap: gauge.cap, load: gauge.load, max_load: gauge.max_load, frozen: gauge.frozen,
+        { cap: gauge.cap, urgent_reserve: gauge.urgent_reserve, load: gauge.load, max_load: gauge.max_load, frozen: gauge.frozen,
           epic_wip: gauge.epic_wip_limit, paused: gauge.paused, budget: gauge.boot_stop,
           exempt: WorkItems.method(:red?), **cached_reads(gauge) }
       end

@@ -2,6 +2,8 @@
 
 require_relative "started_work"
 require_relative "console_capture"
+require_relative "work_slots"
+require_relative "dispatching/work_items"
 
 module Hecks
   module Adapters
@@ -14,6 +16,9 @@ module Hecks
     class WorkLimits
       # The cap when the Tickets world declares none.
       DEFAULT_CAP = 8
+
+      # The places beyond the cap a red work item may take when the Tickets world declares none.
+      DEFAULT_URGENT_RESERVE = 1
 
       # The world verb that carries the cap.
       VERB = "work_limit"
@@ -33,6 +38,15 @@ module Hecks
         declared && !declared[:cap].nil? ? Integer(declared[:cap]) : DEFAULT_CAP
       end
 
+      # The places beyond the cap that red work items may fill, from the world's `urgent_reserve`.
+      #
+      # @param registry [Runtime::Registry, nil]
+      # @return [Integer] the declared reserve, else {DEFAULT_URGENT_RESERVE}
+      def self.urgent_reserve(registry)
+        declared = registry&.world("Tickets")&.for_verb(VERB)
+        declared && !declared[:urgent_reserve].nil? ? Integer(declared[:urgent_reserve]) : DEFAULT_URGENT_RESERVE
+      end
+
       # Clears a just-started work item against the cap.
       #
       # @param held [Hash] the Work item: `work`
@@ -40,17 +54,27 @@ module Hecks
       # @raise [ConsoleCapture::Failure] naming the cap, the count and the holders
       def check_cap(**held)
         key = plain(held[:work])
-        holders = StartedWork.items(@registry).map { |item| item[:key] }
+        holders = started
+        item = holders.find { |candidate| candidate.key == key }
         limit = self.class.cap(@registry)
-        if holders.include?(key) && holders.size > limit
-          raise ConsoleCapture::Failure,
-                "#{key} would be started work item #{holders.size} of a cap of #{limit}; started: #{holders.join(", ")}"
-        end
+        raise ConsoleCapture::Failure, refusal(key, limit, holders) if item && over?(item, holders - [item], limit)
 
         { output: { value: "#{key} is within the cap of #{limit} (#{holders.size} started)" } }
       end
 
       private
+
+      def started
+        StartedWork.items(@registry).map { |item| Dispatching::Plan::Item.new(key: item[:key], title: item[:title].to_s) }
+      end
+
+      def over?(item, others, limit)
+        WorkSlots.full?(item, others, cap: limit, reserve: self.class.urgent_reserve(@registry))
+      end
+
+      def refusal(key, limit, holders)
+        "#{key} would be started work item #{holders.size} of a cap of #{limit}; started: #{holders.map(&:key).join(", ")}"
+      end
 
       def plain(argument) = argument.is_a?(Hash) ? argument[:value] : argument
     end
