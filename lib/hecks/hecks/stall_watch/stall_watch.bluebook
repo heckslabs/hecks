@@ -20,12 +20,11 @@ Hecks.bluebook "Hecks" do
       # One kind of stall, one row each: the aggregate and event that open it, the events on the same
       # aggregate id that close it (comma separated), the minutes it may stay open before it is a
       # stall, the minutes after which an open line is history rather than a stall, the role that
-      # fixes it, and the move it makes, in Hecks commands: the stall's Work item carries it as its
-      # detail. The opening line's aggregate id is the stall's subject. `closed_by` says which
-      # closing lines close an opening line: "id" (the default) those on the same aggregate id,
-      # "any" every closing line on the aggregate after it, whatever its id. `evidence` names a
-      # read the stall's detail carries when it is filed: "processes" is the busiest process class
-      # and the session whose shell owns it.
+      # fixes it, and the move it makes (its Work item's detail). The opening line's aggregate id is
+      # the subject. `closed_by` says which closing lines close it: "id" (the default) those on the
+      # same aggregate id, "any" every closing line on the aggregate after it. `evidence` names a
+      # read the detail carries: "processes" is the busiest class and its session. `not_about` is a
+      # subject prefix never filed for ("stall-").
       value_object "StallKind" do
         attribute :kind,      String
         attribute :aggregate, String
@@ -39,8 +38,9 @@ Hecks.bluebook "Hecks" do
         attribute :move,      String
         attribute :ends_aggregate, String
         attribute :ends,           String
+        attribute :not_about,      String
 
-        member kind: "plan-review", aggregate: "Agents::PlanReview", opens: "PlanReviewRequested",
+        member kind: "plan-review", not_about: "stall-", aggregate: "Agents::PlanReview", opens: "PlanReviewRequested",
                closes: "PlanReviewed,PlanReviewRecorded,ReviewUnstarted", minutes: 20, forgets: 1440, fixer: "orchestrator",
                ends_aggregate: "Hecks::AgentRun", ends: "SessionFinished,SessionFailed,AgentRunRetired,AgentTrialRunRetired",
                move: "Read the architect's closing report, record its verdict with PlanReview.answer! " \
@@ -67,16 +67,16 @@ Hecks.bluebook "Hecks" do
                move: "Read githubstatus.com for GitHub Actions and the PR (gh pr view <pr> --json statusCheckRollup). " \
                      "The pipeline closes and reopens it once after 20 minutes (TrainPrReopen); if CI still has not " \
                      "started once Actions is up, run Heartbeat.beat! --wait, then close and reopen it by hand (gh pr close, gh pr reopen, gh pr merge --auto --squash)."
-        member kind: "agent-run-start", aggregate: "Hecks::AgentRun", opens: "AgentRunRequested",
+        member kind: "agent-run-start", not_about: "stall-", aggregate: "Hecks::AgentRun", opens: "AgentRunRequested",
                closes: "AgentRunStarted,AgentRunDeclined", minutes: 10, forgets: 1440, fixer: "orchestrator",
                move: "Work.yield! the run's Work item (AgentRun.running names it) with the reason, " \
                      "so the fill restarts it once."
-        member kind: "agent-run-session", aggregate: "Hecks::AgentRun", opens: "AgentRunStarted",
+        member kind: "agent-run-session", not_about: "stall-", aggregate: "Hecks::AgentRun", opens: "AgentRunStarted",
                closes: "SessionFinished,SessionFailed,AgentRunRetired,AgentTrialRunRetired", minutes: 240,
                forgets: 1440, fixer: "orchestrator",
                move: "AgentRun.check! the run; if it is unchanged AgentRun.answer! it asking for status once; " \
                      "then Work.yield! the run's Work item (AgentRun.running names it) with the reason."
-        member kind: "agent-run-blocked", aggregate: "Hecks::AgentRun", opens: "SessionBlocked",
+        member kind: "agent-run-blocked", not_about: "stall-", aggregate: "Hecks::AgentRun", opens: "SessionBlocked",
                closes: "AnswerRequested,AgentRunAnswered,SessionWorking,SessionFinished,SessionFailed,AgentRunRetired,AgentTrialRunRetired",
                minutes: 15, forgets: 1440, fixer: "orchestrator",
                move: "AgentRun.answer! the [confirm] or [retry] question it waits on, and confirm the board did. " \
