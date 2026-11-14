@@ -43,6 +43,10 @@ Hecks.bluebook "Agents" do
       member role: "orchestrator", pattern: "AgentRun.check_all!"
       member role: "orchestrator", pattern: "AgentRun.answer!"
       member role: "orchestrator", pattern: "AgentRun.check!"
+      # A message is an event the run's session hears; AgentRun.answer! stays for a session not following.
+      member role: "orchestrator", pattern: "Message.send!"
+      member role: "orchestrator", pattern: "Message.read!"
+      member role: "orchestrator", pattern: "Message.inbox"
       member role: "orchestrator", pattern: "PlanReview.answer!"
       # Hands a question whose answer is the owner's to the owner, unanswered, and frees its seat.
       member role: "orchestrator", pattern: "Question.escalate!"
@@ -796,6 +800,91 @@ Hecks.bluebook "Agents" do
     policy "JudgeTheUnstartedReview" do
       on      "PlanReview.ReviewUnstarted"
       trigger Verdict::Judge, with: { run: :run, work: :work, role: "architect", answer: :reason }
+    end
+  end
+
+  # A message is information: no policy acts on its body or its sender, which is the sender's own
+  # word and proves nothing. A session hears its messages with `Operation.follow` on this aggregate;
+  # one that is not following is still answered with `AgentRun.answer!`.
+  aggregate "Message" do
+    description "One message from a session to a run: sent as an event the run's session hears, then read. It grants no approval and changes no permission; a reply is a message whose in_reply_to names the one it answers."
+
+    identified_by :message
+
+    attribute :message, MessageKey
+    attribute :recipient, RunKey
+    attribute :sender, SenderName
+    attribute :kind, MessageKind
+    attribute :body, BodyText
+    attribute :in_reply_to, MessageRef, optional: true
+    attribute :reader, ReaderName, optional: true
+
+    value_object "MessageKey" do
+      attribute :value, String, matches: :present
+    end
+
+    # The run a message is for: the key its session follows and reads its inbox by.
+    value_object "RunKey" do
+      attribute :value, String, matches: :present
+    end
+
+    # The run or session that sent it, as it names itself.
+    value_object "SenderName" do
+      attribute :value, String, matches: :present
+    end
+
+    # What the message is, to a session or back from one: `owner` holds the owner's verbatim words.
+    value_object "MessageKind" do
+      attribute :value, String, one_of: %w[answer brief-change stand-down question owner report blocked done]
+    end
+
+    # Free text. Nothing reads it as a command: it reaches no port and no policy.
+    value_object "BodyText", String
+
+    # The key of the message this one answers; empty when it answers none.
+    value_object "MessageRef", String
+
+    # The session that read the message, so the sender can see who has it.
+    value_object "ReaderName" do
+      attribute :value, String, matches: :present
+    end
+
+    lifecycle :status, default: "sent" do
+      transition "Read" => "read", from: "sent"
+      mark :terminal, "read"
+    end
+
+    command "Send" do
+      role "Operator"
+      goal "Tell a run something as an event its session hears: an answer, a changed brief, a stand-down, a question or a report"
+
+      attribute :message,     MessageKey, sets: true
+      attribute :recipient,   RunKey, sets: true
+      attribute :sender,      SenderName, sets: true
+      attribute :kind,        MessageKind, sets: true
+      attribute :body,        BodyText, sets: true
+      attribute :in_reply_to, MessageRef, default: "", sets: true
+
+      given("the message says something") { !body.value.to_s.strip.empty? }
+
+      emits "MessageSent"
+    end
+
+    command "Read", from: "sent" do
+      role "Operator"
+      goal "Record that a session read a message (to=<message>), so it leaves the run's inbox"
+
+      reference_to Message
+      attribute :reader, ReaderName, sets: true
+
+      emits "MessageRead"
+    end
+
+    query "Inbox" do
+      description "The unread messages for one run, each with its sender, kind, body and the message it answers."
+      attribute :recipient, RunKey
+      where(status: "sent", recipient: :recipient)
+      order_by :message
     end
   end
 
