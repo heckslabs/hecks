@@ -1,6 +1,7 @@
 require_relative "consumer_runner"
 require_relative "redrive"
 require_relative "runnable"
+require_relative "held_store"
 
 module Hecks
   module Runtime
@@ -11,6 +12,7 @@ module Hecks
         include ConsumerRunner
         include Redrive
         include Runnable
+        include HeldStore
 
         attr_reader :registry, :log
 
@@ -86,9 +88,10 @@ module Hecks
         end
 
         # Claim, run the consumer, then settle. A failed claim means another
-        # relay already has this row.
+        # relay already has this row, or the store was held (`HeldStore`): a
+        # held store is never raised to the command whose save enqueued the row.
         def deliver_row(row, repository)
-          return false unless repository.outbox_claim(row.id)
+          return false unless claim(row, repository)
 
           row.status = "claimed"
           settle_delivery(row, repository)
@@ -103,10 +106,11 @@ module Hecks
 
         def settle_delivery(row, repository)
           reason = run_consumer(row)
-          row.status = reason ? "refused" : "delivered"
-          repository.outbox_settle(row.id, status: row.status, error: reason)
-          row.error = reason
+          settle(row, repository, reason ? "refused" : "delivered", reason)
           true
+        rescue Unwritten => e
+          put_back(row, repository, e)
+          false
         rescue StandardError, ScriptError => e
           settle_failed(row, repository, e)
           false
@@ -116,11 +120,10 @@ module Hecks
         # SagaInterpreter both rescue it as a recorded, undelivered
         # reaction) — anything here is a defect in the relay's own path.
         def settle_failed(row, repository, error)
-          repository.outbox_settle(row.id, status: "failed", error: "#{error.class}: #{error.message}")
-          row.status = "failed"
-          row.error  = "#{error.class}: #{error.message}"
+          reason = "#{error.class}: #{error.message}"
+          settle(row, repository, "failed", reason)
           @log << { outbox: row.delivery_id, consumer: row.consumer, delivered: false, defect: true,
-                    reason: row.error }
+                    reason: reason }
         end
 
         # Bluebooks, not hecksagons: a domain with no hecksagon is still

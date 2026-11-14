@@ -114,12 +114,17 @@ module Hecks
             bluebook.aggregates.find { |aggregate| aggregate.hecks_name == head.split(".").first }
           end
 
-          # The record as its repository holds it now, or nil when it cannot be read.
+          # The record as its repository holds it now, or nil when it cannot be read. A store held
+          # past the wait is one such case, and only that one: the command has saved, so the answer
+          # is the state the command itself settled on, and stderr says it was not read again.
           def reread(runtime, bluebook, aggregate, handle)
             return unless aggregate && runtime.respond_to?(:registry)
 
             repository = runtime.repository(bluebook.name, aggregate)
             repository&.find(handle.id)&.to_h
+          rescue Runtime::StoreBusy => e
+            warn "[hecks] the saved record was not read again: the store was busy (#{e.message}). " \
+                 "The state printed is the one the command settled on, before its reactions."
           end
         end
       end

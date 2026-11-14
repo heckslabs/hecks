@@ -50,6 +50,8 @@ module Hecks
 
         def clock = @standins[:now]&.call || Time.now.utc
 
+        def header_of(report) = report.partition("\n").first
+
         # What a confirmed filling leaves for the clock's beat: whether the boot budget stopped it,
         # and when the window alone could free the budget; and whether the machine held planned work
         # back. Only a confirmed filling writes this, so a dry plan between a stop and the next beat

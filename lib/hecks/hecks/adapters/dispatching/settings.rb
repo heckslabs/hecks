@@ -55,6 +55,15 @@ module Hecks
         # Started work items of one epic allowed at once when the world names no limit.
         EPIC_WIP_LIMIT = 2
 
+        # The world verb that carries the bounds on shedding load.
+        SHED = "load_shed"
+
+        # Coders that must run before one is asked to yield, when the world names none.
+        SHED_MIN_CODERS = 2
+
+        # Runs that may stand asked to yield at once, when the world names none.
+        SHED_AT_ONCE = 1
+
         # Seconds a session is given to appear in `claude agents` when the world names none.
         GRACE_SECONDS = 120
 
@@ -148,6 +157,12 @@ module Hecks
 
         # @return [Integer] the most work items of one epic started at once
         def epic_wip_limit = Integer(declared(EPIC_WIP)[:limit] || EPIC_WIP_LIMIT)
+
+        # @return [Integer] the fewest coders that must be running for one to be asked to yield
+        def shed_min_coders = Integer(declared(SHED)[:min_coders] || SHED_MIN_CODERS)
+
+        # @return [Integer] the most runs that may stand asked to yield and not yet ended
+        def shed_at_once = Integer(declared(SHED)[:at_once] || SHED_AT_ONCE)
 
         # @return [Boolean] whether planned work rolls forward by itself; false only when paused
         def roll_forward? = declared(ROLL)[:roll_forward] != false

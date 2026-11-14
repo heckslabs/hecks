@@ -11,7 +11,7 @@ RSpec.describe "dispatch picks from the epic with the lowest tier" do
 
   def registry_of(works, ranks)
     rows = { "Work" => works, "Epic" => ranks.map { |epic, tier| double(epic: epic, tier: tier) } }
-    registry = double(bluebook: double(aggregates: rows.keys.map { |name| double(hecks_name: name) }))
+    registry = double(bluebook: double(aggregates: rows.keys.map { |name| double(hecks_name: name, value_objects: []) }))
     allow(registry).to receive(:repository) { |_domain, aggregate| double(all: rows.fetch(aggregate.hecks_name)) }
     registry
   end
