@@ -23,4 +23,11 @@ RSpec.describe Hecks::Adapters::ClaudeClosingMessage do
     2.times { described_class.new(projects: projects).of("abc123") }
     expect(described_class.new(projects: projects).of("abc123")).to eq("Verdict: sound")
   end
+
+  it "does not search the project folders again for a session it found no transcript for" do
+    closing = described_class.new(projects: projects)
+    allow(Dir).to receive(:glob).and_call_original
+    3.times { closing.of("no-such-session") }
+    expect(Dir).to have_received(:glob).once
+  end
 end

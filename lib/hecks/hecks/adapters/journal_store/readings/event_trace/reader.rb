@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "json"
+require_relative "outbox_floor"
 
 module Hecks
   module Adapters
@@ -30,14 +31,15 @@ module Hecks
             end
 
             # @param events [Array<Hash>] events as {#events} answers them
-            # @return [Array<Hash>] the outbox rows whose event has one of these identities
+            # @return [Array<Hash>] the outbox rows queued for these events, whose event has one of
+            #   their identities; an aggregate's older rows are left out, not parsed
             def outbox_for(events)
               ids = events.map { |event| event["aggregate_id"].to_s }.uniq
               return [] if ids.empty? || !table?("hecks_outbox")
 
-              sql = "SELECT id, consumer, status, error, event FROM hecks_outbox WHERE #{json("event", "id")} " \
-                    "IN (#{(["?"] * ids.size).join(", ")}) ORDER BY id"
-              run(sql, ids)
+              sql = "SELECT id, consumer, status, error, event FROM hecks_outbox WHERE id >= ? AND " \
+                    "#{json("event", "id")} IN (#{(["?"] * ids.size).join(", ")}) ORDER BY id"
+              run(sql, [OutboxFloor.new(method(:run)).before(events), *ids])
             end
 
             private
