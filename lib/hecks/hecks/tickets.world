@@ -45,7 +45,7 @@ Hecks.world "Tickets" do
                            swap_low: 70.0, swap_recovered: 50.0, compressor_gb: 12.0, lane_busy: 4.0, lane_idle: 1.0,
                            interval: 60.0
   github_issues "GitHubIssues", enabled: false
-  work_limit "WorkLimits", cap: 6
+  work_limit "WorkLimits", cap: 7
   dispatch_max_load "Dispatch", limit: 10.0
   epic_wip_limit "Dispatch", limit: 4
   cpu_budget "Dispatch", boot_hours_per_day: 6.0
