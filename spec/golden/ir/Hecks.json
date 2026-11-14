@@ -498,6 +498,24 @@
               ],
               [
                 "aggregate",
+                "ReapTurn"
+              ],
+              [
+                "checkout",
+                "both"
+              ],
+              [
+                "reason",
+                "a beat, a landing and a session's end ask for the one turn to reap from processes of their own"
+              ]
+            ],
+            [
+              [
+                "domain",
+                "Hecks"
+              ],
+              [
+                "aggregate",
                 "TrainPr"
               ],
               [

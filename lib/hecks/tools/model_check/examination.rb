@@ -40,7 +40,7 @@ module Hecks
           edges = booted.flat_map do |_, registry|
             Projections::ContextRelationships.call(registry: registry, owners: owners)
           end
-          findings = Bluebook::ModelCheck.context_cycle_findings(edges.uniq) +
+          findings = Bluebook::ModelCheck.corpus_cycle_findings(edges.uniq, booted.flat_map { |_, held| held.context_maps }) +
                      classification_findings(booted, owners) + context_map_findings(booted, owners)
           return true if findings.empty?
 
@@ -99,7 +99,8 @@ module Hecks
                                profile: options.profile)
           declarations = registry.bluebooks.values
           findings = declarations.flat_map do |declaration|
-            Bluebook::ModelCheck.call(declaration, hecksagon: registry.hecksagon(declaration.name), **scope)
+            Bluebook::ModelCheck.call(declaration, hecksagon: registry.hecksagon(declaration.name),
+                                                   timeouts:  timeout_rows(declaration), **scope)
           end
 
           remaining = without_allowlisted(name, findings) or return false

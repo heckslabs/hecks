@@ -101,9 +101,9 @@ require "hecks/bluebook/model_check"
 bluebook  = runtime.registry.bluebooks.values.first
 findings = Hecks::Bluebook::ModelCheck.call(bluebook)
 
-findings.map(&:kind).sort   # => [:dead_transition, :stuck_state, :unreachable_state, :unreachable_state]
+findings.map(&:kind).tally  # => {unreachable_state: 2, dead_transition: 1, stuck_state: 1, wait_without_timeout: 4}
 findings.count { |f| f.severity == :error }    # => 3
-findings.count { |f| f.severity == :warning }  # => 1
+findings.count { |f| f.severity == :warning }  # => 5
 ```
 
 `Reopen` declares `from: "locked"` — a real state, since a `from:`
@@ -152,6 +152,30 @@ stuck.severity                        # => :warning
 stuck.message.include?("consecrated") # => true
 ```
 
+The other four warnings are one question asked of each state: how long
+may a record stay here? A state that is not an end (`mark :terminal` or
+`mark :reusable`) is passed through when the reactions to entering it
+carry every record out in the same dispatch, a rest when the lifecycle
+says `mark :rests`, and otherwise a wait. A wait needs a timeout row
+that names its state, handed to `ModelCheck.call` as `timeouts:`; one
+that no row names can hold a record forever, and is reported as
+`wait_without_timeout`. This fragment marks nothing and is handed no
+rows, so every one of its states is reported, the unreachable two
+included:
+
+```ruby
+waits = findings.select { |f| f.kind == :wait_without_timeout }
+
+waits.map { |f| f.message[/\A"(\w+)"/, 1] }.sort  # => ["consecrated", "locked", "opened", "sealed"]
+waits.map(&:severity).uniq                        # => [:warning]
+```
+
+`"consecrated"` earns both warnings, and one mark answers both:
+`mark :terminal, "consecrated"` says the reliquary is done there, so it
+is neither stuck nor waiting. A warning becomes an error for a caller
+that holds the bluebook's waits, `ModelCheck.call(bluebook, hold_waits:
+true)`.
+
 The full inventory — every finding kind the checker can raise, across
 lifecycles, sagas, and policies:
 
@@ -160,6 +184,11 @@ lifecycles, sagas, and policies:
 | `unreachable_state` | error | a state named in a `from:` or a transition target that no path from the default ever reaches |
 | `dead_transition` | error | a transition whose own `from:` state(s) are never reached — it can never fire |
 | `stuck_state` | warning | a reached state with no transition ever declared to leave it (suppressed entirely if any transition in the lifecycle is unconstrained — a machine with a genuinely free move can idle anywhere on purpose) |
+| `wait_without_timeout` | warning, error when the caller holds the waits (`hold_waits`) | a state that is not an end (`:terminal`, `:reusable`), not marked `:rests`, not carried out by the reactions to entering it, and named by no timeout row: it can hold a record forever |
+| `rests_contradicted` | error | a `:rests` mark on a state that is ended, timed by a row, or passed through |
+| `timeout_unknown_state` | error | a timeout row names a state its aggregate's lifecycle does not have |
+| `timeout_opens_elsewhere` | error | a timeout row's opening event does not enter the state it times, so the clock would start somewhere else |
+| `timeout_open_exit` | error | a timeout row's closing events miss a transition out of its state, so a record that left would still be filed as stalled |
 | `unknown_command` | error | a transition names a command the aggregate or entity never declares |
 | `deaf_trigger` | error | a saga's `starts_on`/`ends_on` names an event no command in the domain emits |
 | `unreachable_pm_state` | error | a declared saga state no handler chain from its first state ever reaches |
@@ -181,7 +210,9 @@ hecks ModelCheckRun.model_check! examples/banking # one domain
 ```
 
 `ModelCheck::ALLOWED_FINDINGS` is empty — this repo's own corpus ships
-with zero findings, none allowed on purpose. It wasn't always: banking's
+with zero errors, none allowed on purpose. Warnings ship: a stuck state
+nobody marked and a wait no row times are reported on every run and
+block nothing, until a caller holds them. It wasn't always: banking's
 `ExternalSettlement` saga used to leave its own `"sent"` state
 unreachable through the handler chain the checker walks, even though
 the underlying transfer genuinely settles, because a `state "sent"`
@@ -196,8 +227,9 @@ by construction, and the entry was deleted rather than left stale. The
 coverage gate in `spec/model_check_spec.rb` — reading the same table
 `hecks ModelCheckRun.model_check!` does — still fails in both directions: a new error
 nothing names is a regression, and an allowlisted entry the checker
-stops finding is stale and has to be deleted. A finding gets shipped by
-being named, never by being silenced.
+stops finding is stale and has to be deleted. An error gets shipped by
+being named, never by being silenced; a warning is printed each run
+until its state is marked or timed.
 
 ### The `client` profile — refusing what answers wrongly without refusing
 

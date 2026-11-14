@@ -37,8 +37,11 @@ RSpec.describe "A finished run whose session was pruned" do
     FileUtils.rm_rf(scratch)
   end
 
+  # One clock for the adapter and for the clock port the `Retain` and `Tidy` rules read, each read
+  # when asked, so an hour added to it ends the wait of a run its own end's reap kept.
   before do
     @clock = Time.now.utc
+    allow(Hecks::Ports::Clock).to(receive(:now) { @clock.to_i })
     allow(Hecks::Adapters::ClaudeAgents).to(receive(:new).and_wrap_original do |original, **context|
       original.call(**context, settings: { jobs: File.join(scratch, "jobs"), settle: 0, now: -> { @clock } })
     end)
@@ -70,7 +73,8 @@ RSpec.describe "A finished run whose session was pruned" do
 
   def review_of(run) = launch("agents", "PlanReview.of_run", "run.value=#{run}").first.to_s
 
-  # A run that finished done, whose session the listing then dropped, an hour after it started.
+  # A run that finished done with its session still listed, so the reap its end starts keeps it;
+  # the listing then dropped the session, and an hour passed.
   def pruned_run(run, start: method(:dispatch))
     listing({ id: "stand-in-session", sessionId: "0000aaaa-1111", state: "working" })
     job("working")

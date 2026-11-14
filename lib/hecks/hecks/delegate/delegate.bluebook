@@ -623,8 +623,8 @@ Hecks.bluebook "Hecks" do
 
     # Planned Work items start by themselves: a reaction to an event that frees capacity or adds work
     # runs one filling (`Dispatch.Fill`'s choice, confirmed), so nobody calls Fill. The choice, its
-    # guards and its priority order are the `Dispatching` port's; the owner's switch is the Tickets
-    # world's `dispatch_roll_forward`, and a paused or unchanged roll is recorded as a refusal.
+    # guards and its priority order are the `Dispatching` port's; the owner's switch is read by
+    # `RollSwitch` before a roll is requested, and an unchanged roll is recorded as a refusal.
     aggregate "Roll" do
       description "One rolling fill of the Work queue, started by an event rather than a person."
 
@@ -673,6 +673,76 @@ Hecks.bluebook "Hecks" do
         attribute :refusal, RollOutcome, sets: true
 
         emits RollDeclined
+      end
+    end
+
+    # The `Rolling` port answers what the Tickets world's `dispatch_roll_forward` says now and the
+    # pause the record holds; the policies decide. The world is read at every consult, so the first
+    # event after the owner turns the switch on rolls, with no restart.
+    aggregate "RollSwitch" do
+      description "The owner's roll-forward switch as the pipeline last read it, one record per store. Each event that would roll the queue consults it: on, a roll starts; off, no roll is requested, and the first consult of a pause records RollPaused once, the first after it RollResumed."
+
+      attribute :switch, SwitchKey
+      attribute :paused, Standing
+      attribute :reason, PauseReason, optional: true
+      identified_by :switch
+
+      value_object "SwitchKey" do
+        attribute :value, String, matches: :present
+      end
+
+      # One while the pause is recorded, zero while rolls run.
+      value_object "Standing" do
+        attribute :value, Integer, default: 0
+        invariant("a pause stands or it does not") { [0, 1].include?(value) }
+      end
+
+      value_object "PauseReason", String
+
+      command "Open" do
+        role "System"
+        goal "Open the one switch record of a store, with no pause recorded"
+
+        attribute :switch, SwitchKey, sets: true
+
+        emits RollSwitchOpened
+      end
+
+      command "Consult" do
+        role "System"
+        goal "Ask whether the owner lets the queue roll, for the event that would roll it"
+
+        reference_to RollSwitch
+        attribute :run, SwitchKey
+
+        emits RollSwitchConsulted
+      end
+
+      command "Pause" do
+        role "System"
+        goal "Record once that the owner has paused rolling, and why nothing starts"
+
+        reference_to RollSwitch
+        attribute :reason, PauseReason, sets: true
+
+        given("the pause is not recorded yet") { paused.value == 0 }
+
+        sets :paused, to: { value: 1 }
+
+        emits RollPaused
+      end
+
+      command "Resume" do
+        role "System"
+        goal "Record that the owner turned rolling back on"
+
+        reference_to RollSwitch
+
+        given("a pause is recorded") { paused.value == 1 }
+
+        sets :paused, to: { value: 0 }
+
+        emits RollResumed
       end
     end
 
@@ -1160,7 +1230,12 @@ Hecks.bluebook "Hecks" do
           (memory_state == "ok" && memory_before == "low") ||
           (lane_state == "idle" && lane_before == "busy")
       }
-      trigger Roll::Start, with: { run: :id }
+      trigger RollSwitch::Consult, with: { roll_switch: "rolls", run: :id }
+    end
+
+    policy "OpenTheRollSwitchWhenTheMachineMoves" do
+      on      "Machine.MachineSampled"
+      trigger RollSwitch::Open, with: { switch: "rolls" }
     end
 
     # One rise sheds once: the look is keyed by the reading that rose. The port answers facts, the
@@ -1320,31 +1395,85 @@ Hecks.bluebook "Hecks" do
       trigger Roll::Decline, with: { refusal: :refusal }
     end
 
+    # Each event that frees capacity or adds work opens the switch record (refused, and benign, once
+    # it is there) and consults it. Six openings are the price of one record per store: any of
+    # these events may be the first a store hears.
+    policy "OpenTheRollSwitchWhenARunEnds" do
+      on      "AgentRun.SessionFinished"
+      trigger RollSwitch::Open, with: { switch: "rolls" }
+    end
+
     policy "RollWhenARunEnds" do
       on      "AgentRun.SessionFinished"
-      trigger Roll::Start, with: { run: :run }
+      trigger RollSwitch::Consult, with: { roll_switch: "rolls", run: :run }
+    end
+
+    policy "OpenTheRollSwitchWhenARunFails" do
+      on      "AgentRun.SessionFailed"
+      trigger RollSwitch::Open, with: { switch: "rolls" }
     end
 
     policy "RollWhenARunFails" do
       on      "AgentRun.SessionFailed"
-      trigger Roll::Start, with: { run: :run }
+      trigger RollSwitch::Consult, with: { roll_switch: "rolls", run: :run }
+    end
+
+    policy "OpenTheRollSwitchWhenARunIsRetired" do
+      on      "AgentRun.AgentRunRetired"
+      trigger RollSwitch::Open, with: { switch: "rolls" }
     end
 
     policy "RollWhenARunIsRetired" do
       on      "AgentRun.AgentRunRetired"
-      trigger Roll::Start, with: { run: :run }
+      trigger RollSwitch::Consult, with: { roll_switch: "rolls", run: :run }
+    end
+
+    policy "OpenTheRollSwitchWhenWorkIsPlanned" do
+      on      "Work.WorkPlanned"
+      trigger RollSwitch::Open, with: { switch: "rolls" }
     end
 
     policy "RollWhenWorkIsPlanned" do
       on      "Work.WorkPlanned"
-      trigger Roll::Start, with: { run: :work }
+      trigger RollSwitch::Consult, with: { roll_switch: "rolls", run: :work }
+    end
+
+    policy "OpenTheRollSwitchWhenWorkIsReopened" do
+      on      "Work.WorkReopened"
+      trigger RollSwitch::Open, with: { switch: "rolls" }
     end
 
     # A landed branch starts no roll of its own: the session that landed it ends, and that end rolls;
     # the machine's reading is the backstop.
     policy "RollWhenWorkIsReopened" do
       on      "Work.WorkReopened"
-      trigger Roll::Start, with: { run: :work }
+      trigger RollSwitch::Consult, with: { roll_switch: "rolls", run: :work }
+    end
+
+    policy "ReadTheSwitchWhenConsulted" do
+      on      "RollSwitch.RollSwitchConsulted"
+      ask     :read, with: { run: :run }
+    end
+
+    # A root: the consult and the read are behind it, so the roll's own chain (the fill and its
+    # record) begins at the depth it has when an event starts it directly.
+    policy "StartTheRollWhenTheSwitchIsOn" do
+      on      "RollSwitch.RollSwitchRead"
+      root
+      where   { state == "on" }
+      trigger Roll::Start, with: { run: :run }
+    end
+
+    policy "RecordThePause" do
+      on      "RollSwitch.RollSwitchRead"
+      where   { state == "off" && standing == 0 }
+      trigger RollSwitch::Pause, with: { reason: "paused: dispatch_roll_forward is false" }
+    end
+
+    policy "RecordTheResume" do
+      on      "RollSwitch.RollSwitchRead"
+      where   { state == "on" && standing == 1 }
+      trigger RollSwitch::Resume, with: { roll_switch: "rolls" }
     end
 
     # The directory is looked for first, so a brief is never handed to a session that has nowhere to work.
@@ -1993,7 +2122,7 @@ Hecks.bluebook "Hecks" do
       # by name or its scratch cleared, its worktree retired, its session removed), then the sessions
       # no run holds are removed when they are done or stopped, older than the world's `session_keep`
       # hours and hold no worktree. The report names what was removed and each session kept, with
-      # the reason. A landing and the clock's beat start it; nobody removes a session by hand.
+      # the reason. `ReapTurn` starts it, one at a time; nobody removes a session by hand.
       command "Reap" do
         role "System"
         goal "Tidy every finished run's session and worktree in order, remove the old sessions no run holds, and report what was removed and kept"
@@ -2006,6 +2135,94 @@ Hecks.bluebook "Hecks" do
       query "Removable" do
         description "Every Claude session with whether it is safe to remove and, when not, why: no dispatched run holds it, its run is not finished done, it is not listed done, a person spoke in it, or its own worktree has uncommitted files or commits origin lacks. Reads only."
         returns Document
+      end
+    end
+
+    # Two rules hold across every reap, so one record owns them (ADR 0081). A refused take costs
+    # one rule and no port. The record is opened once per store: each cause opens it ahead of its
+    # take, and an opening that finds it there is refused and benign.
+    aggregate "ReapTurn" do
+      description "The one turn to reap the finished sessions. A reap begins only when none is running, and a cause that names a spacing (the clock's beat: half an hour) begins one only when the last began that long ago; a session's end and a landing name none. The reap that ends frees the turn, and a turn held past the taker's lease, by a reap whose process died, is taken over."
+
+      attribute :turn,     TurnKey
+      attribute :run,      TurnKey, optional: true
+      attribute :held,     Hold
+      attribute :taken_at, TakenAt
+      identified_by :turn
+
+      value_object "TurnKey" do
+        attribute :value, String, matches: :present
+      end
+
+      # One while a reap holds the turn, zero once it is freed.
+      value_object "Hold" do
+        attribute :value, Integer, default: 0
+        invariant("a turn is held or free") { [0, 1].include?(value) }
+      end
+
+      # When the turn was last taken, in epoch seconds; zero before the first reap.
+      value_object "TakenAt" do
+        attribute :value, Integer, default: 0
+        invariant("a time is not before the epoch") { !value.negative? }
+      end
+
+      # Seconds: the spacing a cause asks for since the last reap began, or the lease after which
+      # a held turn is taken over.
+      value_object "Span" do
+        attribute :value, Integer, default: 0
+        invariant("a span is not negative") { !value.negative? }
+      end
+
+      command "Open" do
+        role "System"
+        goal "Open the one turn of a store, free and never taken"
+
+        attribute :turn, TurnKey, sets: true
+
+        emits ReapTurnOpened
+      end
+
+      # `+` because a rule has no `-`: the sums stand for `now - taken_at >= lease` and
+      # `now - taken_at >= spacing`.
+      command "Take" do
+        role "System"
+        goal "Take the turn to reap for one cleanup, refused while another reap holds it or inside the spacing the cause names"
+
+        reference_to ReapTurn
+        attribute :run,     TurnKey, sets: true
+        attribute :spacing, Span
+        attribute :lease,   Span
+        # `now:` is filled from the clock port; an explicit value wins.
+        attribute :now, TakenAt
+        needs :now
+
+        given("no reap is running: the turn is free, or the reap that holds it has outlived its lease") do
+          held.value == 0 || taken_at.value + lease.value <= now.value
+        end
+        given("the last reap began at least the spacing ago") do
+          taken_at.value + spacing.value <= now.value
+        end
+
+        sets :held, to: { value: 1 }
+        sets :taken_at, to: :now
+
+        emits ReapTurnTaken
+      end
+
+      # A reap that outlived its lease and lost the turn, or one a person started by hand, ends
+      # without freeing the turn of the reap that holds it now.
+      command "Free" do
+        role "System"
+        goal "Free the turn when the reap that holds it has ended, so the next cause may reap"
+
+        reference_to ReapTurn
+        attribute :ended, TurnKey
+
+        given("the reap that ended is the one that holds the turn") { !run.nil? && ended.value == run.value }
+
+        sets :held, to: { value: 0 }
+
+        emits ReapTurnFreed
       end
     end
 
@@ -2037,16 +2254,71 @@ Hecks.bluebook "Hecks" do
       trigger AgentRun::Release, with: { agent_run: :branch }
     end
 
+    # Each cause of a reap opens the turn (refused, and benign, once it is there) and then asks
+    # for it. The lease is an hour: a reap is over in minutes, and one that died frees nothing.
+    policy "OpenTheReapTurnWhenWorkLands" do
+      on      "Landing.LandedWorkFound"
+      trigger ReapTurn::Open, with: { turn: "sessions" }
+    end
+
     policy "ReapWhenWorkLands" do
       on      "Landing.LandedWorkFound"
       root
-      trigger SessionCleanup::Reap, with: { run: :branch }
+      trigger ReapTurn::Take, with: { reap_turn: "sessions", run: :branch, spacing: 0, lease: 3600 }
+    end
+
+    # The session of a run that ended is reviewed at once, not at the next beat. A run that
+    # failed is left out: `Tidy` keeps a session that did not end done or stopped.
+    policy "OpenTheReapTurnWhenASessionEnds" do
+      on      "AgentRun.SessionFinished"
+      trigger ReapTurn::Open, with: { turn: "sessions" }
+    end
+
+    policy "ReapWhenASessionEnds" do
+      on      "AgentRun.SessionFinished"
+      root
+      trigger ReapTurn::Take, with: { reap_turn: "sessions", run: :run, spacing: 0, lease: 3600 }
+    end
+
+    # The backstop: a kept run whose wait passed, a session a person left, a cause refused while
+    # a reap ran. The beat asks every minute and the turn answers once in half an hour.
+    policy "OpenTheReapTurnOnHeartbeat" do
+      on      "Heartbeat.Beaten"
+      trigger ReapTurn::Open, with: { turn: "sessions" }
     end
 
     policy "ReapOnHeartbeat" do
       on      "Heartbeat.Beaten"
       root
-      trigger SessionCleanup::Reap, with: { run: :beat }
+      trigger ReapTurn::Take, with: { reap_turn: "sessions", run: :beat, spacing: 1800, lease: 3600 }
+    end
+
+    policy "ReapWhenTheTurnIsTaken" do
+      on      "ReapTurn.ReapTurnTaken"
+      trigger SessionCleanup::Reap, with: { run: :run }
+    end
+
+    # A reap ends reported or refused by the port, under events of its own, so its end is told
+    # from that of a cleanup a person confirmed (`RemoveSafe`), which took no turn and frees none.
+    # Either end is recorded on the cleanup and then frees the turn.
+    policy "RecordTheReap" do
+      on      "SessionCleanup.ReapReported"
+      trigger SessionCleanup::Record, with: { report: :report }
+    end
+
+    policy "RecordTheRefusedReap" do
+      on      "SessionCleanup.ReapRefused"
+      trigger SessionCleanup::Decline, with: { refusal: :refusal }
+    end
+
+    policy "FreeTheTurnWhenTheReapIsReported" do
+      on      "SessionCleanup.ReapReported"
+      trigger ReapTurn::Free, with: { reap_turn: "sessions", ended: :run }
+    end
+
+    policy "FreeTheTurnWhenTheReapIsRefused" do
+      on      "SessionCleanup.ReapRefused"
+      trigger ReapTurn::Free, with: { reap_turn: "sessions", ended: :run }
     end
 
     policy "CleanWhenAsked" do

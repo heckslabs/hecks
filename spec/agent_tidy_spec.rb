@@ -84,13 +84,18 @@ RSpec.describe "AgentRun.Tidy through the Agents port" do
 
   def tidy(run) = launch("agent_run.tidy!", "to=#{run}", "--wait").first.to_s
   def refusal(run) = tidy(run)
-  def status(out) = out.dig("state", "status")
+
+  # The run's end takes the turn to reap, which sends its `Tidy`: the status is what that left.
+  def status_of(run)
+    runs = @hecks.registry.repository("Hecks", @hecks.registry.bluebook("Hecks").aggregate("AgentRun"))
+    Hecks::Runtime::Value.materialize(runs.find(run).state)[:status].to_s
+  end
 
   it "removes a done session nobody replied in, and records it", :aggregate_failures do
     transcript(user("say ok"), tool_result)
     finished_run("t-done", "done")
 
-    expect(status(JSON.parse(tidy("t-done")))).to eq("tidied")
+    expect(status_of("t-done")).to eq("tidied")
     expect(removed).to eq(["stand-in-session"])
   end
 
@@ -98,14 +103,14 @@ RSpec.describe "AgentRun.Tidy through the Agents port" do
     transcript(user("say ok"), tool_result, user("actually, also do this"))
     finished_run("t-human", "done")
 
-    expect(status(JSON.parse(tidy("t-human")))).to eq("finished")
+    expect(status_of("t-human")).to eq("finished")
     expect(removed).to be_empty
   end
 
   it "keeps a session whose transcript cannot be found", :aggregate_failures do
     finished_run("t-lost", "done")
 
-    expect(status(JSON.parse(tidy("t-lost")))).to eq("finished")
+    expect(status_of("t-lost")).to eq("finished")
     expect(removed).to be_empty
   end
 
@@ -126,7 +131,7 @@ RSpec.describe "AgentRun.Tidy through the Agents port" do
     transcript(user("say ok"), tool_result, worktree_state)
     finished_run("t-kept", "done")
 
-    expect(status(JSON.parse(tidy("t-kept")))).to eq("finished")
+    expect(status_of("t-kept")).to eq("finished")
     expect([stopped, removed]).to eq([["stand-in-session"], []])
   end
 

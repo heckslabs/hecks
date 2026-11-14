@@ -30,12 +30,27 @@ module Hecks
           else
             folder.load_bluebooks(File.dirname(source), [File.basename(source)])
           end
+          load_wiring(source)
+        end
 
-          # A port attaches to its aggregate from the hecksagon, not the bluebook, so a
-          # deaf-policy check that skipped it would miss a policy reacting to an event
-          # nothing emits. Recording a bind builds IR only; no adapter resolves here. A bluebook
-          # that ships its ports beside its bluebook (`<name>.ports.hecksagon`) is read with them.
-          hecksagons_of(source).each { |hecksagon| Kernel.load(hecksagon) if File.exist?(hecksagon) }
+        # A port attaches to its aggregate from the hecksagon, not the bluebook, so a deaf-policy
+        # check that skipped it would miss a policy reacting to an event nothing emits. Recording a
+        # bind builds IR only; no adapter resolves here. A bluebook that ships its ports beside its
+        # bluebook (`<name>.ports.hecksagon`) is read with them.
+        #
+        # A context map is held against the wiring just read, so it loads last (ADR 0135): a source
+        # booted without its map is checked for no declared relationship and no accepted cycle.
+        #
+        # @api private
+        def load_wiring(source)
+          (hecksagons_of(source) + context_maps_of(source)).each { |file| Kernel.load(file) if File.exist?(file) }
+        end
+
+        # @api private
+        def context_maps_of(source)
+          return Dir.glob(File.join(source, "*.contextmap")) if File.directory?(source)
+
+          [source.sub(BLUEBOOK_EXTENSION, ".contextmap")]
         end
 
         # @api private

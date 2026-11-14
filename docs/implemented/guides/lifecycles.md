@@ -175,19 +175,42 @@ findings = Hecks::Bluebook::ModelCheck.call(runtime.registry.bluebook("Banking")
 cp_findings = findings.select { |f| f.subject == "CardPayment" }
 cp_lifecycle = runtime.registry.bluebook("Banking").aggregate("CardPayment").lifecycle
 
-cp_findings.map { |f| [f.kind, f.severity] }  # => []
-cp_lifecycle.marked(:terminal)                # => ["charged_back", "reversed", "voided"]
+cp_findings.select { |f| f.kind == :stuck_state }  # => []
+cp_lifecycle.marked(:terminal)                     # => ["charged_back", "reversed", "voided"]
 ```
 
-Three findings this time, not one — `CardPayment` has three states
-this lifecycle never declares an exit from: `"voided"` and
-`"reversed"`, reached by paths this walkthrough never took, and
-`"charged_back"`, just shown live above. The checker names all three
-anyway, because it reads the declaration, not a run — `hecks ModelCheckRun.model_check!`
-would find `"voided"` and `"reversed"` stuck the same way even if this
-page never dispatched a single command. Nothing here is an error — this
-lifecycle is clean to ship, with three states its own domain considers
-done.
+No `stuck_state` finding, for three states this lifecycle never
+declares an exit from: `"voided"` and `"reversed"`, reached by paths
+this walkthrough never took, and `"charged_back"`, just shown live
+above. Each is marked, so each is an end the domain meant. The checker
+reads the declaration, not a run: without the marks it would name
+`"voided"` and `"reversed"` stuck the same way even if this page never
+dispatched a single command.
+
+The other four states are not ends, and the checker has something to
+say about each of them:
+
+```ruby
+waits = cp_findings.select { |f| f.kind == :wait_without_timeout }
+
+cp_findings.map(&:kind).uniq                  # => [:wait_without_timeout]
+waits.map(&:severity).uniq                    # => [:warning]
+waits.map { |f| f.message[/\A"(\w+)"/, 1] }.sort  # => ["authorized", "captured", "disputed", "refunded"]
+```
+
+A payment can sit at `"authorized"` until somebody captures or voids
+it, and nothing in the declaration says how long that may take. A state
+that is not an end is one of three things: passed through, because the
+reactions to entering it carry every record out in the same dispatch; a
+rest, marked `mark :rests, "captured"`, where a record stays and nothing
+is waiting on it; or a wait. A wait needs a timeout row that names its
+state, handed to `ModelCheck.call` as `timeouts:`, and a wait no row
+names is reported as `wait_without_timeout`: it can hold a record
+forever. It is a warning, and an error only for a caller that holds the
+bluebook's waits (`hold_waits: true`). Banking declares no timeout rows
+and marks no rests, so its four open states are reported. Nothing here
+is an error: this lifecycle ships, with three states its own domain
+considers done and four the checker asks you to time or to mark.
 
 ## What model_check refuses to let you ship
 

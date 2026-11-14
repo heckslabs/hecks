@@ -10,10 +10,11 @@ RSpec.describe "A run whose tidy review failed" do
   include_context "with a reaping fleet"
   include KeptRun
 
+  # The run's end starts the reap that reviews it, so the listing is unreadable before it ends.
   before do
-    done_run
+    transcript([user("go")])
     File.write(File.join(scratch, "sessions.json"), "not a listing")
-    reap
+    finished_run("r-done")
   end
 
   it "is kept with the refusal and a five-minute wait", :aggregate_failures do
