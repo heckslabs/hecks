@@ -33,7 +33,7 @@ module Hecks
           stopped_times: %i[journal stopped_times plain],
           sessions: [:jobs, :sessions, :query],
           red_flag: %i[git red_flag plain], fill: %i[fill preview plain], events: [:journal, :recent, :plain, 40],
-          finished: [:journal, :named, :plain, "WorkFinished", 200],
+          finished: [:journal, :named, :plain, "WorkFinished", 200], finished_times: %i[tickets finished_times plain],
           landed_times: %i[journal landed_times plain], promotions: %i[journal promotions plain], disk: %i[disk free plain],
           boots: %i[boots today plain], open_prs: %i[github open_prs plain],
           cycle_events: %i[journal cycle_events plain], health_events: %i[journal health_events plain],

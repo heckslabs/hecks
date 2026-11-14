@@ -29,6 +29,7 @@ require_relative "pipeline_stages/owner_queue"
 require_relative "pipeline_stages/headline"
 require_relative "pipeline_stages/plan_reading"
 require_relative "pipeline_stages/plan_tile"
+require_relative "pipeline_stages/throughput_days"
 
 module Hecks
   module Adapters
@@ -137,7 +138,10 @@ module Hecks
       end
 
       # The panels beside the strip: the pinned agents and the Work items' cycles.
-      def panels(data) = agents(data).merge(cycles: cycle_reading(data[:cycle_events]))
+      def panels(data)
+        days = PipelineBoard::ThroughputDays.build(data[:finished_times], @now.call)
+        agents(data).merge(cycles: cycle_reading(data[:cycle_events]), throughput_days: days)
+      end
 
       # The cycles laid from the stage events, or the events' `{unknown: reason}` as it was read.
       def cycle_reading(events, limit = nil)

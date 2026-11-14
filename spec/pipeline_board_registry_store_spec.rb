@@ -45,6 +45,16 @@ RSpec.describe Hecks::Adapters::PipelineBoard::RegistryStore do
     expect(loads.size).to eq(2)
   end
 
+  it "answers no events for a store that keeps no event log" do
+    expect(described_class.new(registry: registry).events("Tickets", "Work")).to eq([])
+  end
+
+  it "answers the events of a store that keeps a log" do
+    logged = registry
+    logged.define_singleton_method(:repository) { |*| Struct.new(:events).new([:finished]) }
+    expect(described_class.new(registry: logged).events("Tickets", "Work")).to eq([:finished])
+  end
+
   it "says when the registry declares no such aggregate" do
     expect { described_class.new(registry: registry).records("Tickets", "Nope") }
       .to raise_error(Hecks::Adapters::PipelineBoard::Unavailable, /declares no Tickets.Nope/)
