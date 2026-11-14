@@ -480,6 +480,24 @@
               ],
               [
                 "aggregate",
+                "Machine"
+              ],
+              [
+                "checkout",
+                "both"
+              ],
+              [
+                "reason",
+                "a reading judges the state it left against the one the last reading left, in a process of its own"
+              ]
+            ],
+            [
+              [
+                "domain",
+                "Hecks"
+              ],
+              [
+                "aggregate",
                 "TrainPr"
               ],
               [
