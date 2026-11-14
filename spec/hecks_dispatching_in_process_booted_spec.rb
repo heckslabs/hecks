@@ -2,8 +2,33 @@ require "spec_helper"
 require "json"
 require "hecks/hecks/adapters/dispatching"
 
+# A Work item planned through the runner while a filling runs, and the rolls its reactions leave.
+module NestedRolls
+  # The status of every Roll the reactions recorded.
+  def roll_statuses
+    aggregate = registry.bluebook("Hecks").aggregates.find { |candidate| candidate.hecks_name == "Roll" }
+    registry.repository("Hecks", aggregate).all.map { |roll| Hecks::Adapters::StartedWork.value(roll, :status).to_s }
+  end
+
+  # Turns the owner's roll-forward switch on for every world the adapters read.
+  def switch_on
+    allow(Hecks::Adapters::Dispatching::Settings).to(receive(:new).and_wrap_original do |original, *args, **options|
+      original.call(*args, **options).tap { |world| allow(world).to receive(:roll_forward?).and_return(true) }
+    end)
+  end
+
+  # Plans a Work item while a confirmed filling runs, so a roll its reactions start is nested.
+  def plan_during_a_filling
+    Hecks::Adapters::Dispatching::Filling.during(true) do
+      runner.call(["tickets", "Work.plan!", "work.value=nested", "title.value=N", "--wait"])
+    end
+  end
+end
+
 # The runner against a booted domain, as the launcher boots it in Memory.
 RSpec.describe Hecks::Adapters::Dispatching::InProcessRunner do
+  include NestedRolls
+
   let(:registry) { boot_hecks_in_memory(File.expand_path("../lib/hecks/hecks", __dir__)).registry }
   let(:runner) { described_class.new(registry) }
 
@@ -15,18 +40,18 @@ RSpec.describe Hecks::Adapters::Dispatching::InProcessRunner do
   end
 
   it "does not fail a step whose reaction starts a roll that is refused", :aggregate_failures do
-    planned = Hecks::Adapters::Dispatching::Filling.during(true) do
-      runner.call(["tickets", "Work.plan!", "work.value=nested", "title.value=N", "--wait"])
-    end
+    switch_on
+    planned = plan_during_a_filling
 
     expect(planned.ok?).to be(true)
     expect(roll_statuses).to include("refused")
   end
 
-  # The status of every Roll the reactions recorded.
-  def roll_statuses
-    aggregate = registry.bluebook("Hecks").aggregates.find { |candidate| candidate.hecks_name == "Roll" }
-    registry.repository("Hecks", aggregate).all.map { |roll| Hecks::Adapters::StartedWork.value(roll, :status).to_s }
+  it "does not fail a step whose roll is not requested while the switch is off", :aggregate_failures do
+    planned = plan_during_a_filling
+
+    expect(planned.ok?).to be(true)
+    expect(roll_statuses).to be_empty
   end
 
   it "answers a line the domain refuses as a failed line with the reason", :aggregate_failures do
