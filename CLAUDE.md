@@ -239,7 +239,7 @@ opening event, its closing events, the minutes allowed and the fixer; each stall
 as the Work item `stall-<kind>-<subject>`, which the fill starts after red; a landed
 branch finishes the Work item of the same name (or the same name without a leading `qa/`). The Tickets
 world's `work_limit`, `frozen_shapes` and `session_environment` bound and equip those sessions. The
-CI checks `command_names` and `workflow_pagination` keep the names in docs, workflows and guides
+checks `command_names` and `workflow_pagination` (in the quick gate and CI) keep the names in docs, workflows and guides
 resolvable and lists paged; the spec suite holds the meta-domain covered.
 
 ## RuboCop is strict: it runs at its defaults
@@ -278,7 +278,7 @@ commit must pass as `RequiredCheck` rows beside them.
   for GitHub to merge once its required checks pass. Do not open a PR for `main` by hand, and do not
   push `main` directly. A push of a feature branch runs the gate's `quick` stage: shape ledger,
   RuboCop (which also reads every changed Ruby file for syntax errors), comment style, secret output,
-  adapter words.
+  adapter words, command names, workflow pagination.
   Feature branches are different: the train only lands `main`. To queue an open feature PR,
   mark it ready and run `gh pr merge <number> --auto` once its checks are green; GitHub's merge
   queue then merges it. Check `gh pr view <number> --json mergeStateStatus` first: CLEAN means
