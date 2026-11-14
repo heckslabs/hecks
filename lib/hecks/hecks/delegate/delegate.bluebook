@@ -1852,6 +1852,8 @@ Hecks.bluebook "Hecks" do
     end
 
     # A root: each run's tidy is a long chain (review, scratch, worktree, session) of its own.
+    # `Tidyable` is read once, at `ReapMarked`: a run another reap tidied or retired since is still
+    # sent `Tidy`, which moves a run only from `finished` and refuses it by name, as wanted.
     policy "TidyEveryFinishedRun" do
       on       "SessionCleanup.ReapMarked"
       root
