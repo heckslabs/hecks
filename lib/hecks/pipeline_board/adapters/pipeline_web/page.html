@@ -50,6 +50,13 @@ body.view-sessions main > section, body.view-sessions main > details:not(#sessio
 body:not(.view-sessions) #sessions-panel, body:not(.view-sessions) .in-sessions { display: none; }
 body.view-sessions #sessions-panel > summary { pointer-events: none; } body.view-sessions #sessions-panel > summary::before { display: none; }
 /* A box never grows into a wall of text: it shows its first lines, and the row or tile opens the rest. */
+/* Machine load: the last fifteen minutes as one filled line, green under the limit a fill stops at and red over it. */
+.load .label { color: var(--ink2); font-size: 13px; margin-bottom: 6px; } .load .label b { color: var(--ink); font-size: 20px; font-weight: 600; margin-right: 4px; }
+.load svg { display: block; width: 100%; height: 120px; border-bottom: 1px solid var(--axis); }
+.load .fill { stroke: none; opacity: .28; } .load .line { fill: none; stroke-width: 2; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+.load .under { fill: var(--good); stroke: var(--good); } .load .over { fill: var(--critical); stroke: var(--critical); }
+.load .limit { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 5 5; vector-effect: non-scaling-stroke; }
+.loadaxis { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); margin-top: 4px; }
 /* Work finished per day: one bar a day, today's lighter because the day is still open. */
 .thru .label { color: var(--ink2); font-size: 13px; margin-bottom: 4px; }
 .thru .cols { height: 120px; gap: 6px; } .thru .xlabels { gap: 6px; margin-top: 4px; }
@@ -226,6 +233,9 @@ details.panel > .scroll, details.panel > .feed, details.panel > .strip, details.
   <section class="agentstrip" aria-labelledby="h-roles"><h2 id="h-roles">Agents</h2><div class="roles" id="roles"></div>
     <a class="open" href="/agents" data-tip="Who hands work to whom, each role's sessions, and the forms that ask the planner and the architect">Open the Agents page →</a></section>
   <details class="panel" open><summary data-tip="Everything that asks for a person: attention pills, failed stages and sessions blocked on a reply. Click a row to act on it"><h2 id="h-attn">Needs attention</h2><span class="sum" id="sum-attn"></span></summary><div class="scroll" id="attention"></div></details>
+  <section aria-labelledby="h-load" class="load"><h2 id="h-load">Machine load</h2><div class="label" id="loadnote"></div>
+    <svg id="loadchart" viewBox="0 0 1000 120" preserveAspectRatio="none" role="img" aria-label="The machine's load over the last fifteen minutes, against the limit a fill stops at"></svg>
+    <div class="loadaxis"><span>15 min ago</span><span>10 min</span><span>5 min</span><span>now</span></div></section>
   <section aria-labelledby="h-tiles"><h2 id="h-tiles">Key metrics</h2><div class="tiles" id="tiles"></div></section>
   <section aria-labelledby="h-thru" class="thru"><h2 id="h-thru">Work finished per day</h2><div class="label" id="thrunote"></div><div id="thru"></div></section>
   <details class="panel" open><summary data-tip="Each stage of a change from planned to released. Click a stage that needs you to resolve it"><h2 id="h-strip">Pipeline</h2><span class="sum" id="sum-strip"></span></summary><div class="strip" id="strip"><div class="node" id="train"><!--tile:train--></div></div></details>
@@ -441,7 +451,7 @@ $("resolve-copy").addEventListener("click", async () => {
 const ROLE_CODES = { planner: "PL", orchestrator: "OR", architect: "AR", coder: "CO", reviewer: "RV", release_manager: "RM" };
 // The pruner's chip also says when the owner has paused pruning; the switch is on the Agents page.
 function renderRoles(roles, pruning) {
-  if (isUnknown(roles)) return put("roles", unknown(roles));
+  if (!Array.isArray(roles)) return put("roles", unknown(isUnknown(roles) ? roles : { unknown: "the first read is still running" }));
   put("roles", roles.map((r) => {
     const blocked = (r.working || []).filter(waitingOnYou).length;
     const state = blocked ? " blocked" : r.live > 0 ? " busy" : "";
@@ -557,6 +567,22 @@ function recommendationGroup(recs) {
   return h("div", { class: "attn-group" }, title, table(["Change", "Why", ""], rows));
 }
 // The buttons live in the shared prompt script (/answer.js), so the agents' page settles the same way.
+// The machine's load over the last fifteen minutes, as the board sampled it: one filled line, drawn green where it
+// is under the limit a fill stops at and red where it is over. Every figure in the drawing is a number.
+const LOAD_WINDOW = 15 * 60 * 1000;
+function renderLoad(l) {
+  const samples = l && Array.isArray(l.samples) ? l.samples : [];
+  if (samples.length < 2) { $("loadnote").textContent = "Collecting samples: the chart fills as the board runs."; $("loadchart").innerHTML = ""; return; }
+  const end = Date.parse(samples[samples.length - 1][0]), loads = samples.map((x) => x[1]), top = Math.max(l.limit * 1.3, ...loads) || 1;
+  const at = ([time, load]) => [Math.max(0, 1000 * (1 - (end - Date.parse(time)) / LOAD_WINDOW)), 116 - 112 * load / top];
+  const points = samples.map(at), line = points.map(([x, y]) => x.toFixed(1) + "," + y.toFixed(1)).join(" "), limitY = (116 - 112 * l.limit / top).toFixed(1);
+  const area = points[0][0].toFixed(1) + ",120 " + line + " 1000,120";
+  const half = (name, y, height) => '<clipPath id="load-' + name + '"><rect x="0" y="' + y + '" width="1000" height="' + height + '"/></clipPath>' +
+    '<g class="' + name + '" clip-path="url(#load-' + name + ')"><polygon class="fill" points="' + area + '"/><polyline class="line" points="' + line + '"/></g>';
+  $("loadchart").innerHTML = half("over", 0, limitY) + half("under", limitY, 120 - limitY) + '<line class="limit" x1="0" x2="1000" y1="' + limitY + '" y2="' + limitY + '"/>';
+  const now = loads[loads.length - 1], peak = Math.max(...loads), minutes = Math.max(1, Math.round((end - Date.parse(samples[0][0])) / 60000));
+  $("loadnote").replaceChildren(h("b", {}, now.toFixed(1)), "now across " + l.cores + " cores; the fill stops above " + l.limit + "; peak " + peak.toFixed(1) + " in the last " + minutes + " min");
+}
 // The Work items finished on each of the last days, today last, with the average of the days before it.
 function renderThroughput(t) {
   if (!t || !Array.isArray(t.days)) { $("thrunote").textContent = ""; return put("thru", unknown(t || { unknown: "the first read is still running" })); }
@@ -828,7 +854,7 @@ function replyNote(s) {
 }
 function render(s) {
   lastState = s;
-  renderTiles(s.metrics); renderThroughput(s.throughput_days); renderAttention(s.metrics, s.stages, s.sessions, s.recommendations); renderStrip(s.stages);
+  renderTiles(s.metrics); renderLoad(s.load_history); renderThroughput(s.throughput_days); renderAttention(s.metrics, s.stages, s.sessions, s.recommendations); renderStrip(s.stages);
   renderRoles(s.roles, s.pruning); renderSessions(s.sessions); renderFan(s.fanout); renderCycles(s.cycles); renderEvents(s.events);
   $("updated").textContent = "updated " + clock(s.generated_at);
   renderStale(s);
