@@ -440,6 +440,28 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  # The outside a beat reaches to weigh the AgentRun journal: it counts the compactable entries under
+  # the file's write lock, taken within the `ledger_care` wait, and answers the compaction's domain and
+  # aggregates when over the line; below it, held, or not in SQLite, it is deferred by name.
+  Hecks::LedgerCare.port "Weighing" do
+    asks "Weigh", to: LedgerCare do
+      attribute :run, CareKey
+      answers "LedgerCareDue"
+      refuses "LedgerCareDeferred"
+    end
+  end
+
+  # The outside a VACUUM of the AgentRun file reaches: it refuses by name unless no other process holds
+  # the file open and its exclusive lock is taken within the `ledger_care` wait, and reports the size
+  # before and after.
+  Hecks::LedgerFile.port "Reclaiming" do
+    asks "Vacuum", to: LedgerFile do
+      attribute :run, CareKey
+      answers "LedgerFileVacuumed"
+      refuses "LedgerFileBusy"
+    end
+  end
+
   # The outside a reading of the machine reaches: the CPU idle percentage, swap used, the compressor's
   # size, the load average and the test lane's queue, judged against the Tickets world's `machine_marks`.
   # It answers each gauge's state and the state it stood in before; a reading within a minute of the last
