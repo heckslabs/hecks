@@ -27,6 +27,13 @@ RSpec.describe Hecks::Adapters::MainIntegration::LocalOverlay do
     expect(binds("main")).to include(%w[Hecks Ticker], %w[Tickets Epic])
   end
 
+  # A reading is taken by a launchd process of its own; the state it judges against is the one the
+  # last reading left, so the rows must outlive the process or a fall below the mark is never heard.
+  it "keeps the Machine's readings in both copies, so a fall is judged against the rise", :aggregate_failures do
+    expect(binds("main")).to include(%w[Hecks Machine])
+    expect(binds("train")).to include(%w[Hecks Machine])
+  end
+
   it "binds no aggregate the list leaves out, and nothing of main's alone on the train", :aggregate_failures do
     expect(binds("main")).not_to include(%w[Tickets Adr])
     expect(binds("train").map(&:first).uniq).to eq(%w[Hecks Delivery])
