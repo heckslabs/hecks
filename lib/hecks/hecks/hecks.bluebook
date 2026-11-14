@@ -79,6 +79,8 @@ Hecks.bluebook "Hecks" do
                reason: "a routing is answered in a later call than the one that asked"
         member domain: "Agents", aggregate: "PromotionRecommendation", checkout: "main",
                reason: "a recommendation is read by the orchestrator in a later call"
+        member domain: "Agents", aggregate: "Pruning", checkout: "main",
+               reason: "a pause is read by the process that would wake the pruner, and by the board"
         member domain: "Pipeline", aggregate: "Passage", checkout: "main",
                reason: "a passage planned in one call is there for the call that starts its work"
       end

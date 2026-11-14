@@ -1238,7 +1238,7 @@ Hecks.bluebook "Agents" do
   # through `SessionCleanup.RemoveSafe` (delegate bluebook), which removes only the sessions of
   # dispatched runs that finished done, so the safety rule holds whatever the session reads.
   aggregate "Pruning" do
-    description "The pruner role's standing: resting, or working on one dispatched run, so a second pruner is never started while one works."
+    description "The pruner role's standing: resting, working on one dispatched run, or paused by the owner, so a second pruner is never started while one works and none while pruning is paused."
 
     identified_by :role
 
@@ -1256,6 +1256,8 @@ Hecks.bluebook "Agents" do
     lifecycle :status, default: "resting" do
       transition "Wake" => "working", from: "resting"
       transition "Rest" => "resting", from: "working"
+      transition "Pause" => "paused", from: ["resting", "working"]
+      transition "Resume" => "resting", from: "paused"
     end
 
     # The first landed feature seats the pruner; a seat that exists is refused, which is its answer.
@@ -1299,6 +1301,47 @@ Hecks.bluebook "Agents" do
       reference_to Pruning
 
       emits "PrunerRested"
+    end
+
+    # The owner's switch, taken on a seated pruner. Wake moves only from resting, so a paused Wake
+    # is refused naming `paused`; a run paused while it works ends with the seat still paused.
+    command "Pause", from: ["resting", "working"] do
+      role "Maintainer"
+      goal "Pause pruning (to=pruner): the pruner is woken by nothing until it is resumed; a run already working is not stopped"
+
+      reference_to Pruning
+
+      emits "PrunerPaused"
+    end
+
+    command "Resume", from: "paused" do
+      role "Maintainer"
+      goal "Resume pruning (to=pruner): the pruner rests and may be woken again"
+
+      reference_to Pruning
+
+      emits "PrunerResumed"
+    end
+
+    # The same switch for a pruner no one has seated: one command seats it and pauses it, so no
+    # Summon can seat and wake it in between.
+    command "Hold" do
+      role "Maintainer"
+      goal "Seat the pruner already paused, when no seat exists yet (to= is not needed)"
+
+      attribute :role, PrunerRole, sets: true
+
+      emits "PrunerHeld"
+    end
+
+    query "Standing" do
+      description "Each pruner seat with its status: resting, working or paused."
+      order_by :role
+    end
+
+    policy "PauseTheHeldPruner" do
+      on      "Pruning.PrunerHeld"
+      trigger Pruning::Pause, with: { pruning: :role }
     end
 
     policy "SeatThePrunerWhenWorkLands" do
