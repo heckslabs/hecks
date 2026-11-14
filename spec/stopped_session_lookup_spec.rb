@@ -30,13 +30,23 @@ RSpec.describe Hecks::Adapters::SessionLookup do
     expect(answer[:note]).to include("listed stopped", "no process, new commit or changed file for 60 minutes")
   end
 
+  %w[done failed].each do |state|
+    it "retires a #{state} session over an old started run", :aggregate_failures do
+      listed_as(state)
+      answer = lookup.call(held)
+
+      expect(answer[:listed]).to be(false)
+      expect(answer[:note]).to include("listed #{state}")
+    end
+  end
+
   it "keeps a stopped session over a young run" do
     listed_as("stopped")
 
     expect(lookup.call(held(600))[:listed]).to be(true)
   end
 
-  %w[working waiting].each do |state|
+  %w[working waiting blocked].each do |state|
     it "keeps a #{state} session whatever the run's age" do
       listed_as(state)
 

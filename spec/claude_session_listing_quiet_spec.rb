@@ -22,4 +22,10 @@ RSpec.describe Hecks::Adapters::ClaudeSessionListing do
 
     expect([listing.quiet?("a"), listing.quiet?("b"), listing.quiet?("c"), listing.quiet?("z")]).to eq([true, false, false, true])
   end
+
+  it "calls a session that is done or failed quiet too", :aggregate_failures do
+    lists(%w[d done], %w[f failed], %w[w working])
+
+    expect([listing.quiet?("d"), listing.quiet?("f"), listing.quiet?("w")]).to eq([true, true, false])
+  end
 end
