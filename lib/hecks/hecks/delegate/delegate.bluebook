@@ -629,8 +629,9 @@ Hecks.bluebook "Hecks" do
       description "One rolling fill of the Work queue, started by an event rather than a person."
 
       attribute :run,     RollKey
-      attribute :report,  RollOutcome, optional: true
-      attribute :refusal, RollOutcome, optional: true
+      attribute :report,    RollOutcome, optional: true
+      attribute :refusal,   RollOutcome, optional: true
+      attribute :held_back, HeldBack, optional: true
       identified_by :run
 
       value_object "RollKey" do
@@ -638,6 +639,9 @@ Hecks.bluebook "Hecks" do
       end
 
       value_object "RollOutcome", String
+
+      # One when the fill left planned work waiting on the boot budget, the load or a pause, else zero.
+      value_object "HeldBack", Integer
 
       lifecycle :status, default: "requested" do
         mark :failure, "refused"
@@ -660,7 +664,8 @@ Hecks.bluebook "Hecks" do
         goal "Record what the rolling fill started"
 
         reference_to Roll
-        attribute :report, RollOutcome, sets: true
+        attribute :report,    RollOutcome, sets: true
+        attribute :held_back, HeldBack, sets: true
 
         emits RollAnswered
       end
@@ -905,6 +910,147 @@ Hecks.bluebook "Hecks" do
       on      "Ticker.Ticked"
       root
       trigger Heartbeat::Beat, with: { beat: :tick }
+    end
+
+    # The idle backstop for work a roll held back; a tick rolls itself, with no `Wake` beat to ask.
+    aggregate "Idler" do
+      description "The one chain of idle ticks of a store, started by a roll that held planned work back (boot budget, load, a pause) when no pull request's chain beats. Start is refused while a chain stands; each tick rolls through the owner's switch, and the world's idles minutes end the chain."
+
+      attribute :idler,    IdlerKey
+      attribute :standing, IdleStanding
+      attribute :tick,     IdlerKey, optional: true
+      attribute :beats,    IdleBeats, optional: true
+      attribute :limit,    IdleBeats, optional: true
+      attribute :ending,   IdlerNote, optional: true
+      identified_by :idler
+
+      value_object "IdlerKey" do
+        attribute :value, String, matches: :present
+      end
+
+      # One while a chain stands, zero while none does.
+      value_object "IdleStanding" do
+        attribute :value, Integer, default: 0
+        invariant("a chain stands or it does not") { [0, 1].include?(value) }
+      end
+
+      value_object "IdleBeats", Integer
+
+      value_object "IdlerNote", String
+
+      command "Keep" do
+        role "System"
+        goal "Open the one idler record of a store, with no chain standing"
+
+        attribute :idler, IdlerKey, sets: true
+
+        emits IdlerKept
+      end
+
+      command "Start" do
+        role "System"
+        goal "Record that planned work is held back and an idle chain of ticks is wanted"
+
+        reference_to Idler
+
+        given("no chain stands") { standing.value == 0 }
+
+        sets :standing, to: { value: 1 }
+
+        emits IdlerRequested
+      end
+
+      command "Begin" do
+        role "System"
+        goal "Record that the chain of ticks started, and how many beats it is allowed"
+
+        reference_to Idler
+        attribute :limit, IdleBeats, sets: true
+
+        sets :beats, to: { value: 0 }
+
+        emits IdlerBegun
+      end
+
+      command "Decline" do
+        role "System"
+        goal "Record why no chain of ticks started"
+
+        reference_to Idler
+        attribute :ending, IdlerNote, sets: true
+
+        given("a chain stands") { standing.value == 1 }
+
+        sets :standing, to: { value: 0 }
+
+        emits IdlerDeclined
+      end
+
+      command "Tick" do
+        role "System"
+        goal "Record one idle tick, refused once the chain is over or its beats are spent"
+
+        reference_to Idler
+        attribute :tick,  IdlerKey, sets: true
+        attribute :beats, IdleBeats, sets: true
+
+        given("a chain stands") { standing.value == 1 }
+        given("the beats are within the limit") { beats.value <= limit.value }
+
+        emits IdleTicked
+      end
+
+      command "Stop" do
+        role "System"
+        goal "Record that the chain of idle ticks is over, and why"
+
+        reference_to Idler
+        attribute :ending, IdlerNote, sets: true
+
+        given("a chain stands") { standing.value == 1 }
+
+        sets :standing, to: { value: 0 }
+
+        emits IdlerStopped
+      end
+    end
+
+    policy "KeepTheIdlerWhenWorkIsHeldBack" do
+      on      "Roll.RollAnswered"
+      where   { held_back == 1 }
+      trigger Idler::Keep, with: { idler: "idle" }
+    end
+
+    policy "IdleWhenWorkIsHeldBack" do
+      on      "Roll.RollAnswered"
+      where   { held_back == 1 }
+      trigger Idler::Start, with: { idler: "idle" }
+    end
+
+    policy "OpenIdlerWhenRequested" do
+      on      "Idler.IdlerRequested"
+      ask     :open, with: { idler: :idler }
+    end
+
+    policy "BeginIdlerWhenOpened" do
+      on      "Idler.IdlerOpened"
+      trigger Idler::Begin, with: { limit: :limit }
+    end
+
+    policy "DeclineIdlerWhenUnopened" do
+      on      "Idler.IdlerUnopened"
+      trigger Idler::Decline, with: { ending: :refusal }
+    end
+
+    policy "OpenTheRollSwitchWhenTheIdlerTicks" do
+      on      "Idler.IdleTicked"
+      trigger RollSwitch::Open, with: { switch: "rolls" }
+    end
+
+    policy "RollWhenTheIdlerTicks" do
+      on      "Idler.IdleTicked"
+      root
+      trigger RollSwitch::Consult, with: { roll_switch: "rolls", run: :tick }
     end
 
     # The clock's other question. Almost everything that starts a roll is an event, but three things
@@ -1591,7 +1737,7 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheRoll" do
       on      "Roll.RollReported"
-      trigger Roll::Record, with: { report: :report }
+      trigger Roll::Record, with: { report: :report, held_back: :held_back }
     end
 
     policy "RecordTheDeclinedRoll" do

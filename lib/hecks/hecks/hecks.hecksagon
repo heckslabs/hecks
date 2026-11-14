@@ -466,6 +466,17 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  # The outside the idle chain reaches to start: one detached chain of ticks that sleeps the Tickets
+  # world's `idles` period and dispatches `Idler.Tick`, and answers how many beats the world's
+  # `minutes` allow. It watches no pull request.
+  Hecks::Idler.port "Idling" do
+    asks "Open", to: Idler do
+      attribute :idler, IdlerKey
+      answers "IdlerOpened"
+      refuses "IdlerUnopened"
+    end
+  end
+
   # The outside a beat of the clock reaches to learn whether the clock alone made something eligible:
   # a retry time that passed, a boot budget no longer spent, or a roll refused while a filling ran.
   # A beat with none of these is refused as quiet.

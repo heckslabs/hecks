@@ -19,7 +19,8 @@ module Hecks
         # A report that repeats the last one is refused, so a repeated skip is recorded once.
         #
         # @param _held [Hash] the `Roll` record
-        # @return [Hash{Symbol => Hash}] `report:` the filling's report
+        # @return [Hash{Symbol => Hash}] `report:` the filling's report, and `held_back:` one when
+        #   the filling left planned work waiting on the boot budget, the load or a pause, else zero
         # @raise [ConsoleCapture::Failure] when rolling is paused or the report repeats the last one
         def roll(**_held)
           raise ConsoleCapture::Failure, "paused: dispatch_roll_forward is false" unless machine.roll_forward?
@@ -28,7 +29,7 @@ module Hecks
           text = rolling_fill
           raise ConsoleCapture::Failure, "unchanged: #{header_of(text)}" if LastRoll.repeat?(text)
 
-          { report: { value: text } }
+          { report: { value: text }, held_back: { value: held_back } }
         end
 
         # Says whether the clock alone has made something eligible to start: a retry time passed,
@@ -52,6 +53,11 @@ module Hecks
         def clock = @standins[:now]&.call || Time.now.utc
 
         def header_of(report) = report.partition("\n").first
+
+        # One when the filling just made left work waiting on the boot budget or on the machine.
+        # It reads what {#note_stops} wrote in this process, so it holds only after a
+        # confirmed filling.
+        def held_back = Pending.budget_stopped || Pending.load_stopped ? 1 : 0
 
         # What a confirmed filling leaves for the clock's beat: whether the boot budget stopped it,
         # and when the window alone could free the budget; and whether the machine held planned work

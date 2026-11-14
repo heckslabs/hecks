@@ -20,7 +20,14 @@ module Hecks
           run, seconds, launcher, minutes = argv
           backoff = Backoff.parse(env["HECKS_TICK_BACKOFF"] || seconds.to_s)
           watcher = env["HECKS_TICK_WATCH"] && Watcher.new(env["HECKS_TICK_WATCH"], clock: -> { Time.now })
-          new(Dispatcher.new(run, launcher, log), backoff, minutes, watcher, RealClock.new).run(run)
+          new(dispatcher_for(run, launcher, log, env), backoff, minutes, watcher, RealClock.new).run(run)
+        end
+
+        # The dispatcher for the aggregate the environment names (`HECKS_TICK_AGGREGATE`, a `Ticker`
+        # when absent) and the chain's stamp (`HECKS_TICK_STAMP`).
+        def self.dispatcher_for(run, launcher, log, env)
+          Dispatcher.new(run, launcher, log, aggregate: env["HECKS_TICK_AGGREGATE"] || "Ticker",
+                                             stamp:     env["HECKS_TICK_STAMP"])
         end
 
         # The wall clock and the real sleep; a spec stands in a clock of its own.
