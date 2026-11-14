@@ -66,6 +66,9 @@ module Hecks
         # @return [Integer, nil] the sessions the load had room for, nil when no reading said
         def headroom = @limits[:headroom]
 
+        # @return [Float, nil] the load one session is taken to cost, nil when no limit says
+        def per_session = @limits[:per_session]
+
         # @return [String, nil] why the boot budget held every start back, nil when it did not
         def budget_stop = @limits[:budget]
 
