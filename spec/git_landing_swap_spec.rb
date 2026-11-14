@@ -16,6 +16,19 @@ RSpec.describe Hecks::Adapters::GitLanding, "#merge by compare-and-swap" do
 
   after { FileUtils.remove_entry(dir) }
 
+  # The landing runs a plain `git merge`, which makes a commit and so needs a committer. A
+  # developer's machine has one in its global config; a CI runner has none, and the merge then
+  # fails with no conflict to name ("merging a into main conflicts in ;"). The spec supplies the
+  # identity itself.
+  around do |example|
+    names = %w[GIT_AUTHOR_NAME GIT_AUTHOR_EMAIL GIT_COMMITTER_NAME GIT_COMMITTER_EMAIL]
+    saved = ENV.values_at(*names)
+    names.each { |name| ENV[name] = name.end_with?("NAME") ? "t" : "t@t" }
+    example.run
+  ensure
+    names.zip(saved) { |name, value| ENV[name] = value }
+  end
+
   def git(*args, chdir: repo)
     out, status = Open3.capture2e("git", "-c", "user.name=t", "-c", "user.email=t@t", *args, chdir: chdir)
     raise out unless status.success?
