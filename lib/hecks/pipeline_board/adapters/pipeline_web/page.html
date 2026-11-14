@@ -45,6 +45,9 @@ section { background: var(--surface); border: 1px solid var(--border); border-ra
 .tile .num { font-size: 30px; line-height: 1.15; font-weight: 600; }
 .tile .unit { font-size: 13px; color: var(--ink2); font-weight: 400; margin-left: 4px; }
 .tile .note { color: var(--muted); font-size: 12px; margin-top: 2px; }
+/* A box never grows into a wall of text: it shows its first lines, and the row or tile opens the rest. */
+#resolve-detail { max-height: 40vh; overflow: auto; overflow-wrap: anywhere; }
+.clamp, .node .detail { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; line-clamp: 4; overflow: hidden; overflow-wrap: anywhere; }
 .tile .trend { font-size: 12px; color: var(--ink2); }
 .strip { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 0; }
 .node { position: relative; border: 1px solid var(--border); padding: 10px; margin-right: 14px; border-radius: 8px; min-height: 112px; }
@@ -443,8 +446,8 @@ function renderTiles(tiles) {
       t.trend.better === null ? " flat" : t.trend.better ? " better" : " worse", " vs earlier half") : null;
     const el = h("div", { class: "tile" + (needsAttention(t.state) ? " clickable" : ""), tip: t.label + ": " + t.detail },
       h("div", { class: "label" }, t.label), h("div", { class: "num" }, String(value), h("span", { class: "unit" }, t.unit)),
-      badge(t.state), tr, h("div", { class: "note" }, t.detail));
-    if (needsAttention(t.state)) answerable(el, () => resolve(t.label, t.detail));
+      badge(t.state), tr, h("div", { class: "note clamp" }, t.detail));
+    if (needsAttention(t.state)) answerable(el, () => resolve(t.label, t.full || t.detail));
     return el;
   }));
 }
@@ -560,7 +563,7 @@ function renderCycles(c) {
 function renderAttention(metrics, stages, sessions, recommendations) {
   const recs = Array.isArray(recommendations) ? recommendations : [];
   const groups = [
-    ["Metrics", metrics.filter((t) => needsAttention(t.state)).map((t) => ({ kind: "Metric", item: t.label, state: t.state, value: (t.value ?? "-") + (t.unit || ""), detail: t.detail, since: "-", act: () => resolve(t.label, t.detail) }))],
+    ["Metrics", metrics.filter((t) => needsAttention(t.state)).map((t) => ({ kind: "Metric", item: t.label, state: t.state, value: (t.value ?? "-") + (t.unit || ""), detail: t.detail, since: "-", act: () => resolve(t.label, t.full || t.detail) }))],
     ["Pipeline stages", stages.filter((s) => needsAttention(s.state)).map((s) => ({ kind: "Stage", item: s.name, state: s.state, value: "-", detail: s.detail, since: "-", act: () => resolve(s.name, s.detail) }))],
     ["Sessions waiting on you", sessions.filter(waitingOnYou).map((s) => ({ kind: "Session", item: s.name + " " + (s.id || ""), state: "attention", value: s.work_item || s.row || "-", detail: s.detail, since: clock(s.started), act: () => openAnswer([{ id: s.id, name: s.name, run: s.run, repo: s.repo, work_item: s.work_item, question: s.detail, context: s.context, attach: s.attach }], s.id) }))]
   ].filter(([, items]) => items.length);
@@ -585,7 +588,7 @@ function recommendationGroup(recs) {
 function recommendationButtons(r) { return boardAnswer.recommendationButtons(r, refresh); }
 // One group of attention rows; each row opens its resolve or answer dialog.
 function attentionTable(items) {
-  const node = table(["Kind", "Item", "State", "Value", "Detail", "Since"], items.map((it) => [it.kind, it.item, badge(it.state), it.value, it.detail, it.since]));
+  const node = table(["Kind", "Item", "State", "Value", "Detail", "Since"], items.map((it) => [it.kind, it.item, badge(it.state), it.value, h("div", { class: "clamp" }, it.detail), it.since]));
   const trs = node.querySelectorAll("tbody tr");
   items.forEach((it, i) => { trs[i].classList.add("clickable"); trs[i].title = "Click to resolve or answer"; answerable(trs[i], it.act); });
   return node;
