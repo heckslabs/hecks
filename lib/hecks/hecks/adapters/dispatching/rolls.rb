@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../console_capture"
+require_relative "checkout"
 require_relative "filling"
 require_relative "last_roll"
 require_relative "pending"
@@ -96,7 +97,11 @@ module Hecks
           Pending.take_deferred! ? confirmed_report : text
         end
 
-        def confirmed_report = choose(repo: { value: Dir.pwd }, confirm: true, rolling: true).dig(:report, :value)
+        # The filling is for the main checkout, whichever worktree's process heard the roll: a
+        # session started in a worktree would be handed that work item's directory.
+        def confirmed_report
+          choose(repo: { value: Checkout.main(Dir.pwd) }, confirm: true, rolling: true).dig(:report, :value)
+        end
       end
     end
   end
