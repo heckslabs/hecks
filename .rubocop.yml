@@ -172,8 +172,8 @@ Hecks/NoScriptIoOutsideAdapters:
 # `git rev-list` are refused outside an adapter, and a history read that is still needed is added
 # to the `Git` port. Adapter folders are skipped as for the cop above; the vendored packages are
 # changed in their own repository. The files that offend today are listed in
-# `lib/rubocop/cop/hecks/git_history_through_the_port_baseline.txt`; a listed file is advisory and
-# the list only shrinks. Registered here and in that file, not in ADR 0091, as for the cop above.
+# `lib/rubocop/cop/hecks/git_history_through_the_port_baseline.txt`; a listed file is fully exempt
+# and the list only shrinks. Registered here and in that file, not in ADR 0091, as for the cop above.
 Hecks/GitHistoryThroughThePort:
   Enabled: true
   Include:

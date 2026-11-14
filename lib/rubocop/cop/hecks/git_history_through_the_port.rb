@@ -9,7 +9,8 @@ module RuboCop
       # to the `Git` port. Adapter folders are skipped: an adapter of another port (Train,
       # Rehearsing) reads the history for its own port, and moving those reads behind `Git`, which
       # has no read for most of them, is the owner's decision. Vendored packages hold the same debt
-      # and change in their own repository. A file in the baseline list is advisory.
+      # and change in their own repository. A file in the baseline list is fully exempt, so a new
+      # read there is not flagged. The cop closes the non-adapter gap only.
       #
       # @example
       #   read("rev-list", "--count", range)    # bad

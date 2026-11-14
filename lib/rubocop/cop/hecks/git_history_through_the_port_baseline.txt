@@ -1,8 +1,8 @@
 # Baseline of Hecks/GitHistoryThroughThePort.
 #
 # These lib files run `git log` or `git rev-list` outside an adapter folder. A listed file is
-# advisory: the cop does not flag it. The list only shrinks. When a file's read moves behind the
-# `Git` port or the file is deleted, remove its line; a spec fails for a line whose file is gone
+# exempt: the cop flags nothing in it, not even a new read. The list only shrinks. When a file's
+# read moves behind the `Git` port or the file is deleted, remove its line; a spec fails for a line whose file is gone
 # or no longer offends. New code is never added here. When the list is empty, delete this file
 # and the cop's baseline methods. Registered here and in .rubocop.yml, not in ADR 0091, which
 # allows no per-file list.
