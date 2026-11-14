@@ -414,15 +414,11 @@ Hecks.bluebook "Tickets" do
     end
 
     # The `OutcomeMeasure` row an epic's outcome is measured by. An epic that names none never completes.
-    value_object "MeasureName" do
-      attribute :value, String
-    end
+    value_object "MeasureName", String
 
     # What the last measurement read, in words: the number, the events counted and the bounds; or why
     # nothing could be read.
-    value_object "Evidence" do
-      attribute :value, String
-    end
+    value_object "Evidence", String
 
     # A number read from the event tap, or a bound on one.
     value_object "Reading" do
