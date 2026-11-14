@@ -436,13 +436,9 @@ Hecks.bluebook "Tickets" do
       attribute :value, String, matches: :present
     end
 
-    # One way to measure an outcome, one row each: a number read from the event tap and the bounds it
-    # must lie within. `events` (comma separated) of `aggregate` are counted over the last `minutes`.
-    # `per: "id"` reads the most lines one aggregate id records inside any `span` minutes, in place of
-    # the count of all. `at_least` is 0 and `at_most` unbounded when the row leaves them out. The
-    # OutcomeReadings port reads the number; `Epic.Complete` and `Epic.Miss` compare it with the
-    # bounds. A row with only `at_most: 0` is met by an hour in which nothing ran: pair an epic with
-    # the row that counts what its outcome produces when one exists.
+    # One way to measure an outcome, one row each (ADR 0206): `events` (comma separated) of `aggregate`
+    # counted on the tap over the last `minutes`, or with `per: "id"` the most one id records inside
+    # any `span` minutes, and the bounds it must lie within (`at_least` 0, `at_most` unbounded if absent).
     value_object "OutcomeMeasure" do
       attribute :measure,   String
       attribute :aggregate, String
@@ -492,10 +488,9 @@ Hecks.bluebook "Tickets" do
       emits "EpicOpened"
     end
 
-    # Sent by the CompleteEpicWhenOutcomeRead policy with the counts the EpicMembers port read and the
-    # number the OutcomeReadings port read beside its measure's bounds: a `given` sees its own
-    # arguments, not the Work items or the tap, so the arguments carry the rules. The rules judge the
-    # numbers they are handed; a caller who dispatches it by hand vouches for them.
+    # Sent by CompleteEpicWhenOutcomeRead with the counts the EpicMembers port read and the number and
+    # bounds the OutcomeReadings port read: a `given` sees its own arguments, not the Work items or the
+    # tap, so they carry the rules. A caller who dispatches it by hand vouches for the numbers.
     command "Complete" do
       goal "Record that every member of the epic is done or dropped and its outcome was measured as met"
 
