@@ -62,6 +62,7 @@ RSpec.describe "hecks quality_control check_main and bug.fix_and_land", :io do
   end
 
   after(:all) do
+    GitIdentityFree::IDENTITY_KEYS.each { |key| ENV.delete(key) }
     @ledger&.tear_down!
     FileUtils.remove_entry(@sandbox) if @sandbox
   end
