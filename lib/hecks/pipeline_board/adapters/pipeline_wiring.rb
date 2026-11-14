@@ -7,7 +7,6 @@ require_relative "rules"
 require_relative "pipeline_wiring/details"
 require_relative "pipeline_wiring/graph"
 require_relative "pipeline_wiring/source"
-require "hecks/hecks/adapters/dial_turning"
 
 module Hecks
   module Adapters
@@ -39,7 +38,7 @@ module Hecks
       # @return [Hash] `nodes` (aggregates, ports, adapters) and `edges` (policy, ask, adapter),
       #   as the bluebook files declare them now
       # @raise [PipelineBoard::Unavailable] when no registry is booted here
-      def graph = reading.except(:digest, :dials)
+      def graph = reading.except(:digest)
 
       # @return [Hash] the graph with its `digest`, which differs whenever the wiring does; both
       #   from the same look at the files
@@ -49,7 +48,7 @@ module Hecks
 
         @lock.synchronize do
           refresh
-          @graph.merge(digest: @digest, dials: DialTurning::Standing.rows(@registry))
+          @graph.merge(digest: @digest)
         end
       end
 
@@ -60,6 +59,9 @@ module Hecks
       # @return [String, nil] why the files could not be read the last time one changed; the graph
       #   stays the last one that drew
       attr_reader :problem
+
+      # @return [Runtime::Registry, nil] the booted registry the wiring is read from
+      attr_reader :registry
 
       private
 

@@ -82,8 +82,6 @@ svg.picked .unit:not(.near), svg.finding .unit:not(.match) { opacity: .3; }
 .panel li { padding: 5px 0; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; } .panel li:last-child { border-bottom: 0; }
 .panel li small { color: var(--muted); display: block; }
 .panel .ev time { color: var(--muted); margin-right: 6px; font-size: 12px; } .panel .ev .re { display: block; color: var(--ink2); font-size: 12px; padding-left: 14px; }
-.panel .dial label { display: block; } .panel .dial .turn { display: flex; gap: 6px; margin: 4px 0 2px; }
-.panel .dial input, .panel .dial select { width: 96px; font: inherit; padding: 2px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); }
 .panel .states span { display: inline-block; border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; margin: 2px 4px 2px 0; font-size: 12px; }
 .panel .go { background: none; border: none; color: var(--pick); padding: 0; cursor: pointer; text-decoration: underline; text-align: left; }
 .panel .ev button.re { display: block; width: 100%; text-align: left; background: none; border: none; border-radius: 0; color: var(--ink2); font-size: 12px; padding: 2px 0 2px 14px; }
@@ -100,7 +98,6 @@ svg.picked .unit:not(.near), svg.finding .unit:not(.match) { opacity: .3; }
       <button id="zin" type="button" aria-label="Zoom in">+</button>
       <button id="fit" type="button">Fit</button>
       <button id="areas" type="button" aria-pressed="true">Areas</button>
-      <button id="dials" type="button" aria-pressed="false" hidden>Settings</button>
       <button id="replay" type="button">Replay recent</button>
       <button id="toggle" type="button" aria-pressed="false">Show table</button>
     </div>
@@ -347,7 +344,6 @@ function mark() {
 }
 /* Picks an aggregate, a port or an adapter (stepping inside its context first), or a line, or nothing. */
 function pick(what) {
-  tuning = false; $("dials").setAttribute("aria-pressed", "false");
   const node = what && what.node && byId.get(what.node);
   if (node && node.domain && inside !== contextKey(node)) { inside = contextKey(node); picked = null; touched = false; redraw(); }
   picked = node ? { node: node.id, unit: unitKey(node) } : what && what.link && links.has(what.link) ? { link: what.link } : null;
@@ -385,8 +381,7 @@ function reveal() {
 }
 function renderPanel() {
   const panel = $("panel");
-  panel.hidden = !picked && !tuning;
-  if (tuning) { $("ptitle").textContent = "Settings"; $("pbody").replaceChildren(...dialsBody().flat(Infinity).filter(Boolean)); return; }
+  panel.hidden = !picked;
   // The panel opens over the map, which keeps its size. Only a block that would sit under the panel
   // is slid clear of it, and the map goes back when the panel closes.
   if (!picked) { if (slid && !touched) fit(); slid = false; return; }
@@ -446,36 +441,12 @@ function waitingBody() {
     h("ul", {}, fact("Policy", String(r.policy)), fact("Command it reached", r.command ? String(r.command) : "none"), fact("Outcome", r.outcome ? String(r.outcome) : "no outcome recorded"),
       fact("Event it answered", String(live.name)), fact("Aggregate", String(live.aggregate || "")), fact("Event at", live.at ? clock(live.at) + " (" + live.at + ")" : ""))];
 }
-/* The settings a turn may set, with what each stands at, grouped by the context it governs. Setting one runs
-   Dial.turn! through the board's one write; the value is refused there when it is outside its bounds. */
-let dials = [], tuning = false;
-function dialRow(d) {
-  const sw = d.kind === "switch", now = d.value === null || d.value === undefined ? "" : String(d.value);
-  const field = sw
-    ? h("select", { "aria-label": d.says }, ["on", "off"].map((w) => h("option", (d.value === true) === (w === "on") ? { selected: "" } : {}, w)))
-    : h("input", { type: "number", value: now, min: d.least, max: d.most, step: d.kind === "integer" ? "1" : "any", "aria-label": d.says });
-  const set = h("button", { type: "button" }, "Set"), note = h("small", { "aria-live": "polite" }, sw ? "" : "between " + d.least + " and " + d.most + (d.turned ? ", set from here" : ""));
-  set.addEventListener("click", () => {
-    set.disabled = true; note.textContent = "setting";
-    fetch("/api/act", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "turn", target: d.setting, text: field.value, confirm: true }) })
-      .then((r) => r.json()).then((a) => { note.textContent = a.error || a.refusal || "set to " + field.value + "; a running process reads it at its next start"; if (!a.error && !a.refusal) loadWiring(false); })
-      .catch((e) => { note.textContent = "not set: " + e.message; }).finally(() => { set.disabled = false; });
-  });
-  return h("li", { class: "dial" }, h("label", {}, d.says, h("small", {}, d.setting)), h("span", { class: "turn" }, field, set), note);
-}
-function dialsBody() {
-  if (!dials.length) return [h("p", { class: "desc" }, "No setting can be set from here.")];
-  const groups = new Map(); for (const d of dials) groups.set(d.context, [...(groups.get(d.context) || []), d]);
-  return [h("p", { class: "desc" }, "The limits this machine runs the pipeline under. A change is written to this checkout only, never committed."),
-    [...groups].map(([context, rows]) => [h("h3", {}, context), h("ul", {}, rows.map(dialRow))])];
-}
-$("dials").addEventListener("click", () => { const open = !tuning; waiting = null; pick(null); tuning = open; $("dials").setAttribute("aria-pressed", String(open)); renderPanel(); });
 $("pclose").addEventListener("click", () => { waiting = null; pick(null); });
 // Escape closes what is open: the list of finds, then the panel, then the context being looked inside.
 addEventListener("keydown", (e) => {
   if (e.key !== "Escape") return;
   if (!$("hits").hidden) { $("hits").hidden = true; return; }
-  if (picked || tuning) { waiting = null; pick(null); } else if (inside) enter(null);
+  if (picked) { waiting = null; pick(null); } else if (inside) enter(null);
 });
 
 /* ---- find: a context, an aggregate or a policy, by any part of its name ---- */
@@ -589,7 +560,6 @@ addEventListener("resize", () => { if (!touched) fit(); });
 const wait = una("Reading the wiring", true); map.before(wait);
 function applyWiring(g, first) {
   wait.remove();
-  dials = g.dials || []; $("dials").hidden = !dials.length;
   nodes = g.nodes; edges = g.edges; wiringDigest = g.digest; byId = new Map(nodes.map((n) => [n.id, n]));
   place(); sync();
   if (inside && !contexts().has(inside)) inside = null;

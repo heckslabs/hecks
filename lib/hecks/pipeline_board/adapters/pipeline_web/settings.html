@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pipeline Settings</title>
+<!--style--><style>
+/* The Settings page: the limits this machine runs the pipeline under. One row is one setting: what it does, where
+   its value sits between the least and the most it may be, and a field to change it. */
+h1, h2, p, ul { margin: 0; }
+:focus-visible { outline: 2px solid var(--run); outline-offset: 2px; border-radius: 4px; }
+header.top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 20px; margin-bottom: 18px; }
+.note { color: var(--ink2); font-size: 12.5px; }
+.overview { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 22px 24px; }
+.headline { font-size: clamp(20px, 2.8vw, 28px); line-height: 1.2; letter-spacing: -.015em; font-weight: 400; text-wrap: balance; }
+.headline b { font-weight: 650; }
+.headline small { display: block; margin-top: 8px; font-size: 14px; letter-spacing: 0; color: var(--ink2); }
+section.group { margin-top: 26px; }
+section.group > h2 { font-size: 16px; font-weight: 650; margin: 0 4px 8px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 4px 18px; }
+.card ul { list-style: none; padding: 0; }
+.dial { display: grid; grid-template-columns: minmax(0, 1fr) minmax(120px, 240px) auto; gap: 6px 24px; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--line); }
+.dial:last-child { border-bottom: 0; }
+.dial .what { font-size: 14px; } .dial .what small { display: block; font: 11.5px var(--mono); color: var(--muted); margin-top: 2px; }
+.dial .what .mark { font: inherit; font-family: inherit; display: inline-block; margin-left: 8px; padding: 0 7px; border-radius: 999px; border: 1px solid var(--line); color: var(--ink2); font-size: 11px; }
+/* Where the value stands between its bounds. */
+.range { font-size: 11.5px; color: var(--muted); }
+.range .track { position: relative; height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--ink) 8%, transparent); margin-bottom: 4px; }
+.range .fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; background: var(--run); }
+.range .ends { display: flex; justify-content: space-between; }
+.turn { display: flex; gap: 6px; }
+.turn input, .turn select { width: 92px; font: inherit; padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); }
+.dial .said { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink2); } .dial .said:empty { display: none; } .dial .said.bad { color: var(--critical); }
+@media (max-width: 760px) { .dial { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <header class="top">
+    <h1>Settings</h1>
+    <!--nav-->
+    <span class="note" id="updated"></span>
+  </header>
+  <div class="overview"><p class="headline" id="headline">Reading the settings</p></div>
+  <div id="groups"></div>
+</main>
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+function h(tag, attrs, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) if (v !== null && v !== undefined) el.setAttribute(k, v);
+  for (const kid of kids.flat()) if (kid !== null && kid !== undefined && kid !== false) el.append(kid.nodeType ? kid : String(kid));
+  return el;
+}
+const unset = (v) => v === null || v === undefined;
+/* The value as words: a switch is on or off, a whole number has no point. */
+const shown = (d) => (unset(d.value) ? "not set" : d.kind === "switch" ? (d.value ? "on" : "off") : String(Number(d.value)));
+function range(d) {
+  if (d.kind === "switch") return h("div", { class: "range" });
+  const least = Number(d.least), most = Number(d.most), at = unset(d.value) ? least : Math.min(most, Math.max(least, Number(d.value)));
+  const fill = h("div", { class: "fill" }); fill.style.width = (most > least ? ((at - least) / (most - least)) * 100 : 0) + "%";
+  return h("div", { class: "range", title: shown(d) + ", between " + d.least + " and " + d.most }, h("div", { class: "track" }, fill),
+    h("div", { class: "ends" }, h("span", {}, d.least), h("span", {}, d.most)));
+}
+function field(d) {
+  if (d.kind === "switch") return h("select", { "aria-label": d.says }, ["on", "off"].map((w) => h("option", (d.value === true) === (w === "on") ? { selected: "" } : {}, w)));
+  return h("input", { type: "number", value: unset(d.value) ? "" : Number(d.value), min: d.least, max: d.most, step: d.kind === "integer" ? "1" : "any", "aria-label": d.says });
+}
+/* Sets one setting through the board's one write. The command refuses a value outside the bounds, and says so. */
+function turn(d, input, button, said) {
+  button.disabled = true; said.className = "said"; said.replaceChildren(window.una ? window.una("Setting") : "Setting");
+  fetch("/api/act", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "turn", target: d.setting, text: input.value, confirm: true }) })
+    .then((r) => r.json()).then((a) => {
+      if (a.error) { said.className = "said bad"; said.textContent = "Not set: " + String(a.error).split(": ").pop(); return; }
+      return load("Set to " + input.value + ". A process that is already running reads it when it next starts.", d.setting);
+    })
+    .catch((e) => { said.className = "said bad"; said.textContent = "Not set: " + e.message; }).finally(() => { button.disabled = false; });
+}
+function row(d, note) {
+  const input = field(d), button = h("button", { type: "button" }, "Set"), said = h("p", { class: "said", "aria-live": "polite" }, note && note.setting === d.setting ? note.text : "");
+  button.addEventListener("click", () => turn(d, input, button, said));
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter") turn(d, input, button, said); });
+  return h("li", { class: "dial" }, h("div", { class: "what" }, d.says, d.turned ? h("span", { class: "mark" }, "set here") : null, h("small", {}, d.setting)),
+    range(d), h("div", { class: "turn" }, input, button), said);
+}
+/* The few numbers that say how hard the machine is driven, as one sentence. */
+function headline(dials) {
+  const of = (name) => dials.find((d) => d.setting === name), cap = of("work_limit.cap"), load = of("dispatch_max_load.limit"), heavy = of("heavy_jobs.cap");
+  const changed = dials.filter((d) => d.turned).length;
+  const p = $("headline"); p.replaceChildren();
+  if (cap && load) p.append("Up to ", h("b", {}, shown(cap)), " Work items at once, and no new session above a load of ", h("b", {}, shown(load)), heavy ? [", with ", h("b", {}, shown(heavy)), " heavy jobs at a time"] : "", ".");
+  else p.append(dials.length ? "The limits this machine runs the pipeline under." : "No setting can be set from here.");
+  p.append(h("small", {}, changed ? changed + (changed === 1 ? " setting was" : " settings were") + " set from here. " : "", "A change is kept on this machine only and is never committed."));
+}
+function draw(dials, note) {
+  headline(dials);
+  const groups = new Map(); for (const d of dials) groups.set(d.context, [...(groups.get(d.context) || []), d]);
+  $("groups").replaceChildren(...[...groups].map(([context, rows]) => h("section", { class: "group" }, h("h2", {}, context), h("div", { class: "card" }, h("ul", {}, rows.map((d) => row(d, note)))))));
+  $("updated").textContent = "read " + new Date().toLocaleTimeString();
+}
+function load(text, setting) {
+  return fetch("/api/settings", { cache: "no-store" }).then((r) => r.json()).then((s) => draw(s.dials || [], text ? { text, setting } : null))
+    .catch((e) => { $("headline").textContent = "The settings could not be read: " + e.message; });
+}
+load();
+</script>
+</body>
+</html>
