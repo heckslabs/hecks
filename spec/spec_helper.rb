@@ -53,6 +53,7 @@ require_relative "support/scratch_directory"
 require_relative "support/live_ledger_guard"
 require_relative "support/live_state_guard"
 require_relative "support/working_directory_guard"
+require_relative "support/ambient_registry_guard"
 require_relative "support/live_services"
 require_relative "support/spec_progress"
 
