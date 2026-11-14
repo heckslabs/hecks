@@ -30,12 +30,43 @@ RSpec.describe Hecks::Adapters::PipelineBoard::PlanHtml do
 
   it "puts an item under its epic with the epic's progress" do
     html = drawn(items: [item("a", epic: "hands-off", area: ["lib/x"])], epics: [epic])
-    expect(html).to include("Hands-off train", "A landing needs no hand", "3 done", "1 dropped", "1 open", "Title of a")
+    expect(html).to include("Hands-off train", "A landing needs no hand", "3 of 4 done", "1 dropped", "Title of a")
   end
 
-  it "lists an item with no epic under 'no epic' with the count, grouped by area" do
+  it "lists an item with no epic under 'no epic' with the count and its area" do
     html = drawn(items: [item("a", area: ["lib/x"]), item("b")])
-    expect(html).to include("no epic (2)", "lib/x", "no area (1)")
+    expect(html).to include("no epic (2)", "lib/x")
+  end
+
+  it "draws every epic closed, so the page is read a row for each epic" do
+    html = drawn(items: [item("a", epic: "hands-off")], epics: [epic])
+    expect(html).not_to include("<details class=\"epic\" open")
+  end
+
+  it "gives an epic's track a cell for each finished item and each open one, in its lane's colour" do
+    html = drawn(items: [item("a", epic: "hands-off", priority: "now")], epics: [epic])
+    track = html[%r{<span class="track">.*?</span>}]
+    expect([track.scan("c-done").size, track.scan("c-now").size]).to eq([3, 1])
+  end
+
+  it "puts the epic with work marked now above the one with nothing prioritised" do
+    later = epic.merge(epic: "aaa", title: "Aaa first by name")
+    html = drawn(items: [item("a", epic: "aaa"), item("b", epic: "hands-off", priority: "now")], epics: [later, epic])
+    expect(html.index("Hands-off train")).to be < html.index("Aaa first by name")
+  end
+
+  it "heads each group of epics with its lane and what it holds" do
+    html = drawn(items: [item("a", epic: "hands-off", priority: "next")], epics: [epic])
+    expect(html).to include("data-lane=\"next\"", "1 epic, 1 open item")
+  end
+
+  it "opens with how much is open and done, and a key of the items in each lane" do
+    html = drawn(items: [item("a", epic: "hands-off", priority: "now"), item("b")], epics: [epic])
+    expect(html).to include("<b>2</b> items open in 1 epic", "3 done so far", "1 now", "1 not prioritised")
+  end
+
+  it "leaves out the priority and status every row would repeat" do
+    expect(drawn(items: [item("a")])).not_to include("class=\"chip", "class=\"pri\"")
   end
 
   it "names no area or category as an epic" do
