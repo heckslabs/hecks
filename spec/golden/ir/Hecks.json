@@ -1,6 +1,771 @@
 {
   "aggregates": [
+    {
+      "acknowledgements": [
 
+      ],
+      "attributes": [
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "run",
+          "optional": false,
+          "pattern": null,
+          "relationship": null,
+          "type": "RunKey"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "root",
+          "optional": false,
+          "pattern": null,
+          "relationship": null,
+          "type": "OverlayRoot"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "copy",
+          "optional": false,
+          "pattern": null,
+          "relationship": null,
+          "type": "Word"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "output",
+          "optional": true,
+          "pattern": null,
+          "relationship": null,
+          "type": "Report"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
+          "name": "refusal",
+          "optional": true,
+          "pattern": null,
+          "relationship": null,
+          "type": "Report"
+        }
+      ],
+      "commands": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "run",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "RunKey"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "root",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "OverlayRoot"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "copy",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "Word"
+            }
+          ],
+          "emits": [
+            "OverlayWriteRequested"
+          ],
+          "ensures": [
+
+          ],
+          "from": null,
+          "givens": [
+
+          ],
+          "goal": "Write a checkout's machine-local overlay so it keeps every row its copy needs, and nothing more",
+          "idempotent": false,
+          "mints_era": false,
+          "mutations": [
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "run"
+              },
+              "target": "run"
+            },
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "root"
+              },
+              "target": "root"
+            },
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "copy"
+              },
+              "target": "copy"
+            }
+          ],
+          "name": "Write",
+          "needs": [
+
+          ],
+          "provenance": null,
+          "references": null,
+          "role": "Operator"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "output",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "Report"
+            }
+          ],
+          "emits": [
+            "OverlaySettled"
+          ],
+          "ensures": [
+
+          ],
+          "from": null,
+          "givens": [
+
+          ],
+          "goal": "Record what the write did",
+          "idempotent": false,
+          "mints_era": false,
+          "mutations": [
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "output"
+              },
+              "target": "output"
+            }
+          ],
+          "name": "Settle",
+          "needs": [
+
+          ],
+          "provenance": null,
+          "references": "LocalOverlay",
+          "role": "System"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "refusal",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "Report"
+            }
+          ],
+          "emits": [
+            "OverlayDeclined"
+          ],
+          "ensures": [
+
+          ],
+          "from": null,
+          "givens": [
+
+          ],
+          "goal": "Record why the write was refused",
+          "idempotent": false,
+          "mints_era": false,
+          "mutations": [
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "refusal"
+              },
+              "target": "refusal"
+            }
+          ],
+          "name": "Decline",
+          "needs": [
+
+          ],
+          "provenance": null,
+          "references": "LocalOverlay",
+          "role": "System"
+        }
+      ],
+      "created_by": "LocalOverlay.write!",
+      "description": "One write of a checkout's machine-local overlay from the kept rows: written, current, or refused.",
+      "entities": [
+
+      ],
+      "formerly_known_as": null,
+      "identified_by": [
+        "run.value"
+      ],
+      "invariants": [
+
+      ],
+      "lifecycle": {
+        "default": "requested",
+        "field": "status",
+        "marks": {
+          "failure": [
+            "refused"
+          ],
+          "terminal": [
+            "settled",
+            "refused"
+          ]
+        },
+        "transitions": [
+          {
+            "command": "Settle",
+            "from_state": "requested",
+            "to_state": "settled"
+          },
+          {
+            "command": "Decline",
+            "from_state": "requested",
+            "to_state": "refused"
+          }
+        ]
+      },
+      "name": "LocalOverlay",
+      "ports": [
+
+      ],
+      "preconditions": [
+
+      ],
+      "projected_fields": [
+
+      ],
+      "provenance": null,
+      "queries": [
+
+      ],
+      "value_objects": [
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "RunKey"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "OverlayRoot"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": "[^ \\t\\n\\r]",
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Word"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "value",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": false,
+          "invariants": [
+
+          ],
+          "members": [
+
+          ],
+          "name": "Report"
+        },
+        {
+          "attributes": [
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "domain",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "aggregate",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "checkout",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "reason",
+              "optional": false,
+              "pattern": null,
+              "relationship": null,
+              "type": "String"
+            }
+          ],
+          "closed_set": true,
+          "invariants": [
+
+          ],
+          "members": [
+            [
+              [
+                "domain",
+                "Hecks"
+              ],
+              [
+                "aggregate",
+                "AgentRun"
+              ],
+              [
+                "checkout",
+                "both"
+              ],
+              [
+                "reason",
+                "a dispatch is checked from a later command by its run"
+              ]
+            ],
+            [
+              [
+                "domain",
+                "Hecks"
+              ],
+              [
+                "aggregate",
+                "SendTrain"
+              ],
+              [
+                "checkout",
+                "both"
+              ],
+              [
+                "reason",
+                "a boarding is read back by the process that watches it"
+              ]
+            ],
+            [
+              [
+                "domain",
+                "Hecks"
+              ],
+              [
+                "aggregate",
+                "Ticker"
+              ],
+              [
+                "checkout",
+                "both"
+              ],
+              [
+                "reason",
+                "each tick of a queued pull request's clock chain is a launcher call of its own"
+              ]
+            ],
+            [
+              [
+                "domain",
+                "Hecks"
+              ],
+              [
+                "aggregate",
+                "TrainPr"
+              ],
+              [
+                "checkout",
+                "both"
+              ],
+              [
+                "reason",
+                "a failed CI attempt's jobs are read after the rerun that cleared them"
+              ]
+            ],
+            [
+              [
+                "domain",
+                "Hecks"
+              ],
+              [
+                "aggregate",
+                "Shipment"
+              ],
+              [
+                "checkout",
+                "main"
+              ],
+              [
+                "reason",
+                "a shipment is judged, landed and boarded by launcher calls of their own"
+              ]
+            ],
+            [
+              [
+                "domain",
+                "Delivery"
+              ],
+              [
+                "aggregate",
+                "Revision"
+              ],
+              [
+                "checkout",
+                "both"
+              ],
+              [
+                "reason",
+                "a landing reads back the revision it landed by run id"
+              ]
+            ],
+            [
+              [
+                "domain",
+                "Delivery"
+              ],
+              [
+                "aggregate",
+                "Landing"
+              ],
+              [
+                "checkout",
+                "both"
+              ],
+              [
+                "reason",
+                "a landing names its worktree by id to a later command"
+              ]
+            ],
+            [
+              [
+                "domain",
+                "Delivery"
+              ],
+              [
+                "aggregate",
+                "LinkedTree"
+              ],
+              [
+                "checkout",
+                "both"
+              ],
+              [
+                "reason",
+                "a landing finds the worktree a session opened earlier"
+              ]
+            ],
+            [
+              [
+                "domain",
+                "Tickets"
+              ],
+              [
+                "aggregate",
+                "Finding"
+              ],
+              [
+                "checkout",
+                "main"
+              ],
+              [
+                "reason",
+                "findings are the ledger every session reads (ADR 0163)"
+              ]
+            ],
+            [
+              [
+                "domain",
+                "Tickets"
+              ],
+              [
+                "aggregate",
+                "Work"
+              ],
+              [
+                "checkout",
+                "main"
+              ],
+              [
+                "reason",
+                "work items are the ledger every session reads (ADR 0163)"
+              ]
+            ],
+            [
+              [
+                "domain",
+                "Tickets"
+              ],
+              [
+                "aggregate",
+                "Epic"
+              ],
+              [
+                "checkout",
+                "main"
+              ],
+              [
+                "reason",
+                "an opened epic is read by the next command that files work under it"
+              ]
+            ],
+            [
+              [
+                "domain",
+                "Agents"
+              ],
+              [
+                "aggregate",
+                "Role"
+              ],
+              [
+                "checkout",
+                "main"
+              ],
+              [
+                "reason",
+                "the board reads which roles are pinned between calls"
+              ]
+            ],
+            [
+              [
+                "domain",
+                "Agents"
+              ],
+              [
+                "aggregate",
+                "PlanReview"
+              ],
+              [
+                "checkout",
+                "main"
+              ],
+              [
+                "reason",
+                "a review's verdict is read by the session that asked, in a later call"
+              ]
+            ],
+            [
+              [
+                "domain",
+                "Agents"
+              ],
+              [
+                "aggregate",
+                "SubmissionReview"
+              ],
+              [
+                "checkout",
+                "main"
+              ],
+              [
+                "reason",
+                "a submission's verdict is read by the session that asked, in a later call"
+              ]
+            ],
+            [
+              [
+                "domain",
+                "Agents"
+              ],
+              [
+                "aggregate",
+                "Planning"
+              ],
+              [
+                "checkout",
+                "main"
+              ],
+              [
+                "reason",
+                "a plan is confirmed in a later call than the one that drafted it"
+              ]
+            ],
+            [
+              [
+                "domain",
+                "Agents"
+              ],
+              [
+                "aggregate",
+                "Routing"
+              ],
+              [
+                "checkout",
+                "main"
+              ],
+              [
+                "reason",
+                "a routing is answered in a later call than the one that asked"
+              ]
+            ],
+            [
+              [
+                "domain",
+                "Agents"
+              ],
+              [
+                "aggregate",
+                "PromotionRecommendation"
+              ],
+              [
+                "checkout",
+                "main"
+              ],
+              [
+                "reason",
+                "a recommendation is read by the orchestrator in a later call"
+              ]
+            ],
+            [
+              [
+                "domain",
+                "Agents"
+              ],
+              [
+                "aggregate",
+                "Pruning"
+              ],
+              [
+                "checkout",
+                "main"
+              ],
+              [
+                "reason",
+                "a pause is read by the process that would wake the pruner, and by the board"
+              ]
+            ],
+            [
+              [
+                "domain",
+                "Pipeline"
+              ],
+              [
+                "aggregate",
+                "Passage"
+              ],
+              [
+                "checkout",
+                "main"
+              ],
+              [
+                "reason",
+                "a passage planned in one call is there for the call that starts its work"
+              ]
+            ]
+          ],
+          "name": "KeptAggregate"
+        }
+      ]
+    }
   ],
   "attaches_to": [
 
@@ -45,10 +810,67 @@
   "classification": null,
   "formerly_known_as": null,
   "ir_version": 1,
+  "modules": [
+    {
+      "aggregate": "LocalOverlay",
+      "name": "Keep",
+      "vision": "Say once which records the development pipeline reads back in a later process, so no copy forgets one."
+    }
+  ],
   "name": "Hecks",
   "namespace": "Hecks::Domain",
   "policies": [
-
+    {
+      "ask": "lay",
+      "expect_undelivered": false,
+      "for_each": null,
+      "name": "WriteTheOverlayWhenRequested",
+      "on_event": "LocalOverlay.OverlayWriteRequested",
+      "root": false,
+      "target_domain": null,
+      "where": null,
+      "where_ast": null,
+      "with_spec": [
+        [
+          "run",
+          ":run"
+        ]
+      ]
+    },
+    {
+      "expect_undelivered": false,
+      "for_each": null,
+      "name": "RecordTheOverlay",
+      "on_event": "LocalOverlay.OverlayAnswered",
+      "root": false,
+      "target_domain": null,
+      "trigger_command": "LocalOverlay.Settle",
+      "where": null,
+      "where_ast": null,
+      "with_spec": [
+        [
+          "output",
+          ":output"
+        ]
+      ]
+    },
+    {
+      "expect_undelivered": false,
+      "for_each": null,
+      "name": "RecordTheRefusedOverlay",
+      "on_event": "LocalOverlay.OverlayRefused",
+      "root": false,
+      "target_domain": null,
+      "trigger_command": "LocalOverlay.Decline",
+      "where": null,
+      "where_ast": null,
+      "with_spec": [
+        [
+          "refusal",
+          ":refusal"
+        ]
+      ]
+    }
   ],
   "process_managers": [
 
