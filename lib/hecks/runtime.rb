@@ -1,7 +1,7 @@
 # Hecks::Runtime
 #
 # Boots a domain directory and holds the ambient registry and caller state a boot runs under.
-# `current_registry` is process-global; each boot's dispatcher is per-boot.
+# `current_registry` is per thread; each boot's dispatcher is per-boot.
 
 require_relative "runtime/event"
 require_relative "runtime/value"
@@ -31,9 +31,14 @@ require_relative "runtime/loader"
 module Hecks
   # The runtime layer: boots a domain directory and holds the ambient registry a boot runs under.
   module Runtime
+    # The thread variable that holds the ambient registry.
+    REGISTRY_KEY = :hecks_current_registry
+
     class << self
-      # The registry declarations are currently landing in, or nil outside a boot.
-      attr_reader :current_registry
+      # The registry declarations are currently landing in on this thread, or nil outside a boot.
+      #
+      # @return [Runtime::Registry, nil]
+      def current_registry = Thread.current.thread_variable_get(REGISTRY_KEY)
 
       # Loads a bluebook directory and returns the Dispatcher bound to it. See `Hecks.boot`.
       #
@@ -84,17 +89,19 @@ module Hecks
       end
 
       # Bind the ambient registry for the duration of the block, restoring
-      # whatever was there before. Nesting is safe ; a raise still restores.
+      # whatever was there before. Nesting is safe ; a raise still restores. The binding belongs
+      # to the calling thread (a fiber of it shares it), so a thread that boots or describes a
+      # domain never changes what another thread, or the next example of a spec run, sees.
       #
       # @param registry [Runtime::Registry] the registry to make current for the block
       # @yield the code that should see `registry` as `current_registry`
       # @return [Object] the block's result
       def with_registry(registry)
-        previous          = @current_registry
-        @current_registry = registry
+        previous = current_registry
+        Thread.current.thread_variable_set(REGISTRY_KEY, registry)
         yield
       ensure
-        @current_registry = previous
+        Thread.current.thread_variable_set(REGISTRY_KEY, previous)
       end
 
       # Binds the ambient caller (see Runtime::Caller) for the duration of the block.
