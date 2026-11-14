@@ -4,6 +4,7 @@ require_relative "console_capture"
 require_relative "dispatching/settings"
 require_relative "dispatching/work_items"
 require_relative "dispatching/plan"
+require_relative "dispatching/dependencies"
 require_relative "dispatching/launcher"
 require_relative "dispatching/in_process_runner"
 require_relative "dispatching/filling"
@@ -153,11 +154,12 @@ module Hecks
       end
 
       # The runs and the architect's reviews, each read once for the plan: the plan asks for them
-      # on every planned item, and a read is a scan of the whole repository.
+      # on every planned item, and a read is a scan of the whole repository. The landings are read
+      # only for a key some planned item depends on.
       def cached_reads(gauge)
         runs = once { work_items.runs }
         reviews = once { rethinks(gauge.rethink_limit) }
-        { runs: runs, rethinks: ->(key) { reviews.call.stop_reason(key) } }
+        { runs: runs, rethinks: ->(key) { reviews.call.stop_reason(key) }, waits: Dependencies.new(work_items).method(:reason) }
       end
 
       def once

@@ -8,17 +8,12 @@ module Hecks
   module Adapters
     class Dispatching
       # Which planned work items start a session now, and why each of the others waits. It decides
-      # from
-      # the
-      # work items it is given and starts nothing.
+      # from the work items it is given and starts nothing.
       #
-      # A planned work item waits when its last yield parked it ({Parking}), when it sits in a
-      # frozen area, when its area overlaps a started
-      # work item's or
-      # an
-      # earlier chosen work item's (by {AreaOverlap}), or when the machine is loaded or the cap is
-      # reached,
-      # which also hold back every work item after it.
+      # A planned work item waits when a work item it depends on has not landed ({Dependencies}),
+      # when its last yield parked it ({Parking}), when it sits in a frozen area, when its area
+      # overlaps a started work item's or an earlier chosen work item's (by {AreaOverlap}), or when
+      # the machine is loaded or the cap is reached, which also hold back every work item after it.
       class Plan
         # A work item, as {WorkItems} reads it.
         # `yield_kind`, `retry_at` and `yield_count` are what its last yield recorded ({Parking}).
@@ -48,10 +43,10 @@ module Hecks
         #   `urgent_reserve:` (Integer, 1 when absent: places past the cap red items take),
         #   `paused:` (String, optional: why every work item waits, "skipped: paused by load")
         #   and `budget:` (String, optional: why every item waits once the boots spent theirs)
-        #   with `rethinks:` (callable, optional: answers why a work item waits for a person)
-        #   with `exempt:` (callable, optional: answers whether a work item starts despite it)
-        #   and `root:` (String, optional: this repository's top level, to tell its areas from
-        #   another checkout's; the checkout holding this file by default)
+        #   with `rethinks:` (callable, optional: answers why a work item waits for a person),
+        #   `waits:` (callable, optional: answers which unlanded work item an item waits on),
+        #   `exempt:` (callable, optional: answers whether a work item starts despite it) and
+        #   `root:` (String, optional: this repository's top level; this checkout by default)
         def initialize(planned, started, **limits)
           @started = started
           @limits = limits
@@ -80,10 +75,16 @@ module Hecks
         private
 
         def consider(item)
-          reason = rethink_reason(item) || parked_reason(item) || stop_reason(item) || frozen_reason(item) || epic_reason(item) ||
-                   overlap_reason(item)
+          reason = held_reason(item) || stop_reason(item) || frozen_reason(item) || epic_reason(item) || overlap_reason(item)
           reason ? @skipped << Skip.new(item.key, reason) : @chosen << item
         end
+
+        # What holds an item whatever room there is; such an item does not count against the cap.
+        def held_reason(item) = rethink_reason(item) || dependency_reason(item) || parked_reason(item)
+
+        # An item waits until each work item it names has landed, a red one included: it is never
+        # chosen, so it is never started and yielded for a dependency.
+        def dependency_reason(item) = @limits[:waits]&.call(item)
 
         # A work item the architect said to rethink too often waits for a person.
         def rethink_reason(item) = @limits[:rethinks]&.call(item.key)
