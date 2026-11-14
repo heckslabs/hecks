@@ -26,6 +26,9 @@ module Hecks
           # The world's defaults when it declares no `resident` line.
           DEFAULTS = { idle_seconds: 600.0, max_residents: Crowd::DEFAULT_CAP.to_f,
                        ready_wait_ms: 400.0, workers: 8.0 }.freeze
+          # Settings with no default: a world that does not declare one leaves it unset.
+          # `line_seconds` is how long a line may run before the resident ends it ({LineLimit}).
+          OPTIONAL = %i[line_seconds].freeze
 
           private
 
@@ -45,6 +48,7 @@ module Hecks
 
           def load_everything
             require_hecks
+            Stores.load
             @cache = DescribedCache.new
             ENVIRONMENTS.each { |name| load_domain(File.join(@root, DOMAIN), name) }
           end
@@ -94,11 +98,11 @@ module Hecks
           end
 
           # @return [Hash{Symbol => Float}] `idle_seconds`, `max_residents`, `ready_wait_ms` and
-          #   `workers` from the Hecks world
+          #   `workers` from the Hecks world, and `line_seconds` when the world declares it
           def settings
             world = @cache.fetch(File.join(@root, DOMAIN), ENVIRONMENTS.first)&.registry&.world("Hecks")
             declared = world ? world.for_verb("resident") : {}
-            DEFAULTS.merge(declared.slice(*DEFAULTS.keys)).transform_values { |value| Float(value) }
+            DEFAULTS.merge(declared.slice(*DEFAULTS.keys, *OPTIONAL)).transform_values { |value| Float(value) }
           end
 
           # @return [Integer] how many other residents hold their locks
