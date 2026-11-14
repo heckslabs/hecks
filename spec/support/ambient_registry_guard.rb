@@ -1,10 +1,13 @@
-# Gives every example a sound ambient registry (`Hecks.current_registry`), and names a spec that
-# leaves it changed. The registry is process-wide and `Hecks.with_registry` puts it back on exit,
-# so a stand-in that is not a `Hecks::Runtime::Registry` can only get there from a binding that
-# never returned. It would then fail every later example of the process that builds a bluebook,
-# on `record_bluebook_source`. An example starts with the real registry it found, or none, and
-# the registry it found is put back when it ends.
+# Gives every example a sound ambient registry (`Hecks.current_registry`), and fails a spec that
+# leaves it changed, naming it. The registry is held per thread and `Hecks.with_registry` puts it
+# back on exit, so a stand-in that is not a `Hecks::Runtime::Registry` can only get there from a
+# binding that never returned. It would then fail every later example on that thread that builds a
+# bluebook, on `record_bluebook_source`. An example starts with the real registry it found, or
+# none, and the registry it found is put back when it ends.
 module AmbientRegistryGuard
+  # Raised for an example that ends with the ambient registry other than the one it started with.
+  class Leaked < StandardError; end
+
   # Runs the example inside the ambient registry it started with.
   #
   # @param example [RSpec::Core::Example::Procsy] the example to run
@@ -29,10 +32,11 @@ module AmbientRegistryGuard
   # @param held [Hecks::Runtime::Registry, nil] the registry the example started with
   # @param example [RSpec::Core::Example::Procsy] the example that ran
   # @return [void]
+  # @raise [Leaked] naming the example, when the ambient registry is not `held`
   def self.leaked(held, example)
     return if Hecks.current_registry.equal?(held)
 
-    warn "ambient registry left changed by: #{example.full_description}"
+    raise Leaked, "ambient registry left changed by: #{example.full_description}"
   end
 end
 
