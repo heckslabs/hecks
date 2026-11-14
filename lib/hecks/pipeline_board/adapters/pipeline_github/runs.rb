@@ -8,7 +8,7 @@ module Hecks
       # Turns `gh` run and job records into the rows the board shows. A settled run never changes,
       # so its failed-job count is read once.
       module PipelineRuns
-        RUN_FIELDS = "databaseId,headSha,startedAt,updatedAt,createdAt,url,conclusion,status"
+        RUN_FIELDS = "databaseId,headSha,startedAt,updatedAt,createdAt,url,conclusion,status,event"
 
         private
 
@@ -22,7 +22,7 @@ module Hecks
           { id: run["databaseId"], sha: run["headSha"].to_s[0, 7], started: run["startedAt"],
             wall_minutes: minutes(run["startedAt"], run["updatedAt"]), status: run["status"],
             conclusion: run["conclusion"].to_s, failed_jobs: failed_jobs(run),
-            pushed: run["createdAt"], url: run["url"] }
+            pushed: run["createdAt"], url: run["url"], event: run["event"] }
         end
 
         # The jobs that failed, nil when GitHub would not list the run's jobs (so the board says so
