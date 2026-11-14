@@ -44,6 +44,7 @@ module Hecks
         @landed = settings[:landings]
         @stopped = settings[:findings]
         @finished = settings[:finished_times]
+        @work_times = settings[:work_times]
       end
 
       # @return [Hash{Symbol => String}] `text:` the open work items as JSON: slug, status, area,

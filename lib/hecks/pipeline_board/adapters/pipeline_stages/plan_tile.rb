@@ -17,7 +17,8 @@ module Hecks
         def plan_reading
           items = JSON.parse(@tickets.open_work[:text], symbolize_names: true)
           PipelineBoard::PlanReading.build(items: items, epics: @tickets.epics, sessions: plan_sessions(items),
-                                           reviews: plan_reviews, fill: plan_fill, train: train_tile, now: @now.call)
+                                           reviews: plan_reviews, fill: plan_fill, train: train_tile, now: @now.call,
+                                           flow: guard { @tickets.work_times })
         end
 
         def plan_sessions(items)
