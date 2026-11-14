@@ -2,14 +2,20 @@
 
 require "cgi"
 require_relative "plan_item"
+require_relative "plan_epic"
+require_relative "plan_overview"
 
 module Hecks
   module Adapters
     module PipelineBoard
-      # The planning page's tile as HTML: the strip that answers four questions, then the epics
-      # (open first) and the items in no epic, each grouped by the area its Work items declare.
+      # The planning page's tile as HTML: the overview that is read at a glance, then the epics as
+      # closed rows under the lane they sit in (most urgent lane first), then the items in no epic.
       # Filters on the page hide rows by their `data-` attributes, so a redraw keeps them.
       module PlanHtml
+        # The heading each lane of epics is drawn under.
+        LANES = { "running" => "Running now", "now" => "Now", "next" => "Next", "later" => "Later",
+                  "unset" => "Not prioritised", "done" => "Finished" }.freeze
+
         module_function
 
         # @param reading [Hash] see {PlanReading.build}, or `{unknown: reason}`
@@ -17,64 +23,24 @@ module Hecks
         def draw(reading)
           return TileHtml.unknown(reading) if reading.key?(:unknown)
 
-          "#{strip(reading[:strip])}#{reading[:epics].map { |epic| epic(epic) }.join}#{no_epic(reading[:no_epic])}"
+          "#{PlanOverview.draw(reading)}#{lanes(reading[:epics])}#{no_epic(reading[:no_epic])}"
         end
 
-        def strip(data)
-          "<div class=\"strip4\">#{running(data[:running])}#{upnext(data)}#{landing(data[:landing])}#{owner(data[:owner])}</div>"
-        end
+        def lanes(epics) = epics.group_by { |epic| epic[:lane] }.map { |name, list| lane(name, list) }.join
 
-        def running(rows)
-          list = rows.map { |row| "#{esc(row[:slug])} (#{PlanItem.session_link(row)})" }
-          card("Running now (#{rows.size})", list.empty? ? ["nothing"] : list, raw: true)
-        end
-
-        def upnext(data)
-          held = data[:held].map { |row| "#{esc(row[:slug])} held: #{esc(row[:reason])}" }
-          card("Up next (#{data[:next].size})", data[:next].map { |row| esc(row[:slug]) } + held, raw: true)
-        end
-
-        def landing(train)
-          card("Landing now", ["#{esc(train[:count])} #{esc(train[:state])}: #{esc(train[:detail])}"], raw: true)
-        end
-
-        def owner(sessions)
-          return card("Needs you: nothing", []) if sessions.empty?
-
-          named = sessions.map { |s| esc(s[:work_item].to_s.empty? ? s[:id] : s[:work_item]) }
-          card("#{sessions.size} waiting on you", named, raw: true)
-        end
-
-        def card(title, lines, raw: false)
-          body = lines.map { |line| "<li>#{raw ? line : esc(line)}</li>" }.join
-          "<div class=\"card4\"><h3>#{esc(title)}</h3><ul>#{body}</ul></div>"
-        end
-
-        def epic(data)
-          "<details class=\"epic\" open data-epic=\"#{esc(data[:epic])}\"><summary><b>#{esc(data[:title])}</b> " \
-            "<span class=\"counts\">#{counts(data)}</span></summary><p class=\"outcome\">#{esc(data[:outcome])}</p>" \
-            "#{next_line(data)}#{groups(data[:groups])}</details>"
-        end
-
-        def counts(data)
-          "#{data[:done]} done, #{data[:dropped]} dropped, #{data[:open]} open; running #{data[:running].size}"
-        end
-
-        def next_line(data)
-          data[:next] ? "<p class=\"next\">next planned: #{esc(data[:next][:slug])}</p>" : ""
+        def lane(name, list)
+          open = list.sum { |epic| epic[:open] }
+          "<section class=\"lane\" data-lane=\"#{esc(name)}\"><h2>#{esc(LANES.fetch(name, name))} " \
+            "<span class=\"counts\">#{plural(list.size, "epic")}, #{plural(open, "open item")}</span></h2>" \
+            "#{list.map { |epic| PlanEpic.draw(epic) }.join}</section>"
         end
 
         def no_epic(data)
-          "<details class=\"epic none\" open data-epic=\"\"><summary><b>no epic (#{data[:count]})</b></summary>" \
-            "#{groups(data[:groups])}</details>"
+          drawn = PlanEpic.loose(data)
+          drawn.empty? ? "" : "<section class=\"lane\" data-lane=\"none\">#{drawn}</section>"
         end
 
-        def groups(list)
-          list.map do |area, rows|
-            "<div class=\"group\" data-area=\"#{esc(area)}\"><h4>#{esc(area)} (#{rows.size})</h4>" \
-              "#{rows.map { |row| PlanItem.draw(row) }.join}</div>"
-          end.join
-        end
+        def plural(count, word) = "#{count} #{word}#{"s" unless count == 1}"
 
         def esc(text) = CGI.escapeHTML(text.to_s)
       end

@@ -5,19 +5,23 @@ require "cgi"
 module Hecks
   module Adapters
     module PipelineBoard
-      # One Work item's row on the planning page: its key, title, priority, status and reason, the
-      # session running it and for how long, and the note its plan reviews leave.
+      # One Work item's row on the planning page: a cell in its lane's colour, its title and key,
+      # its priority and status when they say something (a priority that is set, a status other
+      # than planned), its area, the session running it and for how long, and the note its plan
+      # reviews leave.
       module PlanItem
         VERDICT = { "changes" => "sound with changes" }.freeze
+        # The values every row would repeat, so the row leaves them out.
+        QUIET = %w[unset planned].freeze
 
         module_function
 
         # @param row [Hash] a row of {PlanReading}
         # @return [String] the row's HTML, carrying the attributes the page's filters match
         def draw(row)
-          "<div class=\"item\"#{marks(row)}>" \
-            "<b>#{esc(row[:slug])}</b> #{esc(row[:title])} <span class=\"chip\">#{esc(row[:priority])}</span> " \
-            "<span class=\"chip\">#{esc(status(row))}</span>#{facts(row)}#{review(row[:reviewed])}</div>"
+          "<div class=\"item\"#{marks(row)}><i class=\"cell c-#{esc(row[:lane])}\"></i>" \
+            "<span class=\"what\">#{esc(row[:title])} <code>#{esc(row[:slug])}</code></span>" \
+            "#{chip(status(row))}#{area(row)}#{priority(row)}#{facts(row)}#{review(row[:reviewed])}</div>"
         end
 
         # @return [String] the `data-` attributes the page's filters match
@@ -31,6 +35,18 @@ module Hecks
 
         def status(row) = row[:yield_count].to_i.positive? ? "yielded" : row[:status].to_s
 
+        def chip(word) = QUIET.include?(word.to_s) ? "" : " <span class=\"chip k-#{esc(word)}\">#{esc(word)}</span>"
+
+        # The priority as a quiet word: the row's cell already carries its colour.
+        def priority(row)
+          QUIET.include?(row[:priority].to_s) ? "" : " <span class=\"pri\">#{esc(row[:priority])}</span>"
+        end
+
+        def area(row)
+          named = Array(row[:area]).join(", ")
+          named.empty? ? "" : " <span class=\"area\">#{esc(named)}</span>"
+        end
+
         def facts(row)
           parts = [yielded(row), budget(row), running(row)].compact
           parts.empty? ? "" : " <span class=\"facts\">#{parts.join("; ")}</span>"
@@ -42,7 +58,7 @@ module Hecks
           "yielded #{row[:yield_count].to_i}#{": #{esc(row[:reason])}" unless row[:reason].to_s.empty?}"
         end
 
-        def budget(row) = row[:budget_minutes] ? "budget #{row[:budget_minutes]} min" : nil
+        def budget(row) = row[:budget_minutes].to_i.positive? ? "budget #{row[:budget_minutes]} min" : nil
 
         def running(row) = row[:session] ? "running #{session_link(row)}" : nil
 

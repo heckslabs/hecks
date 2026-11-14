@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "time"
+require_relative "plan_order"
 
 module Hecks
   module Adapters
@@ -8,11 +9,11 @@ module Hecks
       # What the planning page shows, worked out from the readings the board already holds: the
       # undone Work items, the epics with their finished counts, the sessions, the plan reviews, the
       # fill's dry run and the train. It reads nothing itself and decides nothing the domain
-      # decides: an item's epic, priority and area are the ones the Work item declares.
+      # decides: an item's epic, priority and area are the ones the Work item declares, and
+      # {PlanOrder} only puts them in reading order.
       module PlanReading
         LIVE = %w[busy blocked].freeze
-        UNSET = "unset"
-        NO_AREA = "no area"
+        UNSET = PlanOrder::UNSET
 
         module_function
 
@@ -22,10 +23,13 @@ module Hecks
         #   outcome, tier, done, dropped), `sessions` (the board's sessions), `reviews` (plan
         #   reviews, oldest first: work, verdict, findings), `fill` (the dry run: would_start,
         #   skipped) and `train` (the strip row)
-        # @return [Hash] `strip`, `epics` (open ones first) and `no_epic`
+        # @return [Hash] `strip`, `summary` (see {PlanOrder.summary}), `epics` (most urgent first,
+        #   each with its `lane` and ordered `items`) and `no_epic` (`count` and `items`)
         def build(now:, **held)
-          rows = held[:items].map { |item| row(item, held, now) }
-          { strip: strip(rows, held), epics: epics_of(held[:epics], rows), no_epic: grouped(rows.select { |r| r[:epic].empty? }) }
+          rows = held[:items].map { |item| PlanOrder.placed(row(item, held, now)) }
+          epics = epics_of(held[:epics], rows)
+          { strip: strip(rows, held), summary: PlanOrder.summary(rows, epics), epics: epics,
+            no_epic: listed(rows.select { |r| r[:epic].empty? }) }
         end
 
         def row(item, held, now)
@@ -54,21 +58,16 @@ module Hecks
         end
 
         def epics_of(epics, rows)
-          epics.map { |epic| epic_of(epic, rows.select { |r| r[:epic] == epic[:epic].to_s }) }
-               .sort_by { |epic| [epic[:open].zero? ? 1 : 0, epic[:title].to_s] }
+          PlanOrder.epics(epics.map { |epic| epic_of(epic, rows.select { |r| r[:epic] == epic[:epic].to_s }) })
         end
 
         def epic_of(epic, members)
-          epic.merge(open: members.size, running: members.select { |r| r[:session] },
-                     next: members.select { |r| r[:status] == "planned" }.min_by { |r| r[:step].to_i }).merge(grouped(members))
+          epic.merge(open: members.size, running: members.select { |r| r[:session] }, lane: PlanOrder.lane(members),
+                     next: members.select { |r| r[:status] == "planned" }.min_by { |r| r[:step].to_i })
+              .merge(listed(members))
         end
 
-        def grouped(members)
-          by_area = members.group_by { |r| area_of(r) }.sort_by { |area, _| [area == NO_AREA ? 1 : 0, area] }
-          { count: members.size, groups: by_area }
-        end
-
-        def area_of(row) = Array(row[:area]).empty? ? NO_AREA : Array(row[:area]).join(", ")
+        def listed(members) = { count: members.size, items: PlanOrder.items(members) }
       end
     end
   end

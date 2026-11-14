@@ -18,13 +18,14 @@ module PlanPageSpeedKit
   def items(count)
     Array.new(count) do |index|
       { slug: "w-#{index}", title: "Title #{index}", status: "planned", area: ["lib/x"], priority: "", epic: "",
-        yield_count: 0, reason: "", step: index, reviewed: [] }
+        yield_count: 0, reason: "", step: index, reviewed: [], lane: "unset" }
     end
   end
 
   def reading(count)
     { strip: { running: [], next: [], held: [], landing: TRAIN, owner: [] },
-      epics: [], no_epic: { count: count, groups: [["lib/x", items(count)]] } }
+      summary: { done: 0, open: count, epics: 0, lanes: { "unset" => count } },
+      epics: [], no_epic: { count: count, items: items(count) } }
   end
 
   def projects_with_transcript

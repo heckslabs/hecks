@@ -75,7 +75,7 @@ RSpec.describe "Hecks::Adapters::Sqlite under a held write lock" do
 
   it "fails by name when the lock is held past the busy timeout" do
     holder = hold_write_lock
-    expect { adapter(busy_timeout_ms: 100) }.to raise_error(SQLite3::BusyException)
+    expect { adapter(busy_timeout_ms: 100) }.to raise_error(Hecks::Runtime::StoreHeld, /locked/)
   ensure
     let_go(holder)
   end
@@ -86,7 +86,7 @@ RSpec.describe "Hecks::Adapters::Sqlite under a held write lock" do
     statement = reader.prepare("SELECT * FROM notes")
     statement.step
     write_note(store)
-  rescue SQLite3::BusyException
+  rescue Hecks::Runtime::StoreHeld
     :busy
   ensure
     statement&.close

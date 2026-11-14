@@ -5,43 +5,120 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pipeline Planning</title>
 <style>
-/* The Planning page: the work as the Tickets store holds it, drawn by the server and pushed from the journal. */
+/* The Planning page: the work as the Tickets store holds it, drawn by the server and pushed from the journal.
+   One colour language runs through it: a cell is one Work item, coloured by the lane it sits in. */
 :root {
   color-scheme: light;
-  --page: #f6f7f8; --surface: #fdfdfd; --ink: #0d1116; --ink2: #4d5560; --muted: #868d96;
-  --border: rgba(13,17,22,.10); --signal: #2a78d6; --you: #b37a00;
+  --page: #f3f5f4; --surface: #ffffff; --ink: #16211d; --ink2: #55615c; --muted: #87928d;
+  --line: rgba(22,33,29,.11); --done: #2f7d5b; --run: #2563d9; --you: #b87400; --you-wash: #fdf3dc;
   --body: system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    color-scheme: dark; --page: #0b0d10; --surface: #14171b; --ink: #eef0f2; --ink2: #b9c0c8; --muted: #7d858f;
-    --border: rgba(255,255,255,.09); --signal: #4b9bf0; --you: #f4b42a;
+    color-scheme: dark; --page: #0d1311; --surface: #151c19; --ink: #e8efeb; --ink2: #a9b5af; --muted: #76827c;
+    --line: rgba(232,239,235,.11); --done: #4fb286; --run: #6ea3ff; --you: #f0b040; --you-wash: #2b2412;
   }
 }
 :root[data-theme="dark"] {
-  color-scheme: dark; --page: #0b0d10; --surface: #14171b; --ink: #eef0f2; --ink2: #b9c0c8; --muted: #7d858f;
-  --border: rgba(255,255,255,.09); --signal: #4b9bf0; --you: #f4b42a;
+  color-scheme: dark; --page: #0d1311; --surface: #151c19; --ink: #e8efeb; --ink2: #a9b5af; --muted: #76827c;
+  --line: rgba(232,239,235,.11); --done: #4fb286; --run: #6ea3ff; --you: #f0b040; --you-wash: #2b2412;
 }
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--page); color: var(--ink); font: 14px/1.5 var(--body); }
-main { max-width: 1280px; margin: 0 auto; padding: 16px; display: grid; gap: 16px; }
-header.top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 18px; }
-h1 { font-size: 20px; margin: 0; } h2, h3, h4 { margin: 0; }
-nav.pages { display: flex; gap: 14px; margin-right: auto; font-size: 13px; font-weight: 600; }
-a { color: var(--signal); }
-.note, .counts, .facts, .outcome, .next { color: var(--ink2); font-size: 12px; }
-.strip4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
-.card4, .epic { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
-.card4 h3 { font-size: 13px; } .card4 ul { margin: 6px 0 0; padding-left: 18px; font-size: 12px; overflow-wrap: anywhere; }
-.epic { margin-bottom: 10px; } .epic summary { cursor: pointer; }
-.group { margin: 10px 0 0 8px; } .group h4 { font: 600 12px var(--mono); color: var(--ink2); }
-.item { padding: 6px 0; border-top: 1px solid var(--border); font-size: 13px; overflow-wrap: anywhere; }
-.chip { font: 600 11px var(--mono); border: 1px solid var(--border); border-radius: 999px; padding: 1px 8px; }
-.review summary { cursor: pointer; font-size: 12px; color: var(--ink2); }
-.review pre { white-space: pre-wrap; background: var(--page); border-radius: 6px; padding: 6px 8px; font-size: 12px; }
-.filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; font-size: 13px; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--page); color: var(--ink); font: 14px/1.5 var(--body); font-variant-numeric: tabular-nums; }
+main { max-width: 1180px; margin: 0 auto; padding: 20px 16px 64px; }
+h1, h2, h3, p, ul { margin: 0; }
+a { color: var(--run); }
+:focus-visible { outline: 2px solid var(--run); outline-offset: 2px; border-radius: 4px; }
+
+header.top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 20px; margin-bottom: 18px; }
+h1 { font-size: 15px; font-weight: 600; }
+nav.pages { display: flex; gap: 16px; margin-right: auto; font-size: 13px; }
+nav.pages a { color: var(--ink2); text-decoration: none; } nav.pages a:hover { color: var(--ink); text-decoration: underline; }
+.note, .counts, .facts, .area { color: var(--ink2); font-size: 12px; }
+
+/* A cell is one Work item. The same six colours fill the bar, the key, the tracks and the rows. */
+.cell { display: inline-block; flex: none; width: 10px; height: 10px; border-radius: 2.5px; }
+.c-done { background: var(--done); }
+.c-running { background: var(--run); }
+.c-now { background: var(--ink); }
+.c-next { background: color-mix(in srgb, var(--ink) 52%, transparent); }
+.c-later { background: color-mix(in srgb, var(--ink) 24%, transparent); }
+.c-unset { background: color-mix(in srgb, var(--ink) 7%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 22%, transparent); }
+@media (prefers-reduced-motion: no-preference) {
+  .cell.c-running { animation: running 1.6s ease-in-out infinite; }
+  @keyframes running { 50% { opacity: .35; } }
+}
+
+.overview { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 22px 24px 0; }
+.headline { font-size: clamp(22px, 3.2vw, 32px); line-height: 1.15; letter-spacing: -.015em; font-weight: 400; text-wrap: balance; }
+.headline b { font-weight: 650; }
+.sofar { display: inline-block; margin-left: 14px; font-size: 14px; letter-spacing: 0; color: var(--done); font-weight: 600; }
+.bar { display: flex; gap: 2px; height: 14px; margin-top: 18px; }
+.bar i { min-width: 3px; border-radius: 3px; }
+.key { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 20px; margin-top: 10px; font-size: 12.5px; color: var(--ink2); }
+.key li { display: flex; align-items: center; gap: 7px; }
+.strip4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 20px -24px 0; border-top: 1px solid var(--line); }
+.card4 { padding: 14px 24px 16px; border-left: 1px solid var(--line); min-width: 0; }
+.card4:first-child { border-left: 0; }
+.card4 h3 { font-size: 13px; font-weight: 600; }
+.card4 ul { list-style: none; padding: 0; margin-top: 4px; font-size: 13px; color: var(--ink2); overflow-wrap: anywhere; }
+.card4 li + li { margin-top: 2px; }
+.card4.you { background: var(--you-wash); } .card4.you h3 { color: var(--you); }
+.card4.you:last-child { border-bottom-right-radius: 13px; }
+
+.filters { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin: 22px 0 4px; font-size: 13px; color: var(--ink2); }
+.filters input, .filters select { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
+.filters input { flex: 1 1 260px; max-width: 380px; }
+.filters select { max-width: 220px; }
+.filters .note { margin-left: auto; }
+
+.lane { margin-top: 26px; }
+.lane h2 { display: flex; align-items: baseline; gap: 10px; font-size: 16px; font-weight: 650; letter-spacing: -.005em; margin: 0 4px 8px; }
+.lane h2 .counts { font-weight: 400; }
+.epic { background: var(--surface); border: 1px solid var(--line); border-top-width: 0; }
+.epic:first-of-type { border-top-width: 1px; border-radius: 12px 12px 0 0; }
+.epic:last-of-type { border-radius: 0 0 12px 12px; }
+.epic:first-of-type:last-of-type { border-radius: 12px; }
+.epic summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 4fr) 96px; gap: 6px 22px;
+  align-items: center; padding: 11px 16px 11px 34px; position: relative; }
+.epic summary::-webkit-details-marker { display: none; }
+.epic summary::before { content: ""; position: absolute; left: 15px; top: 18px; width: 6px; height: 6px; border-right: 1.5px solid var(--muted);
+  border-bottom: 1.5px solid var(--muted); transform: rotate(-45deg); transition: transform .12s; }
+.epic[open] > summary::before { transform: rotate(45deg); top: 16px; }
+.epic summary:hover { background: color-mix(in srgb, var(--ink) 3%, transparent); }
+.name { min-width: 0; } .name b { display: block; font-weight: 600; }
+.outcome { display: block; color: var(--ink2); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.epic[open] .outcome { white-space: normal; }
+.track { display: flex; flex-wrap: wrap; gap: 3px; }
+.epic summary .counts { text-align: right; white-space: nowrap; }
+.next { margin: 0 16px 6px 34px; font-size: 12.5px; color: var(--ink2); }
+.items { margin: 0 16px 12px 34px; border-top: 1px solid var(--line); }
+.item { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 13.5px; overflow-wrap: anywhere; }
+.item:last-child { border-bottom: 0; }
+.item > .cell { align-self: center; }
+.what { flex: 1 1 340px; min-width: 0; }
+.what code { font: 11.5px var(--mono); color: var(--muted); margin-left: 4px; }
+.chip { font-size: 11.5px; font-weight: 600; border-radius: 999px; padding: 0 8px; line-height: 1.7; border: 1px solid var(--line); color: var(--ink2); white-space: nowrap; }
+.pri { width: 34px; text-align: right; font-size: 12px; color: var(--ink2); }
+.chip.k-started { background: var(--run); color: #fff; border-color: transparent; }
+.chip.k-yielded { color: var(--you); border-color: currentColor; }
+.area { font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
+.review { flex-basis: 100%; margin-left: 20px; }
+.review summary { display: block; padding: 0; cursor: pointer; font-size: 12px; color: var(--ink2); text-decoration: underline dotted; }
+.review summary::before { content: none; }
+.review pre { white-space: pre-wrap; background: var(--page); border-radius: 8px; padding: 8px 10px; font: 12px/1.5 var(--mono); margin: 6px 0; max-width: 78ch; }
 .unknown-note { color: var(--you); }
+.empty { margin-top: 26px; color: var(--ink2); }
+
+@media (max-width: 760px) {
+  .strip4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .card4:nth-child(3) { border-left: 0; } .card4:nth-child(n+3) { border-top: 1px solid var(--line); }
+  .epic summary { grid-template-columns: minmax(0, 1fr) auto; }
+  .track { grid-column: 1 / -1; grid-row: 2; }
+  .sofar { display: block; margin: 6px 0 0; }
+}
 </style>
 </head>
 <body>
@@ -51,42 +128,85 @@ a { color: var(--signal); }
     <nav class="pages" aria-label="Board pages"><a href="/">Board</a><a href="/agents">Agents</a><a href="/diagrams">Diagrams</a></nav>
     <span class="note" id="live">stream: connecting</span>
   </header>
-  <section class="filters" aria-label="Filters">
-    <label>Epic <select id="f-epic"><option value="">all</option></select></label>
-    <label>Priority <select id="f-priority"><option value="">all</option><option>now</option><option>next</option><option>later</option><option>unset</option></select></label>
-    <label>Status <select id="f-status"><option value="">all</option><option>planned</option><option>started</option><option>yielded</option></select></label>
-    <label>Area <select id="f-area"><option value="">all</option></select></label>
-    <span class="note">Read-only: change an item with its Hecks command.</span>
-  </section>
   <section id="plan"><!--tile:plan--></section>
+  <section class="filters" id="filters" aria-label="Filters">
+    <input id="f-text" type="search" placeholder="Find an epic or an item" aria-label="Find an epic or an item">
+    <label>Priority <select id="f-priority"><option value="">any</option><option>now</option><option>next</option><option>later</option><option value="unset">not prioritised</option></select></label>
+    <label>Status <select id="f-status"><option value="">any</option><option>planned</option><option>started</option><option>yielded</option></select></label>
+    <label>Area <select id="f-area"><option value="">any</option></select></label>
+    <span class="note" id="shown">Read-only: change an item with its Hecks command.</span>
+  </section>
+  <p class="empty" id="empty" hidden>Nothing matches. Clear the search or a filter to see the plan again.</p>
 </main>
 <script src="/stream.js"></script>
 <script>
 const $ = (id) => document.getElementById(id);
-const FIELDS = { "f-epic": "epic", "f-priority": "priority", "f-status": "status", "f-area": "area" };
-// A filter hides rows with one style rule, so a redrawn tile keeps what the owner chose.
-const sheet = document.head.appendChild(document.createElement("style"));
+const FIELDS = { "f-priority": "priority", "f-status": "status", "f-area": "area" };
+const READ_ONLY = $("shown").textContent;
+
+// The epics the owner opened or closed by hand, kept across redraws and visits.
+const chosen = (() => { try { return JSON.parse(localStorage.getItem("plan-open") || "{}"); } catch (e) { return {}; } })();
+function remember(epic) {
+  chosen[epic.dataset.epic] = !epic.open;
+  try { localStorage.setItem("plan-open", JSON.stringify(chosen)); } catch (e) { /* the choice lasts for this page only */ }
+}
+document.addEventListener("click", (event) => {
+  const summary = event.target.closest("details.epic > summary");
+  if (summary && !event.target.closest("a")) remember(summary.parentElement);
+});
+
+function matches(item, text, epicText) {
+  const fields = Object.entries(FIELDS).every(([id, field]) => !$(id).value || item.dataset[field] === $(id).value);
+  return fields && (!text || epicText.includes(text) || item.textContent.toLowerCase().includes(text));
+}
+// A filter hides the items that do not match, then every epic and lane left with nothing to show. An epic is open when
+// the owner chose so, else when a filter found something in it, else as the server drew it.
 function apply() {
-  sheet.textContent = Object.entries(FIELDS).map(([id, field]) => {
-    const value = $(id).value;
-    return value ? '#plan .item:not([data-' + field + '="' + CSS.escape(value).replace(/\\/g, "\\\\") + '"]) { display: none; }' : "";
-  }).join("\n");
+  const text = $("f-text").value.trim().toLowerCase();
+  const filtering = Boolean(text) || Object.keys(FIELDS).some((id) => $(id).value);
+  let shown = 0, total = 0;
+  document.querySelectorAll("#plan details.epic").forEach((epic) => {
+    const epicText = epic.querySelector(".name b").textContent.toLowerCase();
+    let found = 0;
+    epic.querySelectorAll(".item").forEach((item) => { const ok = matches(item, text, epicText); item.hidden = !ok; found += ok; total += 1; });
+    shown += found;
+    epic.hidden = filtering && found === 0;
+    const key = epic.dataset.epic;
+    epic.open = filtering ? found > 0 : (key in chosen ? chosen[key] : epic.dataset.drawn === "open");
+  });
+  document.querySelectorAll("#plan .lane").forEach((lane) => { lane.hidden = !lane.querySelector("details.epic:not([hidden])"); });
+  $("shown").textContent = filtering ? shown + " of " + total + " items shown" : READ_ONLY;
+  $("empty").hidden = !(filtering && shown === 0);
 }
-// The epic and area menus list what the drawn tile holds.
-function options(id, attr, selector) {
-  const select = $(id), chosen = select.value;
-  const seen = [...new Set([...document.querySelectorAll(selector)].map((el) => el.getAttribute(attr)).filter(Boolean))].sort();
-  select.replaceChildren(new Option("all", ""), ...seen.map((v) => new Option(v, v)));
-  select.value = seen.includes(chosen) ? chosen : "";
+// The area menu lists what the drawn tile holds.
+function areas() {
+  const select = $("f-area"), kept = select.value;
+  const seen = [...new Set([...document.querySelectorAll("#plan .item")].map((el) => el.dataset.area).filter(Boolean))].sort();
+  select.replaceChildren(new Option("any", ""), ...seen.map((v) => new Option(v, v)));
+  select.value = seen.includes(kept) ? kept : "";
 }
-function menus() { options("f-epic", "data-epic", "#plan details.epic"); options("f-area", "data-area", "#plan .group"); apply(); }
+// The filters sit under the overview, which the server draws inside the tile.
+function drawn() {
+  document.querySelectorAll("#plan details.epic").forEach((epic) => { epic.dataset.drawn = epic.open ? "open" : "closed"; });
+  const overview = document.querySelector("#plan .overview");
+  if (overview) overview.after($("filters"));
+  areas(); apply();
+}
+function redraw(html) {
+  const filters = $("filters"), held = document.activeElement, at = held && held.selectionStart;
+  $("plan").after(filters);
+  $("plan").innerHTML = html;
+  drawn();
+  if (held && held.id && filters.contains(held)) { held.focus(); if (at != null && held.setSelectionRange) held.setSelectionRange(at, at); }
+}
+$("f-text").addEventListener("input", apply);
 Object.keys(FIELDS).forEach((id) => $(id).addEventListener("change", apply));
-menus();
+drawn();
 if (window.boardStream) boardStream({
   open: () => { $("live").textContent = "stream: live"; },
   error: () => { $("live").textContent = "stream: reconnecting"; },
   pause: () => { $("live").textContent = "stream: paused"; },
-  tile: (t) => { const el = t.id === "plan" ? $("plan") : null; if (el) { el.innerHTML = t.html; menus(); } }
+  tile: (t) => { if (t.id === "plan") redraw(t.html); }
 });
 else $("live").textContent = "stream: unsupported";
 </script>

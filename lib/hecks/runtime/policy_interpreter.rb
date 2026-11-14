@@ -6,6 +6,7 @@ require_relative "refusal_wording"
 require_relative "value"
 require_relative "policy_interpreter/fan_out"
 require_relative "policy_interpreter/arguments"
+require_relative "policy_interpreter/held_store"
 require_relative "../bluebook/expression/evaluator"
 
 module Hecks
@@ -15,6 +16,7 @@ module Hecks
     class PolicyInterpreter
       include FanOut
       include Arguments
+      include HeldStore
 
       attr_reader :registry
 
@@ -96,6 +98,8 @@ module Hecks
         fire(policy, event, target, record)
       rescue *DOMAIN_REFUSALS => e
         record.merge(delivered: false, reason: e.message)
+      rescue StoreBusy => e
+        held(policy, event, record, e)
       rescue StandardError => e
         defect(policy, event, record, e, "firing #{target}")
       end

@@ -407,6 +407,17 @@ Hecks.hecksagon "Hecks" do
     answers_query "Preview"
   end
 
+  # The outside a look for the work item to shed reaches: the same queue and runs as a filling. It
+  # answers facts (the coders running, the runs already shedding, the world's `load_shed` numbers and
+  # the first started item the `ShedTier` and `ShedHold` rows allow); the bluebook decides.
+  Hecks::Shed.port "Dispatching" do
+    asks "Survey", to: Shed do
+      attribute :reading, ShedKey
+      answers "ShedSurveyed"
+      refuses "ShedUnsurveyed"
+    end
+  end
+
   # The outside a rolling fill reaches: the same queue, machine and freeze as a filling, and the owner's
   # `dispatch_roll_forward` switch; a paused or repeated roll refuses.
   Hecks::Roll.port "Rolling" do

@@ -31,6 +31,7 @@ Hecks.bluebook "Hecks" do
       attribute :trial,     Trial,     optional: true
       attribute :resuming,  Resuming,  optional: true
       attribute :reviewing, Reviewing, optional: true
+      attribute :shedding,  Shedding,  optional: true
       attribute :kept_at,   Instant,   optional: true
       attribute :review_wait, Wait,    optional: true
       identified_by :run
@@ -65,6 +66,11 @@ Hecks.bluebook "Hecks" do
       # again each sweep, and once its tries are spent the run is finished `unanswered`
       # (`FinishTheCoderWhoseVerdictWasAbandoned`), so a waiting run always ends.
       value_object "Reviewing", Boolean
+
+      # Whether the run's session was asked to yield its work item because the load rose (`Shed`).
+      # The run owns the fact: it stands until the run ends, which the yield brings about, so a run
+      # is asked once and a look at the started runs counts the ones still shedding.
+      value_object "Shedding", Boolean
 
       # The directory the session works in.
       value_object "Path" do
@@ -326,6 +332,21 @@ Hecks.bluebook "Hecks" do
         given("the answer says something") { !answer.value.to_s.strip.empty? }
 
         emits AnswerRequested
+      end
+
+      # Shedding load is cooperative: the session is asked, through `Answer`, to commit, run nothing
+      # heavy and yield its work item (`AskTheShedRunToYield` below). Nothing is stopped or paused.
+      command "Shed", from: "started" do
+        role "System"
+        goal "Ask a started run's session to yield its work item because the load rose"
+
+        reference_to AgentRun
+
+        given("a run asked to yield is not asked again") { shedding != true }
+
+        sets :shedding, to: true
+
+        emits LoadYieldAsked
       end
 
       command "Await", from: "started" do
@@ -1140,6 +1161,148 @@ Hecks.bluebook "Hecks" do
           (lane_state == "idle" && lane_before == "busy")
       }
       trigger Roll::Start, with: { run: :id }
+    end
+
+    # One rise sheds once: the look is keyed by the reading that rose. The port answers facts, the
+    # policies below decide, and the fill after `LoadFellBelow` restarts the item (`YieldKind`).
+    # The StallWatch `load` row is the slow second step, for what five minutes left over the mark.
+    aggregate "Shed" do
+      description "One look, when the load rose, at which started work item is asked to yield: " \
+                  "at most one, the lowest priority and newest started, and none that a ShedHold row keeps."
+
+      attribute :reading, ShedKey
+      attribute :work,    ShedNote, optional: true
+      attribute :refusal, ShedNote, optional: true
+      identified_by :reading
+
+      value_object "ShedKey" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "ShedNote", String
+
+      # The priorities a started work item may be shed at, lowest rank first; among equals the
+      # newest start goes first. A priority with no row is never shed, which is how `now` is kept.
+      value_object "ShedTier" do
+        attribute :priority, String
+        attribute :rank,     Integer
+
+        member priority: "later", rank: 1
+        member priority: "",      rank: 1
+        member priority: "next",  rank: 2
+      end
+
+      # What keeps a started work item from being shed whatever its priority, one row each. The
+      # port reports which of these hold for an item; a row is what makes one count.
+      value_object "ShedHold" do
+        attribute :hold,   String
+        attribute :reason, String
+
+        member hold: "red",     reason: "the fix of a red main is never asked to wait"
+        member hold: "review",  reason: "a run waiting on its plan review is resumed by the verdict, not by an ask"
+        member hold: "landing", reason: "a branch being landed or boarded holds the line's lock"
+      end
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "spared"
+        transition "Record"  => "asked",  from: "requested"
+        transition "Decline" => "spared", from: "requested"
+        mark :terminal, "asked", "spared"
+      end
+
+      command "Look" do
+        role "System"
+        goal "Look, because the load rose, for the started work item to ask to yield"
+
+        attribute :reading, ShedKey, sets: true
+
+        emits ShedRequested
+      end
+
+      command "Record" do
+        role "System"
+        goal "Record the work item whose session was asked to yield"
+
+        reference_to Shed
+        attribute :work, ShedNote, sets: true
+
+        emits ShedAsked
+      end
+
+      command "Decline" do
+        role "System"
+        goal "Record why no work item was asked to yield"
+
+        reference_to Shed
+        attribute :refusal, ShedNote, sets: true
+
+        emits ShedSpared
+      end
+    end
+
+    # A root: the look begins its own chain, as the fill that follows a reading does.
+    policy "ShedWhenTheLoadRises" do
+      on      "Machine.LoadRoseAbove"
+      root
+      trigger Shed::Look, with: { reading: :id }
+    end
+
+    policy "SurveyWhenShedding" do
+      on      "Shed.ShedRequested"
+      ask     :survey, with: { reading: :reading }
+    end
+
+    # A root: asking the run starts the answer's own long chain (the look at the session, the
+    # delivery, the record of it).
+    policy "AskTheLowestItemToYield" do
+      on      "Shed.ShedSurveyed"
+      root
+      where   { coders >= min_coders && shedding < at_once && candidate != "" }
+      trigger AgentRun::Shed, with: { run: :candidate }
+    end
+
+    policy "RecordTheShed" do
+      on      "Shed.ShedSurveyed"
+      where   { coders >= min_coders && shedding < at_once && candidate != "" }
+      trigger Shed::Record, with: { work: :candidate }
+    end
+
+    policy "SpareTheLastCoders" do
+      on      "Shed.ShedSurveyed"
+      where   { coders < min_coders }
+      trigger Shed::Decline, with: { refusal: "fewer coders run than load_shed min_coders" }
+    end
+
+    policy "SpareWhileOneIsShedding" do
+      on      "Shed.ShedSurveyed"
+      where   { coders >= min_coders && shedding >= at_once }
+      trigger Shed::Decline, with: { refusal: "a run asked to yield has not ended yet (load_shed at_once)" }
+    end
+
+    policy "SpareWhenNoneMayYield" do
+      on      "Shed.ShedSurveyed"
+      where   { coders >= min_coders && shedding < at_once && candidate == "" }
+      trigger Shed::Decline, with: { refusal: "no started work item may be shed" }
+    end
+
+    policy "RecordTheUnsurveyedShed" do
+      on      "Shed.ShedUnsurveyed"
+      trigger Shed::Decline, with: { refusal: :refusal }
+    end
+
+    # The ask itself. The run's key is its Work item's key, and the yield names the kind `load`, so
+    # the item waits out no backoff and is restarted first when the load falls.
+    policy "AskTheShedRunToYield" do
+      on      "AgentRun.LoadYieldAsked"
+      root
+      trigger AgentRun::Answer,
+              with: { run: :run,
+                      answer: "The machine's load is over the owner's limit, and your Work item is the lowest " \
+                              "priority one running. Commit what you have now, start nothing heavy (no gate, " \
+                              "spec batch or build), and end your turn with: exe/hecks tickets Work.yield! " \
+                              "to=<your Work item's key> reason.value=\"load: yielded at the owner's load limit, " \
+                              "restart when load falls\" yield_kind.value=load --wait. Your worktree and commits " \
+                              "are kept, and the item is started again first when the load falls." }
     end
 
     policy "RollWhenRequested" do

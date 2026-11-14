@@ -5,6 +5,8 @@ require_relative "plan"
 require_relative "epic_tiers"
 require_relative "reap_facts"
 require_relative "landing_facts"
+require_relative "shed_facts"
+require_relative "plan_order"
 require_relative "../push_size"
 
 module Hecks
@@ -14,6 +16,8 @@ module Hecks
       class WorkItems
         include ReapFacts
         include LandingFacts
+        include ShedFacts
+        include PlanOrder
 
         # @param registry [Runtime::Registry, nil]
         def initialize(registry)
@@ -36,19 +40,20 @@ module Hecks
         end
 
         # @return [Array<Plan::Item>] the planned work items: a red one first, then a filed stall,
+        #   then one whose last yield a fill restarts first (a `load` yield, by priority alone),
         #   then by the tier of the work item's epic (1 to 9, lowest first, none last), then by
         #   priority (`now`, `next`, `later`, none), then in plan order (lowest step first,
         #   no step last, ties by key)
         def planned
-          stalls = stall_prefixes
+          stalls = urgent_marks
           having("planned").sort_by.with_index { |entry, index| order(entry, index, stalls) }.map(&:last)
         end
 
         # @return [Array<Plan::Item>] the planned work items a roll may start, in the same order: a
-        #   red one, a filed stall, or one the owner marked by giving it a priority. An unmarked
-        #   item waits for a manual fill.
+        #   red one, a filed stall, one a `load` yield sent back, or one the owner marked by giving
+        #   it a priority. An unmarked item waits for a manual fill.
         def rollable
-          stalls = stall_prefixes
+          stalls = urgent_marks
           planned.select { |item| rolls?(item, stalls) }
         end
 
@@ -102,32 +107,13 @@ module Hecks
 
         private
 
-        def order(entry, index, stalls)
-          step, rank, item = entry
-          [urgency(item, stalls), rank, step, item.key, index]
-        end
-
-        # Red first, then a stall the StallWatch filed, then the rest.
-        def urgency(item, stalls)
-          return 0 if red?(item)
-
-          stalls.any? { |prefix| item.key.start_with?(prefix) } ? 1 : 2
-        end
-
-        # The key prefix of each kind of stall the StallWatch bluebook's `StallKind` rows declare,
-        # `stall-<kind>-`, so a planned work item merely named `stall-...` ranks as any other.
-        def stall_prefixes
-          rows = find("Hecks", "StallWatch")&.value_objects&.find { |object| object.hecks_name == "StallKind" }
-          Array(rows&.members).map { |row| "stall-#{row[:kind]}-" }
-        end
-
         def rank(record, tiers)
           [tiers.fetch(field(record, :epic).to_s, EpicTiers::UNRANKED), TIERS.index(field(record, :priority).to_s) || TIERS.size]
         end
 
         def red?(item) = self.class.red?(item)
 
-        def rolls?(item, stalls) = urgency(item, stalls) < 2 || TIERS.include?(item.priority)
+        def rolls?(item, stalls) = urgency(item, stalls) <= RESTARTED || TIERS.include?(item.priority)
 
         def having(status)
           work = find("Tickets", "Work")
@@ -161,7 +147,7 @@ module Hecks
 
         def state(run)
           { status: field(run, :status).to_s, condition: field(run, :condition).to_s, started_at: field(run, :started_at).to_s,
-                   session: field(run, :session).to_s }
+            session: field(run, :session).to_s, **flags(run) }
         end
 
         def lesson(record)

@@ -39,7 +39,7 @@ module Hecks
 
       # Whether `row` is a refusal by the domain that no sibling reaction excuses.
       def blocks?(row, rows)
-        row.delivered == false && !row.fields[:defect] &&
+        row.delivered == false && !row.fields[:defect] && !row.fields[:held] &&
           !already_there?(row) && rows.none? { |other| alternative?(row, other) }
       end
 
