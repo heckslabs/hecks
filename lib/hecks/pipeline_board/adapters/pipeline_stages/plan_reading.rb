@@ -2,6 +2,7 @@
 
 require "time"
 require_relative "plan_order"
+require_relative "plan_flow"
 
 module Hecks
   module Adapters
@@ -22,14 +23,15 @@ module Hecks
         #   priority, epic, yield_count, reason, budget_minutes, step), `epics` (epic, title,
         #   outcome, tier, done, dropped), `sessions` (the board's sessions), `reviews` (plan
         #   reviews, oldest first: work, verdict, findings), `fill` (the dry run: would_start,
-        #   skipped) and `train` (the strip row)
+        #   skipped), `train` (the strip row) and `flow` (when Work items were planned, finished
+        #   and dropped; see {PlanFlow.build})
         # @return [Hash] `strip`, `summary` (see {PlanOrder.summary}), `epics` (most urgent first,
-        #   each with its `lane` and ordered `items`) and `no_epic` (`count` and `items`)
+        #   each with its `lane` and ordered `items`), `no_epic` (`count` and `items`) and `flow`
         def build(now:, **held)
           rows = held[:items].map { |item| PlanOrder.placed(row(item, held, now)) }
           epics = epics_of(held[:epics], rows)
           { strip: strip(rows, held), summary: PlanOrder.summary(rows, epics), epics: epics,
-            no_epic: listed(rows.select { |r| r[:epic].empty? }) }
+            no_epic: listed(rows.select { |r| r[:epic].empty? }), flow: PlanFlow.build(held[:flow], now, rows.size) }
         end
 
         def row(item, held, now)

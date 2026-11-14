@@ -556,7 +556,7 @@ function card(r) {
     h("div", { class: "io" }, h("span", { class: "k" }, "hears"), h("span", { class: "v" }, meta.hears.map(evChip)),
       h("span", { class: "k" }, "says"), h("span", { class: "v" }, meta.says.map(evChip))),
     busy ? h("div", { class: "list" }, h("h3", {}, "Now"), working.slice(0, 3).map(session),
-      working.length > 3 ? h("a", { class: "more", href: "/#h-sess" }, "+ " + (working.length - 3) + " more in Sessions") : null) : null,
+      working.length > 3 ? h("a", { class: "more", href: "/sessions" }, "+ " + (working.length - 3) + " more in Sessions") : null) : null,
     r.name === "pruner" ? h("div", { class: "list" }, h("h3", {}, "Switch"), boardAnswer.pruningSwitch(state && state.pruning, refresh)) : null,
     recs.length ? h("div", { class: "list" }, h("h3", {}, "Promotions to confirm"), recs.map(recommendation)) : null,
     done.length ? h("div", { class: "list" }, h("h3", {}, "Finished"), done.slice(0, 3).map((d) => h("div", { class: "done" }, h("span", {}, d.detail || d.name))))

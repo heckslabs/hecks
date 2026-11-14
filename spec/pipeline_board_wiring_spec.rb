@@ -229,8 +229,15 @@ RSpec.describe Hecks::Adapters::PipelineWiring do
       expect(page).to include('pageBar("sessions", at, list.length, SESSION_PAGE')
     end
 
-    it "shows the board's Sessions panel collapsed until it is opened" do
-      expect(File.read(Hecks::Adapters::PipelineWeb::PAGE)).to include('<details class="panel" id="sessions-panel"><summary')
+    it "serves the sessions on a page of their own at /sessions, the board's file showing nothing else", :aggregate_failures do
+      page = fetch("/sessions").body
+      expect(page).to include('<details class="panel" id="sessions-panel"><summary', "function sessionsView()")
+      expect(page).to include("body:not(.view-sessions) #sessions-panel, body:not(.view-sessions) .in-sessions")
+    end
+
+    it "links the board to its sessions' page, and the agents' page too", :aggregate_failures do
+      expect(fetch("/").body).to include('<a href="/sessions" class="in-board"')
+      expect(fetch("/agents").body).to include('href: "/sessions"')
     end
 
     it "links the board's Agents strip to the agents' page" do

@@ -13,8 +13,14 @@ RSpec.describe Hecks::Adapters::PipelineTickets do
   let(:finished) { { run: "r2", session: "s2", brief: "plan", status: "finished", agent: nil } }
   let(:store) { instance_double(Hecks::Adapters::PipelineBoard::LiveStore, records: nil) }
 
+  # The live store answers the declared query of an aggregate with these rows.
+  def answering(aggregate, query, rows)
+    allow(store).to receive(:asked).with(*aggregate.split("::"), query).and_return(rows)
+  end
+
   def runs_from_live_store
-    allow(store).to receive(:records).with("Hecks", "AgentRun").and_return([running, finished])
+    answering("Hecks::AgentRun", "Running", [running])
+    answering("Hecks::AgentRun", "Tidyable", [finished])
     described_class.new(settings: { live_store: store }).runs
   end
 
@@ -24,10 +30,9 @@ RSpec.describe Hecks::Adapters::PipelineTickets do
     expect(runs["s2"]).to include(run: "r2", agent: "", status: "finished")
   end
 
-  it "leaves out the runs that were retired or refused, as the running and tidyable queries do" do
-    retired = { run: "r3", session: "s3", brief: "x", status: "retired", agent: "coder" }
-    allow(store).to receive(:records).with("Hecks", "AgentRun").and_return([running, finished, retired])
-    expect(described_class.new(settings: { live_store: store }).runs.keys).to eq(%w[s1 s2])
+  it "asks the running and tidyable queries, and never loads every run to choose among them" do
+    runs_from_live_store
+    expect(store).not_to have_received(:records)
   end
 
   it "starts no process to read them" do
@@ -38,14 +43,18 @@ RSpec.describe Hecks::Adapters::PipelineTickets do
   end
 
   def tickets_from_live_store
-    work = [{ work: "w1", status: "planned", title: "t" }, { work: "w2", status: "done", title: "u" }]
-    allow(store).to receive(:records).with("Tickets", "Work").and_return(work)
-    allow(store).to receive(:records).with("Delivery", "Landing").and_return([{ status: "landed", branch: "qa/b" }])
+    answering("Tickets::Work", "Undone", [{ work: "w1", status: "planned" }])
+    allow(store).to receive_messages(tallied: { "planned" => 1, "done" => 1 }, records: [{ status: "landed", branch: "qa/b" }])
     described_class.new(settings: { live_store: store })
   end
 
-  it "counts the undone Work items of the live store" do
-    expect(tickets_from_live_store.counts).to eq("planned" => 1)
+  it "counts every status of the live store's Work items, as the WorkByStatus read model answers" do
+    expect(tickets_from_live_store.counts).to eq("planned" => 1, "done" => 1)
+  end
+
+  it "answers the live store's undone Work items as its open work" do
+    open = JSON.parse(tickets_from_live_store.open_work[:text])
+    expect(open.map { |item| item["slug"] }).to eq(["w1"])
   end
 
   it "reads the landed branches from the live store" do
