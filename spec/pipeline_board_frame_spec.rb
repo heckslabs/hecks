@@ -24,6 +24,10 @@ RSpec.describe Hecks::Adapters::PipelineBoard::Frame do
     expect(described_class.nav).to include("aria-current", '<a href="/sessions" data-also="/runs/">Sessions</a>')
   end
 
+  it "draws Una in the colour the stylesheet gives her, not the one her file holds" do
+    expect(described_class.una).not_to include("#3a2358")
+  end
+
   it "draws Una into every page, for whatever is waiting" do
     expect(described_class.apply("<body></body>")).to include('<symbol id="una"', "window.una = function")
   end

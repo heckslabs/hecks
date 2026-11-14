@@ -15,7 +15,7 @@ module Hecks
         UNA = File.expand_path("una.svg", __dir__)
         # The group holding Una's shape in that file, and the colour the file bakes into it.
         SHAPE = %r{<g .*</g>}m
-        BAKED_FILL = / fill="#\h+"/
+        BAKED_FILL = /fill="#\h+"/
         # Each page of the board, in the order the bar shows them: its address, its name, and the
         # start of any other address that is the same page (a run's own address is the sessions').
         PAGES = [["/", "Board"], ["/sessions", "Sessions", "/runs/"], ["/plan", "Plan"], ["/agents", "Agents"],
