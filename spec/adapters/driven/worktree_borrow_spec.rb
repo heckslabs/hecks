@@ -70,9 +70,20 @@ RSpec.describe Hecks::Adapters::WorktreeBorrow do
       expect(loaded_directories(env: {})).to include(File.join(main, "lib/hecks/hecks"))
     end
 
+    it "reads the main checkout's files as lent, and the worktree's own as its own", :aggregate_failures do
+      expect(lent_reads(env: {})).to include(File.join(main, "lib/hecks/hecks") => true)
+      expect(lent_reads(env: { "HECKS_WRITES_LOCAL" => "1" }).values).to all(be(false))
+    end
+
     it "loads the worktree's own directory for the spec runner" do
       expect(loaded_directories(env: { "HECKS_WRITES_LOCAL" => "1" })).not_to include(File.join(main, "lib/hecks/hecks"))
     end
+  end
+
+  def lent_reads(env:)
+    loader = OverlayRecorder.new(env)
+    loader.load_overlay(domain, nil)
+    loader.lent
   end
 
   def loaded_directories(env:)
@@ -108,6 +119,12 @@ RSpec.describe Hecks::Adapters::WorktreeBorrow do
 
     # @param directory [String] where the files were looked for
     # @return [void]
-    def load_each(directory, _patterns) = @directories << directory
+    def load_each(directory, _patterns)
+      @directories << directory
+      lent[directory] = Hecks::Bluebook::Lent.now?
+    end
+
+    # @return [Hash{String => Boolean}] each directory read, and whether it was read as lent
+    def lent = @lent ||= {}
   end
 end

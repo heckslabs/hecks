@@ -1,5 +1,6 @@
 require_relative "behaviour/hecksagon"
 require_relative "keyword_fields"
+require_relative "lent"
 require_relative "../ir"
 
 module Hecks
@@ -50,7 +51,8 @@ module Hecks
       def plugin_path = runs && File.expand_path(runs, source_dir || Dir.pwd)
     end
 
-    Bind = Struct.new(:aggregate, :verb, :adapter, :role, keyword_init: true) do
+    # `lent` marks a bind read from another checkout's local files (see {Lent}).
+    Bind = Struct.new(:aggregate, :verb, :adapter, :role, :lent, keyword_init: true) do
       # Empty for a domain-level default bind with no aggregate.
       def aggregate_name = Naming.demodulise(aggregate)
     end
