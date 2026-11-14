@@ -51,7 +51,8 @@
 # **landing** `stale_minutes` is how long a landing's ticket may go without a heartbeat before the next one treats
 # it as abandoned and removes it (30 when absent); `wait_minutes` is how long a landing waits for its turn in the
 # line before it gives up (40 when absent); `shell_lock` names a lock directory an older brief makes by hand,
-# which a landing honours as the holder while it exists. Landings run one at a time, first come first served.
+# which a landing honours as the holder while it exists. Only the landing train (`landing.train!`) takes a place
+# in that line: `landing.land!` and `landing.finish!` move main by a compare-and-swap and wait for no other landing.
 #
 Hecks.world "Hecks" do
   realm "Hecks"

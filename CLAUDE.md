@@ -218,10 +218,12 @@ Each command's `--help` says what it takes; this names where they live. **Landin
 (a finish that keeps the worktree) from the main checkout, logs to `.git/hecks-landings/<branch>.log`, reports
 `BranchLanded` or `LandingRefused`, and a conflict or a red gate plans the finished Work item again with the
 reason. A coder's `coder Submission.submit!` starts it.
-`landing.finish!` (rebase onto local `main`, quick gate, land, tidy), `landing.land!` and `landing.train!`
-(`lib/hecks/hecks/deliver/deliver.bluebook`) take a place in one first-come, first-served line; the
-world's `landing "Queue"` (`hecks.world`) sets how long a ticket may go without a heartbeat and how long
-a landing waits. `push_rehearsal.rehearse!` runs the stages of its scope (`RehearsalScope` rows in the Vocabulary
+`landing.finish!` (rebase onto local `main`, quick gate, land, tidy) and `landing.land!` take no lock and wait
+for no other landing: each moves `main` by a compare-and-swap, only if it still points where the landing
+started. A finish that finds `main` moved rebases and runs the gate again, so only a judged commit lands; after
+five lost tries it is refused (`main moved 5 times while <branch> was landing`) and a landing job runs it again.
+Only `landing.train!` still takes a place in the old line, whose limits are the world's `landing "Queue"`
+(`hecks.world`). `push_rehearsal.rehearse!` runs the stages of its scope (`RehearsalScope` rows in the Vocabulary
 bluebook: `quick`, the default and the push gate, and opt-in `deep` which adds the specs the changes touch) on local `main` and `push_rehearsal.due` says whether a push is due
 (`rehearse/rehearse.bluebook`); `test_suite_run.run_spec_files!` and `run_impacted_specs!` run named or
 impacted specs through the launcher. Branch worktrees through `LinkedTree.add!`, which pulls `main` first.
