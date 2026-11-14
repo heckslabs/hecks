@@ -19,7 +19,7 @@ module Hecks
         # Each page of the board, in the order the bar shows them: its address, its name, and the
         # start of any other address that is the same page (a run's own address is the sessions').
         PAGES = [["/", "Board"], ["/sessions", "Sessions", "/runs/"], ["/plan", "Plan"], ["/agents", "Agents"],
-                 ["/ci", "CI"], ["/diagrams", "Diagrams"]].freeze
+                 ["/ci", "CI"], ["/diagrams", "Diagrams"], ["/settings", "Settings"]].freeze
         # Una drawn by name, as a page writes her.
         DRAWN = "<svg class=\"una\" viewBox=\"0 0 392 420\" aria-hidden=\"true\"><use href=\"#una\"/></svg>"
         # `una(text, big)` answers the element a page shows while it waits: Una turning, small

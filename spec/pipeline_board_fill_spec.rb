@@ -24,6 +24,13 @@ RSpec.describe Hecks::Adapters::PipelineFill do
     expect(fill[:skipped]).to eq([{ slug: "beta", reason: "cap 6 reached" }])
   end
 
+  it "reads the headroom clause, and none from a report that has none", :aggregate_failures do
+    stated = report.sub("of cap 6;", "of cap 6; headroom 2 of cap 6 (1.6 load per session);")
+
+    expect(reader(stated).preview).to include(headroom: 2, per_session: 1.6)
+    expect(reader(report.sub("of cap 6;", "of cap 6; headroom unread of cap 6;")).preview).to include(headroom: nil)
+  end
+
   it "shows a report that states no time, with no time" do
     expect(reader(report.sub("; at 2026-11-09T07:00:00Z", "")).preview[:at]).to be_nil
   end

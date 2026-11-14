@@ -80,7 +80,10 @@ RSpec.describe "the ci gate stage" do
     def ids(stage) = stages.dig(stage, "checks").map { |check| check["id"] }
 
     it "runs in the push the seconds-long checks and no others" do
-      expect(ids("quick")).to eq(%w[shape_ledger rubocop comment_style comment_blocks secret_output adapter_words io_spec_list])
+      expect(ids("quick")).to eq(
+        %w[shape_ledger rubocop comment_style comment_blocks secret_output adapter_words io_spec_list
+           command_names workflow_pagination]
+      )
     end
 
     it "has no unguarded_push stage, so the hook and a rehearsal run the quick stage alone" do
@@ -100,7 +103,10 @@ RSpec.describe "the ci gate stage" do
 
       expect(rows - listed).to be_empty
       expect(ids("ci")).to include("command_names", "workflow_pagination")
-      expect(ids("quick") & ids("ci")).to include("shape_ledger", "rubocop", "comment_style", "comment_blocks")
+    end
+
+    it "runs the launcher-name and pagination checks in both the quick stage and CI" do
+      expect(ids("quick") & ids("ci")).to include("command_names", "workflow_pagination")
     end
   end
 

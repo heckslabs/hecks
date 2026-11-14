@@ -1,11 +1,16 @@
 # frozen_string_literal: true
 
+require_relative "headroom"
+require_relative "headroom_reads"
+
 module Hecks
   module Adapters
     class Dispatching
       # Starts the chosen work items of a confirmed filling and says how each one ended. It reads
       # the work items, machine and launcher of the {Dispatching} that includes it.
       module Launching
+        include HeadroomReads
+
         private
 
         def launch(plan, held)

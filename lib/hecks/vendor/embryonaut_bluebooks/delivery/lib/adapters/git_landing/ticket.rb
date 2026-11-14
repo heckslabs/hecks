@@ -124,6 +124,12 @@ module Hecks
         # @return [Hash, nil] the verdict
         def verdict = @verdict&.read
 
+        # Whether the train has put a verdict in this ticket's mailbox, without reading it.
+        #
+        # @param seconds [Numeric, nil] how long to wait for one; nil waits for one to arrive
+        # @return [Boolean] whether a verdict waits
+        def mail?(seconds = 0) = !@verdict.nil? && @verdict.mail?(seconds)
+
         # Tells the owner of this ticket how its branch fared.
         #
         # @param payload [Hash] `landed:` the answer, or `refused:` the reason

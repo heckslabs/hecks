@@ -48,6 +48,7 @@ Hecks.world "Tickets" do
   github_issues "GitHubIssues", enabled: false
   # `urgent_reserve` is how many red-* work items may start past a full cap (1 when absent), so
   # the fix of a red main does not wait for a place; the next red one waits, as any other does.
+  # The cap 7 and epic limit 4 are not yet measured: docs/findings/dispatch-limits-2026-11.md.
   work_limit "WorkLimits", cap: 7, urgent_reserve: 1
   dispatch_max_load "Dispatch", limit: 10.0
   epic_wip_limit "Dispatch", limit: 4
@@ -68,7 +69,10 @@ Hecks.world "Tickets" do
   # session is never gone.
   stopped_session_after "Dispatch", minutes: 60
   claude_executable "Sessions", candidates: %w[~/.local/bin/claude ~/.claude/local/claude /opt/homebrew/bin/claude /usr/local/bin/claude]
-  ticks "Ticker", seconds: 20, minutes: 30
+  # `ticks`: each waiting train pull request is ticked by a fresh launcher process every `seconds`
+  # for `minutes`. Measured 2026-11-14: 112 boots an hour (40 CPU-minutes) at 20 s; at 90 s the boots
+  # fall about four times and a merge is noticed 90 s late at most. The beat limit is 20.
+  ticks "Ticker", seconds: 90, minutes: 30
   rust_build "RustBuild", jobs: 4, nice: 15
   # `heavy_jobs` caps how many heavy jobs (a gate run, a run of several spec files) run at once on
   # the machine, in every checkout: the next one waits, saying so and in its report, until one ends

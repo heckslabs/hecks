@@ -19,6 +19,8 @@ module Hecks
       # What the tile says while no fill has recorded a report.
       NONE_RECORDED = "no fill has recorded a report yet"
       HEADER = /\Aload ([\d.]+) \(limit ([\d.]+), (\d+) cpus\); started (\d+) of cap (\d+);/
+      # The clause `headroom 2 of cap 7 (1.6 load per session)`; `headroom unread` states neither.
+      ROOM = /; headroom (\d+) of cap \d+ \(([\d.]+) load per session\);/
       # The time a report's header ends with.
       RAN_AT = /; at (\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ)\z/
       WOULD = /\Awould start (\S+): (.*)\z/
@@ -39,9 +41,9 @@ module Hecks
         @recorded = settings[:report] || method(:recorded_report)
       end
 
-      # @return [Hash] `load`, `limit`, `cap`, `started`, `at` (when the report states it),
-      #   `would_start` (slug and title), `launched` (slug) and `skipped` (slug and reason, a
-      #   yielded item included)
+      # @return [Hash] `load`, `limit`, `cap`, `started`, `headroom`, `per_session` (nil when
+      #   unstated), `at` (when the report states it), `would_start` (slug and title),
+      #   `launched` (slug) and `skipped` (slug and reason, a yielded item included)
       # @raise [PipelineBoard::Unavailable] when no report is recorded, or it cannot be read
       def preview
         text = @recorded.call.to_s
@@ -72,7 +74,13 @@ module Hecks
 
       def header(counts)
         { load: counts[1].to_f, limit: counts[2].to_f, cap: counts[5].to_i, started: counts[4].to_i,
-          at: RAN_AT.match(counts.string)&.then { |stated| stated[1] } }
+          at: RAN_AT.match(counts.string)&.then { |stated| stated[1] } }.merge(room(counts.string))
+      end
+
+      # @return [Hash] `headroom` and `per_session` as the report states them, nil when it does not
+      def room(line)
+        found = ROOM.match(line)
+        { headroom: found&.then { |stated| stated[1].to_i }, per_session: found&.then { |stated| stated[2].to_f } }
       end
 
       def launched(lines)

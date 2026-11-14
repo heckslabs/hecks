@@ -2,6 +2,7 @@
 
 require "open3"
 require "hecks/vocabulary"
+require "hecks/hecks/adapters/session_caller"
 require_relative "../tools"
 require_relative "../rust_build/gate_build"
 require_relative "stage_progress"
@@ -132,10 +133,17 @@ module Hecks
       def run_one(check, env, root)
         argv = check.fetch("run").map { |word| word.to_s.sub("{workers}", workers(root).to_s) }
         env = { "RUBOCOP_CACHE_ROOT" => RUBOCOP_CACHE_ROOT }.merge(ENV.slice("RUBOCOP_CACHE_ROOT")).merge(env)
+        env = env.merge(Adapters::SessionCaller::VARIABLE => caller_name)
         output, status = RustBuild::GateBuild.capture(argv, env, root)
         [output, status.success?]
       rescue SystemCallError => e
         ["could not start #{argv.first}: #{e.message}", false]
+      end
+
+      # @return [String] the caller the gate's launcher lines run as: the session that started the
+      #   gate, when it is named, followed by `gate`, so the usage log says whose gate spent them
+      def caller_name
+        [ENV.fetch(Adapters::SessionCaller::VARIABLE, ""), "gate"].reject(&:empty?).join(":")
       end
 
       # @param root [String] the checkout whose Tickets world sets the `spec_workers` cap
