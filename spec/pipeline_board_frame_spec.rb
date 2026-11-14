@@ -49,6 +49,12 @@ RSpec.describe Hecks::Adapters::PipelineBoard::Frame do
     expect(own.map { |page| File.basename(page) }).to be_empty
   end
 
+  it "bounds every box: four lines of detail, and a table inside one scrolls", :aggregate_failures do
+    style = File.read(described_class::STYLE)
+    expect(style).to include(".clamp, .node .detail, .tilebody .detail, .tile .note {", "line-clamp: 4;")
+    expect(style).to include(".node table, .tile table {", "max-height: 9.6em; overflow-y: auto;")
+  end
+
   it "defines each signal colour for the light theme and both dark ones" do
     style = File.read(described_class::STYLE)
     expect(style.scan(/--good: #\h{6}; --warning: #\h{6}; --critical: #\h{6}/).size).to eq(3)
