@@ -102,6 +102,18 @@ RSpec.describe Hecks::Adapters::PipelineWiring do
       expect(JSON.parse(fetch("/api/wiring").body)["nodes"].size).to eq(1)
     end
 
+    it "serves the CI page at /ci, with main's runs, the train's and the flakes", :aggregate_failures do
+      body = fetch("/ci").body
+      expect(body).to include("<title>Pipeline CI</title>", 'id="main"', 'id="train"', 'id="flakes"')
+      expect(body).not_to match(%r{https?://|//cdn|@import})
+    end
+
+    it "keeps the CI runs off the board, which links to their page", :aggregate_failures do
+      board = fetch("/").body
+      expect(board).to include('href="/ci"')
+      expect(board).not_to include('id="h-ci"', "renderCi")
+    end
+
     it "serves the diagram page at /wiring" do
       expect(fetch("/wiring").body).to include("Pipeline Wiring")
     end
