@@ -8,8 +8,9 @@ module MachineReadings
     Sampling::States.new(readings, Sampling::Marks::DEFAULTS, before).to_h
   end
 
-  def gauges(idle: 60.0, load: 5.0, swap: 10.0, compressor: 2.0, lane: nil)
-    { cpu_idle: idle, load: load, swap_used: swap, compressor_gb: compressor, lane_waiting: lane }
+  def gauges(idle: 60.0, load: 5.0, compressor: 2.0, lane: nil, **memory)
+    { cpu_idle: idle, load: load, swap_used: 10.0, swap_used_mb: memory.fetch(:swap_mb, 500.0),
+      free_gb: memory.fetch(:free, 10.0), compressor_gb: compressor, lane_waiting: lane }
   end
 
   # The load state after each CPU idle percentage of a series, each reading made with the state

@@ -11,8 +11,8 @@ module Hecks
         # The states the machine starts in.
         START = { load: "below", memory: "ok", lane: "idle" }.freeze
 
-        # @param readings [Hash{Symbol => Float, nil}] `cpu_idle`, `load`, `swap_used`,
-        #   `compressor_gb` and `lane_waiting`; a gauge that could not be read is nil
+        # @param readings [Hash{Symbol => Float, nil}] `cpu_idle`, `load`, `swap_used_mb`,
+        #   `free_gb`, `compressor_gb` and `lane_waiting`; a gauge that could not be read is nil
         # @param marks [Hash{Symbol => Float}] see {Marks}
         # @param before [Hash{Symbol => String}] the states from the last reading
         def initialize(readings, marks, before)
@@ -55,11 +55,24 @@ module Hecks
 
         def light? = !@readings[:load].nil? && @readings[:load] < @marks[:load_low]
 
+        # Swap is judged in megabytes and only while free plus inactive memory is short now: macOS
+        # resizes its swap file and rarely gives it back, so a large idle swap says nothing alone.
         def memory
-          swap = @readings[:swap_used]
-          return "low" if swap.to_f > @marks[:swap_low] || @readings[:compressor_gb].to_f > @marks[:compressor_gb]
+          return "low" if pressed? && strained?
 
-          swap && swap < @marks[:swap_recovered] ? "ok" : @before[:memory]
+          recovered? ? "ok" : @before[:memory]
+        end
+
+        def pressed? = @readings[:free_gb].nil? || @readings[:free_gb] < @marks[:free_gb_low]
+
+        def strained?
+          @readings[:swap_used_mb].to_f > @marks[:swap_used_mb] || @readings[:compressor_gb].to_f > @marks[:compressor_gb]
+        end
+
+        def recovered?
+          free = @readings[:free_gb]
+          swap = @readings[:swap_used_mb]
+          (free && free >= @marks[:free_gb_recovered]) || (swap && swap < @marks[:swap_recovered_mb])
         end
 
         def lane
