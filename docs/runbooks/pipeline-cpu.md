@@ -21,7 +21,7 @@ machine oversubscribe too: 14 sessions and a load limit of 16 on 12 cores.
 
 | Mechanism | Where | What it does |
 |---|---|---|
-| **Resident** | `lib/hecks/adapters/driving/resident/`, ADR 0201, `hecks.world` line `resident` | A launcher first asks its checkout's resident to run the line. The resident holds the loaded declarations and forks a child per line, so a warm line takes 0.2 to 0.3 s (2.8 s before). It retires when `lib/`, the lockfile or a loaded domain changes, after `idle_seconds` (600) idle, when its checkout or socket is gone, or when `max_residents` (8) others stand. It takes `workers` (8) callers at once, and a launcher waits `ready_wait_ms` (400) for its first word before it boots on its own. |
+| **Resident** | `lib/hecks/adapters/driving/resident/`, ADR 0201, `hecks.world` line `resident` | A launcher first asks its checkout's resident to run the line. The resident holds the loaded declarations and forks a child per line, so a warm line takes 0.2 to 0.3 s (2.8 s before). It retires when `lib/`, the lockfile or a loaded domain changes, after `idle_seconds` (600) idle in the main checkout or `worktree_idle_seconds` (120) in a linked worktree, when its checkout or socket is gone, or when `max_residents` (8) others stand. It takes `workers` (8) callers at once, and a launcher waits `ready_wait_ms` (400) for its first word before it boots on its own. |
 | **Boot time** | `bluebook/dsl/word_gate.rb`, `validation/with_projections.rb`, `tools/project_cli/templates.rb` | The word gate answers from an index, the `with:` checks share one emitter index, IRB and OpenSSL load on first use, and the generated launcher sets up bootsnap when `CacheDir.stable?`. A cold boot after an edit under `lib/` is still about 9 s. |
 | **Board in-process** | `pipeline_board/adapters/live_store.rb`, `board_restart.rb` | The board reads Work, runs and trains from its own booted domain, not child launchers; refresh is 30 s; it restarts itself above `rss_mb` or after `age_hours` (and not before 10 minutes up). |
 | **Fill in-process** | `hecks/adapters/dispatching/in_process_runner.rb`, `filling.rb` | A fill's steps run in the filling process; a nested roll is refused while a confirmed fill runs. A cross-checkout fill still runs that checkout's launcher. |
@@ -38,8 +38,10 @@ machine oversubscribe too: 14 sessions and a load limit of 16 on 12 cores.
 
 ### The resident, in practice
 
-- **See one:** `ps -Ao pid,rss,etime,command | grep resident/server.rb`. There is one per active checkout or worktree, about
-  330 MB each.
+- **See one:** `ps -Ao pid,rss,etime,command | grep "hecks resident"`. There is one per active checkout or worktree, about
+  330 MB each, titled `hecks resident <checkout name> (resident/server.rb <checkout>)`. A line it runs is titled
+  `<checkout>/exe/hecks <domain> <Aggregate.verb>`, without the line's arguments. Activity Monitor's Process Name
+  column still reads `ruby`, the executable; the title is in `ps` and in the process's inspector.
 - **Files:** `<cache>/resident/<8 hex of the checkout>-p<protocol>.sock`, `.lock`, `.pid` and `.version`, where
   `<cache>` is `HECKS_CACHE_DIR`, else `$XDG_CACHE_HOME/hecks` or `~/.cache/hecks`. The protocol is in the name, so a
   landing that changes how launcher and resident talk starts new residents; the old ones, which no launcher

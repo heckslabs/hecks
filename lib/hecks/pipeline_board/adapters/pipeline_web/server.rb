@@ -4,6 +4,7 @@ require "socket"
 require "json"
 require_relative "act_route"
 require_relative "deep_links"
+require_relative "frame"
 
 module Hecks
   module Adapters
@@ -31,8 +32,7 @@ module Hecks
           "/diagrams"   => [HTML_TYPE, :diagrams_page],
           "/ci"         => [HTML_TYPE, :ci_page], "/sessions" => [HTML_TYPE, :page],
           "/stream.js"  => [SCRIPT_TYPE, :stream_script], "/answer.js" => [SCRIPT_TYPE, :answer_script],
-          "/api/state"  => [JSON_TYPE, :state],
-          "/api/wiring" => [JSON_TYPE, :wiring]
+          "/api/state"  => [JSON_TYPE, :state], "/api/wiring" => [JSON_TYPE, :wiring]
         }.freeze
         STATUS = { 200 => "OK", 400 => "Bad Request", 403 => "Forbidden", 404 => "Not Found",
                    405 => "Method Not Allowed", 415 => "Unsupported Media Type",
@@ -132,6 +132,7 @@ module Hecks
         end
 
         def reply(socket, status, type, body, extra = {})
+          body = Frame.apply(body) if type == HTML_TYPE
           head = { "Content-Type" => type, "Content-Length" => body.bytesize, "Cache-Control" => "no-store",
                    "Connection" => "close" }.merge(extra)
           socket.write("HTTP/1.1 #{status} #{STATUS.fetch(status)}\r\n#{headers(head)}\r\n#{body}")

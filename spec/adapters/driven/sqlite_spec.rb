@@ -139,6 +139,38 @@ RSpec.describe Hecks::Adapters::Sqlite do
     expect(journalled_statuses).to eq(%w[available sold])
   end
 
+  describe "reading the event log past a position" do
+    before { 3.times { |n| adapter.record_event(pizza_purchased("p#{n}", "c#{n}", "2026-01-01T00:00:0#{n}Z")) } }
+
+    it "reads only the events past the position" do
+      expect(adapter.events_past(1).map(&:id)).to eq(%w[p1 p2])
+    end
+
+    it "counts by position, not by row id, when ids have gaps" do
+      raw_db.execute("DELETE FROM events WHERE aggregate_id = 'p0'")
+
+      expect(adapter.events_past(1).map(&:id)).to eq(%w[p2])
+    end
+
+    it "reads nothing past the end, then only what was recorded since", :aggregate_failures do
+      expect(adapter.events_past(3)).to eq([])
+      adapter.record_event(pizza_purchased("p3", "c3", "2026-01-01T00:00:03Z"))
+      expect(adapter.events_past(3).map(&:id)).to eq(%w[p3])
+    end
+
+    it "does not read the whole table to find what is new" do
+      adapter.events_past(3)
+      allow(raw_db).to receive(:execute).and_call_original
+      adapter.events_past(3)
+
+      expect(raw_db).to have_received(:execute).with("SELECT * FROM events WHERE id > ? ORDER BY id", [3]).once
+    end
+
+    it "counts the events without reading them" do
+      expect(adapter.event_count).to eq(3)
+    end
+  end
+
   it_behaves_like "a journalled record adapter"
   it_behaves_like "a checkpointed journal adapter"
   it_behaves_like "a saga-persisting adapter"

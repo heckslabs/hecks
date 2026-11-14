@@ -73,6 +73,12 @@ Hecks.hecksagon "Tickets" do
   Tickets::Work.port "PriorityReport" do
     answers_query "PriorityReport"
   end
+
+  # The standup: the tap's finished work items, the next of the same ordering and one reading of the
+  # machine, read and never written.
+  Tickets::Work.port "Standup" do
+    answers_query "Standup"
+  end
 end
 
 # Where the decision records live: their files under docs/decisions, read through the DecisionFiles

@@ -52,13 +52,17 @@ RSpec.describe Hecks::Adapters::GitLanding do
   def waiting(tree, name)
     thread = Thread.new do
       Thread.current.report_on_exception = false
-      described_class.new(**tune).merge(checkout: tree, branch: "work/#{name}")
+      lineup.stand("work/#{name}", onto: "main", checkout: tree) { raise "work/#{name} reached the front" }
     end
     hear("work/#{name} is")
     thread
   end
 
   def line = Hecks::Adapters::GitLanding::Line.new(File.join(repo, ".git"))
+
+  # A place in the train's line, as a ticket that declared its branch ready takes it. A landing
+  # itself takes none: it moves main by a compare-and-swap.
+  def lineup = Hecks::Adapters::GitLanding::Lineup.new(File.join(repo, ".git"), **tune)
 
   def hear(text)
     Timeout.timeout(10) { loop { break if said.pop.include?(text) } }

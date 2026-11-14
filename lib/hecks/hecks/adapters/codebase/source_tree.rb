@@ -22,6 +22,7 @@ require_relative "publishing"
 require_relative "promotion"
 require_relative "scripting"
 require_relative "../git"
+require_relative "../output_brief"
 
 module Hecks
   module Adapters
@@ -40,6 +41,41 @@ module Hecks
       # @return [Object] the tree the operation runs against
       def working_tree(operation, held)
         Codebase::TestSuite::FOLDER_OPERATIONS.include?(operation) ? folder_tree(held) : checkout_tree
+      end
+
+      # Carries out a spec run with what it printed filed: a long report, or a long refusal, comes
+      # back as its summary and the path of the file that holds all of it (`OutputBrief`). Every
+      # other operation answers as its family does.
+      #
+      # @param operation [String] the operation the request names
+      # @yield carries the operation out
+      # @return [Hash{Symbol => Hash}] what the block answered, a spec run's `report:` shortened
+      # @raise [ConsoleCapture::Failure] the block's refusal, a spec run's shortened
+      def briefed(operation)
+        answer = yield
+        return answer unless spec_run?(operation) && answer[:report]
+
+        answer.merge(report: { value: OutputBrief.of(answer[:report][:value].to_s, label: operation) })
+      rescue ConsoleCapture::Failure => e
+        raise unless spec_run?(operation)
+
+        raise ConsoleCapture::Failure, OutputBrief.of(e.message, label: operation)
+      end
+
+      # @param operation [String] the operation the request names
+      # @return [Boolean] whether it runs specs, whose output is the long one
+      def spec_run?(operation) = Codebase::TestSuite::FOLDER_OPERATIONS.include?(operation)
+
+      # @param operation [String] the operation the request names
+      # @param held [Hash] the record, whose arguments the family reads
+      # @return [Hash{Symbol => Hash}] what the operation's family answers, as the fields the run
+      #   records
+      def carried_out(operation, held)
+        family = family_for(operation)
+        folder = working_tree(operation, held)
+        allowed = Codebase::TestScope.new(@registry).admit(operation, held.except(:operation), folder)
+        done = family.call(operation, allowed, folder, shell: shell)
+        done.is_a?(Hash) ? done : { report: { value: done } }
       end
 
       # @return [Object] the shell the family runs commands through
@@ -106,11 +142,7 @@ module Hecks
         operation = plain(held[:operation])
         return handed_off(operation) if HANDED_OFF.include?(operation)
 
-        family = family_for(operation)
-        folder = working_tree(operation, held)
-        allowed = Codebase::TestScope.new(@registry).admit(operation, held.except(:operation), folder)
-        done = family.call(operation, allowed, folder, shell: shell)
-        done.is_a?(Hash) ? done : { report: { value: done } }
+        briefed(operation) { carried_out(operation, held) }
       end
 
       # @param args [Hash] the query's arguments: `pattern`, `paths`, `top`

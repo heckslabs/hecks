@@ -9,6 +9,7 @@ require_relative "pipeline_journal/chain"
 require_relative "pipeline_turns"
 require_relative "pipeline_stages/cycles"
 require_relative "pipeline_stages/daily_health"
+require_relative "pipeline_stages/integration_runs"
 
 module Hecks
   module Adapters
@@ -90,6 +91,12 @@ module Hecks
         found = @tap.named([STOPPED]) + stored_named(STOPPED)
         found.sort_by { |row| row[:at].to_s }.each_with_object({}) { |row, times| times[row[:id].to_s] ||= row[:at] }
       end
+
+      # What the event log's tail says of the integration runs, for display only.
+      #
+      # @return [Hash] each run's last event time, the newest advance and how far the tail reaches
+      #   (see {PipelineBoard::IntegrationRuns.seen})
+      def integration_seen = PipelineBoard::IntegrationRuns.seen(@tap.rows)
 
       def events(limit: nil)
         { text: JSON.generate(recent(limit.is_a?(Hash) ? limit[:value] : limit)) }

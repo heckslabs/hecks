@@ -67,9 +67,35 @@ module Hecks
           @lock.synchronize { fresh([domain, name, :events]) { logged(current, domain, name) } }
         end
 
+        # The checkpoints a process manager keeps, asked of the store the registry resolves for it
+        # and not of the registry's own memory: a read-only boot restores no saga, and a stored
+        # checkpoint moves after the boot.
+        #
+        # @param domain [String] the bluebook that declares the process manager, such as `"Hecks"`
+        # @param process_manager [String] its name, such as `"MainIntegration"`
+        # @return [Hash{String => String}] each instance's correlation and the state stored for
+        #   it; none when the store keeps no checkpoint
+        # @raise [Unavailable] when the registry cannot be read
+        def sagas(domain, process_manager)
+          current = registry
+          @lock.synchronize { fresh([domain, process_manager, :sagas]) { checkpoints(current, domain, process_manager) } }
+        end
+
         private
 
         attr_reader :registry
+
+        def checkpoints(current, domain, process_manager)
+          raise Unavailable, "#{label} resolves no saga store" unless current.respond_to?(:saga_persistence)
+
+          kept_sagas(current.saga_persistence(domain, process_manager)).each_with_object({}) do |saga, found|
+            name, correlation, state = saga
+            found[correlation.to_s] = state.to_s if name.to_s == process_manager
+          end
+        end
+
+        # Every checkpoint a saga store holds; none for the store of a domain that keeps none.
+        def kept_sagas(store) = store.each_saga.to_a
 
         def logged(current, domain, name)
           aggregate = aggregate_in(current, domain, name)

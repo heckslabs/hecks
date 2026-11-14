@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "cgi"
+require_relative "../pipeline_stages/integration_runs"
 
 module Hecks
   module Adapters
@@ -32,6 +33,56 @@ module Hecks
         def stage(row)
           needs = NEEDS_YOU.include?(row[:state])
           "<div class=\"tilebody#{" clickable" if needs}\" data-tip=\"#{esc(tip(row, needs))}\"#{resolves(row) if needs}>" \
+            "<div class=\"name\">#{esc(row[:name])}</div><div class=\"count\">#{esc(row[:count])}</div>" \
+            "#{badge(row[:state])}<div class=\"detail\">#{esc(row[:detail])}</div></div>"
+        end
+
+        # The Integration stage and, under it, two tables: each stored stage with how many runs it
+        # holds and the time since any of them last moved, then the runs listed, each with the
+        # stage the saga stored for it and the time since its last recorded event. The stage of
+        # runs parked for a person is marked by an icon and words, not by colour. The tile offers
+        # nothing to click.
+        #
+        # @param row [Hash] the strip's Integration row with its `reading` (see {IntegrationRuns})
+        # @return [String] the stage's body and a table of its runs
+        def integration(row)
+          reading = row[:reading].to_h
+          "#{plain_stage(row)}#{stage_table(reading)}#{run_table(reading)}"
+        end
+
+        # @param reading [Hash] the integration reading
+        # @return [String] one row per stored stage: the stage, its runs and their last event
+        def stage_table(reading)
+          quiet = reading[:quiet_minutes]
+          rows = reading[:by_stage].to_a.map { |line| [stage_word(line), line[:count], last_event(line, quiet)] }
+          listing(%w[Stage Runs], rows)
+        end
+
+        # @param reading [Hash] the integration reading
+        # @return [String] one row per listed run: its commit, its stage and its last event
+        def run_table(reading)
+          rows = reading[:runs].to_a.map { |run| [run[:short], stage_word(run), last_event(run, reading[:quiet_minutes])] }
+          listing(%w[Run Stage], rows)
+        end
+
+        # @param line [Hash] a run or a stage line with its `minutes`
+        # @param quiet [Integer, nil] the minutes the log's tail reaches back
+        # @return [String] the time since its last event, in words
+        def last_event(line, quiet) = IntegrationRuns.since(line[:minutes], quiet)
+
+        # @param head [Array<String>] the first columns' names; the last is always the last event
+        # @param rows [Array<Array>] the table's rows
+        # @return [String] the table, or nothing when it has no row
+        def listing(head, rows) = rows.empty? ? "" : table([*head, "Last event"], rows)
+
+        # @param line [Hash] a run or a stage line: `stage` and `parked`
+        # @return [String] the stage as the saga stored it; the parked one with an icon and words
+        def stage_word(line) = line[:parked] ? "#{ICON["failed"]} needs you (#{line[:stage]})" : line[:stage].to_s
+
+        # @param row [Hash] a strip row
+        # @return [String] the stage, its count, its state and its detail, with nothing to click
+        def plain_stage(row)
+          "<div class=\"tilebody\" data-tip=\"#{esc(tip(row, false))}\">" \
             "<div class=\"name\">#{esc(row[:name])}</div><div class=\"count\">#{esc(row[:count])}</div>" \
             "#{badge(row[:state])}<div class=\"detail\">#{esc(row[:detail])}</div></div>"
         end

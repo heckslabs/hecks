@@ -20,13 +20,14 @@ RSpec.describe Hecks::Adapters::PipelineWeb do
     FileUtils.rm_rf(dir)
   end
 
-  def names = ["Work items", "Sessions", "Local main", "Train", "CI", "Promote", "Release"]
+  def names = ["Work items", "Sessions", "Local main", "Integration", "Train", "CI", "Promote", "Release"]
 
   def board
     journal = Hecks::Adapters::PipelineJournal.new(settings: { trace: ->(*) { { events: [] } }, tap: log, ttl: 0 })
     rows = names.map { |name| { name: name, state: "ok", count: "1", detail: "d" } }
     stages = instance_double(Hecks::Adapters::PipelineStages, fill_tile: { unknown: "none" },
-                                                              plan_tile: { unknown: "none" }, train_tile: rows[3])
+                                                              plan_tile: { unknown: "none" }, train_tile: rows[4],
+                                                              integration_tile: rows[3])
     allow(stages).to receive(:state) { { stages: rows, events: events_of(journal) } }
     described_class.new(settings: { stages: stages, background: false, tap: log })
   end
@@ -83,6 +84,11 @@ RSpec.describe Hecks::Adapters::PipelineWeb do
   it "answers 405 to any method but GET" do
     codes = %w[POST PUT DELETE PATCH].map { |verb| request(verb, "/api/state").code }
     expect(codes).to eq(%w[405] * 4)
+  end
+
+  it "has no route that reaches an integration run, by any method" do
+    codes = %w[GET POST PUT].map { |verb| request(verb, "/api/integration/advance").code }
+    expect(codes - %w[404 405]).to eq([])
   end
 
   it "has no external URL in the page" do

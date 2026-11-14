@@ -170,7 +170,7 @@ module Hecks
       def stream(domain:, aggregate: nil, since: nil, from_now: nil, limit: nil, timeout: nil, interval: nil,
                  names: nil, registry: nil, &)
         repository = event_repository(domain, registry, plain(aggregate))
-        tail = Tail.new(plain(since)&.to_i || (plain(from_now) ? repository.events.size : 0), 0, false)
+        tail = Tail.new(plain(since)&.to_i || (plain(from_now) ? entry_count(repository) : 0), 0, false)
         watch(repository, tail, bounds_for(aggregate, limit, timeout, interval, names), &)
       rescue Errno::EPIPE, Interrupt
         tail.seen

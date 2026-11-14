@@ -218,7 +218,7 @@ RSpec.describe Hecks::Adapters::PipelineWiring do
     end
 
     it "links the board to the diagrams' page instead of embedding them", :aggregate_failures do
-      page = File.read(Hecks::Adapters::PipelineWeb::PAGE)
+      page = fetch("/").body
       expect(page).to include('href="/diagrams"')
       expect(page).not_to include("<iframe")
     end
@@ -232,11 +232,11 @@ RSpec.describe Hecks::Adapters::PipelineWiring do
     it "serves the sessions on a page of their own at /sessions, the board's file showing nothing else", :aggregate_failures do
       page = fetch("/sessions").body
       expect(page).to include('<details class="panel" id="sessions-panel"><summary', "function sessionsView()")
-      expect(page).to include("body:not(.view-sessions) #sessions-panel, body:not(.view-sessions) .in-sessions")
+      expect(page).to include("body:not(.view-sessions) #sessions-panel { display: none; }")
     end
 
     it "links the board to its sessions' page, and the agents' page too", :aggregate_failures do
-      expect(fetch("/").body).to include('<a href="/sessions" class="in-board"')
+      expect(fetch("/").body).to include('<a href="/sessions"')
       expect(fetch("/agents").body).to include('href: "/sessions"')
     end
 

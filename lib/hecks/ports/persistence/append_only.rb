@@ -1,6 +1,7 @@
 require_relative "../../runtime/registry"
 require_relative "execution"
 require_relative "set_transforming"
+require_relative "event_log_reading"
 
 module Hecks
   module Ports
@@ -35,6 +36,7 @@ module Hecks
       # format, but must accept the same entry stream and materialize state from it.
       class AppendOnly
         include SetTransforming
+        include EventLogReading
 
         attr_reader :adapter
 
@@ -125,17 +127,6 @@ module Hecks
           raise Runtime::WiringError, "append-only adapter cannot reset" unless @adapter.respond_to?(:reset!)
 
           @adapter.reset!
-        end
-
-        # Reads the events the adapter has durably recorded.
-        #
-        # Written as an `if` guard, not a trailing modifier, which would evaluate against
-        # `@adapter` before `initialize` runs and silently skip defining the method.
-        #
-        # @return [Array<Runtime::Event>, nil] recorded events, oldest first; nil when the
-        #   adapter keeps no event log
-        def events
-          @adapter.events if @adapter.respond_to?(:events)
         end
 
         # Reads back one record's durably recorded events, oldest first, scoped by the
@@ -260,7 +251,7 @@ module Hecks
 
         # Records one emitted event durably, when the adapter keeps an event log.
         #
-        # Written as an `if` guard, not a trailing modifier — same reason as `events` above.
+        # Written as an `if` guard, not a trailing modifier, as `EventLogReading#events` is.
         #
         # @param event [Runtime::Event] the event to record
         # @return [Object, nil] adapter-defined write result (an Array for Memory, a driver

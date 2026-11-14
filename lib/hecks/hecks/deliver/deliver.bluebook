@@ -40,6 +40,32 @@ Hecks.bluebook "Hecks" do
       end
     end
 
+    # How fast work reaches local `main`, read from the events the delivery package's `Landing` recorded
+    # and never written. The `Pace` port's adapter reads the file `Landing` is kept in; kept in Memory,
+    # there is no ledger and the answer says so.
+    aggregate "LandingPace" do
+      description "A measure of the landings a ledger recorded: how many a day, and how long a change waited."
+      acknowledges :no_command_surface, "a measure of landings already recorded: it reads the ledger and changes nothing"
+
+      attribute :ledger, Ledger
+      identified_by :ledger
+
+      # The store the landings were recorded in.
+      value_object "Ledger" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Document" do
+        attribute :text, String
+      end
+
+      query "Pace" do
+        description "Landings per UTC day over the last days (14 unless given), the refusals, and the wait from ready to landed as median, 90th percentile and longest. A change is ready at the first request to land it (submit, finish, land, carry or train) that names its branch or is the landing's own run, since that branch last landed; it is landed at BranchLanded."
+        attribute :days, Integer, optional: true
+        returns Document
+      end
+    end
+
     # The changed files of a checkout that already match `origin/main`, put back so the checkout can take a pull:
     # asked of the git port, then recorded or declined. A file that differs from `origin/main` is never touched.
     aggregate "Restoration" do

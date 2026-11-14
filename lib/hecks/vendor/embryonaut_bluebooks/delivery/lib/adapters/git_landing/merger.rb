@@ -2,16 +2,18 @@
 
 require "tmpdir"
 require "hecks/hecks/adapters/git_worktrees"
-require_relative "../git_main_pull"
+require_relative "swap"
 
 module Hecks
   module Adapters
     class GitLanding
-      # One landing: a branch merged onto another, fast-forward when it can be and as a merge commit
-      # when it cannot, in the worktree that has the target checked out, else in a temporary one.
+      # One try at a landing: the commit a branch lands as is built beside the target, the branch's
+      # own tip when the target is its ancestor and a merge commit made in a temporary tree when it
+      # is not, then the target is moved to it by a compare-and-swap ({Swap}).
       #
       # It never forces anything, never pushes, and never settles a conflict: a merge that conflicts
-      # is aborted and refused, naming the paths in conflict, with every branch as it was.
+      # is aborted and refused, naming the paths in conflict, with every branch as it was. When the
+      # target moved while it built, it raises {Swap::Lost} with nothing changed.
       class Merger
         include GitWorktrees
 
@@ -19,15 +21,19 @@ module Hecks
         # @param checkout [String] the repository's top level the branch is in
         # @param branch [String] the branch to land
         # @param onto [String] the branch to land it on
-        def initialize(git, checkout, branch:, onto:)
+        # @param forward_only [Boolean] land the branch's own tip or nothing: a target the branch
+        #   is not built on counts as moved, so no merge commit is made
+        def initialize(git, checkout, branch:, onto:, forward_only: false)
           @git = git
           @checkout = checkout
           @branch = ref(branch)
           @onto = ref(onto)
+          @forward_only = forward_only
         end
 
         # @return [Hash{Symbol => Hash}] `outcome:` (`current`, `fast_forwarded` or `merged`),
         #   `checkout:`, `branch:`, `landed:` (the commit the target names now) and `report:`
+        # @raise [Swap::Lost] when the target moved while the landing was built
         # @raise [ConsoleCapture::Failure] when the merge conflicts, or a tree holds
         #   uncommitted work
         def land
@@ -35,50 +41,37 @@ module Hecks
           before = branch_tip(@onto)
           return answer("current", before, "#{@branch} is already on #{@onto}") if ancestor?(tip, before)
 
-          host = worktree_on(@onto)
-          outcome, landed = host ? integrate(host.path, before) : in_temporary_tree(before)
-          answer(outcome, landed, "#{@branch} #{outcome.tr("_", " ")} onto #{@onto} at #{short(landed)}")
+          outcome, candidate = build(tip, before)
+          left = Swap.new(@git, @checkout, onto: @onto).move(before, candidate)
+          said = "#{@branch} #{outcome.tr("_", " ")} onto #{@onto} at #{short(candidate)}"
+          answer(outcome, candidate, [said, left].compact.join("; "))
         end
 
         private
 
-        def in_temporary_tree(before)
+        def build(tip, before)
+          return ["fast_forwarded", tip] if ancestor?(before, tip)
+          raise Swap::Lost, "#{@onto} is at #{short(before)}, which #{@branch} is not built on" if @forward_only
+
+          ["merged", merge_commit(before)]
+        end
+
+        # The merge of the branch into the target's commit, made in a detached temporary tree so
+        # that no checkout's files are the workbench.
+        def merge_commit(before)
           Dir.mktmpdir("hecks-landing") do |dir|
             tree = File.join(dir, "tree")
             read("worktree", "add", "--detach", tree, before)
-            outcome, landed = integrate(tree, before)
-            read("update-ref", "refs/heads/#{@onto}", landed, before)
-            [outcome, landed]
+            merge(tree)
+            read("rev-parse", "HEAD", dir: tree)
           ensure
             @git.capture("worktree", "remove", "--force", tree, chdir: @checkout)
           end
         end
 
-        def integrate(dir, before)
-          refuse_midway(dir)
-          changed = dirty(dir)
-          raise ConsoleCapture::Failure, unsaved_refusal(dir, changed) unless changed.empty?
-
-          outcome = ancestor?(before, branch_tip(@branch)) ? fast_forward(dir) : merge_commit(dir)
-          [outcome, read("rev-parse", "HEAD", dir: dir)]
-        end
-
-        # A checkout in the middle of a rebase or merge is refused by name, with nothing changed.
-        def refuse_midway(dir)
-          midway = GitMainPull::MIDWAY.find { |name, _| File.exist?(git_path(dir, name)) }
-          raise ConsoleCapture::Failure, "#{dir} is in the middle of a #{midway.last}; nothing changed" if midway
-        end
-
-        def git_path(dir, name) = read("rev-parse", "--path-format=absolute", "--git-path", name, dir: dir)
-
-        def fast_forward(dir)
-          read("merge", "--ff-only", @branch, dir: dir)
-          "fast_forwarded"
-        end
-
-        def merge_commit(dir)
-          result = @git.capture("merge", "--no-ff", "--no-edit", @branch, chdir: dir)
-          return "merged" if result.ok?
+        def merge(dir)
+          result = @git.capture("merge", "--no-ff", "-m", "Merge branch '#{@branch}'", @branch, chdir: dir)
+          return if result.ok?
 
           conflicts = @git.capture("diff", "--name-only", "--diff-filter=U", chdir: dir).out.split
           @git.capture("merge", "--abort", chdir: dir)

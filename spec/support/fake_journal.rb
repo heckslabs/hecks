@@ -7,9 +7,10 @@ require "json"
 class FakeJournal
   # What a stand-in for the board's stages answers for the tiles the board pushes.
   TILES = {
-    fill_tile:  { unknown: "none" },
-    plan_tile:  { unknown: "none" },
-    train_tile: { name: "Train", state: "ok", count: "1", detail: "d" }
+    fill_tile:        { unknown: "none" },
+    plan_tile:        { unknown: "none" },
+    train_tile:       { name: "Train", state: "ok", count: "1", detail: "d" },
+    integration_tile: { name: "Integration", state: "ok", count: "0", detail: "d" }
   }.freeze
 
   # @return [#call] a journal source for the board's watch that follows no file

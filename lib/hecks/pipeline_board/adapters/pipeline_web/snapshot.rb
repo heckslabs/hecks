@@ -6,6 +6,7 @@ require "digest"
 require_relative "../board_restart"
 require_relative "../load_guard"
 require_relative "../load_history"
+require_relative "../load_causes"
 require_relative "../../../hecks/adapters/dispatching/settings"
 
 module Hecks
@@ -50,6 +51,7 @@ module Hecks
           lambda do
             limit = Dispatching::Settings.new(registry).max_load
             LoadHistory.stand(limit)
+            LoadCauses.stand
             LoadGuard.stand(limit)
           end
         end

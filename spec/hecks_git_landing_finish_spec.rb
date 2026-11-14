@@ -104,12 +104,12 @@ RSpec.describe Hecks::Adapters::GitLanding, "#finish_branch" do
     expect(git("rev-parse", "main").strip).to eq(before)
   end
 
-  it "refuses by name while another landing is in flight" do
+  it "lands at once while a ticket holds the front of the train's line" do
     build_repo
     git_dir = git("rev-parse", "--path-format=absolute", "--git-common-dir").strip
     held = described_class::Line.new(git_dir).join("work/other", ready: true)
 
-    expect { finish(->(_dir) { green }, wait_minutes: 0.02, say: ->(_text) {}) }.to raise_error(failure, /queue busy/)
+    expect(finish(->(_dir) { green }).dig(:outcome, :value)).to eq("fast_forwarded")
     held.close
   end
 end

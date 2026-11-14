@@ -174,7 +174,12 @@ stand. Where the build differs from the text above or adds to it:
   handler has run.
 - **The ceiling on residents refuses, it does not evict.** Decision 3's "the oldest idle one exits first" is not
   built: a resident that finds `max_residents` others standing exits at once and its launcher boots on its own. Both
-  numbers are the Hecks world's `resident` line (`idle_seconds` 600, `max_residents` 8).
+  numbers are the Hecks world's `resident` line (`idle_seconds` 600 for the main checkout, `worktree_idle_seconds` 120
+  for a linked worktree, `max_residents` 8).
+- **Each process is named.** A resident's title is `hecks resident <checkout name> (resident/server.rb <checkout>)`
+  and a line's is `<checkout>/exe/hecks <domain> <Aggregate.verb>`, with no argument of the line
+  (`Resident::Title`). A line's title starts with the launcher's path so the readers of the process table (the
+  sweep of leftover launchers, a run's signs of life) read it as they read a cold launcher.
 - **A resident leaves when its checkout does.** Once a second, when no line is waiting, it checks that its checkout
   directory and its own socket still exist (`Server#orphaned?`, with a stat seam for specs) and retires when either
   is gone: a worktree that was retired, a temporary directory that was removed, or a cache that was cleared. It no

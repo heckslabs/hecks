@@ -1,0 +1,71 @@
+/* The board's one design language, put into every page by the server (see frame.rb). A page declares no colour
+   of its own: it uses these names, so the board, its sessions, the plan, the agents, CI and the diagrams read as
+   one thing in both themes. Signal colours mean the same everywhere: green is done or delivered, blue is running
+   or picked, amber waits on a person, red failed or was refused. */
+:root {
+  color-scheme: light;
+  --page: #f3f5f4; --surface: #ffffff; --ink: #16211d; --ink2: #55615c; --muted: #87928d;
+  --line: rgba(22,33,29,.11); --wire: #a9b3ae; --run: #2563d9; --warning-wash: #fdf3dc; --on-fill: #ffffff; --una: #3a2358;
+  --good: #2f7d5b; --warning: #b87400; --critical: #c23b3b;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d1311; --surface: #151c19; --ink: #e8efeb; --ink2: #a9b5af; --muted: #76827c;
+    --line: rgba(232,239,235,.11); --wire: #4d5954; --run: #6ea3ff; --warning-wash: #2b2412; --on-fill: #0d1311; --una: #b9a1e6;
+    --good: #4fb286; --warning: #f0b040; --critical: #ef6b6b;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d1311; --surface: #151c19; --ink: #e8efeb; --ink2: #a9b5af; --muted: #76827c;
+  --line: rgba(232,239,235,.11); --wire: #4d5954; --run: #6ea3ff; --warning-wash: #2b2412; --on-fill: #0d1311; --una: #b9a1e6;
+  --good: #4fb286; --warning: #f0b040; --critical: #ef6b6b;
+}
+/* The names the pages were written with, each standing for one of the colours above. */
+:root {
+  --body: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --done: var(--good); --good-text: var(--good);
+  --pick: var(--run); --signal: var(--run); --series1: var(--run); --signal-soft: color-mix(in srgb, var(--run) 14%, transparent);
+  --you: var(--warning); --you-wash: var(--warning-wash); --you-soft: var(--warning-wash); --on-warning: #16211d;
+  --series2: #c8662f; --serious: #c8662f;
+  --border: var(--line); --grid: var(--line); --axis: color-mix(in srgb, var(--ink) 20%, transparent);
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--ink); font: 14px/1.5 var(--body); font-variant-numeric: tabular-nums; }
+a { color: var(--run); }
+h1 { font-size: 20px; font-weight: 650; letter-spacing: -.01em; margin: 0; }
+/* Every page is the same width, so nothing moves when one is left for another. */
+main { width: 100%; max-width: 1280px; margin: 0 auto; padding: 20px 20px 64px; }
+/* One bar on every page: Una and the name, then the same pages in the same order, the one being read underlined. */
+.topbar { position: sticky; top: 0; z-index: 12; background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line); }
+.topbar .in { display: flex; align-items: stretch; gap: 28px; max-width: 1280px; margin: 0 auto; padding: 0 20px; height: 48px; }
+.topbar .brand { display: flex; align-items: center; gap: 9px; color: var(--ink); text-decoration: none; font-weight: 650; font-size: 15px; letter-spacing: -.01em; }
+.topbar .brand .una { width: 22px; height: 24px; }
+nav.pages { display: flex; align-items: stretch; gap: 4px; font-size: 13.5px; overflow-x: auto; }
+nav.pages a { display: flex; align-items: center; padding: 0 11px; color: var(--ink2); text-decoration: none; border-bottom: 2px solid transparent;
+  margin-bottom: -1px; white-space: nowrap; transition: color .12s, border-color .12s; }
+nav.pages a:hover { color: var(--ink); border-bottom-color: var(--line); }
+nav.pages a[aria-current="page"] { color: var(--ink); font-weight: 600; border-bottom-color: var(--una); }
+nav.pages a:focus-visible { outline: 2px solid var(--run); outline-offset: -3px; border-radius: 6px; }
+/* Una is what waiting looks like: small beside a word, large in a panel that has nothing to show yet. */
+.una { display: inline-block; width: 1em; height: 1.07em; fill: var(--una); vertical-align: -.15em; flex: none; }
+.una-wait { display: inline-flex; align-items: center; gap: 8px; color: var(--ink2); font-size: 13px; }
+.una-wait.big { display: flex; flex-direction: column; justify-content: center; gap: 12px; padding: 36px 0; }
+.una-wait.big .una { width: 68px; height: 73px; }
+@media (prefers-reduced-motion: no-preference) {
+  .una-wait .una { animation: una-turn 2.4s cubic-bezier(.6, 0, .4, 1) infinite; transform-origin: 50% 46%; }
+  @keyframes una-turn { to { transform: rotate(360deg); } }
+}
+@media (prefers-reduced-motion: reduce) { .una-wait .una { opacity: .6; } }
+/* A box holds a little. Its detail is said in at most four lines, and a table inside it shows a few rows and
+   scrolls for the rest, so no reading can stretch a box into a column however much it has to say. The whole of
+   either is the box's hover, or a click away. */
+.clamp, .node .detail, .tilebody .detail, .tile .note {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; line-clamp: 4; overflow: hidden; overflow-wrap: anywhere;
+}
+.node table, .tile table {
+  display: block; max-height: 9.6em; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; font-size: 11.5px; margin-top: 6px;
+}

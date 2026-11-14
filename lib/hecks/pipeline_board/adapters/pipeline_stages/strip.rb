@@ -5,6 +5,7 @@ require "hecks/hecks/adapters/red_flag_report"
 require_relative "../rules"
 require_relative "stopped_row"
 require_relative "overdue_row"
+require_relative "integration_runs"
 
 module Hecks
   module Adapters
@@ -20,7 +21,8 @@ module Hecks
         # @return [Array<Hash>] `name`, `state`, `count` and `detail` for each stage
         def build(data, now)
           [*alerts(data, now), work(data[:counts]), sessions(data[:sessions]), local(data[:local]),
-           train(data[:train], now), ci(data[:ci_runs]), promote(data[:stable]), release(data[:release])]
+           IntegrationRuns.row(data[:integration], now), train(data[:train], now), ci(data[:ci_runs]),
+           promote(data[:stable]), release(data[:release])]
         end
 
         # The rows built only while something needs a person: the stopped runs overdue, the red

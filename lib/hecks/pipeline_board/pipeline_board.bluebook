@@ -105,6 +105,12 @@ Hecks.bluebook "PipelineBoard" do
       member stage: "Local main", position: 1, measure: "ahead",        op: ">",       than: "0", scale: 1, state: "attention"
       member stage: "Local main", position: 2, measure: "",             op: "always",  than: "",  scale: 1, state: "ok"
 
+      # The runs of the MainIntegration saga. A run parked for a person fails the stage; any
+      # other stage a run is stored in is shown as it is and judged by nothing here.
+      member stage: "Integration", position: 1, measure: "needs_human", op: "missing", than: "",  scale: 1, state: "unknown"
+      member stage: "Integration", position: 2, measure: "needs_human", op: ">",       than: "0", scale: 1, state: "failed"
+      member stage: "Integration", position: 3, measure: "",            op: "always",  than: "",  scale: 1, state: "ok"
+
       member stage: "Train",      position: 1, measure: "not_pushed",   op: ">",       than: "0", scale: 1, state: "attention"
       member stage: "Train",      position: 2, measure: "",             op: "always",  than: "",  scale: 1, state: "ok"
 
@@ -237,6 +243,9 @@ Hecks.bluebook "PipelineBoard" do
       # Seconds between two looks at the bluebook files for a change of the wiring. Every stream
       # asks on every journal line and a look stats every declaration file, so looks are shared.
       member name: "wiring_look_seconds",     value: 5
+      # How many integration runs the Integration tile lists: the runs the event log's tail holds
+      # an event of first, newest first, then those parked for a person.
+      member name: "integration_runs_shown",  value: 8
     end
 
     # A tile the board pushes as HTML, and the aggregates it reads. A journal line carries the
@@ -250,6 +259,7 @@ Hecks.bluebook "PipelineBoard" do
       member tile: "fill",  reads: "Tickets::Work, Hecks::AgentRun, Hecks::Roll, Hecks::Dispatch"
       member tile: "plan",  reads: "Tickets::Work, Tickets::Epic, Hecks::AgentRun, Agents::PlanReview, Hecks::SendTrain, Hecks::Dispatch"
       member tile: "train", reads: "Hecks::SendTrain, Delivery::LinkedTree, Delivery::Landing, Hecks::BoardingRelease, Hecks::PushOutcome"
+      member tile: "integration", reads: "Hecks::Integration, Delivery::Landing"
     end
 
     # One check of the daily health line: what the pipeline reports of its own day, which a person
@@ -495,6 +505,11 @@ Hecks.bluebook "PipelineBoard" do
 
     query "DailyHealth" do
       description "What the pipeline found of its own day by the HealthCheck rows: boardings made by hand or of an unverified commit, verifications over their bound, Work items finished with parts not delivered, sessions left blocked or stopped and findings left open, each with its age, and one line that says it all. It reads only and alerts no one."
+      returns Document
+    end
+
+    query "IntegrationRuns" do
+      description "The runs the MainIntegration saga remembers: how many are stored in each stage, how many are being pushed or watched, how many are parked for a person, the newest advance, and the runs listed with the stage each is stored in and the time of its last recorded event. It reads the saga's checkpoints and the event log, and advances nothing."
       returns Document
     end
 
