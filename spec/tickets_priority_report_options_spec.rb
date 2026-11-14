@@ -9,9 +9,11 @@ RSpec.describe Hecks::Adapters::PriorityReport do
 
   def preview = Hecks::Adapters::Dispatching.new(registry: registry_of(seeded), settings: settings).preview[:text]
 
+  # A red item does not use up a place of the cap for the others, so now-e starts beside the red one
+  # and plain-c is the first item the cap holds back.
   it "gives the reason Dispatch.preview gives for a waiting item", :aggregate_failures do
-    expect(preview).to include("now-e skipped: cap 2 reached")
-    expect(report.grep(/now-e/).first).to include("cap 2 reached")
+    expect(preview).to include("plain-c skipped: cap 2 reached")
+    expect(report.grep(/plain-c/).first).to include("cap 2 reached")
   end
 
   it "says an overlap and the item it overlaps" do
