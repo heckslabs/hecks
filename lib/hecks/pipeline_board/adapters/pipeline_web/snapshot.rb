@@ -5,6 +5,7 @@ require "json"
 require "digest"
 require_relative "../board_restart"
 require_relative "../load_guard"
+require_relative "../load_history"
 require_relative "../../../hecks/adapters/dispatching/settings"
 
 module Hecks
@@ -46,7 +47,11 @@ module Hecks
         def self.standing(registry, given)
           return -> { given || nil } unless given == true
 
-          -> { LoadGuard.stand(Dispatching::Settings.new(registry).max_load) }
+          lambda do
+            limit = Dispatching::Settings.new(registry).max_load
+            LoadHistory.stand(limit)
+            LoadGuard.stand(limit)
+          end
         end
 
         # @param source [#call] answers the state hash

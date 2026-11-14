@@ -68,6 +68,21 @@ nav.pages a { color: var(--ink2); text-decoration: none; } nav.pages a:hover { c
 .card4.you { background: var(--you-wash); } .card4.you h3 { color: var(--you); }
 .card4.you:last-child { border-bottom-right-radius: 13px; }
 
+/* Planned and closed each day: a pair of bars a day. A plan that takes in more than it closes is said in amber. */
+.flow { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px 24px 16px; margin-top: 12px; }
+.flow h3 { font-size: 14px; font-weight: 650; }
+.flowline { color: var(--ink2); font-size: 13.5px; margin-top: 4px; } .flowline b { color: var(--ink); font-weight: 650; }
+.flowline .grows { color: var(--you); font-weight: 600; } .flowline .shrinks { color: var(--done); font-weight: 600; }
+.flowbars { display: flex; gap: 10px; height: 150px; margin-top: 14px; }
+.fday { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; }
+.fday .pair { flex: 1; width: 100%; display: flex; align-items: flex-end; justify-content: center; gap: 3px; border-bottom: 1px solid var(--line); }
+.fday .col { flex: 1; max-width: 26px; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: stretch; }
+.fday .col em { font-style: normal; font-size: 10.5px; color: var(--ink2); text-align: center; line-height: 1.5; }
+.fday .col i { display: block; min-height: 0; } .fday .col i:first-of-type { border-radius: 3px 3px 0 0; }
+.fday > span { font-size: 10.5px; color: var(--muted); margin-top: 4px; white-space: nowrap; }
+.fday.today > span { color: var(--ink); font-weight: 600; } .fday.today .col { opacity: .6; }
+.flow .planned { background: color-mix(in srgb, var(--ink) 52%, transparent); } .flow .finished { background: var(--done); }
+.flow .dropped { background: color-mix(in srgb, var(--ink) 20%, transparent); }
 .filters { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin: 22px 0 4px; font-size: 13px; color: var(--ink2); }
 .filters input, .filters select { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
 .filters input { flex: 1 1 260px; max-width: 380px; }
@@ -189,7 +204,8 @@ function areas() {
 function drawn() {
   document.querySelectorAll("#plan details.epic").forEach((epic) => { epic.dataset.drawn = epic.open ? "open" : "closed"; });
   const overview = document.querySelector("#plan .overview");
-  if (overview) overview.after($("filters"));
+  const above = document.querySelector("#plan .flow") || overview;
+  if (above) above.after($("filters"));
   areas(); apply();
 }
 function redraw(html) {

@@ -75,6 +75,15 @@ RSpec.describe Hecks::Adapters::GitLanding, "#start_landing" do
     expect(spawned.first.first).to include("onto.value=main", "--confirm", "--wait")
   end
 
+  it "hands the job its tries and its first pause, so a cause that passes is tried again", :aggregate_failures do
+    build_repo
+    start
+    job = Hecks::Adapters::GitLanding::Job
+
+    expect(spawned.first.first).to include(job::TRIES.to_s, job::PAUSE.to_s)
+    expect(job::SCRIPT).to include("that origin/main has", "database is locked", "gave up after")
+  end
+
   it "names the job's log in its report" do
     build_repo
 

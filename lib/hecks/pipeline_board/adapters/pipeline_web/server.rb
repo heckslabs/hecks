@@ -29,7 +29,7 @@ module Hecks
           "/agents"     => [HTML_TYPE, :agents_page],
           "/plan"       => [HTML_TYPE, :plan_page],
           "/diagrams"   => [HTML_TYPE, :diagrams_page],
-          "/ci"         => [HTML_TYPE, :ci_page],
+          "/ci"         => [HTML_TYPE, :ci_page], "/sessions" => [HTML_TYPE, :page],
           "/stream.js"  => [SCRIPT_TYPE, :stream_script], "/answer.js" => [SCRIPT_TYPE, :answer_script],
           "/api/state"  => [JSON_TYPE, :state],
           "/api/wiring" => [JSON_TYPE, :wiring]

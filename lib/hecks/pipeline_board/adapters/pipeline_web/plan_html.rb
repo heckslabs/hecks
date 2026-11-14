@@ -4,6 +4,7 @@ require "cgi"
 require_relative "plan_item"
 require_relative "plan_epic"
 require_relative "plan_overview"
+require_relative "plan_flow_html"
 
 module Hecks
   module Adapters
@@ -23,7 +24,8 @@ module Hecks
         def draw(reading)
           return TileHtml.unknown(reading) if reading.key?(:unknown)
 
-          "#{PlanOverview.draw(reading)}#{lanes(reading[:epics])}#{no_epic(reading[:no_epic])}"
+          top = "#{PlanOverview.draw(reading)}#{PlanFlowHtml.draw(reading[:flow])}"
+          "#{top}#{lanes(reading[:epics])}#{no_epic(reading[:no_epic])}"
         end
 
         def lanes(epics) = epics.group_by { |epic| epic[:lane] }.map { |name, list| lane(name, list) }.join
