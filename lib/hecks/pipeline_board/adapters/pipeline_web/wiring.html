@@ -4,31 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pipeline Wiring</title>
-<style>
+<!--style--><style>
 /* The wiring page: every context as one block, laid left to right in the direction its policies run, with the
    lines between contexts at rest in grey. Colour is kept for what is happening: a selection, and a message crossing. */
-:root {
-  color-scheme: light;
-  --page: #f3f5f4; --surface: #ffffff; --ink: #16211d; --ink2: #55615c; --muted: #87928d;
-  --line: rgba(22,33,29,.13); --wire: #a9b3ae; --pick: #2563d9; --good: #2f7d5b; --warning: #b87400; --critical: #c23b3b;
-  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark; --page: #0d1311; --surface: #151c19; --ink: #e8efeb; --ink2: #a9b5af; --muted: #76827c;
-    --line: rgba(232,239,235,.12); --wire: #4d5954; --pick: #6ea3ff; --good: #4fb286; --warning: #f0b040; --critical: #ef6b6b;
-  }
-}
-:root[data-theme="dark"] {
-  color-scheme: dark; --page: #0d1311; --surface: #151c19; --ink: #e8efeb; --ink2: #a9b5af; --muted: #76827c;
-  --line: rgba(232,239,235,.12); --wire: #4d5954; --pick: #6ea3ff; --good: #4fb286; --warning: #f0b040; --critical: #ef6b6b;
-}
-* { box-sizing: border-box; }
 [hidden] { display: none !important; }
-body { margin: 0; background: var(--page); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; font-variant-numeric: tabular-nums; }
 main { max-width: 1500px; margin: 0 auto; padding: 14px 16px 24px; }
 header { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin-bottom: 10px; }
-h1 { font-size: 16px; margin: 0; font-weight: 600; }
 .note { color: var(--ink2); font-size: 12.5px; }
 .tools { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-left: auto; }
 button, input { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 5px 10px; }

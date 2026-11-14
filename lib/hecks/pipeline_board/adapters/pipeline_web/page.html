@@ -4,38 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pipeline Board</title>
-<style>
-:root {
-  color-scheme: light;
-  --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink2: #52514e; --muted: #898781;
-  --grid: #e1e0d9; --axis: #c3c2b7; --border: rgba(11,11,11,.10);
-  --series1: #2a78d6; --series2: #eb6834;
-  --good: #0ca30c; --warning: #fab219; --serious: #ec835a; --critical: #d03b3b;
-  --on-fill: #ffffff; --on-warning: #0b0b0b; --good-text: #006300;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink2: #c3c2b7; --muted: #898781;
-    --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,.10);
-    --series1: #3987e5; --series2: #d95926; --good-text: #0ca30c;
-  }
-}
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink2: #c3c2b7; --muted: #898781;
-  --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,.10);
-  --series1: #3987e5; --series2: #d95926; --good-text: #0ca30c;
-}
-* { box-sizing: border-box; }
-body { margin: 0; background: var(--page); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+<!--style--><style>
 main { max-width: 1280px; margin: 0 auto; padding: 16px; }
 .stale-banner { border-left: 4px solid var(--critical); padding: 8px 12px; margin-bottom: 12px; background: var(--page); border-radius: 0 6px 6px 0; font-size: 14px; }
 header { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline; justify-content: space-between; margin-bottom: 16px; }
-h1 { font-size: 20px; margin: 0; font-weight: 600; }
-h2 { font-size: 13px; margin: 0 0 8px; color: var(--ink2); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+h2 { font-size: 14px; margin: 0 0 8px; color: var(--ink); font-weight: 650; }
 .meta { color: var(--ink2); font-size: 13px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-a { color: var(--series1); }
 button { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--axis); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
 button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--series1); outline-offset: 2px; }
 section { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-bottom: 16px; }
@@ -46,8 +20,8 @@ section { background: var(--surface); border: 1px solid var(--border); border-ra
 .tile .unit { font-size: 13px; color: var(--ink2); font-weight: 400; margin-left: 4px; }
 .tile .note { color: var(--muted); font-size: 12px; margin-top: 2px; }
 /* One file, two pages. The Sessions page shows the sessions and nothing else; the board shows everything but them. */
-body.view-sessions main > section, body.view-sessions main > details:not(#sessions-panel), body.view-sessions #toggle, body.view-sessions .in-board { display: none; }
-body:not(.view-sessions) #sessions-panel, body:not(.view-sessions) .in-sessions { display: none; }
+body.view-sessions main > section, body.view-sessions main > details:not(#sessions-panel), body.view-sessions #toggle { display: none; }
+body:not(.view-sessions) #sessions-panel { display: none; }
 body.view-sessions #sessions-panel > summary { pointer-events: none; } body.view-sessions #sessions-panel > summary::before { display: none; }
 /* A box never grows into a wall of text: it shows its first lines, and the row or tile opens the rest. */
 /* Machine load: the last fifteen minutes as one filled line, green under the limit a fill stops at and red over it. */
@@ -161,12 +135,12 @@ a.linked:hover .name, a.linked:focus-visible .name { text-decoration: underline;
 tr.sending td { background: rgba(234, 179, 8, .28); }
 .attn { padding: 6px 0; border-bottom: 1px solid var(--grid); }
 .askform { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; padding: 10px 12px; border: 1px solid var(--axis); border-radius: 8px; }
-.askform h3.sub { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.askform h3.sub { margin: 0; font-size: 12px; color: var(--muted); }
 .askform select, .askform textarea { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--axis); border-radius: 6px; padding: 4px 8px; }
 .askform button { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--axis); border-radius: 6px; padding: 3px 10px; }
 .attn-group { background: var(--page); border: 1px solid var(--axis); border-left: 4px solid var(--warning); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; }
 .attn-group:last-child { margin-bottom: 0; }
-.attn-group h3.sub { margin: 0 0 6px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.attn-group h3.sub { margin: 0 0 6px; font-size: 12px; font-weight: 600; color: var(--muted); }
 .tip { white-space: pre-line; }
 button.del { font: inherit; font-size: 12px; margin-left: 8px; color: var(--ink); background: var(--surface); border: 1px solid var(--axis); border-radius: 6px; padding: 1px 8px; }
 button.del:disabled { opacity: .5; }
@@ -190,7 +164,6 @@ details.panel > summary .sum .attention, details.panel > summary .sum .attention
 details.panel > summary .sum .failed, details.panel > summary .sum .failed b { color: var(--critical); }
 details.panel > summary .sum .working b { color: var(--series1); }
 details.panel > summary .sum .ok b { color: var(--good-text); }
-nav.pages { display: flex; gap: 14px; margin-right: auto; font-size: 13px; font-weight: 600; }
 details.panel { margin: 0; } details.panel > summary .hint { color: var(--ink2); font-size: 12px; text-transform: none; letter-spacing: 0; }
 .pager { display: flex; align-items: center; gap: 10px; margin-top: 6px; font-size: 12px; color: var(--ink2); }
 .pager button { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--axis); border-radius: 6px; padding: 2px 8px; }
@@ -219,8 +192,8 @@ details.panel > .scroll, details.panel > .feed, details.panel > .strip, details.
 <body>
 <main>
   <header>
-    <h1 id="title">Pipeline Board</h1>
-    <nav class="pages" aria-label="Board pages"><a href="/" class="in-sessions">Board</a><a href="/sessions" class="in-board" data-tip="Every session: its status, work item and what it is doing, with the finished ones to delete">Sessions</a><a href="/plan" data-tip="Epics, what runs, what is next and what needs you">Plan</a><a href="/agents">Agents</a><a href="/ci" data-tip="CI on main and on the train's pull requests: run times, slowest jobs and flakes">CI</a><a href="/diagrams" data-tip="The wiring and sequence diagrams, on their own page">Diagrams</a></nav>
+    <h1 id="title">Board</h1>
+    <!--nav-->
     <div class="meta">
       <span id="updated">loading</span>
       <span class="live" id="live">stream: connecting</span>
@@ -794,7 +767,7 @@ function sessionsView() { return location.pathname === "/sessions" || location.p
 function applyView() {
   const on = sessionsView();
   document.body.classList.toggle("view-sessions", on); if (on) $("sessions-panel").open = true;
-  $("title").textContent = on ? "Sessions" : "Pipeline Board"; document.title = on ? "Pipeline Sessions" : "Pipeline Board";
+  $("title").textContent = on ? "Sessions" : "Board"; document.title = on ? "Pipeline Sessions" : "Pipeline Board";
 }
 // Marks every element whose tokens name the highlighted item, opens its panel and scrolls to it once;
 // when the latest render holds nothing of it, the banner says so, with the JSON for tools.

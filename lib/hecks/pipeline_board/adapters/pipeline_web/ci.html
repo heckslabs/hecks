@@ -4,35 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pipeline CI</title>
-<style>
+<!--style--><style>
 /* The CI page: whether main is green, how long a run takes against its goal, and what is slow or flaky, for main
    and for the train's pull requests. One bar is one run: its height is its wall time, its colour how it ended. */
-:root {
-  color-scheme: light;
-  --page: #f3f5f4; --surface: #ffffff; --ink: #16211d; --ink2: #55615c; --muted: #87928d;
-  --line: rgba(22,33,29,.11); --good: #2f7d5b; --run: #2563d9; --warning: #b87400; --critical: #c23b3b;
-  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark; --page: #0d1311; --surface: #151c19; --ink: #e8efeb; --ink2: #a9b5af; --muted: #76827c;
-    --line: rgba(232,239,235,.11); --good: #4fb286; --run: #6ea3ff; --warning: #f0b040; --critical: #ef6b6b;
-  }
-}
-:root[data-theme="dark"] {
-  color-scheme: dark; --page: #0d1311; --surface: #151c19; --ink: #e8efeb; --ink2: #a9b5af; --muted: #76827c;
-  --line: rgba(232,239,235,.11); --good: #4fb286; --run: #6ea3ff; --warning: #f0b040; --critical: #ef6b6b;
-}
-* { box-sizing: border-box; }
-body { margin: 0; background: var(--page); color: var(--ink); font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; font-variant-numeric: tabular-nums; }
 main { max-width: 1180px; margin: 0 auto; padding: 20px 16px 64px; }
 h1, h2, h3, p, ul { margin: 0; }
-a { color: var(--run); }
 :focus-visible { outline: 2px solid var(--run); outline-offset: 2px; border-radius: 4px; }
 header.top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 20px; margin-bottom: 18px; }
-h1 { font-size: 15px; font-weight: 600; }
-nav.pages { display: flex; gap: 16px; margin-right: auto; font-size: 13px; }
-nav.pages a { color: var(--ink2); text-decoration: none; } nav.pages a:hover { color: var(--ink); text-decoration: underline; }
 .note { color: var(--ink2); font-size: 12.5px; }
 
 .overview { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 22px 24px 0; }
@@ -74,7 +52,7 @@ details.all { margin-top: 12px; } details.all summary { cursor: pointer; font-si
 <main>
   <header class="top">
     <h1>CI</h1>
-    <nav class="pages" aria-label="Board pages"><a href="/">Board</a><a href="/plan">Plan</a><a href="/agents">Agents</a><a href="/diagrams">Diagrams</a></nav>
+    <!--nav-->
     <span class="note" id="updated">loading</span><span class="note" id="live">stream: connecting</span>
   </header>
   <div class="overview"><p class="headline" id="headline">Reading the runs</p><div class="facts" id="facts"></div></div>
