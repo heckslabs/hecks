@@ -24,7 +24,7 @@ module Hecks
           # never refuses a line.
           PER_LINE = %w[HECKS_ENVIRONMENT].freeze
           # The world's defaults when it declares no `resident` line.
-          DEFAULTS = { idle_seconds: 600.0, max_residents: Crowd::DEFAULT_CAP.to_f,
+          DEFAULTS = { idle_seconds: 600.0, worktree_idle_seconds: 120.0, max_residents: Crowd::DEFAULT_CAP.to_f,
                        ready_wait_ms: 400.0, workers: 8.0 }.freeze
           # Settings with no default: a world that does not declare one leaves it unset.
           # `line_seconds` is how long a line may run before the resident ends it ({LineLimit}).
@@ -98,12 +98,19 @@ module Hecks
           end
 
           # @return [Hash{Symbol => Float}] `idle_seconds`, `max_residents`, `ready_wait_ms` and
-          #   `workers` from the Hecks world, and `line_seconds` when the world declares it
+          #   `workers` from the Hecks world, and `line_seconds` when the world declares it. A
+          #   linked worktree's `idle_seconds` is the world's `worktree_idle_seconds`.
           def settings
             world = @cache.fetch(File.join(@root, DOMAIN), ENVIRONMENTS.first)&.registry&.world("Hecks")
             declared = world ? world.for_verb("resident") : {}
-            DEFAULTS.merge(declared.slice(*DEFAULTS.keys, *OPTIONAL)).transform_values { |value| Float(value) }
+            read = DEFAULTS.merge(declared.slice(*DEFAULTS.keys, *OPTIONAL)).transform_values { |value| Float(value) }
+            read.merge(idle_seconds: read[linked_worktree? ? :worktree_idle_seconds : :idle_seconds])
           end
+
+          # Whether the checkout is a linked worktree, which one session uses and then leaves, so
+          # its resident waits a shorter time than the main checkout's: its `.git` is a file that
+          # names the repository, where a checkout of its own has a directory.
+          def linked_worktree? = File.file?(File.join(@root, ".git"))
 
           # @return [Integer] how many other residents hold their locks
           def standing = Crowd.standing(Paths.lock(@root))

@@ -2,6 +2,7 @@ require "English"
 require "tempfile"
 require "hecks/adapters/driving/resident/outcome"
 require "hecks/adapters/driving/resident/stores"
+require "hecks/adapters/driving/resident/title"
 require "hecks/adapters/driving/resident/trace"
 
 module Hecks
@@ -152,8 +153,15 @@ module Hecks
             ENV.replace(@request[:env])
             Outcome.note(Outcome::SERVED)
             ARGV.replace(@request[:argv])
-            $PROGRAM_NAME = @request[:script]
+            name_process
             %w[INT TERM HUP].each { |signal| Signal.trap(signal, "DEFAULT") }
+          end
+
+          # Sets the program name the launcher's top level compares, and then the title the
+          # process table shows: the launcher and the command, without the line's arguments.
+          def name_process
+            $PROGRAM_NAME = @request[:script]
+            Title.apply(Title.line(@request[:script], @request[:argv]))
           end
         end
       end
