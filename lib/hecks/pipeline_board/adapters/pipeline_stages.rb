@@ -138,11 +138,11 @@ module Hecks
         PipelineBoard::Metrics.tiles(data.merge(@limits), now) + [PipelineBoard::DailyHealth.tile(health)]
       end
 
-      # The panels beside the strip: the pinned agents and the Work items' cycles.
+      # The panels beside the strip: the pinned agents, the Work items' cycles and the runs.
       def panels(data)
         days = PipelineBoard::ThroughputDays.build(data[:finished_times], @now.call)
         agents(data).merge(cycles: cycle_reading(data[:cycle_events]), throughput_days: days,
-                           load_history: PipelineBoard::LoadHistory.reading)
+                           load_history: PipelineBoard::LoadHistory.reading, integration: data[:integration])
       end
 
       # The cycles laid from the stage events, or the events' `{unknown: reason}` as it was read.
@@ -169,7 +169,7 @@ module Hecks
         @github = readers.fetch(:github) { PipelineGitHub.new(root: @root) }
         @git = readers.fetch(:git) { PipelineGit.new(root: @root) }
         @journal = readers.fetch(:journal) { PipelineJournal.new(root: @root) }
-        wire_work(readers, registry)
+        wire_stores(readers, registry)
         @fill = readers.fetch(:fill) { PipelineFill.new(root: @root, registry: registry, store: @live) }
       end
 

@@ -212,7 +212,7 @@ details.panel > .scroll, details.panel > .feed, details.panel > .strip, details.
     <div class="loadaxis" id="loadaxis"></div></section>
   <section aria-labelledby="h-tiles"><h2 id="h-tiles">Key metrics</h2><div class="tiles" id="tiles"></div></section>
   <section aria-labelledby="h-thru" class="thru"><h2 id="h-thru">Work finished per day</h2><div class="label" id="thrunote"></div><div id="thru"></div></section>
-  <details class="panel" open><summary data-tip="Each stage of a change from planned to released. Click a stage that needs you to resolve it"><h2 id="h-strip">Pipeline</h2><span class="sum" id="sum-strip"></span></summary><div class="strip" id="strip"><div class="node" id="train"><!--tile:train--></div></div></details>
+  <details class="panel" open><summary data-tip="Each stage of a change from planned to released. Click a stage that needs you to resolve it"><h2 id="h-strip">Pipeline</h2><span class="sum" id="sum-strip"></span></summary><div class="strip" id="strip"><div class="node" id="integration"><!--tile:integration--></div><div class="node" id="train"><!--tile:train--></div></div></details>
   <details class="panel" id="sessions-panel"><summary data-tip="Claude sessions dispatched or started by hand: their status, work item and what they are doing. Click a blocked session to answer it"><h2 id="h-sess">Sessions</h2><span class="sum" id="sum-sess"></span></summary><div class="scroll" id="sessions"></div></details>
 
   <details class="panel"><summary data-tip="How the work fans out across sessions: lanes, who is running what, and what the dispatcher would start next"><h2 id="h-fan">Fan-out</h2><span class="sum" id="sum-fan"></span></summary>
@@ -459,6 +459,7 @@ function renderStrip(stages) {
   summarize("strip", off.length ? off.map((s) => [": " + s.detail, s.state, s.name]) : [["all " + stages.length + " stages ok", "ok"]]);
   put("strip", stages.map((s) => {
     if (s.name === "Train") return $("train"); // drawn and pushed by the server
+    if (s.name === "Integration") return $("integration"); // drawn and pushed by the server; read-only, nothing to click
     const waiting = Array.isArray(s.blocked) ? s.blocked : [];
     const clickable = waiting.length || needsAttention(s.state);
     const node = h("div", { class: "node" + (clickable ? " clickable" : ""), tip: s.name + ": " + s.detail + (waiting.length ? " (click to answer)" : needsAttention(s.state) ? " (click to resolve)" : "") },
