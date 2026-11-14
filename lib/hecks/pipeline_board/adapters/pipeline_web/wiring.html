@@ -556,7 +556,10 @@ $("fit").addEventListener("click", fit); $("zin").addEventListener("click", () =
 $("replay").addEventListener("click", () => replay(recent.slice(-12), false));
 $("toggle").addEventListener("click", () => { const on = $("grid").hidden; $("grid").hidden = !on; map.style.display = on ? "none" : ""; $("key").hidden = on; $("toggle").setAttribute("aria-pressed", String(on)); $("toggle").textContent = on ? "Show map" : "Show table"; });
 addEventListener("resize", () => { if (!touched) fit(); });
+// Until the graph has been read, the stage shows Una waiting.
+const wait = una("Reading the wiring", true); map.before(wait);
 function applyWiring(g, first) {
+  wait.remove();
   nodes = g.nodes; edges = g.edges; wiringDigest = g.digest; byId = new Map(nodes.map((n) => [n.id, n]));
   place(); sync();
   if (inside && !contexts().has(inside)) inside = null;

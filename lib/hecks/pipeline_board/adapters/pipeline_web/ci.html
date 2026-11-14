@@ -7,7 +7,6 @@
 <!--style--><style>
 /* The CI page: whether main is green, how long a run takes against its goal, and what is slow or flaky, for main
    and for the train's pull requests. One bar is one run: its height is its wall time, its colour how it ended. */
-main { max-width: 1180px; margin: 0 auto; padding: 20px 16px 64px; }
 h1, h2, h3, p, ul { margin: 0; }
 :focus-visible { outline: 2px solid var(--run); outline-offset: 2px; border-radius: 4px; }
 header.top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 20px; margin-bottom: 18px; }
@@ -81,6 +80,9 @@ function why(reading) {
   const held = text.match(/not run: load ([\d.]+) is above ([\d.]+)/);
   return held ? "Paused while the machine is busy (load " + held[1] + ", limit " + held[2] + ")." : "Not read: " + text;
 }
+/* A reading still on its way is a large Una; one that failed or was held back says why in words. */
+const waiting = (reading) => String(reading.unknown).startsWith("the first read");
+const missing = (reading) => (waiting(reading) ? una("Reading the runs", true) : h("p", { class: "quiet" }, why(reading)));
 const ended = (run) => (run.conclusion === "success" ? "success" : run.conclusion ? "failure" : "running");
 const table = (head, rows, numeric = []) => h("table", {}, h("thead", {}, h("tr", {}, head.map((text, i) => h("th", { class: numeric.includes(i) ? "n" : null }, text)))),
   h("tbody", {}, rows.map((row) => h("tr", {}, row.map((cell, i) => h("td", { class: numeric.includes(i) ? "n" : null }, cell))))));
@@ -89,7 +91,7 @@ const linked = (url, text) => (url ? h("a", { href: url, target: "_blank", rel: 
 /* ---- the top: one sentence on main, then the six numbers the board keeps about CI ---- */
 const CI_TILES = ["success", "wall", "failed_head", "red", "lead", "carry"];
 function renderHeadline(runs) {
-  if (isUnknown(runs)) return put("headline", why(runs));
+  if (isUnknown(runs)) return put("headline", waiting(runs) ? "Reading the runs" : why(runs));
   const last = runs[runs.length - 1];
   if (!last) return put("headline", "No run of main has been read yet.");
   const how = ended(last), word = { success: ["green", "good"], failure: ["red", "critical"], running: ["running", "run"] }[how];
@@ -116,14 +118,14 @@ function runsChart(runs) {
     h("div", { class: "shas" }, runs.map((r) => h("span", {}, String(r.sha).slice(0, 4))))];
 }
 function slowest(slow) {
-  if (isUnknown(slow)) return h("p", { class: "quiet" }, why(slow));
+  if (isUnknown(slow)) return missing(slow);
   if (!slow.length) return h("p", { class: "quiet" }, "No completed run to read jobs from.");
   const most = Math.max(1, ...slow.map((j) => j.minutes));
   return h("div", {}, slow.map((j) => { const cells = [h("span", { class: "name", title: j.name }, j.name), h("span", { class: "track" + (j.conclusion === "failure" ? " failure" : "") }, h("span", { class: "fill", style: "display:block;width:" + Math.round(100 * j.minutes / most) + "%" })), h("span", { class: "min" }, j.minutes + " min")];
     return h("div", { class: "slow" + (j.conclusion === "failure" ? " failure" : "") }, j.url ? h("a", { class: "row", href: j.url, target: "_blank", rel: "noopener" }, cells) : cells); }));
 }
 function renderLane(id, runs, slow) {
-  if (isUnknown(runs)) return put(id, h("div", { class: "card" }, h("p", { class: "quiet" }, why(runs))));
+  if (isUnknown(runs)) return put(id, h("div", { class: "card" }, missing(runs)));
   if (!runs.length) return put(id, h("div", { class: "card" }, h("p", { class: "quiet" }, "No run has been read yet.")));
   const failed = runs.filter((r) => r.conclusion && r.conclusion !== "success").length, over = runs.filter((r) => r.wall_minutes > GOAL).length;
   put(id, h("div", { class: "card" }, h("h3", {}, "Wall minutes per run, oldest to newest", h("small", {}, runs.length + " runs, " + (failed ? failed + " failed" : "none failed") + ", " + (over ? over + " over the goal" : "none over the goal"))), runsChart(runs),
@@ -131,7 +133,7 @@ function renderLane(id, runs, slow) {
     h("div", { class: "card" }, h("h3", {}, "Slowest jobs of the last completed run"), slowest(slow)));
 }
 function renderFlakes(doc) {
-  if (isUnknown(doc)) return put("flakes", h("p", { class: "quiet" }, why(doc)));
+  if (isUnknown(doc)) return put("flakes", missing(doc));
   const rows = (doc && doc.flakes) || [];
   $("flake-note").textContent = "Failed, then passed on a rerun. Last " + doc.window_days + " days, runs read back to " + String(doc.reaches_back || "-").slice(0, 10) + (doc.unreadable ? "; " + doc.unreadable + " runs unreadable" : "") + ".";
   put("flakes", rows.length ? table(["Item", "Kind", "Times", "Train pull requests"], rows.map((f) => [f.item, f.kind, f.count, f.prs.map((p) => p.branch.replace("train/main-", "")).join(", ")]), [2]) : h("p", { class: "quiet" }, "Nothing flaked in that time."));

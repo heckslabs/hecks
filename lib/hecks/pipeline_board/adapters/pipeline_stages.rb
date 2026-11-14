@@ -193,7 +193,7 @@ module Hecks
       # is paused, and the open plan reviews and promotion recommendations.
       def agents(data)
         { roles: PipelineBoard::AgentRoles.of(data[:sessions], @roles, data[:events]), pruning: PipelineBoard::PruningStanding.of(@seats),
-          reviews: PipelineBoard::AgentRoles.reviews(guard { @tickets.runs }), recommendations: PipelineBoard::AgentRoles.recommendations(data[:promotions]) }
+          reviews: PipelineBoard::AgentRoles.review_lines(guard { @tickets.runs }), recommendations: PipelineBoard::AgentRoles.recommendations(data[:promotions]) }
       end
 
       def sections

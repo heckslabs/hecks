@@ -94,6 +94,17 @@ module Hecks
           event && { name: event[:name], at: event[:at], id: event[:id] }
         end
 
+        # The reviews as the board's state carries them: each one's Work item, run and verdict,
+        # without its findings. Only the planning page shows the findings, and it reads them
+        # itself; in the state they were most of what every page downloaded on every push.
+        #
+        # @param runs [Hash{String => Hash}, Hash] each run by session id, or `{unknown:}`
+        # @return [Array<Hash>, Hash] each review's `work`, `run` and `verdict`; or `{unknown:}`
+        def review_lines(runs)
+          found = reviews(runs)
+          found.is_a?(Array) ? found.map { |review| review.except(:findings) } : found
+        end
+
         # The architect's plan reviews, taken from the architect's runs and what each session wrote
         # last. The runs persist in the run ledger; the review itself is not stored anywhere else.
         #

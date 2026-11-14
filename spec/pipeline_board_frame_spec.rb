@@ -16,12 +16,20 @@ RSpec.describe Hecks::Adapters::PipelineBoard::Frame do
   end
 
   it "puts the same navigation bar into every page, in one order" do
-    bar = described_class.apply("<header><!--nav--></header>")
+    bar = described_class.apply("<body><header><!--nav--></header></body>")
     expect(bar.scan(/<a href="([^"]+)"/).flatten).to eq(%w[/ /sessions /plan /agents /ci /diagrams])
   end
 
   it "marks the page being read, and a run's own address as the sessions' page" do
     expect(described_class.nav).to include("aria-current", '<a href="/sessions" data-also="/runs/">Sessions</a>')
+  end
+
+  it "draws Una into every page, for whatever is waiting" do
+    expect(described_class.apply("<body></body>")).to include('<symbol id="una"', "window.una = function")
+  end
+
+  it "gives a page with no navigation mark no bar, as the diagrams drawn inside another page are" do
+    expect(described_class.apply("<body></body>")).not_to include("topbar")
   end
 
   it "serves a page with neither mark as it is" do
