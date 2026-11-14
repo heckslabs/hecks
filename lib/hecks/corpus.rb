@@ -158,8 +158,9 @@ module Hecks
     # The domain directory a bluebook directory stands for: a `bluebook/` folder is its parent.
     def owning_dir(dir) = File.basename(dir) == "bluebook" ? File.dirname(dir) : dir
 
-    # A bluebook line that opens a `domain_module`.
-    MODULE_OPENING = /^\s*domain_module\b/
+    # A bluebook whose first statement, on the line after its opening, is a `domain_module`. A
+    # domain that declares a module among its own statements is a domain, not a module's file.
+    MODULE_OPENING = /\A[^\n]*\n\s*domain_module\b/
 
     # Whether a bluebook is a module folder's (ADR 0163): it opens a `domain_module` of the parent's
     # bluebook, so its folder is no domain on its own and cannot boot alone.
