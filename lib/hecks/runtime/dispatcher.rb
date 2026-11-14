@@ -221,7 +221,7 @@ module Hecks
         return unless Thread.current[:hecks_reaction_depth].to_i.zero?
 
         ReactionOutcome.blocking(reactions, event_of: @registry.method(:reaction_event)).each do |row|
-          warn "[hecks] reaction #{row[:policy]} was refused (#{row[:trigger]}): #{row[:reason]}"
+          ReactionNotice.say "[hecks] reaction #{row[:policy]} was refused (#{row[:trigger]}): #{row[:reason]}"
         end
       end
 

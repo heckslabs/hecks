@@ -139,8 +139,8 @@ module Hecks
       # re-raised. The emitting command has already persisted, so propagating would
       # only fail an unrelated caller. See DOMAIN_REFUSALS for why the two stay apart.
       def defect(policy, event, record, error, activity)
-        warn "[hecks] defect in reaction — policy #{policy.name} on #{event.name} " \
-             "#{activity}: #{error.class}: #{error.message}"
+        ReactionNotice.say "[hecks] defect in reaction — policy #{policy.name} on #{event.name} " \
+                           "#{activity}: #{error.class}: #{error.message}"
         record.merge(delivered: false, reason: error.message, defect: true, error_class: error.class.name)
       end
     end

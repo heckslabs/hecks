@@ -42,6 +42,10 @@ module Hecks
         # The world verb that carries where `claude` is installed, tried when `PATH` has none.
         EXECUTABLE = "claude_executable"
 
+        # The world verb that carries the minutes a `stopped` session may stand over a started run
+        # that shows no sign of life before the run is taken for gone.
+        STOPPED = "stopped_session_after"
+
         # Minutes a started run may show nothing when the world names none.
         GONE_MINUTES = 60
 
@@ -127,6 +131,10 @@ module Hecks
         # @return [Integer] the minutes a started run may show no process, commit or change before
         #   it is gone, when `claude` cannot list sessions
         def run_gone_minutes = Integer(declared(GONE)[:minutes] || GONE_MINUTES)
+
+        # @return [Integer] the minutes a session `claude` lists as stopped may stand over a started
+        #   run that shows no process, commit or change before the run is gone
+        def stopped_session_minutes = Integer(declared(STOPPED)[:minutes] || GONE_MINUTES)
 
         # @return [Array<String>] the places `claude` may be installed, the adapter's own when the
         #   world names none

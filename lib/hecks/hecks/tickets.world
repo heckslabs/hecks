@@ -59,6 +59,10 @@ Hecks.world "Tickets" do
   # `run_gone_after`: minutes a started run may show no process, commit or changed file before it is
   # gone, when `claude` cannot list sessions. `claude_executable`: where `claude` is when PATH lacks it.
   run_gone_after "Dispatch", minutes: 60
+  # `stopped_session_after`: minutes a session `claude` lists as stopped may stand over a started run
+  # that shows no process, commit or changed file before the run is gone. A working or waiting
+  # session is never gone.
+  stopped_session_after "Dispatch", minutes: 60
   claude_executable "Sessions", candidates: %w[~/.local/bin/claude ~/.claude/local/claude /opt/homebrew/bin/claude /usr/local/bin/claude]
   ticks "Ticker", seconds: 20, minutes: 30
   rust_build "RustBuild", jobs: 4, nice: 15
