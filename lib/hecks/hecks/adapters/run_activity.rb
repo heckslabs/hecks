@@ -17,11 +17,16 @@ module Hecks
         @shell = shell
       end
 
+      # The marker of a linked worktree's path. A run that works in the checkout's own root names a
+      # directory that every hecks process names too, so only a linked worktree is a sign of life.
+      WORKTREES = "/.claude/worktrees/"
+
       # @param session [String] the session id the run holds
       # @param directory [String] the run's worktree
-      # @return [Boolean] whether a process's command line names the session or the directory
+      # @return [Boolean] whether a process's command line names the session, or the directory when
+      #   it is a linked worktree
       def process?(session, directory)
-        names = [session, directory].map(&:to_s).reject(&:empty?)
+        names = [session, linked(directory)].map(&:to_s).reject(&:empty?)
         lines = @shell.capture("ps", "-axo", "command").out.lines
         lines.any? { |line| names.any? { |name| line.include?(name) } }
       end
@@ -30,12 +35,16 @@ module Hecks
       # @return [Time, nil] the latest of the newest commit `origin` lacks and the newest change to
       #   a file git lists as changed or untracked; nil when there is none or the directory is gone
       def last_at(directory)
-        return nil unless File.directory?(directory.to_s)
+        return nil unless linked(directory) && File.directory?(directory.to_s)
 
         [committed_at(directory), changed_at(directory)].compact.max
       end
 
       private
+
+      # The directory when it is a linked worktree, nil for the checkout's own root, whose
+      # commits and changed files belong to whoever works there.
+      def linked(directory) = (directory.to_s if directory.to_s.include?(WORKTREES))
 
       def committed_at(directory)
         said = @shell.capture("git", "-C", directory, "log", "-1", "--format=%ct", "HEAD", "--not", "--remotes=origin")
