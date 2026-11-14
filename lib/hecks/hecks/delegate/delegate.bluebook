@@ -1238,6 +1238,210 @@ Hecks.bluebook "Hecks" do
       trigger RollSwitch::Open, with: { switch: "rolls" }
     end
 
+    aggregate "Overload" do
+      description "The pipeline's own overload verdict, said by the readings alone. Each reading counts into " \
+                  "three runs (over the load mark 20, under the load limit, memory low); the verdict stands " \
+                  "after 5 over the mark or 3 low, and is lifted after 10 under the limit with memory ok. " \
+                  "A record, not a switch: whatever fills the queue reads `standing`, and the owner's " \
+                  "`RollSwitch` is never touched."
+
+      attribute :overload,  OverloadKey
+      attribute :standing,  Verdict
+      attribute :heavy_run, Streak
+      attribute :calm_run,  Streak
+      attribute :low_run,   Streak
+      attribute :reason,    OverloadReason, optional: true
+      attribute :reading,   OverloadReason, optional: true
+      identified_by :overload
+
+      value_object "OverloadKey" do
+        attribute :value, String, matches: :present
+      end
+
+      # One while the overload stands, zero while the pipeline adds work.
+      value_object "Verdict" do
+        attribute :value, Integer, default: 0
+        invariant("an overload stands or it does not") { [0, 1].include?(value) }
+      end
+
+      # Consecutive readings of one kind.
+      value_object "Streak" do
+        attribute :value, Integer, default: 0
+      end
+
+      value_object "OverloadReason", String
+
+      command "Open" do
+        role "System"
+        goal "Open the one overload record of a store, with no overload standing"
+
+        attribute :overload, OverloadKey, sets: true
+
+        emits OverloadOpened
+      end
+
+      command "Strain" do
+        role "System"
+        goal "Count a reading with the load over the overload mark: one more in the run"
+
+        reference_to Overload
+
+        sets :heavy_run, increment: { value: 1 }
+        sets :calm_run,  to: { value: 0 }
+
+        emits LoadStrained
+      end
+
+      command "Settle" do
+        role "System"
+        goal "Count a reading with the load under its limit: one more in the calm run"
+
+        reference_to Overload
+
+        sets :calm_run,  increment: { value: 1 }
+        sets :heavy_run, to: { value: 0 }
+
+        emits LoadSettled
+      end
+
+      command "Waver" do
+        role "System"
+        goal "Count a reading between the load limit and the overload mark: it breaks both runs"
+
+        reference_to Overload
+
+        sets :heavy_run, to: { value: 0 }
+        sets :calm_run,  to: { value: 0 }
+
+        emits LoadWavered
+      end
+
+      command "Starve" do
+        role "System"
+        goal "Count a reading with memory low: one more in the run"
+
+        reference_to Overload
+
+        sets :low_run, increment: { value: 1 }
+
+        emits MemoryStarved
+      end
+
+      command "Replenish" do
+        role "System"
+        goal "Count a reading with memory ok: it breaks the low run"
+
+        reference_to Overload
+
+        sets :low_run, to: { value: 0 }
+
+        emits MemoryReplenished
+      end
+
+      command "DeclareForLoad" do
+        role "System"
+        goal "Declare the overload: the load stayed over the overload mark for five readings"
+
+        reference_to Overload
+        attribute :reading, OverloadReason, sets: true
+
+        given("no overload stands yet") { standing.value == 0 }
+        given("the load stayed over the mark for five readings") { heavy_run.value >= 5 }
+
+        sets :standing, to: { value: 1 }
+        sets :reason,   to: "load over 20 for 5 readings"
+
+        emits OverloadDeclared
+      end
+
+      command "DeclareForMemory" do
+        role "System"
+        goal "Declare the overload: memory stayed low for three readings"
+
+        reference_to Overload
+        attribute :reading, OverloadReason, sets: true
+
+        given("no overload stands yet") { standing.value == 0 }
+        given("memory stayed low for three readings") { low_run.value >= 3 }
+
+        sets :standing, to: { value: 1 }
+        sets :reason,   to: "memory low for 3 readings"
+
+        emits OverloadDeclared
+      end
+
+      command "Lift" do
+        role "System"
+        goal "Lift the overload: ten readings under the load limit, with memory ok"
+
+        reference_to Overload
+        attribute :reading, OverloadReason, sets: true
+
+        given("an overload stands") { standing.value == 1 }
+        given("the load stayed under its limit for ten readings") { calm_run.value >= 10 }
+        given("memory is not low") { low_run.value == 0 }
+
+        sets :standing, to: { value: 0 }
+
+        emits OverloadLifted
+      end
+    end
+
+    policy "OpenTheOverloadWhenTheMachineIsRead" do
+      on      "Machine.MachineSampled"
+      trigger Overload::Open, with: { overload: "pipeline" }
+    end
+
+    policy "StrainWhenTheLoadIsOver" do
+      on      "Machine.MachineSampled"
+      where   { load > 20 }
+      trigger Overload::Strain, with: { overload: "pipeline" }
+    end
+
+    policy "SettleWhenTheLoadIsUnderItsLimit" do
+      on      "Machine.MachineSampled"
+      where   { load_state == "below" }
+      trigger Overload::Settle, with: { overload: "pipeline" }
+    end
+
+    policy "WaverWhenTheLoadIsBetween" do
+      on      "Machine.MachineSampled"
+      where   { load <= 20 && load_state != "below" }
+      trigger Overload::Waver, with: { overload: "pipeline" }
+    end
+
+    policy "StarveWhenMemoryIsLow" do
+      on      "Machine.MachineSampled"
+      where   { memory_state == "low" }
+      trigger Overload::Starve, with: { overload: "pipeline" }
+    end
+
+    policy "ReplenishWhenMemoryIsOk" do
+      on      "Machine.MachineSampled"
+      where   { memory_state != "low" }
+      trigger Overload::Replenish, with: { overload: "pipeline" }
+    end
+
+    policy "DeclareWhenTheLoadIsStrained" do
+      on      "Overload.LoadStrained"
+      trigger Overload::DeclareForLoad, with: { overload: "pipeline", reading: "load" }
+    end
+
+    policy "DeclareWhenMemoryIsStarved" do
+      on      "Overload.MemoryStarved"
+      trigger Overload::DeclareForMemory, with: { overload: "pipeline", reading: "memory" }
+    end
+
+    policy "LiftWhenTheLoadIsSettled" do
+      on      "Overload.LoadSettled"
+      trigger Overload::Lift, with: { overload: "pipeline", reading: "load" }
+    end
+
+    policy "LiftWhenMemoryIsReplenished" do
+      on      "Overload.MemoryReplenished"
+      trigger Overload::Lift, with: { overload: "pipeline", reading: "memory" }
+    end
+
     # One rise sheds once: the look is keyed by the reading that rose. The port answers facts, the
     # policies below decide, and the fill after `LoadFellBelow` restarts the item (`YieldKind`).
     # The StallWatch `load` row is the slow second step, for what five minutes left over the mark.
