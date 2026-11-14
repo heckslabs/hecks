@@ -8,13 +8,15 @@ module Hecks
         class Declarations
           DECLARATION = /^(\s*)(?:aggregate|value_object|entity|command|policy|event|query|workflow|projection)\s+"([^"]+)"/
 
+          LEADING_SPACE = /\A\s*/
+
           # @param lines [Array<String>] the file's lines
           def initialize(lines)
             @lines = lines
           end
 
           # @param line [Integer] a 1-based line number
-          # @return [Array<String>] the declaration on the line and each one enclosing it, inner first
+          # @return [Array<String>] the declaration on the line, then each one enclosing it
           def around(line)
             indent = indent_of(@lines[line - 1])
             names = []
@@ -30,7 +32,7 @@ module Hecks
 
           private
 
-          def indent_of(text) = text.to_s[/\A\s*/].size.then { |size| text.to_s.strip.empty? ? 0 : size }
+          def indent_of(text) = text.to_s[LEADING_SPACE].size.then { |size| text.to_s.strip.empty? ? 0 : size }
         end
       end
     end

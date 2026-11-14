@@ -16,8 +16,8 @@ module Hecks
 
           # @param file [String] the changed file, to read
           # @param path [String] the same file relative to the root
-          # @param tokens [Array<String>] the names the diff changed in the file (`Changes`); a world
-          #   file with some is known by them alone, not by its whole domain name
+          # @param tokens [Array<String>] the names the diff changed in the file (`Changes`); a
+          #   world file with some is known by them alone, not by its whole domain name
           def initialize(file, path, tokens = [])
             @path = path
             @tokens = tokens
@@ -27,7 +27,7 @@ module Hecks
           # @param text [String] a spec's text
           # @return [String, nil] the changed names the spec mentions, or nil when it names none
           def because(text)
-            hit = @tokens.select { |token| text.match?(/(?<![\w.])#{Regexp.escape(token)}(?!\w)/) }
+            hit = @tokens.select { |token| text.match?(alone(token)) }
             "#{hit.first(3).join(", ")} changed in #{@path}" unless hit.empty?
           end
 
@@ -43,10 +43,12 @@ module Hecks
           def pattern
             return @pattern if defined?(@pattern)
 
-            words = names.map { |name| "(?<!\\w)#{Regexp.escape(name)}(?!\\w)" }
-            parts = paths.map { |needle| Regexp.escape(needle) } + words
+            parts = paths.map { |needle| Regexp.escape(needle) } + names.map { |name| alone(name).source }
             @pattern = parts.empty? ? nil : Regexp.new(parts.join("|"))
           end
+
+          # A name standing alone: not part of a longer identifier.
+          def alone(name) = Regexp.new("(?<!\\w)#{Regexp.escape(name)}(?!\\w)")
 
           def paths
             bare = @path.delete_prefix("lib/").delete_suffix(".rb")

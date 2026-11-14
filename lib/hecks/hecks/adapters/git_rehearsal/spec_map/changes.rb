@@ -21,6 +21,7 @@ module Hecks
           VERB = /\b[A-Z]\w+\.[a-z_]+!?/
           SETTING = /\A\s*([a-z][a-z_0-9]*)\s/
           MOST = 40
+          CHANGED_LINE = /\A[+-](?![+-])/
 
           # @param root [String] the tree, a git work tree
           # @param since [String] the ref the changes are read against, the working tree included
@@ -40,7 +41,7 @@ module Hecks
 
           def read(path)
             hunks = diff(path).lines
-            changed = hunks.grep(/\A[+-](?![+-])/).map { |line| line[1..] }
+            changed = hunks.grep(CHANGED_LINE).map { |line| line[1..] }
             found = changed.flat_map { |line| line_names(path, line) }
             (found + enclosing(path, hunks)).uniq.first(MOST)
           end
