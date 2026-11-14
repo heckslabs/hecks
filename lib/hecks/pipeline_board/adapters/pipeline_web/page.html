@@ -45,6 +45,10 @@ section { background: var(--surface); border: 1px solid var(--border); border-ra
 .tile .num { font-size: 30px; line-height: 1.15; font-weight: 600; }
 .tile .unit { font-size: 13px; color: var(--ink2); font-weight: 400; margin-left: 4px; }
 .tile .note { color: var(--muted); font-size: 12px; margin-top: 2px; }
+/* One file, two pages. The Sessions page shows the sessions and nothing else; the board shows everything but them. */
+body.view-sessions main > section, body.view-sessions main > details:not(#sessions-panel), body.view-sessions #toggle, body.view-sessions .in-board { display: none; }
+body:not(.view-sessions) #sessions-panel, body:not(.view-sessions) .in-sessions { display: none; }
+body.view-sessions #sessions-panel > summary { pointer-events: none; } body.view-sessions #sessions-panel > summary::before { display: none; }
 /* A box never grows into a wall of text: it shows its first lines, and the row or tile opens the rest. */
 /* Work finished per day: one bar a day, today's lighter because the day is still open. */
 .thru .label { color: var(--ink2); font-size: 13px; margin-bottom: 4px; }
@@ -208,8 +212,8 @@ details.panel > .scroll, details.panel > .feed, details.panel > .strip, details.
 <body>
 <main>
   <header>
-    <h1>Pipeline Board</h1>
-    <nav class="pages" aria-label="Board pages"><a href="/plan" data-tip="Epics, what runs, what is next and what needs you">Plan</a><a href="/agents">Agents</a><a href="/ci" data-tip="CI on main and on the train's pull requests: run times, slowest jobs and flakes">CI</a><a href="/diagrams" data-tip="The wiring and sequence diagrams, on their own page">Diagrams</a></nav>
+    <h1 id="title">Pipeline Board</h1>
+    <nav class="pages" aria-label="Board pages"><a href="/" class="in-sessions">Board</a><a href="/sessions" class="in-board" data-tip="Every session: its status, work item and what it is doing, with the finished ones to delete">Sessions</a><a href="/plan" data-tip="Epics, what runs, what is next and what needs you">Plan</a><a href="/agents">Agents</a><a href="/ci" data-tip="CI on main and on the train's pull requests: run times, slowest jobs and flakes">CI</a><a href="/diagrams" data-tip="The wiring and sequence diagrams, on their own page">Diagrams</a></nav>
     <div class="meta">
       <span id="updated">loading</span>
       <span class="live" id="live">stream: connecting</span>
@@ -754,9 +758,17 @@ function highlightTokens(kind, keys) { return keys.filter(Boolean).map((key) => 
 // Sets the highlight (or none) and the address that stands for it: "push" adds a history entry, "replace" rewrites the current one.
 function setHighlight(next, mode) {
   highlight = next;
-  const path = next ? "/" + next.kind + "/" + encodeURIComponent(next.key) : "/";
+  const path = next ? "/" + next.kind + "/" + encodeURIComponent(next.key) : sessionsView() ? "/sessions" : "/";
   if (mode === "push") history.pushState(null, "", path); else if (mode === "replace") history.replaceState(null, "", path);
-  renderSessions(lastSessions);
+  applyView(); renderSessions(lastSessions);
+}
+// The board and its Sessions page are this one file. At /sessions, and at a run's own address, it shows the
+// sessions and nothing else; everywhere else it shows the board without them.
+function sessionsView() { return location.pathname === "/sessions" || location.pathname.startsWith("/runs/"); }
+function applyView() {
+  const on = sessionsView();
+  document.body.classList.toggle("view-sessions", on); if (on) $("sessions-panel").open = true;
+  $("title").textContent = on ? "Sessions" : "Pipeline Board"; document.title = on ? "Pipeline Sessions" : "Pipeline Board";
 }
 // Marks every element whose tokens name the highlighted item, opens its panel and scrolls to it once;
 // when the latest render holds nothing of it, the banner says so, with the JSON for tools.
@@ -793,8 +805,8 @@ document.addEventListener("click", (e) => {
   if (!highlight || e.target.closest(".highlighted, a, button, input, select, textarea, summary, dialog, label")) return;
   setHighlight(null, "replace");
 });
-addEventListener("popstate", () => { highlight = highlightFrom(location.pathname); renderSessions(lastSessions); });
-highlight = highlightFrom(location.pathname);
+addEventListener("popstate", () => { highlight = highlightFrom(location.pathname); applyView(); renderSessions(lastSessions); });
+highlight = highlightFrom(location.pathname); applyView();
 // The full context of one event for its hover: when, which aggregate instance, and every reaction.
 function eventTip(e) {
   const lines = [e.name, "at " + clock(e.at), e.aggregate + (e.id ? " " + e.id : "")];
@@ -829,7 +841,10 @@ function renderStale(s) {
   banner.hidden = !s.stale && !notes.length;
   if (banner.hidden) return;
   const whole = s.stale ? ["This board is stale: the last good read was " + s.stale_seconds + "s ago" + (s.refresh_error ? " (" + s.refresh_error + ")" : "") + "."] : [];
-  banner.textContent = whole.concat(notes).join(" ");
+  // The banner says how many readings are an earlier answer and since when; which ones is its hover.
+  const held = Object.entries(s.stale_sections || {}), oldest = held.map(([, note]) => note.since).sort()[0];
+  const count = held.length ? [held.length + (held.length === 1 ? " reading shows" : " readings show") + " an earlier answer, the oldest from " + clock(oldest) + "."] : [];
+  banner.textContent = whole.concat(notes.slice(0, s.load_guard ? 1 : 0), count).join(" "); banner.title = notes.map(tidy).join("\n");
 }
 // One note per section that shows an earlier answer because its read was skipped, and one while
 // the machine is loaded and the board runs no program.
@@ -861,10 +876,6 @@ $("toggle").addEventListener("click", () => {
   const on = document.body.classList.toggle("tables-only");
   $("toggle").setAttribute("aria-pressed", String(on)); $("toggle").textContent = on ? "Show charts" : "Show tables";
 });
-// The Sessions panel starts collapsed; a link to #h-sess (the Agents page's "more in Sessions") opens it.
-const openSessionsFromHash = () => { if (location.hash === "#h-sess") $("sessions-panel").open = true; };
-addEventListener("hashchange", openSessionsFromHash);
-openSessionsFromHash();
 refresh(); listen();
 </script>
 </body>
