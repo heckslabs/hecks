@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pipeline CI</title>
+<style>
+/* The CI page: whether main is green, how long a run takes against its goal, and what is slow or flaky, for main
+   and for the train's pull requests. One bar is one run: its height is its wall time, its colour how it ended. */
+:root {
+  color-scheme: light;
+  --page: #f3f5f4; --surface: #ffffff; --ink: #16211d; --ink2: #55615c; --muted: #87928d;
+  --line: rgba(22,33,29,.11); --good: #2f7d5b; --run: #2563d9; --warning: #b87400; --critical: #c23b3b;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark; --page: #0d1311; --surface: #151c19; --ink: #e8efeb; --ink2: #a9b5af; --muted: #76827c;
+    --line: rgba(232,239,235,.11); --good: #4fb286; --run: #6ea3ff; --warning: #f0b040; --critical: #ef6b6b;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark; --page: #0d1311; --surface: #151c19; --ink: #e8efeb; --ink2: #a9b5af; --muted: #76827c;
+  --line: rgba(232,239,235,.11); --good: #4fb286; --run: #6ea3ff; --warning: #f0b040; --critical: #ef6b6b;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--ink); font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; font-variant-numeric: tabular-nums; }
+main { max-width: 1180px; margin: 0 auto; padding: 20px 16px 64px; }
+h1, h2, h3, p, ul { margin: 0; }
+a { color: var(--run); }
+:focus-visible { outline: 2px solid var(--run); outline-offset: 2px; border-radius: 4px; }
+header.top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 20px; margin-bottom: 18px; }
+h1 { font-size: 15px; font-weight: 600; }
+nav.pages { display: flex; gap: 16px; margin-right: auto; font-size: 13px; }
+nav.pages a { color: var(--ink2); text-decoration: none; } nav.pages a:hover { color: var(--ink); text-decoration: underline; }
+.note { color: var(--ink2); font-size: 12.5px; }
+
+.overview { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 22px 24px 0; }
+.headline { font-size: clamp(22px, 3.2vw, 32px); line-height: 1.15; letter-spacing: -.015em; font-weight: 400; text-wrap: balance; }
+.headline b { font-weight: 650; } .headline .good { color: var(--good); } .headline .critical { color: var(--critical); } .headline .run { color: var(--run); } .headline .warning { color: var(--warning); }
+.headline small { display: block; margin-top: 8px; font-size: 14px; letter-spacing: 0; color: var(--ink2); }
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); margin: 20px -24px 0; border-top: 1px solid var(--line); }
+.fact { padding: 14px 24px 16px; border-left: 1px solid var(--line); min-width: 0; } .fact:first-child { border-left: 0; }
+.fact .label { font-size: 12.5px; color: var(--ink2); } .fact .num { font-size: 24px; font-weight: 600; line-height: 1.2; } .fact .num span { font-size: 13px; font-weight: 400; color: var(--ink2); margin-left: 3px; }
+.fact .detail { font-size: 12px; color: var(--ink2); overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
+.fact.attention .num, .fact.failed .num { color: var(--critical); } .fact.unknown .num { color: var(--muted); }
+
+section.lane { margin-top: 28px; }
+section.lane > h2 { font-size: 16px; font-weight: 650; margin: 0 4px 2px; }
+section.lane > .note { display: block; margin: 0 4px 10px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; }
+.card + .card { margin-top: 10px; } .card h3 { font-size: 13px; font-weight: 600; margin-bottom: 10px; } .card h3 small { font-weight: 400; color: var(--ink2); margin-left: 6px; }
+/* One bar a run, oldest first. The dashed line is the goal: a bar that stands above it is a slow run. */
+.runs { position: relative; display: flex; align-items: flex-end; gap: 5px; height: 150px; padding-top: 18px; border-bottom: 1px solid var(--line); }
+.runs .goal { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--muted); pointer-events: none; }
+.runs .goal span { position: absolute; right: 0; top: -17px; font-size: 11px; color: var(--muted); }
+.runs a, .runs div.run { flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; text-decoration: none; color: inherit; }
+.runs .val { font-size: 11px; color: var(--ink2); } .runs .val.fail { color: var(--critical); font-weight: 600; }
+.runs .bar { width: 100%; max-width: 38px; border-radius: 4px 4px 0 0; min-height: 2px; background: var(--good); }
+.runs .failure .bar { background: var(--critical); } .runs .running .bar { background: var(--run); opacity: .6; } .runs .other .bar { background: var(--muted); }
+.shas { display: flex; gap: 5px; margin-top: 4px; } .shas span { flex: 1; min-width: 0; text-align: center; font: 10px var(--mono); color: var(--muted); overflow: hidden; white-space: nowrap; }
+.slow { display: grid; grid-template-columns: minmax(120px, 38%) 1fr 62px; gap: 8px; align-items: center; margin: 6px 0; font-size: 12.5px; }
+.slow .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .slow .track { height: 10px; background: color-mix(in srgb, var(--ink) 6%, transparent); border-radius: 5px; overflow: hidden; }
+.slow .fill { height: 100%; background: var(--ink2); border-radius: 5px; } .slow .failure .fill { background: var(--critical); } .slow .min { text-align: right; color: var(--ink2); }
+a.row { display: contents; color: inherit; text-decoration: none; } a.row:hover .name { text-decoration: underline; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--line); } th { color: var(--ink2); font-size: 12px; font-weight: 500; } td.n, th.n { text-align: right; }
+details.all { margin-top: 12px; } details.all summary { cursor: pointer; font-size: 12.5px; color: var(--ink2); }
+.quiet { color: var(--ink2); font-size: 13px; }
+@media (max-width: 760px) { .fact { border-left: 0; border-top: 1px solid var(--line); } }
+</style>
+</head>
+<body>
+<main>
+  <header class="top">
+    <h1>CI</h1>
+    <nav class="pages" aria-label="Board pages"><a href="/">Board</a><a href="/plan">Plan</a><a href="/agents">Agents</a><a href="/diagrams">Diagrams</a></nav>
+    <span class="note" id="updated">loading</span><span class="note" id="live">stream: connecting</span>
+  </header>
+  <div class="overview"><p class="headline" id="headline">Reading the runs</p><div class="facts" id="facts"></div></div>
+  <section class="lane" aria-labelledby="h-main"><h2 id="h-main">Main</h2><span class="note" id="main-note"></span><div id="main"></div></section>
+  <section class="lane" aria-labelledby="h-train"><h2 id="h-train">Train pull requests</h2><span class="note" id="train-note">First attempts only: a rerun's time is not a run's.</span><div id="train"></div></section>
+  <section class="lane" aria-labelledby="h-flakes"><h2 id="h-flakes">Flakes</h2><span class="note" id="flake-note">Failed, then passed on a rerun.</span><div class="card" id="flakes"></div></section>
+</main>
+<script src="/stream.js"></script>
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const GOAL = 3;
+function h(tag, attrs, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) if (v !== null && v !== undefined) el.setAttribute(k, v);
+  for (const kid of kids.flat()) if (kid !== null && kid !== undefined && kid !== false) el.append(kid.nodeType ? kid : String(kid));
+  return el;
+}
+const put = (id, ...kids) => $(id).replaceChildren(...kids.flat().filter((kid) => kid !== null && kid !== undefined && kid !== false));
+const clock = (at) => (at ? new Date(at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "-");
+const isUnknown = (x) => x && !Array.isArray(x) && typeof x === "object" && "unknown" in x;
+/* Why a reading is missing, said for a person: a reader the load guard held back is paused, not broken. */
+function why(reading) {
+  const text = String(reading.unknown);
+  if (text.startsWith("the first read")) return "Still loading.";
+  const held = text.match(/not run: load ([\d.]+) is above ([\d.]+)/);
+  return held ? "Paused while the machine is busy (load " + held[1] + ", limit " + held[2] + ")." : "Not read: " + text;
+}
+const ended = (run) => (run.conclusion === "success" ? "success" : run.conclusion ? "failure" : "running");
+const table = (head, rows, numeric = []) => h("table", {}, h("thead", {}, h("tr", {}, head.map((text, i) => h("th", { class: numeric.includes(i) ? "n" : null }, text)))),
+  h("tbody", {}, rows.map((row) => h("tr", {}, row.map((cell, i) => h("td", { class: numeric.includes(i) ? "n" : null }, cell))))));
+const linked = (url, text) => (url ? h("a", { href: url, target: "_blank", rel: "noopener" }, text) : text);
+
+/* ---- the top: one sentence on main, then the six numbers the board keeps about CI ---- */
+const CI_TILES = ["success", "wall", "failed_head", "red", "lead", "carry"];
+function renderHeadline(runs) {
+  if (isUnknown(runs)) return put("headline", why(runs));
+  const last = runs[runs.length - 1];
+  if (!last) return put("headline", "No run of main has been read yet.");
+  const how = ended(last), word = { success: ["green", "good"], failure: ["red", "critical"], running: ["running", "run"] }[how];
+  put("headline", "Main is ", h("b", { class: word[1] }, word[0]), h("small", {}, (last.conclusion || last.status) + " on " + last.sha + " at " + clock(last.started) + ", " + last.wall_minutes + " min" +
+    (last.failed_jobs ? ", " + last.failed_jobs + " failed jobs" : "") + (last.wall_minutes > GOAL ? ", over the " + GOAL + " minute goal" : "")));
+}
+/* How a number moved between the earlier and the later half of the runs read. */
+const moved = (trend) => (trend.better === null || !trend.delta ? "the same as the earlier half"
+  : (trend.delta > 0 ? "+" : "") + trend.delta + " " + trend.unit + ", " + (trend.better ? "better" : "worse") + " than the earlier half");
+function renderFacts(metrics) {
+  const tiles = (Array.isArray(metrics) ? metrics : []).filter((t) => CI_TILES.includes(t.id)).sort((a, b) => CI_TILES.indexOf(a.id) - CI_TILES.indexOf(b.id));
+  put("facts", tiles.map((t) => h("div", { class: "fact " + (t.state || ""), title: t.detail },
+    h("div", { class: "label" }, t.label), h("div", { class: "num" }, t.value === null || t.value === undefined ? "–" : String(t.value), h("span", {}, t.unit || "")),
+    h("div", { class: "detail" }, t.trend ? moved(t.trend) : String(t.detail || "").replace(/^unknown: /, "")))));
+}
+
+/* ---- one lane: its runs as bars against the goal, its slowest jobs, and every run behind a click ---- */
+function runsChart(runs) {
+  const top = Math.max(GOAL * 1.4, ...runs.map((r) => r.wall_minutes || 0));
+  const bar = (r) => { const how = ended(r), kids = [h("div", { class: "val" + (r.failed_jobs ? " fail" : "") }, r.failed_jobs ? r.failed_jobs + " failed" : String(r.wall_minutes)), h("div", { class: "bar", style: "height:" + Math.round(100 * (r.wall_minutes || 0) / top) + "%" })];
+    const tip = r.sha + " " + (r.conclusion || r.status) + ": " + r.wall_minutes + " min" + (r.failed_jobs ? ", " + r.failed_jobs + " failed jobs" : "");
+    return r.url ? h("a", { class: how, href: r.url, target: "_blank", rel: "noopener", title: tip }, kids) : h("div", { class: "run " + how, title: tip }, kids); };
+  return [h("div", { class: "runs" }, h("div", { class: "goal", style: "bottom:" + Math.round(100 * GOAL / top * (132 / 150)) + "%" }, h("span", {}, "goal " + GOAL + " min")), runs.map(bar)),
+    h("div", { class: "shas" }, runs.map((r) => h("span", {}, String(r.sha).slice(0, 4))))];
+}
+function slowest(slow) {
+  if (isUnknown(slow)) return h("p", { class: "quiet" }, why(slow));
+  if (!slow.length) return h("p", { class: "quiet" }, "No completed run to read jobs from.");
+  const most = Math.max(1, ...slow.map((j) => j.minutes));
+  return h("div", {}, slow.map((j) => { const cells = [h("span", { class: "name", title: j.name }, j.name), h("span", { class: "track" + (j.conclusion === "failure" ? " failure" : "") }, h("span", { class: "fill", style: "display:block;width:" + Math.round(100 * j.minutes / most) + "%" })), h("span", { class: "min" }, j.minutes + " min")];
+    return h("div", { class: "slow" + (j.conclusion === "failure" ? " failure" : "") }, j.url ? h("a", { class: "row", href: j.url, target: "_blank", rel: "noopener" }, cells) : cells); }));
+}
+function renderLane(id, runs, slow) {
+  if (isUnknown(runs)) return put(id, h("div", { class: "card" }, h("p", { class: "quiet" }, why(runs))));
+  if (!runs.length) return put(id, h("div", { class: "card" }, h("p", { class: "quiet" }, "No run has been read yet.")));
+  const failed = runs.filter((r) => r.conclusion && r.conclusion !== "success").length, over = runs.filter((r) => r.wall_minutes > GOAL).length;
+  put(id, h("div", { class: "card" }, h("h3", {}, "Wall minutes per run, oldest to newest", h("small", {}, runs.length + " runs, " + (failed ? failed + " failed" : "none failed") + ", " + (over ? over + " over the goal" : "none over the goal"))), runsChart(runs),
+      h("details", { class: "all" }, h("summary", {}, "Every run"), table(["Run", "Started", "Ended", "Wall minutes", "Failed jobs"], runs.slice().reverse().map((r) => [linked(r.url, r.sha), clock(r.started), r.conclusion || r.status, r.wall_minutes, r.failed_jobs === null ? "?" : r.failed_jobs]), [3, 4]))),
+    h("div", { class: "card" }, h("h3", {}, "Slowest jobs of the last completed run"), slowest(slow)));
+}
+function renderFlakes(doc) {
+  if (isUnknown(doc)) return put("flakes", h("p", { class: "quiet" }, why(doc)));
+  const rows = (doc && doc.flakes) || [];
+  $("flake-note").textContent = "Failed, then passed on a rerun. Last " + doc.window_days + " days, runs read back to " + String(doc.reaches_back || "-").slice(0, 10) + (doc.unreadable ? "; " + doc.unreadable + " runs unreadable" : "") + ".";
+  put("flakes", rows.length ? table(["Item", "Kind", "Times", "Train pull requests"], rows.map((f) => [f.item, f.kind, f.count, f.prs.map((p) => p.branch.replace("train/main-", "")).join(", ")]), [2]) : h("p", { class: "quiet" }, "Nothing flaked in that time."));
+}
+
+function render(s) {
+  renderHeadline(s.ci_runs); renderFacts(s.metrics);
+  renderLane("main", s.ci_runs, s.slowest_jobs); renderLane("train", s.train_ci_runs, s.train_slowest_jobs); renderFlakes(s.train_flakes);
+  $("updated").textContent = "updated " + clock(s.generated_at);
+}
+async function refresh() {
+  try { render(await (await fetch("/api/state", { cache: "no-store" })).json()); } catch (e) { $("updated").textContent = "update failed: " + e.message; }
+}
+refresh();
+if (window.boardStream) boardStream({
+  open: () => { $("live").textContent = "stream: live"; },
+  error: () => { $("live").textContent = "stream: reconnecting"; },
+  pause: () => { $("live").textContent = "stream: paused"; },
+  state: (data) => { try { render(data.state); } catch (e) { $("updated").textContent = "update failed: " + e.message; } }
+});
+else $("live").textContent = "stream: unsupported";
+</script>
+</body>
+</html>

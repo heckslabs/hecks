@@ -209,7 +209,7 @@ details.panel > .scroll, details.panel > .feed, details.panel > .strip, details.
 <main>
   <header>
     <h1>Pipeline Board</h1>
-    <nav class="pages" aria-label="Board pages"><a href="/plan" data-tip="Epics, what runs, what is next and what needs you">Plan</a><a href="/agents">Agents</a><a href="/diagrams" data-tip="The wiring and sequence diagrams, on their own page">Diagrams</a></nav>
+    <nav class="pages" aria-label="Board pages"><a href="/plan" data-tip="Epics, what runs, what is next and what needs you">Plan</a><a href="/agents">Agents</a><a href="/ci" data-tip="CI on main and on the train's pull requests: run times, slowest jobs and flakes">CI</a><a href="/diagrams" data-tip="The wiring and sequence diagrams, on their own page">Diagrams</a></nav>
     <div class="meta">
       <span id="updated">loading</span>
       <span class="live" id="live">stream: connecting</span>
@@ -225,24 +225,6 @@ details.panel > .scroll, details.panel > .feed, details.panel > .strip, details.
   <section aria-labelledby="h-tiles"><h2 id="h-tiles">Key metrics</h2><div class="tiles" id="tiles"></div></section>
   <section aria-labelledby="h-thru" class="thru"><h2 id="h-thru">Work finished per day</h2><div class="label" id="thrunote"></div><div id="thru"></div></section>
   <details class="panel" open><summary data-tip="Each stage of a change from planned to released. Click a stage that needs you to resolve it"><h2 id="h-strip">Pipeline</h2><span class="sum" id="sum-strip"></span></summary><div class="strip" id="strip"><div class="node" id="train"><!--tile:train--></div></div></details>
-  <details class="panel" open><summary data-tip="Recent CI runs on main, and the slowest jobs of the last completed run"><h2 id="h-ci">CI on main</h2><span class="sum" id="sum-ci"></span></summary>
-    <div class="grid2">
-      <div><div class="label">Failed jobs per run, oldest to newest</div><div id="failedchart" class="chartview"></div><div class="tableview scroll" id="failedtable"></div></div>
-      <div><div class="label">Wall minutes per run (goal 3)</div><div id="wallchart" class="chartview"></div><div class="tableview scroll" id="walltable"></div></div>
-    </div>
-    <h2 style="margin-top:14px">Slowest jobs of the last completed run</h2>
-    <div id="slowchart" class="chartview"></div><div class="tableview scroll" id="slowtable"></div>
-  </details>
-  <details class="panel" open><summary data-tip="Recent CI runs on train pull requests, first attempts only (a rerun's wall time is not a run's), and the slowest jobs of the last completed one"><h2 id="h-trainci">CI on train PRs</h2><span class="sum" id="sum-trainci"></span></summary>
-    <div class="grid2">
-      <div><div class="label">Failed jobs per run, oldest to newest</div><div id="trainfailedchart" class="chartview"></div><div class="tableview scroll" id="trainfailedtable"></div></div>
-      <div><div class="label">Wall minutes per run, first attempts only (goal 3)</div><div id="trainwallchart" class="chartview"></div><div class="tableview scroll" id="trainwalltable"></div></div>
-    </div>
-    <h2 style="margin-top:14px">Slowest jobs of the last completed train run</h2>
-    <div id="trainslowchart" class="chartview"></div><div class="tableview scroll" id="trainslowtable"></div>
-    <h2 style="margin-top:14px">Flakes: failed, then passed on rerun</h2>
-    <div class="label" id="trainflakenote"></div><div class="scroll" id="trainflaketable"></div>
-  </details>
   <details class="panel" id="sessions-panel"><summary data-tip="Claude sessions dispatched or started by hand: their status, work item and what they are doing. Click a blocked session to answer it"><h2 id="h-sess">Sessions</h2><span class="sum" id="sum-sess"></span></summary><div class="scroll" id="sessions"></div></details>
 
   <details class="panel"><summary data-tip="How the work fans out across sessions: lanes, who is running what, and what the dispatcher would start next"><h2 id="h-fan">Fan-out</h2><span class="sum" id="sum-fan"></span></summary>
@@ -250,11 +232,9 @@ details.panel > .scroll, details.panel > .feed, details.panel > .strip, details.
       <div><div class="legend" id="lanelegend"></div><div id="lanes" class="chartview"></div><div class="tableview scroll" id="lanetable"></div></div>
       <div><div id="meters"></div><div id="flags"></div><div id="fill"><!--tile:fill--></div></div>
     </div>
+    <h2>Work by session</h2>
+    <div class="scroll" id="mapping"></div>
   </details>
-
-  
-
-  <details class="panel"><summary data-tip="Open Work items and which session holds each one"><h2 id="h-work">Work items</h2><span class="sum" id="sum-work"></span></summary><div class="scroll" id="work"></div><h2 class="sub">Work by session</h2><div class="scroll" id="mapping"></div></details>
   <details class="panel"><summary data-tip="How long each recent Work item spent in each stage, from the events it emitted. A striped stage is still open"><h2 id="h-cyc">Cycles</h2><span class="sum" id="sum-cyc"></span></summary><div id="cyclelegend"></div><div id="cycles"></div><h2 class="sub">Each stage over the recent items</h2><div class="scroll" id="cyclestats"></div></details>
   <details class="panel"><summary data-tip="Each event the pipeline heard, and the reactions it caused. Hover a row for its full context"><h2 id="h-ev">Events</h2><span class="sum" id="sum-ev"></span></summary><div class="feed" id="feed" aria-live="polite"></div></details>
 </main>
@@ -485,6 +465,7 @@ function renderTiles(tiles) {
 }
 // A pill that asks for action: attention, or failed.
 function needsAttention(state) { return state === "attention" || state === "failed"; }
+const STAGE_PAGES = { "Work items": ["/plan", "the plan"], CI: ["/ci", "the CI page"] };
 function renderStrip(stages) {
   const off = stages.filter((s) => s.state !== "ok");
   summarize("strip", off.length ? off.map((s) => [": " + s.detail, s.state, s.name]) : [["all " + stages.length + " stages ok", "ok"]]);
@@ -496,6 +477,8 @@ function renderStrip(stages) {
       h("div", { class: "name" }, s.name), h("div", { class: "count" }, s.count), badge(s.state), h("div", { class: "detail" }, tidy(s.detail)));
     if (waiting.length) answerable(node, () => openAnswer(waiting, waiting[0].id));
     else if (needsAttention(s.state)) answerable(node, () => resolve(s.name, s.detail));
+    // The open Work items are read on the plan page and the runs on the CI page, so each stage is the way to its page.
+    else if (STAGE_PAGES[s.name]) { const [href, word] = STAGE_PAGES[s.name]; node.classList.add("clickable"); node.dataset.tip += " (click to open " + word + ")"; answerable(node, () => { location.href = href; }); }
     return node;
   }));
 }
@@ -515,57 +498,6 @@ function openAnswer(list, pickId) {
     sent: (s) => { replies.delete(s.id); refresh(); },
     failed: (s, text, message) => { replies.set(s.id, { text: text, state: "not sent: " + message }); show(); }
   });
-}
-// A chart or table cell that opens the run on GitHub when the run carries its URL.
-function linked(url, node) {
-  return url ? h("a", { href: url, target: "_blank", rel: "noopener", class: "linked" }, node) : node;
-}
-function columns(rows, pick, label, second) {
-  const max = Math.max(1, ...rows.map(pick));
-  const cols = rows.map((r) => linked(r.url, h("div", { class: "col", tip: r.sha + " " + (r.conclusion || r.status) + ": " + label(r) },
-    h("div", { class: "val" }, String(pick(r))), h("div", { class: "bar" + (second ? " second" : ""), style: "height:" + Math.round(100 * pick(r) / max) + "%" }))));
-  return [h("div", { class: "cols" }, cols), h("div", { class: "xlabels" }, rows.map((r) => h("span", {}, r.sha.slice(0, 4))))];
-}
-// Draws one CI panel: main's (no prefix) or the train pull requests' (prefix "train", whose element
-// ids are those of main's with the prefix in front).
-function renderCi(runs, slow, p = "") {
-  const last = Array.isArray(runs) && runs.length ? runs[runs.length - 1] : null;
-  const green = last && last.conclusion === "success";
-  const top = Array.isArray(slow) && slow.length ? slow[0] : null;
-  summarize(p + "ci", last ? [
-    [(last.conclusion || last.status) + " on " + last.sha + " at " + clock(last.started), green ? "ok" : last.conclusion ? "failed" : "working"],
-    [last.wall_minutes + " min wall (goal 3)", last.wall_minutes > 3 ? "attention" : "ok"],
-    last.failed_jobs ? [last.failed_jobs + " failed jobs", "failed"] : null,
-    top && top.minutes + " min slowest: " + (top.name.length > 48 ? top.name.slice(0, 47) + "…" : top.name)] : [isUnknown(runs) ? "unknown: " + runs.unknown : "no runs yet"]);
-  // A panel whose runs were not read says why once, in its heading, and draws no empty chart under it.
-  $("h-" + p + "ci").closest("details").classList.toggle("unread", isUnknown(runs));
-  if (isUnknown(runs)) { for (const id of ["failedchart", "wallchart", "failedtable", "walltable"]) put(p + id, unknown(runs)); }
-  else {
-    put(p + "failedchart", columns(runs, (r) => r.failed_jobs || 0, (r) => (r.failed_jobs === null ? "failed jobs unknown" : r.failed_jobs + " failed jobs")));
-    put(p + "wallchart", columns(runs, (r) => r.wall_minutes, (r) => r.wall_minutes + " min", true));
-    put(p + "failedtable", table(["Run", "Started", "Conclusion", "Failed jobs"], runs.map((r) => [linked(r.url, r.sha), clock(r.started), r.conclusion || r.status, r.failed_jobs === null ? "?" : r.failed_jobs]), [3]));
-    put(p + "walltable", table(["Run", "Wall minutes"], runs.map((r) => [linked(r.url, r.sha), r.wall_minutes]), [1]));
-  }
-  if (isUnknown(slow)) { put(p + "slowchart", unknown(slow)); put(p + "slowtable", unknown(slow)); return; }
-  const max = Math.max(1, ...slow.map((j) => j.minutes));
-  put(p + "slowchart", slow.map((j) => linked(j.url, h("div", { class: "hbar", tip: j.name + ": " + j.minutes + " min (" + j.conclusion + ")" },
-    h("div", { class: "name" }, j.name), h("div", { class: "track" }, h("div", { class: "fill", style: "width:" + Math.round(100 * j.minutes / max) + "%" })), h("div", {}, j.minutes + " min")))));
-  put(p + "slowtable", table(["Job", "Minutes", "Conclusion"], slow.map((j) => [linked(j.url, j.name), j.minutes, j.conclusion]), [1]));
-}
-function renderFlakes(doc) {
-  if (isUnknown(doc)) { put("trainflakenote", unknown(doc)); return put("trainflaketable"); }
-  const rows = doc.flakes || [];
-  put("trainflakenote", "last " + doc.window_days + " days, runs read back to " + String(doc.reaches_back || "-").slice(0, 10) + (doc.unreadable ? "; " + doc.unreadable + " runs unreadable" : ""));
-  put("trainflaketable", table(["Item", "Kind", "Times", "Train PRs"], rows.map((f) => [f.item, f.kind, f.count, f.prs.map((p) => p.branch.replace("train/main-", "")).join(", ")]), [2]));
-}
-function renderWork(work) {
-  if (isUnknown(work)) { summarize("work", [["unknown: " + work.unknown, "attention"]]); return put("work", unknown(work)); }
-  setTitle("h-work", "Work items", work.length);
-  const counted = (status) => work.filter((w) => w.status === status).length;
-  const nextUp = work.find((w) => w.status === "planned");
-  summarize("work", [counted("planned") + " planned", [counted("started") + " started", counted("started") ? "working" : ""],
-    nextUp && "next: " + nextUp.slug]);
-  put("work", pager("work", ["Work item", "Status", "Area", "Claimed by", "Claimed at"], work.map((w) => [w.slug, w.status, (w.area || []).join(", ") || "-", w.claimed_by || "(nobody)", w.claimed_at || "-"]), 10));
 }
 // A span of seconds as 1h02m, 13m09s or 39s.
 function span(s) {
@@ -884,8 +816,8 @@ function replyNote(s) {
 }
 function render(s) {
   lastState = s;
-  renderTiles(s.metrics); renderThroughput(s.throughput_days); renderAttention(s.metrics, s.stages, s.sessions, s.recommendations); renderStrip(s.stages); renderCi(s.ci_runs, s.slowest_jobs); renderCi(s.train_ci_runs, s.train_slowest_jobs, "train"); renderFlakes(s.train_flakes);
-  renderRoles(s.roles, s.pruning); renderWork(s.open_work); renderSessions(s.sessions); renderFan(s.fanout); renderCycles(s.cycles); renderEvents(s.events);
+  renderTiles(s.metrics); renderThroughput(s.throughput_days); renderAttention(s.metrics, s.stages, s.sessions, s.recommendations); renderStrip(s.stages);
+  renderRoles(s.roles, s.pruning); renderSessions(s.sessions); renderFan(s.fanout); renderCycles(s.cycles); renderEvents(s.events);
   $("updated").textContent = "updated " + clock(s.generated_at);
   renderStale(s);
 }

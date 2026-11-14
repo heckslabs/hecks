@@ -44,7 +44,7 @@ iframe { flex: 1; width: 100%; min-height: 480px; border: 0; border-top: 1px sol
 <script>
 // Each diagram: where it is served and what to do with it. The address's #sequence picks the second.
 const VIEWS = {
-  wiring: { src: "/wiring", title: "Wiring diagram", hint: "click a block or a line to read its policies; drag to pan, + and − to zoom" },
+  wiring: { src: "/wiring", title: "Wiring diagram", hint: "click a block to look inside it, a line to read its policies; drag to pan, + and − to zoom" },
   sequence: { src: "/sequence", title: "Sequence diagram", hint: "each event as it happens, and the policies it set off" }
 };
 const view = document.getElementById("view");

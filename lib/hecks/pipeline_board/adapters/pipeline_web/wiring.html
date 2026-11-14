@@ -65,6 +65,10 @@ svg.picked .link { opacity: .1; } svg.picked .link.on { opacity: 1; } svg.picked
 .unit .cap { font: 500 10px system-ui, sans-serif; fill: var(--muted); }
 .unit .name { font: 600 13.5px system-ui, sans-serif; fill: var(--ink); }
 .unit .sub { font: 400 11px system-ui, sans-serif; fill: var(--ink2); }
+/* Inside a context its own aggregates and ports stand out, and the contexts around it are drawn as outlines. */
+.unit.inner .box { stroke: var(--muted); }
+.unit.outer .box { fill: var(--surface); stroke-dasharray: 4 4; } .unit.outer .name { fill: var(--ink2); }
+#up { padding: 2px 10px; font-size: 12.5px; }
 .unit.sel .box { stroke: var(--pick); stroke-width: 2; }
 .unit.hot .box { stroke: var(--good); stroke-width: 2; }
 svg.picked .unit:not(.near), svg.finding .unit:not(.match) { opacity: .3; }
@@ -117,7 +121,7 @@ svg.picked .unit:not(.near), svg.finding .unit:not(.match) { opacity: .3; }
       <button id="toggle" type="button" aria-pressed="false">Show table</button>
     </div>
   </header>
-  <p class="last"><span id="count">loading the wiring</span><span id="live">stream: connecting</span><span class="said" id="last" aria-live="polite">Messages show here as they cross.</span></p>
+  <p class="last"><button id="up" type="button" hidden>&larr; All contexts</button><span id="count">loading the wiring</span><span id="live">stream: connecting</span><span class="said" id="last" aria-live="polite">Messages show here as they cross.</span></p>
   <section class="stage" aria-label="Wiring">
     <svg id="map" role="img" aria-label="Each context as a block, in the direction its policies run, with a line for the policies between two contexts"></svg>
     <div class="grid" id="grid" hidden></div>
@@ -125,7 +129,7 @@ svg.picked .unit:not(.near), svg.finding .unit:not(.match) { opacity: .3; }
       <span><i></i>policies from one context to the next, thicker for more</span>
       <span><i class="back"></i>policies that run back against the flow</span>
       <span><i class="ok"></i>delivered</span><span><i class="wait"></i>waiting</span><span><i class="bad"></i>refused</span>
-      <span>Click a block or a line to read its policies. Drag to pan.</span>
+      <span>Point at a block to see its lines; click it to look inside. Click a line to read its policies.</span>
     </div>
   </section>
 </main>
@@ -168,17 +172,23 @@ let nodes = [], edges = [], byId = new Map(), wiringDigest = null;
 let units = new Map(), links = new Map(), order = [], splittable = [];
 /* The domains drawn as one block although they declare areas. Empty: every area is its own block. */
 let grouped = new Set(kept("wiring-grouped", []));
-const unitKey = (n) => (n.context && !grouped.has(n.domain) ? n.domain + " / " + n.context : n.domain);
+const contextKey = (n) => (n.context && !grouped.has(n.domain) ? n.domain + " / " + n.context : n.domain);
+/* The context being looked inside, or none. Inside one, each of its aggregates and ports is a block of its own (an
+   adapter stands with its port), and every other context stays one block. */
+let inside = null;
+const unitKey = (n) => (inside && contextKey(n) === inside ? n.port || n.id : contextKey(n));
 
 /* An adapter belongs to the context of the port it answers. */
 function place() {
-  for (const e of edges) if (e.kind === "adapter") { const p = byId.get(e.from), a = byId.get(e.to); if (p && a) { a.domain = p.domain; a.context = p.context; } }
+  for (const e of edges) if (e.kind === "adapter") { const p = byId.get(e.from), a = byId.get(e.to); if (p && a) { a.domain = p.domain; a.context = p.context; a.port = p.id; } }
   splittable = [...new Set(nodes.filter((n) => n.context).map((n) => n.domain))];
 }
 function gather() {
   units = new Map(); links = new Map();
-  const unit = (key) => units.get(key) || units.set(key, { key, domain: key.split(" / ")[0], name: key.split(" / ")[1] || key, area: key.includes(" / "),
-    aggregates: [], ports: [], adapters: [], inside: 0, ins: [], outs: [] }).get(key);
+  const made = (key) => { const node = byId.get(key); return node
+    ? { key, node, inner: true, domain: node.domain, name: node.label, area: false }
+    : { key, domain: key.split(" / ")[0], name: key.split(" / ")[1] || key, area: key.includes(" / ") }; };
+  const unit = (key) => units.get(key) || units.set(key, { ...made(key), aggregates: [], ports: [], adapters: [], inside: 0, ins: [], outs: [] }).get(key);
   for (const n of nodes) if (n.domain) unit(unitKey(n))[n.kind + "s"].push(n);
   for (const e of edges) {
     const a = byId.get(e.from), b = byId.get(e.to);
@@ -188,7 +198,14 @@ function gather() {
     const key = from + "→" + to, link = links.get(key) || links.set(key, { key, from, to, count: 0, edges: [] }).get(key);
     link.count++; link.edges.push(e);
   }
+  if (inside) surround();
   for (const link of links.values()) { units.get(link.from).outs.push(link); units.get(link.to).ins.push(link); }
+}
+/* Inside a context only its own blocks are kept, with the contexts they hear from and reach around them. */
+function surround() {
+  for (const [key, link] of links) if (!units.get(link.from).inner && !units.get(link.to).inner) links.delete(key);
+  const joined = new Set([...links.values()].flatMap((link) => [link.from, link.to]));
+  for (const [key, u] of units) if (!u.inner && !joined.has(key)) units.delete(key);
 }
 
 /* ---- layout: an order that most policies run along, then columns, then rows that keep neighbours close ---- */
@@ -280,14 +297,16 @@ function draw() {
     lines.append(link.el);
   }
   for (const u of units.values()) {
-    const parts = [u.aggregates.length + (u.aggregates.length === 1 ? " aggregate" : " aggregates"), u.inside ? u.inside + " inside" : null].filter(Boolean).join(", ");
-    u.el = s("g", { class: "unit", "data-unit": u.key, transform: `translate(${u.x} ${u.y})`, tabindex: "0", role: "button", "aria-label": u.key },
+    // A context says how many policies stay inside it; an aggregate, how many of its own events it reacts to.
+    const parts = (u.inner ? [u.node.kind, u.inside ? u.inside + " to itself" : null]
+      : [u.aggregates.length + (u.aggregates.length === 1 ? " aggregate" : " aggregates"), u.inside ? u.inside + " internal" : null]).filter(Boolean).join(", ");
+    u.el = s("g", { class: "unit" + (u.inner ? " inner" : inside ? " outer" : ""), "data-unit": u.key, transform: `translate(${u.x} ${u.y})`, tabindex: "0", role: "button", "aria-label": u.key },
       s("rect", { class: "box", width: W, height: H, rx: 9 }),
       u.area ? s("text", { class: "cap", x: W - 10, y: 16, "text-anchor": "end" }, u.domain) : null,
       s("text", { class: "name", x: 12, y: 21 }, u.name), s("text", { class: "sub", x: 12, y: 38 }, parts));
     blocks.append(u.el);
   }
-  const band = box.alone === null ? [] : [s("text", { class: "band", x: 0, y: box.alone }, "Wired to no other context")];
+  const band = box.alone === null ? [] : [s("text", { class: "band", x: 0, y: box.alone }, inside ? "Wired to nothing else here" : "Wired to no other context")];
   map.replaceChildren(lines, blocks, dots, ...band);
   for (const link of links.values()) { const mid = link.el.querySelector(".line"), at = mid.getPointAtLength(mid.getTotalLength() * (link.back ? 0.5 : 0.35)), text = link.el.querySelector("text"); text.setAttribute("x", at.x); text.setAttribute("y", at.y - 5); text.setAttribute("text-anchor", "middle"); }
   if (!touched) fit(); else show();
@@ -317,35 +336,44 @@ addEventListener("pointerup", (e) => {
   const was = drag; drag = null; map.classList.remove("dragging");
   if (!was || was.moved || !map.contains(e.target)) return;
   const unit = e.target.closest(".unit"), link = e.target.closest(".link");
-  if (unit) pick({ unit: unit.dataset.unit }); else if (link) pick({ link: link.dataset.link }); else pick(null);
+  if (unit) open(unit.dataset.unit); else if (link) pick({ link: link.dataset.link }); else pick(null);
 });
-map.addEventListener("keydown", (e) => { const unit = e.target.closest(".unit"); if (unit && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); pick({ unit: unit.dataset.unit }); } });
+map.addEventListener("keydown", (e) => { const unit = e.target.closest(".unit"); if (unit && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); open(unit.dataset.unit); } });
 map.addEventListener("wheel", (e) => { if (!(e.metaKey || e.ctrlKey)) return; e.preventDefault(); zoom(Math.exp(-e.deltaY * 0.0015)); }, { passive: false });
 map.addEventListener("pointermove", (e) => {
-  const link = e.target.closest && e.target.closest(".link"), tip = $("tip");
+  const link = e.target.closest && e.target.closest(".link"), tip = $("tip"), over = e.target.closest && e.target.closest(".unit");
+  // The block under the pointer shows its lines, as a picked one does.
+  const key = over && !drag ? over.dataset.unit : null; if (key !== hover) { hover = key; mark(); }
   if (!link || drag) { tip.hidden = true; return; }
   const held = links.get(link.dataset.link);
-  tip.textContent = held.from + " → " + held.to + ": " + held.count + (held.count === 1 ? " policy" : " policies") + (held.back ? ", against the flow" : "");
+  tip.textContent = nameOf(held.from) + " → " + nameOf(held.to) + ": " + held.count + (held.count === 1 ? " policy" : " policies") + (held.back ? ", against the flow" : "");
   tip.style.left = e.clientX + 12 + "px"; tip.style.top = e.clientY + 12 + "px"; tip.hidden = false;
 });
-map.addEventListener("pointerleave", () => { $("tip").hidden = true; });
+map.addEventListener("pointerleave", () => { $("tip").hidden = true; if (hover) { hover = null; mark(); } });
 
-/* ---- what is picked, found and lit ---- */
-let picked = null, found = null;
+/* ---- what is picked, pointed at, found and lit ---- */
+let picked = null, found = null, hover = null;
 function mark() {
-  const unit = picked && picked.unit && units.get(picked.unit), link = picked && picked.link && links.get(picked.link);
+  const link = picked && picked.link && links.get(picked.link), unit = link ? null : units.get((picked && picked.unit) || hover);
   const on = new Set(link ? [link.key] : unit ? [...unit.ins, ...unit.outs].map((l) => l.key) : []);
   const near = new Set(link ? [link.from, link.to] : unit ? [unit.key, ...unit.ins.map((l) => l.from), ...unit.outs.map((l) => l.to)] : []);
   map.classList.toggle("picked", Boolean(unit || link)); map.classList.toggle("finding", Boolean(found));
   for (const l of links.values()) l.el.classList.toggle("on", on.has(l.key));
   for (const u of units.values()) { u.el.classList.toggle("sel", Boolean(unit && unit.key === u.key)); u.el.classList.toggle("near", near.has(u.key)); u.el.classList.toggle("match", Boolean(found && found.has(u.key))); }
 }
+/* Picks an aggregate, a port or an adapter (stepping inside its context first), or a line, or nothing. */
 function pick(what) {
-  picked = what && ((what.unit && units.has(what.unit)) || (what.link && links.has(what.link)) || (what.node && byId.has(what.node))) ? what : null;
-  if (picked && picked.node) picked.unit = unitKey(byId.get(picked.node));
+  const node = what && what.node && byId.get(what.node);
+  if (node && node.domain && inside !== contextKey(node)) { inside = contextKey(node); picked = null; touched = false; redraw(); }
+  picked = node ? { node: node.id, unit: unitKey(node) } : what && what.link && links.has(what.link) ? { link: what.link } : null;
   mark(); renderPanel();
-  try { history.replaceState(null, "", picked ? "#" + encodeURIComponent(picked.node || picked.unit || picked.link) : location.pathname); } catch (e) { /* history may be unavailable */ }
+  const where = picked ? picked.node || picked.link : inside ? "in:" + inside : "";
+  try { history.replaceState(null, "", where ? "#" + encodeURIComponent(where) : location.pathname); } catch (e) { /* history may be unavailable */ }
 }
+/* Steps inside a context, or back out to all of them with no key. */
+function enter(key) { inside = key || null; picked = null; waiting = null; hover = null; touched = false; redraw(); pick(null); }
+/* A block that is an aggregate or a port opens its panel; a block that is a context is stepped into. */
+function open(key) { if (byId.has(key)) pick({ node: key }); else enter(key); }
 setInterval(() => {
   const now = performance.now();
   for (const l of links.values()) if (l.lit && l.lit < now) { l.lit = null; l.el.classList.remove("lit", "ok", "wait", "bad"); }
@@ -377,29 +405,17 @@ function renderPanel() {
   // is slid clear of it, and the map goes back when the panel closes.
   if (!picked) { if (slid && !touched) fit(); slid = false; return; }
   reveal();
-  const [title, body] = waiting ? ["Waiting reaction", waitingBody()] : picked.node ? nodePanel(byId.get(picked.node)) : picked.link ? linkPanel(links.get(picked.link)) : unitPanel(units.get(picked.unit));
+  const [title, body] = waiting ? ["Waiting reaction", waitingBody()] : picked.node ? nodePanel(byId.get(picked.node)) : linkPanel(links.get(picked.link));
   $("ptitle").textContent = title; $("pbody").replaceChildren(...body.flat(Infinity).filter(Boolean));
 }
-function unitPanel(u) {
-  const policies = (list) => list.reduce((sum, l) => sum + l.count, 0), split = splittable.includes(u.domain);
-  const flip = split ? h("button", { type: "button" }, grouped.has(u.domain) ? "Open " + u.domain + " into its areas" : "Show " + u.domain + " as one block") : null;
-  if (flip) flip.addEventListener("click", () => regroup(u.domain));
-  const sides = (list, end, word) => list.slice().sort((a, b) => b.count - a.count).map((l) => section(h("span", {}, word + " ", go({ link: l.key }, l[end]), h("small", {}, " " + l.count)), h("ul", {}, l.edges.map(said))));
-  return [u.name, [
-    h("div", {}, u.area ? h("span", { class: "chip" }, "area of " + u.domain) : h("span", { class: "chip" }, "context")),
-    h("div", { class: "stat" }, h("span", {}, h("b", {}, String(u.aggregates.length)), "aggregates"), h("span", {}, h("b", {}, String(policies(u.outs))), "policies out"),
-      h("span", {}, h("b", {}, String(policies(u.ins))), "policies in"), h("span", {}, h("b", {}, String(u.inside)), "inside")),
-    flip ? h("p", {}, flip) : null,
-    sides(u.outs, "to", "Reaches"), sides(u.ins, "from", "Hears from"),
-    section("Aggregates", h("ul", {}, u.aggregates.map((n) => h("li", {}, go({ node: n.id }, n.label), n.details && n.details.description ? h("small", {}, n.details.description) : null)))),
-    u.ports.length ? section("Ports", h("ul", {}, u.ports.map((p) => h("li", {}, go({ node: p.id }, p.label), h("small", {}, edges.filter((e) => e.kind === "adapter" && e.from === p.id).map((e) => bare(byId.get(e.to) ? byId.get(e.to).label : e.to)).join(", ") || "no adapter bound"))))) : null,
-  ]];
-}
+/* A block's name as it is drawn: an aggregate's or a port's own, or the context's. */
+const nameOf = (key) => (byId.has(key) ? byId.get(key).label : key);
+const step = (key) => { const b = h("button", { class: "go", type: "button" }, nameOf(key)); b.addEventListener("click", () => open(key)); return b; };
 function linkPanel(l) {
   const back = links.get(l.to + "→" + l.from);
-  return [l.from + " → " + l.to, [
+  return [nameOf(l.from) + " → " + nameOf(l.to), [
     h("div", {}, h("span", { class: "chip" }, l.count + (l.count === 1 ? " policy" : " policies")), l.back ? h("span", { class: "chip" }, "against the flow") : null),
-    h("p", { class: "desc" }, go({ unit: l.from }, l.from), " reaches ", go({ unit: l.to }, l.to), back ? [", and ", go({ link: back.key }, back.count + " come back")] : null, "."),
+    h("p", { class: "desc" }, step(l.from), " reaches ", step(l.to), back ? [", and ", go({ link: back.key }, back.count + " come back")] : null, "."),
     h("ul", {}, l.edges.map(said)),
   ]];
 }
@@ -412,7 +428,7 @@ function nodePanel(n) {
   const refused = outcomes.filter((r) => /refus|fail/.test(r.outcome || "")).length, last = mine.map((ev) => ev.at).sort().pop();
   const into = edges.filter((e) => e.to === n.id && e.kind !== "adapter"), out = edges.filter((e) => e.from === n.id && e.kind !== "adapter");
   return [n.label, [
-    h("div", {}, go({ unit: unitKey(n) }, "← " + unitKey(n)), " ", h("span", { class: "chip" }, n.kind)),
+    h("div", {}, h("span", { class: "chip" }, n.kind), h("span", { class: "chip" }, "in " + contextKey(n))),
     d.description ? h("p", { class: "desc" }, d.description) : null,
     section("Live", h("div", { class: "stat" }, h("span", {}, h("b", {}, String(mine.filter((ev) => now - Date.parse(ev.at) < 600000).length)), "events, 10 min"),
       h("span", {}, h("b", {}, String(outcomes.length - refused)), "delivered"), h("span", {}, h("b", { class: refused ? "bad" : null }, String(refused)), "refused"), h("span", {}, h("b", {}, last ? clock(last) : "—"), "last seen")),
@@ -445,7 +461,12 @@ function waitingBody() {
       fact("Event it answered", String(live.name)), fact("Aggregate", String(live.aggregate || "")), fact("Event at", live.at ? clock(live.at) + " (" + live.at + ")" : ""))];
 }
 $("pclose").addEventListener("click", () => { waiting = null; pick(null); });
-addEventListener("keydown", (e) => { if (e.key === "Escape") { waiting = null; pick(null); $("hits").hidden = true; } });
+// Escape closes what is open: the list of finds, then the panel, then the context being looked inside.
+addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+  if (!$("hits").hidden) { $("hits").hidden = true; return; }
+  if (picked) { waiting = null; pick(null); } else if (inside) enter(null);
+});
 
 /* ---- find: a context, an aggregate or a policy, by any part of its name ---- */
 function find() {
@@ -453,16 +474,16 @@ function find() {
   if (!text) { found = null; hits.hidden = true; mark(); return; }
   const rows = [], has = (value) => String(value).toLowerCase().includes(text);
   found = new Set();
-  for (const u of units.values()) if (has(u.key)) { found.add(u.key); rows.push(["context", u.key, { unit: u.key }]); }
+  for (const key of new Set(nodes.filter((n) => n.domain).map(contextKey))) if (has(key)) { found.add(key); rows.push(["context", key, { enter: key }]); }
   for (const n of nodes) if (n.domain && n.kind !== "adapter" && has(n.label)) { found.add(unitKey(n)); rows.push([n.kind, n.label, { node: n.id }]); }
-  // A policy between two contexts opens their line; one inside a context opens the aggregate it starts from.
+  // A policy opens the aggregate whose event sets it off, inside that aggregate's context.
   for (const e of edges) {
     const a = byId.get(e.from), b = byId.get(e.to);
     if (e.kind === "adapter" || !a || !b || !a.domain || !b.domain || !(has(e.label) || has(sentence(e.label)))) continue;
-    const from = unitKey(a), to = unitKey(b); found.add(from); found.add(to);
-    rows.push(["policy", sentence(e.label), from === to ? { node: a.id } : { link: from + "→" + to }]);
+    found.add(unitKey(a)); found.add(unitKey(b)); rows.push(["policy", sentence(e.label), { node: a.id }]);
   }
-  hits.replaceChildren(...(rows.length ? rows.slice(0, 14).map(([kind, label, what]) => { const b = h("button", { type: "button" }, h("small", {}, kind), label); b.addEventListener("click", () => { hits.hidden = true; pick(what); }); return h("li", {}, b); })
+  const chosen = (what) => { hits.hidden = true; if (what.enter) enter(what.enter); else pick(what); };
+  hits.replaceChildren(...(rows.length ? rows.slice(0, 14).map(([kind, label, what]) => { const b = h("button", { type: "button" }, h("small", {}, kind), label); b.addEventListener("click", () => chosen(what)); return h("li", {}, b); })
     : [h("li", { class: "note", style: "padding:6px 8px" }, "Nothing in the wiring has that name.")]));
   hits.hidden = false; mark();
 }
@@ -533,22 +554,35 @@ function replay(list, first) { if (!first) seen.clear(); list.forEach((ev, i) =>
 /* ---- buttons, and the graph: read at load and again whenever the stream says the bluebooks are drawn differently ---- */
 function redraw() {
   gather(); layout(); draw(); renderGrid(); renderPanel();
-  const policies = edges.filter((e) => e.kind !== "adapter").length, between = [...links.values()].reduce((sum, l) => sum + l.count, 0);
-  $("count").textContent = units.size + " contexts, " + nodes.filter((n) => n.kind === "aggregate").length + " aggregates, " + policies + " policies, " + between + " of them between contexts";
+  $("up").hidden = !inside; $("count").textContent = inside ? insideCount() : allCount();
   if ($("q").value.trim()) { find(); $("hits").hidden = true; }
 }
-function regroup(domain) { if (grouped.has(domain)) grouped.delete(domain); else grouped.add(domain); keep("wiring-grouped", [...grouped]); sync(); touched = false; picked = null; redraw(); }
+const many = (count, one, more) => count + " " + (count === 1 ? one : more || one + "s");
+function allCount() {
+  const policies = edges.filter((e) => e.kind !== "adapter").length, between = [...links.values()].reduce((sum, l) => sum + l.count, 0);
+  return many(units.size, "context") + ", " + many(nodes.filter((n) => n.kind === "aggregate").length, "aggregate") + ", " + many(policies, "policy", "policies") + ", " + between + " of them between contexts";
+}
+/* Inside a context: its aggregates, the policies that stay in it, and the ones that cross its edge. */
+function insideCount() {
+  const mine = [...units.values()].filter((u) => u.inner), within = [...links.values()].filter((l) => units.get(l.from).inner && units.get(l.to).inner);
+  const kept = mine.reduce((sum, u) => sum + u.inside, 0) + within.reduce((sum, l) => sum + l.count, 0), crossing = [...links.values()].reduce((sum, l) => sum + l.count, 0) - within.reduce((sum, l) => sum + l.count, 0);
+  return inside + ": " + many(mine.filter((u) => u.node.kind === "aggregate").length, "aggregate") + ", " + many(kept, "policy", "policies") + " inside, " + crossing + " to and from other contexts";
+}
+$("up").addEventListener("click", () => enter(null));
 function sync() { const open = !splittable.every((d) => grouped.has(d)); $("areas").setAttribute("aria-pressed", String(open)); $("areas").hidden = !splittable.length; $("areas").title = open ? "Draw each domain as one block" : "Draw each area of a domain as its own block"; }
-$("areas").addEventListener("click", () => { const open = !splittable.every((d) => grouped.has(d)); grouped = new Set(open ? splittable : []); keep("wiring-grouped", [...grouped]); sync(); touched = false; picked = null; redraw(); });
+$("areas").addEventListener("click", () => { const open = !splittable.every((d) => grouped.has(d)); grouped = new Set(open ? splittable : []); keep("wiring-grouped", [...grouped]); sync(); enter(null); });
 $("fit").addEventListener("click", fit); $("zin").addEventListener("click", () => zoom(1.3)); $("zout").addEventListener("click", () => zoom(1 / 1.3));
 $("replay").addEventListener("click", () => replay(recent.slice(-12), false));
 $("toggle").addEventListener("click", () => { const on = $("grid").hidden; $("grid").hidden = !on; map.style.display = on ? "none" : ""; $("key").hidden = on; $("toggle").setAttribute("aria-pressed", String(on)); $("toggle").textContent = on ? "Show map" : "Show table"; });
 addEventListener("resize", () => { if (!touched) fit(); });
 function applyWiring(g, first) {
   nodes = g.nodes; edges = g.edges; wiringDigest = g.digest; byId = new Map(nodes.map((n) => [n.id, n]));
-  place(); sync(); redraw();
+  place(); sync();
+  if (inside && !contexts().has(inside)) inside = null;
+  redraw();
   if (!first && picked) pick(picked);
 }
+const contexts = () => new Set(nodes.filter((n) => n.domain).map(contextKey));
 function loadWiring(first) {
   return fetch("/api/wiring", { cache: "no-store" }).then((r) => r.json()).then((g) => {
     if (g.unknown) { $("count").textContent = "not read: " + g.unknown; return; }
@@ -556,7 +590,9 @@ function loadWiring(first) {
     if (!first) return;
     listen();
     const wanted = decodeURIComponent(location.hash.slice(1));
-    if (wanted) pick(byId.has(wanted) ? { node: wanted } : units.has(wanted) ? { unit: wanted } : { link: wanted });
+    // The address names a node, a context to look inside (`in:` before it, or the bare name), or a line.
+    const context = wanted.startsWith("in:") ? wanted.slice(3) : wanted;
+    if (byId.has(wanted)) pick({ node: wanted }); else if (contexts().has(context)) enter(context); else if (wanted) pick({ link: wanted });
   }).catch((e) => { $("count").textContent = "not read: " + e.message; });
 }
 loadWiring(true);

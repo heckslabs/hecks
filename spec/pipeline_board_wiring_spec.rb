@@ -102,6 +102,18 @@ RSpec.describe Hecks::Adapters::PipelineWiring do
       expect(JSON.parse(fetch("/api/wiring").body)["nodes"].size).to eq(1)
     end
 
+    it "serves the CI page at /ci, with main's runs, the train's and the flakes", :aggregate_failures do
+      body = fetch("/ci").body
+      expect(body).to include("<title>Pipeline CI</title>", 'id="main"', 'id="train"', 'id="flakes"')
+      expect(body).not_to match(%r{https?://|//cdn|@import})
+    end
+
+    it "keeps the CI runs off the board, which links to their page", :aggregate_failures do
+      board = fetch("/").body
+      expect(board).to include('href="/ci"')
+      expect(board).not_to include('id="h-ci"', "renderCi")
+    end
+
     it "serves the diagram page at /wiring" do
       expect(fetch("/wiring").body).to include("Pipeline Wiring")
     end
@@ -121,6 +133,10 @@ RSpec.describe Hecks::Adapters::PipelineWiring do
     it "lays the contexts out in the order most policies run along, and draws the rest as running back" do
       expect(fetch("/wiring").body)
         .to include("function flowOrder(keys)", "function settle(start)", "link.back = at.get(link.from) > at.get(link.to)")
+    end
+
+    it "looks inside a context: its aggregates and ports as blocks, with only the contexts around them" do
+      expect(fetch("/wiring").body).to include("let inside = null;", "function surround()", "function enter(key)")
     end
 
     it "reads a policy's name as the sentence it was written as" do
