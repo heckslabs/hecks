@@ -238,6 +238,12 @@ Hecks.hecksagon "Hecks" do
     answers_query "Where"
   end
 
+  # The outside a measure of the landings reaches: the event table of the file the delivery package's
+  # `Landing` is kept in, opened read-only.
+  Hecks::LandingPace.port "Pace" do
+    answers_query "Pace"
+  end
+
   Hecks::Restoration.port "Restoring" do
     asks "Restore", to: Restoration do
       attribute :run, RunKey
