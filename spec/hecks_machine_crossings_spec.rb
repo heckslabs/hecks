@@ -21,7 +21,7 @@ RSpec.describe "crossings of the machine's marks" do
   end
 
   it "hears memory run low and recover", :aggregate_failures do
-    beats = [gauge(60.0, 86.0), gauge(60.0, 60.0), gauge(60.0, 40.0)]
+    beats = [gauge(60.0, 5000.0, free: 1.0), gauge(60.0, 5000.0, free: 4.0), gauge(60.0, 5000.0, free: 8.0)]
 
     expect(crossings(beat_through(beats)[:names])).to eq(%w[MemoryLow MemoryRecovered])
   end

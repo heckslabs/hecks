@@ -15,6 +15,13 @@ RSpec.describe Hecks::Adapters::MachineSampling::Readings do
     expect(readings.swap("total = 12288.00M  used = 10547.31M  free = 1740.69M  (encrypted)")).to eq(85.8)
   end
 
+  it "reads swap used in megabytes and free plus inactive memory in gigabytes", :aggregate_failures do
+    vm_stat = "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:  62321.\nPages inactive:  888154.\n"
+
+    expect(readings.swap_mb("total = 3072.00M  used = 1833.00M  free = 1239.00M")).to eq(1833.0)
+    expect(readings.free_gb(vm_stat)).to eq(14.5)
+  end
+
   it "reads nothing from a machine with no swap or no figures", :aggregate_failures do
     expect(readings.swap("total = 0.00M  used = 0.00M  free = 0.00M")).to be_nil
     expect(readings.idle("")).to be_nil

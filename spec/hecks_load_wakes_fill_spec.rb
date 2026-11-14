@@ -31,20 +31,20 @@ RSpec.describe "the machine's load wakes the fill" do
   end
 
   it "does not fill when memory runs low" do
-    beats = beat_through([gauge(60.0, 86.0)])
+    beats = beat_through([gauge(60.0, 5000.0, free: 1.0)])
 
     expect(beats[:rolls]).to be_empty
   end
 
   it "fills when memory recovers", :aggregate_failures do
-    beats = beat_through([gauge(60.0, 86.0), gauge(60.0, 40.0)])
+    beats = beat_through([gauge(60.0, 5000.0, free: 1.0), gauge(60.0, 1000.0, free: 8.0)])
 
     expect(crossings(beats[:names])).to eq(%w[MemoryLow MemoryRecovered])
     expect(beats[:rolls].size).to eq(1)
   end
 
   it "starts one fill for a reading that crosses two marks" do
-    beats = beat_through([gauge(60.0, 86.0).merge(load: 11.0), gauge(60.0, 40.0).merge(load: 9.0)])
+    beats = beat_through([gauge(60.0, 5000.0, free: 1.0).merge(load: 11.0), gauge(60.0, 1000.0, free: 8.0).merge(load: 9.0)])
 
     expect(beats[:rolls].size).to eq(1)
   end

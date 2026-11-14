@@ -7,7 +7,7 @@ module MachineBeats
 
   # Boots the Hecks domain in Memory and beats once for each reading of a fake machine.
   #
-  # @param series [Array<Hash>] the gauges of each beat: `cpu_idle`, `swap_used`, `load`, ...
+  # @param series [Array<Hash>] the gauges of each beat: `cpu_idle`, `swap_used_mb`, `load`, ...
   # @return [Hash] `names:` the events in order, `rolls:` the fills the rolling port answered
   def beat_through(series)
     Sampling.last = nil
@@ -32,7 +32,7 @@ module MachineBeats
 
   def crossings(names) = names.grep(/\A(LoadFellBelow|LoadRoseAbove|MemoryLow|MemoryRecovered|TestLaneBusy|TestLaneIdle)\z/)
 
-  def gauge(idle, swap = 10.0, lane = nil)
-    { cpu_idle: idle, load: 7.0, swap_used: swap, compressor_gb: 2.0, lane_waiting: lane }
+  def gauge(idle, swap_mb = 10.0, lane = nil, free: 10.0)
+    { cpu_idle: idle, load: 7.0, swap_used: 10.0, swap_used_mb: swap_mb, free_gb: free, compressor_gb: 2.0, lane_waiting: lane }
   end
 end

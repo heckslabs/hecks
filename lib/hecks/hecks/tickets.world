@@ -33,8 +33,8 @@
 # the `Sampling` port). Each state has two marks with a gap between them, so a gauge near one does not flap:
 # the load has risen at CPU idle `cpu_idle_low` percent or under (or at a load average over `load_high` with
 # the CPU under `cpu_idle_high` idle) and fallen at `cpu_idle_high` idle or over (or under `load_low` with the
-# CPU over `cpu_idle_low`); memory is low over `swap_low` percent of swap used or a compressor over
-# `compressor_gb` gigabytes, and recovered under `swap_recovered` percent; the test lane is busy at
+# CPU over `cpu_idle_low`); memory is low over `swap_used_mb` of swap or a compressor over `compressor_gb` while
+# free plus inactive memory is under `free_gb_low`, and recovered at `free_gb_recovered` or swap under `swap_recovered_mb`; the test lane is busy at
 # `lane_busy` waiting and idle at `lane_idle` or fewer; a reading is taken at most every `interval` seconds.
 # `load_low` and `load_high` are `dispatch_max_load` (10.0), so the load rises when the fill starts refusing
 # and falls when it would start again; `LoadFellBelow` is what runs the fill. The CPU idle marks are
@@ -42,7 +42,8 @@
 # of exactly 0 or exactly 100 still overrides it. Keep the three numbers equal.
 Hecks.world "Tickets" do
   machine_marks "Machine", load_low: 10.0, load_high: 10.0, cpu_idle_low: 0.0, cpu_idle_high: 100.0,
-                           swap_low: 70.0, swap_recovered: 50.0, compressor_gb: 12.0, lane_busy: 4.0, lane_idle: 1.0,
+                           swap_used_mb: 4096.0, swap_recovered_mb: 2048.0, compressor_gb: 12.0,
+                           free_gb_low: 3.0, free_gb_recovered: 6.0, lane_busy: 4.0, lane_idle: 1.0,
                            interval: 60.0
   github_issues "GitHubIssues", enabled: false
   # `urgent_reserve` is how many red-* work items may start past a full cap (1 when absent), so
@@ -64,9 +65,9 @@ Hecks.world "Tickets" do
   # pass peaked near 4 cores and a spec run at 1, while five coders at once had raised the load to
   # 19; three jobs keep the pipeline near the `dispatch_max_load` of 10.0 with the desktop's share.
   # Before it takes a place, a heavy job waits while memory is low by the `machine_marks` above
-  # (swap or compressor over its mark, until swap is under `swap_recovered`), reading the machine
+  # (swap or compressor over its mark while free memory is short, until it is not), reading the machine
   # every `memory_poll_seconds` (`Codebase::MemoryWait`); seen 2026-11-13 at 33 of 36 GB used.
-  heavy_jobs "HeavyJobs", cap: 3, memory_poll_seconds: 10.0
+  heavy_jobs "HeavyJobs", cap: 3, memory_poll_seconds: 10.0, memory_give_up_seconds: 120.0
   # `spec_workers` is the most workers one parallel spec run starts (a bare `rspec`, the gate's
   # parallel suite), never more than the cores: seen 2026-11-13, one run of 12 workers on 12 cores
   # left the desktop nothing, so 6 holds one run to half the machine (`Codebase::SpecWorkers`).
