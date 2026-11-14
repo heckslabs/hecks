@@ -94,6 +94,9 @@ Hecks.world "Tickets" do
   triggered_specs "Specs", paths: ["lib/hecks/**/*.bluebook", "lib/hecks/**/*.hecksagon", "**/*.behaviors",
                                    "lib/hecks/hecks/tickets.world"],
                            specs: ["spec/behaviors_examples_spec.rb"]
+  # `ledger_care`: a beat compacts the AgentRun journal once `entries` are compactable, waiting
+  # at most `wait_seconds` for the file's lock and deferring by name when another holds it.
+  ledger_care "LedgerCare", entries: 20_000, wait_seconds: 3
   # The decision records' files (Tickets::Adr), relative to the checkout; `None` leaves the Adr
   # store a plain Memory one, as the memory overlay does for specs. Binding Adr makes the wiring
   # explicit, so the other aggregates take this default where no attaching domain hands one down.

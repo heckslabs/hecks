@@ -1,0 +1,164 @@
+Hecks.bluebook "Hecks" do
+  domain_module "LedgerCare" do
+    vision "The agent-run ledger keeps itself small: its journal is compacted on the clock's beat and its file is reclaimed on request."
+
+    # A beat looks once at whether the AgentRun journal holds more compactable entries than the
+    # Tickets world's `ledger_care` row allows; the `Weighing` port counts them under the file's
+    # write lock, waited for a few seconds. A small journal or a held file is deferred by name.
+    aggregate "LedgerCare" do
+      description "One look, on a beat of the clock, at whether the AgentRun journal is due its compaction."
+
+      attribute :run,      CareKey
+      attribute :reason,   CareNote, optional: true
+      attribute :refusal,  CareNote, optional: true
+      identified_by :run
+
+      value_object "CareKey" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "CareNote", String
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "deferred"
+        transition "Hear"    => "due",      from: "requested"
+        transition "Decline" => "deferred", from: "requested"
+        mark :terminal, "due", "deferred"
+      end
+
+      command "Look" do
+        role "System"
+        goal "Ask whether the AgentRun journal holds more compactable entries than the world allows"
+
+        attribute :run, CareKey, sets: true
+
+        emits LedgerCareRequested
+      end
+
+      command "Hear" do
+        role "System"
+        goal "Record why the journal is compacted now"
+
+        reference_to LedgerCare
+        attribute :reason, CareNote, sets: true
+
+        emits LedgerCareHeard
+      end
+
+      command "Decline" do
+        role "System"
+        goal "Record why the journal is left for the next beat: below the line, or the file held by another"
+
+        reference_to LedgerCare
+        attribute :refusal, CareNote, sets: true
+
+        emits LedgerCareDeclined
+      end
+    end
+
+    # A root, like the sampling and the sweep, so each beat's look begins its own chain.
+    policy "LookAfterTheLedgerOnHeartbeat" do
+      on      "Heartbeat.Beaten"
+      root
+      trigger LedgerCare::Look, with: { run: :beat }
+    end
+
+    policy "WeighTheLedgerWhenLooking" do
+      on      "LedgerCare.LedgerCareRequested"
+      ask     :weigh, with: { run: :run }
+    end
+
+    policy "RecordWhyTheLedgerIsDue" do
+      on      "LedgerCare.LedgerCareDue"
+      trigger LedgerCare::Hear, with: { reason: :reason }
+    end
+
+    policy "RecordWhyTheLedgerWaits" do
+      on      "LedgerCare.LedgerCareDeferred"
+      trigger LedgerCare::Decline, with: { refusal: :refusal }
+    end
+
+    # The compaction is its own chain (the seal, the examination and the apply are deep), keyed by
+    # the beat it was found due on.
+    policy "CompactWhenTheLedgerIsDue" do
+      on      "LedgerCare.LedgerCareDue"
+      root
+      trigger SchemaRevision::Compact, with: { domain: :domain, aggregates: :aggregates, run: :compaction, confirm: true }
+    end
+
+    # SQLite keeps the pages a delete frees, so the file stays as big until a vacuum rewrites it.
+    # A vacuum holds the whole file: it is asked for (`LedgerFile.Reclaim`), and the `Reclaiming`
+    # port refuses it by name unless the file's exclusive lock is taken within a few seconds.
+    aggregate "LedgerFile" do
+      description "The SQLite file the AgentRun records live in, and the request to give its free pages back."
+
+      attribute :run,     CareKey
+      attribute :confirm, Switch, optional: true
+      attribute :report,  CareNote, optional: true
+      attribute :refusal, CareNote, optional: true
+      identified_by :run
+
+      value_object "CareKey" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Switch", Boolean
+
+      value_object "CareNote", String
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "refused"
+        transition "Settle"  => "reclaimed", from: "requested"
+        transition "Decline" => "refused",   from: "requested"
+        mark :terminal, "reclaimed", "refused"
+      end
+
+      command "Reclaim" do
+        role "Operator"
+        goal "Give the free pages of the AgentRun file back with a VACUUM, only when the file is quiet"
+
+        attribute :run,     CareKey, sets: true
+        attribute :confirm, Switch, optional: true, sets: true
+
+        given("reclaiming needs --confirm: a VACUUM holds the whole file") { confirm.value == true }
+
+        emits ReclaimRequested
+      end
+
+      command "Settle" do
+        role "System"
+        goal "Record the file's size before and after the VACUUM"
+
+        reference_to LedgerFile
+        attribute :report, CareNote, sets: true
+
+        emits LedgerFileReclaimed
+      end
+
+      command "Decline" do
+        role "System"
+        goal "Record why the file was not vacuumed, naming what held it"
+
+        reference_to LedgerFile
+        attribute :refusal, CareNote, sets: true
+
+        emits LedgerFileHeld
+      end
+    end
+
+    policy "VacuumWhenReclaimRequested" do
+      on      "LedgerFile.ReclaimRequested"
+      ask     :vacuum, with: { run: :run }
+    end
+
+    policy "RecordTheReclaim" do
+      on      "LedgerFile.LedgerFileVacuumed"
+      trigger LedgerFile::Settle, with: { report: :report }
+    end
+
+    policy "RecordWhyTheFileWasHeld" do
+      on      "LedgerFile.LedgerFileBusy"
+      trigger LedgerFile::Decline, with: { refusal: :refusal }
+    end
+  end
+end
