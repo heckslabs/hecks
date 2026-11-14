@@ -1,6 +1,7 @@
 # The board's read model is declared, and its pages are projected from declarations
 
-**Status:** Accepted. Date: 2026-11-08. Accepted by the owner (2026-11-08). Proposed 2026-11-07. Narrows
+**Status:** Accepted. Date: 2026-11-08. Accepted by the owner (2026-11-08). Proposed 2026-11-07.
+Amended 2026-11-14 (the Amendment at the end adds point 8 and migration step 0). Narrows
 [0154](0154-hand-written-code-is-a-kernel-an-adapter-or-a-projector.md) (a hand-written file is a
 kernel, an adapter or a projector) to the PipelineBoard (`lib/hecks/pipeline_board`), and follows
 [0190](0190-tools-dissolve-behind-ports-and-kept-data-is-read-from-the-committed-world.md) in
@@ -250,3 +251,63 @@ planner, a plan review request for the architect), which go to the orchestrator.
 - Left to coders on the hand-written readers, outside these steps: `board-answer-superseded-hidden`
   and `board-delivery-reader-rotations` (reader behaviour, not shape), and `board-first-read-fast`
   (one `gh` call per run).
+
+## Amendment (2026-11-14): a rule moves to the aggregate that owns it, before its answer is typed
+
+A read of every file of the board on 2026-11-14 found the Context's premise false. It said the
+bluebook "already holds every decision the board makes as rows" and that "the adapters hold no
+rule of their own". The `Verdict` rows hold the thresholds; what each row compares is decided in
+Ruby and in the page scripts:
+
+- **The measures are rules.** `Session status` compares `waiting`, `needs` and `busy`, and
+  `pipeline_jobs.rb` decides what each means. `Session owner` compares `asked` and `review`, and
+  `owner_queue.rb` decides them with patterns on a session's text.
+- **A row that always holds is not a rule.** `Main red`, `Red flag`, `Stopped runs` and `Overdue
+  for you` are `always` rows; Ruby decides whether the row is built, which is the decision.
+- **Some rows are never read.** The `Finding` rows name the fan-out's flags and `fanout.rb`
+  decides each one from literals. The test words of `HealthCheck` and the `belongs` words of
+  `CycleStage` are defined in comments and implemented in Ruby, with a silent fallback for a word
+  no code knows.
+- **The pages decide.** Which session may be deleted is a rule only `page.html` holds, promoting
+  and then settling a recommendation is sequenced in `answer.js`, and a reaction's outcome is
+  classed four ways across the pages.
+- **The board re-implements queries other bluebooks declare.** It loaded every Work item, run and
+  finding and filtered them by status lists of its own, beside `Work.Undone`, `WorkByStatus`,
+  `AgentRun.Running`, `AgentRun.Tidyable`, `Finding.Open` and `Finding.Stopped`.
+
+Typing the answers (point 1) leaves every one of these where it is: a `Reading` in state
+`attention` is still as right as the Ruby that fed its `Verdict` row. So the Decision gains a
+point, and the migration a step that comes first.
+
+8. **A rule lives in the bluebook of the aggregate it is about, and the board asks for it.** The
+   board is downstream of every context it shows ([0207](0207-no-two-contexts-depend-on-each-other-and-a-standing-cycle-is-deprecated.md)
+   allows that) and decides nothing about them:
+
+   - Whether a session is blocked, what it waits on and whether the owner is asked are facts of
+     `AgentRun`. `AgentRun.Check` already records the condition on every heartbeat; the question's
+     kind and what the session needs become attributes it sets, and the board reads the run.
+   - A second session on one Work item, a session on an unclaimed one and a start over another
+     item's area are refused or flagged by Tickets and Dispatch, where two of the four rules
+     already stand. The board lists what they flagged.
+   - Since when main is red, and at which commit, are facts of `RedFlag`, read through
+     `RedFlag.Status` and never from its marker file.
+   - A list or a count of another context's records is that context's declared query or read
+     model, asked by name. No status list is repeated in an adapter.
+   - Pairing an opening event with its closing events inside a bound is one concept with three
+     engines (`StallKind`, `HealthCheck`, `CycleStage`). They become one, and what it cannot yet
+     say waits on a read model fed by events, which is its own decision record.
+
+   The Alternatives' rejection of a `read_model` stands for the answers of GitHub and git, which
+   are no records. It does not stand for Work items, runs, landings and findings, which are.
+
+Two facts found in the same read bound what the `Snapshot` of point 1 may promise:
+
+- The event log (`events.jsonl`) holds an event's name, ids and seven link keys, and no payload.
+  `RunCards`, `Stuck`, `TurnBlock` and the `half_delivered` check read a payload, so against the
+  live log they answer nothing; the `StuckItem` and `RunCard` rows need a source that has one.
+- The log's plain files reach back some hours and the reader opens no archive, while the health
+  window is a day and a finding's bound two. A reading says how far back it could see.
+
+Migration step 0, before step 1: the board asks the declared queries for its Work items, runs and
+findings (landed as `board-asks-declared-queries`), then each rule of point 8 moves to its
+aggregate as its own Work item. Step 1 then types answers whose meaning is already declared.
