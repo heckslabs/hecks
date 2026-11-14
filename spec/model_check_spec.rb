@@ -89,7 +89,8 @@ RSpec.describe "the model checker" do
     end
 
     it "raises no finding for a :reusable state nothing leaves" do
-      expect(findings.select { |f| f.subject == "Ticket" }.map(&:kind)).to be_empty
+      expect(findings.select { |f| f.subject == "Ticket" }.map { |f| [f.kind, f.message[/"(\w+)"/, 1]] })
+        .to eq([[:wait_without_timeout, "open"]])
     end
 
     def ended_twice_lifecycle
@@ -114,7 +115,7 @@ RSpec.describe "the model checker" do
       # Not an exact count: "Vanish" cascades into a second unreachable_state and a stuck_state.
       # The fixture proves each kind fires at least once, not how many a hand-written FSM yields.
       expect(findings.select { |f| f.subject == "Widget" }.map(&:kind).uniq.sort)
-        .to eq(%i[dead_transition stuck_state unknown_command unreachable_state].sort)
+        .to eq(%i[dead_transition stuck_state unknown_command unreachable_state wait_without_timeout].sort)
     end
   end
 
