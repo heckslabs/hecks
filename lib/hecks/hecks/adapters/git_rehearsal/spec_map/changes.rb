@@ -31,7 +31,7 @@ module Hecks
           end
 
           # @param paths [Array<String>] changed paths relative to the root
-          # @return [Hash{String => Array<String>}] each domain path with changed lines, and its names
+          # @return [Hash{String => Array<String>}] each domain path with changed lines, its names
           def names(paths)
             paths.grep(Needles::DOMAIN).to_h { |path| [path, read(path)] }
                  .reject { |_path, found| found.empty? }
