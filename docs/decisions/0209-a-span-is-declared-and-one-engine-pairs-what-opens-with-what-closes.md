@@ -77,5 +77,8 @@ Hecks cannot say this in a declaration today:
 - A span's rows need a store that outlives a process, so the tooling domains that declare spans
   keep them, as they keep `AgentRun` and `Landing`.
 - History starts when the span is first heard. What happened before is not rebuilt from the log.
-- Left open for the owner: the word (`span`, `interval`, `wait`), and whether `stages` is its
-  own construct or a list on a read model.
+- The word is `span`, and `stages` is its own declaration. The owner left both to the author
+  (2026-11-14). `wait` is already model_check's word for a lifecycle state that can wait
+  forever, and `interval` reads as something that repeats. A
+  list on a read model would give `read_model` a second meaning; a `stages` declaration that
+  names spans in order adds one word and leaves `read_model` as it is.

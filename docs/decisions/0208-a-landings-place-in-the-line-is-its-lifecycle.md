@@ -46,7 +46,13 @@ All of that is Ruby in `delivery/lib/adapters/git_landing/`, over files in the g
    watch files it and `Landing.Abandon` records it. The adapter stops deciding who has gone away.
 6. **The limits are Switchyard's.** Its own world declares how long a landing waits and when one
    is stale, and the delivery package reads no world it does not own.
-7. **Specs come first.** Before any of the above, examples pin today's line as it behaves: order,
+7. **A train is its own aggregate, `Convoy`.** Today a train is a landing of a branch named
+   "train" that jumps the line, and what it did to each branch is one sentence on that record.
+   A `Convoy` holds the front while it runs, takes the waiting landings in the line's order and
+   records nothing of its own about them: each landing it takes moves through `holding`, `gated`
+   and its terminal state like any other, with the convoy's key on it. `Landing.Train` starts
+   one, and the `convoyed` state and the branch named "train" go.
+8. **Specs come first.** Before any of the above, examples pin today's line as it behaves: order,
    a train at the front, a stale ticket, a wait that expires, a submitted landing that retries.
 
 ## Alternatives considered
@@ -57,6 +63,9 @@ All of that is Ruby in `delivery/lib/adapters/git_landing/`, over files in the g
   which is a second source of the same fact, and the gate and the refusals would stay undeclared.
 - **A process manager for the chain.** It suits a chain that survives a restart. A landing runs in
   one process and is retried whole, so policies say it with less.
+- **Keep a train as a landing that jumps the line.** It needs no new aggregate. It keeps a
+  `Landing` whose branch is no branch, and a per-branch result that no query can read. The owner
+  left the choice to the author (2026-11-14), who chose the aggregate for those two reasons.
 
 ## Consequences
 
@@ -64,5 +73,3 @@ All of that is Ruby in `delivery/lib/adapters/git_landing/`, over files in the g
   each with its time. The board's Train and Local main stages read it and stop guessing.
 - The chain is slower to write than one blocking call, and `AwaitTurn` still blocks in an adapter.
 - Delivery is a vendored package, so each step is a Switchyard release and a new vendoring in Hecks.
-- Left open for the owner: whether a train stays a landing that jumps the line or becomes its own
-  aggregate that takes the landings ahead of it.
