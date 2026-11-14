@@ -10,6 +10,9 @@ require "hecks/adapters/driving/resident/described_cache"
 require "hecks/adapters/driving/resident/fork_warmup"
 require "hecks/adapters/driving/resident/loading"
 require "hecks/adapters/driving/resident/forking"
+require "hecks/adapters/driving/resident/line_limit"
+require "hecks/adapters/driving/resident/overdue"
+require "hecks/adapters/driving/resident/stores"
 require "hecks/adapters/driving/resident/pool"
 require "hecks/adapters/driving/resident/serving"
 require "hecks/adapters/driving/resident/stopping"
@@ -29,6 +32,8 @@ module Hecks
         class Server
           include Loading
           include Forking
+          include LineLimit
+          include Overdue
           include Pool
           include Serving
           include Stopping
@@ -53,6 +58,7 @@ module Hecks
             @script = script
             @exists = exists
             @owner = Process.pid
+            @born = Time.now
             @monitors = []
             @notes = Queue.new
             @settings = Loading::DEFAULTS
@@ -139,7 +145,7 @@ module Hecks
 
             retire unless @retired
             join_threads
-            @monitors.each(&:join)
+            wait_for_lines
           end
         end
       end

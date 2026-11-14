@@ -56,14 +56,16 @@ module Hecks
           def now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
           # What the resident does between lines: reaps finished lines, loads what children named
-          # as missing (while no child is being forked), watches the code and the declarations, and
-          # retires when they change or the checkout is gone. An upkeep that raises retires the
+          # as missing (while no child is being forked), says when a line has outrun the idle time
+          # ({Overdue}), watches the code and the declarations, and retires when they change or the
+          # checkout is gone. An upkeep that raises retires the
           # resident ({#upkeep_died}), since one nobody watches would serve code that has changed.
           def upkeep
             until @retired
               sleep(UPKEEP_SECONDS)
               @guard.synchronize { @monitors.select!(&:alive?) }
               @fork_lock.synchronize { learn } unless @notes.empty?
+              note_overdue
               @changed ||= @fingerprint.changed?
               @changed ? retire : retire_when_orphaned
             end
