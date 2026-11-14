@@ -2,6 +2,7 @@
 
 require "time"
 require_relative "console_capture"
+require_relative "claude_session_listing"
 
 module Hecks
   module Adapters
@@ -67,13 +68,14 @@ module Hecks
         stopped_gone(held, id, entry) || keep(held, id, entry)
       end
 
-      # A session listed `stopped` over a run that shows nothing for the declared minutes is gone;
-      # one that works, waits or has life around it is not.
+      # A session listed as ended (stopped, done or failed) over a run that shows nothing for the
+      # declared minutes is gone; one that works, is blocked or has life around it is not.
       def stopped_gone(held, id, entry)
-        return unless entry["state"].to_s == "stopped" && @gone.respond_to?(:stopped_reason)
+        state = entry["state"].to_s
+        return unless ClaudeSessionListing::ENDED.include?(state) && @gone.respond_to?(:stopped_reason)
 
         why = @gone.stopped_reason(held.transform_values { |value| plain(value) })
-        { listed: false, state: "stopped", note: "session #{id} is listed stopped; #{why}" } if why
+        { listed: false, state: state, note: "session #{id} is listed #{state}; #{why}" } if why
       end
 
       def keep(held, id, entry)

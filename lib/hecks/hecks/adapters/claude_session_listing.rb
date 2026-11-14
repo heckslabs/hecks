@@ -19,6 +19,10 @@ module Hecks
       # Seconds a listing is kept for the sessions it shows.
       TTL = 15
 
+      # The states of a session whose coder has ended: it stopped, finished or failed.
+      # A session that works or is blocked is never among them.
+      ENDED = %w[stopped done failed].freeze
+
       # Seconds within which a listing is fresh enough to be believed about a session it lacks.
       FRESH = 2
 
@@ -69,11 +73,11 @@ module Hecks
       end
 
       # @param id [String] the short or the full session id
-      # @return [Boolean] whether the session is not listed or is listed `stopped`; false when it
-      #   works, waits or is otherwise listed, and when the sessions cannot be listed or read
+      # @return [Boolean] whether the session is not listed or is listed as ended (`ENDED`); false
+      #   when it works, is blocked or is otherwise listed, and when the sessions cannot be read
       def quiet?(id)
         entry = find(id.to_s)
-        entry.nil? || entry["state"].to_s == "stopped"
+        entry.nil? || ENDED.include?(entry["state"].to_s)
       rescue ConsoleCapture::Failure, JSON::ParserError
         false
       end
