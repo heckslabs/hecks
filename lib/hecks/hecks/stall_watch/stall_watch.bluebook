@@ -95,7 +95,9 @@ Hecks.bluebook "Hecks" do
         # heard it, so any later fall closes the rise, and the subject is the beat of the rise.
         member kind: "load", aggregate: "Hecks::Machine", opens: "LoadRoseAbove", closes: "LoadFellBelow",
                closed_by: "any", evidence: "processes", minutes: 5, forgets: 1440, fixer: "orchestrator",
-               move: "The detail names the busiest process class and the session whose shell owns it " \
+               move: "The rise itself already asked the lowest-priority started item to yield (Shed.ShedAsked, " \
+                     "or ShedSpared with the reason): do not ask that run again. " \
+                     "The detail names the busiest process class and the session whose shell owns it " \
                      "(Machine.busiest reads every class again); AgentRun.running names that session's started run. " \
                      "AgentRun.answer! that run naming the processes and asking it to end the processes its " \
                      "commands start and to bound how many it starts. Never kill a pid. If no pipeline " \

@@ -691,6 +691,21 @@ Hecks.bluebook "Tickets" do
 
     value_object "WorkText", String
 
+    # The kinds a yield records: what the item waits for before it starts again (its retry `time`,
+    # the `run` that holds its key, the `load` to fall), whether the yield counts toward its
+    # backoff, and whether a fill restarts it `first`. A `load` yield is the machine's doing.
+    value_object "YieldKind" do
+      attribute :kind,    String
+      attribute :waits,   String
+      attribute :counted, Boolean
+      attribute :first,   Boolean
+
+      member kind: "transient",        waits: "time", counted: true,  first: false
+      member kind: "missing_passage",  waits: "time", counted: true,  first: false
+      member kind: "already_recorded", waits: "run",  counted: true,  first: false
+      member kind: "load",             waits: "load", counted: false, first: true
+    end
+
     # How many times a work item has been sent back to the plan; its backoff grows with it.
     value_object "YieldCount" do
       attribute :value, Integer

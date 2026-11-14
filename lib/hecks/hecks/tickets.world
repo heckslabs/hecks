@@ -52,6 +52,10 @@ Hecks.world "Tickets" do
   dispatch_max_load "Dispatch", limit: 10.0
   epic_wip_limit "Dispatch", limit: 4
   cpu_budget "Dispatch", boot_hours_per_day: 6.0
+  # `load_shed` bounds the Delegate `Shed`: a rise of the load asks one started item to yield.
+  # `min_coders` 2: asking the only coder frees the machine for no other work. `at_once` 1: a
+  # rise while an asked run is still committing asks no more, so a slow yield empties nothing.
+  load_shed "Dispatch", min_coders: 2, at_once: 1
   dispatch_roll_forward "Dispatch", roll_forward: false
   frozen_shapes "PersistedShapes", areas: []
   session_environment "Sessions", cargo_target_dir: "~/.cache/hecks/cargo-target", nice: 15

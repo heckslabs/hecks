@@ -19,6 +19,7 @@ require_relative "dispatching/wake"
 require_relative "dispatching/rolls"
 require_relative "dispatching/rethinks"
 require_relative "dispatching/launching"
+require_relative "dispatching/shedding"
 
 module Hecks
   module Adapters
@@ -34,6 +35,7 @@ module Hecks
     class Dispatching
       include Rolls
       include Launching
+      include Shedding
 
       # @param registry [Runtime::Registry, nil] the booted registry whose work items are read
       # @param aggregate [Object, nil] unused
@@ -191,8 +193,6 @@ module Hecks
         items = rolling ? work_items.rollable : work_items.planned
         items.select { |item| only.empty? || item.key.to_s.start_with?(only) }
       end
-
-      def header_of(report) = report.partition("\n").first
 
       def header(plan, tally = "this fill would start #{plan.chosen.size}")
         "#{load_line}; started #{work_items.started.size} of cap #{machine.cap}; " \

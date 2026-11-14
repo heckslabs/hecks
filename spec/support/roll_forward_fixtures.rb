@@ -15,7 +15,8 @@ module RollForwardFixtures
 
   def registry_of(entries, world = {})
     repository = double(all: entries)
-    bluebook = double(aggregates: [double(hecks_name: "Work")])
+    kinds = double(hecks_name: "YieldKind", members: [{ kind: "load", first: true }, { kind: "transient", first: false }])
+    bluebook = double(aggregates: [double(hecks_name: "Work", value_objects: [kinds])])
     double(bluebook: bluebook, repository: repository, world: double(for_verb: world))
   end
 
