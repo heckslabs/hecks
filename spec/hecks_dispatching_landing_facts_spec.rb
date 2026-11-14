@@ -29,4 +29,8 @@ RSpec.describe Hecks::Adapters::Dispatching::WorkItems, "#landed_commits" do
   it "answers when the work item started, empty for one the store does not hold" do
     expect(work_items.claimed_at("b")).to eq("")
   end
+
+  it "answers no status for a work item the store does not hold" do
+    expect(work_items.status_of("b")).to be_nil
+  end
 end

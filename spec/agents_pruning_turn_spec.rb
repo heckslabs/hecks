@@ -6,8 +6,11 @@ require_relative "support/resting_pruner"
 RSpec.describe "the pruner's turn" do
   include_context "with a resting pruner"
 
+  # The session reads done and the listing holds none, so the reap each run's end starts records
+  # the run tidied and no kept run is left waiting when the next one ends.
   def session_reads_done
     File.write(File.join(scratch, "jobs", "stand-in-session", "state.json"), JSON.generate(state: "done"))
+    File.write(File.join(scratch, "sessions.json"), "[]")
   end
 
   it "starts no second pruner while one is working" do

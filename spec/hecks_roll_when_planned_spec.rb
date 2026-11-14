@@ -1,8 +1,9 @@
 require "spec_helper"
 require_relative "support/roll_forward_fixtures"
 
-# Planning a Work item starts a rolling fill: RollWhenWorkIsPlanned hands Roll.Start the one
-# argument it takes, so no reaction is refused and a roll is requested.
+# Planning a Work item starts a rolling fill while the owner's switch is on: RollWhenWorkIsPlanned
+# consults the switch with the arguments the consult takes, so no reaction is refused and a roll
+# is requested.
 RSpec.describe "RollWhenWorkIsPlanned" do
   include RollForwardFixtures
 
@@ -19,7 +20,7 @@ RSpec.describe "RollWhenWorkIsPlanned" do
   def reaction(policy) = hecks.reactions.find { |row| row[:policy] == policy }
 
   it "delivers the policy's trigger" do
-    expect(reaction("RollWhenWorkIsPlanned")).to include(trigger: "Hecks::Roll.Start", delivered: true)
+    expect(reaction("RollWhenWorkIsPlanned")).to include(trigger: "Hecks::RollSwitch.Consult", delivered: true)
   end
 
   it "refuses no reaction" do

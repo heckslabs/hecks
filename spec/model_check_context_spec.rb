@@ -88,12 +88,44 @@ RSpec.describe Hecks::Bluebook::ModelCheck::ContextChecks do
   describe "context cycles" do
     def edge(from, to, kind) = { from: from, to: to, kind: kind }
 
-    def cycles(*edges) = Hecks::Bluebook::ModelCheck.context_cycle_findings(edges)
+    def cycles(*edges, accepted: {}) = Hecks::Bluebook::ModelCheck.context_cycle_findings(edges, accepted: accepted)
 
-    it "reports two contexts that depend on each other as one warning" do
+    def read(found) = found.map { |f| [f.kind, f.severity, f.subject] }
+
+    it "refuses two contexts that depend on each other, as one error" do
       found = cycles(edge("A", "B", "acl"), edge("B", "A", "customer_supplier"))
 
-      expect(found.map { |f| [f.kind, f.severity, f.subject] }).to eq([[:context_cycle, :warning, "A <-> B"]])
+      expect(read(found)).to eq([[:context_cycle, :error, "A <-> B"]])
+    end
+
+    it "counts an attach and a subscription as a dependency, as much as a translation" do
+      found = cycles(edge("A", "B", "shared_kernel"), edge("B", "A", "subscription"))
+
+      expect(read(found)).to eq([[:context_cycle, :error, "A <-> B"]])
+    end
+
+    it "reports a cycle the context map accepts as deprecated, not refused", :aggregate_failures do
+      found = cycles(edge("A", "B", "shared_kernel"), edge("B", "A", "acl"), accepted: { %w[A B] => "stood before" })
+
+      expect(read(found)).to eq([[:context_cycle, :warning, "A <-> B"]])
+      expect(found.first.message).to include("stood before", "deprecated and refused from 8.0.0")
+    end
+
+    it "still refuses a longer ring that runs through an accepted pair" do
+      found = cycles(edge("A", "B", "acl"), edge("B", "A", "acl"), edge("B", "C", "acl"), edge("C", "A", "acl"),
+                     accepted: { %w[A B] => "stood before" })
+
+      expect(read(found)).to include([:context_cycle, :error, "A <-> B <-> C"])
+    end
+
+    it "says an acceptance is stale once the wiring has no cycle left" do
+      found = cycles(edge("A", "B", "acl"), accepted: { %w[A B] => "stood before" })
+
+      expect(read(found)).to eq([[:context_cycle_settled, :warning, "A <-> B"]])
+    end
+
+    it "leaves a context's dependency on itself alone" do
+      expect(cycles(edge("A", "A", "acl"))).to be_empty
     end
 
     it "reports a longer ring once, naming every context in it" do
@@ -104,12 +136,6 @@ RSpec.describe Hecks::Bluebook::ModelCheck::ContextChecks do
 
     it "leaves a one-way dependency alone" do
       expect(cycles(edge("A", "B", "acl"), edge("B", "C", "customer_supplier"))).to be_empty
-    end
-
-    it "leaves a mutual shared kernel and a subscription alone, since neither couples contexts at run time" do
-      found = cycles(edge("A", "B", "shared_kernel"), edge("B", "A", "shared_kernel"), edge("A", "B", "subscription"))
-
-      expect(found).to be_empty
     end
   end
 end

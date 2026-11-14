@@ -13,6 +13,18 @@ module Hecks
       # @param root [String, nil] unused
       def initialize(registry: nil, aggregate: nil, settings: {}, root: nil)
         @dispatching = Dispatching.new(registry: registry, settings: settings)
+        @world = Dispatching::Settings.new(registry)
+      end
+
+      # Answers the owner's switch as the Tickets world says it now, and the pause the `RollSwitch`
+      # record it is handed holds, so the bluebook decides whether a roll starts.
+      #
+      # @param held [Hash] the `RollSwitch` record: `paused`, and the `run` that asks
+      # @return [Hash{Symbol => String, Integer}] `state:` "on" or "off", `standing:` 1 while a
+      #   pause is recorded and 0 otherwise
+      def read(**held)
+        paused = held[:paused]
+        { state: @world.roll_forward? ? "on" : "off", standing: (paused.is_a?(Hash) ? paused[:value] : paused).to_i }
       end
 
       # @param held [Hash] the `Roll` record

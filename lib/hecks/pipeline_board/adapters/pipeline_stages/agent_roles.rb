@@ -30,15 +30,16 @@ module Hecks
         end
 
         # The events each role raises or answers, so its row can say what it last did. The names are
-        # the events of the Agents bluebook, and of the Coder's `WorkSubmitted` for the coder.
+        # the events of the Agents, Tickets, Delegate and Deliver bluebooks, and of the Coder's
+        # `WorkSubmitted` for the coder. The agents page draws the same hand-offs as its map.
         ROLE_EVENTS = {
-          "planner"         => %w[PlanningRequested],
-          "orchestrator"    => %w[WorkChecked WorkRouted DispatchAdviceRequested],
+          "planner"         => %w[PlanningRequested WorkPlanned],
+          "orchestrator"    => %w[CoordinatorWoken QuestionSeated QuestionEscalated BoardingQueued DispatchAdviceRequested],
           "architect"       => %w[PlanReviewRequested PlanReviewed VerdictDelivered VerdictUndeliverable],
           "coder"           => %w[WorkSubmitted],
-          "reviewer"        => %w[SubmissionReviewRequested SpecFailureJudged HandedToPerson
-                                  VerdictDelivered VerdictUndeliverable],
-          "release_manager" => %w[PromotionRecommended PromotionSettled]
+          "reviewer"        => %w[SubmissionReviewRequested SpecFailureJudged VerdictDelivered VerdictUndeliverable],
+          "release_manager" => %w[PromotionRecommended PromotionSettled],
+          "pruner"          => %w[LandedWorkFound PrunerWoken]
         }.freeze
 
         # @param sessions [Array<Hash>, Hash] the board's sessions, or `{unknown:}`

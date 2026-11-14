@@ -39,6 +39,10 @@ Hecks.bluebook "Hecks" do
         attribute :ends_aggregate, String
         attribute :ends,           String
         attribute :not_about,      String
+        # The lifecycle state of the row's aggregate that the row times, which model_check holds
+        # it to. A row that times something else, as agent-run-blocked times a session's
+        # condition, names none.
+        attribute :state,          String
 
         member kind: "plan-review", not_about: "stall-", aggregate: "Agents::PlanReview", opens: "PlanReviewRequested",
                closes: "PlanReviewed,PlanReviewRecorded,ReviewUnstarted", minutes: 20, forgets: 1440, fixer: "orchestrator",
@@ -67,11 +71,11 @@ Hecks.bluebook "Hecks" do
                move: "Read githubstatus.com for GitHub Actions and the PR (gh pr view <pr> --json statusCheckRollup). " \
                      "The pipeline closes and reopens it once after 20 minutes (TrainPrReopen); if CI still has not " \
                      "started once Actions is up, run Heartbeat.beat! --wait, then close and reopen it by hand (gh pr close, gh pr reopen, gh pr merge --auto --squash)."
-        member kind: "agent-run-start", not_about: "stall-", aggregate: "Hecks::AgentRun", opens: "AgentRunRequested",
+        member kind: "agent-run-start", not_about: "stall-", aggregate: "Hecks::AgentRun", state: "requested", opens: "AgentRunRequested",
                closes: "AgentRunStarted,AgentRunDeclined", minutes: 10, forgets: 1440, fixer: "orchestrator",
                move: "Work.yield! the run's Work item (AgentRun.running names it) with the reason, " \
                      "so the fill restarts it once."
-        member kind: "agent-run-session", not_about: "stall-", aggregate: "Hecks::AgentRun", opens: "AgentRunStarted",
+        member kind: "agent-run-session", not_about: "stall-", aggregate: "Hecks::AgentRun", state: "started", opens: "AgentRunStarted",
                closes: "SessionFinished,SessionFailed,AgentRunRetired,AgentTrialRunRetired", minutes: 240,
                forgets: 1440, fixer: "orchestrator",
                move: "AgentRun.check! the run; if it is unchanged AgentRun.answer! it asking for status once; " \
@@ -86,7 +90,7 @@ Hecks.bluebook "Hecks" do
                      "(the orchestrator holds Work.*; it needs no other permission). Never ask the owner."
         # A volume at high past half an hour is a stall for the pruner, once per volume, ever: the
         # DiskSpace `Volume` it opens on rises once.
-        member kind: "disk", aggregate: "Hecks::Volume", opens: "VolumeRose", closes: "VolumeEased",
+        member kind: "disk", aggregate: "Hecks::Volume", state: "high", opens: "VolumeRose", closes: "VolumeEased",
                minutes: 30, forgets: 10080, fixer: "pruner",
                move: "Relief.plan! run.value=<stall> to see what frees space, then Relief.relieve! " \
                      "run.value=<stall>-relief state.value=high --confirm, which retires merged worktrees and " \

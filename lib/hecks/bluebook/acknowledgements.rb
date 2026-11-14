@@ -13,9 +13,10 @@ module Hecks
 
       # The finding kinds a context-map relationship may acknowledge: those about the relationship
       # itself. An undeclared coupling or a separate-ways breach has no relationship to carry the
-      # allowance; the fix is to declare one.
+      # allowance; the fix is to declare one. A `context_cycle` is accepted only to hold a cycle
+      # that stood before the rule: it is reported as deprecated while it stands.
       RELATIONSHIP_KINDS = %i[relationship_kind_mismatch conformist_translates unpublished_dependency
-                              unused_relationship redundant_relationship core_conforms].freeze
+                              unused_relationship redundant_relationship core_conforms context_cycle].freeze
 
       # @param owner [String] the declaration carrying the word, for the message
       # @param finding [Symbol, String] the kind being acknowledged

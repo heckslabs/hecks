@@ -36,9 +36,27 @@ module Hecks
           @lock.synchronize { fresh([domain, name]) { read(current, domain, name) } }
         end
 
+        # @param domain [String] a bluebook of the domain, such as `"Tickets"`
+        # @param name [String] an aggregate of it, such as `"Work"`
+        # @return [Array<Runtime::Event>] every event the aggregate's store holds, oldest first;
+        #   none when the store keeps no event log
+        # @raise [Unavailable] when the registry cannot be read or does not declare the aggregate
+        def events(domain, name)
+          current = registry
+          @lock.synchronize { fresh([domain, name, :events]) { logged(current, domain, name) } }
+        end
+
         private
 
         attr_reader :registry
+
+        def logged(current, domain, name)
+          aggregate = aggregate_in(current, domain, name)
+          raise Unavailable, "#{label} declares no #{domain}.#{name}" unless aggregate
+
+          repository = current.repository(domain, aggregate)
+          repository.respond_to?(:events) ? repository.events.to_a : []
+        end
 
         # What the store is called in a refusal.
         def label = "the board's registry"

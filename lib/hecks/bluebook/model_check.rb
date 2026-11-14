@@ -12,6 +12,7 @@ require_relative "model_check/reference_checks"
 require_relative "model_check/orphan_checks"
 require_relative "model_check/one_of_checks"
 require_relative "model_check/aggregate_checks"
+require_relative "model_check/liveness_checks"
 require_relative "model_check/verbs"
 
 module Hecks
@@ -35,7 +36,7 @@ module Hecks
       # What `call` takes from one corpus scan besides the bluebook, and each key's default.
       CONTEXT_DEFAULTS = {
         hecksagon: nil, known_domains: nil, global_emitted_events: nil, aggregate_owners: nil,
-        rust_target: false, strict: false
+        rust_target: false, strict: false, timeouts: nil, hold_waits: false
       }.freeze
 
       extend SagaChecks
@@ -47,6 +48,7 @@ module Hecks
       extend OrphanChecks
       extend OneOfChecks
       extend AggregateChecks
+      extend LivenessChecks
       extend Verbs
 
       module_function
@@ -58,9 +60,9 @@ module Hecks
       # @param context [Hash] the rest of what one corpus scan knows, each key optional:
       #   `hecksagon` (this bluebook's own sibling wiring file, if the caller loaded one),
       #   `known_domains` (every bluebook/hecksagon name in the scan, to catch a typo'd across or
-      #   attaches target), `global_emitted_events` (every event emitted in the corpus, so a
-      #   translates reaction isn't flagged deaf), `aggregate_owners` (each aggregate name to the
-      #   contexts declaring it, to find what a translates listens to), `rust_target` and `strict`
+      #   attaches target), `global_emitted_events` (so a translates reaction isn't flagged deaf),
+      #   `aggregate_owners` (each aggregate name to the contexts declaring it), `rust_target`,
+      #   `strict`, `timeouts` (its timeout rows) and `hold_waits` (an untimed wait is an error)
       # @return [Array<Finding>] every finding this bluebook triggers
       # @raise [ArgumentError] if profile is neither nil nor :client, or a context key is unknown
       def call(bluebook, profile: nil, **context)
@@ -84,7 +86,8 @@ module Hecks
           *saga_findings_of(bluebook, options[:global_emitted_events]),
           *reaction_findings(bluebook, options),
           *unused_ask_findings(bluebook),
-          *reaction_depth_findings(bluebook)
+          *reaction_depth_findings(bluebook),
+          *liveness_findings(bluebook, options[:timeouts], held: options[:hold_waits])
         ]
       end
 

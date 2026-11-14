@@ -5,6 +5,7 @@ require_relative "probe"
 require_relative "live_store"
 require_relative "pipeline_tickets/run_detail"
 require_relative "pipeline_tickets/stopped_runs"
+require_relative "pipeline_tickets/finished_times"
 require_relative "../../hecks/adapters/started_work"
 
 module Hecks
@@ -16,6 +17,7 @@ module Hecks
     class PipelineTickets
       include PipelineBoard::RunDetail
       include PipelineBoard::StoppedRuns
+      include PipelineBoard::FinishedTimes
 
       DONE = %w[done dropped].freeze
       # The AgentRun statuses the `Running` and `Tidyable` queries select.
@@ -39,6 +41,7 @@ module Hecks
         @epics_standin = settings[:epics]
         @landed = settings[:landings]
         @stopped = settings[:findings]
+        @finished = settings[:finished_times]
       end
 
       # @return [Hash{Symbol => String}] `text:` the open work items as JSON: slug, status, area,

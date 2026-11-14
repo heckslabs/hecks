@@ -5,592 +5,514 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pipeline Wiring</title>
 <style>
+/* The wiring page: every context as one block, laid left to right in the direction its policies run, with the
+   lines between contexts at rest in grey. Colour is kept for what is happening: a selection, and a message crossing. */
 :root {
   color-scheme: light;
-  --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink2: #52514e; --muted: #898781;
-  --grid: #e1e0d9; --axis: #c3c2b7; --border: rgba(11,11,11,.10);
-  --series1: #2a78d6; --good: #0ca30c; --warning: #fab219; --critical: #d03b3b;
-  --wiring: #8b5e3c; /* ports and adapters: a brown outside the eight domain slots */
+  --page: #f3f5f4; --surface: #ffffff; --ink: #16211d; --ink2: #55615c; --muted: #87928d;
+  --line: rgba(22,33,29,.13); --wire: #a9b3ae; --pick: #2563d9; --good: #2f7d5b; --warning: #b87400; --critical: #c23b3b;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink2: #c3c2b7; --muted: #898781;
-    --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,.10); --series1: #3987e5; --wiring: #b8865f;
+    color-scheme: dark; --page: #0d1311; --surface: #151c19; --ink: #e8efeb; --ink2: #a9b5af; --muted: #76827c;
+    --line: rgba(232,239,235,.12); --wire: #4d5954; --pick: #6ea3ff; --good: #4fb286; --warning: #f0b040; --critical: #ef6b6b;
   }
 }
 :root[data-theme="dark"] {
-  color-scheme: dark;
-  --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink2: #c3c2b7; --muted: #898781;
-  --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,.10); --series1: #3987e5; --wiring: #b8865f;
+  color-scheme: dark; --page: #0d1311; --surface: #151c19; --ink: #e8efeb; --ink2: #a9b5af; --muted: #76827c;
+  --line: rgba(232,239,235,.12); --wire: #4d5954; --pick: #6ea3ff; --good: #4fb286; --warning: #f0b040; --critical: #ef6b6b;
 }
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--page); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
-main { max-width: 1280px; margin: 0 auto; padding: 16px; }
-header { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
-h1 { font-size: 20px; margin: 0; font-weight: 600; }
-a { color: var(--series1); }
-.meta { color: var(--ink2); font-size: 13px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-button { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--axis); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
-button:focus-visible, a:focus-visible { outline: 2px solid var(--series1); outline-offset: 2px; }
-section { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 16px; }
-.legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--ink2); margin-bottom: 8px; }
-.legend b { color: var(--ink); font-weight: 600; }
-.swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: middle; }
-canvas { width: 100%; height: 720px; display: block; touch-action: none; border: 1px solid var(--grid); border-radius: 8px; background: var(--page); }
-.log { list-style: none; margin: 0; padding: 0; font-size: 13px; max-height: 260px; overflow: auto; }
-.log li { padding: 4px 0; border-bottom: 1px solid var(--grid); overflow-wrap: anywhere; }
-.log time { color: var(--muted); font-variant-numeric: tabular-nums; margin-right: 8px; }
-.log .mark { font-weight: 600; margin-left: 6px; }
-h2 { font-size: 13px; margin: 0 0 8px; color: var(--ink2); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-th, td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--grid); }
-th { color: var(--ink2); font-size: 12px; }
-.scroll { overflow: auto; max-height: 420px; }
-.tables-only canvas { display: none; } body:not(.tables-only) #edgetable { display: none; }
-.tip { position: fixed; pointer-events: none; background: var(--ink); color: var(--surface); padding: 4px 8px; border-radius: 6px; font-size: 12px; z-index: 10; display: none; max-width: 300px; }
-.unknown-note { color: var(--ink2); font-style: italic; }
-.panel { position: fixed; top: 0; right: 0; width: 400px; max-width: 100vw; height: 100vh; overflow: auto; background: var(--surface); border-left: 1px solid var(--border); box-shadow: -8px 0 24px rgba(0,0,0,.18); padding: 14px 16px 24px; z-index: 20; }
-.panel[hidden] { display: none; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--page); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; font-variant-numeric: tabular-nums; }
+main { max-width: 1500px; margin: 0 auto; padding: 14px 16px 24px; }
+header { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin-bottom: 10px; }
+h1 { font-size: 16px; margin: 0; font-weight: 600; }
+.note { color: var(--ink2); font-size: 12.5px; }
+.tools { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-left: auto; }
+button, input { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 5px 10px; }
+button { cursor: pointer; } button[aria-pressed="true"] { border-color: var(--pick); color: var(--pick); }
+:focus-visible { outline: 2px solid var(--pick); outline-offset: 2px; }
+.find { position: relative; flex: none; width: 290px; max-width: 100%; } .find input { width: 100%; }
+.hits { position: absolute; z-index: 15; left: 0; right: 0; top: calc(100% + 4px); background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+  box-shadow: 0 10px 28px rgba(0,0,0,.18); list-style: none; margin: 0; padding: 4px; max-height: 340px; overflow: auto; }
+.hits button { display: block; width: 100%; text-align: left; border: 0; background: none; border-radius: 6px; padding: 5px 8px; }
+.hits button:hover { background: color-mix(in srgb, var(--ink) 6%, transparent); } .hits small { color: var(--muted); margin-right: 6px; }
+.last { display: flex; flex-wrap: wrap; gap: 4px 18px; align-items: baseline; min-height: 20px; font-size: 12.5px; color: var(--ink2); margin: 0 2px 8px; }
+.said { display: flex; gap: 8px; align-items: baseline; margin-left: auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.last b { color: var(--ink); font-weight: 600; } .ok { color: var(--good); } .wait { color: var(--warning); } .bad { color: var(--critical); }
+.stage { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+svg#map { display: block; width: 100%; height: calc(100vh - 150px); min-height: 500px; cursor: grab; touch-action: none; user-select: none; }
+svg#map.dragging { cursor: grabbing; }
+
+.link .line { fill: none; stroke: var(--wire); stroke-linecap: round; transition: stroke .6s, opacity .6s; }
+.link .head { fill: var(--wire); transition: fill .6s, opacity .6s; }
+.link .hit { fill: none; stroke: transparent; stroke-width: 14; cursor: pointer; }
+.link.back .line { stroke-dasharray: 5 5; }
+.link text { font: 600 11px system-ui, sans-serif; fill: var(--pick); paint-order: stroke; stroke: var(--surface); stroke-width: 4px; stroke-linejoin: round; display: none; }
+.link { opacity: .6; } .link.back { opacity: .4; }
+svg.picked .link { opacity: .1; } svg.picked .link.on { opacity: 1; } svg.picked .link.on text { display: block; }
+.link.on .line { stroke: var(--pick); } .link.on .head { fill: var(--pick); }
+.link.lit { opacity: 1 !important; }
+.link.lit.ok .line { stroke: var(--good); } .link.lit.ok .head { fill: var(--good); }
+.link.lit.wait .line { stroke: var(--warning); } .link.lit.wait .head { fill: var(--warning); }
+.link.lit.bad .line { stroke: var(--critical); } .link.lit.bad .head { fill: var(--critical); }
+
+.unit { cursor: pointer; transition: opacity .3s; }
+.unit .box { fill: var(--page); stroke: var(--line); stroke-width: 1; transition: stroke .5s; }
+.unit:hover .box { stroke: var(--muted); }
+.unit .cap { font: 500 10px system-ui, sans-serif; fill: var(--muted); }
+.unit .name { font: 600 13.5px system-ui, sans-serif; fill: var(--ink); }
+.unit .sub { font: 400 11px system-ui, sans-serif; fill: var(--ink2); }
+.unit.sel .box { stroke: var(--pick); stroke-width: 2; }
+.unit.hot .box { stroke: var(--good); stroke-width: 2; }
+svg.picked .unit:not(.near), svg.finding .unit:not(.match) { opacity: .3; }
+.band { font: 500 11px system-ui, sans-serif; fill: var(--muted); }
+.dot { stroke: var(--surface); stroke-width: 2; } .dot.ok { fill: var(--good); } .dot.wait { fill: var(--warning); } .dot.bad { fill: var(--critical); }
+
+.key { display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 9px 14px; border-top: 1px solid var(--line); font-size: 12px; color: var(--ink2); }
+.key i { display: inline-block; width: 22px; height: 0; border-top: 2px solid var(--wire); vertical-align: middle; margin-right: 6px; }
+.key i.back { border-top-style: dashed; } .key i.ok { border-color: var(--good); } .key i.wait { border-color: var(--warning); } .key i.bad { border-color: var(--critical); }
+.grid { overflow: auto; max-height: calc(100vh - 150px); }
+.grid table { border-collapse: collapse; font-size: 12px; }
+.grid th, .grid td { border: 1px solid var(--line); padding: 3px 6px; text-align: center; white-space: nowrap; }
+.grid th { background: var(--surface); color: var(--ink2); font-weight: 500; position: sticky; top: 0; z-index: 2; }
+.grid th.row { text-align: right; left: 0; z-index: 1; } .grid thead th.row { z-index: 3; }
+.grid thead th:not(.row) { writing-mode: vertical-rl; transform: rotate(180deg); text-align: left; padding: 6px 3px; }
+.grid td.n { cursor: pointer; font-weight: 600; background: color-mix(in srgb, var(--pick) calc(var(--w) * 1%), transparent); }
+.grid td.own { color: var(--muted); }
+.tip { position: fixed; pointer-events: none; background: var(--ink); color: var(--surface); padding: 4px 8px; border-radius: 6px; font-size: 12px; z-index: 30; max-width: 320px; }
+.unknown-note { color: var(--ink2); font-style: italic; padding: 16px; }
+
+.panel { position: fixed; top: 0; right: 0; width: 420px; max-width: 100vw; height: 100vh; overflow: auto; background: var(--surface); border-left: 1px solid var(--line);
+  box-shadow: -8px 0 24px rgba(0,0,0,.18); padding: 14px 16px 28px; z-index: 20; }
 .panel .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
-.panel h2 { font-size: 16px; margin: 0; color: var(--ink); text-transform: none; letter-spacing: 0; }
-.panel h3 { font-size: 12px; margin: 16px 0 6px; color: var(--ink2); text-transform: uppercase; letter-spacing: .04em; }
-.panel .chip { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--border); color: var(--ink2); margin-right: 6px; }
-.panel .desc { color: var(--ink2); font-size: 13px; }
-.panel .stat { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; }
-.panel .stat b { font-size: 20px; font-weight: 600; display: block; }
+.panel h2 { font-size: 17px; margin: 0; font-weight: 650; } .panel h3 { font-size: 13px; margin: 18px 0 6px; font-weight: 600; }
+.panel h3 small { font-weight: 400; color: var(--ink2); }
+.panel .chip { display: inline-block; font-size: 11.5px; padding: 0 8px; line-height: 1.7; border-radius: 999px; border: 1px solid var(--line); color: var(--ink2); margin-right: 6px; }
+.panel .desc { color: var(--ink2); font-size: 13px; margin: 8px 0; }
+.panel .stat { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--ink2); margin-top: 10px; } .panel .stat b { font-size: 20px; font-weight: 600; display: block; color: var(--ink); }
 .panel ul { list-style: none; margin: 0; padding: 0; font-size: 13px; }
-.panel li { padding: 4px 0; border-bottom: 1px solid var(--grid); overflow-wrap: anywhere; }
-.panel li small { color: var(--muted); }
-.panel .ev time { color: var(--muted); font-variant-numeric: tabular-nums; margin-right: 6px; font-size: 12px; }
-.panel .ev .re { display: block; color: var(--ink2); font-size: 12px; padding-left: 14px; }
+.panel li { padding: 5px 0; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; } .panel li:last-child { border-bottom: 0; }
+.panel li small { color: var(--muted); display: block; }
+.panel .ev time { color: var(--muted); margin-right: 6px; font-size: 12px; } .panel .ev .re { display: block; color: var(--ink2); font-size: 12px; padding-left: 14px; }
+.panel .states span { display: inline-block; border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; margin: 2px 4px 2px 0; font-size: 12px; }
+.panel .go { background: none; border: none; color: var(--pick); padding: 0; cursor: pointer; text-decoration: underline; text-align: left; }
+.panel .ev button.re { display: block; width: 100%; text-align: left; background: none; border: none; border-radius: 0; color: var(--ink2); font-size: 12px; padding: 2px 0 2px 14px; }
 .panel .mark { font-weight: 600; }
-.panel .states span { display: inline-block; border: 1px solid var(--axis); border-radius: 4px; padding: 1px 6px; margin: 2px 4px 2px 0; font-size: 12px; }
-.panel .link { background: none; border: none; color: var(--series1); padding: 0; cursor: pointer; text-decoration: underline; }
-.panel .ev button.re { display: block; width: 100%; text-align: left; background: none; border: none; border-radius: 0; color: var(--ink2); font: inherit; font-size: 12px; padding: 2px 0 2px 14px; cursor: pointer; }
-.panel .ev button.re:hover { color: var(--ink); text-decoration: underline; }
-.panel .facts li small { color: var(--muted); }
-@media (max-width: 700px) { canvas { height: 460px; } }
 </style>
 </head>
 <body>
 <main>
   <header>
     <h1>Pipeline Wiring</h1>
-    <div class="meta">
-      <span id="count">loading the wiring</span>
-      <span id="live">stream: connecting</span>
+    <div class="tools">
+      <div class="find"><input id="q" type="search" placeholder="Find a context, an aggregate or a policy" aria-label="Find a context, an aggregate or a policy" autocomplete="off"><ul class="hits" id="hits" hidden></ul></div>
       <button id="zout" type="button" aria-label="Zoom out">&minus;</button>
       <button id="zin" type="button" aria-label="Zoom in">+</button>
       <button id="fit" type="button">Fit</button>
-      <button id="all" type="button">Expand all</button>
-      <button id="bounds" type="button" aria-pressed="true">Hide boundaries</button>
+      <button id="areas" type="button" aria-pressed="true">Areas</button>
       <button id="replay" type="button">Replay recent</button>
       <button id="toggle" type="button" aria-pressed="false">Show table</button>
     </div>
   </header>
-  <section aria-labelledby="h-map">
-    <h2 id="h-map">Aggregates, ports and adapters, with messages as they move</h2>
-    <div class="legend" id="legend">
-      <span><b>&#9645;</b> aggregate</span><span><b>&#9671;</b> port</span><span><b>&#11042;</b> adapter</span>
-      <span><b style="color:var(--good)">&#10003;</b> delivered</span>
-      <span><b style="color:var(--warning)">&#9650;</b> waiting</span>
-      <span><b style="color:var(--critical)">&#10005;</b> refused</span>
-      <span>a line rests in its domain's colour, lights in the outcome's colour when a message crosses it, and fades over 20 s</span>
-      <span>each context is one block with its aggregate count; click a block to open it, click its name to close it; use + and − to zoom (zooming in opens everything), drag to pan; packed shapes move aside under the pointer, and a click opens the sidebar</span>
+  <p class="last"><span id="count">loading the wiring</span><span id="live">stream: connecting</span><span class="said" id="last" aria-live="polite">Messages show here as they cross.</span></p>
+  <section class="stage" aria-label="Wiring">
+    <svg id="map" role="img" aria-label="Each context as a block, in the direction its policies run, with a line for the policies between two contexts"></svg>
+    <div class="grid" id="grid" hidden></div>
+    <div class="key" id="key">
+      <span><i></i>policies from one context to the next, thicker for more</span>
+      <span><i class="back"></i>policies that run back against the flow</span>
+      <span><i class="ok"></i>delivered</span><span><i class="wait"></i>waiting</span><span><i class="bad"></i>refused</span>
+      <span>Click a block or a line to read its policies. Drag to pan.</span>
     </div>
-    <div class="legend" id="domains"></div>
-    <canvas id="map" role="img" aria-label="Wiring diagram: policies between aggregates, ports and adapters, with live messages"></canvas>
-    <div class="scroll" id="edgetable"></div>
   </section>
 </main>
-<div class="tip" id="tip" role="tooltip"></div>
-<aside class="panel" id="panel" hidden aria-label="Selected node">
-  <div class="top"><h2 id="ptitle"></h2><span><button id="focus" type="button" aria-pressed="false">Focus</button> <button id="pclose" type="button" aria-label="Close">&#10005;</button></span></div>
+<div class="tip" id="tip" role="tooltip" hidden></div>
+<aside class="panel" id="panel" hidden aria-label="Selected">
+  <div class="top"><h2 id="ptitle"></h2><button id="pclose" type="button" aria-label="Close">&#10005;</button></div>
   <div id="pbody"></div>
 </aside>
 <script src="/stream.js"></script>
 <script>
 "use strict";
 const $ = (id) => document.getElementById(id);
-const canvas = $("map"), ctx = canvas.getContext("2d"), tip = $("tip");
-const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const SVG_NS = $("map").namespaceURI;
 const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
-let nodes = [], edges = [], byId = new Map(), view = { s: 1, x: 0, y: 0 }, hover = null;
-const pulses = new Map(), particles = [], seen = new Map();
-/* Categorical slots from the reference palette, in their fixed order; a 9th domain folds to muted. */
-const SLOTS = { light: ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"],
-                dark: ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300", "#9085e9", "#e66767"] };
-let domains = [], domainColour = new Map(), showBounds = true;
-/* A lit line or node stays at full for LINGER - LINGER_FADE ms, then fades over LINGER_FADE ms. */
-const LINGER = 22000, LINGER_FADE = 14000;
-const dark = () => matchMedia("(prefers-color-scheme: dark)").matches && document.documentElement.dataset.theme !== "light" || document.documentElement.dataset.theme === "dark";
-function colourOf(domain) { const i = domainColour.get(domain); return i === undefined || i > 7 ? css("--muted") : SLOTS[dark() ? "dark" : "light"][i]; }
-// Each area (context) gets its own hue, spread around the wheel, so areas inside one domain read apart.
-function areaColour(key) {
-  const i = Math.max(0, contexts.indexOf(key)), n = Math.max(1, contexts.length);
-  return "hsl(" + Math.round(i * 360 / n) + " 60% " + (dark() ? "62%" : "42%") + ")";
-}
+/* A lit line or block stays lit for LINGER ms after a message crosses it. */
+const LINGER = 20000, W = 160, H = 50, GAP_X = 84, GAP_Y = 16;
+const OUTCOME = { ok: "✓ delivered", wait: "▲ waiting", bad: "✕ refused" };
 
 function h(tag, attrs, ...kids) {
   const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) if (v !== null && v !== undefined) el.setAttribute(k, v);
+  for (const kid of kids.flat()) if (kid !== null && kid !== undefined && kid !== false) el.append(kid.nodeType ? kid : String(kid));
+  return el;
+}
+function s(tag, attrs, ...kids) {
+  const el = document.createElementNS(SVG_NS, tag);
   for (const [k, v] of Object.entries(attrs || {})) el.setAttribute(k, v);
   for (const kid of kids.flat()) if (kid !== null && kid !== undefined) el.append(kid.nodeType ? kid : String(kid));
   return el;
 }
-function clock(iso) { const d = new Date(iso); return isNaN(d) ? "" : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }); }
+const clock = (iso) => { const d = new Date(iso); return isNaN(d) ? "" : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }); };
+const bare = (name) => String(name || "").split("::").pop();
+/* A policy's name read as the sentence it was written as: RollWhenWorkIsPlanned, "Roll when work is planned". */
+const sentence = (label) => { const words = String(label).replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2"); return words.charAt(0) + words.slice(1).toLowerCase(); };
+const kept = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch (e) { return fallback; } };
+const keep = (key, value) => { try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* the choice lasts for this page only */ } };
 
-/* ---- domains: an adapter belongs to the domain of the port it answers, but sits outside its hull ---- */
-/* A context is a bluebook's domain module when it declares one, else the bluebook itself. */
-const keyOf = (n) => n.context ? n.domain + " / " + n.context : n.domain;
-let contexts = [];
-function assignDomains() {
+/* ---- the graph as the board sends it, and the contexts it is drawn as ---- */
+let nodes = [], edges = [], byId = new Map(), wiringDigest = null;
+let units = new Map(), links = new Map(), order = [], splittable = [];
+/* The domains drawn as one block although they declare areas. Empty: every area is its own block. */
+let grouped = new Set(kept("wiring-grouped", []));
+const unitKey = (n) => (n.context && !grouped.has(n.domain) ? n.domain + " / " + n.context : n.domain);
+
+/* An adapter belongs to the context of the port it answers. */
+function place() {
   for (const e of edges) if (e.kind === "adapter") { const p = byId.get(e.from), a = byId.get(e.to); if (p && a) { a.domain = p.domain; a.context = p.context; } }
-  const count = new Map(), ctx = new Map();
-  for (const n of nodes) if (n.kind !== "adapter") { count.set(n.domain, (count.get(n.domain) || 0) + 1); ctx.set(keyOf(n), (ctx.get(keyOf(n)) || 0) + 1); }
-  domains = [...count.keys()].sort((a, b) => count.get(b) - count.get(a));
-  domainColour = new Map(domains.map((d, i) => [d, i]));
-  contexts = [...ctx.keys()].sort((a, b) => ctx.get(b) - ctx.get(a));
+  splittable = [...new Set(nodes.filter((n) => n.context).map((n) => n.domain))];
 }
-/* ---- layout: the largest domain in the middle, the others on a ring around it, their contexts on a ring
-   around each, aggregates inside, ports on the rim, adapters outside ---- */
-let centre = new Map();
-/* How many lines join each pair of domains, keyed "a|b" with the names in order. */
-function domainLinks() {
-  const links = new Map();
+function gather() {
+  units = new Map(); links = new Map();
+  const unit = (key) => units.get(key) || units.set(key, { key, domain: key.split(" / ")[0], name: key.split(" / ")[1] || key, area: key.includes(" / "),
+    aggregates: [], ports: [], adapters: [], inside: 0, ins: [], outs: [] }).get(key);
+  for (const n of nodes) if (n.domain) unit(unitKey(n))[n.kind + "s"].push(n);
   for (const e of edges) {
     const a = byId.get(e.from), b = byId.get(e.to);
-    if (!a || !b || !a.domain || !b.domain || a.domain === b.domain) continue;
-    const key = [a.domain, b.domain].sort().join("|"); links.set(key, (links.get(key) || 0) + 1);
+    if (e.kind === "adapter" || !a || !b || !a.domain || !b.domain) continue;
+    const from = unitKey(a), to = unitKey(b);
+    if (from === to) { units.get(from).inside++; continue; }
+    const key = from + "→" + to, link = links.get(key) || links.set(key, { key, from, to, count: 0, edges: [] }).get(key);
+    link.count++; link.edges.push(e);
   }
-  return links;
+  for (const link of links.values()) { units.get(link.from).outs.push(link); units.get(link.to).ins.push(link); }
 }
-/* The ring's order: start with the domain most joined to the middle one, then each next is the one most
-   joined to the last placed, so domains that talk sit side by side. */
-function ringOrder(hub, rest, links) {
-  const weight = (a, b) => links.get([a, b].sort().join("|")) || 0, left = rest.slice(), order = [];
-  const take = (score) => { const best = left.reduce((m, d) => (score(d) > score(m) ? d : m)); left.splice(left.indexOf(best), 1); order.push(best); };
-  if (left.length) take((d) => weight(d, hub));
-  while (left.length) { const last = order[order.length - 1]; take((d) => weight(d, last) * 10 + weight(d, hub)); }
-  return order;
-}
-function placeContexts(d, c) {
-  const mine = contexts.filter((k) => k === d || k.startsWith(d + " / ")), r = mine.length > 1 ? 90 + mine.length * 16 : 0;
-  mine.forEach((k, j) => centre.set(k, { x: c.x + Math.cos(j / mine.length * 6.283) * r, y: c.y + Math.sin(j / mine.length * 6.283) * r }));
-  return r;
-}
-function layout() {
-  centre = new Map();
-  const [hub, ...rest] = domains, links = domainLinks(), order = ringOrder(hub, rest, links);
-  const hubRadius = hub ? placeContexts(hub, { x: 0, y: 0 }) : 0;
-  const most = Math.max(1, ...order.map((d) => links.get([d, hub].sort().join("|")) || 0));
-  order.forEach((d, i) => {
-    const size = nodes.filter((n) => n.domain === d).length, joined = (links.get([d, hub].sort().join("|")) || 0) / most;
-    // A domain joined to the middle by more lines sits a little closer to it.
-    // The middle domain's blocks spread past its context ring, so the ring stands well clear of it.
-    const reach = (hubRadius * 1.7 + 380 + size * 4) * (1 - 0.1 * joined), angle = i / order.length * 6.283 - 1.571;
-    placeContexts(d, { x: Math.cos(angle) * reach * 1.25, y: Math.sin(angle) * reach });
-  });
-  nodes.forEach((n, i) => { const c = centre.get(keyOf(n)) || { x: 0, y: 0 }; n.x = c.x + Math.cos(i * 2.4) * 30; n.y = c.y + Math.sin(i * 2.4) * 30; n.vx = 0; n.vy = 0; });
-  for (let step = 0; step < 400; step++) tick(1 - step / 420);
-}
-function tick(heat) {
-  for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
-    const a = nodes[i], b = nodes[j]; let dx = a.x - b.x, dy = a.y - b.y; const d2 = Math.max(dx * dx + dy * dy, 36);
-    const f = (keyOf(a) === keyOf(b) ? 1800 : a.domain === b.domain ? 7000 : 5200) / d2, d = Math.sqrt(d2); dx /= d; dy /= d;
-    a.vx += dx * f; a.vy += dy * f; b.vx -= dx * f; b.vy -= dy * f;
-  }
-  for (const e of edges) {
-    const a = byId.get(e.from), b = byId.get(e.to); if (!a || !b) continue;
-    // A line between domains pulls gently and from far off, so a domain keeps its place on the ring
-    // instead of being drawn into the boundary of the domain it talks to.
-    const across = a.domain !== b.domain, rest = e.kind === "adapter" ? 30 : across ? 260 : 60;
-    const dx = b.x - a.x, dy = b.y - a.y, d = Math.max(Math.hypot(dx, dy), 1);
-    const f = (d - rest) * (across ? 0.0008 : keyOf(a) !== keyOf(b) ? 0.004 : 0.01);
-    a.vx += dx / d * f; a.vy += dy / d * f; b.vx -= dx / d * f; b.vy -= dy / d * f;
-  }
-  for (const n of nodes) {
-    const c = centre.get(keyOf(n)) || { x: 0, y: 0 }, dx = n.x - c.x, dy = n.y - c.y, d = Math.max(Math.hypot(dx, dy), 1);
-    const pull = n.kind === "aggregate" ? 0.02 : n.kind === "port" ? 0.01 : 0.005;
-    n.vx += (c.x - n.x) * pull; n.vy += (c.y - n.y) * pull;
-    if (n.kind !== "aggregate") { const out = n.kind === "port" ? 0.9 : 1.6; n.vx += dx / d * out; n.vy += dy / d * out; }
-    n.x += n.vx * 0.5 * heat; n.y += n.vy * 0.5 * heat; n.vx *= 0.82; n.vy *= 0.82;
-  }
-}
-/* ---- boundaries: a padded convex hull around each domain's aggregates and ports ---- */
-function hull(points) {
-  const p = points.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]); if (p.length < 3) return p;
-  const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
-  const lower = []; for (const q of p) { while (lower.length > 1 && cross(lower[lower.length - 2], lower[lower.length - 1], q) <= 0) lower.pop(); lower.push(q); }
-  const upper = []; for (const q of p.slice().reverse()) { while (upper.length > 1 && cross(upper[upper.length - 2], upper[upper.length - 1], q) <= 0) upper.pop(); upper.push(q); }
-  return lower.slice(0, -1).concat(upper.slice(0, -1));
-}
-function outline(members, pad) {
-  const cx = members.reduce((s, q) => s + q[0], 0) / members.length, cy = members.reduce((s, q) => s + q[1], 0) / members.length;
-  const ring = hull(members).map(([x, y]) => { const dx = x - cx, dy = y - cy, l = Math.max(Math.hypot(dx, dy), 1); return [x + dx / l * pad, y + dy / l * pad]; });
-  ctx.beginPath();
-  if (ring.length === 1) ctx.arc(cx, cy, pad, 0, 6.283);
-  else if (ring.length === 2) ctx.ellipse(cx, cy, Math.hypot(ring[0][0] - ring[1][0], ring[0][1] - ring[1][1]) / 2 + pad, pad, Math.atan2(ring[1][1] - ring[0][1], ring[1][0] - ring[0][0]), 0, 6.283);
-  else { const m = (i) => [(ring[i][0] + ring[(i + 1) % ring.length][0]) / 2, (ring[i][1] + ring[(i + 1) % ring.length][1]) / 2];
-    ctx.moveTo(...m(ring.length - 1)); for (let i = 0; i < ring.length; i++) ctx.quadraticCurveTo(ring[i][0], ring[i][1], ...m(i)); }
-  ctx.closePath();
-  return { cx, top: Math.min(...members.map((q) => q[1])) - pad - 4 };
-}
-function paint(colour, fillAlpha, strokeAlpha, dash) {
-  ctx.globalAlpha = fillAlpha; ctx.fillStyle = colour; ctx.fill();
-  ctx.globalAlpha = strokeAlpha; ctx.lineWidth = 1.5; ctx.strokeStyle = colour; ctx.setLineDash(dash); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
-}
-function caption(text, x, y, weight, active, now) {
-  ctx.font = weight + " 12px system-ui, sans-serif"; ctx.fillStyle = active ? css("--series1") : css("--ink"); ctx.textAlign = "center";
-  ctx.globalAlpha = active && !blink(now) ? 0.25 : 1; ctx.fillText(text, x, y); ctx.globalAlpha = 1; ctx.textAlign = "start";
-}
-function corners(b) { return [[b.x - b.w / 2, b.y - b.hgt / 2], [b.x + b.w / 2, b.y - b.hgt / 2], [b.x + b.w / 2, b.y + b.hgt / 2], [b.x - b.w / 2, b.y + b.hgt / 2]]; }
-function drawBounds(now) {
-  const inside = (n) => n.kind !== "adapter";
-  const active = (test) => nodes.some((n) => test(n) && heatOf(n.id, now) > 0);
-  for (const d of domains) {
-    const split = contexts.filter((k) => k.startsWith(d + " / ")).length > 1; if (!split) continue;
-    const members = contexts.filter((k) => k === d || k.startsWith(d + " / ")).flatMap((k) => blocks.has(k) ? corners(blocks.get(k)) : nodes.filter((n) => keyOf(n) === k && inside(n)).map((n) => [sx(n), sy(n)]));
-    if (!members.length) continue;
-    const at = outline(members, 36); paint(colourOf(d), 0.04, 0.35, [2, 6]); caption(d, at.cx, at.top, "700", active((n) => n.domain === d), now);
-  }
-  for (const k of contexts) {
-    if (blocks.has(k)) continue;
-    const members = nodes.filter((n) => keyOf(n) === k && inside(n)).map((n) => [sx(n), sy(n)]);
-    if (!members.length) continue;
-    const d = k.split(" / ")[0], name = k.split(" / ")[1] || d;
-    const at = outline(members, 20); paint(colourOf(d), 0.09, 0.7, [6, 4]); caption(name + "  −", at.cx, at.top, "600", active((n) => keyOf(n) === k), now);
-    ctx.font = "600 12px system-ui, sans-serif"; const w = ctx.measureText(name + "  −").width;
-    captions.push({ k, x: at.cx - w / 2, y: at.top - 12, w, hgt: 16 });
-  }
-}
-let touched = false, fitScale = 1;
-function size() {
-  const r = canvas.getBoundingClientRect(), dpr = devicePixelRatio || 1;
-  canvas.width = r.width * dpr; canvas.height = r.height * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-}
-function fit() {
-  size(); touched = false;
-  const r = canvas.getBoundingClientRect();
-  if (!nodes.length) return;
-  const xs = nodes.map((n) => n.x), ys = nodes.map((n) => n.y);
-  const w = Math.max(...xs) - Math.min(...xs) + 120, hgt = Math.max(...ys) - Math.min(...ys) + 120;
-  view.s = Math.min(r.width / w, r.height / hgt); fitScale = view.s;
-  view.x = r.width / 2 - (Math.max(...xs) + Math.min(...xs)) / 2 * view.s;
-  view.y = r.height / 2 - (Math.max(...ys) + Math.min(...ys)) / 2 * view.s;
-}
-/* A node's place on screen, plus the scoot: nodes within reach of the cursor ease away from it radially,
-   so a packed cluster opens under the pointer and closes when it leaves. The lines follow. */
-const sx = (n) => n.x * view.s + view.x + (n.ox || 0), sy = (n) => n.y * view.s + view.y + (n.oy || 0);
-const SCOOT_REACH = 90, SCOOT_PUSH = 0.6;
-let cursor = null;
-const base = (n) => ({ x: n.x * view.s + view.x, y: n.y * view.s + view.y });
-function scoot() {
-  /* Nothing moves until the pointer is on a shape; then that shape stays and its neighbours make room. */
-  let pinned = null, nearest = 14;
-  if (cursor) for (const n of nodes) { if (blocks.has(keyOf(n))) continue; const b = base(n), d = Math.hypot(b.x - cursor.x, b.y - cursor.y); if (d < nearest) { nearest = d; pinned = n; } }
-  for (const n of nodes) {
-    let tx = 0, ty = 0;
-    if (pinned && n !== pinned && !blocks.has(keyOf(n)) && !reduceMotion) {
-      const b = base(n), dx = b.x - cursor.x, dy = b.y - cursor.y, d = Math.hypot(dx, dy);
-      if (d < SCOOT_REACH && d > 0.5) { const push = (SCOOT_REACH - d) * SCOOT_PUSH; tx = dx / d * push; ty = dy / d * push; }
+
+/* ---- layout: an order that most policies run along, then columns, then rows that keep neighbours close ---- */
+/* The order: a context nothing reaches goes first, one that reaches nothing goes last, and of the rest the one
+   that sends the most more than it hears. The few lines left pointing backwards are the feedback. */
+function flowOrder(keys) {
+  const rest = new Set(keys), left = [], right = [];
+  const weigh = (key, side, end) => units.get(key)[side].reduce((sum, link) => sum + (rest.has(link[end]) ? link.count : 0), 0);
+  const sent = (key) => weigh(key, "outs", "to"), heard = (key) => weigh(key, "ins", "from");
+  while (rest.size) {
+    let moved = true;
+    while (moved) {
+      moved = false;
+      for (const key of [...rest]) if (rest.has(key) && sent(key) === 0) { right.unshift(key); rest.delete(key); moved = true; }
+      for (const key of [...rest]) if (rest.has(key) && heard(key) === 0) { left.push(key); rest.delete(key); moved = true; }
     }
-    n.ox = (n.ox || 0) + (tx - (n.ox || 0)) * 0.22; n.oy = (n.oy || 0) + (ty - (n.oy || 0)) * 0.22;
+    if (!rest.size) break;
+    const best = [...rest].reduce((m, key) => (sent(key) - heard(key) > sent(m) - heard(m) ? key : m));
+    left.push(best); rest.delete(best);
   }
+  return settle(left.concat(right));
 }
-const scooted = (n) => Math.hypot(n.ox || 0, n.oy || 0) > 6;
-/* ---- when embedded in the board, Cmd or Ctrl with the wheel over the diagram zooms it ---- */
-if (window.top !== window.self) {
-  // A plain wheel is left to the browser: this frame and its lists scroll natively, and the
-  // browser chains to the board at the frame's edge.
-  document.addEventListener("wheel", (e) => {
-    if (!(e.metaKey || e.ctrlKey) || e.target !== canvas) return;
-    e.preventDefault();
-    const r = canvas.getBoundingClientRect();
-    zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-e.deltaY * 0.0015));
-  }, { passive: false });
+/* Then each context is tried in every place, and kept where the fewest policies point backwards. */
+function settle(start) {
+  const against = (list) => { const at = new Map(list.map((key, i) => [key, i])); let sum = 0; for (const l of links.values()) if (at.get(l.from) > at.get(l.to)) sum += l.count; return sum; };
+  let best = start, least = against(best);
+  for (let pass = 0; pass < 6; pass++) {
+    let better = false;
+    for (const key of best.slice()) {
+      const rest = best.filter((other) => other !== key);
+      for (let i = 0; i <= rest.length; i++) { const trial = rest.slice(0, i).concat(key, rest.slice(i)), cost = against(trial); if (cost < least) { best = trial; least = cost; better = true; } }
+    }
+    if (!better) break;
+  }
+  return best;
+}
+let box = { w: 0, h: 0 };
+function layout() {
+  const wired = [...units.values()].filter((u) => u.ins.length || u.outs.length), alone = [...units.values()].filter((u) => !u.ins.length && !u.outs.length);
+  order = flowOrder(wired.map((u) => u.key));
+  const at = new Map(order.map((key, i) => [key, i]));
+  for (const link of links.values()) link.back = at.get(link.from) > at.get(link.to);
+  const ahead = (u) => u.outs.filter((link) => !link.back);
+  for (const u of wired) u.layer = 0;
+  for (const key of order) { const u = units.get(key); for (const link of ahead(u)) { const to = units.get(link.to); to.layer = Math.max(to.layer, u.layer + 1); } }
+  // A context sits just before the first one it reaches, so its lines are short.
+  for (const key of order.slice().reverse()) { const u = units.get(key), next = ahead(u).map((link) => units.get(link.to).layer); if (next.length) u.layer = Math.max(u.layer, Math.min(...next) - 1); }
+  const cols = []; for (const key of order) { const u = units.get(key); (cols[u.layer] = cols[u.layer] || []).push(u); }
+  const columns = cols.filter(Boolean);
+  columns.forEach((col) => col.forEach((u, i) => { u.frac = (i + 0.5) / col.length; }));
+  for (let pass = 0; pass < 8; pass++) for (const col of columns) {
+    const near = (u) => [...u.ins.map((link) => units.get(link.from)), ...u.outs.map((link) => units.get(link.to))];
+    const pull = (u) => { const list = near(u); return list.length ? list.reduce((sum, n) => sum + n.frac, 0) / list.length : u.frac; };
+    col.map((u) => [u, pull(u)]).sort((a, b) => a[1] - b[1]).forEach(([u], i) => { u.row = i; u.frac = (i + 0.5) / col.length; });
+    col.sort((a, b) => a.row - b.row);
+  }
+  const tall = Math.max(0, ...columns.map((col) => col.length * (H + GAP_Y) - GAP_Y));
+  columns.forEach((col, c) => col.forEach((u, i) => { u.x = c * (W + GAP_X); u.y = (tall - (col.length * (H + GAP_Y) - GAP_Y)) / 2 + i * (H + GAP_Y); }));
+  const backs = [...links.values()].filter((link) => link.back).sort((a, b) => Math.abs(units.get(a.from).x - units.get(a.to).x) - Math.abs(units.get(b.from).x - units.get(b.to).x));
+  backs.forEach((link, i) => { link.dip = tall + 34 + i * 9; });
+  const under = tall + (backs.length ? 40 + backs.length * 9 * 0.75 : 0) + 44, wide = Math.max(1, columns.length) * (W + GAP_X) - GAP_X;
+  const perRow = Math.max(1, Math.floor((wide + 16) / (W + 16)));
+  alone.sort((a, b) => a.key.localeCompare(b.key)).forEach((u, i) => { u.x = (i % perRow) * (W + 16); u.y = under + Math.floor(i / perRow) * (H + GAP_Y); u.layer = -1; });
+  box = { w: wide, h: alone.length ? under + Math.ceil(alone.length / perRow) * (H + GAP_Y) : under - 44, alone: alone.length ? under - 12 : null };
+  for (const u of units.values()) slots(u);
+}
+/* Where each line leaves and enters a block: spread down its side in the order of the blocks at the other end. */
+function slots(u) {
+  const spread = (list, end, set) => list.filter((link) => !link.back).sort((a, b) => units.get(a[end]).y - units.get(b[end]).y)
+    .forEach((link, i, all) => { link[set] = u.y + H / 2 + (i - (all.length - 1) / 2) * Math.min(8, (H - 14) / Math.max(1, all.length - 1)); });
+  spread(u.outs, "to", "y1"); spread(u.ins, "from", "y2");
+}
+function pathOf(link) {
+  const a = units.get(link.from), b = units.get(link.to);
+  if (link.back) { const x1 = a.x + W / 2 - 12, x2 = b.x + W / 2 + 12; return { d: `M${x1} ${a.y + H} C${x1} ${link.dip + 30} ${x2} ${link.dip + 30} ${x2} ${b.y + H + 6}`, head: `M${x2 - 5} ${b.y + H + 7} L${x2} ${b.y + H} L${x2 + 5} ${b.y + H + 7}Z` }; }
+  const x1 = a.x + W, x2 = b.x - 6, bend = Math.max(34, (x2 - x1) / 2);
+  return { d: `M${x1} ${link.y1} C${x1 + bend} ${link.y1} ${x2 - bend} ${link.y2} ${x2} ${link.y2}`, head: `M${x2 - 1} ${link.y2 - 5} L${x2 + 6} ${link.y2} L${x2 - 1} ${link.y2 + 5}Z` };
 }
 
-/* ---- pan by dragging, or use the buttons to zoom ---- */
-function zoomAt(mx, my, k) { view.x = mx - (mx - view.x) * k; view.y = my - (my - view.y) * k; view.s *= k; touched = true; }
-function zoomCentre(k) { const r = canvas.getBoundingClientRect(); zoomAt(r.width / 2, r.height / 2, k); }
+/* ---- drawing: built once for a layout; what is picked, found or lit is classes on what was built ---- */
+const map = $("map");
+function draw() {
+  const lines = s("g", {}), blocks = s("g", {}), dots = s("g", { id: "dots" });
+  const most = Math.max(1, ...[...links.values()].map((link) => link.count));
+  for (const link of [...links.values()].sort((a, b) => a.count - b.count)) {
+    const { d, head } = pathOf(link), width = 1 + 4 * Math.sqrt(link.count / most);
+    link.el = s("g", { class: "link" + (link.back ? " back" : ""), "data-link": link.key },
+      s("path", { class: "line", d, "stroke-width": width.toFixed(1) }), s("path", { class: "head", d: head }), s("path", { class: "hit", d }), s("text", {}, String(link.count)));
+    lines.append(link.el);
+  }
+  for (const u of units.values()) {
+    const parts = [u.aggregates.length + (u.aggregates.length === 1 ? " aggregate" : " aggregates"), u.inside ? u.inside + " inside" : null].filter(Boolean).join(", ");
+    u.el = s("g", { class: "unit", "data-unit": u.key, transform: `translate(${u.x} ${u.y})`, tabindex: "0", role: "button", "aria-label": u.key },
+      s("rect", { class: "box", width: W, height: H, rx: 9 }),
+      u.area ? s("text", { class: "cap", x: W - 10, y: 16, "text-anchor": "end" }, u.domain) : null,
+      s("text", { class: "name", x: 12, y: 21 }, u.name), s("text", { class: "sub", x: 12, y: 38 }, parts));
+    blocks.append(u.el);
+  }
+  const band = box.alone === null ? [] : [s("text", { class: "band", x: 0, y: box.alone }, "Wired to no other context")];
+  map.replaceChildren(lines, blocks, dots, ...band);
+  for (const link of links.values()) { const mid = link.el.querySelector(".line"), at = mid.getPointAtLength(mid.getTotalLength() * (link.back ? 0.5 : 0.35)), text = link.el.querySelector("text"); text.setAttribute("x", at.x); text.setAttribute("y", at.y - 5); text.setAttribute("text-anchor", "middle"); }
+  if (!touched) fit(); else show();
+  mark();
+}
+
+/* ---- the view: fitted to the map, moved by dragging and the buttons ---- */
+let view = { x: 0, y: 0, w: 100, h: 100 }, touched = false;
+const show = () => map.setAttribute("viewBox", [view.x, view.y, view.w, view.h].join(" "));
+function fit() {
+  const r = map.getBoundingClientRect(), pad = 28, w = box.w + pad * 2, hgt = box.h + pad * 2, ratio = r.width / Math.max(1, r.height);
+  // The map is not drawn smaller than it needs to be, and never larger than its own size.
+  const wide = Math.max(w, hgt * ratio, Math.min(r.width, 900));
+  view = { x: -pad - (wide - w) / 2, y: -pad - (wide / ratio - hgt) / 2, w: wide, h: wide / ratio }; touched = false; show();
+  if (picked && !$("panel").hidden) reveal();
+}
+function zoom(k) { const cx = view.x + view.w / 2, cy = view.y + view.h / 2; view.w /= k; view.h /= k; view.x = cx - view.w / 2; view.y = cy - view.h / 2; touched = true; show(); }
 let drag = null;
-canvas.addEventListener("mousedown", (e) => { drag = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y, moved: false }; });
-addEventListener("mousemove", (e) => { if (!drag) return; drag.moved = true; view.x = drag.vx + e.clientX - drag.x; view.y = drag.vy + e.clientY - drag.y; touched = true; });
-addEventListener("mouseup", (e) => {
-  const was = drag; drag = null; if (!was || was.moved || e.target !== canvas) return;
-  const r = canvas.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
-  const hit = [...blocks.values()].find((b) => Math.abs(mx - b.x) < b.w / 2 && Math.abs(my - b.y) < b.hgt / 2);
-  if (hit) { expanded.add(hit.k); return; }
-  const cap = captions.find((c) => mx >= c.x && mx <= c.x + c.w && my >= c.y && my <= c.y + c.hgt);
-  if (cap) { expanded.delete(cap.k); allOpen = false; $("all").textContent = "Expand all"; return; }
-  if (hover) openPanel(hover);
+map.addEventListener("pointerdown", (e) => { drag = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y, moved: false }; });
+addEventListener("pointermove", (e) => {
+  if (!drag) return;
+  const r = map.getBoundingClientRect(), k = view.w / r.width, dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+  if (Math.abs(dx) + Math.abs(dy) < 4 && !drag.moved) return;
+  drag.moved = true; map.classList.add("dragging"); view.x = drag.vx - dx * k; view.y = drag.vy - dy * k; touched = true; show();
 });
+addEventListener("pointerup", (e) => {
+  const was = drag; drag = null; map.classList.remove("dragging");
+  if (!was || was.moved || !map.contains(e.target)) return;
+  const unit = e.target.closest(".unit"), link = e.target.closest(".link");
+  if (unit) pick({ unit: unit.dataset.unit }); else if (link) pick({ link: link.dataset.link }); else pick(null);
+});
+map.addEventListener("keydown", (e) => { const unit = e.target.closest(".unit"); if (unit && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); pick({ unit: unit.dataset.unit }); } });
+map.addEventListener("wheel", (e) => { if (!(e.metaKey || e.ctrlKey)) return; e.preventDefault(); zoom(Math.exp(-e.deltaY * 0.0015)); }, { passive: false });
+map.addEventListener("pointermove", (e) => {
+  const link = e.target.closest && e.target.closest(".link"), tip = $("tip");
+  if (!link || drag) { tip.hidden = true; return; }
+  const held = links.get(link.dataset.link);
+  tip.textContent = held.from + " → " + held.to + ": " + held.count + (held.count === 1 ? " policy" : " policies") + (held.back ? ", against the flow" : "");
+  tip.style.left = e.clientX + 12 + "px"; tip.style.top = e.clientY + 12 + "px"; tip.hidden = false;
+});
+map.addEventListener("pointerleave", () => { $("tip").hidden = true; });
 
-/* ---- the sidebar: what a node declares, and what it is doing right now ---- */
-const recent = [];
-let selected = null, focusId = null, waiting = null, traced = null;
-// The chain a port or adapter sits in: the aggregates whose policies ask its port, the port, and its adapters.
-function traceOf(n) {
-  const port = n.kind === "port" ? n : n.kind === "adapter" ? edges.find((e) => e.kind === "adapter" && e.to === n.id) : null;
-  const pid = port ? (port.id || port.from) : null;
-  if (!pid) return null;
-  const ids = new Set([pid]);
-  for (const e of edges) {
-    if (e.kind === "ask" && e.to === pid) ids.add(e.from);
-    if (e.kind === "adapter" && e.from === pid) ids.add(e.to);
-  }
-  return ids;
+/* ---- what is picked, found and lit ---- */
+let picked = null, found = null;
+function mark() {
+  const unit = picked && picked.unit && units.get(picked.unit), link = picked && picked.link && links.get(picked.link);
+  const on = new Set(link ? [link.key] : unit ? [...unit.ins, ...unit.outs].map((l) => l.key) : []);
+  const near = new Set(link ? [link.from, link.to] : unit ? [unit.key, ...unit.ins.map((l) => l.from), ...unit.outs.map((l) => l.to)] : []);
+  map.classList.toggle("picked", Boolean(unit || link)); map.classList.toggle("finding", Boolean(found));
+  for (const l of links.values()) l.el.classList.toggle("on", on.has(l.key));
+  for (const u of units.values()) { u.el.classList.toggle("sel", Boolean(unit && unit.key === u.key)); u.el.classList.toggle("near", near.has(u.key)); u.el.classList.toggle("match", Boolean(found && found.has(u.key))); }
 }
-/* The stream sends an event again when its reactions settle, so a key is kept once, at its newest. */
-function remember(ev) {
-  const i = recent.findIndex((held) => held.key === ev.key);
-  if (i >= 0) recent[i] = ev; else { recent.push(ev); if (recent.length > 800) recent.shift(); }
+function pick(what) {
+  picked = what && ((what.unit && units.has(what.unit)) || (what.link && links.has(what.link)) || (what.node && byId.has(what.node))) ? what : null;
+  if (picked && picked.node) picked.unit = unitKey(byId.get(picked.node));
+  mark(); renderPanel();
+  try { history.replaceState(null, "", picked ? "#" + encodeURIComponent(picked.node || picked.unit || picked.link) : location.pathname); } catch (e) { /* history may be unavailable */ }
+}
+setInterval(() => {
+  const now = performance.now();
+  for (const l of links.values()) if (l.lit && l.lit < now) { l.lit = null; l.el.classList.remove("lit", "ok", "wait", "bad"); }
+  for (const u of units.values()) if (u.hot && u.hot < now) { u.hot = null; u.el.classList.remove("hot"); }
+}, 1000);
+
+/* ---- the side panel: a context, a line between two, or one aggregate ---- */
+const recent = [];
+let waiting = null;
+function remember(ev) { const i = recent.findIndex((held) => held.key === ev.key); if (i >= 0) recent[i] = ev; else { recent.push(ev); if (recent.length > 800) recent.shift(); } }
+const section = (title, ...kids) => [h("h3", {}, title), ...kids];
+const go = (what, text) => { const b = h("button", { class: "go", type: "button" }, text); b.addEventListener("click", () => pick(what)); return b; };
+/* One policy as a sentence, with the two aggregates it joins. */
+function said(e) {
+  const a = byId.get(e.from), b = byId.get(e.to);
+  return h("li", { title: e.label }, sentence(e.label), h("small", {}, (a ? a.label : e.from) + " → " + (b ? b.label : e.to) + (e.kind === "ask" ? ", asks a port" : "")));
+}
+let slid = false;
+function reveal() {
+  const u = picked.unit && units.get(picked.unit); if (!u || touched) return;
+  const r = map.getBoundingClientRect(), k = r.width / view.w, right = r.left + (u.x + W - view.x) * k, edge = $("panel").getBoundingClientRect().left - 24;
+  if (right <= edge) return;
+  view.x += (right - edge) / k; slid = true; show();
+}
+function renderPanel() {
+  const panel = $("panel");
+  panel.hidden = !picked;
+  // The panel opens over the map, which keeps its size. Only a block that would sit under the panel
+  // is slid clear of it, and the map goes back when the panel closes.
+  if (!picked) { if (slid && !touched) fit(); slid = false; return; }
+  reveal();
+  const [title, body] = waiting ? ["Waiting reaction", waitingBody()] : picked.node ? nodePanel(byId.get(picked.node)) : picked.link ? linkPanel(links.get(picked.link)) : unitPanel(units.get(picked.unit));
+  $("ptitle").textContent = title; $("pbody").replaceChildren(...body.flat(Infinity).filter(Boolean));
+}
+function unitPanel(u) {
+  const policies = (list) => list.reduce((sum, l) => sum + l.count, 0), split = splittable.includes(u.domain);
+  const flip = split ? h("button", { type: "button" }, grouped.has(u.domain) ? "Open " + u.domain + " into its areas" : "Show " + u.domain + " as one block") : null;
+  if (flip) flip.addEventListener("click", () => regroup(u.domain));
+  const sides = (list, end, word) => list.slice().sort((a, b) => b.count - a.count).map((l) => section(h("span", {}, word + " ", go({ link: l.key }, l[end]), h("small", {}, " " + l.count)), h("ul", {}, l.edges.map(said))));
+  return [u.name, [
+    h("div", {}, u.area ? h("span", { class: "chip" }, "area of " + u.domain) : h("span", { class: "chip" }, "context")),
+    h("div", { class: "stat" }, h("span", {}, h("b", {}, String(u.aggregates.length)), "aggregates"), h("span", {}, h("b", {}, String(policies(u.outs))), "policies out"),
+      h("span", {}, h("b", {}, String(policies(u.ins))), "policies in"), h("span", {}, h("b", {}, String(u.inside)), "inside")),
+    flip ? h("p", {}, flip) : null,
+    sides(u.outs, "to", "Reaches"), sides(u.ins, "from", "Hears from"),
+    section("Aggregates", h("ul", {}, u.aggregates.map((n) => h("li", {}, go({ node: n.id }, n.label), n.details && n.details.description ? h("small", {}, n.details.description) : null)))),
+    u.ports.length ? section("Ports", h("ul", {}, u.ports.map((p) => h("li", {}, go({ node: p.id }, p.label), h("small", {}, edges.filter((e) => e.kind === "adapter" && e.from === p.id).map((e) => bare(byId.get(e.to) ? byId.get(e.to).label : e.to)).join(", ") || "no adapter bound"))))) : null,
+  ]];
+}
+function linkPanel(l) {
+  const back = links.get(l.to + "→" + l.from);
+  return [l.from + " → " + l.to, [
+    h("div", {}, h("span", { class: "chip" }, l.count + (l.count === 1 ? " policy" : " policies")), l.back ? h("span", { class: "chip" }, "against the flow") : null),
+    h("p", { class: "desc" }, go({ unit: l.from }, l.from), " reaches ", go({ unit: l.to }, l.to), back ? [", and ", go({ link: back.key }, back.count + " come back")] : null, "."),
+    h("ul", {}, l.edges.map(said)),
+  ]];
 }
 function touches(ev, n) {
   if (n.kind === "aggregate") return ev.aggregate === n.id || (ev.reactions || []).some((r) => String(r.command).startsWith(n.id + "."));
-  const stem = n.kind === "port" ? "::" + n.label + "." : null;
-  return stem ? (ev.reactions || []).some((r) => String(r.command).includes(stem)) : false;
+  return n.kind === "port" ? (ev.reactions || []).some((r) => String(r.command).includes("::" + n.label + ".")) : false;
 }
-function openPanel(n) {
-  selected = n; waiting = null; traced = n.kind === "port" || n.kind === "adapter" ? traceOf(n) : null; $("panel").hidden = false; $("ptitle").textContent = n.label; renderPanel();
-  try { history.replaceState(null, "", "#" + encodeURIComponent(n.id)); } catch (e) { /* history may be unavailable */ }
-}
-function closePanel() { selected = null; focusId = null; waiting = null; traced = null; $("panel").hidden = true; $("focus").setAttribute("aria-pressed", "false"); try { history.replaceState(null, "", location.pathname); } catch (e) { /* ignore */ } }
-function section(title, ...kids) { return [h("h3", {}, title), ...kids]; }
-function nodeLink(id) { const n = byId.get(id); return h("button", { class: "link", type: "button", "data-id": id }, n ? n.label : id); }
-function renderPanel() {
-  const n = selected; if (!n) return;
-  if (waiting) { $("pbody").replaceChildren(...waitingBody()); return; }
-  const d = n.details || {}, now = Date.now(), mine = recent.filter((ev) => touches(ev, n)), tenMin = mine.filter((ev) => now - Date.parse(ev.at) < 600000);
-  const outcomes = mine.flatMap((ev) => ev.reactions || []), refused = outcomes.filter((r) => /refus|fail/.test(r.outcome || "")).length;
-  const last = mine.map((ev) => ev.at).sort().pop();
-  const body = [
-    h("div", {}, h("span", { class: "chip", style: "border-color:" + colourOf(n.domain) + ";color:" + colourOf(n.domain) }, keyOf(n)), h("span", { class: "chip" }, n.kind)),
+function nodePanel(n) {
+  const d = n.details || {}, now = Date.now(), mine = recent.filter((ev) => touches(ev, n)), outcomes = mine.flatMap((ev) => ev.reactions || []);
+  const refused = outcomes.filter((r) => /refus|fail/.test(r.outcome || "")).length, last = mine.map((ev) => ev.at).sort().pop();
+  const into = edges.filter((e) => e.to === n.id && e.kind !== "adapter"), out = edges.filter((e) => e.from === n.id && e.kind !== "adapter");
+  return [n.label, [
+    h("div", {}, go({ unit: unitKey(n) }, "← " + unitKey(n)), " ", h("span", { class: "chip" }, n.kind)),
     d.description ? h("p", { class: "desc" }, d.description) : null,
-    d.vision ? h("p", { class: "desc" }, h("i", {}, d.vision)) : null,
-    ...section("Live", h("div", { class: "stat" },
-      h("span", {}, h("b", {}, String(tenMin.length)), "events, 10 min"),
-      h("span", {}, h("b", {}, String(outcomes.length - refused)), "delivered"),
-      h("span", {}, h("b", { style: refused ? "color:var(--critical)" : "" }, String(refused)), "refused"),
-      h("span", {}, h("b", {}, last ? clock(last) : "—"), "last seen")),
-      h("ul", {}, mine.slice(-12).reverse().map((ev) => h("li", { class: "ev" }, h("time", {}, clock(ev.at)), h("b", {}, ev.name), " ", h("small", {}, ev.aggregate.split("::").pop() + "#" + String(ev.id).slice(0, 8)),
-        (ev.reactions || []).map((r) => reactionRow(ev, r)))))),
-  ];
-  if (n.kind === "aggregate") body.push(...declaredAggregate(d));
-  if (n.kind === "port") body.push(...section("Operations", h("ul", {}, (d.operations || []).map((o) => h("li", {}, h("b", {}, o.name), " ", h("small", {}, o.direction), o.answers ? " answers " + o.answers : "", o.refuses ? ", refuses " + o.refuses : "")))));
-  if (n.kind === "adapter") body.push(...section("Binds", h("ul", {}, h("li", {}, "port ", h("b", {}, d.port || "")), (d.fields || []).length ? h("li", {}, "settings: " + d.fields.join(", ")) : null)));
-  if (traced) body.push(...section("Traced through", h("ul", {}, [...traced].filter((id) => id !== n.id).map((id) => h("li", {}, nodeLink(id))))));
-  body.push(...wiringOf(n));
-  $("pbody").replaceChildren(...body.flat().filter(Boolean));
+    section("Live", h("div", { class: "stat" }, h("span", {}, h("b", {}, String(mine.filter((ev) => now - Date.parse(ev.at) < 600000).length)), "events, 10 min"),
+      h("span", {}, h("b", {}, String(outcomes.length - refused)), "delivered"), h("span", {}, h("b", { class: refused ? "bad" : null }, String(refused)), "refused"), h("span", {}, h("b", {}, last ? clock(last) : "—"), "last seen")),
+      h("ul", {}, mine.slice(-12).reverse().map((ev) => h("li", { class: "ev" }, h("time", {}, clock(ev.at)), h("b", {}, ev.name), (ev.reactions || []).map((r) => reactionRow(ev, r)))))),
+    d.lifecycle ? section("Lifecycle: " + d.lifecycle.field, h("div", { class: "states" }, d.lifecycle.states.map((state) => h("span", {}, state)))) : null,
+    (d.commands || []).length ? section("Commands", h("ul", {}, d.commands.map((c) => h("li", {}, h("b", {}, c.name), " ", c.goal, c.emits.length ? h("small", {}, "emits " + c.emits.join(", ")) : null)))) : null,
+    (d.queries || []).length ? section("Queries", h("ul", {}, d.queries.map((q) => h("li", {}, h("b", {}, q.name), h("small", {}, q.description))))) : null,
+    (d.operations || []).length ? section("Operations", h("ul", {}, d.operations.map((o) => h("li", {}, h("b", {}, o.name), h("small", {}, [o.direction, o.answers && "answers " + o.answers, o.refuses && "refuses " + o.refuses].filter(Boolean).join(", ")))))) : null,
+    n.kind === "adapter" ? section("Binds", h("ul", {}, h("li", {}, "port ", h("b", {}, d.port || "")))) : null,
+    into.length ? section("Triggered by", h("ul", {}, into.map(said))) : null,
+    out.length ? section("Its events set off", h("ul", {}, out.map(said))) : null,
+  ]];
 }
-/* A reaction in the sidebar. A waiting one is a button that opens its read-only detail; the rest are labels. */
+/* A reaction in the panel. A waiting one is a button that opens its read-only detail; the rest are labels. */
 function reactionRow(ev, r) {
-  const k = outcomeKind(r.outcome || ""), label = String(r.policy).split("::").pop() + (r.command ? " → " + String(r.command).split("::").pop() : "");
-  const mark = h("span", { class: "mark", style: "color:var(" + OUTCOME[k][0] + ")" }, OUTCOME[k][1].slice(0, 1));
-  if (k !== "wait") return h("span", { class: "re" }, mark, " " + label);
+  const kind = outcomeKind(r.outcome || ""), label = sentence(bare(r.policy)), mark = h("span", { class: "mark " + kind }, OUTCOME[kind].slice(0, 1));
+  if (kind !== "wait") return h("span", { class: "re" }, mark, " " + label);
   const pill = h("button", { class: "re", type: "button", "aria-label": "Waiting: " + label + ". Open the details" }, mark, " " + label);
-  pill.addEventListener("click", () => showWaiting(ev, r));
+  pill.addEventListener("click", () => { waiting = { key: ev.key, policy: r.policy, command: r.command, ev, r }; renderPanel(); });
   return pill;
 }
-/* The read-only view of one waiting reaction. It holds a snapshot and reads the newest copy of the event while it is still held. */
-function showWaiting(ev, r) { waiting = { key: ev.key, policy: r.policy, command: r.command, ev, r }; renderPanel(); }
+/* The read-only view of one waiting reaction. It reads the newest copy of the event while it is still held. */
 function waitingBody() {
   const live = recent.find((ev) => ev.key === waiting.key) || waiting.ev;
   const r = (live.reactions || []).find((x) => x.policy === waiting.policy && x.command === waiting.command) || waiting.r;
-  const back = h("button", { type: "button" }, "Back to " + (selected ? selected.label : "node"));
-  back.addEventListener("click", () => { waiting = null; renderPanel(); });
-  const fact = (label, value) => h("li", {}, h("small", {}, label), h("br"), value);
-  return [
-    h("div", {}, back),
-    ...section("Waiting reaction"),
-    h("p", { class: "desc" }, "Read only. Nothing here changes state."),
-    h("ul", { class: "facts" },
-      fact("Policy", String(r.policy)),
-      fact("Command it reached", r.command ? String(r.command) : "none"),
-      fact("Outcome", r.outcome ? String(r.outcome) : "no outcome recorded"),
-      fact("Event it answered", String(live.name)),
-      fact("Aggregate", String(live.aggregate || "")),
-      fact("Event id", String(live.id || "")),
-      fact("Event at", live.at ? clock(live.at) + " (" + live.at + ")" : "")),
-    (r.emitted || []).length ? section("Emitted after", h("ul", {}, r.emitted.map((name) => h("li", {}, String(name))))) : null,
-  ].flat().filter(Boolean);
+  const back = h("button", { type: "button" }, "Back"); back.addEventListener("click", () => { waiting = null; renderPanel(); });
+  const fact = (label, value) => h("li", {}, value, h("small", {}, label));
+  return [h("div", {}, back), h("p", { class: "desc" }, "Read only. Nothing here changes state."),
+    h("ul", {}, fact("Policy", String(r.policy)), fact("Command it reached", r.command ? String(r.command) : "none"), fact("Outcome", r.outcome ? String(r.outcome) : "no outcome recorded"),
+      fact("Event it answered", String(live.name)), fact("Aggregate", String(live.aggregate || "")), fact("Event at", live.at ? clock(live.at) + " (" + live.at + ")" : ""))];
 }
-function declaredAggregate(d) {
-  const out = [];
-  if (d.lifecycle) out.push(...section("Lifecycle: " + d.lifecycle.field, h("div", { class: "states" }, d.lifecycle.states.map((s) => h("span", { style: s === d.lifecycle.default ? "border-color:var(--series1)" : "" }, s)))));
-  if ((d.commands || []).length) out.push(...section("Commands", h("ul", {}, d.commands.map((c) => h("li", {}, h("b", {}, c.name), " ", c.goal, c.emits.length ? h("small", {}, " → " + c.emits.join(", ")) : null)))));
-  if ((d.queries || []).length) out.push(...section("Queries", h("ul", {}, d.queries.map((q) => h("li", {}, h("b", {}, q.name), " ", h("small", {}, q.description))))));
-  return out;
-}
-function wiringOf(n) {
-  const into = edges.filter((e) => e.to === n.id && e.kind !== "adapter"), out = edges.filter((e) => e.from === n.id && e.kind !== "adapter"), bound = edges.filter((e) => e.kind === "adapter" && (e.from === n.id || e.to === n.id));
-  return [
-    ...(into.length ? section("Triggered by", h("ul", {}, into.map((e) => h("li", {}, nodeLink(e.from), " → ", h("b", {}, e.label))))) : []),
-    ...(out.length ? section("Reacts to its events", h("ul", {}, out.map((e) => h("li", {}, h("b", {}, e.label), " → ", nodeLink(e.to), e.kind === "ask" ? h("small", {}, " (ask)") : null)))) : []),
-    ...(bound.length ? section("Bound", h("ul", {}, bound.map((e) => h("li", {}, nodeLink(e.from), " ↔ ", nodeLink(e.to))))) : []),
-  ];
-}
-$("pbody").addEventListener("click", (e) => { const id = e.target.dataset && e.target.dataset.id; if (!id) return; const n = byId.get(id); if (!n) return; expanded.add(keyOf(n)); openPanel(n); });
-$("pclose").addEventListener("click", closePanel);
-$("focus").addEventListener("click", () => { focusId = focusId ? null : selected && selected.id; $("focus").setAttribute("aria-pressed", String(!!focusId)); });
-addEventListener("keydown", (e) => { if (e.key === "Escape") closePanel(); });
-canvas.addEventListener("dblclick", (e) => { const r = canvas.getBoundingClientRect(); zoomAt(e.clientX - r.left, e.clientY - r.top, 1.6); });
-let placed = [];
-function free(x, y, w, hgt) {
-  if (placed.some((p) => x < p.x + p.w && x + w > p.x && y < p.y + p.hgt && y + hgt > p.y)) return false;
-  placed.push({ x, y, w, hgt }); return true;
-}
+$("pclose").addEventListener("click", () => { waiting = null; pick(null); });
+addEventListener("keydown", (e) => { if (e.key === "Escape") { waiting = null; pick(null); $("hits").hidden = true; } });
 
-/* ---- drawing ---- */
-function shape(n, x, y, r) {
-  ctx.beginPath();
-  if (n.kind === "port") { ctx.moveTo(x, y - r); ctx.lineTo(x + r, y); ctx.lineTo(x, y + r); ctx.lineTo(x - r, y); ctx.closePath(); }
-  else if (n.kind === "adapter") { for (let i = 0; i < 6; i++) { const a = i / 6 * 6.283; ctx.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r); } ctx.closePath(); }
-  else ctx.roundRect(x - r, y - r * 0.7, r * 2, r * 1.4, 3);
-}
-/* ---- level of detail: a context is one block until it is opened by a click, "Expand all", or zooming in ---- */
-const expanded = new Set();
-let blocks = new Map(), captions = [], allOpen = false;
-const open = (k) => allOpen || expanded.has(k) || view.s >= fitScale * 2.2;
-function blockOf(k) {
-  const members = nodes.filter((n) => keyOf(n) === k && n.kind !== "adapter");
-  if (!members.length) return null;
-  const x = members.reduce((s, n) => s + sx(n), 0) / members.length, y = members.reduce((s, n) => s + sy(n), 0) / members.length;
-  const d = k.split(" / ")[0], name = k.split(" / ")[1] || d, count = members.filter((n) => n.kind === "aggregate").length;
-  ctx.font = "600 12px system-ui, sans-serif";
-  const w = Math.max(ctx.measureText(name).width + 34, 64), hgt = 30;
-  return { k, d, name, count, x, y, w, hgt, members };
-}
-const anchor = (n) => { const b = blocks.get(keyOf(n)); return b ? { x: b.x, y: b.y } : { x: sx(n), y: sy(n) }; };
-/* Blocks are pixel-sized, so two neighbouring contexts can collide at the fitted scale: push them apart. */
-function separate(list) {
-  for (let pass = 0; pass < 12; pass++) for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
-    const a = list[i], b = list[j], gapX = (a.w + b.w) / 2 + 10 - Math.abs(a.x - b.x), gapY = (a.hgt + b.hgt) / 2 + 8 - Math.abs(a.y - b.y);
-    if (gapX <= 0 || gapY <= 0) continue;
-    if (gapX < gapY) { const s = Math.sign(a.x - b.x) || 1; a.x += s * gapX / 2; b.x -= s * gapX / 2; }
-    else { const s = Math.sign(a.y - b.y) || 1; a.y += s * gapY / 2; b.y -= s * gapY / 2; }
-  }
-}
-const blink = (now) => reduceMotion || Math.sin(now / 140) > -0.3;
-function heatOf(id, now) { const p = pulses.get(id); return p && p > now ? Math.min(1, (p - now) / LINGER_FADE) : 0; }
-function drawBlock(b, now) {
-  const heat = Math.max(0, ...b.members.map((n) => heatOf(n.id, now))), colour = areaColour(b.k);
-  ctx.beginPath(); ctx.roundRect(b.x - b.w / 2, b.y - b.hgt / 2, b.w, b.hgt, 8);
-  ctx.globalAlpha = 0.18 + 0.5 * heat; ctx.fillStyle = heat ? css("--series1") : colour; ctx.fill();
-  ctx.globalAlpha = 1; ctx.lineWidth = heat ? 2 : 1.2; ctx.strokeStyle = heat ? css("--series1") : colour; ctx.stroke();
-  ctx.font = "600 12px system-ui, sans-serif"; ctx.fillStyle = css("--ink"); ctx.textAlign = "center";
-  ctx.globalAlpha = heat && !blink(now) ? 0.25 : 1; ctx.fillText(b.name, b.x - 8, b.y + 4); ctx.globalAlpha = 1; ctx.textAlign = "start";
-  ctx.font = "10px system-ui, sans-serif"; ctx.fillStyle = css("--ink2"); ctx.fillText(String(b.count), b.x + b.w / 2 - 16, b.y + 4);
-  free(b.x - b.w / 2, b.y - b.hgt / 2, b.w, b.hgt);
-}
-function drawEdges(now) {
-  const bundles = new Map();
+/* ---- find: a context, an aggregate or a policy, by any part of its name ---- */
+function find() {
+  const text = $("q").value.trim().toLowerCase(), hits = $("hits");
+  if (!text) { found = null; hits.hidden = true; mark(); return; }
+  const rows = [], has = (value) => String(value).toLowerCase().includes(text);
+  found = new Set();
+  for (const u of units.values()) if (has(u.key)) { found.add(u.key); rows.push(["context", u.key, { unit: u.key }]); }
+  for (const n of nodes) if (n.domain && n.kind !== "adapter" && has(n.label)) { found.add(unitKey(n)); rows.push([n.kind, n.label, { node: n.id }]); }
+  // A policy between two contexts opens their line; one inside a context opens the aggregate it starts from.
   for (const e of edges) {
-    const a = byId.get(e.from), b = byId.get(e.to); if (!a || !b) continue;
-    const ca = blocks.get(keyOf(a)), cb = blocks.get(keyOf(b));
-    if (ca && ca === cb) continue;
-    const outside = (focusId && e.from !== focusId && e.to !== focusId) || (traced && !(traced.has(e.from) && traced.has(e.to)));
-    if (!ca && !cb) { strokeEdge(anchor(a), anchor(b), a === b, e.lit, 1, colourOf(a.domain), now, outside); continue; }
-    if (e.kind === "adapter" && cb) continue;
-    const key = (ca ? ca.k : a.id) + "|" + (cb ? cb.k : b.id), held = bundles.get(key) || { from: anchor(a), to: anchor(b), count: 0, lit: null, colour: colourOf(a.domain) };
-    held.count++; if (e.lit && e.lit.until > now && (!held.lit || e.lit.until > held.lit.until)) held.lit = e.lit;
-    bundles.set(key, held);
+    const a = byId.get(e.from), b = byId.get(e.to);
+    if (e.kind === "adapter" || !a || !b || !a.domain || !b.domain || !(has(e.label) || has(sentence(e.label)))) continue;
+    const from = unitKey(a), to = unitKey(b); found.add(from); found.add(to);
+    rows.push(["policy", sentence(e.label), from === to ? { node: a.id } : { link: from + "→" + to }]);
   }
-  for (const b of bundles.values()) {
-    strokeEdge(b.from, b.to, false, b.lit, 1 + Math.log2(b.count), b.colour, now);
-    if (b.count > 1) { const mx = (b.from.x + b.to.x) / 2, my = (b.from.y + b.to.y) / 2; ctx.font = "10px system-ui, sans-serif";
-      if (free(mx - 8, my - 8, 16, 14)) { ctx.fillStyle = css("--ink2"); ctx.textAlign = "center"; ctx.fillText(String(b.count), mx, my + 3); ctx.textAlign = "start"; } }
-  }
+  hits.replaceChildren(...(rows.length ? rows.slice(0, 14).map(([kind, label, what]) => { const b = h("button", { type: "button" }, h("small", {}, kind), label); b.addEventListener("click", () => { hits.hidden = true; pick(what); }); return h("li", {}, b); })
+    : [h("li", { class: "note", style: "padding:6px 8px" }, "Nothing in the wiring has that name.")]));
+  hits.hidden = false; mark();
 }
-function strokeEdge(from, to, own, litAt, width, colour, now, dim) {
-  const lit = litAt && litAt.until > now ? litAt : null, heat = lit ? Math.min(1, (lit.until - now) / LINGER_FADE) : 0;
-  ctx.globalAlpha = (dim ? 0.08 : 0.35) + 0.65 * heat; ctx.lineWidth = width + 1.5 * heat;
-  ctx.strokeStyle = lit ? css(lit.token) : (showBounds ? colour : css("--axis"));
-  ctx.beginPath();
-  if (own) ctx.arc(from.x + 9, from.y - 9, 7, 0, 6.283); else { ctx.moveTo(from.x, from.y); ctx.lineTo(to.x, to.y); }
-  ctx.stroke(); ctx.globalAlpha = 1;
-}
-function draw(now) {
-  const r = canvas.getBoundingClientRect(); ctx.clearRect(0, 0, r.width, r.height); placed = []; captions = [];
-  blocks = new Map(); for (const k of contexts) if (!open(k)) { const b = blockOf(k); if (b) blocks.set(k, b); }
-  scoot();
-  separate([...blocks.values()]);
-  if (showBounds) drawBounds(now);
-  drawEdges(now);
-  for (const b of blocks.values()) drawBlock(b, now);
-  for (const n of nodes) if (!blocks.has(keyOf(n))) drawNode(n, now);
-  drawParticles(now);
-  const named = view.s >= fitScale * 2.2;
-  for (const n of nodes) if (!blocks.has(keyOf(n)) && !(pulses.get(n.id) > now) && (named || scooted(n))) label(n, false, true);
-  if (hover && !blocks.has(keyOf(hover))) label(hover, true);
-  requestAnimationFrame(draw);
-}
-function drawNode(n, now) {
-  const x = sx(n), y = sy(n), r = n.kind === "aggregate" ? 6 : 7, pulse = pulses.get(n.id);
-  const live = pulse && pulse > now, heat = live ? Math.min(1, (pulse - now) / LINGER_FADE) : 0;
-  shape(n, x, y, r + (live && !reduceMotion ? 3 * heat : 0));
-  const hue = n.kind === "aggregate" ? colourOf(n.domain) : css("--wiring");
-  ctx.fillStyle = live ? css("--series1") : hue; ctx.globalAlpha = live ? 0.4 + 0.6 * heat : 1; ctx.fill(); ctx.globalAlpha = 1;
-  ctx.lineWidth = live ? 2 : 1.2; ctx.strokeStyle = live ? css("--series1") : hue; ctx.stroke();
-  if (live && heat > 0.6) label(n, false);
-}
-function label(n, boxed, quiet) {
-  const x = sx(n) + 10, y = sy(n) - 8, text = quiet ? n.label : n.label + (n.domain ? "  " + keyOf(n) : "");
-  ctx.font = (quiet ? "11px" : "12px") + " system-ui, sans-serif";
-  const w = ctx.measureText(text).width + 8;
-  if (!boxed && !free(x - 4, y - 12, w, 18)) return;
-  if (boxed) { ctx.fillStyle = css("--surface"); ctx.fillRect(x - 4, y - 12, w, 18); ctx.strokeStyle = css("--axis"); ctx.strokeRect(x - 4, y - 12, w, 18); }
-  ctx.fillStyle = quiet ? css("--ink2") : css("--ink"); ctx.fillText(text, x, y);
-}
-const OUTCOME = { ok: ["--good", "✓ delivered"], wait: ["--warning", "▲ waiting"], bad: ["--critical", "✕ refused"] };
-function drawParticles(now) {
-  for (let i = particles.length - 1; i >= 0; i--) {
-    const p = particles[i], t = (now - p.start) / p.ms;
-    if (t >= 1) { pulses.set(p.to.id, now + LINGER); particles.splice(i, 1); continue; }
-    if (t < 0) continue;
-    const from = anchor(p.from), to = anchor(p.to), own = from.x === to.x && from.y === to.y, angle = t * 6.283 + 1.57;
-    const x = own ? from.x + 9 + Math.cos(angle) * 7 : from.x + (to.x - from.x) * t;
-    const y = own ? from.y - 9 + Math.sin(angle) * 7 : from.y + (to.y - from.y) * t, [token, word] = OUTCOME[p.kind];
-    ctx.beginPath(); ctx.arc(x, y, 5, 0, 6.283); ctx.fillStyle = css(token); ctx.fill(); ctx.strokeStyle = css("--surface"); ctx.lineWidth = 2; ctx.stroke();
-    ctx.font = "11px system-ui, sans-serif"; const text = word.slice(0, 1) + " " + p.text;
-    if (free(x + 8, y - 16, ctx.measureText(text).width + 4, 14)) { ctx.fillStyle = css("--ink"); ctx.fillText(text, x + 8, y - 6); }
-  }
+$("q").addEventListener("input", find);
+$("q").addEventListener("focus", () => { if ($("q").value.trim()) $("hits").hidden = false; });
+document.addEventListener("pointerdown", (e) => { if (!e.target.closest(".find")) $("hits").hidden = true; });
+
+/* ---- the table: how many policies run from each context (row) to each other (column) ---- */
+function renderGrid() {
+  const keys = order.concat([...units.keys()].filter((key) => !order.includes(key))), most = Math.max(1, ...[...links.values()].map((l) => l.count));
+  const cell = (from, to) => {
+    if (from === to) return h("td", { class: "own", title: from + ": policies inside" }, units.get(from).inside || "");
+    const l = links.get(from + "→" + to); if (!l) return h("td", {});
+    const td = h("td", { class: "n", style: "--w:" + Math.round(12 + 60 * l.count / most), title: from + " → " + to }, String(l.count)); td.addEventListener("click", () => pick({ link: l.key })); return td;
+  };
+  $("grid").replaceChildren(h("table", {}, h("thead", {}, h("tr", {}, h("th", { class: "row" }, "from ↓  to →"), keys.map((key) => h("th", {}, key)))),
+    h("tbody", {}, keys.map((from) => h("tr", {}, h("th", { class: "row" }, from), keys.map((to) => cell(from, to)))))));
 }
 
-/* ---- messages ---- */
-function outcomeKind(text) { return /deliver/.test(text) ? "ok" : /refus|fail/.test(text) ? "bad" : "wait"; }
-// A message that reaches a port answers through the adapter bound to it: the binding lights, a
-// particle travels port to adapter, and the adapter pulses like an aggregate that has just acted.
-function lightAdapters(port, kind, now) {
-  for (const e of edges.filter((x) => x.kind === "adapter" && x.from === port.id)) {
-    const adapter = byId.get(e.to); if (!adapter) continue;
-    e.lit = { until: now + LINGER, token: OUTCOME[kind][0] };
-    pulses.set(adapter.id, now + LINGER);
-    particles.push({ from: port, to: adapter, kind, text: port.label, start: now + 150, ms: reduceMotion ? 1 : 1400 });
-  }
-}
+/* ---- messages: a policy that ran lights the line it crosses, in its outcome's colour ---- */
+const seen = new Map(), dots = [];
+const outcomeKind = (text) => (/deliver/.test(text) ? "ok" : /refus|fail/.test(text) ? "bad" : "wait");
+function heat(u, now) { u.hot = now + LINGER; u.el.classList.add("hot"); }
 function fire(ev, animate) {
   const now = performance.now(), node = byId.get(ev.aggregate);
-  if (node && animate) pulses.set(node.id, now + LINGER);
+  if (node && animate && units.has(unitKey(node))) heat(units.get(unitKey(node)), now);
   for (const r of ev.reactions || []) {
-    const bare = String(r.policy).split("::").pop(), kind = outcomeKind(r.outcome || "");
-    const token = ev.key + "|" + bare + "|" + kind;
+    const name = bare(r.policy), kind = outcomeKind(r.outcome || ""), token = ev.key + "|" + name + "|" + kind;
     if (seen.has(token)) continue; seen.set(token, true);
-    for (const e of edges.filter((x) => x.label === bare)) {
-      const a = byId.get(e.from), b = byId.get(e.to);
-      if (a && b && animate) { particles.push({ from: a, to: b, kind, text: ev.name, start: now + 150, ms: reduceMotion ? 1 : 1400 }); e.lit = { until: now + LINGER, token: OUTCOME[kind][0] }; }
-      if (b && b.kind === "port" && animate) lightAdapters(b, kind, now);
-    }
-    logLine(ev, r, kind);
+    if (animate) for (const e of edges.filter((x) => x.label === name)) cross(e, kind, now);
+    $("last").replaceChildren(h("time", {}, clock(ev.at)), h("b", {}, ev.name), sentence(name), h("span", { class: kind }, OUTCOME[kind]));
   }
-  if (!(ev.reactions || []).length) logLine(ev, null, null);
 }
-function logLine(ev, reaction, kind) {
-  const li = h("li", {}, h("time", {}, clock(ev.at)), (ev.aggregate || "") + " ", h("b", {}, ev.name));
-  if (reaction) li.append(" → " + String(reaction.policy).split("::").pop() + (reaction.command ? " → " + reaction.command : ""),
-    h("span", { class: "mark", style: "color:var(" + OUTCOME[kind][0] + ")" }, OUTCOME[kind][1]));
-  const log = $("log"); if (!log) return; log.prepend(li); while (log.children.length > 60) log.lastChild.remove();
+function cross(e, kind, now) {
+  const a = byId.get(e.from), b = byId.get(e.to); if (!a || !b || !a.domain || !b.domain) return;
+  const from = unitKey(a), to = unitKey(b), link = links.get(from + "→" + to);
+  if (units.has(to)) heat(units.get(to), now);
+  if (!link) return;
+  link.lit = now + LINGER; link.el.classList.remove("ok", "wait", "bad"); link.el.classList.add("lit", kind);
+  if (reduceMotion) return;
+  const dot = s("circle", { class: "dot " + kind, r: 5 }); $("dots").append(dot);
+  dots.push({ dot, line: link.el.querySelector(".line"), start: now, ms: 1400 }); if (dots.length === 1) requestAnimationFrame(travel);
+}
+function travel(now) {
+  for (let i = dots.length - 1; i >= 0; i--) {
+    const d = dots[i], t = (now - d.start) / d.ms;
+    if (t >= 1 || !d.line.isConnected) { d.dot.remove(); dots.splice(i, 1); continue; }
+    const at = d.line.getPointAtLength(d.line.getTotalLength() * Math.max(0, t)); d.dot.setAttribute("cx", at.x); d.dot.setAttribute("cy", at.y);
+  }
+  if (dots.length) requestAnimationFrame(travel);
 }
 let backlog = [], liveStarted = false;
 function listen() {
@@ -601,61 +523,41 @@ function listen() {
     pause: () => { $("live").textContent = "stream: paused"; },
     wiring: (m) => { if (m && wiringDigest && m.digest !== wiringDigest) loadWiring(false); },
     board: (ev) => {
-    if (!ev.key) return;
-    remember(ev); if (selected) renderPanel();
-    if (!liveStarted) { backlog.push(ev); clearTimeout(listen.t); listen.t = setTimeout(startLive, 600); } else fire(ev, true);
-  } });
+      if (!ev.key) return;
+      remember(ev); if (picked && picked.node) renderPanel();
+      if (!liveStarted) { backlog.push(ev); clearTimeout(listen.t); listen.t = setTimeout(() => { liveStarted = true; replay(backlog.slice(-12), true); }, 600); } else fire(ev, true);
+    } });
 }
-function startLive() { liveStarted = true; replay(backlog.slice(-12), true); }
-function replay(list, first) {
-  if (!first) seen.clear();
-  list.forEach((ev, i) => setTimeout(() => fire(ev, true), i * 450));
-}
+function replay(list, first) { if (!first) seen.clear(); list.forEach((ev, i) => setTimeout(() => fire(ev, true), i * 450)); }
 
-/* ---- table view, hover, boot ---- */
-function renderTable() {
-  $("edgetable").replaceChildren(h("table", {}, h("thead", {}, h("tr", {}, ["From", "Policy", "To", "Kind"].map((t) => h("th", {}, t)))),
-    h("tbody", {}, edges.map((e) => h("tr", {}, [e.from, e.label || "(bound adapter)", e.to, e.kind].map((t) => h("td", {}, t)))))));
+/* ---- buttons, and the graph: read at load and again whenever the stream says the bluebooks are drawn differently ---- */
+function redraw() {
+  gather(); layout(); draw(); renderGrid(); renderPanel();
+  const policies = edges.filter((e) => e.kind !== "adapter").length, between = [...links.values()].reduce((sum, l) => sum + l.count, 0);
+  $("count").textContent = units.size + " contexts, " + nodes.filter((n) => n.kind === "aggregate").length + " aggregates, " + policies + " policies, " + between + " of them between contexts";
+  if ($("q").value.trim()) { find(); $("hits").hidden = true; }
 }
-canvas.addEventListener("mousemove", (e) => {
-  const r = canvas.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
-  cursor = drag ? null : { x: mx, y: my };
-  hover = nodes.find((n) => !blocks.has(keyOf(n)) && Math.hypot(sx(n) - mx, sy(n) - my) < 10) || null;
-  const onBlock = [...blocks.values()].some((b) => Math.abs(mx - b.x) < b.w / 2 && Math.abs(my - b.y) < b.hgt / 2);
-  canvas.style.cursor = drag ? "grabbing" : hover || onBlock ? "pointer" : "grab";
-});
-$("all").addEventListener("click", () => { allOpen = !allOpen; if (!allOpen) expanded.clear(); $("all").textContent = allOpen ? "Collapse all" : "Expand all"; });
-$("fit").addEventListener("click", fit);
-$("zin").addEventListener("click", () => zoomCentre(1.4));
-$("zout").addEventListener("click", () => zoomCentre(1 / 1.4));
-canvas.addEventListener("mouseleave", () => { hover = null; cursor = null; });
-$("toggle").addEventListener("click", () => { const on = document.body.classList.toggle("tables-only"); $("toggle").setAttribute("aria-pressed", String(on)); $("toggle").textContent = on ? "Show diagram" : "Show table"; });
-// Replays the twelve most recent events the page has received, oldest first, not only the first ones.
+function regroup(domain) { if (grouped.has(domain)) grouped.delete(domain); else grouped.add(domain); keep("wiring-grouped", [...grouped]); sync(); touched = false; picked = null; redraw(); }
+function sync() { const open = !splittable.every((d) => grouped.has(d)); $("areas").setAttribute("aria-pressed", String(open)); $("areas").hidden = !splittable.length; $("areas").title = open ? "Draw each domain as one block" : "Draw each area of a domain as its own block"; }
+$("areas").addEventListener("click", () => { const open = !splittable.every((d) => grouped.has(d)); grouped = new Set(open ? splittable : []); keep("wiring-grouped", [...grouped]); sync(); touched = false; picked = null; redraw(); });
+$("fit").addEventListener("click", fit); $("zin").addEventListener("click", () => zoom(1.3)); $("zout").addEventListener("click", () => zoom(1 / 1.3));
 $("replay").addEventListener("click", () => replay(recent.slice(-12), false));
-$("bounds").addEventListener("click", () => { showBounds = !showBounds; $("bounds").setAttribute("aria-pressed", String(showBounds)); $("bounds").textContent = showBounds ? "Hide boundaries" : "Show boundaries"; });
-addEventListener("resize", () => { if (touched) size(); else fit(); });
-
-/* ---- the graph: read once at load, and again whenever the stream says the bluebooks are drawn differently ---- */
-let wiringDigest = null;
-// Swaps in a new graph. What is lit, pulsing, expanded, panned and open stays as it was where it still exists.
+$("toggle").addEventListener("click", () => { const on = $("grid").hidden; $("grid").hidden = !on; map.style.display = on ? "none" : ""; $("key").hidden = on; $("toggle").setAttribute("aria-pressed", String(on)); $("toggle").textContent = on ? "Show map" : "Show table"; });
+addEventListener("resize", () => { if (!touched) fit(); });
 function applyWiring(g, first) {
-  const lit = new Map(edges.map((e) => [e.from + "|" + e.to + "|" + e.label, e.lit]));
   nodes = g.nodes; edges = g.edges; wiringDigest = g.digest; byId = new Map(nodes.map((n) => [n.id, n]));
-  for (const e of edges) { const held = lit.get(e.from + "|" + e.to + "|" + e.label); if (held) e.lit = held; }
-  hover = null; assignDomains();
-  $("count").textContent = domains.length + " domains, " + contexts.length + " contexts, " + nodes.filter((n) => n.kind === "aggregate").length + " aggregates, " + edges.filter((e) => e.kind !== "adapter").length + " policies";
-  $("domains").replaceChildren(...domains.map((d) => h("span", {}, h("i", { class: "swatch", style: "background:" + colourOf(d) }), d)));
-  layout(); if (first || !touched) fit(); renderTable();
-  if (!first && selected) { const held = byId.get(selected.id); if (held) openPanel(held); else closePanel(); }
+  place(); sync(); redraw();
+  if (!first && picked) pick(picked);
 }
 function loadWiring(first) {
   return fetch("/api/wiring", { cache: "no-store" }).then((r) => r.json()).then((g) => {
-    if (g.unknown) { $("count").textContent = "unknown: " + g.unknown; return; }
+    if (g.unknown) { $("count").textContent = "not read: " + g.unknown; return; }
     applyWiring(g, first);
     if (!first) return;
-    requestAnimationFrame(draw); listen();
-    const wanted = decodeURIComponent(location.hash.slice(1)); if (wanted && byId.has(wanted)) { expanded.add(keyOf(byId.get(wanted))); openPanel(byId.get(wanted)); }
-  }).catch((e) => { $("count").textContent = "unknown: " + e.message; });
+    listen();
+    const wanted = decodeURIComponent(location.hash.slice(1));
+    if (wanted) pick(byId.has(wanted) ? { node: wanted } : units.has(wanted) ? { unit: wanted } : { link: wanted });
+  }).catch((e) => { $("count").textContent = "not read: " + e.message; });
 }
 loadWiring(true);
 </script>
