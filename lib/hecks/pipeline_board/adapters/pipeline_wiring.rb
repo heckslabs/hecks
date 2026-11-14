@@ -3,6 +3,7 @@
 require "json"
 require "digest"
 require_relative "probe"
+require_relative "rules"
 require_relative "pipeline_wiring/details"
 require_relative "pipeline_wiring/graph"
 require_relative "pipeline_wiring/source"
@@ -18,10 +19,13 @@ module Hecks
     class PipelineWiring
       # @param registry [Runtime::Registry, nil] the booted registry whose bluebooks are read
       # @param aggregate [Object, nil] unused
-      # @param settings [Hash] `source:` stands in for {PipelineBoard::WiringSource}
+      # @param settings [Hash] `source:` stands in for {PipelineBoard::WiringSource};
+      #   `look_seconds:` for the `wiring_look_seconds` setting
       # @param root [String, nil] unused
       def initialize(registry: nil, aggregate: nil, settings: {}, root: nil)
         @registry = registry
+        seconds = settings[:look_seconds]
+        @look_seconds = seconds ? -> { seconds } : -> { PipelineBoard::Rules.setting("wiring_look_seconds") }
         @source = settings[:source] || (registry && PipelineBoard::WiringSource.new(registry))
         @lock = Mutex.new
         @stamp = @source&.stamp
@@ -58,7 +62,12 @@ module Hecks
 
       private
 
+      # Looks at the bluebook files once in `wiring_look_seconds` at most: every open stream asks
+      # on every journal line, and a look stats every declaration file.
       def refresh
+        due = look_due?
+        return if @graph && !due
+
         stamp = @source.stamp
         return seed if @graph.nil? && stamp == @stamp
         return if stamp == @stamp
@@ -68,6 +77,14 @@ module Hecks
       end
 
       # The graph of the booted registry, drawn before any file has changed.
+      def look_due?
+        now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        return false if @looked && now - @looked < @look_seconds.call
+
+        @looked = now
+        true
+      end
+
       def seed = store(PipelineBoard::Graph.new(@registry).to_h)
 
       def rebuild

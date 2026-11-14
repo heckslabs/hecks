@@ -35,7 +35,7 @@ RSpec.describe "the live wiring diagram" do
       end
     end
     let(:source) { source_class.new([1], nil, nil, 0) }
-    let(:wiring) { described_class.new(registry: registry("Booted"), settings: { source: source }) }
+    let(:wiring) { described_class.new(registry: registry("Booted"), settings: { source: source, look_seconds: 0 }) }
 
     def labels = wiring.graph[:edges].map { |edge| edge[:label] }
 

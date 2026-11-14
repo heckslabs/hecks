@@ -2,15 +2,18 @@
 
 require "json"
 require_relative "plan_tile"
+require_relative "stale"
 
 module Hecks
   module Adapters
     module PipelineBoard
       # Asks each reader its question and keeps the answer, or `{unknown: <reason>}` when the reader
       # could not answer, so one failed read never takes the others down. The reads run side by
-      # side and each has {READ_SECONDS} to answer, so one slow reader never holds the rest.
+      # side and each has {READ_SECONDS} to answer, so one slow reader never holds the rest. A
+      # section whose read was skipped shows its last answer, noted as stale (see {Stale}).
       module Gather
         include PlanTile
+        include Stale
 
         # Seconds one reader may take before its section is given as unknown.
         READ_SECONDS = 20
@@ -60,7 +63,9 @@ module Hecks
         def gathered
           threads = READS.to_h { |section, spec| [section, reading(section, spec)] }
           deadline = Time.now + read_seconds
-          threads.to_h { |section, thread| [section, thread ? answer_of(section, thread, deadline) : STILL_RUNNING] }
+          threads.to_h do |section, thread|
+            [section, lasting(section, thread ? answer_of(section, thread, deadline) : STILL_RUNNING)]
+          end
         end
 
         # A new read of the section, or nil while the last one is still running, so a slow reader is

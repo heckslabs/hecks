@@ -2,6 +2,7 @@
 
 require "json"
 require_relative "probe/child"
+require_relative "load_guard"
 
 module Hecks
   module Adapters
@@ -13,7 +14,8 @@ module Hecks
 
       # Runs one outside command for a reader and answers its standard output. The command never
       # outlives the read (see {Child}), and its bound is under the {Gather} bound, so a read that
-      # is given up on has already stopped its child.
+      # is given up on has already stopped its child. While the machine is loaded (see
+      # {LoadGuard}) a reader's command is not started at all; a step a person asked for is.
       module Probe
         TIMEOUT_SECONDS = 15
         # The variable a launcher line reads its caller from, and the name the board gives, so the
@@ -24,10 +26,13 @@ module Hecks
         # @param command [Array<String>] the program and its arguments, never a shell string
         # @param chdir [String, nil] where it runs
         # @param stdin [String, nil] what is written to its standard input, then closed
+        # @param guarded [Boolean] whether a loaded machine refuses it; false for a step a person
+        #   asked for
         # @return [String] standard output
-        # @raise [Unavailable] when the program is missing, times out (it is stopped first) or
-        #   exits non-zero
-        def self.run(*command, chdir: nil, seconds: TIMEOUT_SECONDS, stdin: nil)
+        # @raise [Unavailable] when the program is missing, times out (it is stopped first),
+        #   exits non-zero, or is not started because the machine is loaded
+        def self.run(*command, chdir: nil, seconds: TIMEOUT_SECONDS, stdin: nil, guarded: true)
+          hold(command.first) if guarded
           child = Child.new(command, environment: { CALLER_VARIABLE => CALLER }, chdir: chdir || Dir.pwd, seconds: seconds)
           out, err, status = child.call(stdin.to_s)
           raise Unavailable, "#{command.first} #{command[1]}: #{reason(err)}" unless status.success?
@@ -35,6 +40,13 @@ module Hecks
           out
         rescue Errno::ENOENT then raise Unavailable, "#{command.first} is not installed"
         rescue Child::Overdue then raise Unavailable, "#{command.first} did not answer in #{seconds}s"
+        end
+
+        # @param program [String] the program a reader is about to run
+        # @return [void]
+        # @raise [Unavailable] while the board's load guard says the machine is loaded
+        def self.hold(program)
+          raise Unavailable, LoadGuard.shared.refusal(program) if LoadGuard.loaded?
         end
 
         # The launcher's notices (boot warnings and the worktree's missing local files) come before
