@@ -1,7 +1,8 @@
 require "spec_helper"
 require_relative "support/machine_readings"
 
-# Memory is read as swap used in megabytes, the compressor's size and free memory; the test lane as its waiting count.
+# Memory is read as swap used in megabytes, the compressor's size and free memory;
+# the test lane as its waiting count.
 RSpec.describe "the memory and lane states of a machine reading" do
   include MachineReadings
 

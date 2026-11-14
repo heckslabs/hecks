@@ -7,7 +7,7 @@ module MachineBeats
 
   # Boots the Hecks domain in Memory and beats once for each reading of a fake machine.
   #
-  # @param series [Array<Hash>] the gauges of each beat: `cpu_idle`, `swap_used_mb`, `free_gb`, `load`, ...
+  # @param series [Array<Hash>] the gauges of each beat: `cpu_idle`, `swap_used_mb`, `load`, ...
   # @return [Hash] `names:` the events in order, `rolls:` the fills the rolling port answered
   def beat_through(series)
     Sampling.last = nil

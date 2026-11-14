@@ -34,7 +34,7 @@ module Hecks
         def self.poll_of(root) = Float(RustBuild::WorldRows.row(root, VERB)[:memory_poll_seconds] || POLL_SECONDS)
 
         # @param root [String] a hecks checkout
-        # @return [Float] the seconds a memory wait lasts its Tickets world sets, else `GIVE_UP_AFTER`
+        # @return [Float] the seconds a memory wait lasts: its Tickets world's, else `GIVE_UP_AFTER`
         def self.give_up_of(root) = Float(RustBuild::WorldRows.row(root, VERB)[:memory_give_up_seconds] || GIVE_UP_AFTER)
 
         # @param root [String] the hecks checkout whose world sets the marks and the interval
@@ -50,8 +50,8 @@ module Hecks
         #   absent
         # @param err [#puts] where the waiting note goes
         # @param timing [Hash] `give_up:` is the seconds to wait before the job runs anyway,
-        #   `GIVE_UP_AFTER` when absent; `clock:` answers the time in seconds and `pause:` sleeps the given
-        #   seconds; the monotonic clock and `sleep` when absent
+        #   `GIVE_UP_AFTER` when absent; `clock:` answers the time in seconds and `pause:`
+        #   sleeps the given seconds; the monotonic clock and `sleep` when absent
         def initialize(marks:, poll:, readings: MachineSampling::Readings.new, err: $stderr, **timing)
           @marks = marks
           @poll = poll
