@@ -8,9 +8,8 @@ module RuboCop
       # The pipeline asks the ledger what happened and when; a history read still needed is added
       # to the `Git` port. Adapter folders are skipped: an adapter of another port (Train,
       # Rehearsing) reads the history for its own port, and moving those reads behind `Git`, which
-      # has no read for most of them, is the owner's decision. Vendored packages hold the same debt
-      # and change in their own repository. A file in the baseline list is fully exempt, so a new
-      # read there is not flagged. The cop closes the non-adapter gap only.
+      # has no read for most of them, is the owner's decision. Vendored packages hold the same
+      # debt. A file in the baseline list is fully exempt; the cop closes the non-adapter gap only.
       #
       # @example
       #   read("rev-list", "--count", range)    # bad
