@@ -87,7 +87,6 @@ svg.picked .unit:not(.near), svg.finding .unit:not(.match) { opacity: .3; }
 
 .panel { position: fixed; top: 0; right: 0; width: 420px; max-width: 100vw; height: 100vh; overflow: auto; background: var(--surface); border-left: 1px solid var(--line);
   box-shadow: -8px 0 24px rgba(0,0,0,.18); padding: 14px 16px 28px; z-index: 20; }
-@media (min-width: 1100px) { body.paneled main { margin-right: 420px; } }
 .panel .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
 .panel h2 { font-size: 17px; margin: 0; font-weight: 650; } .panel h3 { font-size: 13px; margin: 18px 0 6px; font-weight: 600; }
 .panel h3 small { font-weight: 400; color: var(--ink2); }
@@ -303,6 +302,7 @@ function fit() {
   // The map is not drawn smaller than it needs to be, and never larger than its own size.
   const wide = Math.max(w, hgt * ratio, Math.min(r.width, 900));
   view = { x: -pad - (wide - w) / 2, y: -pad - (wide / ratio - hgt) / 2, w: wide, h: wide / ratio }; touched = false; show();
+  if (picked && !$("panel").hidden) reveal();
 }
 function zoom(k) { const cx = view.x + view.w / 2, cy = view.y + view.h / 2; view.w /= k; view.h /= k; view.x = cx - view.w / 2; view.y = cy - view.h / 2; touched = true; show(); }
 let drag = null;
@@ -363,12 +363,20 @@ function said(e) {
   const a = byId.get(e.from), b = byId.get(e.to);
   return h("li", { title: e.label }, sentence(e.label), h("small", {}, (a ? a.label : e.from) + " → " + (b ? b.label : e.to) + (e.kind === "ask" ? ", asks a port" : "")));
 }
+let slid = false;
+function reveal() {
+  const u = picked.unit && units.get(picked.unit); if (!u || touched) return;
+  const r = map.getBoundingClientRect(), k = r.width / view.w, right = r.left + (u.x + W - view.x) * k, edge = $("panel").getBoundingClientRect().left - 24;
+  if (right <= edge) return;
+  view.x += (right - edge) / k; slid = true; show();
+}
 function renderPanel() {
-  const panel = $("panel"), was = panel.hidden;
-  panel.hidden = !picked; document.body.classList.toggle("paneled", Boolean(picked));
-  // The map makes room for the panel, so nothing sits under it.
-  if (was !== panel.hidden && !touched && order.length) fit();
-  if (!picked) return;
+  const panel = $("panel");
+  panel.hidden = !picked;
+  // The panel opens over the map, which keeps its size. Only a block that would sit under the panel
+  // is slid clear of it, and the map goes back when the panel closes.
+  if (!picked) { if (slid && !touched) fit(); slid = false; return; }
+  reveal();
   const [title, body] = waiting ? ["Waiting reaction", waitingBody()] : picked.node ? nodePanel(byId.get(picked.node)) : picked.link ? linkPanel(links.get(picked.link)) : unitPanel(units.get(picked.unit));
   $("ptitle").textContent = title; $("pbody").replaceChildren(...body.flat(Infinity).filter(Boolean));
 }
