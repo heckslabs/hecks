@@ -128,4 +128,18 @@ RSpec.describe "the pipeline's daily health line" do
     expect(tile[:value]).to eq(6)
     expect(tile[:state]).to eq("attention")
   end
+
+  it "says each check's count on the tile and names no finding there", :aggregate_failures do
+    detail = health.tile(report)[:detail]
+    expect(detail).to include("2 boarded by hand", "2 slow verifications", "2 stale findings")
+    expect(detail).not_to include("bbbbbbb222", "v-slow")
+  end
+
+  it "keeps the line that names every finding for the person who opens the tile" do
+    expect(health.tile(report)[:full]).to eq(report[:line])
+  end
+
+  it "says on the tile that nothing was found on a quiet day" do
+    expect(health.tile(built_from([]))[:detail]).to eq("nothing found today")
+  end
 end

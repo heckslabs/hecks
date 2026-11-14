@@ -4,6 +4,7 @@ require "time"
 require_relative "../rules"
 require_relative "daily_health/event_checks"
 require_relative "daily_health/ledger_checks"
+require_relative "daily_health/summary"
 
 module Hecks
   module Adapters
@@ -47,12 +48,14 @@ module Hecks
         def ordered(events) = events.is_a?(Array) ? events.sort_by { |event| event[:at].to_s } : nil
 
         # @param report [Hash] from `build`
-        # @return [Hash] the board's tile: how many findings only the events show
+        # @return [Hash] the board's tile: how many findings only the events show, each check's
+        #   count as its `detail`, and the line that names every finding as `full`
         def tile(report)
           counted = checks.select { |row| row[:counted] == "yes" }.map { |row| report[row[:kind].to_sym] }
           found = counted.all?(Array) ? counted.sum(&:size) : nil
           { id: "health", label: "Pipeline health", value: found, unit: "", trend: nil,
-            state: Rules.verdict("Pipeline health", { found: found }), detail: report[:line].to_s }
+            state: Rules.verdict("Pipeline health", { found: found }), detail: Summary.of(checks, report),
+            full: report[:line].to_s }
         end
 
         # @return [String] the day, then each check that found something, with its count
