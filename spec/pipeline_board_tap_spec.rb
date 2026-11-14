@@ -55,4 +55,29 @@ RSpec.describe Hecks::Adapters::PipelineJournal do
     write("not json\n", line(kind: "event", at: "2026-11-02T10:00:00Z", aggregate: "A", id: "1", event: "E"))
     expect(board.recent.size).to eq(1)
   end
+
+  def numbered(count)
+    Array.new(count) { |n| line(kind: "event", at: format("t%04d", n), aggregate: "A", id: n.to_s, event: "E") }
+  end
+
+  # The keys of the newest events before and after one more line is appended to a log that
+  # already holds more lines than the reader keeps.
+  def keys_around_an_append
+    write(*numbered(700))
+    reader = board
+    before = reader.recent(5).map { |row| row[:key] }
+    File.write(log, line(kind: "event", at: "t9999", aggregate: "A", id: "new", event: "E"), mode: "a")
+    [before, reader.recent(6).map { |row| row[:key] }]
+  end
+
+  it "keeps the key of every earlier event when a line is appended, so a stream sends only the new one" do
+    before, after = keys_around_an_append
+    expect(after - before).to eq(["tap:t9999:A:new:E:0"])
+  end
+
+  it "tells apart two events alike in every field" do
+    twin = line(kind: "event", at: "2026-11-02T10:00:00Z", aggregate: "A", id: "1", event: "E")
+    write(twin, twin)
+    expect(board.recent.map { |row| row[:key] }).to contain_exactly(end_with(":E:0"), end_with(":E:1"))
+  end
 end

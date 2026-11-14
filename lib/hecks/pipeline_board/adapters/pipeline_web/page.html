@@ -845,9 +845,18 @@ function render(s) {
 // would otherwise show the last good read with a fresh-looking stamp.
 function renderStale(s) {
   const banner = $("stale-banner");
-  banner.hidden = !s.stale;
-  if (!s.stale) return;
-  banner.textContent = "This board is stale: the last good read was " + s.stale_seconds + "s ago" + (s.refresh_error ? " (" + s.refresh_error + ")" : "") + ".";
+  const notes = staleNotes(s);
+  banner.hidden = !s.stale && !notes.length;
+  if (banner.hidden) return;
+  const whole = s.stale ? ["This board is stale: the last good read was " + s.stale_seconds + "s ago" + (s.refresh_error ? " (" + s.refresh_error + ")" : "") + "."] : [];
+  banner.textContent = whole.concat(notes).join(" ");
+}
+// One note per section that shows an earlier answer because its read was skipped, and one while
+// the machine is loaded and the board runs no program.
+function staleNotes(s) {
+  const guard = s.load_guard ? ["Machine loaded (load " + s.load_guard.load + " above " + s.load_guard.limit + " since " + clock(s.load_guard.since) + "): the board reads once a minute and runs no program."] : [];
+  const sections = Object.entries(s.stale_sections || {}).map(([name, note]) => name.replace(/_/g, " ") + ": stale since " + clock(note.since) + " (" + note.reason + ").");
+  return guard.concat(sections);
 }
 // Asks for the state once, for the first paint and for browsers without EventSource.
 async function refresh() {

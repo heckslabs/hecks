@@ -32,7 +32,8 @@ module Hecks
       # @param settings [Hash] `stages:` stands in for {PipelineStages}, `hub:` and `tap:` stand in
       #   for the journal follower and its file, `journal:` for the source it follows, `launcher:`
       #   a callable taking the launcher's arguments and answering its standard output (it stands
-      #   in for the launcher)
+      #   in for the launcher), `load_guard:` a {PipelineBoard::LoadGuard} stand-in, or false for
+      #   none
       # @param root [String, nil] the checkout the readers and the launcher run in
       def initialize(registry: nil, aggregate: nil, settings: {}, root: nil)
         @root = root || Dir.pwd
@@ -41,7 +42,7 @@ module Hecks
         @wiring = settings[:wiring] || PipelineWiring.new(registry: registry)
         @launcher = settings[:launcher] || PipelineBoard::Actions.launcher(@root, ACT_SECONDS)
         @snapshot = PipelineBoard::Snapshot.kept_small(source: @stages.method(:state), registry: registry, settings: settings)
-        @pushed = PipelineBoard::Pushed.new(stages: @stages, settings: settings)
+        @pushed = PipelineBoard::Pushed.new(stages: @stages, settings: settings.merge(registry: registry))
       end
 
       # Stops following the journal and reading the state; the server calls it when it stops.

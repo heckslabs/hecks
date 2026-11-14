@@ -13,13 +13,13 @@ module Hecks
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] `git:` stands in for the program (a callable taking a directory
       #   and the arguments, answering standard output), `train:` for the train's checkout,
-      #   `ttl:` for how long a read is kept
+      #   `ttl:` for how long a read is kept (the `git_keep_seconds` setting when none is given)
       # @param root [String, nil] the checkout whose main is read
       def initialize(aggregate: nil, settings: {}, root: nil)
         @root = root || Dir.pwd
         @git = settings[:git] || ->(dir, *args) { PipelineBoard::Probe.run("git", "-C", dir, *args) }
         @train = settings.fetch(:train) { File.join(Dir.home, ".claude", "hecks-train") }
-        @cache = PipelineBoard::Cache.new(ttl: settings.fetch(:ttl, 15))
+        @cache = PipelineBoard::Cache.kept(settings, "git_keep_seconds")
       end
 
       # @return [Hash] `ahead`, `behind` (local main against origin/main), `dirty` (changed files in
@@ -41,16 +41,6 @@ module Hecks
       def train
         sha, at = ask(@train, "log", "-1", "--format=%h %cI").split
         { sha: sha, at: at, pushed: contains?("origin/main", sha) }
-      end
-
-      # The train's checkout read again now, past the kept answers: a journal line says it moved,
-      # so a kept answer is the one thing that would hide it.
-      #
-      # @return [Hash] as {#train}
-      # @raise [PipelineBoard::Unavailable] when the train's checkout cannot be read
-      def train_now
-        @cache.clear
-        train
       end
 
       # @return [String, nil] when the oldest commit on local main that origin/main lacks was made

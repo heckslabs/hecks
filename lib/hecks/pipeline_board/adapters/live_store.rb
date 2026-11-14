@@ -22,6 +22,16 @@ module Hecks
         # Where a checkout declares its Hecks domain.
         DOMAIN_PATH = "lib/hecks/hecks"
 
+        # The one in-process reader of the checkout `PIPELINE_BOARD_LAUNCHER_ROOT` names, shared by
+        # the readers that need its store, and already opening.
+        #
+        # @return [LiveStore, nil] nil when the board is not pointed at another checkout; it then
+        #   reads its own registry and boots no second copy of the domain
+        def self.named
+          root = ENV.fetch("PIPELINE_BOARD_LAUNCHER_ROOT", "")
+          new(root: root).warm unless root.empty?
+        end
+
         # @param root [String] the checkout whose store is read
         # @param booter [#call, nil] takes the domain directory and answers a booted runtime; stands
         #   in for the real boot

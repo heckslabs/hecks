@@ -2,12 +2,13 @@
 
 require_relative "../../hecks/adapters/boot_budget"
 require_relative "../../hecks/adapters/dispatching/settings"
+require_relative "load_guard"
 
 module Hecks
   module Adapters
     # The `Boots` reader: what the launcher's boots cost today, from the usage record, with the
     # load average against the one threshold the Tickets world sets. It reads, decides nothing
-    # and writes nothing.
+    # and writes nothing. The load is read with no child process (see {PipelineBoard::LoadGuard}).
     class PipelineBoots
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] `entries:` answers the usage entries of a day, `load:` the load
@@ -15,7 +16,8 @@ module Hecks
       # @param registry [Runtime::Registry, nil] whose Tickets world sets the budget and the limit
       def initialize(aggregate: nil, settings: {}, registry: nil)
         @budget = BootBudget.new(entries: settings[:entries], now: settings[:now])
-        @machine = Dispatching::Settings.new(registry, load: settings[:load])
+        load = settings[:load] || PipelineBoard::LoadGuard.method(:reading)
+        @machine = Dispatching::Settings.new(registry, load: load)
       end
 
       # @return [Hash] `hours`, `boots`, `unmeasured`, `approximate` (runs placed by their day

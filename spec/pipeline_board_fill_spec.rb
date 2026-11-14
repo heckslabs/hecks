@@ -1,19 +1,20 @@
 require "spec_helper"
 require_relative "support/pipeline_board_world"
+require_relative "support/no_child_process"
 
-# The board's fill tile reads the report the last rolling fill recorded and starts no process; only
-# without one does it ask a launcher, and it keeps that answer for a minute.
+# The board's fill tile reads the report the last rolling fill recorded, in this process. With no
+# report it says so: it never asks a launcher, which would be load added on a timer.
 RSpec.describe Hecks::Adapters::PipelineFill do
+  include NoChildProcess
+
   let(:report) do
     ["load 3.0 (limit 8.0, 12 cpus); started 4 of cap 6; this fill would start 1; frozen: none; at 2026-11-09T07:00:00Z",
      "would start alpha: Outcome: alpha",
      "beta skipped: cap 6 reached"].join("\n")
   end
-  let(:runner) { instance_double(Proc, call: report) }
+  let(:unavailable) { Hecks::Adapters::PipelineBoard::Unavailable }
 
-  def reader(recorded, **settings)
-    described_class.new(settings: { report: -> { recorded }, runner: runner }.merge(settings))
-  end
+  def reader(recorded) = described_class.new(settings: { report: -> { recorded } })
 
   it "parses the recorded report", :aggregate_failures do
     fill = reader(report).preview
@@ -23,30 +24,30 @@ RSpec.describe Hecks::Adapters::PipelineFill do
     expect(fill[:skipped]).to eq([{ slug: "beta", reason: "cap 6 reached" }])
   end
 
-  it "starts no process when a report is recorded, however old it is" do
-    reader(report).preview
-
-    expect(runner).not_to have_received(:call)
-  end
-
   it "shows a report that states no time, with no time" do
     expect(reader(report.sub("; at 2026-11-09T07:00:00Z", "")).preview[:at]).to be_nil
   end
 
-  it "asks the launcher once while no report is recorded, and keeps the answer", :aggregate_failures do
-    fill = reader(nil)
-
-    2.times { fill.preview }
-
-    expect(runner).to have_received(:call).once
-    expect(fill.preview).to include(cap: 6)
+  it "says no fill is recorded while the store holds no report" do
+    expect { reader(nil).preview }.to raise_error(unavailable, described_class::NONE_RECORDED)
   end
 
-  it "asks the launcher again after a minute where no report stands" do
-    ticks = [0.0]
-    fill = reader(nil, cache_clock: -> { ticks.first })
-    [0.0, 61.0].each { |now| (ticks[0] = now) && fill.preview }
-    expect(runner).to have_received(:call).twice
+  def asked(fill)
+    fill.preview
+  rescue unavailable => e
+    e.message
+  end
+
+  it "starts no process while no report is recorded" do
+    expect(children_started { asked(described_class.new(registry: nil)) }).to be_empty
+  end
+
+  it "starts no process when the store cannot be read", :aggregate_failures do
+    store = instance_double(Hecks::Adapters::PipelineBoard::RegistryStore)
+    allow(store).to receive(:records).and_raise(unavailable, "still opening")
+    fill = described_class.new(store: store)
+    expect(children_started { asked(fill) }).to be_empty
+    expect(asked(fill)).to eq(described_class::NONE_RECORDED)
   end
 
   it "reads a confirmed report: the items it started, and the ones that went back", :aggregate_failures do
@@ -59,20 +60,11 @@ RSpec.describe Hecks::Adapters::PipelineFill do
 
   it "reads the newest Roll report the store holds, the live store's when it is named" do
     store = instance_double(Hecks::Adapters::PipelineBoard::RegistryStore, records: [{ report: report }, { report: "x" }])
-    fill = described_class.new(settings: { runner: runner }, store: store)
+    fill = described_class.new(store: store)
     expect(fill.preview[:would_start]).to eq([{ slug: "alpha", title: "Outcome: alpha" }])
   end
 
-  it "asks the launcher when the store cannot be read" do
-    store = instance_double(Hecks::Adapters::PipelineBoard::RegistryStore)
-    allow(store).to receive(:records).and_raise(Hecks::Adapters::PipelineBoard::Unavailable, "still opening")
-    described_class.new(settings: { runner: runner }, store: store).preview
-    expect(runner).to have_received(:call).once
-  end
-
   it "refuses a report it cannot read" do
-    garbled = ->(*) { "not a fill report" }
-
-    expect { reader(nil, runner: garbled).preview }.to raise_error(Hecks::Adapters::PipelineBoard::Unavailable)
+    expect { reader("not a fill report").preview }.to raise_error(unavailable, "unreadable fill report")
   end
 end

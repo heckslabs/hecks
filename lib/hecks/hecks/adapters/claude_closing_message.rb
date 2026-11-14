@@ -35,7 +35,11 @@ module Hecks
 
       # What every reader of a transcript shares: where each session's file was found, and the text
       # last read from a file with the size and time it had then.
-      MEMORY = { paths: {}, texts: {}, lock: Mutex.new }.freeze
+      MEMORY = { paths: {}, texts: {}, misses: {}, lock: Mutex.new }.freeze
+
+      # Seconds a search that found no one transcript is not made again. The search walks every
+      # project folder, and a board asks for each of many runs on every read.
+      MISS_SECONDS = 60
 
       private
 
@@ -58,9 +62,25 @@ module Hecks
         key = [@projects, session]
         known = MEMORY[:lock].synchronize { MEMORY[:paths][key] }
         return known if known && File.file?(known)
+        return nil if missed?(key)
 
-        glob(session)&.tap { |found| MEMORY[:lock].synchronize { MEMORY[:paths][key] = found } }
+        searched(key, session)
       end
+
+      def searched(key, session)
+        found = glob(session)
+        MEMORY[:lock].synchronize do
+          found ? MEMORY[:paths][key] = found : MEMORY[:misses][key] = monotonic
+        end
+        found
+      end
+
+      def missed?(key)
+        at = MEMORY[:lock].synchronize { MEMORY[:misses][key] }
+        !at.nil? && monotonic - at < MISS_SECONDS
+      end
+
+      def monotonic = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
       def glob(session)
         paths = Dir.glob(File.join(@projects, "*", "#{session.gsub(GLOB) { "\\#{_1}" }}*.jsonl"))

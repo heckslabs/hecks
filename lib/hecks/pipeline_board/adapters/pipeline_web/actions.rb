@@ -18,9 +18,12 @@ module Hecks
 
         # @param root [String] the checkout a step runs in unless it names another
         # @param seconds [Numeric] how long a step may run
-        # @return [#call] the launcher: takes the program and its arguments, answers its output
+        # @return [#call] the launcher: takes the program and its arguments, answers its output. A
+        #   person asked for the step, so it runs on a loaded machine too.
         def launcher(root, seconds)
-          ->(*args, chdir: root, stdin: nil) { Probe.run(*args, chdir: chdir, seconds: seconds, stdin: stdin) }
+          lambda do |*args, chdir: root, stdin: nil|
+            Probe.run(*args, chdir: chdir, seconds: seconds, stdin: stdin, guarded: false)
+          end
         end
 
         # @param action [Object] the step the request names

@@ -224,6 +224,19 @@ Hecks.bluebook "PipelineBoard" do
       # (`events.jsonl`), never from this clock; it only catches a line the file watch missed and
       # tells a dead connection from a quiet one.
       member name: "safety_net_seconds",      value: 300
+      # Seconds the board rests after drawing the pushed tiles before it draws them again. It is
+      # a gap, not a timer: nothing is drawn unless a journal line marked a tile. A run of lines
+      # then costs one drawing, so a busy pipeline costs the board no more than a quiet one.
+      member name: "tile_redraw_seconds",     value: 2
+      # Seconds a reader keeps an answer before it asks `git`, `gh` or the event stores again.
+      # Each is longer than the read period, so a program starts once in that time, not on every
+      # read; the stores are kept longest because the event log already says what happened.
+      member name: "git_keep_seconds",        value: 60
+      member name: "github_keep_seconds",     value: 120
+      member name: "stores_keep_seconds",     value: 300
+      # Seconds between two looks at the bluebook files for a change of the wiring. Every stream
+      # asks on every journal line and a look stats every declaration file, so looks are shared.
+      member name: "wiring_look_seconds",     value: 5
     end
 
     # A tile the board pushes as HTML, and the aggregates it reads. A journal line carries the

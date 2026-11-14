@@ -25,14 +25,23 @@ module Hecks
 
         def link(lines)
           rows = []
-          lines.each { |line| line["kind"] == "reaction" ? attach(rows, line) : rows << event_row(line, rows.size) }
+          twins = Hash.new(0)
+          lines.each { |line| line["kind"] == "reaction" ? attach(rows, line) : rows << event_row(line, twins) }
           rows.each_with_index { |row, index| follow(row, rows.drop(index + 1)) }
         end
 
-        def event_row(data, index)
-          { key: "tap:#{data["at"]}:#{data["aggregate"]}:#{data["id"]}:#{data["event"]}:#{index}", source: "tap",
+        # An event's key is what it is, with a count that tells apart two events alike in every
+        # field. It does not hold the event's place among the lines read, so a line appended to
+        # the log leaves the key of every earlier event as it was and a stream sends only the new.
+        def event_row(data, twins)
+          { key: key_of(data, twins), source: "tap",
             at: data["at"], aggregate: data["aggregate"], id: data["id"], name: data["event"], reactions: inline(data),
             links: data["links"].to_h, correlation: data["correlation"].to_h }.merge(payload(data))
+        end
+
+        def key_of(data, twins)
+          what = "tap:#{data["at"]}:#{data["aggregate"]}:#{data["id"]}:#{data["event"]}"
+          "#{what}:#{(twins[what] += 1) - 1}"
         end
 
         # The structured payload a line carries (a `TurnFinished` does); most lines carry none.
