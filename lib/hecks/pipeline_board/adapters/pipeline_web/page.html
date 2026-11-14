@@ -51,7 +51,16 @@ section { background: var(--surface); border: 1px solid var(--border); border-ra
 .thru .cols { height: 120px; gap: 6px; } .thru .xlabels { gap: 6px; margin-top: 4px; }
 .thru .col .bar { max-width: none; background: var(--good); } .thru .col.today .bar { opacity: .45; }
 .thru .col.today .val, .thru .xlabels span:last-child { color: var(--ink); font-weight: 600; }
-#resolve-detail { max-height: 40vh; overflow: auto; overflow-wrap: anywhere; }
+#resolve-detail { max-height: 50vh; overflow: auto; overflow-wrap: anywhere; font-size: 13px; line-height: 1.5; }
+#resolve-detail p { margin: 0; } #resolve-detail .parts { margin: 0; padding: 0; list-style: none; }
+#resolve-detail .parts li { padding: 7px 0; border-top: 1px solid var(--border); color: var(--ink2); }
+#resolve-detail .parts li:first-child { border-top: 0; padding-top: 0; }
+#resolve-detail .parts b { display: block; color: var(--ink); font-weight: 600; }
+/* A panel's heading says each thing in one line; the tiles under it hold the detail. */
+details.panel > summary .sum > span { max-width: min(100%, 64ch); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+details.panel.unread > :not(summary) { display: none; } details.panel.unread[open] > summary { border-bottom: 0; border-radius: 10px; }
+details.panel.unread > summary { cursor: default; } details.panel.unread > summary::before { visibility: hidden; }
+details.panel > h2 { margin: 14px 14px 0; }
 .clamp, .node .detail { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; line-clamp: 4; overflow: hidden; overflow-wrap: anywhere; }
 .tile .trend { font-size: 12px; color: var(--ink2); }
 .strip { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 0; }
@@ -131,7 +140,7 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
 .clickable:hover { outline: 2px solid var(--warning); outline-offset: 1px; }
 .node.clickable:hover { outline-offset: 0; }
 .tilebody.clickable:hover { outline-offset: 6px; }
-dialog#resolve { width: min(34rem, 92vw); border: 1px solid var(--axis); border-radius: 10px; background: var(--surface); color: var(--ink); padding: 16px; }
+dialog#resolve { width: min(44rem, 92vw); border: 1px solid var(--axis); border-radius: 10px; background: var(--surface); color: var(--ink); padding: 16px; }
 dialog#resolve::backdrop { background: rgba(0,0,0,.35); }
 pre.cmd { background: var(--page); border: 1px solid var(--axis); border-radius: 6px; padding: 8px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .clickable { cursor: pointer; }
@@ -295,7 +304,23 @@ function unknown(x) {
   if (String(x.unknown).startsWith("the first read")) {
     return h("div", { class: "loader", role: "status", "aria-live": "polite" }, h("span", { class: "spin" }, "◔"), h("span", {}, "loading"), h("span", { class: "bar" }));
   }
-  return h("p", { class: "unknown-note" }, "unknown: " + x.unknown);
+  return h("p", { class: "unknown-note" }, tidy("unknown: " + x.unknown));
+}
+// The words a reading or a refusal arrives in, said for a person: a reader the load guard held back is "paused", and
+// a refusal drops the name of the Ruby class that carried it.
+function tidy(text) {
+  return String(text ?? "")
+    .replace(/(?:unknown:\s*)*\b\w+ not run: load ([\d.]+) is above ([\d.]+)/g, "paused while the machine is busy (load $1, limit $2)")
+    .replace(/\b(?:[A-Z]\w+::)+\w*(?:Failure|Error): /g, "");
+}
+// A long detail as the resolve dialog shows it: one line for each finding or run, its name in front.
+function detailNodes(text) {
+  const parts = tidy(text).split(/;\s+|(?<=\)),\s+/).filter(Boolean);
+  if (parts.length < 2) return [h("p", {}, parts[0] || "")];
+  return [h("ul", { class: "parts" }, parts.map((part) => {
+    const m = part.match(/^([^:(]{1,60})([:(].*)$/s);
+    return h("li", {}, m ? [h("b", {}, m[1].trim()), h("span", {}, " " + m[2].replace(/^:\s*/, ""))] : part);
+  }))];
 }
 function clock(iso) { if (!iso) return "-"; const d = new Date(iso); return isNaN(d) ? String(iso) : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }); }
 // A panel title with its count, so the number is visible even when the panel is collapsed.
@@ -306,7 +331,7 @@ function summarize(key, parts) {
   const el = $("sum-" + key);
   if (!el) return;
   el.replaceChildren(...parts.filter(Boolean).map((part) => {
-    const [text, tone, lead] = Array.isArray(part) ? part : [part, ""];
+    const [raw, tone, lead] = Array.isArray(part) ? part : [part, ""], text = tidy(raw);
     if (lead) return h("span", { class: tone || "" }, h("b", {}, lead), text);
     const m = String(text).match(/^(\S+)(.*)$/s);
     return h("span", { class: tone || "" }, m ? h("b", {}, m[1]) : "", m ? m[2] : text);
@@ -400,7 +425,7 @@ let runAction = null, armed = false;
 function resolve(label, detail) {
   const fix = FIX[label] || {};
   $("resolve-title").textContent = label;
-  $("resolve-detail").textContent = detail || "";
+  $("resolve-detail").replaceChildren(...detailNodes(detail || ""));
   $("resolve-note").textContent = fix.note || "No command resolves this from the board. Read the detail and act in the checkout.";
   $("resolve-changes").textContent = fix.changes ? "What it changes: " + fix.changes : "";
   $("resolve-cmd").textContent = fix.cmd || "";
@@ -453,7 +478,7 @@ function renderTiles(tiles) {
       t.trend.better === null ? " flat" : t.trend.better ? " better" : " worse", " vs earlier half") : null;
     const el = h("div", { class: "tile" + (needsAttention(t.state) ? " clickable" : ""), tip: t.label + ": " + t.detail },
       h("div", { class: "label" }, t.label), h("div", { class: "num" }, String(value), h("span", { class: "unit" }, t.unit)),
-      badge(t.state), tr, h("div", { class: "note clamp" }, t.detail));
+      badge(t.state), tr, h("div", { class: "note clamp" }, tidy(t.detail)));
     if (needsAttention(t.state)) answerable(el, () => resolve(t.label, t.full || t.detail));
     return el;
   }));
@@ -468,7 +493,7 @@ function renderStrip(stages) {
     const waiting = Array.isArray(s.blocked) ? s.blocked : [];
     const clickable = waiting.length || needsAttention(s.state);
     const node = h("div", { class: "node" + (clickable ? " clickable" : ""), tip: s.name + ": " + s.detail + (waiting.length ? " (click to answer)" : needsAttention(s.state) ? " (click to resolve)" : "") },
-      h("div", { class: "name" }, s.name), h("div", { class: "count" }, s.count), badge(s.state), h("div", { class: "detail" }, s.detail));
+      h("div", { class: "name" }, s.name), h("div", { class: "count" }, s.count), badge(s.state), h("div", { class: "detail" }, tidy(s.detail)));
     if (waiting.length) answerable(node, () => openAnswer(waiting, waiting[0].id));
     else if (needsAttention(s.state)) answerable(node, () => resolve(s.name, s.detail));
     return node;
@@ -512,6 +537,8 @@ function renderCi(runs, slow, p = "") {
     [last.wall_minutes + " min wall (goal 3)", last.wall_minutes > 3 ? "attention" : "ok"],
     last.failed_jobs ? [last.failed_jobs + " failed jobs", "failed"] : null,
     top && top.minutes + " min slowest: " + (top.name.length > 48 ? top.name.slice(0, 47) + "…" : top.name)] : [isUnknown(runs) ? "unknown: " + runs.unknown : "no runs yet"]);
+  // A panel whose runs were not read says why once, in its heading, and draws no empty chart under it.
+  $("h-" + p + "ci").closest("details").classList.toggle("unread", isUnknown(runs));
   if (isUnknown(runs)) { for (const id of ["failedchart", "wallchart", "failedtable", "walltable"]) put(p + id, unknown(runs)); }
   else {
     put(p + "failedchart", columns(runs, (r) => r.failed_jobs || 0, (r) => (r.failed_jobs === null ? "failed jobs unknown" : r.failed_jobs + " failed jobs")));
