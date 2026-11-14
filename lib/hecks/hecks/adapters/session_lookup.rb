@@ -64,6 +64,19 @@ module Hecks
         entry = @listing.find(id)
         return unless entry
 
+        stopped_gone(held, id, entry) || keep(held, id, entry)
+      end
+
+      # A session listed `stopped` over a run that shows nothing for the declared minutes is gone;
+      # one that works, waits or has life around it is not.
+      def stopped_gone(held, id, entry)
+        return unless entry["state"].to_s == "stopped" && @gone.respond_to?(:stopped_reason)
+
+        why = @gone.stopped_reason(held.transform_values { |value| plain(value) })
+        { listed: false, state: "stopped", note: "session #{id} is listed stopped; #{why}" } if why
+      end
+
+      def keep(held, id, entry)
         answer = { listed: true, state: entry["state"].to_s, note: "session #{id} is still listed, #{entry["state"]}" }
         @seen[plain(held[:run]).to_s] = { at: @now.call, answer: answer }
         answer

@@ -69,6 +69,16 @@ module Hecks
       end
 
       # @param id [String] the short or the full session id
+      # @return [Boolean] whether the session is not listed or is listed `stopped`; false when it
+      #   works, waits or is otherwise listed, and when the sessions cannot be listed or read
+      def quiet?(id)
+        entry = find(id.to_s)
+        entry.nil? || entry["state"].to_s == "stopped"
+      rescue ConsoleCapture::Failure, JSON::ParserError
+        false
+      end
+
+      # @param id [String] the short or the full session id
       # @param fresh [Boolean] read the listing afresh first
       # @return [Hash{Symbol => String}] `listed:` the status and `live:` the state
       def facts(id, fresh: false)

@@ -16,7 +16,9 @@ module Hecks
         # @param rule [Hash] `landed:` answers the commit a work item's branch landed as since it
         #   started, or nil (none given: no landing is asked for); `gone:` is the world's rule
         #   (`#run_gone_minutes`, `#claude_missing?`): while `claude` cannot be run, a started run
-        #   older than its minutes is asked to retire
+        #   older than its minutes is asked to retire; `sessions:` (`#quiet?(session)`) answers
+        #   whether `claude` lists a session stopped or not at all: with it, an old started run
+        #   whose session is quiet is asked to retire on the normal path too
         def initialize(work_items, launcher, grace: 0, clock: -> { Time.now.utc }, **rule)
           @gone = rule[:gone]
           @work_items = work_items
@@ -24,6 +26,7 @@ module Hecks
           @grace = grace
           @clock = clock
           @landed = rule[:landed]
+          @sessions = rule[:sessions]
         end
 
         # @return [Array<String>] one line for each work item settled, empty when none was
@@ -39,9 +42,15 @@ module Hecks
         # world's minutes is asked to retire; `AgentRun.Retire` closes it only when the world's rule
         # finds no process, commit or change, and keeps it otherwise.
         def retire_gone
-          return unless @gone&.claude_missing?
+          return unless @gone
 
-          checkable.each { |key, run| @launcher.retire(key) if old?(run) }
+          missing = @gone.claude_missing?
+          checkable.each { |key, run| @launcher.retire(key) if old?(run) && (missing || quiet?(run)) }
+        end
+
+        # A working or waiting session is never asked about, so no launcher boot is spent on it.
+        def quiet?(run)
+          @sessions ? @sessions.quiet?(run[:session].to_s) : false
         end
 
         def old?(run)

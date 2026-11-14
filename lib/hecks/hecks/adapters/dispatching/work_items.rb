@@ -160,7 +160,8 @@ module Hecks
         def holder?(run) = run.id.to_s == field(run, :run).to_s
 
         def state(run)
-          { status: field(run, :status).to_s, condition: field(run, :condition).to_s, started_at: field(run, :started_at).to_s }
+          { status: field(run, :status).to_s, condition: field(run, :condition).to_s, started_at: field(run, :started_at).to_s,
+                   session: field(run, :session).to_s }
         end
 
         def lesson(record)
