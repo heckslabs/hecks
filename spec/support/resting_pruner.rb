@@ -5,13 +5,14 @@ require_relative "stand_in_claude"
 module PruningSpecHelpers
   def launch(*argv) = Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, argv: argv, program: "hecks")
 
-  # A launch that must succeed: an unknown command or a refusal fails the example by name instead
-  # of leaving the example to count on a step that never ran.
+  # A launch that must succeed: an unknown command, a refusal or a refused reaction fails the
+  # example by name instead of leaving the example to count on a step that never ran. A blocked
+  # answer carries its reasons third, after the text and the status.
   def launch!(*argv)
-    answer = launch(*argv)
-    raise "`#{argv.first(2).join(" ")}` did not run: #{answer.first.to_s.lines.first}" unless answer.last.zero?
+    text, status, reasons = launch(*argv)
+    raise "`#{argv.first(2).join(" ")}` did not run: #{reasons || text.to_s.lines.first}" unless status.zero?
 
-    answer
+    [text, status]
   end
 
   def reactions(policy) = @hecks.registry.reaction_log.select { |r| r[:policy] == policy && r[:delivered] }
