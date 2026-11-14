@@ -18,7 +18,7 @@ module Hecks
       DEFAULT_CAP = 8
 
       # The places beyond the cap a red work item may take when the Tickets world declares none.
-      DEFAULT_URGENT_RESERVE = 1
+      DEFAULT_URGENT_RESERVE = WorkSlots::DEFAULT_RESERVE
 
       # The world verb that carries the cap.
       VERB = "work_limit"

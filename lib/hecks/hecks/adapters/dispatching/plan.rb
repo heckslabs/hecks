@@ -45,7 +45,7 @@ module Hecks
         # @param limits [Hash] `runs:` (callable answering the AgentRun states by run key, optional)
         #   and `now:` (Time, optional), `cap:` (Integer), `load:` and `max_load:` (Float),
         #   `frozen:` (Array), `epic_wip:` (Integer, optional: most started items of one epic)
-        #   `urgent_reserve:` (Integer, optional: places beyond the cap red items take),
+        #   `urgent_reserve:` (Integer, optional, 1 when absent: places beyond the cap red items take),
         #   `paused:` (String, optional: why every work item waits, "skipped: paused by load")
         #   and `budget:` (String, optional: why every item waits once the boots spent theirs)
         #   with `rethinks:` (callable, optional: answers why a work item waits for a person)
@@ -111,7 +111,8 @@ module Hecks
         # The cap and the red reserve are held by {WorkSlots}, the rule the `WorkLimits` port
         # applies to a start, so a chosen item is never yielded straight back.
         def capped(item)
-          return unless WorkSlots.full?(item, holders, cap: @limits[:cap], reserve: @limits[:urgent_reserve] || 0)
+          reserve = @limits[:urgent_reserve] || WorkSlots::DEFAULT_RESERVE
+          return unless WorkSlots.full?(item, holders, cap: @limits[:cap], reserve: reserve)
 
           "skipped: cap #{@limits[:cap]} reached (#{@started.size} started, #{@chosen.size} chosen by this fill)"
         end

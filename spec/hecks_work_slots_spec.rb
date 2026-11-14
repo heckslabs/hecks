@@ -43,6 +43,13 @@ RSpec.describe "the cap's reserve for red work" do
     expect(start("red-second")["status"]).to eq("planned")
   end
 
+  it "starts any red-* work item at a full cap and yields the red one after it", :aggregate_failures do
+    fill_cap
+
+    expect(start("red-other")["status"]).to eq("started")
+    expect(start("red-train-9")["status"]).to eq("planned")
+  end
+
   it "keeps the refusal text of a work item that is not red", :aggregate_failures do
     fill_cap
     over = start("plain-item")

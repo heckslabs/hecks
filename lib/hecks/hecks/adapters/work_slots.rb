@@ -10,6 +10,9 @@ module Hecks
     # (`WorkItems.red?`) may also take up to `reserve` places beyond the cap, so the fix of a red
     # main starts when the cap is full, and a second red one waits once the reserve is spent.
     module WorkSlots
+      # The reserve when none is declared: the plan and the `WorkLimits` port both fall back to it.
+      DEFAULT_RESERVE = 1
+
       module_function
 
       # @param item [#key, #title] the work item that would start
