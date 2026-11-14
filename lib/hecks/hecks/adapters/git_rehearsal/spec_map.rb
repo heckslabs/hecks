@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require_relative "spec_map/changes"
 require_relative "spec_map/corpus"
 require_relative "spec_map/needles"
 require_relative "spec_map/triggers"
@@ -26,9 +27,16 @@ module Hecks
         #   @return [Integer] how many specs the change maps to once skipped ones are left out
         # @!attribute [r] skipped
         #   @return [Hash{String => String}] each spec left out and why
-        Mapping = Struct.new(:specs, :total, :skipped) do
+        # @!attribute [r] because
+        #   @return [Hash{String => String}] each kept spec a changed name reached, and the name
+        Mapping = Struct.new(:specs, :total, :skipped, :because) do
           # @return [Boolean] whether the limit left specs out
           def capped? = total > specs.size
+
+          # @return [Array<String>] one "also ran" line per changed name, its specs and the change
+          def also_ran
+            because.group_by { |_spec, why| why }.map { |why, rows| "also ran: #{rows.map(&:first).join(", ")}, because #{why}" }
+          end
 
           # @return [String] how many ran and that the rest run in CI; empty when none were left out
           def cap_note = capped? ? "capped at #{specs.size} of #{total}; the rest run in CI" : ""
@@ -53,15 +61,22 @@ module Hecks
         # @param changed [Array<String>] changed paths relative to the root
         # @param limit [Integer] the most specs to return
         # @param skip [#call] given a spec, nil to run it or the reason to leave it out
+        # @param since [String, nil] the ref the diff is read against; a changed world setting or
+        #   bluebook declaration then also reaches the specs that name it (`Changes`)
         # @return [Mapping]
-        def map(changed, limit:, skip: ->(_spec) {})
+        def map(changed, limit:, skip: ->(_spec) {}, since: nil)
+          @names = since ? Changes.new(@root, since).names(changed) : {}
+          @because = {}
           ranked = tiers(changed).sort_by { |spec, tier| [tier, spec] }.map(&:first)
           reasons = ranked.to_h { |spec| [spec, (skip.call(spec) unless scan?(spec))] }.compact
-          kept = ranked - reasons.keys
-          Mapping.new(kept.first(limit), kept.size, reasons)
+          mapping(ranked - reasons.keys, limit, reasons)
         end
 
         private
+
+        def mapping(kept, limit, reasons)
+          Mapping.new(kept.first(limit), kept.size, reasons, @because.slice(*kept.first(limit)))
+        end
 
         # The closest tier each spec is reached at: -1 a repository scan or a triggered spec, 0
         # itself, 1 named for the file, 2 mentions it.
@@ -98,10 +113,15 @@ module Hecks
         def mentioning(path)
           return [] if path.start_with?("docs/", "rust/")
 
-          needles = Needles.new(File.join(@root, path), path)
+          needles = Needles.new(File.join(@root, path), path, @names.to_h.fetch(path, []))
           return [] if needles.none?
 
-          @corpus.files.select { |spec| needles.match?(@corpus.text(spec)) }
+          @corpus.files.select { |spec| needles.match?(@corpus.text(spec)).tap { |hit| because(needles, spec) if hit } }
+        end
+
+        def because(needles, spec)
+          why = needles.because(@corpus.text(spec))
+          @because[spec] ||= why if why
         end
 
         def families(path)

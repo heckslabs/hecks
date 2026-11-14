@@ -44,7 +44,7 @@ module Hecks
         def call(base:, cap: DEFAULT_CAP, dry: false, **run_options)
           changed = changed_files(base)
           skips = GitRehearsal::Impacted::Skips.new(@tree.root, scratch: @scratch)
-          mapping = GitRehearsal::SpecMap.new(@tree.root).map(changed, limit: cap, skip: skips)
+          mapping = GitRehearsal::SpecMap.new(@tree.root).map(changed, limit: cap, skip: skips, since: since(base))
           head = describe(base, changed, mapping)
           return "#{head}\nnothing impacted; nothing run" if mapping.specs.empty?
           return "#{head}\ndry run: no spec run" if dry
@@ -54,16 +54,23 @@ module Hecks
 
         private
 
-        def changed_files(base)
+        def changed_files(base) = ChangedSpecs.changed_files(@tree, since(base))
+
+        # The merge base with the base ref, or the ref itself when git names none.
+        def since(base)
           merge, status = Open3.capture2e("git", "-C", @tree.root, "merge-base", "HEAD", base)
-          ChangedSpecs.changed_files(@tree, status.success? ? merge.strip : base)
+          status.success? ? merge.strip : base
         end
 
         def describe(base, changed, mapping)
           lines = ["changed since #{base}: #{changed.size} file(s)", *changed.map { |file| "  #{file}" },
                    "impacted specs: #{mapping.specs.size}", *mapping.specs.map { |spec| "  #{spec}" }]
           lines << mapping.cap_note unless mapping.cap_note.empty?
-          (lines + mapping.skipped.map { |spec, why| "skipped: #{spec} (#{why})" }).join("\n")
+          (lines + mapping.also_ran + skipped(mapping)).join("\n")
+        end
+
+        def skipped(mapping)
+          mapping.skipped.map { |spec, why| "skipped: #{spec} (#{why})" }
         end
 
         # The `:io` specs run as CI does (`CI=true`), the rest as they are; with both, the report
