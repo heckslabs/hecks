@@ -250,11 +250,9 @@ details.panel > .scroll, details.panel > .feed, details.panel > .strip, details.
       <div><div class="legend" id="lanelegend"></div><div id="lanes" class="chartview"></div><div class="tableview scroll" id="lanetable"></div></div>
       <div><div id="meters"></div><div id="flags"></div><div id="fill"><!--tile:fill--></div></div>
     </div>
+    <h2>Work by session</h2>
+    <div class="scroll" id="mapping"></div>
   </details>
-
-  
-
-  <details class="panel"><summary data-tip="Open Work items and which session holds each one"><h2 id="h-work">Work items</h2><span class="sum" id="sum-work"></span></summary><div class="scroll" id="work"></div><h2 class="sub">Work by session</h2><div class="scroll" id="mapping"></div></details>
   <details class="panel"><summary data-tip="How long each recent Work item spent in each stage, from the events it emitted. A striped stage is still open"><h2 id="h-cyc">Cycles</h2><span class="sum" id="sum-cyc"></span></summary><div id="cyclelegend"></div><div id="cycles"></div><h2 class="sub">Each stage over the recent items</h2><div class="scroll" id="cyclestats"></div></details>
   <details class="panel"><summary data-tip="Each event the pipeline heard, and the reactions it caused. Hover a row for its full context"><h2 id="h-ev">Events</h2><span class="sum" id="sum-ev"></span></summary><div class="feed" id="feed" aria-live="polite"></div></details>
 </main>
@@ -496,6 +494,8 @@ function renderStrip(stages) {
       h("div", { class: "name" }, s.name), h("div", { class: "count" }, s.count), badge(s.state), h("div", { class: "detail" }, tidy(s.detail)));
     if (waiting.length) answerable(node, () => openAnswer(waiting, waiting[0].id));
     else if (needsAttention(s.state)) answerable(node, () => resolve(s.name, s.detail));
+    // The open Work items are read on the plan page, so their stage is the way to it.
+    else if (s.name === "Work items") { node.classList.add("clickable"); node.dataset.tip += " (click to open the plan)"; answerable(node, () => { location.href = "/plan"; }); }
     return node;
   }));
 }
@@ -557,15 +557,6 @@ function renderFlakes(doc) {
   const rows = doc.flakes || [];
   put("trainflakenote", "last " + doc.window_days + " days, runs read back to " + String(doc.reaches_back || "-").slice(0, 10) + (doc.unreadable ? "; " + doc.unreadable + " runs unreadable" : ""));
   put("trainflaketable", table(["Item", "Kind", "Times", "Train PRs"], rows.map((f) => [f.item, f.kind, f.count, f.prs.map((p) => p.branch.replace("train/main-", "")).join(", ")]), [2]));
-}
-function renderWork(work) {
-  if (isUnknown(work)) { summarize("work", [["unknown: " + work.unknown, "attention"]]); return put("work", unknown(work)); }
-  setTitle("h-work", "Work items", work.length);
-  const counted = (status) => work.filter((w) => w.status === status).length;
-  const nextUp = work.find((w) => w.status === "planned");
-  summarize("work", [counted("planned") + " planned", [counted("started") + " started", counted("started") ? "working" : ""],
-    nextUp && "next: " + nextUp.slug]);
-  put("work", pager("work", ["Work item", "Status", "Area", "Claimed by", "Claimed at"], work.map((w) => [w.slug, w.status, (w.area || []).join(", ") || "-", w.claimed_by || "(nobody)", w.claimed_at || "-"]), 10));
 }
 // A span of seconds as 1h02m, 13m09s or 39s.
 function span(s) {
@@ -885,7 +876,7 @@ function replyNote(s) {
 function render(s) {
   lastState = s;
   renderTiles(s.metrics); renderThroughput(s.throughput_days); renderAttention(s.metrics, s.stages, s.sessions, s.recommendations); renderStrip(s.stages); renderCi(s.ci_runs, s.slowest_jobs); renderCi(s.train_ci_runs, s.train_slowest_jobs, "train"); renderFlakes(s.train_flakes);
-  renderRoles(s.roles, s.pruning); renderWork(s.open_work); renderSessions(s.sessions); renderFan(s.fanout); renderCycles(s.cycles); renderEvents(s.events);
+  renderRoles(s.roles, s.pruning); renderSessions(s.sessions); renderFan(s.fanout); renderCycles(s.cycles); renderEvents(s.events);
   $("updated").textContent = "updated " + clock(s.generated_at);
   renderStale(s);
 }
