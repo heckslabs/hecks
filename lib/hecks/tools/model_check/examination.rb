@@ -40,7 +40,7 @@ module Hecks
           edges = booted.flat_map do |_, registry|
             Projections::ContextRelationships.call(registry: registry, owners: owners)
           end
-          findings = Bluebook::ModelCheck.context_cycle_findings(edges.uniq) +
+          findings = Bluebook::ModelCheck.corpus_cycle_findings(edges.uniq, booted.flat_map { |_, held| held.context_maps }) +
                      classification_findings(booted, owners) + context_map_findings(booted, owners)
           return true if findings.empty?
 
