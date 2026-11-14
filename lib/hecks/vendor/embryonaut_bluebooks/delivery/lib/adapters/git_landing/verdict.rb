@@ -52,7 +52,7 @@ module Hecks
         # @param seconds [Numeric, nil] how long to wait for one; nil waits for one to arrive
         # @return [Boolean] whether the pipe holds a verdict (or has closed)
         def mail?(seconds = 0)
-          !@io.nil? && !IO.select([@io], nil, nil, seconds).nil?
+          !@io.nil? && !@io.wait_readable(seconds).nil?
         rescue IOError
           true
         end
