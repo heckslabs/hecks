@@ -234,9 +234,9 @@ Hecks.bluebook "Hecks" do
       # says so).
       #
       # A run the review kept (`Retain`) stays finished, and every reap sends `Tidy` for it. It is
-      # refused here, before the port is asked, until its wait has passed, so a kept run is
-      # reviewed once per wait and not at every beat. `Release` ends the wait early. `+` because a
-      # rule has no `-`: it stands for `now - kept_at >= review_wait`.
+      # refused here until its wait has passed, so a kept run is reviewed once per wait. `Release`
+      # ends the wait early. `+` because a rule has no `-`: `now - kept_at >= review_wait`. A run
+      # never kept holds neither and is reviewed at once; `nil?` is false in a rule: use `== nil`.
       command "Tidy", from: "finished" do
         role "Operator"
         goal "Remove the finished session of one run, unless it is still working, waiting on a person, or taken over"
@@ -250,7 +250,7 @@ Hecks.bluebook "Hecks" do
           condition.value == "done" || condition.value == "stopped"
         end
         given("a kept run is reviewed again once its wait has passed") do
-          kept_at.nil? || review_wait.nil? || kept_at.value + review_wait.value <= now.value
+          kept_at.value == nil || review_wait.value == nil || kept_at.value + review_wait.value <= now.value
         end
 
         emits TidyRequested
@@ -1852,6 +1852,8 @@ Hecks.bluebook "Hecks" do
     end
 
     # A root: each run's tidy is a long chain (review, scratch, worktree, session) of its own.
+    # `Tidyable` is read once, at `ReapMarked`: a run another reap tidied or retired since is still
+    # sent `Tidy`, which moves a run only from `finished` and refuses it by name, as wanted.
     policy "TidyEveryFinishedRun" do
       on       "SessionCleanup.ReapMarked"
       root
