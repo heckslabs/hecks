@@ -167,9 +167,10 @@ RSpec.describe "AgentRun through the Agents port" do
     expect(out.dig("state", "detail")).to eq("exit 1 before init")
   end
 
+  # The run's end takes the turn to reap, so its session is reviewed in the same check.
   it "records each change of the job's state as one event, and nothing when it did not change" do
     expect(walk("a-life", "working", "working", "blocked", "blocked", "working", "done"))
-      .to eq(%w[SessionWorking SessionBlocked SessionWorking SessionFinished])
+      .to eq(%w[SessionWorking SessionBlocked SessionWorking SessionFinished SessionReviewed])
   end
 
   it "keeps the question a blocked session waits on" do

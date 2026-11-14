@@ -525,16 +525,16 @@ Hecks.hecksagon "Hecks" do
     asks "Mark", to: SessionCleanup do
       attribute :run, CleanupName
       answers "ReapMarked"
-      refuses "CleanupRefused"
+      refuses "ReapRefused"
     end
 
     # Removes the sessions no run holds (done or stopped, older than `session_keep`, no worktree)
-    # and reports the whole reap.
+    # and reports the whole reap. A reap ends under its own events, which free its turn.
     asks "SweepPlain", to: SessionCleanup do
       attribute :run, CleanupName
       attribute :since, Summary
-      answers "CleanupReported"
-      refuses "CleanupRefused"
+      answers "ReapReported"
+      refuses "ReapRefused"
     end
 
     answers_query "Removable"
