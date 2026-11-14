@@ -51,6 +51,8 @@ Hecks.bluebook "Hecks" do
                reason: "a boarding is read back by the process that watches it"
         member domain: "Hecks", aggregate: "Ticker", checkout: "both",
                reason: "each tick of a queued pull request's clock chain is a launcher call of its own"
+        member domain: "Hecks", aggregate: "Machine", checkout: "both",
+               reason: "a reading judges the state it left against the one the last reading left, in a process of its own"
         member domain: "Hecks", aggregate: "TrainPr", checkout: "both",
                reason: "a failed CI attempt's jobs are read after the rerun that cleared them"
         member domain: "Hecks", aggregate: "Shipment", checkout: "main",
