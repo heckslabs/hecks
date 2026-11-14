@@ -7,10 +7,11 @@ module Hecks
     class JournalStore
       module Readings
         module EventTrace
-          # The first outbox row a trace needs to look at. A trace answers for the newest events, and
-          # an outbox row is queued when its event happens, so the rows for those events sit at the
-          # end of the table. The floor is found by halving the table on `enqueued_at`, so a trace
-          # reads the rows of its own window and never the whole outbox, however long the ledger is.
+          # The first outbox row a trace needs to look at. A trace answers for the newest events,
+          # and an outbox row is queued when its event happens, so the rows for those events sit
+          # at the end of the table. The floor is found by halving the table on `enqueued_at`, so
+          # a trace reads the rows of its own window and never the whole outbox, however long the
+          # ledger is.
           class OutboxFloor
             # Rows are queued a little after the event; this much earlier is still looked at.
             MARGIN = 60
