@@ -70,9 +70,8 @@ Hecks.world "Tickets" do
   stopped_session_after "Dispatch", minutes: 60
   claude_executable "Sessions", candidates: %w[~/.local/bin/claude ~/.claude/local/claude /opt/homebrew/bin/claude /usr/local/bin/claude]
   # `ticks`: each waiting train pull request is ticked by a fresh launcher process every `seconds`
-  # for `minutes`. Measured 2026-11-14 (one hour): 112 `ticker.tick` boots, about 40 CPU-minutes,
-  # the most of any command, at 20 s. At 90 s a merge is noticed at most 90 s late and the boots
-  # fall about four times. The beat limit is minutes * 60 / seconds, 20.
+  # for `minutes`. Measured 2026-11-14: 112 boots an hour (40 CPU-minutes) at 20 s; at 90 s the boots
+  # fall about four times and a merge is noticed 90 s late at most. The beat limit is 20.
   ticks "Ticker", seconds: 90, minutes: 30
   rust_build "RustBuild", jobs: 4, nice: 15
   # `heavy_jobs` caps how many heavy jobs (a gate run, a run of several spec files) run at once on
