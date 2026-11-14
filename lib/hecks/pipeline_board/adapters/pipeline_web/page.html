@@ -596,6 +596,8 @@ function renderCycles(c) {
 // Everything that asks for a person: attention and failed pills, and sessions blocked on a reply.
 function renderAttention(metrics, stages, sessions, recommendations) {
   const recs = Array.isArray(recommendations) ? recommendations : [];
+  // The first read hands each of these as a reading still in flight; none asks for attention yet.
+  [metrics, stages, sessions] = [metrics, stages, sessions].map((rows) => (Array.isArray(rows) ? rows : []));
   const groups = [
     ["Metrics", metrics.filter((t) => needsAttention(t.state)).map((t) => ({ kind: "Metric", item: t.label, state: t.state, value: (t.value ?? "-") + (t.unit || ""), detail: t.detail, since: "-", act: () => resolve(t.label, t.full || t.detail) }))],
     ["Pipeline stages", stages.filter((s) => needsAttention(s.state)).map((s) => ({ kind: "Stage", item: s.name, state: s.state, value: "-", detail: s.detail, since: "-", act: () => resolve(s.name, s.detail) }))],
@@ -631,7 +633,7 @@ function renderThroughput(t) {
 function recommendationButtons(r) { return boardAnswer.recommendationButtons(r, refresh); }
 // One group of attention rows; each row opens its resolve or answer dialog.
 function attentionTable(items) {
-  const node = table(["Kind", "Item", "State", "Value", "Detail", "Since"], items.map((it) => [it.kind, it.item, badge(it.state), it.value, h("div", { class: "clamp" }, it.detail), it.since]));
+  const node = table(["Kind", "Item", "State", "Value", "Detail", "Since"], items.map((it) => [it.kind, it.item, badge(it.state), it.value, h("div", { class: "clamp" }, typeof it.detail === "string" ? tidy(it.detail) : it.detail), it.since]));
   const trs = node.querySelectorAll("tbody tr");
   items.forEach((it, i) => { trs[i].classList.add("clickable"); trs[i].title = "Click to resolve or answer"; answerable(trs[i], it.act); });
   return node;
