@@ -180,6 +180,9 @@ commands:
     One named one-off script the checkout runs, planned or applied; the body is a tool.
     plan_script!                  Show what a named one-off script would change, writing nothing
     apply_script!                 Carry out a named one-off script's changes, only when confirmed
+  LedgerFile:
+    The SQLite file the AgentRun records live in, and the request to give its free pages back.
+    reclaim!                      Give the free pages of the AgentRun file back with a VACUUM, only when the file is quiet
   SchemaRevision:
     One change to a domain's journal of eras, and how it ended: a store's upkeep.
     hold_first!                   Hold the first era of a domain that holds none, as its first boot would
