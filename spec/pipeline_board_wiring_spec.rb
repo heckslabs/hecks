@@ -110,18 +110,27 @@ RSpec.describe Hecks::Adapters::PipelineWiring do
       expect(File.read(Hecks::Adapters::PipelineWeb::WIRING_PAGE)).not_to match(%r{https?://|//cdn|@import})
     end
 
-    def draw_node_source = fetch("/wiring").body[/function drawNode.*?\n}\n/m]
+    it "keeps colour for what is happening: a line at rest is grey, and a message lights it in its outcome's colour",
+       :aggregate_failures do
+      page = fetch("/wiring").body
+      expect(page).to include(".link .line { fill: none; stroke: var(--wire);", ".link.lit.ok .line { stroke: var(--good); }",
+                              ".link.lit.bad .line { stroke: var(--critical); }")
+      expect(page).not_to include("hsl(")
+    end
 
-    it "fills an aggregate with its domain's colour and a port or adapter with --wiring", :aggregate_failures do
-      expect(draw_node_source).to include('const hue = n.kind === "aggregate" ? colourOf(n.domain) : css("--wiring")')
-      expect(draw_node_source).to include('ctx.fillStyle = live ? css("--series1") : hue')
-      expect(draw_node_source).to include('ctx.strokeStyle = live ? css("--series1") : hue')
+    it "lays the contexts out in the order most policies run along, and draws the rest as running back" do
+      expect(fetch("/wiring").body)
+        .to include("function flowOrder(keys)", "function settle(start)", "link.back = at.get(link.from) > at.get(link.to)")
+    end
+
+    it "reads a policy's name as the sentence it was written as" do
+      expect(fetch("/wiring").body).to include("const sentence = (label) =>")
     end
 
     def wheel_source = fetch("/wiring").body[/addEventListener\("wheel".*?passive: false \}\);/m]
 
-    it "takes the wheel only for Cmd or Ctrl zoom over the canvas", :aggregate_failures do
-      expect(wheel_source).to include("if (!(e.metaKey || e.ctrlKey) || e.target !== canvas) return;")
+    it "takes the wheel only for Cmd or Ctrl zoom over the map", :aggregate_failures do
+      expect(wheel_source).to include("if (!(e.metaKey || e.ctrlKey)) return;")
       expect(wheel_source.index("return;")).to be < wheel_source.index("e.preventDefault()")
     end
 
@@ -129,8 +138,8 @@ RSpec.describe Hecks::Adapters::PipelineWiring do
       expect(fetch("/wiring").body).not_to include("parent.scrollBy")
     end
 
-    it "defines --wiring for the light and both dark themes" do
-      expect(fetch("/wiring").body.scan(/--wiring: #\h{6}/).size).to eq(3)
+    it "defines the outcome colours for the light and both dark themes" do
+      expect(fetch("/wiring").body.scan(/--good: #\h{6}; --warning: #\h{6}; --critical: #\h{6}/).size).to eq(3)
     end
 
     it "serves the sequence diagram at /sequence" do
