@@ -4,6 +4,8 @@ require_relative "console_capture"
 require_relative "dispatching/settings"
 require_relative "dispatching/work_items"
 require_relative "dispatching/plan"
+require_relative "dispatching/headroom"
+require_relative "dispatching/headroom_reads"
 require_relative "dispatching/dependencies"
 require_relative "dispatching/launcher"
 require_relative "dispatching/in_process_runner"
@@ -150,7 +152,7 @@ module Hecks
         gauge = machine
         { cap: gauge.cap, urgent_reserve: gauge.urgent_reserve, load: gauge.load, max_load: gauge.max_load, frozen: gauge.frozen,
           epic_wip: gauge.epic_wip_limit, paused: gauge.paused, budget: gauge.boot_stop,
-          exempt: WorkItems.method(:red?), **cached_reads(gauge) }
+          exempt: WorkItems.method(:red?), **headroom_limit(gauge), **cached_reads(gauge) }
       end
 
       # The runs and the architect's reviews, each read once for the plan: the plan asks for them
@@ -197,7 +199,7 @@ module Hecks
       end
 
       def header(plan, tally = "this fill would start #{plan.chosen.size}")
-        "#{load_line}; started #{work_items.started.size} of cap #{machine.cap}; " \
+        "#{load_line}; started #{work_items.started.size} of cap #{machine.cap}; #{headroom_clause(plan)}; " \
           "#{tally}; frozen: #{frozen_line}; at #{ran_at}"
       end
 

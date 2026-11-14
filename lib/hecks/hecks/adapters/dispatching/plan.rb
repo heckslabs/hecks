@@ -26,6 +26,9 @@ module Hecks
         # What a name is compared without, so `quality_control` and `QualityControl` meet.
         NOT_ALNUM = /[^a-z0-9]/
 
+        # The most work items one fill starts, whatever the machine has room for.
+        STAGGER = 2
+
         # A work item left waiting, and the reason.
         Skip = Struct.new(:key, :reason)
 
@@ -40,7 +43,7 @@ module Hecks
         # @param limits [Hash] `runs:` (callable answering the AgentRun states by run key, optional)
         #   and `now:` (Time, optional), `cap:` (Integer), `load:` and `max_load:` (Float),
         #   `frozen:` (Array), `epic_wip:` (Integer, optional: most started items of one epic)
-        #   `urgent_reserve:` (Integer, 1 when absent: places past the cap red items take),
+        #   `headroom:`, `stagger:`, `urgent_reserve:` (Integer, optional: room, per fill, red),
         #   `paused:` (String, optional: why every work item waits, "skipped: paused by load")
         #   and `budget:` (String, optional: why every item waits once the boots spent theirs)
         #   with `rethinks:` (callable, optional: answers why a work item waits for a person),
@@ -60,6 +63,9 @@ module Hecks
         #   edited
         def holders = @started + @chosen
 
+        # @return [Integer, nil] the sessions the load had room for, nil when no reading said
+        def headroom = @limits[:headroom]
+
         # @return [String, nil] why the boot budget held every start back, nil when it did not
         def budget_stop = @limits[:budget]
 
@@ -75,7 +81,7 @@ module Hecks
         private
 
         def consider(item)
-          reason = held_reason(item) || stop_reason(item) || frozen_reason(item) || epic_reason(item) || overlap_reason(item)
+          reason = held_reason(item) || stop_reason(item) || limit_reason(item)
           reason ? @skipped << Skip.new(item.key, reason) : @chosen << item
         end
 
@@ -95,6 +101,21 @@ module Hecks
         end
 
         def stop_reason(item) = @limits[:paused] || budget_reason(item) || overloaded || capped(item)
+
+        # What the item's own place holds it: its area, its epic, the room the machine has.
+        def limit_reason(item) = frozen_reason(item) || epic_reason(item) || headroom_reason(item) || overlap_reason(item)
+
+        # The load is under its limit, yet the machine has room for only so many more sessions at
+        # the load each costs, so a fill starts at most that many and at most `stagger:` of them.
+        # The wait ends when the load falls, so it reads as a load wait (see `held_by_machine?`).
+        # The fix of a red main is not held; no `headroom:` means no reading and no limit.
+        def headroom_reason(item)
+          room = @limits[:headroom]
+          return if room.nil? || @limits[:exempt]&.call(item)
+          return if @chosen.size < [room, @limits.fetch(:stagger, STAGGER)].min
+
+          "skipped: load headroom #{room} (estimate), #{@chosen.size} chosen by this fill"
+        end
 
         # A spent boot budget holds back every work item but the ones `exempt:` names, so the fix
         # of a red main still starts.
