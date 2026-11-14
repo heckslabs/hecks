@@ -56,8 +56,7 @@ module Hecks
       # @return [Array<Symbol>] `[:atomic_put, :dispatch_claims]`
       def persistence_capabilities = %i[atomic_put dispatch_claims]
 
-      # Opens (creating if absent) the database file and its aggregate, journal, event, saga
-      # and outbox tables.
+      # Opens (creating if absent) the database file and its journal, event, saga and outbox tables.
       #
       # @param aggregate [Bluebook::Aggregate] the aggregate whose table this adapter owns
       # @param settings [Hash{Symbol, String => Object}] world settings for the binding:
@@ -67,19 +66,21 @@ module Hecks
       # @param root [String, nil] directory a relative `database` path resolves against; nil
       #   means the process working directory
       # @raise [LoadError] if the `sqlite3` gem is not installed
+      # @raise [Runtime::StoreHeld] if another process holds the file past the wait
       # @raise [SQLite3::Exception] if the file cannot be opened or a table cannot be created
       def initialize(aggregate:, settings: {}, root: nil)
         # Lazy so a domain that never wires Sqlite does not need the gem installed.
         require "sqlite3"
+        # Deliberate: the driver's own error is tagged, not wrapped, so every statement of this
+        # adapter that meets a held file is one the runtime can name (`Runtime::StoreBusy`).
+        SQLite3::BusyException.include(Runtime::StoreBusy)
 
         @aggregate = aggregate
         @path      = resolve_path(settings, root)
         # Scopes saga rows; falls back to the aggregate's name for a directly built adapter.
         @domain = settings.fetch(:domain) { aggregate.name }.to_s
         @busy_timeout_ms = Integer(settings.fetch(:busy_timeout_ms, BUSY_TIMEOUT_MS))
-        open_database
-        refuse_orphaned_rows!
-        create_tables!
+        unless_held { open_store }
       end
 
       # Runs the block inside one SQLite transaction, joining an already-open one.
@@ -90,6 +91,7 @@ module Hecks
       # @yield the writes to commit together; an exception raised inside rolls the
       #   outermost transaction back
       # @return [Object] the block's own result
+      # @raise [Runtime::StoreHeld] if `BEGIN` or `COMMIT` found the file held past the wait
       # @raise [SQLite3::Exception] if `BEGIN`, a statement inside the block, or `COMMIT` fails
       def transaction(&)
         return yield if @db.transaction_active?
@@ -109,13 +111,30 @@ module Hecks
       # Whatever leaves the block without its COMMIT succeeding rolls back: an exception, an
       # interrupt, a killed thread, or a COMMIT that found the file busy. A transaction left open
       # keeps the lock that turns every other connection away until this process exits.
+      #
+      # A BEGIN or a COMMIT that found the file held raises `Runtime::StoreHeld`: either way the
+      # block's writes are not saved, which is what lets a reaction be run again.
       def immediately
-        @db.execute("BEGIN IMMEDIATE TRANSACTION")
+        unless_held { @db.execute("BEGIN IMMEDIATE TRANSACTION") }
         result = yield
-        @db.execute("COMMIT TRANSACTION")
+        unless_held { @db.execute("COMMIT TRANSACTION") }
         result
       ensure
         @db.execute("ROLLBACK TRANSACTION") if @db.transaction_active?
+      end
+
+      # Runs a step that saves nothing of the caller's when it finds the file held: a BEGIN, a
+      # COMMIT that is then rolled back, or the opening of the store before any of its use.
+      def unless_held
+        yield
+      rescue SQLite3::BusyException => e
+        raise Runtime::StoreHeld, e.message
+      end
+
+      def open_store
+        open_database
+        refuse_orphaned_rows!
+        create_tables!
       end
 
       def open_database

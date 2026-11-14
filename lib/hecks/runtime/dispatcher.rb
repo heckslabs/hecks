@@ -227,9 +227,10 @@ module Hecks
 
       # The reactions among `logged` that the domain refused, as plain facts.
       #
-      # A crash in a reaction is a defect, not a refusal, and is warned where it happens.
+      # A crash in a reaction is a defect, not a refusal, and is warned where it happens. So is a
+      # reaction a held store stopped (`held`), which the domain never judged.
       def refused_from(logged)
-        logged.select { |entry| entry[:delivered] == false && !entry[:defect] }
+        logged.select { |entry| entry[:delivered] == false && !entry[:defect] && !entry[:held] }
               .map { |entry| entry.slice(:policy, :trigger, :reason) }
       end
 

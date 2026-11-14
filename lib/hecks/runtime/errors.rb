@@ -71,6 +71,20 @@ module Hecks
     # sustained contention.
     class StaleWrite < StandardError; end
 
+    # Marks an error that says another process held the store past the wait. The runtime rescues
+    # it by this name and never names a driver: a persistence adapter includes it in the error
+    # its own driver raises for a held file, which keeps that error's class and backtrace and
+    # covers every statement the adapter runs.
+    #
+    # It says nothing about what the interrupted work had already written. `StoreHeld` does.
+    module StoreBusy; end
+
+    # A write found the store held when it began or committed, so none of it was saved. Work
+    # that raises it wrote nothing and may be run again.
+    class StoreHeld < StandardError
+      include StoreBusy
+    end
+
     # A Lambda-routed domain's refusal (`Adapters::Lambda::RemoteDispatcher`), with Rust's text
     # verbatim.
     # It is not mapped back to a specific class such as GivenNotMet.

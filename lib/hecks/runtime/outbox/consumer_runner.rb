@@ -15,7 +15,7 @@ module Hecks
           kind, fqn = row.consumer.split(":", 2)
           home, name = fqn.split("::", 2)
           case kind
-          when "policy" then refusal_reason(run_policy(row, event, fqn, home, name))
+          when "policy" then refusal_reason(written(run_policy(row, event, fqn, home, name)))
           when "saga" then run_saga(row, event, fqn, home, name)
           else
             raise WiringError, "outbox row #{row.delivery_id} has an unknown consumer kind #{kind.inspect}"
@@ -28,10 +28,20 @@ module Hecks
           @policies.react(event, row.domain, only: [policy, home], event_uid: row.event_uid)
         end
 
+        # The records of a reaction that may be settled. One that found the store held before it
+        # wrote anything is not settled: the relay puts its row back to pending.
+        def written(records)
+          unwritten = Array(records).find { |record| record[:unwritten] }
+          raise HeldStore::Unwritten, unwritten[:reason].to_s if unwritten
+
+          records
+        end
+
         # The reason the domain refused a policy's reaction, nil when none was refused. A defect
-        # is not a refusal: it is warned where it happens and the row settles as before.
+        # is not a refusal, and neither is a reaction a held store stopped: each is said where it
+        # happens and the row settles as delivered.
         def refusal_reason(records)
-          refused = Array(records).find { |record| record[:delivered] == false && !record[:defect] }
+          refused = Array(records).find { |record| record[:delivered] == false && !record[:defect] && !record[:held] }
           refused && (refused[:reason].to_s.empty? ? "refused (no reason given)" : refused[:reason].to_s)
         end
 

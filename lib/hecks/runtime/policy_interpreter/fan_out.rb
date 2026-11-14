@@ -19,15 +19,22 @@ module Hecks
         def deliver_for_each(policy, event, domain, target, record)
           return nil unless where_holds?(policy, event)
 
+          deliver_each_row(policy, event, domain, target, record)
+        rescue *DOMAIN_REFUSALS => e
+          record.merge(delivered: false, reason: e.message)
+        rescue StoreBusy => e
+          held(policy, event, record, e)
+        rescue StandardError => e
+          defect(policy, event, record, e, "resolving for_each #{policy.for_each}")
+        end
+
+        # Fires the trigger for each row the query answers, one record per row.
+        def deliver_each_row(policy, event, domain, target, record)
           rows, reference_key = for_each_rows(policy, event, domain, target)
           Array(rows).map do |row|
             args = trigger_args(policy, event, { reference_key => row[:id] }, row)
             deliver_for_each_row(target, record.merge(for_row: row[:id]), args, policy, event)
           end
-        rescue *DOMAIN_REFUSALS => e
-          record.merge(delivered: false, reason: e.message)
-        rescue StandardError => e
-          defect(policy, event, record, e, "resolving for_each #{policy.for_each}")
         end
 
         # The rows the `for_each` query answers, and the key by which the trigger addresses a row.
