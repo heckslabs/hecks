@@ -56,6 +56,10 @@ Hecks.world "Tickets" do
   frozen_shapes "PersistedShapes", areas: []
   session_environment "Sessions", cargo_target_dir: "~/.cache/hecks/cargo-target", nice: 15
   session_grace "Sessions", seconds: 120
+  # `run_gone_after`: minutes a started run may show no process, commit or changed file before it is
+  # gone, when `claude` cannot list sessions. `claude_executable`: where `claude` is when PATH lacks it.
+  run_gone_after "Dispatch", minutes: 60
+  claude_executable "Sessions", candidates: %w[~/.local/bin/claude ~/.claude/local/claude /opt/homebrew/bin/claude /usr/local/bin/claude]
   ticks "Ticker", seconds: 20, minutes: 30
   rust_build "RustBuild", jobs: 4, nice: 15
   # `heavy_jobs` caps how many heavy jobs (a gate run, a run of several spec files) run at once on

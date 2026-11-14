@@ -2,6 +2,9 @@
 
 require "json"
 require_relative "shell"
+require_relative "claude_resolving_shell"
+require_relative "run_gone"
+require_relative "run_activity"
 require "time"
 require_relative "console_capture"
 require_relative "claude_transcript"
@@ -61,7 +64,7 @@ module Hecks
       def initialize(aggregate: nil, settings: {}, root: nil, registry: nil)
         @command = settings[:command] || COMMAND
         @session = Dispatching::Settings.new(registry)
-        @shell = Shell.new
+        @shell = ClaudeResolvingShell.new(executable: ClaudeExecutable.new(candidates: @session.claude_candidates))
         transcripts(settings.slice(:projects))
         @jobs = ClaudeJobs.from(settings)
         @agents = ClaudeAgentList.new(@command, shell: @shell)
@@ -226,7 +229,8 @@ module Hecks
       def session_lookup(now)
         @clock = now || -> { Time.now.utc }
         @listing = ClaudeSessionListing.new(@command, shell: @shell, now: @clock)
-        SessionLookup.new(@listing, grace: -> { @session.session_grace }, now: @clock)
+        gone = RunGone.new(RunActivity.new, minutes: -> { @session.run_gone_minutes }, now: @clock)
+        SessionLookup.new(@listing, grace: -> { @session.session_grace }, now: @clock, gone: gone)
       end
 
       def plain(argument) = argument.is_a?(Hash) ? argument[:value] : argument

@@ -13,23 +13,42 @@ module Hecks
         # @param launcher [Launcher] runs the commands that check, finish and yield
         # @param grace [Integer] seconds after its start that a run's session is read as unknown
         # @param clock [#call] answers the time, for the grace
-        # @param landed [#call, nil] answers the commit a work item's branch landed as since it
-        #   started, or nil; when none is given no landing is asked for
-        def initialize(work_items, launcher, grace: 0, clock: -> { Time.now.utc }, landed: nil)
+        # @param rule [Hash] `landed:` answers the commit a work item's branch landed as since it
+        #   started, or nil (none given: no landing is asked for); `gone:` is the world's rule
+        #   (`#run_gone_minutes`, `#claude_missing?`): while `claude` cannot be run, a started run
+        #   older than its minutes is asked to retire
+        def initialize(work_items, launcher, grace: 0, clock: -> { Time.now.utc }, **rule)
+          @gone = rule[:gone]
           @work_items = work_items
           @launcher = launcher
           @grace = grace
           @clock = clock
-          @landed = landed
+          @landed = rule[:landed]
         end
 
         # @return [Array<String>] one line for each work item settled, empty when none was
         def call
           @launcher.check_all unless checkable.empty?
+          retire_gone
           ended.filter_map { |key, run| settle(key, run[:condition]) }
         end
 
         private
+
+        # With `claude` out of reach nothing lists a session, so a run started longer ago than the
+        # world's minutes is asked to retire; `AgentRun.Retire` closes it only when the world's rule
+        # finds no process, commit or change, and keeps it otherwise.
+        def retire_gone
+          return unless @gone&.claude_missing?
+
+          checkable.each { |key, run| @launcher.retire(key) if old?(run) }
+        end
+
+        def old?(run)
+          @clock.call - Time.parse(run[:started_at].to_s) > @gone.run_gone_minutes * 60
+        rescue ArgumentError
+          false
+        end
 
         # The runs are read again before a Work item is yielded, so only a run still finished ends
         # its item. An answer's own stop never finishes a run (`RecordTheEndedSession` leaves a

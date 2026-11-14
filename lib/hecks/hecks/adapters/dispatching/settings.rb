@@ -4,6 +4,7 @@ require "etc"
 require_relative "../work_limits"
 require_relative "../boot_budget"
 require_relative "../shell"
+require_relative "../claude_executable"
 require_relative "../../../rust_build/session_build"
 require_relative "../codebase/test_scope"
 require_relative "../machine_sampling/history"
@@ -33,6 +34,16 @@ module Hecks
         # The world verb that carries how long a started session may go unlisted before it is
         # taken for gone.
         GRACE = "session_grace"
+
+        # The world verb that carries the minutes a started run may show no sign of life before it
+        # is taken for gone when `claude` cannot be asked.
+        GONE = "run_gone_after"
+
+        # The world verb that carries where `claude` is installed, tried when `PATH` has none.
+        EXECUTABLE = "claude_executable"
+
+        # Minutes a started run may show nothing when the world names none.
+        GONE_MINUTES = 60
 
         # The world verb that carries the most started work items of one epic.
         EPIC_WIP = "epic_wip_limit"
@@ -112,6 +123,17 @@ module Hecks
 
         # @return [Integer] the seconds a started session is given to appear in the listing
         def session_grace = Integer(declared(GRACE)[:seconds] || GRACE_SECONDS)
+
+        # @return [Integer] the minutes a started run may show no process, commit or change before
+        #   it is gone, when `claude` cannot list sessions
+        def run_gone_minutes = Integer(declared(GONE)[:minutes] || GONE_MINUTES)
+
+        # @return [Array<String>] the places `claude` may be installed, the adapter's own when the
+        #   world names none
+        def claude_candidates = Array(declared(EXECUTABLE)[:candidates] || ClaudeExecutable::CANDIDATES)
+
+        # @return [Boolean] whether `claude` is on `PATH` or at none of the declared places
+        def claude_missing? = !ClaudeExecutable.new(candidates: claude_candidates).found?
 
         # @return [Integer] the architect rethinks that stop a Work item for a person
         def rethink_limit = Integer(declared("rethink_limit")[:limit] || Rethinks::LIMIT)

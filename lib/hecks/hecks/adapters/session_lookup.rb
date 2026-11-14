@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "time"
+require_relative "console_capture"
 
 module Hecks
   module Adapters
@@ -12,7 +13,9 @@ module Hecks
     # grace the Tickets world declares is answered as still there, and retired only if it is still
     # missing after that. A session the listing does show is not looked up again for five
     # minutes, because a session that stays listed with no state file would otherwise cost a
-    # listing and a refusal on every beat.
+    # listing and a refusal on every beat. When the sessions cannot be listed at all (`claude` is
+    # missing or fails), a run is gone only by the world's rule ({RunGone}); else the
+    # refusal stands.
     class SessionLookup
       # Seconds a "still listed" answer is kept for a run.
       THROTTLE = 300
@@ -20,8 +23,10 @@ module Hecks
       # @param listing [#find] looks a session up in the `claude agents` listing
       # @param grace [#call] answers the seconds a started session is given to appear
       # @param now [#call] answers the time
-      def initialize(listing, grace:, now: -> { Time.now.utc })
+      # @param gone [#reason, nil] says why a run is gone when the sessions cannot be listed
+      def initialize(listing, grace:, now: -> { Time.now.utc }, gone: nil)
         @listing = listing
+        @gone = gone
         @grace = grace
         @now = now
         @seen = {}
@@ -36,9 +41,19 @@ module Hecks
         return missing(id) if id.empty?
 
         kept(plain(held[:run]).to_s) || found(held, id) || young(held, id) || missing(id)
+      rescue ConsoleCapture::Failure => e
+        abandoned(held, id, e)
       end
 
       private
+
+      # The refusal stands unless the world's rule says the run is gone without the listing.
+      def abandoned(held, id, refusal)
+        why = @gone&.reason(held.transform_values { |value| plain(value) })
+        raise refusal unless why
+
+        { listed: false, state: "", note: "session #{id} cannot be listed (#{refusal.message}); #{why}" }
+      end
 
       def kept(run)
         seen = @seen[run]
