@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require "sqlite3"
-
 module Hecks
   module Adapters
     module LedgerKeeping
@@ -73,7 +71,9 @@ module Hecks
           raise Held, e.message
         end
 
+        # The gem loads here, when a file opens, so a launcher that only prints help needs none.
         def open_database
+          require "sqlite3"
           db = SQLite3::Database.new(@path)
           db.busy_handler_timeout = (@wait * 1000).to_i
           yield db
