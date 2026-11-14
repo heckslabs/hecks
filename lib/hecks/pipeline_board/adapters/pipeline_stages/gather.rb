@@ -2,6 +2,7 @@
 
 require "json"
 require_relative "plan_tile"
+require_relative "integration_tile"
 require_relative "stale"
 
 module Hecks
@@ -13,6 +14,7 @@ module Hecks
       # section whose read was skipped shows its last answer, noted as stale (see {Stale}).
       module Gather
         include PlanTile
+        include IntegrationTile
         include Stale
 
         # Seconds one reader may take before its section is given as unknown.
@@ -37,7 +39,7 @@ module Hecks
           landed_times: %i[journal landed_times plain], promotions: %i[journal promotions plain], disk: %i[disk free plain],
           boots: %i[boots today plain], open_prs: %i[github open_prs plain],
           cycle_events: %i[journal cycle_events plain], health_events: %i[journal health_events plain],
-          open_findings: %i[tickets open_findings plain]
+          open_findings: %i[tickets open_findings plain], integration: %i[integration reading plain]
         }.freeze
 
         private
