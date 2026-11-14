@@ -229,7 +229,8 @@ module Hecks
       def session_lookup(now)
         @clock = now || -> { Time.now.utc }
         @listing = ClaudeSessionListing.new(@command, shell: @shell, now: @clock)
-        gone = RunGone.new(RunActivity.new, minutes: -> { @session.run_gone_minutes }, now: @clock)
+        gone = RunGone.new(RunActivity.new, minutes: -> { @session.run_gone_minutes }, now: @clock,
+                           stopped: -> { @session.stopped_session_minutes })
         SessionLookup.new(@listing, grace: -> { @session.session_grace }, now: @clock, gone: gone)
       end
 

@@ -33,10 +33,19 @@ module Hecks
       # @return [Array<String>] the areas of a list of Word values
       def words(list) = Array(list).map { |word| (value(word, :value) || word).to_s }
 
-      # @return [Object] a field of a record or hash, unwrapped from its value object
+      # @return [Object, nil] a field of a record or hash, unwrapped from its value object; nil when
+      #   the record has no such field
       def value(record, name)
-        found = record.respond_to?(name) ? record.public_send(name) : (record[name] if record.respond_to?(:[]))
+        found = record.respond_to?(name) ? record.public_send(name) : indexed(record, name)
         found.respond_to?(:value) ? found.value : found
+      end
+
+      # @return [Object, nil] the entry of a hash or the member of a struct, nil when it has none
+      def indexed(record, name)
+        return unless record.respond_to?(:[])
+        return if record.is_a?(Struct) && !record.members.include?(name.to_sym)
+
+        record[name]
       end
     end
   end

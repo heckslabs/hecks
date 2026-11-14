@@ -10,6 +10,7 @@ require_relative "dispatching/filling"
 require_relative "dispatching/fill_report"
 require_relative "dispatching/lesson_traps"
 require_relative "dispatching/settler"
+require_relative "dispatching/claude_sessions"
 require_relative "dispatching/landed_since"
 require_relative "dispatching/last_roll"
 require_relative "dispatching/pending"
@@ -106,7 +107,7 @@ module Hecks
       def settler(held, launcher)
         items = work_items
         Settler.new(items, launcher, grace: machine.session_grace, landed: LandedSince.new(items, repo: plain(held[:repo])),
-                                     gone: machine)
+                                     gone: machine, sessions: @standins[:sessions] || ClaudeSessions.listing(machine))
       end
 
       # A planned work item parked behind a run still recorded started is never launched, so the
