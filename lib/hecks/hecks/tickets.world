@@ -1,8 +1,6 @@
 # The Tickets domain's settings. `work_limit` caps how many Work items may be started at once:
 # a start that would make one more is sent back to the plan, naming the cap, the count and the
 # holders. Without this line the cap is `Hecks::Adapters::WorkLimits::DEFAULT_CAP`, 8.
-# `urgent_reserve` is how many red-* work items may start beyond a full cap, so the fix of a red main
-# never waits behind stale started rows (1 when absent); a second one waits, and so does any other item.
 #
 # `frozen_shapes` (not `freeze`, which every Ruby object already answers) names the areas and aggregates whose persisted shape may not move: a brief tells its session
 # to commit and hold a change that moves one, and `Dispatch.Fill` starts no Work item in a frozen area.
