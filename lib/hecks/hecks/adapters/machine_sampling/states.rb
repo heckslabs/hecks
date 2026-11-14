@@ -55,13 +55,18 @@ module Hecks
 
         def light? = !@readings[:load].nil? && @readings[:load] < @marks[:load_low]
 
-        # Swap is judged in megabytes and only while free plus inactive memory is short now: macOS
-        # resizes its swap file and rarely gives it back, so a large idle swap says nothing alone.
+        # The OS's own pressure level decides first: free memory swings with the file cache and swap
+        # is a share of a file macOS resizes, but the level separated a thrash from calm. Without a
+        # level, swap is judged in megabytes and only while free plus inactive memory is short now.
         def memory
-          return "low" if pressed? && strained?
+          return "low" if squeezed? || (pressed? && strained?)
 
           recovered? ? "ok" : @before[:memory]
         end
+
+        def squeezed? = !@readings[:pressure_level].nil? && @readings[:pressure_level] >= @marks[:pressure_level_low]
+
+        def easy? = @readings[:pressure_level].nil? || @readings[:pressure_level] <= @marks[:pressure_level_ok]
 
         def pressed? = @readings[:free_gb].nil? || @readings[:free_gb] < @marks[:free_gb_low]
 
@@ -69,7 +74,9 @@ module Hecks
           @readings[:swap_used_mb].to_f > @marks[:swap_used_mb] || @readings[:compressor_gb].to_f > @marks[:compressor_gb]
         end
 
-        def recovered?
+        def recovered? = easy? && roomy?
+
+        def roomy?
           free = @readings[:free_gb]
           swap = @readings[:swap_used_mb]
           (free && free >= @marks[:free_gb_recovered]) || (swap && swap < @marks[:swap_recovered_mb])

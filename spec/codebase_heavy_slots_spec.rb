@@ -7,6 +7,7 @@ require "hecks/hecks/adapters/codebase/heavy_slots"
 require "hecks/hecks/adapters/codebase/memory_wait"
 require "hecks/hecks/adapters/codebase/gate"
 require "hecks/hecks/adapters/codebase/batch_runs"
+require "hecks/hecks/adapters/codebase/style"
 
 # At most `cap` heavy jobs at once on the machine: a job that finds every slot taken waits, says
 # so, and runs when one is let go; a slot whose holder died is free again; a job its parent holds a
@@ -41,12 +42,27 @@ RSpec.describe Hecks::Adapters::Codebase::HeavySlots do
     expect(started).to be > 2
   end
 
-  it "never waits when its parent holds a slot, in CI or when switched off", :aggregate_failures do
+  it "never waits when its parent holds a slot or in CI", :aggregate_failures do
     2.times { |index| taken(index) }
 
-    [{ described_class::HELD => "1" }, { "CI" => "true" }, { "HECKS_NO_HEAVY_SLOT" => "1" }].each do |base|
+    [{ described_class::HELD => "1" }, { "CI" => "true" }].each do |base|
       expect(slots(base: base).hold("gate") { :ran }).to eq([:ran, ""])
     end
+  end
+
+  it "still waits when the old bypass switch is set" do
+    2.times { |index| taken(index) }
+    clock = [0, 100_000, 100_000].each.method(:next).to_proc
+    result = slots(base: { "HECKS_NO_HEAVY_SLOT" => "1" }, clock: clock).hold("gate") { :ran }
+    expect(result.last).to include("no longer waiting")
+  end
+
+  it "holds its children's workers to the figure it was given and gives the variable back" do
+    expect(held_workers(nil, 4)).to eq(["4", nil])
+  end
+
+  it "leaves a worker count that is already set alone" do
+    expect(held_workers("2", 4).first).to eq("2")
   end
 
   it "marks the children it starts as held, so a nested job does not wait for its own slot" do
@@ -78,9 +94,10 @@ RSpec.describe Hecks::Adapters::Codebase::HeavySlots do
     expect(note).to eq("waited 20 s while memory was low; waited 2 s for a heavy-job slot (1 of 1 taken)")
   end
 
-  it "is taken by a gate run and by a run of several spec files", :aggregate_failures do
+  it "is taken by a gate run, a run of several spec files and a comment check", :aggregate_failures do
     run_both_callers
 
+    expect(described_class).to have_received(:admitted).with(dir, "comment_check")
     expect(described_class).to have_received(:admitted).with(dir, "gate")
     expect(described_class).to have_received(:admitted).with(dir, "spec_batch")
   end
@@ -91,6 +108,17 @@ RSpec.describe Hecks::Adapters::Codebase::HeavySlots do
     tree = instance_double(Hecks::Adapters::Codebase::Tree, root: dir)
     Hecks::Adapters::Codebase::Gate.call("gate", { stage: "quick" }, tree)
     Hecks::Adapters::Codebase::BatchRuns.call("run_spec_files", { files: "spec/a_spec.rb" }, tree)
+    Hecks::Adapters::Codebase::Style.call("check_comments", { paths: "lib/x.rb" }, tree)
+  end
+
+  # The worker count a held job sees, and the one left after it, with +before+ set first.
+  def held_workers(before, given)
+    saved = ENV.fetch(described_class::WORKERS, nil)
+    ENV[described_class::WORKERS] = before
+    seen = slots(workers: given).hold("gate") { ENV.fetch(described_class::WORKERS, nil) }.first
+    [seen, ENV.fetch(described_class::WORKERS, nil)]
+  ensure
+    ENV[described_class::WORKERS] = saved
   end
 
   def slots(cap: 2, base: {}, **options)

@@ -60,6 +60,9 @@ module Hecks
       #   stays the last one that drew
       attr_reader :problem
 
+      # @return [Runtime::Registry, nil] the booted registry the wiring is read from
+      attr_reader :registry
+
       private
 
       # Looks at the bluebook files once in `wiring_look_seconds` at most: every open stream asks

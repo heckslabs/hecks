@@ -167,7 +167,7 @@ module Hecks
       "GateStage" => [
         {"name"=>"pre_push", "env"=>"HECKS_ENVIRONMENT=memory HECKS_PROCESS_SPECS=1", "checks"=>"fuzzing,query_agreement,engine_agreement,shape_ledger,model_check,doc_coverage,rubocop,codegen_drift,comment_style,comment_blocks,rust_fmt"}.freeze,
         {"name"=>"ci_suite", "env"=>"HECKS_ENVIRONMENT=memory HECKS_PROCESS_SPECS=1", "checks"=>"rspec"}.freeze,
-        {"name"=>"quick", "env"=>"HECKS_ENVIRONMENT=memory", "checks"=>"shape_ledger,rubocop,comment_style,comment_blocks,secret_output,adapter_words,io_spec_list"}.freeze,
+        {"name"=>"quick", "env"=>"HECKS_ENVIRONMENT=memory", "checks"=>"shape_ledger,rubocop,comment_style,comment_blocks,secret_output,adapter_words,io_spec_list,command_names,workflow_pagination"}.freeze,
         {"name"=>"rust_io", "env"=>"CI=true HECKS_ENVIRONMENT=memory", "checks"=>"rust_io"}.freeze,
         {"name"=>"ci", "env"=>"", "checks"=>"model_check,shape_ledger,engine_agreement,doc_coverage,rubocop,comment_style,comment_blocks,ci_codegen_drift,generated_tree,rust_fmt,rust_clippy,lint_deploy_recipes,command_names,workflow_pagination,fuzz_1_of_3,fuzz_2_of_3,fuzz_3_of_3,fuzz_sqlite_1_of_3,fuzz_sqlite_2_of_3,fuzz_sqlite_3_of_3,fuzz_postgres_1_of_2,fuzz_postgres_2_of_2,fuzz_shards,vocabulary_drift,ci_gates,ci_pipeline,tools_doc,rust_coverage,rust_coverage_codegen,kernel_coverage,rust_vocabulary_drift"}.freeze
       ].freeze,

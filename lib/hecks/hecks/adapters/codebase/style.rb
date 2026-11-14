@@ -3,6 +3,7 @@
 require "json"
 require_relative "tree"
 require_relative "ruby_child"
+require_relative "heavy_slots"
 require "hecks/canonical_json"
 require "hecks/tools/value_object_shorthand"
 
@@ -56,12 +57,20 @@ module Hecks
 
           child = RubyChild.new(tree)
           case operation
-          when "check_comments", "check_rust_comments" then check(operation, args, child)
-          when "fix_comments", "fix_rust_comments" then fix(operation, args, child)
+          when "check_comments", "check_rust_comments" then admitted(tree) { check(operation, args, child) }
+          when "fix_comments", "fix_rust_comments" then admitted(tree) { fix(operation, args, child) }
           when "write_comment_baseline" then baseline(args, child)
           else unchanged(args, child)
           end
         end
+
+        # Runs a linter once a heavy-job place is free ({HeavySlots}), so the comment checks of many
+        # sessions and gates queue with the gates and spec batches.
+        #
+        # @param tree [Tree] the checkout whose world sets the cap
+        # @yieldreturn [String] the linter's report
+        # @return [String] the report, after the line that names the wait when there was one
+        def admitted(tree, &) = HeavySlots.admitted(tree.root, "comment_check", &)
 
         # A pure read: the linter's summary, its violations, or its JSON.
         #

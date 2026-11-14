@@ -30,9 +30,12 @@ module Hecks
         end
 
         def running(count, fill)
-          cap = readable?(fill) && fill[:cap] ? " (cap #{fill[:cap]} items)" : ""
+          cap = readable?(fill) && fill[:cap] ? " (cap #{fill[:cap]} items#{room(fill)})" : ""
           "#{count.zero? ? "no" : count} #{count == 1 ? "session" : "sessions"} running#{cap}"
         end
+
+        # The report's own words: `headroom 2, 1.6 load each`; nothing when the report states none.
+        def room(fill) = fill[:headroom] ? "; headroom #{fill[:headroom]}, #{fill[:per_session]} load each" : ""
 
         def rest(counts)
           [clause(counts[:waiting], "waiting on a review or the coordinator"), clause(counts[:you], "waiting on you"),

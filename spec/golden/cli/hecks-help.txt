@@ -274,6 +274,9 @@ commands:
     fuzz!                         Fuzz a domain with generated sequences and keep whether anything broke a property
     mutate!                       Mutate a domain's rules and keep whether its checks noticed each change
     bench!                        Measure command throughput and latency for each target, and keep the report
+  Dial:
+    One turn of a machine-local setting, turned or refused.
+    turn!                         Set one turnable setting of this machine to a value inside its bounds
 
 queries (nothing here changes anything):
   Build:

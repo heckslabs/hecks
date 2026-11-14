@@ -114,6 +114,16 @@ RSpec.describe Hecks::Adapters::PipelineWiring do
       expect(board).not_to include('id="h-ci"', "renderCi")
     end
 
+    it "serves the Settings page at /settings, in the bar and off the diagram", :aggregate_failures do
+      body = fetch("/settings").body
+      expect(body).to include("<title>Pipeline Settings</title>", 'href="/settings">Settings</a>', '"/api/settings"')
+      expect(fetch("/wiring").body).not_to include('id="dials"')
+    end
+
+    it "answers /api/settings with the settings a turn may set" do
+      expect(JSON.parse(fetch("/api/settings").body)).to eq("dials" => [])
+    end
+
     it "serves the diagram page at /wiring" do
       expect(fetch("/wiring").body).to include("Pipeline Wiring")
     end

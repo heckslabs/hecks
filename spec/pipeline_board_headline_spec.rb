@@ -63,4 +63,9 @@ RSpec.describe Hecks::Adapters::PipelineBoard::Headline do
   it "says load when the load is at its limit" do
     expect(sentence([], fill.merge(load: 10.0))).to end_with("no because load")
   end
+
+  it "says the headroom and the load a session costs when the report states them" do
+    stated = fill.merge(headroom: 2, per_session: 1.6)
+    expect(sentence([], stated)).to start_with("no sessions running (cap 6 items; headroom 2, 1.6 load each)")
+  end
 end

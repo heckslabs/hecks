@@ -64,21 +64,23 @@ module Hecks
                    bin/**/* rust/**/* Gemfile Gemfile.lock *.gemspec].freeze
 
       INPUTS = {
-        "shape_ledger"     => SHAPE,
-        "comment_style"    => STYLE,
-        "comment_blocks"   => STYLE + %w[examples/**/*.rb],
-        "secret_output"    => LIBRARY + SPEC + %w[spec/secret_output_spec.rb],
-        "adapter_words"    => LIBRARY + SPEC + %w[spec/adapter_words_spec.rb],
-        "io_spec_list"     => LIBRARY + %w[spec/**/*.rb .github/postgres_io_spec_files.txt
-                                           .github/workflows/ci-postgres-io-parallel.yml],
-        "rspec"            => SOURCE,
-        "fuzzing"          => FUZZING,
-        "query_agreement"  => SOURCE,
-        "engine_agreement" => SOURCE,
-        "model_check"      => MODEL,
-        "doc_coverage"     => DOC_COVERAGE,
-        "codegen_drift"    => CODEGEN,
-        "rust_fmt"         => RUST
+        "shape_ledger"        => SHAPE,
+        "comment_style"       => STYLE,
+        "comment_blocks"      => STYLE + %w[examples/**/*.rb],
+        "secret_output"       => LIBRARY + SPEC + %w[spec/secret_output_spec.rb],
+        "adapter_words"       => LIBRARY + SPEC + %w[spec/adapter_words_spec.rb],
+        "io_spec_list"        => LIBRARY + %w[spec/**/*.rb .github/postgres_io_spec_files.txt
+                                              .github/workflows/ci-postgres-io-parallel.yml],
+        "rspec"               => SOURCE,
+        "fuzzing"             => FUZZING,
+        "query_agreement"     => SOURCE,
+        "engine_agreement"    => SOURCE,
+        "model_check"         => MODEL,
+        "doc_coverage"        => DOC_COVERAGE,
+        "codegen_drift"       => CODEGEN,
+        "rust_fmt"            => RUST,
+        "command_names"       => SOURCE + %w[.claude/settings.json],
+        "workflow_pagination" => LIBRARY + %w[.github/**/*]
       }.freeze
 
       # The sha of each file this process has hashed, by path, modification time, size and inode, so

@@ -45,7 +45,8 @@ module Hecks
         # @raise [Expired] when the wait ran out
         def run
           events = Thread::Queue.new
-          mailbox = Thread.new { events << [:verdict, @ticket.verdict] }
+          @mail = Mutex.new
+          mailbox = Thread.new { listen(events) }
           verdict = await(events)
           verdict ? Turn.new(verdict, note) : front
         ensure
@@ -53,6 +54,27 @@ module Hecks
         end
 
         private
+
+        # Reads the mailbox once something is in it. The pipe is looked at before it is read, and
+        # the read and the report of it happen under one lock, so {#settled} sees a verdict as
+        # either reported or still in the pipe, never in between.
+        def listen(events)
+          @ticket.mail?(nil)
+          @mail.synchronize { events << [:verdict, @ticket.verdict] }
+        end
+
+        # The train puts a verdict in the mailbox before it leaves the line, so a ticket that finds
+        # nobody ahead may have a verdict it has not yet heard of: it takes that answer and does
+        # not land the branch a second time.
+        #
+        # @return [Hash, nil] the train's verdict, nil when there is none
+        def settled(events)
+          @mail.synchronize do
+            heard = []
+            heard << events.pop until events.empty?
+            heard.find { |event| event.first == :verdict }&.last || (@ticket.verdict if @ticket.mail?(0))
+          end
+        end
 
         def front
           budget = -> { @until - clock }
@@ -67,7 +89,7 @@ module Hecks
           loop do
             standing = @line.standing(@ticket)
             @notes.concat(standing.notes)
-            return nil if standing.ahead.empty?
+            return settled(events) if standing.ahead.empty?
 
             announce(standing.ahead)
             event = pause(standing, events)

@@ -4,6 +4,8 @@ require "rbconfig"
 require "fileutils"
 require_relative "console_capture"
 require_relative "ticker_persistence"
+require_relative "git_train"
+require_relative "ticking/chain"
 
 module Hecks
   module Adapters
@@ -25,39 +27,14 @@ module Hecks
       # The characters of a run key that are replaced when the key names a log file.
       UNSAFE_IN_FILENAME = /[^\w.-]/
 
-      # What the child runs: sleeps, dispatches one tick through the launcher with bare arguments
-      # (`to=`, `tick=`, `beats=`), and when the launcher refuses records the chain's end with
-      # `Ticker.stop!`, naming the refusal's first line, so a chain that ends is an event. The log
-      # path is the last argument and the minutes the chain may run the one before it: a chain past
-      # them ends the same way, naming the bound, whatever its beats count (a tick can take
-      # minutes, so beats alone do not bound the time). Without the minutes only a refusal ends it.
-      # Each statement is one line: the lines are joined with `;` to pass the script to `ruby -e`.
+      # What the child runs: the {Chain} loop, required from its file. The arguments are the run,
+      # the quick period in seconds, the launcher, the minutes the chain may run (absent for none)
+      # and the log path last. The schedule and the branch to watch arrive in the environment
+      # (`HECKS_TICK_BACKOFF`, `HECKS_TICK_WATCH`). Each statement is one line: the lines are joined
+      # with `;` to pass the script to `ruby -e`.
       CHAIN = <<~RUBY.tr("\n", ";").freeze
-        log = ARGV.pop
-        run, seconds, launcher, minutes = ARGV
-        note = ->(line) { File.open(log, "a") { |f| f.puts("\#{Time.now.utc.strftime("%FT%TZ")} \#{line}") } }
-        finish = lambda do |why|
-          note.call("ended: \#{why}")
-          system(launcher, "Ticker.stop!", "to=\#{run}", "ending=\#{why}", out: [log, "a"], err: [:child, :out])
-          note.call("stop exit \#{$?.exitstatus.inspect}")
-        end
-        note.call("chain begun for \#{run} (pid \#{Process.pid}, period \#{seconds}s)")
-        started = Time.now
-        count = 0
-        loop do
-          sleep(seconds.to_f)
-          count += 1
-          outlived = minutes && Time.now - started >= minutes.to_f * 60
-          (finish.call("the chain outlived its \#{minutes} minutes after \#{count - 1} ticks"); break) if outlived
-          tick = ["Ticker.tick!", "to=\#{run}", "tick=\#{run}-\#{count}", "beats=\#{count}"]
-          out = IO.popen([launcher, *tick, { err: [:child, :out] }], &:read)
-          note.call("tick \#{count}: exit \#{$?.exitstatus.inspect}")
-          next if $?.success?
-          why = out.lines.map(&:strip).reject { |l| l.empty? || l.start_with?("[hecks]") }.first.to_s
-          why = "the launcher exited \#{$?.exitstatus.inspect} without a refusal" if why.empty?
-          finish.call(why)
-          break
-        end
+        require "#{File.join(__dir__, "ticking", "chain")}"
+        Hecks::Adapters::Ticking::Chain.run(ARGV)
       RUBY
 
       # @param registry [Runtime::Registry, nil] the booted registry whose world is read
@@ -79,8 +56,8 @@ module Hecks
       def open(**held)
         launcher = launcher!
         run = plain(held[:run])
-        spawner.call(*child(run, launcher, logfile(run)))
-        { limit: { value: (minutes * 60 / seconds).ceil } }
+        spawner.call(environment(run), *child(run, launcher, logfile(run)))
+        { limit: { value: backoff.limit(minutes) } }
       end
 
       private
@@ -96,7 +73,22 @@ module Hecks
       end
 
       def child(run, launcher, log)
-        [RbConfig.ruby, "-e", CHAIN, run, seconds.to_s, launcher, minutes.to_s, log]
+        [RbConfig.ruby, "-e", CHAIN, run, backoff.quick.to_s, launcher, minutes.to_s, log]
+      end
+
+      # What the child inherits besides the caller's name: the schedule it waits by and the train
+      # branch of the run whose checks it watches (named by the boarding, from the run's commit).
+      def environment(run)
+        { "HECKS_CALLER" => "ticker", "HECKS_TICK_BACKOFF" => backoff.to_s,
+          "HECKS_TICK_WATCH" => GitTrain::PullRequestBoarding.branch_for(run) }
+      end
+
+      # The schedule the world declares, or the defaults: `quick` seconds (at most `SECONDS`) for
+      # the first `quick_for`, then each of `steps`, the last one for good.
+      def backoff
+        @backoff ||= Backoff.new(quick:     declared[:quick] || [seconds, SECONDS].min,
+                                 quick_for: declared[:quick_for] || Backoff::QUICK_FOR,
+                                 steps:     Array(declared[:steps] || Backoff::STEPS))
       end
 
       # The file the chain writes its beginning, each tick's status and its end to, and where the
@@ -113,8 +105,8 @@ module Hecks
 
       def spawner = @standins[:spawner] || method(:detach)
 
-      def detach(*argv)
-        Process.detach(Process.spawn(*argv, in: File::NULL, out: [argv.last, "a"], err: [:child, :out], pgroup: true))
+      def detach(env, *argv)
+        Process.detach(Process.spawn(env, *argv, in: File::NULL, out: [argv.last, "a"], err: [:child, :out], pgroup: true))
       end
 
       def seconds = (@standins[:seconds] || declared[:seconds] || SECONDS).to_f

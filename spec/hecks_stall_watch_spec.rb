@@ -80,10 +80,11 @@ RSpec.describe "StallWatch" do
 
   describe "the move of each kind" do
     let(:opening) do
-      { "plan-review"       => ["Agents::PlanReview", "PlanReviewRequested"],
-        "agent-run-start"   => ["Hecks::AgentRun", "AgentRunRequested"],
-        "agent-run-session" => ["Hecks::AgentRun", "AgentRunStarted"],
-        "agent-run-blocked" => ["Hecks::AgentRun", "SessionBlocked"] }
+      { "plan-review"         => ["Agents::PlanReview", "PlanReviewRequested"],
+        "agent-run-start"     => ["Hecks::AgentRun", "AgentRunRequested"],
+        "agent-run-session"   => ["Hecks::AgentRun", "AgentRunStarted"],
+        "agent-run-unresumed" => ["Hecks::AgentRun", "AgentRunUnresumed"],
+        "agent-run-blocked"   => ["Hecks::AgentRun", "SessionBlocked"] }
     end
 
     def write_opening(kind)
@@ -93,7 +94,7 @@ RSpec.describe "StallWatch" do
 
     def work_detail = keys("Tickets", "Work", :detail).first
 
-    %w[plan-review agent-run-start agent-run-session agent-run-blocked].each do |kind|
+    %w[plan-review agent-run-start agent-run-session agent-run-unresumed agent-run-blocked].each do |kind|
       it "gives the #{kind} work item the move of its row, once, never stopping a session", :aggregate_failures do
         write_opening(kind)
         2.times { |look| detect("look-#{look}") }

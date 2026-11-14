@@ -16,9 +16,19 @@ module Hecks
 
           # @param file [String] the changed file, to read
           # @param path [String] the same file relative to the root
-          def initialize(file, path)
+          # @param tokens [Array<String>] the names the diff changed in the file (`Changes`); a
+          #   world file with some is known by them alone, not by its whole domain name
+          def initialize(file, path, tokens = [])
             @path = path
+            @tokens = tokens
             @text = File.exist?(file) ? File.read(file).scrub : ""
+          end
+
+          # @param text [String] a spec's text
+          # @return [String, nil] the changed names the spec mentions, or nil when it names none
+          def because(text)
+            hit = @tokens.select { |token| text.match?(alone(token)) }
+            "#{hit.first(3).join(", ")} changed in #{@path}" unless hit.empty?
           end
 
           # @return [Boolean] whether there is nothing to look for
@@ -33,16 +43,28 @@ module Hecks
           def pattern
             return @pattern if defined?(@pattern)
 
-            parts = paths.map { |needle| Regexp.escape(needle) } + names.map { |name| "\\b#{Regexp.escape(name)}\\b" }
+            parts = paths.map { |needle| Regexp.escape(needle) } + names.map { |name| alone(name).source }
             @pattern = parts.empty? ? nil : Regexp.new(parts.join("|"))
           end
+
+          # A name standing alone: not part of a longer identifier.
+          def alone(name) = Regexp.new("(?<!\\w)#{Regexp.escape(name)}(?!\\w)")
 
           def paths
             bare = @path.delete_prefix("lib/").delete_suffix(".rb")
             [@path, bare, bare.split("/").last(2).join("/")].uniq
           end
 
-          def names = (DOMAIN.match?(@path) ? domain_names : [nesting, *constants]).compact.reject { |name| generic?(name) }.uniq
+          def names
+            found = DOMAIN.match?(@path) ? domain_needles : [nesting, *constants]
+            found.compact.reject { |name| generic?(name) }.uniq
+          end
+
+          def domain_needles
+            return @tokens if @path.end_with?(".world") && @tokens.any?
+
+            domain_names + @tokens
+          end
 
           def generic?(name) = name.split("::").all? { |segment| GENERIC.include?(segment) }
 

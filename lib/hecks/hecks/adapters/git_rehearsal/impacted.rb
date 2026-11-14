@@ -81,7 +81,7 @@ module Hecks
           base = commit(@remote)
           return Stages::Result.new(NAME, true, " (no #{@remote} to compare with)") unless base
 
-          mapping = SpecMap.new(@directory).map(changed(base), limit: @limit, skip: @skips)
+          mapping = SpecMap.new(@directory).map(changed(base), limit: @limit, skip: @skips, since: base)
           verdict(mapping, base)
         end
 
@@ -123,7 +123,7 @@ module Hecks
         end
 
         def notes(mapping, ran, known)
-          [("#{ran} spec file(s) run" if ran.positive?), mapping.cap_note, *skipped(mapping),
+          [("#{ran} spec file(s) run" if ran.positive?), mapping.cap_note, *mapping.also_ran, *skipped(mapping),
            ("pre-existing red: #{known.map(&:spec).join(", ")}" unless known.empty?)].compact.reject(&:empty?)
         end
 

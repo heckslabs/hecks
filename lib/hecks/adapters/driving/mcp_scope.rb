@@ -32,12 +32,12 @@ module Hecks
         # Argument names a restricted server never passes on, whatever command carries them: each
         # one
         # names a host or a URL, a binary to run, what a spawned session is told to do, a place to
-        # write, a port to open, a store to switch to, or flips a command from a preview to a
-        # change of state.
+        # write, a port to open, a store to switch to, a setting of the machine and what it
+        # becomes, or flips a command from a preview to a change of state.
         DENIED_ARGUMENTS = %w[
-          adapter answer artifact bluebook brief claimed confirm expected force from gem_only header health_path host live
-          condition no_wait npm_local npm_only output path payload payload_file port prebuilt remote resolve row rust_binary
-          scheme stage_dir state_path stdio step url write
+          adapter answer artifact becomes bluebook brief claimed confirm expected force from gem_only header health_path host
+          live condition no_wait npm_local npm_only output path payload payload_file port prebuilt remote resolve row
+          rust_binary scheme setting stage_dir state_path stdio step url write
         ].freeze
 
         # Argument names whose values are paths (a comma-separated list for some). A restricted

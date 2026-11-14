@@ -22,19 +22,28 @@ module Hecks
         # `Mach Virtual Memory Statistics: (page size of 16384 bytes)`, then `Pages free:  62321.`.
         PAGE_SIZE = /page size of (\d+) bytes/
 
+        # `kern.memorystatus_vm_pressure_level`: 1 normal, 2 warning, 4 critical.
+        PRESSURE = /\A\s*(\d+)\s*\z/
+
         # @param shell [#capture] runs a program and answers what it said; the {Shell} when nil
         def initialize(shell: nil)
           @shell = shell || Shell.new
         end
 
         # @return [Hash{Symbol => Float, nil}] the gauges: `cpu_idle`, `swap_used` (percent),
-        #   `compressor_gb`, `load` and `lane_waiting` (nil until the test lane exists)
+        #   `compressor_gb`, `pressure_level` (the OS's own memory verdict), `load` and
+        #   `lane_waiting` (nil until the test lane exists)
         def call
           top = said("top", "-l", "1", "-n", "0")
           usage = said("sysctl", "-n", "vm.swapusage")
           { cpu_idle: idle(top), swap_used: swap(usage), swap_used_mb: swap_mb(usage),
-            free_gb: free_gb(said("vm_stat")), compressor_gb: compressor(top), load: load, lane_waiting: nil }
+            free_gb: free_gb(said("vm_stat")), compressor_gb: compressor(top), pressure_level: level,
+            load: load, lane_waiting: nil }
         end
+
+        # @param text [String] what `sysctl -n kern.memorystatus_vm_pressure_level` printed
+        # @return [Float, nil] the pressure level: 1 normal, 2 warning, 4 critical
+        def pressure(text) = PRESSURE.match(text)&.then { |match| match[1].to_f }
 
         # @param text [String] what `sysctl -n vm.swapusage` printed
         # @return [Float, nil] swap used in megabytes
@@ -70,6 +79,8 @@ module Hecks
         private
 
         def said(*command) = @shell.capture(*command).out
+
+        def level = pressure(said("sysctl", "-n", "kern.memorystatus_vm_pressure_level"))
 
         def load = Dispatching::Settings.uptime_load(said("uptime"))
       end

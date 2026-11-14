@@ -35569,7 +35569,7 @@
               ],
               [
                 "checks",
-                "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,adapter_words,io_spec_list"
+                "shape_ledger,rubocop,comment_style,comment_blocks,secret_output,adapter_words,io_spec_list,command_names,workflow_pagination"
               ]
             ],
             [
