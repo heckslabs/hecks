@@ -104,6 +104,7 @@ svg.focusing .edge.lit, svg.focusing .node.lit { opacity: 1; }
 [data-role="planner"] { --role: #7c3aed; } [data-role="orchestrator"] { --role: #0f8f84; }
 [data-role="architect"] { --role: #b5179e; } [data-role="coder"] { --role: #15803d; }
 [data-role="reviewer"] { --role: #d02752; } [data-role="release_manager"] { --role: #0e7490; }
+[data-role="orchestrator-owner"] { --role: #b45309; } [data-role="pruner"] { --role: #64748b; }
 .card { border-top: 3px solid var(--role, var(--axis)) !important;
   border: 1px solid var(--border); border-radius: 10px; background: var(--surface); padding: 12px 14px; display: grid; gap: 10px; align-content: start; }
 .card.busy { border-color: color-mix(in srgb, var(--signal) 55%, var(--border)); box-shadow: 0 0 0 3px var(--signal-soft); }
@@ -209,86 +210,103 @@ svg.focusing .edge.lit, svg.focusing .node.lit { opacity: 1; }
   </section>
 
   <figure class="map">
-    <svg id="comms" viewBox="0 0 1280 510" role="img" aria-label="How the roles hand work on. You ask the planner and the architect. The planner gives the orchestrator Work items. The orchestrator routes work to coders, or asks you when two items conflict. A coder's submission asks the reviewer, and a real bug goes to you. Landed work goes to the pipeline. A verified passage makes the release manager recommend promotion, and you settle it.">
+    <svg id="comms" viewBox="0 0 1280 550" role="img" aria-label="How the roles hand work on. You give the planner a goal. A planned Work item starts a coder. The coder asks the architect to review its plan and gets the verdict back, submits its work to the reviewer and gets the judgment back, and its branch lands on local main. A blocked coder asks the orchestrator, who boards the train and passes only owner questions to you. Landed work wakes the pruner. Verified work goes to the release manager, whose recommendation the board shows. A release waits for your approval.">
       <defs>
         <marker id="a-ink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" class="arrow-ink"/></marker>
         <marker id="a-you" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" class="arrow-you"/></marker>
       </defs>
       <g class="bar you"><rect x="20" y="20" width="1240" height="52" rx="10"/>
-        <text x="40" y="43">You</text><text class="sub" x="40" y="60">the owner: answers, settles, decides</text></g>
-      <g class="bar"><rect x="20" y="440" width="1240" height="50" rx="10"/>
-        <text x="40" y="462">Pipeline</text><text class="sub" x="40" y="479">local main → origin → verified → released</text></g>
+        <text x="40" y="43">You</text><text class="sub" x="40" y="60">the owner: sets goals, answers owner-only questions, approves releases</text></g>
+      <g class="bar"><rect x="20" y="480" width="1240" height="50" rx="10"/>
+        <text x="40" y="502">Pipeline</text><text class="sub" x="40" y="519">landing → local main → train → origin → CI → stable, promoted automatically → release</text></g>
 
-      <g class="edge" data-edge="you-planner" data-ends="you planner" data-tip="You → Planner&#10;PlanningRequested&#10;You give the planner a goal; it drafts Work items and asks before creating them.">
-        <path class="line" d="M110 72 V264" marker-end="url(#a-ink)"/><path class="flow" d="M110 72 V264"/><path class="hit" d="M110 72 V264"/>
-        <text x="118" y="170">PlanningRequested</text></g>
-      <g class="edge" data-edge="planner-orchestrator" data-ends="planner orchestrator" data-tip="Planner → Orchestrator&#10;WorkChecked&#10;Each new Work item is checked for conflicts before it is routed.">
-        <path class="line" d="M190 300 H262" marker-end="url(#a-ink)"/><path class="flow" d="M190 300 H262"/><path class="hit" d="M190 300 H262"/>
-        <text x="226" y="290" text-anchor="middle">Work</text></g>
-      <g class="edge" data-edge="orchestrator-coder" data-ends="orchestrator coder" data-tip="Orchestrator → Coder&#10;WorkRouted · policy RouteWhenNoConflict&#10;No conflict: a coder session is dispatched.">
-        <path class="line" d="M425 300 H557" marker-end="url(#a-ink)"/><path class="flow" d="M425 300 H557"/><path class="hit" d="M425 300 H557"/>
-        <text x="491" y="290" text-anchor="middle">WorkRouted</text></g>
-      <g class="edge asks" data-edge="orchestrator-you" data-ends="orchestrator you" data-tip="Orchestrator → You&#10;DispatchAdviceRequested · policy AskAdviceWhenConflict&#10;Two Work items touch the same files; you choose the order.">
-        <path class="line" d="M345 264 V75" marker-end="url(#a-you)"/><path class="flow" d="M345 264 V75"/><path class="hit" d="M345 264 V75"/>
-        <text x="353" y="244">DispatchAdviceRequested</text></g>
-      <g class="edge" data-edge="you-architect" data-ends="you architect" data-tip="You → Architect&#10;PlanReviewRequested&#10;You ask for a review of the plan for one Work item.">
-        <path class="line" d="M490 72 V139" marker-end="url(#a-ink)"/><path class="flow" d="M490 72 V139"/><path class="hit" d="M490 72 V139"/>
-        <text x="482" y="110" text-anchor="end">PlanReviewRequested</text></g>
-      <g class="edge asks" data-edge="architect-you" data-ends="architect you" data-tip="Architect → You&#10;PlanReviewed&#10;Verdict: sound, sound with changes, or rethink.">
-        <path class="line" d="M520 139 V75" marker-end="url(#a-you)"/><path class="flow" d="M520 139 V75"/><path class="hit" d="M520 139 V75"/>
-        <text x="528" y="110">PlanReviewed</text></g>
-      <g class="edge informs" data-edge="architect-coder" data-ends="architect coder" data-tip="Architect ⇢ Coder&#10;No event: the verdict is kept on the Work item the coder then builds.">
-        <path class="line" d="M560 208 L612 264" marker-end="url(#a-ink)"/><path class="hit" d="M560 208 L612 264"/>
-        <text x="596" y="232">verdict on the item</text></g>
+      <g class="edge" data-edge="you-planner" data-ends="you planner" data-tip="You → Planner&#10;PlanningRequested&#10;You give the planner a goal; it turns it into Work items.">
+        <path class="line" d="M90 72 V264" marker-end="url(#a-ink)"/><path class="flow" d="M90 72 V264"/><path class="hit" d="M90 72 V264"/>
+        <text x="98" y="110">PlanningRequested</text></g>
+      <g class="edge" data-edge="orchestrator-planner" data-ends="orchestrator planner" data-tip="Orchestrator → Planner&#10;Planning.request!&#10;The orchestrator may hand the planner a goal too.">
+        <path class="line" d="M230 208 L170 264" marker-end="url(#a-ink)"/><path class="hit" d="M230 208 L170 264"/>
+        <text x="192" y="234" text-anchor="end">plans a goal</text></g>
+      <g class="edge asks" data-edge="orchestrator-you" data-ends="orchestrator you" data-tip="Orchestrator → You&#10;QuestionEscalated&#10;Only a question marked for the owner comes to you; the orchestrator answers the rest.">
+        <path class="line" d="M280 142 V75" marker-end="url(#a-you)"/><path class="flow" d="M280 142 V75"/><path class="hit" d="M280 142 V75"/>
+        <text x="288" y="110">QuestionEscalated</text></g>
+      <g class="edge" data-edge="planner-coder" data-ends="planner coder" data-tip="Planner → Coder&#10;WorkPlanned · policy RollWhenWorkIsPlanned&#10;A planned Work item starts a coder session when a seat is free.">
+        <path class="line" d="M200 300 H457" marker-end="url(#a-ink)"/><path class="flow" d="M200 300 H457"/><path class="hit" d="M200 300 H457"/>
+        <text x="328" y="290" text-anchor="middle">WorkPlanned</text></g>
+      <g class="edge" data-edge="coder-architect" data-ends="coder architect" data-tip="Coder → Architect&#10;PlanReviewRequested&#10;The coder asks for a review of its plan before it builds.">
+        <path class="line" d="M560 264 V211" marker-end="url(#a-ink)"/><path class="flow" d="M560 264 V211"/><path class="hit" d="M560 264 V211"/>
+        <text x="552" y="250" text-anchor="end">PlanReviewRequested</text></g>
+      <g class="edge" data-edge="architect-coder" data-ends="architect coder" data-tip="Architect → Coder&#10;PlanReviewed → VerdictJudged&#10;Sound, sound with changes, or rethink: the verdict goes back to the waiting coder.">
+        <path class="line" d="M600 208 V264" marker-end="url(#a-ink)"/><path class="flow" d="M600 208 V264"/><path class="hit" d="M600 208 V264"/>
+        <text x="608" y="244">PlanReviewed</text></g>
+      <g class="edge" data-edge="coder-orchestrator" data-ends="coder orchestrator" data-tip="Coder → Orchestrator&#10;QuestionSeated · policy AskTheOrchestratorWhenBlocked&#10;A blocked coder's question goes to the orchestrator, not to you.">
+        <path class="line" d="M470 264 L352 211" marker-end="url(#a-ink)"/><path class="flow" d="M470 264 L352 211"/><path class="hit" d="M470 264 L352 211"/>
+        <text x="425" y="228">QuestionSeated</text></g>
       <g class="edge" data-edge="coder-reviewer" data-ends="coder reviewer" data-tip="Coder → Reviewer&#10;WorkSubmitted → SubmissionReviewRequested&#10;policy AskTheReviewerWhenWorkIsSubmitted">
-        <path class="line" d="M720 300 H817" marker-end="url(#a-ink)"/><path class="flow" d="M720 300 H817"/><path class="hit" d="M720 300 H817"/>
-        <text x="768" y="290" text-anchor="middle">WorkSubmitted</text></g>
-      <g class="edge asks" data-edge="reviewer-you" data-ends="reviewer you" data-tip="Reviewer → You&#10;HandedToPerson · policy RealBugGoesToAPerson&#10;A spec failure judged a real bug comes to you.">
-        <path class="line" d="M900 264 V75" marker-end="url(#a-you)"/><path class="flow" d="M900 264 V75"/><path class="hit" d="M900 264 V75"/>
-        <text x="908" y="200">HandedToPerson</text></g>
-      <g class="edge" data-edge="coder-pipeline" data-ends="coder pipeline" data-tip="Coder → Pipeline&#10;PassageLanded&#10;Finished work lands on local main; the coordinator pushes it.">
-        <path class="line" d="M640 336 V437" marker-end="url(#a-ink)"/><path class="flow" d="M640 336 V437"/><path class="hit" d="M640 336 V437"/>
-        <text x="648" y="392">PassageLanded</text></g>
+        <path class="line" d="M620 288 H757" marker-end="url(#a-ink)"/><path class="flow" d="M620 288 H757"/><path class="hit" d="M620 288 H757"/>
+        <text x="688" y="279" text-anchor="middle">WorkSubmitted</text></g>
+      <g class="edge" data-edge="reviewer-coder" data-ends="reviewer coder" data-tip="Reviewer → Coder&#10;SpecFailureJudged → VerdictJudged&#10;A real bug or a stale expectation: the judgment goes back to a coder.">
+        <path class="line" d="M760 314 H623" marker-end="url(#a-ink)"/><path class="flow" d="M760 314 H623"/><path class="hit" d="M760 314 H623"/>
+        <text x="688" y="332" text-anchor="middle">SpecFailureJudged</text></g>
+      <g class="edge" data-edge="coder-pipeline" data-ends="coder pipeline" data-tip="Coder → Pipeline&#10;WorkSubmitted → Landing.Submit → BranchLanded&#10;A submitted branch lands on local main by itself.">
+        <path class="line" d="M540 336 V477" marker-end="url(#a-ink)"/><path class="flow" d="M540 336 V477"/><path class="hit" d="M540 336 V477"/>
+        <text x="548" y="410">BranchLanded</text></g>
+      <g class="edge" data-edge="orchestrator-pipeline" data-ends="orchestrator pipeline" data-tip="Orchestrator → Pipeline&#10;SendTrain.board!&#10;The orchestrator is the one who pushes: it boards local main onto the train.">
+        <path class="line" d="M250 208 V477" marker-end="url(#a-ink)"/><path class="hit" d="M250 208 V477"/>
+        <text x="258" y="410">boards the train</text></g>
+      <g class="edge" data-edge="pipeline-pruner" data-ends="pipeline pruner" data-tip="Pipeline → Pruner&#10;LandedWorkFound&#10;When work lands, the pruner removes the finished session and what it left behind.">
+        <path class="line" d="M840 480 V441" marker-end="url(#a-ink)"/><path class="flow" d="M840 480 V441"/><path class="hit" d="M840 480 V441"/>
+        <text x="848" y="465">LandedWorkFound</text></g>
       <g class="edge" data-edge="pipeline-release_manager" data-ends="pipeline release_manager" data-tip="Pipeline → Release manager&#10;PassageVerified · policy RecommendPromotionWhenVerified">
-        <path class="line" d="M1115 440 V339" marker-end="url(#a-ink)"/><path class="flow" d="M1115 440 V339"/><path class="hit" d="M1115 440 V339"/>
-        <text x="1107" y="392" text-anchor="end">PassageVerified</text></g>
-      <g class="edge asks" data-edge="release_manager-you" data-ends="release_manager you" data-tip="Release manager → You&#10;PromotionRecommended&#10;A verified change it thinks is ready to promote.">
-        <path class="line" d="M1110 264 V75" marker-end="url(#a-you)"/><path class="flow" d="M1110 264 V75"/><path class="hit" d="M1110 264 V75"/>
-        <text x="1102" y="130" text-anchor="end">PromotionRecommended</text></g>
-      <g class="edge" data-edge="you-release_manager" data-ends="you release_manager" data-tip="You → Release manager&#10;PromotionSettled&#10;You promote it, or leave it. Releases stay your call.">
-        <path class="line" d="M1150 72 V264" marker-end="url(#a-ink)"/><path class="flow" d="M1150 72 V264"/><path class="hit" d="M1150 72 V264"/>
-        <text x="1158" y="170">PromotionSettled</text></g>
+        <path class="line" d="M1160 480 V336" marker-end="url(#a-ink)"/><path class="flow" d="M1160 480 V336"/><path class="hit" d="M1160 480 V336"/>
+        <text x="1152" y="410" text-anchor="end">PassageVerified</text></g>
+      <g class="edge informs" data-edge="release_manager-you" data-ends="release_manager you" data-tip="Release manager ⇢ You&#10;PromotionRecommended&#10;Advice the board shows. Stable is promoted automatically once CI is green.">
+        <path class="line" d="M1100 264 V75" marker-end="url(#a-ink)"/><path class="hit" d="M1100 264 V75"/>
+        <text x="1092" y="170" text-anchor="end">PromotionRecommended</text></g>
+      <g class="edge" data-edge="you-pipeline" data-ends="you pipeline" data-tip="You → Pipeline&#10;Release-Approved-By&#10;A release is the one step that waits for you.">
+        <path class="line" d="M1250 72 V477" marker-end="url(#a-ink)"/><path class="flow" d="M1250 72 V477"/><path class="hit" d="M1250 72 V477"/>
+        <text x="1242" y="120" text-anchor="end">Release-Approved-By</text></g>
+      <g class="edge informs" data-edge="you-orchestrator-owner" data-ends="you orchestrator-owner" data-tip="You ⇢ Orchestrator-Owner&#10;No event: you start this session yourself and steer it directly.">
+        <path class="line" d="M900 72 V139" marker-end="url(#a-ink)"/><path class="hit" d="M900 72 V139"/>
+        <text x="908" y="110">started by hand</text></g>
 
       <g class="node" data-role="planner" tabindex="0">
-        <rect class="ring" x="30" y="267" width="160" height="66" rx="10"/><rect class="box" x="30" y="267" width="160" height="66" rx="10"/>
-        <rect class="code" x="42" y="283" width="34" height="34" rx="7"/><text class="code" x="59" y="304" text-anchor="middle">PL</text>
-        <text class="name" x="86" y="296">Planner</text><text class="stat" x="86" y="314"></text></g>
+        <rect class="ring" x="40" y="267" width="160" height="66" rx="10"/><rect class="box" x="40" y="267" width="160" height="66" rx="10"/>
+        <rect class="code" x="52" y="283" width="34" height="34" rx="7"/><text class="code" x="69" y="304" text-anchor="middle">PL</text>
+        <text class="name" x="96" y="296">Planner</text><text class="stat" x="96" y="314"></text></g>
       <g class="node" data-role="orchestrator" tabindex="0">
-        <rect class="ring" x="265" y="267" width="160" height="66" rx="10"/><rect class="box" x="265" y="267" width="160" height="66" rx="10"/>
-        <rect class="code" x="277" y="283" width="34" height="34" rx="7"/><text class="code" x="294" y="304" text-anchor="middle">OR</text>
-        <text class="name" x="321" y="296">Orchestrator</text><text class="stat" x="321" y="314"></text></g>
+        <rect class="ring" x="200" y="142" width="160" height="66" rx="10"/><rect class="box" x="200" y="142" width="160" height="66" rx="10"/>
+        <rect class="code" x="212" y="158" width="34" height="34" rx="7"/><text class="code" x="229" y="179" text-anchor="middle">OR</text>
+        <text class="name" x="256" y="171">Orchestrator</text><text class="stat" x="256" y="189"></text></g>
       <g class="node" data-role="architect" tabindex="0">
-        <rect class="ring" x="420" y="142" width="160" height="66" rx="10"/><rect class="box" x="420" y="142" width="160" height="66" rx="10"/>
-        <rect class="code" x="432" y="158" width="34" height="34" rx="7"/><text class="code" x="449" y="179" text-anchor="middle">AR</text>
-        <text class="name" x="476" y="171">Architect</text><text class="stat" x="476" y="189"></text></g>
+        <rect class="ring" x="540" y="142" width="160" height="66" rx="10"/><rect class="box" x="540" y="142" width="160" height="66" rx="10"/>
+        <rect class="code" x="552" y="158" width="34" height="34" rx="7"/><text class="code" x="569" y="179" text-anchor="middle">AR</text>
+        <text class="name" x="596" y="171">Architect</text><text class="stat" x="596" y="189"></text></g>
       <g class="node" data-role="coder" tabindex="0">
-        <rect class="ring" x="560" y="267" width="160" height="66" rx="10"/><rect class="box" x="560" y="267" width="160" height="66" rx="10"/>
-        <rect class="code" x="572" y="283" width="34" height="34" rx="7"/><text class="code" x="589" y="304" text-anchor="middle">CO</text>
-        <text class="name" x="616" y="296">Coder</text><text class="stat" x="616" y="314"></text></g>
+        <rect class="ring" x="460" y="267" width="160" height="66" rx="10"/><rect class="box" x="460" y="267" width="160" height="66" rx="10"/>
+        <rect class="code" x="472" y="283" width="34" height="34" rx="7"/><text class="code" x="489" y="304" text-anchor="middle">CO</text>
+        <text class="name" x="516" y="296">Coder</text><text class="stat" x="516" y="314"></text></g>
       <g class="node" data-role="reviewer" tabindex="0">
-        <rect class="ring" x="820" y="267" width="160" height="66" rx="10"/><rect class="box" x="820" y="267" width="160" height="66" rx="10"/>
-        <rect class="code" x="832" y="283" width="34" height="34" rx="7"/><text class="code" x="849" y="304" text-anchor="middle">RV</text>
-        <text class="name" x="876" y="296">Reviewer</text><text class="stat" x="876" y="314"></text></g>
+        <rect class="ring" x="760" y="267" width="160" height="66" rx="10"/><rect class="box" x="760" y="267" width="160" height="66" rx="10"/>
+        <rect class="code" x="772" y="283" width="34" height="34" rx="7"/><text class="code" x="789" y="304" text-anchor="middle">RV</text>
+        <text class="name" x="816" y="296">Reviewer</text><text class="stat" x="816" y="314"></text></g>
+      <g class="node" data-role="orchestrator-owner" tabindex="0">
+        <rect class="ring" x="800" y="142" width="200" height="66" rx="10"/><rect class="box" x="800" y="142" width="200" height="66" rx="10"/>
+        <rect class="code" x="812" y="158" width="34" height="34" rx="7"/><text class="code" x="829" y="179" text-anchor="middle">OO</text>
+        <text class="name" x="856" y="171">Orchestrator-Owner</text><text class="stat" x="856" y="189"></text></g>
       <g class="node" data-role="release_manager" tabindex="0">
-        <rect class="ring" x="1050" y="267" width="180" height="66" rx="10"/><rect class="box" x="1050" y="267" width="180" height="66" rx="10"/>
-        <rect class="code" x="1062" y="283" width="34" height="34" rx="7"/><text class="code" x="1079" y="304" text-anchor="middle">RM</text>
-        <text class="name" x="1106" y="296">Release manager</text><text class="stat" x="1106" y="314"></text></g>
+        <rect class="ring" x="1040" y="267" width="180" height="66" rx="10"/><rect class="box" x="1040" y="267" width="180" height="66" rx="10"/>
+        <rect class="code" x="1052" y="283" width="34" height="34" rx="7"/><text class="code" x="1069" y="304" text-anchor="middle">RM</text>
+        <text class="name" x="1096" y="296">Release manager</text><text class="stat" x="1096" y="314"></text></g>
+      <g class="node" data-role="pruner" tabindex="0">
+        <rect class="ring" x="760" y="372" width="160" height="66" rx="10"/><rect class="box" x="760" y="372" width="160" height="66" rx="10"/>
+        <rect class="code" x="772" y="388" width="34" height="34" rx="7"/><text class="code" x="789" y="409" text-anchor="middle">PR</text>
+        <text class="name" x="816" y="401">Pruner</text><text class="stat" x="816" y="419"></text></g>
     </svg>
     <figcaption class="legend">
       <span><i></i>event between roles</span>
       <span><i class="hot"></i>fired in the last 30 min, moving</span>
       <span><i class="you"></i>asks you</span>
-      <span><i class="dash"></i>no event, shared data</span>
+      <span><i class="dash"></i>advice, or started by hand</span>
       <span class="note">Click a role to see only its lines. Hover a line for its event and policy.</span>
       <button type="button" class="chipbtn" id="clear" aria-pressed="false" style="margin-left:auto">Show all</button>
     </figcaption>
@@ -338,20 +356,25 @@ const clock = (at) => (at ? new Date(at).toLocaleTimeString([], { hour: "2-digit
 
 // Each role's short code, its name, and the events it hears and sends; `you` marks one that asks a person.
 const ROLES = {
-  planner: { code: "PL", name: "Planner", hears: ["PlanningRequested"], says: ["WorkChecked"] },
-  orchestrator: { code: "OR", name: "Orchestrator", hears: ["WorkChecked"], says: ["WorkRouted", "DispatchAdviceRequested!"] },
-  architect: { code: "AR", name: "Architect", hears: ["PlanReviewRequested"], says: ["PlanReviewed!"] },
-  coder: { code: "CO", name: "Coder", hears: ["WorkRouted"], says: ["WorkSubmitted", "PassageLanded"] },
-  reviewer: { code: "RV", name: "Reviewer", hears: ["SubmissionReviewRequested"], says: ["SpecFailureJudged", "HandedToPerson!"] },
-  release_manager: { code: "RM", name: "Release manager", hears: ["PassageVerified"], says: ["PromotionRecommended!"] }
+  planner: { code: "PL", name: "Planner", hears: ["PlanningRequested"], says: ["WorkPlanned"] },
+  orchestrator: { code: "OR", name: "Orchestrator", hears: ["CoordinatorWoken", "QuestionSeated"], says: ["PlanningRequested", "BoardingQueued", "QuestionEscalated!"] },
+  "orchestrator-owner": { code: "OO", name: "Orchestrator-Owner", hears: [], says: [] },
+  architect: { code: "AR", name: "Architect", hears: ["PlanReviewRequested"], says: ["PlanReviewed"] },
+  coder: { code: "CO", name: "Coder", hears: ["WorkPlanned", "PlanReviewed", "SpecFailureJudged"], says: ["PlanReviewRequested", "WorkSubmitted", "QuestionSeated"] },
+  reviewer: { code: "RV", name: "Reviewer", hears: ["SubmissionReviewRequested"], says: ["SpecFailureJudged"] },
+  release_manager: { code: "RM", name: "Release manager", hears: ["PassageVerified"], says: ["PromotionRecommended"] },
+  pruner: { code: "PR", name: "Pruner", hears: ["LandedWorkFound", "PrunerWoken"], says: [] }
 };
-// Which map line each event travels: from, to. The names are the Agents and Pipeline bluebooks' events.
+// Which map line each event travels: from, to. The names are the events of the Agents, Tickets, Delegate, Deliver
+// and Pipeline bluebooks. A line with no event of its own (a command, or a session started by hand) is never lit.
 const EDGES = {
-  PlanningRequested: ["you", "planner"], WorkChecked: ["planner", "orchestrator"], WorkRouted: ["orchestrator", "coder"],
-  DispatchAdviceRequested: ["orchestrator", "you"], PlanReviewRequested: ["you", "architect"], PlanReviewed: ["architect", "you"],
-  WorkSubmitted: ["coder", "reviewer"], SubmissionReviewRequested: ["coder", "reviewer"], HandedToPerson: ["reviewer", "you"],
-  PassageLanded: ["coder", "pipeline"], PassageVerified: ["pipeline", "release_manager"],
-  PromotionRecommended: ["release_manager", "you"], PromotionSettled: ["you", "release_manager"]
+  PlanningRequested: ["you", "planner"], WorkPlanned: ["planner", "coder"],
+  PlanReviewRequested: ["coder", "architect"], PlanReviewed: ["architect", "coder"],
+  WorkSubmitted: ["coder", "reviewer"], SubmissionReviewRequested: ["coder", "reviewer"], SpecFailureJudged: ["reviewer", "coder"],
+  QuestionSeated: ["coder", "orchestrator"], QuestionEscalated: ["orchestrator", "you"],
+  BranchLanded: ["coder", "pipeline"], PassageLanded: ["coder", "pipeline"], BoardingQueued: ["orchestrator", "pipeline"],
+  LandedWorkFound: ["pipeline", "pruner"], PassageVerified: ["pipeline", "release_manager"],
+  PromotionRecommended: ["release_manager", "you"], PassageReleased: ["you", "pipeline"]
 };
 const CODES = { you: "You", pipeline: "Pipeline", ...Object.fromEntries(Object.entries(ROLES).map(([k, r]) => [k, r.code])) };
 const HOT_MS = 30 * 60 * 1000;
@@ -459,7 +482,7 @@ function answer(id, prefill) {
   }, { prefill: Boolean(prefill) });
 }
 // A session's role: the agent its run names, or else the role its name begins with.
-const roleOf = (s) => s.agent || Object.keys(ROLES).find((role) => String(s.name || "").startsWith(role)) || "";
+const roleOf = (s) => s.agent || Object.keys(ROLES).sort((a, b) => b.length - a.length).find((role) => String(s.name || "").startsWith(role)) || "";
 // The reply Claude Code suggested, as a button that opens the prompt with it in the answer box.
 function suggestion(s) {
   const text = s.context && s.context.suggested;
