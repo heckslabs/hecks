@@ -26,8 +26,14 @@ module MachineBeats
   def wiring(registry, series, rolls)
     seconds = 0
     sampling = Sampling.new(registry: registry, settings: { readings: -> { series.shift }, clock: -> { seconds += 120 } })
-    rolling = Struct.new(:rolls) { def roll(**) = (rolls << 1) && { report: { value: "fill #{rolls.size}" } } }.new(rolls)
-    ->(port, _asked) { port.to_s == "Sampling" ? sampling : rolling }
+    ->(port, _asked) { port.to_s == "Sampling" ? sampling : CountedRolls.new(rolls) }
+  end
+
+  # A rolling port whose owner's switch is on and whose fills are counted.
+  CountedRolls = Struct.new(:rolls) do
+    def read(**) = { state: "on", standing: 0 }
+
+    def roll(**) = (rolls << 1) && { report: { value: "fill #{rolls.size}" } }
   end
 
   def crossings(names) = names.grep(/\A(LoadFellBelow|LoadRoseAbove|MemoryLow|MemoryRecovered|TestLaneBusy|TestLaneIdle)\z/)

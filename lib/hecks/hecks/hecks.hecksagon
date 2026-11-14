@@ -428,6 +428,16 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  # The same outside, asked before a roll is requested: it answers the owner's switch as facts,
+  # `state` ("on" or "off") and `standing`, the pause the record holds, and the bluebook decides.
+  Hecks::RollSwitch.port "Rolling" do
+    asks "Read", to: RollSwitch do
+      attribute :run, SwitchKey
+      answers "RollSwitchRead"
+      refuses "RollSwitchUnread"
+    end
+  end
+
   # The outside a queued train pull request reaches to have the clock beaten for it: it starts one
   # detached chain of ticks that sleeps the Tickets world's `ticks` period (`seconds`) and dispatches
   # `Ticker.Tick` each time, and answers how many beats the world's `minutes` allow. It is refused
