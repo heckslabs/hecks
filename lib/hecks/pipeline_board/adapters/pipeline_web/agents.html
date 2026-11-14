@@ -239,8 +239,8 @@ svg.focusing .edge.lit, svg.focusing .node.lit { opacity: 1; }
         <path class="line" d="M600 208 V264" marker-end="url(#a-ink)"/><path class="flow" d="M600 208 V264"/><path class="hit" d="M600 208 V264"/>
         <text x="608" y="244">PlanReviewed</text></g>
       <g class="edge" data-edge="coder-orchestrator" data-ends="coder orchestrator" data-tip="Coder → Orchestrator&#10;QuestionSeated · policy AskTheOrchestratorWhenBlocked&#10;A blocked coder's question goes to the orchestrator, not to you.">
-        <path class="line" d="M470 264 L352 211" marker-end="url(#a-ink)"/><path class="flow" d="M470 264 L352 211"/><path class="hit" d="M470 264 L352 211"/>
-        <text x="425" y="228">QuestionSeated</text></g>
+        <path class="line" d="M457 280 H400 V175 H363" marker-end="url(#a-ink)"/><path class="flow" d="M457 280 H400 V175 H363"/><path class="hit" d="M457 280 H400 V175 H363"/>
+        <text x="408" y="212">QuestionSeated</text></g>
       <g class="edge" data-edge="coder-reviewer" data-ends="coder reviewer" data-tip="Coder → Reviewer&#10;WorkSubmitted → SubmissionReviewRequested&#10;policy AskTheReviewerWhenWorkIsSubmitted">
         <path class="line" d="M620 288 H757" marker-end="url(#a-ink)"/><path class="flow" d="M620 288 H757"/><path class="hit" d="M620 288 H757"/>
         <text x="688" y="279" text-anchor="middle">WorkSubmitted</text></g>
@@ -261,7 +261,7 @@ svg.focusing .edge.lit, svg.focusing .node.lit { opacity: 1; }
         <text x="1152" y="410" text-anchor="end">PassageVerified</text></g>
       <g class="edge informs" data-edge="release_manager-you" data-ends="release_manager you" data-tip="Release manager ⇢ You&#10;PromotionRecommended&#10;Advice the board shows. Stable is promoted automatically once CI is green.">
         <path class="line" d="M1100 264 V75" marker-end="url(#a-ink)"/><path class="hit" d="M1100 264 V75"/>
-        <text x="1092" y="170" text-anchor="end">PromotionRecommended</text></g>
+        <text x="1108" y="236">PromotionRecommended</text></g>
       <g class="edge" data-edge="you-pipeline" data-ends="you pipeline" data-tip="You → Pipeline&#10;Release-Approved-By&#10;A release is the one step that waits for you.">
         <path class="line" d="M1250 72 V477" marker-end="url(#a-ink)"/><path class="flow" d="M1250 72 V477"/><path class="hit" d="M1250 72 V477"/>
         <text x="1242" y="120" text-anchor="end">Release-Approved-By</text></g>
@@ -560,7 +560,7 @@ function card(r) {
     r.name === "pruner" ? h("div", { class: "list" }, h("h3", {}, "Switch"), boardAnswer.pruningSwitch(state && state.pruning, refresh)) : null,
     recs.length ? h("div", { class: "list" }, h("h3", {}, "Promotions to confirm"), recs.map(recommendation)) : null,
     done.length ? h("div", { class: "list" }, h("h3", {}, "Finished"), done.slice(0, 3).map((d) => h("div", { class: "done" }, h("span", {}, d.detail || d.name))))
-      : busy ? null : h("div", { class: "idle" }, "Nothing yet. Waiting for " + meta.hears.join(", ") + "."));
+      : busy ? null : h("div", { class: "idle" }, meta.hears.length ? "Nothing yet. Waiting for " + meta.hears.join(", ") + "." : "Nothing yet. You start this one by hand."));
 }
 
 function renderWire() {
