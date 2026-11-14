@@ -77,7 +77,7 @@ module Hecks
         found
       end
 
-      # Holds one entry, the oldest of the table going when it is past {KEPT}.
+      # Holds one entry, the oldest of the table going when it is past `KEPT` entries.
       def remember(table, key, value)
         MEMORY[:lock].synchronize do
           MEMORY[table].delete(key)
