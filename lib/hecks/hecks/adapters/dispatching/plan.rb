@@ -2,6 +2,7 @@
 
 require_relative "../area_overlap"
 require_relative "parking"
+require_relative "../work_slots"
 
 module Hecks
   module Adapters
@@ -44,9 +45,9 @@ module Hecks
         # @param limits [Hash] `runs:` (callable answering the AgentRun states by run key, optional)
         #   and `now:` (Time, optional), `cap:` (Integer), `load:` and `max_load:` (Float),
         #   `frozen:` (Array), `epic_wip:` (Integer, optional: most started items of one epic)
-        #   and `paused:` (String, optional: why every work item waits, "skipped: paused by load")
-        #   and `budget:` (String, optional: why every work item waits once the boots spent their
-        #   budget)
+        #   `urgent_reserve:` (Integer, 1 when absent: places past the cap red items take),
+        #   `paused:` (String, optional: why every work item waits, "skipped: paused by load")
+        #   and `budget:` (String, optional: why every item waits once the boots spent theirs)
         #   with `rethinks:` (callable, optional: answers why a work item waits for a person)
         #   with `exempt:` (callable, optional: answers whether a work item starts despite it)
         #   and `root:` (String, optional: this repository's top level, to tell its areas from
@@ -92,7 +93,7 @@ module Hecks
           Parking.reason(item, runs: @limits[:runs] || -> { {} }, now: @limits[:now] || Time.now.utc)
         end
 
-        def stop_reason(item) = @limits[:paused] || budget_reason(item) || overloaded || capped
+        def stop_reason(item) = @limits[:paused] || budget_reason(item) || overloaded || capped(item)
 
         # A spent boot budget holds back every work item but the ones `exempt:` names, so the fix
         # of a red main still starts.
@@ -107,8 +108,11 @@ module Hecks
           "skipped: load #{@limits[:load].round(1)} > #{@limits[:max_load].round(1)}"
         end
 
-        def capped
-          return unless holders.size >= @limits[:cap]
+        # The cap and the red reserve are held by {WorkSlots}, the rule the `WorkLimits` port
+        # applies to a start, so a chosen item is never yielded straight back.
+        def capped(item)
+          reserve = @limits[:urgent_reserve] || WorkSlots::DEFAULT_RESERVE
+          return unless WorkSlots.full?(item, holders, cap: @limits[:cap], reserve: reserve)
 
           "skipped: cap #{@limits[:cap]} reached (#{@started.size} started, #{@chosen.size} chosen by this fill)"
         end

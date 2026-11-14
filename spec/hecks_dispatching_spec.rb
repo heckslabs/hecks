@@ -84,6 +84,12 @@ RSpec.describe Hecks::Adapters::Dispatching do
     expect([outcome.chosen.map(&:key), reasons(outcome).keys]).to eq([["a"], %w[b c]])
   end
 
+  it "starts one red work item past a full cap when no reserve is given, and holds the next" do
+    outcome = plan([item("red-a", "x"), item("red-b", "y"), item("c", "z")], started: [item("s", "w")], cap: 1)
+
+    expect([outcome.chosen.map(&:key), reasons(outcome).keys]).to eq([["red-a"], %w[red-b c]])
+  end
+
   it "skips a work item in a frozen area" do
     outcome = plan([item("a", "lib/hecks/quality_control/x.rb"), item("b", "lib/other")], frozen: ["QualityControl"])
 

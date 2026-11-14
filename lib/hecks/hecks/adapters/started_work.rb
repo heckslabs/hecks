@@ -8,7 +8,7 @@ module Hecks
       module_function
 
       # @param registry [Runtime::Registry, nil] the booted registry; nil reads no work items
-      # @return [Array<Hash{Symbol => Object}>] `key:` and `area:` (strings) of each started work
+      # @return [Array<Hash{Symbol => Object}>] `key:`, `title:`, `area:` of each started work
       #   item
       def items(registry)
         aggregate = work_aggregate(registry)
@@ -27,7 +27,7 @@ module Hecks
       def item(record)
         return unless value(record, :status) == "started"
 
-        { key: value(record, :work).to_s, area: words(value(record, :area)) }
+        { key: value(record, :work).to_s, title: value(record, :title).to_s, area: words(value(record, :area)) }
       end
 
       # @return [Array<String>] the areas of a list of Word values

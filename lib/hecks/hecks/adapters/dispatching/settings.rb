@@ -125,6 +125,9 @@ module Hecks
         # @return [Integer] the cap on started work items
         def cap = @cap || WorkLimits.cap(@registry)
 
+        # @return [Integer] the places beyond the cap that red work items may fill
+        def urgent_reserve = WorkLimits.urgent_reserve(@registry)
+
         # @return [Integer, nil] the most spec files a session may run per call, from the Hecks
         #   world's `test_scope` setting; nil when none is declared
         def spec_files_limit = Codebase::TestScope.limit(@registry)

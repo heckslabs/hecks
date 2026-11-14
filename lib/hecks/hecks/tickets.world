@@ -45,7 +45,9 @@ Hecks.world "Tickets" do
                            swap_low: 70.0, swap_recovered: 50.0, compressor_gb: 12.0, lane_busy: 4.0, lane_idle: 1.0,
                            interval: 60.0
   github_issues "GitHubIssues", enabled: false
-  work_limit "WorkLimits", cap: 7
+  # `urgent_reserve` is how many red-* work items may start past a full cap (1 when absent), so
+  # the fix of a red main does not wait for a place; the next red one waits, as any other does.
+  work_limit "WorkLimits", cap: 7, urgent_reserve: 1
   dispatch_max_load "Dispatch", limit: 10.0
   epic_wip_limit "Dispatch", limit: 4
   cpu_budget "Dispatch", boot_hours_per_day: 6.0
