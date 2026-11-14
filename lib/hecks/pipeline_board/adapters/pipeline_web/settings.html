@@ -30,6 +30,8 @@ section.group > h2 { font-size: 16px; font-weight: 650; margin: 0 4px 8px; }
 .range .ends { display: flex; justify-content: space-between; }
 .turn { display: flex; gap: 6px; }
 .turn input, .turn select { width: 92px; font: inherit; padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); }
+.turn button { font: inherit; font-size: 13px; padding: 4px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); cursor: pointer; }
+.turn button:hover { border-color: var(--run); } .turn button:disabled { opacity: .5; cursor: default; }
 .dial .said { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink2); } .dial .said:empty { display: none; } .dial .said.bad { color: var(--critical); }
 @media (max-width: 760px) { .dial { grid-template-columns: 1fr; } }
 </style>
@@ -89,7 +91,7 @@ function headline(dials) {
   const of = (name) => dials.find((d) => d.setting === name), cap = of("work_limit.cap"), load = of("dispatch_max_load.limit"), heavy = of("heavy_jobs.cap");
   const changed = dials.filter((d) => d.turned).length;
   const p = $("headline"); p.replaceChildren();
-  if (cap && load) p.append("Up to ", h("b", {}, shown(cap)), " Work items at once, and no new session above a load of ", h("b", {}, shown(load)), heavy ? [", with ", h("b", {}, shown(heavy)), " heavy jobs at a time"] : "", ".");
+  if (cap && load) p.append("Up to ", h("b", {}, shown(cap)), " Work items at once, and no new session above a load of ", h("b", {}, shown(load)), ...(heavy ? [", with ", h("b", {}, shown(heavy)), " heavy jobs at a time"] : []), ".");
   else p.append(dials.length ? "The limits this machine runs the pipeline under." : "No setting can be set from here.");
   p.append(h("small", {}, changed ? changed + (changed === 1 ? " setting was" : " settings were") + " set from here. " : "", "A change is kept on this machine only and is never committed."));
 }
