@@ -10,18 +10,20 @@ require_relative "../../hecks/adapters/started_work"
 
 module Hecks
   module Adapters
-    # The `Tickets` port's adapter: answers `OpenWork` with the Work items that are not done, read
-    # through the booted Tickets domain's repository (never from its database), and reports which
-    # session ran each work item from the AgentRun records. Each aggregate is loaded once for the
-    # readers of a refresh, from the live store or the board's own registry. It only reads.
+    # The `Tickets` port's adapter: answers `OpenWork` with the Work items that are not done, and
+    # reports which session ran each work item from the AgentRun records. What counts as undone, as
+    # a running or tidyable run and as a status count is asked of the queries and the read model
+    # the Tickets and Hecks bluebooks declare (`Work.Undone`, `WorkByStatus`, `AgentRun.Running`,
+    # `AgentRun.Tidyable`), from the live store or the board's own registry. It only reads.
     class PipelineTickets
       include PipelineBoard::RunDetail
       include PipelineBoard::StoppedRuns
       include PipelineBoard::FinishedTimes
 
+      # The statuses a stand-in list of Work items is not open in; a store is asked `Work.Undone`.
       DONE = %w[done dropped].freeze
-      # The AgentRun statuses the `Running` and `Tidyable` queries select.
-      LISTED = %w[started finished].freeze
+      # The queries of `AgentRun` whose runs the live store answers.
+      LISTED = %w[Running Tidyable].freeze
       WORK_ITEM_LINE = /^(?:WORK ITEM|ROW):\s*(\S+)/
       # How long the runs read stays good: the jobs reader asks for them once per session.
       RUNS_TTL = 20
@@ -47,7 +49,7 @@ module Hecks
       # @return [Hash{Symbol => String}] `text:` the open work items as JSON: slug, status, area,
       #   and
       #   who claimed each and when
-      def open_work = { text: JSON.generate(items.reject { |item| DONE.include?(item[:status]) }) }
+      def open_work = { text: JSON.generate(undone) }
 
       # @return [Array<Hash>] each Epic with its title, outcome, tier and how many members are done
       #   or dropped; none when the Tickets domain holds no epic
@@ -59,7 +61,13 @@ module Hecks
       end
 
       # @return [Hash{String => Integer}] every Work item counted by status
-      def counts = items.map { |item| item[:status] }.tally
+      # @raise [PipelineBoard::Unavailable] when the store holds no Work item at all
+      def counts
+        found = @standin ? @standin.map { |item| item[:status] }.tally : store.tallied("Tickets", "WorkByStatus")
+        raise PipelineBoard::Unavailable, EMPTY if found.empty?
+
+        found
+      end
 
       # @return [Hash{String => Hash}] each AgentRun's session id with its `work_item` (named on the
       #   first line of its brief) and `status`
@@ -71,13 +79,13 @@ module Hecks
       end
 
       # The AgentRun records of the live store when the board is told where it is, else the booted
-      # registry's. From the live store only the runs `AgentRun.running` and `AgentRun.tidyable`
-      # answer are kept (started and finished), so a run that was retired or refused long ago does
-      # not reach the plan-review panel, which reads a transcript for each.
+      # registry's. From the live store only the runs `AgentRun.Running` and `AgentRun.Tidyable`
+      # answer are kept, so a run that was retired or refused long ago does not reach the
+      # plan-review panel, which reads a transcript for each.
       def run_records
         return records_of("Hecks", "AgentRun") unless @live
 
-        @live.records("Hecks", "AgentRun").select { |run| LISTED.include?(field(run, :status).to_s) }
+        LISTED.flat_map { |query| @live.asked("Hecks", "AgentRun", query) }
       end
 
       # @return [Array<String>] the branches the Landing records say were merged onto main, with any
@@ -90,18 +98,16 @@ module Hecks
 
       private
 
-      def items
-        found = @standin || from_live_store || records_of("Tickets", "Work").map { |record| item(record) }
-        raise PipelineBoard::Unavailable, EMPTY if found.empty?
+      # The store that is asked: the live one when the board is told where it is, else its own.
+      def store = @live || @own
 
-        found
-      end
+      # The Work items `Work.Undone` answers, in plan order. A store with no Work item at all is
+      # said to be empty (see {#counts}); one whose items are all done answers none.
+      def undone
+        counts
+        return @standin.reject { |item| DONE.include?(item[:status]) } if @standin
 
-      # The undone Work items of the live store, when the board is told where it is. Nil otherwise.
-      def from_live_store
-        return nil unless @live
-
-        @live.records("Tickets", "Work").map { |record| item(record) }.reject { |work| DONE.include?(work[:status]) }
+        store.asked("Tickets", "Work", "Undone").map { |row| item(row) }
       end
 
       # The live store held by the checkout named in `PIPELINE_BOARD_LAUNCHER_ROOT`, if any.
