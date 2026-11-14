@@ -463,6 +463,9 @@ Hecks.bluebook "Tickets" do
       # The stall watch filed nothing in the hour: no run sat past its time limit.
       member measure: "no-stall-is-filed", aggregate: "Hecks::Stall", events: "StallFiled",
              minutes: 60, at_most: 0
+      # No run was found still recorded started with its session gone: a retire closes exactly such a run.
+      member measure: "no-ghost-run-is-retired", aggregate: "Hecks::AgentRun", events: "AgentRunRetired",
+             minutes: 240, at_most: 0
     end
 
     lifecycle :status, default: "open" do
