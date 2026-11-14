@@ -8,6 +8,7 @@ require_relative "git_landing/tidy"
 require_relative "git_landing/rivals"
 require_relative "git_landing/finisher"
 require_relative "git_landing/lineup"
+require_relative "git_landing/swapping"
 require_relative "git_landing/flagged"
 require_relative "git_landing/held"
 require_relative "git_landing/handoff"
@@ -27,6 +28,7 @@ module Hecks
       include Held
       include Sheltering
       include Handoff
+      include Swapping
 
       # Accepts the arguments every driven adapter is built with; only the registry and the
       # overrides are kept.
@@ -43,7 +45,9 @@ module Hecks
       end
 
       # Lands a worktree's branch onto another branch (local `main` by default), then removes the
-      # linked worktree and branch it landed from when they hold nothing main lacks.
+      # linked worktree and branch it landed from when they hold nothing main lacks. It takes no
+      # place in a line: the target moves by a compare-and-swap, and a landing that finds it moved
+      # builds again on the new commit (see `Swapping`).
       #
       # @param held [Hash] the `Landing` record: `checkout` (a directory inside the worktree; the
       #   current directory when absent), `branch` (its checked-out branch when absent), `onto`
@@ -55,7 +59,7 @@ module Hecks
         onto = plain(held[:onto]) || "main"
         refuse_landing(branch, onto)
 
-        lineup.stand(branch, onto: onto, checkout: @checkout) { |note| land_alone(branch, onto, note) }
+        swapped(branch, onto) { land_alone(branch, onto) }
       end
 
       # Takes the front place in the line and lands every branch whose landing is waiting behind
@@ -77,22 +81,22 @@ module Hecks
       end
 
       # Finishes a branch in one step: refuses unsaved work, rebases it onto `onto`, runs the quick
-      # gate in its worktree, lands it through the queue and tidies the worktree.
+      # gate in its worktree, lands it and tidies the worktree. Only the commit the gate judged
+      # lands: when `onto` moved after the rebase, the branch is rebased and judged again.
       #
       # @param held [Hash] the `Landing` record, as for {#merge}; `gate:` (a callable) replaces the
       #   gate run, for a spec
       # @return [Hash{Symbol => Hash}] the answer {#merge} gives
       # @raise [ConsoleCapture::Failure] at the first step that fails, naming it: unsaved work,
-      #   conflict, gate red, or the queue busy
+      #   conflict, gate red, or `onto` moving at every try
       def finish_branch(**held)
         settle(held)
         branch = plain(held[:branch]) || current_branch
         onto = plain(held[:onto]) || "main"
         refuse_landing(branch, onto)
 
-        Finisher.prepare(@git, @checkout, held, registry: @registry, branch: branch, onto: onto)
         @retiring = true
-        gated(onto) { merge(**held) }
+        gated(onto) { swapped(branch, onto) { land_judged(held, branch, onto) } }
       ensure
         @retiring = false
       end
@@ -152,16 +156,22 @@ module Hecks
       def land_for(checkout, branch, onto)
         mine = @checkout
         @checkout = checkout
-        land_alone(branch, onto, nil)
+        swapped(branch, onto) { land_alone(branch, onto) }
       ensure
         @checkout = mine
       end
 
-      def land_alone(branch, onto, note)
+      # One try of a finish: the rebase and the gate, then the landing of exactly that commit.
+      def land_judged(held, branch, onto)
+        Finisher.prepare(@git, @checkout, held, registry: @registry, branch: branch, onto: onto)
+        land_alone(branch, onto, forward_only: true)
+      end
+
+      # One try of a landing, with every check a landing makes before it moves the target.
+      def land_alone(branch, onto, **how)
         refuse_unsaved(branch)
         refuse_rival(branch, onto)
-        said = on_main(branch, onto) { tidy(Merger.new(@git, @checkout, branch: branch, onto: onto).land, branch, onto) }
-        note ? said.merge(report: { value: "#{said[:report][:value]}; #{note}" }) : said
+        on_main(branch, onto) { tidy(Merger.new(@git, @checkout, branch: branch, onto: onto, **how).land, branch, onto) }
       end
 
       def common_git_dir = read("rev-parse", "--path-format=absolute", "--git-common-dir")

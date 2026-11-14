@@ -48,10 +48,10 @@
 # **event_log** `path` is the append-only file the runtime writes events and policy deliveries to (one JSON line each,
 # names and outcomes, never payloads) and `max_bytes` the size at which it moves to `<path>.1`; absent, nothing is written.
 #
-# **landing** `stale_minutes` is how long a landing's ticket may go without a heartbeat before the next one treats
-# it as abandoned and removes it (30 when absent); `wait_minutes` is how long a landing waits for its turn in the
-# line before it gives up (40 when absent); `shell_lock` names a lock directory an older brief makes by hand,
-# which a landing honours as the holder while it exists. Landings run one at a time, first come first served.
+# **landing** sets the line `landing.train!` holds: `stale_minutes` is how long a ticket may go without a heartbeat
+# before the next one removes it as abandoned (30 when absent), `wait_minutes` how long a ticket waits for its turn
+# (40 when absent), and `shell_lock` names a lock directory an older brief makes by hand, honoured as the holder
+# while it exists. `landing.land!` and `landing.finish!` take no place in it: they move main by a compare-and-swap.
 #
 Hecks.world "Hecks" do
   realm "Hecks"
