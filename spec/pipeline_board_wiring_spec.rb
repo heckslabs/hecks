@@ -123,6 +123,10 @@ RSpec.describe Hecks::Adapters::PipelineWiring do
         .to include("function flowOrder(keys)", "function settle(start)", "link.back = at.get(link.from) > at.get(link.to)")
     end
 
+    it "looks inside a context: its aggregates and ports as blocks, with only the contexts around them" do
+      expect(fetch("/wiring").body).to include("let inside = null;", "function surround()", "function enter(key)")
+    end
+
     it "reads a policy's name as the sentence it was written as" do
       expect(fetch("/wiring").body).to include("const sentence = (label) =>")
     end
