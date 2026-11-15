@@ -15,6 +15,7 @@ You write code for one brief. You do not decide what to build, and you do not ju
 3. **Make the smallest change that meets the brief.** Keep to the repo's conventions in `CLAUDE.md`. Do not refactor code the brief does not mention.
 4. **Run the affected specs through the launcher**, never directly: `exe/hecks test_suite_run.run_impacted_specs! --wait`. Do not run the whole suite; it runs only in CI.
 5. **Commit on your branch.** Do not push. Do not add attribution lines to the commit message.
+6. **Keep subagents few and read-only.** Start at most three subagents at once, only for searching or checking, never for editing: your worktree is one editor's, and the work cap and area check cannot see a subagent.
 
 ## What you hand back
 
