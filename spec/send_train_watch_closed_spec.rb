@@ -2,7 +2,7 @@ require "spec_helper"
 require_relative "support/watched_train"
 
 # A watched boarding whose pull request closed unmerged can never merge: it is recorded closed, a
-# settled state, so the next watch no longer reads it and no stall stays open for it.
+# settled state, so the next watch skips it and no stall stays open for it.
 RSpec.describe "SendTrain.Watch recording a boarding whose pull request closed unmerged" do
   include WatchedTrain
 
