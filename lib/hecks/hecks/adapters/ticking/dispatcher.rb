@@ -15,10 +15,15 @@ module Hecks
         # @param run [String] the ticker's key
         # @param launcher [String] path of `exe/hecks`
         # @param log [String] the chain's log file
-        def initialize(run, launcher, log)
+        # @param aggregate [String] the aggregate whose `tick!` and `stop!` the chain dispatches
+        # @param stamp [String, nil] a name for this chain, put in each tick's key when one record
+        #   keeps many chains in turn, so no two chains name a tick alike
+        def initialize(run, launcher, log, aggregate: "Ticker", stamp: nil)
           @run = run
           @launcher = launcher
           @log = log
+          @aggregate = aggregate
+          @stamp = stamp
         end
 
         # Appends a timestamped line to the log.
@@ -29,7 +34,7 @@ module Hecks
         # Dispatches one tick.
         # @return [String, nil] nil when it was accepted, else the refusal's first line
         def tick(count)
-          argv = ["Ticker.tick!", "to=#{@run}", "tick=#{@run}-#{count}", "beats=#{count}"]
+          argv = ["#{@aggregate}.tick!", "to=#{@run}", "tick=#{[@run, @stamp, count].compact.join("-")}", "beats=#{count}"]
           out, status = Open3.capture2e(CALLER, @launcher, *argv)
           note("tick #{count}: exit #{status.exitstatus.inspect}")
           status.success? ? nil : refusal(out, status)
@@ -38,7 +43,7 @@ module Hecks
         # Records the chain's end as an event.
         def stop(why)
           note("ended: #{why}")
-          out, status = Open3.capture2e(CALLER, @launcher, "Ticker.stop!", "to=#{@run}", "ending=#{why}")
+          out, status = Open3.capture2e(CALLER, @launcher, "#{@aggregate}.stop!", "to=#{@run}", "ending=#{why}")
           File.open(@log, "a") { |f| f.write(out) }
           note("stop exit #{status.exitstatus.inspect}")
         end

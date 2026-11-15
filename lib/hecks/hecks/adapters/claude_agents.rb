@@ -104,8 +104,9 @@ module Hecks
       # @param held [Hash] the `AgentRun` record: `session`, `repo`, and the `condition` it holds
       # @return [Hash{Symbol => String}] `state:` and `detail:` from the job, `previous:` the held
       #   condition (empty when none), `checkout:` the run's directory with its trailing slash, and
-      #   the {CoderJobFacts}: `agent:`, `report:`, and a done coder's `branch:`, `sha:`, `clean:`;
-      #   and `listed:` the status and `live:` the state `claude agents` lists the session with.
+      #   the {CoderJobFacts}: `agent:`, `report:`, and a done coder's `branch:`, `sha:`, `clean:`,
+      #   a stopped-listed coder's `dirty:` and `unmerged:`; and `listed:` the status and `live:`
+      #   the state `claude agents` lists the session with.
       #   A job that reads ended (`done`, `stopped`) is read against a fresh listing, so `live:`
       #   is not stale news; the state itself stays the job's own
       # @raise [ConsoleCapture::Failure] when the job's state cannot be read
@@ -119,9 +120,9 @@ module Hecks
       #   the listing's `listed:` and `live:`, read afresh when the job reads ended (only freshness:
       #   whether it ended is the bluebook's)
       def session_facts(job, held)
+        listing = @listing.facts(plain(held[:session]), fresh: %w[done stopped].include?(job["state"]))
         CoderJobFacts.new.call(agent: plain(held[:agent]), state: job["state"], report: last_words(job, held),
-                               checkout: plain(held[:repo]))
-                     .merge(@listing.facts(plain(held[:session]), fresh: %w[done stopped].include?(job["state"])))
+                               checkout: plain(held[:repo]), live: listing[:live]).merge(listing)
       end
 
       # The session's last words: its timeline's tail, else the job's result, else its summary; the

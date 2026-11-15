@@ -24,6 +24,14 @@ module Hecks
       # Minutes a chain may tick when the world names none.
       MINUTES = 30
 
+      # Seconds the quick period lasts, and the ladder after it, when the world names none.
+      QUICK_FOR = Backoff::QUICK_FOR
+      STEPS = Backoff::STEPS
+
+      # The aggregate whose record the ticks find, and the asked record's attribute that keys it.
+      AGGREGATE = "Ticker"
+      KEY = :run
+
       # The characters of a run key that are replaced when the key names a log file.
       UNSAFE_IN_FILENAME = /[^\w.-]/
 
@@ -55,7 +63,7 @@ module Hecks
       # @raise [ConsoleCapture::Failure] when the checkout has no launcher to dispatch through
       def open(**held)
         launcher = launcher!
-        run = plain(held[:run])
+        run = plain(held[self.class::KEY])
         spawner.call(environment(run), *child(run, launcher, logfile(run)))
         { limit: { value: backoff.limit(minutes) } }
       end
@@ -86,9 +94,9 @@ module Hecks
       # The schedule the world declares, or the defaults: `quick` seconds (at most `SECONDS`) for
       # the first `quick_for`, then each of `steps`, the last one for good.
       def backoff
-        @backoff ||= Backoff.new(quick:     declared[:quick] || [seconds, SECONDS].min,
-                                 quick_for: declared[:quick_for] || Backoff::QUICK_FOR,
-                                 steps:     Array(declared[:steps] || Backoff::STEPS))
+        @backoff ||= Backoff.new(quick:     declared[:quick] || [seconds, self.class::SECONDS].min,
+                                 quick_for: declared[:quick_for] || self.class::QUICK_FOR,
+                                 steps:     Array(declared[:steps] || self.class::STEPS))
       end
 
       # The file the chain writes its beginning, each tick's status and its end to, and where the
@@ -99,7 +107,7 @@ module Hecks
         File.join(dir, "#{run.gsub(UNSAFE_IN_FILENAME, "_")}.log")
       end
 
-      def persistence = @persistence ||= TickerPersistence.new(@registry)
+      def persistence = @persistence ||= TickerPersistence.new(@registry, aggregate: self.class::AGGREGATE)
 
       def persisted? = @standins.fetch(:persisted) { persistence.persisted? }
 
@@ -109,11 +117,11 @@ module Hecks
         Process.detach(Process.spawn(env, *argv, in: File::NULL, out: [argv.last, "a"], err: [:child, :out], pgroup: true))
       end
 
-      def seconds = (@standins[:seconds] || declared[:seconds] || SECONDS).to_f
+      def seconds = (@standins[:seconds] || declared[:seconds] || self.class::SECONDS).to_f
 
-      def minutes = (@standins[:minutes] || declared[:minutes] || MINUTES).to_f
+      def minutes = (@standins[:minutes] || declared[:minutes] || self.class::MINUTES).to_f
 
-      def declared = @registry&.world("Tickets")&.for_verb(VERB) || {}
+      def declared = @registry&.world("Tickets")&.for_verb(self.class::VERB) || {}
 
       def plain(value) = value.is_a?(Hash) ? value[:value].to_s : value.to_s
     end
