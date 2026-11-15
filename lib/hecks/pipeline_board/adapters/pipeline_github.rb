@@ -7,6 +7,7 @@ require_relative "pipeline_github/settled_counts"
 require_relative "pipeline_github/runs"
 require_relative "pipeline_github/train_runs"
 require_relative "pipeline_github/train_flakes"
+require_relative "pipeline_github/ci_records"
 require_relative "pipeline_github/pull_checks"
 require_relative "../../cache_dir"
 
@@ -19,6 +20,7 @@ module Hecks
       include PipelineBoard::PipelineRuns
       include PipelineBoard::TrainRuns
       include PipelineBoard::TrainFlakes
+      include PipelineBoard::CiRecords
 
       WORKFLOW = "ci.yml"
       BRANCH = "main"
@@ -37,20 +39,21 @@ module Hecks
         @cache = PipelineBoard::Cache.kept(settings, "github_keep_seconds")
         @attempts = PipelineBoard::FlakeMemo.new
         @settled = PipelineBoard::SettledCounts.new(settled_path(settings))
+        @seats = settings[:seats]
       end
 
       # @param limit [Hash, Integer, nil] how many runs (20 when none is named)
       # @return [Hash{Symbol => String}] `text:` the runs, oldest first, as JSON
       # @raise [PipelineBoard::Unavailable] when `gh` cannot answer
       def ci_runs(limit: nil)
-        { text: JSON.generate(rows(count(limit, 20))) }
+        { text: JSON.generate(recorded_runs("main", count(limit, 20)) || rows(count(limit, 20))) }
       end
 
       # @param limit [Hash, Integer, nil] how many jobs (8 when none is named)
       # @return [Hash{Symbol => String}] `text:` the last completed run's slowest jobs as JSON
       # @raise [PipelineBoard::Unavailable] when `gh` cannot answer
       def slowest_jobs(limit: nil)
-        { text: JSON.generate(slowest(count(limit, 8))) }
+        { text: JSON.generate(recorded_slowest("main", count(limit, 8)) || slowest(count(limit, 8))) }
       end
 
       # @param limit [Hash, Integer, nil] how many runs (20 when none is named)
@@ -58,14 +61,14 @@ module Hecks
       #   oldest first, as JSON; reruns are left out
       # @raise [PipelineBoard::Unavailable] when `gh` cannot answer
       def train_ci_runs(limit: nil)
-        { text: JSON.generate(train_rows(count(limit, 20))) }
+        { text: JSON.generate(recorded_runs("train", count(limit, 20)) || train_rows(count(limit, 20))) }
       end
 
       # @param limit [Hash, Integer, nil] how many jobs (8 when none is named)
       # @return [Hash{Symbol => String}] `text:` the slowest jobs of the latest completed train run
       # @raise [PipelineBoard::Unavailable] when `gh` cannot answer
       def train_slowest_jobs(limit: nil)
-        { text: JSON.generate(train_slowest(count(limit, 8))) }
+        { text: JSON.generate(recorded_slowest("train", count(limit, 8)) || train_slowest(count(limit, 8))) }
       end
 
       # @param limit [Hash, Integer, nil] how many flakes (5 when none is named)
