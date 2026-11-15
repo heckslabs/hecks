@@ -95,10 +95,9 @@ Hecks.world "Tickets" do
   # AWS account). They run only when `HECKS_LIVE_SERVICES` names the tag, under every filter
   # (spec/support/live_services.rb), and a verification never hands that variable to its checks.
   live_services "Specs", tags: ["cloudfront"]
-  # `spec_bounds`: seconds a run may take before it is ended: one spec file, one check (a batch,
-  # the quick gate), and `impacted_seconds`, a landing's budget for its impacted specs, past
-  # which it goes on and files the specs it did not run.
-  spec_bounds "Specs", file_seconds: 600, check_seconds: 2400, impacted_seconds: 600
+  # `spec_bounds`: seconds a spec file, a check and a landing's impacted specs may take;
+  # `impacted_workers` caps those specs run at once, held to the room under `dispatch_max_load`.
+  spec_bounds "Specs", file_seconds: 600, check_seconds: 2400, impacted_seconds: 600, impacted_workers: 4
   # `triggered_specs` is the rule that a change to `paths` (File.fnmatch patterns from the root)
   # runs `specs` in every impacted-spec run: `run_impacted_specs!`, a deep rehearsal and a landed
   # commit's verification. A `.behaviors` file expects an exact list of events, so a policy, event
