@@ -62,7 +62,7 @@ module Hecks
           # ({Baseline}), so a launcher can tell a resident born under an odd environment.
           def note_environment
             @environment = @start_env.slice(*loaded_names)
-            Baseline.write(@root, Baseline.odd(@environment))
+            Baseline.write(@root, Baseline.odd(@environment, @root))
           end
 
           def require_hecks

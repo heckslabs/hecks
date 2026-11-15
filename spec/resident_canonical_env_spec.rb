@@ -168,6 +168,58 @@ RSpec.describe "a resident's environment" do
     end
   end
 
+  describe "the Bundler variables a bundle exec adds" do
+    let(:env_value) { resident::EnvValue }
+    let(:server) { resident::Server.new("/checkout", "/checkout/exe/hecks") }
+    let(:bundler) { "/rb/gems/bundler-2.5.4/lib" }
+
+    before do
+      server.instance_variable_set(:@environment, {})
+      server.instance_variable_set(:@fingerprint, instance_double(resident::Fingerprint, changed?: false))
+    end
+
+    def refusal(env) = server.send(:unservable, { script: "/checkout/exe/hecks", env: env })
+
+    it "serves a Gemfile of the checkout the resident serves" do
+      expect(refusal({ "BUNDLE_GEMFILE" => "/checkout/Gemfile" })).to be_nil
+    end
+
+    it "refuses a Gemfile of another checkout", :aggregate_failures do
+      expect(refusal({ "BUNDLE_GEMFILE" => "/other/Gemfile" })).to eq("env:BUNDLE_GEMFILE")
+      expect(env_value.of("BUNDLE_GEMFILE", "/checkout/Gemfile")).to eq("/checkout/Gemfile")
+    end
+
+    it "serves a RUBYOPT that only sets Bundler up and quiets warnings" do
+      opt = "-r/rb/gems/bundler-2.5.4/lib/bundler/setup -W0 -I#{bundler}"
+      expect(refusal({ "RUBYOPT" => opt })).to be_nil
+    end
+
+    it "refuses a RUBYOPT that adds anything else", :aggregate_failures do
+      expect(refusal({ "RUBYOPT" => "-rbundler/setup -r/my/hook" })).to eq("env:RUBYOPT")
+      expect(refusal({ "RUBYOPT" => "-I/my/lib" })).to eq("env:RUBYOPT")
+    end
+
+    it "serves a RUBYLIB that adds only Bundler's own library directory" do
+      expect(refusal({ "RUBYLIB" => bundler })).to be_nil
+    end
+
+    it "refuses a RUBYLIB that adds a library of the caller's own", :aggregate_failures do
+      expect(refusal({ "RUBYLIB" => "#{bundler}:/my/lib" })).to eq("env:RUBYLIB")
+      expect(refusal({ "RUBYLIB" => "/my/gems/bundler-evil/libs" })).to eq("env:RUBYLIB")
+    end
+
+    it "still refuses GEM_HOME and GEM_PATH", :aggregate_failures do
+      expect(refusal({ "GEM_HOME" => "/gh" })).to eq("env:GEM_HOME")
+      expect(refusal({ "GEM_PATH" => "/gp" })).to eq("env:GEM_PATH")
+    end
+
+    it "does not make a resident born with only those odd", :aggregate_failures do
+      born = { "BUNDLE_GEMFILE" => "/checkout/Gemfile", "RUBYOPT" => "-rbundler/setup", "RUBYLIB" => bundler }
+      expect(resident::Baseline.odd(born, "/checkout")).to be_empty
+      expect(resident::Baseline.odd({ "BUNDLE_GEMFILE" => "/other/Gemfile" }, "/checkout")).to eq(["BUNDLE_GEMFILE"])
+    end
+  end
+
   describe "a resident that was not born plain and keeps refusing" do
     let(:stop) { instance_double(Proc, call: true) }
     let(:look) { ->(_pid) { [Process.uid, "ruby #{resident::Stuck::SERVER} #{root}"] } }
