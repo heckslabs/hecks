@@ -66,6 +66,7 @@ RSpec.describe "A beat retires the started run whose session is not listed" do
   def swept_run(run, after: 300, gone: true)
     started_run(run)
     listing if gone
+    yield if block_given?
     @clock += after
     beat("beat-#{run}")
   end
@@ -73,6 +74,11 @@ RSpec.describe "A beat retires the started run whose session is not listed" do
   it "retires a working run whose session is not listed, with no hand check_all" do
     swept_run("s-gone")
     expect(running).not_to include("s-gone")
+  end
+
+  it "retires a ghost run whose job record and session are both gone" do
+    swept_run("s-ghost") { FileUtils.rm_rf(File.join(scratch, "jobs")) }
+    expect(running).not_to include("s-ghost")
   end
 
   it "keeps a working run whose session is still listed" do
