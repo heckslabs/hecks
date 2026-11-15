@@ -56,4 +56,18 @@ RSpec.describe Hecks::Adapters::PipelineBoard::OwnerQueue do
     expect(list.count { |s| described_class.waiting?(s) }).to eq(1)
     expect(described_class.mark([], open_work, root).count { |s| described_class.waiting?(s) }).to eq(0)
   end
+
+  describe "the one reading of who waits on the owner" do
+    let(:asked) { blocked(id: "s2", context: { said: "[owner] pick" }) }
+    let(:list) { described_class.mark([blocked, asked, asked], open_work, root) }
+
+    it "answers the count and the ids once, each session counted once", :aggregate_failures do
+      expect(described_class.reading(list)).to eq(count: 1, ids: ["s2"])
+      expect(described_class.waiting(list).map { |s| s[:id] }).to eq(%w[s2 s2])
+    end
+
+    it "answers unknown when the sessions could not be read" do
+      expect(described_class.reading({ unknown: "no jobs" })).to have_key(:unknown)
+    end
+  end
 end

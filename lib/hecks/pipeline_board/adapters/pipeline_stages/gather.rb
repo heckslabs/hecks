@@ -86,7 +86,8 @@ module Hecks
         def owned(data)
           named = ENV.fetch("PIPELINE_BOARD_LAUNCHER_ROOT", "")
           root = named.empty? ? @root : named
-          data.merge(sessions: PipelineBoard::OwnerQueue.mark(data[:sessions], data[:open_work], root))
+          marked = PipelineBoard::OwnerQueue.mark(data[:sessions], data[:open_work], root)
+          data.merge(sessions: marked, waiting_on_you: PipelineBoard::OwnerQueue.reading(marked))
         end
 
         def read_seconds = @read_seconds || READ_SECONDS
