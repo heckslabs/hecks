@@ -7,10 +7,10 @@ require_relative "swap"
 module Hecks
   module Adapters
     class GitLanding
-      # One try at a landing: the commit a branch lands as is built beside the target, always a merge
-      # commit made in a temporary tree (never a fast-forward), so one landing is one first-parent
-      # commit that can be reverted or bisected alone, then the target is moved to it by a
-      # compare-and-swap ({Swap}).
+      # One try at a landing: the commit a branch lands as is built beside the target, always a
+      # merge commit made in a temporary tree (never a fast-forward), so one landing is one
+      # first-parent commit that can be reverted or bisected alone, then the target is moved to it
+      # by a compare-and-swap ({Swap}).
       #
       # It never forces anything, never pushes, and never settles a conflict: a merge that conflicts
       # is aborted and refused, naming the paths in conflict, with every branch as it was. When the
