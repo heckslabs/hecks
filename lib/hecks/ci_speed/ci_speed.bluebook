@@ -983,7 +983,7 @@ Hecks.bluebook "CiSpeed" do
 
   # How one family of sharded CI jobs (the rspec shards, the postgres io shards) splits its files
   # among its legs. A plan job asks for the split once; every leg reads that plan, so all legs
-  # agree. The split is balanced by the seconds the newest successful main run recorded for each
+  # agree. The split is balanced by the seconds the newest recent CI run that kept them recorded for each
   # file, and by file size when no such run can be read. The chain, never deeper than three:
   #
   #   ShardPlanRequested -> TimingsFetched     -> ShardPlanned (source timings)
@@ -1004,7 +1004,7 @@ Hecks.bluebook "CiSpeed" do
     attribute :shards,       ShardCount,  optional: true
     # `glob:<pattern>` splits the files a pattern finds, `list:<path>` the lines of a file.
     attribute :items_from,   ItemsFrom,   optional: true
-    # A directory of timing logs, or `main` for the newest successful CI run on main.
+    # A directory of timing logs, or `main` for the newest recent successful CI run that kept timing logs.
     attribute :timings_from, TimingsFrom, optional: true
     # Where the plan is written: `group-<n>.txt` per leg, `runtimes.log` and `plan.json`.
     attribute :out_dir,      OutDir,      optional: true

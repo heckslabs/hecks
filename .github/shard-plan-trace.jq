@@ -10,5 +10,5 @@
       .key as $i | .value as $event
       | ([$report.reactions[] | select(.on == $event.name)] | first // {}) as $reaction
       | "| \($i + 1) | \($event.name) | \($reaction.policy // "-") | \($reaction.trigger // "-") |"))
-  + ["", "Planned from **\($planned.payload.source.value // "nothing")**: \($planned.payload.files.value // 0) files into \($planned.payload.shards.value // 0) shards, longest leg \($planned.payload.longest.value // 0) against a mean of \($planned.payload.mean.value // 0) (seconds, or bytes when planned from size)."]
+  + ["", "Planned from **\($planned.payload.source.value // "nothing")**: \($planned.payload.files.value // 0) files into \($planned.payload.shards.value // 0) shards, predicted longest leg \($planned.payload.longest.value // 0) against a predicted mean of \($planned.payload.mean.value // 0) (seconds from timings, bytes when planned from size; these are the prices the plan balanced, not measured leg times)."]
 | .[]

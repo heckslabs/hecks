@@ -73,6 +73,9 @@ Hecks.world "Tickets" do
   # for `minutes`. Measured 2026-11-14: 112 boots an hour (40 CPU-minutes) at 20 s; at 90 s the boots
   # fall about four times and a merge is noticed 90 s late at most. The beat limit is 20.
   ticks "Ticker", seconds: 90, minutes: 30
+  # `idles`: while a roll left planned work held back (boot budget, load, a pause) and nothing else
+  # moves, one launcher boot every `seconds` rolls the queue, backing off along `steps`, for `minutes`.
+  idles "Idler", seconds: 300, minutes: 120
   rust_build "RustBuild", jobs: 4, nice: 15
   # `heavy_jobs` caps how many heavy jobs (a gate run, a run of several spec files) run at once on
   # the machine, in every checkout: the next one waits, saying so and in its report, until one ends

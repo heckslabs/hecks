@@ -480,6 +480,24 @@
               ],
               [
                 "aggregate",
+                "Idler"
+              ],
+              [
+                "checkout",
+                "both"
+              ],
+              [
+                "reason",
+                "each tick of the idle chain that rolls held-back work is a launcher call of its own"
+              ]
+            ],
+            [
+              [
+                "domain",
+                "Hecks"
+              ],
+              [
+                "aggregate",
                 "Machine"
               ],
               [
