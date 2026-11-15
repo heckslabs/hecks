@@ -108,8 +108,9 @@ Hecks.bluebook "Tickets" do
       emits "FindingReported"
     end
 
-    # A failed Codebase run reports itself: the run's key names the finding and doubles as its
-    # fingerprint, so the same run failing again while its finding is open changes nothing.
+    # A failed Codebase run reports itself: the key it is given names the finding and doubles as its
+    # fingerprint, so the same key failing again while its finding stands changes nothing. A gate
+    # that went red on named checks gives the cause as the key, any other fault gives its run.
     command "ReportFailedRun" do
       goal "Record a failed conformance or gate run as a finding"
 
@@ -117,7 +118,7 @@ Hecks.bluebook "Tickets" do
       attribute :body,   Body, sets: true
 
       sets :fingerprint, to: "run"
-      sets :title,  to: "A Codebase run failed"
+      sets :title,  to: "A Codebase check failed"
       sets :source, to: "qa_loop"
 
       emits "RunFindingReported"
@@ -1162,12 +1163,12 @@ Hecks.bluebook "Tickets" do
     ask     :open_issue, with: { finding: :finding }
   end
 
-  # A run finding is one work item under the run's key; its title is the twin of the one
-  # `Finding.ReportFailedRun` sets, which does not ride the event. A run's second report is refused,
-  # open or closed, so nothing is planned twice and a finished work item is not planned again.
+  # A run finding is one work item under the finding's key (a cause, or a run that named none), titled
+  # as `Finding.ReportFailedRun` titles it. A key's second report is refused, open or closed, so nothing
+  # is planned twice; a finished cause that fails again is reopened by ReopenWorkWhenGateFaultedAgain.
   policy "PlanWorkWhenRunFindingReported" do
     on      "Finding.RunFindingReported"
-    trigger Work::Plan, with: { work: :finding, title: "A Codebase run failed", detail: :body }
+    trigger Work::Plan, with: { work: :finding, title: "A Codebase check failed", detail: :body }
   end
 
   policy "LabelIssueWhenTriaged" do
@@ -1261,8 +1262,29 @@ Hecks.bluebook "Tickets" do
 
   policy "ReportWhenGateFaulted" do
     on      "GateRun.GateFaulted"
+    where   { cause.nil? || cause.value.to_s.empty? }
     root
     trigger Finding::ReportFailedRun, with: { finding: :run, body: :refusal }
+  end
+
+  # A gate red on named checks files one finding and work item per cause (`gate-quick-comment_style`):
+  # a later run failing the same checks is refused as already reported and plans nothing, and its
+  # refusal text is not kept; the work item holds the first run's.
+  policy "ReportWhenGateFaultedByCause" do
+    on      "GateRun.GateFaulted"
+    where   { !cause.nil? && !cause.value.to_s.empty? }
+    root
+    trigger Finding::ReportFailedRun, with: { finding: :cause, body: :refusal }
+  end
+
+  # A cause whose work item was finished or dropped and failed again is planned again with the new
+  # run's refusal, as a landing refused again is (ReopenWorkWhenLandingRefused). A work item still
+  # undone refuses the reopen, and a cause with no work item yet refuses it by name.
+  policy "ReopenWorkWhenGateFaultedAgain" do
+    on      "GateRun.GateFaulted"
+    where   { !cause.nil? && !cause.value.to_s.empty? }
+    root
+    trigger Work::Reopen, with: { work: :cause, title: "A Codebase check failed", detail: :refusal }
   end
 
   # An integration run parked in needs_human (MainIntegration), or a shipment parked there
