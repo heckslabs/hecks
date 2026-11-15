@@ -5,9 +5,9 @@ require "time"
 module Hecks
   module Adapters
     module PipelineBoard
-      # The zone the board counts its days in: Arizona time, an offset of seven hours behind UTC that
-      # never changes for daylight saving. A day on the board begins at midnight there, not at
-      # midnight UTC (five in the afternoon in Arizona).
+      # The zone the board counts its days in: Arizona time, seven hours behind UTC all year, with
+      # no change for daylight saving. A day on the board begins at midnight there, not at midnight
+      # UTC (five in the afternoon in Arizona).
       module Zone
         # Arizona's offset from UTC, all year.
         OFFSET = "-07:00"
