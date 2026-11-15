@@ -53,6 +53,19 @@ RSpec.describe "the Coder brief's standing sections" do
     expect(review).not_to include("Operation.follow", "wait=150", "at most four times")
   end
 
+  it "acts only on the verdict of the review it just requested, never an earlier one", :aggregate_failures do
+    clause = "never on an earlier run's verdict"
+    review = section(:review)
+    expect(review).to include("your request just named", clause)
+    expect(review.scan(clause).size).to eq(1)
+  end
+
+  it "writes the fresh-verdict rule in the review section only" do
+    brief = compose
+    others = %i[rules workflow landing restraints report].map { |name| brief[name][:value].to_s }
+    expect(others).to all(satisfy { |text| !text.include?("earlier run's verdict") })
+  end
+
   it "runs every review command through the main checkout's launcher", :aggregate_failures do
     review = section(:review)
     expect(review).to include("{main}/exe/hecks agents PlanReview.request!", "{main}/exe/hecks agents PlanReview.reviews")
