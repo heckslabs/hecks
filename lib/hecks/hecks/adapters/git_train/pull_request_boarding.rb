@@ -60,8 +60,12 @@ module Hecks
         end
 
         # Reads a queued boarding's PR. Open, it answers `open` and nothing else; merged, it answers
-        # `merged` with the merge commit as the pushed commit.
+        # `merged` with the merge commit as the pushed commit; closed unmerged, or with no PR at
+        # all, it answers `closed`, which the domain records as a settled boarding.
         class Observation
+          # What `gh pr view` says when no pull request has the branch as its head.
+          NOT_FOUND = "no pull requests found"
+
           # @param runner [#call] takes `(argv, chdir:)` and answers `[ok, output]` for `gh`
           # @param checkout [String] the repository's top level
           def initialize(runner, checkout)
@@ -77,15 +81,25 @@ module Hecks
           def answer(boarded)
             branch = PullRequestBoarding.branch_for(boarded)
             ok, output = @runner.call(["gh", "pr", "view", branch, "--json", "state,mergeCommit"], chdir: @checkout)
+            return closed("no pull request found for #{branch}") if !ok && output.to_s.include?(NOT_FOUND)
             raise ConsoleCapture::Failure, "could not read the PR for #{branch}: #{output.to_s.strip}" unless ok
 
-            pr = JSON.parse(output.to_s)
-            return open_answer(branch, pr) unless pr["state"] == "MERGED"
-
-            merged(branch, pr.dig("mergeCommit", "oid"))
+            judged(branch, JSON.parse(output.to_s))
           end
 
           private
+
+          def judged(branch, pull)
+            case pull["state"]
+            when "MERGED" then merged(branch, pull.dig("mergeCommit", "oid"))
+            when "CLOSED" then closed("#{branch} was closed unmerged")
+            else open_answer(branch, pull)
+            end
+          end
+
+          def closed(report)
+            { outcome: { value: "closed" }, state: "CLOSED", report: { value: report } }
+          end
 
           def open_answer(branch, view)
             state = view["state"].to_s
