@@ -80,13 +80,12 @@ Hecks.world "Tickets" do
   # `heavy_jobs` caps how many heavy jobs (a gate run, a run of several spec files) run at once on
   # the machine, in every checkout: the next one waits, saying so and in its report, until one ends
   # (`Codebase::HeavySlots`; the Rust build lock above already holds compiles to one at a time).
-  # Measured 2026-11-11 at load 14.5 on 12 cores, one gate's two comment checks and a full RuboCop
-  # pass peaked near 4 cores and a spec run at 1, while five coders at once had raised the load to
-  # 19; three jobs keep the pipeline near the `dispatch_max_load` of 10.0 with the desktop's share.
+  # Measured 2026-11-15: three gates beside four coders and the desktop held the load at 14 to 20
+  # on 12 cores against the `dispatch_max_load` of 10.0; two keep it near that limit.
   # Before it takes a place, a heavy job waits while memory is low by the `machine_marks` above
   # (swap or compressor over its mark while free memory is short, until it is not), reading the machine
   # every `memory_poll_seconds` (`Codebase::MemoryWait`); seen 2026-11-13 at 33 of 36 GB used.
-  heavy_jobs "HeavyJobs", cap: 3, memory_poll_seconds: 10.0, memory_give_up_seconds: 120.0
+  heavy_jobs "HeavyJobs", cap: 2, memory_poll_seconds: 10.0, memory_give_up_seconds: 120.0
   # `spec_workers` is the most workers one parallel spec run starts (a bare `rspec`, the gate's
   # parallel suite), never more than the cores: seen 2026-11-13, one run of 12 workers on 12 cores
   # left the desktop nothing, so 6 holds one run to half the machine (`Codebase::SpecWorkers`).
