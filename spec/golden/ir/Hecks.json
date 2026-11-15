@@ -534,6 +534,24 @@
               ],
               [
                 "aggregate",
+                "MergeWindow"
+              ],
+              [
+                "checkout",
+                "both"
+              ],
+              [
+                "reason",
+                "a window is opened by one call and closed, and read by the fill and the board, by later ones"
+              ]
+            ],
+            [
+              [
+                "domain",
+                "Hecks"
+              ],
+              [
+                "aggregate",
                 "ReapTurn"
               ],
               [

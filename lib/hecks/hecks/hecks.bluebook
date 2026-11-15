@@ -57,6 +57,8 @@ Hecks.bluebook "Hecks" do
                reason: "a reading judges the state it left against the one the last reading left, in a process of its own"
         member domain: "Hecks", aggregate: "CiRunRecord", checkout: "both",
                reason: "a CI run is recorded by one beat and read by the board and by every later look"
+        member domain: "Hecks", aggregate: "MergeWindow", checkout: "both",
+               reason: "a window is opened by one call and closed, and read by the fill and the board, by later ones"
         member domain: "Hecks", aggregate: "ReapTurn", checkout: "both",
                reason: "a beat, a landing and a session's end ask for the one turn to reap from processes of their own"
         member domain: "Hecks", aggregate: "TrainPr", checkout: "both",
