@@ -60,6 +60,11 @@ RSpec.describe Hecks::Adapters::PipelineBoard::LoadGuard do
     expect(children_started(&refused)).to be_empty
   end
 
+  it "still asks GitHub while the machine is loaded, since gh costs it next to nothing" do
+    stand(39.0)
+    expect { probe.hold("gh") }.not_to raise_error
+  end
+
   it "runs a reader's program when the machine is not loaded" do
     stand(2.0)
     expect(probe.run("echo", "ran").strip).to eq("ran")
