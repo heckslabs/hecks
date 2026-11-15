@@ -10,7 +10,13 @@ RSpec.describe Hecks::Adapters::PipelineBoard::LoadCauses do
   let(:rows) do
     Array.new(8) { |i| { "name" => "p#{i}", "count" => i + 1, "cpu" => 100.0 - i, "session" => "", "extra" => 1 } }
   end
-  let(:causes) { described_class.new(rows: -> { rows }, now: -> { Time.utc(2026, 11, 14, 12) }) }
+  let(:audit) { instance_double(Hecks::Adapters::PipelineBoard::ChildAudit, read: []) }
+  let(:causes) { described_class.new(rows: -> { rows }, now: -> { Time.utc(2026, 11, 14, 12) }, audit: audit) }
+
+  it "audits the board's children once a read" do
+    causes.read
+    expect(audit).to have_received(:read).once
+  end
 
   it "has nothing to show before its first read" do
     expect(causes.reading).to eq({ at: nil, classes: [] })

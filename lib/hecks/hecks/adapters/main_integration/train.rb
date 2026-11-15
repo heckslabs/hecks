@@ -3,6 +3,7 @@
 require "json"
 require_relative "../console_capture"
 require_relative "local_overlay"
+require_relative "local_world"
 
 module Hecks
   module Adapters
@@ -54,12 +55,17 @@ module Hecks
         # Writes the copy's machine-local overlay from the kept rows the `train` copy needs, so what
         # the train keeps between its processes is declared once and never lags the bluebook.
         #
+        # Given the owner's checkout, the copy's local world is also kept as a link to the owner's
+        # (see {LocalWorld}), so a session started in the copy reads the owner's stores.
+        #
         # @param rows [Array<Hash>] the kept rows, as {KeptRows.from_registry} reads them
-        # @return [String] what was done to the overlay
+        # @param checkout [String, nil] the owner's checkout whose world the copy reads
+        # @return [String] what was done to the overlay and the world
         # @raise [ConsoleCapture::Failure] when no row was read, naming why the overlay was kept
-        def write_overlay(rows)
+        def write_overlay(rows, checkout: nil)
           written = LocalOverlay.new(@root, rows, "train").write
-          written ? "wrote the train's overlay #{LocalOverlay::PATH}" : "train overlay current"
+          said = written ? "wrote the train's overlay #{LocalOverlay::PATH}" : "train overlay current"
+          checkout ? "#{said}; #{LocalWorld.new(@root, checkout).sync}" : said
         rescue LocalOverlay::Empty => e
           raise ConsoleCapture::Failure, e.message
         end
