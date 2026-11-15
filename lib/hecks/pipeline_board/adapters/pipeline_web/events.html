@@ -275,6 +275,11 @@ function learn(g) {
   const label = new Map(g.nodes.map((n) => [n.id, n.label + (n.kind === "port" ? " (a port)" : "")]));
   reaches = new Map(g.edges.filter((e) => e.kind !== "adapter").map((e) => [e.label, label.get(e.to) || ""]));
 }
+/* At /trains/<id> the page opens with its search set to that boarding's id, so only the events that name it show. */
+function openOnBoarding() {
+  const m = /^\/trains\/([^/]+)$/.exec(location.pathname);
+  if (m) find(decodeURIComponent(m[1]));
+}
 $("q").addEventListener("input", () => { filter.q = $("q").value.trim().toLowerCase(); draw(); });
 $("by").addEventListener("click", () => { grouped = !grouped; $("by").setAttribute("aria-pressed", String(grouped)); draw(); });
 $("hold").addEventListener("click", () => { held = !held; $("hold").setAttribute("aria-pressed", String(held)); $("hold").textContent = held ? "Held still: resume" : "Hold still"; if (!held) draw(); });
@@ -283,7 +288,7 @@ Promise.all([fetch("/api/journal", { cache: "no-store" }).then((r) => r.json()),
   .then(([j, g]) => {
     learn(g);
     if (!Array.isArray(j.events)) { $("headline").textContent = "The event log could not be read: " + ((j.events && j.events.unknown) || "no answer"); $("list").replaceChildren(); return; }
-    take(j.events, false); draw();
+    take(j.events, false); openOnBoarding(); draw();
   }).catch((e) => { $("headline").textContent = "The event log could not be read: " + e.message; $("list").replaceChildren(); })
   .finally(() => {
     if (!window.boardStream) return;
