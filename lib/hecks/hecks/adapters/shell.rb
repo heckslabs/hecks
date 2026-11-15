@@ -33,7 +33,13 @@ module Hecks
       # @param root [String, nil] unused
       def initialize(aggregate: nil, settings: {}, root: nil); end
 
-      # Runs a program and waits for it.
+      # Seconds a stopped program, then each reader, gets to finish before the next step.
+      GRACE_SECONDS = 2
+
+      # Runs a program and waits for it. A caller that is killed or interrupted while it waits
+      # stops the program (`TERM`, then `KILL`) and lets the readers drain before the pipes
+      # close, so no reader thread dies on a stream closed under it; a program that ends by
+      # itself is never signalled.
       #
       # @param command [Array<String>] the program, then its arguments
       # @param env [Hash{String => String, nil}] variables to set for it; nil unsets one
@@ -42,10 +48,42 @@ module Hecks
       #   status 127 and its reason in `err`, not a raise
       def capture(*command, env: {}, chdir: nil)
         options = chdir ? { chdir: chdir } : {}
-        out, err, status = Open3.capture3(env, *command, **options)
-        Result.new(out, err, status)
+        Thread.handle_interrupt(Object => :never) do
+          Open3.popen3(env, *command, **options) { |stdin, out, err, waiter| run(stdin, out, err, waiter) }
+        end
       rescue Errno::ENOENT => e
         Result.new("", e.message, Struct.new(:success?, :exitstatus).new(false, 127))
+      end
+
+      private
+
+      # Interrupts are taken only while the program is read; the cleanup runs whatever ended it.
+      def run(stdin, out, err, waiter)
+        readers = nil
+        Thread.handle_interrupt(Object => :immediate) do
+          stdin.close
+          readers = [out, err].map { |io| Thread.new { io.read }.tap { |thread| thread.report_on_exception = false } }
+          Result.new(*readers.map(&:value), waiter.value)
+        end
+      ensure
+        settle(waiter, readers)
+      end
+
+      def settle(waiter, readers)
+        stop(waiter) if waiter.alive?
+        waiter.join
+        Array(readers).each { |thread| thread.join(GRACE_SECONDS) || thread.kill }
+      end
+
+      def stop(waiter)
+        signal("TERM", waiter.pid)
+        signal("KILL", waiter.pid) unless waiter.join(GRACE_SECONDS)
+      end
+
+      def signal(name, pid)
+        Process.kill(name, pid)
+      rescue Errno::ESRCH, Errno::EPERM
+        nil
       end
     end
   end
