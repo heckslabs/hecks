@@ -48,8 +48,10 @@ RSpec.describe Hecks::Adapters::MainIntegration::BeatSchedule do
     Process.wait(holder)
   end
 
-  # The job is a launchd job that zsh runs, so CI's zsh job runs this one (the shards leave it out).
-  it "ends a tick at once while the previous beat still holds the lock", :zsh_completion do
+  # The job is a launchd job that zsh runs, so it is run only where zsh is.
+  NO_ZSH = ("this machine has no /bin/zsh" unless File.executable?("/bin/zsh"))
+
+  it "ends a tick at once while the previous beat still holds the lock", skip: NO_ZSH do
     holder, release = hold_the_lock
     tick("second")
     release_and_wait(holder, release)
