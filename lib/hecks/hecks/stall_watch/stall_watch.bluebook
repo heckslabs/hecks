@@ -122,7 +122,7 @@ Hecks.bluebook "Hecks" do
                closes: "BranchLanded,LandingRefused", minutes: 10, forgets: 1440, fixer: "orchestrator",
                move: "Read .git/hecks-landings/<branch>.log and look for a gate process (ps) of that branch's worktree: " \
                      "a gate still running or output still growing is only slow, so leave it. With neither, the job has " \
-                     "stopped: Landing.submit! the branch again and report the log's last line as the cause."
+                     "stopped: Work.release! its item so the fill hands the branch to a coder to submit again, and report the log's last line as the cause."
       end
 
       # One opening line still waiting for its closing line, as the tap shows it and its kind's row
