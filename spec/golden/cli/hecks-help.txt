@@ -94,6 +94,10 @@ commands:
     One filling of the Work queue: the planned Work items that start a session now, and why each other waits.
     fill!                         Choose the planned Work items that start a session now and, with confirm, start them; without it, say what would start
     settle!                       Check the started sessions and finish the Work item of each that is done, or yield the Work item of one that stopped
+  MergeWindow:
+    One merge window: opened to let a train merge without competing work, closed when it has merged or by hand.
+    open!                         Open a merge window: pause the fill and quiet the pipeline until the window closes
+    close!                        Close the merge window so the fill runs again
   PlainSession:
     A Claude session started outside a dispatched run, which the operator may remove once it is finished.
     remove!                       Remove a finished session that waits on nobody
@@ -295,6 +299,9 @@ queries (nothing here changes anything):
     One check or fix of comment style, or one document written with its keys in order.
     report_comments         The Ruby comment violations, as summary tables, a list or JSON.
     report_rust_comments    The Rust comment violations, as summary tables, a list or JSON.
+  CiLook:
+    One look at the CI runs GitHub lists for main and for the train's pull requests, for what is not recorded yet: a run seen for the first time, and a run seen completed after it was seen going.
+    unrecorded              The CI runs GitHub lists for main and for the train's pull requests in a state no record holds yet: an attempt seen going for the first time, or seen completed, with its jobs.
   Dispatch:
     One filling of the Work queue: the planned Work items that start a session now, and why each other waits.
     preview                 What a filling would start now and why each other waits, read without filling: the same report as `Fill`, with no record and no start.

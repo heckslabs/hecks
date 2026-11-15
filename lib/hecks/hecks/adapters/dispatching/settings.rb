@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "etc"
+require_relative "window_standing"
 require_relative "../work_limits"
 require_relative "../boot_budget"
 require_relative "../shell"
@@ -164,8 +165,9 @@ module Hecks
         # @return [Integer] the most runs that may stand asked to yield and not yet ended
         def shed_at_once = Integer(declared(SHED)[:at_once] || SHED_AT_ONCE)
 
-        # @return [Boolean] whether planned work rolls forward by itself; false only when paused
-        def roll_forward? = declared(ROLL)[:roll_forward] != false
+        # @return [Boolean] whether planned work rolls forward by itself; false when the owner has
+        #   paused it or a merge window is open
+        def roll_forward? = declared(ROLL)[:roll_forward] != false && !WindowStanding.open?(@registry)
 
         # @return [Integer] the cap on started work items
         def cap = @cap || WorkLimits.cap(@registry)

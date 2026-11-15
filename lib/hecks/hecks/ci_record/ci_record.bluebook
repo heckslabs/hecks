@@ -1,0 +1,147 @@
+Hecks.bluebook "Hecks" do
+  domain_module "CiRecord" do
+    vision "What CI did is kept as a record of each run, so it is read from the domain and never asked of GitHub by a page."
+
+    # One look at GitHub's CI runs, asked by the clock's beat. The `Seeing` port answers what no record
+    # holds yet, and a policy offers each to the record.
+    aggregate "CiLook" do
+      description "One look at the CI runs GitHub lists for main and for the train's pull requests, for what is not recorded yet: a run seen for the first time, and a run seen completed after it was seen going. The port asks GitHub at most once in two minutes, so most looks find nothing."
+      created_by "CiLook.look!"
+
+      attribute :run, RunKey
+      identified_by :run
+
+      value_object "RunKey" do
+        attribute :value, String, matches: :present
+      end
+
+      # One CI run as GitHub lists it now: the facts a record takes. `id` is the look that saw it,
+      # `sighting` the record's key, `jobs` the run's failed and slowest jobs as JSON.
+      value_object "Sighting" do
+        attribute :id,           String
+        attribute :sighting,     String
+        attribute :ci_run,       String
+        attribute :lane,         String
+        attribute :commit,       String
+        attribute :branch,       String
+        attribute :state,        String
+        attribute :conclusion,   String
+        attribute :attempt,      Integer
+        attribute :pushed_at,    String
+        attribute :started_at,   String
+        attribute :updated_at,   String
+        attribute :wall_minutes, Float
+        attribute :failed_jobs,  Integer
+        attribute :jobs,         String
+        attribute :url,          String
+      end
+
+      command "Look" do
+        role "System"
+        goal "Look at GitHub's CI runs for what is not recorded yet"
+
+        attribute :run, RunKey, sets: true
+
+        emits CiLookRequested
+      end
+
+      query "Unrecorded" do
+        description "The CI runs GitHub lists for main and for the train's pull requests in a state no record holds yet: an attempt seen going for the first time, or seen completed, with its jobs."
+        attribute :run, String
+        returns list_of(Sighting)
+      end
+    end
+
+    # One CI run as it was seen once, kept and never changed: an attempt of a run is recorded when it is
+    # first seen going and again when it is seen completed, and the newest record of a run says where it is.
+    aggregate "CiRunRecord" do
+      description "One CI run of one commit as GitHub reported it at one look: the lane it ran for (main or the train), the attempt, whether it was still going or how it ended, when it started and how long it took, how many jobs failed, and its failed and slowest jobs."
+      created_by "CiRunRecord.note!"
+
+      attribute :sighting,     SightingKey
+      attribute :ci_run,       RunId
+      attribute :lane,         Lane
+      attribute :commit,       Word
+      attribute :branch,       Word
+      attribute :state,        Word
+      attribute :conclusion,   Text, optional: true
+      attribute :attempt,      Tries
+      attribute :pushed_at,    Text, optional: true
+      attribute :started_at,   Text, optional: true
+      attribute :updated_at,   Text, optional: true
+      attribute :wall_minutes, Minutes
+      attribute :failed_jobs,  Tries
+      attribute :jobs,         Text, optional: true
+      attribute :url,          Text, optional: true
+      reference_to CiLook, as: :look
+      identified_by :sighting
+
+      # GitHub's run id, the attempt, and whether the run was going or done when it was seen.
+      value_object "SightingKey" do
+        attribute :value, String, pattern: '\A[0-9]+-[0-9]+-(going|done)\z'
+      end
+
+      # GitHub's id of the run.
+      value_object "RunId" do
+        attribute :value, String, pattern: '\A[0-9]+\z'
+      end
+
+      # Which line of work the run was for: a push of main, or a pull request of the push train.
+      value_object "Lane" do
+        attribute :value, String, one_of: %w[main train]
+      end
+
+      value_object "Word" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Text", String
+
+      value_object "Tries", Integer
+
+      value_object "Minutes", Float
+
+      command "Note" do
+        role "System"
+        goal "Record a CI run as a look saw it: going, or completed with its jobs"
+
+        reference_to CiLook, as: :look
+        attribute :sighting,     SightingKey, sets: true
+        attribute :ci_run,       RunId, sets: true
+        attribute :lane,         Lane, sets: true
+        attribute :commit,       Word, sets: true
+        attribute :branch,       Word, sets: true
+        attribute :state,        Word, sets: true
+        attribute :conclusion,   Text, optional: true, sets: true
+        attribute :attempt,      Tries, sets: true
+        attribute :pushed_at,    Text, optional: true, sets: true
+        attribute :started_at,   Text, optional: true, sets: true
+        attribute :updated_at,   Text, optional: true, sets: true
+        attribute :wall_minutes, Minutes, sets: true
+        attribute :failed_jobs,  Tries, sets: true
+        attribute :jobs,         Text, optional: true, sets: true
+        attribute :url,          Text, optional: true, sets: true
+
+        sets :look
+
+        emits CiRunNoted
+      end
+    end
+
+    # Each beat of the clock looks once, keyed by the beat. A root, so the look starts its own chain.
+    policy "LookAtCiOnHeartbeat" do
+      on      "Heartbeat.Beaten"
+      root
+      trigger CiLook::Look, with: { run: :beat }
+    end
+
+    policy "NoteEveryCiRunNotRecorded" do
+      on       "CiLook.CiLookRequested"
+      for_each "CiLook.Unrecorded"
+      trigger  CiRunRecord::Note, with: { look: :id, sighting: :sighting, ci_run: :ci_run, lane: :lane, commit: :commit,
+                                         branch: :branch, state: :state, conclusion: :conclusion, attempt: :attempt,
+                                         pushed_at: :pushed_at, started_at: :started_at, updated_at: :updated_at,
+                                         wall_minutes: :wall_minutes, failed_jobs: :failed_jobs, jobs: :jobs, url: :url }
+    end
+  end
+end

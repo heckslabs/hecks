@@ -39,7 +39,9 @@ module Hecks
           landed_times: %i[journal landed_times plain], promotions: %i[journal promotions plain], disk: %i[disk free plain],
           boots: %i[boots today plain], open_prs: %i[github open_prs plain],
           cycle_events: %i[journal cycle_events plain], health_events: %i[journal health_events plain],
-          open_findings: %i[tickets open_findings plain], integration: %i[integration reading plain]
+          open_findings: %i[tickets open_findings plain], integration: %i[integration reading plain],
+          window_opened: [:journal, :named, :plain, "WindowOpened", 3],
+          window_closed: [:journal, :named, :plain, "WindowClosed", 3]
         }.freeze
 
         private
