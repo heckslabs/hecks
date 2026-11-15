@@ -23,6 +23,9 @@ module Hecks
       # How many of the newest successful runs are tried for timing artifacts before giving up.
       RECENT_RUNS = 10
 
+      # What `gh run download` says when a run kept no artifact matching the pattern.
+      NO_ARTIFACT = "no artifact matches"
+
       # @param aggregate [Object, nil] unused
       def initialize(aggregate: nil); end
 
@@ -65,10 +68,16 @@ module Hecks
         raise Unavailable, "could not download #{pattern} of the last #{RECENT_RUNS} runs: #{last_error}"
       end
 
-      # @return [String, nil] why the download failed, or nil when it worked
+      # A run that kept no matching artifact is skipped; any other `gh` failure (auth, rate limit,
+      # network) refuses at once with its own reason.
+      #
+      # @return [String, nil] why this run has no logs, or nil when the download worked
       def download_into(run, pattern, dir)
         _, err, status = Open3.capture3("gh", "run", "download", run, "--pattern", pattern, "--dir", dir)
-        status.success? ? nil : "run #{run}: #{err.strip}"
+        return nil if status.success?
+        raise Unavailable, "could not download #{pattern} of run #{run}: #{err.strip}" unless err.include?(NO_ARTIFACT)
+
+        "run #{run}: #{err.strip}"
       end
 
       # @return [Array<String>] the ids of the newest successful runs of the CI workflow, any branch

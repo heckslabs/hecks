@@ -410,8 +410,9 @@ runs cold. Before adding a spec or a step, check where it runs:
 - **The rspec and Postgres io shards are balanced per run, not from a committed baseline.** A
   `shard_plan` job (`postgres_io_shard_plan` in the Postgres workflow) runs the CiSpeed bluebook's
   `ShardPlan.Request` through `Operation.run!`: it reads the per-file timings the shard legs uploaded
-  as artifacts on the newest recent successful `ci.yml` run that kept them (a push of an attested tree
-  skips the shards and keeps none, so that is usually the pull-request run that tested the tree), splits the files once with the shared
+  as artifacts on the newest recent successful `ci.yml` run that kept them (any branch: a push of an attested tree
+  skips the shards and keeps none, so that is usually the pull-request run that tested the tree; a file the
+  run never timed is priced at the median), splits the files once with the shared
   `Hecks::Tools::ShardPlanner` (longest processing time first) and publishes the plan; every leg
   reads that plan. When no timing can be read (no previous run, expired artifacts, an API error)
   the `PlanBySizeWhenTimingsUnavailable` policy plans by file size and the run does not fail. The

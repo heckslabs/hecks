@@ -19,7 +19,7 @@ Hecks.hecksagon "CiSpeed" do
     end
   end
 
-  # Finds the timings the newest successful main run recorded for a family's files. The adapter
+  # Finds the timings the newest recent CI run that kept them recorded for a family's files. The adapter
   # reads a directory of logs or downloads them through `gh`, and refuses when it finds none; the
   # bluebook never says which.
   CiSpeed::ShardPlan.port "TimingsSource" do

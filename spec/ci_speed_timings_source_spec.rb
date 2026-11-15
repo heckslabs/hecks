@@ -22,7 +22,7 @@ RSpec.describe Hecks::Adapters::TimingsSource do
 
       files = logs[argv[3].to_i]
       write_logs(argv[argv.index("--dir") + 1], files) if files
-      ["", "boom", files ? ok : failed]
+      ["", files ? "" : "no artifact matches any of the names or patterns provided", files ? ok : failed]
     end
   end
 
@@ -50,6 +50,14 @@ RSpec.describe Hecks::Adapters::TimingsSource do
     answer_gh(runs: [{ databaseId: 7 }, { databaseId: 9 }])
 
     expect { fetch }.to raise_error(described_class::Unavailable, /could not download rspec-runtime-group-\*/)
+  end
+
+  it "refuses at once on a gh failure that is not a missing artifact" do
+    allow(Open3).to receive(:capture3) do |*argv|
+      argv[2] == "list" ? [[{ databaseId: 7 }].to_json, "", ok] : ["", "HTTP 403", failed]
+    end
+
+    expect { fetch }.to raise_error(described_class::Unavailable, /run 7: HTTP 403/)
   end
 
   it "refuses when the logs hold no timing" do
