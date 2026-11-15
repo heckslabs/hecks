@@ -19,9 +19,9 @@ RSpec.describe Hecks::Adapters::MainIntegration::BeatSchedule do
     expect(plist).not_to include("gh ", "Ticker")
   end
 
-  # Two real shells proved these lines by hand (a second tick ends at once, a killed holder frees the
-  # lock); CI has no zsh to run them again, so this holds their place and order: the lock is taken
-  # before the beat runs.
+  # Two real shells proved these lines by hand (a second tick ends at once, a killed holder frees
+  # the lock); CI has no zsh to run them again, so this holds their place and order: the lock is
+  # taken before the beat runs.
   it "takes the beat's lock before it runs the beat", :aggregate_failures do
     lines = CGI.unescapeHTML(schedule.plist[%r{<string>(cd .*?)</string>}m, 1]).lines.map(&:strip)
 
