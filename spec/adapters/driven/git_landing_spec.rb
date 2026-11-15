@@ -44,11 +44,12 @@ RSpec.describe "the Checkout and Landing adapters", :io do
 
   after { FileUtils.remove_entry(scratch) }
 
-  it "fast-forwards main onto a branch that is ahead", :aggregate_failures do
+  it "lands a branch that is ahead as one merge commit of the branch's own tree", :aggregate_failures do
     commit("second", dir: feature_tree)
 
-    expect(land).to include(outcome: { value: "fast_forwarded" })
-    expect(git("rev-parse", "main")).to eq(git("rev-parse", "feat/x", dir: feature_tree))
+    expect(land).to include(outcome: { value: "merged" })
+    expect(git("rev-parse", "main^{tree}")).to eq(git("rev-parse", "feat/x^{tree}", dir: feature_tree))
+    expect(git("rev-list", "--parents", "-n", "1", "main").split.size).to eq(3)
   end
 
   it "merges when main moved, keeping both lines", :aggregate_failures do
@@ -72,8 +73,8 @@ RSpec.describe "the Checkout and Landing adapters", :io do
     commit("second", dir: feature_tree)
     git("checkout", "-q", "--detach")
 
-    expect(land).to include(outcome: { value: "fast_forwarded" })
-    expect(git("rev-parse", "main")).to eq(git("rev-parse", "feat/x", dir: feature_tree))
+    expect(land).to include(outcome: { value: "merged" })
+    expect(git("rev-parse", "main^{tree}")).to eq(git("rev-parse", "feat/x^{tree}", dir: feature_tree))
   end
 
   it "refuses to land a worktree that holds uncommitted work" do

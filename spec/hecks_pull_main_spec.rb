@@ -171,7 +171,7 @@ RSpec.describe "pulling main first" do
       stale_branch
       adder.pull(checkout: repo)
       git("rebase", "main", chdir: File.join(dir, "stale"))
-      expect(lander.merge(checkout: repo, branch: "work/stale")[:outcome][:value]).to eq("fast_forwarded")
+      expect(lander.merge(checkout: repo, branch: "work/stale")[:outcome][:value]).to eq("merged")
     end
 
     it "pulls main first when it finishes", :aggregate_failures do
