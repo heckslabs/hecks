@@ -27,6 +27,8 @@ Hecks.bluebook "Hecks" do
       attribute :checkout,  Switch, optional: true
       attribute :report,    Report, optional: true
       attribute :refusal,   Report, optional: true
+      # What a red gate failed on, `gate-<stage>-<check>-<check>`: the adapter's refusal names it.
+      attribute :cause,     Report, optional: true
       attribute :expected,  CheckCount, optional: true
       attribute :recorded,  CheckCount, optional: true
       identified_by :run
@@ -113,7 +115,7 @@ Hecks.bluebook "Hecks" do
 
         reference_to GateRun
         attribute :refusal, Report, sets: true
-
+        attribute :cause,   Report, optional: true, sets: true
 
         emits GateFaulted
       end
@@ -160,7 +162,7 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordGateFault" do
       on      "GateRun.GateRefused"
-      trigger GateRun::Fault, with: { refusal: :refusal }
+      trigger GateRun::Fault, with: { refusal: :refusal, cause: :kind }
     end
 
     # A journaled command whose work happens outside the runtime (ADR 0080, section 11). Every
