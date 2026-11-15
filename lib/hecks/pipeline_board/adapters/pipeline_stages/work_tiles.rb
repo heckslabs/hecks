@@ -46,7 +46,7 @@ module Hecks
         def seats(sessions, fill)
           live = sessions.select { |session| %w[busy blocked].include?(session[:status]) }
           held = live.count { |session| !session[:work_item].to_s.empty? && !NOT_SEATED.include?(session[:kind]) }
-          [fill[:started] || held, live.count { |session| OwnerQueue.waiting?(session) }]
+          [fill[:started] || held, OwnerQueue.waiting(live).size]
         end
 
         # Attention when the cap is reached or anyone is waiting on a person.

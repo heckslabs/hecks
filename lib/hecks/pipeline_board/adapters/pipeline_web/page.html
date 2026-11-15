@@ -264,8 +264,8 @@ function badge(state) {
   return h("span", { class: "badge " + state }, icon, " ", WORD[state] || state);
 }
 /* A blocked session is waiting on a person: amber, not green. */
-/* Only a session that asks the owner is waiting on you; any other blocked session shows what it is held on. */
-function waitingOnYou(s) { return s.status === "blocked" && s.owner === true; }
+/* The server decides who is waiting on you (`waiting_on_you`); a row only asks if it is in that set. */
+function waitingOnYou(s) { return !!(lastState && lastState.waiting_on_you && (lastState.waiting_on_you.ids || []).includes(s.id)); }
 function sessionBadge(s) {
   if (waitingOnYou(s)) return h("span", { class: "badge attention" }, ICON.attention, " blocked");
   if (s.status === "blocked") return h("span", { class: "badge" }, " " + (s.held || "held"));
@@ -442,7 +442,7 @@ const ROLE_CODES = { planner: "PL", orchestrator: "OR", architect: "AR", coder: 
 function renderRoles(roles, pruning) {
   if (!Array.isArray(roles)) return put("roles", unknown(isUnknown(roles) ? roles : { unknown: "the first read is still running" }));
   put("roles", roles.map((r) => {
-    const blocked = (r.working || []).filter(waitingOnYou).length;
+    const blocked = r.waiting || 0;
     const state = blocked ? " blocked" : r.live > 0 ? " busy" : "";
     const paused = r.name === "pruner" && pruning && pruning.state === "paused";
     const note = (blocked ? blocked + " waiting on you" : r.live > 0 ? r.live + " working" : "idle") + (paused ? " · paused" : "");
@@ -686,7 +686,8 @@ function renderSessions(all) {
   if (highlight && highlight.kind === "runs" && !highlight.placed) aimSessions(all);
   const list = all.filter(SESSION_FILTERS[sessionFilter] || SESSION_FILTERS.all);
   setTitle("h-sess", "Sessions", list.length);
-  const by = (status) => all.filter((s) => (status === "blocked" ? waitingOnYou(s) : s.status === status)).length;
+  const waiting = (lastState && lastState.waiting_on_you && lastState.waiting_on_you.count) || 0;
+  const by = (status) => (status === "blocked" ? waiting : all.filter((s) => s.status === status).length);
   summarize("sess", [by("busy") && [by("busy") + " working", "working"], by("blocked") && [by("blocked") + " waiting on you", "attention"],
     by("failed") && [by("failed") + " failed", "failed"], by("done") + " done", all.filter(deletable).length + " deletable"]);
   const at = pageOf("sessions", list.length, SESSION_PAGE);

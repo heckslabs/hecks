@@ -470,6 +470,17 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  # The place of the one beat that may run: a kernel lock held for the life of the beat's process
+  # (a one-shot launcher dispatch) and freed when it ends, killed or not. Refused while another
+  # process holds it, naming the holder's pid and age.
+  Hecks::Heartbeat.port "Beating" do
+    asks "Take", to: Heartbeat do
+      attribute :beat, BeatKey
+      answers "BeatTaken"
+      refuses "BeatUntaken"
+    end
+  end
+
   # The outside a queued train pull request reaches to have the clock beaten for it: it starts one
   # detached chain of ticks that sleeps the Tickets world's `ticks` period (`seconds`) and dispatches
   # `Ticker.Tick` each time, and answers how many beats the world's `minutes` allow. It is refused
@@ -512,6 +523,17 @@ Hecks.hecksagon "Hecks" do
       attribute :run, CareKey
       answers "LedgerCareDue"
       refuses "LedgerCareDeferred"
+    end
+  end
+
+  # The outside a beat reaches to purge the AgentRun file's delivered outbox rows settled before
+  # `outbox_hours`, in batches under the file's write lock; with none to purge, or the file held
+  # or not in SQLite, it is deferred by name.
+  Hecks::OutboxCare.port "Purging" do
+    asks "Purge", to: OutboxCare do
+      attribute :run, CareKey
+      answers "OutboxPurged"
+      refuses "OutboxHeld"
     end
   end
 
