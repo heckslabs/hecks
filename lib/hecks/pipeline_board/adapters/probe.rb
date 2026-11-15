@@ -50,7 +50,7 @@ module Hecks
         # @param program [String] the program a reader is about to run
         # @return [void]
         # @raise [Unavailable] while the board's load guard says the machine is loaded, unless the
-        #   program is one of {LIGHT}
+        #   program is one a loaded machine still runs
         def self.hold(program)
           return if LIGHT.include?(File.basename(program.to_s))
 
