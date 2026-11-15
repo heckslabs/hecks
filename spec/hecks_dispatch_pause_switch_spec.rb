@@ -3,7 +3,8 @@ require_relative "support/dispatch_pause_fixtures"
 
 # The owner's pause: while the Tickets world's `dispatch_roll_forward` says `roll_forward: false`,
 # or a merge window is open, the roll and the clock's beat start nothing, and a filling held to a
-# named work item with `only` still starts it. Every record here is a stand-in; no live store is read.
+# named work item with `only` still starts it. Every record here is a stand-in; no live store
+# is read.
 RSpec.describe "the pause on automatic dispatch" do
   include DispatchPauseFixtures
 
