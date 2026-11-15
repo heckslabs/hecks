@@ -42,10 +42,18 @@ module Hecks
         rescue Child::Overdue then raise Unavailable, "#{command.first} did not answer in #{seconds}s"
         end
 
+        # The programs a loaded machine still runs: `gh` asks GitHub over the network and costs the
+        # machine next to nothing, and without it the board can say nothing of CI, the open pull
+        # requests or the release for as long as the load stays up.
+        LIGHT = %w[gh].freeze
+
         # @param program [String] the program a reader is about to run
         # @return [void]
-        # @raise [Unavailable] while the board's load guard says the machine is loaded
+        # @raise [Unavailable] while the board's load guard says the machine is loaded, unless the
+        #   program is one a loaded machine still runs
         def self.hold(program)
+          return if LIGHT.include?(File.basename(program.to_s))
+
           raise Unavailable, LoadGuard.shared.refusal(program) if LoadGuard.loaded?
         end
 

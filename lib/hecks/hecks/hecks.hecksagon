@@ -211,6 +211,12 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  # Read-only towards GitHub: lists the CI runs of main and of the train's pull requests through
+  # `gh`, and answers each in a state no record holds yet. A policy records them.
+  Hecks::CiLook.port "Seeing" do
+    answers_query "Unrecorded"
+  end
+
   # Read-only: the event tap's opening lines still waiting for their closing lines, priced by the
   # clock. The adapter reads the log as the `Feed` query does and boots no domain.
   Hecks::StallWatch.port "Watching" do
@@ -451,6 +457,16 @@ Hecks.hecksagon "Hecks" do
       attribute :run, SwitchKey
       answers "RollSwitchRead"
       refuses "RollSwitchUnread"
+    end
+  end
+
+  # The outside a merge window reaches: the pipeline's sessions, its landings in flight and its started
+  # work. It stops and ends what the window is for and answers what it did as facts; it decides nothing.
+  Hecks::MergeWindow.port "Quieting" do
+    asks "Quiet", to: MergeWindow do
+      attribute :run, WindowKey
+      answers "WindowQuietReported"
+      refuses "WindowQuietRefused"
     end
   end
 

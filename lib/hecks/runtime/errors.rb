@@ -128,5 +128,27 @@ module Hecks
       message = error.message.to_s.strip
       "#{error.class}: #{message.empty? ? "raised with no message" : message}"
     end
+
+    # The kind an adapter gave its refusal: the word its error answers to `kind`, so a policy can
+    # tell a red gate from a conflict without reading the sentence.
+    #
+    # @param error [Exception] the error an adapter raised
+    # @return [String, nil] the kind, nil when the error names none
+    def self.refusal_kind(error)
+      return unless error.respond_to?(:kind)
+
+      kind = error.kind.to_s.strip
+      kind unless kind.empty?
+    end
+
+    # The fields a refusal event carries: the sentence, and the kind when the adapter named one.
+    #
+    # @param text [String] the refusal sentence
+    # @param kind [String, nil] the kind the adapter named
+    # @return [Hash] `refusal:` and, when there is a kind, `kind:`, each as a one-field value
+    def self.refusal_fields(text, kind)
+      fields = { refusal: { value: text } }
+      kind ? fields.merge(kind: { value: kind }) : fields
+    end
   end
 end
