@@ -48,6 +48,31 @@ RSpec.describe "the AgentRun ledger is compacted on a beat" do
   it "declares the line and the wait as a world row, 20000 entries and a few seconds" do
     world = File.read(File.expand_path("../lib/hecks/hecks/tickets.world", __dir__))
 
-    expect(world).to include('ledger_care "LedgerCare", entries: 20_000, wait_seconds: 3')
+    expect(world).to include('ledger_care "LedgerCare", entries: 20_000, wait_seconds: 3, outbox_hours: 24')
+  end
+
+  describe "the delivered outbox rows are purged on a beat" do
+    def purge_beat(hours:)
+      scratch_outbox(path, [["delivered", 30], ["pending", 30]])
+      registry = boot_hecks_in_memory(domain).registry
+      purging = purging_over(ledger_at(path), hours: hours)
+      lookup = ->(port, _asked) { port.to_s == "Purging" ? purging : nil }
+      Hecks::Runtime::AdapterLookup.standing_in(lookup) { beat(registry, false) }
+      registry.event_log.map(&:name)
+    end
+
+    it "records the purge and asks for the vacuum", :aggregate_failures do
+      names = purge_beat(hours: 24)
+
+      expect(names).to include("OutboxPurged", "OutboxCareHeard", "ReclaimRequested")
+      expect(outbox_counts(path)).to eq("pending" => 1)
+    end
+
+    it "only says why it waits when nothing is old enough", :aggregate_failures do
+      names = purge_beat(hours: 100)
+
+      expect(names).to include("OutboxHeld", "OutboxCareDeclined")
+      expect(names).not_to include("ReclaimRequested")
+    end
   end
 end

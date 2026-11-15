@@ -21,6 +21,9 @@ module Hecks
         # Seconds a lock is waited for, when the world names none.
         WAIT_SECONDS = 3
 
+        # Hours a delivered outbox row is kept, when the world names none.
+        OUTBOX_HOURS = 24
+
         module_function
 
         # @param registry [Runtime::Registry, nil] the booted registry
@@ -37,11 +40,11 @@ module Hecks
         end
 
         # @param registry [Runtime::Registry, nil]
-        # @param key [Symbol] `:entries` or `:wait_seconds`
+        # @param key [Symbol] `:entries`, `:wait_seconds` or `:outbox_hours`
         # @return [Numeric] the world's value, else its default
         def setting(registry, key)
           declared = registry&.world("Tickets")&.for_verb(VERB) || {}
-          declared[key] || { entries: ENTRIES, wait_seconds: WAIT_SECONDS }.fetch(key)
+          declared[key] || { entries: ENTRIES, wait_seconds: WAIT_SECONDS, outbox_hours: OUTBOX_HOURS }.fetch(key)
         end
 
         # @return [String, nil] the SQLite file the aggregate is bound to, nil when it is not SQLite
