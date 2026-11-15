@@ -34,16 +34,30 @@ module Hecks
           # @raise [Overdue] when it runs past its bound; it is stopped and reaped first
           # @raise [Errno::ENOENT] when the program is missing
           def call(input)
-            Open3.popen3(@environment, *@command, chdir: @chdir, pgroup: true) do |stdin, out, err, waiter|
-              readers = [out, err].map { |io| reader(io) }
-              feed(stdin, input)
-              collected(waiter, readers)
-            ensure
-              stop(waiter, readers)
+            Thread.handle_interrupt(Object => :never) do
+              Open3.popen3(@environment, *@command, chdir: @chdir, pgroup: true) do |stdin, out, err, waiter|
+                run(stdin, out, err, waiter, input)
+              end
             end
           end
 
           private
+
+          # Interrupts stay deferred from before the spawn until the cleanup below is armed, so a
+          # reader killed in between cannot leave its command running; they are taken only while the
+          # command is read, and the stop runs whatever ended the reading.
+          def run(stdin, out, err, waiter, input)
+            readers = nil
+            begin
+              Thread.handle_interrupt(Object => :immediate) do
+                readers = [out, err].map { |io| reader(io) }
+                feed(stdin, input)
+                collected(waiter, readers)
+              end
+            ensure
+              stop(waiter, readers)
+            end
+          end
 
           def collected(waiter, readers)
             raise Overdue unless waiter.join(@seconds)
