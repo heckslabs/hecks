@@ -11,9 +11,9 @@ require_relative "spec_workers"
 module Hecks
   module Adapters
     module Codebase
-      # The machine's places for heavy jobs: a spec batch or a gate run takes one before it starts
-      # and lets it go when it ends, so at most the Tickets world's `heavy_jobs` cap of them run at
-      # once and the rest wait their turn, first come, first served.
+      # The machine's places for heavy jobs: a spec batch, a gate run or a landing's shallow check
+      # takes one before it starts and lets it go when it ends, so at most the Tickets world's
+      # `heavy_jobs` cap of them run at once and the rest wait their turn, first come, first served.
       #
       # A place is a kernel `flock` on one of `cap` files under the cache directory, so a holder
       # that dies, even killed, frees its place at once and none is ever held for a dead process.
@@ -53,8 +53,18 @@ module Hecks
         # @yieldreturn [String] the job's report
         # @return [String] the report, after the line that names the wait when there was one
         def self.admitted(root, job, &)
-          report, note = new(cap: cap_of(root), memory: MemoryWait.of(root), workers: SpecWorkers.count(root)).hold(job, &)
+          report, note = held(root, job, &)
           note.empty? ? report : "#{note}\n#{report}"
+        end
+
+        # Runs a job of a checkout in a place, for a job whose answer is not a report.
+        #
+        # @param root [String] the hecks checkout whose world sets the cap
+        # @param job [String] the job's class
+        # @return [Array(Object, String)] what the block returned, and the wait to name: empty when
+        #   it took a place at once
+        def self.held(root, job, &)
+          new(cap: cap_of(root), memory: MemoryWait.of(root), workers: SpecWorkers.count(root)).hold(job, &)
         end
 
         # @param base [#[]] the environment

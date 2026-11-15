@@ -2,6 +2,7 @@
 
 require_relative "shell"
 require_relative "console_capture"
+require_relative "landing_claim"
 
 module Hecks
   module Adapters
@@ -10,7 +11,8 @@ module Hecks
     # only learns whether it passed and, when it did not, the end of what it printed (ADR 0205).
     #
     # It is also the one place the command line is written: a landing, a landing train and a
-    # verification of main each take it from here.
+    # verification of main each take it from here. A run holds the checkout's {LandingClaim}, so a
+    # second landing of a checkout whose gate is running is refused, naming the first.
     class CheckoutGate
       # The launcher, as a checkout holds it.
       LAUNCHER = "exe/hecks"
@@ -52,20 +54,23 @@ module Hecks
       # @param settings [Hash] unused
       # @param root [String, nil] unused
       # @param shell [#capture, nil] runs the command; a spec stands in
-      def initialize(aggregate: nil, settings: {}, root: nil, shell: nil)
+      # @param claim [LandingClaim, nil] the claim a run holds; one in the cache directory when nil
+      def initialize(aggregate: nil, settings: {}, root: nil, shell: nil, claim: nil)
         @shell = shell || Shell.new
+        @claim = claim || LandingClaim.new
       end
 
       # Judges the checkout a shipment names.
       #
       # @param held [Hash] the `Shipment` record: its `checkout`, the directory to judge
       # @return [Hash{Symbol => Hash}] `report:` saying the gate is green and where
-      # @raise [ConsoleCapture::Failure] when no checkout is named, or its gate is red
+      # @raise [ConsoleCapture::Failure] when no checkout is named, another landing holds its
+      #   claim, or its gate is red
       def judge(**held)
         directory = plain(held[:checkout]).to_s
         raise ConsoleCapture::Failure, "no checkout to judge: the shipment names none" if directory.empty?
 
-        verdict = verdict(directory)
+        verdict = @claim.hold(directory) { verdict(directory) }
         raise ConsoleCapture::Failure, "gate red: the gate failed in #{directory}: #{verdict.tail}" unless verdict.green?
 
         { report: { value: "gate green in #{directory}" } }
