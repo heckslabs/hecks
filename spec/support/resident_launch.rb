@@ -3,6 +3,7 @@ require "tmpdir"
 require "fileutils"
 require "hecks/adapters/driving/resident/paths"
 require_relative "thread_parking"
+require_relative "child_process_guard"
 
 # Runs this checkout's `exe/hecks` against a resident of its own, in cache directories that
 # belong to the example group, so a spec never reaches a developer's resident or their usage
@@ -63,19 +64,19 @@ module ResidentLaunch
   # Waits until a resident stands, and answers its process id.
   def wait_for_resident
     ThreadParking.wait_for(timeout: STARTUP) { resident_pid }
-    resident_pid
+    ChildProcessGuard.watch(resident_pid)
   end
 
   # Waits until a resident other than `old` stands, and answers its process id.
   def wait_for_new_resident(old)
     ThreadParking.wait_for(timeout: STARTUP) { resident_pid && resident_pid != old }
-    resident_pid
+    ChildProcessGuard.watch(resident_pid)
   end
 
-  # Stops the resident and clears its files, so the next launch finds none.
+  # Stops the resident and the lines it forked, and clears its files, so a launch finds none.
   def stop_resident
     pid = resident_pid
-    Process.kill("KILL", pid) if pid
+    ProcessTree.end_tree(pid) if pid
     ThreadParking.wait_for { resident_pid.nil? } if pid
     FileUtils.rm_f([PATHS.socket(ROOT), PATHS.pid(ROOT)])
   end
