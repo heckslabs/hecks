@@ -64,6 +64,11 @@ RSpec.describe "CiSpeed::ShardPlan" do
       expect(shown(:shards)).to eq(2)
     end
 
+    it "reports a longest leg above the mean when one file dominates", :aggregate_failures do
+      expect(shown(:longest)).to eq(9.0)
+      expect(shown(:mean)).to eq(6.0)
+    end
+
     it "balances by seconds, not size: the slowest file stands alone" do
       expect([group(1), group(2)]).to include(["spec/a_spec.rb"])
     end
