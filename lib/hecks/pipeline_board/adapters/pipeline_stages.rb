@@ -167,7 +167,7 @@ module Hecks
         @limits = read_limits(registry)
         @roles = PipelineBoard::AgentRoles.declared(registry)
         wire_machine(readers, registry)
-        @github = readers.fetch(:github) { PipelineGitHub.new(root: @root) }
+        @github = readers.fetch(:github) { PipelineGitHub.new(root: @root, settings: { seats: -> { @seats } }) }
         @git = readers.fetch(:git) { PipelineGit.new(root: @root) }
         @journal = readers.fetch(:journal) { PipelineJournal.new(root: @root) }
         wire_stores(readers, registry)
