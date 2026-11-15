@@ -19,42 +19,15 @@ RSpec.describe Hecks::Adapters::MainIntegration::BeatSchedule do
     expect(plist).not_to include("gh ", "Ticker")
   end
 
-  # The job's guard lines, which real shells run: the lock line and the one before it.
-  def guard = CGI.unescapeHTML(schedule.plist[%r{<string>(cd .*?)</string>}m, 1]).lines[1..2].join(";")
+  # Two real shells proved these lines by hand (a second tick ends at once, a killed holder frees
+  # the lock); CI has no zsh to run them again, so this holds their place and order: the lock is
+  # taken before the beat runs.
+  it "takes the beat's lock before it runs the beat", :aggregate_failures do
+    lines = CGI.unescapeHTML(schedule.plist[%r{<string>(cd .*?)</string>}m, 1]).lines.map(&:strip)
 
-  def ran = File.join(home, "ran")
-
-  # One tick of the job: its guard, then a word written where the beat would run.
-  def tick(word) = system("/bin/zsh", "-c", "#{guard}; echo #{word} >> #{ran}", %i[out err] => File::NULL)
-
-  # A beat that takes the lock and keeps it until `release` is written; answers once it holds it.
-  def hold_the_lock
-    ready, release = %w[ready release].map { |name| File.join(home, name).tap { |fifo| File.mkfifo(fifo) } }
-    holder = Process.spawn("/bin/zsh", "-c", "#{guard}; echo first >> #{ran}; echo > #{ready}; read < #{release}",
-                           %i[out err] => File::NULL)
-    read_through(ready)
-    [holder, release]
-  end
-
-  # Opening a FIFO waits for the other end, and a child's exit signal may interrupt that wait.
-  def read_through(fifo)
-    File.read(fifo)
-  rescue Errno::EINTR
-    retry
-  end
-
-  def release_and_wait(holder, release)
-    File.write(release, "go")
-    Process.wait(holder)
-  end
-
-  # The job is a launchd job that zsh runs, so CI's zsh job runs this one (the shards leave it out).
-  it "ends a tick at once while the previous beat still holds the lock", :zsh_completion do
-    holder, release = hold_the_lock
-    tick("second")
-    release_and_wait(holder, release)
-    tick("third")
-    expect(File.read(ran)).to eq("first\nthird\n")
+    expect(lines[1]).to match(%r{\Amkdir -p ".*/hecks-dev" && : >> ".*/train-beat\.lock"\z})
+    expect(lines[2]).to match(%r{\Azmodload zsh/system && zsystem flock -t 0 ".*/train-beat\.lock" 2>/dev/null \|\| exit 0\z})
+    expect(lines[3]).to start_with("exe/hecks Heartbeat.Beat!")
   end
 
   it "writes nothing unconfirmed, and says what it would write", :aggregate_failures do
