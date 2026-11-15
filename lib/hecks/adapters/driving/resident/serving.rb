@@ -94,9 +94,11 @@ module Hecks
           # @return [String, nil] the names of the first variables the line differs on from what
           #   the code loaded under, never their values, short enough to fit in a reply
           def differing(env)
-            names = loaded_names.reject { |name| EnvValue.of(name, env[name]) == EnvValue.of(name, @environment[name]) }
+            names = loaded_names.reject { |name| same_value?(name, env[name]) }
             names.empty? ? nil : names.first(NAMES).join("+")[0, NAMES_WIDTH]
           end
+
+          def same_value?(name, value) = EnvValue.of(name, value, @root) == EnvValue.of(name, @environment[name], @root)
 
           # The child loads the launcher the request names, so it must be this checkout's own.
           def same_script?(request) = canonical(request[:script]) == canonical(@script)
