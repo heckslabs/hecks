@@ -36,11 +36,10 @@ module Hecks
       # @raise [ConsoleCapture::Failure] on a missing branch, a branch named main, a base that is
       #   not a commit, or a directory outside a repository
       def create(**held)
-        repo = settle(held)
+        settle(held)
         branch = branch_named(held)
         base = base_named(held)
-        path = plain(held[:path]).to_s.strip
-        path = File.join(repo, ".claude", "worktrees", branch) if path.empty?
+        path = target_path(held, branch)
         pulled = base == "main" ? pull_main : "cut from #{base}; main not pulled"
         read("worktree", "add", "-b", branch, path, base)
         sha = read("rev-parse", "--short", "HEAD", dir: path)
@@ -60,6 +59,30 @@ module Hecks
       end
 
       private
+
+      # Where the worktree goes: the path named, else under the primary checkout's
+      # `.claude/worktrees`, whichever worktree the command ran from. Never inside a linked
+      # worktree, where it would show as untracked in the outer one and keep it from being retired.
+      #
+      # @param held [Hash] the `Worktree` record
+      # @param branch [String] the new branch, which names the default directory
+      # @return [String] the directory to open
+      # @raise [ConsoleCapture::Failure] when the path is inside a linked worktree
+      def target_path(held, branch)
+        path = plain(held[:path]).to_s.strip
+        path = File.join(primary.path, ".claude", "worktrees", branch) if path.empty?
+        refuse_nesting(path)
+        path
+      end
+
+      def refuse_nesting(path)
+        outer = worktrees.drop(1).find { |tree| inside?(tree.path, File.expand_path(path)) }
+        return unless outer
+
+        raise ConsoleCapture::Failure, "cannot open #{path}: it is inside the worktree #{outer.path}"
+      end
+
+      def inside?(tree, path) = path == tree || path.start_with?("#{tree}/")
 
       # The record a new worktree answers with; its resident is started on the way, so the first
       # launcher lines run there are served.
