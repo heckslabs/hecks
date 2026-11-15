@@ -69,7 +69,7 @@ Hecks.bluebook "Hecks" do
         # bound has passed (deliver.bluebook), so it is a stall as soon as a look sees it.
         member kind: "ci-not-started", aggregate: "Hecks::TrainPrCi", opens: "TrainPrCiAwaited",
                closes: "TrainPrCiStarted", minutes: 0, forgets: 1440, fixer: "orchestrator",
-               move: "Read githubstatus.com for GitHub Actions and the PR (gh pr view <pr> --json statusCheckRollup). " \
+               move: "Read githubstatus.com for GitHub Actions, and the PR's checks with SendTrain.watch! to=<boarding> (gh pr view <pr> --json statusCheckRollup). " \
                      "The pipeline closes and reopens it once after 20 minutes (TrainPrReopen); if CI still has not " \
                      "started once Actions is up, read when the launchd beat last ran from the mtime of ~/.claude/hecks-dev/train-beat.log (start no beat), then close and reopen it by hand (gh pr close, gh pr reopen, gh pr merge --auto --squash)."
         member kind: "agent-run-start", not_about: "stall-", aggregate: "Hecks::AgentRun", state: "requested", opens: "AgentRunRequested",
@@ -135,7 +135,7 @@ Hecks.bluebook "Hecks" do
         # A merge, or a failed-checks verdict (`train-checks-failed` takes over), closes it.
         member kind: "train-unmerged", aggregate: "Hecks::SendTrain", state: "queued", opens: "BoardingQueued",
                closes: "BranchPushed,TrainChecksFailed,PushFaulted", minutes: 45, forgets: 1440, fixer: "orchestrator",
-               move: "Read the train pull request (gh pr view <pr> --json mergeStateStatus,statusCheckRollup): " \
+               move: "Read the train pull request with SendTrain.watch! to=<boarding> (gh pr view <pr> --json mergeStateStatus,statusCheckRollup): " \
                      "BLOCKED on pending checks is only slow, so leave it; CLEAN without a merge means auto-merge " \
                      "is off, so turn it on (gh pr merge <pr> --auto). The launchd beat records a merge GitHub made: start none, and read when it last ran from the mtime of ~/.claude/hecks-dev/train-beat.log."
         # A queued boarding's required checks ended red; its pull request stays open and a merge closes it.
