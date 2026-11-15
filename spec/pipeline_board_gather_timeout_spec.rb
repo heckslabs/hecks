@@ -3,9 +3,9 @@
 require "spec_helper"
 require "hecks/pipeline_board/adapters/pipeline_web"
 
-# One reader that never answers is given as unknown after its time, and the others still answer.
-RSpec.describe Hecks::Adapters::PipelineBoard::Gather do
-  let(:host) do
+# The board and the reader that never answers, as the gather specs build them.
+module GatherTimeoutSpecWorld
+  def host_class
     Class.new do
       include Hecks::Adapters::PipelineBoard::Gather
 
@@ -26,9 +26,20 @@ RSpec.describe Hecks::Adapters::PipelineBoard::Gather do
     github.define_singleton_method(:latest_release) { { tag: "v1" } }
     github
   end
+end
+
+# One reader that never answers is given as unknown after its time, and the others still answer.
+RSpec.describe Hecks::Adapters::PipelineBoard::Gather do
+  include GatherTimeoutSpecWorld
+
+  let(:host) { host_class }
 
   it "answers a slow reader as unknown" do
     expect(host.new(stuck_github).gathered[:ci_runs]).to eq(unknown: "reader did not answer in 0.2s")
+  end
+
+  it "logs where an overdue reader is" do
+    expect { host.new(stuck_github).gathered }.to output(/board: ci_runs reader overdue after 0.2s at:/).to_stderr
   end
 
   it "does not ask a reader again while its last read is still running", :aggregate_failures do

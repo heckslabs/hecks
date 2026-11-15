@@ -22,6 +22,9 @@ module Hecks
         # Seconds one reader may take before its section is given as unknown.
         READ_SECONDS = 20
 
+        # How many frames of an overdue reader's stack the board logs.
+        BACKTRACE_FRAMES = 25
+
         # A section whose reader from an earlier refresh has not finished.
         STILL_RUNNING = { unknown: "the last read is still running" }.freeze
 
@@ -100,7 +103,15 @@ module Hecks
         def answer_of(section, thread, deadline)
           return finished(section, thread) if thread.join([deadline - Time.now, 0].max)
 
+          report_overdue(section, thread)
           { unknown: "reader did not answer in #{read_seconds}s" }
+        end
+
+        # Names where an overdue reader is, in the board's log, once for each read: the thread is
+        # left running and the next refresh skips it, so this is not reached again for it.
+        def report_overdue(section, thread)
+          frames = thread.backtrace&.first(BACKTRACE_FRAMES) || []
+          warn "board: #{section} reader overdue after #{read_seconds}s at:\n  #{frames.join("\n  ")}"
         end
 
         def finished(section, thread)

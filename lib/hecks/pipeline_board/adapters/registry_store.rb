@@ -15,6 +15,9 @@ module Hecks
       class RegistryStore
         # Seconds an aggregate's records are kept.
         CACHE_SECONDS = 5
+        # How many times its own load time a slow aggregate's records are kept, so a load that
+        # takes longer than the cache window is not started again the moment it finishes.
+        HOLD_TIMES = 10
         # The time in seconds, from the monotonic clock.
         MONOTONIC = -> { Process.clock_gettime(Process::CLOCK_MONOTONIC) }
 
@@ -108,12 +111,15 @@ module Hecks
         # What the store is called in a refusal.
         def label = "the board's registry"
 
+        # The kept value of the key while it is current, else the block's value, kept for the longer
+        # of the cache window and {HOLD_TIMES} its load time. A load that raises is kept for none.
         def fresh(key)
-          kept = @kept[key]
-          return kept.last if kept && @clock.call - kept.first < @cache_seconds
+          at, value, took = @kept[key]
+          return value if at && @clock.call - at < [@cache_seconds, took * HOLD_TIMES].max
 
+          started = @clock.call
           value = yield
-          @kept[key] = [@clock.call, value]
+          @kept[key] = [@clock.call, value, @clock.call - started]
           value
         end
 
