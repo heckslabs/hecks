@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "../zone"
+
 require "time"
 require_relative "../rules"
 require_relative "daily_health/event_checks"
@@ -63,7 +65,7 @@ module Hecks
           said = checks.filter_map { |row| said(row, report[row[:kind].to_sym]) }
           unread = report[:unreadable]
           said << "#{unread.size} boardings with an unreadable commit" if unread.is_a?(Array) && unread.any?
-          "pipeline health #{now.utc.strftime("%F")}: #{said.empty? ? "nothing found" : said.join(", ")}"
+          "pipeline health #{Zone.at(now).strftime("%F")}: #{said.empty? ? "nothing found" : said.join(", ")}"
         end
 
         def said(row, found)
