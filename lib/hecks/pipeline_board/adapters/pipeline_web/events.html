@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pipeline Events</title>
+<!--style--><style>
+/* The Events page: every event the log's tail holds. One row is one event: when, where, what, and what it
+   caused. Opened, a row says everything known of it: the command that raised it and why, each policy that
+   answered and how that ended, what it links to, and where it sits in its subject's story. */
+h1, h2, h3, p, ul, dl, dd { margin: 0; }
+:focus-visible { outline: 2px solid var(--run); outline-offset: 2px; border-radius: 4px; }
+header.top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 20px; margin-bottom: 18px; }
+.note { color: var(--ink2); font-size: 12.5px; }
+.overview { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 22px 24px 16px; }
+.headline { font-size: clamp(20px, 2.8vw, 28px); line-height: 1.2; letter-spacing: -.015em; font-weight: 400; text-wrap: balance; }
+.headline b { font-weight: 650; } .headline .bad { color: var(--critical); }
+.headline small { display: block; margin-top: 8px; font-size: 14px; letter-spacing: 0; color: var(--ink2); }
+/* One bar a minute, oldest first: its height is the events heard, the part in the failure colour those refused. */
+.rate { display: flex; align-items: flex-end; gap: 2px; height: 64px; margin-top: 18px; border-bottom: 1px solid var(--line); }
+.rate .min { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: flex-end; height: 100%; cursor: pointer; background: none; border: 0; padding: 0; }
+.rate .min i { display: block; border-radius: 2px 2px 0 0; background: var(--run); opacity: .75; } .rate .min i.bad { background: var(--critical); opacity: 1; border-radius: 0; }
+.rate .min:hover i, .rate .min.on i { opacity: 1; } .rate .min.on { outline: 1px solid var(--run); }
+.ends { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+.tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 18px 0 8px; }
+.tools input[type=search] { flex: 1 1 240px; min-width: 0; font: inherit; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); }
+.chip { font: inherit; font-size: 12.5px; padding: 4px 11px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--ink2); cursor: pointer; white-space: nowrap; }
+.chip b { font-weight: 600; color: var(--ink); margin-left: 4px; } .chip[aria-pressed=true] { border-color: var(--run); color: var(--ink); background: var(--signal-soft); }
+.facets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+
+.list { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.group > h3 { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline; font-size: 13px; font-weight: 600; padding: 10px 16px; background: color-mix(in srgb, var(--ink) 4%, transparent); border-bottom: 1px solid var(--line); }
+.group > h3 small { font-weight: 400; color: var(--ink2); } .group > h3 code { font: 11.5px var(--mono); color: var(--muted); }
+details.ev { border-bottom: 1px solid var(--line); } details.ev:last-child { border-bottom: 0; }
+details.ev > summary { display: grid; grid-template-columns: 92px minmax(0, 150px) minmax(0, 1.3fr) minmax(0, 1fr) auto; gap: 12px; align-items: baseline; padding: 9px 16px; cursor: pointer; list-style: none; font-size: 13px; }
+details.ev > summary::-webkit-details-marker { display: none; }
+details.ev > summary:hover, details.ev[open] > summary { background: color-mix(in srgb, var(--ink) 4%, transparent); }
+details.ev.fresh > summary { animation: heard 2.4s ease-out; }
+@keyframes heard { from { background: var(--signal-soft); } to { background: transparent; } }
+@media (prefers-reduced-motion: reduce) { details.ev.fresh > summary { animation: none; } }
+.when { font: 12px var(--mono); color: var(--ink2); white-space: nowrap; } .when small { display: block; color: var(--muted); font-size: 10.5px; }
+.where { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink2); } .where small { display: block; color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; }
+.what { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .what small { display: block; font-weight: 400; color: var(--ink2); overflow: hidden; text-overflow: ellipsis; }
+.caused { color: var(--ink2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; }
+.marks { display: flex; gap: 6px; font-size: 12px; white-space: nowrap; }
+.mark { padding: 0 7px; border-radius: 999px; border: 1px solid var(--line); color: var(--ink2); }
+.mark.ok { color: var(--good); border-color: color-mix(in srgb, var(--good) 40%, transparent); } .mark.bad { color: var(--critical); border-color: color-mix(in srgb, var(--critical) 50%, transparent); font-weight: 600; }
+.mark.none { color: var(--muted); }
+
+.body { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 20px 32px; padding: 6px 16px 20px 120px; }
+.body h4 { font-size: 11.5px; font-weight: 600; color: var(--ink2); margin: 14px 0 6px; }
+.body p { font-size: 13px; line-height: 1.5; } .body p.quiet { color: var(--ink2); }
+.reaction { border-left: 3px solid var(--line); padding: 2px 0 2px 12px; margin: 8px 0; font-size: 13px; }
+.reaction.ok { border-left-color: var(--good); } .reaction.bad { border-left-color: var(--critical); } .reaction.wait { border-left-color: var(--warning); }
+.reaction b { font-weight: 600; } .reaction code, .body code { font: 12px var(--mono); overflow-wrap: anywhere; }
+.reaction .why { color: var(--critical); } .reaction .then { color: var(--ink2); font-size: 12.5px; margin-top: 3px; }
+.go { font: inherit; font-size: 12px; padding: 1px 8px; margin: 2px 4px 2px 0; border-radius: 999px; border: 1px solid var(--line); background: none; color: var(--ink); cursor: pointer; text-decoration: none; display: inline-block; }
+.go:hover { border-color: var(--run); }
+dl.meta { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 14px; font-size: 12.5px; }
+dl.meta dt { color: var(--ink2); } dl.meta dd { overflow-wrap: anywhere; } dl.meta dd code { font: 11.5px var(--mono); }
+.trail { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; font-size: 12px; color: var(--ink2); }
+.trail .step { padding: 0 6px; border-radius: 4px; border: 1px solid var(--line); } .trail .step.here { border-color: var(--run); color: var(--ink); font-weight: 600; }
+.empty { padding: 28px 16px; color: var(--ink2); font-size: 13.5px; }
+@media (max-width: 860px) {
+  details.ev > summary { grid-template-columns: 92px minmax(0, 1fr) auto; } .where, .caused { display: none; }
+  .body { grid-template-columns: 1fr; padding-left: 16px; }
+}
+</style>
+</head>
+<body>
+<main>
+  <header class="top">
+    <h1>Events</h1>
+    <!--nav-->
+    <span class="note" id="updated"></span><span class="note" id="live">stream: connecting</span>
+  </header>
+  <div class="overview">
+    <p class="headline" id="headline">Reading the event log</p>
+    <div class="rate" id="rate" aria-label="Events heard each minute"></div>
+    <div class="ends"><span id="rate-from"></span><span id="rate-to"></span></div>
+  </div>
+  <div class="tools">
+    <input id="q" type="search" placeholder="Find an event, an aggregate, a policy, an id or a reason" aria-label="Find an event, an aggregate, a policy, an id or a reason" autocomplete="off">
+    <span id="outcomes"></span>
+    <button class="chip" id="by" type="button" aria-pressed="false">Group by subject</button>
+    <button class="chip" id="hold" type="button" aria-pressed="false">Hold still</button>
+  </div>
+  <div class="facets" id="facets"></div>
+  <div class="list" id="list"></div>
+</main>
+<script src="/stream.js"></script>
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+function h(tag, attrs, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) if (v !== null && v !== undefined && v !== false) el.setAttribute(k, v);
+  for (const kid of kids.flat(Infinity)) if (kid !== null && kid !== undefined && kid !== false) el.append(kid.nodeType ? kid : String(kid));
+  return el;
+}
+/* How many rows are drawn at once; the rest are a filter or a search away. */
+const SHOWN = 250;
+const events = new Map();
+let nodes = new Map(), raisedBy = new Map(), reaches = new Map();
+let filter = { q: "", outcome: "all", context: null, minute: null, subject: null }, grouped = false, held = false, fresh = new Set(), opened = new Set();
+
+const bare = (name) => String(name || "").split("::").pop();
+/* A name written as one word, read as the words it was made of: WorkPlanned, "Work planned". */
+const words = (name) => { const s = bare(name).split(".").pop().replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/([A-Z])([A-Z][a-z])/g, "$1 $2"); return s.charAt(0) + s.slice(1).toLowerCase(); };
+const time = (iso) => { const d = new Date(iso); return isNaN(d) ? String(iso || "") : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }); };
+const short = (id) => { const s = String(id || ""); return s.length > 14 ? s.slice(0, 8) + "…" : s; };
+function span(ms) {
+  const s = Math.round(Math.abs(ms) / 1000);
+  return s < 60 ? s + " s" : s < 3600 ? Math.round(s / 60) + " min" : s < 86400 ? (s / 3600).toFixed(1) + " h" : Math.round(s / 86400) + " d";
+}
+/* How a reaction ended, from the log's own words: delivered, refused with its reason, or still waiting. */
+function ended(r) {
+  const said = String(r.outcome || "");
+  if (/^refus|fail/.test(said)) return { state: "bad", word: "refused", why: said.replace(/^refused:?\s*/, "") };
+  if (/deliver|settled|done/.test(said)) return { state: "ok", word: "delivered", why: "" };
+  return { state: "wait", word: said || "no record yet", why: "" };
+}
+const worst = (ev) => { const all = (ev.reactions || []).map((r) => ended(r).state); return all.includes("bad") ? "bad" : all.includes("wait") ? "wait" : all.length ? "ok" : "none"; };
+const node = (ev) => nodes.get(ev.aggregate) || nodes.get([...nodes.keys()].find((k) => bare(k) === bare(ev.aggregate)));
+const contextOf = (ev) => { const n = node(ev); return n ? n.context || n.domain || "" : String(ev.aggregate || "").split("::")[0]; };
+const subject = (ev) => ev.aggregate + "#" + ev.id;
+
+/* Everything the search reads of an event. */
+function text(ev) {
+  return [ev.name, ev.aggregate, ev.id, contextOf(ev), JSON.stringify(ev.links || {}), JSON.stringify(ev.correlation || {}), JSON.stringify(ev.payload || {}),
+    ...(ev.reactions || []).flatMap((r) => [r.policy, r.command, r.outcome, ...(r.emitted || [])])].join(" ").toLowerCase();
+}
+function passes(ev) {
+  if (filter.outcome !== "all" && worst(ev) !== filter.outcome) return false;
+  if (filter.context && contextOf(ev) !== filter.context) return false;
+  if (filter.minute && String(ev.at).slice(0, 16) !== filter.minute) return false;
+  if (filter.subject && subject(ev) !== filter.subject) return false;
+  return !filter.q || filter.q.split(/\s+/).every((w) => text(ev).includes(w));
+}
+const sorted = () => [...events.values()].sort((a, b) => String(b.at).localeCompare(String(a.at)));
+
+function headline(all) {
+  const p = $("headline"); p.replaceChildren();
+  if (!all.length) { p.textContent = "No event has been heard yet."; return; }
+  const newest = all[0], oldest = all[all.length - 1], refused = all.filter((e) => worst(e) === "bad").length, subjects = new Set(all.map(subject)).size;
+  p.append(h("b", {}, all.length), " events over the last ", h("b", {}, span(new Date(newest.at) - new Date(oldest.at))), ", about ", h("b", {}, subjects), " subjects",
+    ...(refused ? [", and ", h("b", { class: "bad" }, refused), " met a refusal"] : [", none refused"]), ".");
+  p.append(h("small", {}, "Newest: ", words(newest.name), " from ", bare(newest.aggregate), ", ", span(Date.now() - new Date(newest.at)), " ago. This is the newest part of the event log; older events are not read here."));
+}
+function rate(all) {
+  const by = new Map(); for (const e of all) { const m = String(e.at).slice(0, 16), c = by.get(m) || { n: 0, bad: 0 }; c.n += 1; if (worst(e) === "bad") c.bad += 1; by.set(m, c); }
+  const minutes = [...by.keys()].sort().slice(-90), top = Math.max(1, ...minutes.map((m) => by.get(m).n));
+  $("rate").replaceChildren(...minutes.map((m) => {
+    const c = by.get(m), bar = h("button", { class: "min" + (filter.minute === m ? " on" : ""), type: "button", title: time(m + ":00Z").slice(0, 5) + ": " + c.n + " events" + (c.bad ? ", " + c.bad + " refused" : "") });
+    const good = h("i"), bad = h("i", { class: "bad" }); good.style.height = ((c.n - c.bad) / top) * 100 + "%"; bad.style.height = (c.bad / top) * 100 + "%";
+    bar.append(good, bad); bar.addEventListener("click", () => { filter.minute = filter.minute === m ? null : m; draw(); });
+    return bar;
+  }));
+  $("rate-from").textContent = minutes.length ? time(minutes[0] + ":00Z").slice(0, 5) : ""; $("rate-to").textContent = minutes.length ? "now" : "";
+}
+function chip(label, count, on, act) {
+  const b = h("button", { class: "chip", type: "button", "aria-pressed": String(on) }, label, count === null ? null : h("b", {}, count));
+  b.addEventListener("click", act); return b;
+}
+function facets(all) {
+  const count = (state) => all.filter((e) => worst(e) === state).length;
+  $("outcomes").replaceChildren(...[["all", "All", all.length], ["bad", "Refused", count("bad")], ["wait", "Waiting", count("wait")], ["none", "No reaction", count("none")]]
+    .map(([key, label, n]) => chip(label, n, filter.outcome === key, () => { filter.outcome = key; draw(); })));
+  const by = new Map(); for (const e of all) by.set(contextOf(e), (by.get(contextOf(e)) || 0) + 1);
+  const narrowed = [filter.minute && chip("Minute " + time(filter.minute + ":00Z").slice(0, 5) + " ✕", null, true, () => { filter.minute = null; draw(); }),
+    filter.subject && chip("One subject: " + bare(filter.subject.split("#")[0]) + " " + short(filter.subject.split("#")[1]) + " ✕", null, true, () => { filter.subject = null; draw(); })];
+  $("facets").replaceChildren(...narrowed.filter(Boolean), ...[...by].sort((a, b) => b[1] - a[1]).slice(0, 14)
+    .map(([context, n]) => chip(context || "no context", n, filter.context === context, () => { filter.context = filter.context === context ? null : context; draw(); })));
+}
+
+/* What the bluebooks say of an event: the command that raises it and why, and what its aggregate is. */
+function declared(ev) {
+  const n = node(ev), by = raisedBy.get(bare(ev.aggregate) + "." + ev.name), d = (n && n.details) || {};
+  return [h("h4", {}, "What it is"),
+    h("p", {}, h("b", {}, bare(ev.aggregate)), " said “", words(ev.name), "”", by ? [" when ", h("code", {}, bare(ev.aggregate) + "." + by.name), " ran."] : ". No command of this aggregate declares it, so a port answered or a policy raised it."),
+    by && by.goal ? h("p", { class: "quiet" }, "The command's goal: ", by.goal) : null,
+    d.description ? h("p", { class: "quiet" }, bare(ev.aggregate), ": ", d.description) : null,
+    d.vision ? h("p", { class: "quiet" }, contextOf(ev), ": ", d.vision) : null];
+}
+function reaction(ev, r) {
+  const end = ended(r), where = reaches.get(r.policy);
+  return h("div", { class: "reaction " + end.state },
+    h("div", {}, h("b", {}, words(r.policy)), " ", h("span", { class: "mark " + end.state }, end.word)),
+    end.why ? h("div", { class: "why" }, end.why) : null,
+    h("div", { class: "then" }, r.command ? ["ran ", h("code", {}, r.command)] : "ran no command", where ? [" in ", where] : "", "; policy ", h("code", {}, r.policy)),
+    (r.emitted || []).length ? h("div", { class: "then" }, "then: ", r.emitted.map((name) => go(words(name), () => find(name)))) : null);
+}
+function go(label, act) { const b = h("button", { class: "go", type: "button" }, label); b.addEventListener("click", (e) => { e.preventDefault(); act(); }); return b; }
+function find(word) { filter.q = String(word).toLowerCase(); $("q").value = word; draw(); }
+/* A link the event carries, as somewhere to go when the board has a page for it. */
+function linked(key, value) {
+  const v = String(value);
+  if (key === "work" || key === "work_item") return h("a", { class: "go", href: "/plan#" + encodeURIComponent(v) }, v);
+  if (key === "run" || key === "session") return h("a", { class: "go", href: "/runs/" + encodeURIComponent(v) }, v);
+  return h("code", {}, v);
+}
+function pairs(held) { return Object.entries(held || {}).map(([k, v]) => [k.replace(/_/g, " "), typeof v === "object" ? h("code", {}, JSON.stringify(v)) : linked(k, v)]); }
+function meta(ev, all) {
+  const d = new Date(ev.at), same = all.filter((e) => subject(e) === subject(ev)), n = node(ev);
+  const rows = [["Heard", d.toLocaleString() + " (" + span(Date.now() - d) + " ago)"], ["Time in the log", h("code", {}, ev.at)], ["Context", contextOf(ev) || "-"],
+    ["Aggregate", h("code", {}, ev.aggregate)], ["Subject id", h("code", {}, ev.id)], ["Read from", ev.source === "tap" ? "the event log" : "the stored journal"],
+    ...pairs(ev.links).map(([k, v]) => ["Links to " + k, v]), ...pairs(ev.correlation).map(([k, v]) => ["Correlates " + k, v]), ...pairs(ev.payload).map(([k, v]) => ["Carries " + k, v]),
+    ["Same subject", [same.length + (same.length === 1 ? " event" : " events") + " here ", same.length > 1 ? go("show only these", () => { filter.subject = subject(ev); draw(); }) : null]],
+    ["Elsewhere", [n ? h("a", { class: "go", href: "/wiring#" + encodeURIComponent(n.id) }, "on the wiring diagram") : null,
+      bare(ev.aggregate) === "SendTrain" ? h("a", { class: "go", href: "/trains/" + encodeURIComponent(ev.id) }, "this boarding") : null]]];
+  return h("dl", { class: "meta" }, rows.filter(([, v]) => v !== null).map(([k, v]) => [h("dt", {}, k), h("dd", {}, v)]));
+}
+/* Where the event sits among the events of its subject, oldest first. */
+function trail(ev, all) {
+  const same = all.filter((e) => subject(e) === subject(ev)).reverse();
+  if (same.length < 2) return null;
+  const at = same.findIndex((e) => e.key === ev.key), from = Math.max(0, at - 4), shown = same.slice(from, at + 5);
+  return [h("h4", {}, "Its subject's story"), h("div", { class: "trail" }, from ? "… " : null,
+    shown.map((e, i) => [i ? "→" : null, h("span", { class: "step" + (e.key === ev.key ? " here" : ""), title: time(e.at) }, words(e.name))]), at + 5 < same.length ? " …" : null)];
+}
+function body(ev, all) {
+  const rs = ev.reactions || [];
+  return h("div", { class: "body" },
+    h("div", {}, declared(ev), h("h4", {}, rs.length ? "What it caused" : "What it caused: nothing"),
+      rs.length ? rs.map((r) => reaction(ev, r)) : h("p", { class: "quiet" }, "No policy answered it in the log's tail."), trail(ev, all)),
+    h("div", {}, h("h4", {}, "Everything recorded"), meta(ev, all)));
+}
+function row(ev, all, before) {
+  const rs = ev.reactions || [], state = worst(ev), bad = rs.filter((r) => ended(r).state === "bad").length, by = raisedBy.get(bare(ev.aggregate) + "." + ev.name);
+  const gap = before ? new Date(before.at) - new Date(ev.at) : null, first = rs[0];
+  const el = h("details", { class: "ev" + (fresh.has(ev.key) ? " fresh" : ""), open: opened.has(ev.key) ? "" : null },
+    h("summary", {},
+      h("span", { class: "when" }, time(ev.at), gap === null ? null : h("small", {}, gap < 1000 ? "same second" : span(gap) + " before")),
+      h("span", { class: "where", title: ev.aggregate }, bare(ev.aggregate), h("small", {}, contextOf(ev))),
+      h("span", { class: "what", title: ev.name }, words(ev.name), h("small", {}, by ? "from " + bare(ev.aggregate) + "." + by.name : short(ev.id))),
+      h("span", { class: "caused" }, first ? [words(first.policy), rs.length > 1 ? " and " + (rs.length - 1) + " more" : ""] : ""),
+      h("span", { class: "marks" }, state === "none" ? h("span", { class: "mark none" }, "no reaction") : [bad ? h("span", { class: "mark bad" }, "✕ " + bad) : null,
+        rs.length - bad ? h("span", { class: "mark " + (state === "wait" ? "" : "ok") }, (state === "wait" ? "▲ " : "✓ ") + (rs.length - bad)) : null])));
+  el.addEventListener("toggle", () => {
+    if (el.open) { opened.add(ev.key); if (!el.querySelector(".body")) el.append(body(ev, sorted())); } else opened.delete(ev.key);
+  });
+  if (el.open) el.append(body(ev, all));
+  return el;
+}
+function groups(shown, all) {
+  const by = new Map(); for (const e of shown) by.set(subject(e), [...(by.get(subject(e)) || []), e]);
+  return [...by].map(([, list]) => {
+    const newest = list[0], oldest = list[list.length - 1];
+    return h("section", { class: "group" }, h("h3", {}, bare(newest.aggregate), h("code", {}, newest.id),
+      h("small", {}, list.length + (list.length === 1 ? " event" : " events") + (list.length > 1 ? " over " + span(new Date(newest.at) - new Date(oldest.at)) : "") + ", " + contextOf(newest))),
+      list.map((e, i) => row(e, all, list[i - 1])));
+  });
+}
+function draw() {
+  const all = sorted(), shown = all.filter(passes);
+  headline(all); rate(all); facets(all);
+  $("updated").textContent = shown.length === all.length ? "showing all " + all.length : "showing " + shown.length + " of " + all.length;
+  const drawn = shown.slice(0, SHOWN);
+  $("list").replaceChildren(...(drawn.length ? (grouped ? groups(drawn, all) : drawn.map((e, i) => row(e, all, drawn[i - 1]))) : [h("p", { class: "empty" }, all.length ? "No event matches. Clear the search or a filter to see them all." : "No event has been heard yet.")]),
+    shown.length > SHOWN ? h("p", { class: "empty" }, (shown.length - SHOWN) + " older events are not drawn. Search or filter to reach them.") : "");
+  fresh = new Set();
+}
+/* A burst of events is drawn once, a moment after its first, so the list does not jump for each line. */
+let due = null;
+function soon() { if (!due) due = setTimeout(() => { due = null; if (!held) draw(); }, 700); }
+function take(list, live) {
+  for (const ev of list) if (ev && ev.key) { if (live && !events.has(ev.key)) fresh.add(ev.key); events.set(ev.key, ev); }
+}
+/* The wiring graph says which command raises an event and where a policy reaches. */
+function learn(g) {
+  if (!g || !g.nodes) return;
+  nodes = new Map(g.nodes.filter((n) => n.kind === "aggregate").map((n) => [n.id, n]));
+  raisedBy = new Map(); for (const n of nodes.values()) for (const c of (n.details && n.details.commands) || []) for (const e of c.emits || []) raisedBy.set(n.label + "." + e, c);
+  const label = new Map(g.nodes.map((n) => [n.id, n.label + (n.kind === "port" ? " (a port)" : "")]));
+  reaches = new Map(g.edges.filter((e) => e.kind !== "adapter").map((e) => [e.label, label.get(e.to) || ""]));
+}
+$("q").addEventListener("input", () => { filter.q = $("q").value.trim().toLowerCase(); draw(); });
+$("by").addEventListener("click", () => { grouped = !grouped; $("by").setAttribute("aria-pressed", String(grouped)); draw(); });
+$("hold").addEventListener("click", () => { held = !held; $("hold").setAttribute("aria-pressed", String(held)); $("hold").textContent = held ? "Held still: resume" : "Hold still"; if (!held) draw(); });
+$("list").replaceChildren(window.una ? window.una("Reading the event log", true) : "Reading the event log");
+Promise.all([fetch("/api/journal", { cache: "no-store" }).then((r) => r.json()), fetch("/api/wiring", { cache: "no-store" }).then((r) => r.json()).catch(() => null)])
+  .then(([j, g]) => {
+    learn(g);
+    if (!Array.isArray(j.events)) { $("headline").textContent = "The event log could not be read: " + ((j.events && j.events.unknown) || "no answer"); $("list").replaceChildren(); return; }
+    take(j.events, false); draw();
+  }).catch((e) => { $("headline").textContent = "The event log could not be read: " + e.message; $("list").replaceChildren(); })
+  .finally(() => {
+    if (!window.boardStream) return;
+    window.boardStream({
+      open: () => { $("live").textContent = "stream: live"; }, error: () => { $("live").textContent = "stream: reconnecting"; }, pause: () => { $("live").textContent = "stream: paused"; },
+      board: (ev) => { take([ev], true); if (!held) soon(); },
+    });
+  });
+</script>
+</body>
+</html>

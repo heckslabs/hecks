@@ -24,7 +24,7 @@ module Hecks
         JSON_TYPE = "application/json"
         # Each GET path but the stream: the type it answers with and the app method that reads it.
         SERVED = {
-          "/"           => [HTML_TYPE, :page],
+          "/"           => [HTML_TYPE, :page], "/events" => [HTML_TYPE, :events_page], "/api/journal" => [JSON_TYPE, :journal],
           "/wiring"     => [HTML_TYPE, :wiring_page],
           "/sequence"   => [HTML_TYPE, :sequence_page],
           "/agents"     => [HTML_TYPE, :agents_page],

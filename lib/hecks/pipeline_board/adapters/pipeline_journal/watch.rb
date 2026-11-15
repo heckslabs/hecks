@@ -33,13 +33,25 @@ module Hecks
         # closing its pipe would wait for it to exit and it exits only when the journal is written.
         def stop
           @thread&.kill
+          end_process
+          release
+        end
+
+        private
+
+        def end_process
           Process.kill("TERM", @io.pid) if @io.respond_to?(:pid)
-          @io.close if @io.respond_to?(:close) && !(@io.respond_to?(:closed?) && @io.closed?)
         rescue SystemCallError
           nil
         end
 
-        private
+        # Closes the source, which waits for a followed process, so one that ended on its own (the
+        # source answered nil) is reaped at once and not left defunct until {#stop}.
+        def release
+          @io.close if @io.respond_to?(:close) && !(@io.respond_to?(:closed?) && @io.closed?)
+        rescue IOError, SystemCallError
+          nil
+        end
 
         # `0` for a journal that exists, since only what is written from now on is news; `+1` for
         # one that does not yet, since every line of a journal that appears is new.
@@ -50,6 +62,7 @@ module Hecks
             row = decode(line)
             yield row if row
           end
+          release
         end
 
         def decode(line)

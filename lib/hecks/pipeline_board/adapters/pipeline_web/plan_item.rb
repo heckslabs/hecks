@@ -26,7 +26,8 @@ module Hecks
 
         # @return [String] the `data-` attributes the page's filters match
         def marks(row)
-          pairs = { priority: row[:priority], status: status(row), epic: row[:epic], area: Array(row[:area]).join(", ") }
+          pairs = { slug: row[:slug], priority: row[:priority], status: status(row), epic: row[:epic],
+                    area: Array(row[:area]).join(", ") }
           pairs.map { |name, value| " data-#{name}=\"#{esc(value)}\"" }.join
         end
 

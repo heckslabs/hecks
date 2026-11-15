@@ -161,10 +161,11 @@ module Hecks
         @checkout = mine
       end
 
-      # One try of a finish: the rebase and the gate, then the landing of exactly that commit.
+      # One try of a finish: the rebase and the gate, then the landing of that branch as a merge
+      # commit whose tree is exactly the one judged.
       def land_judged(held, branch, onto)
         Finisher.prepare(@git, @checkout, held, registry: @registry, branch: branch, onto: onto)
-        land_alone(branch, onto, forward_only: true)
+        land_alone(branch, onto, built_on_target: true)
       end
 
       # One try of a landing, with every check a landing makes before it moves the target.

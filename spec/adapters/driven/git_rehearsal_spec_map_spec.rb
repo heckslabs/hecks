@@ -133,6 +133,11 @@ RSpec.describe Hecks::Adapters::GitRehearsal::SpecMap do
       expect(specs("lib/hecks/shop/shop.bluebook")).to include(behaviors)
     end
 
+    it "runs the IR golden spec for a changed bluebook too" do
+      add("spec/ir_golden_spec.rb", "# pins the frozen IR\n")
+      expect(specs("lib/hecks/shop/shop.bluebook")).to include(behaviors, "spec/ir_golden_spec.rb")
+    end
+
     it "runs it for a changed .behaviors file" do
       expect(specs("examples/shop/shop.behaviors")).to include(behaviors)
     end

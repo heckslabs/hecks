@@ -6,6 +6,7 @@ require_relative "live_store"
 require_relative "pipeline_tickets/run_detail"
 require_relative "pipeline_tickets/stopped_runs"
 require_relative "pipeline_tickets/finished_times"
+require_relative "pipeline_tickets/closed_work"
 require_relative "../../hecks/adapters/started_work"
 
 module Hecks
@@ -140,9 +141,9 @@ module Hecks
 
       def epic_row(record, works)
         key = field(record, :epic).to_s
-        mine = works.select { |work| field(work, :epic).to_s == key }.map { |work| field(work, :status).to_s }
+        mine = works.select { |work| field(work, :epic).to_s == key }
         { epic: key, title: field(record, :title).to_s, outcome: field(record, :outcome).to_s,
-          tier: field(record, :tier).to_s, done: mine.count("done"), dropped: mine.count("dropped") }
+          tier: field(record, :tier).to_s }.merge(PipelineBoard::ClosedWork.of(mine, method(:field)))
       end
 
       def run_item(run)

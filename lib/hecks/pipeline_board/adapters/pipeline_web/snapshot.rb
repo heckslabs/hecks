@@ -6,6 +6,7 @@ require "digest"
 require_relative "../board_restart"
 require_relative "../load_guard"
 require_relative "../load_history"
+require_relative "../pipeline_stages/standing_since"
 require_relative "../load_causes"
 require_relative "../../../hecks/adapters/dispatching/settings"
 
@@ -52,6 +53,7 @@ module Hecks
             limit = Dispatching::Settings.new(registry).max_load
             LoadHistory.stand(limit)
             LoadCauses.stand
+            StandingSince.stand
             LoadGuard.stand(limit)
           end
         end
@@ -133,7 +135,7 @@ module Hecks
         end
 
         def read_once
-          held = @source.call
+          held = StandingSince.over(@source.call)
           digest = Digest::SHA1.hexdigest(JSON.generate(held.except(:generated_at)))
           @lock.synchronize { record(held, digest) }
         rescue StandardError => e

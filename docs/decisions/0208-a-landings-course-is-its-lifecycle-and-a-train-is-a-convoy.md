@@ -1,7 +1,7 @@
 # A landing's course is its lifecycle, and a train is a convoy
 
-**Status:** Proposed. Date: 2026-11-14. Revised 2026-11-14, after delivery 0.1.3 and 0.1.4 landed
-the compare-and-swap. Asked for by the owner after a read of every file of Switchyard's delivery
+**Status:** Accepted. Date: 2026-11-14. Accepted by the owner (2026-11-14). Revised 2026-11-14,
+after delivery 0.1.3 and 0.1.4 landed the compare-and-swap. Asked for by the owner after a read of every file of Switchyard's delivery
 package. Follows the amendment of
 [0195](0195-the-boards-read-model-is-declared-and-its-pages-are-projected-from-declarations.md) (a
 rule lives in the bluebook of the aggregate it is about) and applies it to the landing of

@@ -141,6 +141,7 @@ Hecks.bluebook "Hecks" do
       attribute :state,    Word,   optional: true
       attribute :report,   Report, optional: true
       attribute :refusal,  Report, optional: true
+      attribute :unrun,    Report, optional: true
       identified_by :run
 
       value_object "RunKey" do
@@ -188,10 +189,11 @@ Hecks.bluebook "Hecks" do
 
       command "Pass" do
         role "System"
-        goal "Record that the checks passed, or why none ran"
+        goal "Record that the checks passed, or why none ran, and the impacted specs the budget left unrun"
 
         reference_to ShallowCheck
         attribute :report, Report, sets: true
+        attribute :unrun,  Report, optional: true, sets: true
 
         emits ShallowCheckPassed
       end
@@ -403,7 +405,7 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheShallowPass" do
       on      "ShallowCheck.ShallowCheckAnswered"
-      trigger ShallowCheck::Pass, with: { report: :report }
+      trigger ShallowCheck::Pass, with: { report: :report, unrun: :unrun }
     end
 
     policy "RecordTheShallowSwitch" do

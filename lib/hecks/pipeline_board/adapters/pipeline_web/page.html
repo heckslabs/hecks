@@ -272,10 +272,14 @@ function sessionBadge(s) {
   return badge(s.status === "busy" ? "working" : s.status === "failed" ? "failed" : "ok");
 }
 function isUnknown(x) { return x && !Array.isArray(x) && typeof x === "object" && "unknown" in x; }
-// A read still in flight shows a loading bar; a read that failed shows why.
+// A read still in flight, or held back while the machine is busy, shows Una turning (it runs again when the load
+// falls); a read that failed shows why.
 function unknown(x) {
   if (String(x.unknown).startsWith("the first read")) {
     return una("Loading", true);
+  }
+  if (/not run: load [\d.]+ is above [\d.]+/.test(String(x.unknown))) {
+    return una(tidy("unknown: " + x.unknown), true);
   }
   return h("p", { class: "unknown-note" }, tidy("unknown: " + x.unknown));
 }
@@ -294,6 +298,12 @@ function detailNodes(text) {
     const m = part.match(/^([^:(]{1,60})([:(].*)$/s);
     return h("li", {}, m ? [h("b", {}, m[1].trim()), h("span", {}, " " + m[2].replace(/^:\s*/, ""))] : part);
   }))];
+}
+// When a state began, as the board first saw it: the time today, the day and the time before that.
+function stood(iso) {
+  const d = iso ? new Date(iso) : null; if (!d || isNaN(d)) return "-";
+  const day = d.toDateString() === new Date().toDateString() ? "" : d.toLocaleDateString([], { month: "short", day: "numeric" }) + " ";
+  return h("span", { title: "In this state since the board first read it so, " + d.toLocaleString() }, day + d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
 }
 function clock(iso) { if (!iso) return "-"; const d = new Date(iso); return isNaN(d) ? String(iso) : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }); }
 // A panel title with its count, so the number is visible even when the panel is collapsed.
@@ -525,8 +535,8 @@ function renderAttention(metrics, stages, sessions, recommendations) {
   // The first read hands each of these as a reading still in flight; none asks for attention yet.
   [metrics, stages, sessions] = [metrics, stages, sessions].map((rows) => (Array.isArray(rows) ? rows : []));
   const groups = [
-    ["Metrics", metrics.filter((t) => needsAttention(t.state)).map((t) => ({ kind: "Metric", item: t.label, state: t.state, value: (t.value ?? "-") + (t.unit || ""), detail: t.detail, since: "-", act: () => resolve(t.label, t.full || t.detail) }))],
-    ["Pipeline stages", stages.filter((s) => needsAttention(s.state)).map((s) => ({ kind: "Stage", item: s.name, state: s.state, value: "-", detail: s.detail, since: "-", act: () => resolve(s.name, s.detail) }))],
+    ["Metrics", metrics.filter((t) => needsAttention(t.state)).map((t) => ({ kind: "Metric", item: t.label, state: t.state, value: (t.value ?? "-") + (t.unit || ""), detail: t.detail, since: stood(t.since), act: () => resolve(t.label, t.full || t.detail) }))],
+    ["Pipeline stages", stages.filter((s) => needsAttention(s.state)).map((s) => ({ kind: "Stage", item: s.name, state: s.state, value: s.count ?? "-", detail: s.detail, since: stood(s.since), act: () => resolve(s.name, s.detail) }))],
     ["Sessions waiting on you", sessions.filter(waitingOnYou).map((s) => ({ kind: "Session", item: s.name + " " + (s.id || ""), state: "attention", value: s.work_item || s.row || "-", detail: s.detail, since: clock(s.started), act: () => openAnswer([{ id: s.id, name: s.name, run: s.run, repo: s.repo, work_item: s.work_item, question: s.detail, context: s.context, attach: s.attach }], s.id) }))]
   ].filter(([, items]) => items.length);
   setTitle("h-attn", "Needs attention", groups.reduce((n, [, items]) => n + items.length, recs.length));

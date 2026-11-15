@@ -33,6 +33,19 @@ RSpec.describe Hecks::Adapters::PipelineBoard::PlanHtml do
     expect(html).to include("Hands-off train", "A landing needs no hand", "3 of 4 done", "1 dropped", "Title of a")
   end
 
+  it "lists an epic's finished and dropped items under its open ones, so an opened epic shows all its work" do
+    over = [{ slug: "b", title: "Built", status: "done" }, { slug: "c", title: "Cut", status: "dropped" }]
+    html = drawn(items: [item("a", epic: "hands-off")], epics: [epic.merge(closed: over)])
+    expect(html).to include("Finished and dropped (2)", "Built <code>b</code>", 'data-status="dropped"', "Cut <code>c</code>")
+  end
+
+  it "reads an epic's finished and dropped Work items from its records, finished first" do
+    works = [{ work: "c", title: "Cut", status: "dropped" }, { work: "a", title: "Open", status: "planned" },
+             { work: "b", title: "Built", status: "done" }]
+    read = Hecks::Adapters::PipelineBoard::ClosedWork.of(works, ->(work, name) { work[name] })
+    expect(read).to include(done: 1, dropped: 1, closed: [include(slug: "b"), include(slug: "c")])
+  end
+
   it "lists an item with no epic under 'no epic' with the count and its area" do
     html = drawn(items: [item("a", area: ["lib/x"]), item("b")])
     expect(html).to include("no epic (2)", "lib/x")

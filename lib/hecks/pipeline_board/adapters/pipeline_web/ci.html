@@ -80,9 +80,12 @@ function why(reading) {
   const held = text.match(/not run: load ([\d.]+) is above ([\d.]+)/);
   return held ? "Paused while the machine is busy (load " + held[1] + ", limit " + held[2] + ")." : "Not read: " + text;
 }
-/* A reading still on its way is a large Una; one that failed or was held back says why in words. */
+/* A reading still on its way, or held back while the machine is busy, is a large Una (it runs again when the load
+   falls); one that failed says why in words. */
 const waiting = (reading) => String(reading.unknown).startsWith("the first read");
-const missing = (reading) => (waiting(reading) ? una("Reading the runs", true) : h("p", { class: "quiet" }, why(reading)));
+const held = (reading) => /not run: load [\d.]+ is above [\d.]+/.test(String(reading.unknown));
+const missing = (reading) => (waiting(reading) ? una("Reading the runs", true)
+  : held(reading) ? una(why(reading), true) : h("p", { class: "quiet" }, why(reading)));
 const ended = (run) => (run.conclusion === "success" ? "success" : run.conclusion ? "failure" : "running");
 const table = (head, rows, numeric = []) => h("table", {}, h("thead", {}, h("tr", {}, head.map((text, i) => h("th", { class: numeric.includes(i) ? "n" : null }, text)))),
   h("tbody", {}, rows.map((row) => h("tr", {}, row.map((cell, i) => h("td", { class: numeric.includes(i) ? "n" : null }, cell))))));

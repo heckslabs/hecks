@@ -5,6 +5,7 @@ require_relative "git_shallow_check/trigger"
 require_relative "git_shallow_check/switch"
 require_relative "git_shallow_check/clone_run"
 require_relative "git_shallow_check/on_main"
+require_relative "git_shallow_check/impacted_run"
 
 module Hecks
   module Adapters
@@ -22,25 +23,30 @@ module Hecks
       # @param settings [Hash] unused
       # @param root [String, nil] unused
       # @param registry [Runtime::Registry, nil] unused
-      # @param run [Hash] what a spec changes in the clone run: `specs:` and `command:`
+      # @param run [Hash] what a spec changes in the clone run: `specs:` and `command:`;
+      #   `impacted:` stands in for the impacted-spec run, given the changed paths and the ref
+      #   they were read against, and answers an {ImpactedRun::Outcome}
       def initialize(aggregate: nil, settings: {}, root: nil, registry: nil, **run)
         @git = Git.new
+        @impacted = run.delete(:impacted)
         @run = run
       end
 
-      # Runs the checks for a branch, or says why they were skipped.
+      # Runs the checks for a branch, or says why they were skipped, then the specs its changes
+      # touch within the world's `impacted_seconds`.
       #
       # @param held [Hash] the `ShallowCheck` record: `checkout`, `branch`, `onto`
-      # @return [Hash{Symbol => Hash}] `report:` what ran or why nothing did
+      # @return [Hash{Symbol => Hash}] `report:` what ran or why nothing did, and `unrun:` the
+      #   impacted specs the budget left, with the seconds spent, when it ran out
       # @raise [ConsoleCapture::Failure] naming the failed specs, the first failure's message and
-      #   whether the branch it lands on fails them too
+      #   whether the branch it lands on fails them too, or the impacted spec that is red
       def shallow_check(**held)
         settle(held)
         branch = plain(held[:branch]) || current_branch
-        onto = plain(held[:onto]) || "main"
-        return { report: { value: "shallow check is off" } } unless switch.on?
-
-        { report: { value: verdict(branch, ref(onto)) } }
+        onto = ref(plain(held[:onto]) || "main")
+        paths = read("diff", "--name-only", "#{onto}...#{ref(branch)}").lines.map(&:strip)
+        said = switch.on? ? verdict(branch, onto, paths) : "shallow check is off"
+        impacted(said, paths, onto)
       end
 
       # Turns the check on or off for the whole repository.
@@ -59,8 +65,17 @@ module Hecks
 
       def switch = Switch.new(read("rev-parse", "--path-format=absolute", "--git-common-dir"))
 
-      def verdict(branch, onto)
-        paths = read("diff", "--name-only", "#{onto}...#{ref(branch)}").lines.map(&:strip)
+      # Runs the impacted specs after the shallow verdict; a red one raises, an overrun is answered.
+      def impacted(said, paths, onto)
+        done = (@impacted || ImpactedRun.new(@checkout)).call(paths, onto)
+        note = "impacted specs: #{done.ran.size} ran in #{done.seconds} s"
+        answer = { report: { value: "#{said}; #{note}" } }
+        return answer if done.unrun.empty?
+
+        answer.merge(unrun: { value: "#{done.unrun.join(" ")} (not run: #{done.seconds} s spent of the budget)" })
+      end
+
+      def verdict(branch, onto, paths)
         return "shallow check skipped: no changed path is read by the check set" if Trigger.watched(paths).empty?
 
         red = CloneRun.new(@checkout, branch, **@run).call(fuzz: fuzz_for(paths))

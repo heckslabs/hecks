@@ -20,9 +20,11 @@ module Hecks
         # @param path [String] the log's path
         # @param names [#call] answers the bare event names {#named} is asked for, so one pass over
         #   a rotated file serves them all
-        def initialize(path, names: -> { [] })
+        # @param last [Integer] how many of the log's newest lines {#rows} holds
+        def initialize(path, names: -> { [] }, last: TAIL_LINES)
           @path = path
-          @tail = Tail.new(last: TAIL_LINES)
+          @last = last
+          @tail = Tail.new(last: last)
           @window = []
           @generations = Generations.new(path, names)
           @named = {}
@@ -35,10 +37,15 @@ module Hecks
           @lock.synchronize do
             read = @tail.advance(@path)
             @recent = nil if read.anew || read.lines.any?
-            @window = read.anew ? read.lines : (@window + read.lines).last(TAIL_LINES)
+            @window = read.anew ? read.lines : (@window + read.lines).last(@last)
             @recent ||= link(parse(@window))
           end
         end
+
+        # @param last [Integer] how many of the log's newest lines
+        # @return [Tap] a reader of the same log that holds a longer tail of it, for a page that
+        #   shows the events themselves
+        def longer(last) = self.class.new(@path, last: last)
 
         # Every logged event of the given names, read from the whole log rather than its tail, so
         # an event that is rarely raised is not pushed out by the traffic after it.

@@ -47,7 +47,7 @@ RSpec.describe Hecks::Adapters::GitLanding, "#merge under a red flag" do
   it "lands a branch while main is not flagged" do
     build_repo("feature-x")
 
-    expect(land("feature-x").dig(:outcome, :value)).to eq("fast_forwarded")
+    expect(land("feature-x").dig(:outcome, :value)).to eq("merged")
   end
 
   it "refuses a branch while main is red, naming the flag", :aggregate_failures do
@@ -62,7 +62,7 @@ RSpec.describe Hecks::Adapters::GitLanding, "#merge under a red flag" do
     build_repo("red-ci-fuzz")
     raise_flag
 
-    expect(land("red-ci-fuzz").dig(:outcome, :value)).to eq("fast_forwarded")
+    expect(land("red-ci-fuzz").dig(:outcome, :value)).to eq("merged")
   end
 
   it "records the fix's tip on the flag for the train", :aggregate_failures do
@@ -78,6 +78,6 @@ RSpec.describe Hecks::Adapters::GitLanding, "#merge under a red flag" do
     raise_flag
     flagging.lower
 
-    expect(land("feature-x").dig(:outcome, :value)).to eq("fast_forwarded")
+    expect(land("feature-x").dig(:outcome, :value)).to eq("merged")
   end
 end

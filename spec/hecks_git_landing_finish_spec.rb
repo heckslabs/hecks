@@ -109,7 +109,7 @@ RSpec.describe Hecks::Adapters::GitLanding, "#finish_branch" do
     git_dir = git("rev-parse", "--path-format=absolute", "--git-common-dir").strip
     held = described_class::Line.new(git_dir).join("work/other", ready: true)
 
-    expect(finish(->(_dir) { green }).dig(:outcome, :value)).to eq("fast_forwarded")
+    expect(finish(->(_dir) { green }).dig(:outcome, :value)).to eq("merged")
     held.close
   end
 end
