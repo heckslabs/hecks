@@ -2,6 +2,7 @@ require "sqlite3"
 require "tmpdir"
 require "hecks/hecks/adapters/ledger_weighing"
 require "hecks/hecks/adapters/ledger_reclaiming"
+require "hecks/hecks/adapters/outbox_purging"
 
 # A small SQLite file shaped like the AgentRun journal: `agent_run_entries` and the checkpoint
 # row that says how far it was projected and how far it was compacted.
@@ -26,6 +27,29 @@ module LedgerScratch
     path
   end
 
+  # Adds a `hecks_outbox` table to the file, one row per `[status, hours_ago]` pair; the hours are
+  # the age of the row's `settled_at`.
+  def scratch_outbox(path, rows)
+    db = SQLite3::Database.new(path)
+    db.execute("CREATE TABLE hecks_outbox (id INTEGER PRIMARY KEY AUTOINCREMENT, status TEXT, settled_at TEXT)")
+    rows.each do |status, hours_ago|
+      db.execute("INSERT INTO hecks_outbox (status, settled_at) VALUES (?, ?)",
+                 [status, (Time.now.utc - (hours_ago * 3600)).iso8601])
+    end
+    db.close
+  end
+
+  # @return [Hash{String => Integer}] how many outbox rows the file holds per status
+  def outbox_counts(path)
+    SQLite3::Database.new(path).execute("SELECT status, COUNT(*) FROM hecks_outbox GROUP BY status").to_h
+  end
+
+  # @return [Hecks::Adapters::OutboxPurging] the beat's adapter over that registry
+  def purging_over(database, hours:)
+    registry = registry_over(database, entries: 1, outbox_hours: hours)
+    Hecks::Adapters::OutboxPurging.new(registry: registry)
+  end
+
   # @return [Keeping::Database] the file under a wait of `wait` seconds
   def ledger_at(path, wait: 0.2) = Keeping::Database.new(path, table: "agent_run", wait: wait)
 
@@ -40,8 +64,8 @@ module LedgerScratch
 
   # A registry that names a Tickets `ledger_care` row and a root, with the AgentRun file found at
   # `database`.
-  def registry_over(database, entries: 1)
-    row = { entries: entries, wait_seconds: 0.2 }
+  def registry_over(database, entries: 1, outbox_hours: 24)
+    row = { entries: entries, wait_seconds: 0.2, outbox_hours: outbox_hours }
     allow(Keeping::Ledger).to receive(:database).and_return(database)
     instance_double(Hecks::Runtime::Registry, root: "/domains/hecks", world: World.new(row))
   end

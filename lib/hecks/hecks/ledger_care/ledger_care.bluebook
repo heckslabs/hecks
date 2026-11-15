@@ -1,6 +1,6 @@
 Hecks.bluebook "Hecks" do
   domain_module "LedgerCare" do
-    vision "The agent-run ledger keeps itself small: its journal is compacted on the clock's beat and its file is reclaimed on request."
+    vision "The agent-run ledger keeps itself small: its journal is compacted and its delivered outbox rows are purged on the clock's beat, and its file is reclaimed on request."
 
     # A beat looks once at whether the AgentRun journal holds more compactable entries than the
     # Tickets world's `ledger_care` row allows; the `Weighing` port counts them under the file's
@@ -84,6 +84,90 @@ Hecks.bluebook "Hecks" do
       on      "LedgerCare.LedgerCareDue"
       root
       trigger SchemaRevision::Compact, with: { domain: :domain, aggregates: :aggregates, run: :compaction, confirm: true }
+    end
+
+    # A beat looks once at the delivered rows the file's outbox still holds past the Tickets world's
+    # `ledger_care` `outbox_hours`; the `Purging` port deletes them under the file's write lock, in
+    # batches, and a beat with nothing to delete or a held file is deferred by name.
+    aggregate "OutboxCare" do
+      description "One look, on a beat of the clock, at the delivered outbox rows the ledger no longer needs."
+
+      attribute :run,     CareKey
+      attribute :reason,  CareNote, optional: true
+      attribute :refusal, CareNote, optional: true
+      identified_by :run
+
+      value_object "CareKey" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "CareNote", String
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "held"
+        transition "Hear"    => "purged", from: "requested"
+        transition "Decline" => "held",   from: "requested"
+        mark :terminal, "purged", "held"
+      end
+
+      command "Look" do
+        role "System"
+        goal "Ask whether the outbox holds delivered rows older than the world allows"
+
+        attribute :run, CareKey, sets: true
+
+        emits OutboxCareRequested
+      end
+
+      command "Hear" do
+        role "System"
+        goal "Record how many delivered outbox rows were purged"
+
+        reference_to OutboxCare
+        attribute :reason, CareNote, sets: true
+
+        emits OutboxCareHeard
+      end
+
+      command "Decline" do
+        role "System"
+        goal "Record why the outbox was left for the next beat: nothing old enough, or the file held by another"
+
+        reference_to OutboxCare
+        attribute :refusal, CareNote, sets: true
+
+        emits OutboxCareDeclined
+      end
+    end
+
+    # A root, like the journal's look, so each beat's look begins its own chain.
+    policy "LookAfterTheOutboxOnHeartbeat" do
+      on      "Heartbeat.Beaten"
+      root
+      trigger OutboxCare::Look, with: { run: :beat }
+    end
+
+    policy "PurgeTheOutboxWhenLooking" do
+      on      "OutboxCare.OutboxCareRequested"
+      ask     :purge, with: { run: :run }
+    end
+
+    policy "RecordThePurgedOutbox" do
+      on      "OutboxCare.OutboxPurged"
+      trigger OutboxCare::Hear, with: { reason: :reason }
+    end
+
+    policy "RecordWhyTheOutboxWaits" do
+      on      "OutboxCare.OutboxHeld"
+      trigger OutboxCare::Decline, with: { refusal: :refusal }
+    end
+
+    # Deleted rows leave free pages behind; only a purge that deleted some reaches here, and the
+    # `Reclaiming` port refuses by name unless the file is quiet.
+    policy "ReclaimAfterThePurge" do
+      on      "OutboxCare.OutboxPurged"
+      root
+      trigger LedgerFile::Reclaim, with: { run: :reclaim, confirm: true }
     end
 
     # SQLite keeps the pages a delete frees, so the file stays as big until a vacuum rewrites it.
