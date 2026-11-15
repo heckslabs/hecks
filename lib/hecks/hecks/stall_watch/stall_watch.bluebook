@@ -123,6 +123,26 @@ Hecks.bluebook "Hecks" do
                move: "Read .git/hecks-landings/<branch>.log and look for a gate process (ps) of that branch's worktree: " \
                      "a gate still running or output still growing is only slow, so leave it. With neither, the job has " \
                      "stopped: Work.release! its item so the fill hands the branch to a coder to submit again, and report the log's last line as the cause."
+        # A boarding that could not push: a refused push and failed checks both record `PushFaulted`.
+        # The move reads whether a later boarding, which has a run of its own, already pushed.
+        member kind: "train-faulted", aggregate: "Hecks::SendTrain", state: "faulted", opens: "PushFaulted",
+               closes: "BranchPushed", minutes: 0, forgets: 1440, fixer: "orchestrator",
+               move: "Read SendTrain.outcome for the boarding's refusal, and RedFlag.status. If a later boarding " \
+                     "already pushed the commit (BranchPushed), report that and stop. Otherwise fix the cause the " \
+                     "refusal names and board again (SendTrain.board! --confirm); never use --no-verify or HECKS_OWNER_PUSH."
+        # A queued boarding whose pull request has not merged in 45 minutes: its checks are slow or stuck.
+        # A merge, or a failed-checks verdict (`train-checks-failed` takes over), closes it.
+        member kind: "train-unmerged", aggregate: "Hecks::SendTrain", state: "queued", opens: "BoardingQueued",
+               closes: "BranchPushed,TrainChecksFailed,PushFaulted", minutes: 45, forgets: 1440, fixer: "orchestrator",
+               move: "Read the train pull request (gh pr view <pr> --json mergeStateStatus,statusCheckRollup): " \
+                     "BLOCKED on pending checks is only slow, so leave it; CLEAN without a merge means auto-merge " \
+                     "is off, so turn it on (gh pr merge <pr> --auto). Heartbeat.beat! --wait records a merge GitHub made."
+        # A queued boarding's required checks ended red; its pull request stays open and a merge closes it.
+        member kind: "train-checks-failed", aggregate: "Hecks::SendTrain", state: "red", opens: "TrainChecksFailed",
+               closes: "BranchPushed", minutes: 0, forgets: 1440, fixer: "orchestrator",
+               move: "The report names the failed jobs: read them (gh run view --log-failed). A flaky job is rerun " \
+                     "once (gh run rerun --failed); a real failure is Work.plan! as a red-* work item with the " \
+                     "failed jobs as its detail."
       end
 
       # One opening line still waiting for its closing line, as the tap shows it and its kind's row
