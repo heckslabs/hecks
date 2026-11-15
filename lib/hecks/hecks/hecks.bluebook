@@ -65,6 +65,10 @@ Hecks.bluebook "Hecks" do
                reason: "a failed CI attempt's jobs are read after the rerun that cleared them"
         member domain: "Hecks", aggregate: "Shipment", checkout: "main",
                reason: "a shipment is judged, landed and boarded by launcher calls of their own"
+        member domain: "Hecks", aggregate: "Overload", checkout: "both",
+               reason: "each beat counts its reading into the streaks the verdict stands on, in a process of its own"
+        member domain: "Hecks", aggregate: "Roll", checkout: "main",
+               reason: "the board reads the last rolling fill's report, which another process recorded"
         member domain: "Delivery", aggregate: "Revision", checkout: "both",
                reason: "a landing reads back the revision it landed by run id"
         member domain: "Delivery", aggregate: "Landing", checkout: "both",
@@ -91,6 +95,14 @@ Hecks.bluebook "Hecks" do
                reason: "a recommendation is read by the orchestrator in a later call"
         member domain: "Agents", aggregate: "Pruning", checkout: "main",
                reason: "a pause is read by the process that would wake the pruner, and by the board"
+        member domain: "Agents", aggregate: "Message", checkout: "main",
+               reason: "a message is sent by one call and read, then answered, by the run's session in a later one"
+        member domain: "Agents", aggregate: "Verdict", checkout: "main",
+               reason: "a verdict is delivered, retried or marked undeliverable by calls later than the one that judged"
+        member domain: "Agents", aggregate: "Escalation", checkout: "main",
+               reason: "an exception is seated with the orchestrator by one call and closed by another"
+        member domain: "Agents", aggregate: "Turn", checkout: "main",
+               reason: "a finished turn is read by the board and the next wake, in processes of their own"
         member domain: "Pipeline", aggregate: "Passage", checkout: "main",
                reason: "a passage planned in one call is there for the call that starts its work"
       end
