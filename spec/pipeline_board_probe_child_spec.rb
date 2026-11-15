@@ -13,8 +13,13 @@ module ProbeChildCommands
     ["sh", "-c", "sleep 30 & echo $! > #{pid_file}; wait"]
   end
 
-  # Blocks until the shell writes the pid.
-  def written_pid = Integer(File.read(pid_file))
+  # Blocks until the shell writes the pid. Opening the FIFO waits, and a signal (the background
+  # sleep's exit) may interrupt that wait, so it opens again.
+  def written_pid
+    Integer(File.read(pid_file))
+  rescue Errno::EINTR
+    retry
+  end
 
   # Whether the process has exited: gone, or a zombie waiting to be reaped by init. The probe
   # returns only once the output pipe the grandchild held is closed, so it has exited by then.
@@ -24,6 +29,8 @@ module ProbeChildCommands
   end
 end
 
+# The commands here run unguarded: these examples test that a command is reaped, not that a loaded
+# machine refuses one, and a busy CI runner reads as loaded.
 # A command the board runs never outlives its read: past its bound, or when the reading thread is
 # killed, its whole process group is stopped and reaped, so a slow read on a loaded machine adds no
 # process that runs on.
@@ -37,29 +44,31 @@ RSpec.describe Hecks::Adapters::PipelineBoard::Probe do
   after { FileUtils.rm_rf(dir) }
 
   it "answers the command's output" do
-    expect(described_class.run("sh", "-c", "cat; echo done", stdin: "in ")).to eq("in done\n")
+    expect(described_class.run("sh", "-c", "cat; echo done", stdin: "in ", guarded: false)).to eq("in done\n")
   end
 
   it "gives a command past its bound as unavailable" do
-    expect { described_class.run(*slow_command, seconds: 0.3) }.to raise_error(unavailable, /did not answer in 0.3s/)
+    expect { described_class.run(*slow_command, seconds: 0.3, guarded: false) }
+      .to raise_error(unavailable, /did not answer in 0.3s/)
   end
 
   it "stops the command and its children when it runs past its bound", :aggregate_failures do
     command = slow_command
     pid = Thread.new { written_pid }
-    expect { described_class.run(*command, seconds: 0.5) }.to raise_error(unavailable)
+    expect { described_class.run(*command, seconds: 0.5, guarded: false) }.to raise_error(unavailable)
     expect(gone?(pid.value)).to be(true)
   end
 
   it "stops the command when the thread reading it is killed" do
     command = slow_command
-    reading = Thread.new { described_class.run(*command, seconds: 30) }
+    reading = Thread.new { described_class.run(*command, seconds: 30, guarded: false) }
     pid = written_pid
     reading.kill.join
     expect(gone?(pid)).to be(true)
   end
 
   it "gives a command that exits non-zero as unavailable, with its reason" do
-    expect { described_class.run("sh", "-c", "echo nope >&2; exit 3") }.to raise_error(unavailable, /nope/)
+    expect { described_class.run("sh", "-c", "echo nope >&2; exit 3", guarded: false) }
+      .to raise_error(unavailable, /nope/)
   end
 end
