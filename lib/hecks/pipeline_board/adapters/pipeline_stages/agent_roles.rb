@@ -69,7 +69,8 @@ module Hecks
         def shown(mine)
           working = mine.select { |s| %w[busy blocked].include?(s[:status]) }
           finished = mine.select { |s| s[:status] == "done" }.first(3)
-          { live: working.size, working: working.map { |s| brief(s) }, completed: finished.map { |s| brief(s) } }
+          { live: working.size, waiting: PipelineBoard::OwnerQueue.waiting(working).size,
+            working: working.map { |s| brief(s) }, completed: finished.map { |s| brief(s) } }
         end
 
         # @return [Hash] a session as the card shows it: its name, status and what it reported

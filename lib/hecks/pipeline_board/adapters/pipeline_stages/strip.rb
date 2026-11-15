@@ -65,7 +65,7 @@ module Hecks
         def sessions(list)
           return unknown("Sessions", list) unless list.is_a?(Array)
 
-          session_row(list.size, list.count { |s| s[:status] == "busy" }, list.select { |s| OwnerQueue.waiting?(s) })
+          session_row(list.size, list.count { |s| s[:status] == "busy" }, OwnerQueue.waiting(list))
         end
 
         def session_row(total, busy, waiting)

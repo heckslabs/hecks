@@ -413,7 +413,7 @@ function renderMap(roles, now) {
     const node = svg.querySelector('.node[data-role="' + r.name + '"]');
     if (!node) continue;
     const done = (r.completed || []).length;
-    const blocked = (r.working || []).filter(waitingOnYou).length + (r.name === "release_manager" ? openRecommendations().length : 0);
+    const blocked = (r.waiting || 0) + (r.name === "release_manager" ? openRecommendations().length : 0);
     node.classList.toggle("busy", r.live > 0);
     node.classList.toggle("blocked", blocked > 0);
     node.querySelector("text.stat").textContent = r.live > 0 ? "● " + r.live + " working" : "idle" + (done ? " · " + done + " done" : "");
@@ -436,8 +436,8 @@ function renderMap(roles, now) {
 const evChip = (name) => h("span", { class: "ev" + (name.endsWith("!") ? " you" : "") }, name.replace(/!$/, ""));
 
 // The sessions waiting on you, with what each asked; you answer them in the shared prompt (/answer.js).
-// Only a session that asks the owner is waiting on you; any other blocked session is held on something else.
-function waitingOnYou(s) { return s.status === "blocked" && s.owner === true; }
+// The server decides who is waiting on you (`waiting_on_you`, and `waiting` on each role); a row only asks if it is in that set.
+function waitingOnYou(s) { return !!(state && state.waiting_on_you && (state.waiting_on_you.ids || []).includes(s.id)); }
 const replies = new Map();
 const blockedSessions = () => (state && Array.isArray(state.sessions) ? state.sessions : []).filter(waitingOnYou);
 function answer(id, prefill) {
@@ -508,7 +508,7 @@ function card(r) {
   const meta = ROLES[r.name] || { code: r.name.slice(0, 2).toUpperCase(), name: r.name, hears: [], says: [] };
   const working = r.working || [], done = r.completed || [];
   const recs = r.name === "release_manager" ? openRecommendations() : [];
-  const blocked = working.filter(waitingOnYou).length + recs.length;
+  const blocked = (r.waiting || 0) + recs.length;
   const busy = working.length > 0;
   const session = (w) => h("div", { class: "sess" + (waitingOnYou(w) ? " blocked" : ""), "data-tip": w.name + "\n" + (w.detail || w.status) },
     h("a", { class: "n run-link", href: "/runs/" + encodeURIComponent(w.run || w.id), "data-tip": "Highlight this run on the board" },
