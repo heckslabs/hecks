@@ -22,9 +22,10 @@ module Hecks
 
           # @param environment [Hash{String => String}] the variables the resident matches a line
           #   on, as it holds them
+          # @param root [String, nil] the checkout the resident serves
           # @return [Array<String>] the names set beyond what a plain resident has
-          def odd(environment)
-            set = environment.reject { |name, value| PLAIN.include?(name) || EnvValue.of(name, value).nil? }
+          def odd(environment, root = nil)
+            set = environment.reject { |name, value| PLAIN.include?(name) || EnvValue.of(name, value, root).nil? }
             set.keys
           end
 

@@ -102,11 +102,7 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
 .meter > div { height: 100%; background: var(--series1); }
 .flag { border-left: 4px solid var(--warning); padding: 4px 8px; margin: 4px 0; background: var(--page); border-radius: 0 6px 6px 0; font-size: 13px; }
 .flag b { font-weight: 600; }
-.feed { max-height: 560px; overflow: auto; }
-.ev { border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; }
-.ev.fresh { animation: flash 2.4s ease-out; }
-@keyframes flash { from { background: color-mix(in srgb, var(--series1) 28%, transparent); } to { background: transparent; } }
-@media (prefers-reduced-motion: reduce) { .ev.fresh { animation: none; border-color: var(--series1); } .spin { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
 .spin { display: inline-block; animation: spin 1.2s linear infinite; }
 .filters { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
 .filters button.filter { font: inherit; font-size: 12px; color: var(--ink2); background: var(--surface); border: 1px solid var(--axis); border-radius: 999px; padding: 2px 10px; }
@@ -116,14 +112,6 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
 @keyframes shimmer { to { background-position: -200% 0; } }
 @media (prefers-reduced-motion: reduce) { .loader .bar { animation: none; } }
 @keyframes spin { to { transform: rotate(360deg); } }
-.ev .head { display: flex; gap: 10px; flex-wrap: wrap; align-items: baseline; }
-.ev .time { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 12px; }
-.ev .name { font-weight: 600; }
-.ev .agg { color: var(--ink2); font-size: 12px; overflow-wrap: anywhere; }
-.chain { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 6px; font-size: 12px; }
-.chain .arrow { color: var(--muted); }
-.chain .step { border: 1px solid var(--border); border-radius: 6px; padding: 2px 7px; overflow-wrap: anywhere; }
-.chain .step.policy { border-style: dashed; }
 .live { font-size: 12px; }
 .tip { position: fixed; pointer-events: none; background: var(--ink); color: var(--surface); padding: 4px 8px; border-radius: 6px; font-size: 12px; z-index: 10; display: none; max-width: 280px; }
 .unknown-note { color: var(--ink2); font-style: italic; }
@@ -180,7 +168,7 @@ details.panel[open] > summary { border-bottom: 1px solid var(--axis); border-rad
 details.panel > summary::before { content: "\25B8"; color: var(--ink2); display: inline-block; transition: transform .15s; }
 details.panel[open] > summary::before { transform: rotate(90deg); }
 details.panel > summary:hover { background: var(--page); }
-details.panel > .scroll, details.panel > .feed, details.panel > .strip, details.panel > div:not(summary) { padding: 10px 14px; } details.panel > summary::-webkit-details-marker { display: none; } details.panel > summary h2 { display: inline-block; margin: 0; line-height: 1; }
+details.panel > .scroll, details.panel > .strip, details.panel > div:not(summary) { padding: 10px 14px; } details.panel > summary::-webkit-details-marker { display: none; } details.panel > summary h2 { display: inline-block; margin: 0; line-height: 1; }
 .agentstrip { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 10px 14px; margin-bottom: 8px; border-color: var(--axis); }
 .agentstrip h2 { margin: 0; }
 .agentstrip .roles { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -229,7 +217,6 @@ details.panel > .scroll, details.panel > .feed, details.panel > .strip, details.
     <div class="scroll" id="mapping"></div>
   </details>
   <details class="panel"><summary data-tip="How long each recent Work item spent in each stage, from the events it emitted. A striped stage is still open"><h2 id="h-cyc">Cycles</h2><span class="sum" id="sum-cyc"></span></summary><div id="cyclelegend"></div><div id="cycles"></div><h2 class="sub">Each stage over the recent items</h2><div class="scroll" id="cyclestats"></div></details>
-  <details class="panel"><summary data-tip="Each event the pipeline heard, and the reactions it caused. Hover a row for its full context"><h2 id="h-ev">Events</h2><span class="sum" id="sum-ev"></span></summary><div class="feed" id="feed" aria-live="polite"></div></details>
 </main>
 <dialog id="resolve" aria-labelledby="resolve-title">
   <h2 id="resolve-title"></h2>
@@ -748,51 +735,13 @@ function renderFan(fan) {
   put("mapping", pager("mapping", ["Work item", "Status", "Claimed by", "Claimed at", "Sessions", "Flags"], mapRows.map((r) => [r.slug, r.status, r.claimed_by || (r.sessions.length ? "unclaimed" : "-"), r.claimed_at || "-", r.sessions.join(", ") || "-", r.flags.map((f) => f.detail).join("; ") || "-"]), 10));
 }
 
-const seen = new Map();
-function chainOf(ev) {
-  const nodes = [h("span", { class: "step" }, ev.name)];
-  for (const r of ev.reactions || []) {
-    const state = /deliver|settled|done/.test(r.outcome) ? "ok" : /refus|fail/.test(r.outcome) ? "failed" : "attention";
-    nodes.push(h("span", { class: "arrow" }, "→"), h("span", { class: "step policy", tip: "policy " + r.policy }, r.policy), badge(state), " " + (r.outcome || "no record"));
-    if (r.command) nodes.push(h("span", { class: "arrow" }, "→"), h("span", { class: "step" }, r.command));
-    for (const e of r.emitted || []) nodes.push(h("span", { class: "arrow" }, "→"), h("span", { class: "step" }, e));
-  }
-  return h("div", { class: "chain" }, nodes);
-}
-// A SendTrain event names its boarding: a deep link that highlights the boarding's events here.
-function trainLabel(ev) {
-  if (ev.aggregate !== "SendTrain" || !ev.id) return (ev.aggregate || "") + "#" + (ev.id || "");
-  return h("a", { href: "/trains/" + encodeURIComponent(ev.id), class: "train-link", "data-tip": "Highlight this boarding on the board" }, "SendTrain#" + ev.id);
-}
-function putEvent(ev, fresh) {
-  if (!ev.key) return;
-  const card = h("div", { class: "ev" + (fresh ? " fresh" : ""), tip: eventTip(ev) }, h("div", { class: "head" },
-    h("span", { class: "time" }, clock(ev.at)), h("span", { class: "name" }, ev.name), h("span", { class: "agg" }, trainLabel(ev)),
-    h("span", { class: "agg" }, ev.source === "tap" ? "event log" : "journal")), chainOf(ev));
-  if (ev.aggregate === "SendTrain" && ev.id) card.dataset.highlight = highlightTokens("trains", [ev.id]);
-  const old = seen.get(ev.key), feed = $("feed");
-  if (old) old.replaceWith(card); else feed.prepend(card);
-  seen.set(ev.key, card);
-  while (feed.children.length > 80) { const last = feed.lastChild; for (const [k, v] of seen) if (v === last) seen.delete(k); last.remove(); }
-  if (fresh) applyHighlight();
-}
-function renderEvents(events) {
-  const newest = Array.isArray(events) && events.length ? events[0] : null;
-  summarize("ev", newest ? [clock(newest.at) + " newest: " + newest.name + " · " + newest.aggregate,
-    events.filter((e) => (e.reactions || []).some((r) => r.outcome === "refused")).length + " refused"] : ["none heard yet"]);
-  if (isUnknown(events)) return put("feed", unknown(events));
-  setTitle("h-ev", "Events", events.length);
-  if (!seen.size) [...events].reverse().forEach((e) => putEvent(e, false));
-  applyHighlight();
-}
-
-// The item a deep link names: /runs/<key> is a session row, by its run key or session id, and
-// /trains/<key> the SendTrain events of one boarding. The ring stays while the link stands in the
-// address bar, follows every re-render, and goes when the link is cleared.
+// The item a deep link names: /runs/<key> is a session row, by its run key or session id. The ring
+// stays while the link stands in the address bar, follows every re-render, and goes when the link
+// is cleared. (/trains/<key> is the Events page, not this one.)
 let highlight = null;
-const HIGHLIGHT_PATH = /^\/(runs|trains)\/([A-Za-z0-9][A-Za-z0-9._-]{0,127})$/;
-const HIGHLIGHT_NAME = { runs: "Run", trains: "Train" };
-const HIGHLIGHT_MISSING = { runs: "no session with that run key or id is listed", trains: "no SendTrain event of that boarding is in the feed" };
+const HIGHLIGHT_PATH = /^\/(runs)\/([A-Za-z0-9][A-Za-z0-9._-]{0,127})$/;
+const HIGHLIGHT_NAME = { runs: "Run" };
+const HIGHLIGHT_MISSING = { runs: "no session with that run key or id is listed" };
 function highlightFrom(path) { const m = HIGHLIGHT_PATH.exec(path); return m ? { kind: m[1], key: m[2], placed: false } : null; }
 function highlightTokens(kind, keys) { return keys.filter(Boolean).map((key) => kind + ":" + key).join(" "); }
 // Sets the highlight (or none) and the address that stands for it: "push" adds a history entry, "replace" rewrites the current one.
@@ -825,7 +774,7 @@ function applyHighlight() {
     hits[0].scrollIntoView({ block: "center" });
   }
   // A run filtered or paged out of view is still on the board: only the data says it is not.
-  const listed = highlight.kind === "runs" ? lastSessions.some((s) => s.run === highlight.key || s.id === highlight.key) : hits.length > 0;
+  const listed = lastSessions.some((s) => s.run === highlight.key || s.id === highlight.key);
   banner.hidden = listed || !lastState;
   if (banner.hidden) return;
   const clear = h("button", { type: "button" }, "Clear");
@@ -833,11 +782,11 @@ function applyHighlight() {
   banner.replaceChildren(h("span", {}, h("b", {}, HIGHLIGHT_NAME[highlight.kind] + " " + highlight.key), " is not on the board: " + HIGHLIGHT_MISSING[highlight.kind] + "."),
     h("a", { href: "/api/" + highlight.kind + "/" + encodeURIComponent(highlight.key) }, "JSON"), clear);
 }
-// An in-board link to a run or a train highlights its item here instead of leaving the page. A
+// An in-board link to a run highlights its row here instead of leaving the page. A
 // plain click anywhere else clears the highlight; a control (a link, a button, a panel's summary,
 // a form field, the dialog) keeps it, so paging or filtering a table does not drop it.
 document.addEventListener("click", (e) => {
-  const link = e.target.closest("a[href^='/runs/'], a[href^='/trains/']");
+  const link = e.target.closest("a[href^='/runs/']");
   if (link && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey) {
     const next = highlightFrom(link.getAttribute("href"));
     if (next) { e.preventDefault(); setHighlight(next, "push"); return; }
@@ -847,14 +796,6 @@ document.addEventListener("click", (e) => {
 });
 addEventListener("popstate", () => { highlight = highlightFrom(location.pathname); applyView(); renderSessions(lastSessions); });
 highlight = highlightFrom(location.pathname); applyView();
-// The full context of one event for its hover: when, which aggregate instance, and every reaction.
-function eventTip(e) {
-  const lines = [e.name, "at " + clock(e.at), e.aggregate + (e.id ? " " + e.id : "")];
-  const reactions = e.reactions || [];
-  lines.push(reactions.length ? "reactions:" : "no reactions");
-  for (const r of reactions) lines.push("  " + r.policy + " → " + (r.command || "-") + " (" + r.outcome + ")");
-  return lines.join("\n");
-}
 
 let lastState = null;
 // Replies the user sent, shown at once in the session row: sending, sent, or why it was not sent.
@@ -869,7 +810,7 @@ function replyNote(s) {
 function render(s) {
   lastState = s;
   renderTiles(s.metrics); renderLoad(s.load_history); renderCauses(s.load_causes); renderThroughput(s.throughput_days); renderAttention(s.metrics, s.stages, s.sessions, s.recommendations); renderStrip(s.stages);
-  renderRoles(s.roles, s.pruning); renderSessions(s.sessions); renderFan(s.fanout); renderCycles(s.cycles); renderEvents(s.events);
+  renderRoles(s.roles, s.pruning); renderSessions(s.sessions); renderFan(s.fanout); renderCycles(s.cycles);
   $("updated").textContent = "updated " + clock(s.generated_at);
   renderStale(s);
 }
@@ -907,8 +848,7 @@ function listen() {
     error: () => { $("live").textContent = "stream: reconnecting"; },
     pause: () => { $("live").textContent = "stream: paused"; },
     tile: (t) => { const el = document.getElementById(t.id); if (el) el.innerHTML = t.html; },
-    state: (data) => { try { render(data.state); } catch (e) { $("updated").textContent = "update failed: " + e.message; } },
-    board: (ev) => { if (ev.key) putEvent(ev, true); }
+    state: (data) => { try { render(data.state); } catch (e) { $("updated").textContent = "update failed: " + e.message; } }
   });
   if (!shared) { $("live").textContent = "stream: unsupported"; setInterval(refresh, 10000); }
 }

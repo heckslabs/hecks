@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../landed_work"
+require_relative "../branch_work_names"
 
 module Hecks
   module Adapters
@@ -9,8 +10,8 @@ module Hecks
       # branch landed as, when the work item last started, and its status. It is mixed into
       # {WorkItems}, whose `find` and `field` it uses, and it reads and never writes.
       #
-      # A branch names its work item as {LandedWork} reads it: the whole key, or the key with QA's
-      # prefix in front.
+      # A branch names its work item as {BranchWorkNames} reads it: the whole key, the key with QA's
+      # prefix in front, or the key with `-N` after it when no work item carries that whole name.
       module LandingFacts
         # @param key [String] a Work item's key
         # @return [Array<String>] the commit of each landed `Landing` whose branch names the work
@@ -19,8 +20,8 @@ module Hecks
           aggregate = find("Delivery", "Landing")
           return [] unless aggregate && !key.to_s.empty?
 
-          branches = [key.to_s, "#{LandedWork::QA_PREFIX}#{key}"]
-          landed = @registry.repository("Hecks", aggregate).all.select { |landing| landed_on?(landing, branches) }
+          keys = work_keys
+          landed = @registry.repository("Hecks", aggregate).all.select { |landing| landed_on?(landing, key.to_s, keys) }
           landed.map { |landing| field(landing, :landed).to_s }.reject(&:empty?)
         end
 
@@ -50,8 +51,15 @@ module Hecks
           @registry.repository("Tickets", work).all.find { |entry| field(entry, :work).to_s == key.to_s }
         end
 
-        def landed_on?(landing, branches)
-          field(landing, :status).to_s == "landed" && branches.include?(field(landing, :branch).to_s)
+        def landed_on?(landing, key, keys)
+          return false unless field(landing, :status).to_s == "landed"
+
+          BranchWorkNames.of(field(landing, :branch).to_s, keys).include?(key)
+        end
+
+        def work_keys
+          work = find("Tickets", "Work")
+          work ? @registry.repository("Tickets", work).all.map { |entry| field(entry, :work).to_s } : []
         end
       end
     end
