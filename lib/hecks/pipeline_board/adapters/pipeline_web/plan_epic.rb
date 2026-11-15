@@ -51,8 +51,10 @@ module Hecks
             "<span class=\"counts\"></span></summary>#{items(data[:items])}</details>"
         end
 
+        # The epic's title and its outcome; the outcome is shown short, and whole as its hover.
         def name(title, outcome)
-          "<span class=\"name\"><b>#{esc(title)}</b><span class=\"outcome\">#{esc(outcome)}</span></span>"
+          said = esc(outcome)
+          "<span class=\"name\"><b>#{esc(title)}</b><span class=\"outcome\" title=\"#{said}\">#{said}</span></span>"
         end
 
         # One cell for each finished item, then one for each open item in reading order.
