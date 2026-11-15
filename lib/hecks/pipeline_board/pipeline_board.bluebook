@@ -392,6 +392,8 @@ Hecks.bluebook "PipelineBoard" do
       member action: "prioritize", needs: "target text",          confirm: "no",  program: "exe/hecks", argv: "tickets Work.prioritize! to={target} priority.value={text} --wait"
       member action: "assign",     needs: "target text",          confirm: "no",  program: "exe/hecks", argv: "tickets Work.assign! to={target} epic={text} --wait"
       member action: "turn",       needs: "target text",          confirm: "yes", program: "exe/hecks", argv: "Dial.turn! setting.value={target} becomes.value={text} --wait"
+      member action: "open_window",  needs: "text",              confirm: "yes", program: "exe/hecks", argv: "MergeWindow.open! reason.value={text} opened_by.value=board --wait"
+      member action: "close_window", needs: "target",            confirm: "no",  program: "exe/hecks", argv: "MergeWindow.close! to={target} --wait"
     end
 
     # A step from `ActionRule`.

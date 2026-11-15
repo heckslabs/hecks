@@ -751,6 +751,73 @@ Hecks.bluebook "Hecks" do
       end
     end
 
+    # A merge window quiets the pipeline so a train merges without competing work: opened, it pauses the
+    # fill by its own record (the owner's switch is never edited) and the `Quieting` port stops what runs.
+    # One record for each window, kept as the history of when the pipeline was held and why.
+    aggregate "MergeWindow" do
+      description "One merge window: opened to let a train merge without competing work, closed when it has merged or by hand."
+
+      attribute :run,       WindowKey
+      attribute :reason,    WindowText, optional: true
+      attribute :opened_by, WindowText, optional: true
+      attribute :quieted,   WindowText, optional: true
+      attribute :refusal,   WindowText, optional: true
+      identified_by :run
+
+      value_object "WindowKey" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "WindowText", String
+
+      lifecycle :status, default: "open" do
+        transition "Close" => "closed", from: "open"
+        mark :terminal, "closed"
+      end
+
+      command "Open" do
+        role "Operator"
+        goal "Open a merge window: pause the fill and quiet the pipeline until the window closes"
+
+        attribute :run,       WindowKey, sets: true
+        attribute :reason,    WindowText, sets: true
+        attribute :opened_by, WindowText, sets: true
+
+        emits WindowOpened
+      end
+
+      command "Record" do
+        role "System"
+        goal "Record what quieting the pipeline stopped, ended and left running"
+
+        reference_to MergeWindow
+        attribute :quieted, WindowText, sets: true
+
+        emits WindowQuieted
+      end
+
+      command "Decline" do
+        role "System"
+        goal "Record why the pipeline could not be quieted"
+
+        reference_to MergeWindow
+        attribute :refusal, WindowText, sets: true
+
+        emits WindowQuietDeclined
+      end
+
+      command "Close" do
+        role "Operator"
+        goal "Close the merge window so the fill runs again"
+
+        reference_to MergeWindow
+
+        given("the window is open") { status == "open" }
+
+        emits WindowClosed
+      end
+    end
+
     # The slow backstop: a clock adapter on the `clock` port beats, and a beat rolls the queue forward.
     aggregate "Heartbeat" do
       description "One beat of the clock, which the bluebook reads as an event and never as a time."
@@ -1743,6 +1810,22 @@ Hecks.bluebook "Hecks" do
     policy "RecordTheDeclinedRoll" do
       on      "Roll.RollRefused"
       trigger Roll::Decline, with: { refusal: :refusal }
+    end
+
+    # Opening a window quiets the pipeline through the port, which answers what it did as facts.
+    policy "QuietWhenAWindowOpens" do
+      on      "MergeWindow.WindowOpened"
+      ask     :quiet, with: { run: :run }
+    end
+
+    policy "RecordTheQuieting" do
+      on      "MergeWindow.WindowQuietReported"
+      trigger MergeWindow::Record, with: { quieted: :quieted }
+    end
+
+    policy "RecordTheDeclinedQuieting" do
+      on      "MergeWindow.WindowQuietRefused"
+      trigger MergeWindow::Decline, with: { refusal: :refusal }
     end
 
     # Each event that frees capacity or adds work opens the switch record (refused, and benign, once
