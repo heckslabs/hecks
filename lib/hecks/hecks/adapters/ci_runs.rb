@@ -4,6 +4,7 @@ require "json"
 require_relative "console_capture"
 require_relative "ci_runs/pull_request"
 require_relative "ci_runs/replaced_runs"
+require_relative "ci_runs/rerun_report"
 require_relative "ci_runs/train_pr_failure"
 require_relative "ci_runs/ci_start"
 require_relative "main_integration/command_runner"
@@ -62,7 +63,7 @@ module Hecks
         ok, output = runner.call(["gh", "run", "rerun", "--failed", id], chdir: @checkout)
         raise ConsoleCapture::Failure, "gh run rerun failed: #{output.to_s.strip}" unless ok
 
-        { report: { value: "reran the failed jobs of CI run #{id} (PR #{plain(held[:pr])})" } }
+        { report: { value: RerunReport.new(id, plain(held[:pr]), plain(held[:step])).to_s } }
       end
 
       private
