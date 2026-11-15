@@ -3,15 +3,15 @@
 require "json"
 require_relative "../probe"
 require_relative "../../../hecks/adapters/started_work"
+require_relative "../../../hecks/adapters/gh_rest"
 
 module Hecks
   module Adapters
     module PipelineBoard
       # What one `/trains/<run>` page shows: how a SendTrain boarding ended, from the launcher's
-      # `SendTrain.outcome`, and the pull request that carried it, from `gh pr view`. It only reads.
+      # `SendTrain.outcome`, and the pull request that carried it, from `gh api`. It only reads.
       class TrainDetail
         FIELDS = %w[status branch boarded pushed commits report refusal].freeze
-        PR_FIELDS = "number,url,state,mergeCommit,statusCheckRollup"
 
         # @param root [String] the checkout `gh` runs in
         # @param live_store [LiveStore, nil] the store the boardings are read from, in this process
@@ -19,7 +19,7 @@ module Hecks
         # @param pull_request [#call, nil] takes the PR branch and answers `gh`'s parsed JSON
         def initialize(root:, live_store: nil, outcome: nil, pull_request: nil)
           @outcome = outcome || ->(key) { boardings(live_store, key) }
-          @pull_request = pull_request || ->(branch) { Probe.json("gh", "pr", "view", branch, "--json", PR_FIELDS, chdir: root) }
+          @pull_request = pull_request || rest_pull_request(root)
         end
 
         # @param key [String] a SendTrain run key
@@ -35,6 +35,12 @@ module Hecks
         end
 
         private
+
+        # The pull request of a branch read over REST, whose budget is apart from GraphQL's.
+        def rest_pull_request(root)
+          rest = Hecks::Adapters::GhRest.new(->(*args) { Probe.json("gh", *args, chdir: root) })
+          ->(branch) { rest.pull(branch) }
+        end
 
         # The SendTrain records of the key, as the rows `SendTrain.outcome` answers.
         def boardings(live_store, key)
@@ -56,6 +62,8 @@ module Hecks
           return if detail[:boarded].empty?
 
           view = @pull_request.call("train/main-#{detail[:boarded][0, 12]}")
+          return unless view
+
           { number: view["number"], url: view["url"], state: view["state"].to_s.downcase, merge: view.dig("mergeCommit", "oid"),
             checks: Array(view["statusCheckRollup"]).map { |check| check_of(check) } }
         rescue PipelineBoard::Unavailable

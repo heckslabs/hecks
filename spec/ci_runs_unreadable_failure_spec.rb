@@ -1,9 +1,11 @@
 require "spec_helper"
 require "hecks/hecks/adapters/ci_runs"
 require_relative "support/red_pull_request_host"
+require_relative "support/private_settled_facts"
 
 # A red train pull request whose failed jobs cannot be read stays watched, and says why.
 RSpec.describe Hecks::Adapters::CiRuns, "#watch of a red pull request" do
+  include_context "with private settled facts"
   include RedPullRequestHost
 
   def watch(readable:)
