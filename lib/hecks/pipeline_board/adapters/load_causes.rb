@@ -2,6 +2,7 @@
 
 require "time"
 require_relative "load_history"
+require_relative "child_audit"
 require_relative "../../hecks/adapters/machine_sampling"
 
 module Hecks
@@ -9,8 +10,9 @@ module Hecks
     module PipelineBoard
       # What is using the CPU, for the board's load chart: the process classes the `Machine`
       # aggregate's `Busiest` query answers, read every half minute on a thread of its own. It is
-      # the one program the board runs while the machine is loaded (`ps`, once a read), because a
-      # loaded machine is when the answer is wanted; it changes nothing.
+      # the programs the board runs while the machine is loaded (`ps`, twice a read: the classes
+      # and the {ChildAudit} of the board's own children), because a loaded machine is when the
+      # answer is wanted; it changes nothing.
       class LoadCauses
         # Seconds between reads.
         EVERY = 30
@@ -38,8 +40,11 @@ module Hecks
         #   and `session` each
         # @param now [#call] answers the current time
         # @param every [Numeric] seconds between reads
-        def initialize(rows: -> { MachineSampling::ProcessClasses.new.rows }, now: -> { Time.now.utc }, every: EVERY)
+        # @param audit [#read] names the board's defunct children, once a read
+        def initialize(rows: -> { MachineSampling::ProcessClasses.new.rows }, now: -> { Time.now.utc }, every: EVERY,
+                       audit: ChildAudit.new)
           @rows = rows
+          @audit = audit
           @now = now
           @every = every
           @lock = Mutex.new
@@ -59,6 +64,7 @@ module Hecks
         def read
           classes = @rows.call.first(SHOWN).map { |row| row.to_h.transform_keys(&:to_sym).slice(:name, :count, :cpu, :session) }
           @lock.synchronize { @held = { at: @now.call.iso8601, classes: classes } }
+          @audit.read
         end
 
         # @return [Hash] `at` (when it was read, nil before the first) and `classes` (busiest first)
