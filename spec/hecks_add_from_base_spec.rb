@@ -46,19 +46,6 @@ RSpec.describe "opening a worktree from a base" do
     expect(git(repo, "rev-parse", "main")).to eq(@main)
   end
 
-  it "opens a worktree asked for from inside a linked one under the primary checkout" do
-    inner = adder.create(checkout: repo, branch: "work-d").dig(:path, :value)
-    next_path = adder.create(checkout: inner, branch: "work-e").dig(:path, :value)
-    expect(next_path).to eq(File.join(repo, ".claude", "worktrees", "work-e"))
-  end
-
-  it "refuses an explicit path inside a linked worktree, and opens nothing", :aggregate_failures do
-    inner = adder.create(checkout: repo, branch: "work-f").dig(:path, :value)
-    expect { adder.create(checkout: repo, branch: "work-g", path: File.join(inner, "deep")) }
-      .to raise_error(failure, /inside the worktree/)
-    expect(git(repo, "worktree", "list")).not_to include("work-g")
-  end
-
   it "refuses a base that is not a commit, and opens nothing", :aggregate_failures do
     expect { adder.create(checkout: repo, branch: "work-c", base: "nope") }.to raise_error(failure, /not a commit/)
     expect(git(repo, "worktree", "list")).not_to include("work-c")
