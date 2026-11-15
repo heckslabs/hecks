@@ -10,6 +10,8 @@ RSpec.describe "the pause on automatic dispatch" do
 
   Failure = Hecks::Adapters::ConsoleCapture::Failure unless defined?(Failure)
 
+  before { Hecks::Adapters::Dispatching::LastRoll.reset! }
+
   it "starts no roll while the owner has paused" do
     expect { rolling({ roll_forward: false }).roll }.to raise_error(Failure, /paused: dispatch_roll_forward is false/)
   end
