@@ -5,6 +5,7 @@ require "hecks/adapters/driving/resident/peer"
 require "hecks/adapters/driving/resident/outcome"
 require "hecks/adapters/driving/resident/stuck"
 require "hecks/adapters/driving/resident/trace"
+require "hecks/adapters/driving/resident/waiting"
 
 module Hecks
   module Adapters
@@ -65,9 +66,17 @@ module Hecks
           def attempt(root, script)
             status, why = ask(root, script)
             Stuck.after(root, why)
-            exit(status) if status
+            return end_line(root, script, status) if status
+
             spawned = spawn_resident(root, script)
             why ? Outcome.refused(why) : spawned
+          end
+
+          # Ends the process with the line's status; when the resident went away while the line
+          # ran, starts the one the next line will find.
+          def end_line(root, script, status)
+            spawn_resident(root, script) if @gone
+            exit(status)
           end
 
           # @return [Boolean] whether this line is one the launcher runs itself
@@ -150,11 +159,24 @@ module Hecks
           # @return [String] the reason a reply that was not `ready` gives: `stale:env` is `env`
           def refusal(word) = word.delete_prefix("#{Wire::STALE}:")
 
-          # @return [Integer] the status the resident reports once it has the line; 1 if it vanishes
+          # Waits for the status the resident reports once it has the line ({Waiting}). A resident
+          # that goes away while the line runs leaves its status unknown: that is said on stderr
+          # and the status is 1. The line is not run again, since it has begun.
+          #
+          # @return [Integer] the line's exit status; 1 if the resident vanishes
           def finish(socket)
-            reply = Wire.read_reply(socket).to_s
-            reply.start_with?(Wire::STATUS) ? Integer(reply.delete_prefix(Wire::STATUS)) : 1
-          rescue *LOST, ArgumentError
+            reply = Waiting.status(socket, Peer.pid(socket)).to_s
+            return Integer(reply.delete_prefix(Wire::STATUS)) if reply.start_with?(Wire::STATUS)
+
+            gone
+          rescue *LOST, Wire::Refused, ArgumentError
+            gone
+          end
+
+          # @return [Integer] 1, after saying that the resident went away while the line ran
+          def gone
+            @gone = true
+            warn("hecks: the resident went away while this line ran; its status is unknown")
             1
           end
 
