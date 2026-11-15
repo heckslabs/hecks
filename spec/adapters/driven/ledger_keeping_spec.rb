@@ -62,6 +62,51 @@ RSpec.describe Hecks::Adapters::LedgerKeeping do
     end
   end
 
+  describe "the delivered outbox rows" do
+    let(:rows) { [["delivered", 30], ["delivered", 1], ["pending", 30], ["failed", 30], ["refused", 30]] }
+
+    before { scratch_outbox(path, rows) }
+
+    it "purges the delivered rows settled before the window and nothing else", :aggregate_failures do
+      answer = purging_over(ledger_at(path), hours: 24).purge(run: { value: "beat-1" })
+
+      expect(outbox_counts(path)).to eq("delivered" => 1, "pending" => 1, "failed" => 1, "refused" => 1)
+      expect(answer[:reason][:value]).to include("1 delivered outbox rows older than 24 hours")
+    end
+
+    it "names the vacuum's run after the beat" do
+      answer = purging_over(ledger_at(path), hours: 24).purge(run: "beat-1")
+
+      expect(answer[:reclaim]).to eq(value: "outbox-care-beat-1")
+    end
+
+    it "is deferred when no delivered row is old enough" do
+      purging = purging_over(ledger_at(path), hours: 100)
+
+      expect { purging.purge(run: "beat-1") }.to raise_error(failure, /no delivered outbox rows are older than 100 hours/)
+    end
+
+    it "is deferred by name when another process holds the file" do
+      purging = purging_over(ledger_at(path), hours: 24)
+
+      while_held(path) { expect { purging.purge(run: "beat-1") }.to raise_error(failure, /held by another process/) }
+    end
+
+    it "stops at the batch cap and leaves the rest to the next beat" do
+      stub_const("Hecks::Adapters::LedgerKeeping::OutboxPurge::BATCH", 1)
+      stub_const("Hecks::Adapters::LedgerKeeping::OutboxPurge::BATCHES", 1)
+      SQLite3::Database.new(path).execute("UPDATE hecks_outbox SET status = 'delivered', settled_at = '2020-01-01T00:00:00Z'")
+
+      expect(described_class::OutboxPurge.new(ledger_at(path)).purge!(hours: 24)).to eq(1)
+    end
+
+    it "does nothing to a file without an outbox table" do
+      SQLite3::Database.new(path).execute("DROP TABLE hecks_outbox")
+
+      expect(described_class::OutboxPurge.new(ledger_at(path)).purge!(hours: 24)).to eq(0)
+    end
+  end
+
   describe "the vacuum" do
     def free_pages_after_compaction
       SQLite3::Database.new(path).tap { |db| db.execute("DELETE FROM agent_run_entries") }.close

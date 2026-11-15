@@ -526,6 +526,17 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  # The outside a beat reaches to purge the AgentRun file's delivered outbox rows settled before
+  # `outbox_hours`, in batches under the file's write lock; with none to purge, or the file held
+  # or not in SQLite, it is deferred by name.
+  Hecks::OutboxCare.port "Purging" do
+    asks "Purge", to: OutboxCare do
+      attribute :run, CareKey
+      answers "OutboxPurged"
+      refuses "OutboxHeld"
+    end
+  end
+
   # The outside a VACUUM of the AgentRun file reaches: it refuses by name unless no other process holds
   # the file open and its exclusive lock is taken within the `ledger_care` wait, and reports the size
   # before and after.
