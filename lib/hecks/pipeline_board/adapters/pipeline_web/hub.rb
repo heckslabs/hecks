@@ -14,8 +14,17 @@ module Hecks
       # line, and the cost of a busy pipeline does not grow with how busy it is. The one timer is
       # the safety net: every `net_seconds` it draws every tile again and wakes the readers, so a
       # line the file watch missed is still caught and a dead connection shows when its write
-      # raises.
+      # raises. The rest starts when a drawing ends and lasts the gap or as long as the drawing
+      # took, whichever is longer; one pen is held while drawing, so a drawing slower than the gap
+      # is never followed at once by another, nor run beside one.
       class Hub
+        # The hub's time: `now` answers monotonic seconds and `rest` waits; a spec's stands in.
+        module Clock
+          def self.now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+
+          def self.rest(seconds) = sleep(seconds)
+        end
+
         # What a reader is woken with: the journal's `seq`, the fragments to push and whether the
         # safety net, not a journal line, woke it.
         Wake = Struct.new(:seq, :fragments, :net)
@@ -25,7 +34,8 @@ module Hecks
         # @param net_seconds [Numeric] the safety net's period (the `safety_net_seconds` setting)
         # @param gap [#call] answers the seconds the drawer rests after a drawing (the
         #   `tile_redraw_seconds` setting, or the loaded period while the machine is loaded)
-        def initialize(tiles:, watch:, net_seconds:, gap: -> { 0 })
+        # @param clock [#now, #rest] the hub's time ({Clock}, or a spec's)
+        def initialize(tiles:, watch:, net_seconds:, gap: -> { 0 }, clock: Clock)
           @tiles = tiles
           @watch = watch
           @net_seconds = net_seconds
@@ -33,9 +43,9 @@ module Hecks
           @readers = []
           @marked = []
           @due = Queue.new
-          @rest_until = 0.0
           @seq = 0
-          @lock = Mutex.new
+          @lock, @pen = Array.new(2) { Mutex.new }
+          @clock = clock
         end
 
         # Starts following the journal, the drawer and the safety net.
@@ -67,36 +77,56 @@ module Hecks
         private
 
         # One wake per line. It carries the drawing of the marked tiles unless the hub is resting
-        # after a drawing; the tiles then stay marked and the drawer draws them when the rest ends.
+        # after a drawing or the drawer holds the pen; the tiles then stay marked and the drawer
+        # draws them when the rest ends.
         def line(row)
           @seq = row[:seq] || (@seq + 1)
           @lock.synchronize { @marked |= @tiles.reading(row[:aggregate]) }
-          wake(Wake.new(@seq, resting? ? left_for_the_drawer : drawing, false))
+          wake(Wake.new(@seq, drawn_with_the_line || left_for_the_drawer, false))
+        end
+
+        # The marked tiles drawn on the watch's thread, or nil while resting or the pen is held.
+        def drawn_with_the_line
+          return unless @pen.try_lock
+
+          begin
+            drawing unless resting?
+          ensure
+            @pen.unlock
+          end
         end
 
         def left_for_the_drawer = [].tap { @due << :marked }
 
-        def resting? = monotonic < @rest_until
+        # The rest is over when no drawing has set one (`nil.to_f` is 0).
+        def resting? = @clock.now < rest_until
 
-        def monotonic = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        def rest_until = @rest_until.to_f
 
-        # The marked tiles, drawn once; the rest starts with a drawing.
+        # The marked tiles, drawn once; the rest starts when the drawing ends. Called with the pen.
         def drawing
           ids = @lock.synchronize { @marked.tap { @marked = [] } }
           return [] if ids.empty?
 
-          @rest_until = monotonic + @gap.call.to_f
-          @tiles.changed(ids, @seq)
+          started = @clock.now
+          begin
+            @tiles.changed(ids, @seq)
+          ensure
+            ended = @clock.now
+            @rest_until = ended + [@gap.call.to_f, ended - started].max
+          end
         end
 
         # Waits out the rest, then draws what the lines of the rest marked and wakes the readers
-        # when a drawing changed.
+        # when a drawing changed. The pen is held throughout, so a line draws nothing meanwhile.
         def draw
           @due.pop
           @due.clear
-          left = @rest_until - monotonic
-          sleep(left) if left.positive?
-          fragments = drawing
+          fragments = @pen.synchronize do
+            left = rest_until - @clock.now
+            @clock.rest(left) if left.positive?
+            drawing
+          end
           wake(Wake.new(@seq, fragments, false)) unless fragments.empty?
         end
 
