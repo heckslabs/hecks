@@ -54,7 +54,7 @@ module Hecks
         end
 
         # @param kind [String] what the rows are, which keeps a stage and a metric of one name apart
-        # @param rows [Array<Hash>, Object] the rows of a reading; anything else is answered as it is
+        # @param rows [Array<Hash>, Object] a reading's rows; anything else is answered as it is
         # @param now [Time] the time of the reading
         # @return [Array<Hash>] the rows, each with the `since` its state has stood from
         def stamp(kind, rows, now)
