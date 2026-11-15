@@ -67,15 +67,16 @@ header.top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 20p
 
 .lane { margin-top: 26px; border-radius: 14px; outline: 2px dashed transparent; outline-offset: 8px; }
 .lane.over { outline-color: var(--run); }
-/* Changing the plan: a tick box on each open item, a bar of drop zones while something is carried, and a bar for what is picked. */
-.filters button, .mover button { font: inherit; font-size: 13px; padding: 5px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); cursor: pointer; }
-.filters button:hover, .mover button:hover { border-color: var(--run); }
-.item[draggable=true], .epic summary[draggable=true] { cursor: grab; } .item.picked { background: var(--signal-soft); }
-.item input.pick { align-self: center; margin: 0 2px 0 0; cursor: pointer; }
-.dropbar, .mover, .toast { position: fixed; left: 50%; transform: translateX(-50%); z-index: 30; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 10px 14px; max-width: calc(100vw - 24px);
+/* Changing the plan: a Move list on each open item, a bar of drop zones while something is carried, and a notice of what was saved. */
+.item[draggable=true], .epic summary[draggable=true] { cursor: grab; }
+.filters button { font: inherit; font-size: 13px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); cursor: pointer; }
+.filters button:hover, .filters button[aria-pressed=true] { border-color: var(--run); } .filters button[aria-pressed=true] { background: var(--signal-soft); }
+.filters #to-epic { max-width: 280px; } .filters #to-epic[hidden] { display: none; }
+.item input.pick { align-self: center; margin: 0 2px 0 0; cursor: pointer; } .item.picked { background: var(--signal-soft); }
+.dropbar, .toast { position: fixed; left: 50%; transform: translateX(-50%); z-index: 30; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 10px 14px; max-width: calc(100vw - 24px);
   background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 10px 30px color-mix(in srgb, var(--ink) 18%, transparent); font-size: 13px; color: var(--ink2); }
-.dropbar, .toast { top: 56px; } .mover { bottom: 16px; }
-.dropbar[hidden], .mover[hidden], .toast[hidden] { display: none; }
+.dropbar, .toast { top: 56px; }
+.dropbar[hidden], .toast[hidden] { display: none; }
 .toast { color: var(--ink); font-weight: 600; border-color: var(--run); } .toast.bad { border-color: var(--critical); color: var(--critical); font-weight: 400; }
 /* The space that opens among a lane's rows where what is carried will land: the rows under it move down. */
 .slot { height: 58px; margin: 0; border: 2px dashed var(--run); border-radius: 12px; background: var(--signal-soft); display: flex; align-items: center; padding: 0 16px;
@@ -86,15 +87,13 @@ header.top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 20p
 .item.saving { opacity: .55; }
 .dropbar .zone { padding: 12px 26px; border: 2px dashed var(--line); border-radius: 10px; color: var(--ink); font-weight: 600; }
 .dropbar .zone.over { border-color: var(--run); background: var(--signal-soft); }
-.mover b { color: var(--ink); }
-.mover select { font: inherit; max-width: 260px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); }
 .lane h2 { display: flex; align-items: baseline; gap: 10px; font-size: 16px; font-weight: 650; letter-spacing: -.005em; margin: 0 4px 8px; }
 .lane h2 .counts { font-weight: 400; }
 .epic { background: var(--surface); border: 1px solid var(--line); border-top-width: 0; }
 .epic:first-of-type { border-top-width: 1px; border-radius: 12px 12px 0 0; }
 .epic:last-of-type { border-radius: 0 0 12px 12px; }
 .epic:first-of-type:last-of-type { border-radius: 12px; }
-.epic summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 4fr) minmax(96px, max-content); gap: 6px 22px;
+.epic summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 4fr) 190px; gap: 6px 22px;
   align-items: center; padding: 11px 16px 11px 34px; position: relative; }
 .epic summary::-webkit-details-marker { display: none; }
 .epic summary::before { content: ""; position: absolute; left: 15px; top: 18px; width: 6px; height: 6px; border-right: 1.5px solid var(--muted);
@@ -151,8 +150,9 @@ header.top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 20p
     <label>Priority <select id="f-priority"><option value="">any</option><option>now</option><option>next</option><option>later</option><option value="unset">not prioritised</option></select></label>
     <label>Status <select id="f-status"><option value="">any</option><option>planned</option><option>started</option><option>yielded</option></select></label>
     <label>Area <select id="f-area"><option value="">any</option></select></label>
-    <button id="pick-shown" type="button">Pick what is shown</button>
-    <span class="note" id="shown">Drag an item or an epic onto Now, Next or Later. Tick items to move them to an epic.</span>
+    <button id="select" type="button" aria-pressed="false">Select</button>
+    <select id="to-epic" aria-label="Move the ticked items to an epic" hidden disabled></select>
+    <span class="note" id="shown">Drag an item or an epic to a new place, or onto Now, Next or Later. Select ticks items to move to an epic.</span>
   </section>
   <p class="empty" id="empty" hidden>Nothing matches. Clear the search or a filter to see the plan again.</p>
 </main>
@@ -161,14 +161,6 @@ header.top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 20p
   <span class="zone" data-drop="now">Now</span><span class="zone" data-drop="next">Next</span><span class="zone" data-drop="later">Later</span>
 </div>
 <div class="toast" id="toast" hidden role="status" aria-live="polite"></div>
-<div class="mover" id="mover" hidden role="region" aria-label="Move the picked items">
-  <b id="picked-count"></b>
-  <label>to epic <select id="to-epic"></select></label><button id="move-epic" type="button">Move</button>
-  <span class="or">or want them</span>
-  <button type="button" data-want="now">Now</button><button type="button" data-want="next">Next</button><button type="button" data-want="later">Later</button>
-  <button id="clear-picked" type="button">Clear</button>
-
-</div>
 <script src="/stream.js"></script>
 <script>
 const $ = (id) => document.getElementById(id);
@@ -219,7 +211,7 @@ function areas() {
 // Changing the plan from the page. Each change is one Hecks command, run through the board's one write:
 // Work.prioritize! for how soon an item is wanted, Work.assign! for the epic it belongs to. An epic has no
 // priority of its own (it sits in the most urgent lane of its open items), so moving an epic moves those items.
-const WANTED = ["now", "next", "later"], picked = new Set();
+const WANTED = ["now", "next", "later"];
 let moving = false, carried = null;
 const openItems = (within) => [...within.querySelectorAll(".item[data-slug]:not(.closed)")];
 // What was just changed is said in a notice at the head of the page, which stays while commands run and a while after.
@@ -241,66 +233,103 @@ async function change(action, slugs, value, words) {
   if (moving) { say("Still saving the last change. Try again in a moment.", true); return; }
   if (!slugs.length) return;
   moving = true; const refused = [], until = Date.now() + 120000;
-  if (action === "prioritize") for (const slug of slugs) { const item = itemOf(slug); pending.set(slug, { want: value, was: item ? item.dataset.priority : "", until }); }
+  for (const slug of slugs) {
+    const item = itemOf(slug), was = item ? item.dataset : {};
+    pending.set(slug, action === "prioritize" ? { want: value, was: was.priority || "", until } : { epic: value, wasEpic: was.epic || "", until });
+  }
   decorate();
   for (const [i, slug] of slugs.entries()) {
     say("Saving " + words + (slugs.length > 1 ? ": " + (i + 1) + " of " + slugs.length : ""));
     try { await send(action, slug, value); } catch (e) { refused.push(slug + " (" + e.message + ")"); undo(slug); }
   }
-  moving = false; picked.clear(); decorate();
+  moving = false; decorate();
   const many = slugs.length > 1 ? " (" + (slugs.length - refused.length) + " of " + slugs.length + " items)" : "";
   say(refused.length ? "Not all saved: " + words + many + ". Refused: " + refused.join("; ") : "Saved: " + words + many + ".", refused.length > 0);
 }
-// A refused item goes back to the priority it had.
-function undo(slug) { const held = pending.get(slug), item = itemOf(slug); pending.delete(slug); if (held && item) paint(item, held.was); }
-function mover() {
-  $("mover").hidden = !picked.size;
-  $("picked-count").textContent = picked.size ? picked.size + " picked" : "";
+// A refused item goes back to the priority, or the epic, it had.
+function undo(slug) {
+  const held = pending.get(slug), item = itemOf(slug); pending.delete(slug); if (!held || !item) return;
+  if (held.want) paint(item, held.was); else if (held.wasEpic) rehome(item, held.wasEpic);
 }
-// Shows what is pending over what the server drew, and puts an epic whose items were moved in the lane those
-// items now put it in: the most urgent lane of its open items.
+const epicOf = (key) => document.querySelector('#plan details.epic[data-epic="' + CSS.escape(key) + '"]');
+const titleOf = (item) => item.querySelector(".what").firstChild.textContent.trim();
+// Shows what is pending over what the server drew: an item's new priority or its new epic, and an epic whose
+// items were moved in the lane those items now put it in, the most urgent lane of its open items.
 function settle() {
   const epics = new Set();
   for (const [slug, held] of pending) {
     if (held.until < Date.now()) { pending.delete(slug); continue; }
     const item = itemOf(slug); if (!item) continue;
-    if (item.dataset.priority !== held.want) paint(item, held.want);
+    if (held.want && item.dataset.priority !== held.want) paint(item, held.want);
+    if (held.epic && item.dataset.epic !== held.epic) rehome(item, held.epic);
     item.classList.toggle("saving", moving); epics.add(item.closest("details.epic"));
   }
   for (const epic of epics) {
     const from = epic && epic.closest(".lane[data-lane]"); if (!from || !WANTED.includes(from.dataset.lane) || !epic.dataset.epic) continue;
     const want = WANTED[Math.min(...openItems(epic).map((el) => rank(el.dataset.priority)))], lane = want && document.querySelector('#plan .lane[data-lane="' + want + '"]');
-    if (lane && lane !== from) lane.querySelector("h2").after(epic);
+    if (lane && lane !== from) lane.append(epic);
   }
 }
-function epicChoices() {
-  const kept = $("to-epic").value, epics = [...document.querySelectorAll("#plan details.epic[data-epic]")].filter((e) => e.dataset.epic)
-    .map((e) => [e.querySelector(".name b").textContent, e.dataset.epic]).sort((a, b) => a[0].localeCompare(b[0]));
-  $("to-epic").replaceChildren(...epics.map(([title, key]) => new Option(title, key)));
-  if (epics.some(([, key]) => key === kept)) $("to-epic").value = kept;
+// Puts an item's row under another epic, among its open items.
+function rehome(item, key) {
+  const epic = epicOf(key), list = epic && epic.querySelector(".items:not(.over)");
+  if (list) { list.append(item); item.dataset.epic = key; }
 }
-// Every open item gets a tick box and can be dragged; so can an epic's row. The tile is redrawn by the server, so
-// this runs after each redraw and puts back the ticks.
+// Where the owner left the rows: the order of the epics in each lane as they were last arranged by hand, kept
+// across redraws and visits. Which lane an epic is in comes from the plan; its place among the lane's rows is this
+// page's own, so the order the fill starts work in is not changed by it.
+const placed = (() => { try { return JSON.parse(localStorage.getItem("plan-order") || "{}"); } catch (e) { return {}; } })();
+const rowsOf = (lane) => [...lane.children].filter((el) => el.matches("details.epic"));
+function keepOrder(lane) {
+  if (!lane) return;
+  placed[lane.dataset.lane] = rowsOf(lane).map((epic) => epic.dataset.epic);
+  try { localStorage.setItem("plan-order", JSON.stringify(placed)); } catch (e) { /* the order lasts for this page only */ }
+}
+function arrange() {
+  for (const lane of document.querySelectorAll("#plan .lane[data-lane]")) {
+    const order = placed[lane.dataset.lane]; if (!order) continue;
+    const rows = rowsOf(lane), at = (epic) => { const i = order.indexOf(epic.dataset.epic); return i < 0 ? order.length : i; };
+    const sorted = rows.map((epic, i) => [epic, i]).sort((a, b) => at(a[0]) - at(b[0]) || a[1] - b[1]).map(([epic]) => epic);
+    if (sorted.some((epic, i) => epic !== rows[i])) lane.append(...sorted);
+  }
+}
+// Selecting: the Select button puts a tick box beside every open item, and "Move to epic" sends the ticked ones to
+// the epic chosen from its list. The ticks are kept across redraws while selecting is on.
+const picked = new Set();
+let selecting = false;
+// Every open item can be dragged, and so can an epic's row; while selecting, each open item has its tick box. The
+// tile is redrawn by the server, so this runs after each redraw.
 function decorate() {
   for (const item of openItems($("plan"))) {
     item.draggable = true;
     let box = item.querySelector("input.pick");
-    if (!box) { box = document.createElement("input"); box.type = "checkbox"; box.className = "pick"; box.setAttribute("aria-label", "Pick " + item.dataset.slug); item.prepend(box); }
-    box.checked = picked.has(item.dataset.slug); item.classList.toggle("picked", box.checked);
+    if (selecting && !box) { box = document.createElement("input"); box.type = "checkbox"; box.className = "pick"; box.setAttribute("aria-label", "Select " + item.dataset.slug); item.prepend(box); }
+    if (!selecting && box) box.remove();
+    if (selecting) box.checked = picked.has(item.dataset.slug);
+    item.classList.toggle("picked", selecting && picked.has(item.dataset.slug));
   }
   for (const row of document.querySelectorAll("#plan details.epic > summary")) row.draggable = true;
-  settle(); epicChoices(); mover();
+  settle(); arrange(); selection();
 }
+// The Select button, the count of what is ticked, and the list of epics to move it to.
+function selection() {
+  const epics = [...document.querySelectorAll("#plan details.epic[data-epic]")].filter((e) => e.dataset.epic)
+    .map((e) => [e.querySelector(".name b").textContent, e.dataset.epic]).sort((a, b) => a[0].localeCompare(b[0]));
+  $("select").setAttribute("aria-pressed", String(selecting)); $("select").textContent = selecting ? "Done selecting" : "Select";
+  $("to-epic").hidden = !selecting; $("to-epic").disabled = !picked.size;
+  $("to-epic").replaceChildren(new Option(picked.size ? "Move " + picked.size + " to epic…" : "Tick items, then move to epic…", ""), ...epics.map(([title, key]) => new Option(title, key)));
+}
+$("select").addEventListener("click", () => { selecting = !selecting; if (!selecting) picked.clear(); decorate(); });
 document.addEventListener("change", (event) => {
-  const box = event.target.closest("input.pick"); if (!box) return;
+  const box = event.target.closest && event.target.closest("input.pick"); if (!box) return;
   const slug = box.closest(".item").dataset.slug; if (box.checked) picked.add(slug); else picked.delete(slug);
   decorate();
 });
-$("pick-shown").addEventListener("click", () => { for (const item of openItems($("plan"))) if (!item.hidden && !item.closest("[hidden]")) picked.add(item.dataset.slug); decorate(); });
-$("clear-picked").addEventListener("click", () => { picked.clear(); decorate(); });
-$("move-epic").addEventListener("click", () => change("assign", [...picked], $("to-epic").value, "To " + $("to-epic").selectedOptions[0].textContent));
-for (const b of $("mover").querySelectorAll("[data-want]")) b.addEventListener("click", () => change("prioritize", [...picked], b.dataset.want, "Wanted " + b.dataset.want));
-// Dragging: an item carries itself (or every picked item when it is one of them), an epic's row carries the epic.
+$("to-epic").addEventListener("change", () => {
+  const key = $("to-epic").value, title = $("to-epic").selectedOptions[0].textContent, slugs = [...picked]; if (!key || !slugs.length) return;
+  picked.clear(); change("assign", slugs, key, (slugs.length === 1 ? "“" + titleOf(itemOf(slugs[0])) + "”" : slugs.length + " items") + " to " + title);
+});
+// Dragging: an item carries itself (or every ticked item when it is one of them), an epic's row carries the epic.
 // While something is carried a space opens at the head of the lane under the pointer, where it will land.
 const rank = (priority) => { const at = WANTED.indexOf(priority); return at < 0 ? WANTED.length : at; };
 const laneOf = (el) => { const lane = el.closest(".lane[data-lane]"); return lane ? lane.dataset.lane : ""; };
@@ -341,8 +370,8 @@ document.addEventListener("dragover", (event) => {
   event.preventDefault(); event.dataTransfer.dropEffect = "move";
   document.querySelectorAll(".over").forEach((el) => { if (el !== to.zone) el.classList.remove("over"); }); to.zone.classList.add("over");
   const lane = to.zone.matches(".lane") ? to.zone : document.querySelector('#plan .lane[data-lane="' + to.want + '"]'), n = wouldMove(to.want).length;
-  slot.textContent = n ? (carried.epic ? "" : "wanted " + to.want) : "already wanted " + to.want;
-  slot.classList.toggle("same", !n);
+  slot.textContent = carried.epic ? "" : n ? "wanted " + to.want : "already wanted " + to.want;
+  slot.classList.toggle("same", !n && !carried.epic);
   if (lane) place(lane, event);
 });
 // Opens the space among the lane's rows where the pointer is: before the row under it when the pointer is in the
@@ -358,10 +387,12 @@ document.addEventListener("drop", (event) => {
   const to = carried && landing(event.target); if (!to) return;
   event.preventDefault();
   const { epic, what } = carried, items = wouldMove(to.want), lane = document.querySelector('#plan .lane[data-lane="' + to.want + '"]');
-  if (!items.length) { clearDrag(); say("“" + what + "” is already wanted " + to.want + ". Nothing changed."); return; }
-  // The page shows the move at once; the commands run behind it, and the plan agrees when it is next read.
-  if (epic && lane && slot.parentElement === lane) slot.replaceWith(epic);
+  // An epic sits where it was dropped, and that place is kept: in the lane it left and the one it joined.
+  if (epic && lane && slot.parentElement === lane) { const from = epic.closest(".lane[data-lane]"); slot.replaceWith(epic); keepOrder(from); keepOrder(lane); }
   clearDrag();
+  // A drop that changes no priority is a new place in the list and nothing more.
+  if (!items.length) { if (!epic) say("“" + what + "” is already wanted " + to.want + ". Nothing changed."); return; }
+  // The page shows the move at once; the commands run behind it, and the plan agrees when it is next read.
   change("prioritize", items.map((el) => el.dataset.slug), to.want, "“" + what + "” wanted " + to.want);
 });
 // The filters sit under the overview, which the server draws inside the tile.
