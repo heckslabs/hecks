@@ -122,7 +122,8 @@ RSpec.describe Hecks::Adapters::PipelineWiring do
 
     it "serves the Events page at /events, which reads the longer feed and the wiring", :aggregate_failures do
       body = fetch("/events").body
-      expect(body).to include("<title>Pipeline Events</title>", '"/api/journal"', '"/api/wiring"', 'href="/events">Events</a>')
+      expect(body).to include("<title>Pipeline Events</title>", '"/api/journal"', '"/api/wiring"',
+                              'href="/events" data-also="/trains/">Events</a>')
       expect(body).not_to match(%r{https?://|//cdn|@import})
     end
 
