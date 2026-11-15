@@ -15,6 +15,8 @@ require_relative "git_train/settlement"
 require_relative "git_train/mint_step"
 require_relative "git_train/launcher_shape"
 require_relative "git_train/named_commit"
+require_relative "git_train/landings"
+require_relative "git_train/reverting"
 
 module Hecks
   module Adapters
@@ -100,6 +102,30 @@ module Hecks
         checkout = toplevel(plain(held[:checkout]) || Dir.pwd)
         answer = PullRequestBoarding::Observation.new(@runner, checkout).answer(boarded)
         answer.merge(checkout: { value: checkout }, boarded: { value: boarded })
+      end
+
+      # Reads the landings a boarded commit carries beyond the remote's main: facts only, for the
+      # domain to judge.
+      #
+      # @param held [Hash] the `SendTrain` record: `boarded`, `checkout` and `remote`
+      # @return [Hash{Symbol => Array}] `landings:` each with `sha:`, `subject:` and `paths:`
+      # @raise [ConsoleCapture::Failure] when no boarding is named
+      def landings(**held)
+        boarded = plain(held[:boarded]) or raise ConsoleCapture::Failure, "no boarding to read landings of"
+        checkout = toplevel(plain(held[:checkout]) || Dir.pwd)
+        { landings: Landings.new(@git, checkout).list(boarded, "#{remote_of(held)}/main") }
+      end
+
+      # Reverts one named landing on local main, holding the line so no boarding overlaps it.
+      #
+      # @param held [Hash] the `SendTrain` record: `culprit` (a landing's merge commit), `checkout`
+      # @return [Hash{Symbol => Hash}] `reverted:` the revert commit and `report:`
+      # @raise [ConsoleCapture::Failure] when no landing is named or the revert is refused
+      def revert(**held)
+        culprit = plain(held[:culprit]) or raise ConsoleCapture::Failure, "no landing named to revert"
+        @checkout = toplevel(plain(held[:checkout]) || Dir.pwd)
+        answer = in_turn { Reverting.new(@git, @checkout).revert(culprit) }
+        { reverted: { value: answer[:reverted] }, report: { value: answer[:report] } }
       end
 
       # Lists every checkout under a directory whose default branch has commits its remote does
