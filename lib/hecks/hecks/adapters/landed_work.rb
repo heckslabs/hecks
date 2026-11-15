@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "started_work"
+require_relative "branch_work_names"
 require_relative "console_capture"
 
 module Hecks
@@ -9,16 +10,13 @@ module Hecks
     # was
     # cut for, so the bluebook can finish it.
     #
-    # A branch names its work item by the whole branch name, else by the name without a leading
-    # `qa/`
-    # (QA's branches carry that prefix, the work items they close do not). Only a `planned` or
-    # `started`
-    # work item is found; a branch with no work item, or one already done or dropped, is refused by
-    # name and
-    # the bluebook reacts to neither. It writes nothing.
+    # A branch names its work item as {BranchWorkNames} reads it: the whole branch name, the name
+    # without a leading `qa/`, or the name without the `-N` a collision adds. Only a `planned` or
+    # `started` work item is found; a branch with no work item, or one already done or dropped, is
+    # refused by name and the bluebook reacts to neither. It writes nothing.
     class LandedWork
       # The prefix QA puts on a branch whose work item carries the bare name.
-      QA_PREFIX = "qa/"
+      QA_PREFIX = BranchWorkNames::QA_PREFIX
 
       # What opens each landing refusal recorded in a work item's detail.
       REFUSED = "Landing refused: "
@@ -72,7 +70,14 @@ module Hecks
         @registry.repository("Tickets", aggregate).all.select { |item| StartedWork.value(item, :status) == "done" }
       end
 
-      def candidates(branch) = [branch, branch.delete_prefix(QA_PREFIX)].reject(&:empty?).uniq
+      def candidates(branch) = BranchWorkNames.of(branch, all_keys)
+
+      def all_keys
+        aggregate = StartedWork.work_aggregate(@registry)
+        return [] unless aggregate
+
+        @registry.repository("Tickets", aggregate).all.map { |item| StartedWork.value(item, :work).to_s }
+      end
 
       def open_keys
         aggregate = StartedWork.work_aggregate(@registry)
