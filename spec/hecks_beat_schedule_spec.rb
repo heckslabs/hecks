@@ -19,6 +19,17 @@ RSpec.describe Hecks::Adapters::MainIntegration::BeatSchedule do
     expect(plist).not_to include("gh ", "Ticker")
   end
 
+  # Two real shells proved these lines by hand (a second tick ends at once, a killed holder frees
+  # the lock); CI has no zsh to run them again, so this holds their place and order: the lock is
+  # taken before the beat runs.
+  it "takes the beat's lock before it runs the beat", :aggregate_failures do
+    lines = CGI.unescapeHTML(schedule.plist[%r{<string>(cd .*?)</string>}m, 1]).lines.map(&:strip)
+
+    expect(lines[1]).to match(%r{\Amkdir -p ".*/hecks-dev" && : >> ".*/train-beat\.lock"\z})
+    expect(lines[2]).to match(%r{\Azmodload zsh/system && zsystem flock -t 0 ".*/train-beat\.lock" 2>/dev/null \|\| exit 0\z})
+    expect(lines[3]).to start_with("exe/hecks Heartbeat.Beat!")
+  end
+
   it "writes nothing unconfirmed, and says what it would write", :aggregate_failures do
     expect(schedule.install(confirm: false)).to include("would write", schedule.path)
     expect([File.exist?(schedule.path), calls]).to eq([false, []])
