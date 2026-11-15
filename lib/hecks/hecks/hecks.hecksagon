@@ -460,6 +460,16 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  # The outside a merge window reaches: the pipeline's sessions, its landings in flight and its started
+  # work. It stops and ends what the window is for and answers what it did as facts; it decides nothing.
+  Hecks::MergeWindow.port "Quieting" do
+    asks "Quiet", to: MergeWindow do
+      attribute :run, WindowKey
+      answers "WindowQuietReported"
+      refuses "WindowQuietRefused"
+    end
+  end
+
   # The outside a queued train pull request reaches to have the clock beaten for it: it starts one
   # detached chain of ticks that sleeps the Tickets world's `ticks` period (`seconds`) and dispatches
   # `Ticker.Tick` each time, and answers how many beats the world's `minutes` allow. It is refused
