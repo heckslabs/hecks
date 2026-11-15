@@ -190,7 +190,7 @@ RSpec.describe "hecks quality_control patch.open and improvement.open", :io do
       expect(status.exitstatus).to eq(0), "#{stdout}\n#{stderr}"
       expect(gh_calls.map { |c| c.split[0, 2].join(" ") }).to eq(["pr view", "pr create", "pr view", "pr merge"])
       expect(gh_calls.grep(/^pr create/).first).to include("--head qa/bug-1", "--title BUG#1: refuse the alias")
-      expect(gh_calls.grep(/^pr merge/).first).to include("777 --auto --squash")
+      expect(gh_calls.grep(/^pr merge/).first).to include("777 --auto --merge")
     end
 
     it "opens it ready for review, not as a draft, and says what it recorded", :aggregate_failures do

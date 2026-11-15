@@ -145,13 +145,13 @@ module Hecks
         out
       end
 
-      # Queues a squash merge for when the PR's checks pass.
+      # Queues a merge commit for when the PR's checks pass.
       #
       # @param number [Integer] the PR's number
       # @return [void]
       # @raise [CommandFailed] when `gh` refuses
       def merge_when_green(number)
-        _out, err, status = gh("pr", "merge", number.to_s, "--auto", "--squash")
+        _out, err, status = gh("pr", "merge", number.to_s, "--auto", "--merge")
         raise CommandFailed, "gh pr merge --auto failed — #{err}" unless status.success?
       end
 

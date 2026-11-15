@@ -50,7 +50,7 @@ RSpec.describe Hecks::Adapters::GithubPullRequests do
   end
 
   describe "#squash" do
-    def merge_args = ["pr", "merge", "42", "--squash"]
+    def merge_args = ["pr", "merge", "42", "--merge"]
 
     def view_args = ["pr", "view", "42", "--json", "mergedAt,mergeCommit"]
 
@@ -59,7 +59,7 @@ RSpec.describe Hecks::Adapters::GithubPullRequests do
       replies[view_args] = [JSON.generate(mergedAt: merged_at, mergeCommit: oid && { oid: oid }), "", true]
     end
 
-    it "squash-merges the pull request by its number, and never passes --admin", :aggregate_failures do
+    it "merges the pull request by its number as a merge commit, and never passes --admin", :aggregate_failures do
       view_reply("2026-11-08T00:20:00Z", "abcdef0123456789")
 
       answer = pulls.squash(number: { value: "42" })
@@ -88,7 +88,7 @@ RSpec.describe Hecks::Adapters::GithubPullRequests do
     end
 
     it "refuses with what gh said when GitHub will not merge" do
-      replies[["pr", "merge", "42", "--squash"]] = ["", "Pull request #42 is not mergeable", false]
+      replies[["pr", "merge", "42", "--merge"]] = ["", "Pull request #42 is not mergeable", false]
 
       expect { pulls.squash(number: { value: "42" }) }
         .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /not mergeable/)

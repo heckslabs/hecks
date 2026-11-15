@@ -8,12 +8,13 @@ require_relative "github_pull_requests/train_reopen"
 
 module Hecks
   module Adapters
-    # The `GitHubPullRequests` port's adapter: opens, squash-merges and reads pull requests of the
+    # The `GitHubPullRequests` port's adapter: opens, merges and reads pull requests of the
     # repository the current directory is in, through `gh`.
     #
     # The aggregate has already recorded the request. Nothing here decides whether a pull request
     # should be opened or merged; it only asks GitHub and reports what GitHub answered. A merge is
-    # always a squash, and `--admin` is never passed, so a branch protection rule is not bypassed.
+    # always a merge commit, never a squash, and `--admin` is never passed, so a branch protection
+    # rule is not bypassed.
     class GithubPullRequests
       # A pull request number: digits only.
       NUMBER = /\A\d+\z/
@@ -52,7 +53,8 @@ module Hecks
           report: { value: "opened ##{number} from #{branch} onto #{base}: #{url}" } }
       end
 
-      # Squash-merges one open pull request by its number.
+      # Merges one open pull request by its number, as a merge commit that keeps each of its commits
+      # (the method keeps the declared name `squash` until the command is renamed).
       #
       # @param held [Hash] the `PullRequest` record: `number` (required)
       # `gh pr merge` also succeeds when it only enqueues the pull request (auto-merge or a merge
@@ -63,7 +65,7 @@ module Hecks
       # @raise [ConsoleCapture::Failure] when no number is named, or GitHub refuses
       def squash(**held)
         number = pull_request_number(held[:number], "merge")
-        gh!("pr", "merge", number, "--squash")
+        gh!("pr", "merge", number, "--merge")
         merge = JSON.parse(gh!("pr", "view", number, "--json", "mergedAt,mergeCommit"))
         return merged_answer(number, merge) if merge["mergedAt"]
 
