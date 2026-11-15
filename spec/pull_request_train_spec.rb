@@ -111,6 +111,18 @@ RSpec.describe "the push train boarding main as a pull request", :io do
         .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /named no merge commit/)
     end
 
+    it "answers closed for a PR closed without merging", :aggregate_failures do
+      answer = observe([true, JSON.generate(state: "CLOSED", mergeCommit: nil)])
+      expect(answer[:outcome]).to eq({ value: "closed" })
+      expect(answer[:report][:value]).to include(branch, "closed unmerged")
+    end
+
+    it "answers closed when gh finds no PR for the branch", :aggregate_failures do
+      answer = observe([false, "no pull requests found for branch \"#{branch}\""])
+      expect(answer[:outcome]).to eq({ value: "closed" })
+      expect(answer[:report][:value]).to include("no pull request found")
+    end
+
     it "refuses when gh cannot read the PR" do
       expect { observe([false, "no such PR"]) }
         .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /could not read the PR/)
