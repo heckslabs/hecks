@@ -143,7 +143,7 @@ module Hecks
       def panels(data)
         days = PipelineBoard::ThroughputDays.build(data[:finished_times], @now.call)
         agents(data).merge(cycles: cycle_reading(data[:cycle_events]), throughput_days: days,
-                           integration: data[:integration], **PipelineBoard::LoadCauses.with_history)
+                           **data.slice(:integration, :waiting_on_you), **PipelineBoard::LoadCauses.with_history)
       end
 
       # The cycles laid from the stage events, or the events' `{unknown: reason}` as it was read.
