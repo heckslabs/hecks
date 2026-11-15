@@ -602,6 +602,42 @@
             [
               [
                 "domain",
+                "Hecks"
+              ],
+              [
+                "aggregate",
+                "Overload"
+              ],
+              [
+                "checkout",
+                "both"
+              ],
+              [
+                "reason",
+                "each beat counts its reading into the streaks the verdict stands on, in a process of its own"
+              ]
+            ],
+            [
+              [
+                "domain",
+                "Hecks"
+              ],
+              [
+                "aggregate",
+                "Roll"
+              ],
+              [
+                "checkout",
+                "main"
+              ],
+              [
+                "reason",
+                "the board reads the last rolling fill's report, which another process recorded"
+              ]
+            ],
+            [
+              [
+                "domain",
                 "Delivery"
               ],
               [
@@ -831,6 +867,78 @@
               [
                 "reason",
                 "a pause is read by the process that would wake the pruner, and by the board"
+              ]
+            ],
+            [
+              [
+                "domain",
+                "Agents"
+              ],
+              [
+                "aggregate",
+                "Message"
+              ],
+              [
+                "checkout",
+                "main"
+              ],
+              [
+                "reason",
+                "a message is sent by one call and read, then answered, by the run's session in a later one"
+              ]
+            ],
+            [
+              [
+                "domain",
+                "Agents"
+              ],
+              [
+                "aggregate",
+                "Verdict"
+              ],
+              [
+                "checkout",
+                "main"
+              ],
+              [
+                "reason",
+                "a verdict is delivered, retried or marked undeliverable by calls later than the one that judged"
+              ]
+            ],
+            [
+              [
+                "domain",
+                "Agents"
+              ],
+              [
+                "aggregate",
+                "Escalation"
+              ],
+              [
+                "checkout",
+                "main"
+              ],
+              [
+                "reason",
+                "an exception is seated with the orchestrator by one call and closed by another"
+              ]
+            ],
+            [
+              [
+                "domain",
+                "Agents"
+              ],
+              [
+                "aggregate",
+                "Turn"
+              ],
+              [
+                "checkout",
+                "main"
+              ],
+              [
+                "reason",
+                "a finished turn is read by the board and the next wake, in processes of their own"
               ]
             ],
             [
