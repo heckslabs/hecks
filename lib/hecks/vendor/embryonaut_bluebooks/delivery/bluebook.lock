@@ -1,6 +1,6 @@
 package: delivery
-version: 0.1.9
-tag: delivery-v0.1.9
-commit: 89d5d93e08130a892ec3dbe6f8bbc3210edce0d5
-digest: bfb4538fb774653ecf535669b5a68b7d92955989724cdf9e283993a87f5d9155
+version: 0.1.10
+tag: delivery-v0.1.10
+commit: b3c3a529973cfe68ac2022f16337dfc0d004f3ff
+digest: f82b98312e7f147b03c0988dd3a223cadda2779e850d54ec46a6d2d9882ab6a1
 shape: Delivery 6d6ad1
