@@ -47,6 +47,30 @@ Change a rule here and the reviewer follows; the agent file holds no rules.
   the finding says so first, and only then proposes a mechanism.
 - **S2.** The verdict names the smallest version of the proposal that still meets its goal.
 
+## V. Verdict
+
+A review exists so a coder can build, not so a plan is perfected. Of 364 verdicts to 2026-11-15, 313 were
+`changes`, 41 `rethink` and 10 `sound`, so nearly every item took a second round. A finding is one of two kinds.
+
+- **Blocking.** Building the plan as written would break a rule below with evidence from the repo or a tool
+  result, or would fail: a source that does not exist (D7, H1), two adapters on one port (H2), an invariant
+  outside its aggregate (D3), a generated file edited (H6), a domain that will not pass `model_check` (H7),
+  a dependency that points outward (X1).
+- **Note.** Everything else: a name that could be the domain's own (D4), a smaller slice (S1, S2), a check
+  the plan could add, a missing line of detail the coder can settle from the code (D5, D7 when one owner is
+  obvious), wording. A note carries no evidence of failure.
+
+The verdict follows from the blocking findings alone.
+
+- `sound`: no blocking finding. Notes ride along under a `Notes` heading, and the coder applies them while
+  building. They are not sent back for another review.
+- `changes` (written `sound with changes`): at least one blocking finding. Each says what to change.
+- `rethink`: the goal is better met another way, so the plan as a whole is dropped. It is not a stronger
+  `changes`.
+
+A plan that names which aggregate owns each new fact and how it is checked is not sent back for detail.
+When unsure whether a finding blocks, it is a note.
+
 ## Plan questions
 
 - What is the smallest slice that answers the need, and does the plan stop there?
