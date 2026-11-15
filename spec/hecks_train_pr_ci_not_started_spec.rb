@@ -79,7 +79,7 @@ RSpec.describe "a train pull request whose CI never started" do
   it "turns auto-merge on again after the reopen" do
     github.opened = 25
     beat
-    expect(github.calls.grep(/pr merge \d+ --auto --squash/).size).to eq(1)
+    expect(github.calls.grep(/pr merge \d+ --auto --merge/).size).to eq(1)
   end
 
   it "never touches a pull request with checks, nor files a stall for it", :aggregate_failures do
