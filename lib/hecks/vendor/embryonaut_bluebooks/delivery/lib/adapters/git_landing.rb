@@ -5,7 +5,6 @@ require_relative "git_main_pull"
 require_relative "git_landing/sheltering"
 require_relative "git_landing/merger"
 require_relative "git_landing/tidy"
-require_relative "git_landing/scratching"
 require_relative "git_landing/rivals"
 require_relative "git_landing/finisher"
 require_relative "git_landing/lineup"
@@ -30,7 +29,6 @@ module Hecks
       include Sheltering
       include Handoff
       include Swapping
-      include Scratching
 
       # Accepts the arguments every driven adapter is built with; only the registry and the
       # overrides are kept.
@@ -142,6 +140,17 @@ module Hecks
       end
 
       private
+
+      def take_down(held, mode, outcome)
+        settle(held)
+        branch = plain(held[:branch]) || current_branch
+        gone = @checkout
+        kept, said = Tidy.new(@git, @checkout, branch: branch, onto: plain(held[:onto]) || "main", mode: mode).retire
+        raise ConsoleCapture::Failure, "#{gone} is kept: #{said}" if kept
+
+        { outcome: { value: outcome }, checkout: { value: gone }, branch: { value: branch },
+          report: { value: block_given? ? yield(said) : said } }
+      end
 
       # One landing from another worktree, as the train makes it for a waiting branch.
       def land_for(checkout, branch, onto)
