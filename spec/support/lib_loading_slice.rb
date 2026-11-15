@@ -37,11 +37,16 @@ module LibLoadingSlice
     end
   end
 
+  # How many fresh processes a slice runs at once. A developer machine runs three slices together
+  # beside its other work, so each takes three and a landing's gate holds the load near its limit;
+  # CI gives a shard its own cores, so it takes eight.
+  def load_workers = ENV["CI"] ? 8 : 3
+
   def broken_features(features)
     failures = Queue.new
     work = Queue.new
     features.each { |feature| work << feature }
-    Array.new(8) { Thread.new { load_features_from(work, failures) } }.each(&:join)
+    Array.new(load_workers) { Thread.new { load_features_from(work, failures) } }.each(&:join)
     [].tap { |list| list << failures.pop until failures.empty? }
   end
 
