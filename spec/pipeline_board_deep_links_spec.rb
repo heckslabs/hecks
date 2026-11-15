@@ -7,8 +7,9 @@ require_relative "support/pipeline_board_world"
 require "hecks/pipeline_board/adapters/pipeline_web"
 
 # The board's per-item URLs over a real socket on an ephemeral port: `/runs/<run>` for an AgentRun
-# and `/trains/<run>` for a SendTrain boarding answer the board page, which highlights that item in
-# place; under `/api` each answers the item as JSON, for tools.
+# and `/trains/<run>` for a SendTrain boarding: the first answers the board page, which highlights
+# the run's row in place, the second the Events page, which opens with its search on the boarding;
+# under `/api` each answers the item as JSON, for tools.
 RSpec.describe Hecks::Adapters::PipelineBoard::DeepLinks do
   let(:run) do
     { run: "r-1", work: "w-1", agent: "coder", status: "finished", condition: "done", session: "abc123", repo: "/repo",
@@ -40,20 +41,38 @@ RSpec.describe Hecks::Adapters::PipelineBoard::DeepLinks do
     expect(get("/runs/r-1")).to have_attributes(code: "200", body: include("Pipeline Board", "highlight-banner"))
   end
 
-  it "answers a boarding's link with the board page too" do
-    expect(get("/trains/t-1").body.force_encoding("UTF-8")).to eq(get("/").body.force_encoding("UTF-8"))
+  it "answers a boarding's link with the Events page, not the board" do
+    expect(get("/trains/t-1").body.force_encoding("UTF-8")).to eq(get("/events").body.force_encoding("UTF-8"))
+  end
+
+  it "marks the Events page as the current one in the bar for a boarding's link" do
+    expect(get("/trains/t-1").body).to include("data-also=\"/trains/\"")
+  end
+
+  it "opens the Events page with its search on the boarding, after the events are read" do
+    expect(events_page).to include("take(j.events, false); openOnBoarding(); draw();", "find(decodeURIComponent(m[1]))")
   end
 
   it "answers the board page for a run no one has, and the page says so in its banner" do
     expect(get("/runs/nope")).to have_attributes(code: "200", body: include("is not on the board"))
   end
 
-  it "links every session row and SendTrain event to its deep link, on the board itself" do
-    expect(page).to include("\"/runs/\" + encodeURIComponent(s.run || s.id)", "\"/trains/\" + encodeURIComponent(ev.id)")
+  def events_page = File.read(Hecks::Adapters::PipelineBoard::EventsPage::PATH)
+
+  it "links every session row to its deep link, on the board itself" do
+    expect(page).to include("\"/runs/\" + encodeURIComponent(s.run || s.id)")
   end
 
-  it "intercepts a click on an in-board run or train link instead of leaving the page" do
-    expect(page).to include("a[href^='/runs/'], a[href^='/trains/']", "e.preventDefault(); setHighlight(next, \"push\")")
+  it "has no Events panel and nothing that draws one" do
+    expect(page).not_to match(%r{id="feed"|putEvent|renderEvents|trainLabel|chainOf|eventTip|\.feed\b|\.ev\b|a\[href\^='/trains/})
+  end
+
+  it "links an event's boarding from the Events page to its deep link" do
+    expect(events_page).to include("href: \"/trains/\" + encodeURIComponent(ev.id)", "this boarding")
+  end
+
+  it "intercepts a click on an in-board run link instead of leaving the page" do
+    expect(page).to include("a[href^='/runs/']", "e.preventDefault(); setHighlight(next, \"push\")")
   end
 
   it "keeps the ring while the link stands and clears it on a click elsewhere" do
