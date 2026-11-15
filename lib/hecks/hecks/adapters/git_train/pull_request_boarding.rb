@@ -47,7 +47,7 @@ module Hecks
         #   that landed above it meanwhile are reported as left for their own boarding
         # @return [Hash{Symbol => Hash}] `outcome:` `queued` (a PR is open and set to auto-merge),
         #   `pushed` (the repository disallows auto-merge; the checks passed and the train
-        #   squash-merged the PR), `checks_failed` (a required check failed; the PR stays open) or
+        #   merged the PR), `checks_failed` (a required check failed; the PR stays open) or
         #   `carried` (main already carries the commit), with `boarded:` and `report:`
         # @raise [ConsoleCapture::Failure] when main has lost the commit, the commit is not
         #   built on the remote's main, the push is refused, or `gh` cannot open or auto-merge
@@ -160,7 +160,7 @@ module Hecks
         # `gh` refuses `--delete-branch` while main has a merge queue. Answers false, and sets
         # nothing, when the repository disallows auto-merge.
         def enable_auto_merge(branch)
-          ok, output = @runner.call(["gh", "pr", "merge", branch, "--auto", "--squash"], chdir: @checkout)
+          ok, output = @runner.call(["gh", "pr", "merge", branch, "--auto", "--merge"], chdir: @checkout)
           return true if ok
           return false if output.to_s.include?(AUTO_MERGE_DISALLOWED)
 

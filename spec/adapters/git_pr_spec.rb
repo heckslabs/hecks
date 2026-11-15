@@ -172,7 +172,7 @@ RSpec.describe Hecks::Adapters::GitPr do
 
     it "queues the merge for when checks pass", :process do
       allow(Open3).to receive(:capture3)
-        .with("gh", "pr", "merge", "7", "--auto", "--squash", chdir: @repo).and_return(gh_ok)
+        .with("gh", "pr", "merge", "7", "--auto", "--merge", chdir: @repo).and_return(gh_ok)
 
       expect { adapter.merge_when_green(7) }.not_to raise_error
     end
