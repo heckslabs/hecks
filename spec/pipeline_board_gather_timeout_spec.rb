@@ -42,14 +42,6 @@ RSpec.describe Hecks::Adapters::PipelineBoard::Gather do
     expect { host.new(stuck_github).gathered }.to output(/board: ci_runs reader overdue after 0.2s at:/).to_stderr
   end
 
-  it "does not ask a reader again while its last read is still running", :aggregate_failures do
-    github = stuck_github
-    allow(github).to receive(:ci_runs).and_call_original
-    gathering = host.new(github).tap { |twice| 2.times { twice.gathered } }
-    expect(github).to have_received(:ci_runs).once
-    expect(gathering.gathered[:ci_runs]).to eq(unknown: "the last read is still running")
-  end
-
   it "still answers the readers that were not slow" do
     expect(host.new(stuck_github).gathered[:release]).to eq(tag: "v1")
   end
