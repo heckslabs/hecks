@@ -103,11 +103,12 @@ module Hecks
       rescue StandardError => e
         raise if Runtime.programming_error?(e)
 
-        refuse_ask(ctx, operation, Runtime.failure_reason(e))
+        refuse_ask(ctx, operation, Runtime.failure_reason(e), Runtime.refusal_kind(e))
       end
 
-      # Announces an ask's refusal with the text it failed with.
-      def refuse_ask(ctx, operation, text) = announce(ctx, operation.refuses, ctx.args.merge(refusal: { value: text }))
+      # Announces an ask's refusal with the text it failed with, and the kind the adapter named
+      # for it when it named one.
+      def refuse_ask(ctx, out, text, kind = nil) = announce(ctx, out.refuses, ctx.args.merge(Runtime.refusal_fields(text, kind)))
 
       # The refusal an interrupted ask records: the operation it was in and that it was not
       # finished, so the run ends faulted with the stage it reached, not open with no record.
