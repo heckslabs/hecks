@@ -20,6 +20,9 @@ module Hecks
         # A tile's place on the page: `<!--tile:NAME-->`.
         MARK = /<!--tile:(\w+)-->/
 
+        # The shortest rest, in seconds, between two drawings of the tiles, whatever the setting.
+        GAP_FLOOR = 1
+
         # @return [Hub] what wakes a stream
         attr_reader :hub
 
@@ -60,10 +63,11 @@ module Hecks
         end
 
         # The seconds between two drawings of the tiles: the `tile_redraw_seconds` setting, or the
-        # `board_restart` line's `loaded_refresh_seconds` while the machine is loaded.
+        # `board_restart` line's `loaded_refresh_seconds` while the machine is loaded; never under
+        # {GAP_FLOOR}, so a setting of zero still leaves the board a rest between drawings.
         def gap_of(registry)
           loaded = BoardRestart.limits(registry)[:loaded_refresh_seconds]
-          -> { LoadGuard.loaded? ? loaded : Rules.setting("tile_redraw_seconds") }
+          -> { [LoadGuard.loaded? ? loaded : Rules.setting("tile_redraw_seconds"), GAP_FLOOR].max }
         end
       end
     end
