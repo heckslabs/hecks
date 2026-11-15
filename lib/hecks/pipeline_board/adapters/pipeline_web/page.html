@@ -272,10 +272,14 @@ function sessionBadge(s) {
   return badge(s.status === "busy" ? "working" : s.status === "failed" ? "failed" : "ok");
 }
 function isUnknown(x) { return x && !Array.isArray(x) && typeof x === "object" && "unknown" in x; }
-// A read still in flight shows a loading bar; a read that failed shows why.
+// A read still in flight, or held back while the machine is busy, shows Una turning (it runs again when the load
+// falls); a read that failed shows why.
 function unknown(x) {
   if (String(x.unknown).startsWith("the first read")) {
     return una("Loading", true);
+  }
+  if (/not run: load [\d.]+ is above [\d.]+/.test(String(x.unknown))) {
+    return una(tidy("unknown: " + x.unknown), true);
   }
   return h("p", { class: "unknown-note" }, tidy("unknown: " + x.unknown));
 }
