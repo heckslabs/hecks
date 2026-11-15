@@ -30,3 +30,13 @@ module BeatPlaceDefault
 end
 
 Hecks::Runtime::AdapterLookup.singleton_class.prepend(BeatPlaceDefault)
+
+# The real `Beating` adapter a booted domain builds keeps its place in the process's temporary
+# directory too, so a beat in a spec is never declined by a beat running on the machine or in
+# another spec process. A spec that names a `dir:` keeps it.
+module BeatPlaceOwnDirectory
+  def new(settings: {}, **rest) = super(settings: { dir: BeatPlaceDefault.dir }.merge(settings), **rest)
+end
+
+require "hecks/hecks/adapters/beating"
+Hecks::Adapters::Beating.singleton_class.prepend(BeatPlaceOwnDirectory)
