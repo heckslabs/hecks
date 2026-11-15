@@ -41,6 +41,14 @@ module Hecks
           end
         end
 
+        # Runs the block in a write transaction taken on the short bound. The block commits the
+        # work itself; a transaction it leaves open is rolled back.
+        #
+        # @yieldparam db [SQLite3::Database] the connection holding the write lock
+        # @return [Object] the block's value
+        # @raise [Held] when the write lock is not taken within the wait
+        def writing(&) = locked("IMMEDIATE", &)
+
         # Gives the pages deleted rows freed back to the file. The exclusive lock is taken first on
         # the short bound, so a file that is not quiet is refused before the copy starts.
         #
