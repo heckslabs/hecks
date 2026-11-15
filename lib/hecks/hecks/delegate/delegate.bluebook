@@ -823,20 +823,67 @@ Hecks.bluebook "Hecks" do
       description "One beat of the clock, which the bluebook reads as an event and never as a time."
 
       attribute :beat, BeatKey
+      attribute :refusal, BeatNote, optional: true
       identified_by :beat
 
       value_object "BeatKey" do
         attribute :value, String, matches: :present
       end
 
+      value_object "BeatNote", String
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "declined"
+        transition "Record"  => "beaten",   from: "requested"
+        transition "Decline" => "declined", from: "requested"
+        mark :terminal, "beaten", "declined"
+      end
+
       command "Beat" do
         role "System"
-        goal "Record that the clock beat"
+        goal "Ask for one beat of the clock, which is taken only when no other beat is running"
 
         attribute :beat, BeatKey, sets: true
 
+        emits BeatRequested
+      end
+
+      command "Record" do
+        role "System"
+        goal "Record that the clock beat, the one beat running"
+
+        reference_to Heartbeat
+
         emits Beaten
       end
+
+      command "Decline" do
+        role "System"
+        goal "Record why the clock did not beat: another beat was still running"
+
+        reference_to Heartbeat
+        attribute :refusal, BeatNote, sets: true
+
+        emits BeatDeclined
+      end
+    end
+
+    # One beat runs at a time. The `Beating` port holds the place and answers it taken, or refuses
+    # it naming the beat that holds it; only a taken beat is recorded as `Beaten`, so no policy
+    # that hears `Beaten` runs for a beat that was refused.
+    policy "TakeTheBeat" do
+      on      "Heartbeat.BeatRequested"
+      ask     :take, with: { beat: :beat }
+    end
+
+    policy "RecordTheBeatTaken" do
+      on      "Heartbeat.BeatTaken"
+      trigger Heartbeat::Record
+    end
+
+    policy "DeclineTheBeatUntaken" do
+      on      "Heartbeat.BeatUntaken"
+      trigger Heartbeat::Decline, with: { refusal: :refusal }
     end
 
     # A queued train pull request needs the clock beaten until it merges, and nothing else beats it.
