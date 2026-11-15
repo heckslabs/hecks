@@ -96,7 +96,7 @@ header.top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 20p
 .epic summary:hover { background: color-mix(in srgb, var(--ink) 3%, transparent); }
 .name { min-width: 0; } .name b { display: block; font-weight: 600; }
 .outcome { display: block; color: var(--ink2); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.epic[open] .outcome { white-space: normal; }
+.epic[open] .outcome { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; line-clamp: 4; overflow: hidden; }
 .track { display: flex; flex-wrap: wrap; gap: 3px; }
 .epic summary .counts { text-align: right; white-space: nowrap; }
 .next { margin: 0 16px 6px 34px; font-size: 12.5px; color: var(--ink2); }
