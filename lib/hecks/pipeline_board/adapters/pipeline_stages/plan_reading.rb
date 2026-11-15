@@ -56,7 +56,7 @@ module Hecks
         def strip(rows, held)
           { running: rows.select { |r| r[:session] }, next: Array(held[:fill][:would_start]),
             held: Array(held[:fill][:skipped]), landing: held[:train],
-            owner: held[:sessions].select { |s| OwnerQueue.waiting?(s) } }
+            owner: OwnerQueue.waiting(held[:sessions]) }
         end
 
         def epics_of(epics, rows)
