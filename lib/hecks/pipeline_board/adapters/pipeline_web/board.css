@@ -56,7 +56,7 @@ nav.pages a:focus-visible { outline: 2px solid var(--run); outline-offset: -3px;
 .una-wait.big { display: flex; flex-direction: column; justify-content: center; gap: 12px; padding: 36px 0; }
 .una-wait.big .una { width: 68px; height: 73px; }
 @media (prefers-reduced-motion: no-preference) {
-  .una-wait .una { animation: una-turn 2.4s cubic-bezier(.6, 0, .4, 1) infinite; transform-origin: 50% 46%; }
+  .una-wait .una { animation: una-turn 2.4s linear infinite; transform-origin: 50% 46%; }
   @keyframes una-turn { to { transform: rotate(360deg); } }
 }
 @media (prefers-reduced-motion: reduce) { .una-wait .una { opacity: .6; } }
