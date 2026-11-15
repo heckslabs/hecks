@@ -95,9 +95,17 @@ module Hecks
 
         private
 
+        # The beat's lock: held by the job's shell for as long as its beat runs, so the next tick,
+        # finding it held, ends at once instead of starting a second beat on top of a slow one. The
+        # file is made first, because the lock does not create it; a killed shell frees the lock.
+        def lock = File.join(@home, ".claude", "hecks-dev", "train-beat.lock")
+
         def script
           log = File.join(@home, ".claude", "hecks-dev", "train-beat.log")
-          "cd #{@root} || exit 1\nexe/hecks Heartbeat.Beat! beat=launchd-$(date +%s) --wait > \"#{log}\" 2>&1"
+          "cd #{@root} || exit 1\n" \
+            "mkdir -p \"#{File.dirname(lock)}\" && : >> \"#{lock}\"\n" \
+            "zmodload zsh/system && zsystem flock -t 0 \"#{lock}\" 2>/dev/null || exit 0\n" \
+            "exe/hecks Heartbeat.Beat! beat=launchd-$(date +%s) --wait > \"#{log}\" 2>&1"
         end
 
         def domain = "gui/#{Process.uid}"
