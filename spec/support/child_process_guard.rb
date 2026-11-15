@@ -2,7 +2,7 @@ require_relative "process_tree"
 
 # Names the process a spec left behind. A group that starts a resident or another long-lived
 # process registers its pid with {watch}; when the suite ends, every watched process that still
-# stands, and every process still under this one, is ended and named in a failure. A shard step
+# stands, and every process still under a watched one, is ended and named in a failure. A shard step
 # that would have hung on a child holding it open then fails at once, with the process named.
 module ChildProcessGuard
   # Raised at the end of the suite, naming each process a spec left behind.
@@ -33,7 +33,8 @@ module ChildProcessGuard
     private
 
     def standing
-      under = ProcessTree.descendants(Process.pid).map(&:pid)
+      table = ProcessTree.rows
+      under = @watched.flat_map { |pid| ProcessTree.descendants(pid, table).map(&:pid) }
       (@watched + under).uniq.select { |pid| ProcessTree.alive?(pid) }.to_h { |pid| [pid, ProcessTree.command(pid)] }
     end
   end
