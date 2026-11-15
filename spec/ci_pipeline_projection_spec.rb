@@ -22,7 +22,8 @@ RSpec.describe "the CiPipeline projection of ci-rspec.yml" do
     exit 1
   SH
 
-  ZSH_RUN = "bundle exec rspec spec/driving_adapters/cli_completion_spec.rb --tag zsh_completion\n".freeze
+  ZSH_RUN = "bundle exec rspec spec/driving_adapters/cli_completion_spec.rb spec/hecks_beat_schedule_spec.rb " \
+            "--tag zsh_completion\n".freeze
 
   def root = Hecks::Tools::ROOT
 
