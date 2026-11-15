@@ -60,8 +60,9 @@ RSpec.describe "a merge window" do
     expect(settings.roll_forward?).to be(true)
   end
 
-  # A window is opened by one launcher call and closed by another, and the fill and the board read it
-  # from processes of their own, so it has to be kept, not held in the memory of the call that opened it.
+  # A window is opened by one launcher call and closed by another, and the fill and the board read
+  # it from processes of their own, so it has to be kept, not held in the memory of the call that
+  # opened it.
   it "is persisted by the overlay, so a later call can close it" do
     rows = Hecks::Adapters::MainIntegration::KeptRows.from_registry(boot_hecks_in_memory.registry)
     text = Hecks::Adapters::MainIntegration::LocalOverlay.new(Dir.pwd, rows, "train").text
