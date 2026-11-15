@@ -29,7 +29,7 @@ module Hecks
           @gh.call("pr", "comment", number, "--body", CiRuns::ReopenMarker::REOPENING)
           @gh.call("pr", "close", number)
           @gh.call("pr", "reopen", number)
-          @gh.call("pr", "merge", number, "--auto", "--squash")
+          @gh.call("pr", "merge", number, "--auto", "--merge")
           @gh.call("pr", "comment", number, "--body", CiRuns::ReopenMarker::REOPENED)
           "closed and reopened PR #{number} to start its CI, and turned auto-merge on again"
         rescue JSON::ParserError

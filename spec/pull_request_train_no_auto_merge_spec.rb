@@ -78,7 +78,7 @@ RSpec.describe "the push train boarding main where auto-merge is disallowed", :i
     carry
   end
 
-  def merged_by_squash = gh_calls.select { |argv| argv[1..2] == %w[pr merge] && !argv.include?("--auto") }
+  def merged_by_merge_commit = gh_calls.select { |argv| argv[1..2] == %w[pr merge] && !argv.include?("--auto") }
 
   before do
     git("init", "-q", "--bare", "-b", "main", "origin.git", dir: scratch)
@@ -95,11 +95,11 @@ RSpec.describe "the push train boarding main where auto-merge is disallowed", :i
   context "when the required checks go green" do
     before { checks(["rspec", "pending"]) }
 
-    it "waits, squash-merges the PR by its number and answers pushed with the merge commit", :aggregate_failures do
+    it "waits, merges the PR by its number and answers pushed with the merge commit", :aggregate_failures do
       answer = board(["rspec", "pass"])
 
       expect(answer).to include(outcome: { value: "pushed" }, pushed: { value: merge_commit })
-      expect(merged_by_squash).to eq([["gh", "pr", "merge", "7", "--squash"]])
+      expect(merged_by_merge_commit).to eq([["gh", "pr", "merge", "7", "--merge"]])
       expect(pauses).to eq([Hecks::Adapters::GitTrain::MergeWhenGreen::INTERVAL])
     end
   end
@@ -128,7 +128,7 @@ RSpec.describe "the push train boarding main where auto-merge is disallowed", :i
 
       expect(answer).to include(outcome: { value: "checks_failed" })
       expect(answer.dig(:report, :value)).to include("rspec, fuzz")
-      expect(merged_by_squash).to be_empty
+      expect(merged_by_merge_commit).to be_empty
     end
   end
 
