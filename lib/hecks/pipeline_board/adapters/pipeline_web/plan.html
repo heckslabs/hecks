@@ -65,14 +65,29 @@ header.top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 20p
 .filters select { max-width: 220px; }
 .filters .note { margin-left: auto; }
 
-.lane { margin-top: 26px; }
+.lane { margin-top: 26px; border-radius: 14px; outline: 2px dashed transparent; outline-offset: 8px; }
+.lane.over { outline-color: var(--run); }
+/* Changing the plan: a tick box on each open item, a bar of drop zones while something is carried, and a bar for what is picked. */
+.filters button, .mover button { font: inherit; font-size: 13px; padding: 5px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); cursor: pointer; }
+.filters button:hover, .mover button:hover { border-color: var(--run); }
+.item[draggable=true], .epic summary[draggable=true] { cursor: grab; } .item.picked { background: var(--signal-soft); }
+.item input.pick { align-self: center; margin: 0 2px 0 0; cursor: pointer; }
+.dropbar, .mover { position: fixed; left: 50%; transform: translateX(-50%); z-index: 30; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 10px 14px; max-width: calc(100vw - 24px);
+  background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 10px 30px color-mix(in srgb, var(--ink) 18%, transparent); font-size: 13px; color: var(--ink2); }
+.dropbar { top: 56px; } .mover { bottom: 16px; }
+.dropbar[hidden], .mover[hidden] { display: none; }
+.dropbar .zone { padding: 12px 26px; border: 2px dashed var(--line); border-radius: 10px; color: var(--ink); font-weight: 600; }
+.dropbar .zone.over { border-color: var(--run); background: var(--signal-soft); }
+.mover b { color: var(--ink); }
+.mover select { font: inherit; max-width: 260px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); }
+.mover .said.bad { color: var(--critical); } .mover .said:empty { display: none; }
 .lane h2 { display: flex; align-items: baseline; gap: 10px; font-size: 16px; font-weight: 650; letter-spacing: -.005em; margin: 0 4px 8px; }
 .lane h2 .counts { font-weight: 400; }
 .epic { background: var(--surface); border: 1px solid var(--line); border-top-width: 0; }
 .epic:first-of-type { border-top-width: 1px; border-radius: 12px 12px 0 0; }
 .epic:last-of-type { border-radius: 0 0 12px 12px; }
 .epic:first-of-type:last-of-type { border-radius: 12px; }
-.epic summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 4fr) 96px; gap: 6px 22px;
+.epic summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 4fr) minmax(96px, max-content); gap: 6px 22px;
   align-items: center; padding: 11px 16px 11px 34px; position: relative; }
 .epic summary::-webkit-details-marker { display: none; }
 .epic summary::before { content: ""; position: absolute; left: 15px; top: 18px; width: 6px; height: 6px; border-right: 1.5px solid var(--muted);
@@ -129,10 +144,23 @@ header.top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 20p
     <label>Priority <select id="f-priority"><option value="">any</option><option>now</option><option>next</option><option>later</option><option value="unset">not prioritised</option></select></label>
     <label>Status <select id="f-status"><option value="">any</option><option>planned</option><option>started</option><option>yielded</option></select></label>
     <label>Area <select id="f-area"><option value="">any</option></select></label>
-    <span class="note" id="shown">Read-only: change an item with its Hecks command.</span>
+    <button id="pick-shown" type="button">Pick what is shown</button>
+    <span class="note" id="shown">Drag an item or an epic onto Now, Next or Later. Tick items to move them to an epic.</span>
   </section>
   <p class="empty" id="empty" hidden>Nothing matches. Clear the search or a filter to see the plan again.</p>
 </main>
+<div class="dropbar" id="dropbar" hidden aria-label="Drop here to set how soon it is wanted">
+  <span id="dragging"></span>
+  <span class="zone" data-drop="now">Now</span><span class="zone" data-drop="next">Next</span><span class="zone" data-drop="later">Later</span>
+</div>
+<div class="mover" id="mover" hidden role="region" aria-label="Move the picked items">
+  <b id="picked-count"></b>
+  <label>to epic <select id="to-epic"></select></label><button id="move-epic" type="button">Move</button>
+  <span class="or">or want them</span>
+  <button type="button" data-want="now">Now</button><button type="button" data-want="next">Next</button><button type="button" data-want="later">Later</button>
+  <button id="clear-picked" type="button">Clear</button>
+  <span class="said" id="moved" aria-live="polite"></span>
+</div>
 <script src="/stream.js"></script>
 <script>
 const $ = (id) => document.getElementById(id);
@@ -180,13 +208,93 @@ function areas() {
   select.replaceChildren(new Option("any", ""), ...seen.map((v) => new Option(v, v)));
   select.value = seen.includes(kept) ? kept : "";
 }
+// Changing the plan from the page. Each change is one Hecks command, run through the board's one write:
+// Work.prioritize! for how soon an item is wanted, Work.assign! for the epic it belongs to. An epic has no
+// priority of its own (it sits in the most urgent lane of its open items), so moving an epic moves those items.
+const WANTED = ["now", "next", "later"], picked = new Set();
+let moving = false, carried = null;
+const openItems = (within) => [...within.querySelectorAll(".item[data-slug]:not(.closed)")];
+function say(text, bad) { $("moved").textContent = text; $("moved").className = "said" + (bad ? " bad" : ""); mover(); }
+function send(action, target, text) {
+  return fetch("/api/act", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, target, text }) })
+    .then((r) => r.json()).then((a) => { if (a.error) throw new Error(String(a.error).split(": ").pop()); });
+}
+// Runs one command an item, in turn, saying how far it is; a refusal is said by the item's key and the rest go on.
+async function change(action, slugs, value, words) {
+  if (moving || !slugs.length) return;
+  moving = true; const refused = [];
+  for (const [i, slug] of slugs.entries()) {
+    say(words + ": " + (i + 1) + " of " + slugs.length);
+    try { await send(action, slug, value); } catch (e) { refused.push(slug + " (" + e.message + ")"); }
+  }
+  moving = false; picked.clear(); decorate();
+  say(refused.length ? words + ": " + (slugs.length - refused.length) + " moved, not " + refused.join("; ") : words + ": " + slugs.length + " moved. The plan redraws when it is read again.", refused.length > 0);
+}
+function mover() {
+  $("mover").hidden = !picked.size && !$("moved").textContent;
+  $("picked-count").textContent = picked.size ? picked.size + " picked" : "";
+  for (const el of $("mover").querySelectorAll("button, select, label, .or")) if (el.id !== "moved") el.hidden = !picked.size;
+}
+function epicChoices() {
+  const kept = $("to-epic").value, epics = [...document.querySelectorAll("#plan details.epic[data-epic]")].filter((e) => e.dataset.epic)
+    .map((e) => [e.querySelector(".name b").textContent, e.dataset.epic]).sort((a, b) => a[0].localeCompare(b[0]));
+  $("to-epic").replaceChildren(...epics.map(([title, key]) => new Option(title, key)));
+  if (epics.some(([, key]) => key === kept)) $("to-epic").value = kept;
+}
+// Every open item gets a tick box and can be dragged; so can an epic's row. The tile is redrawn by the server, so
+// this runs after each redraw and puts back the ticks.
+function decorate() {
+  for (const item of openItems($("plan"))) {
+    item.draggable = true;
+    let box = item.querySelector("input.pick");
+    if (!box) { box = document.createElement("input"); box.type = "checkbox"; box.className = "pick"; box.setAttribute("aria-label", "Pick " + item.dataset.slug); item.prepend(box); }
+    box.checked = picked.has(item.dataset.slug); item.classList.toggle("picked", box.checked);
+  }
+  for (const row of document.querySelectorAll("#plan details.epic > summary")) row.draggable = true;
+  epicChoices(); mover();
+}
+document.addEventListener("change", (event) => {
+  const box = event.target.closest("input.pick"); if (!box) return;
+  const slug = box.closest(".item").dataset.slug; if (box.checked) picked.add(slug); else picked.delete(slug);
+  $("moved").textContent = ""; decorate();
+});
+$("pick-shown").addEventListener("click", () => { for (const item of openItems($("plan"))) if (!item.hidden && !item.closest("[hidden]")) picked.add(item.dataset.slug); $("moved").textContent = ""; decorate(); });
+$("clear-picked").addEventListener("click", () => { picked.clear(); $("moved").textContent = ""; decorate(); });
+$("move-epic").addEventListener("click", () => change("assign", [...picked], $("to-epic").value, "To " + $("to-epic").selectedOptions[0].textContent));
+for (const b of $("mover").querySelectorAll("[data-want]")) b.addEventListener("click", () => change("prioritize", [...picked], b.dataset.want, "Wanted " + b.dataset.want));
+// Dragging: an item carries itself (or every picked item when it is one of them), an epic's row its open items.
+document.addEventListener("dragstart", (event) => {
+  const item = event.target.closest && event.target.closest(".item[data-slug]"), row = !item && event.target.closest && event.target.closest("details.epic > summary");
+  if (!item && !row) return;
+  const slugs = item ? (picked.has(item.dataset.slug) ? [...picked] : [item.dataset.slug]) : openItems(row.parentElement).map((el) => el.dataset.slug);
+  const what = item ? (slugs.length > 1 ? slugs.length + " items" : item.dataset.slug) : row.querySelector(".name b").textContent + " (" + slugs.length + " open)";
+  carried = { slugs, what }; event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", slugs.join(" "));
+  $("dragging").textContent = "Drop " + what + " on"; $("dropbar").hidden = false;
+});
+document.addEventListener("dragend", () => { carried = null; $("dropbar").hidden = true; document.querySelectorAll(".over").forEach((el) => el.classList.remove("over")); });
+// Where a drop lands: a zone of the bar, or a lane of the plan that stands for now, next or later.
+function landing(target) {
+  const zone = target.closest && (target.closest("[data-drop]") || target.closest(".lane[data-lane]"));
+  const want = zone && (zone.dataset.drop || zone.dataset.lane);
+  return WANTED.includes(want) ? { zone, want } : null;
+}
+document.addEventListener("dragover", (event) => {
+  const to = carried && landing(event.target); document.querySelectorAll(".over").forEach((el) => { if (!to || el !== to.zone) el.classList.remove("over"); });
+  if (!to) return;
+  event.preventDefault(); event.dataTransfer.dropEffect = "move"; to.zone.classList.add("over");
+});
+document.addEventListener("drop", (event) => {
+  const to = carried && landing(event.target); if (!to) return;
+  event.preventDefault(); const { slugs, what } = carried;
+  change("prioritize", slugs, to.want, what + " wanted " + to.want);
+});
 // The filters sit under the overview, which the server draws inside the tile.
 function drawn() {
   document.querySelectorAll("#plan details.epic").forEach((epic) => { epic.dataset.drawn = epic.open ? "open" : "closed"; });
   const overview = document.querySelector("#plan .overview");
   const above = document.querySelector("#plan .flow") || overview;
   if (above) above.after($("filters"));
-  areas(); apply();
+  areas(); apply(); decorate();
 }
 function redraw(html) {
   const filters = $("filters"), held = document.activeElement, at = held && held.selectionStart;
