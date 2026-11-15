@@ -44,7 +44,7 @@ main { width: 100%; max-width: 1280px; margin: 0 auto; padding: 20px 20px 64px; 
 .topbar .in { display: flex; align-items: stretch; gap: 28px; max-width: 1280px; margin: 0 auto; padding: 0 20px; height: 48px; }
 .topbar .brand { display: flex; align-items: center; gap: 9px; color: var(--ink); text-decoration: none; font-weight: 650; font-size: 15px; letter-spacing: -.01em; }
 .topbar .brand .una { width: 22px; height: 24px; }
-nav.pages { display: flex; align-items: stretch; gap: 4px; font-size: 13.5px; overflow-x: auto; }
+nav.pages { display: flex; align-items: stretch; gap: 4px; font-size: 13.5px; }
 nav.pages a { display: flex; align-items: center; padding: 0 11px; color: var(--ink2); text-decoration: none; border-bottom: 2px solid transparent;
   margin-bottom: -1px; white-space: nowrap; transition: color .12s, border-color .12s; }
 nav.pages a:hover { color: var(--ink); border-bottom-color: var(--line); }
