@@ -22,6 +22,11 @@ header.top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 20p
 .fact .detail { font-size: 12px; color: var(--ink2); overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
 .fact.attention .num, .fact.failed .num { color: var(--critical); } .fact.unknown .num { color: var(--muted); }
 
+/* The merge window: one card, a note, a reason, and one button (two taps to open it). */
+.window button { font: inherit; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
+.window button.armed { border-color: var(--critical); color: var(--critical); }
+.window input { font: inherit; padding: 8px 10px; margin: 8px 0; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); width: min(100%, 340px); }
+.window .said { margin-top: 8px; }
 section.lane { margin-top: 28px; }
 section.lane > h2 { font-size: 16px; font-weight: 650; margin: 0 4px 2px; }
 section.lane > .note { display: block; margin: 0 4px 10px; }
@@ -55,6 +60,7 @@ details.all { margin-top: 12px; } details.all summary { cursor: pointer; font-si
     <span class="note" id="updated">loading</span><span class="note" id="live">stream: connecting</span>
   </header>
   <div class="overview"><p class="headline" id="headline">Reading the runs</p><div class="facts" id="facts"></div></div>
+  <section class="lane" aria-labelledby="h-window"><h2 id="h-window">Merge window</h2><span class="note">Opened, it pauses the fill and stops what runs so a train can merge; closed, the pipeline carries on.</span><div id="window"></div></section>
   <section class="lane" aria-labelledby="h-main"><h2 id="h-main">Main</h2><span class="note" id="main-note"></span><div id="main"></div></section>
   <section class="lane" aria-labelledby="h-train"><h2 id="h-train">Train pull requests</h2><span class="note" id="train-note">First attempts only: a rerun's time is not a run's.</span><div id="train"></div></section>
   <section class="lane" aria-labelledby="h-flakes"><h2 id="h-flakes">Flakes</h2><span class="note" id="flake-note">Failed, then passed on a rerun.</span><div class="card" id="flakes"></div></section>
@@ -142,8 +148,47 @@ function renderFlakes(doc) {
   put("flakes", rows.length ? table(["Item", "Kind", "Times", "Train pull requests"], rows.map((f) => [f.item, f.kind, f.count, f.prs.map((p) => p.branch.replace("train/main-", "")).join(", ")]), [2]) : h("p", { class: "quiet" }, "Nothing flaked in that time."));
 }
 
+/* ---- the merge window: one tap opens it, one closes it; both are the same steps the command line takes ---- */
+const newest = (rows) => (Array.isArray(rows) && rows.length ? rows[0] : null);
+const windowOpen = (s) => {
+  const opened = newest(s.window_opened), closed = newest(s.window_closed);
+  return opened && (!closed || String(closed.at) < String(opened.at)) ? opened : null;
+};
+let armed = false;
+async function takeStep(body, said) {
+  said.textContent = "Working...";
+  try {
+    const res = await fetch("/api/act", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const reply = await res.json();
+    said.textContent = res.ok ? "Done." : "Not done: " + (reply.error || "HTTP " + res.status);
+    if (res.ok) refresh();
+  } catch (e) { said.textContent = "Not done: " + e.message; }
+}
+function openForm(said) {
+  const reason = h("input", { type: "text", placeholder: "Why (a train is merging)", "aria-label": "Why the window opens" });
+  const button = h("button", { type: "button" }, "Open a merge window");
+  button.addEventListener("click", () => {
+    if (!armed) { armed = true; button.textContent = "Tap again to open it"; button.className = "armed"; setTimeout(() => { armed = false; button.textContent = "Open a merge window"; button.className = ""; }, 6000); return; }
+    armed = false; button.disabled = true;
+    takeStep({ action: "open_window", text: reason.value.trim() || "a train is merging", confirm: true }, said).finally(() => { button.disabled = false; });
+  });
+  return [h("p", { class: "note" }, "Stops new work and ends running landings. Your own sessions are left alone."), h("div", {}, reason), button];
+}
+function renderWindow(s) {
+  const reading = s.window_opened;
+  if (isUnknown(reading)) return put("window", missing(reading));
+  const open = windowOpen(s), key = open ? "open:" + open.id : "closed", said = h("p", { class: "note said" }, "");
+  if ($("window").dataset.state === key) return;
+  $("window").dataset.state = key;
+  if (!open) return put("window", h("div", { class: "card window" }, h("h3", {}, "No merge window is open"), openForm(said), said));
+  const close = h("button", { type: "button" }, "Close the window");
+  close.addEventListener("click", () => takeStep({ action: "close_window", target: String(open.id) }, said));
+  put("window", h("div", { class: "card window" }, h("h3", {}, "Merge window open", h("small", {}, "since " + clock(open.at))),
+    h("p", { class: "note" }, "The fill is paused and the pipeline's sessions and landings were stopped. Close it once the train has merged."), close, said));
+}
+
 function render(s) {
-  renderHeadline(s.ci_runs); renderFacts(s.metrics);
+  renderHeadline(s.ci_runs); renderFacts(s.metrics); renderWindow(s);
   renderLane("main", s.ci_runs, s.slowest_jobs); renderLane("train", s.train_ci_runs, s.train_slowest_jobs); renderFlakes(s.train_flakes);
   $("updated").textContent = "updated " + clock(s.generated_at);
 }
