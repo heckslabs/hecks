@@ -137,6 +137,13 @@ RSpec.describe Hecks::Adapters::PipelineBoard::Rules do
       expect(actions.program("reply")).to eq("claude")
     end
 
+    it "changes the plan through the Tickets commands: how soon an item is wanted, and its epic", :aggregate_failures do
+      wanted = actions.argv("prioritize", { target: "a", text: "now" }, confirm: false)
+      expect(wanted).to eq(%w[tickets Work.prioritize! to=a priority.value=now --wait])
+      joined = actions.argv("assign", { target: "a", text: "e" }, confirm: false)
+      expect(joined).to eq(%w[tickets Work.assign! to=a epic=e --wait])
+    end
+
     it "refuses a step that needs confirm, or a field it lacks", :aggregate_failures do
       expect { actions.argv("delete", { target: "r1" }, confirm: false) }.to raise_error(board::Unavailable, /confirm/)
       expect { actions.argv("answer", { target: "r1" }, confirm: false) }.to raise_error(board::Unavailable, /text/)

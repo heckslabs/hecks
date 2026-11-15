@@ -17,7 +17,12 @@ RSpec.describe Hecks::Adapters::PipelineBoard::Frame do
 
   it "puts the same navigation bar into every page, in one order" do
     bar = described_class.apply("<body><header><!--nav--></header></body>")
-    expect(bar.scan(/<a href="([^"]+)"/).flatten).to eq(%w[/ /sessions /plan /agents /ci /diagrams /settings])
+    expect(bar.scan(/<a href="([^"]+)"/).flatten).to eq(%w[/ /sessions /plan /agents /events /ci /diagrams /settings])
+  end
+
+  it "folds the links behind a menu button on a narrow screen", :aggregate_failures do
+    expect(described_class.bar).to include('<button class="menu" type="button" aria-expanded="false" aria-controls="pages">')
+    expect(File.read(described_class::STYLE)).to include("@media (max-width: 720px)", ".topbar.open nav.pages { display: flex; }")
   end
 
   it "marks the page being read, and a run's own address as the sessions' page" do

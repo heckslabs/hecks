@@ -17,7 +17,28 @@ module Hecks
         def draw(epic)
           "<details class=\"epic\" data-epic=\"#{esc(epic[:epic])}\">" \
             "<summary>#{name(epic[:title], epic[:outcome])}#{track(epic[:done].to_i, epic[:items])}" \
-            "<span class=\"counts\">#{counts(epic)}</span></summary>#{next_line(epic)}#{items(epic[:items])}</details>"
+            "<span class=\"counts\">#{counts(epic)}</span></summary>#{next_line(epic)}#{items(epic[:items])}" \
+            "#{closed(epic)}</details>"
+        end
+
+        # @param epic [Hash] an epic of {PlanReading}, with its `closed` items
+        # @return [String] the epic's finished and dropped items, under its open ones, so an
+        #   opened epic lists all the work it holds; nothing when it has none
+        def closed(epic)
+          rows = Array(epic[:closed])
+          return "" if rows.empty?
+
+          "<div class=\"items over\"><p class=\"over-head\">Finished and dropped (#{rows.size})</p>" \
+            "#{rows.map { |row| closed_row(row, epic[:epic]) }.join}</div>"
+        end
+
+        # One item that is over: its title and key, and how it ended.
+        def closed_row(row, epic)
+          lane = row[:status] == "done" ? "done" : "dropped"
+          marks = "data-status=\"#{esc(row[:status])}\" data-epic=\"#{esc(epic)}\" data-priority=\"\" data-area=\"\""
+          "<div class=\"item closed\" #{marks}><i class=\"cell c-#{lane}\"></i>" \
+            "<span class=\"what\">#{esc(row[:title])} <code>#{esc(row[:slug])}</code></span> " \
+            "<span class=\"chip k-#{lane}\">#{esc(row[:status])}</span></div>"
         end
 
         # @param data [Hash] the items in no epic: `count` and `items`
@@ -30,8 +51,10 @@ module Hecks
             "<span class=\"counts\"></span></summary>#{items(data[:items])}</details>"
         end
 
+        # The epic's title and its outcome; the outcome is shown short, and whole as its hover.
         def name(title, outcome)
-          "<span class=\"name\"><b>#{esc(title)}</b><span class=\"outcome\">#{esc(outcome)}</span></span>"
+          said = esc(outcome)
+          "<span class=\"name\"><b>#{esc(title)}</b><span class=\"outcome\" title=\"#{said}\">#{said}</span></span>"
         end
 
         # One cell for each finished item, then one for each open item in reading order.

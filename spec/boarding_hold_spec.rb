@@ -86,7 +86,7 @@ RSpec.describe Hecks::Adapters::BoardingHolding, "#mark" do
     build_repo("red-ci-fuzz")
     hold
 
-    expect(land("red-ci-fuzz").dig(:outcome, :value)).to eq("fast_forwarded")
+    expect(land("red-ci-fuzz").dig(:outcome, :value)).to eq("merged")
   end
 
   it "lands again once the hold is released" do
@@ -94,7 +94,7 @@ RSpec.describe Hecks::Adapters::BoardingHolding, "#mark" do
     hold
     releasing.clear(checkout: repo)
 
-    expect(land("feature-x").dig(:outcome, :value)).to eq("fast_forwarded")
+    expect(land("feature-x").dig(:outcome, :value)).to eq("merged")
   end
 
   it "stops holding after the window, so main is never held longer than it" do
@@ -110,6 +110,6 @@ RSpec.describe Hecks::Adapters::BoardingHolding, "#mark" do
     expired = Time.now - (21 * 60)
     described_class.new(settings: { clock: -> { expired } }).mark(checkout: repo)
 
-    expect(land("feature-x").dig(:outcome, :value)).to eq("fast_forwarded")
+    expect(land("feature-x").dig(:outcome, :value)).to eq("merged")
   end
 end

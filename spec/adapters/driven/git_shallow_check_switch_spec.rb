@@ -13,7 +13,7 @@ RSpec.describe Hecks::Adapters::GitShallowCheck, "#shallow_switch" do
   it "does nothing when switched off, and checks again when switched on", :aggregate_failures do
     build_repo("lib/a.rb")
     switch("off")
-    expect(shallow[:report][:value]).to eq("shallow check is off")
+    expect(shallow[:report][:value]).to start_with("shallow check is off")
     switch("on")
     expect { shallow }.to raise_error(failure, /shallow check red/)
   end

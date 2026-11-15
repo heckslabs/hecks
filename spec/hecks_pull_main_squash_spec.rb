@@ -114,7 +114,8 @@ RSpec.describe "pulling main after a squash-merged train" do
     it "replays only the branch's own commit onto main", :aggregate_failures do
       squashed_then_edited
       lander.finish_branch(checkout: File.join(dir, "x"), branch: "work/x", gate: gate)
-      expect(git("log", "--format=%s", "origin/main..main")).to eq("x.txt")
+      expect(git("log", "--no-merges", "--format=%s", "origin/main..main")).to eq("x.txt")
+      expect(git("log", "--first-parent", "--format=%s", "origin/main..main")).to eq("Merge branch 'work/x'")
       expect(git("show", "main:a.txt")).to eq("theirs")
     end
   end
