@@ -10,6 +10,7 @@ require_relative "pipeline_web/pushed"
 require_relative "pipeline_web/plan_page"
 require_relative "pipeline_web/ci_page"
 require_relative "pipeline_web/settings_page"
+require_relative "pipeline_web/events_page"
 require_relative "pipeline_web/snapshot"
 
 module Hecks

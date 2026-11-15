@@ -69,3 +69,20 @@ nav.pages a:focus-visible { outline: 2px solid var(--run); outline-offset: -3px;
 .node table, .tile table {
   display: block; max-height: 9.6em; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; font-size: 11.5px; margin-top: 6px;
 }
+/* On a phone the bar has no room for a link a page. The links fold behind a button that names the page being
+   read, and open as a list under the bar. */
+.topbar .menu { display: none; }
+@media (max-width: 720px) {
+  .topbar .in { justify-content: space-between; gap: 12px; padding: 0 16px; position: relative; }
+  .topbar .menu { display: flex; align-items: center; gap: 9px; align-self: center; padding: 6px 10px; font: inherit; font-size: 13.5px; font-weight: 600;
+    color: var(--ink); background: none; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
+  .topbar .menu:focus-visible { outline: 2px solid var(--run); outline-offset: 2px; }
+  .topbar .menu .bars { display: grid; gap: 3px; width: 16px; }
+  .topbar .menu .bars i { height: 2px; border-radius: 1px; background: currentColor; }
+  nav.pages { display: none; position: absolute; top: 100%; left: 0; right: 0; flex-direction: column; align-items: stretch; gap: 0; overflow: visible;
+    background: var(--surface); border-bottom: 1px solid var(--line); padding: 6px 0 10px; font-size: 15px; }
+  .topbar.open nav.pages { display: flex; }
+  nav.pages a { padding: 12px 20px; border-bottom: 0; border-left: 3px solid transparent; }
+  nav.pages a:hover { border-bottom-color: transparent; }
+  nav.pages a[aria-current="page"] { border-left-color: var(--una); }
+}
