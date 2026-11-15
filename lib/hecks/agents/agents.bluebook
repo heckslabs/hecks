@@ -59,6 +59,8 @@ Hecks.bluebook "Agents" do
       member role: "orchestrator", pattern: "SendTrain.outcome"
       # A read: whether main is flagged, named by the train-faulted stall's move.
       member role: "orchestrator", pattern: "RedFlag.status"
+      # A read of the train pull request, named by the ci-not-started and train-unmerged stall moves.
+      member role: "orchestrator", pattern: "SendTrain.watch!"
       member role: "orchestrator", pattern: "ReviewRequest.status"
       member role: "orchestrator", pattern: "ReviewRequest.take!"
       member role: "orchestrator", pattern: "LinkedTree.pull_main!"
