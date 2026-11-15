@@ -142,4 +142,17 @@ RSpec.describe "a red train pull request" do
     2.times { observe }
     expect(github.reruns.size).to eq(1)
   end
+
+  def rerun_payload = @hecks.registry.event_log.find { |e| e.name == "TrainPrRerun" }.payload.to_s
+
+  it "names the failed steps of the jobs in the rerun record", :aggregate_failures do
+    observe
+    expect(rerun_payload).to include("failed steps: rspec shard 1/Install zsh")
+    expect(github.reruns).to eq(["gh run rerun --failed 77"])
+  end
+
+  it "leaves the rerun report as it was when no step is named" do
+    expect(Hecks::Adapters::CiRuns.new.restart(ci_run: "77", pr: "5")[:report][:value])
+      .to eq("reran the failed jobs of CI run 77 (PR 5)")
+  end
 end
