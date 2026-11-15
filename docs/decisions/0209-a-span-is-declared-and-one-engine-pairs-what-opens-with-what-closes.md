@@ -1,6 +1,6 @@
 # A span is declared, and one engine pairs what opens with what closes
 
-**Status:** Proposed. Date: 2026-11-14. Asked for by the owner after a read of every file of the
+**Status:** Accepted. Date: 2026-11-14. Accepted by the owner (2026-11-14). Asked for by the owner after a read of every file of the
 pipeline board. Carries out the last bullet of point 8 in the amendment of
 [0195](0195-the-boards-read-model-is-declared-and-its-pages-are-projected-from-declarations.md).
 Nothing here is built.
