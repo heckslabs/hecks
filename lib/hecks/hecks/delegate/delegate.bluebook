@@ -2302,6 +2302,19 @@ Hecks.bluebook "Hecks" do
       trigger AgentRun::RetireTrial, with: { detail: :detail }
     end
 
+    # A job reading `working` over a session that is not listed records nothing, so its run stays
+    # started. The reading only filters: `Retire` looks again and keeps a young, listed or unreadable
+    # one. A blocked session may await an answer, so it is left; a trial run has its own policy.
+    policy "RetireTheRunWhoseSessionIsNotListed" do
+      on      "AgentRun.JobRead"
+      root
+      where do
+        state == "working" && listed == "" && live == "" && resuming != true &&
+          !run.start_with?("live-") && !run.start_with?("resume-")
+      end
+      trigger AgentRun::Retire, with: { run: :run }
+    end
+
     policy "RecordTheRemoval" do
       on      "AgentRun.SessionRemoved"
       trigger AgentRun::Tidied, with: { tidied_at: :removed_at }
