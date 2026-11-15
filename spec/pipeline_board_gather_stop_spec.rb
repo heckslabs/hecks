@@ -5,7 +5,7 @@ require "hecks/pipeline_board/adapters/pipeline_web"
 
 # A reader past its time is stopped, so a reader wedged outside any command cannot hold its section
 # for good; one inside a call that cannot be interrupted stays on record and is not asked twice.
-RSpec.describe Hecks::Adapters::PipelineBoard::Gather, "stopping a reader" do
+RSpec.describe Hecks::Adapters::PipelineBoard::Gather, "#gathered" do
   let(:host) do
     Class.new do
       include Hecks::Adapters::PipelineBoard::Gather

@@ -7,7 +7,8 @@ require "hecks/pipeline_board/adapters/pipeline_web"
 # the drawing itself is bounded.
 RSpec.describe Hecks::Adapters::PipelineBoard::Tiles do
   let(:rows) { [{ tile: "fill", reads: "Fill" }, { tile: "train", reads: "Train" }] }
-  let(:renderers) { { "fill" => -> { Queue.new.pop }, "train" => -> { "<p>train</p>" } } }
+  let(:drawing) { Queue.new }
+  let(:renderers) { { "fill" => -> { drawing.push(:begun) && Queue.new.pop }, "train" => -> { "<p>train</p>" } } }
   let(:tiles) { described_class.new(rows: rows, renderers: renderers) }
 
   before { stub_const("#{described_class}::DRAW_SECONDS", 0.1) }
@@ -18,7 +19,7 @@ RSpec.describe Hecks::Adapters::PipelineBoard::Tiles do
 
   it "answers the page while a drawing is stuck holding the lock" do
     drawer = Thread.new { tiles.refresh(1) }
-    sleep 0.02
+    drawing.pop
     expect(Timeout.timeout(1) { tiles.html("fill") }).to eq(described_class::NOT_DRAWN)
     drawer.join
   end

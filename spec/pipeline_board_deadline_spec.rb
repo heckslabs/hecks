@@ -20,10 +20,14 @@ RSpec.describe Hecks::Adapters::PipelineBoard::Deadline do
       .to raise_error(deadline::Overdue, "drawing fill did not answer in 0.1s")
   end
 
-  it "stops the block's thread" do
+  def thread_stopped_after_overdue
     ran = []
     block = proc { ran << Thread.current } >> proc { Queue.new.pop }
     expect { deadline.run(0.1, &block) }.to raise_error(deadline::Overdue)
-    expect(ran.first.join(1)).not_to be_nil
+    ran.first.join(1)
+  end
+
+  it "stops the block's thread" do
+    expect(thread_stopped_after_overdue).not_to be_nil
   end
 end
