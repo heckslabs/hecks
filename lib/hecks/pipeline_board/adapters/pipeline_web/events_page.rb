@@ -10,8 +10,9 @@ module Hecks
       module EventsPage
         # The page file.
         PATH = File.expand_path("events.html", __dir__)
-        # How many of the newest events the page is given: what the log's tail holds.
-        KEPT = 400
+        # How many of the event log's newest lines the page is given the events of. A line is an
+        # event or one policy's answer to it, so this is about half as many events.
+        KEPT = 3000
 
         # @return [String] the Events page
         def events_page = File.read(PATH)
@@ -25,9 +26,16 @@ module Hecks
 
     # Reopened here so the reader of the longer feed sits beside the page that asks for it.
     class PipelineStages
-      # @param count [Integer] how many of the newest events
-      # @return [Array<Hash>, Hash] the events, newest first, or `{unknown: reason}`
-      def journal_feed(count) = guard { @journal.recent(count) }
+      # @param lines [Integer] how many of the event log's newest lines
+      # @return [Array<Hash>, Hash] their events, newest first, or `{unknown: reason}`
+      def journal_feed(lines) = guard { @journal.history(lines) }
+    end
+
+    # Reopened here for the same reason: only the Events page asks for the longer tail.
+    class PipelineJournal
+      # @param lines [Integer] how many of the event log's newest lines
+      # @return [Array<Hash>] their events, newest first; none when no log is written
+      def history(lines) = (@longer ||= @tap.longer(lines)).rows.reverse
     end
 
     # Reopened here so the Events page's readers sit beside the page they read.
