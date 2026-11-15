@@ -20,7 +20,7 @@ module Hecks
       VERB = "spec_bounds"
 
       # The bounds, in seconds, when the world names none: the same numbers `tickets.world` sets.
-      DEFAULTS = { file_seconds: 600, check_seconds: 2400 }.freeze
+      DEFAULTS = { file_seconds: 600, check_seconds: 2400, impacted_seconds: 600 }.freeze
 
       # Seconds between asking the tree to end and ending it.
       GRACE = 5

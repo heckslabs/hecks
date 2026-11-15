@@ -88,4 +88,9 @@ RSpec.describe Hecks::Adapters::BoundedCapture do
     expect(described_class.seconds(Hecks::RustBuild::ROOT, :file_seconds)).to eq(600)
     expect(described_class.seconds(dir, :check_seconds)).to eq(described_class::DEFAULTS[:check_seconds])
   end
+
+  it "reads the impacted-spec gate budget from the world, apart from the batch bound", :aggregate_failures do
+    expect(described_class.seconds(Hecks::RustBuild::ROOT, :impacted_seconds)).to eq(600)
+    expect(described_class.seconds(Hecks::RustBuild::ROOT, :check_seconds)).to eq(2400)
+  end
 end

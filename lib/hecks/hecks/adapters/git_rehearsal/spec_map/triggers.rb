@@ -17,7 +17,7 @@ module Hecks
           # The rule when the world names none.
           DEFAULTS = {
             paths: %w[lib/hecks/**/*.bluebook lib/hecks/**/*.hecksagon **/*.behaviors lib/hecks/hecks/tickets.world],
-            specs: %w[spec/behaviors_examples_spec.rb]
+            specs: %w[spec/behaviors_examples_spec.rb spec/ir_golden_spec.rb]
           }.freeze
 
           # How a pattern matches: `**/` spans directories, `*` stays inside one.

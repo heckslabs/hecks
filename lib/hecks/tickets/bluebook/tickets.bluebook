@@ -123,6 +123,21 @@ Hecks.bluebook "Tickets" do
       emits "RunFindingReported"
     end
 
+    # A landing whose impacted specs outran the gate budget goes on, and the specs it did not run
+    # are filed once per landing run, the run's key naming the finding.
+    command "ReportUnrunSpecs" do
+      goal "Record the impacted specs a landing did not run when its gate budget ran out"
+
+      attribute :finding, FindingKey, sets: true
+      attribute :body,    Body, sets: true
+
+      sets :fingerprint, to: :finding
+      sets :title,  to: "A landing left impacted specs unrun"
+      sets :source, to: "pipeline"
+
+      emits "UnrunSpecsReported"
+    end
+
     # An integration run or a shipment that stopped for a person reports itself: the run's key names
     # the finding, so it is filed once per run and names the first stop only. A later stop of the
     # same run (parked again after it was taken up) is refused as already reported and files
@@ -1261,6 +1276,15 @@ Hecks.bluebook "Tickets" do
     on      "Integration.MainVerificationFailed"
     root
     trigger Finding::ReportStoppedRun, with: { finding: :landed, commit: :landed, stage: "verifying", body: :refusal }
+  end
+
+  # A landing whose impacted specs outran the gate budget landed anyway (the landing's shallow check
+  # passed); the specs it did not run are the finding's body.
+  policy "ReportWhenImpactedSpecsOverran" do
+    on      "ShallowCheck.ShallowCheckPassed"
+    root
+    where   { !unrun.nil? && !unrun.value.to_s.empty? }
+    trigger Finding::ReportUnrunSpecs, with: { finding: :run, body: :unrun }
   end
 
   policy "ReportWhenMainPushRefused" do
