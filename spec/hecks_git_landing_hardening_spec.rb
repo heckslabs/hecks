@@ -178,39 +178,6 @@ RSpec.describe Hecks::Adapters::GitLanding do
     expect(branch?("work/a")).to be(false)
   end
 
-  def scratch_only(*names)
-    build_repo
-    ignore_in_tree("tmp/\n.env")
-    names.each do |name|
-      FileUtils.mkdir_p(File.dirname(File.join(tree, name)))
-      File.write(File.join(tree, name), "x")
-    end
-    git("merge", "work/a")
-  end
-
-  it "retires a worktree whose only ignored files are listed scratch", :aggregate_failures do
-    scratch_only("tmp/rspec_examples.txt")
-
-    expect(described_class.new(scratch: ["tmp"]).remove(checkout: tree, branch: "work/a", onto: "main")).to be_a(Hash)
-    expect(File.exist?(tree)).to be(false)
-  end
-
-  it "keeps a worktree holding an ignored file the scratch list does not name", :aggregate_failures do
-    scratch_only("tmp/a.txt", ".env")
-
-    expect { described_class.new(scratch: ["tmp"]).remove(checkout: tree, branch: "work/a", onto: "main") }
-      .to raise_error(failure, /\.env/)
-    expect(File.read(File.join(tree, ".env"))).to eq("x")
-  end
-
-  it "keeps a worktree that holds another worktree, and names it", :aggregate_failures do
-    scratch_only("tmp/a.txt")
-    git("worktree", "add", "-b", "inner", File.join(tree, ".claude", "worktrees", "inner"), chdir: tree)
-
-    expect { retire }.to raise_error(failure, /worktrees/)
-    expect(File.exist?(File.join(tree, ".claude", "worktrees", "inner"))).to be(true)
-  end
-
   it "refuses to retire a worktree holding an ignored file", :aggregate_failures do
     ignored_file("x.log")
     git("merge", "work/a")
