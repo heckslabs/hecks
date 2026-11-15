@@ -45,4 +45,20 @@ RSpec.describe Hecks::Adapters::PipelineBoard::ThroughputDays do
   it "skips a time that cannot be read" do
     expect(described_class.build(["not a time"], now)[:days].sum { |row| row[:finished] }).to eq(0)
   end
+
+  # A day on the board is an Arizona day: it begins at midnight in Arizona, which is seven in the
+  # morning in UTC, never at midnight UTC (five in the afternoon there).
+  context "when the days are counted in Arizona time" do
+    it "is still the day before at 5:30 PM Arizona time, though UTC has turned over" do
+      days = described_class.build(["2026-11-15T00:10:00Z"], Time.utc(2026, 11, 15, 0, 30, 0))[:days]
+
+      expect([days.last[:day], days.last[:finished]]).to eq(["2026-11-14", 1])
+    end
+
+    it "turns over at midnight Arizona time" do
+      days = described_class.build([], Time.utc(2026, 11, 15, 7, 0, 1))[:days]
+
+      expect(days.last[:day]).to eq("2026-11-15")
+    end
+  end
 end

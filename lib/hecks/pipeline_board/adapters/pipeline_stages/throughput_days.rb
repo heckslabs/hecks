@@ -2,12 +2,13 @@
 
 require "date"
 require "time"
+require_relative "../zone"
 
 module Hecks
   module Adapters
     module PipelineBoard
       # The Work items finished on each of the last days, for the board's throughput chart. A day
-      # is the calendar day where the board runs, and today is the last and still open.
+      # is the calendar day in Arizona ({Zone}), and today is the last and still open.
       module ThroughputDays
         # How many days the chart shows, today included.
         DAYS = 14
@@ -28,13 +29,13 @@ module Hecks
 
         # The calendar days shown, oldest first, ending today.
         def window(now)
-          today = now.to_date
+          today = Zone.day(now)
           ((today - (DAYS - 1))..today).to_a
         end
 
-        # The day a time falls on in the board's own zone, nil for a time that cannot be read.
-        def day_of(at, now)
-          Time.parse(at).localtime(now.utc_offset).to_date
+        # The day a time falls on in Arizona, nil for a time that cannot be read.
+        def day_of(at, _now)
+          Zone.day(at)
         rescue ArgumentError
           nil
         end
