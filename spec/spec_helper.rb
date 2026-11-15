@@ -55,6 +55,7 @@ require_relative "support/live_state_guard"
 require_relative "support/git_identity_free"
 require_relative "support/working_directory_guard"
 require_relative "support/ambient_registry_guard"
+require_relative "support/child_process_guard"
 require_relative "support/live_services"
 require_relative "support/spec_progress"
 
