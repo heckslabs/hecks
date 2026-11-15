@@ -169,13 +169,19 @@ RSpec.describe Hecks::Adapters::GitLanding, "#merge by compare-and-swap" do
     expect(git("status", "--porcelain")).to eq("")
   end
 
-  it "rebases and asks the gate again when main moved after the gate, and lands one merge of the judged tree", :aggregate_failures do
+  it "rebases and asks the gate again when main moved after the gate, and lands one merge", :aggregate_failures do
     build_repo("a")
     said = finish(gate_moving_main(1)).dig(:report, :value)
 
     expect([calls.size, said]).to match([2, /main moved 1 time meanwhile/])
     expect(subjects).to include("a.txt", "moved1.txt")
     expect(git("rev-list", "--merges", "main").split.size).to eq(1)
+  end
+
+  it "lands a finish as a merge whose tree is the judged tip's" do
+    build_repo("a")
+    finish(gate_moving_main(1))
+
     expect(git("rev-parse", "main^{tree}")).to eq(git("rev-parse", "main^2^{tree}"))
   end
 
