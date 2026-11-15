@@ -33,7 +33,7 @@ module Hecks
       end
 
       # Runs the checks for a branch, or says why they were skipped, then the specs its changes
-      # touch within the world's `impacted_seconds`.
+      # touch within the world's `impacted_seconds`, a few at once as the load allows.
       #
       # @param held [Hash] the `ShallowCheck` record: `checkout`, `branch`, `onto`
       # @return [Hash{Symbol => Hash}] `report:` what ran or why nothing did, and `unrun:` the

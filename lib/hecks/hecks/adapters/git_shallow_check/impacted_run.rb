@@ -3,12 +3,13 @@
 require_relative "../git_rehearsal"
 require_relative "../bounded_capture"
 require_relative "../console_capture"
+require_relative "impacted_workers"
 
 module Hecks
   module Adapters
     class GitShallowCheck
-      # Runs the specs a landing's changes touch, one at a time through the launcher, inside the
-      # world's `spec_bounds` `impacted_seconds`.
+      # Runs the specs a landing's changes touch through the launcher, up to {ImpactedWorkers} at
+      # once, inside the world's `spec_bounds` `impacted_seconds`.
       #
       # It reports facts: a red spec raises with its name, and the specs the budget left unrun
       # come back with the seconds spent. What an overrun means is the bluebook's: the landing
@@ -31,10 +32,13 @@ module Hecks
         # @param shell [Shell] runs the launcher
         # @param clock [#call] answers monotonic seconds
         # @param budget [Numeric, nil] seconds allowed; the checkout's world when nil
+        # @param workers [#call, nil] given the spec count, answers how many run at once; the
+        #   checkout's world held to the load room ({ImpactedWorkers.from_world}) when nil
         def initialize(checkout, shell: Shell.new, clock: -> { Process.clock_gettime(Process::CLOCK_MONOTONIC) },
-                       budget: nil)
+                       budget: nil, workers: nil)
           @checkout = checkout
           @budget = budget || BoundedCapture.seconds(checkout, :impacted_seconds)
+          @workers = workers || ImpactedWorkers.from_world(checkout)
           @clock = clock
           @run = GitRehearsal::Impacted::SpecRun.new(->(dir, *argv, env: {}) { shell.capture(*argv, env: env, chdir: dir) })
         end
@@ -47,26 +51,41 @@ module Hecks
           specs = mapped(changed, base)
           started = @clock.call
           ran = []
-          specs.each do |spec|
-            break if @clock.call - started >= @budget
+          red = run_all(specs, started, ran)
+          raise red if red
 
-            pass!(spec, ran)
-          end
           Outcome.new(ran, specs - ran, (@clock.call - started).round)
         end
 
         private
+
+        # Starts the workers and answers the first red spec's failure, nil when none.
+        def run_all(specs, started, ran)
+          queue = Queue.new
+          specs.each { |spec| queue << spec }
+          state = { red: nil, lock: Mutex.new, started: started }
+          Array.new(@workers.call(specs.size)) { Thread.new { work(queue, ran, state) } }.each(&:join)
+          state[:red]
+        end
+
+        def work(queue, ran, state)
+          pass!(queue.pop(true), ran, state[:lock]) until state[:red] || @clock.call - state[:started] >= @budget
+        rescue ThreadError
+          nil
+        rescue ConsoleCapture::Failure => e
+          state[:lock].synchronize { state[:red] ||= e }
+        end
 
         def mapped(changed, base)
           skips = GitRehearsal::Impacted::Skips.new(@checkout, scratch: -> { false })
           GitRehearsal::SpecMap.new(@checkout).map(changed, limit: LIMIT, skip: skips, since: base).specs
         end
 
-        def pass!(spec, ran)
+        def pass!(spec, ran, lock)
           outcome = @run.call(@checkout, spec)
           raise ConsoleCapture::Failure, "impacted specs red: #{outcome.line}" unless outcome.passed
 
-          ran << spec
+          lock.synchronize { ran << spec }
         end
       end
     end
