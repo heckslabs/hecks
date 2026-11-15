@@ -5,6 +5,7 @@ require "hecks/cache_dir"
 require "hecks/rust_build/build_lock"
 require "hecks/rust_build/world_rows"
 require_relative "memory_wait"
+require_relative "slot_text"
 require_relative "spec_workers"
 
 module Hecks
@@ -97,7 +98,7 @@ module Hecks
           begin
             [holding(place, job, &), note]
           ensure
-            place.close
+            SlotText.release(place)
           end
         end
 
@@ -168,20 +169,14 @@ module Hecks
           return if @noted
 
           @noted = true
-          @err.puts("hecks: #{job} waiting for a heavy-job slot, #{@cap} of #{@cap} taken (#{holders.join(", ")})")
+          held = SlotText.holders(@dir, @cap).join(", ")
+          @err.puts("hecks: #{job} waiting for a heavy-job slot, #{@cap} of #{@cap} taken (#{held})")
         end
 
         def gave_up(job)
           note = "no longer waiting for a heavy-job slot after #{GIVE_UP_AFTER} s; #{job} runs anyway"
           @err.puts("hecks: #{note}")
           note
-        end
-
-        # @return [Array<String>] what each place's file names: the job's class and its pid
-        def holders
-          (0...@cap).map { |index| File.read(File.join(@dir, "slot-#{index}.lock")).strip }.reject(&:empty?)
-        rescue SystemCallError
-          []
         end
       end
     end
