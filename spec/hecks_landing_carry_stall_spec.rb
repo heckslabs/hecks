@@ -21,16 +21,18 @@ module LandingCarryLooks
 end
 
 # A landing job (`Landing.Carry`) that neither landed nor was refused within the `landing-carry`
-# row's minutes is a stall naming the run; landing or refusing closes it.
+# row's minutes (thirty: a healthy gate takes up to twenty, so ten filed a stall for a slow one and
+# woke a session that resubmitted it) is a stall naming the run; landing or refusing closes it.
 RSpec.describe "StallWatch landing-carry" do
   include_context "with a stall watch tap"
   include LandingCarryLooks
 
   {
     "a carry asked 2 minutes ago"  => [[["CarryRequested", 2]], false],
-    "a carry asked 12 minutes ago" => [[["CarryRequested", 12]], true],
-    "a carry that landed"          => [[["CarryRequested", 12], ["BranchLanded", 11]], false],
-    "a carry that was refused"     => [[["CarryRequested", 12], ["LandingRefused", 11]], false]
+    "a carry asked 12 minutes ago" => [[["CarryRequested", 12]], false],
+    "a carry asked 32 minutes ago" => [[["CarryRequested", 32]], true],
+    "a carry that landed"          => [[["CarryRequested", 32], ["BranchLanded", 31]], false],
+    "a carry that was refused"     => [[["CarryRequested", 32], ["LandingRefused", 31]], false]
   }.each do |name, (rows, filed)|
     it "files #{filed ? "a stall" : "nothing"} for #{name}" do
       write_landing(rows)
@@ -41,7 +43,7 @@ RSpec.describe "StallWatch landing-carry" do
   end
 
   it "carries a move that checks the log and the gate process before anything else" do
-    write_landing([["CarryRequested", 12]])
+    write_landing([["CarryRequested", 32]])
 
     expect(watching.unclosed(run: "look-1").first[:detail]).to include("hecks-landings", "gate process")
   end
