@@ -193,7 +193,7 @@ jobs:
           exit 1
       - uses: ./.github/actions/hecks-environment
 
-      # The examples that need zsh: the completion script and the beat lock. With no zsh they skip, and the skip backstop fails the job.
+      # The one example that needs zsh. With no zsh the example skips, and the skip backstop fails the job.
       - name: "rspec: the zsh completion example"
         run: |
-          bundle exec rspec spec/driving_adapters/cli_completion_spec.rb spec/hecks_beat_schedule_spec.rb --tag zsh_completion
+          bundle exec rspec spec/driving_adapters/cli_completion_spec.rb --tag zsh_completion

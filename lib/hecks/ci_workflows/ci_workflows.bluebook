@@ -160,8 +160,8 @@ Hecks.bluebook "CiWorkflows" do
              uses: "./.github/actions/hecks-environment"
       member workflow: "ci-rspec.yml", job: "rspec_zsh", name: "zsh_completion",
              title: "rspec: the zsh completion example",
-             run: "bundle exec rspec spec/driving_adapters/cli_completion_spec.rb spec/hecks_beat_schedule_spec.rb --tag zsh_completion\n",
-             note: "The examples that need zsh: the completion script and the beat lock. With no zsh they skip, and the skip backstop fails the job."
+             run: "bundle exec rspec spec/driving_adapters/cli_completion_spec.rb --tag zsh_completion\n",
+             note: "The one example that needs zsh. With no zsh the example skips, and the skip backstop fails the job."
       member workflow: "ci-rspec.yml", job: "rspec_shard", name: "environment",
              uses: "./.github/actions/hecks-environment"
       member workflow: "ci-rspec.yml", job: "rspec_shard", name: "generated_rust",
