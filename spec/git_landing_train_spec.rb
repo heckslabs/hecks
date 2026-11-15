@@ -96,7 +96,8 @@ RSpec.describe Hecks::Adapters::GitLanding do
     report, = convene
 
     expect(report.dig(:report, :value)).to match(%r{landed work/a; landed work/b; skipped work/c: .*rebase.*; landed work/d}m)
-    expect(git("log", "--format=%s", "-n", "4", "main").split("\n")).to eq(%w[d b a first])
+    expect(git("log", "--first-parent", "--format=%s", "main").split("\n"))
+      .to eq(["Merge branch 'work/d'", "Merge branch 'work/b'", "Merge branch 'work/a'", "first"])
   end
 
   it "tells the waiting landing of each branch what became of it", :aggregate_failures do
