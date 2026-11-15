@@ -516,6 +516,24 @@
               ],
               [
                 "aggregate",
+                "CiRunRecord"
+              ],
+              [
+                "checkout",
+                "both"
+              ],
+              [
+                "reason",
+                "a CI run is recorded by one beat and read by the board and by every later look"
+              ]
+            ],
+            [
+              [
+                "domain",
+                "Hecks"
+              ],
+              [
+                "aggregate",
                 "ReapTurn"
               ],
               [
