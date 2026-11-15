@@ -1,5 +1,6 @@
 require "json"
 require_relative "replaced_runs_fixtures"
+require_relative "rest_pull_view"
 
 # A fake GitHub holding one open train pull request whose only check failed.
 module RedPullRequestHost
@@ -15,7 +16,7 @@ module RedPullRequestHost
   # @param readable [Boolean] whether `gh run view` answers; false answers a 502
   def host(readable:)
     lambda do |argv, **|
-      return [true, JSON.generate(pull)] if argv[1] == "pr"
+      return [true, RestPullView.answer(argv, pull)] if RestPullView.api?(argv)
       return [false, "HTTP 502: Bad Gateway"] if argv[2] == "view" && !readable
 
       [true, JSON.generate(argv[2] == "view" ? { "jobs" => [] } : listed)]

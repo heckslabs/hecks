@@ -4,6 +4,7 @@ require "json"
 require "open3"
 require "securerandom"
 require "tmpdir"
+require_relative "support/rest_pull_view"
 
 # A verified tip waits behind the open train pull request ahead of it. When that pull request merges
 # (CI done) or closes, the next observation of it boards the tip with no `Integration.advance!` and
@@ -98,7 +99,7 @@ RSpec.describe "a verdict on the train pull request ahead boards the tip held be
 
   # A pull request reads open unless the spec has resolved it, keyed by the commit in its branch.
   def github(argv)
-    return [true, JSON.generate(pull_of(argv[3].to_s))] if argv[1..2] == %w[pr view]
+    return [true, RestPullView.answer(argv, pull_of(RestPullView.branch(argv)))] if RestPullView.api?(argv)
 
     [true, JSON.generate([{ databaseId: 7, status: "completed", conclusion: "success" }])]
   end

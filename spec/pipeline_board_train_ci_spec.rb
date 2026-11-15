@@ -26,7 +26,7 @@ RSpec.describe Hecks::Adapters::PipelineGitHub, "#train_ci_runs" do
   it "asks for pull request runs of the CI workflow" do
     calls = []
     adapter([], calls: calls).train_ci_runs
-    expect(calls.first).to include("--event", "pull_request", "--workflow", "ci.yml")
+    expect(calls.find { |args| args.first == "run" }).to include("--event", "pull_request", "--workflow", "ci.yml")
   end
 
   it "leaves out a rerun, whose wall time is not the run's", :aggregate_failures do

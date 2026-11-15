@@ -3,6 +3,7 @@ require "fileutils"
 require "json"
 require "open3"
 require "tmpdir"
+require_relative "support/rest_pull_view"
 
 # Main is integrated by the MainIntegration saga: a landing onto main starts a run, and each
 # `Integration.advance!` dispatches the run's next step. The domain is in Memory; the repository
@@ -134,7 +135,7 @@ RSpec.describe "integrating main through the MainIntegration saga" do
 
   def github(argv, conclusion, jobs)
     note_depth
-    return pull_request_view if argv[1..2] == %w[pr view]
+    return [true, RestPullView.answer(argv, @pull)] if RestPullView.api?(argv)
     return [true, JSON.generate(jobs: jobs)] if argv[1..2] == %w[run view]
 
     (@ci_commits ||= []) << argv[argv.index("--commit") + 1]

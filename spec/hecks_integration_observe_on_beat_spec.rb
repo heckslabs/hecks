@@ -3,6 +3,7 @@ require "json"
 require "open3"
 require "securerandom"
 require "tmpdir"
+require_relative "support/rest_pull_view"
 
 # A train pull request's verdict is noticed by the clock alone: a beat reads the CI run of each
 # pushed or watched run (`ObserveOnHeartbeat`) and, once GitHub has merged the pull request, the
@@ -80,7 +81,7 @@ RSpec.describe "noticing a train pull request's verdict on the clock's beat" do
 
   def github(argv)
     @asked << argv[1..2]
-    return [true, JSON.generate(@pull)] if argv[1..2] == %w[pr view]
+    return [true, RestPullView.answer(argv, @pull)] if RestPullView.api?(argv)
     return [true, JSON.generate(jobs: [{ name: "rspec", conclusion: "failure" }])] if argv[1..2] == %w[run view]
 
     [true, JSON.generate([{ databaseId: 7, status: @run_status || "completed", conclusion: @conclusion || "success" }])]
