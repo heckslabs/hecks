@@ -31,6 +31,19 @@ module Hecks
         # @return [Boolean] whether the session is blocked on the owner
         def waiting?(session) = session[:status] == "blocked" && session[:owner] == true
 
+        # @param sessions [Array<Hash>] the board's session rows
+        # @return [Array<Hash>] the sessions blocked on the owner, the one place the set is read
+        def waiting(sessions) = sessions.select { |session| waiting?(session) }
+
+        # @param sessions [Array<Hash>, Object] the board's session rows, or `{unknown:}`
+        # @return [Hash] `count` and `ids` of the sessions waiting on the owner, or `{unknown:}`
+        def reading(sessions)
+          return { unknown: "the sessions could not be read" } unless sessions.is_a?(Array)
+
+          ids = waiting(sessions).map { |session| session[:id] }.uniq
+          { count: ids.size, ids: ids }
+        end
+
         def classed(row, work, root)
           return row unless LIVE.include?(row[:status])
 

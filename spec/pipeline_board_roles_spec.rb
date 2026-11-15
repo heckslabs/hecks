@@ -24,6 +24,14 @@ RSpec.describe Hecks::Adapters::PipelineBoard::AgentRoles do
     expect(card[:live]).to eq(0)
   end
 
+  it "counts on a role's card the sessions of it that wait on the owner", :aggregate_failures do
+    asking = { name: "c1", status: "blocked", owner: true, works_as: "coder" }
+    held = { name: "c2", status: "blocked", owner: false, held: "stranded run", works_as: "coder" }
+    card = described_class.of([asking, held], %w[coder], events).first
+    expect(card[:live]).to eq(2)
+    expect(card[:waiting]).to eq(1)
+  end
+
   describe "a session whose run records the part it works as" do
     let(:filled) { { name: "fix-a work", status: "busy", agent: "", works_as: "coder", work_item: "fix-a" } }
 
