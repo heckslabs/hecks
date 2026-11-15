@@ -52,9 +52,9 @@ RSpec.describe "StallWatch train-pr-unbeaten" do
     end
   end
 
-  it "carries a move the orchestrator runs: a beat, then an advance" do
+  it "carries a move that reads the launchd beat and starts none, then an advance" do
     write_ticker([["TickerRequested", 9]])
 
-    expect(watching.unclosed(run: "look-1").first[:detail]).to include("Heartbeat.beat!", "Integration.advance!")
+    expect(watching.unclosed(run: "look-1").first[:detail]).to include("train-beat.log", "Integration.advance!")
   end
 end

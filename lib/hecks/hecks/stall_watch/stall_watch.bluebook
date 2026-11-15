@@ -61,8 +61,9 @@ Hecks.bluebook "Hecks" do
         # line closes on its first beat.
         member kind: "train-pr-unbeaten", aggregate: "Hecks::Ticker", opens: "TickerRequested",
                closes: "Ticked,TickerStopped", minutes: 3, forgets: 1440, fixer: "orchestrator",
-               move: "Heartbeat.beat! --wait once, then Integration.advance! confirm=true, so the pushed run " \
-                     "is observed; then read the chain's log (~/.claude/hecks-dev/ticker/<commit>.log) and " \
+               move: "The launchd beat is the pulse (every minute): start none, since a second is refused while one " \
+                     "runs, and read when it last ran from the mtime of ~/.claude/hecks-dev/train-beat.log. Then " \
+                     "Integration.advance! confirm=true, so the pushed run is observed; then read the chain's log (~/.claude/hecks-dev/ticker/<commit>.log) and " \
                      "report a declined or ended chain as the cause."
         # A train pull request whose CI never started: `TrainPrCi.Await` records it only once its
         # bound has passed (deliver.bluebook), so it is a stall as soon as a look sees it.
@@ -70,7 +71,7 @@ Hecks.bluebook "Hecks" do
                closes: "TrainPrCiStarted", minutes: 0, forgets: 1440, fixer: "orchestrator",
                move: "Read githubstatus.com for GitHub Actions and the PR (gh pr view <pr> --json statusCheckRollup). " \
                      "The pipeline closes and reopens it once after 20 minutes (TrainPrReopen); if CI still has not " \
-                     "started once Actions is up, run Heartbeat.beat! --wait, then close and reopen it by hand (gh pr close, gh pr reopen, gh pr merge --auto --squash)."
+                     "started once Actions is up, read when the launchd beat last ran from the mtime of ~/.claude/hecks-dev/train-beat.log (start no beat), then close and reopen it by hand (gh pr close, gh pr reopen, gh pr merge --auto --squash)."
         member kind: "agent-run-start", not_about: "stall-", aggregate: "Hecks::AgentRun", state: "requested", opens: "AgentRunRequested",
                closes: "AgentRunStarted,AgentRunDeclined", minutes: 10, forgets: 1440, fixer: "orchestrator",
                move: "Work.yield! the run's Work item (AgentRun.running names it) with the reason, " \
@@ -136,7 +137,7 @@ Hecks.bluebook "Hecks" do
                closes: "BranchPushed,TrainChecksFailed,PushFaulted", minutes: 45, forgets: 1440, fixer: "orchestrator",
                move: "Read the train pull request (gh pr view <pr> --json mergeStateStatus,statusCheckRollup): " \
                      "BLOCKED on pending checks is only slow, so leave it; CLEAN without a merge means auto-merge " \
-                     "is off, so turn it on (gh pr merge <pr> --auto). Heartbeat.beat! --wait records a merge GitHub made."
+                     "is off, so turn it on (gh pr merge <pr> --auto). The launchd beat records a merge GitHub made: start none, and read when it last ran from the mtime of ~/.claude/hecks-dev/train-beat.log."
         # A queued boarding's required checks ended red; its pull request stays open and a merge closes it.
         member kind: "train-checks-failed", aggregate: "Hecks::SendTrain", state: "red", opens: "TrainChecksFailed",
                closes: "BranchPushed", minutes: 0, forgets: 1440, fixer: "orchestrator",
