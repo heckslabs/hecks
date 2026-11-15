@@ -14,7 +14,9 @@
 # same work sits well under it; tighten it once the boot-time work has landed and a day is measured.
 # `dispatch_max_load` is the 1-minute load above which `Dispatch.Fill` starts no session (the CPU count
 # when absent). `dispatch_roll_forward` is the owner's switch: while `roll_forward` is true the Delegate
-# policies run `Dispatch.Fill` on events that free capacity, and false pauses them. `session_environment` is what every dispatched session starts with: a shared cargo
+# policies run `Dispatch.Fill` on events that free capacity, and false pauses them: the roll and the clock's beat then
+# start nothing, while `Dispatch.Fill only=<key>` still starts the named work item. It is false here, so
+# only a work item named by hand starts (spec/hecks_dispatch_pause_switch_spec.rb). `session_environment` is what every dispatched session starts with: a shared cargo
 # target directory and a `nice` increment. `session_grace` is how many seconds a started session is
 # given to appear in `claude agents` before a run whose session is not listed is retired as gone.
 #
