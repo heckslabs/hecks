@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "json"
+require_relative "../ledger_gate"
 require_relative "plan_tile"
 require_relative "integration_tile"
 require_relative "stale"
@@ -11,7 +12,8 @@ module Hecks
       # Asks each reader its question and keeps the answer, or `{unknown: <reason>}` when the reader
       # could not answer, so one failed read never takes the others down. The reads run side by
       # side and each has {READ_SECONDS} to answer, so one slow reader never holds the rest. A
-      # section whose read was skipped shows its last answer, noted as stale (see {Stale}).
+      # section whose read was skipped shows its last answer, noted as stale (see {Stale}). The
+      # readers of a shared ledger take turns (see {LedgerGate}).
       module Gather
         include PlanTile
         include IntegrationTile
@@ -60,7 +62,7 @@ module Hecks
 
         def read(spec)
           reader, method, kind, *args = spec
-          ask = -> { instance_variable_get("@#{reader}").public_send(method, *args) }
+          ask = -> { LedgerGate.through(reader) { instance_variable_get("@#{reader}").public_send(method, *args) } }
           kind == :query ? queried(&ask) : guard(&ask)
         end
 
