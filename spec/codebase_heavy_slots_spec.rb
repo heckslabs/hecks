@@ -35,6 +35,11 @@ RSpec.describe Hecks::Adapters::Codebase::HeavySlots do
     expect(slots(cap: 1).hold("compile") { :ran }).to eq([:ran, ""]), "slot of pid #{pid} stayed held"
   end
 
+  it "empties its place's text when the job ends, so no ended holder's pid stays named" do
+    slots(cap: 1).hold("gate") { :ran }
+    expect(File.read(File.join(dir, "slot-0.lock"))).to eq("")
+  end
+
   it "does not count the wait against the job's own clock", :aggregate_failures do
     note, started = timed_wait
 
