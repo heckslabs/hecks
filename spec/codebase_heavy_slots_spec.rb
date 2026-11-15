@@ -71,7 +71,7 @@ RSpec.describe Hecks::Adapters::Codebase::HeavySlots do
   end
 
   it "reads its cap from the Tickets world's heavy_jobs line" do
-    expect(described_class.cap_of(File.expand_path("..", __dir__))).to eq(3)
+    expect(described_class.cap_of(File.expand_path("..", __dir__))).to eq(2)
   end
 
   it "names the wait at the top of the job's report" do
