@@ -5,6 +5,7 @@ require_relative "../console_capture"
 require_relative "../git_train/pull_request_boarding"
 require_relative "../gh_rest"
 require_relative "checks"
+require_relative "pull_cache"
 
 module Hecks
   module Adapters
@@ -18,7 +19,9 @@ module Hecks
         # @param runner [#call] takes `(argv, chdir:)` and answers `[ok, output]`
         # @param checkout [String] the directory `gh` runs in
         # @param landed [String] the boarded commit
-        def initialize(runner, checkout, landed)
+        # @param cache [PullCache] what this process has read of the pull request lately
+        def initialize(runner, checkout, landed, cache: PullCache.shared)
+          @cache = cache
           @runner = runner
           @checkout = checkout
           @branch = GitTrain::PullRequestBoarding.branch_for(landed)
@@ -28,7 +31,7 @@ module Hecks
         #   `statusCheckRollup`, `commits`, `createdAt` and `comments`; nil when the boarding has
         #   no pull request
         # @raise [ConsoleCapture::Failure] when `gh` cannot read the branch
-        def read = GhRest.new(method(:api)).pull(@branch)
+        def read = @cache.read(@branch) { GhRest.new(method(:api)).pull(@branch) }
 
         # @return [Checks, nil] the checks of the open pull request; nil when there is none or it is
         #   merged or closed

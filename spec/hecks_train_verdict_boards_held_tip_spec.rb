@@ -109,8 +109,11 @@ RSpec.describe "a verdict on the train pull request ahead boards the tip held be
     sha ? @pulls[sha] : { number: 12, state: "OPEN", mergeCommit: nil }
   end
 
+  # GitHub settles the pull request; the next observation is a later beat, past the window in which
+  # `CiRuns::PullCache` keeps a read, so it reads GitHub again.
   def resolve(landed, state)
     @pulls[landed] = { number: 12, state: state, mergeCommit: state == "MERGED" ? { oid: "d" * 40 } : nil }
+    Hecks::Adapters::CiRuns::PullCache.shared.clear
   end
 
   # The earlier run pushed behind an open pull request, the later one verified and waiting.
