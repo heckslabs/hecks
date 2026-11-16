@@ -1,3 +1,5 @@
+require_relative "rest_pull_view"
+
 # A scripted GitHub for the train pull request specs: one open pull request with red checks, one CI
 # run at the given attempt, and the open pull requests a sweep lists. It answers `gh` as the
 # `CiRuns` and `GithubPullRequests` adapters call it, and remembers every call.
@@ -57,11 +59,12 @@ class FakeTrainGithub
   end
 
   def answer(argv)
+    return RestPullView.open_answer(argv, @pulls) || RestPullView.answer(argv, view) if RestPullView.api?(argv)
+
     case argv[1..2]
     when %w[pr view] then view.to_json
     when %w[run list] then [{ databaseId: 77, attempt: @attempt }].to_json
     when %w[run view] then argv.include?("--log-failed") ? failed_log(argv) : jobs.to_json
-    when %w[pr list] then @pulls.to_json
     else ""
     end
   end

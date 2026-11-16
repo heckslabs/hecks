@@ -3,6 +3,7 @@
 require "json"
 require_relative "../console_capture"
 require_relative "../ci_runs/checks"
+require_relative "../gh_rest"
 
 module Hecks
   module Adapters
@@ -15,9 +16,6 @@ module Hecks
       class TrainSweep
         # The branch prefix of a train pull request.
         PREFIX = "train/main-"
-
-        # The fields read of each open pull request.
-        FIELDS = "number,headRefName,headRefOid,createdAt,statusCheckRollup"
 
         # @param github [#call] takes the `gh` arguments and answers their stdout; raises on failure
         # @param git [#call] takes the `git` arguments and answers `[ok, output]`
@@ -36,9 +34,12 @@ module Hecks
         private
 
         def pulls
-          all = JSON.parse(@gh.call("pr", "list", "--state", "open", "--json", FIELDS, "--limit", "100"))
+          all = GhRest.new(method(:read_json)).open_pulls(100, PREFIX)
           all.select { |pull| pull["headRefName"].to_s.start_with?(PREFIX) }.sort_by { |pull| pull["createdAt"].to_s }
         end
+
+        # A REST read of the repository, whose budget is apart from GraphQL's.
+        def read_json(*) = JSON.parse(@gh.call(*))
 
         def close_if_moot(pull, open)
           why = landed_on_main(pull) || superseded_by(pull, open) || passed_by_main(pull)

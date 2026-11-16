@@ -19,7 +19,8 @@ module PipelineBoardWorld
     jobs = { "jobs" => [{ "name" => "rspec", "conclusion" => "failure", "startedAt" => (NOW - 600).iso8601,
                           "completedAt" => NOW.iso8601 }] }
     releases = [{ "tagName" => "v7.0.0", "isDraft" => false, "publishedAt" => (NOW - 86_400).iso8601 }]
-    ->(*args) { { "run list" => runs, "run view" => jobs, "release list" => releases }.fetch(args.first(2).join(" ")) }
+    canned = { "run list" => runs, "run view" => jobs, "release list" => releases, "api rate_limit" => {} }
+    ->(*args) { canned.fetch(args.first(2).join(" ")) }
   end
 
   def git(dir, *args)

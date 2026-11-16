@@ -638,6 +638,24 @@
             [
               [
                 "domain",
+                "Hecks"
+              ],
+              [
+                "aggregate",
+                "GithubEvent"
+              ],
+              [
+                "checkout",
+                "both"
+              ],
+              [
+                "reason",
+                "a delivery is recorded by the webhook listener and read by the watchers, in processes of their own"
+              ]
+            ],
+            [
+              [
+                "domain",
                 "Delivery"
               ],
               [

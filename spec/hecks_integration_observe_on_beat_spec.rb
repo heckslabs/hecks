@@ -3,6 +3,7 @@ require "json"
 require "open3"
 require "securerandom"
 require "tmpdir"
+require_relative "support/rest_pull_view"
 
 # A train pull request's verdict is noticed by the clock alone: a beat reads the CI run of each
 # pushed or watched run (`ObserveOnHeartbeat`) and, once GitHub has merged the pull request, the
@@ -29,11 +30,22 @@ RSpec.describe "noticing a train pull request's verdict on the clock's beat" do
     @pulls_before = @hecks.registry.event_log.count { |logged| logged.name == "PullRequested" }
     @hecks.registry.saga_instances["MainIntegration"].clear
     Hecks::Adapters::CiRuns.runner = ->(argv, **) { github(argv) }
+    pin_loaded_code
   end
 
   after do
+    Hecks::Adapters::MainIntegration::CodeWatch.fingerprint = nil
     Hecks::Adapters::CiRuns.runner = nil
     FileUtils.remove_entry(dir)
+  end
+
+  # The process-wide code watch ends a pass for good once any file of the checkout changes, which
+  # a loaded runner's neighbouring specs do; a beat would then observe nothing. The spec holds the
+  # code as unchanged so a beat reads what the fake pull request says and nothing else.
+  def pin_loaded_code
+    Hecks::Adapters::MainIntegration::CodeWatch.fingerprint = instance_double(
+      Hecks::Adapters::Driving::Resident::Fingerprint, current: 1
+    )
   end
 
   def repo = File.join(dir, "repo")
@@ -80,7 +92,7 @@ RSpec.describe "noticing a train pull request's verdict on the clock's beat" do
 
   def github(argv)
     @asked << argv[1..2]
-    return [true, JSON.generate(@pull)] if argv[1..2] == %w[pr view]
+    return [true, RestPullView.answer(argv, @pull)] if RestPullView.api?(argv)
     return [true, JSON.generate(jobs: [{ name: "rspec", conclusion: "failure" }])] if argv[1..2] == %w[run view]
 
     [true, JSON.generate([{ databaseId: 7, status: @run_status || "completed", conclusion: @conclusion || "success" }])]
@@ -98,6 +110,7 @@ RSpec.describe "noticing a train pull request's verdict on the clock's beat" do
   end
 
   def beat
+    Hecks::Adapters::CiRuns::PullCache.shared.clear
     outer = Thread.current[:hecks_reaction_depth]
     Thread.current[:hecks_reaction_depth] = 0
     Hecks::Runtime::AdapterLookup.standing_in(stand_in) do

@@ -30,6 +30,14 @@ RSpec.describe Hecks::Adapters::Codebase::HeavySlots do
     expect(err.string).to include("waiting for a heavy-job slot, 2 of 2 taken")
   end
 
+  it "lets one gate of five finished coders run at once at a cap of 1" do
+    expect(peak_of_burst(1)).to be <= 1
+  end
+
+  it "lets two gates of five finished coders run at once at a cap of 2" do
+    expect(peak_of_burst(2)).to be <= 2
+  end
+
   it "takes the slot of a holder that died at once" do
     pid = dead_holder
     expect(slots(cap: 1).hold("compile") { :ran }).to eq([:ran, ""]), "slot of pid #{pid} stayed held"
@@ -155,6 +163,21 @@ RSpec.describe Hecks::Adapters::Codebase::HeavySlots do
 
   # Two batches hold both slots and the first lets go on the sixth pause. Answers whether the
   # third ran after that, and its note.
+  # The most fake gates that ran together when five jobs asked for a place at once. A job waits
+  # only until `GIVE_UP_AFTER`, after which it runs anyway, so the bound holds for shorter runs.
+  def peak_of_burst(cap)
+    state = { running: 0, peak: 0, lock: Mutex.new }
+    pause = ->(_seconds) { Thread.pass }
+    Array.new(5) { Thread.new { slots(cap: cap, pause: pause).hold("gate") { fake_gate(state) } } }.each(&:join)
+    state[:peak]
+  end
+
+  def fake_gate(state)
+    state[:lock].synchronize { state[:peak] = [state[:peak], state[:running] += 1].max }
+    200.times { Thread.pass }
+    state[:lock].synchronize { state[:running] -= 1 }
+  end
+
   def third_batch
     first = taken(0)
     taken(1)

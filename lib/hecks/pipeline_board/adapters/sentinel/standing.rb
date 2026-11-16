@@ -14,6 +14,8 @@ module Hecks
         # The environment name carrying the sentinel's pid, so a board that restarts itself
         # (`exec` keeps the pid, the environment and the child) does not start a second one.
         ENV_KEY = "PIPELINE_BOARD_SENTINEL"
+        # The checkout's `lib`, which the sentinel process is not given by the environment.
+        LIB = File.expand_path("../../../..", __dir__)
 
         class << self
           # Starts the sentinel process for this board unless one already stands for it or the
@@ -30,10 +32,16 @@ module Hecks
 
             spec = { pid: Process.pid, port: port, command: command, directory: Dir.pwd,
                      every: limits[:sentinel_seconds], misses: limits[:sentinel_misses].to_i }
-            child = Process.spawn(RbConfig.ruby, __FILE__, JSON.generate(spec), pgroup: true)
+            child = Process.spawn(*command(spec), pgroup: true)
             Process.detach(child)
             ENV[ENV_KEY] = child.to_s
           end
+
+          # @param spec [Hash] the board's pid, port, command and directory, and the sentinel's
+          #   `every` and `misses`
+          # @return [Array<String>] the interpreter and arguments that run a sentinel from `spec`,
+          #   with this checkout's `lib` on the load path its code requires from
+          def command(spec) = [RbConfig.ruby, "-I", LIB, __FILE__, JSON.generate(spec)]
 
           # @return [Boolean] whether the sentinel this environment names is still running
           def standing?

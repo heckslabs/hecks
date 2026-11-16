@@ -3,6 +3,7 @@ require "fileutils"
 require "json"
 require "open3"
 require "tmpdir"
+require_relative "support/rest_pull_view"
 
 # Main is integrated by the MainIntegration saga: a landing onto main starts a run, and each
 # `Integration.advance!` dispatches the run's next step. The domain is in Memory; the repository
@@ -134,7 +135,7 @@ RSpec.describe "integrating main through the MainIntegration saga" do
 
   def github(argv, conclusion, jobs)
     note_depth
-    return pull_request_view if argv[1..2] == %w[pr view]
+    return [true, RestPullView.answer(argv, @pull)] if RestPullView.api?(argv)
     return [true, JSON.generate(jobs: jobs)] if argv[1..2] == %w[run view]
 
     (@ci_commits ||= []) << argv[argv.index("--commit") + 1]
@@ -196,7 +197,8 @@ RSpec.describe "integrating main through the MainIntegration saga" do
     expect(File.exist?(flag_file)).to be(false)
   end
 
-  # Lands two runs while the first one's pull request is open, then merges it and advances.
+  # Lands two runs while the first one's pull request is open, then merges it and advances. The
+  # advance after the merge is a later beat, past the window `CiRuns::PullCache` keeps a read.
   def land_two_behind_an_open_pull_request
     @pull = { number: 12, state: "OPEN", mergeCommit: nil }
     first = land
@@ -204,6 +206,7 @@ RSpec.describe "integrating main through the MainIntegration saga" do
     second = land(file: "second.rb")
     advance(2)
     @pull = merged_as("d" * 40)
+    Hecks::Adapters::CiRuns::PullCache.shared.clear
     advance(3)
     [first, second]
   end
