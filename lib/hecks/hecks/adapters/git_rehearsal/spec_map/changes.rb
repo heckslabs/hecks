@@ -20,6 +20,8 @@ module Hecks
           KEY = /\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b/
           VERB = /\b[A-Z]\w+\.[a-z_]+!?/
           SETTING = /\A\s*([a-z][a-z_0-9]*)\s/
+          AGGREGATE_REF = /\b([A-Z][A-Za-z0-9]*)(?:::|\.)[A-Z]\w*/
+          GENERIC = %w[Hecks].freeze
           MOST = 40
           CHANGED_LINE = /\A[+-](?![+-])/
 
@@ -50,8 +52,13 @@ module Hecks
             return [] if line.strip.start_with?("#") && !path.end_with?(".world")
 
             keys = line.scan(KEY) + line.scan(VERB) + [line[SETTING, 1]]
-            path.end_with?(".world") ? keys.compact : line.scan(VERB)
+            path.end_with?(".world") ? keys.compact : aggregates(line) + line.scan(VERB)
           end
+
+          # The aggregates a changed line names as `Agg.Event`, `Agg::Command` or `on "Agg.Event"`,
+          # so a policy declared outside its aggregate still reaches the specs that name it. The
+          # names a path yields are capped by `MOST` and the specs by the map's own limit.
+          def aggregates(line) = line.scan(AGGREGATE_REF).flatten.uniq - GENERIC
 
           def enclosing(path, hunks)
             return [] if path.end_with?(".world")
