@@ -17,9 +17,6 @@ module Hecks
         # The branch prefix of a train pull request.
         PREFIX = "train/main-"
 
-        # The fields read of each open pull request.
-        FIELDS = "number,headRefName,headRefOid,createdAt,statusCheckRollup"
-
         # @param github [#call] takes the `gh` arguments and answers their stdout; raises on failure
         # @param git [#call] takes the `git` arguments and answers `[ok, output]`
         def initialize(github, git)

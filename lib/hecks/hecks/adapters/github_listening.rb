@@ -1,9 +1,7 @@
 # frozen_string_literal: true
 
-require "webrick"
-require "rackup/handler/webrick"
 require_relative "github_listening/secret_file"
-require_relative "github_listening/receiver"
+require_relative "github_listening/server_gems"
 
 module Hecks
   module Adapters
@@ -11,6 +9,7 @@ module Hecks
     # `POST /github-webhook` on 127.0.0.1 and nothing else, and offers each signed delivery to
     # `GithubEvent.Record` in the registry it was booted with. It stamps a delivery with the time it
     # was taken; which kinds are kept, and that a delivery is kept once, the bluebook decides.
+    # Loading it needs no server gem: {ServerGems} loads them when a listener is opened.
     class GithubListening
       # The only address the listener binds: a public path reaches it only through a proxy on
       # this machine.
@@ -33,6 +32,7 @@ module Hecks
       # @param held [Hash] `port:` the port to bind, as an Integer or `{value:}`
       # @return [Hash] `last:` why the listener ended
       # @raise [SecretFile::Missing] when the secret file is absent or empty; nothing is bound
+      # @raise [ServerGems::Unavailable] when rack, webrick or rackup is not installed
       def listen(**held)
         server = open_at(plain(held[:port]))
         warn "GithubWebhook listening on http://#{HOST}:#{server.config[:Port]}#{Receiver::PATH} (Ctrl-C to stop)"
@@ -46,6 +46,7 @@ module Hecks
       # @param port [Integer] the port to bind; 0 binds a free one
       # @return [WEBrick::HTTPServer]
       # @raise [SecretFile::Missing] when the secret file is absent or empty; nothing is bound
+      # @raise [ServerGems::Unavailable] when rack, webrick or rackup is not installed
       def open_at(port)
         app = receiver
         server = WEBrick::HTTPServer.new(BindAddress: HOST, Port: port, Logger: WEBrick::Log.new(File::NULL),
@@ -56,7 +57,11 @@ module Hecks
 
       # @return [Receiver] the rack app, signed with the secret file's secret
       # @raise [SecretFile::Missing] when the secret file is absent or empty
-      def receiver = Receiver.new(secret: SecretFile.read(@secret_path), record: method(:record))
+      # @raise [ServerGems::Unavailable] when rack, webrick or rackup is not installed
+      def receiver
+        ServerGems.load!
+        Receiver.new(secret: SecretFile.read(@secret_path), record: method(:record))
+      end
 
       # Records one delivery, stamped with when it was taken.
       #
