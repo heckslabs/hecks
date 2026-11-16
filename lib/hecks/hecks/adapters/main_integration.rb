@@ -88,7 +88,11 @@ module Hecks
 
       # The pushed or watched runs come before the rest, so a run waiting on an earlier push boards
       # in the advance that sees that push turn green, whatever order the saga lists the runs in.
-      def observing_first(open) = open.partition { |run| NEXT[run.state] == "Observe" }.flatten
+      # The rest go newest on main first (`NewestFirst`), so the newest verified landing boards.
+      def observing_first(open)
+        observing, rest = open.partition { |run| NEXT[run.state] == "Observe" }
+        observing + NewestFirst.new.order(rest)
+      end
 
       # Each given run in turn, until the code on disk differs from the code this process loaded
       # (`CodeWatch`): the pass then ends with that said, the runs it did not reach wait, and
@@ -167,6 +171,7 @@ end
 
 require_relative "main_integration/code_watch"
 require_relative "main_integration/runs"
+require_relative "main_integration/newest_first"
 require_relative "main_integration/adoption"
 require_relative "main_integration/fault"
 require_relative "main_integration/outcome"

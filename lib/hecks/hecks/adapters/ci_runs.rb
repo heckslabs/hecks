@@ -9,6 +9,7 @@ require_relative "ci_runs/train_pr_failure"
 require_relative "ci_runs/red_pull"
 require_relative "ci_runs/ci_start"
 require_relative "main_integration/command_runner"
+require_relative "main_integration/carried_check"
 
 module Hecks
   module Adapters
@@ -129,10 +130,13 @@ module Hecks
         verdict(landed, run)
       end
 
+      # A commit with no train pull request and no run of its own that `origin/main` already holds
+      # was judged by the CI of the push that carried it, so it passes and frees the line.
       def unfinished(landed, merged, text)
-        return answer("running", "#{landed[0, 10]}: #{text}") unless merged
+        return answer("merged", "#{landed[0, 10]}: PR #{merged} merged; #{text}") if merged
 
-        answer("merged", "#{landed[0, 10]}: PR #{merged} merged; #{text}")
+        carried = MainIntegration::CarriedCheck.new(@checkout).by_known(landed)
+        answer(carried ? "passed" : "running", "#{landed[0, 10]}: #{[carried, text].compact.join("; ")}")
       end
 
       # The run of the commit on main, or nil when GitHub has none for it yet.

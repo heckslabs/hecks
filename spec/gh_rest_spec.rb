@@ -56,6 +56,14 @@ RSpec.describe Hecks::Adapters::GhRest do
     expect(read(pulls: [])).to be_nil
   end
 
+  it "finds the train pull request holding a commit, open before merged, never one closed unmerged" do
+    merged = pull.merge("number" => 7, "merged_at" => "2026-11-15T01:00:00Z")
+    open = pull.merge("number" => 5, "state" => "open")
+    listed = [pull.merge("number" => 11), merged, open, open.merge("number" => 12, "head" => { "ref" => "feature/x" })]
+    found = described_class.new(->(*args) { args.last.include?("/commits/c1/pulls") ? [listed] : reader.call(*args) })
+    expect(found.carrying("c1", "train/main-")["number"]).to eq(5)
+  end
+
   it "reads the checks of the train pull requests only, and no other" do
     listed = [pull, pull.merge("number" => 4, "head" => { "ref" => "feature/x", "sha" => "s4" })]
     rows = described_class.new(reader(pulls: listed)).open_pulls(30, "train/")
