@@ -23,6 +23,7 @@ module Hecks
         JSON_FROM = GitRehearsal::Impacted::SpecRun::JSON_FROM
         FAILED = GitRehearsal::Impacted::SpecRun::FAILED
         NO_FAILURES = /\b0 failures\b/
+        STOPPED = /^stopped: .*$/
         FAILED_FILES = /^failed: (.*) \(\d+ of \d+ files\)$/
 
         module_function
@@ -55,9 +56,12 @@ module Hecks
         def named(report, specs, result)
           examples = report.scan(FAILED).map { |where, what| [where, what].compact.join(" # ") }
           failing = examples.empty? ? report[FAILED_FILES, 1].to_s.split : examples
-          failing = ["exit #{result.exit_code} in #{specs.join(" ")}"] if failing.empty?
+          failing = [stopped_line(report, result) || "exit #{result.exit_code} in #{specs.join(" ")}"] if failing.empty?
           "failing spec: #{failing.join(", ")}"
         end
+
+        # @return [String, nil] the launcher's `stopped: ...` line when it ended the call, else nil
+        def stopped_line(report, result) = [report, result.out, result.err].filter_map { |text| text.to_s[STOPPED] }.first
       end
     end
   end
