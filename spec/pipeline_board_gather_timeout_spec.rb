@@ -38,8 +38,14 @@ RSpec.describe Hecks::Adapters::PipelineBoard::Gather do
     expect(host.new(stuck_github).gathered[:ci_runs]).to eq(unknown: "reader did not answer in 0.2s")
   end
 
-  it "logs where an overdue reader is" do
-    expect { host.new(stuck_github).gathered }.to output(/board: ci_runs reader overdue after 0.2s at:/).to_stderr
+  it "logs where an overdue reader is, on one line" do
+    expect { host.new(stuck_github).gathered }.to output(/\Aboard: ci_runs reader overdue after 0.2s at [^\n]+\n\z/).to_stderr
+  end
+
+  it "names an overdue section once for the window, not on every read" do
+    board = host.new(stuck_github)
+    board.gathered
+    expect { board.gathered }.not_to output.to_stderr
   end
 
   it "still answers the readers that were not slow" do
