@@ -143,6 +143,10 @@ RSpec.describe Hecks::Adapters::PipelineWeb do
     socket&.close
   end
 
+  it "refuses a port another board holds, with no server of its own started" do
+    expect { board.open_at(server.port) }.to raise_error(Errno::EADDRINUSE)
+  end
+
   it "writes nothing: the log and the directory are as the test left them" do
     append("LandingRequested", "2026-11-02T10:00:00Z")
     before = [File.read(log), Dir.children(dir)]

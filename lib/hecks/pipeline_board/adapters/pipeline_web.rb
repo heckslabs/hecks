@@ -168,10 +168,12 @@ module Hecks
 
       # @param port [Integer, nil] 0 binds a free port; nil the board's default
       # @return [PipelineBoard::Server] a running server
+      # @raise [Errno::EADDRINUSE] when another process holds the port, before the snapshot or the
+      #   journal follower starts; the asking `Listen` turns it into `ServerRefused`
       def open_at(port)
-        @snapshot.start
-        @pushed.start
-        PipelineBoard::Server.new(port: port || 4747, app: self).start
+        server = PipelineBoard::Server.new(port: port || 4747, app: self)
+        [@snapshot, @pushed].each(&:start)
+        server.start
       end
 
       # @return [String] the page, with each pushed tile drawn into its place, so it reads whole
