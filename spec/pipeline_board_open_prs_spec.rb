@@ -2,6 +2,7 @@
 
 require "spec_helper"
 require "hecks/pipeline_board/adapters/pipeline_stages"
+require_relative "support/rest_pull_view"
 
 # The Open PRs metric: the GitHub reader's count of open pull requests, and the tile built from it.
 # The reader is handed a fake `gh`, so no repository is read.
@@ -15,7 +16,7 @@ RSpec.describe "the Open PRs metric" do
   end
 
   def reading(listed)
-    gh = ->(*_args) { listed }
+    gh = RestPullView.open_gh(-> { listed })
     Hecks::Adapters::PipelineGitHub.new(settings: { gh: gh, settled_path: nil }).open_prs
   end
 

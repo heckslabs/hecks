@@ -43,6 +43,7 @@ EVENT_TAP_SPEC_DIR = Dir.mktmpdir("hecks-event-tap-spec")
 at_exit { FileUtils.rm_rf(EVENT_TAP_SPEC_DIR) }
 ENV["HECKS_EVENT_TAP"] = File.join(EVENT_TAP_SPEC_DIR, "events.jsonl")
 require_relative "support/ci_skip_backstop"
+require_relative "support/pull_cache_reset"
 require_relative "support/hecks_memory_environment"
 require_relative "support/repo_tool"
 require_relative "support/facade_constant_isolation"

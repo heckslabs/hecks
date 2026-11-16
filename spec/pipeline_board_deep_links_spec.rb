@@ -27,7 +27,7 @@ RSpec.describe Hecks::Adapters::PipelineBoard::DeepLinks do
       allow(double).to receive(:train_detail) { |key| key == "t-1" ? train : nil }
     end
   end
-  let!(:server) { Hecks::Adapters::PipelineWeb.new(settings: { stages: stages, background: false, journal: FakeJournal.source }).open_at(0) }
+  let!(:server) { Hecks::Adapters::PipelineWeb.new(settings: { stages: stages, background: false, journal: FakeJournal.source, load_guard: false }).open_at(0) }
 
   after { server.stop }
 

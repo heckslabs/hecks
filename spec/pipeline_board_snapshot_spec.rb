@@ -2,6 +2,7 @@
 
 require "spec_helper"
 require_relative "support/pipeline_board_world"
+require_relative "support/rest_pull_view"
 
 # The Snapshot query over stub readers: the same state the page serves, drawn as text, with the
 # open train pull requests and their check counts read from `gh pr list`.
@@ -19,7 +20,7 @@ RSpec.describe Hecks::Adapters::PipelineStages do
 
   def gh(listing)
     canned = canned_gh([run("a", 1)])
-    ->(*args) { args.first(2) == %w[pr list] ? listing.call : canned.call(*args) }
+    RestPullView.open_gh(listing, canned)
   end
 
   def jobs

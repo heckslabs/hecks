@@ -9,9 +9,8 @@ module Hecks
       # pull request is one on a `train/` branch.
       module PullChecks
         BRANCH_PREFIX = "train/"
-        FIELDS = "number,headRefName,statusCheckRollup,createdAt"
 
-        # How many pull requests one `gh pr list` asks for.
+        # How many pull requests one list of open pull requests asks for.
         LIMIT = 30
         WAITING = %w[pending expected queued in_progress waiting requested].freeze
 

@@ -52,8 +52,16 @@ module Hecks
         def slowest_of(done, limit)
           return [] unless done
 
-          timed = jobs_of(done["databaseId"]).filter_map { |job| timed(job) }
+          timed = timed_jobs(done["databaseId"])
           timed.sort_by { |job| -job[:minutes] }.first(limit)
+        end
+
+        # The timed jobs of a completed run, which never change: the newest run's are kept, so a
+        # board that asks again after its read expired does not read the same run's jobs again.
+        def timed_jobs(id)
+          return @timed_jobs.last if @timed_jobs&.first == id
+
+          jobs_of(id).filter_map { |job| timed(job) }.tap { |rows| @timed_jobs = [id, rows] }
         end
 
         def timed(job)

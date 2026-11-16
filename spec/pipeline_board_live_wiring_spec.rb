@@ -225,7 +225,7 @@ RSpec.describe "the live wiring diagram" do
                                                                 fill_tile: { unknown: "x" }, plan_tile: { unknown: "x" },
                                                                 train_tile: train, integration_tile: train)
       wiring = double(reading: { nodes: [], edges: [], digest: "d1" })
-      settings = { stages: stages, wiring: wiring, background: false, tap: quiet_journal }
+      settings = { stages: stages, wiring: wiring, background: false, tap: quiet_journal, load_guard: false }
       Hecks::Adapters::PipelineWeb.new(settings: settings)
     end
 

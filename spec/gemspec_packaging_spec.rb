@@ -1,4 +1,5 @@
 require "hecks"
+require "bundler"
 require "fileutils"
 require "open3"
 require "tmpdir"

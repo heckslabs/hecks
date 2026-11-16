@@ -27,9 +27,11 @@ RSpec.describe "a train pull request whose CI never started" do
   end
 
   # One beat in a process of its own: the train pull request is read, what that emitted is written
-  # to the tap as the live tap would, and the stall watch looks.
+  # to the tap as the live tap would, and the stall watch looks. A new process holds no pull
+  # request read in `CiRuns::PullCache`, so the beat reads GitHub afresh.
   def beat
     %w[TrainPrCi TrainPrReopen Stall].each { |name| store(name).reset! }
+    Hecks::Adapters::CiRuns::PullCache.shared.clear
     tapped { dispatch("Hecks::Integration.Observe", run: SecureRandom.uuid, landed: landed) }
     tapped { detect("look-#{SecureRandom.hex(4)}") }
   end
