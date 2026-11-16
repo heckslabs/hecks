@@ -33,6 +33,16 @@ section.group > h2 { font-size: 16px; font-weight: 650; margin: 0 4px 8px; }
 .turn button { font: inherit; font-size: 13px; padding: 4px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); cursor: pointer; }
 .turn button:hover { border-color: var(--run); } .turn button:disabled { opacity: .5; cursor: default; }
 .dial .said { grid-column: 1 / -1; font-size: 12.5px; color: var(--ink2); } .dial .said:empty { display: none; } .dial .said.bad { color: var(--critical); }
+/* Each group answers one question, and shows the live numbers its settings move beside them. */
+section.group > h2 small { font-weight: 400; font-size: 12.5px; color: var(--ink2); margin-left: 8px; }
+.moves { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 0 0 10px; }
+.move { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; min-width: 0; }
+.move b { display: block; font-size: 20px; font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.move span { display: block; font-size: 12px; color: var(--ink2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.move.none b { color: var(--muted); font-size: 14px; font-weight: 500; }
+.move svg { display: block; width: 100%; height: 28px; margin-top: 4px; }
+.dial .what .mark.out { border-color: var(--critical); color: var(--critical); }
+.paused { margin: 10px 0 0; padding: 10px 14px; border: 1px solid var(--warning, #b7791f); border-radius: 10px; font-size: 13.5px; }
 @media (max-width: 760px) { .dial { grid-template-columns: 1fr; } }
 </style>
 </head>
@@ -83,7 +93,7 @@ function row(d, note) {
   const input = field(d), button = h("button", { type: "button" }, "Set"), said = h("p", { class: "said", "aria-live": "polite" }, note && note.setting === d.setting ? note.text : "");
   button.addEventListener("click", () => turn(d, input, button, said));
   input.addEventListener("keydown", (e) => { if (e.key === "Enter") turn(d, input, button, said); });
-  return h("li", { class: "dial" }, h("div", { class: "what" }, d.says, d.turned ? h("span", { class: "mark" }, "set here") : null, h("small", {}, d.setting)),
+  return h("li", { class: "dial" }, h("div", { class: "what" }, d.says, d.turned ? h("span", { class: "mark" }, "set here") : null, outside(d) ? h("span", { class: "mark out" }, "outside " + d.least + " to " + d.most) : null, h("small", {}, d.setting)),
     range(d), h("div", { class: "turn" }, input, button), said);
 }
 /* The few numbers that say how hard the machine is driven, as one sentence. */
@@ -95,14 +105,56 @@ function headline(dials) {
   else p.append(dials.length ? "The limits this machine runs the pipeline under." : "No setting can be set from here.");
   p.append(h("small", {}, changed ? changed + (changed === 1 ? " setting was" : " settings were") + " set from here. " : "", "A change is kept on this machine only and is never committed."));
 }
+/* A value the dial's own bounds do not allow: set by hand in the overlay file, such as a pause at 0. */
+const outside = (d) => d.kind !== "switch" && !unset(d.value) && (Number(d.value) < Number(d.least) || Number(d.value) > Number(d.most));
+/* The three questions the settings answer, the settings under each, and the live numbers each one moves.
+   A number the board does not measure yet is said so, not left out. */
+const GROUPS = [
+  { title: "How much work runs", says: "how many coders start, and whether the fill starts them by itself",
+    has: ["work_limit.", "epic_wip_limit.", "dispatch_roll_forward."],
+    moves: [["metric", "working", "coders dispatched"], ["metric", "throughput", "work finished"], ["stage", "Work items", "planned / started / done"], ["metric", "ahead", "commits not pushed"]] },
+  { title: "How hard the machine is pushed", says: "when the fill holds back and when it sheds work",
+    has: ["dispatch_max_load.", "machine_marks.", "load_shed.", "cpu_budget."],
+    moves: [["load", "", "load, last hour"], ["metric", "boots", "boot hours today"], ["metric", "disk", "disk free"], ["none", "", "memory pressure"], ["none", "", "free memory and swap"]] },
+  { title: "How fast landings clear", says: "how many gates and spec runs go at once",
+    has: ["heavy_jobs.", "spec_workers.", "rust_build."],
+    moves: [["metric", "carry", "landed to pushed"], ["metric", "lead", "commit to green CI"], ["none", "", "heavy-slot queue"], ["none", "", "handed to landed"], ["none", "", "landings an hour"]] },
+];
+function spark(samples) {
+  const pts = samples.slice(-360).map((p) => Number(p[1])).filter((n) => !Number.isNaN(n)); if (pts.length < 2) return null;
+  const top = Math.max(...pts, 1), w = 200, hgt = 28, step = w / (pts.length - 1);
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg"); svg.setAttribute("viewBox", "0 0 " + w + " " + hgt); svg.setAttribute("preserveAspectRatio", "none");
+  const line = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+  line.setAttribute("points", pts.map((n, i) => (i * step).toFixed(1) + "," + (hgt - (n / top) * (hgt - 2) - 1).toFixed(1)).join(" "));
+  line.setAttribute("fill", "none"); line.setAttribute("stroke", "currentColor"); line.setAttribute("stroke-width", "1.5"); svg.append(line); return svg;
+}
+function move([kind, id, label], state) {
+  if (kind === "metric") { const m = (state.metrics || []).find((x) => x.id === id); if (m && m.value !== null && m.value !== undefined) return h("div", { class: "move", title: m.detail || "" }, h("b", {}, m.value + " " + (m.unit || "")), h("span", {}, label)); }
+  if (kind === "stage") { const st = (state.stages || []).find((x) => x.name === id); if (st) return h("div", { class: "move", title: st.detail || "" }, h("b", {}, st.count), h("span", {}, label)); }
+  if (kind === "load") { const sm = (state.load_history || {}).samples || []; if (sm.length) return h("div", { class: "move" }, h("b", {}, Number(sm[sm.length - 1][1]).toFixed(1)), h("span", {}, label), spark(sm)); }
+  return h("div", { class: "move none", title: "The board does not measure this yet" }, h("b", {}, "not measured yet"), h("span", {}, label));
+}
+let lastState = {};
 function draw(dials, note) {
   headline(dials);
-  const groups = new Map(); for (const d of dials) groups.set(d.context, [...(groups.get(d.context) || []), d]);
-  $("groups").replaceChildren(...[...groups].map(([context, rows]) => h("section", { class: "group" }, h("h2", {}, context), h("div", { class: "card" }, h("ul", {}, rows.map((d) => row(d, note)))))));
+  const taken = new Set(), sections = GROUPS.map((g) => {
+    const rows = dials.filter((d) => g.has.some((start) => d.setting.startsWith(start))); rows.forEach((d) => taken.add(d.setting));
+    return rows.length ? h("section", { class: "group" }, h("h2", {}, g.title, h("small", {}, g.says)), h("div", { class: "moves" }, g.moves.map((m) => move(m, lastState))),
+      h("div", { class: "card" }, h("ul", {}, rows.map((d) => row(d, note))))) : null;
+  });
+  const rest = dials.filter((d) => !taken.has(d.setting));
+  if (rest.length) sections.push(h("section", { class: "group" }, h("h2", {}, "Other"), h("div", { class: "card" }, h("ul", {}, rest.map((d) => row(d, note))))));
+  $("groups").replaceChildren(...sections.filter(Boolean));
+  const cap = dials.find((d) => d.setting === "work_limit.cap"), roll = dials.find((d) => d.setting === "dispatch_roll_forward.roll_forward");
+  const paused = (cap && Number(cap.value) === 0) || (roll && roll.value === false);
+  const old = $("paused"); if (old) old.remove();
+  if (paused) $("headline").after(h("p", { class: "paused", id: "paused" }, h("b", {}, "New work is paused. "),
+    "The fill starts nothing" + (cap && Number(cap.value) === 0 ? " (work cap 0" + (roll && roll.value === false ? ", fill off)" : ")") : " (fill off)") + "; running coders and queued landings finish. Set the cap and turn the fill on to resume."));
   $("updated").textContent = "read " + new Date().toLocaleTimeString();
 }
 function load(text, setting) {
-  return fetch("/api/settings", { cache: "no-store" }).then((r) => r.json()).then((s) => draw(s.dials || [], text ? { text, setting } : null))
+  const state = fetch("/api/state", { cache: "no-store" }).then((r) => r.json()).then((st) => { lastState = st; }).catch(() => {});
+  return state.then(() => fetch("/api/settings", { cache: "no-store" })).then((r) => r.json()).then((s) => draw(s.dials || [], text ? { text, setting } : null))
     .catch((e) => { $("headline").textContent = "The settings could not be read: " + e.message; });
 }
 load();
