@@ -9,10 +9,12 @@ module GateFaultHelpers
     @hecks.dispatch_flat("Hecks::GateRun.Gate", run: run, stage: "quick")
   end
 
-  # @return [Hash, nil] the payload of the run's GateFaulted event
-  def fault_of(run)
+  # @param text [String] what the refusal ends with
+  # @return [Hash, nil] the payload of the GateFaulted event whose refusal ends with the text
+  def fault_ending(text)
     faults = @hecks.registry.event_log.select { |event| event.name == "GateFaulted" }
-    faults.map { |event| Hecks::Runtime::Value.materialize(event.payload) }.find { |payload| payload[:run] == run }
+    faults.map { |event| Hecks::Runtime::Value.materialize(event.payload) }
+          .find { |payload| payload[:refusal][:value].end_with?(text) }
   end
 end
 
@@ -22,17 +24,17 @@ RSpec.describe "a refused gate run, recorded as a fault" do
 
   before(:all) { @hecks = InMemoryDomain.boot_hecks_in_memory }
 
-  it "records the fault of a refusal that names no kind", :aggregate_failures do
+  it "records the fault of a refusal that names no kind, with no cause", :aggregate_failures do
     refuse_gate("fault-plain", Hecks::Adapters::ConsoleCapture::Failure.new("gate could not start"))
 
-    expect(fault_of("fault-plain")[:refusal]).to end_with("gate could not start")
-    expect(fault_of("fault-plain")[:cause]).to be_nil
+    expect(fault_ending("gate could not start")).not_to be_nil
+    expect(fault_ending("gate could not start")[:cause]).to be_nil
   end
 
   it "records the fault of a red gate with its cause" do
     gate = Hecks::Adapters::Codebase::Gate
     refuse_gate("fault-red", gate::Red.new("[gate quick] red: rubocop", "gate-quick-rubocop"))
 
-    expect(fault_of("fault-red")[:cause]).to eq("gate-quick-rubocop")
+    expect(fault_ending("red: rubocop")[:cause]).to eq(value: "gate-quick-rubocop")
   end
 end
