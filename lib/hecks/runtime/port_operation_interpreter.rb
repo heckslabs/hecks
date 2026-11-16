@@ -2,6 +2,7 @@ require_relative "adapter_lookup"
 require_relative "asking"
 require_relative "interpreting"
 require_relative "dispatch_context"
+require_relative "port_operation_interpreter/context"
 require_relative "command_interpreter/argument_gate"
 require_relative "event"
 require_relative "value"
@@ -14,16 +15,6 @@ module Hecks
     class PortOperationInterpreter
       include Interpreting
       include CommandInterpreter::ArgumentGate
-
-      Context = Struct.new(:domain, :aggregate, :operation, :args, :route, :instance, :result, :invocation) do
-        include DispatchContext
-
-        # @return [String] the operation's declared name
-        def operation_hecks_name = operation.hecks_name
-
-        # @return [Object] the identity of the record the route names
-        def route_identity = route.aggregate
-      end
 
       DISPATCH_ORDER = %i[
         refuse_unknown_arguments refuse_absent_arguments normalize_args resolve_references resolve_route emit
