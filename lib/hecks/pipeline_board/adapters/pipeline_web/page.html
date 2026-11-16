@@ -64,7 +64,7 @@ details.panel > h2 { margin: 14px 14px 0; }
 .badge.ok { background: var(--good); } .badge.attention { background: var(--warning); color: var(--on-warning); }
 .badge.failed { background: var(--critical); } .badge.working { background: var(--series1); }
 .badge.unknown { background: transparent; color: var(--ink2); border: 1px dashed var(--muted); }
-.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr)); gap: 16px; }
 .cols { display: flex; align-items: flex-end; gap: 4px; height: 140px; border-bottom: 1px solid var(--axis); padding-top: 18px; }
 .col { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; }
 .col .bar { width: 100%; max-width: 34px; background: var(--series1); border-radius: 4px 4px 0 0; min-height: 0; }
@@ -134,6 +134,24 @@ tr.sending td { background: rgba(234, 179, 8, .28); }
 .askform button { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--axis); border-radius: 6px; padding: 3px 10px; }
 .attn-group { background: var(--page); border: 1px solid var(--axis); border-left: 4px solid var(--warning); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; }
 .attn-group:last-child { margin-bottom: 0; }
+/* A card never grows past its column: a table too wide for it scrolls inside the card. */
+.attn-group, .scroll { min-width: 0; max-width: 100%; overflow-x: auto; }
+/* On a phone the six attention columns do not fit. Each row stacks as label and value lines.
+   Kind repeats the group title, so it goes. The three-column promotions table is left alone. */
+@media (max-width: 600px) {
+  .attn-group { padding: 8px; }
+  .attn-group table:has(th:nth-child(6)), .attn-group table:has(th:nth-child(6)) tbody,
+  .attn-group table:has(th:nth-child(6)) tr, .attn-group table:has(th:nth-child(6)) td { display: block; }
+  .attn-group table:has(th:nth-child(6)) thead, .attn-group table:has(th:nth-child(6)) td:nth-child(1) { display: none; }
+  .attn-group table:has(th:nth-child(6)) tr { padding: 6px 0; border-bottom: 1px solid var(--grid); }
+  .attn-group table:has(th:nth-child(6)) td { border: 0; padding: 2px 0; overflow-wrap: anywhere; }
+  .attn-group table:has(th:nth-child(6)) td::before { display: inline-block; min-width: 52px; margin-right: 8px; font-size: 11px; color: var(--muted); }
+  .attn-group table:has(th:nth-child(6)) td:nth-child(2)::before { content: "Item"; }
+  .attn-group table:has(th:nth-child(6)) td:nth-child(3)::before { content: "State"; }
+  .attn-group table:has(th:nth-child(6)) td:nth-child(4)::before { content: "Value"; }
+  .attn-group table:has(th:nth-child(6)) td:nth-child(5)::before { content: "Detail"; display: block; }
+  .attn-group table:has(th:nth-child(6)) td:nth-child(6)::before { content: "Since"; }
+}
 .attn-group h3.sub { margin: 0 0 6px; font-size: 12px; font-weight: 600; color: var(--muted); }
 .tip { white-space: pre-line; }
 button.del { font: inherit; font-size: 12px; margin-left: 8px; color: var(--ink); background: var(--surface); border: 1px solid var(--axis); border-radius: 6px; padding: 1px 8px; }
