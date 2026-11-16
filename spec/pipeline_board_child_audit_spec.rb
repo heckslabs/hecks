@@ -10,8 +10,10 @@ RSpec.describe Hecks::Adapters::PipelineBoard::ChildAudit do
   let(:row) { described_class::Row }
   let(:table) { [] }
   let(:lines) { [] }
+  let(:reaped) { [] }
   let(:audit) do
-    described_class.new(rows: -> { table }, parent: 10, log: ->(line) { lines << line }, now: -> { Time.utc(2026, 11, 15) })
+    described_class.new(rows: -> { table }, parent: 10, log: ->(line) { lines << line }, now: -> { Time.utc(2026, 11, 15) },
+                        reap: ->(pid) { reaped << pid })
   end
 
   def board(pid, stat, command) = row.new(pid, 10, stat, command)
@@ -56,6 +58,54 @@ RSpec.describe Hecks::Adapters::PipelineBoard::ChildAudit do
 
   it "reads a real ps line" do
     expect(described_class.row("  7  1 Z+ <defunct>\n")).to eq(row.new(7, 1, "Z+", "<defunct>"))
+  end
+
+  it "does not reap a child on its first defunct read" do
+    settle([board(20, "Z", "<defunct>")])
+    expect(reaped).to be_empty
+  end
+
+  it "reaps a child defunct on two reads" do
+    settle([board(20, "Z", "<defunct>")], [board(20, "Z", "<defunct>")])
+    expect(reaped).to eq([20])
+  end
+
+  it "reaps only the board's own children" do
+    settle(*Array.new(3) { [row.new(30, 99, "Z", "<defunct>")] })
+    expect(reaped).to be_empty
+  end
+
+  def ordered_audit(order)
+    described_class.new(rows: -> { table }, parent: 10, log: ->(_line) { order << :log }, reap: ->(_pid) { order << :reap })
+  end
+
+  it "logs a child before it reaps it" do
+    order = []
+    audited = ordered_audit(order)
+    table.replace([board(20, "Z", "<defunct>")])
+    2.times { audited.read }
+    expect(order).to eq(%i[log reap])
+  end
+
+  # Spawns a child, waits for it to exit without waiting on its pid, and answers the pid.
+  def exited_child
+    out, writer = IO.pipe
+    pid = Process.spawn("true", out: writer)
+    writer.close
+    out.read
+    pid
+  end
+
+  def reap_when_exited(pid) = described_class.reap(pid) || reap_when_exited(pid)
+
+  it "reaps a real child that no one waits on, and a late waiter finds it gone", :aggregate_failures do
+    pid = exited_child
+    expect(Timeout.timeout(5) { reap_when_exited(pid) }).to eq(pid)
+    expect { Process.wait(pid) }.to raise_error(Errno::ECHILD)
+  end
+
+  it "answers nil for a child already gone" do
+    expect(described_class.reap(Process.pid + 1_000_000)).to be_nil
   end
 
   it "reads the real process table, this process among its rows" do
