@@ -16,7 +16,7 @@ module Hecks
         # @return [String] the epic's HTML
         def draw(epic)
           "<details class=\"epic\" data-epic=\"#{esc(epic[:epic])}\">" \
-            "<summary>#{name(epic[:title], epic[:outcome])}#{track(epic[:done].to_i, epic[:items])}" \
+            "<summary>#{name(epic[:title], epic[:outcome])}#{adrs(epic[:decisions])}#{track(epic[:done].to_i, epic[:items])}" \
             "<span class=\"counts\">#{counts(epic)}</span></summary>#{next_line(epic)}#{items(epic[:items])}" \
             "#{closed(epic)}</details>"
         end
@@ -49,6 +49,14 @@ module Hecks
           "<details class=\"epic none\" data-epic=\"\"><summary>" \
             "#{name("no epic (#{data[:count]})", "Items that belong to no epic yet")}#{track(0, data[:items])}" \
             "<span class=\"counts\"></span></summary>#{items(data[:items])}</details>"
+        end
+
+        # The decisions the epic carries out, as small tags after its name; nothing when it names none.
+        def adrs(decisions)
+          list = Array(decisions)
+          return "" if list.empty?
+
+          "<span class=\"adr\" title=\"Decisions this epic carries out\">#{list.first(3).map { |id| "ADR #{esc(id)}" }.join(" ")}</span>"
         end
 
         # The epic's title and its outcome; the outcome is shown short, and whole as its hover.

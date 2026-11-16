@@ -132,7 +132,7 @@ module Hecks
         { priority: field(record, :priority).to_s, category: field(record, :category).to_s,
           epic: field(record, :epic).to_s, budget_minutes: field(record, :budget_minutes),
           yield_count: field(record, :yield_count).to_i, reason: field(record, :reason).to_s,
-          step: field(record, :step).to_s }
+          step: field(record, :step).to_s, decision: field(record, :decision).to_s }
       end
 
       def work_records = @live ? @live.records("Tickets", "Work") : records_of("Tickets", "Work")
@@ -143,7 +143,8 @@ module Hecks
         key = field(record, :epic).to_s
         mine = works.select { |work| field(work, :epic).to_s == key }
         { epic: key, title: field(record, :title).to_s, outcome: field(record, :outcome).to_s,
-          tier: field(record, :tier).to_s }.merge(PipelineBoard::ClosedWork.of(mine, method(:field)))
+          tier: field(record, :tier).to_s, decision: field(record, :decision).to_s }
+          .merge(PipelineBoard::ClosedWork.of(mine, method(:field)))
       end
 
       def run_item(run)
