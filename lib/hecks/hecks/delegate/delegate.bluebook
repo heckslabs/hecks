@@ -2840,11 +2840,9 @@ Hecks.bluebook "Hecks" do
       trigger SessionCleanup::Decline, with: { refusal: :refusal }
     end
 
-    # A session's question for the orchestrator: a job read blocked whose question begins [choose],
-    # [confirm] or [retry]. It is keyed by the blocked run, so a run asks one question at a time and a
-    # second reading of the same block asks nothing; an ended question frees the key. An [owner]
-    # question is not one: the board's Waiting-on-you panel lists its session as the owner's, and
-    # no run answers it. A [review] wait is not one either.
+    # A blocked run's question for the orchestrator, whatever marker it begins with or none; keyed by
+    # the run, so it asks one at a time. [owner] and [review] waits are not asked: no run answers
+    # the owner's, and an unanswered block is escalated by the agent-run-blocked stall.
     aggregate "Question" do
       description "One question a blocked run asks the orchestrator: asked, seated with an orchestrator run that answers it, then closed when the run is answered or escalated as the owner's."
 
@@ -2946,7 +2944,7 @@ Hecks.bluebook "Hecks" do
         root
         where   do
           state == "blocked" && previous != state && agent != "orchestrator" &&
-            (detail.start_with?("[choose]") || detail.start_with?("[confirm]") || detail.start_with?("[retry]"))
+            !detail.start_with?("[owner]") && !detail.start_with?("[review]")
         end
         trigger Question::Ask, with: { run: :run, text: :detail }
       end
@@ -2981,6 +2979,8 @@ Hecks.bluebook "Hecks" do
                         brief: "A coder's run is blocked on a question for you: your run's work names it " \
                                "(AgentRun.running). Answer it with AgentRun.answer! under your standing rule " \
                                "answer-within-the-brief, or escalate it when the answer is the owner's. " \
+                               "Never answer for the owner a push, promote, release, plan confirmation, " \
+                               "secret, account or login: escalate those. " \
                                "End your turn with the word answered or escalated." }
       end
 
