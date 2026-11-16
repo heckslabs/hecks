@@ -21,7 +21,7 @@ module Hecks
         # earlier attempt.
         RUN_CAP = 20
 
-        # The most of a job's log that is read for spec files: its end, where rspec lists what failed.
+        # The most of a job's log read for spec files: its end, where rspec lists what failed.
         LOG_CAP_BYTES = 2_000_000
 
         # A spec file in rspec's list of failed examples (`rspec ./spec/x_spec.rb:12 # ...`). The

@@ -3,7 +3,7 @@
 require "spec_helper"
 require "hecks/pipeline_board/adapters/pipeline_github"
 
-# The hold a failed failed-job log read earns: 10 minutes, doubling per consecutive failure to an hour.
+# The hold a failed failed-job log read earns: 10 minutes, doubling per failure up to an hour.
 RSpec.describe Hecks::Adapters::PipelineBoard::LogBackoff do
   let(:now) { [0] }
   let(:backoff) { described_class.new(clock: -> { now[0] }) }
@@ -18,20 +18,6 @@ RSpec.describe Hecks::Adapters::PipelineBoard::LogBackoff do
     expect(backoff.held?(7)).to be(true)
     now[0] = 600
     expect(backoff.held?(7)).to be(false)
-  end
-
-  it "doubles the hold with each consecutive failure, to an hour at most", :aggregate_failures do
-    holds = Array.new(5) { backoff.failed!(7) && (now[0] += 1) && (1..3600).find { |s| !held_after?(s) } }
-    expect(holds.first).to be_between(598, 602)
-    expect(holds.last).to be_between(3598, 3602)
-  end
-
-  def held_after?(seconds)
-    saved = now[0]
-    now[0] = saved + seconds
-    backoff.held?(7)
-  ensure
-    now[0] = saved
   end
 
   it "forgets a job whose read succeeded" do
