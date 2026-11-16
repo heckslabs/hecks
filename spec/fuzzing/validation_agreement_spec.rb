@@ -1,4 +1,5 @@
 require "spec_helper"
+require "hecks/fuzzing"
 
 # `validate` and `dry_run?` are two entry points to one pipeline, so the property holds them to the
 # same verdict on every dry-run step the fuzzer replays.
