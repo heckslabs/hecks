@@ -33,6 +33,14 @@ module Hecks
           boarded && "carried by squash (train boarded #{boarded[0, 10]})"
         end
 
+        # @param landed [String] the full commit a run landed
+        # @return [String, nil] as `by`; nil too when git cannot place the commit in this checkout
+        def by_known(landed)
+          by(landed)
+        rescue ConsoleCapture::Failure
+          nil
+        end
+
         private
 
         def range(landed) = "#{read("merge-base", landed, REMOTE_MAIN)}..#{REMOTE_MAIN}"
