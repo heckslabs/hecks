@@ -10,6 +10,8 @@ module Hecks
       # - `any`: a closing line on the kind's aggregate closes every opening line before it,
       #   whatever its id, as for the machine's load, whose rise and fall are keyed by the beats
       #   that heard them. The subject is the first opening line after the last closing one.
+      #
+      # A row's `only_about` prefix limits which opening lines count; closing lines of any id close.
       class Openings
         # @param kind [Hash] a `StallKind` row
         # @param lines [Array<Hash>] tap lines in sequence order
@@ -40,6 +42,7 @@ module Hecks
         # The first time each subject recorded the opening event.
         def opened(lines)
           lines.select { |line| line["event"] == @kind[:opens] }
+               .select { |line| line["id"].to_s.start_with?(@kind[:only_about].to_s) }
                .each_with_object({}) { |line, first| first[line["id"].to_s] ||= line["at"] }
         end
       end
