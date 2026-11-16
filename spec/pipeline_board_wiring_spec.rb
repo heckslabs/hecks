@@ -91,7 +91,8 @@ RSpec.describe Hecks::Adapters::PipelineWiring do
 
     def web
       wiring = described_class.new(registry: registry([add]))
-      Hecks::Adapters::PipelineWeb.new(settings: { stages: nil, wiring: wiring, background: false, journal: FakeJournal.source })
+      Hecks::Adapters::PipelineWeb.new(settings: { stages: nil, wiring: wiring, background: false, journal: FakeJournal.source,
+                                                  load_guard: false })
     end
 
     after { server.stop }
