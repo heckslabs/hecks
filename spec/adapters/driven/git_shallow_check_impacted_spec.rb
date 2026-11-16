@@ -16,7 +16,7 @@ module ImpactedStandIn
     lambda do |_paths, _onto|
       raise Hecks::Adapters::ConsoleCapture::Failure, red if red
 
-      RUN::Outcome.new(ran, unrun, seconds)
+      RUN::Outcome.new(ran, unrun, seconds, 1)
     end
   end
 
@@ -38,7 +38,7 @@ RSpec.describe Hecks::Adapters::GitShallowCheck, "#shallow_check impacted specs"
 
   it "reports what ran when the budget held", :aggregate_failures do
     answer = landing(ran: ["spec/a_spec.rb"])
-    expect(answer[:report][:value]).to include("impacted specs: 1 ran in 3 s")
+    expect(answer[:report][:value]).to include("impacted specs: 1 files in 1 launcher calls, 3 s")
     expect(answer).not_to have_key(:unrun)
   end
 
