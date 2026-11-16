@@ -28,7 +28,8 @@ RSpec.describe Hecks::Adapters::Codebase::SpecWorkers do
     expect(described_class.count(root, cores: 12)).to eq(2)
   end
 
-  it "is the checkout's own world's figure, 6" do
-    expect(described_class.max_of(File.expand_path("..", __dir__))).to eq(6)
+  it "is the checkout's committed world's figure, 6" do
+    committed = Hecks::Adapters::FolderOverlay.committed_only { described_class.max_of(File.expand_path("..", __dir__)) }
+    expect(committed).to eq(6)
   end
 end

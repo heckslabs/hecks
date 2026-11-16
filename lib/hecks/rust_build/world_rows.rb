@@ -1,11 +1,14 @@
 # frozen_string_literal: true
 
 require_relative "../text"
+require_relative "world_overlay"
 
 module Hecks
   module RustBuild
     # The rows of a checkout's Tickets world, read once per checkout and verb by loading the world
-    # file against a collector that keeps the world it declares.
+    # file against a collector that keeps the world it declares. The owner's local worlds
+    # ({WorldOverlay}) replace a committed verb whole, as they do when the registry boots the
+    # folder, so a setting the owner keeps reaches the readers of a worktree too.
     #
     # A checkout with no world file has nothing declared, and its rows are empty. A world file
     # that exists and fails to load also answers an empty row, so a build is never stopped for want
@@ -23,7 +26,7 @@ module Hecks
       #   or a world that could not be read ({.unreadable} says which)
       def row(root, verb)
         @rows ||= {}
-        @rows.fetch([root, verb]) { read(root, verb) }
+        @rows.fetch(key(root, verb)) { read(root, verb) }
       end
 
       # @param root [String] a hecks checkout
@@ -37,12 +40,27 @@ module Hecks
       def reset!
         @rows = {}
         @failures = {}
+        WorldOverlay.reset!
       end
+
+      # @param file [String] a world file
+      # @return [Array<Bluebook::World>] the worlds it declares, in order, registered nowhere
+      def worlds_in(file)
+        worlds = []
+        collector = Object.new
+        collector.define_singleton_method(:add_world) { |world| worlds << world }
+        Hecks.with_registry(collector) { Kernel.load(file) }
+        worlds
+      end
+
+      # A row read while overlays are left out is kept apart from one read with them.
+      def key(root, verb) = [root, verb, Thread.current[:hecks_committed_only] ? :committed : :local]
+      private_class_method :key
 
       def read(root, verb)
         row = load(root, verb)
         failures.delete(root)
-        @rows[[root, verb]] = row
+        @rows[key(root, verb)] = row
       rescue StandardError, ScriptError => e
         failed(root, "#{File.join(root, WORLD)}: #{e.class}: #{Hecks::Text.first_line(e.message)}")
       end
@@ -52,11 +70,10 @@ module Hecks
         file = File.join(root, WORLD)
         return {} unless File.file?(file) && defined?(Hecks.with_registry)
 
-        worlds = []
-        collector = Object.new
-        collector.define_singleton_method(:add_world) { |world| worlds << world }
-        Hecks.with_registry(collector) { Kernel.load(file) }
-        worlds.first&.for_verb(verb) || {}
+        world = worlds_in(file).first
+        return {} unless world
+
+        WorldOverlay.settings(root, world.domain).fetch(verb.to_s) { world.for_verb(verb) }
       end
       private_class_method :load
 

@@ -37,13 +37,15 @@ RSpec.describe Hecks::Adapters::Codebase::MemoryWait do
     expect(note).to end_with("spec_batch runs anyway")
   end
 
-  it "reads the give-up time from the Tickets world" do
-    expect(described_class.give_up_of(File.expand_path("..", __dir__))).to eq(120.0)
+  it "reads the give-up time from the committed Tickets world" do
+    expect(committed { described_class.give_up_of(File.expand_path("..", __dir__)) }).to eq(120.0)
   end
 
-  it "polls at the Tickets world's memory_poll_seconds" do
-    expect(described_class.poll_of(File.expand_path("..", __dir__))).to eq(10.0)
+  it "polls at the committed Tickets world's memory_poll_seconds" do
+    expect(committed { described_class.poll_of(File.expand_path("..", __dir__)) }).to eq(10.0)
   end
+
+  def committed(&) = Hecks::Adapters::FolderOverlay.committed_only(&)
 
   # A reading as the Sampling port answers it, with only the memory gauges set.
   def reading(swap: nil, compressor: nil, free: nil)
