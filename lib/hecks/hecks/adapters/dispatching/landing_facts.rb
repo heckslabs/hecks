@@ -30,13 +30,16 @@ module Hecks
         IN_FLIGHT = %w[requested handed convoyed].freeze
 
         # @param key [String] a Work item's key
-        # @return [Boolean] whether a Landing for the work item's branch is still under way
+        # @return [Boolean] whether a Landing for the work item's branch is still under way: the
+        #   newest row naming the branch decides, so a dead job's `requested` row that a later
+        #   refusal followed ends the wait
         def landing_in_flight?(key)
           aggregate = find("Delivery", "Landing")
           return false unless aggregate && !key.to_s.empty?
 
           keys = work_keys
-          @registry.repository("Hecks", aggregate).all.any? { |landing| in_flight_for?(landing, key.to_s, keys) }
+          named = @registry.repository("Hecks", aggregate).all.select { |landing| names_work?(landing, key.to_s, keys) }
+          !named.empty? && IN_FLIGHT.include?(field(named.last, :status).to_s)
         end
 
         # @param key [String] a Work item's key
@@ -74,9 +77,7 @@ module Hecks
           @registry.repository("Tickets", work).all.find { |entry| field(entry, :work).to_s == key.to_s }
         end
 
-        def in_flight_for?(landing, key, keys)
-          return false unless IN_FLIGHT.include?(field(landing, :status).to_s)
-
+        def names_work?(landing, key, keys)
           BranchWorkNames.of(field(landing, :branch).to_s, keys).include?(key)
         end
 
