@@ -5,6 +5,7 @@ require "time"
 require_relative "probe"
 require_relative "live_store"
 require_relative "load_history"
+require_relative "restart_notes"
 require_relative "load_causes"
 require_relative "rules"
 require_relative "pipeline_github"
@@ -141,9 +142,9 @@ module Hecks
 
       # The panels beside the strip: the pinned agents, the Work items' cycles and the runs.
       def panels(data)
-        days = PipelineBoard::ThroughputDays.build(data[:finished_times], @now.call)
-        agents(data).merge(cycles: cycle_reading(data[:cycle_events]), throughput_days: days,
-                           **data.slice(:integration, :waiting_on_you), **PipelineBoard::LoadCauses.with_history)
+        agents(data).merge(cycles:          cycle_reading(data[:cycle_events]), **data.slice(:integration, :waiting_on_you),
+                           throughput_days: PipelineBoard::ThroughputDays.build(data[:finished_times], @now.call),
+                           **PipelineBoard::LoadCauses.with_history, **PipelineBoard::RestartNotes.with_state)
       end
 
       # The cycles laid from the stage events, or the events' `{unknown: reason}` as it was read.

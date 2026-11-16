@@ -190,6 +190,7 @@ details.panel > .scroll, details.panel > .strip, details.panel > div:not(summary
     <!--nav-->
     <div class="meta">
       <span id="updated">loading</span>
+      <span id="restarts"></span>
       <span class="live" id="live">stream: connecting</span>
       <button id="toggle" type="button" aria-pressed="false" data-tip="Switch between the charts and plain tables">Show tables</button>
     </div>
@@ -812,6 +813,7 @@ function render(s) {
   renderTiles(s.metrics); renderLoad(s.load_history); renderCauses(s.load_causes); renderThroughput(s.throughput_days); renderAttention(s.metrics, s.stages, s.sessions, s.recommendations); renderStrip(s.stages);
   renderRoles(s.roles, s.pruning); renderSessions(s.sessions); renderFan(s.fanout); renderCycles(s.cycles);
   $("updated").textContent = "updated " + clock(s.generated_at);
+  $("restarts").textContent = s.board_restarts ? s.board_restarts.notes[s.board_restarts.notes.length - 1] : "";
   renderStale(s);
 }
 // Says so when the server has not read the state for longer than its refresh period: the page

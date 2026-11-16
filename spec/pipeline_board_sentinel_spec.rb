@@ -21,7 +21,7 @@ RSpec.describe Hecks::Adapters::PipelineBoard::Sentinel do
       def pause(seconds) = @calls << [:pause, seconds]
       def answered? = @answers.shift
       def stop(pid) = @calls << [:stop, pid]
-      def restart = @calls << [:restart]
+      def restart(misses: 0) = @calls << [:restart, misses]
     end
   end
 
@@ -33,7 +33,7 @@ RSpec.describe Hecks::Adapters::PipelineBoard::Sentinel do
   it "restarts the board after misses unanswered asks in a row", :aggregate_failures do
     result, calls = watch([false, false, false, true])
     expect(result).to eq(:restarted)
-    expect(calls.reject { |call| call.first == :pause }).to eq([[:stop, 7], [:restart]])
+    expect(calls.reject { |call| call.first == :pause }).to eq([[:stop, 7], [:restart, 3]])
   end
 
   it "counts only asks in a row" do
