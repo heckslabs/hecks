@@ -1167,11 +1167,9 @@ Hecks.bluebook "Hecks" do
       trigger RollSwitch::Consult, with: { roll_switch: "rolls", run: :tick }
     end
 
-    # The clock's other question. Almost everything that starts a roll is an event, but three things
-    # become eligible with no event: a yielded item's retry time passes, the boot budget that stopped
-    # every start is no longer spent, and a roll refused while a filling ran freed capacity that
-    # filling did not see. Each beat asks whether any of these happened, and a roll follows only when
-    # one did, so a quiet beat starts no filling. The bluebook reads no clock; the `Waking` port does.
+    # The clock's other question: what became eligible with no event (a retry time passed, the boot
+    # budget freed, a roll was refused mid-fill, or a slot is free that a filling would use). A roll
+    # follows only when one did, so a quiet beat starts nothing; the `Waking` port reads the clock.
     aggregate "Wake" do
       description "One look, on a beat of the clock, at whether the clock alone made something eligible."
 
