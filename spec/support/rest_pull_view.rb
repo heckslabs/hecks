@@ -63,6 +63,22 @@ module RestPullView
     end
   end
 
+  # @param argv [Array<String>] the command
+  # @param pulls [Array<Hash>] the open pull requests, in the shape `gh pr list --json` gave, each
+  #   with its `headRefOid`
+  # @return [String, nil] the JSON for the open list, or for the checks of a listed pull request's
+  #   tip; nil for any other read
+  def open_answer(argv, pulls)
+    rows = JSON.parse(JSON.generate(pulls))
+    path = argv.last.to_s
+    return JSON.generate(rows.map { |row| listed_rest(row) }) if path.include?("pulls?state=open")
+
+    row = rows.find { |candidate| path.include?("/commits/#{candidate["headRefOid"]}/") }
+    row && JSON.generate(checks_body(path, row))
+  end
+
+  def listed_rest(row) = open_rest(row).merge("head" => { "ref" => row["headRefName"], "sha" => row["headRefOid"] })
+
   def open_rest(row)
     { "number" => row["number"], "state" => "open", "head" => { "ref" => row["headRefName"], "sha" => "sha-#{row["number"]}" },
       "created_at" => row["createdAt"] }
