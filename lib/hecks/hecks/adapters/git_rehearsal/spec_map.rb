@@ -51,6 +51,7 @@ module Hecks
         LEDGER = /shape_ledger|conformance|corpus|golden|vocabulary/
         EXTENSIONS = /\..*\z/
         SCAN = /^RSpec\.describe\b.*,\s*:repo_scan\b/
+        LIB_SCAN = /^RSpec\.describe\b.*,\s*:lib_scan\b/
         SCAN_TIER = -1
 
         # @param root [String] the tree whose `spec/` is searched
@@ -90,11 +91,17 @@ module Hecks
         end
 
         # The specs that run ahead of the limit: the scans, the triggered ones and the lock checks.
-        def first(changed) = changed.empty? ? [] : scans | @triggers.specs(changed) | locked(changed)
+        def first(changed) = changed.empty? ? [] : scans(changed) | @triggers.specs(changed) | locked(changed)
 
         # The specs tagged `:repo_scan`: each reads the whole tree, so no changed file points at it
         # and any change can break it. They run first, before the limit, and ignore the skip rules.
-        def scans = @corpus.files.select { |spec| scan?(spec) }
+        # A scan also tagged `:lib_scan` reads only `lib/`, so a change that touches no file outside
+        # `spec/` leaves it out; a changed spec support file still reaches it by what it mentions.
+        def scans(changed) = @corpus.files.select { |spec| scan?(spec) && (!lib_scan?(spec) || outside_spec?(changed)) }
+
+        def outside_spec?(changed) = changed.any? { |path| !path.start_with?("spec/") }
+
+        def lib_scan?(spec) = LIB_SCAN.match?(@corpus.text(spec))
 
         # The specs that name the directory of each locked package a changed path sits in, so the
         # spec that checks the lock runs first, ahead of the limit.
