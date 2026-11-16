@@ -6,8 +6,9 @@ require_relative "support/fake_journal"
 require_relative "support/plan_page_speed_kit"
 require "hecks/pipeline_board/adapters/pipeline_web"
 
-# The planning page answers from what the board already holds: a request launches no process, a
-# run of requests reads the plan once, and 300 Work items draw in well under a second.
+# The planning page answers from what the board already holds: a request launches no process and
+# reads the last drawing, only the hub's drawer reads the plan, and 300 Work items draw in well
+# under a second.
 RSpec.describe "the planning page's speed" do
   include PlanPageSpeedKit
 
@@ -18,11 +19,13 @@ RSpec.describe "the planning page's speed" do
       allow(fake).to receive(:plan_tile) { (counted << :plan_tile) && { unknown: "none" } }
     end
   end
-  let(:web) { Hecks::Adapters::PipelineWeb.new(settings: { stages: stages, background: false, journal: FakeJournal.source }) }
+  let(:tiles) { plan_tiles(stages) }
+  let(:web) { Hecks::Adapters::PipelineWeb.new(settings: web_settings(stages, tiles)) }
 
   after { web.close }
 
-  it "reads the plan once for a run of requests" do
+  it "reads the plan once from a draw and never from a request" do
+    tiles.refresh(0)
     20.times { web.plan_page }
     expect(reads.size).to eq(1)
   end
