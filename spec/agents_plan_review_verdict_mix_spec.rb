@@ -16,6 +16,12 @@ RSpec.describe "the Agents plan review verdict mix" do
     expect(mix).to eq("changes" => 2, "sound" => 1)
   end
 
+  it "stamps reviews so the mix can be read by day" do
+    boot_into(registry)
+    days = [259_205, 260_100, 345_605].map { |at| day_of(request(run: "d#{at}", at: at)) }
+    expect(days.tally).to eq(3 => 2, 4 => 1)
+  end
+
   it "keeps the rubric's verdict section: notes ride along with a sound plan", :aggregate_failures do
     rubric = File.read(File.join(InMemoryDomain::ROOT, "docs/ARCHITECTURE_REVIEW.md"))
     expect(rubric).to include("## V. Verdict")
