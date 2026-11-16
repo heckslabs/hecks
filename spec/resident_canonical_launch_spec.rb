@@ -15,8 +15,10 @@ RSpec.describe "a resident started from an odd environment" do
   # Runs a launcher line with the usage log on and the given variables added.
   def launch_logged(extra = {})
     environment = env(true).merge("HECKS_USAGE" => nil).merge(extra)
-    Open3.capture3(environment, File.join(ResidentLaunch::ROOT, "exe/hecks"), "tickets", "Work.undone",
-                   chdir: ResidentLaunch::ROOT)
+    clocked do
+      Open3.capture3(environment, File.join(ResidentLaunch::ROOT, "exe/hecks"), "tickets", "Work.undone",
+                     chdir: ResidentLaunch::ROOT)
+    end
   end
 
   # @return [String, nil] how the last logged line met a resident
@@ -67,7 +69,7 @@ RSpec.describe "a resident started from an odd environment" do
   it "keeps a plain resident through any number of refusals", :aggregate_failures do
     pid = start_resident
     4.times { launch_logged("HECKS_ENGINE" => "ruby") }
-    expect(alive?(pid)).to be(true)
+    expect(alive?(pid)).to be(true), -> { why_ended(pid) }
     launch_logged
     expect(last_outcome).to eq("served")
   end
@@ -79,7 +81,7 @@ RSpec.describe "a resident started from an odd environment" do
 
   # Waits for the old resident to end, then starts its replacement with one more line.
   def restart_after(old)
-    ThreadParking.wait_for(timeout: 30) { !alive?(old) }
+    ThreadParking.wait_for(timeout: ResidentLaunch::STARTUP) { !alive?(old) }
     line = launch_logged
     wait_for_new_resident(old)
   rescue ThreadParking::NeverReached => e
@@ -89,7 +91,8 @@ RSpec.describe "a resident started from an odd environment" do
   # @return [String] how the line that was to start the replacement ended, for a failure message
   def ended(line)
     _out, err, status = line
-    "the replacing line ended #{status&.exitstatus.inspect} (#{last_outcome.inspect}): #{err.to_s.lines.last(4).join.strip}"
+    "the replacing line ended #{status&.exitstatus.inspect} (#{last_outcome.inspect}): " \
+      "#{err.to_s.lines.last(4).join.strip}; #{why_ended(old)}"
   end
 
   it "replaces a resident that was not born plain after three refusals, then serves", :aggregate_failures do
