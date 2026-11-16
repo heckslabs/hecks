@@ -1928,6 +1928,17 @@ Hecks.bluebook "Hecks" do
       trigger RollSwitch::Consult, with: { roll_switch: "rolls", run: :work }
     end
 
+    # A refused landing plans its item again, so a fresh coder is wanted at once, as for a reopened one.
+    policy "OpenTheRollSwitchWhenWorkIsRefused" do
+      on      "Work.WorkRefused"
+      trigger RollSwitch::Open, with: { switch: "rolls" }
+    end
+
+    policy "RollWhenWorkIsRefused" do
+      on      "Work.WorkRefused"
+      trigger RollSwitch::Consult, with: { roll_switch: "rolls", run: :work }
+    end
+
     policy "ReadTheSwitchWhenConsulted" do
       on      "RollSwitch.RollSwitchConsulted"
       ask     :read, with: { run: :run }

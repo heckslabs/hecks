@@ -26,6 +26,18 @@ RSpec.describe Hecks::Adapters::Dispatching::WorkItems, "#landed_commits" do
     expect(work_items.landed_commits("b")).to eq([])
   end
 
+  context "with a landing job still running for the branch" do
+    let(:landings) { [{ branch: "qa/a", landed: "", status: "requested" }, { branch: "b", landed: "", status: "refused" }] }
+
+    it "reports the work item's landing as pending, its branch named with QA's prefix" do
+      expect(work_items.landing_pending?("a")).to be(true)
+    end
+
+    it "reports no landing pending once the job was refused" do
+      expect(work_items.landing_pending?("b")).to be(false)
+    end
+  end
+
   it "answers when the work item started, empty for one the store does not hold" do
     expect(work_items.claimed_at("b")).to eq("")
   end

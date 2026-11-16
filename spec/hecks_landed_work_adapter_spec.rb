@@ -24,6 +24,23 @@ RSpec.describe Hecks::Adapters::LandedWork do
     expect(finds("qa/x", item("x", "started"))).to eq(branch: { value: "x" })
   end
 
+  def refused(branch, *items)
+    registry = registry_double
+    allow(registry).to receive(:repository).and_return(Struct.new(:all).new(items))
+    allow(Hecks::Adapters::StartedWork).to receive(:work_aggregate).and_return(Object.new)
+    described_class.new(registry: registry).find_refused_work(branch: { value: branch }, refusal: { value: "gate red: x" })
+  end
+
+  it "finds the started work item of a refused landing, whose detail now ends with the refusal" do
+    found = refused("x", item("x", "started"))
+
+    expect(found[:detail]).to eq(value: "Landing refused: gate red: x")
+  end
+
+  it "refuses by name a refused landing whose work item is done: only a landing finishes one" do
+    expect { refused("x", item("x", "done")) }.to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /no started work item/)
+  end
+
   it "refuses by name when no open work item is named" do
     expect do
       finds("qa/x", item("y"))
