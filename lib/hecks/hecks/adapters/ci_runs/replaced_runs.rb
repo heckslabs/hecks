@@ -23,8 +23,11 @@ module Hecks
         # @param runner [#call] takes `(argv, chdir:)` and answers `[ok, output]`
         # @param checkout [String] the directory `gh` runs in
         # @param tip [String, nil] the pull request's head commit
-        def initialize(runner, checkout, tip)
-          @runs = read(runner, checkout, tip.to_s)
+        # @param memo [#fetch, nil] keeps the runs of a pull request whose checks have not changed,
+        #   so a settled pull request's runs are listed once; nil keeps nothing
+        def initialize(runner, checkout, tip, memo: nil)
+          listing = -> { read(runner, checkout, tip.to_s) }
+          @runs = (memo ? memo.fetch(&listing) : listing.call) || []
           @ids = replaced(@runs)
         end
 
@@ -51,10 +54,10 @@ module Hecks
           return JSON.parse(output) if ok
 
           @unread = output.to_s.strip
-          []
+          nil
         rescue JSON::ParserError
           @unread = "gh run list answered no JSON"
-          []
+          nil
         end
 
         def replaced(runs)

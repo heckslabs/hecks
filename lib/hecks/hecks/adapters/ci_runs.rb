@@ -6,6 +6,7 @@ require_relative "ci_runs/pull_request"
 require_relative "ci_runs/replaced_runs"
 require_relative "ci_runs/rerun_report"
 require_relative "ci_runs/train_pr_failure"
+require_relative "ci_runs/red_pull"
 require_relative "ci_runs/ci_start"
 require_relative "main_integration/command_runner"
 
@@ -94,7 +95,7 @@ module Hecks
       # with checks `checking`, and one whose CI run started before GitHub lists its checks
       # `running`; each carries the facts of its CI start, which the bluebook's bounds judge.
       def open_pull_request(landed, pull)
-        replaced = ReplacedRuns.new(runner, @checkout, pull.dig("commits", -1, "oid"))
+        replaced = RedPull.new(runner, @checkout, landed).replaced(pull)
         checks = Checks.new(replaced.keep(pull["statusCheckRollup"]))
         return pr_failed(landed, pull) if checks.failed_and_complete?
 
@@ -103,18 +104,11 @@ module Hecks
       end
 
       def pr_failed(landed, pull)
-        branch = GitTrain::PullRequestBoarding.branch_for(landed)
-        facts = TrainPrFailure.new(runner, @checkout, branch, landed).facts(pull)
+        red = RedPull.new(runner, @checkout, landed)
+        facts = red.facts(pull)
         answer("pr_failed", facts.delete(:report)).merge(facts.transform_values { |value| { value: value } })
       rescue ConsoleCapture::Failure => e
-        answer("running", unreadable(landed, pull, e))
-      end
-
-      # A red pull request whose failure `gh` cannot be read for (a 5xx, a missing run, no `gh`) is
-      # still watched, so the next observation reads it again and records it once it can.
-      def unreadable(landed, pull, error)
-        "#{landed[0, 10]}: PR #{pull["number"]} CI failed; failed jobs unreadable (#{error.message}); " \
-          "retrying next observation"
+        answer("running", red.unreadable(pull, e))
       end
 
       def still_open(landed, pull, start, replaced)

@@ -3,6 +3,7 @@ require "fileutils"
 require "json"
 require "open3"
 require "tmpdir"
+require_relative "support/rest_pull_view"
 
 # A verified run that waits on an earlier push boards in the advance that sees the push turn
 # green, with no landing between: the pushed run is observed before the others are taken, whatever
@@ -90,7 +91,7 @@ RSpec.describe "an advance observes the pushed run before it boards the run behi
   end
 
   def github(argv)
-    return [true, JSON.generate(@pull)] if argv[1..2] == %w[pr view]
+    return [true, RestPullView.answer(argv, @pull)] if RestPullView.api?(argv)
 
     [true, JSON.generate([{ databaseId: 7, status: "completed", conclusion: "success" }])]
   end
