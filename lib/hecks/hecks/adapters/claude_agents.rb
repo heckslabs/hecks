@@ -209,7 +209,13 @@ module Hecks
         return { listed: true, note: "no agent named: the session runs the default agent" } unless agent
 
         names = @agents.names(repo)
-        { listed: names.include?(agent), note: "agent #{agent} is not available in #{repo}; available: #{names.join(", ")}" }
+        { listed: names.include?(agent), note: unavailable(agent, repo, names) }
+      end
+
+      def unavailable(agent, repo, names)
+        main = Dispatching::Checkout.main(repo)
+        where = main == repo ? repo : "#{repo} or the main checkout #{main}"
+        "agent #{agent} is not available in #{where}; available: #{names.join(", ")}"
       end
 
       def listed(id) = @listing.find(id) || raise(ConsoleCapture::Failure, "no session #{id} is listed")
