@@ -100,12 +100,12 @@ header.top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 20p
   border-bottom: 1.5px solid var(--muted); transform: rotate(-45deg); transition: transform .12s; }
 .epic[open] > summary::before { transform: rotate(45deg); top: 16px; }
 .epic summary:hover { background: color-mix(in srgb, var(--ink) 3%, transparent); }
-.name { min-width: 0; } .name b { display: block; font-weight: 600; }
+.name { min-width: 0; } .name b { display: block; font-weight: 600; max-height: 3em; overflow: auto; }
 .outcome { display: block; color: var(--ink2); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .epic[open] .outcome { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; line-clamp: 4; overflow: hidden; }
 .track { display: flex; flex-wrap: wrap; gap: 3px; }
 .epic summary .counts { text-align: right; white-space: nowrap; }
-.next { margin: 0 16px 6px 34px; font-size: 12.5px; color: var(--ink2); }
+.next { margin: 0 16px 6px 34px; font-size: 12.5px; color: var(--ink2); max-height: 3.2em; overflow: auto; }
 .items { margin: 0 16px 12px 34px; border-top: 1px solid var(--line); }
 .item { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 13.5px; overflow-wrap: anywhere; }
 .item:last-child { border-bottom: 0; }
@@ -114,20 +114,21 @@ header.top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 20p
 .items.over { border-top: 0; margin-top: -4px; } .over-head { font-size: 12px; color: var(--ink2); padding: 8px 0 4px; margin: 0; border-bottom: 1px solid var(--line); }
 .item.closed .what { color: var(--ink2); } .item.closed[data-status=dropped] .what { text-decoration: line-through; text-decoration-color: var(--muted); }
 .c-dropped { background: var(--muted); } .chip.k-done { color: var(--done); border-color: currentColor; }
-.what { flex: 1 1 340px; min-width: 0; }
+.what { flex: 1 1 340px; min-width: 0; max-height: 4.5em; overflow: auto; }
 .what code { font: 11.5px var(--mono); color: var(--muted); margin-left: 4px; }
 .chip { font-size: 11.5px; font-weight: 600; border-radius: 999px; padding: 0 8px; line-height: 1.7; border: 1px solid var(--line); color: var(--ink2); white-space: nowrap; }
 .pri { width: 34px; text-align: right; font-size: 12px; color: var(--ink2); }
 .chip.k-started { background: var(--run); color: #fff; border-color: transparent; }
 .chip.k-yielded { color: var(--you); border-color: currentColor; }
-.area { font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
+.area { font-family: var(--mono); font-size: 11.5px; color: var(--muted); max-width: 40ch; max-height: 4.5em; overflow: auto; }
+.facts { max-width: 72ch; max-height: 4.5em; overflow: auto; }
 #plan .item .detail { flex-basis: 100%; margin-left: 20px; }
 #plan .item .detail summary { cursor: pointer; font-size: 12px; color: var(--ink2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #plan .item .detail pre { white-space: pre-wrap; font: 13px/1.5 var(--body); color: var(--ink2); margin: 4px 0 0; padding: 2px 0 2px 12px; border-left: 2px solid var(--line); max-width: 72ch; max-height: 16em; overflow: auto; }
 .review { flex-basis: 100%; margin-left: 20px; }
 .review summary { display: block; padding: 0; cursor: pointer; font-size: 12px; color: var(--ink2); text-decoration: underline dotted; }
 .review summary::before { content: none; }
-.review pre { white-space: pre-wrap; background: var(--page); border-radius: 8px; padding: 8px 10px; font: 12px/1.5 var(--mono); margin: 6px 0; max-width: 78ch; }
+.review pre { white-space: pre-wrap; background: var(--page); border-radius: 8px; padding: 8px 10px; font: 13px/1.55 var(--body); margin: 6px 0; max-width: 72ch; max-height: 22em; overflow: auto; }
 .unknown-note { color: var(--you); }
 .empty { margin-top: 26px; color: var(--ink2); }
 
