@@ -14,7 +14,7 @@ module Hecks
         DISAGREEMENT = 2.0
 
         # @param uptime [Float] the 1-minute load the fill read from `uptime`
-        # @param sampled [Float, nil] the newest load the sampler recorded; nil when none is recorded
+        # @param sampled [Float, nil] the newest load the sampler recorded; nil when none
         # @param at [String] the time the fill read, as the report states it
         def initialize(uptime:, sampled:, at:)
           @uptime = uptime
@@ -28,7 +28,7 @@ module Hecks
           "load source: uptime #{@uptime.round(1)} at #{@at}; #{sampler_clause}"
         end
 
-        # @return [Boolean] whether the sampler's reading stands over {DISAGREEMENT} from `uptime`
+        # @return [Boolean] whether the sampler's reading stands over `DISAGREEMENT` from `uptime`
         def disagree?
           !@sampled.nil? && (@uptime - @sampled).abs > DISAGREEMENT
         end
