@@ -197,7 +197,8 @@ RSpec.describe "integrating main through the MainIntegration saga" do
     expect(File.exist?(flag_file)).to be(false)
   end
 
-  # Lands two runs while the first one's pull request is open, then merges it and advances.
+  # Lands two runs while the first one's pull request is open, then merges it and advances. The
+  # advance after the merge is a later beat, past the window `CiRuns::PullCache` keeps a read.
   def land_two_behind_an_open_pull_request
     @pull = { number: 12, state: "OPEN", mergeCommit: nil }
     first = land
@@ -205,6 +206,7 @@ RSpec.describe "integrating main through the MainIntegration saga" do
     second = land(file: "second.rb")
     advance(2)
     @pull = merged_as("d" * 40)
+    Hecks::Adapters::CiRuns::PullCache.shared.clear
     advance(3)
     [first, second]
   end

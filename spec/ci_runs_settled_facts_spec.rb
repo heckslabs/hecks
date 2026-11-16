@@ -26,7 +26,11 @@ RSpec.describe Hecks::Adapters::CiRuns, "#watch of a settled failure" do
 
   after { described_class.runner = nil }
 
-  def beat = described_class.new.watch(landed: landed, checkout: Dir.pwd)
+  # A beat is a new process, which holds no pull request read from the one before.
+  def beat
+    Hecks::Adapters::CiRuns::PullCache.shared.clear
+    described_class.new.watch(landed: landed, checkout: Dir.pwd)
+  end
 
   def run_reads = github.calls.grep(/\Agh run (view|list)/).size
 
