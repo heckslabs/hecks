@@ -16,7 +16,7 @@ module Hecks
       # slow drawing never holds a page.
       class Tiles
         # Seconds one tile's drawing may take.
-        DRAW_SECONDS = 10
+        DRAW_SECONDS = 30
 
         # What a tile shows before its first drawing.
         NOT_DRAWN = "<p class=\"unknown-note\">unknown: not drawn yet</p>"
