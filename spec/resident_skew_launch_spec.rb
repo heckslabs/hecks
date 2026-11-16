@@ -4,8 +4,10 @@ require_relative "support/resident_launch"
 
 # A resident of an older protocol stands for the checkout, and a launcher of the current protocol
 # arrives (ADR 0201). The launcher must not talk to it: it notes `refused:protocol`, boots on its
-# own and starts a resident of its own, which serves the next line, while the old one is left
-# alone to go idle. The processes are real; the cache directories are the group's own.
+# own and starts a resident of its own, which serves the next line. The launcher never talks to
+# the old resident, and the spec makes no claim about how long that process lives: an idle exit
+# or a process guard may end it at any time. The processes are real; the cache directories are
+# the group's own.
 RSpec.describe "a launcher meeting a resident of another protocol" do
   include ResidentLaunch
 
@@ -55,21 +57,14 @@ RSpec.describe "a launcher meeting a resident of another protocol" do
     launch_logged
     outcome = last_outcome
     fresh = wait_for_new_resident(old)
-    expect([outcome, fresh == old, alive?(old)]).to eq(["refused:protocol", false, true])
+    expect([outcome, fresh == old]).to eq(["refused:protocol", false])
   end
 
-  it "serves the next line from the resident it started", :aggregate_failures do
+  it "serves the next line from the resident it started" do
     old = old_resident
     launch_logged
     wait_for_new_resident(old)
     launch_logged
-    expect([last_outcome, alive?(old)]).to eq(["served", true])
-  end
-
-  def alive?(pid)
-    Process.kill(0, pid)
-    true
-  rescue SystemCallError
-    false
+    expect(last_outcome).to eq("served")
   end
 end
