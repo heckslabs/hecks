@@ -85,7 +85,7 @@ module Hecks
       # Runs the impacted specs after the shallow verdict; a red one raises, an overrun is answered.
       def impacted(said, paths, onto)
         done = (@impacted || ImpactedRun.new(@checkout)).call(paths, onto)
-        note = "impacted specs: #{done.ran.size} ran in #{done.seconds} s"
+        note = "impacted specs: #{done.ran.size} files in #{done.calls} launcher calls, #{done.seconds} s"
         answer = { report: { value: "#{said}; #{note}" } }
         return answer if done.unrun.empty?
 
