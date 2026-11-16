@@ -83,8 +83,9 @@ RSpec.describe Hecks::Adapters::Codebase::HeavySlots do
     expect(outer.first).to eq([:nested, ""])
   end
 
-  it "reads its cap from the Tickets world's heavy_jobs line" do
-    expect(described_class.cap_of(File.expand_path("..", __dir__))).to eq(1)
+  it "reads its cap from the committed Tickets world's heavy_jobs line" do
+    committed = Hecks::Adapters::FolderOverlay.committed_only { described_class.cap_of(File.expand_path("..", __dir__)) }
+    expect(committed).to eq(1)
   end
 
   it "names the wait at the top of the job's report" do
