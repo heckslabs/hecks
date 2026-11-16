@@ -122,7 +122,11 @@ Hecks.bluebook "Hecks" do
         member kind: "landing-carry", not_about: "stall-", aggregate: "Delivery::Landing", opens: "CarryRequested",
                closes: "BranchLanded,LandingRefused", minutes: 30, forgets: 1440, fixer: "orchestrator",
                move: "Read .git/hecks-landings/<branch>.log and look for a gate process (ps) of that branch's worktree: " \
-                     "a gate still running or output still growing is only slow, so leave it. With neither, the job has " \
+                     "a gate still running or output still growing is only slow, so leave it. " \
+                     "A gate may be queued, not slow: landing gates take turns (the Tickets world's heavy_jobs cap), and " \
+                     "the files heavy-jobs/slot-N.lock under the cache directory name each holder (job and pid). A queued " \
+                     "gate is only waiting for up to 1800 s, after which it runs anyway. The log is written when the carry " \
+                     "ends, so it holds no line about the queue; read ps and the slot files instead. With neither,the job has " \
                      "stopped: Work.release! its item so the fill hands the branch to a coder to submit again, and report the log's last line as the cause."
         # A boarding that could not push: a refused push and failed checks both record `PushFaulted`.
         # The move reads whether a later boarding, which has a run of its own, already pushed.
