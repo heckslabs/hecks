@@ -109,9 +109,15 @@ RSpec.describe "an advance observes the pushed run before it boards the run behi
     [first, second]
   end
 
+  # The pull request merges; the next advance is a new process, which holds no earlier read.
+  def merge_pull_request
+    @pull = { number: 12, state: "MERGED", mergeCommit: { oid: "d" * 40 } }
+    Hecks::Adapters::CiRuns::PullCache.shared.clear
+  end
+
   it "boards the waiting run when the earlier push turns green, in one advance", :aggregate_failures do
     first, second = waiting_run_listed_first
-    @pull = { number: 12, state: "MERGED", mergeCommit: { oid: "d" * 40 } }
+    merge_pull_request
     advance
     expect(stage(first)).to eq("green")
     expect(stage(second)).to eq("pushed")

@@ -35,14 +35,14 @@ module Hecks
 
       # @param limit [Integer] how many open pull requests
       # @param prefix [String] the branch prefix of the pull requests whose checks are read too
-      # @return [Array<Hash>] `number`, `headRefName`, `createdAt` and, for a branch under
-      #   `prefix`, its `statusCheckRollup`; one list call, and two more for each such
+      # @return [Array<Hash>] `number`, `headRefName`, `headRefOid`, `createdAt` and, for a branch
+      #   under `prefix`, its `statusCheckRollup`; one list call, and two more for each such
       #   branch
       def open_pulls(limit, prefix)
         @gh.call("api", "repos/{owner}/{repo}/pulls?state=open&per_page=#{limit}").map do |pull|
           row = shaped(pull)
           row = row.merge("statusCheckRollup" => rollup(pull)) if row["headRefName"].to_s.start_with?(prefix)
-          row.slice("number", "headRefName", "createdAt", "statusCheckRollup")
+          row.slice("number", "headRefName", "headRefOid", "createdAt", "statusCheckRollup")
         end
       end
 
@@ -70,7 +70,8 @@ module Hecks
       def shaped(pull)
         merged = !pull["merged_at"].nil?
         { "number" => pull["number"], "url" => pull["html_url"], "headRefName" => pull.dig("head", "ref"),
-          "state" => merged ? "MERGED" : pull["state"].to_s.upcase, "createdAt" => pull["created_at"],
+          "headRefOid" => pull.dig("head", "sha"), "createdAt" => pull["created_at"],
+          "state" => merged ? "MERGED" : pull["state"].to_s.upcase,
           "mergeCommit" => (merged ? { "oid" => pull["merge_commit_sha"] } : nil) }
       end
 
