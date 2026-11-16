@@ -2,11 +2,8 @@ Hecks.bluebook "Hecks" do
   domain_module "GithubEvents" do
     vision "GitHub tells the pipeline what happened to its checks, runs and pull requests, so the watchers wait on a recorded event instead of asking GitHub again and again."
 
-    # One listener for GitHub's webhook deliveries, opened on 127.0.0.1 until it is stopped. It has
-    # a port of its own, never the board's: the one public path in front of it reaches nothing else.
-    # The `Listening` port's adapter checks each delivery's signature against the secret file and
-    # offers what it carries to `GithubEvent.Record`; it refuses to start when the secret is absent.
-    #
+    # Its own port, never the board's, so a public path in front of it reaches nothing else. The
+    # `Listening` adapter checks signatures and refuses to start without the secret file.
     #   exe/hecks GithubWebhook.serve! port=4748 --wait
     aggregate "GithubWebhook" do
       description "One listener for GitHub's signed webhook deliveries on a local port of its own, until it is stopped."
@@ -71,9 +68,8 @@ Hecks.bluebook "Hecks" do
       end
     end
 
-    # One delivery from GitHub, kept once by its delivery id: the kind of event, its action, and
-    # the few facts the pipeline waits on. Nothing else of the payload is kept. A delivery GitHub
-    # sends again finds its record already made and is refused by the lifecycle, so it is kept once.
+    # Kept once by its delivery id: a delivery GitHub sends again finds its record made and is
+    # refused by the lifecycle. Nothing else of the payload is kept.
     aggregate "GithubEvent" do
       description "One GitHub webhook delivery the pipeline follows: its kind and action, the pull request, head commit and branch, the conclusion or status, and the run or check name, when the payload has them."
       created_by "GithubEvent.record!"
