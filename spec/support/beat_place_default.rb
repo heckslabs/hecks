@@ -40,3 +40,13 @@ end
 
 require "hecks/hecks/adapters/beating"
 Hecks::Adapters::Beating.singleton_class.prepend(BeatPlaceOwnDirectory)
+
+# The place a beat takes is kept for the life of its process, so a beat in one example would leave
+# it held for the next example of the process, and a spec of the place itself would find it taken.
+# Every example starts with no place held and the lock closed.
+RSpec.configure do |config|
+  config.before do
+    Hecks::Adapters::Beating.held&.close
+    Hecks::Adapters::Beating.held = nil
+  end
+end

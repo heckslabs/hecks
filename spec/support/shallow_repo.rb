@@ -61,7 +61,15 @@ module ShallowRepo
   def shallow(**tune) = shallow_in(tree, "work/a", "main", **tune)
 
   def shallow_in(checkout, branch, onto, **tune)
+    tune = places.merge(tune)
     Hecks::Adapters::GitShallowCheck.new(**runner, **tune).shallow_check(checkout: checkout, branch: branch, onto: onto)
+  end
+
+  # A heavy-job place taken at once and a claim under the scratch directory, so a check never
+  # waits on the machine's real places or claims.
+  def places
+    { slots: ->(_root, _job, &block) { [block.call, ""] },
+      claim: Hecks::Adapters::LandingClaim.new(dir: File.join(dir, "claims")) }
   end
 
   def switch(state) = Hecks::Adapters::GitShallowCheck.new.shallow_switch(checkout: tree, state: { value: state })

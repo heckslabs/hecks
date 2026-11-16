@@ -2,6 +2,7 @@
 
 require_relative "spec_map/changes"
 require_relative "spec_map/corpus"
+require_relative "spec_map/locked_package"
 require_relative "spec_map/needles"
 require_relative "spec_map/triggers"
 
@@ -17,7 +18,8 @@ module Hecks
       # own bluebooks, the shape-ledger, conformance, corpus, golden and vocabulary specs). A
       # changed `rust/` file runs the Ruby specs that drive it, never cargo; a changed `docs/`
       # file runs the docs specs. A changed path the world's `triggered_specs` rule names runs that
-      # rule's specs first, ahead of the limit (`Triggers`).
+      # rule's specs first, ahead of the limit (`Triggers`). A changed file beneath a directory that
+      # holds a `bluebook.lock` runs the specs that name that directory (`LockedPackage`).
       class SpecMap
         # What was mapped.
         #
@@ -84,13 +86,28 @@ module Hecks
           found = changed.each_with_object({}) do |path, reached|
             reach(path).each { |spec, tier| reached[spec] = [reached[spec], tier].compact.min }
           end
-          first = changed.empty? ? [] : scans | @triggers.specs(changed)
-          found.merge(first.to_h { |spec| [spec, SCAN_TIER] })
+          found.merge(first(changed).to_h { |spec| [spec, SCAN_TIER] })
         end
+
+        # The specs that run ahead of the limit: the scans, the triggered ones and the lock checks.
+        def first(changed) = changed.empty? ? [] : scans | @triggers.specs(changed) | locked(changed)
 
         # The specs tagged `:repo_scan`: each reads the whole tree, so no changed file points at it
         # and any change can break it. They run first, before the limit, and ignore the skip rules.
         def scans = @corpus.files.select { |spec| scan?(spec) }
+
+        # The specs that name the directory of each locked package a changed path sits in, so the
+        # spec that checks the lock runs first, ahead of the limit.
+        def locked(changed)
+          packages = changed.filter_map { |path| LockedPackage.of(@root, path) }.uniq
+          packages.flat_map { |package| naming(package) }
+        end
+
+        def naming(package)
+          @corpus.files.select { |spec| @corpus.text(spec).include?(package) }.each do |spec|
+            @because[spec] ||= "#{package} is locked"
+          end
+        end
 
         def scan?(spec) = SCAN.match?(@corpus.text(spec))
 

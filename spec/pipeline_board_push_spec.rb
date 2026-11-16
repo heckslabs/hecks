@@ -10,6 +10,10 @@ require "hecks/pipeline_board/adapters/pipeline_web"
 # The board learns of a change from the journal and pushes only the tiles it changed: a line of an
 # aggregate a tile reads draws that tile again, a drawing that came out the same pushes nothing, a
 # line no tile reads draws nothing, and a reader is woken by the line, not by a clock.
+#
+# The hub rests after a drawing for as long as the drawing took, and a line in the rest is drawn
+# later by the drawer, not with the line. The clock here stands still, so no drawing takes time
+# and every line is drawn with its own wake, however slow the machine running the spec is.
 RSpec.describe Hecks::Adapters::PipelineBoard::Hub do
   let(:journal) { FakeJournal.new }
   let(:rows) do
@@ -21,7 +25,16 @@ RSpec.describe Hecks::Adapters::PipelineBoard::Hub do
     renderers = %w[fill train].to_h { |id| [id, -> { (drawn[id] += 1) && html.fetch(id) }] }
     tiles = Hecks::Adapters::PipelineBoard::Tiles.new(rows: rows, renderers: renderers)
     watch = Hecks::Adapters::PipelineBoard::Watch.new(path: "unused", source: -> { journal })
-    described_class.new(tiles: tiles, watch: watch, net_seconds: 3600).start
+    described_class.new(tiles: tiles, watch: watch, net_seconds: 3600, clock: clock).start
+  end
+
+  # A clock that stands still: a drawing takes none of its time, so the hub never rests.
+  def clock
+    Class.new do
+      def now = 0.0
+
+      def rest(_seconds) = nil
+    end.new
   end
 
   after { hub.stop }

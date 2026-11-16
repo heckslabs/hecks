@@ -12,6 +12,7 @@ require_relative "pipeline_web/ci_page"
 require_relative "pipeline_web/settings_page"
 require_relative "pipeline_web/events_page"
 require_relative "pipeline_web/snapshot"
+require_relative "sentinel/standing"
 
 module Hecks
   module Adapters
@@ -27,8 +28,6 @@ module Hecks
       DIAGRAMS_PAGE = File.expand_path("pipeline_web/diagrams.html", __dir__)
       STREAM_SCRIPT = File.expand_path("pipeline_web/stream.js", __dir__)
       ANSWER_SCRIPT = File.expand_path("pipeline_web/answer.js", __dir__)
-      DEFAULT_PORT = 4747
-      ACT_SECONDS = 120
 
       # @param registry [Runtime::Registry, nil] handed to the readers
       # @param aggregate [Object, nil] unused
@@ -36,15 +35,17 @@ module Hecks
       #   for the journal follower and its file, `journal:` for the source it follows, `launcher:`
       #   a callable taking the launcher's arguments and answering its standard output (it stands
       #   in for the launcher), `load_guard:` a {PipelineBoard::LoadGuard} stand-in, or false for
-      #   none
+      #   none, `sentinel:` a callable standing in for {PipelineBoard::Sentinel.stand}, the watch
+      #   from outside the process, or nil for none
       # @param root [String, nil] the checkout the readers and the launcher run in
       def initialize(registry: nil, aggregate: nil, settings: {}, root: nil)
         @root = root || Dir.pwd
         @launcher_root = ENV.fetch("PIPELINE_BOARD_LAUNCHER_ROOT", @root)
         @stages = settings[:stages] || PipelineStages.new(registry: registry, root: root)
         @wiring = settings[:wiring] || PipelineWiring.new(registry: registry)
-        @launcher = settings[:launcher] || PipelineBoard::Actions.launcher(@root, ACT_SECONDS)
+        @launcher = settings[:launcher] || PipelineBoard::Actions.launcher(@root, 120)
         @snapshot = PipelineBoard::Snapshot.kept_small(source: @stages.method(:state), registry: registry, settings: settings)
+        @outside = { registry: registry, sentinel: settings.fetch(:sentinel) { PipelineBoard::Sentinel.method(:stand) } }
         @pushed = PipelineBoard::Pushed.new(stages: @stages, settings: settings.merge(registry: registry))
       end
 
@@ -125,10 +126,9 @@ module Hecks
         fields.merge(condition: row[:state].to_s)
       end
 
-      # The answers the board gives on its own, by the kind a session tagged its question with.
-      # Owner decisions have no kind here, so no answer is given for them.
-      AUTO_REPLIES = { "confirm" => "yes", "retry" => "retry" }.freeze
-
+      # The answer the board gives on its own, by the kind a session tagged its question with:
+      # `confirm` is answered yes and `retry` retry. Owner decisions have no kind, so no answer.
+      #
       # @param fields [Hash{Symbol => String}] the request's fields, with `target` the session's id
       # @return [Hash{Symbol => String}] `target` and the reply text for the session's question kind
       # @raise [PipelineBoard::Unavailable] when the session is not blocked or has no answer kind
@@ -136,7 +136,7 @@ module Hecks
         row = blocked_session(fields[:target])
         raise PipelineBoard::Unavailable, "no blocked session #{fields[:target]}" unless row
 
-        text = AUTO_REPLIES[row[:question_kind].to_s]
+        text = { "confirm" => "yes", "retry" => "retry" }[row[:question_kind].to_s]
         kind = row[:question_kind].to_s.empty? ? "no kind" : row[:question_kind]
         raise PipelineBoard::Unavailable, "#{kind} is not auto-answered" unless text
 
@@ -158,6 +158,7 @@ module Hecks
       def listen(**held)
         port = held[:port].is_a?(Hash) ? held[:port][:value] : held[:port]
         server = open_at(port)
+        @outside[:sentinel]&.call(port: server.port, registry: @outside[:registry])
         warn "PipelineBoard listening on http://#{server.address}:#{server.port}/ (Ctrl-C to stop)"
         trap("INT") { server.stop }
         server.join
@@ -169,7 +170,7 @@ module Hecks
       def open_at(port)
         @snapshot.start
         @pushed.start
-        PipelineBoard::Server.new(port: port || DEFAULT_PORT, app: self).start
+        PipelineBoard::Server.new(port: port || 4747, app: self).start
       end
 
       # @return [String] the page, with each pushed tile drawn into its place, so it reads whole

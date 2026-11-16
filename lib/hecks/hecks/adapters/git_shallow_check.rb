@@ -6,6 +6,9 @@ require_relative "git_shallow_check/switch"
 require_relative "git_shallow_check/clone_run"
 require_relative "git_shallow_check/on_main"
 require_relative "git_shallow_check/impacted_run"
+require_relative "git_shallow_check/ci_skip_scan"
+require_relative "codebase/heavy_slots"
+require_relative "landing_claim"
 
 module Hecks
   module Adapters
@@ -15,9 +18,14 @@ module Hecks
     # refuses.
     #
     # It never writes to the repository it reads. The clone lives in a temporary directory and is
-    # removed whether the checks pass or not.
+    # removed whether the checks pass or not. A check holds the checkout's {LandingClaim}, as the
+    # gate before it does, and takes a heavy-job place for its whole run ({Codebase::HeavySlots}),
+    # so two landings' checks never run together; the specs it starts take no place of their own.
     class GitShallowCheck
       include GitWorktrees
+
+      # The heavy-job class a shallow check takes a place as.
+      JOB = "shallow_check"
 
       # @param aggregate [Object, nil] unused
       # @param settings [Hash] unused
@@ -25,10 +33,14 @@ module Hecks
       # @param registry [Runtime::Registry, nil] unused
       # @param run [Hash] what a spec changes in the clone run: `specs:` and `command:`;
       #   `impacted:` stands in for the impacted-spec run, given the changed paths and the ref
-      #   they were read against, and answers an {ImpactedRun::Outcome}
+      #   they were read against, and answers an {ImpactedRun::Outcome}; `slots:` stands in for
+      #   {Codebase::HeavySlots.held}, given the checkout and the job's class; `claim:` is the
+      #   {LandingClaim} a check holds
       def initialize(aggregate: nil, settings: {}, root: nil, registry: nil, **run)
         @git = Git.new
         @impacted = run.delete(:impacted)
+        @slots = run.delete(:slots) || Codebase::HeavySlots.method(:held)
+        @claim = run.delete(:claim) || LandingClaim.new
         @run = run
       end
 
@@ -39,14 +51,12 @@ module Hecks
       # @return [Hash{Symbol => Hash}] `report:` what ran or why nothing did, and `unrun:` the
       #   impacted specs the budget left, with the seconds spent, when it ran out
       # @raise [ConsoleCapture::Failure] naming the failed specs, the first failure's message and
-      #   whether the branch it lands on fails them too, or the impacted spec that is red
+      #   whether the branch it lands on fails them too, the impacted spec that is red, or the
+      #   landing that holds the checkout's claim
       def shallow_check(**held)
         settle(held)
-        branch = plain(held[:branch]) || current_branch
-        onto = ref(plain(held[:onto]) || "main")
-        paths = read("diff", "--name-only", "#{onto}...#{ref(branch)}").lines.map(&:strip)
-        said = switch.on? ? verdict(branch, onto, paths) : "shallow check is off"
-        impacted(said, paths, onto)
+        answer, note = @claim.hold(@checkout) { @slots.call(@checkout, JOB) { checked(held) } }
+        note.empty? ? answer : answer.merge(report: { value: "#{note}; #{answer[:report][:value]}" })
       end
 
       # Turns the check on or off for the whole repository.
@@ -63,12 +73,21 @@ module Hecks
 
       private
 
+      def checked(held)
+        branch = plain(held[:branch]) || current_branch
+        onto = ref(plain(held[:onto]) || "main")
+        paths = read("diff", "--name-only", "#{onto}...#{ref(branch)}").lines.map(&:strip)
+        CiSkipScan.call(@checkout, paths)
+        said = switch.on? ? verdict(branch, onto, paths) : "shallow check is off"
+        impacted(said, paths, onto)
+      end
+
       def switch = Switch.new(read("rev-parse", "--path-format=absolute", "--git-common-dir"))
 
       # Runs the impacted specs after the shallow verdict; a red one raises, an overrun is answered.
       def impacted(said, paths, onto)
         done = (@impacted || ImpactedRun.new(@checkout)).call(paths, onto)
-        note = "impacted specs: #{done.ran.size} ran in #{done.seconds} s"
+        note = "impacted specs: #{done.ran.size} files in #{done.calls} launcher calls, #{done.seconds} s"
         answer = { report: { value: "#{said}; #{note}" } }
         return answer if done.unrun.empty?
 
