@@ -95,14 +95,24 @@ module Hecks
       end
 
       # @return [Symbol, nil] why the program must end: `:bound` when the time ran out, `:vanished`
-      #   when its directory went away; nil when it ended by itself
+      #   when its directory went away, or when the program ended non-zero with its directory gone;
+      #   nil when it ended by itself
       def await(waiter, chdir)
         deadline = now + @seconds
         loop do
-          return nil if waiter.join((deadline - now).clamp(0, WATCH))
+          return ended(waiter, chdir) if waiter.join((deadline - now).clamp(0, WATCH))
           return :bound if now >= deadline
           return :vanished unless File.directory?(chdir)
         end
+      end
+
+      # A program run with bundler preloaded dies of getcwd when its directory is removed, before
+      # the next look, so a non-zero end with the directory gone is read as that death. The exit
+      # status cannot tell it from the program's own failure, which counts as vanished too.
+      #
+      # @return [Symbol, nil] `:vanished` when the program failed and its directory is gone
+      def ended(waiter, chdir)
+        :vanished unless waiter.value.success? || File.directory?(chdir)
       end
 
       def now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
