@@ -1,5 +1,6 @@
 require "spec_helper"
 require "tempfile"
+require "hecks/bluebook/model_check"
 
 # model_check's three words about `ask` (ADR 0100): an ask no declared ask answers is an error, a
 # declared ask nothing asks is a warning, and a trigger that names a port operation is a warning
