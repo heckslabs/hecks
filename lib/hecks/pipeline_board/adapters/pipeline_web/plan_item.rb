@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "cgi"
+require_relative "plan_detail"
 
 module Hecks
   module Adapters
@@ -21,7 +22,7 @@ module Hecks
         def draw(row)
           "<div class=\"item\"#{marks(row)}><i class=\"cell c-#{esc(row[:lane])}\"></i>" \
             "<span class=\"what\">#{esc(row[:title])} <code>#{esc(row[:slug])}</code></span>" \
-            "#{chip(status(row))}#{area(row)}#{priority(row)}#{facts(row)}#{review(row[:reviewed])}</div>"
+            "#{chip(status(row))}#{area(row)}#{priority(row)}#{facts(row)}#{review(row[:reviewed])}#{PlanDetail.draw(row)}</div>"
         end
 
         # @return [String] the `data-` attributes the page's filters match
