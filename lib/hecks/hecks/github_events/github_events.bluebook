@@ -1,0 +1,161 @@
+Hecks.bluebook "Hecks" do
+  domain_module "GithubEvents" do
+    vision "GitHub tells the pipeline what happened to its checks, runs and pull requests, so the watchers wait on a recorded event instead of asking GitHub again and again."
+
+    # One listener for GitHub's webhook deliveries, opened on 127.0.0.1 until it is stopped. It has
+    # a port of its own, never the board's: the one public path in front of it reaches nothing else.
+    # The `Listening` port's adapter checks each delivery's signature against the secret file and
+    # offers what it carries to `GithubEvent.Record`; it refuses to start when the secret is absent.
+    #
+    #   exe/hecks GithubWebhook.serve! port=4748 --wait
+    aggregate "GithubWebhook" do
+      description "One listener for GitHub's signed webhook deliveries on a local port of its own, until it is stopped."
+
+      identified_by :run
+
+      attribute :run,  RunKey
+      attribute :port, Port, optional: true
+      attribute :last, Reason, optional: true
+
+      value_object "RunKey" do
+        attribute :value, String, matches: :present
+      end
+
+      # The local port the listener takes. Never the board's 4747: a public path in front of this
+      # one must not reach the board.
+      value_object "Port" do
+        attribute :value, Integer, default: 4748
+
+        invariant("a port is 1024 to 65535") { value >= 1024 && value <= 65535 }
+        invariant("the listener never takes the board's port") { value != 4747 }
+      end
+
+      # Why a listener ended or was refused.
+      value_object "Reason", String
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "refused"
+        mark :terminal, "closed", "refused"
+        transition "Close"  => "closed",  from: "requested"
+        transition "Refuse" => "refused", from: "requested"
+      end
+
+      command "Serve" do
+        role "Maintainer"
+        goal "Listen on 127.0.0.1 for GitHub's signed webhook deliveries until stopped, recording each one the pipeline follows"
+
+        attribute :run,  RunKey, sets: true
+        attribute :port, Port, default: 4748, sets: true
+
+        emits GithubWebhookServeRequested
+      end
+
+      command "Close" do
+        role "System"
+        goal "Record that the listener stopped"
+
+        reference_to GithubWebhook
+        attribute :last, Reason, sets: true
+
+        emits GithubWebhookClosed
+      end
+
+      command "Refuse" do
+        role "System"
+        goal "Record why the listener did not start"
+
+        reference_to GithubWebhook
+        attribute :last, Reason, sets: true
+
+        emits GithubWebhookRefused
+      end
+    end
+
+    # One delivery from GitHub, kept once by its delivery id: the kind of event, its action, and
+    # the few facts the pipeline waits on. Nothing else of the payload is kept. A delivery GitHub
+    # sends again finds its record already made and is refused by the lifecycle, so it is kept once.
+    aggregate "GithubEvent" do
+      description "One GitHub webhook delivery the pipeline follows: its kind and action, the pull request, head commit and branch, the conclusion or status, and the run or check name, when the payload has them."
+      created_by "GithubEvent.record!"
+
+      attribute :delivery,   DeliveryKey
+      attribute :kind,       Kind
+      attribute :action,     Text, optional: true
+      attribute :pr,         Number, optional: true
+      attribute :commit,     Text, optional: true
+      attribute :branch,     Text, optional: true
+      attribute :conclusion, Text, optional: true
+      attribute :check,      Text, optional: true
+      attribute :ci_run,     Text, optional: true
+      attribute :received,   Stamp
+      identified_by :delivery
+
+      # GitHub's `X-GitHub-Delivery` header: one id per delivery, the same id when it is sent again.
+      value_object "DeliveryKey" do
+        attribute :value, String, pattern: '\A[A-Za-z0-9-]{1,80}\z'
+      end
+
+      # The kinds of event the pipeline follows. A delivery of any other kind is not recorded.
+      value_object "Kind" do
+        attribute :value, String, one_of: %w[check_run check_suite pull_request workflow_run ping]
+      end
+
+      # When the listener took the delivery, in microseconds since the epoch. It is the cursor
+      # `Since` reads after.
+      value_object "Stamp" do
+        attribute :value, Integer
+
+        invariant("a stamp is not negative") { !value.negative? }
+      end
+
+      value_object "Text", String
+
+      value_object "Number", Integer
+
+      lifecycle :status, default: "unrecorded" do
+        transition "Record" => "recorded", from: "unrecorded"
+        mark :terminal, "recorded"
+      end
+
+      command "Record" do
+        role "System"
+        goal "Keep one GitHub delivery the pipeline follows, once, with only the facts the watchers wait on"
+
+        attribute :delivery,   DeliveryKey, sets: true
+        attribute :kind,       Kind, sets: true
+        attribute :action,     Text, optional: true, sets: true
+        attribute :pr,         Number, optional: true, sets: true
+        attribute :commit,     Text, optional: true, sets: true
+        attribute :branch,     Text, optional: true, sets: true
+        attribute :conclusion, Text, optional: true, sets: true
+        attribute :check,      Text, optional: true, sets: true
+        attribute :ci_run,     Text, optional: true, sets: true
+        attribute :received,   Stamp, sets: true
+
+        emits GithubEventRecorded
+      end
+
+      query "Since" do
+        description "The GitHub deliveries recorded after a cursor, oldest first: pass the newest one's received stamp back as the next cursor, or 0 for every one."
+        attribute :cursor, Integer
+        where(received: { gt: :cursor })
+        order_by :received
+      end
+    end
+
+    policy "ListenWhenGithubWebhookServed" do
+      on  "GithubWebhook.GithubWebhookServeRequested"
+      ask :listen, with: { port: :port }
+    end
+
+    policy "CloseGithubWebhookWhenEnded" do
+      on      "GithubWebhook.GithubWebhookEnded"
+      trigger GithubWebhook::Close, with: { last: :last }
+    end
+
+    policy "RefuseGithubWebhookWhenRefused" do
+      on      "GithubWebhook.GithubWebhookListenRefused"
+      trigger GithubWebhook::Refuse, with: { last: :refusal }
+    end
+  end
+end

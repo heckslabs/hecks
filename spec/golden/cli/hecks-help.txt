@@ -184,6 +184,9 @@ commands:
     One named one-off script the checkout runs, planned or applied; the body is a tool.
     plan_script!                  Show what a named one-off script would change, writing nothing
     apply_script!                 Carry out a named one-off script's changes, only when confirmed
+  GithubWebhook:
+    One listener for GitHub's signed webhook deliveries on a local port of its own, until it is stopped.
+    serve!                        Listen on 127.0.0.1 for GitHub's signed webhook deliveries until stopped, recording each one the pipeline follows
   LedgerFile:
     The SQLite file the AgentRun records live in, and the request to give its free pages back.
     reclaim!                      Give the free pages of the AgentRun file back with a VACUUM, only when the file is quiet
@@ -341,6 +344,9 @@ queries (nothing here changes anything):
     read_source             The numbered lines of one file of the checkout, whole or from one line to another.
     outline                 What a file declares, by line: each construct of a bluebook, each definition of Ruby.
     declaration             Where a named construct is declared across the corpus, as path:from-to, with its text on request.
+  GithubEvent:
+    One GitHub webhook delivery the pipeline follows: its kind and action, the pull request, head commit and branch, the conclusion or status, and the run or check name, when the payload has them.
+    since                   The GitHub deliveries recorded after a cursor, oldest first: pass the newest one's received stamp back as the next cursor, or 0 for every one.
   SchemaRevision:
     One change to a domain's journal of eras, and how it ended: a store's upkeep.
     scaffold_translation    The edge file that would lead the latest held era to the current shape.
