@@ -43,6 +43,7 @@ RSpec.describe "the Coder brief" do
   end
 
   it "carries the verification rules" do
-    expect(compose[:verification][:value]).to include("launcher", "quick gate", "Do not run the full suite")
+    expect(compose[:verification][:value])
+      .to include("launcher", "quick gate", "impacted specs", "refuses on red", "runs in CI only")
   end
 end
