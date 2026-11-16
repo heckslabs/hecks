@@ -2,6 +2,7 @@
 
 require_relative "../ci_runs"
 require_relative "../ci_runs/pull_request"
+require_relative "carried_check"
 
 module Hecks
   module Adapters
@@ -9,8 +10,9 @@ module Hecks
       # Which pushed or watched run holds the line, judged from its train pull request's checks.
       # A run whose open pull request has a failed check and no check left running will not merge,
       # so it does not hold the line: the next verified landing boards and its pull request
-      # replaces it. A pull request that cannot be read leaves its run holding the line. Reads
-      # GitHub only.
+      # replaces it. A run whose commit `origin/main` already carries (`CarriedCheck`) does not
+      # hold it either: the push that carried it was judged on its own. A pull request that
+      # cannot be read leaves its run holding the line. Reads GitHub and git.
       class TrainChecks
         # The stages whose runs have a train pull request to read.
         WATCHED = %w[pushed ci_running merged].freeze
@@ -26,6 +28,8 @@ module Hecks
         #   its checks when they could be read
         def blocking(others)
           others.each do |run|
+            next if carried?(run)
+
             checks = checks_of(run)
             return [run, checks] unless checks&.failed_and_complete?
           end
@@ -33,6 +37,12 @@ module Hecks
         end
 
         private
+
+        def carried?(run)
+          return false unless WATCHED.include?(run.state)
+
+          !CarriedCheck.new(run.checkout.empty? ? Dir.pwd : run.checkout).by_known(run.landed).nil?
+        end
 
         def checks_of(run)
           return nil unless WATCHED.include?(run.state)
