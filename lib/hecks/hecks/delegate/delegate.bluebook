@@ -2840,13 +2840,9 @@ Hecks.bluebook "Hecks" do
       trigger SessionCleanup::Decline, with: { refusal: :refusal }
     end
 
-    # A session's question for the orchestrator: a job read blocked, whatever marker its question
-    # begins with or none. It is keyed by the blocked run, so a run asks one question at a time and a
-    # second reading of the same block asks nothing; an ended question frees the key. An [owner]
-    # question is not one: it needs a secret, account or login only the owner holds, the board's
-    # Waiting-on-you panel lists its session as the owner's, and no run answers it. A [review] wait
-    # is not one either. A question the coordinator cannot answer is escalated, and the
-    # agent-run-blocked stall plans the owner's work item when a block outlasts its minutes.
+    # A blocked run's question for the orchestrator, whatever marker it begins with or none; keyed by
+    # the run, so it asks one at a time. [owner] and [review] waits are not asked: no run answers
+    # the owner's, and an unanswered block is escalated by the agent-run-blocked stall.
     aggregate "Question" do
       description "One question a blocked run asks the orchestrator: asked, seated with an orchestrator run that answers it, then closed when the run is answered or escalated as the owner's."
 
