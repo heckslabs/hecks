@@ -24,7 +24,8 @@ Hecks.bluebook "Hecks" do
       # the subject. `closed_by` says which closing lines close it: "id" (the default) those on the
       # same aggregate id, "any" every closing line on the aggregate after it. `evidence` names a
       # read the detail carries: "processes" is the busiest class and its session. `not_about` is a
-      # subject prefix never filed for ("stall-").
+      # subject prefix never filed for ("stall-"). `only_about` is the reverse: only openings whose id
+      # starts with it are timed, and a closing line of any id still closes (`closed_by: "any"`).
       value_object "StallKind" do
         attribute :kind,      String
         attribute :aggregate, String
@@ -39,6 +40,7 @@ Hecks.bluebook "Hecks" do
         attribute :ends_aggregate, String
         attribute :ends,           String
         attribute :not_about,      String
+        attribute :only_about,     String
         # The lifecycle state of the row's aggregate that the row times, which model_check holds
         # it to. A row that times something else, as agent-run-blocked times a session's
         # condition, names none.
@@ -106,8 +108,11 @@ Hecks.bluebook "Hecks" do
                      "run.value=<stall>-relief state.value=high --confirm, which retires merged worktrees and " \
                      "tidies done runs only; report unpushed, dirty and pinned subjects by path, never remove them."
         # The machine's load over its mark for five minutes. Each crossing is keyed by the beat that
-        # heard it, so any later fall closes the rise, and the subject is the beat of the rise.
-        member kind: "load", aggregate: "Hecks::Machine", opens: "LoadRoseAbove", closes: "LoadFellBelow",
+        # heard it, so any later fall closes the rise, and the subject is the beat of the rise. Only
+        # the beat's readings (`launchd-<epoch>`, from the launchd beat's `Heartbeat.Beat!`) are the
+        # fleet's load: a landing gate reads the machine once per step under `<sha>-<step>`, a key
+        # no fall follows, so such a reading never opens a stall.
+        member kind: "load", only_about: "launchd-", aggregate: "Hecks::Machine", opens: "LoadRoseAbove", closes: "LoadFellBelow",
                closed_by: "any", evidence: "processes", minutes: 5, forgets: 1440, fixer: "orchestrator",
                move: "The rise itself already asked the lowest-priority started item to yield (Shed.ShedAsked, " \
                      "or ShedSpared with the reason): do not ask that run again. " \
