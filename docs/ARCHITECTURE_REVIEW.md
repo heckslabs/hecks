@@ -58,7 +58,8 @@ A review exists so a coder can build, not so a plan is perfected. Of 364 verdict
   a dependency that points outward (X1).
 - **Note.** Everything else: a name that could be the domain's own (D4), a smaller slice (S1, S2), a check
   the plan could add, a missing line of detail the coder can settle from the code (D5, D7 when one owner is
-  obvious; a missing owner or source with no obvious answer still blocks), wording. A note carries no evidence of failure.
+  obvious), wording. A note carries no evidence of failure. A missing owner or source with no obvious
+  answer is the D7 case that blocks.
 
 The verdict follows from the blocking findings alone.
 
@@ -69,7 +70,7 @@ The verdict follows from the blocking findings alone.
   `changes`.
 
 **Measuring it.** `VerdictMix` counts the verdicts; the `Reviews` rows carry `requested_at`, so a day's mix is
-those rows bucketed by day. Baseline on 2026-11-15: 313 `changes` of 364. To sample, read the `Reviews` rows whose
+those rows bucketed by `requested_at / 86400`, read from the main checkout (a worktree's store is empty). Baseline on 2026-11-15: 313 `changes` of 364. To sample, read the `Reviews` rows whose
 verdict is `changes` and ask of each: did the coder's build differ from the plan as first written, because of a
 blocking finding? A blocking finding the build ignored was a note, and the lines above are tuned to it. The goal
 is `sound` as the common verdict on items the coder then lands unchanged.
