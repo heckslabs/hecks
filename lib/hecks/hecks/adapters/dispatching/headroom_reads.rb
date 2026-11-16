@@ -21,6 +21,12 @@ module Hecks
           Headroom.new(loads: loads, started: work_items.started.size, load: gauge.load, max_load: gauge.max_load)
         end
 
+        # Where the compared load came from and the sampler's newest reading beside it.
+        def load_reading_clause
+          sampled = (@standins[:loads] || Headroom.loads(@registry, count: 1)).last
+          LoadReading.new(uptime: machine.load, sampled: sampled, at: ran_at).clause
+        end
+
         # `headroom 2 of cap 7 (1.6 load per session)`: the sessions the load has room for (an
         # estimate), beside the cap that stays the ceiling and the load one session is taken to
         # cost. With no reading there is no room to state and no cost to claim: `headroom unread`.
