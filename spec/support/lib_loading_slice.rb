@@ -1,5 +1,6 @@
 require "open3"
 require "hecks/pipeline_board/adapters/load_guard"
+require "hecks/rust_build/world_rows"
 
 # What the three load_hygiene_lib_*_spec.rb files share: every lib file loads standalone, in a fresh
 # process, checked one slice at a time. Every `of`-th file of the sorted list belongs to slice
@@ -44,8 +45,13 @@ module LibLoadingSlice
   # its limit; CI gives a shard its own cores, so it takes eight.
   def load_workers = ENV["CI"] ? 8 : 2
 
-  # The 1-minute load above which a worker starts no process; the limit a fill stops at.
-  def load_limit = 10.0
+  # The 1-minute load above which a worker starts no process: the Tickets world's
+  # `dispatch_max_load` (overlay included, as a machine setting), the limit a fill stops at.
+  def load_limit = Float(Hecks::RustBuild::WorldRows.row(File.dirname(lib_dir), "dispatch_max_load")[:limit] || 10.0)
+
+  # The most seconds a slice waits for room in all, across its workers. It stays well under the
+  # world's `spec_bounds` file bound (600), so a loaded machine slows a slice and never ends it.
+  def load_wait_budget = 120
 
   # How many times a worker looks at the load before it starts anyway, so a machine kept busy by
   # other work slows the slice and never hangs it.
@@ -54,20 +60,26 @@ module LibLoadingSlice
   # @return [Float] the machine's 1-minute load now
   def machine_load = Hecks::Adapters::PipelineBoard::LoadGuard.reading
 
-  # Waits while the machine is over `load_limit`, at most `load_wait_ticks` looks; CI never waits.
+  # Waits while the machine is over `load_limit`, at most `load_wait_ticks` looks and never past the
+  # slice's wait deadline; CI never waits.
   def wait_for_room
     return if ENV["CI"]
 
     load_wait_ticks.times do
-      break unless machine_load > load_limit
+      break unless machine_load > load_limit && wait_left?
 
       pause
     end
   end
 
+  def start_wait_budget = @wait_deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + load_wait_budget
+
+  def wait_left? = @wait_deadline.nil? || Process.clock_gettime(Process::CLOCK_MONOTONIC) < @wait_deadline
+
   def pause = Queue.new.pop(timeout: 2)
 
   def broken_features(features)
+    start_wait_budget
     failures = Queue.new
     work = Queue.new
     features.each { |feature| work << feature }
