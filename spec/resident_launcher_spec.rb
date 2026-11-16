@@ -56,7 +56,8 @@ RSpec.describe "a launcher through its resident" do
     end
   end
 
-  it "answers the line and starts a new resident when its code has changed", :aggregate_failures do
+  it "answers the line and starts a new resident when its code has changed", :aggregate_failures,
+     :changes_checkout do
     pid = start_resident
     status, replacement = line_after_a_change(pid)
     expect(status).to eq(0)
