@@ -5,6 +5,7 @@ require_relative "sql_query_builder"
 require_relative "sqlite/schema_builder"
 require_relative "sqlite/name_guard"
 require_relative "sqlite/codec"
+require_relative "sqlite/connection_pragmas"
 require_relative "sqlite/dialect"
 require_relative "sqlite/events"
 require_relative "sqlite/journal"
@@ -60,14 +61,14 @@ module Hecks
       #
       # @param aggregate [Bluebook::Aggregate] the aggregate whose table this adapter owns
       # @param settings [Hash{Symbol, String => Object}] world settings for the binding:
-      #   `database` (file path, default `data/<table>.db`), `domain` (scopes saga rows,
-      #   default the aggregate's name) and `busy_timeout_ms` (how long a statement waits for a
-      #   held file, default {BUSY_TIMEOUT_MS}), each read under a Symbol or a String key
+      #   `database` (file path, default `data/<table>.db`), `domain` (saga scope, default the
+      #   aggregate's name), `busy_timeout_ms` (wait for a held file, default {BUSY_TIMEOUT_MS})
+      #   and `journal_mode` ("wal" by default; "delete" keeps the rollback journal)
       # @param root [String, nil] directory a relative `database` path resolves against; nil
       #   means the process working directory
       # @raise [LoadError] if the `sqlite3` gem is not installed
       # @raise [Runtime::StoreHeld] if another process holds the file past the wait
-      # @raise [SQLite3::Exception] if the file cannot be opened or a table cannot be created
+      # @raise [ArgumentError] if `journal_mode` is not "wal" or "delete"
       def initialize(aggregate:, settings: {}, root: nil)
         # Lazy so a domain that never wires Sqlite does not need the gem installed.
         require "sqlite3"
@@ -80,7 +81,8 @@ module Hecks
         # Scopes saga rows; falls back to the aggregate's name for a directly built adapter.
         @domain = settings.fetch(:domain) { aggregate.name }.to_s
         @busy_timeout_ms = Integer(settings.fetch(:busy_timeout_ms, BUSY_TIMEOUT_MS))
-        unless_held { open_store }
+        @journal_mode = ConnectionPragmas.mode!(settings.fetch(:journal_mode) { settings.fetch("journal_mode", "wal") })
+        unless_held { retrying_while_held { open_store } }
       end
 
       # Runs the block inside one SQLite transaction, joining an already-open one.
@@ -131,6 +133,22 @@ module Hecks
         raise Runtime::StoreHeld, e.message
       end
 
+      # An open can meet a file another connection holds in a way SQLite's busy handler does not
+      # wait out (a journal switch, a schema read under a writer), so the open is tried again after
+      # a short pause until the busy timeout has passed. A timeout of 0 means no retry.
+      def retrying_while_held(&)
+        deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + (@busy_timeout_ms / 1000.0)
+        begin
+          yield
+        rescue SQLite3::BusyException, SQLite3::LockedException => e
+          raise Runtime::StoreHeld, e.message if Process.clock_gettime(Process::CLOCK_MONOTONIC) >= deadline
+
+          @db&.close
+          sleep(0.05)
+          retry
+        end
+      end
+
       def open_store
         open_database
         refuse_orphaned_rows!
@@ -145,8 +163,7 @@ module Hecks
         # so the process's other threads (a landing ticket's heartbeat) run while it waits.
         @db.busy_handler_timeout = @busy_timeout_ms
         @db.results_as_hash = true
-        # The append is the recovery commit point, so the fsync policy is explicit.
-        @db.execute("PRAGMA synchronous = FULL")
+        ConnectionPragmas.new(@db, journal_mode: @journal_mode).apply!
       end
 
       def create_tables!
