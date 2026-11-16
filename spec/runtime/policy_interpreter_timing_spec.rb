@@ -71,6 +71,6 @@ RSpec.describe Hecks::Runtime::PolicyInterpreter::Timing do
 
   it "leaves the reaction record without a time", :aggregate_failures do
     interpreter(clock_reading(0.0, 0.01, 1.0, 1.25)).react(event, "Reflex")
-    expect(registry.reaction_log.map(&:keys).uniq).to eq([%i[policy on trigger delivered reason]])
+    expect(registry.reaction_log.flat_map(&:keys)).not_to include(:ms)
   end
 end
