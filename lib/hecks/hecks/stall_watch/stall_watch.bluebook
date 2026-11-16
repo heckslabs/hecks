@@ -24,8 +24,7 @@ Hecks.bluebook "Hecks" do
       # the subject. `closed_by` says which closing lines close it: "id" (the default) those on the
       # same aggregate id, "any" every closing line on the aggregate after it. `evidence` names a
       # read the detail carries: "processes" is the busiest class and its session. `not_about` is a
-      # subject prefix never filed for ("stall-"). `only_about` is the reverse: only openings whose id
-      # starts with it are timed, and a closing line of any id still closes (`closed_by: "any"`).
+      # subject prefix never filed for ("stall-").
       value_object "StallKind" do
         attribute :kind,      String
         attribute :aggregate, String
@@ -40,6 +39,7 @@ Hecks.bluebook "Hecks" do
         attribute :ends_aggregate, String
         attribute :ends,           String
         attribute :not_about,      String
+        # The reverse of `not_about`: only openings whose id starts with it are timed.
         attribute :only_about,     String
         # The lifecycle state of the row's aggregate that the row times, which model_check holds
         # it to. A row that times something else, as agent-run-blocked times a session's
@@ -107,11 +107,9 @@ Hecks.bluebook "Hecks" do
                move: "Relief.plan! run.value=<stall> to see what frees space, then Relief.relieve! " \
                      "run.value=<stall>-relief state.value=high --confirm, which retires merged worktrees and " \
                      "tidies done runs only; report unpushed, dirty and pinned subjects by path, never remove them."
-        # The machine's load over its mark for five minutes. Each crossing is keyed by the beat that
-        # heard it, so any later fall closes the rise, and the subject is the beat of the rise. Only
-        # the beat's readings (`launchd-<epoch>`, from the launchd beat's `Heartbeat.Beat!`) are the
-        # fleet's load: a landing gate reads the machine once per step under `<sha>-<step>`, a key
-        # no fall follows, so such a reading never opens a stall.
+        # The machine's load over its mark for five minutes, keyed by the beat that heard each crossing.
+        # Only the beat's readings (`launchd-`) are the fleet's load: a gate step's `<sha>-<step>`
+        # reading is never followed by a fall under its key, so it opens no stall.
         member kind: "load", only_about: "launchd-", aggregate: "Hecks::Machine", opens: "LoadRoseAbove", closes: "LoadFellBelow",
                closed_by: "any", evidence: "processes", minutes: 5, forgets: 1440, fixer: "orchestrator",
                move: "The rise itself already asked the lowest-priority started item to yield (Shed.ShedAsked, " \
