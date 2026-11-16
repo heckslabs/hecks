@@ -6,6 +6,7 @@ require_relative "git_shallow_check/switch"
 require_relative "git_shallow_check/clone_run"
 require_relative "git_shallow_check/on_main"
 require_relative "git_shallow_check/impacted_run"
+require_relative "git_shallow_check/ci_skip_scan"
 require_relative "codebase/heavy_slots"
 require_relative "landing_claim"
 
@@ -76,6 +77,7 @@ module Hecks
         branch = plain(held[:branch]) || current_branch
         onto = ref(plain(held[:onto]) || "main")
         paths = read("diff", "--name-only", "#{onto}...#{ref(branch)}").lines.map(&:strip)
+        CiSkipScan.call(@checkout, paths)
         said = switch.on? ? verdict(branch, onto, paths) : "shallow check is off"
         impacted(said, paths, onto)
       end
