@@ -68,16 +68,22 @@ RSpec.describe Hecks::Adapters::PipelineGitHub, "#train_flakes" do
   end
 
   # An adapter whose `gh` records each job list and log it is asked for; `fail` names the runs
-  # whose job list cannot be read yet.
+  # whose job list cannot be read yet. The budget read (`gh api rate_limit`, before each read) is
+  # answered empty and not recorded.
   def counting(asked, fail: [])
-    gh = lambda do |*args|
+    gh_text = ->(*args) { (asked << args.first(5)) && spec_log }
+    described_class.new(settings: { gh: counting_gh(asked, fail), gh_text: gh_text, ttl: 0 })
+  end
+
+  def counting_gh(asked, fail)
+    lambda do |*args|
+      next {} if args[0..1] == %w[api rate_limit]
       next [run(1), run(2)] if args[0..1] == %w[run list]
       raise Hecks::Adapters::PipelineBoard::Unavailable, "502" if fail.include?(args[2])
 
       asked << args.first(5)
       { "jobs" => [job("a")] }
     end
-    described_class.new(settings: { gh: gh, gh_text: ->(*args) { (asked << args.first(5)) && spec_log }, ttl: 0 })
   end
 
   it "reads each finished attempt once, however often the flakes are read", :aggregate_failures do
