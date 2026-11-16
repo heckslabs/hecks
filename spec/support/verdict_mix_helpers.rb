@@ -13,6 +13,9 @@ module VerdictMixHelpers
     request(run: run).answer!(verdict: { value: word })
   end
 
+  # The day a review was asked, counted from the epoch: the bucket the rubric reads a day's mix by.
+  def day_of(asked) = asked.requested_at.value / 86_400
+
   def mix
     model = registry.bluebook("Agents").read_models.find { |candidate| candidate.name.to_s == "VerdictMix" }
     answer = Hecks::Runtime::ReadModelInterpreter.new(registry).call("Agents", model, {})

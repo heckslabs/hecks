@@ -71,6 +71,16 @@ RSpec.describe "a coder blocked on a question" do
     expect(desk["seated"]).to eq(2)
   end
 
+  it "starts an answerer for a block with no marker" do
+    blocked_on("q-plain", "Which of the two branches should I rebase onto?")
+    expect(answerers("q-plain").size).to eq(1)
+  end
+
+  it "starts an answerer for an unmarked auth-looking block, which it may escalate" do
+    blocked_on("q-auth", "permission denied: the token was refused")
+    expect(answerers("q-auth").size).to eq(1)
+  end
+
   it "treats a review wait as no question" do
     blocked_on("q-review", "[review] waiting on the architect for q-review")
     expect(answerers("q-review")).to be_empty
