@@ -84,6 +84,32 @@ RSpec.describe Hecks::Adapters::BoundedCapture do
     expect(result.err).to include("before any example started")
   end
 
+  # A program that sleeps in a directory of its own, which is removed 0.3 seconds after it starts.
+  def vanishing
+    home = Dir.mktmpdir("bounded-vanish")
+    Thread.new do
+      IO.select(nil, nil, nil, 0.3)
+      FileUtils.rm_rf(home)
+    end
+    argv = [RbConfig.ruby, "-e", "sleep 30"]
+    described_class.new(seconds: 30, setting: "spec_bounds.check_seconds")
+                   .call(argv, env: { described_class::PROGRESS => nil }, chdir: home)
+  end
+
+  it "ends a program whose directory disappears, long before the bound", :aggregate_failures do
+    started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    result = vanishing
+    expect(result.stopped).to be(true)
+    expect(result.err).to include("its directory", "is gone")
+    expect(Process.clock_gettime(Process::CLOCK_MONOTONIC) - started).to be < 10
+  end
+
+  it "refuses to start a program in a directory that is gone", :aggregate_failures do
+    result = capture.call([RbConfig.ruby, "-e", "1"], chdir: File.join(dir, "absent"))
+    expect(result.status).to eq(127)
+    expect(result.err).to include("refused:", "is gone")
+  end
+
   it "reads a bound from the Tickets world, and its own default when the world names none", :aggregate_failures do
     expect(described_class.seconds(Hecks::RustBuild::ROOT, :file_seconds)).to eq(600)
     expect(described_class.seconds(dir, :check_seconds)).to eq(described_class::DEFAULTS[:check_seconds])

@@ -12,6 +12,10 @@ module Hecks
     # the run was in, read from the progress file `spec/support/spec_progress.rb` writes before
     # every example. A run that carries `PROGRESS` already shares that file with the runs inside it,
     # so a bound around a launcher call names the example its innermost spec process was in.
+    #
+    # The directory the program runs in is watched as well: a program started in a directory that
+    # is gone is refused by name, and one whose directory disappears while it runs (a temporary
+    # clone removed under it) is ended with its tree, so a check never outlives its checkout.
     class BoundedCapture
       # The variable naming the file each example writes its file and description to.
       PROGRESS = "HECKS_SPEC_PROGRESS"
@@ -24,6 +28,9 @@ module Hecks
 
       # Seconds between asking the tree to end and ending it.
       GRACE = 5
+
+      # Seconds between looks at whether the directory the program runs in still exists.
+      WATCH = 1
 
       # How a bounded run ended.
       #
@@ -61,11 +68,11 @@ module Hecks
       #   127 and its reason in `err`, not a raise
       def call(argv, env: {}, chdir: Dir.pwd)
         with_progress(env) do |progress|
-          out, err, status, stopped = run(argv, env.merge(PROGRESS => progress), chdir)
-          Result.new(out, stopped ? "#{err}#{stop_line(progress)}\n" : err, status, stopped)
+          out, err, status, reason = run(argv, env.merge(PROGRESS => progress), chdir)
+          Result.new(out, reason ? "#{err}#{stop_line(reason, progress, chdir)}\n" : err, status, !reason.nil?)
         end
       rescue Errno::ENOENT => e
-        Result.new("", e.message, 127, false)
+        Result.new("", refusal(e, chdir), 127, false)
       end
 
       private
@@ -81,10 +88,29 @@ module Hecks
         Open3.popen3(env, *argv, chdir: chdir, pgroup: true) do |input, out, err, waiter|
           input.close
           readers = [out, err].map { |stream| Thread.new { stream.read } }
-          stopped = waiter.join(@seconds).nil?
-          stop(waiter) if stopped
-          [*readers.map { |reader| reader.join(GRACE)&.value.to_s }, waiter.value.exitstatus || 1, stopped]
+          reason = await(waiter, chdir)
+          stop(waiter) if reason
+          [*readers.map { |reader| reader.join(GRACE)&.value.to_s }, waiter.value.exitstatus || 1, reason]
         end
+      end
+
+      # @return [Symbol, nil] why the program must end: `:bound` when the time ran out, `:vanished`
+      #   when its directory went away; nil when it ended by itself
+      def await(waiter, chdir)
+        deadline = now + @seconds
+        loop do
+          return nil if waiter.join((deadline - now).clamp(0, WATCH))
+          return :bound if now >= deadline
+          return :vanished unless File.directory?(chdir)
+        end
+      end
+
+      def now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+
+      def refusal(error, chdir)
+        return error.message if File.directory?(chdir)
+
+        "refused: #{chdir} is gone, and a program is not started in a vanished directory (#{error.message})"
       end
 
       def stop(waiter)
@@ -98,7 +124,9 @@ module Hecks
         nil
       end
 
-      def stop_line(progress)
+      def stop_line(reason, progress, chdir)
+        return "stopped: its directory #{chdir} is gone #{place(progress)}" if reason == :vanished
+
         "stopped: ran past the #{@seconds}-second bound (#{@setting}) #{place(progress)}"
       end
 
