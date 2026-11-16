@@ -87,7 +87,11 @@ header.top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 20p
 .item.saving { opacity: .55; }
 .dropbar .zone { padding: 12px 26px; border: 2px dashed var(--line); border-radius: 10px; color: var(--ink); font-weight: 600; }
 .dropbar .zone.over { border-color: var(--run); background: var(--signal-soft); }
-.lane h2 { display: flex; align-items: baseline; gap: 10px; font-size: 16px; font-weight: 650; letter-spacing: -.005em; margin: 0 4px 8px; }
+.lane h2 { display: flex; align-items: baseline; gap: 10px; font-size: 16px; font-weight: 650; letter-spacing: -.005em; margin: 0 4px 8px; cursor: pointer; }
+/* A lane is drawn shut: its heading and counts show, its epic rows open on a click and the choice is kept. */
+.lane h2::before { content: "\25BE"; width: 1em; color: var(--ink2); }
+.lane.shut h2::before { content: "\25B8"; }
+.lane.shut > details.epic { display: none; }
 .lane h2 .counts { font-weight: 400; }
 .epic { background: var(--surface); border: 1px solid var(--line); border-top-width: 0; }
 .epic:first-of-type { border-top-width: 1px; border-radius: 12px 12px 0 0; }
@@ -182,6 +186,17 @@ document.addEventListener("click", (event) => {
   if (summary && !event.target.closest("a")) remember(summary.parentElement);
 });
 
+// The lanes the owner opened by hand, kept across redraws and visits; every lane is shut until then.
+const laneOpen = (() => { try { return JSON.parse(localStorage.getItem("plan-lanes") || "{}"); } catch (e) { return {}; } })();
+document.addEventListener("click", (event) => {
+  const head = event.target.closest("#plan .lane > h2");
+  if (!head || event.target.closest("a")) return;
+  const lane = head.parentElement, key = lane.dataset.lane;
+  laneOpen[key] = lane.classList.contains("shut");
+  lane.classList.toggle("shut", !laneOpen[key]);
+  try { localStorage.setItem("plan-lanes", JSON.stringify(laneOpen)); } catch (e) { /* the choice lasts for this page only */ }
+});
+
 function matches(item, text, epicText) {
   const fields = Object.entries(FIELDS).every(([id, field]) => !$(id).value || item.dataset[field] === $(id).value);
   return fields && (!text || epicText.includes(text) || item.textContent.toLowerCase().includes(text));
@@ -201,7 +216,11 @@ function apply() {
     const key = epic.dataset.epic;
     epic.open = filtering ? found > 0 : (key in chosen ? chosen[key] : epic.dataset.drawn === "open");
   });
-  document.querySelectorAll("#plan .lane").forEach((lane) => { lane.hidden = !lane.querySelector("details.epic:not([hidden])"); });
+  document.querySelectorAll("#plan .lane").forEach((lane) => {
+    lane.hidden = !lane.querySelector("details.epic:not([hidden])");
+    // A lane is shut unless the owner opened it, or a filter found something in it.
+    if (lane.querySelector(":scope > h2")) lane.classList.toggle("shut", !(filtering || laneOpen[lane.dataset.lane]));
+  });
   $("shown").textContent = filtering ? shown + " of " + total + " items shown" : READ_ONLY;
   $("empty").hidden = !(filtering && shown === 0);
 }
