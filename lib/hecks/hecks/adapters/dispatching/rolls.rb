@@ -33,8 +33,8 @@ module Hecks
         end
 
         # Says whether the clock alone has made something eligible to start: a retry time passed,
-        # the boot budget freed, or a roll was refused while a filling ran. A beat that finds none
-        # of these is refused as quiet and starts no filling.
+        # the boot budget freed, a roll was refused while a filling ran, or a slot is free that a
+        # filling would use. A beat that finds none of these is refused as quiet and starts nothing.
         #
         # @param held [Hash] the `Wake` record: `run`, the beat's key
         # @return [Hash{Symbol => Hash}] `roll:` the key of the roll to start, and `reason:`
@@ -78,7 +78,20 @@ module Hecks
 
         # What the beat asks of the machine, each asked only once its flag says it could matter.
         def beat_questions
-          { stopped: -> { machine.boot_stop }, frees_at: -> { machine.boot_frees_at }, cleared: -> { machine_clear? } }
+          { stopped: -> { machine.boot_stop }, frees_at: -> { machine.boot_frees_at }, cleared: -> { machine_clear? },
+            room: -> { free_starts } }
+        end
+
+        # How many planned items a rolling filling would start now, planned from the items the beat
+        # keeps. The plan is made only when no filling runs in this process, something is planned
+        # and the cap has a free slot; the plan itself holds every item back on load or a pause.
+        def free_starts
+          return 0 if Filling.running? || (items = beat_items).empty?
+
+          started = work_items.started
+          return 0 if started.size >= machine.cap
+
+          Plan.new(items, started, **limits).chosen.size
         end
 
         # Whether the load is back under its limit and no crossing pauses the starts.
