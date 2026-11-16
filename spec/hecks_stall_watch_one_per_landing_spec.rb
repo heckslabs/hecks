@@ -16,7 +16,9 @@ module OnePerLandingLooks
 
   def filed(run) = { "kind" => "event", "event" => "StallFiled", "id" => "stall-landing-carry-#{run}" }
 
-  def subjects(lines) = Hecks::Adapters::StallWatching::Sightings.new([KIND], NOW).rows(lines, "look").map { |row| row[:subject] }
+  def subjects(lines)
+    Hecks::Adapters::StallWatching::Sightings.new([KIND], NOW.to_i).rows(lines, "look").map { |row| row[:subject] }
+  end
 end
 
 # A landing is one branch: the landing-carry kind files one stall for it however many carry runs

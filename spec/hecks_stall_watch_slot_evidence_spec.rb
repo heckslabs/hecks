@@ -2,7 +2,8 @@ require "spec_helper"
 require "tmpdir"
 require "hecks/hecks/adapters/stall_watching"
 
-# The `slots` evidence read names who holds each heavy-job slot and when its lock last changed hands.
+# The `slots` evidence read names who holds each heavy-job slot and when its lock last
+# changed hands.
 RSpec.describe Hecks::Adapters::StallWatching::SlotEvidence do
   let(:dir) { Dir.mktmpdir("hecks-slots") }
 
