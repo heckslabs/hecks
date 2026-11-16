@@ -234,6 +234,8 @@ Hecks.bluebook "PipelineBoard" do
       # a gap, not a timer: nothing is drawn unless a journal line marked a tile. A run of lines
       # then costs one drawing, so a busy pipeline costs the board no more than a quiet one.
       member name: "tile_redraw_seconds",     value: 2
+      member name: "board_answer_seconds",    value: 10
+      member name: "board_stop_grace_seconds", value: 5
       # Seconds a reader keeps an answer before it asks `git`, `gh` or the event stores again.
       # Each is longer than the read period, so a program starts once in that time, not on every
       # read; the stores are kept longest because the event log already says what happened.
@@ -546,6 +548,39 @@ Hecks.bluebook "PipelineBoard" do
       attribute :run, RunKey, optional: true
       returns Document
     end
+  end
+
+  # A look from outside the board's process: its own restart runs inside the loop that wedged.
+  aggregate "BoardWatch" do
+    description "One look at the serving board through its own port: a board that does not answer GET / within board_answer_seconds, or whose state is stale, is unresponsive and is restarted; the Supervisor adapter only probes and restarts, and every outcome is an event."
+
+    identified_by :run
+
+    attribute :run,  PipelineBoard::RunKey
+    attribute :port, PipelineBoard::Port, optional: true
+    attribute :last, PipelineBoard::Reason, optional: true
+
+    command "Watch" do
+      role "System"
+      goal "Look at the board through its own port: it answers, or it is restarted"
+
+      attribute :run,  PipelineBoard::RunKey, sets: true
+      attribute :port, PipelineBoard::Port, default: 4747, sets: true
+
+      emits WatchRequested
+    end
+  end
+
+  # The board answered; nothing else happens.
+  policy "ProbeWhenWatchRequested" do
+    on  "BoardWatch.WatchRequested"
+    ask :probe, with: { port: :port }
+  end
+
+  # The board did not answer: restart it.
+  policy "RestartWhenBoardUnresponsive" do
+    on  "BoardWatch.BoardUnresponsive"
+    ask :restart, with: { port: :port }
   end
 
   # The Hecks domain's `Board.Serve` asks for the board. Its registry holds every attached bluebook,

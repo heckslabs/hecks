@@ -42,7 +42,7 @@ module Hecks
 
         def restarted
           @host.stop(@pid)
-          @host.restart
+          @host.restart(misses: @missed)
           :restarted
         end
       end
