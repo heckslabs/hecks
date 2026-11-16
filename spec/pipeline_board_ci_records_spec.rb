@@ -13,6 +13,12 @@ RSpec.describe Hecks::Adapters::PipelineBoard::CiRecords do
       started_at: "", wall_minutes: 0.0, failed_jobs: 0, jobs: "", url: "" }.merge(fields)
   end
 
+  def runtime_record(sighting, **fields)
+    fields = record(sighting, **fields).merge(state: Struct.new(:value).new("completed"))
+    aggregate = double(hecks_name: "CiRunRecord", identity_heads: [], identified_by: nil, attribute: nil)
+    Hecks::Runtime::Instance.new(aggregate: aggregate, id: sighting, state: fields, hydrate: false)
+  end
+
   let(:asked) { [] }
   let(:held) { [] }
   let(:unavailable) { Hecks::Adapters::PipelineBoard::Unavailable }
@@ -56,5 +62,11 @@ RSpec.describe Hecks::Adapters::PipelineBoard::CiRecords do
   it "says no train run is recorded with its jobs when only main's are" do
     held.push(record("1-1-done", jobs: "[]"))
     expect { runs(:train_slowest_jobs) }.to raise_error(unavailable, /no completed train CI run/)
+  end
+
+  it "reads the status word of a runtime record whose state is a value object", :aggregate_failures do
+    held.push(runtime_record("1-1-done", conclusion: "success"))
+    expect(runs.map { |row| row[:status] }).to eq(["completed"])
+    expect(github.ci_runs[:text]).not_to include("#<", ":sighting=>")
   end
 end
