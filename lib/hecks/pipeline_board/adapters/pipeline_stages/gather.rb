@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "json"
+require_relative "../ledger_gate"
 require_relative "plan_tile"
 require_relative "integration_tile"
 require_relative "stale"
@@ -11,7 +12,8 @@ module Hecks
       # Asks each reader its question and keeps the answer, or `{unknown: <reason>}` when the reader
       # could not answer, so one failed read never takes the others down. The reads run side by
       # side and each has {READ_SECONDS} to answer, so one slow reader never holds the rest. A
-      # section whose read was skipped shows its last answer, noted as stale (see {Stale}).
+      # section whose read was skipped shows its last answer, noted as stale (see {Stale}). The
+      # readers of a shared ledger take turns (see {LedgerGate}).
       module Gather
         include PlanTile
         include IntegrationTile
@@ -19,6 +21,9 @@ module Hecks
 
         # Seconds one reader may take before its section is given as unknown.
         READ_SECONDS = 20
+
+        # How many frames of an overdue reader's stack the board logs.
+        BACKTRACE_FRAMES = 25
 
         # A section whose reader from an earlier refresh has not finished.
         STILL_RUNNING = { unknown: "the last read is still running" }.freeze
@@ -60,7 +65,7 @@ module Hecks
 
         def read(spec)
           reader, method, kind, *args = spec
-          ask = -> { instance_variable_get("@#{reader}").public_send(method, *args) }
+          ask = -> { LedgerGate.through(reader) { instance_variable_get("@#{reader}").public_send(method, *args) } }
           kind == :query ? queried(&ask) : guard(&ask)
         end
 
@@ -98,7 +103,15 @@ module Hecks
         def answer_of(section, thread, deadline)
           return finished(section, thread) if thread.join([deadline - Time.now, 0].max)
 
+          report_overdue(section, thread)
           { unknown: "reader did not answer in #{read_seconds}s" }
+        end
+
+        # Names where an overdue reader is, in the board's log, once for each read: the thread is
+        # left running and the next refresh skips it, so this is not reached again for it.
+        def report_overdue(section, thread)
+          frames = thread.backtrace&.first(BACKTRACE_FRAMES) || []
+          warn "board: #{section} reader overdue after #{read_seconds}s at:\n  #{frames.join("\n  ")}"
         end
 
         def finished(section, thread)

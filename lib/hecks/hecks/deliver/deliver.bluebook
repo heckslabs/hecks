@@ -471,7 +471,7 @@ Hecks.bluebook "Hecks" do
       end
 
       lifecycle :status, default: "requested" do
-        mark :failure, "faulted", "red"
+        mark :failure, "faulted", "red", "closed"
         transition "Send"  => "pushed",  from: "requested"
         transition "Ride"  => "carried", from: "requested"
         transition "Queue" => "queued",  from: "requested"
@@ -479,7 +479,8 @@ Hecks.bluebook "Hecks" do
         transition "Summarize" => "surveyed", from: "requested"
         transition "Fail"  => "red",     from: "queued"
         transition "Merge" => "pushed", from: %w[queued red]
-        mark :terminal, "carried", "faulted", "pushed", "surveyed"
+        transition "Close" => "closed", from: %w[queued red]
+        mark :terminal, "carried", "faulted", "pushed", "surveyed", "closed"
       end
 
       command "Board" do
@@ -607,6 +608,18 @@ Hecks.bluebook "Hecks" do
         emits TrainChecksFailed
       end
 
+      # A queued boarding's pull request ended closed without merging (a newer train superseded it, a
+      # person closed it, or none was found): it can never merge, so the boarding is settled for good.
+      command "Close" do
+        role "System"
+        goal "Record that a queued boarding's pull request was closed unmerged, or none was found, so it is settled"
+
+        reference_to SendTrain
+        attribute :report, Report, sets: true
+
+        emits BoardingClosed
+      end
+
       command "Fault" do
         role "System"
         goal "Record why a boarding could not push"
@@ -705,6 +718,13 @@ Hecks.bluebook "Hecks" do
       on      "SendTrain.ObserveAnswered"
       where   { outcome.value == "checks_failed" }
       trigger SendTrain::Fail, with: { report: :report }
+    end
+
+    # A queued boarding whose pull request closed unmerged: the answer's report says so.
+    policy "RecordTheClosedBoarding" do
+      on      "SendTrain.ObserveAnswered"
+      where   { outcome.value == "closed" }
+      trigger SendTrain::Close, with: { report: :report }
     end
 
     # Deploys stay by hand: a push that reached the remote says a deploy is ready, and nothing more.

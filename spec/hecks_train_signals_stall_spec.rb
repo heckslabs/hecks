@@ -51,6 +51,20 @@ RSpec.describe "StallWatch train signals" do
     expect(filed_keys).to eq([])
   end
 
+  it "files nothing for a queued boarding whose pull request closed unmerged", :aggregate_failures do
+    write_boarding([["BoardingQueued", 50], ["BoardingClosed", 49]])
+    detect("look-1")
+
+    expect(filed_keys).to eq([])
+  end
+
+  it "files nothing for a red boarding whose pull request then closed unmerged" do
+    write_boarding([["TrainChecksFailed", 5], ["BoardingClosed", 1]])
+    detect("look-1")
+
+    expect(filed_keys).to eq([])
+  end
+
   it "files nothing for a queued boarding whose checks failed" do
     write_boarding([["BoardingQueued", 50], ["TrainChecksFailed", 49]])
     detect("look-1")
