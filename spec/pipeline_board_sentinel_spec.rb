@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "open3"
+require "tmpdir"
 require "hecks/pipeline_board/adapters/sentinel/standing"
 
 # The watch from outside the board restarts it after enough unanswered asks in a row.
@@ -58,6 +60,20 @@ RSpec.describe Hecks::Adapters::PipelineBoard::Sentinel do
     it "starts nothing when one already stands for this environment" do
       allow(described_class).to receive(:standing?).and_return(true)
       expect(described_class.stand(port: 1)).to be_nil
+    end
+  end
+
+  describe ".command" do
+    # A bare interpreter, as the board spawns it: no bundler and no load path from the
+    # environment, so the sentinel loads only through the load path its command names.
+    let(:bare) { { "PATH" => ENV.fetch("PATH"), "HOME" => Dir.home } }
+
+    it "starts a sentinel that loads and ends once its board is gone", :aggregate_failures do
+      spec = { pid: 0, port: 1, command: [], directory: Dir.pwd, every: 0, misses: 1 }
+      options = { unsetenv_others: true, chdir: Dir.tmpdir }
+      _out, err, status = Open3.capture3(bare, *described_class.command(spec), **options)
+      expect(err).not_to include("LoadError")
+      expect(status).to be_success
     end
   end
 end
