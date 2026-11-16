@@ -1,4 +1,5 @@
 require "spec_helper"
+require "hecks/hecks/adapters/main_integration"
 require_relative "support/carried_repository"
 
 # A run whose commit origin/main already carries (an ancestor, or inside a squash train) does not
