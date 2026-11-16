@@ -1,6 +1,7 @@
 require "open3"
 require "tmpdir"
 require "fileutils"
+require "digest"
 require "hecks/adapters/driving/resident/paths"
 require_relative "thread_parking"
 require_relative "child_process_guard"
@@ -8,26 +9,51 @@ require_relative "child_process_guard"
 # Runs this checkout's `exe/hecks` against a resident of its own, in cache directories that
 # belong to the example group, so a spec never reaches a developer's resident or their usage
 # log. Every resident a group starts is stopped when the group ends.
+#
+# The checkout is shared by every spec process on the machine, the parallel ones of a CI shard
+# among them, and a resident retires when the checkout's code looks changed. So an example tagged
+# `:changes_checkout` holds the checkout alone, and every other example of these groups shares
+# it: a change made to retire one group's resident never retires another's in the middle of an
+# example that needs it standing.
 module ResidentLaunch
   ROOT = File.expand_path("../..", __dir__)
   PATHS = Hecks::Adapters::Driving::Resident::Paths
   # Seconds a resident gets to load the Hecks domain and start listening on a cold cache.
   STARTUP = 120
+  # The file every spec process of this checkout locks around an example of these groups. It
+  # sits outside the checkout, since a new entry at the checkout's root retires a resident too.
+  CHECKOUT_LOCK = File.join(Dir.tmpdir, "hecks-spec-checkout-#{Digest::SHA256.hexdigest(ROOT)[0, 12]}.lock")
 
   # What a launcher line answered: standard output, standard error and the exit status.
   Answer = Struct.new(:out, :err, :status)
 
   # The group's cache directory is also this process's, so `Paths` finds the launchers' files.
+  # Each example holds the checkout, alone when it is tagged `:changes_checkout`.
   def self.included(group)
-    group.before(:all) do
-      @cache = Dir.mktmpdir("hr")
-      @saved_cache = ENV.fetch("HECKS_CACHE_DIR", nil)
-      ENV["HECKS_CACHE_DIR"] = @cache
-    end
-    group.after(:all) do
-      stop_resident
-      ENV["HECKS_CACHE_DIR"] = @saved_cache
-      FileUtils.rm_rf(@cache)
+    group.before(:all) { take_own_cache }
+    group.after(:all) { leave_own_cache }
+    group.around { |example| holding_the_checkout(alone: example.metadata[:changes_checkout]) { example.run } }
+  end
+
+  def take_own_cache
+    @cache = Dir.mktmpdir("hr")
+    @saved_cache = ENV.fetch("HECKS_CACHE_DIR", nil)
+    ENV["HECKS_CACHE_DIR"] = @cache
+  end
+
+  # Stops the group's resident, then puts the cache directory back and removes the group's own.
+  def leave_own_cache
+    stop_resident
+    ENV["HECKS_CACHE_DIR"] = @saved_cache
+    FileUtils.rm_rf(@cache)
+  end
+
+  # Runs the block holding the checkout: alone when `alone`, else shared with the other examples
+  # that only need their residents left standing.
+  def holding_the_checkout(alone:)
+    File.open(CHECKOUT_LOCK, File::CREAT | File::RDWR, 0o600) do |lock|
+      lock.flock(alone ? File::LOCK_EX : File::LOCK_SH)
+      yield
     end
   end
 
@@ -96,6 +122,7 @@ module ResidentLaunch
   end
 
   # Runs the block with the checkout's lockfile looking newer, then puts its modification time back.
+  # Only an example tagged `:changes_checkout` may call it.
   def with_newer_lockfile
     lockfile = File.join(ROOT, "Gemfile.lock")
     stamp = File.mtime(lockfile)
