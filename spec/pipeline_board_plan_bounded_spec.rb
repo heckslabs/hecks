@@ -12,14 +12,6 @@ RSpec.describe "the planning page's bounded text" do
   let(:long) { 250 }
   let(:css) { File.expand_path("../lib/hecks/pipeline_board/adapters/pipeline_web/plan.html", __dir__) }
 
-  def words(size) = ("word " * ((size / 5) + 1))[0, size]
-
-  def row(slug, **fields)
-    { slug: slug, title: words(300), status: "planned", area: [words(300)], priority: "", category: "",
-      epic: "big", claimed_by: "", claimed_at: "", budget_minutes: 90, yield_count: 3,
-      reason: words(600), step: 1, detail: words(3000) }.merge(fields)
-  end
-
   let(:page) do
     epic = { epic: "big", title: words(300), outcome: words(3500), tier: "", done: 1, dropped: 0,
              closed: [{ slug: "old", title: words(300), status: "done" }] }
@@ -32,23 +24,35 @@ RSpec.describe "the planning page's bounded text" do
     Hecks::Adapters::PipelineBoard::PlanHtml.draw(reading)
   end
 
+  def words(size) = ("word " * ((size / 5) + 1))[0, size]
+
+  def row(slug, **fields)
+    { slug: slug, title: words(300), status: "planned", area: [words(300)], priority: "", category: "",
+      epic: "big", claimed_by: "", claimed_at: "", budget_minutes: 90, yield_count: 3,
+      reason: words(600), step: 1, detail: words(3000) }.merge(fields)
+  end
+
   # @return [Array<String>] the selector each element holding a long run of text answers to: its own
   #   class, or its tag under the nearest classed ancestor
   def long_places(html)
     stack = []
-    places = []
+    found = []
     html.scan(%r{<(/?)([a-z0-9]+)([^>]*)>|([^<]+)}) do |close, tag, attrs, text|
       if text
-        places << place(stack) if CGI.unescapeHTML(text).strip.length > long && stack.any?
-      elsif %w[br i input meta link hr].include?(tag)
-        next
-      elsif close.empty?
-        stack << [tag, attrs[/class="([^" ]+)/, 1]]
+        found << place(stack) if long_text?(stack, text)
       else
-        stack.pop
+        track(stack, close, tag, attrs)
       end
     end
-    places.uniq
+    found.uniq
+  end
+
+  def long_text?(stack, text) = stack.any? && CGI.unescapeHTML(text).strip.length > long
+
+  def track(stack, close, tag, attrs)
+    return if %w[br i input meta link hr].include?(tag)
+
+    close.empty? ? stack << [tag, attrs[/class="([^" ]+)/, 1]] : stack.pop
   end
 
   def place(stack)
@@ -56,7 +60,7 @@ RSpec.describe "the planning page's bounded text" do
     return ".#{name}" if name
 
     up = stack[0...-1].reverse.find { |_, klass| klass }
-    "#{up ? ".#{up[1]} " : ""}#{tag}"
+    "#{".#{up[1]} " if up}#{tag}"
   end
 
   # @return [Array<Array(String, String)>] each rule of the page's style as its selector and body
@@ -69,12 +73,14 @@ RSpec.describe "the planning page's bounded text" do
 
   def bounded?(selector)
     bodies = rules.select { |head, _| head.end_with?(selector) }.map(&:last)
-    bodies.any? do |body|
-      (body.match?(/max-height:\s*\d/) && body.match?(/overflow:\s*(auto|scroll|hidden)/)) ||
-        body.match?(/line-clamp:\s*\d/) ||
-        (body.include?("white-space: nowrap") && body.include?("text-overflow: ellipsis"))
-    end
+    bodies.any? { |body| scrolls?(body) || clamped?(body) || ellipsized?(body) }
   end
+
+  def scrolls?(body) = body.match?(/max-height:\s*\d/) && body.match?(/overflow:\s*(auto|scroll|hidden)/)
+
+  def clamped?(body) = body.match?(/line-clamp:\s*\d/)
+
+  def ellipsized?(body) = body.include?("white-space: nowrap") && body.include?("text-overflow: ellipsis")
 
   it "draws oversized text into every place the page is known to hold it", :aggregate_failures do
     expect(long_places(page)).to include(*places)
