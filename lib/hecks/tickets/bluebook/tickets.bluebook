@@ -1056,6 +1056,14 @@ Hecks.bluebook "Tickets" do
       returns Document
     end
 
+    # The sweep for work finished with no code on main: a read, never a write. Each line is the local
+    # branch of a done work item whose tip `main` does not contain. A done item with no local branch
+    # is not listed: nothing is left to lose.
+    query "DoneOffMain" do
+      description "The local branches that name a done work item and whose tip main does not contain, one line each as key, branch and tip. Read-only."
+      returns Document
+    end
+
     query "Under" do
       description "Every work item of the plan one decision carries, in plan order."
       attribute :adr, String
