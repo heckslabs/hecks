@@ -148,26 +148,27 @@ jobs:
       - name: "Compile the tests"
         run: cd rust/host && bundle exec cargo test --workspace --no-run
 
-      # Polls for the artifact, since the job that builds it runs beside this one.
-      - name: Wait for the wasm modules
+      # Fetches each module by name, since the job that builds them runs beside this one. The download
+      # is the retried unit: a separate count of the artifacts can read a listing that download-artifact
+      # does not, and then it took 1 of 3 in the second the others were created. One deadline covers all
+      # three, so a leg that never uploads fails the step at 600s, not at the job's timeout.
+      - name: Download the wasm modules
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          for _ in $(seq 1 300); do
-            # --paginate runs --jq once per page, so list the names and count the lines
-            found=$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts?per_page=100" \
-                    --jq '.artifacts[] | select(.name | startswith("host-wasm-")) | .name' | wc -l | tr -d ' ')
-            [ "$found" = "3" ] && exit 0
-            sleep 2
+          deadline=$((SECONDS + 600))
+          for module in banking checkout_fixture pluginned; do
+            until gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "host-wasm-$module" --dir rust/dist; do
+              if [ "$SECONDS" -ge "$deadline" ]; then
+                echo "host-wasm-$module was not downloadable within 600s" >&2
+                exit 1
+              fi
+              sleep 2
+            done
           done
-          echo "the host-wasm artifacts were not uploaded within 600s" >&2
-          exit 1
-
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: host-wasm-*
-          merge-multiple: true
-          path: rust/dist
+          for wasm in banking checkout_fixture; do
+            [ -f "rust/dist/$wasm.wasm" ] || { echo "rust/dist/$wasm.wasm is missing after the download" >&2; exit 1; }
+          done
 
       - name: "cargo test (rust/host)"
         run: cd rust/host && bundle exec cargo test --workspace
