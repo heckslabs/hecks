@@ -5,42 +5,47 @@ require "hecks/hecks/adapters/delivery_library"
 Hecks::Adapters::DeliveryLibrary.require("git_landing")
 require "hecks/hecks/adapters/git_shallow_check"
 
-# The impacted-spec run stops at the world's gate budget and returns the specs it left; its
-# workers are as many as the world and the load allow, and a red spec refuses by name.
+# The impacted-spec run takes its files a batch at a time, one launcher call each, with the files
+# that load the whole library last; it stops at the world's budget between batches and returns the
+# files it left, and a red file refuses by name.
 RSpec.describe Hecks::Adapters::GitShallowCheck::ImpactedRun, "#call" do
-  let(:ticks) { Queue.new([0, 0, 700, 700]) }
-  let(:specs) { %w[spec/a_spec.rb spec/b_spec.rb spec/c_spec.rb] }
+  let(:batch) { Hecks::Adapters::GitShallowCheck::ImpactedBatch }
+  let(:specs) { %w[spec/a_spec.rb spec/load_hygiene_lib_1_spec.rb spec/b_spec.rb] }
+  let(:seen) { [] }
 
-  def build(width, clock)
+  def build(clock: -> { 0 }, width: 1, files: specs)
     described_class.new(Dir.pwd, budget: 600, clock: clock, workers: ->(_count) { width }).tap do |run|
-      allow(run).to receive(:mapped).and_return(specs)
-      allow(run).to receive(:pass!) { |spec, ran, lock| lock.synchronize { ran << spec } }
+      allow(run).to receive(:mapped).and_return(files)
+      allow(batch).to receive(:call) { |_shell, _dir, group| seen << group }
     end
   end
 
-  it "stops before the next spec once the budget has passed", :aggregate_failures do
-    done = build(1, -> { ticks.pop }).call([], "main")
-    expect(done.ran).to eq(["spec/a_spec.rb"])
-    expect(done.unrun).to eq(%w[spec/b_spec.rb spec/c_spec.rb])
+  def many(count) = Array.new(count) { |index| "spec/f#{index}_spec.rb" }
+
+  it "runs the files in one call each batch, not one each file", :aggregate_failures do
+    done = build(files: many(9)).call([], "main")
+    expect(done.calls).to eq(3)
+    expect(seen.map(&:size)).to eq([4, 4, 1])
   end
 
-  it "runs every spec with several workers" do
-    expect(build(3, -> { 0 }).call([], "main").ran).to match_array(specs)
+  it "reports every file as run" do
+    expect(build.call([], "main").ran).to match_array(specs)
   end
 
-  it "runs every spec with one worker, in order" do
-    expect(build(1, -> { 0 }).call([], "main").ran).to eq(specs)
+  it "runs several workers' batches" do
+    expect(build(width: 3, files: many(9)).call([], "main").ran).to match_array(many(9))
   end
 
-  it "records what it could not run when the budget is spent first", :aggregate_failures do
-    done = build(1, Queue.new([0, *Array.new(8, 700)]).method(:pop)).call([], "main")
-    expect(done.ran).to be_empty
-    expect(done.unrun).to eq(specs)
+  it "stops before the next batch once the budget has passed", :aggregate_failures do
+    ticks = Queue.new([0, 0, 700, 700])
+    done = build(clock: -> { ticks.pop }, files: many(9)).call([], "main")
+    expect(done.ran).to eq(many(9).first(4))
+    expect(done.unrun).to eq(many(9).last(5))
   end
 
-  it "raises the first red spec by name" do
-    run = build(2, -> { 0 })
-    allow(run).to receive(:pass!).and_raise(Hecks::Adapters::ConsoleCapture::Failure, "impacted specs red: x")
+  it "raises the failing file and example by name" do
+    run = build
+    allow(batch).to receive(:call).and_raise(Hecks::Adapters::ConsoleCapture::Failure, "impacted specs red: x")
     expect { run.call([], "main") }.to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /red: x/)
   end
 end
