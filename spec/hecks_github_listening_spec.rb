@@ -3,6 +3,7 @@
 require "spec_helper"
 require "rack/test"
 require "net/http"
+require "open3"
 require "tmpdir"
 require "hecks/hecks/adapters/github_listening"
 
@@ -116,6 +117,34 @@ RSpec.describe Hecks::Adapters::GithubListening do
   ensure
     server&.shutdown
     thread&.join(5)
+  end
+
+  # Runs `script` in a Ruby with no gems on its load path, only this checkout's `lib`, and an empty
+  # environment: an inherited `RUBYOPT` or `RUBYLIB` would put the bundle's gems back.
+  def bare_ruby(script)
+    lib = File.expand_path("../lib", __dir__)
+    Open3.capture2e({}, RbConfig.ruby, "--disable-gems", "-I", lib, "-e",
+                    "require 'hecks/hecks/adapters/github_listening'; #{script}", unsetenv_others: true)
+  end
+
+  it "loads in a process without rack, webrick or rackup", :aggregate_failures, :process do
+    output, status = bare_ruby("puts $LOADED_FEATURES.grep(/rack|webrick/).size")
+    expect(status).to be_success, output
+    expect(output).to eq("0\n")
+  end
+
+  # Opens a listener in a bare Ruby and prints the refusal's kind and message.
+  def bare_refusal = bare_ruby(<<~RUBY).first
+    described = Hecks::Adapters::GithubListening
+    begin
+      described.new(settings: { secret_path: "/none" }).open_at(0)
+    rescue described::ServerGems::Unavailable => e
+      puts e.kind, e.message
+    end
+  RUBY
+
+  it "refuses to open a listener without the server gems, naming them", :process do
+    expect(bare_refusal).to start_with("no_server\nthe webhook listener needs the rack, webrick and rackup gems")
   end
 
   it "binds 127.0.0.1 only and answers there", :aggregate_failures do
