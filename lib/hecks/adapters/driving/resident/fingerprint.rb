@@ -21,6 +21,9 @@ module Hecks
           ROOT_DECLARATIONS = "*.{bluebook,world,hecksagon}".freeze
           # Directories at the checkout's root whose entries change what loads.
           ROOT_DIRECTORIES = %w[. exe].freeze
+          # The owner's gitignored settings. They are left out of the listing, so editing one never
+          # retires a resident in the middle of a fill roll; the next resident to start reads them.
+          SETTINGS = /\.local\.world\z/
           # Seconds an answer is reused.
           RECHECK_SECONDS = 1.0
           # Seconds between full listings of the tree.
@@ -112,6 +115,8 @@ module Hecks
           def entries(paths) = paths.each_with_object({}) { |path, found| note(path, found) }
 
           def note(path, found)
+            return if SETTINGS.match?(path)
+
             stat = File.stat(path)
             if stat.directory?
               @looked[path] = stat.mtime
