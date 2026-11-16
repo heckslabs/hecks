@@ -2,6 +2,7 @@
 
 require "socket"
 require "json"
+require_relative "accept_loop"
 require_relative "act_route"
 require_relative "deep_links"
 require_relative "frame"
@@ -49,37 +50,39 @@ module Hecks
         # @param app [#page, #state, #stream, #answer] what answers the routes
         def initialize(port:, app:)
           @listener = TCPServer.new(HOST, port)
-          bound = @listener.local_address
-          @address = bound.ip_address
-          @port = bound.ip_port
+          @address, @port = @listener.local_address.then { |bound| [bound.ip_address, bound.ip_port] }
           @app = app
           @open = []
+          @accepting = AcceptLoop.new(@listener) { |socket| serve(socket) }
         end
 
         # Starts accepting connections on a background thread.
         # @return [Server] self
         def start
-          @thread = Thread.new { accept_loop }
+          @accepting.start
           self
         end
 
         # Blocks until {#stop}.
-        def join = @thread&.join
+        def join = @accepting.join
+
+        # Says where the board listens, stops it on an interrupt and waits until it has stopped.
+        # @return [void]
+        def hold
+          warn "PipelineBoard listening on http://#{@address}:#{@port}/ (Ctrl-C to stop)"
+          trap("INT") { stop }
+          join
+        end
 
         # Closes the listener and every open stream.
         def stop
+          @accepting.stop
           @listener.close
           @open.each { |socket| socket.close unless socket.closed? }
           @app.close if @app.respond_to?(:close)
         end
 
         private
-
-        def accept_loop
-          loop { Thread.new(@listener.accept) { |socket| serve(socket) } }
-        rescue IOError, Errno::EBADF
-          nil
-        end
 
         def serve(socket)
           @open << socket
