@@ -104,24 +104,14 @@ RSpec.describe "a resident under concurrent launchers" do
     Process.kill("CONT", pid) if pid
   end
 
-  # Runs the block with the checkout's lockfile looking newer, then puts its modification time back.
-  def changed_code
-    lockfile = File.join(ResidentLaunch::ROOT, "Gemfile.lock")
-    stamp = File.mtime(lockfile)
-    File.utime(Time.now + 30, Time.now + 30, lockfile)
-    yield
-  ensure
-    File.utime(stamp, stamp, lockfile)
-  end
-
   # Waits until the resident has seen the change and retired, so the lines that follow find none.
   def retired
     ThreadParking.wait_for(timeout: 30) { !File.exist?(ResidentLaunch::PATHS.socket(ResidentLaunch::ROOT)) }
   end
 
   it "starts one replacement when a burst of lines arrives after the code changed, and every line answers",
-     :aggregate_failures do
-    results, summary = measured("changed") { changed_code { retired.then { fire(12) } } }
+     :aggregate_failures, :changes_checkout do
+    results, summary = measured("changed") { with_newer_lockfile { retired.then { fire(12) } } }
     expect(results.map(&:first).uniq).to eq([0]), -> { said }
     expect(summary[:outcomes].fetch("started", 0)).to be <= 1
   end
