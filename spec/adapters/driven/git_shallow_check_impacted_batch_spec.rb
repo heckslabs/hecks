@@ -22,6 +22,17 @@ RSpec.describe Hecks::Adapters::GitShallowCheck::ImpactedBatch, ".call" do
     expect { described_class.call(shell(green, 0), ".", %w[a b]) }.not_to raise_error
   end
 
+  it "says the launcher stopped the call when it ran past its bound, not only the exit code" do
+    line = "stopped: ran past the 600-second bound (file_seconds) in spec/a_spec.rb, example \"x\""
+    expect { described_class.call(shell(refusal("a: 1 example, 0 failures\n#{line}"), 1), ".", %w[a]) }
+      .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /failing spec: stopped: ran past the 600-second bound/)
+  end
+
+  it "names the exit code when no stopped line is said" do
+    expect { described_class.call(shell(refusal("boom"), 1), ".", %w[a b]) }
+      .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /failing spec: exit 1 in a b/)
+  end
+
   it "names the failing file and example in the middle of a batch" do
     text = "rspec ./spec/b_spec.rb:12 # B does it\n\nfailed: spec/b_spec.rb (1 of 3 files)\n3 examples, 1 failure"
     expect { described_class.call(shell(refusal(text), 1), ".", %w[a b c]) }

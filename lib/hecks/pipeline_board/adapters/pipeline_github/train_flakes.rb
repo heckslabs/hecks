@@ -3,6 +3,7 @@
 require "time"
 require "hecks/hecks/adapters/ci_runs/failed_jobs"
 require_relative "flake_memo"
+require_relative "log_backoff"
 
 module Hecks
   module Adapters
@@ -19,6 +20,13 @@ module Hecks
         # How many passed reruns are read for one answer: each costs a job list and a log per
         # earlier attempt.
         RUN_CAP = 20
+
+        # The most of a job's log read for spec files: its end, where rspec lists what failed.
+        LOG_CAP_BYTES = 2_000_000
+
+        # A spec file in rspec's list of failed examples (`rspec ./spec/x_spec.rb:12 # ...`). The
+        # REST log holds every step, so a command line that merely names a spec file is not one.
+        FAILED_EXAMPLE = %r{rspec (?:\./)?(\S+?_spec\.rb):\d+ #}
 
         private
 
@@ -67,7 +75,7 @@ module Hecks
 
         def job_items(id, attempt, job)
           log = log_of(id, attempt, job["databaseId"])
-          files = log.scan(CiRuns::FailedJobs::SPEC_LINE).flatten.uniq
+          files = log.scan(FAILED_EXAMPLE).flatten.uniq
           files.empty? ? [{ item: step_name(job), kind: "setup" }] : files.map { |file| { item: file, kind: "spec" } }
         end
 
@@ -76,8 +84,18 @@ module Hecks
           bad.empty? ? job["name"] : "#{job["name"]}/#{bad.first["name"]}"
         end
 
-        def log_of(id, attempt, job)
-          @text.call("run", "view", id.to_s, "--attempt", attempt.to_s, "--job", job.to_s, "--log-failed").to_s
+        # A job's log, read over REST and cut to its last {LOG_CAP_BYTES}. A read that failed lately
+        # is not asked again until its back-off ends: it raises as the failed read did, so the run
+        # counts as unread and is read again later.
+        def log_of(_id, _attempt, job)
+          raise PipelineBoard::Unavailable, "log of job #{job} failed lately; not asked again yet" if @backoff.held?(job)
+
+          text = @text.call("api", "repos/{owner}/{repo}/actions/jobs/#{job}/logs").to_s
+          @backoff.clear!(job)
+          text.byteslice(-LOG_CAP_BYTES..) || text
+        rescue PipelineBoard::Unavailable
+          @backoff.failed!(job) unless @backoff.held?(job)
+          raise
         end
 
         def tally(found)
