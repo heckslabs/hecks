@@ -6,8 +6,8 @@ module Hecks
   module Adapters
     # The `Waking` port's adapter for `Wake`: each beat of the clock asks whether the clock
     # alone has made something eligible to start, which the {Dispatching} adapter answers from
-    # the planned items, the boot budget and the rolls it refused. It reads in this process and
-    # starts nothing.
+    # the planned items, the boot budget, the rolls it refused and the free slots under the cap.
+    # It reads in this process and starts nothing.
     class Waking
       # @param registry [Runtime::Registry, nil] the booted registry whose work items are read
       # @param aggregate [Object, nil] unused
