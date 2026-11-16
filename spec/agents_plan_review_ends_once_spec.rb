@@ -10,8 +10,12 @@ RSpec.describe "the Agents plan review ending once" do
 
   def ended_already = raise_error(Hecks::Runtime::GivenNotMet, /not ended already/)
 
+  it "ends a review at the moment of its verdict, so it is counted by the day it ended" do
+    expect(request.answer!(verdict: { value: "sound" }, now: { value: 1700 }).ended_at.value).to eq(1700)
+  end
+
   it "refuses to lapse a review that holds a verdict, by name" do
-    asked = request.answer!(verdict: { value: "sound" })
+    asked = request.answer!(verdict: { value: "sound" }, now: { value: 1700 })
     expect { lapse(asked, at: 9000) }.to raise_error(Hecks::Runtime::GivenNotMet, /no verdict yet/)
   end
 
@@ -30,7 +34,7 @@ RSpec.describe "the Agents plan review ending once" do
 
   it "refuses a verdict that comes after the lapse, by name" do
     lapsed = lapse(request, at: 1600)
-    expect { lapsed.answer!(verdict: { value: "sound" }) }
+    expect { lapsed.answer!(verdict: { value: "sound" }, now: { value: 1700 }) }
       .to raise_error(Hecks::Runtime::GivenNotMet, /did not end without a verdict/)
   end
 end

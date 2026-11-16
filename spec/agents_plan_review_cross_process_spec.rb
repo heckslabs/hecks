@@ -25,7 +25,8 @@ RSpec.describe "the Agents plan review across processes" do
 
   def record
     @dispatcher.dispatch_flat("Agents::PlanReview.Record", run: { value: "r1" }, work: { value: "w1" },
-                                                           verdict: { value: "sound" }, findings: { value: "none" })
+                                                           verdict: { value: "sound" }, findings: { value: "none" },
+                                                           now: { value: 1700 })
   end
 
   it "records the verdict in a process that never saw the request" do
