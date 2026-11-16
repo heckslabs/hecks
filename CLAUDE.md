@@ -112,6 +112,11 @@ them without running).
 quick gate and named specs: `run_suite!` is refused by name, and `run_spec_files!` and `run_impacted_specs!`
 run every file they are given, with no cap per call; CI is detected from the environment.
 
+**Verify before you land, and the landing verifies again.** Run the specs you touched and the quick gate
+before you submit. The landing runs the quick gate and the specs your change impacts, and refuses on red
+(`LandingRefused`); the full suite still runs only in CI. Nothing here tells a session to skip tests
+before landing.
+
 A session isolated in a git worktree has had `bundle exec` with the spec runner
 refused with "too complex to verify that it stays inside the worktree", while
 `cargo test`, `bundle exec ruby`, `git` and `gh` ran. A commit message and a
