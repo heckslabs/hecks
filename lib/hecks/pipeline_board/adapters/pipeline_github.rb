@@ -40,6 +40,7 @@ module Hecks
         @text = settings[:gh_text] || ->(*args) { PipelineBoard::Probe.run("gh", *args, chdir: root) }
         @cache = PipelineBoard::Cache.kept(settings, "github_keep_seconds")
         @attempts = PipelineBoard::FlakeMemo.new
+        @backoff = PipelineBoard::LogBackoff.for(settings)
         @settled = PipelineBoard::SettledCounts.new(settled_path(settings))
         @seats = settings[:seats]
         guard_reads(settings[:pause_percent])
