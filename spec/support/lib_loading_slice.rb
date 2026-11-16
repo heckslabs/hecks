@@ -1,4 +1,5 @@
 require "open3"
+require "hecks/pipeline_board/adapters/load_guard"
 
 # What the three load_hygiene_lib_*_spec.rb files share: every lib file loads standalone, in a fresh
 # process, checked one slice at a time. Every `of`-th file of the sorted list belongs to slice
@@ -32,6 +33,7 @@ module LibLoadingSlice
       rescue ThreadError
         break
       end
+      wait_for_room
       _out, err, status = load_in_subprocess(feature)
       failures << "#{feature}:\n#{err.lines.first(3).join}" unless status.success?
     end
@@ -41,6 +43,29 @@ module LibLoadingSlice
   # beside its other work, so each takes two (six in all) and a landing's gate holds the load near
   # its limit; CI gives a shard its own cores, so it takes eight.
   def load_workers = ENV["CI"] ? 8 : 2
+
+  # The 1-minute load above which a worker starts no process; the limit a fill stops at.
+  def load_limit = 10.0
+
+  # How many times a worker looks at the load before it starts anyway, so a machine kept busy by
+  # other work slows the slice and never hangs it.
+  def load_wait_ticks = 60
+
+  # @return [Float] the machine's 1-minute load now
+  def machine_load = Hecks::Adapters::PipelineBoard::LoadGuard.reading
+
+  # Waits while the machine is over `load_limit`, at most `load_wait_ticks` looks; CI never waits.
+  def wait_for_room
+    return if ENV["CI"]
+
+    load_wait_ticks.times do
+      break unless machine_load > load_limit
+
+      pause
+    end
+  end
+
+  def pause = Queue.new.pop(timeout: 2)
 
   def broken_features(features)
     failures = Queue.new
