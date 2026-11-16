@@ -3,6 +3,7 @@
 require "json"
 require_relative "../console_capture"
 require_relative "../ci_runs/checks"
+require_relative "../gh_rest"
 
 module Hecks
   module Adapters
@@ -36,9 +37,12 @@ module Hecks
         private
 
         def pulls
-          all = JSON.parse(@gh.call("pr", "list", "--state", "open", "--json", FIELDS, "--limit", "100"))
+          all = GhRest.new(method(:read_json)).open_pulls(100, PREFIX)
           all.select { |pull| pull["headRefName"].to_s.start_with?(PREFIX) }.sort_by { |pull| pull["createdAt"].to_s }
         end
+
+        # A REST read of the repository, whose budget is apart from GraphQL's.
+        def read_json(*) = JSON.parse(@gh.call(*))
 
         def close_if_moot(pull, open)
           why = landed_on_main(pull) || superseded_by(pull, open) || passed_by_main(pull)

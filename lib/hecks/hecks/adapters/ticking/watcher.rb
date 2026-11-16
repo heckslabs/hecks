@@ -10,12 +10,16 @@ module Hecks
         # Seconds under which an exit counts as a failure to watch (no checks yet, no `gh`).
         FAILED_UNDER = 5
 
+        # Seconds between the child's reads of the checks; `gh` reads every 10 by default, each a
+        # GraphQL query.
+        POLL_SECONDS = 60
+
         # @param branch [String] the pull request's branch
         # @param clock [#call] returns the time
         # @param spawn [#call] starts the argument list and returns a pid
         # @param reap [#call] takes a pid, returns true once it has exited
         def initialize(branch, clock:, spawn: nil, reap: nil)
-          @command = ["gh", "pr", "checks", branch, "--watch"]
+          @command = ["gh", "pr", "checks", branch, "--watch", "--interval", POLL_SECONDS.to_s]
           @clock = clock
           @spawn = spawn || method(:detach)
           @reap = reap || method(:exited?)

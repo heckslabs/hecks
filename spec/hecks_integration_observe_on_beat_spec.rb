@@ -99,6 +99,7 @@ RSpec.describe "noticing a train pull request's verdict on the clock's beat" do
   end
 
   def beat
+    Hecks::Adapters::CiRuns::PullCache.shared.clear
     outer = Thread.current[:hecks_reaction_depth]
     Thread.current[:hecks_reaction_depth] = 0
     Hecks::Runtime::AdapterLookup.standing_in(stand_in) do

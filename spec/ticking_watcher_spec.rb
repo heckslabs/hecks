@@ -28,7 +28,7 @@ RSpec.describe Hecks::Adapters::Ticking::Watcher do
 
   it "starts one `gh pr checks --watch` on the branch" do
     watcher.start
-    expect(started).to eq([["gh", "pr", "checks", "train/main-abc", "--watch"]])
+    expect(started).to eq([["gh", "pr", "checks", "train/main-abc", "--watch", "--interval", "60"]])
   end
 
   it "is done when the child ends after watching" do
