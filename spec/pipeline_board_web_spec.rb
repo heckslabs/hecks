@@ -29,7 +29,7 @@ RSpec.describe Hecks::Adapters::PipelineWeb do
                                                               plan_tile: { unknown: "none" }, train_tile: rows[4],
                                                               integration_tile: rows[3])
     allow(stages).to receive(:state) { { stages: rows, events: events_of(journal) } }
-    described_class.new(settings: { stages: stages, background: false, tap: log })
+    described_class.new(settings: { stages: stages, background: false, tap: log, load_guard: false })
   end
 
   # The events section as the stages give it: the journal's newest, or why they are unknown.
