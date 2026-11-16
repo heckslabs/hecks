@@ -17,7 +17,7 @@ module Hecks
         def plan_reading
           items = JSON.parse(@tickets.open_work[:text], symbolize_names: true)
           PipelineBoard::PlanReading.build(items: items, epics: @tickets.epics, sessions: plan_sessions(items),
-                                           reviews: plan_reviews, fill: plan_fill, train: train_tile, now: @now.call,
+                                           reviews: plan_reviews(items), fill: plan_fill, train: train_tile, now: @now.call,
                                            flow: guard { @tickets.work_times })
         end
 
@@ -26,9 +26,18 @@ module Hecks
           PipelineBoard::OwnerQueue.mark(rows, items, ENV.fetch("PIPELINE_BOARD_LAUNCHER_ROOT", @root))
         end
 
-        def plan_reviews
-          found = PipelineBoard::AgentRoles.reviews(guard { @tickets.runs })
+        # Only the reviews of work still open are read: a review shows on its item's row, and a finished
+        # item's row carries none, so the hundreds of finished items' transcripts are never parsed.
+        def plan_reviews(items)
+          found = PipelineBoard::AgentRoles.reviews(open_runs(guard { @tickets.runs }, items))
           found.is_a?(Array) ? found : []
+        end
+
+        def open_runs(runs, items)
+          return runs unless runs.is_a?(Hash) && !runs.key?(:unknown)
+
+          open = items.to_set { |item| item[:slug].to_s }
+          runs.select { |_, run| open.include?(run[:work_item].to_s) }
         end
 
         def plan_fill
