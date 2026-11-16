@@ -30,16 +30,39 @@ module Hecks
 
         def lanes(epics) = epics.group_by { |epic| epic[:lane] }.map { |name, list| lane(name, list) }.join
 
+        # How many names a shut lane's header lists before it counts the rest.
+        PEEK = 3
+
+        # A lane is a panel drawn shut, like the home page's: its heading, its counts and the first epics by name.
         def lane(name, list)
           open = list.sum { |epic| epic[:open] }
-          "<section class=\"lane\" data-lane=\"#{esc(name)}\"><h2>#{esc(LANES.fetch(name, name))} " \
-            "<span class=\"counts\">#{plural(list.size, "epic")}, #{plural(open, "open item")}</span></h2>" \
-            "#{list.map { |epic| PlanEpic.draw(epic) }.join}</section>"
+          done = list.sum { |epic| epic[:done].to_i }
+          pills = "<span class=\"counts\">#{plural(list.size, "epic")}, #{plural(open, "open item")}</span>" \
+                  "#{done.positive? ? "<span class=\"ok\"><b>#{done}</b> done</span>" : ""}"
+          panel(name, LANES.fetch(name, name), pills, list.map { |epic| epic[:title] },
+                list.map { |epic| PlanEpic.draw(epic) }.join)
         end
 
         def no_epic(data)
           drawn = PlanEpic.loose(data)
-          drawn.empty? ? "" : "<section class=\"lane\" data-lane=\"none\">#{drawn}</section>"
+          return "" if drawn.empty?
+
+          pills = "<span class=\"counts\">#{plural(data[:count], "open item")} in no epic</span>"
+          panel("none", "No epic", pills, Array(data[:items]).map { |row| row[:title] }, drawn)
+        end
+
+        def panel(name, title, pills, names, rows)
+          "<details class=\"lane\" data-lane=\"#{esc(name)}\"><summary><h2>#{esc(title)}</h2>" \
+            "<span class=\"sum\">#{pills}#{peek(names)}</span></summary>#{rows}</details>"
+        end
+
+        # The first few names, so a shut lane says what is in it: "A, B, C and 4 more".
+        def peek(names)
+          return "" if names.empty?
+
+          more = names.size - PEEK
+          said = names.first(PEEK).map { |one| esc(one) }.join(", ")
+          "<span class=\"peek\">#{said}#{" and #{more} more" if more.positive?}</span>"
         end
 
         def plural(count, word) = "#{count} #{word}#{"s" unless count == 1}"
