@@ -28,12 +28,23 @@ module RestPullView
     JSON.generate(body)
   end
 
+  # A pull request that names its `headRefName` is found by that branch only; any is found by a
+  # commit it holds (`.../commits/<sha>/pulls`).
   def pull_body(path, pull)
-    return [pull ? [rest_pull(pull)] : []] if path.include?("pulls?state=all")
+    found = found_body(path, pull)
+    return found if found
     return [commits(pull)] if path.include?("/commits?")
 
     [Array(pull["comments"]).map { |comment| { "body" => comment["body"] } }] if path.include?("/comments")
   end
+
+  def found_body(path, pull)
+    return [pull && on_branch?(path, pull) ? [rest_pull(pull)] : []] if path.include?("pulls?state=all")
+
+    [pull ? [rest_pull(pull)] : []] if path.match?(%r{/commits/\h+/pulls})
+  end
+
+  def on_branch?(path, pull) = pull["headRefName"].nil? || path[/head=\{owner\}:([^&]+)/, 1] == pull["headRefName"]
 
   def commits(pull)
     Array(pull["commits"]).map { |commit| { "sha" => commit["oid"], "commit" => { "message" => commit["messageHeadline"] } } }
