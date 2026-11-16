@@ -43,6 +43,8 @@ section.group > h2 small { font-weight: 400; font-size: 12.5px; color: var(--ink
 .move svg { display: block; width: 100%; height: 28px; margin-top: 4px; }
 .dial .what .mark.out { border-color: var(--critical); color: var(--critical); }
 .paused { margin: 10px 0 0; padding: 10px 14px; border: 1px solid var(--warning, #b7791f); border-radius: 10px; font-size: 13.5px; }
+.range input[type=range] { width: 100%; margin: 0 0 2px; accent-color: var(--run); cursor: pointer; }
+.dial .turn input.changed { outline: 2px solid var(--run); }
 @media (max-width: 760px) { .dial { grid-template-columns: 1fr; } }
 </style>
 </head>
@@ -68,11 +70,14 @@ function h(tag, attrs, ...kids) {
 const unset = (v) => v === null || v === undefined;
 /* The value as words: a switch is on or off, a whole number has no point. */
 const shown = (d) => (unset(d.value) ? "not set" : d.kind === "switch" ? (d.value ? "on" : "off") : String(Number(d.value)));
-function range(d) {
+/* A slider between the setting's bounds, kept in step with the number box beside it; Set still commits. */
+function range(d, input) {
   if (d.kind === "switch") return h("div", { class: "range" });
   const least = Number(d.least), most = Number(d.most), at = unset(d.value) ? least : Math.min(most, Math.max(least, Number(d.value)));
-  const fill = h("div", { class: "fill" }); fill.style.width = (most > least ? ((at - least) / (most - least)) * 100 : 0) + "%";
-  return h("div", { class: "range", title: shown(d) + ", between " + d.least + " and " + d.most }, h("div", { class: "track" }, fill),
+  const slider = h("input", { type: "range", min: d.least, max: d.most, step: d.kind === "integer" ? "1" : "0.5", value: at, "aria-label": d.says + " (slider)" });
+  slider.addEventListener("input", () => { input.value = slider.value; input.classList.toggle("changed", Number(input.value) !== Number(d.value)); });
+  input.addEventListener("input", () => { if (input.value !== "") slider.value = input.value; input.classList.toggle("changed", Number(input.value) !== Number(d.value)); });
+  return h("div", { class: "range", title: shown(d) + ", between " + d.least + " and " + d.most }, slider,
     h("div", { class: "ends" }, h("span", {}, d.least), h("span", {}, d.most)));
 }
 function field(d) {
@@ -94,7 +99,7 @@ function row(d, note) {
   button.addEventListener("click", () => turn(d, input, button, said));
   input.addEventListener("keydown", (e) => { if (e.key === "Enter") turn(d, input, button, said); });
   return h("li", { class: "dial" }, h("div", { class: "what" }, d.says, d.turned ? h("span", { class: "mark" }, "set here") : null, outside(d) ? h("span", { class: "mark out" }, "outside " + d.least + " to " + d.most) : null, h("small", {}, d.setting)),
-    range(d), h("div", { class: "turn" }, input, button), said);
+    range(d, input), h("div", { class: "turn" }, input, button), said);
 }
 /* The few numbers that say how hard the machine is driven, as one sentence. */
 function headline(dials) {
