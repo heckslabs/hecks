@@ -18,14 +18,17 @@ module Hecks
           @source = source || -> { IO.popen(["tail", "-n", first_line(path), "-F", path.to_s], err: File::NULL) }
         end
 
-        # Reads lines on a thread until the source ends or {#stop}.
+        # Reads lines on a thread until the source ends or {#stop}. A follower already running is
+        # stopped and its process waited on first, so a second start never leaves the first
+        # process unwaited.
         #
         # @yieldparam row [Hash] `seq` (the tap's own number for the line), `aggregate` (the
         #   aggregate of the event; nil on a reaction line) and `kind`
         # @return [Watch] self
         def start(&on_row)
-          @io = @source.call
-          @thread = Thread.new { follow(&on_row) }
+          stop if @io
+          io = @io = @source.call
+          @thread = Thread.new { follow(io, &on_row) }
           self
         end
 
@@ -33,22 +36,27 @@ module Hecks
         # closing its pipe would wait for it to exit and it exits only when the journal is written.
         def stop
           @thread&.kill
-          end_process
-          release
+          finish(@io)
+          @io = nil
         end
 
         private
 
-        def end_process
-          Process.kill("TERM", @io.pid) if @io.respond_to?(:pid)
+        # Ends a followed process and closes the source, which waits for it, so it is never left
+        # defunct.
+        def finish(io)
+          end_process(io)
+          release(io)
+        end
+
+        def end_process(io)
+          Process.kill("TERM", io.pid) if io.respond_to?(:pid)
         rescue SystemCallError
           nil
         end
 
-        # Closes the source, which waits for a followed process, so one that ended on its own (the
-        # source answered nil) is reaped at once and not left defunct until {#stop}.
-        def release
-          @io.close if @io.respond_to?(:close) && !(@io.respond_to?(:closed?) && @io.closed?)
+        def release(io)
+          io.close if io.respond_to?(:close) && !(io.respond_to?(:closed?) && io.closed?)
         rescue IOError, SystemCallError
           nil
         end
@@ -57,12 +65,15 @@ module Hecks
         # one that does not yet, since every line of a journal that appears is new.
         def first_line(path) = File.exist?(path.to_s) ? "0" : "+1"
 
-        def follow
-          while (line = @io.gets)
+        # Reads the process until it ends, then ends and waits on it, however the reading ended, so
+        # a block that raises leaves no process behind either.
+        def follow(io)
+          while (line = io.gets)
             row = decode(line)
             yield row if row
           end
-          release
+        ensure
+          finish(io)
         end
 
         def decode(line)

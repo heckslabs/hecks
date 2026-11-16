@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "net/http"
+require_relative "../restart_notes"
 
 module Hecks
   module Adapters
@@ -50,9 +51,12 @@ module Hecks
             nil
           end
 
-          # Starts the board again as the command that started it, detached, in its directory.
+          # Starts the board again as the command that started it, detached, in its directory, and
+          # notes the restart for the board's header.
+          # @param misses [Integer] the unanswered asks in a row that led to the restart
           # @return [Integer] the new board's process id
-          def restart
+          def restart(misses: 0)
+            RestartNotes.record(misses: misses)
             child = Process.spawn({ Sentinel::ENV_KEY => nil }, *@command, chdir: @directory, pgroup: true)
             Process.detach(child)
             child

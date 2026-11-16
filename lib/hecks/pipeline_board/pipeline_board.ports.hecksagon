@@ -55,4 +55,21 @@ Hecks.hecksagon "PipelineBoard" do
       refuses "ServerRefused"
     end
   end
+
+  # A serving board seen from outside its process: asked through its own port, and restarted when
+  # it does not answer. The adapter probes and restarts; the bluebook decides that no answer
+  # means a restart.
+  PipelineBoard::BoardWatch.port "Supervisor" do
+    asks "Probe", to: BoardWatch do
+      attribute :port, Port
+      answers "BoardAnswered"
+      refuses "BoardUnresponsive"
+    end
+
+    asks "Restart", to: BoardWatch do
+      attribute :port, Port
+      answers "BoardRestarted"
+      refuses "BoardRestartRefused"
+    end
+  end
 end

@@ -36,11 +36,18 @@ module Hecks
           @hub = settings[:hub] || hub_of(settings)
         end
 
-        # Starts following the journal.
-        def start = @hub.start
+        # Starts following the journal and draws every tile once, off the request path, so a page
+        # asked for soon after the start already carries its tiles.
+        def start
+          @hub.start
+          @first = Thread.new { @tiles.refresh(0) } if @tiles.respond_to?(:refresh)
+        end
 
         # Stops following the journal.
-        def stop = @hub.stop
+        def stop
+          @first&.kill
+          @hub.stop
+        end
 
         # @param html [String] the page, with a `<!--tile:NAME-->` mark where a tile goes
         # @return [String] the page with each tile drawn in
