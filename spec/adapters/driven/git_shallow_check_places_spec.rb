@@ -36,7 +36,7 @@ RSpec.describe Hecks::Adapters::GitShallowCheck, "#shallow_check places" do
 
   # An impacted run that records whether the gate had let its place go when the specs ran.
   def impacted(seen)
-    ->(_paths, _onto) { Hecks::Adapters::GitShallowCheck::ImpactedRun::Outcome.new([seen << gate.closed?], [], 1) }
+    ->(_paths, _onto) { Hecks::Adapters::GitShallowCheck::ImpactedRun::Outcome.new([seen << gate.closed?], [], 1, 1) }
   end
 
   def checked(**tune)
