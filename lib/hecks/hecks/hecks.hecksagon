@@ -211,6 +211,17 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  # The webhook listener: opens 127.0.0.1 on its own port, checks each delivery's signature
+  # against the secret file and records the kinds the pipeline follows. It refuses to start
+  # without the secret.
+  Hecks::GithubWebhook.port "Listening" do
+    asks "Listen", to: GithubWebhook do
+      attribute :port, Port
+      answers "GithubWebhookEnded"
+      refuses "GithubWebhookListenRefused"
+    end
+  end
+
   # Read-only towards GitHub: lists the CI runs of main and of the train's pull requests through
   # `gh`, and answers each in a state no record holds yet. A policy records them.
   Hecks::CiLook.port "Seeing" do
