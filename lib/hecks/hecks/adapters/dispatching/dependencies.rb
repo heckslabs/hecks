@@ -11,8 +11,8 @@ module Hecks
       # `Tickets::Work` aggregate would hold itself.
       #
       # A dependency has landed when a landed `Landing` names its branch, which is what
-      # {LandingFacts#landed_commits} reads. A work item finished at its submission is done before
-      # its landing job runs, so its status alone does not say so.
+      # {LandingFacts#landed_commits} reads. A work item stays started until its landing job
+      # finishes it, so the landing, not the status, says a dependency is met.
       class Dependencies
         # The line of a detail that names dependencies, with the keys it names.
         NAMED = /^\s*depends?\s+on\s*:\s*(.+)$/i
