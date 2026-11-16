@@ -27,6 +27,13 @@ module Hecks
           open.reject { |subject, _| subject.empty? }
         end
 
+        # @param subject [String] an opening line's aggregate id
+        # @return [String, nil] the branch the subject's opening line links, none when it links none
+        def branch(subject)
+          line = @mine.find { |entry| entry["event"] == @kind[:opens] && entry["id"].to_s == subject }
+          line&.dig("links", "branch")
+        end
+
         private
 
         def by_id

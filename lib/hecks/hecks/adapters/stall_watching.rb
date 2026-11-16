@@ -3,6 +3,7 @@
 require "hecks/runtime/event_feed"
 require "hecks/adapters/driven/system_clock"
 require_relative "stall_watching/sightings"
+require_relative "stall_watching/slot_evidence"
 require_relative "machine_sampling/process_classes"
 
 module Hecks
@@ -20,7 +21,9 @@ module Hecks
       # @param tap [String, nil] a log in place of the world's, for a spec; a boot never passes it
       # @param processes [#line, nil] the `processes` evidence read, for a spec; the machine's
       #   {MachineSampling::ProcessClasses} when nil
-      def initialize(registry: nil, aggregate: nil, tap: nil, processes: nil)
+      # @param slots [#line, nil] the `slots` evidence read, for a spec; {SlotEvidence} when nil
+      def initialize(registry: nil, aggregate: nil, tap: nil, processes: nil, slots: nil)
+        @slots = slots
         @registry = registry
         @aggregate = aggregate
         @tap = tap
@@ -51,12 +54,14 @@ module Hecks
 
       def plain(argument) = argument.is_a?(Hash) ? argument[:value] : argument
 
-      # The one evidence read a row may name: `processes`, the busiest process class and the
-      # session that owns it. It reads the process table and changes nothing.
+      # The evidence reads a row may name, each reading the machine and changing nothing:
+      # `processes`, the busiest process class and the session that owns it; `slots`, who holds
+      # each heavy-job slot and how long ago a slot last changed hands.
       def evidence(kind)
-        return unless kind[:evidence] == "processes"
-
-        (@processes ||= MachineSampling::ProcessClasses.new).line
+        case kind[:evidence]
+        when "processes" then (@processes ||= MachineSampling::ProcessClasses.new).line
+        when "slots" then (@slots ||= SlotEvidence.new).line
+        end
       end
 
       def lines(path) = Runtime::EventFeed.new(path: path).read(since: 0, limit: EVERY_LINE)[:events]
