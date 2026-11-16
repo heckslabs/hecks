@@ -42,9 +42,14 @@ section.group > h2 small { font-weight: 400; font-size: 12.5px; color: var(--ink
 .move.none b { color: var(--muted); font-size: 14px; font-weight: 500; }
 .move svg { display: block; width: 100%; height: 28px; margin-top: 4px; }
 .dial .what .mark.out { border-color: var(--critical); color: var(--critical); }
-.paused { margin: 10px 0 0; padding: 10px 14px; border: 1px solid var(--warning, #b7791f); border-radius: 10px; font-size: 13.5px; }
 .dial .now { display: inline-block; min-width: 3ch; text-align: right; font-size: 16px; font-weight: 650; font-variant-numeric: tabular-nums; }
 .dial .now.changed, .dial select.changed { color: var(--run); }
+.power { display: flex; align-items: center; gap: 14px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+.power b { display: block; font-size: 15px; } .power span { display: block; font-size: 13px; color: var(--ink2); }
+#power-switch { position: relative; width: 52px; height: 30px; border-radius: 999px; border: 1px solid var(--line); background: color-mix(in srgb, var(--ink) 14%, transparent); cursor: pointer; padding: 0; flex: none; }
+#power-switch i { position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; transition: left .15s; }
+#power-switch[aria-checked="true"] { background: var(--run); border-color: var(--run); } #power-switch[aria-checked="true"] i { left: 25px; }
+#power-switch.changed { outline: 2px solid var(--run); outline-offset: 2px; }
 .savebar { position: sticky; bottom: 0; display: flex; align-items: center; gap: 10px; margin-top: 26px; padding: 12px 18px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px 12px 0 0; }
 .savebar #pending { margin-right: auto; font-size: 13.5px; color: var(--ink2); }
 .savebar button { padding: 7px 18px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; cursor: pointer; }
@@ -62,7 +67,9 @@ section.group > h2 small { font-weight: 400; font-size: 12.5px; color: var(--ink
     <!--nav-->
     <span class="note" id="updated"></span>
   </header>
-  <div class="overview"><p class="headline" id="headline">Reading the settings</p></div>
+  <div class="overview"><p class="headline" id="headline">Reading the settings</p>
+    <div class="power" id="power" hidden><button type="button" id="power-switch" role="switch" aria-checked="false"><i></i></button>
+      <div><b id="power-word"></b><span id="power-says"></span></div></div></div>
   <div id="groups"></div>
   <footer class="savebar"><span id="pending">No unsaved changes.</span><button type="button" id="cancel" disabled>Cancel</button><button type="button" id="save" class="primary" disabled>Save</button></footer>
 </main>
@@ -163,21 +170,28 @@ function move([kind, id, label], state) {
   return h("div", { class: "move none", title: "The board does not measure this yet" }, h("b", {}, kind === "none" ? "not measured yet" : "reading"), h("span", {}, label));
 }
 let lastState = {};
+/* The one switch that stops and starts new work: the fill's roll-forward. The limits stay as they are. */
+const ROLL = "dispatch_roll_forward.roll_forward";
+function power(d) {
+  $("power").hidden = !d; if (!d) return;
+  const want = pending.has(ROLL) ? pending.get(ROLL) === "on" : d.value === true, sw = $("power-switch");
+  sw.setAttribute("aria-checked", String(want)); sw.classList.toggle("changed", pending.has(ROLL));
+  $("power-word").textContent = want ? "New work is running" : "New work is stopped";
+  $("power-says").textContent = (want ? "The fill starts planned work by itself, up to the limits below." : "The fill starts nothing; running coders and queued landings finish. The limits below stay as they are.")
+    + (pending.has(ROLL) ? " Not saved yet." : "");
+  sw.onclick = () => { changed(d, want ? "off" : "on"); power(d); };
+}
 function draw(dials, note) {
   headline(dials);
   const taken = new Set(), sections = GROUPS.map((g) => {
-    const rows = dials.filter((d) => g.has.some((start) => d.setting.startsWith(start))); rows.forEach((d) => taken.add(d.setting));
+    const rows = dials.filter((d) => d.setting !== ROLL && g.has.some((start) => d.setting.startsWith(start))); rows.forEach((d) => taken.add(d.setting));
     return rows.length ? h("section", { class: "group" }, h("h2", {}, g.title, h("small", {}, g.says)), h("div", { class: "moves" }, g.moves.map((m) => move(m, lastState))),
       h("div", { class: "card" }, h("ul", {}, rows.map((d) => row(d, note && note.get(d.setting)))))) : null;
   });
-  const rest = dials.filter((d) => !taken.has(d.setting));
+  const rest = dials.filter((d) => d.setting !== ROLL && !taken.has(d.setting));
   if (rest.length) sections.push(h("section", { class: "group" }, h("h2", {}, "Other"), h("div", { class: "card" }, h("ul", {}, rest.map((d) => row(d, note && note.get(d.setting)))))));
   $("groups").replaceChildren(...sections.filter(Boolean));
-  const cap = dials.find((d) => d.setting === "work_limit.cap"), roll = dials.find((d) => d.setting === "dispatch_roll_forward.roll_forward");
-  const paused = (cap && Number(cap.value) === 0) || (roll && roll.value === false);
-  const old = $("paused"); if (old) old.remove();
-  if (paused) $("headline").after(h("p", { class: "paused", id: "paused" }, h("b", {}, "New work is paused. "),
-    "The fill starts nothing" + (cap && Number(cap.value) === 0 ? " (work cap 0" + (roll && roll.value === false ? ", fill off)" : ")") : " (fill off)") + "; running coders and queued landings finish. Set the cap and turn the fill on to resume."));
+  power(dials.find((d) => d.setting === ROLL));
   $("updated").textContent = "read " + new Date().toLocaleTimeString();
   bar();
 }
