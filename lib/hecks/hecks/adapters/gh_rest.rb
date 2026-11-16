@@ -33,6 +33,18 @@ module Hecks
         found && shaped(found).merge(detail(found))
       end
 
+      # The pull request under `prefix` whose commits hold `sha`, found by the commit, not by its
+      # branch: a commit rides a train named for a later commit when it was boarded beneath it.
+      # An open one comes first, then the newest merged one; one closed unmerged never counts.
+      #
+      # @param sha [String] the full commit
+      # @param prefix [String] the head branch prefix of the pull requests that count
+      # @return [Hash, nil] the pull request in the shape `pull` answers; nil when none holds it
+      def carrying(sha, prefix)
+        found, row = holding(sha, prefix).max_by { |_, held| [held["state"] == "OPEN" ? 1 : 0, held["number"].to_i] }
+        found && row.merge(detail(found))
+      end
+
       # @param limit [Integer] how many open pull requests
       # @param prefix [String] the branch prefix of the pull requests whose checks are read too
       # @return [Array<Hash>] `number`, `headRefName`, `headRefOid`, `createdAt` and, for a branch
@@ -65,6 +77,12 @@ module Hecks
       def listed(path, key = nil)
         pages = @gh.call("api", "--paginate", "--slurp", path)
         Array(pages).flat_map { |page| key ? page.fetch(key) : page }
+      end
+
+      # Each pull request under `prefix`, open or merged, whose commits hold `sha`, with its shape.
+      def holding(sha, prefix)
+        rows = listed("repos/{owner}/{repo}/commits/#{sha}/pulls?per_page=#{PAGE}").map { |pull| [pull, shaped(pull)] }
+        rows.select { |_, row| row["headRefName"].to_s.start_with?(prefix) && row["state"] != "CLOSED" }
       end
 
       def shaped(pull)

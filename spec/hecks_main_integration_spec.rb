@@ -152,7 +152,8 @@ RSpec.describe "integrating main through the MainIntegration saga" do
 
   def merged_as(sha) = { number: 12, state: "MERGED", mergeCommit: { oid: sha } }
 
-  # Lands two runs and advances once while the code on disk changes after the first run.
+  # Lands two runs and advances once while the code on disk changes after the first run taken,
+  # the newer landing, which verifies and boards; the older one is not reached.
   def advance_while_the_code_changes
     runs = [land, land(file: "second.rb")]
     Hecks::Adapters::MainIntegration::CodeWatch.fingerprint = code_changing_after_the_first_run
@@ -161,7 +162,7 @@ RSpec.describe "integrating main through the MainIntegration saga" do
   end
 
   it "ends an advance before the next run when the code changed, saying so", :aggregate_failures do
-    expect(advance_while_the_code_changes).to eq(%w[superseded landed])
+    expect(advance_while_the_code_changes).to eq(%w[landed pushed])
     expect(report("IntegrationAdvanced")).to include("advance restarted: code changed from 00000001 to 00000002")
   end
 
