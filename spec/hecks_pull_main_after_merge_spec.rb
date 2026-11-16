@@ -3,6 +3,7 @@ require "json"
 require "open3"
 require "securerandom"
 require "tmpdir"
+require_relative "support/rest_pull_view"
 
 # Local main is brought level with origin/main once a boarded commit's train pull request has
 # merged: CI's verdict on the merge commit (PullMainWhenCiPasses, PullMainWhenCiFails) asks
@@ -64,7 +65,7 @@ RSpec.describe "pulling main after a boarded commit merged" do
   end
 
   def github(argv)
-    return [true, JSON.generate(@pull)] if argv[1..2] == %w[pr view]
+    return [true, RestPullView.answer(argv, @pull)] if RestPullView.api?(argv)
     return [true, JSON.generate(jobs: [{ name: "rspec", conclusion: "failure" }])] if argv[1..2] == %w[run view]
 
     [true, JSON.generate([{ databaseId: 7, status: "completed", conclusion: @conclusion || "success" }])]

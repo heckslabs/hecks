@@ -9,6 +9,8 @@ require_relative "pipeline_github/train_runs"
 require_relative "pipeline_github/train_flakes"
 require_relative "pipeline_github/ci_records"
 require_relative "pipeline_github/pull_checks"
+require_relative "pipeline_github/budget"
+require_relative "../../hecks/adapters/gh_rest"
 require_relative "../../cache_dir"
 
 module Hecks
@@ -40,6 +42,7 @@ module Hecks
         @attempts = PipelineBoard::FlakeMemo.new
         @settled = PipelineBoard::SettledCounts.new(settled_path(settings))
         @seats = settings[:seats]
+        guard_reads(settings[:pause_percent])
       end
 
       # @param limit [Hash, Integer, nil] how many runs (20 when none is named)
@@ -81,12 +84,12 @@ module Hecks
 
       # @return [String] the repository's web address, the base of its commit links
       # @raise [PipelineBoard::Unavailable] when `gh` cannot answer
-      def repo_url = read("repo", "view", "--json", "url")["url"].to_s
+      def repo_url = @rest.repo_url
 
       # @return [Hash, nil] the newest `v` release: `tag`, `published` and `published_at`
       # @raise [PipelineBoard::Unavailable] when `gh` cannot answer
       def latest_release
-        listed = read("release", "list", "--limit", "20", "--json", "tagName,isDraft,isPrerelease,publishedAt")
+        listed = @rest.releases(20)
         found = listed.find { |release| release["tagName"].to_s.match?(VERSION_TAG) }
         raise PipelineBoard::Unavailable, "no v release found" unless found
 
@@ -123,13 +126,26 @@ module Hecks
         number.to_i.positive? ? number.to_i : default
       end
 
-      # The one `gh pr list` both readings share, so the board asks GitHub once for it.
-      def open_list
-        limit = PipelineBoard::PullChecks::LIMIT.to_s
-        read("pr", "list", "--state", "open", "--limit", limit, "--json", PipelineBoard::PullChecks::FIELDS)
+      # The one list of open pull requests both readings share, so the board asks GitHub once for
+      # it: REST, with the checks of the train pull requests only.
+      def open_list = @rest.open_pulls(PipelineBoard::PullChecks::LIMIT, PipelineBoard::PullChecks::BRANCH_PREFIX)
+
+      # The budget, measured from `gh api rate_limit` and kept like any other read, and the REST
+      # reader whose every call goes through {#read}.
+      def guard_reads(percent)
+        stand = -> { @cache.fetch(%w[api rate_limit]) { @gh.call("api", "rate_limit") } }
+        @budget = PipelineBoard::Budget.new(stand, percent: percent)
+        @rest = Hecks::Adapters::GhRest.new(method(:read))
       end
 
-      def read(*args) = @cache.fetch(args) { @gh.call(*args) }
+      # A read kept for its seconds; a read that would run is first checked against the budget it
+      # spends, and refused as {PipelineBoard::Unavailable} while that budget is nearly spent.
+      def read(*args)
+        @cache.fetch(args) do
+          @budget.check!(args)
+          @gh.call(*args)
+        end
+      end
     end
   end
 end
