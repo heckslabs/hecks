@@ -516,8 +516,8 @@ Hecks.hecksagon "Hecks" do
   end
 
   # The outside a beat of the clock reaches to learn whether the clock alone made something eligible:
-  # a retry time that passed, a boot budget no longer spent, or a roll refused while a filling ran.
-  # A beat with none of these is refused as quiet.
+  # a retry time that passed, a boot budget no longer spent, a roll refused while a filling ran, or a
+  # free slot a filling would use. A beat with none of these is refused as quiet.
   Hecks::Wake.port "Waking" do
     asks "Notice", to: Wake do
       attribute :run, WakeKey
