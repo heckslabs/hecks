@@ -5,6 +5,7 @@ require "hecks/cache_dir"
 require "hecks/rust_build/build_lock"
 require "hecks/rust_build/world_rows"
 require_relative "memory_wait"
+require_relative "slot_queue"
 require_relative "slot_text"
 require_relative "spec_workers"
 
@@ -13,7 +14,8 @@ module Hecks
     module Codebase
       # The machine's places for heavy jobs: a spec batch, a gate run or a landing's shallow check
       # takes one before it starts and lets it go when it ends, so at most the Tickets world's
-      # `heavy_jobs` cap of them run at once and the rest wait their turn, first come, first served.
+      # `heavy_jobs` cap of them run at once and the rest wait their turn, first come, first served
+      # ({SlotQueue}), the jobs of the push train's push ahead of the others.
       #
       # A place is a kernel `flock` on one of `cap` files under the cache directory, so a holder
       # that dies, even killed, frees its place at once and none is ever held for a dead process.
@@ -122,15 +124,17 @@ module Hecks
         #   no place when the places cannot be opened or the wait gave up
         def acquire(job)
           started = @clock.call
+          queue = SlotQueue.new(@dir, priority: SlotQueue.priority_of(@base)).join
           loop do
-            place = free_place
-            return [place, waited(started)] if place || unusable?
+            place = queue.head? ? free_place : nil
+            return [place, waited(started)] if place || @unusable
 
             return [nil, gave_up(job)] if @clock.call - started >= GIVE_UP_AFTER
 
-            say_waiting(job)
-            @pause.call(POLL)
+            wait_a_beat(job)
           end
+        ensure
+          queue&.leave
         end
 
         def free_place
@@ -150,8 +154,6 @@ module Hecks
           @unusable = true
           nil
         end
-
-        def unusable? = @unusable == true
 
         def holding(place, job, &)
           place.truncate(0)
@@ -174,13 +176,11 @@ module Hecks
           seconds.positive? ? "waited #{seconds} s for a heavy-job slot (#{@cap} of #{@cap} taken)" : ""
         end
 
-        # Says once that the job waits, and for whom.
-        def say_waiting(job)
-          return if @noted
-
+        # Says once that the job waits, and for whom, then sleeps one poll.
+        def wait_a_beat(job)
+          @err.puts(SlotText.waiting_line(job, @dir, @cap)) unless @noted
           @noted = true
-          held = SlotText.holders(@dir, @cap).join(", ")
-          @err.puts("hecks: #{job} waiting for a heavy-job slot, #{@cap} of #{@cap} taken (#{held})")
+          @pause.call(POLL)
         end
 
         def gave_up(job)

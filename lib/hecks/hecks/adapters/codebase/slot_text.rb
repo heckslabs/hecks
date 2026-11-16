@@ -19,6 +19,14 @@ module Hecks
           place.close
         end
 
+        # @param job [String] the waiting job's class
+        # @param dir [String] the directory the places live in
+        # @param cap [Integer] how many places there are
+        # @return [String] the line that says the job waits, and for whom
+        def self.waiting_line(job, dir, cap)
+          "hecks: #{job} waiting for a heavy-job slot, #{cap} of #{cap} taken (#{holders(dir, cap).join(", ")})"
+        end
+
         # @param dir [String] the directory the places live in
         # @param cap [Integer] how many places there are
         # @return [Array<String>] what each place's file names: the job's class and its pid
