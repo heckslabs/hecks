@@ -74,6 +74,41 @@ RSpec.describe Hecks::RustBuild::WorldRows do
     expect(Hecks::Adapters::FolderOverlay.committed_only { slots.cap_of(worktree) }).to eq(1)
   end
 
+  it "reads an overlay edited between two reads", :aggregate_failures do
+    write_overlay(main, %(heavy_jobs "HeavyJobs", cap: 2))
+    expect(slots.cap_of(worktree)).to eq(2)
+    rewrite_overlay(main, %(heavy_jobs "HeavyJobs", cap: 3))
+    expect(slots.cap_of(worktree)).to eq(3)
+  end
+
+  it "reads an overlay written after the first read", :aggregate_failures do
+    expect(slots.cap_of(worktree)).to eq(1)
+    write_overlay(main, %(heavy_jobs "HeavyJobs", cap: 2))
+    expect(slots.cap_of(worktree)).to eq(2)
+  end
+
+  it "falls back to the committed cap when the overlay is removed", :aggregate_failures do
+    write_overlay(main, %(heavy_jobs "HeavyJobs", cap: 2))
+    expect(slots.cap_of(worktree)).to eq(2)
+    FileUtils.rm(File.join(main, "lib/hecks/hecks/hecks.local.world"))
+    expect(slots.cap_of(worktree)).to eq(1)
+  end
+
+  it "does not load an unchanged world again" do
+    write_overlay(main, %(heavy_jobs "HeavyJobs", cap: 2))
+    slots.cap_of(worktree)
+    allow(described_class).to receive(:worlds_in).and_call_original
+    slots.cap_of(worktree)
+    expect(described_class).not_to have_received(:worlds_in)
+  end
+
+  # Writes the overlay again with a later modification time, as an edit of the same size does.
+  def rewrite_overlay(root, line)
+    write_overlay(root, line)
+    file = File.join(root, "lib/hecks/hecks/hecks.local.world")
+    File.utime(Time.now + 5, Time.now + 5, file)
+  end
+
   def commit_world(root)
     write(root, described_class::WORLD, <<~RUBY)
       Hecks.world "Tickets" do

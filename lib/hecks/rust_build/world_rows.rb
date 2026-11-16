@@ -10,6 +10,9 @@ module Hecks
     # ({WorldOverlay}) replace a committed verb whole, as they do when the registry boots the
     # folder, so a setting the owner keeps reaches the readers of a worktree too.
     #
+    # A cached row keeps a stamp of its source files ({WorldOverlay.stamp}), so an edited, added or
+    # removed file is read again at the next call.
+    #
     # A checkout with no world file has nothing declared, and its rows are empty. A world file
     # that exists and fails to load also answers an empty row, so a build is never stopped for want
     # of a setting, but the failure is not mistaken for that: it is warned once on stderr, kept for
@@ -26,7 +29,8 @@ module Hecks
       #   or a world that could not be read ({.unreadable} says which)
       def row(root, verb)
         @rows ||= {}
-        @rows.fetch(key(root, verb)) { read(root, verb) }
+        stamp, row = @rows[key(root, verb)]
+        stamp && stamp == stamp_of(root) ? row : read(root, verb)
       end
 
       # @param root [String] a hecks checkout
@@ -58,13 +62,18 @@ module Hecks
       private_class_method :key
 
       def read(root, verb)
+        stamp = stamp_of(root)
         row = load(root, verb)
         failures.delete(root)
-        @rows[key(root, verb)] = row
+        @rows[key(root, verb)] = [stamp, row]
+        row
       rescue StandardError, ScriptError => e
         failed(root, "#{File.join(root, WORLD)}: #{e.class}: #{Hecks::Text.first_line(e.message)}")
       end
       private_class_method :read
+
+      def stamp_of(root) = [WorldOverlay.stat_of(File.join(root, WORLD)), WorldOverlay.stamp(root)]
+      private_class_method :stamp_of
 
       def load(root, verb)
         file = File.join(root, WORLD)
