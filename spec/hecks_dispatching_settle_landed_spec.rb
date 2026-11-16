@@ -12,7 +12,7 @@ RSpec.describe Hecks::Adapters::Dispatching::Settler do
   end
 
   def settle(landed)
-    work_items = instance_double(Hecks::Adapters::Dispatching::WorkItems, started: [item], runs: runs)
+    work_items = instance_double(Hecks::Adapters::Dispatching::WorkItems, started: [item], runs: runs, landing_pending?: false)
     described_class.new(work_items, launcher, landed: ->(key) { landed[key] }).call
   end
 
