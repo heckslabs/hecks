@@ -4,6 +4,7 @@ require_relative "pipeline_stages"
 require_relative "pipeline_wiring"
 require_relative "pipeline_web/actions"
 require_relative "pipeline_web/ended_run"
+require_relative "pipeline_web/stamped_stream"
 require_relative "pipeline_web/server"
 require_relative "pipeline_web/stream"
 require_relative "pipeline_web/pushed"
@@ -157,12 +158,12 @@ module Hecks
       # @return [Hash{Symbol => Hash}] `last:` why the server ended
       def listen(**held)
         port = held[:port].is_a?(Hash) ? held[:port][:value] : held[:port]
-        server = open_at(port)
-        @outside[:sentinel]&.call(port: server.port, registry: @outside[:registry])
-        warn "PipelineBoard listening on http://#{server.address}:#{server.port}/ (Ctrl-C to stop)"
-        trap("INT") { server.stop }
-        server.join
-        { last: { value: "stopped" } }
+        PipelineBoard::StampedStream.during do
+          server = open_at(port)
+          @outside[:sentinel]&.call(port: server.port, registry: @outside[:registry])
+          server.hold
+          { last: { value: "stopped" } }
+        end
       end
 
       # @param port [Integer, nil] 0 binds a free port; nil the board's default
