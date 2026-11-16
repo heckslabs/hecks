@@ -2,6 +2,7 @@
 
 require "time"
 require "hecks/hecks/adapters/ci_runs/failed_jobs"
+require_relative "attempt_reads"
 require_relative "flake_memo"
 require_relative "log_backoff"
 
@@ -14,6 +15,8 @@ module Hecks
       # other files from one run to the next and a line moves), a failure before the specs by its
       # job and step. An item counts once per run, however many attempts it failed.
       module TrainFlakes
+        include AttemptReads
+
         # How many days back the flakes reach.
         WINDOW_DAYS = 14
 
@@ -31,6 +34,7 @@ module Hecks
         private
 
         def flake_document(limit)
+          allow_cold_reads!
           found = windowed_runs.map { |run| flaked(run) }
           rows = tally(found.compact).first(limit)
           { window_days: WINDOW_DAYS, reaches_back: train_page.map { |run| run["createdAt"] }.compact.min,
@@ -57,7 +61,7 @@ module Hecks
 
         # The items one passed rerun cleared, or nil when an earlier attempt could not be read.
         def flaked(run)
-          items = attempts_of(run).flat_map { |key| @attempts.fetch(key) { failed_items(*key) } }
+          items = attempts_of(run).flat_map { |key| @attempts.fetch(key) { cold_attempt(key) } }
           { branch: run["headBranch"], url: run["url"], items: items.uniq }
         rescue PipelineBoard::Unavailable
           nil

@@ -70,9 +70,9 @@ RSpec.describe Hecks::Adapters::PipelineGitHub, "#train_flakes" do
   # An adapter whose `gh` records each job list and log it is asked for; `fail` names the runs
   # whose job list cannot be read yet. The budget read (`gh api rate_limit`, before each read) is
   # answered empty and not recorded.
-  def counting(asked, fail: [])
+  def counting(asked, fail: [], clock: nil)
     gh_text = ->(*args) { (asked << args.first(5)) && spec_log }
-    described_class.new(settings: { gh: counting_gh(asked, fail), gh_text: gh_text, ttl: 0 })
+    described_class.new(settings: { gh: counting_gh(asked, fail), gh_text: gh_text, ttl: 0, clock: clock }.compact)
   end
 
   def counting_gh(asked, fail)
@@ -98,9 +98,11 @@ RSpec.describe Hecks::Adapters::PipelineGitHub, "#train_flakes" do
   # @return [Hash] the second read
   def read_after_failure(asked)
     fail = ["1"]
-    github = counting(asked, fail: fail)
+    now = [0]
+    github = counting(asked, fail: fail, clock: -> { now.first })
     flakes(github)
     fail.clear
+    now[0] = 601
     flakes(github)
   end
 
@@ -151,5 +153,63 @@ RSpec.describe Hecks::Adapters::PipelineGitHub, "#train_flakes" do
 
   it "says how far back the runs reach" do
     expect(flakes(adapter([run(1)]))["reaches_back"]).to eq(today)
+  end
+
+  # An adapter over `count` passed reruns whose `gh run view` is answered by `view`; `views` tallies
+  # the attempts it was asked for, by run id.
+  def viewing(views, count: 1)
+    gh = lambda do |*args|
+      next {} if args[0..1] == %w[api rate_limit]
+      next (1..count).map { |id| run(id) } if args[0..1] == %w[run list]
+
+      views[args[2]] += 1
+      block_given? ? yield(args[2]) : { "jobs" => [job("a")] }
+    end
+    described_class.new(settings: { gh: gh, gh_text: ->(*) { spec_log }, ttl: 0 })
+  end
+
+  def refuse(_id) = raise(Hecks::Adapters::PipelineBoard::Unavailable, "gh run view: timed out")
+
+  it "does not run a `gh run view` that failed again within the back-off", :aggregate_failures do
+    views = Hash.new(0)
+    github = viewing(views) { |id| refuse(id) }
+    2.times { flakes(github) }
+    expect(views).to eq("1" => 1)
+    expect(flakes(github)["unreadable"]).to eq(1)
+  end
+
+  # Starts a read that never answers, kills its thread as the gather deadline does, and returns
+  # once it has ended.
+  def killed_at_deadline(views)
+    entered = Queue.new
+    github = viewing(views) { |_id| (entered << true) && Queue.new.pop }
+    reader = Thread.new { github.train_flakes }
+    entered.pop
+    reader.kill.join
+    github
+  end
+
+  it "holds an attempt whose reader the deadline killed, so the next refresh starts no child" do
+    views = Hash.new(0)
+    flakes(killed_at_deadline(views))
+    expect(views).to eq("1" => 1)
+  end
+
+  # Reads six cold attempts over two refreshes.
+  # @return [Array<Array>] the unreadable count and the attempts asked, after each refresh
+  def two_refreshes(views)
+    github = viewing(views, count: 6)
+    [flakes(github)["unreadable"], views.values.sum, flakes(github)["unreadable"], views.values.sum]
+  end
+
+  it "starts at most four cold reads per refresh, newest run first, and finishes the rest after" do
+    expect(two_refreshes(Hash.new(0))).to eq([2, 4, 0, 6])
+  end
+
+  it "starts no child at all for attempts it already keeps" do
+    views = Hash.new(0)
+    github = viewing(views, count: 3)
+    2.times { flakes(github) }
+    expect(views.values.sum).to eq(3)
   end
 end
