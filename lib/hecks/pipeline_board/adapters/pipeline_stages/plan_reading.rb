@@ -65,9 +65,13 @@ module Hecks
 
         def epic_of(epic, members)
           epic.merge(open: members.size, running: members.select { |r| r[:session] }, lane: PlanOrder.lane(members),
+                     decisions: decisions_of(epic, members),
                      next: members.select { |r| r[:status] == "planned" }.min_by { |r| r[:step].to_i })
               .merge(listed(members))
         end
+
+        # The decisions an epic carries out: its own, then the ones its items name, each once.
+        def decisions_of(epic, members) = ([epic[:decision]] + members.map { |r| r[:decision] }).map(&:to_s).reject(&:empty?).uniq
 
         def listed(members) = { count: members.size, items: PlanOrder.items(members) }
       end
