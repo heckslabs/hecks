@@ -59,13 +59,12 @@ class FakeTrainGithub
   end
 
   def answer(argv)
-    return RestPullView.answer(argv, view) if RestPullView.api?(argv)
+    return RestPullView.open_answer(argv, @pulls) || RestPullView.answer(argv, view) if RestPullView.api?(argv)
 
     case argv[1..2]
     when %w[pr view] then view.to_json
     when %w[run list] then [{ databaseId: 77, attempt: @attempt }].to_json
     when %w[run view] then argv.include?("--log-failed") ? failed_log(argv) : jobs.to_json
-    when %w[pr list] then @pulls.to_json
     else ""
     end
   end
