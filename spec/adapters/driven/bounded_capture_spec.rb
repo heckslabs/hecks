@@ -93,7 +93,30 @@ RSpec.describe Hecks::Adapters::BoundedCapture do
     end
     argv = [RbConfig.ruby, "-e", "sleep 30"]
     described_class.new(seconds: 30, setting: "spec_bounds.check_seconds")
-                   .call(argv, env: { described_class::PROGRESS => nil }, chdir: home)
+                   .call(argv, env: { described_class::PROGRESS => nil, "RUBYOPT" => "-rbundler/setup" }, chdir: home)
+  end
+
+  # A program that ends by itself in a directory of its own; with `remove` it deletes that
+  # directory first, from outside it.
+  def ending(code, remove:)
+    home = Dir.mktmpdir("bounded-ends")
+    code = "Dir.chdir('/'); require 'fileutils'; FileUtils.rm_rf(#{home.inspect}); #{code}" if remove
+    capture.call([RbConfig.ruby, "-e", code], env: { described_class::PROGRESS => nil }, chdir: home)
+  ensure
+    FileUtils.rm_rf(home)
+  end
+
+  it "does not call a failing program stopped while its directory stands" do
+    expect(ending("exit 3", remove: false).stopped).to be(false)
+  end
+
+  it "does not call a program that removes its own directory and exits 0 stopped" do
+    expect(ending("exit 0", remove: true).stopped).to be(false)
+  end
+
+  it "counts a failure that left its directory gone as vanished", :aggregate_failures do
+    result = ending("exit 3", remove: true)
+    expect([result.stopped, result.err]).to match([true, include("is gone")])
   end
 
   it "ends a program whose directory disappears, long before the bound", :aggregate_failures do
