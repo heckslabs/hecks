@@ -37,10 +37,20 @@ RSpec.describe "the pause on automatic dispatch" do
     expect(rolling({ roll_forward: false }).read[:state]).to eq("off")
   end
 
-  it "still starts the work item a filling names with only, while the owner has paused", :aggregate_failures do
-    report = named_fill({ roll_forward: false })
+  it "refuses a confirmed filling, even one naming a work item, while the owner has stopped new work" do
+    expect { named_fill({ roll_forward: false }) }.to raise_error(Failure, /new work is stopped/)
+  end
+
+  it "starts the work item a confirmed filling names when the switch is on", :aggregate_failures do
+    report = named_fill({ roll_forward: true })
 
     expect(report).to include("started zz-named")
     expect(report).not_to include("aa-other")
+  end
+
+  it "still says what a dry filling would start while new work is stopped" do
+    report = filling({ roll_forward: false }).choose(run: { value: "f" }, repo: { value: "/repo" })[:report][:value]
+
+    expect(report).to include("would start")
   end
 end

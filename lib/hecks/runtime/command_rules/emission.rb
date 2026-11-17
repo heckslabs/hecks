@@ -3,9 +3,11 @@ require_relative "../event"
 module Hecks
   module Runtime
     class CommandRules
-      # Turns a command's `emits` into events in the registry's log and, where possible, the store.
+      # Turns a command's `emits` into events and, where possible, records them in the store.
       module Emission
-        # Builds one frozen event per name the command `emits` and records each.
+        # Builds one frozen event per name the command `emits` and records each in the store. The
+        # registry's event log is appended after the save commits, not here, so a write that
+        # rolls back leaves no event in it.
         #
         # @param command [Bluebook::Command] the command whose `emits` names the events
         # @param domain [String] the emitting domain's name
@@ -26,7 +28,7 @@ module Hecks
         private
 
         def record_emitted(event, repository)
-          @registry.event_log << event.emit!
+          event.emit!
           repository.record_event(event) if repository.respond_to?(:record_event)
           event
         end

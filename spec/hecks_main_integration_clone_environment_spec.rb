@@ -39,7 +39,8 @@ RSpec.describe "the environment of a verification's checks" do
 
   it "runs every launcher command of a verification under Bundler" do
     commands = checks.new(Hecks::RustBuild::ROOT, []).all.map(&:last)
-    expect(commands.map { |argv| argv.first(checks::RUNS_AS.size) }.uniq).to eq([checks::RUNS_AS])
+    runs = commands.map { |argv| argv.each_cons(checks::RUNS_AS.size).find { |words| words == checks::RUNS_AS } }
+    expect(runs.uniq).to eq([checks::RUNS_AS])
   end
 
   def bounded_check(script, bound: 60)

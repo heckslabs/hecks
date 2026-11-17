@@ -70,10 +70,13 @@ module Hecks
       # The ordinary run: every step raises its first refusal, and `save` onward is one transaction.
       def run_committing(order, ctx)
         split = order.index(:save)
-        return order.each { |name| send(:"step_#{name}", ctx) } unless split && ctx.respond_to?(:repository) && ctx.repository
-
-        order[0...split].each { |name| send(:"step_#{name}", ctx) }
-        ctx.repository.transaction { run_transactional_steps(order[split..], ctx) }
+        if split && ctx.respond_to?(:repository) && ctx.repository
+          order[0...split].each { |name| send(:"step_#{name}", ctx) }
+          ctx.repository.transaction { run_transactional_steps(order[split..], ctx) }
+        else
+          order.each { |name| send(:"step_#{name}", ctx) }
+        end
+        log_committed_events(ctx)
       end
 
       # The validating run: every step, in order, with a refusal recorded and not raised. A stage

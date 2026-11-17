@@ -1,9 +1,12 @@
 require "spec_helper"
+require_relative "support/new_work_started"
 
 # A started Work item claims the area it declares, and a start whose area overlaps another started
 # row's is sent back to the plan with the row and the path named. Each example boots its own
 # Memory domain, so no claim leaks into another.
 RSpec.describe "Work area claims" do
+  include_context "with new work started"
+
   let(:hecks) { boot_hecks_in_memory }
 
   def cli(*argv)

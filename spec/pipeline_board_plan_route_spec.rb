@@ -10,7 +10,11 @@ RSpec.describe "the planning page route" do
   let(:stages) do
     instance_double(Hecks::Adapters::PipelineStages, state: { stages: [] }, **FakeJournal::TILES)
   end
-  let!(:server) { Hecks::Adapters::PipelineWeb.new(settings: { stages: stages, background: false, journal: FakeJournal.source, load_guard: false }).open_at(0) }
+  let(:board) do
+    settings = { stages: stages, background: false, journal: FakeJournal.source, load_guard: false }
+    Hecks::Adapters::PipelineWeb.new(settings: settings)
+  end
+  let!(:server) { board.open_at(0).tap { board.tiles_drawn } }
 
   after { server.stop }
 
