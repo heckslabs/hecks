@@ -4,8 +4,9 @@ require "spec_helper"
 require "json"
 require "hecks/pipeline_board/adapters/pipeline_stages"
 
-# The plan tile reads the reviews of work still open and no others: a review shows on its item's row, and the
-# hundreds of finished items' transcripts are never parsed, which is what made the first drawing after a start slow.
+# The plan tile reads the reviews of work still open and no others: a review shows on its item's
+# row, and the hundreds of finished items' transcripts are never parsed, which is what made the
+# first drawing after a start slow.
 RSpec.describe Hecks::Adapters::PipelineBoard::PlanTile do
   let(:runs) do
     { "s1" => { agent: "architect", work_item: "open-one" }, "s2" => { agent: "architect", work_item: "done-one" },

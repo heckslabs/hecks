@@ -56,11 +56,15 @@ module Hecks
         UPNEXT_SHOWN = 3
 
         def upnext(data)
-          lines = data[:next].first(UPNEXT_SHOWN).map { |row| esc(row[:slug]) }
-          more = data[:next].size - UPNEXT_SHOWN
-          lines << "and #{more} more" if more.positive?
-          lines.concat(held_lines(data[:held]))
+          lines = queued_lines(data[:next]) + held_lines(data[:held])
           card("Up next (#{data[:next].size})", lines.empty? ? ["nothing is queued to start"] : lines)
+        end
+
+        # The first few queued items by name, then how many more there are.
+        def queued_lines(rows)
+          more = rows.size - UPNEXT_SHOWN
+          named = rows.first(UPNEXT_SHOWN).map { |row| esc(row[:slug]) }
+          more.positive? ? named + ["and #{more} more"] : named
         end
 
         # One line per distinct reason with a count, so 300 held items do not print 300 lines.

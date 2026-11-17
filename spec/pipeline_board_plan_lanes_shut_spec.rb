@@ -5,9 +5,9 @@ require_relative "support/fake_journal"
 
 require "hecks/pipeline_board/adapters/pipeline_web"
 
-# The planning page draws every lane (now, next, later, and the items in no epic) as a panel shut like the home
-# page's: a heading, its counts and the first epics by name; a click opens it, the choice is kept, and a filter
-# opens the lanes it found something in.
+# The planning page draws every lane (now, next, later, and the items in no epic) as a panel shut
+# like the home page's: a heading, its counts and the first epics by name; a click opens it, the
+# choice is kept, and a filter opens the lanes it found something in.
 RSpec.describe Hecks::Adapters::PipelineBoard::PlanHtml do
   def item(slug, epic: "", priority: "next")
     { slug: slug, title: "Title of #{slug}", status: "planned", area: [], priority: priority, category: "", epic: epic,
@@ -32,7 +32,7 @@ RSpec.describe Hecks::Adapters::PipelineBoard::PlanHtml do
   let(:items) { (1..6).map { |n| item("i#{n}", epic: "e#{n}") } }
 
   it "draws a lane as a panel with no open attribute, so it is shut" do
-    expect(drawn(items: items, epics: epics)).to match(/<details class="lane" data-lane="next"><summary>/)
+    expect(drawn(items: items, epics: epics)).to include('<details class="lane" data-lane="next"><summary>')
   end
 
   it "names the first three epics in the header and counts the rest" do

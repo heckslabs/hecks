@@ -5,8 +5,8 @@ require_relative "support/fake_journal"
 
 require "hecks/pipeline_board/adapters/pipeline_web"
 
-# The planning page's "Up next" card names a few queued items and counts the rest, and prints each hold
-# reason once with a count, so a long queue is never a wall of text.
+# The planning page's "Up next" card names a few queued items and counts the rest, and prints
+# each hold reason once with a count, so a long queue is never a wall of text.
 RSpec.describe Hecks::Adapters::PipelineBoard::PlanHtml do
   def item(slug)
     { slug: slug, title: "Title of #{slug}", status: "planned", area: [], priority: "", category: "", epic: "",

@@ -26,8 +26,9 @@ module Hecks
           PipelineBoard::OwnerQueue.mark(rows, items, ENV.fetch("PIPELINE_BOARD_LAUNCHER_ROOT", @root))
         end
 
-        # Only the reviews of work still open are read: a review shows on its item's row, and a finished
-        # item's row carries none, so the hundreds of finished items' transcripts are never parsed.
+        # Only the reviews of work still open are read: a review shows on its item's row, and a
+        # finished item's row carries none, so the hundreds of finished items' transcripts are
+        # never parsed.
         def plan_reviews(items)
           found = PipelineBoard::AgentRoles.reviews(open_runs(guard { @tickets.runs }, items))
           found.is_a?(Array) ? found : []
