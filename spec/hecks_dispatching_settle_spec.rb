@@ -10,7 +10,7 @@ RSpec.describe Hecks::Adapters::Dispatching do
   def landing_running? = false
 
   let(:work_items) do
-    instance_double(described_class::WorkItems, started: [started_item], runs: runs, landing_pending?: landing_running?)
+    instance_double(described_class::WorkItems, started: [started_item], runs: runs, landing_in_flight?: landing_running?)
   end
   let(:launcher) do
     instance_double(described_class::Launcher, check_all: nil, finish: "finished a", yield_back: "yielded a",
