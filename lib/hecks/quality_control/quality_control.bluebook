@@ -2975,6 +2975,7 @@ Hecks.bluebook "QualityControl" do
   end
 
   # The adapter decides by answering or refusing, the only branch a policy can express.
+  # A refusal event also carries `kind`, which `Failed` does not take, so the fields are named.
   policy "ClearOnPass" do
     on      "Clearance.SuitePassed"
     trigger Clearance::Passed
@@ -2982,7 +2983,7 @@ Hecks.bluebook "QualityControl" do
 
   policy "RefuseOnFail" do
     on      "Clearance.SuiteFailed"
-    trigger Clearance::Failed
+    trigger Clearance::Failed, with: { clearance: :id, refusal: :refusal }
   end
 
   # `Raise` and the call are split so a crash leaves a `Ticket.Raised` row rather than a lie.
@@ -2998,7 +2999,7 @@ Hecks.bluebook "QualityControl" do
 
   policy "RecordTheRefusal" do
     on      "Ticket.IssueFilingRefused"
-    trigger Ticket::Refused
+    trigger Ticket::Refused, with: { ticket: :id, refusal: :refusal }
   end
 
   # The cap is the `given` on `Retry`, not here: a policy holds no state and would ask forever.
