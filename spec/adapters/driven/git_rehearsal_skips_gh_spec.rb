@@ -3,7 +3,8 @@ require "tmpdir"
 require "fileutils"
 require "hecks/hecks/adapters/git_rehearsal"
 
-# A spec that fakes gh runs; only one that launches the real gh is left out, and the report names the call.
+# A spec that fakes gh runs; only one that launches the real gh is left out, and the report
+# names the call.
 RSpec.describe Hecks::Adapters::GitRehearsal::Impacted::Skips, "#call" do
   let(:root) { Dir.mktmpdir("hecks-skips-gh") }
   let(:skips) { described_class.new(root, scratch: -> { true }) }
@@ -34,9 +35,8 @@ RSpec.describe Hecks::Adapters::GitRehearsal::Impacted::Skips, "#call" do
     expect(skips.call(spec(%(system("gh", "pr") # real\n)))).to eq(%(needs gh: system("gh", "pr")))
   end
 
-  it "runs the train specs that fake gh", :aggregate_failures do
-    real = described_class.new(Dir.pwd, scratch: -> { true })
-    expect(real.call("spec/pull_request_train_spec.rb")).to be_nil
-    expect(real.call("spec/pull_request_train_no_auto_merge_spec.rb")).to be_nil
+  it "runs the train specs that fake gh" do
+    files = %w[spec/pull_request_train_spec.rb spec/pull_request_train_no_auto_merge_spec.rb]
+    expect(files.map { |f| described_class.new(Dir.pwd, scratch: -> { true }).call(f) }).to eq([nil, nil])
   end
 end
