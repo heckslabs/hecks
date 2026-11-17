@@ -15,7 +15,8 @@ module Hecks
       # The machine's places for heavy jobs: a spec batch, a gate run or a landing's shallow check
       # takes one before it starts and lets it go when it ends, so at most the Tickets world's
       # `heavy_jobs` cap of them run at once and the rest wait their turn, first come, first served
-      # ({SlotQueue}), the jobs of the push train's push first, then jobs marked urgent, then the rest.
+      # ({SlotQueue}), the jobs of the push train's push first, then jobs marked urgent, then the
+      # rest.
       #
       # A place is a kernel `flock` on one of `cap` files under the cache directory, so a holder
       # that dies, even killed, frees its place at once and none is ever held for a dead process.
