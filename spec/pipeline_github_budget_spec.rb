@@ -26,7 +26,7 @@ RSpec.describe Hecks::Adapters::PipelineGitHub, "#open_prs under a spent budget"
     end
   end
 
-  def board(standing) = described_class.new(settings: { gh: reader(standing), ttl: 0, settled_path: nil })
+  def board(standing) = described_class.new(settings: { gh: reader(standing), ttl: 0 })
 
   it "reads the open pull requests with a budget to spare", :aggregate_failures do
     expect(board(limits).open_prs).to include(count: 1, train: 7)
