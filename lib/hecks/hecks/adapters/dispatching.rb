@@ -12,6 +12,8 @@ require_relative "dispatching/launcher"
 require_relative "dispatching/in_process_runner"
 require_relative "dispatching/filling"
 require_relative "dispatching/fill_report"
+require_relative "dispatching/stop_reason"
+require_relative "dispatching/orphaned_work"
 require_relative "dispatching/lesson_traps"
 require_relative "dispatching/settler"
 require_relative "dispatching/claude_sessions"
@@ -93,9 +95,7 @@ module Hecks
         return report_lines(plan) unless confirmed
 
         note_stops(plan)
-        report = FillReport.new(launch(plan, held))
-        PlannedCache.clear!
-        [header(plan, report.tally(plan.chosen.size))] + report.lines + plan.skipped.map { |skip| skipped_line(skip) }
+        confirmed_lines(plan, held)
       end
 
       # A confirmed filling finishes or yields the work items whose sessions ended before the plan
@@ -113,7 +113,8 @@ module Hecks
       def settler(held, launcher)
         items = work_items
         Settler.new(items, launcher, grace: machine.session_grace, landed: LandedSince.new(items, repo: plain(held[:repo])),
-                                     gone: machine, sessions: @standins[:sessions] || ClaudeSessions.listing(machine))
+                                     gone: machine, sessions: @standins[:sessions] || ClaudeSessions.listing(machine),
+                                     orphans: OrphanedWork.new(items, min_age: machine.run_gone_minutes * 60))
       end
 
       # A planned work item parked behind a run still recorded started is never launched, so the
