@@ -5,6 +5,7 @@ require_relative "dial_turning/turnables"
 require_relative "dial_turning/turned_file"
 require_relative "dial_turning/standing"
 require_relative "../../adapters/driven/worktree_borrow"
+require_relative "../../adapters/driving/resident/paths"
 
 module Hecks
   module Adapters
@@ -24,12 +25,14 @@ module Hecks
 
       # @param aggregate [Bluebook::Aggregate, nil] `Dial`, whose `Turnable` rows say what is set
       # @param registry [Runtime::Registry, nil] the booted registry whose worlds are read
-      # @param settings [Hash] `directory:` stands in for the domain's directory
+      # @param settings [Hash] `directory:` stands in for the domain's directory, and `retire:`
+      #   for what asks the checkout's resident to retire
       # @param root [String, nil] unused
       def initialize(aggregate: nil, registry: nil, settings: {}, root: nil)
         @rows = Turnables.of(aggregate)
         @registry = registry
         @directory = settings[:directory] || self.class.directory
+        @retire = settings[:retire] || Driving::Resident::Paths.method(:retire)
       end
 
       # @param held [Hash] the `Dial` record: `setting` and `becomes`
@@ -49,8 +52,19 @@ module Hecks
         verb, key = row[:setting].split(".").then { |word, name| [word, name.to_sym] }
         was = standing(row[:world], verb)
         now = was.merge(key => Turnables.value(row, to))
-        "#{row[:setting]} is #{now[key].inspect}, was #{was[key].inspect}; written to #{write(row[:world], verb, now)}"
+        "#{told(row[:setting], now[key], was[key])}; written to #{write(row[:world], verb, now)}; #{in_force}"
       end
+
+      def told(setting, now, was) = "#{setting} is #{now.inspect}, was #{was.inspect}"
+
+      # A running process keeps the settings it started with, so the checkout's resident is asked
+      # to retire: it finishes what it has, and the next command reads the setting as it now is.
+      def in_force
+        @retire.call(checkout) ? "in force for the next command (the resident restarts)" : "in force for the next command"
+      end
+
+      # The checkout whose domain directory the turned file stands in.
+      def checkout = File.expand_path("../../..", @directory)
 
       def row_of(setting)
         known = @rows.map { |row| row[:setting] }
