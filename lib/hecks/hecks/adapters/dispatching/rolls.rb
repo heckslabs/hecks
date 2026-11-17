@@ -106,7 +106,7 @@ module Hecks
           return unless Filling.running?
 
           Pending.defer!
-          raise ConsoleCapture::Failure, "unchanged: a filling is already running"
+          raise ConsoleCapture::Failure, "unchanged: a filling is already running; this roll runs again when it ends"
         end
 
         # The report of a rolling filling. A roll refused while it ran freed capacity this filling's

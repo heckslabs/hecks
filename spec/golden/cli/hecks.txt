@@ -344,6 +344,9 @@ queries (nothing here changes anything):
     read_source             The numbered lines of one file of the checkout, whole or from one line to another.
     outline                 What a file declares, by line: each construct of a bluebook, each definition of Ruby.
     declaration             Where a named construct is declared across the corpus, as path:from-to, with its text on request.
+  Index:
+    A full-text index over the records the repository keeps (work items, findings, decisions), answered without a model and without changing them.
+    find                    The best matches for some words among work items, findings and decisions, as kind, id and a one-line snippet, ten at most; a kind narrows it to one sort of record.
   GithubEvent:
     One GitHub webhook delivery the pipeline follows: its kind and action, the pull request, head commit and branch, the conclusion or status, and the run or check name, when the payload has them.
     since                   The GitHub deliveries recorded after a cursor, oldest first: pass the newest one's received stamp back as the next cursor, or 0 for every one.
