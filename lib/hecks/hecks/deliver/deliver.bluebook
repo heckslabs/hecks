@@ -449,6 +449,11 @@ Hecks.bluebook "Hecks" do
       attribute :commits,  Count,  optional: true
       attribute :report,   Report, optional: true
       attribute :refusal,  Report, optional: true
+      # A revert: the landing's merge commit, the commit that undid it, and whether the landing
+      # never left local main.
+      attribute :culprit,  Word,   optional: true
+      attribute :reverted, Word,   optional: true
+      attribute :local,    Switch, optional: true
       identified_by :run
 
       value_object "RunKey" do
@@ -476,11 +481,12 @@ Hecks.bluebook "Hecks" do
         transition "Ride"  => "carried", from: "requested"
         transition "Queue" => "queued",  from: "requested"
         transition "Fault" => "faulted", from: "requested"
+        transition "Reverse" => "reversed", from: "requested"
         transition "Summarize" => "surveyed", from: "requested"
         transition "Fail"  => "red",     from: "queued"
         transition "Merge" => "pushed", from: %w[queued red]
         transition "Close" => "closed", from: %w[queued red]
-        mark :terminal, "carried", "faulted", "pushed", "surveyed", "closed"
+        mark :terminal, "carried", "faulted", "pushed", "surveyed", "closed", "reversed"
       end
 
       command "Board" do
@@ -620,6 +626,33 @@ Hecks.bluebook "Hecks" do
         emits BoardingClosed
       end
 
+      # Undoes one landing on local main with a new commit, holding the line so no boarding overlaps
+      # it. A policy dispatches it with the landing a red verification named; nothing is forced.
+      command "Unland" do
+        role "System"
+        goal "Revert one landing on local main with a new commit, in turn with the boardings"
+
+        attribute :run,      RunKey, sets: true
+        attribute :culprit,  Word, sets: true
+        attribute :checkout, Word, optional: true, sets: true
+        attribute :local,    Switch, optional: true, sets: true
+
+        emits RevertRequested
+      end
+
+      command "Reverse" do
+        role "System"
+        goal "Record the commit that undid a landing"
+
+        reference_to SendTrain
+        attribute :checkout, Word, optional: true, sets: true
+        attribute :local,    Switch, optional: true, sets: true
+        attribute :reverted, Word, sets: true
+        attribute :report,   Report, sets: true
+
+        emits LandingReverted
+      end
+
       command "Fault" do
         role "System"
         goal "Record why a boarding could not push"
@@ -684,6 +717,21 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheRefusedPush" do
       on      "SendTrain.TrainRefused"
+      trigger SendTrain::Fault, with: { refusal: :refusal }
+    end
+
+    policy "RevertWhenRequested" do
+      on      "SendTrain.RevertRequested"
+      ask     :revert, with: { run: :run, checkout: :checkout, local: :local }
+    end
+
+    policy "RecordTheReversal" do
+      on      "SendTrain.RevertAnswered"
+      trigger SendTrain::Reverse, with: { checkout: :checkout, local: :local, reverted: :reverted, report: :report }
+    end
+
+    policy "RecordTheRefusedRevert" do
+      on      "SendTrain.RevertRefused"
       trigger SendTrain::Fault, with: { refusal: :refusal }
     end
 
@@ -943,6 +991,8 @@ Hecks.bluebook "Hecks" do
       attribute :refusal,  Report, optional: true
       # Whether a verification is the one retry of a run whose first verification failed.
       attribute :retried,  Switch, optional: true
+      # Whether the commit verified is the revert of a landing that never left local main.
+      attribute :revert,   Switch, optional: true
       # Whether a read of a run is of one already seen merged, whose main was pulled at the merge.
       attribute :pulled,   Switch, optional: true
       # What a read of a train pull request's red checks reports, as facts: the pull request, its CI
@@ -957,6 +1007,21 @@ Hecks.bluebook "Hecks" do
       attribute :title,       Report, optional: true
       attribute :cause,       Report, optional: true
       attribute :step,        Report, optional: true
+      # What the search for a failed verification's first bad merge reports, as facts: the last
+      # verified commit the range starts after, the first merge whose own specs fail (its commit,
+      # subject, branch, first failing spec and example), whether those specs are red at the last
+      # verified commit too, whether a landing of the range was already reverted, whether the merge
+      # never left local main, and why none was named. A fact the search could not read is empty.
+      attribute :base,             Report, optional: true
+      attribute :culprit,          Report, optional: true
+      attribute :branch,           Report, optional: true
+      attribute :subject,          Report, optional: true
+      attribute :spec,             Report, optional: true
+      attribute :example,          Report, optional: true
+      attribute :base_red,         Switch, optional: true
+      attribute :already_reverted, Switch, optional: true
+      attribute :local,            Switch, optional: true
+      attribute :reason,           Report, optional: true
       # What a read of an open train pull request reports about its CI having started: how many
       # checks GitHub lists, the minutes since the pull request opened, the status of the newest CI
       # run of its tip (`none` when there is no run), and whether the pipeline already closed and
@@ -1066,6 +1131,9 @@ Hecks.bluebook "Hecks" do
         attribute :checkout, Word, optional: true, sets: true
         # An advance sets it on the one retry of a run whose first verification failed.
         attribute :retried,  Switch, default: false, sets: true
+        # Set when the commit verified is the revert of a landing that never left local main, so a
+        # pass lowers the flag that stood for it.
+        attribute :revert,   Switch, default: false, sets: true
 
         emits MainVerificationStarted
         emits MainVerificationRequested
@@ -1088,6 +1156,7 @@ Hecks.bluebook "Hecks" do
 
         reference_to Integration
         attribute :landed,  Word,   sets: true
+        attribute :checkout, Word,  optional: true, sets: true
         attribute :refusal, Report, sets: true
 
         emits MainVerificationFailed
@@ -1099,6 +1168,7 @@ Hecks.bluebook "Hecks" do
 
         reference_to Integration
         attribute :landed,  Word,   sets: true
+        attribute :checkout, Word,  optional: true, sets: true
         attribute :refusal, Report, sets: true
 
         emits MainVerificationFailedOnce
@@ -1286,7 +1356,7 @@ Hecks.bluebook "Hecks" do
 
     policy "VerifyMainWhenRequested" do
       on      "Integration.MainVerificationRequested"
-      ask     :check, with: { run: :run, landed: :landed, retried: :retried }
+      ask     :check, with: { run: :run, landed: :landed, checkout: :checkout, retried: :retried, revert: :revert }
     end
 
     policy "RecordTheVerification" do
@@ -1313,7 +1383,44 @@ Hecks.bluebook "Hecks" do
     policy "RecordTheFailedVerification" do
       on      "Integration.VerifyRefused"
       where   { retried.value == true }
-      trigger Integration::Fail, with: { landed: :landed, refusal: :refusal }
+      trigger Integration::Fail, with: { landed: :landed, checkout: :checkout, refusal: :refusal }
+    end
+
+    # The failure a run is parked on names its first bad merge: the adapter reports the facts
+    # (`BisectAnswered`), and the policies below decide. Each hears its event as a new cascade
+    # (`root`), so the chain from a failed verification to a verified revert stays within the
+    # reaction depth bound.
+    policy "BisectWhenVerificationFailed" do
+      on      "Integration.MainVerificationFailed"
+      root
+      ask     :bisect, with: { run: :run, landed: :landed, checkout: :checkout }
+    end
+
+    # A merge whose own specs fail, whose specs pass at the last verified commit, and whose range
+    # holds no revert yet: it is the one change to revert. One revert per red episode: a range
+    # that already holds one is parked for the owner, and a spec red at the last verified commit
+    # too (a spec that fails on this machine only) reverts nothing.
+    policy "RevertWhenAMergeIsRed" do
+      on      "Integration.BisectAnswered"
+      root
+      where   { culprit.value != "" && base_red.value == false && already_reverted.value == false }
+      trigger RedEpisode::Revert, with: { run: :run, base: :base, culprit: :culprit, branch: :branch, subject: :subject,
+                                          spec: :spec, example: :example, local: :local, checkout: :checkout }
+    end
+
+    policy "ParkWhenTheEpisodeAlreadyReverted" do
+      on      "Integration.BisectAnswered"
+      root
+      where   { culprit.value != "" && already_reverted.value == true }
+      trigger RedEpisode::Park, with: { run: :run, base: :base, culprit: :culprit, branch: :branch, subject: :subject,
+                                        spec: :spec, example: :example }
+    end
+
+    policy "AcquitWhenNoMergeIsRed" do
+      on      "Integration.BisectAnswered"
+      root
+      where   { culprit.value == "" || (base_red.value == true && already_reverted.value == false) }
+      trigger RedEpisode::Acquit, with: { run: :run, base: :base, culprit: :culprit, reason: :reason, spec: :spec }
     end
 
     policy "BoardWhenRequested" do
@@ -1376,6 +1483,118 @@ Hecks.bluebook "Hecks" do
       where   { outcome.value == "pr_failed" }
       trigger TrainPr::Record, with: { key: :failure_key, landed: :landed, pr: :pr, ci_run: :ci_run, attempt: :attempt,
                                        specs: :specs, work: :work_key, title: :title, cause: :cause, step: :step, failure: :report }
+    end
+
+    # What a failed verification's search for the first bad merge decided, one record per red run: the
+    # merge is being reverted, the episode is parked because a revert already stands in its range (the
+    # owner decides what follows), or nothing is reverted because no merge turned its specs red. The
+    # lifecycle holds the one choice each run makes; "one revert per red episode" is the fact
+    # `already_reverted`, read from the repository's own history, so a new process reads it too.
+    aggregate "RedEpisode" do
+      description "The decision a red main's search made: revert its first bad merge, park the episode, or acquit every merge."
+
+      attribute :run,      RunKey
+      attribute :base,     Report, optional: true
+      attribute :culprit,  Report, optional: true
+      attribute :branch,   Report, optional: true
+      attribute :subject,  Report, optional: true
+      attribute :spec,     Report, optional: true
+      attribute :example,  Report, optional: true
+      attribute :reason,   Report, optional: true
+      attribute :checkout, Report, optional: true
+      attribute :local,    Switch, optional: true
+      identified_by :run
+
+      value_object "RunKey" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Report", String
+
+      value_object "Switch", Boolean
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "parked"
+        transition "Revert" => "reverting", from: "requested"
+        transition "Park"   => "parked",    from: "requested"
+        transition "Acquit" => "acquitted", from: "requested"
+        mark :terminal, "reverting", "parked", "acquitted"
+      end
+
+      command "Revert" do
+        role "System"
+        goal "Decide that the first bad merge of a red main is reverted, naming it and the spec it turned red"
+
+        attribute :run,      RunKey, sets: true
+        attribute :base,     Report, sets: true
+        attribute :culprit,  Report, sets: true
+        attribute :branch,   Report, optional: true, sets: true
+        attribute :subject,  Report, optional: true, sets: true
+        attribute :spec,     Report, optional: true, sets: true
+        attribute :example,  Report, optional: true, sets: true
+        attribute :checkout, Report, optional: true, sets: true
+        attribute :local,    Switch, optional: true, sets: true
+
+        emits EpisodeReverting
+      end
+
+      command "Park" do
+        role "System"
+        goal "Decide that a red main is left to its owner, because a revert already stands in its range"
+
+        attribute :run,     RunKey, sets: true
+        attribute :base,    Report, sets: true
+        attribute :culprit, Report, sets: true
+        attribute :branch,  Report, optional: true, sets: true
+        attribute :subject, Report, optional: true, sets: true
+        attribute :spec,    Report, optional: true, sets: true
+        attribute :example, Report, optional: true, sets: true
+
+        emits EpisodeParked
+      end
+
+      command "Acquit" do
+        role "System"
+        goal "Decide that no merge is reverted, because none turned a spec red that was green at the last verified commit"
+
+        attribute :run,     RunKey, sets: true
+        attribute :base,    Report, optional: true, sets: true
+        attribute :culprit, Report, optional: true, sets: true
+        attribute :reason,  Report, optional: true, sets: true
+        attribute :spec,    Report, optional: true, sets: true
+
+        emits EpisodeAcquitted
+      end
+    end
+
+    # Landings stop first, then the merge is undone: the flag is the one owner of "main is red", and
+    # `Landing` and the push train already refuse by name while it stands. The revert is the push
+    # train's own command, so it keeps the line's turn. A revert of a landing that never left local
+    # main is verified at once as its own run, and a pass of it lowers the flag; a landing that
+    # reached `origin/main` leaves the flag to the owner and CI.
+    policy "RaiseTheFlagWhenReverting" do
+      on      "RedEpisode.EpisodeReverting"
+      root
+      trigger RedFlag::Raise, with: { run: :run, commit: :culprit, detail: :subject, checkout: :checkout }
+    end
+
+    policy "RevertTheCulprit" do
+      on      "RedEpisode.EpisodeReverting"
+      root
+      trigger SendTrain::Unland, with: { run: :run, culprit: :culprit, checkout: :checkout, local: :local }
+    end
+
+    policy "VerifyTheRevert" do
+      on      "SendTrain.LandingReverted"
+      root
+      where   { local.value == true }
+      trigger Integration::Verify, with: { run: :reverted, landed: :reverted, checkout: :checkout, retried: true, revert: :local }
+    end
+
+    policy "LowerTheFlagWhenTheRevertIsVerified" do
+      on      "Integration.VerifyAnswered"
+      where   { outcome.value == "verified" && revert.value == true }
+      trigger RedFlag::Clear, with: { run: :landed, commit: :landed, checkout: :checkout }
     end
 
     # One failed attempt of a train pull request's CI, recorded once under its key

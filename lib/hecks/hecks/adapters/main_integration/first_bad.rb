@@ -5,8 +5,9 @@ module Hecks
     class MainIntegration
       # The first merge, among the landings a failed verification covers, whose own specs fail:
       # a binary search over the merges oldest first, one probe per step. It reads facts and
-      # writes none: nothing is reverted, marked or raised here, and a probe that errors, a head
-      # that moved or a spent budget answers nil, never an exception.
+      # writes none: nothing is reverted, marked or raised here, and a probe that errors or a
+      # spent budget answers nil with a `reason`, never an exception. The merges are the landings
+      # between two fixed commits, so a head that moved meanwhile changes nothing.
       #
       # The search assumes a failure stays once it appears. When a later merge mends it, the
       # answer is still the first merge that failed, which the mend may already have fixed.
@@ -17,32 +18,35 @@ module Hecks
         # @param merges [Array<Hash>] the landings, oldest first (`Repository#merges`)
         # @param probe [#call] given a merge, answers `[ok, finding]`; `finding` is a Hash with
         #   `:spec` and `:example` when it failed
-        # @param current [#call] answers whether the commit being verified is still the head
         # @param limit [Integer] the most probes to make
-        def initialize(merges, probe:, current: -> { true }, limit: LIMIT)
+        def initialize(merges, probe:, limit: LIMIT)
           @merges = merges
           @probe = probe
-          @current = current
           @limit = limit
         end
 
+        # @return [String] why the last search answered nil
+        attr_reader :reason
+
         # @return [Hash, nil] the merge (`sha:`, `subject:`, `paths:`) with its `finding:`, or nil
-        #   when none failed or the search could not finish
+        #   when none failed or the search could not finish (`reason` says which)
         def call
           @low = 0
           @high = @merges.size - 1
           @found = nil
           @spent = 0
           step while @low <= @high
+          @reason = "no merge in the range fails its own specs" unless @found
           @found
-        rescue StandardError, ConsoleCapture::Failure
+        rescue StandardError, ConsoleCapture::Failure => e
+          @reason = "the search stopped: #{e.message}"
           nil
         end
 
         private
 
         def step
-          raise ConsoleCapture::Failure, "search stopped" if @spent >= @limit || !@current.call
+          raise ConsoleCapture::Failure, "probe budget of #{@limit} spent" if @spent >= @limit
 
           middle = (@low + @high) / 2
           ok, finding = @probe.call(@merges[middle])
