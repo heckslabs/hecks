@@ -178,6 +178,24 @@ RSpec.describe "promoting a lane" do
       expect(fake.moved).to be_empty
     end
 
+    it "names the lane's head as the last green commit when the tip of main is red", :aggregate_failures do
+      stacked(by_commit: { newest => { "rspec" => :failed }, middle => { "rspec" => :failed }, oldest => { "rspec" => :failed } })
+
+      expect(promote("red-tip")).to include(faulted, "failed: rspec", "stable stands at bbbbbbb")
+    end
+
+    it "names the newest certified commit when a named commit is red", :aggregate_failures do
+      stacked(by_commit: { middle => { "rspec" => :failed } })
+
+      expect(promote("named-red", "commit=#{middle}")).to include(faulted, "last green commit: eeeeeee")
+    end
+
+    it "adds no last-green text when the commit is certified" do
+      stacked
+
+      expect(promote("clean")).not_to include("last green commit", "stands at")
+    end
+
     it "promotes only the exact commit it is told to: a named red commit is never swapped for another", :aggregate_failures do
       fake = stacked(by_commit: { middle => { "rspec" => :failed } })
 
