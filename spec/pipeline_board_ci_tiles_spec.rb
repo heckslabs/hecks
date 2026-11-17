@@ -37,6 +37,22 @@ RSpec.describe Hecks::Adapters::PipelineBoard::Metrics do
     expect(tile(data, "carry")[:value]).to be_nil
   end
 
+  describe "a completed run read from a runtime record" do
+    def tiles = described_class.ci({}, [run], now)
+
+    it "gives Main red for a reading, not unknown" do
+      expect(tiles.find { |found| found[:id] == "red" }[:state]).not_to eq("unknown")
+    end
+
+    it "gives the median CI wall a value" do
+      expect(tiles.find { |found| found[:id] == "wall" }[:value]).to eq(5.0)
+    end
+
+    it "holds no raw object dump in any tile" do
+      expect(JSON.generate(tiles)).not_to match(/#<|:sighting=>/)
+    end
+  end
+
   describe "the median CI wall tile's detail" do
     def wall_detail(event)
       described_class.ci({}, [run.merge(event: event)], now).find { |found| found[:id] == "wall" }[:detail]

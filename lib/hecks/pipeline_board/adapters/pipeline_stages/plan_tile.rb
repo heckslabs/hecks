@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "json"
+require_relative "plan_summary"
 
 module Hecks
   module Adapters
@@ -9,15 +10,45 @@ module Hecks
       # and hands it to {PlanReading}. The tickets reader answers from the store and the jobs
       # reader from files, so a drawing launches nothing.
       module PlanTile
+        # How many epics the summary names.
+        PLAN_EPICS = 5
+
         # @return [Hash] the planning page's reading, or `{unknown: reason}`
         def plan_tile = guard { plan_reading }
 
+        # The plan's counts as the Tickets events keep them: no Work item is read to answer it.
+        #
+        # @param running [Array<String>] the slugs of Work items a session runs
+        # @return [Hash, nil] `done`, `open`, `epics`, `lanes` and `first_epics`; nil when the
+        #   tickets reader does not offer the plan's events, so the caller counts the items itself
+        def plan_summary(running: [])
+          held = held_plan_summary or return nil
+
+          held.summary(running: running).merge(first_epics: held.first_epics(PLAN_EPICS))
+        end
+
         private
+
+        # @return [PlanSummary, nil] the one kept summary, caught up with the events past its cursor
+        def held_plan_summary
+          return nil unless @tickets.respond_to?(:plan_events)
+
+          events = guard { @tickets.plan_events }
+          return nil if events.key?(:unknown)
+
+          (@plan_summary ||= PipelineBoard::PlanSummary.new).catch_up(:work, events[:work]).catch_up(:epic, events[:epic])
+        end
 
         def plan_reading
           items = JSON.parse(@tickets.open_work[:text], symbolize_names: true)
+          reading = plan_built(items)
+          held = plan_summary(running: reading[:strip][:running].map { |row| row[:slug] })
+          held ? reading.merge(summary: held.except(:first_epics)) : reading
+        end
+
+        def plan_built(items)
           PipelineBoard::PlanReading.build(items: items, epics: @tickets.epics, sessions: plan_sessions(items),
-                                           reviews: plan_reviews, fill: plan_fill, train: train_tile, now: @now.call,
+                                           reviews: plan_reviews(items), fill: plan_fill, train: train_tile, now: @now.call,
                                            flow: guard { @tickets.work_times })
         end
 
@@ -26,9 +57,19 @@ module Hecks
           PipelineBoard::OwnerQueue.mark(rows, items, ENV.fetch("PIPELINE_BOARD_LAUNCHER_ROOT", @root))
         end
 
-        def plan_reviews
-          found = PipelineBoard::AgentRoles.reviews(guard { @tickets.runs })
+        # Only the reviews of work still open are read: a review shows on its item's row, and a
+        # finished item's row carries none, so the hundreds of finished items' transcripts are
+        # never parsed.
+        def plan_reviews(items)
+          found = PipelineBoard::AgentRoles.reviews(open_runs(guard { @tickets.runs }, items))
           found.is_a?(Array) ? found : []
+        end
+
+        def open_runs(runs, items)
+          return runs unless runs.is_a?(Hash) && !runs.key?(:unknown)
+
+          open = items.to_set { |item| item[:slug].to_s }
+          runs.select { |_, run| open.include?(run[:work_item].to_s) }
         end
 
         def plan_fill

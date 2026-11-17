@@ -5,6 +5,7 @@ require_relative "../ledger_gate"
 require_relative "plan_tile"
 require_relative "integration_tile"
 require_relative "stale"
+require_relative "../pipeline_github/log_backoff"
 
 module Hecks
   module Adapters
@@ -22,8 +23,8 @@ module Hecks
         # Seconds one reader may take before its section is given as unknown.
         READ_SECONDS = 20
 
-        # How many frames of an overdue reader's stack the board logs.
-        BACKTRACE_FRAMES = 25
+        # Seconds a reader told to stop is given to end.
+        STOP_SECONDS = 1
 
         # A section whose reader from an earlier refresh has not finished.
         STILL_RUNNING = { unknown: "the last read is still running" }.freeze
@@ -97,21 +98,35 @@ module Hecks
 
         def read_seconds = @read_seconds || READ_SECONDS
 
-        # The reader's answer, or unknown past the deadline. The thread is left to finish rather
-        # than killed: its command stops itself at the Probe bound, and the next refresh skips the
-        # section until it has.
+        # The reader's answer, or unknown past the deadline. A reader past it is stopped (its
+        # command reaps its own process group), and the next refresh reads the section again once
+        # the thread has ended; a thread inside a call that cannot be interrupted stays on record,
+        # so the next refresh does not start a second one.
         def answer_of(section, thread, deadline)
           return finished(section, thread) if thread.join([deadline - Time.now, 0].max)
 
           report_overdue(section, thread)
+          stopped(section, thread)
           { unknown: "reader did not answer in #{read_seconds}s" }
         end
 
-        # Names where an overdue reader is, in the board's log, once for each read: the thread is
-        # left running and the next refresh skips it, so this is not reached again for it.
+        # Names where an overdue reader is, in the board's log, on one line: the section, the
+        # seconds and the innermost board frame. A section is named once for each back-off window
+        # (see {LogBackoff}), on a table the board keeps, not once for each read.
         def report_overdue(section, thread)
-          frames = thread.backtrace&.first(BACKTRACE_FRAMES) || []
-          warn "board: #{section} reader overdue after #{read_seconds}s at:\n  #{frames.join("\n  ")}"
+          notes = (@overdue_notes ||= LogBackoff.new)
+          return if notes.held?(section)
+
+          notes.failed!(section)
+          frames = thread.backtrace || []
+          frame = frames.find { |line| line.include?("/pipeline_board/") } || frames.first
+          warn "board: #{section} reader overdue after #{read_seconds}s at #{frame}"
+        end
+
+        def stopped(section, thread)
+          thread.kill
+          thread.join(STOP_SECONDS)
+          @running.delete(section) unless thread.alive?
         end
 
         def finished(section, thread)

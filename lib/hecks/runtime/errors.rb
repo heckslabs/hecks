@@ -141,14 +141,15 @@ module Hecks
       kind unless kind.empty?
     end
 
-    # The fields a refusal event carries: the sentence, and the kind when the adapter named one.
+    # The fields a refusal event carries: the sentence and the kind, which is nil when the adapter
+    # named none. The event carries the same fields every time, so a policy that reads `kind`
+    # always finds it.
     #
     # @param text [String] the refusal sentence
     # @param kind [String, nil] the kind the adapter named
-    # @return [Hash] `refusal:` and, when there is a kind, `kind:`, each as a one-field value
+    # @return [Hash] `refusal:` and `kind:`, each a one-field value, `kind:` nil when unnamed
     def self.refusal_fields(text, kind)
-      fields = { refusal: { value: text } }
-      kind ? fields.merge(kind: { value: kind }) : fields
+      { refusal: { value: text }, kind: kind && { value: kind } }
     end
   end
 end

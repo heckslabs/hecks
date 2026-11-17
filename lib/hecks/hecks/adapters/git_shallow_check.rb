@@ -45,7 +45,9 @@ module Hecks
       end
 
       # Runs the checks for a branch, or says why they were skipped, then the specs its changes
-      # touch within the world's `impacted_seconds`, a few at once as the load allows.
+      # touch within the world's `impacted_seconds`, a few at once as the load allows. While the
+      # off marker stands (see {Switch}) it answers "shallow check is off" at once: it takes no
+      # claim and no heavy-job place and runs no spec, since main's own verification runs them.
       #
       # @param held [Hash] the `ShallowCheck` record: `checkout`, `branch`, `onto`
       # @return [Hash{Symbol => Hash}] `report:` what ran or why nothing did, and `unrun:` the
@@ -55,6 +57,8 @@ module Hecks
       #   landing that holds the checkout's claim
       def shallow_check(**held)
         settle(held)
+        return { report: { value: "shallow check is off" } } unless switch.on?
+
         answer, note = @claim.hold(@checkout) { @slots.call(@checkout, JOB) { checked(held) } }
         note.empty? ? answer : answer.merge(report: { value: "#{note}; #{answer[:report][:value]}" })
       end
@@ -78,8 +82,7 @@ module Hecks
         onto = ref(plain(held[:onto]) || "main")
         paths = read("diff", "--name-only", "#{onto}...#{ref(branch)}").lines.map(&:strip)
         CiSkipScan.call(@checkout, paths)
-        said = switch.on? ? verdict(branch, onto, paths) : "shallow check is off"
-        impacted(said, paths, onto)
+        impacted(verdict(branch, onto, paths), paths, onto)
       end
 
       def switch = Switch.new(read("rev-parse", "--path-format=absolute", "--git-common-dir"))

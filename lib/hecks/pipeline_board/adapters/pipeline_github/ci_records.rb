@@ -7,42 +7,51 @@ module Hecks
   module Adapters
     module PipelineBoard
       # CI as the domain recorded it: the `CiRunRecord` rows the clock's beat notes from GitHub
-      # (`lib/hecks/hecks/ci_record/ci_record.bluebook`). Reading them starts no program, so the
-      # board shows CI on a loaded machine and straight after a restart. A run is recorded when it
-      # is seen going and again when it is seen done; the newest record of a run is the run.
-      # Each reader answers nil when no record is held, and the caller asks `gh` as before.
+      # (`lib/hecks/hecks/ci_record/ci_record.bluebook`). Reading them starts no program and asks
+      # GitHub nothing, so the board shows CI on a loaded machine, straight after a restart and
+      # with the rate budget spent. A run is recorded when it is seen going and again when it is
+      # seen done; the newest record of a run is the run. A reader with no record to answer from
+      # raises {Unavailable}, so the board says CI is not recorded yet and never asks `gh`.
       module CiRecords
         # The bluebook and the aggregate the records are of.
         RECORD = %w[Hecks CiRunRecord].freeze
         # What a board row says in words and in whole numbers, and the record's field each is read
         # from; and the GitHub event a lane's runs come from.
         WORDS = { sha: :commit, started: :started_at, status: :state, conclusion: :conclusion, pushed: :pushed_at, url: :url,
-                  lane: :lane, jobs: :jobs }.freeze
+                  lane: :lane, jobs: :jobs, branch: :branch }.freeze
         COUNTS = { id: :ci_run, failed_jobs: :failed_jobs, attempt: :attempt }.freeze
         EVENT = { "main" => "push", "train" => "pull_request" }.freeze
+        # The fields a board row leaves out.
+        INTERNAL = %i[lane attempt jobs done branch].freeze
 
         private
 
         # @param lane [String] `main` or `train`
         # @param limit [Integer] how many runs
-        # @return [Array<Hash>, nil] the newest runs of the lane as board rows, oldest first; nil
-        #   when none is recorded
+        # @return [Array<Hash>] the newest runs of the lane as board rows, oldest first
+        # @raise [PipelineBoard::Unavailable] when no run of the lane is recorded
         def recorded_runs(lane, limit)
           runs = lane_runs(lane)
-          runs.empty? ? nil : runs.last(limit).map { |row| row.except(:lane, :attempt, :jobs, :done) }
+          raise PipelineBoard::Unavailable, "no #{lane} CI run is recorded yet" if runs.empty?
+
+          runs.last(limit).map { |row| row.except(*INTERNAL) }
         end
 
         # @param lane [String] `main` or `train`
         # @param limit [Integer] how many jobs
-        # @return [Array<Hash>, nil] the slowest jobs of the newest completed run; nil when no
-        #   completed run is recorded with its jobs
+        # @return [Array<Hash>] the slowest jobs of the newest completed run recorded with its jobs
+        # @raise [PipelineBoard::Unavailable] when no such run is recorded
         def recorded_slowest(lane, limit)
           done = lane_runs(lane).reverse.find { |row| row[:done] && !row[:jobs].empty? }
-          return unless done
+          raise PipelineBoard::Unavailable, "no completed #{lane} CI run is recorded with its jobs yet" unless done
 
-          JSON.parse(done[:jobs], symbolize_names: true).sort_by { |job| -job[:minutes].to_f }.first(limit)
+          slowest_first(done[:jobs]).first(limit)
+        end
+
+        def slowest_first(json)
+          JSON.parse(json, symbolize_names: true).sort_by { |job| -job[:minutes].to_f }
         rescue JSON::ParserError
-          nil
+          raise PipelineBoard::Unavailable, "a recorded run's jobs are unreadable"
         end
 
         # One row per run of the lane, from its newest record, oldest first. The train's runs are
@@ -59,6 +68,7 @@ module Hecks
         # The newest record of one run: its latest attempt, done over going.
         def newest(seen) = seen.max_by { |row| [row[:attempt], row[:done] ? 1 : 0] }
 
+        # Every record held, as a row; none when the seats cannot be read.
         def record_rows
           seats = @seats&.call
           seats ? seats.records(*RECORD).map { |record| record_row(record) } : []

@@ -32,16 +32,16 @@ module Hecks
         #   opened within its kind's window, not filed yet and whose run has not ended
         def rows(lines, run)
           standing = Standing.new(lines)
-          pending(lines).reject { |kind, subject, _| handled?(standing, kind, subject) }
-                        .map { |kind, subject, at| sighting(kind, subject, at, run) }
-                        .select { |row| row[:waited] < row[:forgets] }
+          pending(lines, standing).reject { |kind, subject, _| handled?(standing, kind, subject) }
+                                  .map { |kind, subject, at| sighting(kind, subject, at, run) }
+                                  .select { |row| row[:waited] < row[:forgets] }
         end
 
         # @return [Array<Hash>] one `Abandoned` row per stall the tap shows filed and still
         #   unclosed whose run has ended, not abandoned already, with the ending event as its reason
         def abandoned(lines, run)
           standing = Standing.new(lines)
-          pending(lines).filter_map do |kind, subject, _|
+          pending(lines, standing).filter_map do |kind, subject, _|
             stall = key(kind, subject)
             ended = standing.ending(kind, subject)
             reason(run, kind, subject, ended) if ended && standing.filed?(stall) && !standing.abandoned?(stall)
@@ -50,9 +50,22 @@ module Hecks
 
         private
 
-        def pending(lines)
+        def pending(lines, standing)
           @kinds.flat_map do |kind|
-            unclosed(kind, lines).reject { |subject, _| about?(kind, subject) }.map { |subject, at| [kind, subject, at] }
+            openings = Openings.new(kind, lines)
+            open = openings.unclosed.reject { |subject, _| about?(kind, subject) }
+            one_per_branch(kind, open, openings, standing).map { |subject, at| [kind, subject, at] }
+          end
+        end
+
+        # One landing is one branch: of the open subjects that link the same branch, the one already
+        # filed stands for the branch, else the latest; a resubmitted landing never files a second
+        # item. Subjects that link no branch stand alone.
+        def one_per_branch(kind, open, openings, standing)
+          open.group_by { |subject, _| openings.branch(subject) }.flat_map do |branch, entries|
+            next entries unless branch
+
+            [entries.find { |subject, _| standing.filed?(key(kind, subject)) } || entries.max_by { |_, at| at.to_s }]
           end
         end
 
@@ -76,10 +89,6 @@ module Hecks
           { id: run, stall: key(kind, subject), subject: subject,
             reason: "#{kind[:aggregate]} #{subject} can no longer be answered: its run recorded #{ended}" }
         end
-
-        # Each subject the kind's opening line named and no closing line has closed, with when it
-        # first opened.
-        def unclosed(kind, lines) = Openings.new(kind, lines).unclosed
 
         def sighting(kind, subject, at, run)
           waited = [(@now - Time.iso8601(at.to_s).to_i) / 60, 0].max

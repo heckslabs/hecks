@@ -132,7 +132,7 @@ module Hecks
         { priority: field(record, :priority).to_s, category: field(record, :category).to_s,
           epic: field(record, :epic).to_s, budget_minutes: field(record, :budget_minutes),
           yield_count: field(record, :yield_count).to_i, reason: field(record, :reason).to_s,
-          step: field(record, :step).to_s }
+          step: field(record, :step).to_s, decision: field(record, :decision).to_s }
       end
 
       def work_records = @live ? @live.records("Tickets", "Work") : records_of("Tickets", "Work")
@@ -143,13 +143,15 @@ module Hecks
         key = field(record, :epic).to_s
         mine = works.select { |work| field(work, :epic).to_s == key }
         { epic: key, title: field(record, :title).to_s, outcome: field(record, :outcome).to_s,
-          tier: field(record, :tier).to_s }.merge(PipelineBoard::ClosedWork.of(mine, method(:field)))
+          tier: field(record, :tier).to_s, decision: field(record, :decision).to_s }
+          .merge(PipelineBoard::ClosedWork.of(mine, method(:field)))
       end
 
       def run_item(run)
         { work_item: work_item_of(run), status: field(run, :status).to_s,
           run: field(run, :run).to_s, repo: field(run, :repo).to_s, agent: field(run, :agent).to_s,
-          works_as: field(run, :works_as).to_s }
+          works_as: field(run, :works_as).to_s, condition: field(run, :condition).to_s,
+          started_at: field(run, :started_at).to_s }
       end
 
       # The Work item a run names, else the one the first line of its brief names.
