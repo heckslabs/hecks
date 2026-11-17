@@ -46,10 +46,10 @@ module Hecks
         { report: { value: lines.empty? ? "no open integration run" : lines.join("\n") } }
       end
 
-      # Reads the CI run of each pushed or watched run, once, and does nothing else: a beat of the
-      # clock asks it, so a merged train pull request or a finished check is noticed with no person
-      # advancing. The runs are those `NEXT` maps to `Observe`, so `NEXT` stays the one table of
-      # which stage takes which step; a run that took its verdict leaves them and is not read twice.
+      # Reads the CI run of each pushed or watched run, once, and does nothing else: it verifies
+      # and boards nothing, for a caller that wants the verdict noticed and no step taken. The runs
+      # are those `NEXT` maps to `Observe`, so `NEXT` stays the one table of which stage
+      # takes which step; a run that took its verdict leaves them and is not read twice.
       #
       # @param _held [Hash] the `Integration` record, unused
       # @return [Hash{Symbol => Hash}] `report:` one line per run read
