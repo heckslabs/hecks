@@ -26,7 +26,7 @@ module Hecks
         # Priority of a job a landing was given by name: behind the train's, ahead of ordinary ones.
         URGENT = 1
 
-        # Priority of every other job. A ticket named `1-` was ordinary before `URGENT` existed.
+        # Priority of every other job. A ticket's leading digit is its priority.
         ORDINARY = 2
 
         # The environment variable that names a job urgent, set to `URGENT_VALUE` by the caller that
