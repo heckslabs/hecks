@@ -9,6 +9,8 @@ require_relative "main_integration/cargo_target"
 require_relative "main_integration/failure_log"
 require_relative "main_integration/refusal"
 require_relative "main_integration/last_verified"
+require_relative "main_integration/first_bad"
+require_relative "main_integration/merge_probe"
 require_relative "git_shallow_check/switch"
 
 module Hecks
@@ -102,14 +104,17 @@ module Hecks
 
       def run_checks(repository, landed)
         since, changed, off = range_of(repository, landed)
-        repository.clean_copy(landed) do |directory|
-          MainIntegration::CargoTarget.link(directory)
-          checks = checks_in(directory, changed, since, off)
-          failed = checks.reject { |name, argv| carried_now?(repository, landed) || record(landed, name, argv, directory) }
-          refuse!(landed) unless @carried || failed.empty?
-          carried_now?(repository, landed)
-          checks.map(&:first)
-        end
+        passed = repository.clean_copy(landed) { |directory| run_in(repository, landed, directory, [changed, since, off]) }
+        refuse!(repository, landed, since, off) unless @carried || @failures.empty?
+        passed
+      end
+
+      def run_in(repository, landed, directory, range)
+        MainIntegration::CargoTarget.link(directory)
+        checks = checks_in(directory, *range)
+        checks.each { |name, argv| carried_now?(repository, landed) || record(landed, name, argv, directory) }
+        carried_now?(repository, landed)
+        checks.map(&:first)
       end
 
       # Asks, before a check, whether `origin/main` has come to carry the commit; once it does,
@@ -135,8 +140,20 @@ module Hecks
         MainIntegration::Refusal::Failure.new(name, tail(output), log, MainIntegration::FailureLog.finding(output))
       end
 
-      def refuse!(landed)
-        raise ConsoleCapture::Failure, MainIntegration::Refusal.new(landed, @failures, TAIL).to_s
+      # Raised after the copy is released, so the search for the first bad merge never holds the
+      # copy's turn. It runs only while the shallow check is off, and its failure never hides
+      # the refusal.
+      def refuse!(repository, landed, since, off)
+        bad = first_bad(repository, landed, since) if off
+        raise ConsoleCapture::Failure, MainIntegration::Refusal.new(landed, @failures, TAIL, first_bad: bad).to_s
+      end
+
+      def first_bad(repository, landed, since)
+        merges = repository.merges(since, landed)
+        probe = MainIntegration::MergeProbe.new(repository, impacted: self.class.impacted)
+        MainIntegration::FirstBad.new(merges, probe: probe, current: -> { repository.main == landed }).call
+      rescue ConsoleCapture::Failure
+        nil
       end
 
       def superseded(landed, head)
