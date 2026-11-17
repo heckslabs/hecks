@@ -3,9 +3,10 @@
 module Hecks
   module Adapters
     class GitTrain
-      # Runs a `gh` call again while GitHub answers that its rate limit is spent, a bounded number of
-      # times with a growing wait, and answers the last `[ok, output]` whatever it was. It judges
-      # nothing: the caller reads the answer, and `limited?` says whether a refusal was this one.
+      # Runs a `gh` call again while GitHub answers that its rate limit is spent, a bounded
+      # number of times with a growing wait, and answers the last `[ok, output]` whatever it
+      # was. It judges nothing: the caller reads the answer, and `limited?` says whether a
+      # refusal was this one.
       class RateLimitRetry
         # What `gh` prints when the hourly budget, or a burst allowance, is gone.
         LIMITS = ["API rate limit", "secondary rate limit", "rate limit exceeded"].freeze
