@@ -14,11 +14,11 @@ RSpec.describe Hecks::Adapters::GitRehearsal::Impacted::Skips do
   def spec(text) = File.write(File.join(root, "a_spec.rb"), text).then { "a_spec.rb" }
 
   it "leaves out a spec that builds with cargo" do
-    expect(skips.call(spec(%(system("cargo build")\n)))).to eq("needs cargo")
+    expect(skips.call(spec(%(system("cargo build")\n)))).to eq(%(needs cargo: system("cargo build")))
   end
 
-  it "leaves out a spec that drives gh" do
-    expect(skips.call(spec(%(system("gh", "pr", "list")\n)))).to eq("needs gh")
+  it "leaves out a spec that drives gh, naming the call" do
+    expect(skips.call(spec(%(system("gh", "pr", "list")\n)))).to eq(%(needs gh: system("gh", "pr", "list")))
   end
 
   it "leaves out an io spec when no scratch Postgres answers" do

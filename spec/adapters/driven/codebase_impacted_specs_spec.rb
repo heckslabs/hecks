@@ -27,7 +27,7 @@ RSpec.describe Hecks::Adapters::Codebase::ImpactedSpecs do
     write("spec/widget_spec.rb", spec_text("Widget"))
     write("spec/shop_world_spec.rb", spec_text("Shop").sub("RSpec.describe", "# lib/shop.bluebook\nRSpec.describe"))
     write("spec/docs_guides_spec.rb", spec_text("guides"))
-    write("spec/fetch_spec.rb", spec_text("fetch").sub("RSpec.describe", "# curl it\nRSpec.describe"))
+    write("spec/fetch_spec.rb", "#{spec_text("fetch")}system(\"curl\", \"it\")\n")
     git("init", "-b", "main")
     git("add", "-A")
     git("commit", "-m", "base")
@@ -74,7 +74,7 @@ RSpec.describe Hecks::Adapters::Codebase::ImpactedSpecs do
 
   it "skips a spec that needs the network, and says why" do
     write("lib/fetch.rb", "module Fetch; end\n")
-    expect(dry).to include("skipped: spec/fetch_spec.rb (needs network)")
+    expect(dry).to include("skipped: spec/fetch_spec.rb (needs network: system(\"curl\", \"it\"))")
   end
 
   describe "an :io spec" do
