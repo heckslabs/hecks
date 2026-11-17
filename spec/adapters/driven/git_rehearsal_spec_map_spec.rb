@@ -220,5 +220,22 @@ RSpec.describe Hecks::Adapters::GitRehearsal::SpecMap do
       add("spec/mentions_spec.rb", %(# the tag is ", :repo_scan" in a describe\n))
       expect(specs("lib/hecks/widgets/gear_box.rb")).not_to include("spec/mentions_spec.rb")
     end
+
+    it "runs none for a change wholly under docs/, which no scan reads", :aggregate_failures do
+      add("docs/guide.md")
+      add("spec/docs_guide_spec.rb", "docs/guide.md\n")
+      expect(specs("docs/guide.md")).not_to include(scan)
+      expect(specs("docs/guide.md")).to include("spec/docs_guide_spec.rb")
+    end
+
+    it "runs it when a docs change comes with a change outside docs/" do
+      expect(specs("docs/guide.md", "lib/hecks/widgets/gear_box.rb")).to include(scan)
+    end
+
+    it "still runs a spec the world triggers for a docs change" do
+      add("lib/hecks/hecks/tickets.world", %(Hecks.world "Tickets" do\n  triggered_specs "Specs", ) +
+                                           %(paths: ["docs/**/*.md"], specs: ["spec/gear_box_spec.rb"]\nend\n))
+      expect(specs("docs/guide.md")).to include("spec/gear_box_spec.rb")
+    end
   end
 end
