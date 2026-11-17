@@ -22,7 +22,19 @@ RSpec.describe Hecks::Adapters::DialTurning do
     Struct.new(:held) { def world(_name) = held }.new(world)
   end
 
-  def turning(folder) = described_class.new(aggregate: dial, registry: standing, settings: { directory: folder })
+  # The checkouts whose resident a turn asked to retire.
+  def retired = (@retired ||= [])
+
+  def turning(folder, running: true)
+    retire = ->(root) { (retired << root) && running }
+    described_class.new(aggregate: dial, registry: standing, settings: { directory: folder, retire: retire })
+  end
+
+  def refused(folder)
+    turning(folder).set(setting: "work_limit.cap", becomes: "999")
+  rescue Hecks::Adapters::ConsoleCapture::Failure
+    nil
+  end
 
   def turned(folder) = File.read(File.join(folder, "turned.local.world"))
 
@@ -30,6 +42,34 @@ RSpec.describe Hecks::Adapters::DialTurning do
     Dir.mktmpdir do |folder|
       turning(folder).set(setting: "work_limit.cap", becomes: "9")
       expect(turned(folder)).to include("Hecks.world \"Tickets\" do\n  work_limit \"WorkLimits\", cap: 9, urgent_reserve: 1\nend")
+    end
+  end
+
+  it "asks the checkout's resident to retire, so the setting is in force at once" do
+    Dir.mktmpdir do |folder|
+      turning(folder).set(setting: "work_limit.cap", becomes: "9")
+      expect(retired).to eq([File.expand_path("../../..", folder)])
+    end
+  end
+
+  it "says the resident restarts when one was running" do
+    Dir.mktmpdir do |folder|
+      said = turning(folder).set(setting: "work_limit.cap", becomes: "9")
+      expect(said[:output][:value]).to end_with("in force for the next command (the resident restarts)")
+    end
+  end
+
+  it "says the setting is in force when no resident was running" do
+    Dir.mktmpdir do |folder|
+      said = turning(folder, running: false).set(setting: "work_limit.cap", becomes: "9")
+      expect(said[:output][:value]).to end_with("; in force for the next command")
+    end
+  end
+
+  it "retires nothing when the turn is refused" do
+    Dir.mktmpdir do |folder|
+      refused(folder)
+      expect(retired).to be_empty
     end
   end
 
