@@ -1,39 +1,5 @@
 require "spec_helper"
-require_relative "support/stand_in_claude"
-require_relative "support/wakes_coder_helpers"
-
-# What the lapse wake spec drives: a review asked for long ago, so its limit has passed by the
-# clock the sweep reads, and one sweep of the sessions.
-module LapseWakeHelpers
-  def request_long_ago(work)
-    launch("agents", "PlanReview.request!", "run.value=r-#{work}", "work.value=#{work}", "hops.value=1",
-           "role.value=architect", "repo.value=#{scratch}", "plan.value=plan", "now.value=1", "--wait")
-  end
-
-  def sweep(key) = launch("agent_run.check_all!", "run.value=#{key}", "--wait")
-
-  def waiting_past_limit(work)
-    wait_as_coder(work)
-    request_long_ago(work)
-  end
-
-  def lapsed_by_a_sweep(work)
-    waiting_past_limit(work)
-    sweep("s-#{work}")
-  end
-end
-
-RSpec.shared_context "with coders waiting on plan reviews" do
-  include_context "with a stand-in claude"
-  include WakesCoderHelpers
-  include LapseWakeHelpers
-
-  before(:all) { @hecks = boot_hecks_in_memory }
-
-  let(:woken) { [] }
-
-  before { fake_runner(woken) }
-end
+require_relative "support/lapse_wake_context"
 
 # A sweep of the sessions lapses the review whose time limit passed with no verdict, and the coder
 # waiting on its Work item is woken with the reason, once. A review inside its limit is left open,
