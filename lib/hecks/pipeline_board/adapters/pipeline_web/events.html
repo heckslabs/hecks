@@ -46,13 +46,13 @@ details.ev.fresh > summary { animation: heard 2.4s ease-out; }
 .marks { display: flex; gap: 6px; font-size: 12px; white-space: nowrap; }
 .mark { padding: 0 7px; border-radius: 999px; border: 1px solid var(--line); color: var(--ink2); }
 .mark.ok { color: var(--good); border-color: color-mix(in srgb, var(--good) 40%, transparent); } .mark.bad { color: var(--critical); border-color: color-mix(in srgb, var(--critical) 50%, transparent); font-weight: 600; }
-.mark.none { color: var(--muted); }
+.mark.none, .mark.declined { color: var(--muted); }
 
 .body { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 20px 32px; padding: 6px 16px 20px 120px; }
 .body h4 { font-size: 11.5px; font-weight: 600; color: var(--ink2); margin: 14px 0 6px; }
 .body p { font-size: 13px; line-height: 1.5; } .body p.quiet { color: var(--ink2); }
 .reaction { border-left: 3px solid var(--line); padding: 2px 0 2px 12px; margin: 8px 0; font-size: 13px; }
-.reaction.ok { border-left-color: var(--good); } .reaction.bad { border-left-color: var(--critical); } .reaction.wait { border-left-color: var(--warning); }
+.reaction.ok { border-left-color: var(--good); } .reaction.bad { border-left-color: var(--critical); } .reaction.wait { border-left-color: var(--warning); } .reaction.declined { border-left-color: var(--muted); } .reaction.declined .why { color: var(--ink2); }
 .reaction b { font-weight: 600; } .reaction code, .body code { font: 12px var(--mono); overflow-wrap: anywhere; }
 .reaction .why { color: var(--critical); } .reaction .then { color: var(--ink2); font-size: 12.5px; margin-top: 3px; }
 .go { font: inherit; font-size: 12px; padding: 1px 8px; margin: 2px 4px 2px 0; border-radius: 999px; border: 1px solid var(--line); background: none; color: var(--ink); cursor: pointer; text-decoration: none; display: inline-block; }
@@ -132,14 +132,17 @@ function span(ms) {
   const s = Math.round(Math.abs(ms) / 1000);
   return s < 60 ? s + " s" : s < 3600 ? Math.round(s / 60) + " min" : s < 86400 ? (s / 3600).toFixed(1) + " h" : Math.round(s / 86400) + " d";
 }
-/* How a reaction ended, from the log's own words: delivered, refused with its reason, or still waiting. */
+/* A guard saying no by design: "<Verb> refused — why", or a create that finds its row already there. */
+const DECLINE = /^refused: (\w+ refused —|\w+ creates an? \w+ that already exists)/;
+/* How a reaction ended, from the log's own words: delivered, declined by a guard, failed with its reason, or still waiting. */
 function ended(r) {
   const said = String(r.outcome || "");
-  if (/^refus|fail/.test(said)) return { state: "bad", word: "refused", why: said.replace(/^refused:?\s*/, "") };
+  if (DECLINE.test(said)) return { state: "declined", word: "declined", why: said.replace(/^refused:?\s*/, "") };
+  if (/^refus|fail/.test(said)) return { state: "bad", word: "failed", why: said.replace(/^refused:?\s*/, "") };
   if (/deliver|settled|done/.test(said)) return { state: "ok", word: "delivered", why: "" };
   return { state: "wait", word: said || "no record yet", why: "" };
 }
-const worst = (ev) => { const all = (ev.reactions || []).map((r) => ended(r).state); return all.includes("bad") ? "bad" : all.includes("wait") ? "wait" : all.length ? "ok" : "none"; };
+const worst = (ev) => { const all = (ev.reactions || []).map((r) => ended(r).state); return all.includes("bad") ? "bad" : all.includes("wait") ? "wait" : all.includes("declined") ? "declined" : all.length ? "ok" : "none"; };
 const node = (ev) => nodes.get(ev.aggregate) || nodes.get([...nodes.keys()].find((k) => bare(k) === bare(ev.aggregate)));
 const contextOf = (ev) => { const n = node(ev); return n ? n.context || n.domain || "" : String(ev.aggregate || "").split("::")[0]; };
 const subject = (ev) => ev.aggregate + "#" + ev.id;
@@ -161,16 +164,17 @@ const sorted = () => [...events.values()].sort((a, b) => String(b.at).localeComp
 function headline(all) {
   const p = $("headline"); p.replaceChildren();
   if (!all.length) { p.textContent = "No event has been heard yet."; return; }
-  const newest = all[0], oldest = all[all.length - 1], refused = all.filter((e) => worst(e) === "bad").length, subjects = new Set(all.map(subject)).size;
+  const newest = all[0], oldest = all[all.length - 1], refused = all.filter((e) => worst(e) === "bad").length, declined = all.filter((e) => worst(e) === "declined").length, subjects = new Set(all.map(subject)).size;
   p.append(h("b", {}, all.length), " events over the last ", h("b", {}, span(new Date(newest.at) - new Date(oldest.at))), ", about ", h("b", {}, subjects), " subjects",
-    ...(refused ? [", and ", h("b", { class: "bad" }, refused), " met a refusal"] : [", none refused"]), ".");
+    ...(refused ? [", and ", h("b", { class: "bad" }, refused), " met a failure"] : [", none failed"]), ".");
+  if (declined) p.append(h("small", {}, declined, " more had a guard decline by design, which is not a failure."));
   p.append(h("small", {}, "Newest: ", words(newest.name), " from ", bare(newest.aggregate), ", ", span(Date.now() - new Date(newest.at)), " ago. This is the newest part of the event log; older events are not read here."));
 }
 function rate(all) {
   const by = new Map(); for (const e of all) { const m = String(e.at).slice(0, 16), c = by.get(m) || { n: 0, bad: 0 }; c.n += 1; if (worst(e) === "bad") c.bad += 1; by.set(m, c); }
   const minutes = [...by.keys()].sort().slice(-90), top = Math.max(1, ...minutes.map((m) => by.get(m).n));
   $("rate").replaceChildren(...minutes.map((m) => {
-    const c = by.get(m), bar = h("button", { class: "min" + (filter.minute === m ? " on" : ""), type: "button", title: time(m + ":00Z").slice(0, 5) + ": " + c.n + " events" + (c.bad ? ", " + c.bad + " refused" : "") });
+    const c = by.get(m), bar = h("button", { class: "min" + (filter.minute === m ? " on" : ""), type: "button", title: time(m + ":00Z").slice(0, 5) + ": " + c.n + " events" + (c.bad ? ", " + c.bad + " failed" : "") });
     const good = h("i"), bad = h("i", { class: "bad" }); good.style.height = ((c.n - c.bad) / top) * 100 + "%"; bad.style.height = (c.bad / top) * 100 + "%";
     bar.append(good, bad); bar.addEventListener("click", () => { filter.minute = filter.minute === m ? null : m; draw(); });
     return bar;
@@ -183,7 +187,7 @@ function chip(label, count, on, act) {
 }
 function facets(all) {
   const count = (state) => all.filter((e) => worst(e) === state).length;
-  $("outcomes").replaceChildren(...[["all", "All", all.length], ["bad", "Refused", count("bad")], ["wait", "Waiting", count("wait")], ["none", "No reaction", count("none")]]
+  $("outcomes").replaceChildren(...[["all", "All", all.length], ["bad", "Failed", count("bad")], ["declined", "Declined", count("declined")], ["wait", "Waiting", count("wait")], ["none", "No reaction", count("none")]]
     .map(([key, label, n]) => chip(label, n, filter.outcome === key, () => { filter.outcome = key; draw(); })));
   const by = new Map(); for (const e of all) by.set(contextOf(e), (by.get(contextOf(e)) || 0) + 1);
   const narrowed = [filter.minute && chip("Minute " + time(filter.minute + ":00Z").slice(0, 5) + " ✕", null, true, () => { filter.minute = null; draw(); }),
@@ -245,7 +249,7 @@ function body(ev, all) {
     h("div", {}, h("h4", {}, "Everything recorded"), meta(ev, all)));
 }
 function row(ev, all, before) {
-  const rs = ev.reactions || [], state = worst(ev), bad = rs.filter((r) => ended(r).state === "bad").length, by = raisedBy.get(bare(ev.aggregate) + "." + ev.name);
+  const rs = ev.reactions || [], state = worst(ev), bad = rs.filter((r) => ended(r).state === "bad").length, declined = rs.filter((r) => ended(r).state === "declined").length, by = raisedBy.get(bare(ev.aggregate) + "." + ev.name);
   const gap = before ? new Date(before.at) - new Date(ev.at) : null, first = rs[0];
   const el = h("details", { class: "ev" + (fresh.has(ev.key) ? " fresh" : ""), open: opened.has(ev.key) ? "" : null },
     h("summary", {},
@@ -254,7 +258,8 @@ function row(ev, all, before) {
       h("span", { class: "what", title: ev.name }, words(ev.name), h("small", {}, by ? "from " + bare(ev.aggregate) + "." + by.name : short(ev.id))),
       h("span", { class: "caused" }, first ? [words(first.policy), rs.length > 1 ? " and " + (rs.length - 1) + " more" : ""] : ""),
       h("span", { class: "marks" }, state === "none" ? h("span", { class: "mark none" }, "no reaction") : [bad ? h("span", { class: "mark bad" }, "✕ " + bad) : null,
-        rs.length - bad ? h("span", { class: "mark " + (state === "wait" ? "" : "ok") }, (state === "wait" ? "▲ " : "✓ ") + (rs.length - bad)) : null])));
+        declined ? h("span", { class: "mark declined", title: "guard declines" }, "– " + declined) : null,
+        rs.length - bad - declined ? h("span", { class: "mark " + (state === "wait" ? "" : "ok") }, (state === "wait" ? "▲ " : "✓ ") + (rs.length - bad - declined)) : null])));
   el.addEventListener("toggle", () => {
     if (el.open) { opened.add(ev.key); if (!el.querySelector(".body")) el.append(body(ev, sorted())); } else opened.delete(ev.key);
   });
@@ -349,7 +354,7 @@ const brain = (() => {
   }
   function say(ev, live) {
     const rs = ev.reactions || [], bad = rs.filter((r) => ended(r).state === "bad").length, line = document.createElement("div");
-    line.textContent = bare(ev.aggregate) + "." + ev.name + (rs.length ? "  →  " + rs.length + (rs.length === 1 ? " reaction" : " reactions") + (bad ? ", " + bad + " declined" : "") : "");
+    line.textContent = bare(ev.aggregate) + "." + ev.name + (rs.length ? "  →  " + rs.length + (rs.length === 1 ? " reaction" : " reactions") + (bad ? ", " + bad + " failed" : "") : "");
     if (bad) line.className = "bad"; if (!live) line.style.opacity = ".55";
     const t = $("ticker"); t.append(line); while (t.children.length > 6) t.firstChild.remove();
     [...t.children].forEach((el, i) => { if (!el.style.opacity || el.style.opacity !== ".55") el.style.opacity = String(.35 + .65 * (i + 1) / t.children.length); });
@@ -365,7 +370,7 @@ const brain = (() => {
     if (pulses.length > 900) pulses.splice(0, pulses.length - 900);
     say(ev, live);
   }
-  const COLOR = { ok: "140,220,255", bad: "255,160,90", wait: "170,170,200" };
+  const COLOR = { ok: "140,220,255", bad: "255,160,90", declined: "170,170,200", wait: "170,170,200" };
   function frame(now) {
     if (!on) return; if (!back) backdrop();
     cx.clearRect(0, 0, W, H); cx.drawImage(back, 0, 0, W, H);
