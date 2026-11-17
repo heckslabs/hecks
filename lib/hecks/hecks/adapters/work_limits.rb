@@ -47,12 +47,28 @@ module Hecks
         declared && !declared[:urgent_reserve].nil? ? Integer(declared[:urgent_reserve]) : DEFAULT_URGENT_RESERVE
       end
 
-      # Clears a just-started work item against the cap.
+      # The world verb that carries the owner's stop and start switch for new work.
+      SWITCH = "dispatch_roll_forward"
+
+      # Whether the owner's switch lets new work start. It is the one fact the Settings page shows and
+      # every start reads; a merge window is a separate pause and does not count here.
+      #
+      # @param registry [Runtime::Registry, nil]
+      # @return [Boolean] false only when the Tickets world says `roll_forward: false`
+      def self.switch_on?(registry)
+        declared = registry&.world("Tickets")&.for_verb(SWITCH)
+        !declared || declared[:roll_forward] != false
+      end
+
+      # Clears a just-started work item against the owner's switch and the cap.
       #
       # @param held [Hash] the Work item: `work`
       # @return [Hash{Symbol => Hash}] `output:` the line that says the cap holds
-      # @raise [ConsoleCapture::Failure] naming the cap, the count and the holders
+      # @raise [ConsoleCapture::Failure] when new work is stopped, or naming the cap, the count and
+      #   the holders
       def check_cap(**held)
+        raise ConsoleCapture::Failure, "new work is stopped: #{SWITCH} is off" unless self.class.switch_on?(@registry)
+
         key = plain(held[:work])
         holders = started
         item = holders.find { |candidate| candidate.key == key }
