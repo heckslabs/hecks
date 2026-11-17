@@ -6,11 +6,9 @@ module RuboCop
       # Flags a `git log` or `git rev-list` call outside an adapter.
       #
       # The pipeline asks the ledger what happened and when; a history read still needed is added
-      # to the `Git` port. Adapter folders are skipped: an adapter of another port (Train,
-      # Rehearsing) reads the history for its own port, and moving those reads behind `Git`, which
-      # has no read for most of them, is the owner's decision. Vendored packages hold the same
-      # debt. A file in the baseline list is fully exempt; the cop closes the non-adapter gap only and
-      # does not check that a read sits in the `Git` port.
+      # to the `Git` port, though the cop does not check that. Adapter folders and vendored
+      # packages are skipped: an adapter of another port reads history for its own port, and
+      # moving those reads is the owner's decision. A baselined file is fully exempt.
       #
       # @example
       #   read("rev-list", "--count", range)    # bad
