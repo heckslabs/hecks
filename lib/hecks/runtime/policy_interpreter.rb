@@ -7,6 +7,7 @@ require_relative "value"
 require_relative "policy_interpreter/fan_out"
 require_relative "policy_interpreter/arguments"
 require_relative "policy_interpreter/held_store"
+require_relative "policy_interpreter/timing"
 require_relative "../bluebook/expression/evaluator"
 
 module Hecks
@@ -17,6 +18,7 @@ module Hecks
       include FanOut
       include Arguments
       include HeldStore
+      include Timing
 
       attr_reader :registry
 
@@ -24,9 +26,11 @@ module Hecks
       #   bluebooks are scanned for candidate policies
       # @param dispatcher [Runtime::Dispatcher] the dispatcher reactions re-enter through,
       #   and whose reaction-depth guard is checked before each delivery
-      def initialize(registry, dispatcher:)
+      # @param clock [#call] answers seconds; each delivery is timed with it
+      def initialize(registry, dispatcher:, clock: Timing::MONOTONIC)
         @registry = registry
         @dispatcher = dispatcher
+        @clock = clock
       end
 
       # Fires every declared policy `event` triggers, recording each outcome on
@@ -44,7 +48,7 @@ module Hecks
       def react(event, domain, only: nil, event_uid: nil)
         selected = only ? [only] : policies_for(event, domain)
         selected.flat_map do |policy, home_domain|
-          result = deliver(policy, event, home_domain)
+          result = timed(policy) { deliver(policy, event, home_domain) }
           # A for_each policy answers an array; Array(...) would explode a record Hash. The identity
           # is the event's own id: a later run recognises the reaction, whichever path ran it.
           records = result.is_a?(Array) ? result : [result].compact
