@@ -13,6 +13,11 @@ module Hecks
 
         private
 
+        # A confirmed filling starts work, so it says why when the owner has stopped new work.
+        def refuse_stopped!
+          raise ConsoleCapture::Failure, "new work is stopped: dispatch_roll_forward is off" unless machine.switch_on?
+        end
+
         def launch(plan, held)
           launcher = launcher_for(held)
           minutes = plain(held[:budget_minutes]) || Settings::BUDGET_MINUTES

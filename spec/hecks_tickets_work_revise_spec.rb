@@ -1,4 +1,5 @@
 require "spec_helper"
+require_relative "support/new_work_started"
 
 # Drives the Tickets Work commands through the CLI of a Memory-booted Hecks domain.
 module WorkReviseHelpers
@@ -32,6 +33,8 @@ end
 # priority, step and area stay as they were. Area moves through Rescope and ClearArea, and a done
 # or dropped item takes none of them. Each example boots its own Hecks domain.
 RSpec.describe "Work revise" do
+  include_context "with new work started"
+
   include WorkReviseHelpers
 
   it "keeps status, claim, priority, step and area of a started item", :aggregate_failures do
