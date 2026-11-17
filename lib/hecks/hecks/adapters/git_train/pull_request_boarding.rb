@@ -5,6 +5,8 @@ require_relative "reading"
 require_relative "bench"
 require_relative "named_commit"
 require_relative "merge_when_green"
+require_relative "rate_limit_retry"
+require_relative "../gh_rest"
 
 module Hecks
   module Adapters
@@ -148,7 +150,7 @@ module Hecks
 
         # Opens the PR, or finds the one a retried boarding already opened.
         def open_pr(branch, boarded)
-          ok, output = @runner.call(
+          ok, output = patient.call(
             ["gh", "pr", "create", "--base", "main", "--head", branch,
              "--title", "Train: main at #{short(boarded)}",
              "--body", "Boarded by the push train. Merges once the required checks pass."],
@@ -156,7 +158,17 @@ module Hecks
           )
           return url_from(output) if ok
 
-          existing(branch) || raise(ConsoleCapture::Failure, "could not open a PR for #{branch}: #{output.to_s.strip}")
+          existing(branch, output) || raise(ConsoleCapture::Failure, open_refusal(branch, output))
+        end
+
+        # A `gh` runner that waits out a spent rate limit and asks again.
+        def patient = RateLimitRetry.new(@runner, pause: @pause)
+
+        # Names the refused step and, for the rate limit, that the pushed branch stays for a
+        # re-board.
+        def open_refusal(branch, output)
+          note = RateLimitRetry.limited?(output) ? " (rate limit; #{branch} stays pushed, board again to adopt it)" : ""
+          "could not open a PR for #{branch}#{note}: #{output.to_s.strip}"
         end
 
         # `gh pr create` prints the PR's URL as its last line.
@@ -165,16 +177,29 @@ module Hecks
           lines.last.to_s.strip
         end
 
-        def existing(branch)
+        # Under a spent rate limit the read goes over REST, whose budget is apart from GraphQL's.
+        def existing(branch, refusal = nil)
+          return rest_url(branch) if RateLimitRetry.limited?(refusal)
+
           ok, output = @runner.call(["gh", "pr", "view", branch, "--json", "url", "--jq", ".url"], chdir: @checkout)
           ok ? output.to_s.strip : nil
+        end
+
+        def rest_url(branch)
+          reader = lambda do |*args|
+            ok, out = @runner.call(["gh", *args], chdir: @checkout)
+            ok ? JSON.parse(out.to_s) : []
+          end
+          GhRest.new(reader).pull(branch)&.fetch("url", nil)
+        rescue JSON::ParserError
+          nil
         end
 
         # GitHub deletes the branch once the PR merges (the repository's delete-on-merge setting);
         # `gh` refuses `--delete-branch` while main has a merge queue. Answers false, and sets
         # nothing, when the repository disallows auto-merge.
         def enable_auto_merge(branch)
-          ok, output = @runner.call(["gh", "pr", "merge", branch, "--auto", "--merge"], chdir: @checkout)
+          ok, output = patient.call(["gh", "pr", "merge", branch, "--auto", "--merge"], chdir: @checkout)
           return true if ok
           return false if output.to_s.include?(AUTO_MERGE_DISALLOWED)
 
