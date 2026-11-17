@@ -669,19 +669,59 @@ function deletable(s) {
   const finished = s.status === "done" || s.status === "failed";
   return finished && !/\bdeploy\b/i.test((s.name || "") + " " + (s.detail || "")) && !pinnedRole(s);
 }
-// A pinned agent role's session is never offered for Delete: its name starts with a declared role.
-function pinnedRole(s) {
+// The declared role a session works as: the role whose name its session name starts with.
+function roleOf(s) {
   const roles = lastState && Array.isArray(lastState.roles) ? lastState.roles : [];
-  return roles.some((r) => (s.name || "").startsWith(r.name));
+  const hit = roles.find((r) => (s.name || "").startsWith(r.name));
+  return hit ? hit.name : null;
 }
-function filterBar() {
+// A pinned agent role's session is never offered for Delete: its name starts with a declared role.
+function pinnedRole(s) { return roleOf(s) !== null; }
+// The other Sessions filters, each ANDed with the status row: the agent role a session works as,
+// its work item, and how long ago it ended (else started).
+const sessionPick = { role: "all", item: "all", age: "all" };
+const AGE_LIMITS = { "last hour": 3600e3, today: 24 * 3600e3 };
+function ageOf(s) { const at = Date.parse(s.ended || s.started); return isNaN(at) ? null : Date.now() - at; }
+const AGE_FILTERS = {
+  all: () => true,
+  "last hour": (s) => ageOf(s) !== null && ageOf(s) <= AGE_LIMITS["last hour"],
+  today: (s) => ageOf(s) !== null && ageOf(s) <= AGE_LIMITS.today,
+  older: (s) => ageOf(s) !== null && ageOf(s) > AGE_LIMITS.today
+};
+// A session passes when every filter group holds: status, role, work item and age.
+function visible(s) {
+  return (SESSION_FILTERS[sessionFilter] || SESSION_FILTERS.all)(s)
+    && (sessionPick.role === "all" || roleOf(s) === sessionPick.role)
+    && (sessionPick.item === "all" || s.row === sessionPick.item)
+    && (AGE_FILTERS[sessionPick.age] || AGE_FILTERS.all)(s);
+}
+function resetFilters() { sessionFilter = "all"; Object.assign(sessionPick, { role: "all", item: "all", age: "all" }); }
+function pickGroup(label, key, names) {
+  const group = h("div", { class: "filters", role: "group", "aria-label": "Filter sessions by " + label }, h("small", {}, label));
+  for (const name of ["all", ...names]) {
+    const b = h("button", { type: "button", class: "filter", "data-pick": key, "aria-pressed": String(name === sessionPick[key]) }, name);
+    b.addEventListener("click", () => { sessionPick[key] = name; pages.set("sessions", 0); renderSessions(lastSessions); });
+    group.append(b);
+  }
+  return group;
+}
+function itemPicker(all) {
+  const items = [...new Set(all.map((s) => s.row).filter(Boolean))].sort();
+  if (!items.includes(sessionPick.item)) sessionPick.item = "all";
+  const sel = h("select", { class: "filter", "aria-label": "Filter sessions by work item" }, ["all", ...items].map((name) => h("option", { value: name }, name)));
+  sel.value = sessionPick.item;
+  sel.addEventListener("change", () => { sessionPick.item = sel.value; pages.set("sessions", 0); renderSessions(lastSessions); });
+  return h("div", { class: "filters" }, h("small", {}, "work item"), sel);
+}
+function filterBar(all) {
   const bar = h("div", { class: "filters", role: "group", "aria-label": "Filter sessions" });
   for (const name of Object.keys(SESSION_FILTERS)) {
     const b = h("button", { type: "button", class: "filter", "aria-pressed": String(name === sessionFilter) }, name);
     b.addEventListener("click", () => { sessionFilter = name; pages.set("sessions", 0); renderSessions(lastSessions); });
     bar.append(b);
   }
-  return bar;
+  const roles = lastState && Array.isArray(lastState.roles) ? lastState.roles.map((r) => r.name) : [];
+  return h("div", {}, bar, pickGroup("role", "role", roles), itemPicker(all), pickGroup("age", "age", Object.keys(AGE_FILTERS).slice(1)));
 }
 let lastSessions = [];
 // The sessions shown at once; the rest are a page away, under the table.
@@ -690,7 +730,7 @@ function renderSessions(all) {
   if (isUnknown(all)) { put("sessions", unknown(all)); return applyHighlight(); }
   lastSessions = all;
   if (highlight && highlight.kind === "runs" && !highlight.placed) aimSessions(all);
-  const list = all.filter(SESSION_FILTERS[sessionFilter] || SESSION_FILTERS.all);
+  const list = all.filter(visible);
   setTitle("h-sess", "Sessions", list.length);
   const waiting = (lastState && lastState.waiting_on_you && lastState.waiting_on_you.count) || 0;
   const by = (status) => (status === "blocked" ? waiting : all.filter((s) => s.status === status).length);
@@ -698,7 +738,7 @@ function renderSessions(all) {
     by("failed") && [by("failed") + " failed", "failed"], by("done") + " done", all.filter(deletable).length + " deletable"]);
   const at = pageOf("sessions", list.length, SESSION_PAGE);
   const shown = list.slice(at * SESSION_PAGE, (at + 1) * SESSION_PAGE);
-  put("sessions", filterBar(), table(["Session", "Status", "Class", "Work item", "Started", "Detail"], shown.map((s) => [sessionLabel(s), [sessionBadge(s), " ", s.state], s.kind || "-", s.row || "-", clock(s.started), replyNote(s)])),
+  put("sessions", filterBar(all), table(["Session", "Status", "Class", "Work item", "Started", "Detail"], shown.map((s) => [sessionLabel(s), [sessionBadge(s), " ", s.state], s.kind || "-", s.row || "-", clock(s.started), replyNote(s)])),
     list.length > SESSION_PAGE ? pageBar("sessions", at, list.length, SESSION_PAGE, () => renderSessions(lastSessions)) : null);
   const rows = $("sessions").querySelectorAll("tbody tr");
   shown.forEach((s, i) => {
@@ -716,9 +756,9 @@ function renderSessions(all) {
 // The Sessions table shows the highlighted run's row: the filter that holds it, and the page it is on.
 function aimSessions(all) {
   const has = (s) => s.run === highlight.key || s.id === highlight.key;
-  const listed = () => all.filter(SESSION_FILTERS[sessionFilter] || SESSION_FILTERS.all);
+  const listed = () => all.filter(visible);
   if (!all.some(has)) return;
-  if (!listed().some(has)) sessionFilter = "all";
+  if (!listed().some(has)) resetFilters();
   pages.set("sessions", Math.floor(listed().findIndex(has) / SESSION_PAGE));
 }
 function renderFan(fan) {
