@@ -903,6 +903,21 @@ Hecks.bluebook "Tickets" do
       emits "WorkPrioritized"
     end
 
+    # An open work item is given its place in the plan: within one priority Dispatch starts the lowest step
+    # first. Plan sets a step only when the item is entered, so this is how an existing item is moved up or
+    # down. The claim, the priority and the area stay as they are.
+    command "Order" do
+      role "Maintainer"
+      goal "Say where an open work item stands in the plan: the lower its step, the sooner it starts"
+
+      reference_to Work
+      attribute :step, Step, sets: true
+
+      given("a done or dropped work item takes no step") { status != "done" && status != "dropped" }
+
+      emits "WorkOrdered"
+    end
+
     # A started work item is claimed: the second Start on it is refused, since only a planned one
     # starts.
     command "Start" do
