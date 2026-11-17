@@ -38,10 +38,12 @@ body.view-sessions #sessions-panel > summary { pointer-events: none; } body.view
 .cause .track { height: 8px; border-radius: 4px; background: color-mix(in srgb, var(--ink) 7%, transparent); overflow: hidden; }
 .cause .fill { display: block; height: 100%; border-radius: 4px; background: var(--ink2); } .cause .pct { text-align: right; color: var(--ink2); }
 .loadaxis { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); margin-top: 4px; }
-/* Work finished per day: one bar a day, today's lighter because the day is still open. */
+/* Work finished per day: one bar a day, today's lighter because the day is still open. A bar is its
+   share of the room under the count label, and never shrinks, so two bars differ as their counts do. */
 .thru .label { color: var(--ink2); font-size: 13px; margin-bottom: 4px; }
 .thru .cols { height: 120px; gap: 6px; } .thru .xlabels { gap: 6px; margin-top: 4px; }
-.thru .col .bar { max-width: none; background: var(--good); } .thru .col.today .bar { opacity: .45; }
+.thru .cols { --val: 16px; } .thru .col .val { height: var(--val); line-height: var(--val); flex: none; }
+.thru .col .bar { max-width: none; background: var(--good); flex: none; } .thru .col.today .bar { opacity: .45; }
 .thru .col.today .val, .thru .xlabels span:last-child { color: var(--ink); font-weight: 600; }
 #resolve-detail { max-height: 50vh; overflow: auto; overflow-wrap: anywhere; font-size: 13px; line-height: 1.5; }
 #resolve-detail p { margin: 0; } #resolve-detail .parts { margin: 0; padding: 0; list-style: none; }
@@ -607,7 +609,7 @@ function renderThroughput(t) {
   if (!t || !Array.isArray(t.days)) { $("thrunote").textContent = ""; return put("thru", unknown(t || { unknown: "the first read is still running" })); }
   const max = Math.max(1, ...t.days.map((d) => d.finished)), last = t.days.length - 1;
   const cols = t.days.map((d, i) => h("div", { class: "col" + (i === last ? " today" : ""), tip: d.day + ": " + d.finished + " finished" },
-    h("div", { class: "val" }, String(d.finished)), h("div", { class: "bar", style: "height:" + Math.round(100 * d.finished / max) + "%" })));
+    h("div", { class: "val" }, String(d.finished)), h("div", { class: "bar", style: "height:calc((100% - var(--val)) * " + (d.finished / max).toFixed(4) + ")" })));
   put("thru", [h("div", { class: "cols" }, cols), h("div", { class: "xlabels" }, t.days.map((d, i) => h("span", {}, i === last ? "today" : d.label)))]);
   $("thrunote").textContent = t.days[last].finished + " so far today; " + t.average + " a day on average over the " + last + " days before";
 }

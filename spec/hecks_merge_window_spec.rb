@@ -17,7 +17,7 @@ RSpec.describe "a merge window" do
   end
   let(:settings) { Hecks::Adapters::Dispatching::Settings.new(switched_on) }
   let(:runs) do
-    instance_double(Hecks::Adapters::Quieting::PipelineRuns, stop_all: { sessions: %w[s1 s2], items: ["a"] })
+    instance_double(Hecks::Adapters::Quieting::PipelineRuns, stop_all: { sessions: %w[s1], gone: %w[s2], items: ["a"] })
   end
   let(:trees) { instance_double(Hecks::Adapters::Quieting::LandingTrees, end_all: [4, 5, 6]) }
 
@@ -48,7 +48,7 @@ RSpec.describe "a merge window" do
   it "records what quieting stopped, returned and ended" do
     open_window
 
-    expect(record.quieted.value).to eq("stopped 2 pipeline sessions, returned 1 work items to the plan, " \
+    expect(record.quieted.value).to eq("stopped 1 pipeline sessions (1 already stopped), returned 1 work items to the plan, " \
                                        "ended 3 landing processes; branches and commits kept")
   end
 

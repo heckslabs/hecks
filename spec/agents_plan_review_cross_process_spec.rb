@@ -19,7 +19,7 @@ RSpec.describe "the Agents plan review across processes" do
   def request
     @dispatcher.dispatch_flat("Agents::PlanReview.Request", run: { value: "r1" }, work: { value: "w1" },
                                                             hops: { value: 1 }, role: { value: "architect" },
-                                                            repo: { value: "/tmp" }, plan: { value: "p" },
+                                                            repo: { value: "/tmp" }, plan: { value: "twenty chars at least" },
                                                             now: { value: 1000 })
   end
 

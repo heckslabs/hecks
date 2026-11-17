@@ -14,9 +14,11 @@ module PlanReviewLimitHelpers
 
   def review = Hecks::Agents::PlanReview
 
-  def request(run: "r1", at: 1000, **more)
+  # A review asked for the second time by default, the one a lapse ends;
+  # `asks: { value: 0 }` is the first.
+  def request(run: "r1", at: 1000, plan: { value: "a plan that is long enough" }, asks: { value: 1 }, **more)
     review.request!(run: { value: run }, work: { value: "w1" }, hops: { value: 1 }, role: { value: "architect" },
-                    repo: { value: "/tmp" }, plan: { value: "a plan" }, now: { value: at }, **more)
+                    repo: { value: "/tmp" }, plan: plan, now: { value: at }, asks: asks, **more)
   end
 
   def lapse(asked, at:)
