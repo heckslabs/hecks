@@ -1008,10 +1008,8 @@ Hecks.bluebook "Hecks" do
       attribute :cause,       Report, optional: true
       attribute :step,        Report, optional: true
       # What the search for a failed verification's first bad merge reports, as facts: the last
-      # verified commit the range starts after, the first merge whose own specs fail (its commit,
-      # subject, branch, first failing spec and example), whether those specs are red at the last
-      # verified commit too, whether a landing of the range was already reverted, whether the merge
-      # never left local main, and why none was named. A fact the search could not read is empty.
+      # verified commit, the first merge whose own specs fail, and whether a revert already stands.
+      # A fact the search could not read is empty.
       attribute :base,             Report, optional: true
       attribute :culprit,          Report, optional: true
       attribute :branch,           Report, optional: true
@@ -1386,20 +1384,17 @@ Hecks.bluebook "Hecks" do
       trigger Integration::Fail, with: { landed: :landed, checkout: :checkout, refusal: :refusal }
     end
 
-    # The failure a run is parked on names its first bad merge: the adapter reports the facts
-    # (`BisectAnswered`), and the policies below decide. Each hears its event as a new cascade
-    # (`root`), so the chain from a failed verification to a verified revert stays within the
-    # reaction depth bound.
+    # The adapter reports the first bad merge's facts (`BisectAnswered`); the policies below decide.
+    # Each hears its event as a new cascade (`root`), which keeps the chain within the depth bound.
     policy "BisectWhenVerificationFailed" do
       on      "Integration.MainVerificationFailed"
       root
       ask     :bisect, with: { run: :run, landed: :landed, checkout: :checkout }
     end
 
-    # A merge whose own specs fail, whose specs pass at the last verified commit, and whose range
-    # holds no revert yet: it is the one change to revert. One revert per red episode: a range
-    # that already holds one is parked for the owner, and a spec red at the last verified commit
-    # too (a spec that fails on this machine only) reverts nothing.
+    # A merge whose specs fail, pass at the last verified commit, and whose range holds no revert
+    # yet is the one change to revert. A range with a revert is parked; a spec red at the base too
+    # reverts nothing.
     policy "RevertWhenAMergeIsRed" do
       on      "Integration.BisectAnswered"
       root
@@ -1485,11 +1480,9 @@ Hecks.bluebook "Hecks" do
                                        specs: :specs, work: :work_key, title: :title, cause: :cause, step: :step, failure: :report }
     end
 
-    # What a failed verification's search for the first bad merge decided, one record per red run: the
-    # merge is being reverted, the episode is parked because a revert already stands in its range (the
-    # owner decides what follows), or nothing is reverted because no merge turned its specs red. The
-    # lifecycle holds the one choice each run makes; "one revert per red episode" is the fact
-    # `already_reverted`, read from the repository's own history, so a new process reads it too.
+    # One record per red run: the merge is being reverted, the episode is parked because a revert
+    # already stands in its range, or no merge turned its specs red. `already_reverted` is read from
+    # the repository's own history, so a new process reads it too.
     aggregate "RedEpisode" do
       description "The decision a red main's search made: revert its first bad merge, park the episode, or acquit every merge."
 
@@ -1567,11 +1560,9 @@ Hecks.bluebook "Hecks" do
       end
     end
 
-    # Landings stop first, then the merge is undone: the flag is the one owner of "main is red", and
-    # `Landing` and the push train already refuse by name while it stands. The revert is the push
-    # train's own command, so it keeps the line's turn. A revert of a landing that never left local
-    # main is verified at once as its own run, and a pass of it lowers the flag; a landing that
-    # reached `origin/main` leaves the flag to the owner and CI.
+    # Landings stop first: the flag is the one owner of "main is red", and `Landing` and the push
+    # train refuse by name while it stands. A revert that never left local main is verified at once
+    # and lowers the flag; one that reached `origin/main` leaves the flag to the owner and CI.
     policy "RaiseTheFlagWhenReverting" do
       on      "RedEpisode.EpisodeReverting"
       root
