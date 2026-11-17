@@ -66,6 +66,18 @@ dl.meta dt { color: var(--ink2); } dl.meta dd { overflow-wrap: anywhere; } dl.me
   details.ev > summary { grid-template-columns: 92px minmax(0, 1fr) auto; } .where, .caused { display: none; }
   .body { grid-template-columns: 1fr; padding-left: 16px; }
 }
+/* Brain view: every aggregate is a neuron placed inside a brain's outline, grouped by context; an event lights
+   its neuron and a pulse runs down each policy to where it reaches. The stage is dark in both themes. */
+.brain { position: relative; margin-top: 14px; height: calc(100vh - 190px); min-height: 420px; border-radius: 14px; overflow: hidden; background: radial-gradient(ellipse at 50% 40%, #131a33 0%, #070a16 70%); }
+.brain canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: crosshair; }
+.brain .ticker { position: absolute; left: 16px; bottom: 14px; font: 12px/1.6 var(--mono); color: #a9b6e8; pointer-events: none; max-width: 60%; }
+.brain .ticker div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: opacity .6s; }
+.brain .ticker .bad { color: #ffb37a; }
+.brain .brainsays { position: absolute; right: 16px; bottom: 14px; margin: 0; font-size: 12px; color: #7f8bb8; }
+.brain .braintip { position: absolute; padding: 6px 10px; border-radius: 8px; background: rgba(10, 14, 30, .92); border: 1px solid #2a3564; color: #dfe6ff; font-size: 12.5px; pointer-events: none; white-space: nowrap; }
+.brain .braintip small { display: block; color: #8f9bcc; }
+/* In brain view the headline and the rate bars step aside so the brain has the window. */
+body.brainmode .overview, body.brainmode .facets, body.brainmode .list { display: none; }
 </style>
 </head>
 <body>
@@ -85,7 +97,10 @@ dl.meta dt { color: var(--ink2); } dl.meta dd { overflow-wrap: anywhere; } dl.me
     <span id="outcomes"></span>
     <button class="chip" id="by" type="button" aria-pressed="false">Group by subject</button>
     <button class="chip" id="hold" type="button" aria-pressed="false">Hold still</button>
+    <button class="chip" id="brainmode" type="button" aria-pressed="false">Brain view</button>
   </div>
+  <div class="brain" id="brain" hidden><canvas id="cortex"></canvas><div class="ticker" id="ticker" aria-live="off"></div>
+    <div class="braintip" id="braintip" hidden></div><p class="brainsays" id="brainsays"></p></div>
   <div class="facets" id="facets"></div>
   <div class="list" id="list"></div>
 </main>
@@ -265,11 +280,12 @@ function draw() {
 let due = null;
 function soon() { if (!due) due = setTimeout(() => { due = null; if (!held) draw(); }, 700); }
 function take(list, live) {
-  for (const ev of list) if (ev && ev.key) { if (live && !events.has(ev.key)) fresh.add(ev.key); events.set(ev.key, ev); }
+  for (const ev of list) if (ev && ev.key) { if (live && !events.has(ev.key)) { fresh.add(ev.key); brain.fire(ev, true); } events.set(ev.key, ev); }
 }
 /* The wiring graph says which command raises an event and where a policy reaches. */
 function learn(g) {
   if (!g || !g.nodes) return;
+  brain.wire(g);
   nodes = new Map(g.nodes.filter((n) => n.kind === "aggregate").map((n) => [n.id, n]));
   raisedBy = new Map(); for (const n of nodes.values()) for (const c of (n.details && n.details.commands) || []) for (const e of c.emits || []) raisedBy.set(n.label + "." + e, c);
   const label = new Map(g.nodes.map((n) => [n.id, n.label + (n.kind === "port" ? " (a port)" : "")]));
@@ -280,6 +296,114 @@ function openOnBoarding() {
   const m = /^\/trains\/([^/]+)$/.exec(location.pathname);
   if (m) find(decodeURIComponent(m[1]));
 }
+/* ---- Brain view ---- */
+const brain = (() => {
+  const cv = $("cortex"), cx = cv.getContext("2d"), still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let on = false, W = 0, H = 0, cells = new Map(), byLabel = new Map(), axons = [], pulses = [], back = null, raf = 0, lastLive = 0, replay = [], replayAt = 0, tip = null;
+  /* A brain seen from the side, in a 0..1 box: the cerebrum, the temporal lobe under it, the cerebellum and the stem. */
+  const PARTS = [[.46, .40, .40, .30], [.40, .62, .22, .12], [.77, .70, .13, .10], [.62, .84, .045, .11]];
+  const inside = (x, y) => PARTS.some(([a, b, rx, ry]) => ((x - a) / rx) ** 2 + ((y - b) / ry) ** 2 <= 1);
+  /* Where each context settles: front to back across the cerebrum, then the lower lobes, so wiring that talks stays near. */
+  const SEATS = [[.20, .38], [.34, .24], [.50, .20], [.66, .26], [.78, .42], [.60, .44], [.44, .42], [.30, .52], [.42, .63], [.54, .60], [.77, .70], [.62, .82], [.24, .26], [.70, .54]];
+  const rnd = (seed) => () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+  const hue = (text) => { let n = 0; for (const c of String(text)) n = (n * 31 + c.charCodeAt(0)) >>> 0; return 190 + (n % 150); };
+  function wire(g) {
+    const r = rnd(7), groups = new Map();
+    for (const n of g.nodes) { const k = n.kind === "aggregate" ? (n.context || n.domain || "other") : "ports"; groups.set(k, [...(groups.get(k) || []), n]); }
+    const order = [...groups].sort((a, b) => b[1].length - a[1].length);
+    cells = new Map(); byLabel = new Map();
+    order.forEach(([context, list], i) => {
+      const [sx, sy] = SEATS[i % SEATS.length], spread = .05 + Math.sqrt(list.length) * .016;
+      for (const n of list) {
+        let x, y, tries = 0;
+        do { const a = r() * 6.283, d = Math.sqrt(r()) * spread * (1 + tries / 40); x = sx + Math.cos(a) * d; y = sy + Math.sin(a) * d * .8; tries += 1; } while (!inside(x, y) && tries < 200);
+        cells.set(n.id, { id: n.id, label: n.label, context, port: n.kind !== "aggregate", x, y, heat: 0, fired: 0, last: "", hue: hue(context) });
+      }
+    });
+    /* A few passes push neurons apart so none sits on another, and never outside the outline. */
+    const all = [...cells.values()];
+    for (let pass = 0; pass < 14; pass += 1) for (const a of all) for (const b of all) {
+      if (a === b) continue; const dx = a.x - b.x, dy = a.y - b.y, d2 = dx * dx + dy * dy;
+      if (d2 > .0006 || d2 === 0) continue; const push = (.0006 - d2) * 6, nx = a.x + dx * push, ny = a.y + dy * push; if (inside(nx, ny)) { a.x = nx; a.y = ny; }
+    }
+    axons = g.edges.filter((e) => cells.has(e.from) && cells.has(e.to) && e.from !== e.to).map((e) => ({ from: cells.get(e.from), to: cells.get(e.to), label: e.label }));
+    for (const e of g.edges) if (cells.has(e.to)) byLabel.set(e.label, cells.get(e.to));
+    back = null;
+  }
+  const cellOf = (aggregate) => cells.get(aggregate) || [...cells.values()].find((c) => !c.port && c.label === bare(aggregate));
+  /* The outline keeps its proportions whatever the stage's shape: a box 1.3 wide for each 1 high, centred. */
+  const box = () => { const u = Math.min(H * 1.04, W / 1.3); return [u * 1.3, u, (W - u * 1.3) / 2, (H - u) / 2 + u * .02]; };
+  const px = (c) => { const [bw, bh, ox, oy] = box(); return [ox + c.x * bw, oy + c.y * bh]; };
+  function size() { const b = cv.getBoundingClientRect(), k = devicePixelRatio || 1; W = b.width; H = b.height; cv.width = W * k; cv.height = H * k; cx.setTransform(k, 0, 0, k, 0, 0); back = null; }
+  /* The outline and the resting axons are drawn once and kept; only what fires is drawn each frame. */
+  function backdrop() {
+    back = document.createElement("canvas"); back.width = cv.width; back.height = cv.height; const b = back.getContext("2d"), k = devicePixelRatio || 1; b.setTransform(k, 0, 0, k, 0, 0);
+    b.shadowColor = "rgba(120,150,255,.35)"; b.shadowBlur = 40; b.fillStyle = "rgba(96,120,220,.07)";
+    const [bw, bh, ox, oy] = box();
+    for (const [a, c, rx, ry] of PARTS) { b.beginPath(); b.ellipse(ox + a * bw, oy + c * bh, rx * bw, ry * bh, 0, 0, 6.283); b.fill(); }
+    b.shadowBlur = 0; b.lineWidth = .6;
+    for (const e of axons) { const [x1, y1] = px(e.from), [x2, y2] = px(e.to); b.strokeStyle = "rgba(150,170,255,.05)"; b.beginPath(); b.moveTo(x1, y1); b.quadraticCurveTo((x1 + x2) / 2, (y1 + y2) / 2 - 18, x2, y2); b.stroke(); }
+  }
+  function say(ev, live) {
+    const rs = ev.reactions || [], bad = rs.filter((r) => ended(r).state === "bad").length, line = document.createElement("div");
+    line.textContent = bare(ev.aggregate) + "." + ev.name + (rs.length ? "  →  " + rs.length + (rs.length === 1 ? " reaction" : " reactions") + (bad ? ", " + bad + " declined" : "") : "");
+    if (bad) line.className = "bad"; if (!live) line.style.opacity = ".55";
+    const t = $("ticker"); t.append(line); while (t.children.length > 6) t.firstChild.remove();
+    [...t.children].forEach((el, i) => { if (!el.style.opacity || el.style.opacity !== ".55") el.style.opacity = String(.35 + .65 * (i + 1) / t.children.length); });
+  }
+  /* One event: its neuron lights, then a pulse runs to wherever each of its policies reaches. */
+  function fire(ev, live) {
+    if (!on) return; const src = cellOf(ev.aggregate); if (!src) return;
+    const now = performance.now(); src.heat = Math.min(1.6, src.heat + (live ? 1 : .7)); src.fired += 1; src.last = ev.name; if (live) lastLive = now;
+    for (const r of ev.reactions || []) {
+      const to = byLabel.get(r.policy); if (!to || to === src) { if (to) to.heat = Math.min(1.6, to.heat + .3); continue; }
+      const state = ended(r).state; pulses.push({ from: src, to, at: now + Math.random() * 180, ms: 520 + Math.random() * 380, state });
+    }
+    if (pulses.length > 900) pulses.splice(0, pulses.length - 900);
+    say(ev, live);
+  }
+  const COLOR = { ok: "140,220,255", bad: "255,160,90", wait: "170,170,200" };
+  function frame(now) {
+    if (!on) return; if (!back) backdrop();
+    cx.clearRect(0, 0, W, H); cx.drawImage(back, 0, 0, W, H);
+    /* When nothing has fired for a while the brain replays what it last heard, dimmer, so it is never dark. */
+    if (now - lastLive > 6000 && replay.length && now > replayAt) { fire(replay[0], false); replay.push(replay.shift()); replayAt = now + 90 + Math.random() * 260; }
+    $("brainsays").textContent = now - lastLive > 6000 ? "quiet: replaying the last " + replay.length + " events" : "live";
+    cx.globalCompositeOperation = "lighter";
+    pulses = pulses.filter((p) => now < p.at + p.ms + 200);
+    for (const p of pulses) {
+      const t = (now - p.at) / p.ms; if (t < 0) continue;
+      const [x1, y1] = px(p.from), [x2, y2] = px(p.to), mx = (x1 + x2) / 2, my = (y1 + y2) / 2 - 18, u = Math.min(1, t), v = 1 - u;
+      const x = v * v * x1 + 2 * v * u * mx + u * u * x2, y = v * v * y1 + 2 * v * u * my + u * u * y2, c = COLOR[p.state] || COLOR.wait;
+      cx.strokeStyle = "rgba(" + c + "," + (.22 * (1 - Math.max(0, t - 1) * 5)) + ")"; cx.lineWidth = 1; cx.beginPath(); cx.moveTo(x1, y1); cx.quadraticCurveTo(mx, my, x2, y2); cx.stroke();
+      if (t <= 1) { cx.fillStyle = "rgba(" + c + ",.95)"; cx.beginPath(); cx.arc(x, y, 2.2, 0, 6.283); cx.fill(); }
+      else if (!p.landed) { p.landed = true; p.to.heat = Math.min(1.6, p.to.heat + .55); }
+    }
+    for (const c of cells.values()) {
+      const [x, y] = px(c), rest = c.port ? 1.1 : 1.7;
+      if (c.heat > .02) { const g = cx.createRadialGradient(x, y, 0, x, y, 8 + c.heat * 22); g.addColorStop(0, "hsla(" + c.hue + ",100%,78%," + Math.min(.9, c.heat) + ")"); g.addColorStop(1, "hsla(" + c.hue + ",100%,60%,0)"); cx.fillStyle = g; cx.beginPath(); cx.arc(x, y, 8 + c.heat * 22, 0, 6.283); cx.fill(); c.heat *= .955; }
+      cx.fillStyle = "hsla(" + c.hue + ",80%," + (c.port ? 55 : 72) + "%," + (c.port ? .35 : .7) + ")"; cx.beginPath(); cx.arc(x, y, rest + c.heat * 2, 0, 6.283); cx.fill();
+    }
+    cx.globalCompositeOperation = "source-over";
+    raf = requestAnimationFrame(frame);
+  }
+  function near(e) { const b = cv.getBoundingClientRect(), mx = e.clientX - b.left, my = e.clientY - b.top; let best = null, d = 196; for (const c of cells.values()) { const [x, y] = px(c), q = (x - mx) ** 2 + (y - my) ** 2; if (q < d) { d = q; best = c; } } return [best, mx, my]; }
+  cv.addEventListener("mousemove", (e) => { const [c, mx, my] = near(e), t = $("braintip"); t.hidden = !c; if (!c) return; t.replaceChildren(c.label, h("small", {}, c.context + (c.fired ? " · fired " + c.fired + (c.last ? ", last " + c.last : "") : " · quiet"))); t.style.left = Math.max(8, Math.min(W - 220, mx + 14)) + "px"; t.style.top = Math.max(8, my - 44) + "px"; });
+  cv.addEventListener("mouseleave", () => { $("braintip").hidden = true; });
+  /* A click on a neuron leaves the brain and shows that aggregate's events in the list. */
+  cv.addEventListener("click", (e) => { const [c] = near(e); if (c && !c.port) { toggle(false); find(c.label); } });
+  addEventListener("resize", () => { if (on) size(); });
+  function toggle(want) {
+    on = want; $("brainmode").setAttribute("aria-pressed", String(on)); $("brain").hidden = !on; $("facets").hidden = on; $("list").hidden = on; document.body.classList.toggle("brainmode", on);
+    try { localStorage.setItem("events-brain", on ? "1" : ""); } catch (e) { /* the choice lasts for this page only */ }
+    cancelAnimationFrame(raf); if (!on) return;
+    size(); $("ticker").replaceChildren(); replay = sorted().slice(0, 240).reverse(); lastLive = 0; replayAt = 0;
+    if (still) { backdrop(); cx.drawImage(back, 0, 0, W, H); for (const ev of replay) { const c = cellOf(ev.aggregate); if (c) c.heat = Math.min(1.2, c.heat + .25); } on = true; frame(performance.now()); cancelAnimationFrame(raf); return; }
+    raf = requestAnimationFrame(frame);
+  }
+  return { wire, fire, toggle, wants: () => { try { return localStorage.getItem("events-brain") === "1"; } catch (e) { return false; } }, isOn: () => on };
+})();
+$("brainmode").addEventListener("click", () => brain.toggle(!brain.isOn()));
 $("q").addEventListener("input", () => { filter.q = $("q").value.trim().toLowerCase(); draw(); });
 $("by").addEventListener("click", () => { grouped = !grouped; $("by").setAttribute("aria-pressed", String(grouped)); draw(); });
 $("hold").addEventListener("click", () => { held = !held; $("hold").setAttribute("aria-pressed", String(held)); $("hold").textContent = held ? "Held still: resume" : "Hold still"; if (!held) draw(); });
@@ -288,7 +412,7 @@ Promise.all([fetch("/api/journal", { cache: "no-store" }).then((r) => r.json()),
   .then(([j, g]) => {
     learn(g);
     if (!Array.isArray(j.events)) { $("headline").textContent = "The event log could not be read: " + ((j.events && j.events.unknown) || "no answer"); $("list").replaceChildren(); return; }
-    take(j.events, false); openOnBoarding(); draw();
+    take(j.events, false); openOnBoarding(); draw(); if (brain.wants()) brain.toggle(true);
   }).catch((e) => { $("headline").textContent = "The event log could not be read: " + e.message; $("list").replaceChildren(); })
   .finally(() => {
     if (!window.boardStream) return;
