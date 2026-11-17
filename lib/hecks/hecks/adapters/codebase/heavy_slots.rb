@@ -23,7 +23,9 @@ module Hecks
       # waits while memory is low first ({MemoryWait}); while it holds a place, its children's
       # workers are held to the world's `spec_workers` (`PARALLEL_PROCESSOR_COUNT`, which RuboCop
       # reads, unless already set). A job does not wait in CI or when a parent holding a place
-      # started it (`HELD`); no switch skips the places.
+      # started it (`HELD`); no switch skips the places. A job that gave up waiting, or found the
+      # places unusable, sets `HELD` and the worker count for its children all the same, so a
+      # gate's checks never queue again for a place the gate itself waited on.
       class HeavySlots
         # The Tickets world verb that carries the cap.
         VERB = "heavy_jobs"
@@ -105,7 +107,7 @@ module Hecks
           memory = @memory ? @memory.wait(job) : ""
           place, slot = acquire(job)
           note = [memory, slot].reject(&:empty?).join("; ")
-          return [yield, note] unless place
+          return [with_held(&), note] unless place
 
           begin
             [holding(place, job, &), note]
