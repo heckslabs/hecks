@@ -17,7 +17,7 @@ RSpec.describe "the Agents plan review of an unasked run" do
 
   def record(verdict)
     Hecks::Agents::PlanReview.record!(run: { value: "orphan" }, work: { value: "w1" }, verdict: { value: verdict },
-                                      findings: { value: "six changes" }, now: { value: 1700 })
+                                      findings: { value: "six changes" })
   end
 
   it "records the verdict with no request row" do
