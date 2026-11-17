@@ -969,6 +969,10 @@ Hecks.bluebook "Hecks" do
 
       transition Integration::MainVerificationFailed => "needs_human", from: %w[verifying reverifying]
       transition Integration::MainPushRefused => "needs_human", from: "boarding"
+
+      # A run that stood in one stage past that stage's bound (the Tickets world's `integration_bound`)
+      # is parked with its stage, its age and what it waited for, so the line is free for the next run.
+      transition Integration::RunStalled => "needs_human", from: %w[verifying reverifying boarding pushed ci_running merged]
     end
 
     # One step of integrating main, or one advance of every open run: what was asked, and how it
@@ -1031,6 +1035,9 @@ Hecks.bluebook "Hecks" do
       attribute :waited,      Count, optional: true
       attribute :ci_status,   Report, optional: true
       attribute :reopened,    Switch, optional: true
+      # What a stall records: the minutes a run stood in its stage and the minutes that stage allows.
+      attribute :age,         Count, optional: true
+      attribute :bound,       Count, optional: true
       identified_by :run
 
       # A count of checks or of minutes.
@@ -1211,6 +1218,21 @@ Hecks.bluebook "Hecks" do
         attribute :refusal, Report, sets: true
 
         emits MainPushRefused
+      end
+
+      command "Stall" do
+        role "System"
+        goal "Park a run that has stood in one stage past that stage's bound, with the stage, the age and what it waited for"
+
+        attribute :run,     RunKey, sets: true
+        attribute :landed,  Word,   sets: true
+        attribute :age,     Count,  sets: true
+        attribute :bound,   Count,  sets: true
+        attribute :refusal, Report, sets: true
+
+        given("a run stalls only past its stage's bound") { age.value >= bound.value }
+
+        emits RunStalled
       end
 
       command "Observe" do
