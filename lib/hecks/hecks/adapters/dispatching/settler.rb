@@ -9,6 +9,9 @@ module Hecks
       # is, then finishes the work item whose branch landed since it started and yields any other,
       # with the condition as the reason. A session still working is left alone.
       class Settler
+        # Why a started item with no live run and no landing under way returns to the plan.
+        ORPHAN_REASON = "started with no live run and no landing in flight"
+
         # @param work_items [WorkItems] where the started work items and the runs are read
         # @param launcher [Launcher] runs the commands that check, finish and yield
         # @param grace [Integer] seconds after its start that a run's session is read as unknown
@@ -18,7 +21,8 @@ module Hecks
         #   (`#run_gone_minutes`, `#claude_missing?`): while `claude` cannot be run, a started run
         #   older than its minutes is asked to retire; `sessions:` (`#quiet?(session)`) answers
         #   whether `claude` lists a session stopped or not at all: with it, an old started run
-        #   whose session is quiet is asked to retire on the normal path too
+        #   whose session is quiet is asked to retire on the normal path too; `orphans:` (an
+        #   {OrphanedWork}) names the started items that hold a place with no run behind them
         def initialize(work_items, launcher, grace: 0, clock: -> { Time.now.utc }, **rule)
           @gone = rule[:gone]
           @work_items = work_items
@@ -27,16 +31,25 @@ module Hecks
           @clock = clock
           @landed = rule[:landed]
           @sessions = rule[:sessions]
+          @orphans = rule[:orphans]
         end
 
         # @return [Array<String>] one line for each work item settled, empty when none was
         def call
           @launcher.check_all unless checkable.empty?
           retire_gone
-          ended.filter_map { |key, run| settle(key, run[:condition]) }
+          ended.filter_map { |key, run| settle(key, run[:condition]) } + release_orphans
         end
 
         private
+
+        # A started item the dispatch claimed, whose runs are gone and whose landing is not under
+        # way, holds a place for nothing: it goes back to the plan, and the line says why.
+        def release_orphans
+          return [] unless @orphans
+
+          @orphans.among(started).map { |item| @launcher.yield_back(item, ORPHAN_REASON) }
+        end
 
         # With `claude` out of reach nothing lists a session, so a run started longer ago than the
         # world's minutes is asked to retire; `AgentRun.Retire` closes it only when the world's rule
