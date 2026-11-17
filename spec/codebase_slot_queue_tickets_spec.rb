@@ -21,4 +21,11 @@ RSpec.describe Hecks::Adapters::Codebase::SlotQueue do
     expect(described_class.priority_of(train)).to eq(described_class::TRAIN)
     expect(described_class.priority_of({})).to eq(described_class::ORDINARY)
   end
+
+  it "ranks a job marked urgent between the train's and the others", :aggregate_failures do
+    urgent = { "HECKS_HEAVY_PRIORITY" => "urgent" }
+    expect(described_class.priority_of(urgent)).to eq(described_class::URGENT)
+    expect(described_class::TRAIN).to be < described_class::URGENT
+    expect(described_class::URGENT).to be < described_class::ORDINARY
+  end
 end
