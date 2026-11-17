@@ -77,7 +77,17 @@ module Hecks
           def answer
             gate = candidates.gate(commit)
             descends = on_source? && forward_or_held?
-            Promotion.answer(commit, head, gate.green?, descends, [gate.why, descends ? nil : not_forward].compact)
+            reasons = [gate.why, (fallback unless gate.green?), descends ? nil : not_forward]
+            Promotion.answer(commit, head, gate.green?, descends, reasons.compact)
+          end
+
+          # Where the last certified commit stands, said when the judged commit is not green: the
+          # newest certified commit of the followed lane, else the head the promoted lane holds.
+          def fallback
+            certified = candidates.newest_certified
+            return "last green commit: #{certified[0, 7]}" if certified
+
+            "#{@lane["name"]} stands at #{head[0, 7]}" if head
           end
 
           def not_forward = "the commit is not a fast-forward of the lane, or not on #{source}"
