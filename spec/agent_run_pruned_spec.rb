@@ -68,7 +68,7 @@ RSpec.describe "A finished run whose session was pruned" do
   # An architect run for a plan review, dispatched by the request itself.
   def request_review(run)
     launch("agents", "PlanReview.request!", "run.value=#{run}", "work.value=w-#{run}", "hops.value=1",
-           "role.value=architect", "repo.value=#{scratch}", "plan.value=plan", "--wait")
+           "role.value=architect", "repo.value=#{scratch}", "plan.value=review this plan as written", "--wait")
   end
 
   def review_of(run) = launch("agents", "PlanReview.of_run", "run.value=#{run}").first.to_s

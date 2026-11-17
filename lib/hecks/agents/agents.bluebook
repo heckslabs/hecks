@@ -403,6 +403,10 @@ Hecks.bluebook "Agents" do
     attribute :requested_at, Instant, optional: true
     attribute :limit, TimeLimit, optional: true
     attribute :ended_at, Instant, optional: true
+    attribute :asks, AskCount, optional: true
+    attribute :role, RoleRef, optional: true
+    attribute :repo, RepoPath, optional: true
+    attribute :plan, PlanText, optional: true
 
     # One review's key, and the key of the architect's run that answers it.
     value_object "RunKey" do
@@ -426,6 +430,12 @@ Hecks.bluebook "Agents" do
     value_object "RepoPath", String
 
     value_object "PlanText", String
+
+    # How many times the architect was asked again after a window passed with no verdict.
+    value_object "AskCount" do
+      attribute :value, Integer, default: 0
+      invariant("asks are not negative") { !value.negative? }
+    end
 
     # Why no architect session was started for the review, as the dispatch refused it.
     value_object "ReasonText", String
@@ -452,15 +462,17 @@ Hecks.bluebook "Agents" do
       attribute :run,  RunKey, sets: true
       attribute :work, WorkKey, sets: true
       attribute :hops, HopCount, sets: true
-      attribute :role, RoleRef
-      attribute :repo, RepoPath
-      attribute :plan, PlanText
+      attribute :role, RoleRef, sets: true
+      attribute :repo, RepoPath, sets: true
+      attribute :plan, PlanText, sets: true
+      attribute :asks, AskCount, default: 0, sets: true
       attribute :limit, TimeLimit, default: 600, sets: true
       # `now:` is filled from the clock port; an explicit value wins.
       attribute :now,  Instant
       needs :now
 
       given("the request is under the hop limit") { hops.value < 3 }
+      given("the plan says what will be built") { plan.value.to_s.strip.length >= 20 }
 
       sets :requested_at, to: :now
 
@@ -525,6 +537,32 @@ Hecks.bluebook "Agents" do
       emits "ReviewUnstarted"
     end
 
+    # The first window passed with no verdict: the review ends and the architect is asked once more,
+    # as a review of its own (`ReaskTheLapsedReview`). The second window ends in `Lapse`.
+    command "Reask" do
+      role "System"
+      goal "End a review whose first time limit passed with no verdict, so the architect is asked once more"
+
+      reference_to PlanReview
+      attribute :work, WorkKey, sets: true
+      # What the second ask repeats, read off the open review by the sweep.
+      attribute :hops, HopCount
+      attribute :role, RoleRef
+      attribute :repo, RepoPath
+      attribute :plan, PlanText
+      attribute :now,  Instant
+      needs :now
+
+      given("the review has no verdict yet") { verdict.nil? || verdict.to_s.empty? }
+      given("the review has not ended already") { ended_at.nil? || ended_at.value == 0 }
+      given("the architect was not asked again yet") { asks.nil? || asks.value == 0 }
+      given("the review's time limit has passed") { requested_at.value + limit.value <= now.value }
+
+      sets :ended_at, to: :now
+
+      emits "PlanReviewReasked"
+    end
+
     # No verdict came within the review's time limit: the architect's run ended without one, or
     # its verdict was lost. It ends as an unstarted review does, with the same event, so the coder
     # waiting on the Work item is told the reason (`JudgeTheUnstartedReview`) and builds its plan.
@@ -541,6 +579,7 @@ Hecks.bluebook "Agents" do
 
       given("the review has no verdict yet") { verdict.nil? || verdict.to_s.empty? }
       given("the review has not ended already") { ended_at.nil? || ended_at.value == 0 }
+      given("the architect was asked again already") { !asks.nil? && asks.value >= 1 }
       given("the review's time limit has passed") { requested_at.value + limit.value <= now.value }
 
       sets :ended_at, to: :now
@@ -557,6 +596,22 @@ Hecks.bluebook "Agents" do
                with: { plan_review: :plan_review, work: :work,
                        reason: "no verdict came within the review's time limit: build your plan as written, " \
                                "and say in your report that it was not reviewed" }
+    end
+
+    # Each sweep asks again for every open review past its first window; one inside its window, or one
+    # already asked again, refuses by its given.
+    policy "ReaskTheOverdueReview" do
+      on       "SessionSweep.SweepRequested"
+      for_each "PlanReview.Open"
+      trigger  PlanReview::Reask,
+               with: { plan_review: :plan_review, work: :work, hops: :hops, role: :role, repo: :repo, plan: :plan }
+    end
+
+    # The second ask is a new review of the same Work item and plan, keyed afresh, so it never meets
+    # the first run; its dispatch and the coder's wait are those of any request.
+    policy "RequestTheReviewAgain" do
+      on      "PlanReview.PlanReviewReasked"
+      trigger PlanReview::Request, with: { work: :work, hops: :hops, role: :role, repo: :repo, plan: :plan, asks: 1 }
     end
 
     # A declined run is looked up among the reviews: the one it keys is unstarted, with its Work item

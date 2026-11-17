@@ -15,7 +15,7 @@ RSpec.describe "a plan review request starting the architect's session" do
 
   def request(work, hops, run: work)
     launch("agents", "PlanReview.request!", "run.value=#{run}", "work.value=#{work}", "hops.value=#{hops}",
-           "role.value=architect", "repo.value=#{scratch}", "plan.value=review this plan", "--wait").first.to_s
+           "role.value=architect", "repo.value=#{scratch}", "plan.value=review this plan as written", "--wait").first.to_s
   end
 
   it "starts a run keyed by the review, naming its Work item, for a request under the hop limit" do
@@ -25,7 +25,7 @@ RSpec.describe "a plan review request starting the architect's session" do
 
   it "names the run it minted in the result of a request that leaves the key out" do
     out = launch("agents", "PlanReview.request!", "work.value=w-mint", "hops.value=1", "role.value=architect",
-                 "repo.value=#{scratch}", "plan.value=review this plan", "--wait").first.to_s
+                 "repo.value=#{scratch}", "plan.value=review this plan as written", "--wait").first.to_s
     expect(JSON.parse(out).dig("ids", "run")).to match(/\A\S+\z/)
   end
 

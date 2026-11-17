@@ -106,6 +106,6 @@ RSpec.describe "a coder run whose plan review is open" do
 
   def request_in_review_again(work)
     launch("agents", "PlanReview.request!", "run.value=r2-#{work}", "work.value=#{work}", "hops.value=1",
-           "role.value=architect", "repo.value=#{scratch}", "plan.value=plan", "--wait")
+           "role.value=architect", "repo.value=#{scratch}", "plan.value=review this plan as written", "--wait")
   end
 end

@@ -16,7 +16,7 @@ RSpec.describe "AgentRun freeing the key of an ended run" do
 
   def request(run, work)
     launch("agents", "PlanReview.request!", "run.value=#{run}", "work.value=#{work}", "hops.value=1",
-           "role.value=architect", "repo.value=#{scratch}", "plan.value=review this plan", "--wait").first.to_s
+           "role.value=architect", "repo.value=#{scratch}", "plan.value=review this plan as written", "--wait").first.to_s
   end
 
   def dispatch(run)
