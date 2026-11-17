@@ -22,7 +22,7 @@ module WakesCoderHelpers
 
   def request_review(work)
     launch("agents", "PlanReview.request!", "run.value=r-#{work}", "work.value=#{work}", "hops.value=1",
-           "role.value=architect", "repo.value=#{scratch}", "plan.value=plan", "--wait")
+           "role.value=architect", "repo.value=#{scratch}", "plan.value=review this plan as written", "--wait")
   end
 
   def architect_closes(work, verdict)
@@ -43,7 +43,7 @@ module WakesCoderHelpers
   # A review asked for in a repo path that is gone, so the architect's run is declined.
   def request_in_missing_repo(work)
     launch("agents", "PlanReview.request!", "run.value=r-#{work}", "work.value=#{work}", "hops.value=1",
-           "role.value=architect", "repo.value=#{scratch}/gone", "plan.value=plan", "--wait")
+           "role.value=architect", "repo.value=#{scratch}/gone", "plan.value=review this plan as written", "--wait")
   end
 
   # The review row as `PlanReview.reviews` lists it.

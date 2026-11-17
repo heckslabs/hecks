@@ -34,9 +34,12 @@ module Hecks
 
       private
 
+      def already(gone) = gone.to_a.empty? ? "" : " (#{gone.size} already stopped)"
+
       def line(stopped, ended)
-        "stopped #{stopped[:sessions].size} pipeline sessions, returned #{stopped[:items].size} work items to " \
-          "the plan, ended #{ended.size} landing processes; branches and commits kept"
+        "stopped #{stopped[:sessions].size} pipeline sessions#{already(stopped[:gone])}, " \
+          "returned #{stopped[:items].size} work items to the plan, " \
+          "ended #{ended.size} landing processes; branches and commits kept"
       end
     end
   end
