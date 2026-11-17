@@ -7,7 +7,7 @@
 #   Tickets   Work.WorkPlanned        -> Plan      (planned)
 #   Tickets   Work.WorkReopened       -> Plan      (planned), a finished or dropped item planned again
 #   Tickets   Work.WorkStarted        -> Dispatch  (dispatched), again for a Work item started again
-#   Hecks     Landing.LandedWorkFound -> Land      (landed)
+#   Delivery  Landing.BranchLanded    -> Land      (landed), the branch named for the Work item
 #   Hecks     Integration.MainPushed  -> Push      (pushed), every landed passage at once
 #   Hecks     RedFlag.RedFlagRaised   -> Hold      (held), every pushed passage
 #   Hecks     RedFlag.RedFlagCleared  -> Verify    (verified), every pushed or held passage
@@ -227,8 +227,11 @@ Hecks.bluebook "Pipeline" do
     trigger Passage::Dispatch, with: { change: :work, session: :claimed_by }
   end
 
-  policy "LandWhenWorkLanded" do
-    on      "Landing.LandedWorkFound"
+  # The landing saga's own event, not `LandedWorkFound`: that one answers only for a Work item still
+  # open, and a submitted branch's item is already done when it lands. A branch that names no
+  # passage (an adopted tip, a train branch) is refused as no passage, which a reaction treats as benign.
+  policy "LandWhenBranchLanded" do
+    on      "Landing.BranchLanded"
     trigger Passage::Land, with: { change: :branch }
   end
 

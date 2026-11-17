@@ -38,6 +38,8 @@ RSpec.describe "Pipeline passages" do
 
   def advance(change, verb, *args) = run("pipeline", "Passage.#{verb}!", "to=#{change}", *args)
 
+  def policy(name) = @hecks.registry.bluebook("Pipeline").policies.find { |found| found.name == name }
+
   def refusal(change, verb, *args) = launch("pipeline", "Passage.#{verb}!", "to=#{change}", *args, "--wait").join
 
   it "opens a passage at planned when a Work item is planned" do
@@ -73,6 +75,12 @@ RSpec.describe "Pipeline passages" do
     advance("p-hold", "push", "pushed.value=abc1234")
     expect(advance("p-hold", "hold", "flag.value=flag-1").dig("state", "stage")).to eq("held")
     expect(advance("p-hold", "verify").dig("state", "stage")).to eq("verified")
+  end
+
+  it "lands a passage on the landing saga's BranchLanded, which names the branch the item was cut for", :aggregate_failures do
+    land = policy("LandWhenBranchLanded")
+    expect(land.on_event).to eq("Landing.BranchLanded")
+    expect(land.with_spec).to eq({ change: :branch })
   end
 
   it "refuses to push a passage that has not landed" do
