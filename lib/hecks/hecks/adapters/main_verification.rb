@@ -8,6 +8,8 @@ require_relative "main_integration/command_runner"
 require_relative "main_integration/cargo_target"
 require_relative "main_integration/failure_log"
 require_relative "main_integration/refusal"
+require_relative "main_integration/last_verified"
+require_relative "git_shallow_check/switch"
 
 module Hecks
   module Adapters
@@ -36,6 +38,11 @@ module Hecks
         # @return [String, nil] where failed checks keep their logs; `LOG_DIRECTORY` when nil. A
         #   spec sets a temporary one so it never writes under the owner's home.
         attr_accessor :log_directory
+
+        # @return [#call, nil] stands in for the impacted-spec run of a verification made while the
+        #   shallow check is off: given the changed paths and the commit they were read against,
+        #   it answers a `GitShallowCheck::ImpactedRun::Outcome`; the real run when nil
+        attr_accessor :impacted
       end
 
       # @param aggregate [Object, nil] unused
@@ -57,16 +64,47 @@ module Hecks
 
         repository.refresh
         passed = run_checks(repository, landed)
-        @carried ? carried(landed) : answer("verified", "#{landed[0, 10]} verified: #{passed.join(", ")}")
+        return carried(landed) if @carried
+
+        answer("verified", "#{landed[0, 10]} verified: #{passed.join(", ")}#{remember(repository, landed)}")
       end
 
       private
 
+      # Records the commit as the last verified one in the git directory. A marker that cannot be
+      # written never fails a verification that passed; the report says so.
+      def remember(repository, landed)
+        MainIntegration::LastVerified.write(repository.common_dir, landed)
+        ""
+      rescue SystemCallError => e
+        "; last-verified marker not written: #{e.message}"
+      end
+
+      # While the shallow check is off, the specs run here, after the merge: those the landings
+      # since the last verified commit touch. Otherwise (or with no marker, or one this commit
+      # does not descend from) the range is the one the commit adds to `origin/main`.
+      def range_of(repository, landed)
+        off = !GitShallowCheck::Switch.new(repository.common_dir).on?
+        since = (off && last_verified(repository, landed)) || repository.remote_main
+        [since, repository.changed(since, landed), off]
+      end
+
+      # @return [String, nil] the commit the marker names, when the commit being verified descends
+      #   from it
+      def last_verified(repository, landed)
+        last = MainIntegration::LastVerified.read(repository.common_dir)&.fetch("sha", nil)
+        last if last && repository.commit(last) && repository.ancestor?(last, landed)
+      end
+
+      def checks_in(directory, changed, since, off)
+        MainIntegration::Checks.new(directory, changed, since: since, shallow_off: off, impacted: self.class.impacted).all
+      end
+
       def run_checks(repository, landed)
-        changed = repository.changed(repository.remote_main, landed)
+        since, changed, off = range_of(repository, landed)
         repository.clean_copy(landed) do |directory|
           MainIntegration::CargoTarget.link(directory)
-          checks = MainIntegration::Checks.new(directory, changed).all
+          checks = checks_in(directory, changed, since, off)
           failed = checks.reject { |name, argv| carried_now?(repository, landed) || record(landed, name, argv, directory) }
           refuse!(landed) unless @carried || failed.empty?
           carried_now?(repository, landed)
@@ -87,8 +125,8 @@ module Hecks
       def carried(landed) = answer("superseded", "#{landed[0, 10]} #{@carried}; no further check run")
 
       def record(landed, name, argv, directory)
-        ok, output = runner.call(argv, chdir: directory)
-        @failures << failure(landed, name, argv, output) unless ok
+        ok, output = argv.respond_to?(:call) ? argv.call(chdir: directory) : runner.call(argv, chdir: directory)
+        @failures << failure(landed, name, Array(argv), output) unless ok
         ok
       end
 
