@@ -18,6 +18,21 @@ module Hecks
           raise ConsoleCapture::Failure, "new work is stopped: dispatch_roll_forward is off" unless machine.switch_on?
         end
 
+        # The header, the line of each launch and each wait of a confirmed filling; a filling that
+        # started nothing says why in the header.
+        def confirmed_lines(plan, held)
+          report = FillReport.new(launch(plan, held))
+          PlannedCache.clear!
+          [header(plan, report.tally(plan.chosen.size) + stop_clause(plan, held))] + report.lines +
+            plan.skipped.map { |skip| skipped_line(skip) }
+        end
+
+        # Why nothing started, when nothing did: a roll leaves out the planned items no one marked.
+        def stop_clause(plan, held)
+          unmarked = plain(held[:rolling]) == true ? work_items.planned.size - work_items.rollable.size : 0
+          StopReason.new(skipped: plan.skipped, unmarked: unmarked, chosen: plan.chosen.size).clause
+        end
+
         def launch(plan, held)
           launcher = launcher_for(held)
           minutes = plain(held[:budget_minutes]) || Settings::BUDGET_MINUTES

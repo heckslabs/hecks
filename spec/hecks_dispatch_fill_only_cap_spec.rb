@@ -14,7 +14,7 @@ RSpec.describe "a filling held to one work item, read through the launcher" do
   # Twelve planned work items ahead of the one named, and `started` already started.
   def work_items(started)
     planned = (1..12).map { |index| item(format("aa-%02d", index)) } + [item("zz-target")]
-    instance_double(Hecks::Adapters::Dispatching::WorkItems, planned: planned, runs: {}, lessons: [],
+    instance_double(Hecks::Adapters::Dispatching::WorkItems, planned: planned, runs: {}, lessons: [], claimant: "a person",
                                                             started: Array.new(started) { |index| item("s-#{index}") })
   end
 
