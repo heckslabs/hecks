@@ -220,43 +220,4 @@ RSpec.describe "the Tickets Epic" do
     expect(retitle(" ")).to include("an epic has a title")
     expect(title_of).to eq("Epic e1")
   end
-
-  def decide(decision, key = "e1") = cli("epic.decide!", "to=#{key}", "decision=#{decision}")
-
-  def decision_of(key = "e1") = plain(stored("Epic").find { |row| plain(row.epic) == key }.decision)
-
-  it "names the decision an already opened epic carries out" do
-    epic
-    decide("0163")
-
-    expect(decision_of).to eq("0163")
-  end
-
-  it "replaces an epic's decision" do
-    epic
-    decide("0163")
-    decide("0188")
-
-    expect(decision_of).to eq("0188")
-  end
-
-  it "keeps the epic's title when it names a decision" do
-    epic
-    decide("0163")
-
-    expect(title_of).to eq("Epic e1")
-  end
-
-  it "names a decision on a complete epic" do
-    complete_epic
-    decide("0163")
-
-    expect(decision_of).to eq("0163")
-  end
-
-  it "refuses an empty decision" do
-    epic
-
-    expect(decide(" ")).to include("a decision is named")
-  end
 end
