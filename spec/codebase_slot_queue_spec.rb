@@ -42,6 +42,7 @@ RSpec.describe Hecks::Adapters::Codebase::SlotQueue do
 
   let(:dir) { Dir.mktmpdir("slot-queue") }
   let(:train_base) { { "GIT_CONFIG_PARAMETERS" => "'hecks.trainCarry=abc123'" } }
+  let(:urgent_base) { { "HECKS_HEAVY_PRIORITY" => "urgent" } }
 
   after { FileUtils.rm_rf(dir) }
 
@@ -53,9 +54,22 @@ RSpec.describe Hecks::Adapters::Codebase::SlotQueue do
     expect(run_waiters([{ name: :landing }, { name: :train, base: train_base }])).to eq(%i[train landing])
   end
 
+  it "lets an urgent job go ahead of ordinary waiters that arrived earlier" do
+    expect(run_waiters([{ name: :a }, { name: :b }, { name: :urgent, base: urgent_base }])).to eq(%i[urgent a b])
+  end
+
+  it "keeps an urgent job behind a train's job that arrived later" do
+    waiters = [{ name: :urgent, base: urgent_base }, { name: :train, base: train_base }]
+    expect(run_waiters(waiters)).to eq(%i[train urgent])
+  end
+
+  it "never lets an ordinary job that arrives later overtake an urgent one" do
+    expect(run_waiters([{ name: :urgent, base: urgent_base }, { name: :late }])).to eq(%i[urgent late])
+  end
+
   it "is not held up by the ticket of a waiter that died" do
     FileUtils.mkdir_p(File.join(dir, "waiting"))
-    File.write(File.join(dir, "waiting", "1-#{"0" * 20}-0000000001"), "")
+    File.write(File.join(dir, "waiting", "2-#{"0" * 20}-0000000001"), "")
     expect(run_waiters([{ name: :live }])).to eq([:live])
   end
 

@@ -14,7 +14,8 @@ module Hecks
       # that died is found by a lock that can be taken, and is removed: a dead head never blocks
       # the line. A ticket is made under a hidden name, locked, and only then renamed into the
       # line, so no other waiter ever sees a live ticket whose lock is not yet held. A steady
-      # stream of train gates can keep landing jobs waiting; their give-up bounds that.
+      # stream of train gates or urgent jobs can keep ordinary jobs waiting; their give-up bounds
+      # that.
       class SlotQueue
         # The directory under the places' directory that holds the tickets.
         WAITING = "waiting"
@@ -22,16 +23,31 @@ module Hecks
         # Priority of a push train's job: it goes ahead of every other job.
         TRAIN = 0
 
-        # Priority of every other job.
-        ORDINARY = 1
+        # Priority of a job a landing was given by name: behind the train's, ahead of ordinary ones.
+        URGENT = 1
+
+        # Priority of every other job. A ticket named `1-` was ordinary before `URGENT` existed.
+        ORDINARY = 2
+
+        # The environment variable that names a job urgent, set to `URGENT_VALUE` by the caller that
+        # carries a landing's urgency.
+        URGENT_MARK = "HECKS_HEAVY_PRIORITY"
+
+        # The value of `URGENT_MARK` that makes a job urgent.
+        URGENT_VALUE = "urgent"
 
         # The git configuration the train's push carries, which git passes on to the hook and to
         # every process the hook starts, in `GIT_CONFIG_PARAMETERS`.
         TRAIN_MARK = "hecks.trainCarry"
 
         # @param base [#[]] the environment
-        # @return [Integer] `TRAIN` for a job started by the push train's push, else `ORDINARY`
-        def self.priority_of(base) = base["GIT_CONFIG_PARAMETERS"].to_s.include?(TRAIN_MARK) ? TRAIN : ORDINARY
+        # @return [Integer] `TRAIN` for a job started by the push train's push, `URGENT` for a job
+        #   marked urgent, else `ORDINARY`
+        def self.priority_of(base)
+          return TRAIN if base["GIT_CONFIG_PARAMETERS"].to_s.include?(TRAIN_MARK)
+
+          base[URGENT_MARK] == URGENT_VALUE ? URGENT : ORDINARY
+        end
 
         # @param dir [String] the directory the places live in
         # @param priority [Integer] the waiter's priority, lower goes first
