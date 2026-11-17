@@ -33,14 +33,19 @@ module Hecks
         # How many names a shut lane's header lists before it counts the rest.
         PEEK = 3
 
-        # A lane is a panel drawn shut, like the home page's: its heading, its counts and the first epics by name.
+        # A lane is a panel drawn shut, like the home page's: its heading, its counts and the
+        # first epics by name.
         def lane(name, list)
+          panel(name, LANES.fetch(name, name), pills(list), list.map { |epic| epic[:title] },
+                list.map { |epic| PlanEpic.draw(epic) }.join)
+        end
+
+        # A lane's counts: its epics and open items, and its finished items when it has any.
+        def pills(list)
           open = list.sum { |epic| epic[:open] }
           done = list.sum { |epic| epic[:done].to_i }
-          pills = "<span class=\"counts\">#{plural(list.size, "epic")}, #{plural(open, "open item")}</span>" \
-                  "#{done.positive? ? "<span class=\"ok\"><b>#{done}</b> done</span>" : ""}"
-          panel(name, LANES.fetch(name, name), pills, list.map { |epic| epic[:title] },
-                list.map { |epic| PlanEpic.draw(epic) }.join)
+          counts = "<span class=\"counts\">#{plural(list.size, "epic")}, #{plural(open, "open item")}</span>"
+          done.positive? ? "#{counts}<span class=\"ok\"><b>#{done}</b> done</span>" : counts
         end
 
         def no_epic(data)

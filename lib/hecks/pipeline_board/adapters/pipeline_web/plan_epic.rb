@@ -51,12 +51,14 @@ module Hecks
             "<span class=\"counts\"></span></summary>#{items(data[:items])}</details>"
         end
 
-        # The decisions the epic carries out, as small tags after its name; nothing when it names none.
+        # The decisions the epic carries out, as small tags after its name; nothing when it names
+        # none.
         def adrs(decisions)
           list = Array(decisions)
           return "" if list.empty?
 
-          "<span class=\"adr\" title=\"Decisions this epic carries out\">#{list.first(3).map { |id| "ADR #{esc(id)}" }.join(" ")}</span>"
+          tags = list.first(3).map { |id| "ADR #{esc(id)}" }.join(" ")
+          "<span class=\"adr\" title=\"Decisions this epic carries out\">#{tags}</span>"
         end
 
         # The epic's title and its outcome; the outcome is shown short, and whole as its hover.

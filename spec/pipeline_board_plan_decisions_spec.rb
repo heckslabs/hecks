@@ -5,8 +5,8 @@ require_relative "support/fake_journal"
 
 require "hecks/pipeline_board/adapters/pipeline_web"
 
-# An epic's row on the planning page names the decisions it carries out: its own, then the ones its items name,
-# each once, as small tags after the epic's name.
+# An epic's row on the planning page names the decisions it carries out: its own, then the ones
+# its items name, each once, as small tags after the epic's name.
 RSpec.describe Hecks::Adapters::PipelineBoard::PlanHtml do
   def item(slug, epic: "e1", decision: "")
     { slug: slug, title: "Title of #{slug}", status: "planned", area: [], priority: "next", category: "", epic: epic,
