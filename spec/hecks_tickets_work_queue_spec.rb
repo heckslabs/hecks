@@ -1,9 +1,12 @@
 require "spec_helper"
+require_relative "support/new_work_started"
 
 # The Work queue as a coder's intake: a session claims the oldest planned step, and a submitted
 # branch named for the step finishes it. Each example boots its own Hecks domain, so no claim or
 # step leaks into another.
 RSpec.describe "the Work queue" do
+  include_context "with new work started"
+
   let(:hecks) { boot_hecks_in_memory }
 
   def cli_text(*argv)

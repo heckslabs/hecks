@@ -1,11 +1,14 @@
 require "spec_helper"
 require "hecks/hecks/adapters/work_limits"
+require_relative "support/new_work_started"
 
 # The red reserve: a red-* work item starts when the cap of started work items is full, by at most
 # `urgent_reserve` places; a second red one waits, and a work item that is not red is refused as
 # before. The plan and the `WorkLimits` port apply the same rule, so a chosen red item is not
 # yielded.
 RSpec.describe "the cap's reserve for red work" do
+  include_context "with new work started"
+
   let(:hecks) { boot_hecks_in_memory }
   let(:slots) { Hecks::Adapters::WorkSlots }
 
