@@ -39,7 +39,7 @@ RSpec.describe Hecks::Adapters::Dispatching::Settler, "#call" do
 
   def review_ends
     launch("agents", "PlanReview.request!", "run.value=r-1", "work.value=#{key}", "hops.value=1",
-           "role.value=architect", "repo.value=#{scratch}", "plan.value=review this plan")
+           "role.value=architect", "repo.value=#{scratch}", "plan.value=review this plan as written")
     job("done")
     launch("agent_run.check!", "to=r-1")
   end
