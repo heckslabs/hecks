@@ -235,7 +235,7 @@ RSpec.describe Hecks::Adapters::PipelineWiring do
 
     it "serves the diagrams' page at /diagrams, showing the wiring and the sequence", :aggregate_failures do
       body = fetch("/diagrams").body
-      expect(body).to include("Pipeline Diagrams")
+      expect(body).to include("Pipeline Wiring")
       expect(body).to include('src: "/wiring"', 'src: "/sequence"')
     end
 
