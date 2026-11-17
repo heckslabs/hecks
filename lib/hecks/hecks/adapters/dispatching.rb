@@ -59,7 +59,7 @@ module Hecks
       #   says it would start or, when confirmed, that it started or why it went back to the plan;
       #   then the work items left waiting with the reason
       def choose(**held)
-        confirmed = plain(held[:confirm]) == true
+        confirmed = plain(held[:confirm]) == true && refuse_stopped!.nil?
         Filling.during(confirmed) do
           settle_ended(held) if confirmed
           plan = plan_for(prefix(held), rolling: plain(held[:rolling]) == true)

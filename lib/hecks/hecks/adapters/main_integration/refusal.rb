@@ -14,16 +14,27 @@ module Hecks
         # @param landed [String] the commit that failed verification
         # @param failures [Array<Failure>] the failed checks, in the order they ran
         # @param tail [Integer] how many lines each block holds
-        def initialize(landed, failures, tail)
+        # @param first_bad [Hash, nil] the first merge whose own specs fail (`FirstBad`): `sha:`,
+        #   `subject:` and a `finding:` with `:spec` and `:example`
+        def initialize(landed, failures, tail, first_bad: nil)
           @landed = landed
           @failures = failures
           @tail = tail
+          @first_bad = first_bad
         end
 
         # @return [String] the refusal
-        def to_s = [headline, *@failures.map { |failure| block(failure) }].join("\n")
+        def to_s = [headline, *first_bad_line, *@failures.map { |failure| block(failure) }].join("\n")
 
         private
+
+        def first_bad_line
+          return [] unless @first_bad
+
+          found = @first_bad.fetch(:finding, {})
+          parts = [("spec #{found[:spec]}" if found[:spec]), ("first failing example #{found[:example]}" if found[:example])]
+          ["first bad merge #{@first_bad[:sha][0, 10]} #{@first_bad[:subject]}#{parts.compact.map { |part| "; #{part}" }.join}"]
+        end
 
         def headline
           names = @failures.map(&:name).join(", ")

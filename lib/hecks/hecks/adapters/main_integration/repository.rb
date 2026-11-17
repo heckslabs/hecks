@@ -64,6 +64,19 @@ module Hecks
         # @return [Array<String>] the paths the range changed
         def changed(base, tip) = read("diff", "--name-only", base, tip).split("\n").reject(&:empty?)
 
+        # The landings in a range, read as facts: each first-parent merge commit with the paths it
+        # changed against its first parent.
+        #
+        # @param base [String] the commit the range starts after
+        # @param tip [String] the commit it ends at
+        # @return [Array<Hash{Symbol => Object}>] oldest first: `sha:`, `subject:` and `paths:`
+        def merges(base, tip)
+          read("rev-list", "--first-parent", "--merges", "--reverse", "#{base}..#{tip}").lines.map do |line|
+            sha = line.strip
+            { sha: sha, subject: read("log", "-1", "--format=%s", sha).strip, paths: changed("#{sha}^1", sha) }
+          end
+        end
+
         # @return [Array<String>] the message of every commit in the range
         def messages(base, tip) = read("log", "--format=%B%x1e", "#{base}..#{tip}").split("\x1e").map(&:strip)
 

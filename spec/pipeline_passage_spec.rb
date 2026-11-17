@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require_relative "support/new_work_started"
 require "json"
 
 # The Pipeline bluebook through the booted Hecks domain, in Memory: a planned Work item opens a
@@ -9,6 +10,8 @@ require "json"
 # skip. The landing, push, flag, promotion and release policies are driven by events other
 # domains emit from real git and GitHub, so here their commands are sent directly.
 RSpec.describe "Pipeline passages" do
+  include_context "with new work started"
+
   before(:all) do
     @hecks = boot_hecks_in_memory
   end

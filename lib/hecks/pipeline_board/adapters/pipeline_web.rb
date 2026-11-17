@@ -176,6 +176,10 @@ module Hecks
         server.start
       end
 
+      # Waits for the board's first drawing of its tiles, so a first request reads them drawn.
+      # @return [PipelineWeb] self
+      def tiles_drawn = tap { @pushed.drawn }
+
       # @return [String] the page, with each pushed tile drawn into its place, so it reads whole
       #   with the stream off
       def page = @pushed.page(File.read(PAGE))

@@ -1,8 +1,11 @@
 require "spec_helper"
+require_relative "support/new_work_started"
 require "json"
 
 # Work.yield! records the kind of a yield, and a yield with none clears the last one.
 RSpec.describe "the kind a Work yield records" do
+  include_context "with new work started"
+
   let(:hecks) { boot_hecks_in_memory }
 
   def cli(*argv)

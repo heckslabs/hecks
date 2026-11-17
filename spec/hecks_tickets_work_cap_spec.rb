@@ -1,9 +1,12 @@
 require "spec_helper"
+require_relative "support/new_work_started"
 require "hecks/hecks/adapters/work_limits"
 
 # The concurrency cap: a start that would make more started work items than the Tickets world's
 # `work_limit` allows goes back to the plan, naming the cap, the count and the holders.
 RSpec.describe "the Work concurrency cap" do
+  include_context "with new work started"
+
   let(:hecks) { boot_hecks_in_memory }
 
   def cli(*argv)

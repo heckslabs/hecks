@@ -1,10 +1,13 @@
 require "spec_helper"
 require "hecks/hecks/adapters/dispatching"
+require_relative "support/new_work_started"
 
 # A planned work item parked behind a run still recorded started is never launched, so the retire
 # a refused dispatch makes cannot reach it. A confirmed filling asks for that retire itself, so a
 # run whose session is gone stops holding the key. The commands are answered by a stand-in runner.
 RSpec.describe Hecks::Adapters::Dispatching, "#choose releasing a taken run key" do
+  include_context "with new work started"
+
   let(:calls) { [] }
   let(:runs) { { "held" => { status: "started" }, "ended" => { status: "finished" }, "slow" => { status: "started" } } }
   let(:planned) { [parked("held", "already_recorded"), parked("ended", "already_recorded"), slow] }
