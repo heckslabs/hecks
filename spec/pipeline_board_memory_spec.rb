@@ -61,25 +61,4 @@ RSpec.describe "the board's kept reads" do
       expect(described_class.parse("footprint: no process\n")).to be_nil
     end
   end
-
-  describe Hecks::Adapters::PipelineBoard::FlakeMemo do
-    let(:memo) { described_class.new }
-
-    it "answers a kept attempt without asking again" do
-      asked = []
-      2.times { memo.fetch([1, 1]) { asked << 1 } }
-      expect(asked.size).to eq(1)
-    end
-
-    it "keeps nothing for an attempt whose read failed", :aggregate_failures do
-      expect { memo.fetch([1, 1]) { raise unavailable, "502" } }.to raise_error(unavailable)
-      expect(memo.size).to eq(0)
-    end
-
-    it "keeps only the attempts it is told are still wanted" do
-      (1..3000).each { |id| memo.fetch([id, 1]) { [] } }
-      memo.keep([[2999, 1], [3000, 1]])
-      expect(memo.size).to eq(2)
-    end
-  end
 end

@@ -4,50 +4,35 @@ require "spec_helper"
 require "json"
 require "hecks/pipeline_board/adapters/pipeline_github"
 
-# CI on train pull requests: the runs of the `train/` branches, first attempts only, so a rerun's
-# wall time is never taken for a run's, and a failed run names its failed jobs.
+# CI on train pull requests, from the recorded runs of the `train` lane: first attempts only, so a
+# rerun's wall time is never taken for a run's, and a failed run names its failed jobs.
 RSpec.describe Hecks::Adapters::PipelineGitHub, "#train_ci_runs" do
-  def run(id, branch: "train/main-abc", attempt: 1, conclusion: "success", minutes: 5)
-    { "databaseId" => id, "headSha" => "abcdef123", "headBranch" => branch, "attempt" => attempt,
-      "startedAt" => "2026-11-03T10:00:00Z", "updatedAt" => "2026-11-03T10:#{format("%02d", minutes)}:00Z",
-      "createdAt" => "2026-11-03T10:00:00Z", "conclusion" => conclusion, "status" => "completed" }
+  def record(id, attempt: 1, **fields)
+    { sighting: "#{id}-#{attempt}-done", ci_run: id.to_s, attempt: attempt, state: "completed", lane: "train",
+      commit: "abcdef123", branch: "train/main-abc", conclusion: "success", pushed_at: "2026-11-03T10:0#{id}:00Z",
+      started_at: "", wall_minutes: 5.0, failed_jobs: 0, jobs: "[]", url: "" }.merge(fields)
   end
 
-  def adapter(runs, jobs: {}, calls: [])
-    gh = lambda do |*args|
-      calls << args
-      args[0..1] == %w[run list] ? runs : { "jobs" => jobs.fetch(args[2], []) }
-    end
-    described_class.new(settings: { gh: gh, ttl: 0 })
+  def adapter(*records)
+    seats = Struct.new(:rows) { def records(_domain, _name) = rows }.new(records)
+    described_class.new(settings: { gh: ->(*) { raise "gh asked" }, seats: -> { seats }, ttl: 0 })
   end
 
   def rows(subject) = JSON.parse(subject.train_ci_runs[:text])
 
-  it "asks for pull request runs of the CI workflow" do
-    calls = []
-    adapter([], calls: calls).train_ci_runs
-    expect(calls.find { |args| args.first == "run" }).to include("--event", "pull_request", "--workflow", "ci.yml")
-  end
-
   it "leaves out a rerun, whose wall time is not the run's", :aggregate_failures do
-    found = rows(adapter([run(1), run(2, attempt: 3, minutes: 40)]))
-    expect(found.map { |row| row["id"] }).to eq([1])
-    expect(found.first["wall_minutes"]).to eq(5.0)
-  end
-
-  it "leaves out runs of branches that are not train branches" do
-    expect(rows(adapter([run(1), run(2, branch: "feature/x")])).size).to eq(1)
+    found = rows(adapter(record(1), record(2), record(2, attempt: 3, wall_minutes: 40.0), record(9, lane: "main")))
+    expect(found.map { |row| row["id"] }).to eq([1, 2])
+    expect(found.last["wall_minutes"]).to eq(5.0)
   end
 
   it "shows the failed jobs of a failed run" do
-    jobs = { "3" => [{ "conclusion" => "failure" }, { "conclusion" => "success" }] }
-    expect(rows(adapter([run(3, conclusion: "failure")], jobs: jobs)).first["failed_jobs"]).to eq(1)
+    expect(rows(adapter(record(3, conclusion: "failure", failed_jobs: 1))).first["failed_jobs"]).to eq(1)
   end
 
-  it "names the slowest job of the latest completed train run", :aggregate_failures do
-    jobs = { "4" => [{ "name" => "a", "startedAt" => "2026-11-03T10:00:00Z", "completedAt" => "2026-11-03T10:01:00Z" },
-                     { "name" => "b", "startedAt" => "2026-11-03T10:00:00Z", "completedAt" => "2026-11-03T10:03:00Z" }] }
-    slow = JSON.parse(adapter([run(4)], jobs: jobs).train_slowest_jobs[:text])
+  it "names the slowest job of the latest completed train run" do
+    jobs = JSON.generate([{ name: "a", minutes: 1.0 }, { name: "b", minutes: 3.0 }])
+    slow = JSON.parse(adapter(record(4, jobs: jobs)).train_slowest_jobs[:text])
     expect(slow.map { |job| job["name"] }).to eq(%w[b a])
   end
 end

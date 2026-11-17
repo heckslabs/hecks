@@ -23,6 +23,21 @@ module PipelineBoardWorld
     ->(*args) { canned.fetch(args.first(2).join(" ")) }
   end
 
+  # A `CiRunRecord` as the beat notes it for a completed run of main, from a {#run} row.
+  def ci_record(run)
+    started = Time.parse(run["startedAt"])
+    { sighting: "#{run["databaseId"]}-1-done", ci_run: run["databaseId"].to_s, attempt: 1, state: "completed", lane: "main",
+      commit: run["headSha"], branch: "main", conclusion: run["conclusion"], pushed_at: (started + run["databaseId"]).iso8601,
+      started_at: run["startedAt"], wall_minutes: ((Time.parse(run["updatedAt"]) - started) / 60.0).round(1),
+      failed_jobs: 0, jobs: "", url: "" }
+  end
+
+  # The seats a board reads CI records from, holding one record for each of the {#run} rows.
+  def ci_seats(runs)
+    seats = Struct.new(:rows) { def records(_domain, _name) = rows }.new(runs.map { |row| ci_record(row) })
+    -> { seats }
+  end
+
   def git(dir, *args)
     out, status = Open3.capture2e("git", "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false",
                                   "-C", dir, *args)

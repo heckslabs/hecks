@@ -35,7 +35,7 @@ RSpec.describe Hecks::Adapters::PipelineStages do
 
   def readers(listing)
     work = repo_one_ahead(base)
-    { github: Hecks::Adapters::PipelineGitHub.new(settings: { gh: gh(listing), ttl: 0 }),
+    { github: Hecks::Adapters::PipelineGitHub.new(settings: { gh: gh(listing), ttl: 0, seats: ci_seats([run("a", 1)]) }),
       git: Hecks::Adapters::PipelineGit.new(root: work, settings: { train: work, ttl: 0 }),
       tickets: Hecks::Adapters::PipelineTickets.new(settings: { work_items: work_items, landings: [] }),
       jobs: jobs, fill: idle_fill,

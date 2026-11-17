@@ -17,7 +17,7 @@ RSpec.describe "the Open PRs metric" do
 
   def reading(listed)
     gh = RestPullView.open_gh(-> { listed })
-    Hecks::Adapters::PipelineGitHub.new(settings: { gh: gh, settled_path: nil }).open_prs
+    Hecks::Adapters::PipelineGitHub.new(settings: { gh: gh }).open_prs
   end
 
   def tile_of(listed) = tiles.open_prs(reading(listed), now)
