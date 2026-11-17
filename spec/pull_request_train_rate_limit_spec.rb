@@ -5,7 +5,8 @@ require "tmpdir"
 require "hecks/hecks/adapters/git_train"
 
 # A boarding whose `gh pr create` meets a spent rate limit waits and asks again, and names the
-# step it could not finish; the pushed branch stays for a re-board. `gh` is a fake and nothing waits.
+# step it could not finish; the pushed branch stays for a re-board. `gh` is a fake and nothing
+# waits.
 RSpec.describe "the push train under a GitHub rate limit", :io do
   LIMIT_SAID = "GraphQL: API rate limit already exceeded for user ID 1".freeze
   LIMIT_IDENTITY = { "GIT_AUTHOR_NAME" => "A", "GIT_AUTHOR_EMAIL" => "a@example.test",
@@ -23,7 +24,8 @@ RSpec.describe "the push train under a GitHub rate limit", :io do
     out.strip
   end
 
-  # `gh pr create` answers each scripted reply in turn, the last repeating; everything else succeeds.
+  # `gh pr create` answers each scripted reply in turn, the last repeating; everything else
+  # succeeds.
   def github(replies)
     lambda do |argv, **|
       next [false, "no pull request found"] if argv[1..2] == %w[pr view]
