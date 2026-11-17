@@ -173,12 +173,12 @@ svg.focusing .edge.lit, svg.focusing .node.lit { opacity: 1; }
   <div class="totals" id="totals"></div>
 
   <section class="waiting" id="waiting" aria-labelledby="h-waiting" hidden>
-    <header><h2 id="h-waiting">Waiting on you</h2><span class="note">Agents that stopped to ask you something. Answer here and they carry on.</span></header>
+    <header><h2 id="h-waiting">Waiting on you</h2><span class="note">Agents that stopped on a question only the owner can answer. Answer here and they carry on.</span></header>
     <div id="asks"></div>
   </section>
 
   <figure class="map">
-    <svg id="comms" viewBox="0 0 1280 550" role="img" aria-label="How the roles hand work on. You give the planner a goal. A planned Work item starts a coder. The coder asks the architect to review its plan and gets the verdict back, submits its work to the reviewer and gets the judgment back, and its branch lands on local main. A blocked coder asks the orchestrator, who boards the train and passes only owner questions to you. Landed work wakes the pruner. Verified work goes to the release manager, whose recommendation the board shows. A release waits for your approval.">
+    <svg id="comms" viewBox="0 0 1280 550" role="img" aria-label="How the roles hand work on. A planned or routed Work item starts a coder. The coder asks the architect to review its plan and gets the verdict back, submits its work to the reviewer and gets the judgment back, and its branch lands on local main. Landed work wakes the pruner. Stable is promoted automatically once CI is green. A release waits for your approval, and a question only the owner can answer waits for you.">
       <defs>
         <marker id="a-ink" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" class="arrow-ink"/></marker>
         <marker id="a-you" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" class="arrow-you"/></marker>
@@ -188,16 +188,7 @@ svg.focusing .edge.lit, svg.focusing .node.lit { opacity: 1; }
       <g class="bar"><rect x="20" y="480" width="1240" height="50" rx="10"/>
         <text x="40" y="502">Pipeline</text><text class="sub" x="40" y="519">landing → local main → train → origin → CI → stable, promoted automatically → release</text></g>
 
-      <g class="edge" data-edge="you-planner" data-ends="you planner" data-tip="You → Planner&#10;PlanningRequested&#10;You give the planner a goal; it turns it into Work items.">
-        <path class="line" d="M90 72 V264" marker-end="url(#a-ink)"/><path class="flow" d="M90 72 V264"/><path class="hit" d="M90 72 V264"/>
-        <text x="98" y="110">PlanningRequested</text></g>
-      <g class="edge" data-edge="orchestrator-planner" data-ends="orchestrator planner" data-tip="Orchestrator → Planner&#10;Planning.request!&#10;The orchestrator may hand the planner a goal too.">
-        <path class="line" d="M230 208 L170 264" marker-end="url(#a-ink)"/><path class="hit" d="M230 208 L170 264"/>
-        <text x="192" y="234" text-anchor="end">plans a goal</text></g>
-      <g class="edge asks" data-edge="orchestrator-you" data-ends="orchestrator you" data-tip="Orchestrator → You&#10;QuestionEscalated&#10;Only a question marked for the owner comes to you; the orchestrator answers the rest.">
-        <path class="line" d="M280 142 V75" marker-end="url(#a-you)"/><path class="flow" d="M280 142 V75"/><path class="hit" d="M280 142 V75"/>
-        <text x="288" y="110">QuestionEscalated</text></g>
-      <g class="edge" data-edge="planner-coder" data-ends="planner coder" data-tip="Planner → Coder&#10;WorkPlanned · policy RollWhenWorkIsPlanned&#10;A planned Work item starts a coder session when a seat is free.">
+      <g class="edge" data-edge="planner-coder" data-ends="planner coder" data-tip="Planner → Coder&#10;WorkPlanned or WorkRouted · policy RollWhenWorkIsPlanned&#10;A planned or routed Work item starts a coder session when a seat is free.">
         <path class="line" d="M200 300 H457" marker-end="url(#a-ink)"/><path class="flow" d="M200 300 H457"/><path class="hit" d="M200 300 H457"/>
         <text x="328" y="290" text-anchor="middle">WorkPlanned</text></g>
       <g class="edge" data-edge="coder-architect" data-ends="coder architect" data-tip="Coder → Architect&#10;PlanReviewRequested&#10;The coder asks for a review of its plan before it builds.">
@@ -206,9 +197,6 @@ svg.focusing .edge.lit, svg.focusing .node.lit { opacity: 1; }
       <g class="edge" data-edge="architect-coder" data-ends="architect coder" data-tip="Architect → Coder&#10;PlanReviewed → VerdictJudged&#10;Sound, sound with changes, or rethink: the verdict goes back to the waiting coder.">
         <path class="line" d="M600 208 V264" marker-end="url(#a-ink)"/><path class="flow" d="M600 208 V264"/><path class="hit" d="M600 208 V264"/>
         <text x="608" y="244">PlanReviewed</text></g>
-      <g class="edge" data-edge="coder-orchestrator" data-ends="coder orchestrator" data-tip="Coder → Orchestrator&#10;QuestionSeated · policy AskTheOrchestratorWhenBlocked&#10;A blocked coder's question goes to the orchestrator, not to you.">
-        <path class="line" d="M457 280 H400 V175 H363" marker-end="url(#a-ink)"/><path class="flow" d="M457 280 H400 V175 H363"/><path class="hit" d="M457 280 H400 V175 H363"/>
-        <text x="408" y="212">QuestionSeated</text></g>
       <g class="edge" data-edge="coder-reviewer" data-ends="coder reviewer" data-tip="Coder → Reviewer&#10;WorkSubmitted → SubmissionReviewRequested&#10;policy AskTheReviewerWhenWorkIsSubmitted">
         <path class="line" d="M620 288 H757" marker-end="url(#a-ink)"/><path class="flow" d="M620 288 H757"/><path class="hit" d="M620 288 H757"/>
         <text x="688" y="279" text-anchor="middle">WorkSubmitted</text></g>
@@ -218,33 +206,17 @@ svg.focusing .edge.lit, svg.focusing .node.lit { opacity: 1; }
       <g class="edge" data-edge="coder-pipeline" data-ends="coder pipeline" data-tip="Coder → Pipeline&#10;WorkSubmitted → Landing.Submit → BranchLanded&#10;A submitted branch lands on local main by itself.">
         <path class="line" d="M540 336 V477" marker-end="url(#a-ink)"/><path class="flow" d="M540 336 V477"/><path class="hit" d="M540 336 V477"/>
         <text x="548" y="410">BranchLanded</text></g>
-      <g class="edge" data-edge="orchestrator-pipeline" data-ends="orchestrator pipeline" data-tip="Orchestrator → Pipeline&#10;SendTrain.board!&#10;The orchestrator is the one who pushes: it boards local main onto the train.">
-        <path class="line" d="M250 208 V477" marker-end="url(#a-ink)"/><path class="hit" d="M250 208 V477"/>
-        <text x="258" y="410">boards the train</text></g>
       <g class="edge" data-edge="pipeline-pruner" data-ends="pipeline pruner" data-tip="Pipeline → Pruner&#10;LandedWorkFound&#10;When work lands, the pruner removes the finished session and what it left behind.">
         <path class="line" d="M840 480 V441" marker-end="url(#a-ink)"/><path class="flow" d="M840 480 V441"/><path class="hit" d="M840 480 V441"/>
         <text x="848" y="465">LandedWorkFound</text></g>
-      <g class="edge" data-edge="pipeline-release_manager" data-ends="pipeline release_manager" data-tip="Pipeline → Release manager&#10;PassageVerified · policy RecommendPromotionWhenVerified">
-        <path class="line" d="M1160 480 V336" marker-end="url(#a-ink)"/><path class="flow" d="M1160 480 V336"/><path class="hit" d="M1160 480 V336"/>
-        <text x="1152" y="410" text-anchor="end">PassageVerified</text></g>
-      <g class="edge informs" data-edge="release_manager-you" data-ends="release_manager you" data-tip="Release manager ⇢ You&#10;PromotionRecommended&#10;Advice the board shows. Stable is promoted automatically once CI is green.">
-        <path class="line" d="M1100 264 V75" marker-end="url(#a-ink)"/><path class="hit" d="M1100 264 V75"/>
-        <text x="1108" y="236">PromotionRecommended</text></g>
       <g class="edge" data-edge="you-pipeline" data-ends="you pipeline" data-tip="You → Pipeline&#10;Release-Approved-By&#10;A release is the one step that waits for you.">
         <path class="line" d="M1250 72 V477" marker-end="url(#a-ink)"/><path class="flow" d="M1250 72 V477"/><path class="hit" d="M1250 72 V477"/>
         <text x="1242" y="120" text-anchor="end">Release-Approved-By</text></g>
-      <g class="edge informs" data-edge="you-orchestrator-owner" data-ends="you orchestrator-owner" data-tip="You ⇢ Orchestrator-Owner&#10;No event: you start this session yourself and steer it directly.">
-        <path class="line" d="M900 72 V139" marker-end="url(#a-ink)"/><path class="hit" d="M900 72 V139"/>
-        <text x="908" y="110">started by hand</text></g>
 
       <g class="node" data-role="planner" tabindex="0">
         <rect class="ring" x="40" y="267" width="160" height="66" rx="10"/><rect class="box" x="40" y="267" width="160" height="66" rx="10"/>
         <rect class="code" x="52" y="283" width="34" height="34" rx="7"/><text class="code" x="69" y="304" text-anchor="middle">PL</text>
         <text class="name" x="96" y="296">Planner</text><text class="stat" x="96" y="314"></text></g>
-      <g class="node" data-role="orchestrator" tabindex="0">
-        <rect class="ring" x="200" y="142" width="160" height="66" rx="10"/><rect class="box" x="200" y="142" width="160" height="66" rx="10"/>
-        <rect class="code" x="212" y="158" width="34" height="34" rx="7"/><text class="code" x="229" y="179" text-anchor="middle">OR</text>
-        <text class="name" x="256" y="171">Orchestrator</text><text class="stat" x="256" y="189"></text></g>
       <g class="node" data-role="architect" tabindex="0">
         <rect class="ring" x="540" y="142" width="160" height="66" rx="10"/><rect class="box" x="540" y="142" width="160" height="66" rx="10"/>
         <rect class="code" x="552" y="158" width="34" height="34" rx="7"/><text class="code" x="569" y="179" text-anchor="middle">AR</text>
@@ -261,10 +233,6 @@ svg.focusing .edge.lit, svg.focusing .node.lit { opacity: 1; }
         <rect class="ring" x="800" y="142" width="200" height="66" rx="10"/><rect class="box" x="800" y="142" width="200" height="66" rx="10"/>
         <rect class="code" x="812" y="158" width="34" height="34" rx="7"/><text class="code" x="829" y="179" text-anchor="middle">OO</text>
         <text class="name" x="856" y="171">Orchestrator-Owner</text><text class="stat" x="856" y="189"></text></g>
-      <g class="node" data-role="release_manager" tabindex="0">
-        <rect class="ring" x="1040" y="267" width="180" height="66" rx="10"/><rect class="box" x="1040" y="267" width="180" height="66" rx="10"/>
-        <rect class="code" x="1052" y="283" width="34" height="34" rx="7"/><text class="code" x="1069" y="304" text-anchor="middle">RM</text>
-        <text class="name" x="1096" y="296">Release manager</text><text class="stat" x="1096" y="314"></text></g>
       <g class="node" data-role="pruner" tabindex="0">
         <rect class="ring" x="760" y="372" width="160" height="66" rx="10"/><rect class="box" x="760" y="372" width="160" height="66" rx="10"/>
         <rect class="code" x="772" y="388" width="34" height="34" rx="7"/><text class="code" x="789" y="409" text-anchor="middle">PR</text>
@@ -273,8 +241,8 @@ svg.focusing .edge.lit, svg.focusing .node.lit { opacity: 1; }
     <figcaption class="legend">
       <span><i></i>event between roles</span>
       <span><i class="hot"></i>fired in the last 30 min, moving</span>
-      <span><i class="you"></i>asks you</span>
-      <span><i class="dash"></i>advice, or started by hand</span>
+      <span><i class="you"></i>asks you (owner-only)</span>
+      <span><i class="dash"></i>started by hand</span>
       <span class="note">Click a role to see only its lines. Hover a line for its event and policy.</span>
       <button type="button" class="chipbtn" id="clear" aria-pressed="false" style="margin-left:auto">Show all</button>
     </figcaption>
@@ -325,24 +293,20 @@ const clock = (at) => (at ? new Date(at).toLocaleTimeString([], { hour: "2-digit
 // Each role's short code, its name, and the events it hears and sends; `you` marks one that asks a person.
 const ROLES = {
   planner: { code: "PL", name: "Planner", hears: ["PlanningRequested"], says: ["WorkPlanned"] },
-  orchestrator: { code: "OR", name: "Orchestrator", hears: ["CoordinatorWoken", "QuestionSeated"], says: ["PlanningRequested", "BoardingQueued", "QuestionEscalated!"] },
   "orchestrator-owner": { code: "OO", name: "Orchestrator-Owner", hears: [], says: [] },
   architect: { code: "AR", name: "Architect", hears: ["PlanReviewRequested"], says: ["PlanReviewed"] },
   coder: { code: "CO", name: "Coder", hears: ["WorkPlanned", "PlanReviewed", "SpecFailureJudged"], says: ["PlanReviewRequested", "WorkSubmitted", "QuestionSeated"] },
   reviewer: { code: "RV", name: "Reviewer", hears: ["SubmissionReviewRequested"], says: ["SpecFailureJudged"] },
-  release_manager: { code: "RM", name: "Release manager", hears: ["PassageVerified"], says: ["PromotionRecommended"] },
   pruner: { code: "PR", name: "Pruner", hears: ["LandedWorkFound", "PrunerWoken"], says: [] }
 };
 // Which map line each event travels: from, to. The names are the events of the Agents, Tickets, Delegate, Deliver
-// and Pipeline bluebooks. A line with no event of its own (a command, or a session started by hand) is never lit.
+// and Pipeline bluebooks. `you` appears only on Release (PassageReleased); an owner-only ask is shown in Waiting on you. A line with no event of its own (a command, or a session started by hand) is never lit.
 const EDGES = {
-  PlanningRequested: ["you", "planner"], WorkPlanned: ["planner", "coder"],
+  WorkPlanned: ["planner", "coder"], WorkRouted: ["planner", "coder"],
   PlanReviewRequested: ["coder", "architect"], PlanReviewed: ["architect", "coder"],
   WorkSubmitted: ["coder", "reviewer"], SubmissionReviewRequested: ["coder", "reviewer"], SpecFailureJudged: ["reviewer", "coder"],
-  QuestionSeated: ["coder", "orchestrator"], QuestionEscalated: ["orchestrator", "you"],
-  BranchLanded: ["coder", "pipeline"], PassageLanded: ["coder", "pipeline"], BoardingQueued: ["orchestrator", "pipeline"],
-  LandedWorkFound: ["pipeline", "pruner"], PassageVerified: ["pipeline", "release_manager"],
-  PromotionRecommended: ["release_manager", "you"], PassageReleased: ["you", "pipeline"]
+  BranchLanded: ["coder", "pipeline"], PassageLanded: ["coder", "pipeline"],
+  LandedWorkFound: ["pipeline", "pruner"], PassageReleased: ["you", "pipeline"]
 };
 const CODES = { you: "You", pipeline: "Pipeline", ...Object.fromEntries(Object.entries(ROLES).map(([k, r]) => [k, r.code])) };
 const HOT_MS = 30 * 60 * 1000;
@@ -378,7 +342,7 @@ function renderTotals(roles) {
   const hot = [...heard.values()].filter(isHot).length;
   $("totals").replaceChildren(
     h("span", { class: "live" }, h("b", {}, String(working.size)), " working"),
-    h("span", { class: blocked.length ? "you" : "" }, h("b", {}, String(new Set(blocked.map((b) => b.id)).size)), " waiting on you"),
+    h("span", { class: blocked.length ? "you" : "" }, h("b", {}, String(new Set(blocked.map((b) => b.id)).size)), " waiting on you (owner-only)"),
     h("span", {}, h("b", {}, String(finished)), " finished recently"),
     h("span", {}, h("b", {}, String(hot)), " handoffs in the last 30 min"));
 }
@@ -413,7 +377,7 @@ function renderMap(roles, now) {
     const node = svg.querySelector('.node[data-role="' + r.name + '"]');
     if (!node) continue;
     const done = (r.completed || []).length;
-    const blocked = (r.waiting || 0) + (r.name === "release_manager" ? openRecommendations().length : 0);
+    const blocked = r.waiting || 0;
     node.classList.toggle("busy", r.live > 0);
     node.classList.toggle("blocked", blocked > 0);
     node.querySelector("text.stat").textContent = r.live > 0 ? "● " + r.live + " working" : "idle" + (done ? " · " + done + " done" : "");
@@ -498,17 +462,10 @@ function renderCards(roles) {
   if (focused) markFocus(focused);
 }
 
-// The release manager's open promotion recommendations, settled with the board's shared buttons.
-const openRecommendations = () => (state && Array.isArray(state.recommendations) ? state.recommendations : []);
-const recommendation = (r) => h("div", { class: "sess blocked", "data-recommendation": r.change },
-  h("span", { class: "n" }, r.change + " · waiting on you"), h("span", { class: "d" }, r.reasons || "-"),
-  boardAnswer.recommendationButtons(r, refresh));
-
 function card(r) {
   const meta = ROLES[r.name] || { code: r.name.slice(0, 2).toUpperCase(), name: r.name, hears: [], says: [] };
   const working = r.working || [], done = r.completed || [];
-  const recs = r.name === "release_manager" ? openRecommendations() : [];
-  const blocked = (r.waiting || 0) + recs.length;
+  const blocked = r.waiting || 0;
   const busy = working.length > 0;
   const session = (w) => h("div", { class: "sess" + (waitingOnYou(w) ? " blocked" : ""), "data-tip": w.name + "\n" + (w.detail || w.status) },
     h("a", { class: "n run-link", href: "/runs/" + encodeURIComponent(w.run || w.id), "data-tip": "Highlight this run on the board" },
@@ -526,7 +483,6 @@ function card(r) {
     busy ? h("div", { class: "list" }, h("h3", {}, "Now"), working.slice(0, 3).map(session),
       working.length > 3 ? h("a", { class: "more", href: "/sessions" }, "+ " + (working.length - 3) + " more in Sessions") : null) : null,
     r.name === "pruner" ? h("div", { class: "list" }, h("h3", {}, "Switch"), boardAnswer.pruningSwitch(state && state.pruning, refresh)) : null,
-    recs.length ? h("div", { class: "list" }, h("h3", {}, "Promotions to confirm"), recs.map(recommendation)) : null,
     done.length ? h("div", { class: "list" }, h("h3", {}, "Finished"), done.slice(0, 3).map((d) => h("div", { class: "done" }, h("span", {}, d.detail || d.name))))
       : busy ? null : h("div", { class: "idle" }, meta.hears.length ? "Nothing yet. Waiting for " + meta.hears.join(", ") + "." : "Nothing yet. You start this one by hand."));
 }
