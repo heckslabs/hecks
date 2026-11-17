@@ -1,6 +1,6 @@
 Hecks.bluebook "Hecks" do
   domain_module "Find" do
-    vision "Read the code: search the checkout's text, read a file, outline what it declares, find where a name is declared."
+    vision "Read the code: search the checkout's text, read a file, outline what it declares, find where a name is declared. Read the record: search work items, findings and decisions by their words."
 
     aggregate "Codebase" do
       description "A read of the checkout's text files, answered without changing anything."
@@ -75,6 +75,42 @@ Hecks.bluebook "Hecks" do
         attribute :paths, PathList, optional: true
         attribute :show,  Switch, optional: true
         returns Document
+      end
+    end
+
+    aggregate "Index" do
+      description "A full-text index over the records the repository keeps (work items, findings, decisions), answered without a model and without changing them."
+      acknowledges :no_command_surface, "a read of the work item, finding and decision ledgers, answered from a full-text index"
+
+      attribute :name, IndexName
+      identified_by :name
+
+      # The index a query reads; one index covers every kind of record.
+      value_object "IndexName" do
+        attribute :value, String, matches: :present
+      end
+
+      # The words a search is for, matched in any order.
+      value_object "Words" do
+        attribute :value, String, matches: :present
+      end
+
+      # What a hit is: work, finding or decision.
+      value_object "RecordKind" do
+        attribute :value, String, pattern: '^[a-z_]+$'
+      end
+
+      # An answer of up to `top` hits, one `kind id: snippet` row to a hit.
+      value_object "Hits" do
+        attribute :text, String
+      end
+
+      query "Find" do
+        description "The best matches for some words among work items, findings and decisions, as kind, id and a one-line snippet, ten at most; a kind narrows it to one sort of record."
+        attribute :words, Words
+        attribute :kind,  RecordKind, optional: true
+        attribute :top,   Top, optional: true
+        returns Hits
       end
     end
   end
