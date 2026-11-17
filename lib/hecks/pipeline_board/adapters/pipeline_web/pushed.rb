@@ -43,6 +43,13 @@ module Hecks
           @first = Thread.new { @tiles.refresh(0) } if @tiles.respond_to?(:refresh)
         end
 
+        # Waits for the first drawing {#start} began, so a caller that must read drawn tiles (a
+        # spec) does not race it. Returns at once when no first drawing was started or it was
+        # stopped.
+        # @return [Pushed] self
+        # @raise [StandardError] what the first drawing raised
+        def drawn = tap { @first&.join }
+
         # Stops following the journal.
         def stop
           @first&.kill
