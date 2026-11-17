@@ -50,6 +50,20 @@ module Hecks
           # @return [String] the resident's socket
           def socket(root) = "#{stem(root)}.sock"
 
+          # Asks the checkout's resident to retire: with its socket gone it takes no new line,
+          # finishes the lines it has, and the next launcher starts one that reads the files as
+          # they now are. A checkout with no resident running is left as it is.
+          #
+          # @param root [String] the checkout
+          # @return [Boolean] whether a socket was there to remove
+          def retire(root)
+            there = socket_present?(root)
+            File.delete(socket(root)) if there
+            there
+          rescue Errno::ENOENT
+            false
+          end
+
           # @return [String] the file the running resident writes its protocol and process id to
           def version(root) = "#{stem(root)}.version"
 
