@@ -7,7 +7,8 @@ module Hecks
         # Journal modes a world may name, each safe to interpolate into a PRAGMA.
         MODES = %w[wal delete].freeze
 
-        # Bytes the write-ahead log file may keep after a checkpoint resets it; a larger log is cut back to this.
+        # Bytes the write-ahead log file may keep after a checkpoint resets it; a larger one is cut
+        # back to this.
         JOURNAL_SIZE_LIMIT = 64 * 1024 * 1024
 
         # Pages the log may hold before a writer's commit checkpoints it on its own.
