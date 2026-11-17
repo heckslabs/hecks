@@ -18,27 +18,27 @@ RSpec.describe "The board's name for a session" do
     File.write(File.join(dir, id, "state.json"), JSON.generate({ "state" => "done", "detail" => "ok" }.merge(state)))
   end
 
-  def named(agents)
-    rows = Hecks::Adapters::PipelineJobs.new(settings: { jobs_dir: dir, agents: -> { agents }, now: -> { Time.now } }).rows
+  def named(runs)
+    rows = Hecks::Adapters::PipelineJobs.new(settings: { jobs_dir: dir, runs: -> { runs }, now: -> { Time.now } }).rows
     rows.to_h { |row| [row[:id], row[:name]] }
   end
 
-  it "uses the name `claude agents` lists while the session is listed" do
+  it "uses the name the job recorded while the session has a run" do
     job("s1", "name" => "recorded-name")
 
-    expect(named([{ "id" => "s1", "name" => "listed-name", "status" => "idle", "startedAt" => 1 }])).to eq("s1" => "listed-name")
+    expect(named({ "s1" => { run: "run-key" } })).to eq("s1" => "recorded-name")
   end
 
   it "uses the name the job recorded once cleanup has removed the session from the list" do
     job("90efb0af", "name" => "stall-work-item-rely-on-events")
 
-    expect(named([])).to eq("90efb0af" => "stall-work-item-rely-on-events")
+    expect(named({})).to eq("90efb0af" => "stall-work-item-rely-on-events")
   end
 
   it "falls back to the id only when neither names it", :aggregate_failures do
     job("bare", {})
     job("empty", "name" => "")
 
-    expect(named([])).to eq("bare" => "bare", "empty" => "empty")
+    expect(named({})).to eq("bare" => "bare", "empty" => "empty")
   end
 end

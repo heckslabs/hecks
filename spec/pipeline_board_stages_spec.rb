@@ -16,7 +16,7 @@ RSpec.describe Hecks::Adapters::PipelineStages do
   def jobs_reader
     dir = File.join(base, "jobs")
     job_dir(dir, "s1", "working", "building")
-    Hecks::Adapters::PipelineJobs.new(settings: { jobs_dir: dir, agents: -> { [] }, now: -> { Time.now } })
+    Hecks::Adapters::PipelineJobs.new(settings: { jobs_dir: dir, runs: -> { {} }, now: -> { Time.now } })
   end
 
   def fill_reader
