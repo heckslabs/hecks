@@ -1488,6 +1488,181 @@ Hecks.bluebook "Agents" do
     end
   end
 
+  # A watcher lapses each window with no closing event and gives up when attempts run out; only the
+  # give-up wakes an agent. The timeout and cap are fields, and the clock port fills `now`.
+  # Its key starts with `watch-`, so its Escalation key never meets a stall, cause or incident key.
+  aggregate "Watcher" do
+    description "One declared watch of a pipeline component: the event that opens it, the events that settle it, its timeout and its cap of attempts. It wakes an agent only when its attempts run out."
+
+    identified_by :watcher
+
+    attribute :watcher, WatcherKey
+    attribute :component, ComponentName
+    attribute :opens, EventLabel
+    attribute :closes, EventLabel
+    attribute :closed_by, EventLabel, optional: true
+    attribute :timeout_seconds, Seconds
+    attribute :max_attempts, AttemptCap
+    attribute :attempts, AttemptCount, optional: true
+    attribute :opened_at, Instant, optional: true
+    attribute :ended_at, Instant, optional: true
+
+    value_object "WatcherKey" do
+      attribute :value, String, matches: :present
+      invariant("a watch key starts with watch-") { value.to_s.start_with?("watch-") }
+    end
+
+    # The pipeline component watched, named as the board names it.
+    value_object "ComponentName" do
+      attribute :value, String, matches: :present
+    end
+
+    # An event name, or the names of the events that settle a watch, space between them.
+    value_object "EventLabel", String
+
+    # How long one window of a watch lasts.
+    value_object "Seconds" do
+      attribute :value, Integer, default: 600
+      invariant("a timeout is positive") { value.positive? }
+    end
+
+    # How many windows lapse and open again before the watcher gives up.
+    value_object "AttemptCap" do
+      attribute :value, Integer, default: 3
+      invariant("a watch may lapse at least once") { value.positive? }
+    end
+
+    value_object "AttemptCount" do
+      attribute :value, Integer, default: 0
+      invariant("attempts are not negative") { !value.negative? }
+    end
+
+    value_object "Instant" do
+      attribute :value, Integer, default: 0
+      invariant("an instant is not before the epoch") { !value.negative? }
+    end
+
+    # The timeout row of the one state a watcher waits in, read by model_check as the stall watch's
+    # rows are: the watch opens with `WatcherDeclared` and ends by a closing event or a give-up.
+    value_object "StallKind" do
+      attribute :kind,      String
+      attribute :aggregate, String
+      attribute :state,     String
+      attribute :opens,     String
+      attribute :closes,    String
+
+      member kind: "watcher", aggregate: "Agents::Watcher", state: "watching", opens: "WatcherDeclared",
+             closes: "WatcherSettled,WatcherGaveUp"
+    end
+
+    lifecycle :status, default: "watching" do
+      transition "Observe" => "settled",  from: "watching"
+      transition "GiveUp"  => "given_up", from: "watching"
+      mark :terminal, "settled", "given_up"
+    end
+
+    command "Declare" do
+      role "System"
+      goal "Open a watch of one pipeline component, with its timeout and its cap of attempts"
+
+      attribute :watcher, WatcherKey, sets: true
+      attribute :component, ComponentName, sets: true
+      attribute :opens, EventLabel, sets: true
+      attribute :closes, EventLabel, sets: true
+      attribute :timeout_seconds, Seconds, default: 600, sets: true
+      attribute :max_attempts, AttemptCap, default: 3, sets: true
+      # `now:` is filled from the clock port; an explicit value wins.
+      attribute :now, Instant
+      needs :now
+
+      sets :opened_at, to: :now
+
+      emits "WatcherDeclared"
+    end
+
+    # A closing event came, so the watch ends quietly and nothing wakes. One that gave up or settled
+    # already is refused by its lifecycle.
+    command "Observe" do
+      role "System"
+      goal "Settle a watch because one of its closing events came"
+
+      reference_to Watcher
+      attribute :closed_by, EventLabel, sets: true
+      attribute :now, Instant
+      needs :now
+
+      sets :ended_at, to: :now
+
+      emits "WatcherSettled"
+    end
+
+    # The window passed with no closing event and attempts remain: count one and open a new window.
+    # `+` because a rule has no `-`: it stands for `now - opened_at >= timeout_seconds`.
+    command "Lapse" do
+      role "System"
+      goal "Count a window that passed with no closing event and open the next, while attempts remain"
+
+      reference_to Watcher
+      attribute :now, Instant
+      needs :now
+
+      given("the watch has not ended") { ended_at.nil? || ended_at.value == 0 }
+      given("attempts remain") { attempts.value < max_attempts.value }
+      given("the window has passed") { opened_at.value + timeout_seconds.value <= now.value }
+
+      sets :attempts, increment: { value: 1 }
+      sets :opened_at, to: :now
+
+      emits "WatcherLapsed"
+    end
+
+    # The window passed and no attempt remains: the one moment a watcher files and wakes.
+    command "GiveUp" do
+      role "System"
+      goal "Give up a watch whose attempts ran out, so a Finding is filed and an agent is woken"
+
+      reference_to Watcher
+      attribute :now, Instant
+      needs :now
+
+      given("the watch has not ended") { ended_at.nil? || ended_at.value == 0 }
+      given("no attempt remains") { attempts.value >= max_attempts.value }
+      given("the window has passed") { opened_at.value + timeout_seconds.value <= now.value }
+
+      sets :ended_at, to: :now
+
+      emits "WatcherGaveUp"
+    end
+
+    query "Open" do
+      description "Every watch still open, by component, each with when its window opened, its timeout and its attempts."
+      where("ended_at.value": 0, "opened_at.value": { gt: 0 })
+      order_by :component
+    end
+
+    # Each sweep of the sessions lapses every open watcher past its window while attempts remain; a
+    # watcher inside its window, or one with no attempt left, refuses by its given.
+    policy "LapseTheOverdueWatcher" do
+      on       "SessionSweep.SweepRequested"
+      for_each "Watcher.Open"
+      trigger  Watcher::Lapse, with: { watcher: :watcher }
+    end
+
+    policy "GiveUpTheExhaustedWatcher" do
+      on       "SessionSweep.SweepRequested"
+      for_each "Watcher.Open"
+      trigger  Watcher::GiveUp, with: { watcher: :watcher }
+    end
+
+    # The give-up wakes the orchestrator once per watch. The Finding it leaves for the board is a
+    # policy of the Tickets bluebook, which owns `Finding` (`Finding::ReportStoppedRun`).
+    policy "WakeWhenAWatcherGivesUp" do
+      on      "Watcher.WatcherGaveUp"
+      trigger Escalation::Raise, with: { escalation: :watcher, event: "WatcherGaveUp", rule: "rely-on-events", role: "orchestrator", repo: ".",
+                                         brief: "A watch of a pipeline component ran out of attempts (see its Finding). Act on it by the move it names, under your standing rule rely-on-events." }
+    end
+  end
+
   # After the pruner removes finished sessions, one sweep clears what they left behind. The bluebook
   # says what a sweep is for and refuses an empty one; the Machine port looks (the session list, the
   # daemon's log, the process table, each worktree, the temp directory) and stops. A spare daemon is
