@@ -13,7 +13,7 @@ module SettleYoungHelpers
     @launcher ||= instance_double(Hecks::Adapters::Dispatching::Launcher, yield_back: "y", report_unlanded: "r", check_all: nil)
   end
 
-  def items = instance_double(Hecks::Adapters::Dispatching::WorkItems, started: [entry], runs: runs, landing_pending?: false)
+  def items = instance_double(Hecks::Adapters::Dispatching::WorkItems, started: [entry], runs: runs, landing_in_flight?: false)
 
   def run_started(seconds_ago, condition: "done")
     { "a" => { status: "finished", condition: condition, started_at: (now - seconds_ago).iso8601 } }
