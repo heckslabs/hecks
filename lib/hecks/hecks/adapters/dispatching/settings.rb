@@ -169,7 +169,7 @@ module Hecks
         #   paused it or a merge window is open
         def roll_forward? = declared(ROLL)[:roll_forward] != false && !WindowStanding.open?(@registry)
 
-        # @return [Boolean] whether the owner's switch lets new work start, whatever a merge window says
+        # @return [Boolean] whether the owner's switch lets new work start, merge window aside
         def switch_on? = WorkLimits.switch_on?(@registry)
 
         # @return [Integer] the cap on started work items

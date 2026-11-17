@@ -50,8 +50,8 @@ module Hecks
       # The world verb that carries the owner's stop and start switch for new work.
       SWITCH = "dispatch_roll_forward"
 
-      # Whether the owner's switch lets new work start. It is the one fact the Settings page shows and
-      # every start reads; a merge window is a separate pause and does not count here.
+      # Whether the owner's switch lets new work start. It is the one fact the Settings page
+      # shows and every start reads; a merge window is a separate pause and does not count.
       #
       # @param registry [Runtime::Registry, nil]
       # @return [Boolean] false only when the Tickets world says `roll_forward: false`
