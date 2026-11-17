@@ -60,6 +60,10 @@ Hecks.bluebook "Hecks" do
                context: "Hecks / Test", says: "Workers one parallel spec run may start"
         member world: "Tickets", setting: "rust_build.jobs", kind: "integer", least: "1", most: "16",
                context: "Hecks / Build", says: "Jobs one Rust build may run"
+        member world: "Tickets", setting: "main_verification.workers", kind: "integer", least: "1", most: "8",
+               context: "Hecks / Test", says: "Processes one check of a landed run's verification may start at once"
+        member world: "Tickets", setting: "main_verification.nice", kind: "integer", least: "0", most: "19",
+               context: "Hecks / Test", says: "The nice increment a landed run's verification commands run under"
       end
 
       lifecycle :status, default: "requested" do

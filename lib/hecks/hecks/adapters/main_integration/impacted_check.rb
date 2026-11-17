@@ -5,6 +5,7 @@ require_relative "../console_capture"
 require_relative "../codebase/heavy_slots"
 require_relative "../git_shallow_check/impacted_run"
 require_relative "command_runner"
+require_relative "load"
 
 module Hecks
   module Adapters
@@ -30,7 +31,8 @@ module Hecks
         class Launched
           # @return [Shell::Result]
           def capture(*argv, env:, chdir:)
-            Shell.new.capture(*Checks::RUNS_AS, *argv, env: CommandRunner.environment.merge(env), chdir: chdir)
+            command = [*Load.prefix(chdir), *Checks::RUNS_AS, *argv]
+            Shell.new.capture(*command, env: CommandRunner.environment.merge(env), chdir: chdir)
           end
         end
 
@@ -59,11 +61,18 @@ module Hecks
 
         private
 
+        # The landing's worker count, held to the world's `main_verification` cap.
+        def held_workers
+          landing = GitShallowCheck::ImpactedWorkers.from_world(@directory)
+          cap = Load.workers(@directory)
+          ->(specs) { [landing.call(specs), cap || specs].min }
+        end
+
         def unrun(done) = done.unrun.empty? ? "" : "; #{done.unrun.size} files not run: the budget was spent"
 
         def in_a_place(changed, since)
           done, = Codebase::HeavySlots.held(@directory, JOB) do
-            GitShallowCheck::ImpactedRun.new(@directory, shell: Launched.new).call(changed, since)
+            GitShallowCheck::ImpactedRun.new(@directory, shell: Launched.new, workers: held_workers).call(changed, since)
           end
           done
         end
