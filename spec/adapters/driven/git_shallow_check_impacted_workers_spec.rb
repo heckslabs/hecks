@@ -29,9 +29,17 @@ RSpec.describe Hecks::Adapters::GitShallowCheck::ImpactedWorkers do
     expect(workers(0.0, specs: 2)).to eq(2)
   end
 
-  it "reads the cap and the limit from the checkout's world", :aggregate_failures do
-    root = Hecks::RustBuild::ROOT
-    expect(described_class.from_world(root, load: -> { 0.0 }).call(20)).to eq(4)
-    expect(described_class.from_world(root, load: -> { 10.0 }).call(20)).to eq(1)
+  # The committed world only: the owner's local settings (a load limit raised on the Settings page,
+  # say) must not change what this reads, or the spec fails on the owner's machine alone.
+  def committed(root, load)
+    Hecks::Adapters::FolderOverlay.committed_only { described_class.from_world(root, load: -> { load }).call(20) }
+  end
+
+  it "reads the cap from the checkout's committed world" do
+    expect(committed(Hecks::RustBuild::ROOT, 0.0)).to eq(4)
+  end
+
+  it "reads the limit from the checkout's committed world" do
+    expect(committed(Hecks::RustBuild::ROOT, 10.0)).to eq(1)
   end
 end
