@@ -1,105 +1,77 @@
 # frozen_string_literal: true
 
+require "json"
 require "time"
-require "hecks/hecks/adapters/ci_runs/failed_jobs"
-require_relative "attempt_reads"
-require_relative "flake_memo"
-require_relative "log_backoff"
 
 module Hecks
   module Adapters
     module PipelineBoard
       # What failed on an earlier attempt of a train pull request's CI run that a later attempt of
-      # the same run passed. GitHub keeps every attempt of a run, so the reading is durable and
-      # needs no record of the board's own. A spec failure is told by its spec file (a shard holds
-      # other files from one run to the next and a line moves), a failure before the specs by its
-      # job and step. An item counts once per run, however many attempts it failed.
+      # the same run passed, projected from the `CiRunRecord` rows (see {CiRecords}); GitHub is
+      # never asked. An item is a failed job's name, counted once per run. A run whose earlier
+      # attempt left no done record, or one without its jobs, is counted as `unreadable`: the beat
+      # records only what it happens to see, so the answer says how partial it is.
       module TrainFlakes
-        include AttemptReads
-
         # How many days back the flakes reach.
         WINDOW_DAYS = 14
 
-        # How many passed reruns are read for one answer: each costs a job list and a log per
-        # earlier attempt.
-        RUN_CAP = 20
-
-        # The most of a job's log read for spec files: its end, where rspec lists what failed.
-        LOG_CAP_BYTES = 2_000_000
-
-        # A spec file in rspec's list of failed examples (`rspec ./spec/x_spec.rb:12 # ...`). The
-        # REST log holds every step, so a command line that merely names a spec file is not one.
-        FAILED_EXAMPLE = %r{rspec (?:\./)?(\S+?_spec\.rb):\d+ #}
+        # The conclusions that count a job as failed.
+        FAILED = %w[failure timed_out cancelled startup_failure].freeze
 
         private
 
         def flake_document(limit)
-          allow_cold_reads!
-          found = windowed_runs.map { |run| flaked(run) }
-          rows = tally(found.compact).first(limit)
-          { window_days: WINDOW_DAYS, reaches_back: train_page.map { |run| run["createdAt"] }.compact.min,
-            unreadable: found.count(&:nil?), flakes: rows }
+          groups = train_groups
+          raise PipelineBoard::Unavailable, "no train CI run is recorded yet" if groups.empty?
+
+          found = windowed(groups).map { |seen| flaked(seen) }
+          { window_days: WINDOW_DAYS, reaches_back: pushes(groups).min,
+            unreadable: found.count(&:nil?), flakes: tally(found.compact).first(limit) }
         end
 
-        # The passed reruns read for one answer; the memo forgets the attempts of any other run.
-        def windowed_runs
-          runs = flaked_runs.first(RUN_CAP)
-          @attempts.keep(runs.flat_map { |run| attempts_of(run) })
-          runs
-        end
+        # When each recorded train run was pushed.
+        def pushes(groups) = groups.flatten.map { |row| row[:pushed] }.reject(&:empty?)
 
-        def flaked_runs
+        # The records of each train run, every attempt together.
+        def train_groups = record_rows.select { |row| row[:lane] == "train" }.group_by { |row| row[:id] }.values
+
+        # The passed reruns pushed within the window.
+        def windowed(groups)
           since = Time.now - (WINDOW_DAYS * 86_400)
-          train_page.select { |run| passed_rerun?(run) && Time.parse(run["createdAt"]) >= since }
+          groups.select { |seen| passed_rerun?(seen) && pushed_since?(seen, since) }
         end
 
-        def passed_rerun?(run)
-          train_branch?(run) && run["attempt"].to_i > 1 && run["conclusion"] == "success"
+        def passed_rerun?(seen)
+          head = newest(seen)
+          head[:attempt] > 1 && head[:done] && head[:conclusion] == "success"
         end
 
-        def train_branch?(run) = run["headBranch"].to_s.start_with?(TrainRuns::TRAIN_PREFIX)
+        def pushed_since?(seen, since)
+          Time.parse(seen.first[:pushed]) >= since
+        rescue ArgumentError
+          false
+        end
 
-        # The items one passed rerun cleared, or nil when an earlier attempt could not be read.
-        def flaked(run)
-          items = attempts_of(run).flat_map { |key| @attempts.fetch(key) { cold_attempt(key) } }
-          { branch: run["headBranch"], url: run["url"], items: items.uniq }
-        rescue PipelineBoard::Unavailable
+        # The items one passed rerun cleared, or nil when an earlier attempt cannot be read from
+        # the records.
+        def flaked(seen)
+          earlier = earlier_attempts(seen)
+          return if earlier.any? { |row| row.nil? || row[:jobs].empty? }
+
+          head = newest(seen)
+          { branch: head[:branch], url: head[:url], items: earlier.flat_map { |row| failed_items(row) }.uniq }
+        rescue JSON::ParserError
           nil
         end
 
-        # The earlier attempts of a passed rerun, each as its run id and attempt number.
-        def attempts_of(run) = (1...run["attempt"].to_i).map { |attempt| [run["databaseId"], attempt] }
-
-        # An attempt's job list is read straight from `gh`, not through the cache, so its read
-        # holds no lock the other GitHub readers wait on; {FlakeMemo} keeps what it found.
-        def failed_items(id, attempt)
-          jobs = @gh.call("run", "view", id.to_s, "--attempt", attempt.to_s, "--json", "jobs")["jobs"] || []
-          jobs.select { |job| failed?(job) }.flat_map { |job| job_items(id, attempt, job) }
+        # The done record of each attempt before the newest, nil for one that was never seen done.
+        def earlier_attempts(seen)
+          (1...newest(seen)[:attempt]).map { |number| seen.find { |row| row[:attempt] == number && row[:done] } }
         end
 
-        def job_items(id, attempt, job)
-          log = log_of(id, attempt, job["databaseId"])
-          files = log.scan(FAILED_EXAMPLE).flatten.uniq
-          files.empty? ? [{ item: step_name(job), kind: "setup" }] : files.map { |file| { item: file, kind: "spec" } }
-        end
-
-        def step_name(job)
-          bad = Array(job["steps"]).reject { |step| Hecks::CheckConclusion.clean?(step["conclusion"]) }
-          bad.empty? ? job["name"] : "#{job["name"]}/#{bad.first["name"]}"
-        end
-
-        # A job's log, read over REST and cut to its last {LOG_CAP_BYTES}. A read that failed lately
-        # is not asked again until its back-off ends: it raises as the failed read did, so the run
-        # counts as unread and is read again later.
-        def log_of(_id, _attempt, job)
-          raise PipelineBoard::Unavailable, "log of job #{job} failed lately; not asked again yet" if @backoff.held?(job)
-
-          text = @text.call("api", "repos/{owner}/{repo}/actions/jobs/#{job}/logs").to_s
-          @backoff.clear!(job)
-          text.byteslice(-LOG_CAP_BYTES..) || text
-        rescue PipelineBoard::Unavailable
-          @backoff.failed!(job) unless @backoff.held?(job)
-          raise
+        def failed_items(row)
+          jobs = JSON.parse(row[:jobs], symbolize_names: true)
+          jobs.select { |job| FAILED.include?(job[:conclusion]) }.map { |job| { item: job[:name], kind: "job" } }
         end
 
         def tally(found)
