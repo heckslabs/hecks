@@ -21,15 +21,15 @@ RSpec.describe "PipelineBoard readings" do
                JSON.generate({ "state" => state, "detail" => "waiting", "needs" => needs }.compact))
   end
 
-  def sessions(agents)
-    Hecks::Adapters::PipelineJobs.new(settings: { jobs_dir: dir, agents: -> { agents }, now: -> { Time.now } }).rows
+  def sessions(runs)
+    Hecks::Adapters::PipelineJobs.new(settings: { jobs_dir: dir, runs: -> { runs }, now: -> { Time.now } }).rows
   end
 
   # The kind a blocked session's question carries, read from the bracket it begins with.
   def kind_of(detail)
     FileUtils.mkdir_p(File.join(dir, "q"))
     File.write(File.join(dir, "q", "state.json"), JSON.generate("state" => "blocked", "detail" => detail, "needs" => detail))
-    sessions([{ "id" => "q", "name" => "q", "status" => "idle", "startedAt" => 1 }]).first[:question_kind]
+    sessions({ "q" => { run: "q" } }).first[:question_kind]
   end
 
   it "reads a blocked session's question kind from the bracket its question begins with", :aggregate_failures do
@@ -42,7 +42,7 @@ RSpec.describe "PipelineBoard readings" do
   def context_with(state)
     FileUtils.mkdir_p(File.join(dir, "r"))
     File.write(File.join(dir, "r", "state.json"), JSON.generate({ "state" => "blocked", "detail" => "waiting" }.merge(state)))
-    sessions([{ "id" => "r", "name" => "r", "status" => "idle", "startedAt" => 1 }]).first[:context]
+    sessions({ "r" => { run: "r" } }).first[:context]
   end
 
   it "carries a blocked session's needs and suggested reply to the answer prompt" do
@@ -56,13 +56,13 @@ RSpec.describe "PipelineBoard readings" do
 
   it "reads a live job that waits on a person as blocked, not done" do
     job("s1", "blocked", needs: "confirm the retry")
-    live = sessions([{ "id" => "s1", "name" => "s1", "status" => "idle", "startedAt" => 1 }])
+    live = sessions({ "s1" => { run: "s1" } })
     expect(live.first).to include(status: "blocked", ended: nil)
   end
 
   it "reads a job that ended in the blocked state as done" do
     job("s2", "blocked")
-    stale = Hecks::Adapters::PipelineJobs.new(settings: { jobs_dir: dir, agents: -> { [] }, now: -> { Time.now + 3600 } })
+    stale = Hecks::Adapters::PipelineJobs.new(settings: { jobs_dir: dir, runs: -> { {} }, now: -> { Time.now + 3600 } })
     expect(stale.rows.first).to include(status: "done")
   end
 
