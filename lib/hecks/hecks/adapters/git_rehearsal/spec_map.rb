@@ -17,7 +17,8 @@ module Hecks
       # behaviors file runs the specs that mention its path or domain name (and, for the language's
       # own bluebooks, the shape-ledger, conformance, corpus, golden and vocabulary specs). A
       # changed `rust/` file runs the Ruby specs that drive it, never cargo; a changed `docs/`
-      # file runs the docs specs. A changed path the world's `triggered_specs` rule names runs that
+      # file runs the docs specs, and a change wholly under `docs/` runs no repository scan
+      # (`docs_only?`). A changed path the world's `triggered_specs` rule names runs that
       # rule's specs first, ahead of the limit (`Triggers`). A changed file beneath a directory that
       # holds a `bluebook.lock` runs the specs that name that directory (`LockedPackage`).
       class SpecMap
@@ -97,9 +98,17 @@ module Hecks
         # and any change can break it. They run first, before the limit, and ignore the skip rules.
         # A scan also tagged `:lib_scan` reads only `lib/`, so a change that touches no file outside
         # `spec/` leaves it out; a changed spec support file still reaches it by what it mentions.
-        def scans(changed) = @corpus.files.select { |spec| scan?(spec) && (!lib_scan?(spec) || outside_spec?(changed)) }
+        # A change wholly under `docs/` runs none: no scan reads `docs/`, so a spec that does must
+        # not be tagged `:repo_scan` alone.
+        def scans(changed)
+          return [] if docs_only?(changed)
+
+          @corpus.files.select { |spec| scan?(spec) && (!lib_scan?(spec) || outside_spec?(changed)) }
+        end
 
         def outside_spec?(changed) = changed.any? { |path| !path.start_with?("spec/") }
+
+        def docs_only?(changed) = changed.any? && changed.all? { |path| path.start_with?("docs/") }
 
         def lib_scan?(spec) = LIB_SCAN.match?(@corpus.text(spec))
 

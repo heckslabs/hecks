@@ -131,13 +131,26 @@ module Hecks
 
       # @return [Array(String, Boolean)] what the check printed, and whether it exited 0
       def run_one(check, env, root)
-        argv = check.fetch("run").map { |word| word.to_s.sub("{workers}", workers(root).to_s) }
-        env = { "RUBOCOP_CACHE_ROOT" => RUBOCOP_CACHE_ROOT }.merge(ENV.slice("RUBOCOP_CACHE_ROOT")).merge(env)
-        env = env.merge(Adapters::SessionCaller::VARIABLE => caller_name)
-        output, status = RustBuild::GateBuild.capture(argv, env, root)
+        count = workers(root)
+        argv = check.fetch("run").map { |word| word.to_s.sub("{workers}", count.to_s) }
+        output, status = RustBuild::GateBuild.capture(argv, child_env(env, count), root)
         [output, status.success?]
       rescue SystemCallError => e
         ["could not start #{argv.first}: #{e.message}", false]
+      end
+
+      # The environment a check's process starts with. Outside CI the parallel gem's worker count
+      # (which RuboCop reads) is held to the same count as `{workers}`, so a gate run started
+      # without a heavy place (the pre-push hook, a rehearsal) does not take every core. CI keeps
+      # the runner's full width.
+      #
+      # @param env [Hash{String => String}] what the stage sets
+      # @param count [Integer] the worker count {workers} answered
+      # @return [Hash{String => String}] the variables the check's process is given
+      def child_env(env, count)
+        base = { "RUBOCOP_CACHE_ROOT" => RUBOCOP_CACHE_ROOT }.merge(ENV.slice("RUBOCOP_CACHE_ROOT")).merge(env)
+        base[Adapters::Codebase::SpecWorkers::WORKERS] = count.to_s if ENV.fetch("CI", "").empty?
+        base.merge(Adapters::SessionCaller::VARIABLE => caller_name)
       end
 
       # @return [String] the caller the gate's launcher lines run as: the session that started the

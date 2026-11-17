@@ -137,9 +137,16 @@ module Hecks
         # applies to a start, so a chosen item is never yielded straight back.
         def capped(item)
           reserve = @limits[:urgent_reserve] || WorkSlots::DEFAULT_RESERVE
-          return unless WorkSlots.full?(item, holders, cap: @limits[:cap], reserve: reserve)
+          return unless no_free_place? || WorkSlots.full?(item, holders, cap: @limits[:cap], reserve: reserve)
 
           "skipped: cap #{@limits[:cap]} reached (#{@started.size} started, #{@chosen.size} chosen by this fill)"
+        end
+
+        # A fill never starts more items than the cap has free places, a red one included; the red
+        # reserve is spent only when no place is free. {WorkSlots} still holds the reserve itself.
+        def no_free_place?
+          free = @limits[:cap] - @started.size
+          free.positive? && @chosen.size >= free
         end
 
         def frozen_reason(item)

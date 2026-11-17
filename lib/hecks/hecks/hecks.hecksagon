@@ -1064,6 +1064,11 @@ Hecks.hecksagon "Hecks" do
     answers_query "Declaration"
   end
 
+  # Index: a full-text search over the work items, findings and decisions, read and never written.
+  Hecks::Index.port "Records" do
+    answers_query "Find"
+  end
+
   Hecks::CodemodRun.port "SourceTree" do
     asks "Examine", to: CodemodRun do
       attribute :run, RunKey
