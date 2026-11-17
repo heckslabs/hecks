@@ -6,7 +6,7 @@ require "tmpdir"
 require_relative "support/rest_pull_view"
 
 # A train pull request's verdict is noticed by the clock alone: a beat reads the CI run of each
-# pushed or watched run (`ObserveOnHeartbeat`) and, once GitHub has merged the pull request, the
+# pushed or watched run (`AdvanceOnHeartbeat`) and, once GitHub has merged the pull request, the
 # checkout that boarded it is brought level with origin/main, with no `Integration.advance!`. The
 # domain is in Memory; the repository is a throwaway one with a bare remote, GitHub is a fake whose
 # pull request opens and then merges, and every port a beat reaches but these three is quiet.
@@ -248,14 +248,20 @@ RSpec.describe "noticing a train pull request's verdict on the clock's beat" do
   end
 
   it "reads nothing on a beat with no run in flight" do
-    boarded_run(state: "landed")
+    boarded_run(state: "green")
     beat
     expect(@asked).to be_empty
   end
 
-  it "does not verify or board a landed run" do
-    boarded = boarded_run(state: "landed")
+  it "boards a verified run on a beat, with no landing to start it" do
+    boarded = boarded_run(state: "verified")
     beat
-    expect(stage(boarded)).to eq("landed")
+    expect(stage(boarded)).not_to eq("verified")
+  end
+
+  it "leaves a run with a verdict alone on a beat" do
+    boarded = boarded_run(state: "green")
+    beat
+    expect(stage(boarded)).to eq("green")
   end
 end
