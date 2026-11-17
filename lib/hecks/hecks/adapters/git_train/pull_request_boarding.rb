@@ -164,7 +164,8 @@ module Hecks
         # A `gh` runner that waits out a spent rate limit and asks again.
         def patient = RateLimitRetry.new(@runner, pause: @pause)
 
-        # Names the refused step and, for the rate limit, that the pushed branch stays for a re-board.
+        # Names the refused step and, for the rate limit, that the pushed branch stays for a
+        # re-board.
         def open_refusal(branch, output)
           note = RateLimitRetry.limited?(output) ? " (rate limit; #{branch} stays pushed, board again to adopt it)" : ""
           "could not open a PR for #{branch}#{note}: #{output.to_s.strip}"
