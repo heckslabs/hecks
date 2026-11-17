@@ -100,7 +100,7 @@ header.top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 20p
 .lane > summary h2, .lane > summary .sum > span { white-space: nowrap; }
 .lane > summary .sum b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
 .lane > summary .sum .ok, .lane > summary .sum .ok b { color: var(--good-text); }
-.lane > summary .peek { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.lane > summary .peek { flex: 1 1 0; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .epic { background: var(--surface); border: 1px solid var(--line); border-top-width: 0; }
 .epic:first-of-type { border-top-width: 1px; border-radius: 12px 12px 0 0; }
 .epic:last-of-type { border-radius: 0 0 12px 12px; }
