@@ -1,6 +1,7 @@
 require "spec_helper"
 require "tmpdir"
 require "hecks/hecks/adapters/dispatching"
+require_relative "support/new_work_started"
 
 # The sequence of 2026-11-12, replayed on a Memory boot: a work item starts, its branch lands while
 # the reaction that finishes it is lost, its session ends done, and the settle that follows would
@@ -10,6 +11,8 @@ require "hecks/hecks/adapters/dispatching"
 # proves is the settle's logic over them. The live checkout persists `Hecks::Landing` in its local
 # hecksagon, which is where a settle in production reads them.
 RSpec.describe Hecks::Adapters::Dispatching, "#conclude" do
+  include_context "with new work started"
+
   let(:key) { "red-board-push-spec-plan-tile" }
   let(:registry) { boot_hecks_in_memory.registry }
   let(:runner) { described_class::InProcessRunner.new(registry) }
