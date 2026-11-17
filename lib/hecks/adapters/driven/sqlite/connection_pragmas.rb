@@ -7,7 +7,7 @@ module Hecks
         # Journal modes a world may name, each safe to interpolate into a PRAGMA.
         MODES = %w[wal delete].freeze
 
-        # Bytes a WAL file may keep after a checkpoint resets it; a larger log is cut back to this.
+        # Bytes the write-ahead log file may keep after a checkpoint resets it; a larger log is cut back to this.
         JOURNAL_SIZE_LIMIT = 64 * 1024 * 1024
 
         # Pages the log may hold before a writer's commit checkpoints it on its own.
@@ -42,8 +42,8 @@ module Hecks
           bound_wal!
         end
 
-        # Folds the log into the main file without waiting for any reader (PASSIVE), then, only
-        # when that folded all of it, resets and truncates the log (TRUNCATE). A held file leaves
+        # Folds the log into the main file without waiting for any reader (a passive checkpoint),
+        # then, only when that folded all of it, resets and truncates the log. A held file leaves
         # the log as it is: it is tried again at the next open.
         #
         # @return [Boolean] true when the log was truncated
