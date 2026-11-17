@@ -49,8 +49,11 @@ RSpec.describe "a write that crashes before it commits, on every store", :aggreg
     expect(changed_by_crash(:memory) & STORE_PARTS).to be_empty
   end
 
-  it "leaves the event log without the crashed write's event",
-     pending: "the runtime appends to its event log inside the commit and does not take it back on a crash" do
+  it "leaves the event log without the crashed write's event on SQLite" do
     expect(changed_by_crash(:sqlite)).not_to include(:events)
+  end
+
+  it "leaves the event log without the crashed write's event on Memory" do
+    expect(changed_by_crash(:memory)).not_to include(:events)
   end
 end

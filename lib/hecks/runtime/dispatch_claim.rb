@@ -43,6 +43,15 @@ module Hecks
           enqueue_outbox(ctx)
         end
 
+        # Appends the committed dispatch's events to the registry's event log. It runs after the
+        # transaction, so a write that rolled back leaves nothing in the log. A port operation
+        # saves nothing and logs its own events.
+        def log_committed_events(ctx)
+          return if !ctx.respond_to?(:outbox_rows=) || ctx.dry_run
+
+          Array(ctx.result).each { |event| @registry.event_log << event }
+        end
+
         # Whether the dispatch may go on: it carries no key, its repository dedupes none, or the
         # key was new and is now claimed in this transaction. False means another delivery of the
         # same dispatch got there first, so nothing is applied.
