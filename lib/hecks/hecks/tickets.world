@@ -26,13 +26,6 @@
 # Cargo jobs at once (a third of the cores when absent) and `nice` is the increment. Builds also queue behind one
 # lock, so two never run at once (`HECKS_NO_BUILD_LOCK=1` skips it).
 #
-# `main_verification` is how hard the verification of a landed run may work in its clean copy (`MainIntegration::Load`):
-# `workers` caps the processes each check starts at once (`PARALLEL_PROCESSOR_COUNT`, read by the gate's parallel runs, RuboCop
-# and the impacted specs' batches) and `nice` is the increment its commands run under. Measured 2026-11-09: one verification
-# beside a coder and an architect session ran nine Ruby processes at 315 percent CPU and took the 1-minute load from 5 to
-# 14 on 12 cores, where the fill refuses to start above 8. Every check still runs; a verification may take longer. It says
-# `workers` where the other caps say `jobs` or `max` because it bounds a count of worker processes of any kind, not Cargo jobs.
-#
 # `github_issues` is the switch on GitHub issues for run findings (`OpenIssueWhenRunReported`). It is
 # off: a run finding stays a work item and no GitHub call is made. `enabled: true` turns it back on.
 #
