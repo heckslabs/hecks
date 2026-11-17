@@ -78,9 +78,9 @@ module Hecks
         #
         # A landed branch finishes its Work item by its own reaction. When that reaction is lost the
         # item is still started here, so a landing since its start refuses the yield and finishes it
-        # instead, however the session ended. A submitted branch stays started while its landing job
-        # runs (`landing_in_flight?`), so the item is left alone: the landing finishes or plans it. An
-        # item with no landing that ended `done` goes back to the plan with a finding.
+        # instead, however the session ended. A submitted branch stays started while its landing
+        # job runs (`landing_in_flight?`), so the item is left alone: the landing finishes or plans
+        # it. An item with no landing that ended `done` goes back to the plan with a finding.
         def settle(key, condition)
           return unless @work_items.runs.dig(key, :status) == "finished"
 
