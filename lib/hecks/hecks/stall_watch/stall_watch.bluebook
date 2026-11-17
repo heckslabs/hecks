@@ -67,11 +67,6 @@ Hecks.bluebook "Hecks" do
                      "runs, and read when it last ran from the mtime of ~/.claude/hecks-dev/train-beat.log. Then " \
                      "Integration.advance! confirm=true, so the pushed run is observed; then read the chain's log (~/.claude/hecks-dev/ticker/<commit>.log) and " \
                      "report a declined or ended chain as the cause."
-        # A killed chain never records its end; a live one ends within the world's 30 minutes, so
-        # one ticking after 40 has no worker. `StopTickerWhenIdle` stops it; no work item is planned.
-        member kind: "ticker-idle", not_about: "stall-", aggregate: "Hecks::Ticker", state: "ticking", opens: "TickerBegun",
-               closes: "TickerStopped", minutes: 40, forgets: 1440, fixer: "orchestrator",
-               move: "None: Ticker.Stop ends the chain by policy once the stall is filed."
         # A train pull request whose CI never started: `TrainPrCi.Await` records it only once its
         # bound has passed (deliver.bluebook), so it is a stall as soon as a look sees it.
         member kind: "ci-not-started", aggregate: "Hecks::TrainPrCi", opens: "TrainPrCiAwaited",
