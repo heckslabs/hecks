@@ -1327,7 +1327,7 @@ Hecks.bluebook "Tickets" do
   end
 
   # A cause whose work item was finished or dropped and failed again is planned again with the new
-  # run's refusal, as a landing refused again is (ReopenWorkWhenLandingRefused). A work item still
+  # run's refusal, as a landing refused again is (RefuseWorkWhenLandingRefused). A work item still
   # undone refuses the reopen, and a cause with no work item yet refuses it by name.
   policy "ReopenWorkWhenGateFaultedAgain" do
     on      "GateRun.GateFaulted"
