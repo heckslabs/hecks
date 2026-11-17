@@ -11,7 +11,10 @@ module Hecks
       # `nice` increment its commands run under, so a verification beside a coder and an architect
       # session keeps the machine under the load a fill stops at. Every check still runs; only
       # fewer of its processes run at once, at a lower priority. A checkout whose world has no
-      # such line is left as it was.
+      # such line is left as it was. The line says `workers` where the other caps say `jobs` or
+      # `max` because it bounds worker processes of any kind, not Cargo jobs. Unbounded, one
+      # verification ran nine Ruby processes at 315 percent CPU and took the load from 5 to 14 on
+      # 12 cores, past the 8 at which the fill starts no session.
       module Load
         # The Tickets world verb that carries the setting.
         VERB = "main_verification"
