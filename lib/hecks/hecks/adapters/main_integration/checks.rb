@@ -2,6 +2,7 @@
 
 require_relative "../checkout_gate"
 require_relative "impacted_check"
+require_relative "load"
 
 module Hecks
   module Adapters
@@ -40,10 +41,11 @@ module Hecks
           @impacted = impacted
         end
 
-        # @return [Array<Array(String, Array<String>)>] each check's name and its command line;
+        # @return [Array<Array(String, Array<String>)>] each check's name and its command line,
+        #   behind the world's worker cap and niceness ({Load});
         #   the impacted-spec check's is an {ImpactedCheck}, which answers `call` as a runner does
         def all
-          checks = FIXED.map { |name, args| [name, [*RUNS_AS, LAUNCHER, *args]] }
+          checks = FIXED.map { |name, args| [name, [*Load.prefix(@directory), *RUNS_AS, LAUNCHER, *args]] }
           checks << [ImpactedCheck::NAME, impacted_check] if @shallow_off
           checks
         end

@@ -77,6 +77,7 @@ Hecks.world "Tickets" do
   # moves, one launcher boot every `seconds` rolls the queue, backing off along `steps`, for `minutes`.
   idles "Idler", seconds: 300, minutes: 120
   rust_build "RustBuild", jobs: 4, nice: 15
+  main_verification "MainVerification", workers: 2, nice: 10
   # `heavy_jobs` caps how many heavy jobs (a gate run, a run of several spec files) run at once on
   # the machine, in every checkout: the next one waits, saying so and in its report, until one ends
   # (`Codebase::HeavySlots`; the Rust build lock above already holds compiles to one at a time).
