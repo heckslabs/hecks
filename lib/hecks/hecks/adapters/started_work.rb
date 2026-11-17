@@ -33,12 +33,21 @@ module Hecks
       # @return [Array<String>] the areas of a list of Word values
       def words(list) = Array(list).map { |word| (value(word, :value) || word).to_s }
 
+      # A field the record holds by key is read by key first, so an attribute named like an accessor
+      # of the record (a `Runtime::Instance` has `state`) answers its own value.
+      #
       # @return [Object, nil] a field of a record or hash, unwrapped from its value object; nil when
       #   the record has no such field
       def value(record, name)
-        found = record.respond_to?(name) ? record.public_send(name) : indexed(record, name)
+        found = held?(record, name) ? record[name] : reading(record, name)
         found.respond_to?(:value) ? found.value : found
       end
+
+      # @return [Object, nil] the member a record answers to, else its entry
+      def reading(record, name) = record.respond_to?(name) ? record.public_send(name) : indexed(record, name)
+
+      # @return [Boolean] whether the record keeps a field of that name by key
+      def held?(record, name) = record.respond_to?(:key?) && record.respond_to?(:[]) && record.key?(name.to_sym)
 
       # @return [Object, nil] the entry of a hash or the member of a struct, nil when it has none
       def indexed(record, name)
