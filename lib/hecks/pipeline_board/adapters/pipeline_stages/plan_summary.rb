@@ -6,9 +6,10 @@ require_relative "plan_order"
 module Hecks
   module Adapters
     module PipelineBoard
-      # The planning page's summary, kept by the Tickets events instead of worked out from every open
-      # Work item at each drawing: counts per lane, open and done counts per epic, the done total. An
-      # event moves one item between counts, so a drawing reads the held counts and scans no item.
+      # The planning page's summary, kept by the Tickets events instead of worked out from every
+      # open Work item at each drawing: counts per lane, open and done counts per epic, the done
+      # total. An event moves one item between counts, so a drawing reads the held counts and
+      # scans no item.
       # It holds a cursor per event source and applies only the events past it; a source that
       # shrank (a store that started over) starts the whole summary again from the first events.
       class PlanSummary

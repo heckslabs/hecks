@@ -3,9 +3,9 @@
 module Hecks
   module Adapters
     module PipelineBoard
-      # What each Tickets event does to the plan's held counts: the status a Work event moves an item
-      # to, the epic and priority it names, and the title an Epic event gives. A pure table and
-      # readers; {PlanSummary} owns the state they change.
+      # What each Tickets event does to the plan's held counts: the status a Work event moves an
+      # item to, the epic and priority it names, and the title an Epic event gives. A pure table
+      # and readers; {PlanSummary} owns the state they change.
       module PlanFold
         # The status each Work event leaves its item in.
         STATUS = { "WorkPlanned" => "planned", "WorkStarted" => "started", "WorkYielded" => "planned",
