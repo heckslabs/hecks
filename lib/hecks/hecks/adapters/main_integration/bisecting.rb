@@ -36,7 +36,7 @@ module Hecks
 
           # @param facts [Hash, nil] what {.search} answered; nil when no search was made
           # @param since [String] the commit the range starts after
-          # @return [Hash{Symbol => Hash}] every fact as a `value:`, the missing ones as for no merge
+          # @return [Hash{Symbol => Hash}] each fact as a `value:`, a missing one as for no merge
           def answer(facts, since)
             none = NONE.merge(base: since, already_reverted: false, reason: "the shallow check is on: no search was made")
             none.merge(facts || {}).transform_values { |fact| { value: fact } }
@@ -69,8 +69,9 @@ module Hecks
 
         # @param landed [String] the commit that failed verification
         # @param since [String] the last verified commit, or `origin/main`, the range starts after
-        # @return [Hash{Symbol => Object}] `base`, `culprit`, `subject`, `branch`, `spec`, `example`,
-        #   `base_red`, `already_reverted`, `local` and `reason`; the merge's keys are "" when none failed
+        # @return [Hash{Symbol => Object}] `base`, `culprit`, `subject`, `branch`, `spec`,
+        #   `example`, `base_red`, `already_reverted`, `local` and `reason`; the merge's keys are
+        #   "" when none failed
         def facts(landed, since)
           search = FirstBad.new(@repository.merges(since, landed), probe: @probe)
           found = search.call
