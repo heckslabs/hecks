@@ -1365,6 +1365,7 @@ Hecks.bluebook "Tickets" do
   # stall filed again after a restart plans nothing twice: the key is already taken.
   policy "PlanWorkWhenStallFiled" do
     on      "Stall.StallFiled"
+    where   { kind.value != "ticker-idle" }
     trigger Work::Plan, with: { work: :stall, title: :title, detail: :detail }
   end
 

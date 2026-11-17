@@ -1020,6 +1020,15 @@ Hecks.bluebook "Hecks" do
       trigger Ticker::Stop, with: { run: :landed, ending: :report }
     end
 
+    # A chain ends itself within the world's minutes while its process lives; one killed with its
+    # process leaves a row ticking, which the `ticker-idle` stall kind finds and this ends.
+    policy "StopTickerWhenIdle" do
+      on      "Stall.StallFiled"
+      where   { kind.value == "ticker-idle" }
+      root
+      trigger Ticker::Stop, with: { run: :subject, ending: "no tick within the chain's minutes" }
+    end
+
     policy "BeatOnTick" do
       on      "Ticker.Ticked"
       root
