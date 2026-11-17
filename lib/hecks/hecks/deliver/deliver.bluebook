@@ -883,7 +883,7 @@ Hecks.bluebook "Hecks" do
     # Main is integrated by a process: every landing onto local main starts a run keyed by the
     # landed commit, and each run is verified in a clean copy, boarded on the push train and
     # watched on CI, ending green or red, or parked in needs_human with the reason. The clock's
-    # beat reads a pushed run's CI on its own (`ObserveOnHeartbeat`); the coordinator drives the
+    # beat advances every open run on its own (`AdvanceOnHeartbeat`); the coordinator drives the
     # rest with `Integration.advance!`, which dispatches each open run's next step at top level; a step records itself and waits, so no dispatch runs inside the saga and the
     # reaction depth stays bounded. Shipment's path joins it: its landing starts a run too, and a
     # boarding the train already carried is recorded as pushed. A run is checkpointed with the
@@ -1225,14 +1225,13 @@ Hecks.bluebook "Hecks" do
       ask     :step, with: { run: :run }
     end
 
-    # The clock's beat is the timer that notices a train pull request's verdict: each beat reads the
-    # CI run of every pushed or watched run (never verifying or boarding), so a merge or a failed
-    # check is recorded and the checkout pulls main with nobody advancing. A root, so each beat
-    # starts its own chain. `Heartbeat` (delegate.bluebook) owns the beat's period.
-    policy "ObserveOnHeartbeat" do
+    # Each beat advances every open run once, confirmed: a verified run boards with no landing to
+    # wake it, and a pushed run's CI is read, since GitHub gives no event. A root; `Heartbeat`
+    # (delegate.bluebook) owns the period. A beat with nothing open does nothing.
+    policy "AdvanceOnHeartbeat" do
       on      "Heartbeat.Beaten"
       root
-      trigger Integration::Poll, with: { run: :beat }
+      trigger Integration::Advance, with: { run: :beat, confirm: true }
     end
 
     # A quiet beat (no pushed or watched run) is refused by the port and records nothing.
