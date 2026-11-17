@@ -33,12 +33,14 @@ section.lane > .note { display: block; margin: 0 4px 10px; }
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; }
 .card + .card { margin-top: 10px; } .card h3 { font-size: 13px; font-weight: 600; margin-bottom: 10px; } .card h3 small { font-weight: 400; color: var(--ink2); margin-left: 6px; }
 /* One bar a run, oldest first. The dashed line is the goal: a bar that stands above it is a slow run. */
+/* A bar is its share of the room under its label (150px less 18px padding and the 16px label) and
+   never shrinks, so the bars and the goal line are on one scale. */
 .runs { position: relative; display: flex; align-items: flex-end; gap: 5px; height: 150px; padding-top: 18px; border-bottom: 1px solid var(--line); }
 .runs .goal { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--muted); pointer-events: none; }
 .runs .goal span { position: absolute; right: 0; top: -17px; font-size: 11px; color: var(--muted); }
 .runs a, .runs div.run { flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; text-decoration: none; color: inherit; }
-.runs .val { font-size: 11px; color: var(--ink2); } .runs .val.fail { color: var(--critical); font-weight: 600; }
-.runs .bar { width: 100%; max-width: 38px; border-radius: 4px 4px 0 0; min-height: 2px; background: var(--good); }
+.runs { --val: 16px; } .runs .val { font-size: 11px; color: var(--ink2); height: var(--val); line-height: var(--val); flex: none; white-space: nowrap; } .runs .val.fail { color: var(--critical); font-weight: 600; }
+.runs .bar { flex: none; width: 100%; max-width: 38px; border-radius: 4px 4px 0 0; min-height: 2px; background: var(--good); }
 .runs .failure .bar { background: var(--critical); } .runs .running .bar { background: var(--run); opacity: .6; } .runs .other .bar { background: var(--muted); }
 .shas { display: flex; gap: 5px; margin-top: 4px; } .shas span { flex: 1; min-width: 0; text-align: center; font: 10px var(--mono); color: var(--muted); overflow: hidden; white-space: nowrap; }
 .slow { display: grid; grid-template-columns: minmax(120px, 38%) 1fr 62px; gap: 8px; align-items: center; margin: 6px 0; font-size: 12.5px; }
@@ -120,10 +122,10 @@ function renderFacts(metrics) {
 /* ---- one lane: its runs as bars against the goal, its slowest jobs, and every run behind a click ---- */
 function runsChart(runs) {
   const top = Math.max(GOAL * 1.4, ...runs.map((r) => r.wall_minutes || 0));
-  const bar = (r) => { const how = ended(r), kids = [h("div", { class: "val" + (r.failed_jobs ? " fail" : "") }, r.failed_jobs ? r.failed_jobs + " failed" : String(r.wall_minutes)), h("div", { class: "bar", style: "height:" + Math.round(100 * (r.wall_minutes || 0) / top) + "%" })];
+  const bar = (r) => { const how = ended(r), kids = [h("div", { class: "val" + (r.failed_jobs ? " fail" : "") }, r.failed_jobs ? r.failed_jobs + " failed" : String(r.wall_minutes)), h("div", { class: "bar", style: "height:calc((100% - var(--val)) * " + ((r.wall_minutes || 0) / top).toFixed(4) + ")" })];
     const tip = r.sha + " " + (r.conclusion || r.status) + ": " + r.wall_minutes + " min" + (r.failed_jobs ? ", " + r.failed_jobs + " failed jobs" : "");
     return r.url ? h("a", { class: how, href: r.url, target: "_blank", rel: "noopener", title: tip }, kids) : h("div", { class: "run " + how, title: tip }, kids); };
-  return [h("div", { class: "runs" }, h("div", { class: "goal", style: "bottom:" + Math.round(100 * GOAL / top * (132 / 150)) + "%" }, h("span", {}, "goal " + GOAL + " min")), runs.map(bar)),
+  return [h("div", { class: "runs" }, h("div", { class: "goal", style: "bottom:" + Math.round(100 * GOAL / top * (116 / 150)) + "%" }, h("span", {}, "goal " + GOAL + " min")), runs.map(bar)),
     h("div", { class: "shas" }, runs.map((r) => h("span", {}, String(r.sha).slice(0, 4))))];
 }
 function slowest(slow) {
