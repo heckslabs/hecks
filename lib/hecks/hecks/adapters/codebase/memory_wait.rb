@@ -94,12 +94,19 @@ module Hecks
           seconds.positive? ? "waited #{seconds} s while memory was low (#{held_by})" : ""
         end
 
-        # The reading that held the job, against the marks it was judged by.
+        # The reading that held the job, against the marks it was judged by; a gauge the machine
+        # did not answer prints `unread`, never a gap.
         def held_by
           r = @held || {}
-          "swap #{r[:swap_used_mb]&.round} MB over #{@marks[:swap_used_mb].round}, " \
-            "compressor #{r[:compressor_gb].to_f} GB over #{@marks[:compressor_gb]}, " \
-            "free #{r[:free_gb]} GB under #{@marks[:free_gb_low]}"
+          "swap #{figure(r[:swap_used_mb], 0)} MB over #{@marks[:swap_used_mb].round}, " \
+            "compressor #{figure(r[:compressor_gb], 1)} GB over #{@marks[:compressor_gb]}, " \
+            "free #{figure(r[:free_gb], 1)} GB under #{@marks[:free_gb_low]}"
+        end
+
+        def figure(value, places)
+          return "unread" if value.nil?
+
+          places.zero? ? value.round : value.to_f.round(places)
         end
 
         def say_waiting(job)
