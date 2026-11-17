@@ -28,7 +28,7 @@ RSpec.describe "the Agents plan review" do
   end
 
   it "reviews a Work item again under a new run once a review of it was answered" do
-    request(1).answer!(verdict: { value: "sound" }, now: { value: 1700 })
+    request(1).answer!(verdict: { value: "sound" })
     expect { request(1, run: "r2") }.not_to raise_error
   end
 
@@ -37,11 +37,11 @@ RSpec.describe "the Agents plan review" do
   end
 
   it "records a verdict the architect gives" do
-    expect { request(1).answer!(verdict: { value: "sound" }, now: { value: 1700 }) }.not_to raise_error
+    expect { request(1).answer!(verdict: { value: "sound" }) }.not_to raise_error
   end
 
   it "refuses a verdict the architect does not give, by name" do
-    expect { request(1).answer!(verdict: { value: "maybe" }, now: { value: 1700 }) }
+    expect { request(1).answer!(verdict: { value: "maybe" }) }
       .to raise_error(Hecks::Runtime::GivenNotMet, /verdict is one the architect gives/)
   end
 end
