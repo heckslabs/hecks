@@ -170,6 +170,9 @@ ADMIN_NODE_CMS_SCRIPT = <<~JS.freeze
   console.log(JSON.stringify({ verdicts, lenientMember, remembered, unreachable, plain: typeof membershipCheck }));
 JS
 
+# Reads TypeScript on stdin and writes the JavaScript left once its types are stripped.
+STRIP_SCRIPT = "process.stdout.write(require('node:module').stripTypeScriptTypes(require('fs').readFileSync(0, 'utf8')))".freeze
+
 RSpec.describe "the admin sign-in module" do
   let(:tool)     { Hecks::Tools::SiteRoutes }
   let(:members)  { File.join(InMemoryDomain::ROOT, "spec/fixtures/site/members") }
@@ -214,16 +217,44 @@ RSpec.describe "the admin sign-in module" do
 
   def node? = system("node", "--version", out: File::NULL, err: File::NULL)
 
+  # Whether this Node can strip TypeScript types with `module.stripTypeScriptTypes`.
+  def node_strips_types?
+    return @node_strips_types if defined?(@node_strips_types)
+
+    probe = "process.exit(typeof require('node:module').stripTypeScriptTypes === 'function' ? 0 : 1)"
+    @node_strips_types = system({ "NODE_NO_WARNINGS" => "1" }, "node", "-e", probe, out: File::NULL, err: File::NULL)
+  end
+
+  # Skips when Node cannot strip types, and fails on CI, where the check must run.
+  def require_type_stripping!
+    return if node_strips_types?
+
+    raise "CI's Node must provide module.stripTypeScriptTypes (22.13 or later)" if ENV["CI"]
+
+    skip "this Node has no module.stripTypeScriptTypes (needs 22.13 or later)"
+  end
+
   # What `node --check` reports for each of the named texts, written to a directory of their own.
-  def node_failures(texts, *flags)
+  def node_failures(texts)
     Dir.mktmpdir("node_check") do |dir|
       texts.filter_map do |name, text|
         file = File.join(dir, File.basename(name))
         File.write(file, text)
-        _out, err, status = Open3.capture3({ "NODE_NO_WARNINGS" => "1" }, "node", *flags, "--check", file)
+        _out, err, status = Open3.capture3({ "NODE_NO_WARNINGS" => "1" }, "node", "--check", file)
         "#{name}: #{err}" unless status.success?
       end
     end
+  end
+
+  # Strips the types of each TypeScript text (strip-only, so enums are refused), then checks the
+  # JavaScript left. `node --check` itself does not strip types on every Node release.
+  def ts_failures(texts)
+    stripped = {}
+    errors = texts.filter_map do |name, text|
+      js, err, status = Open3.capture3({ "NODE_NO_WARNINGS" => "1" }, "node", "-e", STRIP_SCRIPT, stdin_data: text)
+      status.success? ? (stripped["#{name}.mjs"] = js) && nil : "#{name}: #{err}"
+    end
+    errors + node_failures(stripped)
   end
 
   describe "the projection" do
@@ -426,8 +457,9 @@ RSpec.describe "the admin sign-in module" do
     it "is written as TypeScript Node can read", :process do
       next skip "node is not installed" unless node?
 
+      require_type_stripping!
       texts = paths.to_h { |path| [path, cms_text(path)] }
-      expect(node_failures(texts, "--experimental-strip-types")).to be_empty
+      expect(ts_failures(texts)).to be_empty
     end
   end
 
@@ -527,8 +559,9 @@ RSpec.describe "the admin sign-in module" do
     it "writes the driver and the field definitions as TypeScript Node can read", :process do
       next skip "node is not installed" unless node?
 
+      require_type_stripping!
       texts = names.grep(%r{cms/src/generated}).to_h { |name| [name, root_files.fetch("/work/root/#{name}")] }
-      expect(node_failures(texts, "--experimental-strip-types")).to be_empty
+      expect(ts_failures(texts)).to be_empty
     end
 
     it "leaves the image to the project when the row says dockerfile: false" do
