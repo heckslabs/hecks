@@ -78,6 +78,10 @@ dl.meta dt { color: var(--ink2); } dl.meta dd { overflow-wrap: anywhere; } dl.me
 .brain .braintip small { display: block; color: #8f9bcc; }
 /* In brain view the headline and the rate bars step aside so the brain has the window. */
 body.brainmode .overview, body.brainmode .facets, body.brainmode .list { display: none; }
+/* Shown inside the Wiring page: no bar, no heading, no filters; the brain fills the frame. */
+body.brainonly header.top, body.brainonly .tools, body.brainonly nav, body.brainonly .topbar { display: none; }
+body.brainonly main { padding: 0; margin: 0; max-width: none; }
+body.brainonly .brain { margin: 0; height: 100vh; border-radius: 0; }
 </style>
 </head>
 <body>
@@ -97,7 +101,6 @@ body.brainmode .overview, body.brainmode .facets, body.brainmode .list { display
     <span id="outcomes"></span>
     <button class="chip" id="by" type="button" aria-pressed="false">Group by subject</button>
     <button class="chip" id="hold" type="button" aria-pressed="false">Hold still</button>
-    <button class="chip" id="brainmode" type="button" aria-pressed="false">Brain view</button>
   </div>
   <div class="brain" id="brain" hidden><canvas id="cortex"></canvas><div class="ticker" id="ticker" aria-live="off"></div>
     <div class="braintip" id="braintip" hidden></div><p class="brainsays" id="brainsays"></p></div>
@@ -391,19 +394,20 @@ const brain = (() => {
   cv.addEventListener("mousemove", (e) => { const [c, mx, my] = near(e), t = $("braintip"); t.hidden = !c; if (!c) return; t.replaceChildren(c.label, h("small", {}, c.context + (c.fired ? " · fired " + c.fired + (c.last ? ", last " + c.last : "") : " · quiet"))); t.style.left = Math.max(8, Math.min(W - 220, mx + 14)) + "px"; t.style.top = Math.max(8, my - 44) + "px"; });
   cv.addEventListener("mouseleave", () => { $("braintip").hidden = true; });
   /* A click on a neuron leaves the brain and shows that aggregate's events in the list. */
-  cv.addEventListener("click", (e) => { const [c] = near(e); if (c && !c.port) { toggle(false); find(c.label); } });
+  cv.addEventListener("click", (e) => { const [c] = near(e); if (c && !c.port) (window.top || window).location.href = "/events#find=" + encodeURIComponent(c.label); });
   addEventListener("resize", () => { if (on) size(); });
   function toggle(want) {
-    on = want; $("brainmode").setAttribute("aria-pressed", String(on)); $("brain").hidden = !on; $("facets").hidden = on; $("list").hidden = on; document.body.classList.toggle("brainmode", on);
-    try { localStorage.setItem("events-brain", on ? "1" : ""); } catch (e) { /* the choice lasts for this page only */ }
+    on = want; $("brain").hidden = !on; $("facets").hidden = on; $("list").hidden = on; document.body.classList.toggle("brainmode", on);
     cancelAnimationFrame(raf); if (!on) return;
     size(); $("ticker").replaceChildren(); replay = sorted().slice(0, 240).reverse(); lastLive = 0; replayAt = 0;
     if (still) { backdrop(); cx.drawImage(back, 0, 0, W, H); for (const ev of replay) { const c = cellOf(ev.aggregate); if (c) c.heat = Math.min(1.2, c.heat + .25); } on = true; frame(performance.now()); cancelAnimationFrame(raf); return; }
     raf = requestAnimationFrame(frame);
   }
-  return { wire, fire, toggle, wants: () => { try { return localStorage.getItem("events-brain") === "1"; } catch (e) { return false; } }, isOn: () => on };
+  return { wire, fire, toggle, isOn: () => on };
 })();
-$("brainmode").addEventListener("click", () => brain.toggle(!brain.isOn()));
+/* The Wiring page shows this page as its Brain view (/events#brain): only the brain is drawn, filling the frame. */
+const EMBEDDED = location.hash === "#brain";
+if (EMBEDDED) document.body.classList.add("brainonly");
 $("q").addEventListener("input", () => { filter.q = $("q").value.trim().toLowerCase(); draw(); });
 $("by").addEventListener("click", () => { grouped = !grouped; $("by").setAttribute("aria-pressed", String(grouped)); draw(); });
 $("hold").addEventListener("click", () => { held = !held; $("hold").setAttribute("aria-pressed", String(held)); $("hold").textContent = held ? "Held still: resume" : "Hold still"; if (!held) draw(); });
@@ -412,7 +416,8 @@ Promise.all([fetch("/api/journal", { cache: "no-store" }).then((r) => r.json()),
   .then(([j, g]) => {
     learn(g);
     if (!Array.isArray(j.events)) { $("headline").textContent = "The event log could not be read: " + ((j.events && j.events.unknown) || "no answer"); $("list").replaceChildren(); return; }
-    take(j.events, false); openOnBoarding(); draw(); if (brain.wants()) brain.toggle(true);
+    take(j.events, false); openOnBoarding(); draw(); if (EMBEDDED) brain.toggle(true);
+    const asked = /^#find=(.+)$/.exec(location.hash); if (asked) find(decodeURIComponent(asked[1]));
   }).catch((e) => { $("headline").textContent = "The event log could not be read: " + e.message; $("list").replaceChildren(); })
   .finally(() => {
     if (!window.boardStream) return;
