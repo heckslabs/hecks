@@ -5,10 +5,10 @@ module Hecks
     class GitRehearsal
       class Impacted
         # Which specs a rehearsal cannot run here: those that need `cargo`, `gh` or the network, and
-        # those tagged `:io` when no scratch Postgres answers. Only code lines are read, never comments,
-        # and `gh` counts as needed only where a process launcher or a backtick runs it by name, so a
-        # spec that fakes `gh` (a runner it is given, an argv it expects) is not skipped. A launch that
-        # carries no literal `gh` (`system(gh_bin)`) is not seen.
+        # those tagged `:io` when no scratch Postgres answers. Only code lines are read, never
+        # comments, and `gh` counts as needed only where a process launcher or a backtick runs it
+        # by name, so a spec that fakes `gh` (a runner it is given, an argv it expects) is not
+        # skipped. A launch that carries no literal `gh` (`system(gh_bin)`) is not seen.
         class Skips
           NEEDS = {
             "cargo"   => /\bcargo (?:build|test|run|check)|["']cargo["']/,
