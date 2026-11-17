@@ -1,6 +1,7 @@
 require "spec_helper"
 require_relative "support/stand_in_claude"
 require "hecks/hecks/adapters/dispatching"
+require_relative "support/new_work_started"
 
 # The sequence of 2026-11-13, 13:58:24Z to 13:59:39Z, replayed on a Memory boot: a Work item whose
 # earlier coder run finished is started again, its new coder asks for a plan review, the review's
@@ -9,6 +10,7 @@ require "hecks/hecks/adapters/dispatching"
 # yields nothing, and once the coder is answered the item is still started.
 RSpec.describe Hecks::Adapters::Dispatching::Settler, "#call" do
   include_context "with a stand-in claude"
+  include_context "with new work started"
 
   let(:key) { "stall-abandon-pruned-runs" }
   let(:registry) { boot_hecks_in_memory.registry }

@@ -1,9 +1,12 @@
 require "spec_helper"
+require_relative "support/new_work_started"
 
 # Sorting the Work queue: an open work item takes one category and one priority, neither touches the
 # item's claim, step or area, and a done or dropped item takes neither. Each example boots its own
 # Hecks domain, so nothing leaks between them.
 RSpec.describe "Work category and priority" do
+  include_context "with new work started"
+
   let(:hecks) { boot_hecks_in_memory }
   let(:themes) do
     %w[agent-roles-and-handoff autonomous-pipeline pipeline-board landing-review-and-train

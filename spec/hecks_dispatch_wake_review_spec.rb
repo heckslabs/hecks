@@ -1,9 +1,12 @@
 require "spec_helper"
 require "hecks/hecks/adapters/dispatching"
+require_relative "support/new_work_started"
 
 # What the waker's second review found: a roll skipped by the load is retried when the load falls,
 # only a confirmed fill writes what the beat reads, and the beat's own reads stay cheap.
 RSpec.describe "the waker after its second review" do
+  include_context "with new work started"
+
   let(:dispatching) { Hecks::Adapters::Dispatching }
   let(:now) { Time.utc(2026, 11, 9, 12, 0, 0) }
   let(:level) { { load: 11.0 } }
