@@ -476,11 +476,15 @@ Hecks.bluebook "Agents" do
       reference_to PlanReview
       attribute :verdict, Verdict, sets: true
       attribute :findings, FindingsText, optional: true, sets: true
+      attribute :now, Instant
+      needs :now
 
       given("the verdict is one the architect gives") do
         verdict.value == "sound" || verdict.value == "changes" || verdict.value == "rethink"
       end
       given("the review did not end without a verdict") { ended_at.nil? || ended_at.value == 0 }
+
+      sets :ended_at, to: :now
 
       emits "PlanReviewed"
     end
@@ -496,10 +500,14 @@ Hecks.bluebook "Agents" do
       attribute :work,     WorkKey, sets: true
       attribute :verdict,  Verdict, sets: true
       attribute :findings, FindingsText, optional: true, sets: true
+      attribute :now,      Instant
+      needs :now
 
       given("the verdict is one the architect gives") do
         verdict.value == "sound" || verdict.value == "changes" || verdict.value == "rethink"
       end
+
+      sets :ended_at, to: :now
 
       emits "PlanReviewRecorded"
     end
