@@ -615,20 +615,6 @@ Hecks.bluebook "Tickets" do
       emits "EpicRanked"
     end
 
-    # Names the decision an epic carries out. Open takes it only when the epic is opened, so an epic that was
-    # opened without one gets it here; it is a plain set, any state allows it, and the rest of the epic stays.
-    command "Decide" do
-      role "Maintainer"
-      goal "Name the decision an epic carries out, in any state"
-
-      reference_to Epic
-      attribute :decision, String, sets: true
-
-      given("a decision is named") { !decision.to_s.strip.empty? }
-
-      emits "EpicDecided"
-    end
-
     # The board's epic list: every epic, lowest tier first (one sort key, so epics of a tier keep the
     # order the store holds them in).
     query "Ranked" do
