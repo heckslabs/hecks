@@ -189,11 +189,18 @@ EDITOR_NODE_SCENARIO = <<~JS.freeze
   const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64");
   const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 16, 0x4a, 0x46, 0x49, 0x46, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0]);
   const digest = (bytes, ext) => `${createHash("sha256").update(bytes).digest("hex")}.${ext}`;
-  const upload = (bytes, { alt = "A cat", type = "image/png", name = "cat.png", as: who = editor, headers = {} } = {}) => {
-    const body = new FormData();
-    body.append("alt", alt);
-    body.append("file", new Blob([bytes], { type }), name);
-    return who("/editor/media", { method: "POST", body, headers: { Origin: "http://site.test", ...headers } });
+  // The form's bytes are buffered before they are sent: a request whose body is a FormData stream
+  // throws when the handler cancels it for being over the cap, on some Node releases (undici).
+  const multipart = async (form) => {
+    const encoded = new Request("http://site.test/", { method: "POST", body: form });
+    return { body: Buffer.from(await encoded.arrayBuffer()), "content-type": encoded.headers.get("content-type") };
+  };
+  const upload = async (bytes, { alt = "A cat", type = "image/png", name = "cat.png", as: who = editor, headers = {} } = {}) => {
+    const form = new FormData();
+    form.append("alt", alt);
+    form.append("file", new Blob([bytes], { type }), name);
+    const { body, "content-type": kind } = await multipart(form);
+    return who("/editor/media", { method: "POST", body, headers: { Origin: "http://site.test", "Content-Type": kind, ...headers } });
   };
   const verbs = () => sent.filter((b) => b.verb);
   const kept = () => (readdirSync(stored, { withFileTypes: true }).filter((entry) => entry.isFile()).map((entry) => entry.name).sort());
