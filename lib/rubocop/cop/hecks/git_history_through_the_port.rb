@@ -9,12 +9,13 @@ module RuboCop
       # to the `Git` port. Adapter folders are skipped: an adapter of another port (Train,
       # Rehearsing) reads the history for its own port, and moving those reads behind `Git`, which
       # has no read for most of them, is the owner's decision. Vendored packages hold the same
-      # debt. A file in the baseline list is fully exempt; the cop closes the non-adapter gap only.
+      # debt. A file in the baseline list is fully exempt; the cop closes the non-adapter gap only and
+      # does not check that a read sits in the `Git` port.
       #
       # @example
       #   read("rev-list", "--count", range)    # bad
       #   `git log -1 --format=%H`              # bad
-      #   git.oldest_commit_time(older, newer)  # good
+      #   ledger.merged_at(change)              # good
       class GitHistoryThroughThePort < Base
         MSG = "`git %<command>s` reads the commit history outside an adapter. Ask the ledger what happened " \
               "and when; if the history itself is needed, add the read to the `Git` port and call it there.".freeze
