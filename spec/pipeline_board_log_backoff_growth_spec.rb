@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-require "hecks/pipeline_board/adapters/pipeline_github"
+require "hecks/pipeline_board/adapters/pipeline_github/log_backoff"
 
 # The growth of the hold across consecutive failures of one job.
 RSpec.describe Hecks::Adapters::PipelineBoard::LogBackoff do

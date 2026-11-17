@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Pipeline Diagrams</title>
+<title>Pipeline Wiring</title>
 <!--style--><style>
 /* The diagrams page: the wiring and sequence diagrams, one at a time, filling the window. */
 html, body { height: 100%; }
@@ -19,12 +19,13 @@ iframe { flex: 1; width: 100%; min-height: 480px; border: 0; border-top: 1px sol
 </head>
 <body>
   <header>
-    <h1>Diagrams</h1>
+    <h1>Wiring</h1>
     <!--nav-->
     <span class="hint" id="hint"></span>
     <div class="switch" role="group" aria-label="Diagram">
-      <button type="button" data-view="wiring" aria-pressed="true">Wiring</button>
+      <button type="button" data-view="wiring" aria-pressed="true">Graph</button>
       <button type="button" data-view="sequence" aria-pressed="false">Sequence</button>
+      <button type="button" data-view="brain" aria-pressed="false">Brain</button>
     </div>
   </header>
   <iframe id="view" title="Diagram"></iframe>
@@ -32,7 +33,8 @@ iframe { flex: 1; width: 100%; min-height: 480px; border: 0; border-top: 1px sol
 // Each diagram: where it is served and what to do with it. The address's #sequence picks the second.
 const VIEWS = {
   wiring: { src: "/wiring", title: "Wiring diagram", hint: "click a block to look inside it, a line to read its policies; drag to pan, + and − to zoom" },
-  sequence: { src: "/sequence", title: "Sequence diagram", hint: "each event as it happens, and the policies it set off" }
+  sequence: { src: "/sequence", title: "Sequence diagram", hint: "each event as it happens, and the policies it set off" },
+  brain: { src: "/events#brain", title: "Brain view", hint: "every aggregate is a neuron; an event lights it and a pulse runs down each policy; click a neuron for its events" }
 };
 const view = document.getElementById("view");
 function show(name) {

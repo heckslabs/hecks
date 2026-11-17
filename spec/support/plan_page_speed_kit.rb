@@ -15,6 +15,16 @@ module PlanPageSpeedKit
     allow(Process).to receive(:spawn).and_raise("a request launched a process")
   end
 
+  # The plan tile alone, drawn from the stand-in stages as the hub's drawer draws it.
+  def plan_tiles(stages)
+    drawn = { "plan" => -> { Hecks::Adapters::PipelineBoard::PlanHtml.draw(stages.plan_tile) } }
+    Hecks::Adapters::PipelineBoard::Tiles.new(rows: [{ tile: "plan", reads: "Tickets::Work" }], renderers: drawn)
+  end
+
+  def web_settings(stages, tiles)
+    { stages: stages, background: false, journal: FakeJournal.source, tiles: tiles }
+  end
+
   def items(count)
     Array.new(count) do |index|
       { slug: "w-#{index}", title: "Title #{index}", status: "planned", area: ["lib/x"], priority: "", epic: "",

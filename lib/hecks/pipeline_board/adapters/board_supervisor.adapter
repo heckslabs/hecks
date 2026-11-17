@@ -1,0 +1,7 @@
+# Binds the `Supervisor` port to `BoardSupervisor`, which asks a serving board through its own port and restarts it.
+# Required by name, not relative, so a copy of this directory shares the one implementation loaded.
+require "hecks/pipeline_board/adapters/board_supervisor"
+
+Hecks.adapter "BoardSupervisor" do
+  port "Supervisor"
+end

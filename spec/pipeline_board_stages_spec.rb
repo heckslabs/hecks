@@ -9,14 +9,15 @@ RSpec.describe Hecks::Adapters::PipelineStages do
   include PipelineBoardWorld
 
   let(:base) { Dir.mktmpdir("board") }
-  let(:gh) { canned_gh([run("b", 2, conclusion: "failure", minutes: 5), run("a", 1)]) }
+  let(:ci_rows) { [run("b", 2, conclusion: "failure", minutes: 5), run("a", 1)] }
+  let(:gh) { canned_gh(ci_rows) }
 
   after { FileUtils.rm_rf(base) }
 
   def jobs_reader
     dir = File.join(base, "jobs")
     job_dir(dir, "s1", "working", "building")
-    Hecks::Adapters::PipelineJobs.new(settings: { jobs_dir: dir, agents: -> { [] }, now: -> { Time.now } })
+    Hecks::Adapters::PipelineJobs.new(settings: { jobs_dir: dir, runs: -> { {} }, now: -> { Time.now } })
   end
 
   def fill_reader
@@ -26,7 +27,7 @@ RSpec.describe Hecks::Adapters::PipelineStages do
 
   def readers(overrides = {})
     work = repo_one_ahead(base)
-    { github:  Hecks::Adapters::PipelineGitHub.new(settings: { gh: gh, ttl: 0 }),
+    { github:  Hecks::Adapters::PipelineGitHub.new(settings: { gh: gh, ttl: 0, seats: ci_seats(ci_rows) }),
       git:     Hecks::Adapters::PipelineGit.new(root: work, settings: { train: work, ttl: 0 }),
       tickets: Hecks::Adapters::PipelineTickets.new(settings: { work_items: work_items, landings: [] }),
       jobs:    jobs_reader,
@@ -95,10 +96,11 @@ RSpec.describe Hecks::Adapters::PipelineStages do
     expect(stage("Promote")).to include(count: "0", state: "ok")
   end
 
-  it "gives unknown with the reason for a stage whose port fails, and answers the rest", :aggregate_failures do
-    broken = ->(*) { raise Hecks::Adapters::PipelineBoard::Unavailable, "gh is not installed" }
-    ci = stage("CI", github: Hecks::Adapters::PipelineGitHub.new(settings: { gh: broken, ttl: 0 }))
-    expect(ci).to include(state: "unknown", detail: "unknown: gh is not installed")
+  it "says CI is not recorded yet, without asking gh, when no run is held", :aggregate_failures do
+    asked = []
+    ci = stage("CI", github: Hecks::Adapters::PipelineGitHub.new(settings: { gh: ->(*args) { asked << args }, ttl: 0 }))
+    expect(ci).to include(state: "unknown", detail: "unknown: no main CI run is recorded yet")
+    expect(asked.flatten.grep(/runs?\b/)).to be_empty
   end
 
   it "keeps answering the other stages when a port fails" do

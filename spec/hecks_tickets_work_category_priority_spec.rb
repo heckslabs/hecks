@@ -144,4 +144,28 @@ RSpec.describe "Work category and priority" do
     expect(run_cli("work.undone").map { |found| found["work"] }).to eq(%w[work/early work/late])
     expect(run_cli("work.next_planned").first["work"]).to eq("work/early")
   end
+
+  def order(key, step) = cli_text("work.order!", "to=#{key}", "step.value=#{step}")
+
+  it "gives an existing open item its step" do
+    plan("w/a")
+    order("w/a", 3)
+
+    expect(row("w/a")["step"]).to eq(3)
+  end
+
+  it "replaces a step the item already had" do
+    plan("w/a", step: 9)
+    order("w/a", 2)
+
+    expect(row("w/a")["step"]).to eq(2)
+  end
+
+  it "keeps the item's priority when it is ordered" do
+    plan("w/a")
+    prioritize("w/a", "now")
+    order("w/a", 3)
+
+    expect(row("w/a")["priority"]).to eq("now")
+  end
 end

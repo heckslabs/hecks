@@ -95,7 +95,15 @@ module Hecks
 
         # @return [String] the lock file of the turn at the copy, in the repository's git
         #   directory, so it goes when the repository does
-        def lock_file = File.join(read("rev-parse", "--path-format=absolute", "--git-common-dir").strip, LOCK)
+        def lock_file = File.join(common_dir, LOCK)
+
+        # @return [String] the repository's common git directory, where the markers are kept
+        def common_dir = read("rev-parse", "--path-format=absolute", "--git-common-dir").strip
+
+        # @param base [String] a commit
+        # @param tip [String] a commit
+        # @return [Boolean] whether `base` is `tip` or one of its ancestors
+        def ancestor?(base, tip) = @git.capture("merge-base", "--is-ancestor", base, tip, chdir: @checkout).ok?
 
         private
 

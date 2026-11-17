@@ -93,8 +93,9 @@ RSpec.describe "Hecks::Adapters::Sqlite under a held write lock" do
     reader&.close
   end
 
+  # Only the rollback journal lets a reader keep a writer out; a write-ahead log never does.
   it "rolls back a commit that found the file busy, so no lock outlives it", :aggregate_failures do
-    store = adapter(busy_timeout_ms: 100)
+    store = adapter(busy_timeout_ms: 100, journal_mode: "delete")
     expect(write_while_read_is_open(store)).to eq(:busy)
     expect(store.instance_variable_get(:@db).transaction_active?).to be(false)
     expect(notes_read_at_once).to eq(3)

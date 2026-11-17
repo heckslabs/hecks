@@ -52,10 +52,26 @@ module Hecks
           card("Running now (#{rows.size})", list.empty? ? ["nothing is running"] : list)
         end
 
+        # How many queued items the card names; the rest are counted, never listed.
+        UPNEXT_SHOWN = 3
+
         def upnext(data)
-          held = data[:held].map { |row| "#{esc(row[:slug])} <span class=\"facts\">held: #{esc(row[:reason])}</span>" }
-          lines = data[:next].map { |row| esc(row[:slug]) } + held
+          lines = queued_lines(data[:next]) + held_lines(data[:held])
           card("Up next (#{data[:next].size})", lines.empty? ? ["nothing is queued to start"] : lines)
+        end
+
+        # The first few queued items by name, then how many more there are.
+        def queued_lines(rows)
+          more = rows.size - UPNEXT_SHOWN
+          named = rows.first(UPNEXT_SHOWN).map { |row| esc(row[:slug]) }
+          more.positive? ? named + ["and #{more} more"] : named
+        end
+
+        # One line per distinct reason with a count, so 300 held items do not print 300 lines.
+        def held_lines(rows)
+          rows.group_by { |row| row[:reason] }.map do |reason, group|
+            "#{group.size} held <span class=\"facts\">#{esc(reason)}</span>"
+          end
         end
 
         def landing(train)

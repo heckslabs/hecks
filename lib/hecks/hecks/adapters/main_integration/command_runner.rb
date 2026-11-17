@@ -20,6 +20,12 @@ module Hecks
         # opt-in to specs that reach a live service (spec/support/live_services.rb).
         DROPPED = %w[BUNDLE_GEMFILE BUNDLE_BIN_PATH RUBYOPT RUBYLIB HECKS_OWNER_PUSH HECKS_LIVE_SERVICES].freeze
 
+        # @return [Hash{String => String, nil}] the environment every command of an integration
+        #   step runs with, for a runner of another kind (the impacted-spec check's shell)
+        def self.environment
+          Vendoring::GitEnvironment.clean.merge(DROPPED.to_h { |name| [name, nil] }, Toolchain.environment)
+        end
+
         # @param bound [Numeric, nil] the seconds one command may run; the world's
         #   `check_seconds` in the directory it runs in when nil
         def initialize(bound: nil)
@@ -42,9 +48,7 @@ module Hecks
           BoundedCapture.new(seconds: seconds, setting: "spec_bounds check_seconds")
         end
 
-        def environment
-          Vendoring::GitEnvironment.clean.merge(DROPPED.to_h { |name| [name, nil] }, Toolchain.environment)
-        end
+        def environment = self.class.environment
       end
     end
   end

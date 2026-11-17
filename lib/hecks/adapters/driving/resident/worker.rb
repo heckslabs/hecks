@@ -26,11 +26,13 @@ module Hecks
               held = options.empty? ? Describing.cache.fetch(path, environment) : nil
               return replay(held, path, environment) if held
 
-              Describing.notes.puts("D\t#{File.expand_path(path)}\t#{environment}") if options.empty?
+              note("D\t#{File.expand_path(path)}\t#{environment}") if options.empty?
               super
             end
 
             private
+
+            def note(line) = Worker.tolerating_closed_pipe { Describing.notes.puts(line) }
 
             # Hands out the loaded domain, which prints what loading it printed the first time
             # this line asks for its registry, as a cold launcher would: a line answered without
@@ -42,7 +44,7 @@ module Hecks
               loaded = held.method(:registry)
               printed = false
               held.define_singleton_method(:registry) do
-                printed ||= $stderr.print(text) || true
+                printed ||= Worker.tolerating_closed_pipe { $stderr.print(text) } || true
                 loaded.call
               end
               held
@@ -68,6 +70,25 @@ module Hecks
             nil
           end
 
+          # Runs a write to a stream the caller or the resident may have closed; a broken pipe or a
+          # closed stream there is lost output, never a failed line. Only those two errors are
+          # rescued, so a real fault still shows.
+          # @return [Object, nil] the block's value, or nil when the stream was closed
+          def self.tolerating_closed_pipe
+            yield
+          rescue Errno::EPIPE, IOError
+            nil
+          end
+
+          # Flushes each standard stream on its own, so one closed stream does not skip the other.
+          def self.flush_streams
+            tolerating_closed_pipe { $stdout.flush }
+            tolerating_closed_pipe { $stderr.flush }
+          end
+
+          # Says an uncaught error on the caller's standard error, when that is still open.
+          def self.report(error) = tolerating_closed_pipe { warn(error.full_message) }
+
           # Ends a child once every exit handler has run. Ruby would now free the whole heap it
           # shares with the resident, which costs more than the line did; the operating system
           # does it for nothing. What that teardown would have done that matters is done here:
@@ -75,11 +96,10 @@ module Hecks
           # removed. A store an exit handler opened is closed with the rest ({Stores}).
           def self.leave
             error = $ERROR_INFO
-            warn(error.full_message) if error && !error.is_a?(SystemExit)
+            report(error) if error && !error.is_a?(SystemExit)
             Stores.close
             tempfiles.each { |file| close_quietly(file) }
-            $stdout.flush
-            $stderr.flush
+            flush_streams
             Trace.mark("child_exit")
             Process.exit!(status_of(error))
           end
@@ -142,7 +162,11 @@ module Hecks
           def report_loads
             before = $LOADED_FEATURES.size
             notes = @notes
-            at_exit { $LOADED_FEATURES[before..].each { |path| notes.puts("F\t#{path}") } }
+            at_exit { report_features(notes, before) }
+          end
+
+          def report_features(notes, before)
+            $LOADED_FEATURES[before..].each { |path| Worker.tolerating_closed_pipe { notes.puts("F\t#{path}") } }
           end
 
           def take_over

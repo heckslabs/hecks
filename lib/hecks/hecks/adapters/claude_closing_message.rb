@@ -39,11 +39,11 @@ module Hecks
 
       # Seconds a search that found no one transcript is not made again. The search walks every
       # project folder, and a board asks for each of many runs on every read.
-      MISS_SECONDS = 60
+      MISS_SECONDS = 1800
 
       # The most paths and texts the shared memory holds; past it the oldest are forgotten and read
       # again when asked, so a board that runs for days holds a bounded number of sessions.
-      KEPT = 500
+      KEPT = 5000
 
       private
 

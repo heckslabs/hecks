@@ -51,6 +51,25 @@ module Hecks
       # @return [Array<String>] its local world files, in load order
       def files(root) = FILES.flat_map { |pattern| Dir[File.join(root, DIRECTORY, pattern)].sort }
 
+      # @param root [String] a hecks checkout
+      # @return [Array] the modification time and size of each overlay file that applies to the
+      #   checkout, empty while `Adapters::FolderOverlay.committed_only` runs; it differs after an
+      #   overlay file is edited, added or removed
+      def stamp(root)
+        return [] if Thread.current[:hecks_committed_only]
+
+        files(home(root)).map { |file| [file, stat_of(file)] }
+      end
+
+      # @param file [String] a path
+      # @return [Array<Integer>, nil] its modification time in nanoseconds and size, nil when absent
+      def stat_of(file)
+        stat = File.stat(file)
+        [(stat.mtime.to_r * 1_000_000_000).to_i, stat.size]
+      rescue SystemCallError
+        nil
+      end
+
       # Forgets which files were named as unreadable.
       #
       # @return [void]

@@ -52,6 +52,10 @@ svg.picked .link { opacity: .1; } svg.picked .link.on { opacity: 1; } svg.picked
 #up { padding: 2px 10px; font-size: 12.5px; }
 .unit.sel .box { stroke: var(--pick); stroke-width: 2; }
 .unit.hot .box { stroke: var(--good); stroke-width: 2; }
+/* A policy ran inside this block: a dashed ring over the plain glow of an event nothing followed. */
+.unit.reacted .box { stroke: var(--good); stroke-width: 3.5; stroke-dasharray: 7 4; }
+/* A replayed firing is dimmer than a live one, so old activity is never taken for live. */
+.unit.replay, .link.lit.replay, .dot.replay { opacity: .45 !important; }
 svg.picked .unit:not(.near), svg.finding .unit:not(.match) { opacity: .3; }
 .band { font: 500 11px system-ui, sans-serif; fill: var(--muted); }
 .dot { stroke: var(--surface); stroke-width: 2; } .dot.ok { fill: var(--good); } .dot.wait { fill: var(--warning); } .dot.bad { fill: var(--critical); }
@@ -357,8 +361,13 @@ function enter(key) { inside = key || null; picked = null; waiting = null; hover
 function open(key) { if (byId.has(key)) pick({ node: key }); else enter(key); }
 setInterval(() => {
   const now = performance.now();
-  for (const l of links.values()) if (l.lit && l.lit < now) { l.lit = null; l.el.classList.remove("lit", "ok", "wait", "bad"); }
-  for (const u of units.values()) if (u.hot && u.hot < now) { u.hot = null; u.el.classList.remove("hot"); }
+  for (const l of links.values()) if (l.lit && l.lit < now) { l.lit = null; l.el.classList.remove("lit", "ok", "wait", "bad", "replay"); }
+  for (const u of units.values()) {
+    if (u.hot && u.hot < now) { u.hot = null; u.el.classList.remove("hot"); }
+    if (u.reacted && u.reacted < now) { u.reacted = null; u.el.classList.remove("reacted"); }
+    if (!u.hot && !u.reacted) u.el.classList.remove("replay");
+  }
+  idle(now);
 }, 1000);
 
 /* ---- the side panel: a context, a line between two, or one aggregate ---- */
@@ -367,10 +376,13 @@ let waiting = null;
 function remember(ev) { const i = recent.findIndex((held) => held.key === ev.key); if (i >= 0) recent[i] = ev; else { recent.push(ev); if (recent.length > 800) recent.shift(); } }
 const section = (title, ...kids) => [h("h3", {}, title), ...kids];
 const go = (what, text) => { const b = h("button", { class: "go", type: "button" }, text); b.addEventListener("click", () => pick(what)); return b; };
+/* An ask edge names its port: "RegenerationRun asks the SourceTree port". The operation is named only when the edge
+   records it (`operation`); the edge says which port, not which of its operations, so none is guessed. */
+const asking = (e, a, b) => (a ? a.label : e.from) + " asks the " + (b ? b.label : e.to) + " port" + (e.operation ? ", " + e.operation : "");
 /* One policy as a sentence, with the two aggregates it joins. */
 function said(e) {
   const a = byId.get(e.from), b = byId.get(e.to);
-  return h("li", { title: e.label }, sentence(e.label), h("small", {}, (a ? a.label : e.from) + " → " + (b ? b.label : e.to) + (e.kind === "ask" ? ", asks a port" : "")));
+  return h("li", { title: e.label }, sentence(e.label), h("small", {}, e.kind === "ask" ? asking(e, a, b) : (a ? a.label : e.from) + " → " + (b ? b.label : e.to)));
 }
 let slid = false;
 function reveal() {
@@ -487,25 +499,28 @@ function renderGrid() {
 /* ---- messages: a policy that ran lights the line it crosses, in its outcome's colour ---- */
 const seen = new Map(), dots = [];
 const outcomeKind = (text) => (/deliver/.test(text) ? "ok" : /refus|fail/.test(text) ? "bad" : "wait");
-function heat(u, now) { u.hot = now + LINGER; u.el.classList.add("hot"); }
-function fire(ev, animate) {
+function heat(u, now, dim) { u.hot = now + LINGER; u.el.classList.add("hot"); u.el.classList.toggle("replay", Boolean(dim)); }
+/* A policy that ran inside one block: the block carries a ring, which a lone event's plain glow does not. */
+function react(u, now, dim) { u.reacted = now + LINGER; u.el.classList.add("reacted"); u.el.classList.toggle("replay", Boolean(dim)); }
+/* A replayed firing is drawn dimmer and never writes the last-event line, which says live events only. */
+function fire(ev, animate, replayed) {
   const now = performance.now(), node = byId.get(ev.aggregate);
-  if (node && animate && units.has(unitKey(node))) heat(units.get(unitKey(node)), now);
+  if (node && animate && units.has(unitKey(node))) heat(units.get(unitKey(node)), now, replayed);
   for (const r of ev.reactions || []) {
     const name = bare(r.policy), kind = outcomeKind(r.outcome || ""), token = ev.key + "|" + name + "|" + kind;
     if (seen.has(token)) continue; seen.set(token, true);
-    if (animate) for (const e of edges.filter((x) => x.label === name)) cross(e, kind, now);
-    $("last").replaceChildren(h("time", {}, clock(ev.at)), h("b", {}, ev.name), sentence(name), h("span", { class: kind }, OUTCOME[kind]));
+    if (animate) for (const e of edges.filter((x) => x.label === name)) cross(e, kind, now, replayed);
+    if (!replayed) $("last").replaceChildren(h("time", {}, clock(ev.at)), h("b", {}, ev.name), sentence(name), h("span", { class: kind }, OUTCOME[kind]));
   }
 }
-function cross(e, kind, now) {
-  const a = byId.get(e.from), b = byId.get(e.to); if (!a || !b || !a.domain || !b.domain) return;
-  const from = unitKey(a), to = unitKey(b), link = links.get(from + "→" + to);
-  if (units.has(to)) heat(units.get(to), now);
-  if (!link) return;
-  link.lit = now + LINGER; link.el.classList.remove("ok", "wait", "bad"); link.el.classList.add("lit", kind);
+function cross(e, kind, now, dim) {
+  const a = byId.get(e.from), b = byId.get(e.to); if (!a || !a.domain) return;
+  const from = unitKey(a), to = b && b.domain ? unitKey(b) : from, link = links.get(from + "→" + to);
+  if (!link) { if (units.has(from)) react(units.get(from), now, dim); return; }
+  if (units.has(to)) heat(units.get(to), now, dim);
+  link.lit = now + LINGER; link.el.classList.remove("ok", "wait", "bad"); link.el.classList.add("lit", kind); link.el.classList.toggle("replay", Boolean(dim));
   if (reduceMotion) return;
-  const dot = s("circle", { class: "dot " + kind, r: 5 }); $("dots").append(dot);
+  const dot = s("circle", { class: "dot " + kind + (dim ? " replay" : ""), r: 5 }); $("dots").append(dot);
   dots.push({ dot, line: link.el.querySelector(".line"), start: now, ms: 1400 }); if (dots.length === 1) requestAnimationFrame(travel);
 }
 function travel(now) {
@@ -527,10 +542,19 @@ function listen() {
     board: (ev) => {
       if (!ev.key) return;
       remember(ev); if (picked && picked.node) renderPanel();
-      if (!liveStarted) { backlog.push(ev); clearTimeout(listen.t); listen.t = setTimeout(() => { liveStarted = true; replay(backlog.slice(-12), true); }, 600); } else fire(ev, true);
+      if (!liveStarted) { backlog.push(ev); clearTimeout(listen.t); listen.t = setTimeout(() => { liveStarted = true; replay(backlog.slice(-12), true); }, 600); } else { lastLive = performance.now(); fire(ev, true, false); }
     } });
 }
-function replay(list, first) { if (!first) seen.clear(); list.forEach((ev, i) => setTimeout(() => fire(ev, true), i * 450)); }
+/* Replayed firings are marked as replay. After IDLE ms with no live event the recent ones replay, again and again, so the
+   graph is never still; the first batch on load is a replay too, since it is past activity. */
+const IDLE = 6000, STEP = 450;
+let lastLive = performance.now(), replayingUntil = 0;
+function replay(list, first) {
+  if (!first) seen.clear();
+  replayingUntil = performance.now() + list.length * STEP + 1500;
+  list.forEach((ev, i) => setTimeout(() => fire(ev, true, true), i * STEP));
+}
+function idle(now) { if (recent.length && now > replayingUntil && now - lastLive > IDLE) replay(recent.slice(-12), false); }
 
 /* ---- buttons, and the graph: read at load and again whenever the stream says the bluebooks are drawn differently ---- */
 function redraw() {

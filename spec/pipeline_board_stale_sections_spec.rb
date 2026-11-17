@@ -8,11 +8,12 @@ require "hecks/pipeline_board/adapters/pipeline_web"
 # answer with the time that answer was read, and the reader is asked once a refresh at most.
 RSpec.describe Hecks::Adapters::PipelineBoard::Stale do
   let(:host) do
+    seconds = bound
     Class.new do
       include Hecks::Adapters::PipelineBoard::Gather
 
-      def initialize(github)
-        @read_seconds = 0.2
+      define_method(:initialize) do |github|
+        @read_seconds = seconds
         @github = github
         %i[git tickets jobs fill journal disk].each { |name| instance_variable_set("@#{name}", Object.new) }
       end
@@ -23,13 +24,26 @@ RSpec.describe Hecks::Adapters::PipelineBoard::Stale do
   let(:gate) { Queue.new }
   let(:asked) { [] }
 
+  after { gate.close }
+
+  # The bound each read is given.
+  def bound = 0.5
+
   # A GitHub reader that answers its first read and never its second.
   def github
     calls = asked
-    slow = gate
+    wedge = method(:wedged)
     Object.new.tap do |reader|
-      reader.define_singleton_method(:latest_release) { (calls << :release).size == 1 ? { tag: "v1" } : slow.pop }
+      reader.define_singleton_method(:latest_release) { (calls << :release).size == 1 ? { tag: "v1" } : wedge.call }
     end
+  end
+
+  # A read stuck in a call that a kill cannot end: the kill runs the ensure, which blocks again,
+  # so the thread stays alive until the gate is closed.
+  def wedged
+    gate.pop
+  ensure
+    gate.pop
   end
 
   def after_a_slow_read
@@ -43,7 +57,7 @@ RSpec.describe Hecks::Adapters::PipelineBoard::Stale do
 
   it "says since when the answer is stale, and why", :aggregate_failures do
     note = after_a_slow_read.stale_sections[:release]
-    expect(note[:reason]).to eq("reader did not answer in 0.2s")
+    expect(note[:reason]).to eq("reader did not answer in #{bound}s")
     expect(Time.iso8601(note[:since])).to be_within(5).of(Time.now)
   end
 

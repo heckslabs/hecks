@@ -15,7 +15,9 @@ RSpec.describe Hecks::Adapters::PipelineBoard::Stream do
   let(:sent) { Queue.new }
   let(:hub) do
     rows = [{ tile: "train", reads: "Hecks::SendTrain" }]
-    tiles = Hecks::Adapters::PipelineBoard::Tiles.new(rows: rows, renderers: { "train" => -> { html[0] } })
+    text = html
+    tiles = Hecks::Adapters::PipelineBoard::Tiles.new(rows: rows, renderers: { "train" => -> { text[0] } })
+    tiles.refresh(0)
     watch = Hecks::Adapters::PipelineBoard::Watch.new(path: "unused", source: -> { journal })
     Hecks::Adapters::PipelineBoard::Hub.new(tiles: tiles, watch: watch, net_seconds: 3600).start
   end

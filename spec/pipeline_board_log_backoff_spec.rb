@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-require "hecks/pipeline_board/adapters/pipeline_github"
+require "hecks/pipeline_board/adapters/pipeline_github/log_backoff"
 
 # The hold a failed failed-job log read earns: 10 minutes, doubling per failure up to an hour.
 RSpec.describe Hecks::Adapters::PipelineBoard::LogBackoff do

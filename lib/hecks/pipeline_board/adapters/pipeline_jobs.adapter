@@ -1,4 +1,5 @@
-# Binds the `Jobs` port to `PipelineJobs`, which answers `Sessions` from each job's state file and `claude agents`.
+# Binds the `Jobs` port to `PipelineJobs`, which answers `Sessions` from each job's state file and the AgentRun
+# ledger; its liveness is as fresh as the last session sweep.
 # Required by name, not relative, so a copy of this directory shares the one implementation loaded.
 require "hecks/pipeline_board/adapters/pipeline_jobs"
 
