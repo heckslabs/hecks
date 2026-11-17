@@ -25,6 +25,12 @@ RSpec.describe Hecks::Adapters::Codebase::MemoryWait do
     expect(err.string).to include("hecks: gate waiting: memory low (swap 5000 MB over 4096")
   end
 
+  it "prints unread for a gauge the machine did not answer, never an empty gap" do
+    note = wait_with([reading(swap: 5000.0), reading(swap: 500.0, free: 9.0)]).wait("gate")
+
+    expect(note).to include("compressor unread GB over 12.0, free unread GB under 3.0")
+  end
+
   it "keeps waiting inside the gap until memory has recovered" do
     readings = [pressed, reading(swap: 5000.0, free: 4.0), reading(swap: 5000.0, free: 8.0)]
     expect(wait_with(readings).wait("gate")).to start_with("waited 20 s")
