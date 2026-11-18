@@ -86,11 +86,7 @@ module Hecks
 
       private
 
-      # Also notes whether the verification is the retry a run is parked on.
-      def repository_of(held)
-        @retried = plain(held[:retried]) == true
-        MainIntegration::Repository.new(plain(held[:checkout]) || Dir.pwd)
-      end
+      def repository_of(held) = MainIntegration::Repository.new(plain(held[:checkout]) || Dir.pwd)
 
       # Records the commit as the last verified one in the git directory. A marker that cannot be
       # written never fails a verification that passed; the report says so.
@@ -160,10 +156,10 @@ module Hecks
       end
 
       # Raised after the copy is released, so the search for the first bad merge never holds the
-      # copy's turn. It runs only for the failure a run is parked on, while the shallow check is
-      # off, and a search that cannot run is said in the refusal, never hidden.
+      # copy's turn. It runs for every failed verification while the shallow check is off, so the
+      # refusal names the first bad merge; a search that cannot run is said, never hidden.
       def refuse!(repository, landed, since, off)
-        found = searched(repository, landed, since) if off && @retried
+        found = searched(repository, landed, since) if off
         raise ConsoleCapture::Failure, MainIntegration::Refusal.new(landed, @failures, TAIL, first_bad: found).to_s
       end
 
