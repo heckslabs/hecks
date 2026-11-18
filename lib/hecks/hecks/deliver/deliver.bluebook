@@ -428,10 +428,9 @@ Hecks.bluebook "Hecks" do
       ask     :branch_ci, with: { run: :run }
     end
 
-    # No failing job of the branch's own is a pass: the verdict is drawn here, from the jobs the port
-    # names. `inherited` lists, in `failing`'s order, the failed jobs whose every failed example also
-    # failed on the run of the branch's base; when the two lists are the same, a red main is all that
-    # failed, and the coder hands off clean work with the inherited jobs named in the report.
+    # No failing job of the branch's own is a pass, drawn here from the jobs the port names: `inherited`
+    # lists, in `failing`'s order, the jobs whose every failed example failed on the branch's base too,
+    # so when the two are the same only a red main failed and the coder hands off, naming them.
     policy "RecordTheGreenRun" do
       on      "EarlyCi.BranchCiAnswered"
       where   { failing.nil? || failing.value.to_s.empty? || (!inherited.nil? && inherited.value == failing.value) }
