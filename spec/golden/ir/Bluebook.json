@@ -1547,7 +1547,7 @@
               "list": false,
               "name": "value",
               "optional": false,
-              "pattern": "[^ \\t\\n\\r]",
+              "pattern": null,
               "relationship": null,
               "type": "String"
             }
@@ -39811,63 +39811,6 @@
             ]
           ],
           "name": "CargoReservedName"
-        },
-        {
-          "attributes": [
-            {
-              "admits": null,
-              "default": null,
-              "list": false,
-              "name": "name",
-              "optional": false,
-              "pattern": null,
-              "relationship": null,
-              "type": "String"
-            }
-          ],
-          "closed_set": true,
-          "invariants": [
-
-          ],
-          "members": [
-            [
-              [
-                "name",
-                "report"
-              ]
-            ],
-            [
-              [
-                "name",
-                "refusal"
-              ]
-            ],
-            [
-              [
-                "name",
-                "summary"
-              ]
-            ],
-            [
-              [
-                "name",
-                "outcome"
-              ]
-            ],
-            [
-              [
-                "name",
-                "reason"
-              ]
-            ],
-            [
-              [
-                "name",
-                "text"
-              ]
-            ]
-          ],
-          "name": "RequiredTextName"
         }
       ]
     }

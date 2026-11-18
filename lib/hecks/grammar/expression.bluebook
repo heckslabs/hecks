@@ -322,7 +322,7 @@ Hecks.bluebook "Expression" do
     end
 
     value_object "Reason" do
-      attribute :value, String, matches: :present
+      attribute :value, String
       invariant("a refusal gives a reason") { !value.to_s.empty? }
     end
 

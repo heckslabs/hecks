@@ -1624,9 +1624,7 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, matches: :present
       end
 
-      value_object "Report" do
-        attribute :value, String, matches: :present
-      end
+      value_object "Report", String
 
       value_object "Switch", Boolean
 
@@ -1766,9 +1764,7 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, matches: :present
       end
 
-      value_object "Report" do
-        attribute :value, String, matches: :present
-      end
+      value_object "Report", String
 
       # Which attempt of a CI run failed: 1 is the first.
       value_object "Tries", Integer

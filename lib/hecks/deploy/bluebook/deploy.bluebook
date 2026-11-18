@@ -1288,9 +1288,7 @@ Hecks.bluebook "Deploy" do
 
     value_object "Switch", Boolean
 
-    value_object "Report" do
-      attribute :value, String, matches: :present
-    end
+    value_object "Report", String
 
     lifecycle :status, default: "requested" do
       mark :failure, "flagged"

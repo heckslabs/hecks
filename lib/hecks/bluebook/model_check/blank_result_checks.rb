@@ -38,10 +38,10 @@ module Hecks
           Hecks::Vocabulary.fetch("RequiredTextName").include?(attribute.name.to_s)
         end
 
-        # @return [Boolean] whether the value object is a bare String with no pattern and no
-        #   closed set of members, which a blank is never one of
+        # @return [Boolean] whether the value object is a bare String with no pattern, no closed
+        #   set of members (a blank is never one of them) and no invariant, which refuses by name
         def blankable_value?(value)
-          return false if value.closed_set?
+          return false if value.closed_set? || value.invariants.any?
 
           field = value.attributes.find { |attribute| attribute.name == :value }
           field&.type.to_s == "String" && field.pattern.nil?
