@@ -1,9 +1,5 @@
-# Pins a policy's `with:` triggering a creating command that requires a `run` key and names none:
-# the runtime mints the key from its identity port, and the event records it. `Check.Start` takes
-# `run` as its identity; the policy projects only `booking`, so the key must come from the port.
-#
-# Dispatched against both engines by
-# spec/corpus/rust_conformance/reaction_mints_run_key.json
+# A reaction mints the run key its creating command requires and names none; both engines run it
+# by spec/corpus/rust_conformance/reaction_mints_run_key.json and its spent-identity sibling.
 Hecks.bluebook "RunKeyMintFixture" do
   vision "The smallest domain whose placed booking starts a check under a run key nobody named."
 

@@ -1,0 +1,59 @@
+{
+  "domain": "spec/fixtures/rust_project/run_key_mint_fixture",
+  "note": "The identity port answers nothing: its script is empty, as a registry with no identity adapter bound (Ruby's RunKeys.with_minted_run rescues the WiringError) or a Rust host run whose pool is spent. The reaction's creating command keeps the facts it was given, refuses its missing run, and records no Check; the booking still places. A runtime that mints anyway, or that refuses the booking, fails here.",
+  "identity": [
+
+  ],
+  "steps": [
+    {
+      "verb": "RunKeyMintFixture::Booking.Place",
+      "args": {
+        "ref": {
+          "value": "b1"
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+
+    ],
+    "instances": {
+      "RunKeyMintFixture::Booking#b1": {
+        "ref": {
+          "value": "b1"
+        }
+      }
+    },
+    "events": [
+      {
+        "name": "BookingPlaced",
+        "aggregate": "RunKeyMintFixture::Booking",
+        "id": "b1",
+        "payload": {
+          "ref": {
+            "value": "b1"
+          }
+        }
+      }
+    ],
+    "queries": [
+
+    ],
+    "sagas": [
+
+    ],
+    "dry_runs": [
+
+    ],
+    "reactions": [
+      {
+        "policy": "StartCheckOnPlaced",
+        "on": "BookingPlaced",
+        "trigger": "RunKeyMintFixture::Check.Start",
+        "delivered": false,
+        "reason": "Start was not given run — it takes run, booking"
+      }
+    ]
+  }
+}

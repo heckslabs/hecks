@@ -8,23 +8,26 @@ module Hecks
     module IdentityGeneration
       NAME = "identity_generation".freeze
 
-      @stand_in = nil
+      # The stand-ins, each answering for one registry only, so a replay that scripts its ids
+      # changes no other boot in the process.
+      STAND_INS = ObjectSpace::WeakMap.new
 
       module_function
 
-      # Answers every identity request with `stand_in` instead of the bound adapter while the
-      # block runs, for a caller that needs the ids to be known in advance (a conformance replay
-      # scripts them so both engines mint the same ones).
+      # Answers `registry`'s identity requests with `stand_in` instead of its bound adapter
+      # while the block runs, for a replay that needs the ids known in advance (a conformance
+      # replay scripts them so both engines mint the same ones). Every other registry keeps its
+      # adapter.
       #
+      # @param registry [Runtime::Registry] the one registry the stand-in answers for
       # @param stand_in [#uuid] the object that mints instead of the adapter
       # @yield the work to run with the stand-in in place
       # @return [Object] what the block answers
-      def standing_in(stand_in)
-        previous = @stand_in
-        @stand_in = stand_in
+      def standing_in(registry, stand_in)
+        STAND_INS[registry] = stand_in
         yield
       ensure
-        @stand_in = previous
+        STAND_INS.delete(registry)
       end
 
       # Mints a fresh identity value from the bound adapter.
@@ -39,7 +42,7 @@ module Hecks
       #
       # @raise [Runtime::WiringError] if none, or more than one, implements this port
       def adapter(registry)
-        return @stand_in if @stand_in
+        return STAND_INS[registry] if STAND_INS.key?(registry)
 
         implementations = registry.adapters.values.select { |a| a.port == NAME }
         return registry.adapter_class(implementations.first.name) if implementations.size == 1

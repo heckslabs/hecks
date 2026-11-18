@@ -46,18 +46,22 @@ module Hecks
         # copied directory and can't be reached by resetting data/ alone.
         IsolatedBoot.call(domain_path, **boot_options(boot)) do |copy|
           runtime = Hecks.boot(copy, environment: nil)
-          with_identity(identity) { Session.new(runtime).play(steps).history(self_consistency: self_consistency) }
+          with_identity(runtime.registry, identity) do
+            Session.new(runtime).play(steps).history(self_consistency: self_consistency)
+          end
         end
       end
 
-      # Runs the block with the identity port answering `ids` in order, or untouched when none.
+      # Runs the block with the replay's own registry answering identity requests with `ids` in
+      # order, or with its bound adapter when none are scripted.
       #
+      # @param registry [Runtime::Registry] the replay's fresh boot, the only registry scripted
       # @param ids [Array<String>, nil] the scripted ids
       # @return [Object] what the block answers
-      def with_identity(ids, &)
+      def with_identity(registry, ids, &)
         return yield unless ids
 
-        Ports::IdentityGeneration.standing_in(ScriptedIdentity.new(ids), &)
+        Ports::IdentityGeneration.standing_in(registry, ScriptedIdentity.new(ids), &)
       end
 
       # The keywords for `IsolatedBoot.call`, with `adapter:` defaulting to `:memory`.
