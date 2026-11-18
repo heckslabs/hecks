@@ -76,11 +76,30 @@ RSpec.describe "the Work queue" do
     expect(cli_text("work.finish!", "to=work/none")).to include("not_found] no Work")
   end
 
-  it "routes a submitted branch to Finish through the policy, with no parsing", :aggregate_failures do
-    policy = hecks.registry.bluebook("Tickets").policies.find { |pol| pol.hecks_name == "FinishWhenWorkSubmitted" }
+  def policy_named(name) = hecks.registry.bluebook("Tickets").policies.find { |pol| pol.hecks_name == name }
 
-    expect(policy.event_name).to eq("WorkSubmitted")
-    expect(policy.trigger_command).to eq("Work.Finish")
+  it "finishes a step when its branch lands, and not when its branch is submitted", :aggregate_failures do
+    expect(policy_named("FinishWhenWorkSubmitted")).to be_nil
+    expect(policy_named("FinishWorkWhenBranchLanded").trigger_command).to eq("Work.Finish")
+  end
+
+  it "plans a refused landing's step again for the first two refusals and drops it on the third", :aggregate_failures do
+    expect(policy_named("RefuseWorkWhenLandingRefused").trigger_command).to eq("Work.Refuse")
+    expect(policy_named("DropWorkWhenLandingRefusedThrice").trigger_command).to eq("Work.Drop")
+  end
+
+  it "returns a started step to planned with the refusal in its detail and its claim cleared", :aggregate_failures do
+    plan("work/refused")
+    start("work/refused")
+    state = run_cli("work.refuse!", "to=work/refused", "detail.value=Landing refused: gate red").fetch("state")
+
+    expect(state.values_at("status", "claimed_by", "detail")).to eq(["planned", "", "Landing refused: gate red"])
+  end
+
+  it "refuses to plan a step again that is not started" do
+    plan("work/unstarted")
+
+    expect(cli_text("work.refuse!", "to=work/unstarted", "detail.value=x")).to include("lifecycle_refused")
   end
 
   it "returns a started step to planned when its claim goes stale" do

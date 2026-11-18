@@ -79,6 +79,11 @@ Hecks.hecksagon "Tickets" do
   Tickets::Work.port "Standup" do
     answers_query "Standup"
   end
+
+  # The done work items whose branch main does not contain, read and never written.
+  Tickets::Work.port "DoneOffMain" do
+    answers_query "DoneOffMain"
+  end
 end
 
 # Where the decision records live: their files under docs/decisions, read through the DecisionFiles

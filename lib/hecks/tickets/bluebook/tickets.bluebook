@@ -761,6 +761,7 @@ Hecks.bluebook "Tickets" do
       transition "Start"   => "started", from: "planned"
       transition "Release" => "planned", from: "started"
       transition "Yield"   => "planned", from: "started"
+      transition "Refuse"  => "planned", from: "started"
       transition "Finish" => "done",    from: %w[planned started]
       transition "Drop"   => "dropped", from: %w[planned started]
       transition "Lapse"  => "dropped", from: %w[planned started]
@@ -944,6 +945,23 @@ Hecks.bluebook "Tickets" do
       emits "WorkYielded"
     end
 
+    # A refused landing returns its started work item to the plan with the refusal in its detail, so
+    # the next coder reads why. Unlike Yield it carries the new detail and starts no backoff; unlike
+    # Reopen it takes only a started item, so a gate fault never plans one a coder holds.
+    command "Refuse" do
+      goal "Return a started work item to the plan because its landing was refused"
+
+      reference_to Work
+      attribute :detail, WorkText, sets: true
+
+      sets :claimed_by, to: ""
+      sets :claimed_at, to: ""
+      sets :area, to: []
+      sets :budget_minutes, to: 0
+
+      emits "WorkRefused"
+    end
+
     # A claim gone stale returns its work item to the plan, so the next session can claim it.
     command "Release" do
       goal "Return a started work item to planned, releasing its claim"
@@ -1035,6 +1053,14 @@ Hecks.bluebook "Tickets" do
     query "Standup" do
       description "A standup anyone can read: the work items finished since a time (the last 24 hours when none is given), the next three planned work items in the order Dispatch would start them with why each starts or waits, and the machine's load and memory. Read-only."
       attribute :since, WorkText, optional: true
+      returns Document
+    end
+
+    # The sweep for work finished with no code on main: a read, never a write. Each line is the local
+    # branch of a done work item whose tip `main` does not contain. A done item with no local branch
+    # is not listed: nothing is left to lose.
+    query "DoneOffMain" do
+      description "The local branches that name a done work item and whose tip main does not contain, one line each as key, branch and tip. Read-only."
       returns Document
     end
 
@@ -1244,29 +1270,36 @@ Hecks.bluebook "Tickets" do
     trigger  Work::Lapse, with: { work: :work }
   end
 
-  # A coder's submitted branch is named for its work item, so the branch is the work item's key and the
-  # policy routes it with no parsing (`with:` only routes fields). A branch naming no work item is refused
-  # by the Finish command: the refusal names Work.
-  policy "FinishWhenWorkSubmitted" do
-    on      "Submission.WorkSubmitted"
-    trigger Work::Finish, with: { work: :branch }
-  end
-
-  # A branch that landed on local main finishes the work item it was cut for. The Landing's LandedWork
-  # port found the open work item the branch names (the whole branch name, else the name without a leading
-  # `qa/`) and answered its key; a branch with no open work item is refused there and never reaches here.
+  # Only a landing finishes a work item, never a submission, which a landing job may still refuse.
+  # The LandedWork port found the open work item the branch names (the whole name, else without a
+  # leading `qa/`); a branch with no open work item is refused there and never reaches here.
   policy "FinishWorkWhenBranchLanded" do
     on      "Landing.LandedWorkFound"
     trigger Work::Finish, with: { work: :branch }
   end
 
-  # A landing job refused a submitted branch for a cause a coder can fix: the work item it names is
+  # A landing job refused a submitted branch for a cause a coder can fix: its started work item is
   # planned again, its detail ending with the refusal, so the next coder reads why. A third refusal
-  # of one work item reopens nothing: it stays done and unlanded for a person to look at.
-  policy "ReopenWorkWhenLandingRefused" do
+  # (the complement of this one) sets the item aside, since a fourth coder would meet the same wall.
+  policy "RefuseWorkWhenLandingRefused" do
     on      "Landing.RefusedWorkFound"
     where   { refusals.value < 2 }
-    trigger Work::Reopen, with: { work: :work, title: :title, detail: :detail }
+    trigger Work::Refuse, with: { work: :work, detail: :detail }
+  end
+
+  # The third refusal of one work item drops it, the refusals as the reason, and files a finding so
+  # a person sees it on the pipeline board.
+  policy "DropWorkWhenLandingRefusedThrice" do
+    on      "Landing.RefusedWorkFound"
+    where   { refusals.value >= 2 }
+    trigger Work::Drop, with: { work: :work, reason: :detail }
+  end
+
+  policy "ReportWhenLandingRefusedThrice" do
+    on      "Landing.RefusedWorkFound"
+    where   { refusals.value >= 2 }
+    root
+    trigger Finding::ReportStoppedRun, with: { finding: :work, stage: "landing", body: :detail }
   end
 
   # A conformance or gate run that faults files its own finding.
@@ -1294,7 +1327,7 @@ Hecks.bluebook "Tickets" do
   end
 
   # A cause whose work item was finished or dropped and failed again is planned again with the new
-  # run's refusal, as a landing refused again is (ReopenWorkWhenLandingRefused). A work item still
+  # run's refusal, as a landing refused again is (RefuseWorkWhenLandingRefused). A work item still
   # undone refuses the reopen, and a cause with no work item yet refuses it by name.
   policy "ReopenWorkWhenGateFaultedAgain" do
     on      "GateRun.GateFaulted"

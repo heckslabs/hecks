@@ -76,15 +76,17 @@ module Hecks
         # its item. An answer's own stop never finishes a run (`RecordTheEndedSession` leaves a
         # `resuming` run alone), so a session an answer woke keeps its run started.
         #
-        # A landed branch and a submitted branch finish their Work item by their own reactions. When
-        # that reaction is lost the item is still started here, so a landing since its start
-        # refuses the yield and finishes it instead, however the session ended. An item with no
-        # landing that ended `done` goes back to the plan with a finding.
+        # A landed branch finishes its Work item by its own reaction. When that reaction is lost the
+        # item is still started here, so a landing since its start refuses the yield and finishes it
+        # instead, however the session ended. A submitted branch stays started while its landing
+        # job runs (`landing_in_flight?`), so the item is left alone: the landing finishes or plans
+        # it. An item with no landing that ended `done` goes back to the plan with a finding.
         def settle(key, condition)
           return unless @work_items.runs.dig(key, :status) == "finished"
 
           sha = @landed&.call(key)
           return finish_landed(key, sha) if sha
+          return if @work_items.landing_in_flight?(key)
 
           yield_ended(key, condition)
         end
