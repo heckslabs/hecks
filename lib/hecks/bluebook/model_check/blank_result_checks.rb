@@ -17,10 +17,11 @@ module Hecks
           end
         end
 
-        # @return [Array<Array(String, String)>] each aggregate and blank-able type pair, once
+        # @return [Array<Array(String, String)>] each aggregate and blank-able type pair, once,
+        #   leaving out an aggregate that acknowledges a blank result as meaning what it says
         def blank_result_pairs(bluebook)
-          pairs = bluebook.aggregates.flat_map { |aggregate| blank_result_types(aggregate) }
-          pairs.uniq
+          held = bluebook.aggregates.reject { |aggregate| Acknowledgements.held?(aggregate, :blank_result_type) }
+          held.flat_map { |aggregate| blank_result_types(aggregate) }.uniq
         end
 
         # @return [Array<Array(String, String)>] the aggregate and type name of each result
@@ -37,8 +38,11 @@ module Hecks
           Hecks::Vocabulary.fetch("RequiredTextName").include?(attribute.name.to_s)
         end
 
-        # @return [Boolean] whether the value object is a bare String with no pattern
+        # @return [Boolean] whether the value object is a bare String with no pattern and no
+        #   closed set of members, which a blank is never one of
         def blankable_value?(value)
+          return false if value.closed_set?
+
           field = value.attributes.find { |attribute| attribute.name == :value }
           field&.type.to_s == "String" && field.pattern.nil?
         end

@@ -24,8 +24,9 @@ value_object "Switch" do
   attribute :value, Boolean
 end
 
+# What a run reports or why it was refused: never blank, so a run that ends says what happened.
 value_object "Report" do
-  attribute :value, String
+  attribute :value, String, matches: :present
 end
 
 # body
@@ -111,10 +112,26 @@ end
 
 policy "Record{Stem}Outcome" do
   on      "{Name}.{Stem}Answered"
+  where   { !report.value.to_s.strip.empty? }
   trigger {Name}::Complete, with: { report: :report }
+end
+
+# An answer that says nothing is not a completed run: it ends faulted, saying so.
+policy "Fault{Stem}WhenAnsweredBlank" do
+  on      "{Name}.{Stem}Answered"
+  where   { report.value.to_s.strip.empty? }
+  trigger {Name}::Fault, with: { refusal: "{Stem} answered with no report: it said nothing about what it did" }
 end
 
 policy "Record{Stem}Fault" do
   on      "{Name}.{Stem}Refused"
+  where   { !refusal.value.to_s.strip.empty? }
   trigger {Name}::Fault, with: { refusal: :refusal }
+end
+
+# A refusal that gives no reason still ends the run faulted, saying that no reason was given.
+policy "Fault{Stem}WhenRefusedBlank" do
+  on      "{Name}.{Stem}Refused"
+  where   { refusal.value.to_s.strip.empty? }
+  trigger {Name}::Fault, with: { refusal: "{Stem} was refused and gave no reason" }
 end

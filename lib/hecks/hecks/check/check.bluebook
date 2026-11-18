@@ -872,7 +872,9 @@ Hecks.bluebook "Hecks" do
 
       value_object "Count", Integer
 
-      value_object "Finding", String
+      value_object "Finding" do
+        attribute :value, String, matches: :present
+      end
 
       lifecycle :status, default: "requested" do
         mark :failure, "unproven"

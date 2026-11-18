@@ -10,6 +10,7 @@ Hecks.bluebook "Composer" do
 
   aggregate "Draft" do
     description "One bluebook being edited: its text, the conversation about it, and whether its last check passed."
+    acknowledges :blank_result_type, "a draft's text is the bluebook being written, not a result; a new draft may start empty"
 
     attribute :slug,         DraftSlug
     attribute :bluebook_name, BluebookName

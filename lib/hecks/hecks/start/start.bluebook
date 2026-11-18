@@ -51,7 +51,9 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, matches: :not_empty
       end
 
-      value_object "Note", String
+      value_object "Note" do
+        attribute :value, String, matches: :present
+      end
 
       lifecycle :status, default: "requested" do
         mark :failure, "stopped"
