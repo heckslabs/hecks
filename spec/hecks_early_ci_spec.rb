@@ -131,5 +131,45 @@ RSpec.describe "early CI" do
     it "refuses an answer for another head while a request is in flight" do
       expect(late_answer("coder-late")).to include("CI answered for the record's own head")
     end
+
+    # A job that failed on the run of the branch's base, on the same examples, is inherited: it is
+    # reported apart and does not stop the hand-off. A failure of the branch's own still does.
+    describe "on a red main" do
+      def failed(id, name, *examples)
+        fake.logs[id] = examples.map { |example| "#{name}\tRun rspec\t2026Z rspec #{example} # fails" }.join("\n")
+        { "id" => id, "name" => name, "conclusion" => "failure" }
+      end
+
+      def red_main
+        fake.base_jobs = [failed(12, "rspec_1", "./spec/stale_spec.rb:4"), failed(13, "lint")]
+      end
+
+      it "passes a branch whose only failures failed on its base, naming them inherited", :aggregate_failures do
+        red_main
+        fake.jobs = [failed(2, "rspec_2", "./spec/stale_spec.rb:4")]
+        out = request("coder-inherits")
+        expect(out).to include("passed", "own failures: none")
+        expect(out).to include("inherited from main (run 50", "rspec_2 [./spec/stale_spec.rb:4]")
+      end
+
+      it "fails a branch with a failure of its own, listing the inherited one apart", :aggregate_failures do
+        red_main
+        fake.jobs = [failed(2, "rspec_2", "./spec/stale_spec.rb:4"), failed(3, "rspec_3", "./spec/new_spec.rb:9")]
+        out = request("coder-own")
+        expect(out).to include("failed", "own failures:\\nrspec_3: ")
+        expect(out).to include("inherited from main", "rspec_2 [./spec/stale_spec.rb:4]")
+      end
+
+      it "keeps a job that names no example the branch's own, though its base failed one of that name" do
+        red_main
+        fake.jobs = [failed(4, "lint")]
+        expect(request("coder-lint")).to include("failed", "own failures:\\nlint: ")
+      end
+
+      it "keeps every failure the branch's own when its base has no ended run" do
+        fake.jobs = [failed(2, "rspec_2", "./spec/stale_spec.rb:4")]
+        expect(request("coder-unread")).to include("failed", "every failure is the branch's own")
+      end
+    end
   end
 end
