@@ -7,7 +7,11 @@ require "hecks/hecks/adapters/dispatching"
 RSpec.describe Hecks::Adapters::Dispatching do
   include RegistryDouble
 
-  let(:work_items) { instance_double(described_class::WorkItems, started: [started_item], runs: runs) }
+  def landing_running? = false
+
+  let(:work_items) do
+    instance_double(described_class::WorkItems, started: [started_item], runs: runs, landing_in_flight?: landing_running?)
+  end
   let(:launcher) do
     instance_double(described_class::Launcher, check_all: nil, finish: "finished a", yield_back: "yielded a",
                                                report_unlanded: "reported a")
@@ -25,7 +29,7 @@ RSpec.describe Hecks::Adapters::Dispatching do
   describe "settling" do
     let(:runs) { { "a" => { status: "finished", condition: "done" }, "z" => { status: "finished", condition: "done" } } }
 
-    it "never finishes a started work item itself: a landing or a submission finishes it" do
+    it "never finishes a started work item itself: only a landing finishes it" do
       described_class::Settler.new(work_items, launcher).call
 
       expect(launcher).not_to have_received(:finish)
@@ -36,6 +40,17 @@ RSpec.describe Hecks::Adapters::Dispatching do
 
       expect(launcher).to have_received(:yield_back).with(started_item, "its session ended done with no landing or submission")
       expect(launcher).to have_received(:report_unlanded).with("a").once
+    end
+
+    context "when the session ended done and its landing job is still running" do
+      def landing_running? = true
+
+      it "leaves the started item alone: the landing finishes it or plans it again", :aggregate_failures do
+        described_class::Settler.new(work_items, launcher).call
+
+        expect(launcher).not_to have_received(:yield_back)
+        expect(launcher).not_to have_received(:report_unlanded)
+      end
     end
 
     context "when the session stopped" do
