@@ -29,7 +29,8 @@ module Hecks
         # `push-due` work item once its title says the push is urgent.
         RED = "red-"
 
-        # The priority tiers a planned work item ranks by, highest first; none ranks last.
+        # The priorities a planned work item ranks by, highest first; none ranks last. Priority ranks
+        # ahead of the epic's tier, which orders only items of the same priority.
         TIERS = %w[now next later].freeze
 
         # @param item [Plan::Item] a work item
@@ -107,8 +108,9 @@ module Hecks
 
         private
 
+        # The priority first, then the epic's tier, so the tier orders only items of one priority.
         def rank(record, tiers)
-          [tiers.fetch(field(record, :epic).to_s, EpicTiers::UNRANKED), TIERS.index(field(record, :priority).to_s) || TIERS.size]
+          [TIERS.index(field(record, :priority).to_s) || TIERS.size, tiers.fetch(field(record, :epic).to_s, EpicTiers::UNRANKED)]
         end
 
         def red?(item) = self.class.red?(item)

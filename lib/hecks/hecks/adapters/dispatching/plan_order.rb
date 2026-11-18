@@ -4,7 +4,8 @@ module Hecks
   module Adapters
     class Dispatching
       # The order planned work items are listed in: a red one first, then a filed stall, then one
-      # whose last yield a fill restarts first, then the rest. It is mixed into {WorkItems}, whose
+      # whose last yield a fill restarts first, then the rest. Inside a group the order is the
+      # priority, then the epic's tier, then the plan step, then the key. It is mixed into {WorkItems}, whose
       # `find`, `red?` and `first_kinds` it uses.
       module PlanOrder
         # The urgency of a planned work item whose last yield a fill restarts first.
@@ -12,11 +13,12 @@ module Hecks
 
         private
 
-        # An item restarted first ranks by its priority alone, whatever its epic's tier.
+        # An item restarted first ranks by its priority alone, whatever its epic's tier: the tier is
+        # zeroed so it never separates two of them.
         def order(entry, index, marks)
           step, rank, item = entry
           urgency = urgency(item, marks)
-          [urgency, urgency == RESTARTED ? [0, rank.last] : rank, step, item.key, index]
+          [urgency, urgency == RESTARTED ? [rank.first, 0] : rank, step, item.key, index]
         end
 
         def urgency(item, marks)
