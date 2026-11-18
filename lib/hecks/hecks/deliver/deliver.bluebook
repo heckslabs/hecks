@@ -1511,7 +1511,8 @@ Hecks.bluebook "Hecks" do
       root
       where   { culprit.value != "" && base_red.value == false && already_reverted.value == false }
       trigger RedEpisode::Revert, with: { run: :run, base: :base, culprit: :culprit, branch: :branch, subject: :subject,
-                                          spec: :spec, example: :example, local: :local, checkout: :checkout }
+                                          spec: :spec, example: :example, local: :local, checkout: :checkout,
+                                          work: :work, finding: :finding }
     end
 
     policy "ParkWhenTheEpisodeAlreadyReverted" do
@@ -1519,7 +1520,7 @@ Hecks.bluebook "Hecks" do
       root
       where   { culprit.value != "" && already_reverted.value == true }
       trigger RedEpisode::Park, with: { run: :run, base: :base, culprit: :culprit, branch: :branch, subject: :subject,
-                                        spec: :spec, example: :example }
+                                        spec: :spec, example: :example, checkout: :checkout }
     end
 
     # Nothing is reverted when the specs are red at the last verified commit too, or when no search
@@ -1621,6 +1622,8 @@ Hecks.bluebook "Hecks" do
       attribute :checkout, Report, optional: true
       attribute :landed,   Report, optional: true
       attribute :local,    Switch, optional: true
+      attribute :work,     Report, optional: true
+      attribute :finding,  Report, optional: true
       identified_by :run
 
       value_object "RunKey" do
@@ -1653,6 +1656,8 @@ Hecks.bluebook "Hecks" do
         attribute :example,  Report, optional: true, sets: true
         attribute :checkout, Report, optional: true, sets: true
         attribute :local,    Switch, optional: true, sets: true
+        attribute :work,     Report, optional: true, sets: true
+        attribute :finding,  Report, optional: true, sets: true
 
         emits EpisodeReverting
       end
@@ -1668,6 +1673,7 @@ Hecks.bluebook "Hecks" do
         attribute :subject, Report, optional: true, sets: true
         attribute :spec,    Report, optional: true, sets: true
         attribute :example, Report, optional: true, sets: true
+        attribute :checkout, Report, optional: true, sets: true
 
         emits EpisodeParked
       end
@@ -1707,18 +1713,36 @@ Hecks.bluebook "Hecks" do
     end
 
     # Landings stop first: the flag is the one owner of "main is red", and `Landing` and the push
-    # train refuse by name while it stands. A revert that never left local main is verified at once
-    # and lowers the flag; one that reached `origin/main` leaves the flag to the owner and CI.
+    # train refuse by name while it stands. A local revert is verified at once and lowers the flag;
+    # one of a pushed merge is admitted for boarding and leaves the flag to CI.
     policy "RaiseTheFlagWhenReverting" do
       on      "RedEpisode.EpisodeReverting"
       root
       trigger RedFlag::Raise, with: { run: :run, commit: :culprit, detail: :subject, checkout: :checkout }
     end
 
+    # A park from a revert made by hand raises no flag of its own, so landings would go on over a
+    # red main: the park holds them too. `RedEpisode` owns the `checkout` fact, as for a revert.
+    policy "RaiseTheFlagWhenParked" do
+      on      "RedEpisode.EpisodeParked"
+      root
+      trigger RedFlag::Raise, with: { run: :run, commit: :culprit, detail: :subject, checkout: :checkout }
+    end
+
+    # A culprit already on `origin/main` is reverted locally and the flag stays up until CI is green
+    # on the revert: `AdmitTheRevertOfAPushedMerge` lets the train board that revert and no other
+    # commit. The Work item the episode reopens (Tickets) redoes the reverted work; it is not the fix.
     policy "RevertTheCulprit" do
       on      "RedEpisode.EpisodeReverting"
       root
       trigger SendTrain::Unland, with: { run: :run, culprit: :culprit, checkout: :checkout, local: :local }
+    end
+
+    policy "AdmitTheRevertOfAPushedMerge" do
+      on      "SendTrain.LandingReverted"
+      root
+      where   { local.value == false }
+      trigger RedFlag::Admit, with: { run: :reverted, commit: :reverted, checkout: :checkout }
     end
 
     policy "VerifyTheRevert" do

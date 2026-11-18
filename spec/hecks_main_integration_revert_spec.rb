@@ -223,4 +223,106 @@ RSpec.describe "a red main reverting its one bad merge" do
     expect(event_names).not_to include("EpisodeReverting")
     expect(subjects.first).to eq("Merge branch 'three'")
   end
+
+  def episode_payload(name)
+    event = @hecks.registry.event_log.drop(@logged).reverse.find { |logged| logged.name == name }
+    Hecks::Runtime::Value.materialize(event.payload)
+  end
+
+  def boarding_error(commit)
+    Hecks::Adapters::RedFlagGuard.new(File.join(repo, ".git")).boarding!(commit)
+    nil
+  rescue Hecks::Adapters::ConsoleCapture::Failure => e
+    e.message
+  end
+
+  # The bad merge is reverted by hand before the verification: the range already holds a revert.
+  def hand_revert_then_verify
+    stub_outside(revert_red: true)
+    three_landings
+    git("revert", "-m", "1", "--no-edit", @bad)
+    verify(git("rev-parse", "main").strip)
+  end
+
+  # The bad merge reaches origin/main before the verification; the landing after it stays local.
+  def verify_with_the_culprit_on_origin
+    stub_outside
+    base = git("rev-parse", "main").strip
+    Hecks::Adapters::MainIntegration::LastVerified.write(File.join(repo, ".git"), base)
+    @base = base
+    merge_branch("one", "one.rb")
+    @bad = merge_branch("two", "bad.rb")
+    git("push", "-q", "origin", "main")
+    verify(merge_branch("three", "three.rb"))
+  end
+
+  it "reopens the culprit's work item with its spec and commit, at the top of the plan", :aggregate_failures do
+    fail_the_last_landing
+    reverting = episode_payload("EpisodeReverting")
+    expect(reverting.dig(:work, :value)).to eq("two")
+    expect(reverting.dig(:finding, :value)).to include("culprit #{@bad}", "spec spec/bad_spec.rb")
+  end
+
+  def run_cli(*argv)
+    Hecks::Adapters::Driving::CliRunner.call(runtime: @hecks, program: "hecks", argv: [*argv, "--wait"])
+  end
+
+  def finished_work_item(key)
+    run_cli("Work.plan!", "work.value=#{key}", "title.value=planned", "detail.value=d")
+    run_cli("Work.finish!", "to=#{key}")
+  end
+
+  it "plans the culprit's finished work item again, as now", :aggregate_failures do
+    finished_work_item("two")
+    fail_the_last_landing
+    expect(event_names).to include("WorkReopened", "WorkPrioritized")
+  end
+
+  it "keeps the step or retry suffix out of the work item the episode names" do
+    expect(Hecks::Adapters::MainIntegration::Searching::WORK_SUFFIX.match?("a-b-step2")).to be(true)
+  end
+
+  it "raises the flag when a hand revert parks the episode, so landings stop", :aggregate_failures do
+    hand_revert_then_verify
+    expect(event_names).to include("EpisodeParked", "RedFlagRaised")
+    expect(landing_refused?).to be(true)
+  end
+
+  it "reverts a culprit that reached origin/main locally and leaves the flag up", :aggregate_failures do
+    verify_with_the_culprit_on_origin
+    expect(subjects.first).to eq("Revert \"Merge branch 'two'\"")
+    expect(landing_refused?).to be(true)
+  end
+
+  it "admits that revert for boarding and no other commit", :aggregate_failures do
+    verify_with_the_culprit_on_origin
+    expect(event_names).to include("RedFlagRevertAdmitted")
+    expect(boarding_error(git("rev-parse", "main").strip)).to be_nil
+    expect(boarding_error(@bad)).to include("only the tip of a red-* Work item's fix is boarded")
+  end
+
+  it "lets a red-* fix that lands after the admitted revert board in its place", :aggregate_failures do
+    verify_with_the_culprit_on_origin
+    Hecks::Adapters::RedFlagGuard.new(File.join(repo, ".git")).landed("red-two", @bad)
+    expect(boarding_error(@bad)).to be_nil
+  end
+
+  it "tells the owner through the orchestrator when a hand revert parks the episode" do
+    hand_revert_then_verify
+    expect(event_names).to include("CoordinatorWoken")
+  end
+
+  # A tracked file is changed in the checkout before the verification, so the revert is refused.
+  def verify_over_a_dirty_checkout
+    stub_outside
+    landed = three_landings.last
+    File.write(File.join(repo, "one.rb"), "changed")
+    verify(landed)
+  end
+
+  it "tells the owner through the orchestrator when the revert is refused, and holds landings", :aggregate_failures do
+    verify_over_a_dirty_checkout
+    expect(event_names).to include("RevertRefused", "CoordinatorWoken")
+    expect(landing_refused?).to be(true)
+  end
 end

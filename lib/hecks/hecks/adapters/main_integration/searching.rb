@@ -13,6 +13,9 @@ module Hecks
         # The branch a landing's merge subject names.
         BRANCH = %r{\AMerge (?:branch '([^']+)'|pull request #\d+ from \S+?/(\S+))}
 
+        # The suffix a retry or step branch adds to its Work item's key.
+        WORK_SUFFIX = /-(?:step|r)\d+\z/
+
         # What the owner reads when the search ends with no merge and the base is green.
         UNFOUND = "main is red and no single merge was found"
 
@@ -47,10 +50,24 @@ module Hecks
         def unfound(search, base_red) = base_red ? search.reason.to_s : "#{UNFOUND}: #{search.reason}"
 
         def merge_facts(found, base_red)
-          finding = found[:finding] || {}
-          { culprit: found[:sha], subject: found[:subject], branch: branch_of(found[:subject]),
-            spec: finding[:spec].to_s, example: finding[:example].to_s, base_red: base_red,
-            local: !@repository.ancestor?(found[:sha], @repository.remote_main) }
+          naming(found).merge(finding_facts(found, found[:finding] || {}))
+                       .merge(base_red: base_red, local: !@repository.ancestor?(found[:sha], @repository.remote_main))
+        end
+
+        def naming(found)
+          branch = branch_of(found[:subject])
+          { culprit: found[:sha], subject: found[:subject], branch: branch, work: branch.sub(WORK_SUFFIX, "") }
+        end
+
+        def finding_facts(found, finding)
+          { finding: finding_line(found, finding), spec: finding[:spec].to_s, example: finding[:example].to_s }
+        end
+
+        # What a reopened Work item's detail says of the merge.
+        def finding_line(found, finding)
+          parts = ["culprit #{found[:sha]} #{found[:subject]}", ("spec #{finding[:spec]}" unless finding[:spec].to_s.empty?),
+                   ("first failing example #{finding[:example]}" unless finding[:example].to_s.empty?)]
+          "A red main reverted this merge: #{parts.compact.join("; ")}"
         end
 
         def branch_of(subject)
