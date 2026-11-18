@@ -20,9 +20,9 @@ module Hecks
     # ({CandidateRule}). A session with no run, a working one, a blocked one whose run has not
     # finished, one a person stopped and the pruner's own are kept by name, whatever `claude agents`
     # lists. A candidate is then safe when its own worktree, the one its transcript recorded, has
-    # no uncommitted files and no commits `origin` lacks. Just before
-    # each `claude rm` it asks again whether a person spoke in the session. `--discard-unpushed` is never passed, so `claude rm` itself refuses what
-    # the check missed.
+    # no uncommitted files and no commits `origin` lacks. Just before each `claude rm` it asks
+    # again whether a person spoke in the session. `--discard-unpushed` is never passed, so
+    # `claude rm` itself refuses what the check missed.
     class ClaudeCleaning
       include Reaping
 
