@@ -5,8 +5,9 @@ require_relative "support/stand_in_claude"
 # A helper session blocked on a question nobody answers ends itself. Through the booted Hecks
 # domain, whose world gives a blocked helper `abandon_after_minutes` (30): a reviewer blocked past
 # it ends its run `abandoned` with its question kept, and the reap that follows removes its
-# session; one blocked under it, a coder, the orchestrator, a session `pins.json` names and one
-# answered in time all stay started. The stand-in `claude` lists the session and logs each `rm`.
+# session; one blocked under it, a coder, the orchestrator, a session `pins.json` names, a trial
+# run, one in a world that sets no time and one answered in time all stay started.
+# The stand-in `claude` lists the session and logs each `rm`.
 RSpec.describe "AgentRun: a helper blocked with no answer" do
   include_context "with a stand-in claude"
 
@@ -88,6 +89,21 @@ RSpec.describe "AgentRun: a helper blocked with no answer" do
   it "leaves a helper whose session pins.json names started" do
     File.write(File.join(scratch, "jobs", "pins.json"), JSON.generate(["stand-in"]))
     expect(blocked_run("ab-pinned", "reviewer", 40)).to include("status" => "started")
+  end
+
+  it "leaves a helper blocked past the time started when the world sets no time" do
+    allow(Hecks::Adapters::SessionReaping).to(receive(:new).and_wrap_original do |original, *args, **kwargs|
+      original.call(*args, **kwargs).tap { |reaping| allow(reaping).to receive(:abandon_after).and_return(0) }
+    end)
+    expect(blocked_run("ab-unset", "reviewer", 40)).to include("status" => "started")
+  end
+
+  it "never ends a trial run's blocked helper abandoned" do
+    launch("agent_run.dispatch!", "run.value=live-ab-trial", "repo.value=#{scratch}", "brief.value=review",
+           "agent.value=reviewer", "--wait")
+    job("blocked", 40)
+    launch("agent_run.check!", "to=live-ab-trial", "--wait")
+    expect(status_of("live-ab-trial")).not_to include(condition: { value: "abandoned" })
   end
 
   it "leaves a helper answered before the time started" do
