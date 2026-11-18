@@ -48,8 +48,9 @@ RSpec.describe Hecks::Adapters::PipelineBoard::PlanHtml do
     expect(html).to match(%r{<details class="lane" data-lane="none"><summary><h2>No epic</h2>.*Title of a, Title of b}m)
   end
 
-  it "shuts a lane unless the owner opened it or a filter found something in it" do
-    expect(page).to include("lane.open = filtering ? !lane.hidden : Boolean(laneOpen[lane.dataset.lane])")
+  it "draws a lane as the owner left it, else as drawn, or open when a filter found something in it" do
+    expect(page).to include("lane.open = filtering ? !lane.hidden : " \
+                            '(key in laneOpen ? laneOpen[key] : lane.dataset.drawn === "open")')
   end
 
   it "keeps the lanes the owner opened across visits" do
