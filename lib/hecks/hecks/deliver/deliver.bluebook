@@ -1017,6 +1017,9 @@ Hecks.bluebook "Hecks" do
       attribute :spec,             Report, optional: true
       attribute :example,          Report, optional: true
       attribute :base_red,         Switch, optional: true
+      # Whether a search ran at all: false while the shallow check is on, true once a search was made,
+      # whatever it found.
+      attribute :searched,         Switch, optional: true
       attribute :already_reverted, Switch, optional: true
       attribute :local,            Switch, optional: true
       attribute :reason,           Report, optional: true
@@ -1411,11 +1414,24 @@ Hecks.bluebook "Hecks" do
                                         spec: :spec, example: :example }
     end
 
+    # Nothing is reverted when the specs are red at the last verified commit too, or when no search
+    # was made (the shallow check is on). A merge found while the specs are red at the base is
+    # acquitted as before; a revert already standing in the range parks it instead.
     policy "AcquitWhenNoMergeIsRed" do
       on      "Integration.BisectAnswered"
       root
-      where   { culprit.value == "" || (base_red.value == true && already_reverted.value == false) }
+      where   { (culprit.value == "" && (base_red.value == true || searched.value == false)) || (culprit.value != "" && base_red.value == true && already_reverted.value == false) }
       trigger RedEpisode::Acquit, with: { run: :run, base: :base, culprit: :culprit, reason: :reason, spec: :spec }
+    end
+
+    # A search that ran and found no merge, while the failing specs are green at the base, is not an
+    # acquittal: main is red and nobody knows why. The episode is unfound, the flag is raised and the
+    # owner is told.
+    policy "UnfoundWhenNoMergeIsFound" do
+      on      "Integration.BisectAnswered"
+      root
+      where   { searched.value == true && culprit.value == "" && base_red.value == false }
+      trigger RedEpisode::Unfound, with: { run: :run, landed: :landed, base: :base, reason: :reason, checkout: :checkout }
     end
 
     policy "BoardWhenRequested" do
@@ -1495,6 +1511,7 @@ Hecks.bluebook "Hecks" do
       attribute :example,  Report, optional: true
       attribute :reason,   Report, optional: true
       attribute :checkout, Report, optional: true
+      attribute :landed,   Report, optional: true
       attribute :local,    Switch, optional: true
       identified_by :run
 
@@ -1507,11 +1524,12 @@ Hecks.bluebook "Hecks" do
       value_object "Switch", Boolean
 
       lifecycle :status, default: "requested" do
-        mark :failure, "parked"
+        mark :failure, "parked", "unfound"
         transition "Revert" => "reverting", from: "requested"
         transition "Park"   => "parked",    from: "requested"
         transition "Acquit" => "acquitted", from: "requested"
-        mark :terminal, "reverting", "parked", "acquitted"
+        transition "Unfound" => "unfound",  from: "requested"
+        mark :terminal, "reverting", "parked", "acquitted", "unfound"
       end
 
       command "Revert" do
@@ -1558,6 +1576,26 @@ Hecks.bluebook "Hecks" do
 
         emits EpisodeAcquitted
       end
+
+      command "Unfound" do
+        role "System"
+        goal "Decide that a red main has no single merge to revert, because the search found none and the failing specs are green at the last verified commit"
+
+        attribute :run,      RunKey, sets: true
+        attribute :landed,   Report, sets: true
+        attribute :base,     Report, optional: true, sets: true
+        attribute :reason,   Report, optional: true, sets: true
+        attribute :checkout, Report, optional: true, sets: true
+
+        emits EpisodeUnfound
+      end
+    end
+
+    # The flag is raised with the words the owner reads: main is red and no single merge was found.
+    policy "RaiseTheFlagWhenNoMergeIsFound" do
+      on      "RedEpisode.EpisodeUnfound"
+      root
+      trigger RedFlag::Raise, with: { run: :run, commit: :landed, detail: :reason, checkout: :checkout }
     end
 
     # Landings stop first: the flag is the one owner of "main is red", and `Landing` and the push
