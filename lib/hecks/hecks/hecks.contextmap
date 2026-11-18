@@ -38,14 +38,13 @@ Hecks.context_map "Hecks" do
   # and to be untangled; no new one may be added (spec/context_map_hecks_cycles_spec.rb).
   relate "QualityControl" => "Hecks", as: :shared_kernel, accepted_findings: { context_cycle: "stood before context cycles were refused" }
 
-  # Agents' hecksagon translates the events it hears (a session's job read, a submitted change, a
-  # verified passage) into its own commands, so Hecks, Coder and Pipeline models stay out of it.
+  # Agents' hecksagon translates the events it hears (a session's job read, a submitted change)
+  # into its own commands, so Hecks and Coder models stay out of it.
   relate "Hecks"    => "Agents", as: :anti_corruption_layer
   # Hecks attaches Agents as well, and its delegate bluebook starts a session on Agents' request
   # events, so each depends on the other.
   relate "Agents"   => "Hecks", as: :shared_kernel, accepted_findings: { context_cycle: "stood before context cycles were refused" }
   relate "Coder"    => "Agents", as: :anti_corruption_layer
-  relate "Pipeline" => "Agents", as: :anti_corruption_layer
 
   # Coder's hecksagon translates the Hecks domain's `JobRead` of a finished coder run into its own
   # `Submission.Submit`, so Hecks' AgentRun model stays out of Coder's. Hecks attaches Coder as well,
