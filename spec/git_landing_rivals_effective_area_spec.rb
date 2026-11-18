@@ -3,7 +3,7 @@
 require "spec_helper"
 require "tmpdir"
 require "fileutils"
-require "hecks/vendor/embryonaut_bluebooks/delivery/lib/adapters/git_landing/rivals"
+require "hecks/hecks/adapters/dispatching/held_ground"
 
 # A landing reads each rival's effective area at that moment: the files its committed branch
 # changes, not the directory it was planned with and not yet narrowed by a fill.
