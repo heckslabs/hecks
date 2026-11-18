@@ -7,7 +7,7 @@ require "hecks/hecks/adapters/codebase/gate"
 RSpec.describe Hecks::Adapters::Codebase::Gate do
   # The error a gate run that printed the message ends with.
   def refused(message)
-    described_class.named_red { raise Hecks::Adapters::ConsoleCapture::Failure, message }
+    described_class.named_red("quick") { raise Hecks::Adapters::ConsoleCapture::Failure, message }
   rescue Hecks::Adapters::ConsoleCapture::Failure => e
     e
   end
@@ -32,7 +32,10 @@ RSpec.describe Hecks::Adapters::Codebase::Gate do
     expect(error.kind).to eq("gate-quick-rubocop")
   end
 
-  it "raises a failure naming no red check as it was" do
-    expect(refused("boom")).not_to be_a(described_class::Red)
+  it "raises a failure naming no red check as the stage's own fault", :aggregate_failures do
+    error = refused("boom")
+
+    expect(error).to be_a(described_class::Red)
+    expect(error.kind).to eq("gate-quick-fault")
   end
 end
