@@ -10,6 +10,26 @@ module QuestionAnswererHelpers
     launch("agent_run.check!", "to=#{work}", "--wait")
   end
 
+  # A stall's fixer: an orchestrator run whose work is its own run, its job read blocked.
+  def orchestrator_blocked_on(run, question)
+    launch("agent_run.dispatch!", "run.value=#{run}", "repo.value=#{scratch}", "brief.value=fix",
+           "agent.value=orchestrator", "work.value=#{run}", "--wait")
+    blocks(run, question)
+  end
+
+  # The run started to answer a blocked stall fixer, its key minted by the answerer's start.
+  def answerer_of_fixer(run)
+    orchestrator_blocked_on(run, "board fails to load in this checkout")
+    answerers(run).first["run"]
+  end
+
+  # The run's job reads blocked on the question, and a check reads it.
+  def blocks(run, question)
+    File.write(File.join(scratch, "jobs", "stand-in-session", "state.json"),
+               JSON.generate(state: "blocked", detail: question))
+    launch("agent_run.check!", "to=#{run}", "--wait")
+  end
+
   def answerers(work = nil)
     rows = JSON.parse(launch("agent_run.running").first.to_s[/\[.*\]/m] || "[]")
     rows.select { |row| row["works_as"] == "answerer" && (work.nil? || row["work"] == work) }
