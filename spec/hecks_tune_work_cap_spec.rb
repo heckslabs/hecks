@@ -11,9 +11,9 @@ RSpec.describe "the work cap the readings move", :aggregate_failures do
   READING = { cpu_idle: 60.0, load: 3.0, swap_used: 1.0, swap_used_mb: 10.0, free_gb: 10.0, compressor_gb: 2.0,
               pressure_level: 1.0, lane_waiting: nil }.freeze
 
-  KINDS = { calm: {}, pressed: { pressure_level: 2.0, free_gb: 1.0 }, strained: { cpu_idle: 10.0, load: 25.0 } }.freeze
+  READING_KINDS = { calm: {}, pressed: { pressure_level: 2.0, free_gb: 1.0 }, strained: { cpu_idle: 10.0, load: 25.0 } }.freeze
 
-  def readings(*runs) = runs.each_slice(2).flat_map { |kind, count| Array.new(count) { READING.merge(KINDS.fetch(kind)) } }
+  def readings(*runs) = runs.each_slice(2).flat_map { |kind, count| [READING.merge(READING_KINDS.fetch(kind))] * count }
 
   def cap_after(series, before: nil)
     boot
