@@ -272,7 +272,7 @@ Hecks.bluebook "Hecks" do
 
       # The role a stall's Work item is for: one of the pipeline's agent roles.
       value_object "Fixer" do
-        attribute :value, String, one_of: %w[orchestrator coder architect planner reviewer pruner release_manager]
+        attribute :value, String, one_of: %w[orchestrator coder architect planner reviewer pruner]
       end
 
       command "File" do

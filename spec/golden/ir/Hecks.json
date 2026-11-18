@@ -876,24 +876,6 @@
               ],
               [
                 "aggregate",
-                "PromotionRecommendation"
-              ],
-              [
-                "checkout",
-                "main"
-              ],
-              [
-                "reason",
-                "a recommendation is read by the orchestrator in a later call"
-              ]
-            ],
-            [
-              [
-                "domain",
-                "Agents"
-              ],
-              [
-                "aggregate",
                 "Pruning"
               ],
               [

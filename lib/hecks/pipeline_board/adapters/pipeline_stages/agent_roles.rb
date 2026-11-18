@@ -33,13 +33,12 @@ module Hecks
         # the events of the Agents, Tickets, Delegate and Deliver bluebooks, and of the Coder's
         # `WorkSubmitted` for the coder. The agents page draws the same hand-offs as its map.
         ROLE_EVENTS = {
-          "planner"         => %w[PlanningRequested WorkPlanned],
-          "orchestrator"    => %w[CoordinatorWoken QuestionSeated QuestionEscalated BoardingQueued DispatchAdviceRequested],
-          "architect"       => %w[PlanReviewRequested PlanReviewed VerdictDelivered VerdictUndeliverable],
-          "coder"           => %w[WorkSubmitted],
-          "reviewer"        => %w[SubmissionReviewRequested SpecFailureJudged VerdictDelivered VerdictUndeliverable],
-          "release_manager" => %w[PromotionRecommended PromotionSettled],
-          "pruner"          => %w[LandedWorkFound PrunerWoken]
+          "planner"      => %w[PlanningRequested WorkPlanned],
+          "orchestrator" => %w[CoordinatorWoken QuestionSeated QuestionEscalated BoardingQueued DispatchAdviceRequested],
+          "architect"    => %w[PlanReviewRequested PlanReviewed VerdictDelivered VerdictUndeliverable],
+          "coder"        => %w[WorkSubmitted],
+          "reviewer"     => %w[SubmissionReviewRequested SpecFailureJudged VerdictDelivered VerdictUndeliverable],
+          "pruner"       => %w[LandedWorkFound PrunerWoken]
         }.freeze
 
         # @param sessions [Array<Hash>, Hash] the board's sessions, or `{unknown:}`
@@ -126,20 +125,6 @@ module Hecks
           work = run[:work_item].to_s
           { work: work.empty? ? run[:run].to_s : work, run: run[:run].to_s, verdict: ArchitectVerdict.of(closing),
             findings: ArchitectFindings.clip(closing.strip) }
-        end
-
-        # The promotions the release manager recommends that the owner has not settled: each change
-        # whose newest promotion event is a `PromotionRecommended`. The events come from the journal
-        # and the event log, because the process that raised them has ended. The log keeps no
-        # payload, so the reasons are blank.
-        #
-        # @param events [Array<Hash>, Hash] promotion events, newest first, or `{unknown:}`
-        # @return [Array<Hash>, Hash] each recommendation's `change` and `reasons`, or `{unknown:}`
-        def recommendations(events)
-          return events unless events.is_a?(Array)
-
-          open = events.uniq { |found| found[:id] }.select { |found| found[:name].to_s.end_with?("PromotionRecommended") }
-          open.map { |found| { change: found[:id].to_s, reasons: "" } }.sort_by { |row| row[:change] }
         end
       end
     end

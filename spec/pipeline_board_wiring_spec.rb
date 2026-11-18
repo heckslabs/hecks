@@ -230,10 +230,8 @@ RSpec.describe Hecks::Adapters::PipelineWiring do
       end
     end
 
-    it "keeps the promote and settle calls in the shared script, not in either page", :aggregate_failures do
-      expect(fetch("/answer.js").body).to include('action: "promote", confirm: true', 'action: "settle"', "Confirm promote")
-      pages = %w[PAGE AGENTS_PAGE].map { |name| File.read(Hecks::Adapters::PipelineWeb.const_get(name)) }
-      expect(pages).to all(satisfy { |page| !page.include?('action: "settle"') })
+    it "serves a shared script that settles no promotion recommendation" do
+      expect(fetch("/answer.js").body).not_to include('action: "settle"', "recommendationButtons")
     end
 
     it "serves the diagrams' page at /diagrams, showing the wiring and the sequence", :aggregate_failures do

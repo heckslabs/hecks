@@ -81,7 +81,7 @@ function h(tag, attrs, ...kids) {
 }
 function clock(iso) { const d = new Date(iso); return isNaN(d) ? "" : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }); }
 function colourOf(domain) { const i = domainSlot.get(domain); return i === undefined || i > 7 ? css("--muted") : SLOTS[dark() ? "dark" : "light"][i]; }
-// A lane name may wrap only between its words: PromotionRecommendation breaks after Promotion.
+// A lane name may wrap only between its words: SubmissionReview breaks after Submission.
 function wordBreaks(name) { return name.replace(/([a-z0-9])([A-Z])/g, "$1​$2"); }
 function contextOf(id) { const n = byId.get(id); return n ? (n.context ? n.domain + " / " + n.context : n.domain) : id.split("::")[0]; }
 

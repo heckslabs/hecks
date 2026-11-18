@@ -118,7 +118,7 @@ RSpec.describe Hecks::Tools::AgentRoles do
     end
 
     it "leave out the architect, whose file holds frontmatter a row cannot say" do
-      names = %w[coder orchestrator orchestrator-owner planner pruner release_manager reviewer]
+      names = %w[coder orchestrator orchestrator-owner planner pruner reviewer]
       expect(rows.map { |real| real[:role] }).to match_array(names)
     end
 

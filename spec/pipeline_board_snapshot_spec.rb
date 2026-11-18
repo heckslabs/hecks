@@ -39,7 +39,7 @@ RSpec.describe Hecks::Adapters::PipelineStages do
       git: Hecks::Adapters::PipelineGit.new(root: work, settings: { train: work, ttl: 0 }),
       tickets: Hecks::Adapters::PipelineTickets.new(settings: { work_items: work_items, landings: [] }),
       jobs: jobs, fill: idle_fill,
-      journal: instance_double(Hecks::Adapters::PipelineJournal, recent: [], named: [], landed_times: {}, promotions: [],
+      journal: instance_double(Hecks::Adapters::PipelineJournal, recent: [], named: [], landed_times: {},
                                                                    cycle_events: [], stopped_times: {}, health_events: []) }
   end
 

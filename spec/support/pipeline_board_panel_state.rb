@@ -43,7 +43,6 @@ module PipelineBoardPanelState
     { generated_at: "2026-11-07T12:00:00Z", stages: stages, metrics: metrics, ci_runs: ci_runs, sessions: sessions,
       open_work: open_work, roles: [{ name: "coder", live: 1 }, { name: "planner", live: 0 }],
       reviews: [{ work: "alpha", verdict: "sound" }, { work: "bravo", verdict: "" }],
-      recommendations: [{ change: "36f689057", reasons: "" }],
       train_prs: [{ number: 1272, branch: "train/main-5543822", total: 89, passed: 87, failed: 2, pending: 0 }],
       cycles: cycles }
   end
