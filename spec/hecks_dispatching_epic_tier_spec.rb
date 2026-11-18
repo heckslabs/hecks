@@ -2,7 +2,8 @@ require "spec_helper"
 require_relative "support/roll_forward_fixtures"
 
 # The order the dispatcher works in follows the item's own priority first, then its epic's tier
-# (lowest first) among items of one priority, and no more than the world's `epic_wip_limit` items of one epic started at once.
+# (lowest first) among items of one priority, and no more than the world's `epic_wip_limit`
+# items of one epic started at once.
 RSpec.describe "dispatch picks by priority, then by the epic with the lowest tier" do
   include RollForwardFixtures
 
