@@ -154,7 +154,7 @@ module Doctest
     private
 
     # The binding every usage block runs in: it answers `runtime` and holds the claim checker.
-    # Its constants resolve through a `Doctest::Scope` (spec/support/doctest_scope.rb) before Object.
+    # Its constants resolve through a `Doctest::Scope` (support/doctest_scope.rb) before Object.
     def shared_binding
       @runtime = nil
       @scope = Scope.new
