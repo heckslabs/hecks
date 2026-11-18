@@ -62,8 +62,13 @@ RSpec.describe "the mint plan", :io do
     expect(guard(plan_of(dir), "edge")).to include(status: "refuse", detail: /2 translation edges/)
   end
 
-  it "refuses a change with no edge and no recorded move", :aggregate_failures do
+  it "would mint a change that only adds with no edge, as the implicit move", :aggregate_failures do
     prepare(added, edge: false)
+    expect([plan_of(dir)[:plan], guard(plan_of(dir), "edge")[:status]]).to eq(%w[would_mint pass])
+  end
+
+  it "refuses a change that does not only add when no edge covers it", :aggregate_failures do
+    prepare(source(type: "String"), edge: false)
     expect([plan_of(dir)[:plan], guard(plan_of(dir), "edge")[:status]]).to eq(%w[would_refuse refuse])
   end
 
