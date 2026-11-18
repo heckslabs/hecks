@@ -96,14 +96,16 @@ module Hecks
         # @raise [Failure] when Cargo cannot build it
         def self.build(dir)
           root = SessionBuild.root_of(dir)
+          env = nil
           output, status = BuildLock.hold do |held|
-            Open3.capture2e(held.merge(SessionBuild.environment(root: root, binary: true)),
-                            *SessionBuild.command(%w[cargo build --quiet], root: root), chdir: dir)
+            env = held.merge(SessionBuild.environment(root: root, binary: true))
+            Open3.capture2e(env, *SessionBuild.command(%w[cargo build --quiet], root: root), chdir: dir)
           end
           $stdout.write(output)
           return if status.success?
 
-          raise Failure, "hecks project_rust: cargo build failed in #{dir} — run it there directly to see why"
+          raise Failure, Toolchain.failure(output, root: root, env: env) ||
+                         "hecks project_rust: cargo build failed in #{dir} — run it there directly to see why"
         end
 
         private

@@ -77,6 +77,14 @@ module Hecks
           end
         end
 
+        # @return [Array<String>] the first-parent commits in the range that revert a landing
+        def reverts(base, tip)
+          read("log", "--first-parent", "--format=%H%x09%s", "#{base}..#{tip}").lines.filter_map do |line|
+            sha, subject = line.chomp.split("\t", 2)
+            sha if subject.to_s.start_with?("Revert \"Merge")
+          end
+        end
+
         # @return [Array<String>] the message of every commit in the range
         def messages(base, tip) = read("log", "--format=%B%x1e", "#{base}..#{tip}").split("\x1e").map(&:strip)
 

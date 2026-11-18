@@ -27,10 +27,11 @@ module Hecks
           #
           # @param root [String] the checkout
           # @param why [String, nil] why the resident did not serve the line
+          # @param env [#[]] the environment of the launcher that asks
           # @return [Boolean] true on the third refusal on the environment within the window, from a
-          #   resident that was not born plain
-          def streak?(root, why)
-            return note(root).size >= REFUSALS && Baseline.atypical?(root) if env?(why)
+          #   resident that was not born as this launcher would start one
+          def streak?(root, why, env = ENV)
+            return note(root).size >= REFUSALS && Baseline.atypical?(root, env) if env?(why)
 
             clear(root)
             false

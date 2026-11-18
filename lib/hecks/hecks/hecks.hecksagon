@@ -123,6 +123,14 @@ Hecks.hecksagon "Hecks" do
       answers "ObserveAnswered"
       refuses "ObserveRefused"
     end
+
+    asks "Revert", to: SendTrain do
+      attribute :run, RunKey
+      attribute :checkout, Word
+      attribute :local, Switch
+      answers "RevertAnswered"
+      refuses "RevertRefused"
+    end
   end
 
   # Where a boarding's outcome is recorded: the boarded checkout's own launcher records it in that
@@ -342,10 +350,23 @@ Hecks.hecksagon "Hecks" do
     asks "Check", to: Integration do
       attribute :run, RunKey
       attribute :landed, Word
+      attribute :checkout, Word
       # Carried onto the answer, so the rule that records a refusal knows a retry from a first try.
       attribute :retried, Switch
+      # Carried onto the answer too: whether the commit is the revert of a landing that stayed local.
+      attribute :revert, Switch
       answers "VerifyAnswered"
       refuses "VerifyRefused"
+    end
+
+    # The facts about a failed verification's first bad merge, read after its copy is released; the
+    # bluebook decides what to do with them.
+    asks "Bisect", to: Integration do
+      attribute :run, RunKey
+      attribute :landed, Word
+      attribute :checkout, Word
+      answers "BisectAnswered"
+      refuses "BisectRefused"
     end
   end
 
@@ -534,6 +555,27 @@ Hecks.hecksagon "Hecks" do
       attribute :run, CareKey
       answers "LedgerCareDue"
       refuses "LedgerCareDeferred"
+    end
+  end
+
+  # The outside a beat reaches to weigh the Catcher: it measures how long the Catcher's file has stood
+  # untouched and answers the Catcher due once the Tickets world's `catcher_care` minutes have passed;
+  # a file touched inside the window is deferred by name.
+  Hecks::CatcherCare.port "Resting" do
+    asks "Rested", to: CatcherCare do
+      attribute :run, CareKey
+      answers "CatcherCareDue"
+      refuses "CatcherCareDeferred"
+    end
+  end
+
+  # The outside a due Catcher is run through: it requests the Catcher's drain and then its detection,
+  # as an Operator, and answers that both were requested; a refusal of either is refused by name.
+  Hecks::CatcherCare.port "Running" do
+    asks "RunCatcher", to: CatcherCare do
+      attribute :run, CareKey
+      answers "CatcherCareRan"
+      refuses "CatcherCareRunRefused"
     end
   end
 
@@ -1456,10 +1498,12 @@ Hecks.hecksagon "Delivery" do
     end
   end
 
-  # Only a conflict or a red gate is a coder's to fix; Tickets plans the item again.
+  # Every refusal but a transient one is a coder's to fix; Tickets plans the item again with the
+  # refusal as its reason. "landing in flight" (another landing of the branch runs) and "queue busy: "
+  # (the landing job retries) are transient, so the item stays done for them.
   translates "FindWorkWhenTheJobsLandingIsRefused" do
     on      Landing::CarryRefused
-    where   { refusal.value.include?("conflict: ") || refusal.value.include?("gate red: ") }
+    where   { !refusal.value.include?("landing in flight") && !refusal.value.include?("queue busy: ") }
     ask     :find_refused_work, with: { run: :run, refusal: :refusal }
   end
 

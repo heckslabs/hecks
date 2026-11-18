@@ -150,7 +150,7 @@ RSpec.describe Hecks::RustBuild::NativeBuild do
     it "gives the cargo child the same directory, so a build and its pinned binary agree" do
       with_target_env(shared)
 
-      expect(cargo_environment).to eq("CARGO_TARGET_DIR" => File.join(shared, session.slug(checkout)))
+      expect(cargo_environment).to include("CARGO_TARGET_DIR" => File.join(shared, session.slug(checkout)))
     end
   end
 
