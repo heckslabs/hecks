@@ -16,6 +16,7 @@ pub mod expr_json;
 #[allow(clippy::expect_used, clippy::needless_raw_string_hashes)]
 pub mod field_hints;
 pub mod host;
+pub mod identity;
 // The one `Hecks::Naming` port, compiled from `hecks-codegen`'s source: the host and the codegen
 // are independent Cargo projects, so the file is shared by path rather than by dependency.
 #[allow(dead_code)]
