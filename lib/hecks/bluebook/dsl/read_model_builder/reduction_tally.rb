@@ -1,3 +1,7 @@
+# frozen_string_literal: true
+
+require_relative "../../behaviour/read_model"
+
 module Hecks
   module Bluebook
     module DSL
