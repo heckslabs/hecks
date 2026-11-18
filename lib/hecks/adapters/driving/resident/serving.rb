@@ -86,24 +86,26 @@ module Hecks
             names = differing(request[:env])
             return "env:#{names}" if names
 
-            gap = unpersisted(request[:env])
-            return gap if gap
+            refusal = unpersisted(request[:env])
+            return refusal if refusal
             return nil unless changed?
 
             retire
             "changed"
           end
 
-          # A resident that resolved an aggregate to Memory which the local hecksagon binds to
-          # SQLite ({PersistenceGuard}) refuses, by that name, the lines it would serve from it,
-          # and retires so the next launcher starts one that reads the files as they now are.
+          # A resident whose loaded domain, the one the line is served from, does not keep in SQLite
+          # an aggregate the local hecksagon binds there ({PersistenceGuard}) refuses the line by
+          # that aggregate's name, and retires so the next launcher starts one that reads the files
+          # as they now are.
           #
           # @return [String, nil] the refusal reason, or nil when the line may be served
           def unpersisted(env)
-            return unless @persistence_gap && !PersistenceGuard.exempt?(env)
+            return if PersistenceGuard.exempt?(env)
 
-            retire
-            PersistenceGuard.reason(@persistence_gap)
+            refusal = persistence_refusal(env["HECKS_ENVIRONMENT"])
+            retire if refusal
+            refusal
           end
 
           # @return [String, nil] the names of the first variables the line differs on from what
