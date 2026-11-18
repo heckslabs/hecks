@@ -14,8 +14,10 @@ module Hecks
       # later merge mends it, the answer is still the first merge that failed, which the mend may
       # already have fixed.
       class FirstBad
-        # The most probes one search makes; each is a clean copy and an impacted-spec run.
-        LIMIT = 6
+        # The most probes one search makes; each is a clean copy and an impacted-spec run. A failing
+        # merge is probed a second time before it is blamed, so the worst case is twice the steps of
+        # a six-step search.
+        LIMIT = 12
 
         # @param merges [Array<Hash>] the landings, oldest first (`Repository#merges`)
         # @param probe [#call] given a merge, answers `[ok, finding]`; `finding` is a Hash with
@@ -30,6 +32,10 @@ module Hecks
         # @return [String] why the last search answered nil
         attr_reader :reason
 
+        # @return [Array<String>] the merges that failed one probe and passed the next: reported as
+        #   a fact, never blamed
+        attr_reader :flaky
+
         # @return [Hash, nil] the merge (`sha:`, `subject:`, `paths:`) with its `finding:`, or nil
         #   when none failed or the search could not finish (`reason` says which)
         def call
@@ -37,9 +43,9 @@ module Hecks
           @high = @merges.size - 1
           @found = nil
           @spent = 0
+          @flaky = []
           step while @low <= @high
-          @reason = "no merge in the range turns the failing specs red" unless @found
-          @found
+          conclude
         rescue StandardError, ConsoleCapture::Failure => e
           @reason = "the search stopped: #{e.message}"
           nil
@@ -47,13 +53,32 @@ module Hecks
 
         private
 
+        def conclude
+          @reason = "no merge in the range turns the failing specs red" unless @found
+          @found
+        end
+
         def step
+          middle = (@low + @high) / 2
+          ok, finding = probe(@merges[middle])
+          ok ? @low = middle + 1 : fail_at(middle, finding)
+        end
+
+        # A failing merge is probed once more; passing the second time is flaky, not bad.
+        def probe(merge)
+          ok, finding = probe_once(merge)
+          return [ok, finding] if ok
+
+          again, = probe_once(merge)
+          @flaky << merge[:sha] if again
+          [again, finding]
+        end
+
+        def probe_once(merge)
           raise ConsoleCapture::Failure, "probe budget of #{@limit} spent" if @spent >= @limit
 
-          middle = (@low + @high) / 2
-          ok, finding = @probe.call(@merges[middle])
           @spent += 1
-          ok ? @low = middle + 1 : fail_at(middle, finding)
+          @probe.call(merge)
         end
 
         def fail_at(middle, finding)

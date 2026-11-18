@@ -30,7 +30,20 @@ RSpec.describe Hecks::Adapters::MainIntegration::FirstBad do
 
   it "probes no more than a binary search needs" do
     search(%w[sha5 sha6 sha7])
-    expect(probed.size).to be <= 4
+    expect(probed.size).to be <= 6
+  end
+
+  it "probes a failing merge a second time before blaming it" do
+    search(%w[sha5 sha6 sha7])
+    expect(probed.count("sha5")).to eq(2)
+  end
+
+  it "does not blame a merge whose second probe passes", :aggregate_failures do
+    seen = Hash.new(0)
+    probe = ->(merge) { [merge[:sha] != "sha3" || (seen[:three] += 1) > 1, { spec: "spec/x_spec.rb" }] }
+    search = described_class.new(merges, probe: probe)
+    expect(search.call).to be_nil
+    expect(search.flaky).to eq(["sha3"])
   end
 
   it "answers nil when no merge fails" do
