@@ -549,12 +549,32 @@ Hecks.bluebook "Hecks" do
           (operation.value == "hold_first" && held.value != 0) ||
           (operation.value == "rename_domain" && held.value == 0) ||
           (operation.value == "merge_tail" && (held.value <= 1 || forks.value != 0 || contested.value != 0)) ||
-          ((operation.value == "compact" || operation.value == "compact_heki") &&
-            (candidates.value <= 0 || bound.value != 0)) ||
           (operation.value == "reattest" && (!drifted.value || !loadable.value || !shape_kept.value)) ||
           (operation.value == "write_translation" && held.value == 0)
       end
       trigger SchemaRevision::Abandon, with: { refusal: "the journal's facts do not admit this change" }
+    end
+
+    # A compaction refused for its facts says which fact: the two cases are disjoint, so a change
+    # is abandoned once, by the one policy that names why.
+    policy "AbandonACompactionThatFindsNothing" do
+      on      "SchemaRevision.SchemaRevisionExamined"
+      where do
+        (operation.value == "compact" || operation.value == "compact_heki") && candidates.value <= 0
+      end
+      trigger SchemaRevision::Abandon, with: {
+        refusal: "no aggregate in the domain keeps a journal to compact: check the domain path and the aggregate names"
+      }
+    end
+
+    policy "AbandonACompactionAProjectionReads" do
+      on      "SchemaRevision.SchemaRevisionExamined"
+      where do
+        (operation.value == "compact" || operation.value == "compact_heki") && candidates.value > 0 && bound.value != 0
+      end
+      trigger SchemaRevision::Abandon, with: {
+        refusal: "a projected_by binding reads the journal that would be emptied: compacting would break its catch-up"
+      }
     end
 
     # A compaction waits for its seal (ledger.bluebook); every other change is applied at once.

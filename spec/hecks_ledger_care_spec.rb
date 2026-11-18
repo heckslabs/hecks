@@ -51,6 +51,64 @@ RSpec.describe "the AgentRun ledger is compacted on a beat" do
     expect(world).to include('ledger_care "LedgerCare", entries: 20_000, wait_seconds: 3, outbox_hours: 1')
   end
 
+  describe "the compaction is asked of the AgentRun bluebook's own directory" do
+    let(:keeping) { Hecks::Adapters::LedgerKeeping }
+    let(:home) { "/checkout/lib/hecks/hecks" }
+    let(:bluebook) do
+      agent_run = Struct.new(:hecks_name, :storage_name).new("AgentRun", "agent_run")
+      Struct.new(:name, :aggregates).new("Hecks", [agent_run])
+    end
+
+    # A registry that booted the checkout root, with the bluebook's files below it.
+    def checkout_registry(file = path)
+      sources = ["#{home}/ledger_care/ledger_care.bluebook", "#{home}/hecks.bluebook"]
+      allow(keeping::Ledger).to receive(:file_of).and_return(file)
+      instance_double(Hecks::Runtime::Registry, root: "/checkout", bluebooks: { "Hecks" => bluebook },
+                                                bluebook_sources: { "Hecks" => sources })
+    end
+
+    it "names the directory of the bluebook that declares AgentRun, not the registry's root" do
+      expect(keeping::Ledger.directory(checkout_registry)).to eq(home)
+    end
+
+    it "names no directory when the records are not kept in a SQLite file" do
+      expect(keeping::Ledger.directory(checkout_registry(nil))).to be_nil
+    end
+  end
+
+  describe "a compaction the examination finds nothing for says why" do
+    def abandoned(facts)
+      registry = boot_hecks_in_memory(domain).registry
+      journal = instance_double(Hecks::Adapters::JournalStore, examine: facts)
+      lookup = ->(port, _asked) { port.to_s == "JournalStore" ? journal : nil }
+      Hecks::Runtime::AdapterLookup.standing_in(lookup) { request_compaction(registry) }
+      registry.event_log.find { |event| event.name == "SchemaRevisionAbandoned" }
+    end
+
+    def request_compaction(registry)
+      Hecks::Runtime::Dispatcher.new(registry).dispatch_flat(
+        "Hecks::SchemaRevision.Compact", domain: { value: "/checkout" }, run: { value: "care-1" }, confirm: { value: true }
+      )
+    end
+
+    def facts(candidates:, bound: 0)
+      { capable: false, held: 0, forks: 0, contested: 0, bound: bound, candidates: candidates,
+        drifted: false, loadable: false, shape_kept: false, operation: "compact" }.transform_values { |fact| { value: fact } }
+    end
+
+    it "names the domain path and aggregates when no aggregate keeps a journal", :aggregate_failures do
+      event = abandoned(facts(candidates: 0))
+
+      expect(event.payload.to_s).to include("no aggregate in the domain keeps a journal to compact")
+    end
+
+    it "names the projection binding when one reads the journal" do
+      event = abandoned(facts(candidates: 1, bound: 1))
+
+      expect(event.payload.to_s).to include("a projected_by binding reads the journal")
+    end
+  end
+
   describe "the delivered outbox rows are purged on a beat" do
     def purge_beat(hours:)
       scratch_outbox(path, [["delivered", 30], ["pending", 30]])
