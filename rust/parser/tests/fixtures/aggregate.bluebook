@@ -16,7 +16,7 @@ Hecks.bluebook "FixtureAggregate" do
     # real corpus (banking.bluebook's own Account) exercises all three
     # at full size.
     invariant("the name is never blank") { !name.empty? }
-    given("the widget is nameable") { !name.nil? }
+    given("the widget is nameable") { name != nil }
 
     lifecycle :status, default: "draft" do
       transition "Publish" => "published", from: "draft"

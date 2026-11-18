@@ -382,7 +382,7 @@ Hecks.bluebook "Hecks" do
         attribute :ci_run,  Word, optional: true, sets: true
         attribute :of_sha,  Word
 
-        given("CI answered for the record's own head") { sha.nil? || sha.value.to_s.empty? || of_sha.value == sha.value }
+        given("CI answered for the record's own head") { sha.value == nil || sha.value.to_s.empty? || of_sha.value == sha.value }
 
         emits EarlyCiObserved
       end
@@ -430,14 +430,14 @@ Hecks.bluebook "Hecks" do
     # No failing job is a pass: the verdict is drawn here, from the jobs the port names.
     policy "RecordTheGreenRun" do
       on      "EarlyCi.BranchCiAnswered"
-      where   { failing.nil? || failing.value.to_s.empty? }
+      where   { failing.value == nil || failing.value.to_s.empty? }
       trigger EarlyCi::Observe, with: { outcome: "passed", report: :report, number: :number, ci_run: :ci_run,
                                         of_sha: :sha }
     end
 
     policy "RecordTheRedRun" do
       on      "EarlyCi.BranchCiAnswered"
-      where   { !failing.nil? && !failing.value.to_s.empty? }
+      where   { failing.value != nil && !failing.value.to_s.empty? }
       trigger EarlyCi::Observe, with: { outcome: "failed", report: :report, number: :number, ci_run: :ci_run,
                                         of_sha: :sha }
     end

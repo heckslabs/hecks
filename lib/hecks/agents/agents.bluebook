@@ -529,7 +529,7 @@ Hecks.bluebook "Agents" do
       attribute :now,    Instant
       needs :now
 
-      given("the review has no verdict yet") { verdict.value == nil || verdict.to_s.empty? }
+      given("the review has no verdict yet") { verdict.value == nil || verdict.value.to_s.empty? }
       given("the review has not ended already") { ended_at.value == nil || ended_at.value == 0 }
 
       sets :ended_at, to: :now
@@ -553,7 +553,7 @@ Hecks.bluebook "Agents" do
       attribute :now,  Instant
       needs :now
 
-      given("the review has no verdict yet") { verdict.value == nil || verdict.to_s.empty? }
+      given("the review has no verdict yet") { verdict.value == nil || verdict.value.to_s.empty? }
       given("the review has not ended already") { ended_at.value == nil || ended_at.value == 0 }
       given("the architect was not asked again yet") { asks.value == nil || asks.value == 0 }
       given("the review's time limit has passed") { requested_at.value + limit.value <= now.value }
@@ -577,7 +577,7 @@ Hecks.bluebook "Agents" do
       attribute :now,    Instant
       needs :now
 
-      given("the review has no verdict yet") { verdict.value == nil || verdict.to_s.empty? }
+      given("the review has no verdict yet") { verdict.value == nil || verdict.value.to_s.empty? }
       given("the review has not ended already") { ended_at.value == nil || ended_at.value == 0 }
       given("the architect was asked again already") { asks.value != nil && asks.value >= 1 }
       given("the review's time limit has passed") { requested_at.value + limit.value <= now.value }
