@@ -17,6 +17,9 @@ module Hecks
         # A well-typed string no `one_of` admits, so a closed set refuses on membership.
         NON_MEMBER = "not a declared member"
 
+        # How many undeclared names are drawn for one input, so one the command declares is skipped.
+        UNKNOWN_DRAWS = 8
+
         # @param command [Object] a command construct
         # @return [Array] the attributes a wrong value can be put in
         def corruptible(command)
@@ -24,16 +27,19 @@ module Hecks
         end
 
         # @param command [Object] a command construct
-        # @return [Array] the attributes that can be left out
+        # @return [Array] the attributes that can be left out and be refused as absent; one with a
+        #   default is filled in, so leaving it out violates nothing
         def droppable(command)
-          command.attributes.reject { |a| a.optional? || a.list? || ENVELOPE_KEYS.include?(a.name.to_s) }
+          command.attributes.reject do |a|
+            a.optional? || a.list? || !a.default.nil? || ENVELOPE_KEYS.include?(a.name.to_s)
+          end
         end
 
         # Mutates `args` to violate `step`; returns a description of the violation, or nil if the
         # command cannot violate it.
         def violate!(step, args, command, aggregate, random)
           case step
-          when "refuse_unknown_arguments" then violate_unknown!(args, random)
+          when "refuse_unknown_arguments" then violate_unknown!(args, command, random)
           when "refuse_absent_arguments"  then violate_absent!(args, command)
           when "normalize_args"           then violate_normalize!(args, command, aggregate, random)
           when "refuse_role_mismatch"     then MISMATCHED_ROLE
@@ -43,8 +49,14 @@ module Hecks
           end
         end
 
-        def violate_unknown!(args, random)
-          name, value = Hecks::Fuzzing::InvalidValueGenerator.undeclared_argument(random: random)
+        # Adds an argument the command does not declare. The fuzzer's undeclared names are common
+        # words a command may well declare (`note`), so a name the command declares is drawn again.
+        def violate_unknown!(args, command, random)
+          declared = command.attributes.map { |a| a.name.to_s }
+          draws = Array.new(UNKNOWN_DRAWS) { Hecks::Fuzzing::InvalidValueGenerator.undeclared_argument(random: random) }
+          name, value = draws.find { |drawn, _| !declared.include?(drawn.to_s) }
+          return unless name
+
           args[name.to_s] = value
           name.to_s
         end

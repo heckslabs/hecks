@@ -5,7 +5,7 @@
     {
       "verb": "LedgerOrdering::Folder.Open",
       "args": {
-        "colour": "loud"
+        "flavour": "scribbled"
       }
     },
     {
@@ -22,9 +22,9 @@
       "verb": "LedgerOrdering::Folder.AddSlip",
       "args": {
         "amount": {
-          "value": 302
+          "value": 635
         },
-        "flavour": "third"
+        "flavour": "loud"
       }
     },
     {
@@ -44,7 +44,7 @@
           }
         },
         "amount": {
-          "value": 302
+          "value": 635
         }
       }
     },
@@ -53,10 +53,10 @@
       "role": "a role this caller does not hold",
       "args": {
         "reference": {
-          "value": "alpha india hotel"
+          "value": "delta echo golf"
         },
         "amount": {
-          "value": 302
+          "value": 635
         }
       }
     },
@@ -64,9 +64,9 @@
       "verb": "LedgerOrdering::Folder.Slip.Amend",
       "args": {
         "reference": {
-          "value": "india"
+          "value": "echo echo charlie"
         },
-        "note": "scribbled"
+        "note": "third"
       }
     },
     {
@@ -74,7 +74,7 @@
       "role": "a role this caller does not hold",
       "args": {
         "reference": {
-          "value": "delta india bravo"
+          "value": "foxtrot bravo bravo"
         },
         "amount": {
           "value": "not a integer"
@@ -86,10 +86,10 @@
       "role": "a role this caller does not hold",
       "args": {
         "reference": {
-          "value": "delta alpha"
+          "value": "delta"
         },
         "amount": {
-          "value": 992
+          "value": 124
         }
       }
     }
@@ -98,7 +98,7 @@
     "refusals": [
       {
         "verb": "LedgerOrdering::Folder.Open",
-        "error": "Open does not declare colour — it takes reference",
+        "error": "Open does not declare flavour — it takes reference",
         "kind": "UnknownArgument"
       },
       {
