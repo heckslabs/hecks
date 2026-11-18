@@ -50,8 +50,8 @@ module Hecks
       # Deletes the directory a worktree's binary builds kept in the shared target, once its
       # worktree is gone. A slot stays when git lists a worktree by its name (spelled as given or
       # as the file system spells it), when the checkout it records as its owner still exists
-      # (another clone of hecks sharing the directory, say), or when anything in it changed within
-      # the last day.
+      # (another clone of hecks sharing the directory, say), or, for a slot that records no owner,
+      # when anything in it changed within the last day.
       # @param shared [String] the directory every shared target lives in
       # @param live [Array<String>] worktree paths git still lists
       # @param now [Time] the time the grace period counts from
@@ -63,11 +63,15 @@ module Hecks
         abandoned.sum { |path| remove(path, dry_run) }
       end
 
+      # A slot that records its owner is kept exactly while that owner stands: a removed worktree's
+      # slot goes at once, however recently it was built in. Only a slot that records no owner waits
+      # out the grace.
+      #
       # @param live [Array<String>] worktree paths git still lists, the checkout's own first
       # @return [Boolean] whether a slot git does not list still has an owner or recent work
       def kept?(slot, now, live = [])
         owner = owner_of(slot)
-        return true if owner && owner_standing?(owner, live)
+        return owner_standing?(owner, live) if owner
 
         recent_change?(slot, now - (SLOT_GRACE_DAYS * 86_400))
       end
@@ -94,12 +98,7 @@ module Hecks
       end
 
       # @return [String, nil] the checkout the slot records as its owner
-      def owner_of(slot)
-        file = File.join(slot, SessionBuild::OWNER)
-        File.file?(file) ? File.read(file).strip : nil
-      rescue SystemCallError
-        nil
-      end
+      def owner_of(slot) = CheckoutSlug.owner_of(slot)
 
       # Whether anything in the slot, the slot included, changed after `cutoff`. It stops at the
       # first thing that did, so a slot in use costs a look at a few entries, not the whole

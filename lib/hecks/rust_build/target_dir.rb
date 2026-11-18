@@ -47,6 +47,17 @@ module Hecks
         SessionBuild.declared_target_dir(root: root) || shared("").chomp("/")
       end
 
+      # The slots a checkout's binary builds keep below the shared target, under each spelling of
+      # its path, that exist. Asked before the checkout is removed: once it is gone, the spelling
+      # the file system gave its path cannot be read.
+      #
+      # @param root [String] a hecks checkout
+      # @return [Array<String>] the checkout's slot directories
+      def slots_of(root)
+        shared = shared_root(root: root)
+        SessionBuild.slugs(root).map { |name| File.join(shared, name) }.select { |dir| File.directory?(dir) }
+      end
+
       # @param root [String] a hecks copy's directory
       # @return [Boolean] whether the copy is installed under one of RubyGems' directories
       def installed?(root)
