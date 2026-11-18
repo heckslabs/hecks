@@ -50,7 +50,10 @@ module Hecks
           [HEADER.chomp, *blocks, ""].join("\n")
         end
 
-        # Writes the overlay when the checkout's differs.
+        # Writes the overlay when the checkout's differs. The text goes to a temporary file beside
+        # the overlay and is renamed into place, so a process that boots while it is written reads
+        # the old file or the new one, never an empty or half-written one that would leave every
+        # aggregate on Memory.
         #
         # @return [String, nil] the path written, or nil when the checkout's was already this
         # @raise [Empty] when the copy keeps no row
@@ -59,11 +62,22 @@ module Hecks
           return if File.file?(path) && File.read(path) == wanted
 
           FileUtils.mkdir_p(File.dirname(path))
-          File.write(path, wanted)
+          replace(wanted)
           path
         end
 
         private
+
+        # Writes the text beside the overlay and renames it over the overlay; the temporary file
+        # is removed when the write fails.
+        def replace(wanted)
+          temp = "#{path}.#{Process.pid}.tmp"
+          File.write(temp, wanted)
+          File.rename(temp, path)
+        rescue SystemCallError
+          FileUtils.rm_f(temp)
+          raise
+        end
 
         # The Hecks block keeps Memory as its root default; the other domains are attached and
         # inherit it, so their blocks bind only their rows.
