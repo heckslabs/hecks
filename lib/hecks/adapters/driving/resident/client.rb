@@ -22,8 +22,9 @@ module Hecks
           BYPASSED = %w[console interview init mcp].freeze
           # Long-running servers, by their plain names (no underscores, lower case, no `!`): under a
           # resident each would be a child with a client waiting above it, for days, and a board
-          # that restarts itself would leave a waiting client behind at every restart.
-          SERVING = %w[pipelineboard.serve server.present server.compose server.preview
+          # that restarts itself would leave a waiting client behind at every restart. `board.serve`
+          # is the Hecks domain's spelling of the board (`Board.serve!`).
+          SERVING = %w[pipelineboard.serve board.serve server.present server.compose server.preview
                        server.servequeryirmcp].freeze
           # The namespace a command word may be written with.
           NAMESPACE = "Hecks::".freeze

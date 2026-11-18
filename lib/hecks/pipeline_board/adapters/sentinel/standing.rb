@@ -23,22 +23,28 @@ module Hecks
           #
           # @param port [Integer] the port the board serves on
           # @param registry [Runtime::Registry, nil] whose Hecks world's `board_restart` line sets
-          #   `sentinel_seconds` and `sentinel_misses`
+          #   `sentinel_seconds`, `sentinel_misses`, `sentinel_cpu_share` and `sentinel_cpu_asks`
           # @param command [Array<String>] how the board was started
           # @return [Integer, nil] the sentinel's pid; nil when none was started
           def stand(port:, registry: nil, command: [RbConfig.ruby, File.expand_path($PROGRAM_NAME), *ARGV])
             limits = BoardRestart.limits(registry)
             return nil if limits[:sentinel_seconds].to_f <= 0 || standing?
 
-            spec = { pid: Process.pid, port: port, command: command, directory: Dir.pwd,
-                     every: limits[:sentinel_seconds], misses: limits[:sentinel_misses].to_i }
+            spec = { pid: Process.pid, port: port, command: command, directory: Dir.pwd, **watching(limits) }
             child = Process.spawn(*command(spec), pgroup: true)
             Process.detach(child)
             ENV[ENV_KEY] = child.to_s
           end
 
+          # @param limits [Hash] from {BoardRestart.limits}
+          # @return [Hash] the sentinel's `every`, `misses`, `cpu_share` and `cpu_asks`
+          def watching(limits)
+            { every: limits[:sentinel_seconds], misses: limits[:sentinel_misses].to_i,
+              cpu_share: limits[:sentinel_cpu_share], cpu_asks: limits[:sentinel_cpu_asks].to_i }
+          end
+
           # @param spec [Hash] the board's pid, port, command and directory, and the sentinel's
-          #   `every` and `misses`
+          #   `every`, `misses`, `cpu_share` and `cpu_asks`
           # @return [Array<String>] the interpreter and arguments that run a sentinel from `spec`,
           #   with this checkout's `lib` on the load path its code requires from
           def command(spec) = [RbConfig.ruby, "-I", LIB, __FILE__, JSON.generate(spec)]
@@ -51,12 +57,14 @@ module Hecks
             false
           end
 
-          # Runs a sentinel from the JSON {.stand} passed on the command line.
+          # Runs a sentinel from the JSON {.stand} passed on the command line. A spec without the
+          # CPU bound's keys runs with no bound.
           # @param json [String] the spec
           def from_spec(json)
             spec = JSON.parse(json, symbolize_names: true)
             host = Host.new(**spec.slice(:pid, :port, :command, :directory))
-            new(**spec.slice(:pid, :every, :misses), host: host).run
+            heat = Heat.new(share: spec.fetch(:cpu_share, 0), asks: spec.fetch(:cpu_asks, 0))
+            new(**spec.slice(:pid, :every, :misses), host: host, heat: heat).run
           end
         end
       end

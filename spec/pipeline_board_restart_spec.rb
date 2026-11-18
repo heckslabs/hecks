@@ -39,12 +39,22 @@ RSpec.describe Hecks::Adapters::PipelineBoard::BoardRestart do
     expect(started.check).to eq(:age)
   end
 
+  def registry_declaring(rows)
+    world = Struct.new(:rows) { def for_verb(_verb) = rows }.new(rows)
+    Struct.new(:world) { def world(*) = self[:world] }.new(world)
+  end
+
   it "reads its limits from the Hecks world, with defaults for what it leaves out" do
-    world = Struct.new(:rows) { def for_verb(_verb) = rows }.new({ refresh_seconds: 60, rss_mb: 512 })
-    registry = Struct.new(:world) { def world(*) = self[:world] }.new(world)
+    registry = registry_declaring({ refresh_seconds: 60, rss_mb: 512 })
     expect(described_class.limits(registry)).to eq(refresh_seconds: 60.0, rss_mb: 512.0, age_hours: 24.0,
                                                    min_uptime_seconds: 600.0, loaded_refresh_seconds: 60.0,
-                                                   sentinel_seconds: 30.0, sentinel_misses: 4.0)
+                                                   sentinel_seconds: 30.0, sentinel_misses: 4.0,
+                                                   sentinel_cpu_share: 0.9, sentinel_cpu_asks: 20.0)
+  end
+
+  it "takes the sentinel's CPU bound from the Hecks world" do
+    registry = registry_declaring({ sentinel_cpu_share: 0, sentinel_cpu_asks: 40 })
+    expect(described_class.limits(registry)).to include(sentinel_cpu_share: 0.0, sentinel_cpu_asks: 40.0)
   end
 
   def large_board
