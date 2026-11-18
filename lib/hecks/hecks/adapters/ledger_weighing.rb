@@ -41,7 +41,8 @@ module Hecks
         line = LedgerKeeping::Ledger.setting(@registry, :entries)
         raise ConsoleCapture::Failure, "deferred: #{entries} entries are compactable, not over #{line}" if entries <= line
 
-        { domain: { value: @registry.root.to_s }, aggregates: { value: LedgerKeeping::Ledger::AGGREGATE },
+        ledger = LedgerKeeping::Ledger
+        { domain: { value: ledger.directory(@registry).to_s }, aggregates: { value: ledger::AGGREGATE },
           compaction: { value: "ledger-care-#{run}" },
           reason: { value: "#{entries} journal entries are compactable, over #{line}" } }
       end

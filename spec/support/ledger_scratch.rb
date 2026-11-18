@@ -66,7 +66,7 @@ module LedgerScratch
   # `database`.
   def registry_over(database, entries: 1, outbox_hours: 24)
     row = { entries: entries, wait_seconds: 0.2, outbox_hours: outbox_hours }
-    allow(Keeping::Ledger).to receive(:database).and_return(database)
+    allow(Keeping::Ledger).to receive_messages(database: database, directory: "/domains/hecks")
     instance_double(Hecks::Runtime::Registry, root: "/domains/hecks", world: World.new(row))
   end
 
