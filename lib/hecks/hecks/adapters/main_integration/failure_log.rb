@@ -18,6 +18,12 @@ module Hecks
         # The spec file a launcher or rspec failure report names.
         SPEC_FILE = /rspec (\S+_spec\.rb)/
 
+        # Any spec file a failure report names, whichever check printed it.
+        ANY_SPEC = %r{spec/[\w/.-]*_spec\.rb}
+
+        # The most spec files a search probes.
+        SPECS = 12
+
         # The first numbered failure of an rspec report: its example's description.
         FIRST_EXAMPLE = /^\s+1\) (.+)$/
 
@@ -35,6 +41,27 @@ module Hecks
         def self.finding(output)
           text = output.to_s
           { spec: text[SPEC_FILE, 1], example: text[FIRST_EXAMPLE, 1]&.strip }.compact
+        end
+
+        # @param output [String] what a failed check printed
+        # @return [Array<String>] the distinct spec files the output names, at most `SPECS`
+        def self.specs(output)
+          named = output.to_s.scan(ANY_SPEC).uniq
+          named.first(SPECS)
+        end
+
+        # The spec files the kept logs of one failed verification name: what a search of its range
+        # probes. The directory is the one `keep` writes. A log holds only the check's last `LINES`
+        # lines and the directory the newest `KEEP` logs, so the list can be a subset of the failing
+        # files, which still makes a valid probe.
+        #
+        # @param landed [String] the commit that failed verification
+        # @return [Array<String>] the spec files, empty when no log names one
+        def specs_for(landed)
+          return [] unless Dir.exist?(@directory)
+
+          logs = Dir.children(@directory).select { |file| file.start_with?("#{landed[0, 10]}-") }
+          logs.flat_map { |file| self.class.specs(File.read(File.join(@directory, file))) }.uniq.first(SPECS)
         end
 
         # Writes the log of one failed check and prunes the directory to the newest `KEEP`.

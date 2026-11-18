@@ -31,6 +31,7 @@ RSpec.describe "a red main reverting its one bad merge" do
   after do
     Hecks::Adapters::MainVerification.runner = nil
     Hecks::Adapters::MainVerification.impacted = nil
+    Hecks::Adapters::MainVerification.specs = nil
     Hecks::Adapters::MainVerification.log_directory = nil
     Hecks::Adapters::MainIntegration::CodeWatch.fingerprint = nil
     FileUtils.remove_entry(dir)
@@ -80,6 +81,16 @@ RSpec.describe "a red main reverting its one bad merge" do
       argv.include?("gate_run.gate!") && red ? [false, "[gate quick] red: rspec spec/bad_spec.rb"] : [true, "ok"]
     end
     Hecks::Adapters::MainVerification.impacted = impacted_run(everywhere)
+    stub_probes(everywhere: everywhere)
+  end
+
+  # The probe of the search runs the failing spec file in a copy: red where the bad file is (or
+  # everywhere, or never with `green`), whatever the merge's own paths touch.
+  def stub_probes(everywhere: false, green: false)
+    Hecks::Adapters::MainVerification.specs = lambda do |directory, _files|
+      red = !green && (everywhere || File.exist?(File.join(directory, "bad.rb")))
+      raise Hecks::Adapters::ConsoleCapture::Failure, "failing spec: spec/bad_spec.rb # bad example" if red
+    end
   end
 
   def reverted_copy?(directory) = git("log", "-1", "--format=%s", chdir: directory).start_with?("Revert")
@@ -169,6 +180,40 @@ RSpec.describe "a red main reverting its one bad merge" do
     expect(event_names).to include("EpisodeParked")
     expect(reverts).to eq(1)
     expect(landing_refused?).to be(true)
+  end
+
+  # The first of three landings adds the bad file; the two after it touch other files only.
+  def first_of_three_is_bad
+    base = git("rev-parse", "main").strip
+    Hecks::Adapters::MainIntegration::LastVerified.write(File.join(repo, ".git"), base)
+    @bad = merge_branch("one", "bad.rb")
+    merge_branch("two", "two.rb")
+    merge_branch("three", "three.rb")
+  end
+
+  it "reverts the first merge when the later ones do not touch the failing spec", :aggregate_failures do
+    stub_outside
+    verify(first_of_three_is_bad)
+    expect(subjects.first).to eq("Revert \"Merge branch 'one'\"")
+    expect(event_names).to include("EpisodeReverting")
+  end
+
+  def verify_with_no_merge_red
+    stub_outside
+    stub_probes(green: true)
+    verify(three_landings.last)
+  end
+
+  it "raises the flag and tells the owner when no single merge is red", :aggregate_failures do
+    verify_with_no_merge_red
+    expect(event_names).to include("EpisodeUnfound", "RedFlagRaised")
+    expect(landing_refused?).to be(true)
+  end
+
+  it "reverts and acquits nothing when no single merge is red", :aggregate_failures do
+    verify_with_no_merge_red
+    expect(event_names).not_to include("EpisodeReverting", "EpisodeAcquitted")
+    expect(reverts).to eq(0)
   end
 
   it "reverts nothing when the spec is red at the last verified commit too", :aggregate_failures do
