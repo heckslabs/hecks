@@ -26,7 +26,7 @@ module Hecks
         def text(own, inherited, base)
           lines = ["CI run #{@run["id"]} (#{@run["html_url"]}): #{@run["conclusion"]}; #{timing}"]
           lines << (own.empty? ? "own failures: none" : "own failures:")
-          lines.concat(own.map { |failure| "#{failure.name}: #{tail(failure)}" })
+          lines.concat(own.map { |failure| "#{failure.name}: #{named(failure)}#{tail(failure)}" })
           (lines + base_lines(own + inherited, inherited, base)).join("\n")
         end
 
@@ -48,6 +48,8 @@ module Hecks
         rescue ArgumentError
           "times unread"
         end
+
+        def named(failure) = failure.examples.empty? ? "" : "[#{failure.examples.join(", ")}] "
 
         def tail(failure)
           return "log unread" unless failure.log

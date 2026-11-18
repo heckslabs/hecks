@@ -156,7 +156,7 @@ RSpec.describe "early CI" do
         red_main
         fake.jobs = [failed(2, "rspec_2", "./spec/stale_spec.rb:4"), failed(3, "rspec_3", "./spec/new_spec.rb:9")]
         out = request("coder-own")
-        expect(out).to include("failed", "own failures:\\nrspec_3: ")
+        expect(out).to include("failed", "own failures:\\nrspec_3: [./spec/new_spec.rb:9] ")
         expect(out).to include("inherited from main", "rspec_2 [./spec/stale_spec.rb:4]")
       end
 
