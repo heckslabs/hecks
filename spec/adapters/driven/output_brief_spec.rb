@@ -48,6 +48,25 @@ RSpec.describe Hecks::Adapters::OutputBrief do
     expect(summary.lines.last).to eq("52 examples, 2 failures")
   end
 
+  it "lists each failure's first error line before the failed examples, which still end the answer", :aggregate_failures do
+    summary = brief.call(runner_text, label: "run_spec_files")
+    expect(summary).to include("Errors:\n  1. sample breaks: boom\n  2. sample cracks: bang")
+    expect(summary.index("Errors:")).to be < summary.index("Failed examples:")
+  end
+
+  it "skips the source lines under Failure/Error to the message" do
+    block = ["  1) a fails", "     Failure/Error: expect(x)", "       .to eq(1)", "", "       expected: 1", "            got: 2"]
+    text = [*block, "", "Finished in 1 second", "1 example, 1 failure"].join("\n")
+    errors = Hecks::Adapters::OutputBrief::FailureErrors.new(text.lines.map(&:chomp), 5)
+    expect(errors.to_s).to eq("Errors:\n  1. a fails: expected: 1")
+  end
+
+  it "lists at most the limit and counts the rest" do
+    lines = (1..4).flat_map { |n| ["  #{n}) f#{n}", "     boom #{n}", ""] }
+    listed = Hecks::Adapters::OutputBrief::FailureErrors.new(lines, 2).to_s
+    expect(listed.lines.last).to eq("  (2 more in the file)")
+  end
+
   it "shows the opening lines of a red run that printed no failure block" do
     noise = Array.new(60, "  noise")
     text = ["An error occurred while loading ./spec/a_spec.rb", *noise, "0 examples, 0 failures, 1 error"].join("\n")
@@ -108,6 +127,12 @@ RSpec.describe Hecks::Adapters::OutputBrief do
       expect(summary).to match(/^\s+1\) b (breaks|cracks)/).and match(%r{^rspec \./b_spec\.rb:\d+ # b breaks$})
       expect(summary).to include("b_spec.rb: 3 examples, 2 failures  FAILED", "failed: b_spec.rb (1 of 1 files)")
       expect(summary.lines.last).to eq("3 examples, 2 failures")
+    end
+
+    it "lists the first error line of each failed example", :aggregate_failures do
+      summary = described_class::SpecSummary.new(real_refusal, "/filed.log", described_class::LIMITS).to_s
+      expect(summary).to include("Errors:", "1. b breaks: expected: 2", "2. b cracks: RuntimeError:")
+      expect(summary).not_to match(/^\s*1\) .*: /)
     end
   end
 
