@@ -14,7 +14,8 @@ module Hecks
         # Only the entry a line is served from counts: a line made under the spec switch or a
         # `memory` or `test` environment is meant to run on Memory and is never refused.
         module PersistenceGuard
-          # An aggregate a local hecksagon binds to SQLite: `Tickets::Work.persisted_by("SqlitePersistence")`.
+          # An aggregate a local hecksagon binds to SQLite, as in
+          # `Tickets::Work.persisted_by("SqlitePersistence")`.
           BIND = /^\s*([A-Z]\w*(?:::\w+)+)\.persisted_by\(?\s*["']SqlitePersistence["']/
           # The store a registry row names for an aggregate that is on Memory.
           MEMORY = "Memory".freeze
@@ -25,8 +26,8 @@ module Hecks
 
           # @param directory [String] the Hecks domain's directory in the checkout
           # @param env [#[]] the resident's environment, which the worktree borrow reads
-          # @return [Array<String>] the aggregates, as `Domain::Aggregate`, the local hecksagons bind
-          #   to SQLite
+          # @return [Array<String>] the aggregates, as `Domain::Aggregate`, the local hecksagons
+          #   bind to SQLite
           def declared(directory, env = ENV)
             require "hecks/adapters/driven/worktree_borrow"
             own = Adapters::WorktreeBorrow.directory(directory, env: env) || directory
@@ -36,7 +37,7 @@ module Hecks
           end
 
           # @param declared [Array<String>] what {declared} answered
-          # @param rows [Array<Array>] the registry's store rows: the name, the store, where it was bound
+          # @param rows [Array<Array>] the registry's store rows: name, store, where it was bound
           # @return [String, nil] the first declared aggregate whose loaded store is Memory
           def gap(declared, rows)
             memory = rows.select { |_, store, _| store == MEMORY }.map { |name, _, _| name.delete_prefix(ROW) }
