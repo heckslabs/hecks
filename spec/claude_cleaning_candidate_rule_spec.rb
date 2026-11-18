@@ -4,7 +4,8 @@ require "spec_helper"
 require "hecks/hecks/adapters/claude_cleaning"
 
 # The rule that makes a listed session a candidate for removal: a finished-done run's session is
-# one when the listing says `done`, `blocked`, or `working` while its status is `idle` (the turn is over).
+# one when the listing says `done` or `blocked`, or says `working` while its status is `idle` (the
+# turn is over).
 RSpec.describe Hecks::Adapters::ClaudeCleaning::CandidateRule do
   subject(:rule) { described_class.new(runs: runs, transcript: transcript) }
 
