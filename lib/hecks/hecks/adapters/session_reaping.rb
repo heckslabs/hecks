@@ -5,6 +5,7 @@ require_relative "console_capture"
 require_relative "claude_cleaning/worktree_check"
 require_relative "dispatching/work_items"
 require_relative "landing/worktree_scratch"
+require "hecks/checkout_caches"
 
 module Hecks
   module Adapters
@@ -52,7 +53,9 @@ module Hecks
         { note: "cleared #{done[:cleared].length} scratch path(s)#{kept_words(done[:kept])}" }
       end
 
-      # Removes a worktree and deletes its branch, once the branch is on `main`.
+      # Removes a worktree and deletes its branch, once the branch is on `main`, and then the build
+      # and boot caches the worktree kept outside itself ({CheckoutCaches}), named while it stood.
+      # A worktree the retirement kept keeps its caches too.
       #
       # @param path [String] the worktree's directory
       # @return [Hash{Symbol => Object}] `note:` what the retirement reported
@@ -60,8 +63,10 @@ module Hecks
       def retire(path)
         require_relative "delivery_library"
         Hecks::Adapters::DeliveryLibrary.require("git_landing")
+        caches = CheckoutCaches.of(path)
         branch = @shell.capture("git", "-C", path, "rev-parse", "--abbrev-ref", "HEAD").out.strip
         said = GitLanding.new(registry: @registry).remove(checkout: path, branch: branch, onto: "main")
+        CheckoutCaches.remove(caches) unless File.exist?(path)
         { note: "worktree retired: #{said.dig(:report, :value)}" }
       end
 

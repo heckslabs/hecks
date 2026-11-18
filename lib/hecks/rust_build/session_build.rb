@@ -2,6 +2,7 @@
 
 require "digest"
 require "fileutils"
+require_relative "../checkout_slug"
 require_relative "build_policy"
 require_relative "toolchain"
 require_relative "world_rows"
@@ -102,49 +103,28 @@ module Hecks
 
       # @param root [String] a hecks checkout
       # @return [String] the name of the directory a binary build in +root+ keeps below the shared
-      #   one: the checkout's name and a digest of its path, so two checkouts never share one
-      def slug(root)
-        path = File.expand_path(root)
-        "#{File.basename(path)}-#{Digest::SHA256.hexdigest(path)[0, 8]}"
-      end
+      #   one ({CheckoutSlug.slug})
+      def slug(root) = CheckoutSlug.slug(root)
 
-      # The names a checkout's slot may carry: its path as given and as the file system spells it,
-      # which differ where a path crosses a symlink (`/var` and `/private/var`).
-      #
       # @param root [String] a hecks checkout
-      # @return [Array<String>] the distinct slot names
-      def slugs(root)
-        [slug(root), slug(File.realpath(root))].uniq
-      rescue SystemCallError
-        [slug(root)]
-      end
+      # @return [Array<String>] the names a checkout's slot may carry ({CheckoutSlug.slugs})
+      def slugs(root) = CheckoutSlug.slugs(root)
 
-      # File in a slot naming the checkout it belongs to, so a prune can tell a slot whose
-      # checkout is gone from one whose checkout git lists under another spelling.
-      OWNER = ".owner"
+      # File in a slot naming the checkout it belongs to ({CheckoutSlug::OWNER}).
+      OWNER = CheckoutSlug::OWNER
 
       # @param shared [String] the world's shared target directory
       # @param root [String] the checkout the slot belongs to
       # @return [String] the slot below +shared+; nothing is made
       def slot(shared, root) = File.join(shared, slug(root))
 
-      # Makes the slot and records +root+ as its owner, before a build writes to it; a slot that
-      # cannot be written to is left unrecorded.
+      # Makes the slot and records +root+ as its owner, before a build writes to it
+      # ({CheckoutSlug.claim}).
       #
       # @param dir [String] a slot
       # @param root [String] the checkout the slot belongs to
       # @return [String] +dir+
-      def claim(dir, root)
-        file = File.join(dir, OWNER)
-        owner = File.realpath(root)
-        unless File.file?(file) && File.read(file) == owner
-          FileUtils.mkdir_p(dir)
-          File.write(file, owner)
-        end
-        dir
-      rescue SystemCallError
-        dir
-      end
+      def claim(dir, root) = CheckoutSlug.claim(dir, root)
 
       # Claims +dir+ when it is the slot of +root+, for a build that took its directory from a
       # lookup; any other directory (one named by hand, the workspace's own `target/`) is left
