@@ -17,10 +17,10 @@ module Hecks
       end
 
       # @param held [Hash] the dispatched `AgentRun` record: `run`, `work` and `agent`
-      # @return [Hash{Symbol => String}] `holder:` the key of another run on the same work, `holder_status:`
-      #   and `holder_agent:` its status and agent, and `requester_agent:` the dispatched run's agent;
-      #   a started run is preferred when several serve the work, and the holder facts are empty
-      #   when none does
+      # @return [Hash{Symbol => String}] `holder:` the key of another run on the same work,
+      #   `holder_status:` and `holder_agent:` its status and agent, and `requester_agent:` the
+      #   dispatched run's agent; a started run is preferred when several serve the work, and the
+      #   holder facts are empty when none does
       def call(held)
         own = plain(held[:run]).to_s
         found = runs.reject { |run| value(run, :run) == own }.select { |run| served(run) == served(held) }
