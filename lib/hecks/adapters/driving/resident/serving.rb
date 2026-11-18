@@ -78,15 +78,16 @@ module Hecks
 
           # @return [String, nil] why the line cannot be served: `script` (not this checkout's
           #   launcher), `env:<NAME>` (an environment variable the code loaded under differs; the
-          #   first three differing names, joined with `+`) or `changed` (the code or declarations
-          #   changed, so the resident retires); nil when it can
+          #   first three differing names, joined with `+`), `overlay:cwd` (the line's directory
+          #   keeps local files, {PersistenceGuard.foreign_overlay}), `persistence:<Aggregate>` or
+          #   `changed` (the code or declarations changed, so the resident retires); nil when it can
           def unservable(request)
             return "script" unless same_script?(request)
 
             names = differing(request[:env])
             return "env:#{names}" if names
 
-            refusal = unpersisted(request[:env])
+            refusal = PersistenceGuard.foreign_overlay(request[:cwd].to_s, @root) || unpersisted(request[:env])
             return refusal if refusal
             return nil unless changed?
 
