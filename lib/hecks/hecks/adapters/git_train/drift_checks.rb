@@ -2,7 +2,6 @@
 
 require "open3"
 require_relative "../console_capture"
-require_relative "train_env"
 
 module Hecks
   module Adapters
@@ -31,7 +30,6 @@ module Hecks
         # @return [void]
         # @raise [ConsoleCapture::Failure] naming the first check that found drift
         def run(settled)
-          @env = TrainEnv.for(settled)
           @checks.each do |argv|
             out = found(argv, settled) or next
 
@@ -43,11 +41,11 @@ module Hecks
 
         # What a check printed when it found drift, nil when it is clean.
         def found(argv, settled)
-          out, status = Open3.capture2e(@env, *argv, chdir: @checkout)
+          out, status = Open3.capture2e(*argv, chdir: @checkout)
           return if status.success?
           return out if @guard.head == settled
 
-          out, status = Open3.capture2e(@env, *argv, chdir: @checkout)
+          out, status = Open3.capture2e(*argv, chdir: @checkout)
           out unless status.success?
         end
 
