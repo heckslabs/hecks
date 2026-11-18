@@ -123,6 +123,10 @@ header.top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 20p
 .item:last-child { border-bottom: 0; }
 .item > .cell { align-self: center; }
 /* The work of an epic that is over, under what is left of it. */
+.run-row { display: flex; flex-direction: column; padding: 4px 0 0; border-bottom: 1px solid var(--line); }
+.run-row:last-child { border-bottom: 0; } .run-row .item { border-bottom: 0; padding-top: 2px; }
+.run-row .in-epic, .items.run .quiet { font-size: 12px; color: var(--ink2); margin: 0; }
+.items.run .quiet { padding: 8px 0; }
 .items.over { border-top: 0; margin-top: -4px; } .over-head { font-size: 12px; color: var(--ink2); padding: 8px 0 4px; margin: 0; border-bottom: 1px solid var(--line); }
 .item.closed .what { color: var(--ink2); } .item.closed[data-status=dropped] .what { text-decoration: line-through; text-decoration-color: var(--muted); }
 .c-dropped { background: var(--muted); } .chip.k-done { color: var(--done); border-color: currentColor; }
@@ -194,7 +198,7 @@ document.addEventListener("click", (event) => {
   if (summary && !event.target.closest("a")) remember(summary.parentElement);
 });
 
-// The lanes the owner opened by hand, kept across redraws and visits; every lane is shut until then.
+// The lanes the owner opened or shut by hand, kept across redraws and visits; until then a lane is as drawn.
 const laneOpen = (() => { try { return JSON.parse(localStorage.getItem("plan-lanes") || "{}"); } catch (e) { return {}; } })();
 document.addEventListener("click", (event) => {
   const summary = event.target.closest("#plan details.lane > summary");
@@ -222,10 +226,16 @@ function apply() {
     const key = epic.dataset.epic;
     epic.open = filtering ? found > 0 : (key in chosen ? chosen[key] : epic.dataset.drawn === "open");
   });
+  // Running now holds its items, not epics: each is matched alone, with the epic name drawn over it.
+  document.querySelectorAll("#plan .run-row").forEach((row) => {
+    const item = row.querySelector(".item"), ok = matches(item, text, row.querySelector(".in-epic").textContent.toLowerCase());
+    row.hidden = item.hidden = !ok; shown += ok; total += 1;
+  });
   document.querySelectorAll("#plan .lane").forEach((lane) => {
-    lane.hidden = !lane.querySelector("details.epic:not([hidden])");
-    // A lane is shut unless the owner opened it, or a filter found something in it.
-    lane.open = filtering ? !lane.hidden : Boolean(laneOpen[lane.dataset.lane]);
+    lane.hidden = filtering && !lane.querySelector("details.epic:not([hidden]), .run-row:not([hidden])");
+    // A lane is as the owner left it, else as drawn (shut, Running now open), or open when a filter found something in it.
+    const key = lane.dataset.lane;
+    lane.open = filtering ? !lane.hidden : (key in laneOpen ? laneOpen[key] : lane.dataset.drawn === "open");
   });
   $("shown").textContent = filtering ? shown + " of " + total + " items shown" : READ_ONLY;
   $("empty").hidden = !(filtering && shown === 0);
