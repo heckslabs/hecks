@@ -106,6 +106,28 @@ RSpec.describe "AgentRun: a helper blocked with no answer" do
     expect(status_of("live-ab-trial")).not_to include(condition: { value: "abandoned" })
   end
 
+  it "ends an abandoned helper once, though its kept session still reads blocked" do
+    blocked_run("ab-again", "reviewer", 40)
+    finished = @hecks.registry.event_log.map(&:name).count("SessionFinished")
+    launch("agent_run.check!", "to=ab-again", "--wait")
+    expect(@hecks.registry.event_log.map(&:name).count("SessionFinished")).to eq(finished)
+  end
+
+  # A dispatched reviewer whose job reads blocked under a stamp that is not a time.
+  def unstamped_run(run)
+    launch("agent_run.dispatch!", "run.value=#{run}", "repo.value=#{scratch}", "brief.value=review",
+           "agent.value=reviewer", "--wait")
+    File.write(File.join(scratch, "jobs", "stand-in-session", "state.json"),
+               JSON.generate(state: "blocked", detail: "which branch?", updatedAt: "not a time"))
+    File.write(File.join(scratch, "sessions.json"),
+               JSON.generate([{ id: "stand-in-session", sessionId: FULL_SESSION, state: "blocked" }]))
+  end
+
+  it "leaves a helper whose job's stamp cannot be read started" do
+    unstamped_run("ab-unstamped")
+    expect(check("ab-unstamped")).to include("status" => "started")
+  end
+
   it "leaves a helper answered before the time started" do
     blocked_run("ab-answered", "reviewer", 10)
     job("working", 0)
