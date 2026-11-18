@@ -45,6 +45,21 @@ RSpec.describe Hecks::Adapters::DialTurning do
     end
   end
 
+  # Turns a setting in a new folder and answers what the write renamed and what is left there.
+  def turned_through_rename
+    Dir.mktmpdir do |folder|
+      allow(File).to receive(:rename).and_call_original
+      turning(folder).set(setting: "work_limit.cap", becomes: "9")
+      return [Dir.children(folder), File.method(:rename)]
+    end
+  end
+
+  it "writes through a temp file renamed into place, leaving none behind", :aggregate_failures do
+    children, = turned_through_rename
+    expect(File).to have_received(:rename).with(/turned\.local\.world\.\d+\.tmp\z/, /turned\.local\.world\z/)
+    expect(children).to eq(["turned.local.world"])
+  end
+
   it "asks the checkout's resident to retire, so the setting is in force at once" do
     Dir.mktmpdir do |folder|
       turning(folder).set(setting: "work_limit.cap", becomes: "9")
