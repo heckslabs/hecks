@@ -616,6 +616,21 @@ Hecks.bluebook "Tickets" do
       emits "EpicRanked"
     end
 
+    # Names the decision an epic carries out, as Work.Decide does for a work item, when Open named none
+    # or named another. It sets the same reference Open sets (refused by name when no Adr has that id),
+    # in any state; the title, outcome and status stay as they were.
+    command "Decide" do
+      role "Maintainer"
+      goal "Name or replace the decision an epic carries out, in any state"
+
+      reference_to Epic
+      reference_to Adr, as: :decision
+
+      sets :decision
+
+      emits "EpicDecided"
+    end
+
     # The board's epic list: every epic, lowest tier first (one sort key, so epics of a tier keep the
     # order the store holds them in).
     query "Ranked" do
