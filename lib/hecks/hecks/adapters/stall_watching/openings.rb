@@ -23,7 +23,8 @@ module Hecks
           @closes = kind[:closes].to_s.split(",").map(&:strip)
         end
 
-        # @return [Hash{String => String}] each open subject with when it opened after its last close
+        # @return [Hash{String => String}] each open subject with when it opened after its last
+        #   close
         def unclosed
           standing.transform_values { |line| line["at"] }.reject { |subject, _| subject.empty? }
         end
