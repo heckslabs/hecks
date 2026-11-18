@@ -8,9 +8,8 @@ require_relative "main_integration/command_runner"
 require_relative "main_integration/cargo_target"
 require_relative "main_integration/failure_log"
 require_relative "main_integration/refusal"
-require_relative "main_integration/last_verified"
 require_relative "main_integration/bisecting"
-require_relative "git_shallow_check/switch"
+require_relative "main_integration/local_mode"
 
 module Hecks
   module Adapters
@@ -68,11 +67,8 @@ module Hecks
         head = repository.main
         return superseded(landed, head) unless head == landed
 
-        repository.refresh
-        passed = run_checks(repository, landed)
-        return carried(landed) if @carried
-
-        answer("verified", "#{landed[0, 10]} verified: #{passed.join(", ")}#{remember(repository, landed)}")
+        mode = MainIntegration::LocalMode.new(repository)
+        mode.verifies? ? verified(repository, landed, mode) : answer("verified", mode.unchecked(landed))
       end
 
       # The facts about the first bad merge of a failed verification's range, as the domain's rule
@@ -84,6 +80,7 @@ module Hecks
       def bisect(**held)
         landed = plain(held[:landed]).to_s
         repository = repository_of(held)
+        MainIntegration::LocalMode.new(repository).search!
         since, _changed, off = range_of(repository, landed)
         facts = searched(repository, landed, since) if off
         MainIntegration::Bisecting.answer(facts, since)
@@ -91,22 +88,21 @@ module Hecks
 
       private
 
-      def repository_of(held) = MainIntegration::Repository.new(plain(held[:checkout]) || Dir.pwd)
+      def verified(repository, landed, mode)
+        repository.refresh
+        passed = run_checks(repository, landed)
+        return carried(landed) if @carried
 
-      # Records the commit as the last verified one in the git directory. A marker that cannot be
-      # written never fails a verification that passed; the report says so.
-      def remember(repository, landed)
-        MainIntegration::LastVerified.write(repository.common_dir, landed)
-        ""
-      rescue SystemCallError => e
-        "; last-verified marker not written: #{e.message}"
+        answer("verified", "#{landed[0, 10]} verified: #{passed.join(", ")}#{mode.remember(landed)}")
       end
+
+      def repository_of(held) = MainIntegration::Repository.new(plain(held[:checkout]) || Dir.pwd)
 
       # While the shallow check is off, the specs run here, after the merge: those the landings
       # since the last verified commit touch. Otherwise (or with no marker, or one this commit
       # does not descend from) the range is the one the commit adds to `origin/main`.
       def range_of(repository, landed)
-        off = !GitShallowCheck::Switch.new(repository.common_dir).on?
+        off = MainIntegration::LocalMode.new(repository).impacted?
         since = (off && last_verified(repository, landed)) || repository.remote_main
         [since, repository.changed(since, landed), off]
       end
