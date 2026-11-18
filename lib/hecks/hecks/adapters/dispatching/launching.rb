@@ -23,9 +23,11 @@ module Hecks
         def confirmed_lines(plan, held)
           report = FillReport.new(launch(plan, held))
           PlannedCache.clear!
-          [header(plan, report.tally(plan.chosen.size) + stop_clause(plan, held))] + report.lines +
-            plan.skipped.map { |skip| skipped_line(skip) }
+          [header(plan, report.tally(plan.chosen.size) + stop_clause(plan, held))] + report.lines + waiting(plan)
         end
+
+        # The area warnings, then each work item left waiting.
+        def waiting(plan) = area_warnings(plan) + plan.skipped.map { |skip| skipped_line(skip) }
 
         # Why nothing started, when nothing did: a roll leaves out the planned items no one marked.
         def stop_clause(plan, held)

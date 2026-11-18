@@ -26,6 +26,8 @@ require_relative "dispatching/rolls"
 require_relative "dispatching/rethinks"
 require_relative "dispatching/launching"
 require_relative "dispatching/shedding"
+require_relative "dispatching/narrowing"
+require_relative "dispatching/package_roots"
 
 module Hecks
   module Adapters
@@ -42,6 +44,7 @@ module Hecks
       include Rolls
       include Launching
       include Shedding
+      include Narrowing
 
       # @param registry [Runtime::Registry, nil] the booted registry whose work items are read
       # @param aggregate [Object, nil] unused
@@ -63,8 +66,8 @@ module Hecks
       def choose(**held)
         confirmed = plain(held[:confirm]) == true && refuse_stopped!.nil?
         Filling.during(confirmed) do
-          settle_ended(held) if confirmed
-          plan = plan_for(prefix(held), rolling: plain(held[:rolling]) == true)
+          settle_and_narrow(held) if confirmed
+          plan = plan_for(prefix(held), rolling: plain(held[:rolling]) == true, repo: plain(held[:repo]))
           { report: { value: filling_lines(plan, held, confirmed).join("\n") } }
         end
       end
@@ -75,7 +78,7 @@ module Hecks
       # @param held [Hash] the query's `repo`, `budget_minutes` and `only` (the key prefix)
       # @return [Hash{Symbol => String}] `text:` the report, one line per work item
       def preview(**held)
-        { text: "#{report_lines(plan_for(prefix(held))).join("\n")}\n" }
+        { text: "#{report_lines(plan_for(prefix(held), repo: plain(held[:repo]))).join("\n")}\n" }
       end
 
       # Checks every started session and settles the work item of each that ended: done finishes it.
@@ -142,8 +145,8 @@ module Hecks
 
       def in_process_runner(repo) = InProcessRunner.fits?(@registry, repo) ? InProcessRunner.new(@registry) : nil
 
-      def plan_for(only = "", rolling: false)
-        Plan.new(planned(only, rolling: rolling), work_items.started, **limits)
+      def plan_for(only = "", rolling: false, repo: nil)
+        Plan.new(planned(only, rolling: rolling), work_items.started, **limits, effective: effective_for(repo))
       end
 
       # What bounds a filling: the machine's cap and load, what pauses every work item, and the
@@ -177,7 +180,7 @@ module Hecks
 
       # The load, then each work item that starts or would, then each left waiting with its reason.
       def report_lines(plan)
-        [header(plan)] + plan.chosen.map { |item| chosen_line(item) } + waiting_lines(plan.skipped)
+        [header(plan)] + plan.chosen.map { |item| chosen_line(item) } + area_warnings(plan) + waiting_lines(plan.skipped)
       end
 
       # The skips, with those the load alone caused said once: the reason, the count and the first
