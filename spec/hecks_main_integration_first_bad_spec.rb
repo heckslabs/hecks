@@ -43,7 +43,7 @@ RSpec.describe Hecks::Adapters::MainIntegration::FirstBad do
 
   it "says why when no merge fails" do
     search_for([])
-    expect(@search.reason).to eq("no merge in the range fails its own specs")
+    expect(@search.reason).to eq("no merge in the range turns the failing specs red")
   end
 
   it "answers nil, saying the budget was spent, when it is" do
