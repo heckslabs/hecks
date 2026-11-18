@@ -23,6 +23,11 @@ RSpec.describe "A rule that tests a value with nil?" do
     expect { refuse("run.verdict.nil?") }.to raise_error(Hecks::Bluebook::DSL::Malformed, /run\.verdict == nil/)
   end
 
+  it "is asked by no bluebook in the corpus" do
+    lines = Dir[File.expand_path("../lib/**/*.bluebook", __dir__)].flat_map { |path| File.readlines(path) }
+    expect(lines.grep(/\.nil\?/)).to be_empty
+  end
+
   it "lets the == nil test through" do
     expect(refuse("tries == nil || tries.value < 3")).to be_a(Hash)
   end
