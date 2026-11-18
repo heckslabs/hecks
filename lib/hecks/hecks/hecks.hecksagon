@@ -558,6 +558,27 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  # The outside a beat reaches to weigh the Catcher: it measures how long the Catcher's file has stood
+  # untouched and answers the Catcher due once the Tickets world's `catcher_care` minutes have passed;
+  # a file touched inside the window is deferred by name.
+  Hecks::CatcherCare.port "Resting" do
+    asks "Rested", to: CatcherCare do
+      attribute :run, CareKey
+      answers "CatcherCareDue"
+      refuses "CatcherCareDeferred"
+    end
+  end
+
+  # The outside a due Catcher is run through: it requests the Catcher's drain and then its detection,
+  # as an Operator, and answers that both were requested; a refusal of either is refused by name.
+  Hecks::CatcherCare.port "Running" do
+    asks "RunCatcher", to: CatcherCare do
+      attribute :run, CareKey
+      answers "CatcherCareRan"
+      refuses "CatcherCareRunRefused"
+    end
+  end
+
   # The outside a beat reaches to purge the AgentRun file's delivered outbox rows settled before
   # `outbox_hours`, in batches under the file's write lock; with none to purge, or the file held
   # or not in SQLite, it is deferred by name.
