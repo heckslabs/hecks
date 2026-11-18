@@ -84,16 +84,22 @@ function h(tag, attrs, ...kids) {
 }
 const unset = (v) => v === null || v === undefined;
 /* The value as words: a switch is on or off, a whole number has no point. */
-const shown = (d) => (unset(d.value) ? "not set" : d.kind === "switch" ? (d.value ? "on" : "off") : String(Number(d.value)));
+const shown = (d) => (unset(d.value) ? "not set" : d.kind === "switch" ? (d.value ? "on" : "off") : d.kind === "choice" ? String(d.value) : String(Number(d.value)));
 /* What the owner has moved and not yet saved: setting name to the new value as text. */
 const pending = new Map();
 function changed(d, value) {
-  const same = d.kind === "switch" ? (value === "on") === (d.value === true) : Number(value) === Number(d.value);
+  const same = d.kind === "switch" ? (value === "on") === (d.value === true) : d.kind === "choice" ? value === d.value : Number(value) === Number(d.value);
   if (same) pending.delete(d.setting); else pending.set(d.setting, value);
   bar();
 }
 /* A slider between the setting's bounds with its value beside it; nothing is set until Save. */
 function control(d) {
+  if (d.kind === "choice") {
+    const words = d.least.split("|"), said = (d.means || "").split("|");
+    const pick = h("select", { "aria-label": d.says }, words.map((w) => h("option", w === d.value ? { selected: "" } : {}, w)));
+    pick.addEventListener("change", () => { pick.classList.toggle("changed", pick.value !== d.value); changed(d, pick.value); });
+    return [h("div", { class: "range" }, h("ul", { class: "means" }, said.map((m) => h("li", {}, m)))), h("div", { class: "turn" }, pick)];
+  }
   if (d.kind === "switch") {
     const pick = h("select", { "aria-label": d.says }, ["on", "off"].map((w) => h("option", (d.value === true) === (w === "on") ? { selected: "" } : {}, w)));
     pick.addEventListener("change", () => { pick.classList.toggle("changed", (pick.value === "on") !== (d.value === true)); changed(d, pick.value); });
@@ -141,7 +147,7 @@ function headline(dials) {
   p.append(h("small", {}, changed ? changed + (changed === 1 ? " setting was" : " settings were") + " set from here. " : "", "A change is kept on this machine only and is never committed."));
 }
 /* A value the dial's own bounds do not allow: set by hand in the overlay file, such as a pause at 0. */
-const outside = (d) => d.kind !== "switch" && !unset(d.value) && (Number(d.value) < Number(d.least) || Number(d.value) > Number(d.most));
+const outside = (d) => d.kind !== "switch" && d.kind !== "choice" && !unset(d.value) && (Number(d.value) < Number(d.least) || Number(d.value) > Number(d.most));
 /* The three questions the settings answer, the settings under each, and the live numbers each one moves.
    A number the board does not measure yet is said so, not left out. */
 const GROUPS = [
