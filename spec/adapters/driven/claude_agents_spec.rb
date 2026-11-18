@@ -40,10 +40,11 @@ RSpec.describe Hecks::Adapters::ClaudeAgents do
     # Answers a probe for an agent it does not have as `claude` does, naming the agents it has.
     LISTING = "#!/bin/sh\necho \"--agent '$2' not found. Available agents: claude, Explore, coder\" >&2\nexit 1\n".freeze
 
-    it "says a directory is there, and that with no agent named there is nothing to look for" do
+    it "says a directory is there, that no agent named needs no look, and that no run holds the work" do
       expect(adapter.locate(repo: { value: scratch }))
         .to eq(report: { value: "#{scratch} is a directory" }, listed: true,
-               note: "no agent named: the session runs the default agent")
+               note: "no agent named: the session runs the default agent",
+               holder: "", holder_status: "", holder_agent: "", requester_agent: "")
     end
 
     it "says an agent the directory's claude lists is listed" do
