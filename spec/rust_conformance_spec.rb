@@ -127,7 +127,8 @@ RSpec.describe "Rust conformance (native binary)", :io do
     binary = banking_binary
 
     # The manifest declares no gap for this verb, so a divergence would be a fuzzer finding.
-    expect(Hecks::Fuzzing::RustGapManifest.for_binary(binary).not_generated(RUST_CONFORMANCE_UNCOVERED_QUERY)).to be_nil
+    gaps = Hecks::Fuzzing::RustGapManifest.for_binary(binary, rust_dir: RUST_DIR)
+    expect(gaps.not_generated(RUST_CONFORMANCE_UNCOVERED_QUERY)).to be_nil
     expect(uncovered_query_output(binary)["queries"]).to eq([])
   end
 end
