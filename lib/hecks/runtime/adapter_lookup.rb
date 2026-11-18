@@ -49,6 +49,16 @@ module Hecks
         build(klass, registry: registry, aggregate: aggregate)
       end
 
+      # What {standing_in} puts in the place of a port's adapter, for a port that finds its adapter
+      # itself (the identity port hands out the adapter module rather than building it).
+      #
+      # @param port_name [String] the port's name as an adapter declares it
+      # @param asked [String] what is being asked, worded into a refusal
+      # @return [Object, nil] the stand-in's answer, or nil when none stands in (or it answers nil)
+      def stand_in_for(port_name, asked)
+        @stand_in&.call(port_name, asked)
+      end
+
       # Builds `klass` with the context keywords its constructor names, and no others.
       #
       # @param klass [Class] the adapter class

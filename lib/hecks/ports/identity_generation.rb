@@ -1,4 +1,5 @@
 require_relative "../runtime/registry"
+require_relative "../runtime/adapter_lookup"
 
 module Hecks
   module Ports
@@ -8,27 +9,10 @@ module Hecks
     module IdentityGeneration
       NAME = "identity_generation".freeze
 
-      # The stand-ins, each answering for one registry only, so a replay that scripts its ids
-      # changes no other boot in the process.
-      STAND_INS = ObjectSpace::WeakMap.new
+      # What a stand-in is told it is answering in this port's place.
+      ASKED = "a minted identity".freeze
 
       module_function
-
-      # Answers `registry`'s identity requests with `stand_in` instead of its bound adapter
-      # while the block runs, for a replay that needs the ids known in advance (a conformance
-      # replay scripts them so both engines mint the same ones). Every other registry keeps its
-      # adapter.
-      #
-      # @param registry [Runtime::Registry] the one registry the stand-in answers for
-      # @param stand_in [#uuid] the object that mints instead of the adapter
-      # @yield the work to run with the stand-in in place
-      # @return [Object] what the block answers
-      def standing_in(registry, stand_in)
-        STAND_INS[registry] = stand_in
-        yield
-      ensure
-        STAND_INS.delete(registry)
-      end
 
       # Mints a fresh identity value from the bound adapter.
       #
@@ -38,16 +22,17 @@ module Hecks
       # @raise [Runtime::WiringError] if this port does not resolve to exactly one adapter
       def uuid(registry) = adapter(registry).uuid
 
-      # Finds the single adapter bound to this port.
+      # Finds the single adapter bound to this port, or what `Runtime::AdapterLookup.standing_in`
+      # has put in its place, as every other port's adapter is found.
       #
+      # @param registry [Runtime::Registry] the booted registry to resolve the adapter against
+      # @return [#uuid] the bound adapter, or the stand-in for it
       # @raise [Runtime::WiringError] if none, or more than one, implements this port
       def adapter(registry)
-        return STAND_INS[registry] if STAND_INS.key?(registry)
-
         implementations = registry.adapters.values.select { |a| a.port == NAME }
-        return registry.adapter_class(implementations.first.name) if implementations.size == 1
+        raise Runtime::WiringError, wiring_refusal(implementations) unless implementations.size == 1
 
-        raise Runtime::WiringError, wiring_refusal(implementations)
+        Runtime::AdapterLookup.stand_in_for(NAME, ASKED) || registry.adapter_class(implementations.first.name)
       end
 
       # Words the refusal for a port that resolves to no adapter or to several.
