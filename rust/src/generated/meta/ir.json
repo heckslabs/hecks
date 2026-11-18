@@ -39786,6 +39786,63 @@
               ]
             ]
           ]
+        },
+        {
+          "name": "RequiredTextName",
+          "attributes": [
+            {
+              "name": "name",
+              "type": "String",
+              "list": false,
+              "default": null,
+              "optional": false,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            }
+          ],
+          "invariants": [
+
+          ],
+          "closed_set": true,
+          "members": [
+            [
+              [
+                "name",
+                "report"
+              ]
+            ],
+            [
+              [
+                "name",
+                "refusal"
+              ]
+            ],
+            [
+              [
+                "name",
+                "summary"
+              ]
+            ],
+            [
+              [
+                "name",
+                "outcome"
+              ]
+            ],
+            [
+              [
+                "name",
+                "reason"
+              ]
+            ],
+            [
+              [
+                "name",
+                "text"
+              ]
+            ]
+          ]
         }
       ],
       "commands": [
