@@ -17,14 +17,17 @@ module Hecks
       class Openings
         # @param kind [Hash] a `StallKind` row
         # @param lines [Array<Hash>] tap lines in sequence order; the order is read, never re-sorted
-        def initialize(kind, lines)
+        # @param closed [Boolean] whether a subject a closing line closed stands as well, from the
+        #   opening line of its latest stretch: a filed stall whose line closed keeps its subject
+        def initialize(kind, lines, closed: false)
           @kind = kind
+          @closed = closed
           @mine = lines.select { |line| line["kind"] == "event" && line["aggregate"] == kind[:aggregate] }
           @closes = kind[:closes].to_s.split(",").map(&:strip)
         end
 
         # @return [Hash{String => String}] each open subject with when it opened after its last
-        #   close
+        #   close; with `closed: true` each subject that opened, from its latest stretch's start
         def unclosed
           standing.transform_values { |line| line["at"] }.reject { |subject, _| subject.empty? }
         end
@@ -40,7 +43,21 @@ module Hecks
 
         # Each open subject with the opening line it stands open from.
         def standing
-          @standing ||= @kind[:closed_by] == "any" ? since_last_close : by_id
+          @standing ||= if @closed then latest_stretches
+                        elsif @kind[:closed_by] == "any" then since_last_close
+                        else by_id
+                        end
+        end
+
+        # Every subject that opened, with the first opening line after its last close before it.
+        def latest_stretches
+          shut = Set.new
+          @mine.each_with_object({}) do |line, opened|
+            id = line["id"].to_s
+            if closing?(line) then shut << id
+            elsif opening?(line) && (shut.delete?(id) || !opened.key?(id)) then opened[id] = line
+            end
+          end
         end
 
         # Read in order: a closing line drops its id's opening, an opening line stands if none does.
