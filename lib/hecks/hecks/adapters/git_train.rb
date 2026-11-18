@@ -17,6 +17,8 @@ require_relative "git_train/launcher_shape"
 require_relative "git_train/named_commit"
 require_relative "git_train/landings"
 require_relative "git_train/reverting"
+require_relative "git_train/landed_range"
+require_relative "git_train/termination"
 
 module Hecks
   module Adapters
@@ -82,13 +84,8 @@ module Hecks
       # @raise [Runtime::WiringError] when the mint refuses, before anything is pushed
       def carry(**held)
         @checkout = toplevel(plain(held[:checkout]) || Dir.pwd)
-        in_turn do
-          boarded = boarded_commit(held)
-          size = push_size(held, boarded)
-          LauncherShape.new(@git, @checkout, domain: @domain).check!(boarded)
-          minted = @mint.run(run: plain(held[:run]), confirm: plain(held[:confirm]))
-          after_mint(minted, boarded, settle_and_carry(held, boarded), size)
-        end
+        fault = Termination.new(read("rev-parse", "--path-format=absolute", "--git-common-dir"), branch_of(held))
+        fault.watch { in_turn { board(held, fault) } }
       end
 
       # Reads the pull request of a queued boarding. Merged, it names the merge commit as the pushed
@@ -144,6 +141,15 @@ module Hecks
 
       private
 
+      # One boarding once it holds the line: each step names itself to the fault record first.
+      def board(held, fault)
+        boarded = boarded_commit(held)
+        size = push_size(held, boarded)
+        LauncherShape.new(@git, @checkout, domain: @domain).check!(boarded)
+        minted = @mint.run(run: plain(held[:run]), confirm: plain(held[:confirm])).tap { fault.at("carrying #{boarded[0, 9]}") }
+        after_mint(minted, boarded, settle_and_carry(held, boarded), size)
+      end
+
       # The commit the branch names as the boarding begins, read once the line is held.
       def boarded_commit(held)
         head = commit_named(held) || Carriage.new(@git, @checkout, branch: branch_of(held), remote: remote_of(held)).local_head
@@ -165,11 +171,11 @@ module Hecks
         remote = remote_of(held)
         named = !plain(held[:commit]).nil?
         settled = named ? boarded : Settlement.new(@git, @checkout, branch: branch, remote: remote).run(boarded)
-        [carrier(branch, remote, held).carry(settled), settled]
+        [carrier(branch, remote, held, settled).carry(settled), settled]
       end
 
-      def carrier(branch, remote, held)
-        config = gate_config(held)
+      def carrier(branch, remote, held, settled)
+        config = gate_config(held) + LandedRange.new(@git, @checkout).config(branch, remote, settled)
         return Carriage.new(@git, @checkout, branch: branch, remote: remote, config: config) unless branch == "main"
 
         PullRequestBoarding.new(@git, @checkout, remote: remote, config: config, runner: @runner).tap do |boarding|
