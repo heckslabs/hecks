@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "cgi"
-require_relative "plan_item"
 
 module Hecks
   module Adapters
@@ -47,9 +46,10 @@ module Hecks
           "<div class=\"strip4\">#{running(data[:running])}#{upnext(data)}#{landing(data[:landing])}#{owner(data[:owner])}</div>"
         end
 
+        # The count of running items, linking to the Running now panel that holds them.
         def running(rows)
-          list = rows.map { |row| "#{esc(row[:title])} <span class=\"facts\">#{PlanItem.session_link(row)}</span>" }
-          card("Running now (#{rows.size})", list.empty? ? ["nothing is running"] : list)
+          said = "<a href=\"#running\">#{rows.size} #{rows.size == 1 ? "item" : "items"} running</a>"
+          card("Running now (#{rows.size})", [rows.empty? ? "nothing is running" : said])
         end
 
         # How many queued items the card names; the rest are counted, never listed.
