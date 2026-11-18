@@ -36,6 +36,6 @@ RSpec.describe "the agents handing work to each other" do
   it "asks no one to recommend a promotion once a passage is verified", :aggregate_failures do
     verify_passage("w-pass")
     expect(reaction("RecommendPromotionWhenVerified")).to be_empty
-    expect(launch("agents", "PromotionRecommendation.open").first.to_s).not_to include("w-pass")
+    expect(launch("agents", "PromotionRecommendation.open").join).to include("no such")
   end
 end
