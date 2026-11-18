@@ -127,20 +127,6 @@ module Hecks
           { work: work.empty? ? run[:run].to_s : work, run: run[:run].to_s, verdict: ArchitectVerdict.of(closing),
             findings: ArchitectFindings.clip(closing.strip) }
         end
-
-        # The promotions the release manager recommends that the owner has not settled: each change
-        # whose newest promotion event is a `PromotionRecommended`. The events come from the journal
-        # and the event log, because the process that raised them has ended. The log keeps no
-        # payload, so the reasons are blank.
-        #
-        # @param events [Array<Hash>, Hash] promotion events, newest first, or `{unknown:}`
-        # @return [Array<Hash>, Hash] each recommendation's `change` and `reasons`, or `{unknown:}`
-        def recommendations(events)
-          return events unless events.is_a?(Array)
-
-          open = events.uniq { |found| found[:id] }.select { |found| found[:name].to_s.end_with?("PromotionRecommended") }
-          open.map { |found| { change: found[:id].to_s, reasons: "" } }.sort_by { |row| row[:change] }
-        end
       end
     end
   end
