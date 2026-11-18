@@ -30,6 +30,9 @@ module DriftCheckHelpers
     { "PATH" => "#{@dir}/brew:/usr/bin:/bin", "CARGO_HOME" => File.join(@dir, "rustup") }
   end
 
+  # An environment with no cargo on its `PATH` and none where rustup would keep one.
+  def bare = { "PATH" => "/usr/bin:/bin", "CARGO_HOME" => File.join(@dir, "none") }
+
   # @return [String, nil] the refusal the check raised, nil when it passed
   def refusal(script, env)
     guard = instance_double(Hecks::Adapters::GitTrain::BranchGuard, head: "abc123")
@@ -63,6 +66,10 @@ RSpec.describe Hecks::Adapters::GitTrain::DriftChecks, :io do
     message = refusal("cargo --version; exit 1", base(proxy: "1.98.0"))
 
     expect(message).to include("cargo 1.98.0")
+  end
+
+  it "names a failed build under no cargo when none is on PATH and rustup has none" do
+    expect(refusal(DriftCheckHelpers::BUILD_FAILED, bare)).to include("under a cargo not found on PATH")
   end
 
   it "still names a difference in the generated files as drift" do
