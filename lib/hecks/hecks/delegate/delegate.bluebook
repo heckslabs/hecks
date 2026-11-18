@@ -2889,9 +2889,9 @@ Hecks.bluebook "Hecks" do
       trigger SessionCleanup::Decline, with: { refusal: :refusal }
     end
 
-    # A blocked run's question for the orchestrator, whatever marker it begins with or none; keyed by
-    # the run, so it asks one at a time. [owner] and [review] waits are not asked: no run answers
-    # the owner's, and an unanswered block is escalated by the agent-run-blocked stall.
+    # Marked or not, a stall fixer's (`stall-`) too, which agent-run-blocked never times. No other
+    # orchestrator run asks: an answerer's minted key never starts `stall-`. [owner] and [review]
+    # waits are not asked.
     aggregate "Question" do
       description "One question a blocked run asks the orchestrator: asked, seated with an orchestrator run that answers it, then closed when the run is answered or escalated as the owner's."
 
@@ -2908,7 +2908,8 @@ Hecks.bluebook "Hecks" do
       value_object "QuestionText", String
 
       # `asked` waits for a seat; `seated` has an orchestrator run answering it. A question that
-      # found no seat waits for the agent-run-blocked stall, which wakes the orchestrator.
+      # found no seat waits for the agent-run-blocked stall, which wakes the orchestrator; a
+      # stall fixer's, which that stall never times, waits for the next seat to free.
       lifecycle :status, default: "asked" do
         transition "Seat"     => "seated",    from: "asked"
         transition "Close"    => "closed",    from: "seated"
@@ -2992,7 +2993,7 @@ Hecks.bluebook "Hecks" do
         on      "AgentRun.JobRead"
         root
         where   do
-          state == "blocked" && previous != state && agent != "orchestrator" &&
+          state == "blocked" && previous != state && (agent != "orchestrator" || run.start_with?("stall-")) &&
             !detail.start_with?("[owner]") && !detail.start_with?("[review]")
         end
         trigger Question::Ask, with: { run: :run, text: :detail }
@@ -3025,7 +3026,7 @@ Hecks.bluebook "Hecks" do
         root
         trigger AgentRun::Dispatch,
                 with: { repo: ".", agent: "orchestrator", works_as: "answerer", work: :run,
-                        brief: "A coder's run is blocked on a question for you: your run's work names it " \
+                        brief: "A run is blocked on a question for you: your run's work names it " \
                                "(AgentRun.running). Answer it with AgentRun.answer! under your standing rule " \
                                "answer-within-the-brief, or escalate it when the answer is the owner's. " \
                                "Never answer for the owner a push, promote, release, plan confirmation, " \
@@ -3096,7 +3097,7 @@ Hecks.bluebook "Hecks" do
 
     # The seats of the orchestrator runs that answer questions: at most two at once, so a burst of
     # blocked runs cannot start a crowd of orchestrators. A question that finds no seat waits for the
-    # agent-run-blocked stall. The one desk is created by the first question; `last` names the
+    # agent-run-blocked stall, a stall fixer's for the next seat to free. The one desk is created by the first question; `last` names the
     # question that took the latest seat, so the first question, seated by `Open`, is not seated again
     # by `Take` whichever of the two reacts first.
     aggregate "AnswerDesk" do
