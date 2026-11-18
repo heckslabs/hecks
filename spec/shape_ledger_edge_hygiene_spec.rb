@@ -9,7 +9,6 @@ RSpec.describe "edge hygiene in the shape ledger" do
   let(:hygiene) { Hecks::ShapeLedger::EdgeHygiene }
   let(:shapes) { { "Shop" => "dddddd1" } }
   let(:ledger) { { "Shop" => "dddddd9" } }
-  let(:no_moves) { {} }
 
   def write_edges(dir, edges)
     FileUtils.mkdir_p(File.join(dir, "translations"))
@@ -19,10 +18,10 @@ RSpec.describe "edge hygiene in the shape ledger" do
     end
   end
 
-  def found(*edges, moves: no_moves)
+  def found(*edges)
     Dir.mktmpdir("edge-hygiene") do |dir|
       write_edges(dir, edges)
-      return hygiene.findings(dir, ledger: ledger, shapes: shapes, moves: moves)
+      return hygiene.findings(dir, ledger: ledger, shapes: shapes)
     end
   end
 
@@ -58,15 +57,10 @@ RSpec.describe "edge hygiene in the shape ledger" do
     expect(found(*edges).first.message).to include("keep aaaaaa -> dddddd", "2-aaaaaa-bbbbbb", "2-cccccc-dddddd")
   end
 
-  it "counts a recorded implicit move as an edge" do
-    moves = { "Shop" => [{ "from" => "aaaaaa", "to" => "dddddd" }] }
-    expect(found(%w[aaaaaa bbbbbb], %w[bbbbbb dddddd], moves: moves).map(&:kind)).to eq([:fork])
-  end
-
   describe "the known list" do
     around { |example| Dir.mktmpdir("edge-hygiene-check") { |dir| @dir = dir and example.run } }
 
-    def report = hygiene.report(@dir, ledger: {}, shapes: { "Shop" => "aaaaaa1" }, moves: {})
+    def report = hygiene.report(@dir, ledger: {}, shapes: { "Shop" => "aaaaaa1" })
 
     before { write_edges(@dir, [%w[aaaaaa aaaaaa]]) }
 

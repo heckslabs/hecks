@@ -103,7 +103,7 @@ RSpec.describe Hecks::Translation::AdditiveShape do
       bluebook = declared(current_text)
       held = { ordinal: 1, label: "aaaaaa", held_text: held_text, declaration: declared(held_text) }
       decision.decide(held: [held], bluebook: bluebook, watermark: 1, rows: [],
-                      edge_source: { translations: [], recorded: [["aaaaaa", decision.label_of(bluebook)]] }).verdict
+                      edge_source: { translations: [] }).verdict
     end
 
     it "mints nothing for a scalar flipped to a list of the same value object" do

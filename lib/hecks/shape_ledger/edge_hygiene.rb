@@ -6,19 +6,19 @@ require_relative "../ports/persistence/plugins/era/translation/edge_files"
 module Hecks
   module ShapeLedger
     # Finds the translation edges that do not earn their file; it deletes nothing. The graph is
-    # a bluebook's edge files plus its recorded implicit moves, aimed at the current shape. A file
+    # a bluebook's edge files, aimed at the current shape. A file
     # is:
     #
     # - a **self-loop** when its `from` equals its `to`.
     # - a **fork** branch when two edges leave a label and both reach the current shape; the branch
     #   with the fewest steps is kept.
-    # - an **orphan** when it lies on no path from a held era (the ledger label, an implicit move's
-    #   start, or the start of a chain) to the current shape. A sole route is never flagged.
+    # - an **orphan** when it lies on no path from a held era (the ledger label or the start of a
+    #   chain) to the current shape. A sole route is never flagged.
     #
     # @example
-    #   EdgeHygiene.findings(dir, ledger: {}, shapes: { "Shop" => "bbbbbb1" }, moves: {})
+    #   EdgeHygiene.findings(dir, ledger: {}, shapes: { "Shop" => "bbbbbb1" })
     module EdgeHygiene
-      # One edge: the file that declares it (nil for a recorded implicit move) and its two labels.
+      # One edge: the file that declares it and its two labels.
       Edge = Struct.new(:path, :from, :to)
 
       # The list beside the ledger of stale edges already known, each a finding key. A listed edge
@@ -53,14 +53,11 @@ module Hecks
       # @param directory [String] the domain directory holding `translations/`
       # @param ledger [Hash{String => String}] the committed shape ledger
       # @param shapes [Hash{String => String}] each bluebook's current storage-shape hash
-      # @param moves [Hash{String => Array<Hash>}] the recorded implicit moves
       # @return [Array<Finding>] every stale edge file, by bluebook
-      def findings(directory, ledger:, shapes:, moves:)
+      def findings(directory, ledger:, shapes:)
         files = Translation::EdgeFiles.scan(directory)
         shapes.flat_map do |name, hash|
-          recorded = moves.fetch(name, [])
-          domain_findings(name, edges_of(files, name) + implicit_edges(recorded), ShapeLedger.label(hash),
-                          held_labels(ledger[name], recorded))
+          domain_findings(name, edges_of(files, name), ShapeLedger.label(hash), held_labels(ledger[name]))
         end
       end
 
@@ -74,11 +71,7 @@ module Hecks
       # @return [String] the stable name of the edge a finding is about, as `kind:Bluebook:from>to`
       def key(kind, name, edge) = "#{kind}:#{name}:#{edge.from}>#{edge.to}"
 
-      def implicit_edges(moves) = moves.map { |move| Edge.new(nil, move["from"], move["to"]) }
-
-      def held_labels(held, moves)
-        [(ShapeLedger.label(held) if held), *moves.map { |move| move["from"] }].compact
-      end
+      def held_labels(held) = [(ShapeLedger.label(held) if held)].compact
 
       def domain_findings(name, all, current, held)
         loops, graph = all.partition { |edge| edge.from == edge.to && edge.path }
@@ -106,19 +99,17 @@ module Hecks
         (live - [keep]).map do |branch|
           files = branch_files(branch, keep, graph)
           Finding.new(kind: :fork, domain: name, path: files.first, key: key(:fork, name, branch),
-                      message: fork_message(label, live, keep, branch, files))
+                      message: fork_message(label, live, keep, files))
         end
       end
 
-      def fork_message(label, live, keep, branch, files)
+      def fork_message(label, live, keep, files)
         leaving = live.map { |edge| "#{edge.from} -> #{edge.to}" }.join(", ")
         "fork at #{label}: #{live.size} edges leave it and each reaches the current shape (#{leaving}); " \
-          "keep #{keep.from} -> #{keep.to} and #{removal(branch, files)}, or compose the branch into one edge"
+          "keep #{keep.from} -> #{keep.to} and #{removal(files)}, or compose the branch into one edge"
       end
 
-      def removal(branch, files)
-        return "remove the recorded implicit move #{branch.from} -> #{branch.to} from implicit_moves.json" if files.empty?
-
+      def removal(files)
         "remove the branch with `git rm #{files.join(" ")}`"
       end
 
