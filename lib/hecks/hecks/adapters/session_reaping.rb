@@ -34,13 +34,14 @@ module Hecks
 
       # @param held [Hash] the `AgentRun` record: `run`, `work`, `agent`
       # @param path [String, nil] the worktree the session's transcript recorded
-      # @return [Hash{Symbol => Object}] `work_open:`, `no_product:`, `worktree:` (empty when none
-      #   stands), `dirty:` (a file not committed and not ignored) and `unmerged:` (a commit origin
-      #   lacks)
+      # @return [Hash{Symbol => Object}] `work_open:`, `no_product:`, `ended_as:` the condition
+      #   the run finished with, `worktree:` (empty when none stands), `dirty:` (a file not
+      #   committed and not ignored) and `unmerged:` (a commit origin lacks)
       def facts(held, path)
         tree = path.to_s
         tree = "" unless File.directory?(tree)
-        { work_open: open?(held), no_product: no_product?(held), worktree: tree, **state(tree) }
+        { work_open: open?(held), no_product: no_product?(held), ended_as: plain(held[:condition]).to_s, worktree: tree,
+          **state(tree) }
       end
 
       # Clears the scratch the world lists in a worktree, and only that.
@@ -67,6 +68,10 @@ module Hecks
 
       # @return [Hash{Symbol => Object}] the world's `reaping` line, empty when it declares none
       def settings = @registry&.world("Hecks")&.for_verb(VERB) || {}
+
+      # @return [Integer] the minutes the world's `reaping` line gives a blocked helper before its
+      #   run is ended (`abandon_after_minutes`), 0 when it sets none
+      def abandon_after = settings[:abandon_after_minutes].to_i
 
       private
 
