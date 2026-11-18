@@ -287,6 +287,16 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
+  # A coder's branch checked on CI before hand-off: the branch's head pushed as ci/<branch>, a draft
+  # pull request opened or reused, and its checks read until they end or the wait runs out.
+  Hecks::EarlyCi.port "BranchCi" do
+    asks "BranchCi", to: EarlyCi do
+      attribute :run, RunKey
+      answers "BranchCiAnswered"
+      refuses "BranchCiRefused"
+    end
+  end
+
   Hecks::ShallowCheck.port "ShallowChecks" do
     asks "ShallowCheck", to: ShallowCheck do
       attribute :run, RunKey
