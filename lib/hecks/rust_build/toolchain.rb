@@ -31,7 +31,7 @@ module Hecks
 
       # @param base [#[]] the environment the command would otherwise inherit
       # @return [String] rustup's proxy directory: `$CARGO_HOME/bin`, else `~/.cargo/bin`
-      def proxies(base = ENV) = File.join(base["CARGO_HOME"] || File.join(Dir.home, ".cargo"), "bin")
+      def proxies(base = ENV) = "#{base["CARGO_HOME"] || File.join(Dir.home, ".cargo")}/bin"
 
       # @param root [String] a hecks checkout
       # @return [String, nil] the channel its `rust-toolchain.toml` pins, nil when it pins none
