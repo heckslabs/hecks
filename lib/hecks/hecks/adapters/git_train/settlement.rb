@@ -26,11 +26,12 @@ module Hecks
         # The shape ledger a Hecks checkout keeps, beside the bluebooks it records.
         LEDGER = "lib/hecks/hecks/shapes.json"
 
-        # The translation edges an additive settlement writes.
+        # The translation edges a checkout commits.
         EDGES = "lib/hecks/hecks/translations"
 
-        # The ledger's own command for an additive change, run from the checkout.
-        SETTLE = %w[bundle exec exe/hecks conformance_run.check_shape_ledger! --confirm --additive --wait].freeze
+        # The ledger's own check, run from the checkout: it passes an additive change, which commits
+        # nothing, and refuses any other move no edge covers.
+        SETTLE = %w[bundle exec exe/hecks conformance_run.check_shape_ledger! --wait].freeze
 
         # The drift checks CI runs after a push lands, run here in check mode before the push: the
         # generated Rust must match a regeneration, and the reserved-name tables and the CI gate

@@ -80,8 +80,7 @@ module Hecks
         # the refusal, so the audit raises rather than audit an edge a mint would not take.
         def decided_edge(latest, label)
           verdict = PostgresEra::LineageManager::MintDecision.decide_latest(
-            latest, bluebook: @bluebook, translations: @registry.translations, directory: @held.directory,
-            watermark: @lineage.last_ordinal
+            latest, bluebook: @bluebook, translations: @registry.translations, watermark: @lineage.last_ordinal
           )
           return verdict.edge if verdict.verdict == "would_mint"
 

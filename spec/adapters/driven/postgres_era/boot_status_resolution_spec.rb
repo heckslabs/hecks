@@ -172,9 +172,9 @@ RSpec.describe "the boot status and the boot resolving through one resolution", 
     expect([row.status, row.reason]).to match(["unminted", /no translation edge covers it/])
   end
 
-  it "reads a provably additive shape no edge covers as unminted, and agrees with the status" do
+  it "reads a provably additive shape no edge covers as behind, and agrees with the status" do
     additive = shape("cost").sub("attribute :kind, Kind", "attribute :kind, Kind\n    attribute :note, Kind, optional: true")
-    expect(both(additive)).to eq(boot: ["unminted", 1], status: ["unminted", 1])
+    expect(both(additive)).to eq(boot: ["behind", 1], status: ["behind", 1])
   end
 
   def refusal_pattern

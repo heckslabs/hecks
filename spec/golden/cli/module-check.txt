@@ -17,7 +17,7 @@ commands:
     One check that the engines, the reference docs and the argument gates agree with the language.
     check_engine_agreement!     Check that the query engines route every comparator through the one shared implementation
     measure_doc_coverage!       Check that every live word of the language has prose and a running example in the reference
-    check_shape_ledger!         Check that no bluebook's storage shape moved without a translation edge, and rewrite the ledger when confirmed
+    check_shape_ledger!         Check that no bluebook's storage shape moved in a way that is neither additive nor covered by a translation edge, and rewrite the ledger when confirmed
     check_command_names!        Check that every launcher name a workflow, hook, gate row, spec or guide invokes is one the launcher accepts
     check_workflow_pagination!  Check that no workflow counts or waits on the items of a GitHub list call that returns only its first page
     argument_gate_matrix!       Generate the argument-gate ordering matrix; rewrite it and its fixtures only when confirmed
