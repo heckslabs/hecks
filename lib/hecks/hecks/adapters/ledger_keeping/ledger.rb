@@ -29,12 +29,35 @@ module Hecks
         # @param registry [Runtime::Registry, nil] the booted registry
         # @return [Database, nil] the AgentRun file; nil when the records are not kept in SQLite
         def database(registry)
+          bluebook, aggregate, path = home(registry)
+          return unless bluebook
+
+          Database.new(path, table: aggregate.storage_name, wait: setting(registry, :wait_seconds))
+        end
+
+        # The directory a compaction boots: where the bluebook that declares the AgentRun records
+        # keeps its files, which is not the registry's root when the registry booted a checkout.
+        #
+        # @param registry [Runtime::Registry, nil] the booted registry
+        # @return [String, nil] the shallowest directory of that bluebook's sources; nil when the
+        #   records are not kept in SQLite
+        def directory(registry)
+          bluebook, = home(registry)
+          return unless bluebook
+
+          Array(registry.bluebook_sources[bluebook.name]).map { |source| File.dirname(source) }
+                                                         .min_by { |dir| dir.count("/") } || registry.root
+        end
+
+        # @return [Array(Object, Object, String), nil] the bluebook, the aggregate and the SQLite
+        #   file of the first bluebook that declares AgentRun in a file
+        def home(registry)
           return unless registry
 
           registry.bluebooks.each_value do |bluebook|
             aggregate = bluebook.aggregates.find { |candidate| candidate.hecks_name == AGGREGATE }
             path = aggregate && file_of(registry, bluebook, aggregate)
-            return Database.new(path, table: aggregate.storage_name, wait: setting(registry, :wait_seconds)) if path
+            return [bluebook, aggregate, path] if path
           end
           nil
         end

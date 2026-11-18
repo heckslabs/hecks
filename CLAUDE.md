@@ -188,9 +188,11 @@ answered `carried`. Its mint step reports `Memory holds no eras, no mint needed`
 - The shape ledger (`lib/hecks/hecks/shapes.json`) holds only bluebooks whose committed persistence
   (local overlays left out) is an era adapter, and framework members such as Governance that clients
   persist. Tooling is Memory by its committed world and needs no ledger entry, edge or `--confirm`.
-  For a held bluebook, a shape change needs a translation edge under its `translations/`:
-  `exe/hecks conformance_run.check_shape_ledger! --wait` (no database) names it, `--confirm --additive`
-  settles a change that only adds, and `--confirm` alone moves the ledger once an edge covers the move.
+  Each entry holds the shape's hash and projection as of the last release mint. A shape change that only
+  adds passes the quick gate and commits nothing; any other change needs a translation edge under the
+  bluebook's `translations/`, and `exe/hecks conformance_run.check_shape_ledger! --wait` (no database)
+  names the bluebook that has none. The ledger moves only at `exe/hecks schema_revision.release_mint!
+  domain.value=<dir> --confirm`, the one mint per release (ADR 0168), which an owner runs.
   Renamed or reshaped data needs rules: `exe/hecks schema_revision.scaffold_translation domain.value=<dir>`
   writes them from the database the domain's own world names, and `schema_revision.audit_translation` checks them.
 - Whether a copy may migrate its database is the `mint_eras` setting in its world
@@ -200,9 +202,9 @@ answered `carried`. Its mint step reports `Memory holds no eras, no mint needed`
   (`LineageManager::DisposableLedger`): an additive shape change is applied in place, any other
   moves the aggregate's rows to a dated archive table (listed in `hecks_ledger_archives`) and starts
   it empty, and a boot never refuses as unminted or superseded. Never declare it for client data.
-- A boot over a store that holds eras reads a shape no era holds only when a recorded edge or a
-  provably additive move covers it; a breaking move no edge covers refuses by name (`no translation
-  edge covers it`), writing nothing. This is the interim until the commit-time gate (ADR 0168).
+- A boot over a store that holds eras reads a shape no era holds only when an edge or a provably
+  additive move covers it; a breaking move no edge covers refuses by name (`no translation edge
+  covers it`), writing nothing, and the quick gate's shape ledger check refuses it at commit time.
 - After a push, the launcher's refresh moves its checkout only when it is detached and has no
   changed or untracked file; the report names the file that stops it.
 

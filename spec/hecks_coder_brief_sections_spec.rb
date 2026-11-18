@@ -29,7 +29,7 @@ RSpec.describe "the Coder brief's standing sections" do
   end
 
   it "tells the session to submit and end its turn, not to wait for the landing" do
-    expect(section(:landing)).to include("regenerate_corpus!", "check_shape_ledger!", "--confirm --additive",
+    expect(section(:landing)).to include("regenerate_corpus!", "check_shape_ledger!", "commits nothing",
                                          "coder Submission.submit!", "end your turn", "Do not wait for the landing",
                                          "reports by event")
   end

@@ -3,14 +3,16 @@
 module Hecks
   module Adapters
     class MainIntegration
-      # The first merge, among the landings a failed verification covers, whose own specs fail:
-      # a binary search over the merges oldest first, one probe per step. It reads facts and
-      # writes none: nothing is reverted, marked or raised here, and a probe that errors or a
-      # spent budget answers nil with a `reason`, never an exception. The merges are the landings
-      # between two fixed commits, so a head that moved meanwhile changes nothing.
+      # The first merge, among the landings a failed verification covers, at which the failing
+      # specs are red: a binary search over the merges oldest first, one probe per step. It reads
+      # facts and writes none: nothing is reverted, marked or raised here, and a probe that errors
+      # or a spent budget answers nil with a `reason`, never an exception. The merges are the
+      # landings between two fixed commits, so a head that moved meanwhile changes nothing.
       #
-      # The search assumes a failure stays once it appears. When a later merge mends it, the
-      # answer is still the first merge that failed, which the mend may already have fixed.
+      # The search assumes a failure stays once it appears, which holds because a probe runs the
+      # failing specs themselves at the merge, not the specs the merge's own paths touch. When a
+      # later merge mends it, the answer is still the first merge that failed, which the mend may
+      # already have fixed.
       class FirstBad
         # The most probes one search makes; each is a clean copy and an impacted-spec run.
         LIMIT = 6
@@ -36,7 +38,7 @@ module Hecks
           @found = nil
           @spent = 0
           step while @low <= @high
-          @reason = "no merge in the range fails its own specs" unless @found
+          @reason = "no merge in the range turns the failing specs red" unless @found
           @found
         rescue StandardError, ConsoleCapture::Failure => e
           @reason = "the search stopped: #{e.message}"

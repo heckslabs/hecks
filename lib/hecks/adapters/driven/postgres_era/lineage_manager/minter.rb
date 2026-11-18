@@ -90,8 +90,7 @@ module Hecks
 
           def edge_source_of(context)
             registry = context.registry
-            { translations: registry.translations,
-              recorded:     MintDecision.recorded_moves(context.domain_name, context.directory) }
+            { translations: registry.translations }
           end
 
           # The refusal a decided edge stands for: two files declaring the one translation.

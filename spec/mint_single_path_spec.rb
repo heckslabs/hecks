@@ -47,25 +47,16 @@ module SinglePathSupport
     { ordinal: 1, label: HELD_LABEL, held_text: text, projection: Hecks::Runtime::StorageShape.project(declared(text)) }
   end
 
-  # The verdict the decision reaches for one held era, with the recorded moves and edges given.
-  def decide(held_text, current_text, recorded: [], translations: [])
+  # The verdict the decision reaches for one held era, with the edges given.
+  def decide(held_text, current_text, translations: [])
     Decision.decide(held: [held_era(held_text).merge(declaration: declared(held_text))],
                     bluebook: declared(current_text), watermark: 1, rows: [],
-                    edge_source: { translations: translations, recorded: recorded })
+                    edge_source: { translations: translations })
   end
 
-  # The verdict of the entry point that reads the recorded moves from a directory it is given.
-  def decide_from_directory
-    Dir.mktmpdir do |dir|
-      record_moves(dir, [{ "from" => HELD_LABEL, "to" => label_of(optional_current) }])
-      Decision.decide_latest(held_era(ledger_text), bluebook: declared(optional_current),
-                                                    translations: [], directory: dir, watermark: 1)
-    end
-  end
-
-  # Writes the implicit moves the shape ledger records into `directory`, as the framework does.
-  def record_moves(directory, moves)
-    File.write(File.join(directory, Hecks::ShapeLedger::IMPLICIT_FILE), JSON.generate("Ledger" => moves))
+  # The verdict of the entry point that reads only the era's record.
+  def decide_latest_verdict
+    Decision.decide_latest(held_era(ledger_text), bluebook: declared(optional_current), translations: [], watermark: 1)
   end
 end
 
@@ -73,23 +64,19 @@ RSpec.describe "the single mint path" do
   include SinglePathSupport
 
   it "mints a no-rule additive diff with a derived edge", :aggregate_failures do
-    verdict = decide(ledger_text, optional_current, recorded: [[SinglePathSupport::HELD_LABEL, label_of(optional_current)]])
+    verdict = decide(ledger_text, optional_current)
     expect(verdict.verdict).to eq("would_mint")
     expect(verdict.source).to eq("implicit")
     expect(verdict.edge).to be_a(Hecks::Translation::ImplicitEdge)
   end
 
-  it "reaches the derived edge through the entry point that reads the recorded moves" do
-    expect(decide_from_directory).to have_attributes(verdict: "would_mint", source: "implicit")
+  it "reaches the derived edge through the entry point that reads only the era's record" do
+    expect(decide_latest_verdict).to have_attributes(verdict: "would_mint", source: "implicit")
   end
 
   it "refuses a rename without a rule toward the scaffold", :aggregate_failures do
-    verdict = decide(ledger_text, renamed_current, recorded: [[SinglePathSupport::HELD_LABEL, label_of(renamed_current)]])
+    verdict = decide(ledger_text, renamed_current)
     expect(verdict).to have_attributes(verdict: "needs_edge", reason: :non_qualifying)
-  end
-
-  it "refuses an additive move that no recorded implicit move reaches" do
-    expect(decide(ledger_text, optional_current)).to have_attributes(verdict: "needs_edge", reason: :unrecorded)
   end
 
   it "takes the edge to the shape beside a self-loop edge, which leads nowhere new" do
@@ -101,7 +88,7 @@ RSpec.describe "the single mint path" do
 
   it "decides by the diff beside a lone self-loop edge, since it does not reach the shape" do
     loop_edge = SinglePathSupport::Edge.new("Ledger", SinglePathSupport::HELD_LABEL, SinglePathSupport::HELD_LABEL)
-    expect(decide(ledger_text, optional_current, translations: [loop_edge]))
-      .to have_attributes(verdict: "needs_edge", reason: :unrecorded)
+    expect(decide(ledger_text, renamed_current, translations: [loop_edge]))
+      .to have_attributes(verdict: "needs_edge", reason: :non_qualifying)
   end
 end

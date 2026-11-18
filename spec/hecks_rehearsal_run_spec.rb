@@ -150,16 +150,13 @@ RSpec.describe "rehearsing a domain's next era" do
     expect(record["edge_present"]).to be(false)
   end
 
-  describe "a recorded implicit move" do
+  describe "an additive move, with nothing recorded for it" do
     let(:optional_note) { note_attribute(optional: true) }
 
-    # Holds the shape the copy was made under, adds `line` to Widget, and records the move
-    # between the two shapes.
-    def move_shape(line, recorded: true)
+    # Holds the shape the copy was made under, adds `line` to Widget, and rehearses.
+    def move_shape(line)
       held_current_shape
-      from = rehearse["after"]
       add_widget_attribute(line)
-      record_moves([{ "from" => from, "to" => rehearse["after"] }]) if recorded
       rehearse
     end
 
@@ -174,24 +171,14 @@ RSpec.describe "rehearsing a domain's next era" do
       File.write(world, File.read(world).sub("    lifecycle :status", "    #{line}\n    lifecycle :status"))
     end
 
-    def record_moves(moves)
-      File.write(File.join(shop, "bluebook", Hecks::ShapeLedger::IMPLICIT_FILE), JSON.generate("Shop" => moves))
-    end
-
-    it "would mint when the recorded move qualifies as additive", :aggregate_failures, :process do
+    it "would mint when the move qualifies as additive", :aggregate_failures, :process do
       record = move_shape(optional_note)
 
       expect([record["minting"], verdict_of(record), record["edge_present"]]).to eq(["next", "would_mint", true])
     end
 
-    it "still needs an edge when the recorded move does not qualify", :aggregate_failures, :process do
+    it "still needs an edge when the move does not qualify", :aggregate_failures, :process do
       record = move_shape(note_attribute(optional: false))
-
-      expect([verdict_of(record), record["edge_present"]]).to eq(["needs_edge", false])
-    end
-
-    it "still needs an edge when no record names the move", :aggregate_failures, :process do
-      record = move_shape(optional_note, recorded: false)
 
       expect([verdict_of(record), record["edge_present"]]).to eq(["needs_edge", false])
     end

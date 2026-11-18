@@ -28,7 +28,8 @@ module ShedLooks
       @starts = 0
     end
 
-    def locate(**) = { listed: true }
+    # The agent is listed, and no other run holds the work: the facts the real adapter answers.
+    def locate(**) = { listed: true, holder: "", holder_status: "", holder_agent: "", requester_agent: "" }
 
     def start(**) = { session: "s-#{@starts += 1}", started_at: format("2026-11-14T10:%02d:00Z", @starts) }
 

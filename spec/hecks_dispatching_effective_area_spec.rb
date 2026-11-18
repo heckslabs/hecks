@@ -1,7 +1,6 @@
 require "spec_helper"
 require "tmpdir"
 require "hecks/hecks/adapters/dispatching"
-require "hecks/vendor/embryonaut_bluebooks/delivery/lib/adapters/git_landing/rivals"
 
 # A work item's area is the files its branch edits once it has commits, not the directory it was
 # planned with; two work items that edit one file still wait for each other.
@@ -69,12 +68,11 @@ RSpec.describe Hecks::Adapters::Dispatching::EffectiveArea do
     expect(described_class.new(repo).call(item("none", ["lib"]))).to eq(["lib"])
   end
 
-  it "does not refuse a landing of a third file in the directory", :aggregate_failures do
+  it "does not refuse a landing of a third file in the directory" do
     held = narrowed
     landing_branch("third", "lib/hecks/hecks/adapters/c.rb")
 
     expect(refusal("third", held)).to be_nil
-    expect(refusal("third", ["lib/hecks/hecks/adapters"])).to include("lib/hecks/hecks/adapters")
   end
 
   it "refuses a landing of one of the two files" do

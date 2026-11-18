@@ -1,8 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../console_capture"
-require_relative "first_bad"
-require_relative "merge_probe"
+require_relative "searching"
 
 module Hecks
   module Adapters
@@ -13,11 +12,9 @@ module Hecks
       # merge reached `origin/main`. It reads and decides nothing; whether to revert is the
       # domain's rule. It runs outside any verification's copy, one probe after another.
       class Bisecting
-        # The branch a landing's merge subject names.
-        BRANCH = %r{\AMerge (?:branch '([^']+)'|pull request #\d+ from \S+?/(\S+))}
-
-        # What the merge's keys hold when no merge failed.
-        NONE = { culprit: "", subject: "", branch: "", spec: "", example: "", base_red: false, local: false }.freeze
+        # What the merge's keys hold when no merge failed. `searched` is false until a search ran.
+        NONE = { culprit: "", subject: "", branch: "", spec: "", example: "", base_red: false, local: false,
+                 searched: false }.freeze
 
         class << self
           # @return [Hash{String => Hash}] the facts of each search, by commit, so a refusal and the
@@ -27,11 +24,11 @@ module Hecks
           # Searches once per commit; a search that cannot run answers the reason, never raises.
           #
           # @return [Hash{Symbol => Object}] the facts of {#facts}, or `culprit: ""` and a `reason`
-          def search(repository, landed, since, impacted: nil)
+          def search(repository, landed, since, failing: [], runner: nil)
             searches.clear if searches.size > 20
-            searches[landed] ||= new(repository, impacted: impacted).facts(landed, since)
+            searches[landed] ||= new(repository, failing: failing, runner: runner).facts(landed, since)
           rescue StandardError, ConsoleCapture::Failure => e
-            { culprit: "", reason: "the search could not run: #{e.message}" }
+            { culprit: "", searched: true, reason: "#{Searching::UNFOUND}: the search could not run: #{e.message}" }
           end
 
           # @param facts [Hash, nil] what {.search} answered; nil when no search was made
@@ -61,37 +58,19 @@ module Hecks
         end
 
         # @param repository [Repository] the repository the landings are in
-        # @param impacted [#call, nil] stands in for the impacted-spec run ({ImpactedCheck})
-        def initialize(repository, impacted: nil)
-          @repository = repository
-          @probe = MergeProbe.new(repository, impacted: impacted)
+        # @param failing [Array<String>] the spec files the failed verification named
+        # @param runner [#call, nil] stands in for {SpecProbe}: given a copy's directory and the
+        #   spec files, it returns, or raises `ConsoleCapture::Failure` when one is red
+        def initialize(repository, failing: [], runner: nil)
+          @search = Searching.new(repository, failing: failing, runner: runner)
         end
 
         # @param landed [String] the commit that failed verification
         # @param since [String] the last verified commit, or `origin/main`, the range starts after
         # @return [Hash{Symbol => Object}] `base`, `culprit`, `subject`, `branch`, `spec`,
-        #   `example`, `base_red`, `already_reverted`, `local` and `reason`; the merge's keys are
-        #   "" when none failed
-        def facts(landed, since)
-          search = FirstBad.new(@repository.merges(since, landed), probe: @probe)
-          found = search.call
-          { base: since, already_reverted: !@repository.reverts(since, landed).empty?, reason: search.reason.to_s }
-            .merge(found ? merge_facts(found, since) : NONE)
-        end
-
-        private
-
-        def merge_facts(found, since)
-          finding = found[:finding] || {}
-          { culprit: found[:sha], subject: found[:subject], branch: branch_of(found[:subject]),
-            spec: finding[:spec].to_s, example: finding[:example].to_s,
-            base_red: @probe.red_at?(since, found), local: !@repository.ancestor?(found[:sha], @repository.remote_main) }
-        end
-
-        def branch_of(subject)
-          match = BRANCH.match(subject.to_s)
-          match ? match.captures.compact.first : ""
-        end
+        #   `example`, `base_red`, `already_reverted`, `local`, `searched` and `reason`; the merge's
+        #   keys are "" when none failed
+        def facts(landed, since) = @search.call(landed, since)
       end
     end
   end

@@ -7,18 +7,18 @@ module Hecks
         module Nesting
           module_function
 
-          # Appends one element to a list argument, creating the list on first use.
+          # Appends one word of a list argument, creating the list on first use.
           #
-          # Repeats must grow the list (`bury` would silently keep only the last), and a single
-          # element is still a one-item list, since a `list_of` attribute must never see a bare
-          # object. Multi-field elements are left to `Json`: a flat command line cannot say
-          # which `a.x=` pairs with which `a.y=`.
+          # A repeated name grows the list, and a single element is still a one-item list, since a
+          # `list_of` attribute must never see a bare object. A value object's fields are columns:
+          # each word goes into the first element still lacking that field, so the nth `a.x=` and
+          # the nth `a.y=` make the nth element. `Columns` refuses columns of different lengths.
           def append(hash, path, value)
             *branches, leaf = path.map(&:to_sym)
             holder = branches[0..-2].reduce(hash) { |node, key| node[key] ||= {} }
             list   = holder[branches.last] ||= []
 
-            list << { leaf => value }
+            (list.find { |element| !element.key?(leaf) } || list.push({}).last)[leaf] = value
             hash
           end
 
