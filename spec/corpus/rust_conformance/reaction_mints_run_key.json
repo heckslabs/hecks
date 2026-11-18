@@ -1,0 +1,130 @@
+{
+  "domain": "spec/fixtures/rust_project/run_key_mint_fixture",
+  "note": "A reaction's `with:` triggers a creating command whose `run` is required and names none: the runtime mints the key from its identity port (Ruby's ReactionInvocation::RunKeys.with_minted_run), and the CheckStarted event records it. `identity` is the port's script, the ids it hands out in order, so both engines mint the same ones: booking b1 starts check run-1, booking b2 starts run-2. A runtime that mints nothing refuses the reaction's command for its missing run and records no Check; one that mints from a fresh counter per reaction, or that spends an id on a reaction naming its own run, fails the second booking.",
+  "identity": [
+    "run-1",
+    "run-2"
+  ],
+  "steps": [
+    {
+      "verb": "RunKeyMintFixture::Booking.Place",
+      "args": {
+        "ref": {
+          "value": "b1"
+        }
+      }
+    },
+    {
+      "verb": "RunKeyMintFixture::Booking.Place",
+      "args": {
+        "ref": {
+          "value": "b2"
+        }
+      }
+    }
+  ],
+  "expect": {
+    "refusals": [
+
+    ],
+    "instances": {
+      "RunKeyMintFixture::Booking#b1": {
+        "ref": {
+          "value": "b1"
+        }
+      },
+      "RunKeyMintFixture::Booking#b2": {
+        "ref": {
+          "value": "b2"
+        }
+      },
+      "RunKeyMintFixture::Check#run-1": {
+        "run": {
+          "value": "run-1"
+        },
+        "booking": {
+          "value": "b1"
+        }
+      },
+      "RunKeyMintFixture::Check#run-2": {
+        "run": {
+          "value": "run-2"
+        },
+        "booking": {
+          "value": "b2"
+        }
+      }
+    },
+    "events": [
+      {
+        "name": "BookingPlaced",
+        "aggregate": "RunKeyMintFixture::Booking",
+        "id": "b1",
+        "payload": {
+          "ref": {
+            "value": "b1"
+          }
+        }
+      },
+      {
+        "name": "CheckStarted",
+        "aggregate": "RunKeyMintFixture::Check",
+        "id": "run-1",
+        "payload": {
+          "booking": {
+            "value": "b1"
+          },
+          "run": {
+            "value": "run-1"
+          }
+        }
+      },
+      {
+        "name": "BookingPlaced",
+        "aggregate": "RunKeyMintFixture::Booking",
+        "id": "b2",
+        "payload": {
+          "ref": {
+            "value": "b2"
+          }
+        }
+      },
+      {
+        "name": "CheckStarted",
+        "aggregate": "RunKeyMintFixture::Check",
+        "id": "run-2",
+        "payload": {
+          "booking": {
+            "value": "b2"
+          },
+          "run": {
+            "value": "run-2"
+          }
+        }
+      }
+    ],
+    "queries": [
+
+    ],
+    "sagas": [
+
+    ],
+    "dry_runs": [
+
+    ],
+    "reactions": [
+      {
+        "policy": "StartCheckOnPlaced",
+        "on": "BookingPlaced",
+        "trigger": "RunKeyMintFixture::Check.Start",
+        "delivered": true
+      },
+      {
+        "policy": "StartCheckOnPlaced",
+        "on": "BookingPlaced",
+        "trigger": "RunKeyMintFixture::Check.Start",
+        "delivered": true
+      }
+    ]
+  }
+}

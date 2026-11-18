@@ -50,6 +50,9 @@ Hecks.world "Tickets" do
   # the fix of a red main does not wait for a place; the next red one waits, as any other does.
   # The cap 7 and epic limit 4 are not yet measured: docs/findings/dispatch-limits-2026-11.md.
   work_limit "WorkLimits", cap: 7, urgent_reserve: 1
+  # `work_cap` moves the cap with the machine (the Tune `WorkCap`) inside `least` and `most`
+  # while `moves` is true; `moves: false` gives the fixed `work_limit` cap back.
+  work_cap "WorkLimits", moves: true, least: 2, most: 10
   # `integration_bound`: minutes a MainIntegration run may stand in one stage before it is parked.
   # Tap, 24 runs: verifying 14 min median, 31.5 max; CI is read every 2. `merged` times like `ci_running`.
   integration_bound "Integration", verifying: 60, boarding: 30, pushed: 45, ci_running: 90,

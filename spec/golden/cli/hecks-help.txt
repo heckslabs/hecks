@@ -115,6 +115,10 @@ commands:
     CI's failing checks run in a depth-1 clone of a branch: passed or skipped, or refused with the spec and its first failure line.
     run!                          Run CI's failing checks in a depth-1 clone of a branch when it changes something they read, refusing with the spec and its first failure line
     switch!                       Turn the shallow check on or off for the whole repository
+  EarlyCi:
+    One branch pushed as ci/<branch> with a never-merged draft, by a landing or by its coder before hand-off, and what CI said of its head.
+    request!                      Ask CI to check a coder's branch at its head, pushed as ci/<branch>, before the coder hands it off
+    retry!                        Ask CI again for the branch at its new head, after a red run or a run that could not be read
   SendTrain:
     One push of a checkout's branch, taken in turn: carried by an earlier push, pushed, or refused.
     board!                        Push this checkout's branch once the push ahead of it lands, unless that push already carried it
@@ -409,7 +413,7 @@ queries (nothing here changes anything):
   StallWatch:
     One look at the event tap for opening events whose closing event has not come.
     unclosed                The opening lines of every stall kind whose closing line has not come, within the kind's window, with how long each has waited.
-    abandoned               The filed stalls whose run has ended and which no look has closed yet, each with the ending event as its reason.
+    abandoned               The filed stalls whose run has ended or whose subject has settled and which no look has closed yet, each with the ending or settling line as its reason.
   TestSuiteRun:
     One piece of work on the test suite: a listing, a baseline, a run or a fixture rewrite.
     shard_specs             The spec files one group of a runtime-balanced split runs.

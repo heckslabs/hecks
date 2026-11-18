@@ -2,6 +2,7 @@ require "fileutils"
 require "tmpdir"
 require "securerandom"
 require_relative "outside_world"
+require_relative "scripted_identity"
 require_relative "../runtime/adapter_lookup"
 require_relative "isolated_boot/copying"
 require_relative "isolated_boot/worlds"
@@ -33,14 +34,17 @@ module Hecks
       #
       # The block runs with `OutsideWorld` standing in for every adapter a port or a port-answered
       # query reaches: a fuzz or replay checks the domain's own rules, and the adapters of the
-      # bluebooks that drive tools would run shells and write files from a generated sequence.
+      # bluebooks that drive tools would run shells and write files from a generated sequence. The
+      # identity port hands out no id, as the Rust conformance binary mints none unless a fixture
+      # scripts its ids (`Replay.call(identity:)`), so a reaction that would mint a run key leaves
+      # its facts as they were in both engines.
       def call(domain_path, adapter: :memory, database: nil, schema: nil, scratch: {})
         Dir.mktmpdir("hecks-fuzz") do |tmp|
           copy = File.join(tmp, File.basename(domain_path))
           copy_dereferencing(domain_path, copy)
           FileUtils.rm_rf(File.join(copy, "data"))
           rebind!(copy, adapter, database: database, schema: schema, scratch: scratch)
-          Runtime::AdapterLookup.standing_in(OutsideWorld) { yield copy }
+          Runtime::AdapterLookup.standing_in(ScriptedIdentity.over([], OutsideWorld)) { yield copy }
         end
       end
 

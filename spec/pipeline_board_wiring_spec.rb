@@ -16,7 +16,7 @@ RSpec.describe Hecks::Adapters::PipelineWiring do
                   ports: owned.map { |name| double(name: name, operations: [], answered_queries: []) })
     rows = modules.map { |name, held| double(name: held, aggregate: name, vision: "") }
     book = double(name: "Hecks", policies: policies, aggregates: [tree], modules: rows)
-    instance_double(Hecks::Runtime::Registry, bluebooks: { "Hecks" => book }, ports: ports, adapters: adapters)
+    instance_double(Hecks::Runtime::Registry, bluebooks: { "Hecks" => book }, ports: ports, adapters: adapters, world: nil)
   end
 
   def graph(policies, **wiring) = described_class.new(registry: registry(policies, **wiring)).graph
@@ -133,7 +133,7 @@ RSpec.describe Hecks::Adapters::PipelineWiring do
     end
 
     it "answers /api/settings with the settings a turn may set" do
-      expect(JSON.parse(fetch("/api/settings").body)).to eq("dials" => [])
+      expect(JSON.parse(fetch("/api/settings").body)).to eq("dials" => [], "cap" => nil)
     end
 
     it "serves the diagram page at /wiring" do

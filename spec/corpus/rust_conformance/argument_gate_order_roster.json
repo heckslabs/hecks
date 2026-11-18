@@ -5,16 +5,16 @@
     {
       "verb": "Roster::Roster.Open",
       "args": {
-        "colour": "loud"
+        "colour": "third"
       }
     },
     {
       "verb": "Roster::Roster.Honor",
       "args": {
         "name": {
-          "value": "india hotel"
+          "value": "alpha india hotel"
         },
-        "flavour": "third"
+        "note": "scribbled"
       }
     },
     {
@@ -24,7 +24,7 @@
           "value": "not a declared member"
         },
         "name": {
-          "value": "golf golf juliet"
+          "value": "echo juliet delta"
         }
       }
     },
@@ -35,9 +35,9 @@
           "value": "front"
         },
         "name": {
-          "value": "hotel"
+          "value": "india"
         },
-        "note": "red"
+        "rank": "third"
       }
     },
     {
@@ -47,7 +47,7 @@
           "value": "not a declared member"
         },
         "name": {
-          "value": "hotel"
+          "value": "juliet alpha"
         }
       }
     },
@@ -61,7 +61,7 @@
           "value": "front"
         },
         "name": {
-          "value": "foxtrot delta"
+          "value": "hotel golf india"
         }
       }
     },
@@ -69,12 +69,12 @@
       "verb": "Roster::Roster.Enlist",
       "args": {
         "age": {
-          "value": 436
+          "value": 784
         },
         "name": {
-          "value": "delta alpha"
+          "value": "foxtrot"
         },
-        "colour": "scribbled"
+        "rank": "third"
       }
     },
     {
@@ -96,10 +96,10 @@
           }
         },
         "age": {
-          "value": 436
+          "value": 784
         },
         "name": {
-          "value": "juliet golf"
+          "value": "hotel echo bravo"
         }
       }
     },
@@ -107,12 +107,12 @@
       "verb": "Roster::Roster.Assign",
       "args": {
         "number": {
-          "value": 323
+          "value": 809
         },
         "name": {
-          "value": "hotel golf india"
+          "value": "juliet bravo juliet"
         },
-        "colour": "red"
+        "note": "red"
       }
     },
     {
@@ -122,7 +122,7 @@
           "value": "not a integer"
         },
         "name": {
-          "value": "juliet juliet"
+          "value": "india alpha"
         }
       }
     },
@@ -134,10 +134,10 @@
           }
         },
         "number": {
-          "value": 323
+          "value": 809
         },
         "name": {
-          "value": "juliet"
+          "value": "echo charlie"
         }
       }
     },
@@ -145,9 +145,9 @@
       "verb": "Roster::Roster.Retire",
       "args": {
         "name": {
-          "value": "hotel"
+          "value": "juliet hotel"
         },
-        "flavour": "loud"
+        "rank": "scribbled"
       }
     },
     {
@@ -158,7 +158,7 @@
           }
         },
         "name": {
-          "value": "golf charlie juliet"
+          "value": "alpha hotel juliet"
         }
       }
     },
@@ -170,9 +170,9 @@
           }
         },
         "name": {
-          "value": "india alpha charlie"
+          "value": "echo hotel"
         },
-        "colour": "scribbled"
+        "colour": "third"
       }
     },
     {
@@ -183,7 +183,7 @@
           }
         },
         "name": {
-          "value": "foxtrot foxtrot"
+          "value": "bravo echo"
         }
       }
     }
@@ -197,7 +197,7 @@
       },
       {
         "verb": "Roster::Roster.Honor",
-        "error": "Honor does not declare flavour — it takes rank",
+        "error": "Honor does not declare note — it takes rank",
         "kind": "UnknownArgument"
       },
       {
@@ -207,7 +207,7 @@
       },
       {
         "verb": "Roster::Roster.AddSeat",
-        "error": "AddSeat does not declare note — it takes number, row",
+        "error": "AddSeat does not declare rank — it takes number, row",
         "kind": "UnknownArgument"
       },
       {
@@ -222,7 +222,7 @@
       },
       {
         "verb": "Roster::Roster.Enlist",
-        "error": "Enlist does not declare colour — it takes id, age",
+        "error": "Enlist does not declare rank — it takes id, age",
         "kind": "UnknownArgument"
       },
       {
@@ -237,7 +237,7 @@
       },
       {
         "verb": "Roster::Roster.Assign",
-        "error": "Assign does not declare colour — it takes member, number",
+        "error": "Assign does not declare note — it takes member, number",
         "kind": "UnknownArgument"
       },
       {
@@ -252,7 +252,7 @@
       },
       {
         "verb": "Roster::Roster.Retire",
-        "error": "Retire does not declare flavour — it takes id",
+        "error": "Retire does not declare rank — it takes id",
         "kind": "UnknownArgument"
       },
       {

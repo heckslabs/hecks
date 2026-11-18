@@ -130,11 +130,11 @@ RSpec.describe Hecks::Adapters::Codebase::HeavySlots do
     expect(described_class).to have_received(:admitted).with(dir, "spec_batch")
   end
 
-  # Runs a quick gate and a run of one spec file with the place taking stubbed out.
+  # Runs a pre-push gate (a quick one takes no place) and one spec file, place taking stubbed.
   def run_both_callers
     allow(described_class).to receive(:admitted).and_return("ran")
     tree = instance_double(Hecks::Adapters::Codebase::Tree, root: dir)
-    Hecks::Adapters::Codebase::Gate.call("gate", { stage: "quick" }, tree)
+    Hecks::Adapters::Codebase::Gate.call("gate", { stage: "pre_push" }, tree)
     Hecks::Adapters::Codebase::BatchRuns.call("run_spec_files", { files: "spec/a_spec.rb" }, tree)
   end
 
