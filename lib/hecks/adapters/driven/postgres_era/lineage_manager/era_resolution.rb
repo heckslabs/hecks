@@ -97,7 +97,7 @@ module Hecks
           # @param eras [Array<Hash>] the held eras, oldest first, as `Lineage#eras` answers them
           # @param bluebook [Bluebook::Declaration] the bluebook as it stands
           # @param translations [Array<Object>] the translation edges the registry loaded
-          # @param directory [String, nil] the domain's bluebook directory, where moves are recorded
+          # @param directory [String, nil] the domain's directory; the decision reads none
           # @yieldreturn [Integer] the ledger watermark, read only when no held era matches
           # @return [Answer]
           def resolve(eras:, bluebook:, translations:, directory:)
@@ -107,7 +107,7 @@ module Hecks
             matched = matching_era(eras, bluebook)
             return answer(matched.equal?(eras.last) ? "current" : "superseded", matched, facts) if matched
 
-            unmatched(facts, bluebook, translations, directory, yield)
+            unmatched(facts, bluebook, translations, yield)
           end
 
           # Resolves a bluebook against the eras its own database holds, over a connection that
@@ -156,9 +156,9 @@ module Hecks
           end
 
           # @return [Answer] a `behind` or `unminted` answer, by the latest era's mint decision
-          def unmatched(facts, bluebook, translations, directory, watermark)
+          def unmatched(facts, bluebook, translations, watermark)
             verdict = MintDecision.decide_latest(facts[:latest], bluebook: bluebook, translations: translations,
-                                                                 directory: directory, watermark: watermark)
+                                                                 watermark: watermark)
             status = verdict.verdict == "would_mint" ? "behind" : "unminted"
             breaking = MintDecision.breaking?(facts[:latest], bluebook, verdict, translations)
             answer(status, facts[:latest], facts, verdict, breaking: breaking)

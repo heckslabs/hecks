@@ -6,6 +6,7 @@ require_relative "journal_store/readings"
 require_relative "journal_store/translation_write"
 require_relative "journal_store/reconciliation"
 require_relative "journal_store/held_mint"
+require_relative "journal_store/release_mint"
 
 module Hecks
   module Adapters
@@ -41,6 +42,15 @@ module Hecks
       def mint(**held)
         HeldMint.new.answer(run: plain(held[:run]), confirm: plain(held[:confirm]),
                             rehearsal_verdict: plain(held[:rehearsal_verdict]), watermark: plain(held[:watermark]))
+      end
+
+      # Answers the release mint, the port's `MintRelease`: see `ReleaseMint#answer`.
+      #
+      # @param held [Hash] the `ReleaseMint` record: `run`, `domain` (its directory) and `confirm`
+      # @return [Hash{Symbol => Hash}] `run`, `outcome` and `label`
+      # @raise [Runtime::WiringError] naming why the mint was refused
+      def mint_release(**held)
+        ReleaseMint.new(directory: plain(held[:domain])).answer(run: plain(held[:run]), confirm: plain(held[:confirm]))
       end
 
       private

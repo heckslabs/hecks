@@ -804,6 +804,12 @@ Hecks.hecksagon "Hecks" do
       refuses "MintRefused"
     end
 
+    asks "MintRelease", to: SchemaRevision do
+      attribute :run, RunKey
+      answers "Minted"
+      refuses "MintRefused"
+    end
+
     answers_query "ScaffoldTranslation"
     answers_query "AuditTranslation"
     answers_query "ComposeTranslation"

@@ -61,12 +61,6 @@ RSpec.describe "the auto-mint rule" do
         .to include("not additive")
     end
 
-    it "holds a mint whose recorded moves do not reach the shape" do
-      unrecorded = verdict("needs_edge", reason: :unrecorded)
-      expect(described_class.held_reason(clean_facts(verdict: unrecorded), refusal_total: 0))
-        .to include("is not recorded")
-    end
-
     it "holds a mint whose rehearsal refused rows" do
       expect(described_class.held_reason(clean_facts, refusal_total: 2)).to include("refused 2 rows")
     end
