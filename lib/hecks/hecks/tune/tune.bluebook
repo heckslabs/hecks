@@ -133,15 +133,10 @@ Hecks.bluebook "Hecks" do
       trigger Dial::Decline, with: { refusal: :refusal }
     end
 
-    # The work cap that moves with the machine, the way congestion control does: it rises slowly and
-    # is cut quickly. Each reading of the machine counts into one of three runs by the states the
-    # reading left (memory ok or low, load below or above, judged against the `machine_marks`, whose
-    # gap between two marks is the hysteresis), and the cap moves only on a run, never on one
-    # reading. The owner's bounds come with each reading (the Tickets world's `work_cap` line); the
-    # fill reads `current` only while that line says `moves: true`, and a lower cap stops new
-    # starts and never ends a running coder.
+    # Rises slowly and is cut quickly, as congestion control does. A reading counts by the states the
+    # `machine_marks` judged (their gap is the hysteresis); the bounds come with it from `work_cap`.
     aggregate "WorkCap" do
-      description "The pipeline's one moving work cap: where it stands between the owner's bounds, and the runs of readings it moves on. It rises by one after five calm readings (about ten minutes at a reading every two) while no more than one train in three since the last move went red, is halved (not below the least) on memory low twice in a row or the load over its mark for five readings, and holds between."
+      description "The pipeline's one moving work cap: where it stands between the owner's bounds, and the runs of readings it moves on. It rises by one after five calm readings (about ten minutes at a reading every two) while no more than one train in three since the last move went red, is halved (not below the least) on memory low twice in a row or the load over its mark for five readings, and holds between. The fill reads `current` only while the Tickets world's `work_cap` line says `moves: true`; a lower cap stops new starts and never ends a running coder."
 
       attribute :cap,          CapKey
       attribute :current,      Level
