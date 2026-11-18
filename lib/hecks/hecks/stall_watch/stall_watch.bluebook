@@ -80,12 +80,17 @@ Hecks.bluebook "Hecks" do
                move: "Read githubstatus.com for GitHub Actions, and the PR's checks with SendTrain.watch! to=<boarding> (gh pr view <pr> --json statusCheckRollup). " \
                      "The pipeline closes and reopens it once after 20 minutes (TrainPrReopen); if CI still has not " \
                      "started once Actions is up, read when the launchd beat last ran from the mtime of ~/.claude/hecks-dev/train-beat.log (start no beat), then close and reopen it by hand (gh pr close, gh pr reopen, gh pr merge --auto --squash)."
+        # The four AgentRun rows end on the run's last lines: `closes` clears a line before it is
+        # filed, and `ends` abandons a filed stall whose run was tidied or retired after it opened,
+        # even when a closing line came first, so its Work item is not started on a run that is gone.
         member kind: "agent-run-start", not_about: "stall-", aggregate: "Hecks::AgentRun", state: "requested", opens: "AgentRunRequested",
+               ends_aggregate: "Hecks::AgentRun", ends: "AgentRunTidied,AgentRunRetired,AgentTrialRunRetired",
                settled_aggregate: "Tickets::Work", settled_by: "WorkFinished,WorkDropped,WorkLapsed",
                closes: "AgentRunStarted,AgentRunDeclined", minutes: 10, forgets: 1440, fixer: "orchestrator",
                move: "Work.yield! the run's Work item (AgentRun.running names it) with the reason, " \
                      "so the fill restarts it once."
         member kind: "agent-run-session", not_about: "stall-", aggregate: "Hecks::AgentRun", state: "started", opens: "AgentRunStarted",
+               ends_aggregate: "Hecks::AgentRun", ends: "AgentRunTidied,AgentRunRetired,AgentTrialRunRetired",
                settled_aggregate: "Tickets::Work", settled_by: "WorkFinished,WorkDropped,WorkLapsed",
                closes: "SessionFinished,SessionFailed,AgentRunRetired,AgentTrialRunRetired", minutes: 240,
                forgets: 1440, fixer: "orchestrator",
@@ -95,6 +100,7 @@ Hecks.bluebook "Hecks" do
         # three times and then finishes the run, which closes this line, so a line open for ten minutes
         # means the sweep or its retry chain is broken: the dead run still holds its Work item's area.
         member kind: "agent-run-unresumed", not_about: "stall-", aggregate: "Hecks::AgentRun", opens: "AgentRunUnresumed",
+               ends_aggregate: "Hecks::AgentRun", ends: "AgentRunTidied,AgentRunRetired,AgentTrialRunRetired",
                settled_aggregate: "Tickets::Work", settled_by: "WorkFinished,WorkDropped,WorkLapsed",
                closes: "AgentRunAnswered,SessionFinished,SessionFailed,AgentRunRetired,AgentTrialRunRetired",
                minutes: 10, forgets: 1440, fixer: "orchestrator",
@@ -102,6 +108,7 @@ Hecks.bluebook "Hecks" do
                      "sweep or its retry chain is broken: report that as the finding. AgentRun.check! the run, then " \
                      "Work.yield! the run's Work item (AgentRun.running names it) with the reason, so its area claim is freed."
         member kind: "agent-run-blocked", not_about: "stall-", aggregate: "Hecks::AgentRun", opens: "SessionBlocked",
+               ends_aggregate: "Hecks::AgentRun", ends: "AgentRunTidied,AgentRunRetired,AgentTrialRunRetired",
                settled_aggregate: "Tickets::Work", settled_by: "WorkFinished,WorkDropped,WorkLapsed",
                closes: "AnswerRequested,AgentRunAnswered,SessionWorking,SessionFinished,SessionFailed,AgentRunRetired,AgentTrialRunRetired",
                minutes: 15, forgets: 1440, fixer: "orchestrator",
@@ -201,9 +208,9 @@ Hecks.bluebook "Hecks" do
         emits StallDetectRequested
       end
 
-      # A filed stall whose run (named by the kind's `ends` events, on the same id) has ended, or
-      # whose subject has settled (its `settled_by` lines): no fixer is needed, so it is closed with
-      # the reason.
+      # A filed stall, its line closed or not, whose run ended (the kind's `ends` lines on the same
+      # id) or whose subject settled (its `settled_by` lines) since it opened: no fixer is needed,
+      # so it is closed with the reason.
       value_object "Abandoned" do
         attribute :id,      String
         attribute :stall,   String
@@ -212,13 +219,13 @@ Hecks.bluebook "Hecks" do
       end
 
       query "Unclosed" do
-        description "The opening lines of every stall kind whose closing line has not come, within the kind's window, with how long each has waited. A line the tap shows filed already, whose run has ended or whose subject has settled, is left out: it is handled once and a later look emits nothing for it. Read-only: it reads the tap and boots nothing."
+        description "The opening lines of every stall kind whose closing line has not come, within the kind's window, with how long each has waited. A line the tap shows filed already, whose run has ended or whose subject has settled since it opened, is left out: it is handled once and a later look emits nothing for it. Read-only: it reads the tap and boots nothing."
         attribute :run, String
         returns list_of(Sighting)
       end
 
       query "Abandoned" do
-        description "The filed stalls whose run has ended or whose subject has settled and which no look has closed yet, each with the ending or settling line as its reason. Read-only: it reads the tap and boots nothing."
+        description "The filed stalls, opened within their kind's window, whose run has ended or whose subject has settled since they opened and which no look has closed yet, each with the ending or settling line as its reason; a filed stall whose line has closed is one too. Read-only: it reads the tap and boots nothing."
         attribute :run, String
         returns list_of(Abandoned)
       end

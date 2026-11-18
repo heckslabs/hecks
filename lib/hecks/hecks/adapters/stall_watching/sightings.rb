@@ -38,23 +38,26 @@ module Hecks
                                   .select { |row| row[:waited] < row[:forgets] }
         end
 
-        # @return [Array<Hash>] one `Abandoned` row per stall the tap shows filed and still
-        #   unclosed whose run has ended or whose subject has settled, not abandoned already, with
-        #   the ending or settling line as its reason
+        # @return [Array<Hash>] one `Abandoned` row per stall the tap shows filed, opened within its
+        #   kind's window, whose run has ended or whose subject has settled since it opened, not
+        #   abandoned already, with the ending or settling line as its reason. A filed stall whose
+        #   line has closed since is one of them: its closing line never closes its Work item.
         def abandoned(lines, run)
           standing = Standing.new(lines)
-          pending(lines, standing).filter_map do |kind, subject, at, branch|
+          pending(lines, standing, closed: true).filter_map do |kind, subject, at, branch|
             stall = key(kind, subject)
+            next unless standing.filed?(stall) && !standing.abandoned?(stall) && recent?(kind, at)
+
             gone = gone(standing, kind, subject, at, branch)
-            reason(run, kind, subject, gone) if gone && standing.filed?(stall) && !standing.abandoned?(stall)
+            reason(run, kind, subject, gone) if gone
           end
         end
 
         private
 
-        def pending(lines, standing)
+        def pending(lines, standing, closed: false)
           @kinds.flat_map do |kind|
-            openings = Openings.new(kind, lines)
+            openings = Openings.new(kind, lines, closed: closed)
             open = openings.unclosed.reject { |subject, _| about?(kind, subject, openings.branch(subject)) }
             one_per_branch(kind, open, openings, standing).map { |subject, at| [kind, subject, at, openings.branch(subject)] }
           end
@@ -93,7 +96,7 @@ module Hecks
 
         # Why no fixer is needed: the run's ending event, or the line that settled the subject.
         def gone(standing, kind, subject, at, branch)
-          ended = standing.ending(kind, subject)
+          ended = standing.ending(kind, subject, at)
           ended ? "its run recorded #{ended}" : standing.settled(kind, subject, at, branch)&.then { "it settled: #{_1}" }
         end
 
@@ -102,8 +105,14 @@ module Hecks
             reason: "#{kind[:aggregate]} #{subject} can no longer be answered: #{gone}" }
         end
 
+        # Whether an opening line is younger than its kind's window, so a look never drops the Work
+        # item of a stall that is history.
+        def recent?(kind, at) = waited(at) < kind[:forgets].to_i
+
+        def waited(at) = [(@now - Time.iso8601(at.to_s).to_i) / 60, 0].max
+
         def sighting(kind, subject, at, run)
-          waited = [(@now - Time.iso8601(at.to_s).to_i) / 60, 0].max
+          waited = waited(at)
           { id: run, stall: key(kind, subject), stall_kind: kind[:kind], subject: subject,
             opened_at: at.to_s, waited: waited, minutes: kind[:minutes], forgets: kind[:forgets],
             fixer: kind[:fixer], title: title(kind, subject), detail: detail(kind, subject, at, waited) }
