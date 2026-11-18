@@ -1,5 +1,6 @@
 require "spec_helper"
 require "hecks/fuzzing"
+require "hecks/tools/argument_gate_matrix"
 require "json"
 
 # Argument-gate ordering: each row of the generated matrix (hecks argument_gate_matrix) violates
@@ -67,6 +68,35 @@ RSpec.describe "the argument-gate ordering matrix" do
       expect(row.dig("expected", "refused_at")).to eq(row.fetch("pair").first),
                                                    "#{row.fetch("verb")} #{row.fetch("pair").inspect}"
     end
+  end
+
+  STALE = "the committed matrix is behind the bluebooks: run " \
+          "exe/hecks ConformanceRun.argument_gate_matrix! --confirm --wait and review the rows it moves".freeze
+
+  # JSON as the generator writes it, read back, so hashes compare the way the files do.
+  def as_written(value) = JSON.parse(JSON.generate(value))
+
+  # @return [Hash{String => Hash}] every committed Rust fixture of the matrix, by path, without the
+  #   `expect` block seed_semantics_corpus freezes (spec/rust_conformance_spec.rb holds Rust to it)
+  def committed_fixtures
+    Dir[File.join(InMemoryDomain::ROOT, "spec/corpus/rust_conformance/argument_gate_order_*.json")].to_h do |path|
+      [path.delete_prefix("#{InMemoryDomain::ROOT}/"), JSON.parse(File.read(path)).except("expect")]
+    end
+  end
+
+  # @return [Hash] the matrix and the fixtures the generator writes from the bluebooks as they are
+  def regenerated
+    generator = Hecks::Tools::ArgumentGateMatrix
+    kept, = generator.sweep(InMemoryDomain::ROOT)
+    fixtures = kept.group_by { |row| row[:domain] }
+                   .to_h { |domain, rows| [generator.fixture_path(domain), generator.fixture_for(domain, rows)] }
+    { matrix: as_written(generator.matrix_for(kept)), fixtures: as_written(fixtures) }
+  end
+
+  it "is what the generator writes from today's bluebooks, fixtures included", :aggregate_failures do
+    fresh = regenerated
+    expect(fresh[:matrix]).to eq(MATRIX), STALE
+    expect(fresh[:fixtures]).to eq(committed_fixtures), STALE
   end
 
   MATRIX.fetch("rows").group_by { |row| row.fetch("domain") }.each do |domain, rows|

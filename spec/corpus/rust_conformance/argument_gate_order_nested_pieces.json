@@ -5,7 +5,7 @@
     {
       "verb": "NestedPieces::Workspace.Open",
       "args": {
-        "colour": "loud"
+        "colour": "third"
       }
     },
     {
@@ -22,59 +22,59 @@
       "verb": "NestedPieces::Workspace.AddBoard",
       "args": {
         "reference": {
-          "value": "india hotel"
-        },
-        "flavour": "third"
-      }
-    },
-    {
-      "verb": "NestedPieces::Workspace.AddBoard",
-      "role": "a role this caller does not hold",
-      "args": {
-        "number": {
-          "value": "not a integer"
-        },
-        "reference": {
-          "value": "golf golf juliet"
-        }
-      }
-    },
-    {
-      "verb": "NestedPieces::Workspace.AddBoard",
-      "role": "a role this caller does not hold",
-      "args": {
-        "number": {
-          "value": 697
-        },
-        "reference": {
-          "value": "alpha india hotel"
-        }
-      }
-    },
-    {
-      "verb": "NestedPieces::Workspace.Board.AddCard",
-      "args": {
-        "number": {
-          "value": 829
-        },
-        "reference": {
-          "value": "india"
+          "value": "alpha charlie golf"
         },
         "note": "scribbled"
       }
     },
     {
+      "verb": "NestedPieces::Workspace.AddBoard",
+      "role": "a role this caller does not hold",
+      "args": {
+        "number": {
+          "value": "not a integer"
+        },
+        "reference": {
+          "value": "delta"
+        }
+      }
+    },
+    {
+      "verb": "NestedPieces::Workspace.AddBoard",
+      "role": "a role this caller does not hold",
+      "args": {
+        "number": {
+          "value": 193
+        },
+        "reference": {
+          "value": "golf"
+        }
+      }
+    },
+    {
+      "verb": "NestedPieces::Workspace.Board.AddCard",
+      "args": {
+        "number": {
+          "value": 578
+        },
+        "reference": {
+          "value": "hotel delta"
+        },
+        "colour": "third"
+      }
+    },
+    {
       "verb": "NestedPieces::Workspace.Board.AddCard",
       "role": "a role this caller does not hold",
       "args": {
         "number": {
-          "value": 1000
+          "value": 413
         },
         "sequence": {
           "value": "not a integer"
         },
         "reference": {
-          "value": "delta india bravo"
+          "value": "alpha bravo charlie"
         }
       }
     },
@@ -83,13 +83,13 @@
       "role": "a role this caller does not hold",
       "args": {
         "number": {
-          "value": 860
+          "value": 903
         },
         "sequence": {
-          "value": 992
+          "value": 880
         },
         "reference": {
-          "value": "delta alpha"
+          "value": "bravo foxtrot"
         }
       }
     },
@@ -97,12 +97,12 @@
       "verb": "NestedPieces::Workspace.Board.Label",
       "args": {
         "number": {
-          "value": 717
+          "value": 198
         },
         "reference": {
-          "value": "juliet golf"
+          "value": "hotel echo delta"
         },
-        "note": "red"
+        "colour": "third"
       }
     },
     {
@@ -110,14 +110,14 @@
       "role": "a role this caller does not hold",
       "args": {
         "number": {
-          "value": 554
+          "value": 397
         },
         "label": {
           "value": {
           }
         },
         "reference": {
-          "value": "india alpha india"
+          "value": "golf charlie"
         }
       }
     },
@@ -126,13 +126,60 @@
       "role": "a role this caller does not hold",
       "args": {
         "number": {
-          "value": 139
+          "value": 709
         },
         "label": {
-          "value": "golf"
+          "value": "hotel foxtrot"
         },
         "reference": {
-          "value": "juliet juliet"
+          "value": "echo delta"
+        }
+      }
+    },
+    {
+      "verb": "NestedPieces::Workspace.Board.Retitle",
+      "args": {
+        "number": {
+          "value": 202
+        },
+        "label": {
+          "value": {
+          }
+        },
+        "reference": {
+          "value": "juliet"
+        },
+        "flavour": "scribbled"
+      }
+    },
+    {
+      "verb": "NestedPieces::Workspace.Board.Retitle",
+      "role": "a role this caller does not hold",
+      "args": {
+        "number": {
+          "value": 290
+        },
+        "label": {
+          "value": {
+          }
+        },
+        "reference": {
+          "value": "charlie hotel"
+        }
+      }
+    },
+    {
+      "verb": "NestedPieces::Workspace.Board.Retitle",
+      "role": "a role this caller does not hold",
+      "args": {
+        "number": {
+          "value": 555
+        },
+        "label": {
+          "value": "bravo juliet"
+        },
+        "reference": {
+          "value": "alpha charlie"
         }
       }
     }
@@ -151,7 +198,7 @@
       },
       {
         "verb": "NestedPieces::Workspace.AddBoard",
-        "error": "AddBoard does not declare flavour — it takes number",
+        "error": "AddBoard does not declare note — it takes number",
         "kind": "UnknownArgument"
       },
       {
@@ -166,7 +213,7 @@
       },
       {
         "verb": "NestedPieces::Workspace.Board.AddCard",
-        "error": "AddCard does not declare note — it takes sequence",
+        "error": "AddCard does not declare colour — it takes sequence",
         "kind": "UnknownArgument"
       },
       {
@@ -181,7 +228,7 @@
       },
       {
         "verb": "NestedPieces::Workspace.Board.Label",
-        "error": "Label does not declare note — it takes label",
+        "error": "Label does not declare colour — it takes label",
         "kind": "UnknownArgument"
       },
       {
@@ -192,6 +239,21 @@
       {
         "verb": "NestedPieces::Workspace.Board.Label",
         "error": "Label refused — role: Owner, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "NestedPieces::Workspace.Board.Retitle",
+        "error": "Retitle does not declare flavour — it takes label",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "NestedPieces::Workspace.Board.Retitle",
+        "error": "BoardLabel.value expects String, got {}",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "NestedPieces::Workspace.Board.Retitle",
+        "error": "Retitle refused — role: Owner, and the caller stated a role this caller does not hold",
         "kind": "Unauthorized"
       }
     ],
