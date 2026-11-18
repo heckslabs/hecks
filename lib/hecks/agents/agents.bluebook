@@ -560,14 +560,15 @@ Hecks.bluebook "Agents" do
       given("the review's time limit has passed") { requested_at.value + limit.value <= now.value }
 
       sets :ended_at, to: :now
+      # No reminder is due for a review asked again: its second review is open.
       sets :reminded_at, to: :now
 
       emits "PlanReviewReasked"
     end
 
     # A coder's wait can begin after its review ended (`RemindTheCoderWhoWaitsAfterTheEnd`): the
-    # refusal was told to a coder not yet waiting, so it is told once more. A review asked again is
-    # marked reminded when it ends, for its second review is open.
+    # refusal was told to a coder not yet waiting, so it is told once more, when the wait begins within
+    # the window after the end.
     command "Remind" do
       role "System"
       goal "Record that the coder began waiting on a review that had already ended with no verdict"
@@ -575,11 +576,13 @@ Hecks.bluebook "Agents" do
       reference_to PlanReview
       attribute :work, WorkKey, sets: true
       attribute :now,  Instant
+      # How long after the end a wait that begins still counts as the one the refusal missed.
+      attribute :window, TimeLimit, default: 60
       needs :now
 
       given("the review has no verdict yet") { verdict.nil? || verdict.to_s.empty? }
       given("the review ended already") { !ended_at.nil? && ended_at.value > 0 }
-      given("the review ended just now") { ended_at.value + 60 >= now.value }
+      given("the review ended just now") { ended_at.value + window.value >= now.value }
       given("the coder was not reminded already") { reminded_at.nil? || reminded_at.value == 0 }
 
       sets :reminded_at, to: :now
@@ -794,6 +797,8 @@ Hecks.bluebook "Agents" do
       transition "Abandon" => "undeliverable", from: "unresumed"
       transition "Remind" => "unresumed", from: %w[judged delivered]
       mark :terminal, "undeliverable"
+      # A delivered verdict rests: nothing waits on it, and only a reminder sends it again.
+      mark :rests, "delivered"
     end
 
     command "Judge" do
@@ -862,12 +867,14 @@ Hecks.bluebook "Agents" do
 
     # A verdict judged or delivered to a coder that was not yet waiting is kept to be sent again with the
     # words the reminder gives; the sweep's redelivery then sends it (`RedeliverTheUnresumedVerdict`).
+    # Its tries start again, so tries an earlier redelivery spent do not abandon the reminder.
     command "Remind", from: %w[judged delivered] do
       role "System"
       goal "Keep a delivered verdict to be sent again, as a reminder to the coder"
 
       reference_to Verdict
       attribute :answer, AnswerText, sets: true
+      attribute :tries,  TryCount, default: 0, sets: true
 
       emits "VerdictReminded"
     end

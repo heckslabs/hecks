@@ -26,6 +26,13 @@ RSpec.describe "the Agents plan review reminding a coder that waits after the en
     expect(verdict.answer.value).to include("create your worktree first")
   end
 
+  it "keeps a verdict already delivered to the coder that was not waiting to be sent again", :aggregate_failures do
+    asked = refused_at_request
+    verdict.deliver!
+    remind(asked, at: 1030)
+    expect([verdict.status, verdict.tries.value]).to eq(["unresumed", 0])
+  end
+
   it "does not remind a review that holds a verdict, by name" do
     asked = request(asks: { value: 0 }).answer!(verdict: { value: "sound" })
     expect { remind(asked, at: 1030) }.to raise_error(Hecks::Runtime::GivenNotMet, /no verdict yet/)
