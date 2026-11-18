@@ -138,13 +138,19 @@ async function save() {
 }
 function cancel() { pending.clear(); load(); }
 /* The few numbers that say how hard the machine is driven, as one sentence. */
-function headline(dials) {
+function headline(dials, moving) {
   const of = (name) => dials.find((d) => d.setting === name), cap = of("work_limit.cap"), load = of("dispatch_max_load.limit"), heavy = of("heavy_jobs.cap");
   const changed = dials.filter((d) => d.turned).length;
   const p = $("headline"); p.replaceChildren();
-  if (cap && load) p.append("Up to ", h("b", {}, shown(cap)), " Work items at once, and no new session above a load of ", h("b", {}, shown(load)), ...(heavy ? [", with ", h("b", {}, shown(heavy)), " heavy jobs at a time"] : []), ".");
+  if (cap && load) p.append("Up to ", h("b", {}, moving ? String(moving.current) : shown(cap)), " Work items at once, and no new session above a load of ", h("b", {}, shown(load)), ...(heavy ? [", with ", h("b", {}, shown(heavy)), " heavy jobs at a time"] : []), ".");
   else p.append(dials.length ? "The limits this machine runs the pipeline under." : "No setting can be set from here.");
+  p.append(h("small", { id: "cap-line" }, capLine(moving, cap)));
   p.append(h("small", {}, changed ? changed + (changed === 1 ? " setting was" : " settings were") + " set from here. " : "", "A change is kept on this machine only and is never committed."));
+}
+/* The work cap in one line: where the moving cap stands between its bounds and why, or the fixed cap. */
+function capLine(moving, cap) {
+  if (!moving) return "Work cap " + (cap ? shown(cap) : "not set") + ", fixed.";
+  return "Work cap " + moving.current + ", moving between " + moving.least + " and " + moving.most + ": " + (moving.reason || "holding, no move yet") + ".";
 }
 /* A value the dial's own bounds do not allow: set by hand in the overlay file, such as a pause at 0. */
 const outside = (d) => d.kind !== "switch" && d.kind !== "choice" && !unset(d.value) && (Number(d.value) < Number(d.least) || Number(d.value) > Number(d.most));
@@ -152,7 +158,7 @@ const outside = (d) => d.kind !== "switch" && d.kind !== "choice" && !unset(d.va
    A number the board does not measure yet is said so, not left out. */
 const GROUPS = [
   { title: "How much work runs", says: "how many coders start, and whether the fill starts them by itself",
-    has: ["work_limit.", "epic_wip_limit.", "dispatch_roll_forward."],
+    has: ["work_limit.", "work_cap.", "epic_wip_limit.", "dispatch_roll_forward."],
     moves: [["metric", "working", "coders dispatched"], ["metric", "throughput", "work finished"], ["stage", "Work items", "planned / started / done"], ["metric", "ahead", "commits not pushed"]] },
   { title: "How hard the machine is pushed", says: "when the fill holds back and when it sheds work",
     has: ["dispatch_max_load.", "machine_marks.", "load_shed.", "cpu_budget."],
@@ -187,8 +193,8 @@ function power(d) {
     + (pending.has(ROLL) ? " Not saved yet." : "");
   sw.onclick = () => { changed(d, want ? "off" : "on"); power(d); };
 }
-function draw(dials, note) {
-  headline(dials);
+function draw(dials, note, moving) {
+  headline(dials, moving);
   const taken = new Set(), sections = GROUPS.map((g) => {
     const rows = dials.filter((d) => d.setting !== ROLL && g.has.some((start) => d.setting.startsWith(start))); rows.forEach((d) => taken.add(d.setting));
     return rows.length ? h("section", { class: "group" }, h("h2", {}, g.title, h("small", {}, g.says)), h("div", { class: "moves" }, g.moves.map((m) => move(m, lastState))),
@@ -205,7 +211,7 @@ function load(notes) {
   const state = fetch("/api/state", { cache: "no-store" }).then((r) => r.json()).then((st) => { if (st && Array.isArray(st.metrics) && st.metrics.length) lastState = st; }).catch(() => {});
   // A board that has just started has no numbers yet: ask again shortly, unless something is moved and unsaved.
   state.then(() => { if (!(lastState.metrics || []).length) setTimeout(() => { if (!pending.size) load(); }, 10000); });
-  return state.then(() => fetch("/api/settings", { cache: "no-store" })).then((r) => r.json()).then((s) => draw(s.dials || [], notes || null))
+  return state.then(() => fetch("/api/settings", { cache: "no-store" })).then((r) => r.json()).then((s) => draw(s.dials || [], notes || null, s.cap || null))
     .catch((e) => { $("headline").textContent = "The settings could not be read: " + e.message; });
 }
 $("save").addEventListener("click", save); $("cancel").addEventListener("click", cancel);

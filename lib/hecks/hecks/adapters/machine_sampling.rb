@@ -6,6 +6,7 @@ require_relative "machine_sampling/states"
 require_relative "machine_sampling/readings"
 require_relative "machine_sampling/history"
 require_relative "machine_sampling/process_classes"
+require_relative "machine_sampling/cap_bounds"
 
 module Hecks
   module Adapters
@@ -43,13 +44,14 @@ module Hecks
       def busiest(**) = @processes.rows
 
       # @param held [Hash] the `Machine` record
-      # @return [Hash{Symbol => Object}] the gauges, and the states they leave and stood in before
+      # @return [Hash{Symbol => Object}] the gauges, the states they leave and stood in before, and
+      #   the owner's bounds on the moving work cap ({CapBounds})
       # @raise [ConsoleCapture::Failure] when the last reading is less than `interval` seconds old
       def read(**held)
         marks = Marks.of(@registry)
         refuse_a_repeat(marks[:interval], held)
         gauges = @readings.call
-        gauges.merge(States.new(gauges, marks, History.new(@registry).states).to_h)
+        gauges.merge(States.new(gauges, marks, History.new(@registry).states).to_h, CapBounds.of(@registry))
       end
 
       private
