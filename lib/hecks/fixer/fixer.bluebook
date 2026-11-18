@@ -158,7 +158,7 @@ Hecks.bluebook "Fixer" do
       attribute :commit,    CommitRef, sets: true
 
       given("no failing reproduction recorded: run the real entry point first") do
-        !reproduction.nil? && !reproduced.nil? && reproduced.value == "failed"
+        reproduction.value != nil && reproduced.value != nil && reproduced.value == "failed"
       end
 
       emits "FixReady"
@@ -176,7 +176,7 @@ Hecks.bluebook "Fixer" do
       attribute :commit,    CommitRef
 
       given("a patch the attempt already recorded as its fix is not pending") do
-        reproduction.nil? || reproduced.nil? || reproduced.value != "failed"
+        reproduction.value == nil || reproduced.value == nil || reproduced.value != "failed"
       end
 
       sets :merged_commit, to: :commit
@@ -207,7 +207,7 @@ Hecks.bluebook "Fixer" do
       attribute :rerun_result,  ReproductionResult
 
       given("the reproduction re-run is not the one recorded: run the recorded command") do
-        !reproduction.nil? && rerun.value == reproduction.value
+        reproduction.value != nil && rerun.value == reproduction.value
       end
 
       given("the recorded reproduction still fails: a fix that passes only new tests is not verified") do
