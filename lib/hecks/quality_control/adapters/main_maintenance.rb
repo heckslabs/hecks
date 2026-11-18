@@ -34,6 +34,18 @@ module Hecks
 
         module_function
 
+        # Runs the quick gate's command in this process. The command aborts when its ledger does
+        # not boot, which ends a command line; here it would end the process that holds the
+        # runtime, so it is the step's refusal instead.
+        #
+        # @return [Integer] the command's exit status
+        # @raise [Refused] when the command aborted
+        def quick_gate(root)
+          Hecks::QualityControlCli::QaMainGate.call([], root: root)
+        rescue SystemExit => e
+          raise Refused, "the quick gate could not run (#{e.message})"
+        end
+
         # The mint of one era of a domain, through the era check with the mint command's request.
         #
         # @return [Array(String, Boolean)] the minted era's label or the refusal, and whether it
@@ -113,7 +125,7 @@ module Hecks
       # @param sha [Hash, String] the commit the run is for
       # @return [Hash] `run`, `sha` and `color`
       def gate(run:, sha:, **)
-        exit_code = Hecks::QualityControlCli::QaMainGate.call([], root: @root)
+        exit_code = @commands.quick_gate(@root)
         raise Refused, "the quick gate could not run (exit #{exit_code})" if exit_code == 1
 
         { run: wrap(run), sha: wrap(sha), color: { value: exit_code.zero? ? "green" : "red" } }

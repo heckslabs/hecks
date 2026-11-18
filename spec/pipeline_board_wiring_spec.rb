@@ -221,10 +221,13 @@ RSpec.describe Hecks::Adapters::PipelineWiring do
       end
     end
 
-    it "settles the release manager's recommendations from the card, with the buttons the board shares", :aggregate_failures do
-      agents = File.read(Hecks::Adapters::PipelineWeb::AGENTS_PAGE)
-      expect(agents).to include("boardAnswer.recommendationButtons(r, refresh)", "Promotions to confirm", "state.recommendations")
-      expect(File.read(Hecks::Adapters::PipelineWeb::PAGE)).to include("boardAnswer.recommendationButtons(r, refresh)")
+    # Stable is promoted automatically once CI is green, so no promotion waits on the owner.
+    it "asks the owner to settle no promotion on either page, and draws no release manager", :aggregate_failures do
+      gone = ["recommendationButtons", "Promotions to confirm", "recommendations", 'class="node" data-role="release_manager"']
+      %w[PAGE AGENTS_PAGE].each do |name|
+        page = File.read(Hecks::Adapters::PipelineWeb.const_get(name))
+        expect(gone.select { |text| page.include?(text) }).to be_empty, "#{name} still holds some of #{gone}"
+      end
     end
 
     it "keeps the promote and settle calls in the shared script, not in either page", :aggregate_failures do
