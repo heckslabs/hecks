@@ -1,4 +1,5 @@
 require "spec_helper"
+require "hecks/hecks/adapters/main_integration"
 require "json"
 
 # A MainIntegration run that stands in one stage past its bound is parked in needs_human with the
