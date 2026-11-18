@@ -41,7 +41,7 @@ module Hecks
       #   the stage it left the run in, or why nothing was
       def step(**held)
         confirm = plain(held[:confirm]) == true
-        lines = advance_open(confirm)
+        lines = parked + advance_open(confirm)
         lines += adopted(confirm)
         { report: { value: lines.empty? ? "no open integration run" : lines.join("\n") } }
       end
@@ -55,7 +55,7 @@ module Hecks
       # @return [Hash{Symbol => Hash}] `report:` one line per run read
       # @raise [ConsoleCapture::Failure] when no run is pushed or watched (a quiet beat)
       def tend(**_held)
-        lines = attend(runs.all.select { |run| NEXT[run.state] == "Observe" }, false)
+        lines = parked + attend(runs.all.select { |run| NEXT[run.state] == "Observe" }, false)
         lines += adopted(true)
         raise ConsoleCapture::Failure, "quiet: no train pull request in flight" if lines.empty?
 
@@ -75,6 +75,10 @@ module Hecks
       def withdraw(**held) = { report: { value: BeatSchedule.new.uninstall(confirm: plain(held[:confirm]) == true) } }
 
       private
+
+      # A run that stood in one stage past its bound is parked first, so the line it held is free
+      # for the runs behind it in this same pass.
+      def parked = Stale.new(@registry).park(runs.all)
 
       # A tip of main no run covers (a pull rewrote the held tip) gets a run when none is open, and
       # that run takes its first steps at once: it is boarded like any other, so a beat that finds
@@ -171,6 +175,7 @@ end
 
 require_relative "main_integration/code_watch"
 require_relative "main_integration/runs"
+require_relative "main_integration/stale"
 require_relative "main_integration/newest_first"
 require_relative "main_integration/adoption"
 require_relative "main_integration/fault"
