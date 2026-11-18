@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "net/http"
+require "open3"
 require_relative "../restart_notes"
 
 module Hecks
@@ -15,6 +16,8 @@ module Hecks
           ASK_SECONDS = 10
           # Seconds the board has to end once asked to stop, before it is made to.
           GRACE_SECONDS = 5
+          # A `ps` time: optional days, then `M:SS`, `H:MM:SS` with optional fractions of a second.
+          PS_TIME = /\A(?:(\d+)-)?(\d+(?::\d+){1,2}(?:\.\d+)?)\z/
 
           # @param pid [Integer] the board's process id
           # @param port [Integer] the port the board serves on
@@ -35,6 +38,28 @@ module Hecks
             false
           end
 
+          # @param pid [Integer] the board's process id
+          # @return [Float, nil] the CPU seconds the process has used, from `ps`; nil when the
+          #   process is gone or `ps` fails
+          def cpu_seconds(pid)
+            out, status = Open3.capture2("ps", "-o", "time=", "-p", pid.to_s)
+            status.success? ? self.class.cpu_time(out) : nil
+          rescue SystemCallError
+            nil
+          end
+
+          # @param text [String] a `ps` time: `M:SS.ss`, `H:MM:SS` or `D-HH:MM:SS`
+          # @return [Float, nil] its seconds; nil when it is not a time
+          def self.cpu_time(text)
+            days, clock = text.strip.match(PS_TIME)&.captures
+            return nil unless clock
+
+            (days.to_i * 86_400) + clock.split(":").map(&:to_f).reduce { |sum, part| (sum * 60) + part }
+          end
+
+          # @return [Float] monotonic seconds, for the wall time between two asks
+          def clock = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+
           # @return [Boolean] whether the board is still this process's parent
           def parent_alive? = Process.ppid == @pid
 
@@ -53,10 +78,11 @@ module Hecks
 
           # Starts the board again as the command that started it, detached, in its directory, and
           # notes the restart for the board's header.
-          # @param misses [Integer] the unanswered asks in a row that led to the restart
+          # @param misses [Integer] the asks in a row that led to the restart
+          # @param reason [String] `stall` or `cpu`, for the note
           # @return [Integer] the new board's process id
-          def restart(misses: 0)
-            RestartNotes.record(misses: misses)
+          def restart(misses: 0, reason: "stall")
+            RestartNotes.record(misses: misses, reason: reason)
             child = Process.spawn({ Sentinel::ENV_KEY => nil }, *@command, chdir: @directory, pgroup: true)
             Process.detach(child)
             child

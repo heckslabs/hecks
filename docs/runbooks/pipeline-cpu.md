@@ -112,6 +112,7 @@ Shared caches and records, which every checkout and worktree reads, and how each
 | Several `rustc` at once, or a build that seems stuck | builds started by hand skip the lock; a hecks build waits behind another (it says so after 5 s, with the load); a **gate** run used to bypass the lock (load 22 with 21 `rustc` from `gate_run.gate! stage=ci only=rust_clippy` in a worktree, 2026-11-09) and takes it now | `cat ~/.cache/hecks/rust-build/build.lock` names the holder's pid; `HECKS_NO_BUILD_LOCK=1` skips the wait; ADR 0203 has the build timings |
 | Many `claude`-owned `ruby` processes | two MCP servers per session | `ps -Ao rss,command \| grep -E 'tools/(mcp\|serve_query)'` |
 | Board slow or memory growing | live store reload or restart limits | the `board_restart` line; `ps -o rss= -p <board pid>` |
+| Board holds one core while idle | a board that answers but spins; its sentinel restarts it after `sentinel_cpu_asks` (20) asks in a row above `sentinel_cpu_share` (0.9) of a core, and the header says "holding most of a core" | `ps -o time= -p <board pid>` twice; `sentinel_cpu_share: 0` on the `board_restart` line turns the bound off. `Board.serve!` and `PipelineBoard.serve!` run in their own process, never as a resident's child (`Client::SERVING`) |
 | A refusal that names a `save_saga` or outbox warning | the warning is a boot notice, not the cause; the cause is the first line of the refusal and the notices follow `-- boot notices --` | read the refusal's first line; `Hecks::BootNotices` lists the notices |
 
 ## Known gaps
