@@ -264,7 +264,8 @@ Hecks.bluebook "Hecks" do
     end
 
     # The push, the draft and the CI read are the port's (never main, never forced, never --no-verify);
-    # the verdict is the bluebook's, passed when no job failed, for the record's own head only.
+    # the verdict is the bluebook's, passed when no job of the branch's own failed (a job that failed on
+    # the run of the branch's base too is inherited, reported apart), for the record's own head only.
     aggregate "EarlyCi" do
       description "One branch pushed as ci/<branch> with a never-merged draft, by a landing or by its coder before hand-off, and what CI said of its head."
 
@@ -427,17 +428,20 @@ Hecks.bluebook "Hecks" do
       ask     :branch_ci, with: { run: :run }
     end
 
-    # No failing job is a pass: the verdict is drawn here, from the jobs the port names.
+    # No failing job of the branch's own is a pass: the verdict is drawn here, from the jobs the port
+    # names. `inherited` lists, in `failing`'s order, the failed jobs whose every failed example also
+    # failed on the run of the branch's base; when the two lists are the same, a red main is all that
+    # failed, and the coder hands off clean work with the inherited jobs named in the report.
     policy "RecordTheGreenRun" do
       on      "EarlyCi.BranchCiAnswered"
-      where   { failing.nil? || failing.value.to_s.empty? }
+      where   { failing.nil? || failing.value.to_s.empty? || (!inherited.nil? && inherited.value == failing.value) }
       trigger EarlyCi::Observe, with: { outcome: "passed", report: :report, number: :number, ci_run: :ci_run,
                                         of_sha: :sha }
     end
 
     policy "RecordTheRedRun" do
       on      "EarlyCi.BranchCiAnswered"
-      where   { !failing.nil? && !failing.value.to_s.empty? }
+      where   { !failing.nil? && !failing.value.to_s.empty? && (inherited.nil? || inherited.value != failing.value) }
       trigger EarlyCi::Observe, with: { outcome: "failed", report: :report, number: :number, ci_run: :ci_run,
                                         of_sha: :sha }
     end
