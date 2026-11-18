@@ -22,4 +22,16 @@ Hecks.hecksagon "Agents" do
 
     answers_query "Leftovers"
   end
+
+  # Whether a message's recipient is a run with a live session. Bound by adapters/recipient_check,
+  # which reads the AgentRun ledger and the session listing and refuses, by name, a recipient that
+  # is neither.
+  Agents::Message.port "Recipients" do
+    asks "Recipient", to: Message do
+      attribute :message,   MessageKey
+      attribute :recipient, RunKey
+      answers "RecipientFound"
+      refuses "RecipientMissing"
+    end
+  end
 end
