@@ -38,17 +38,18 @@ module Hecks
         { branch: { value: found } }
       end
 
-      # Finds the finished work item a refused landing job's branch names. It judges nothing:
+      # Finds the started work item a refused landing job's branch names (a submission does not
+      # finish it; only a landing does). It judges nothing:
       # whether the item is planned again is the Tickets bluebook's, from the count answered here.
       #
       # @param held [Hash] the `Landing` record's `branch`, and the `refusal` its job was given
       # @return [Hash{Symbol => Hash}] `work:` the item's key, `title:` its title, `detail:` its
       #   detail ending with the refusal, `refusals:` how many landing refusals the detail held
-      # @raise [ConsoleCapture::Failure] when no finished work item is named by the branch
+      # @raise [ConsoleCapture::Failure] when no started work item is named by the branch
       def find_refused_work(**held)
         branch = plain(held[:branch]).to_s
-        item = finished.find { |record| candidates(branch).include?(StartedWork.value(record, :work).to_s) }
-        raise ConsoleCapture::Failure, "no finished work item is named #{branch}" unless item
+        item = started.find { |record| candidates(branch).include?(StartedWork.value(record, :work).to_s) }
+        raise ConsoleCapture::Failure, "no started work item is named #{branch}" unless item
 
         refused(item, plain(held[:refusal]).to_s)
       end
@@ -63,11 +64,11 @@ module Hecks
           refusals: { value: detail.scan(REFUSED).size } }
       end
 
-      def finished
+      def started
         aggregate = StartedWork.work_aggregate(@registry)
         return [] unless aggregate
 
-        @registry.repository("Tickets", aggregate).all.select { |item| StartedWork.value(item, :status) == "done" }
+        @registry.repository("Tickets", aggregate).all.select { |item| StartedWork.value(item, :status) == "started" }
       end
 
       def candidates(branch) = BranchWorkNames.of(branch, all_keys)
