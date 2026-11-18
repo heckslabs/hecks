@@ -84,4 +84,22 @@ RSpec.describe "AgentRun freeing the key of an ended run" do
                                                        brief: { value: "again" })
     end.to raise_error(Hecks::Runtime::AlreadyExists)
   end
+
+  def serve(run, work, *agent)
+    launch("agent_run.dispatch!", "run.value=#{run}", "repo.value=#{scratch}", "brief.value=say ok", "work.value=#{work}",
+           *agent, "--wait").first.to_s
+  end
+
+  it "declines a second run on work a started run holds, before its session starts", :aggregate_failures do
+    serve("w-held", "w-held")
+    serve("w-twin", "w-held")
+    expect(status_of("w-twin")).to eq("refused")
+    expect(store("Hecks", "AgentRun").find("w-twin")[:session]).to be_nil
+  end
+
+  it "starts an architect's run on work a coder holds" do
+    serve("w-coder", "w-coder")
+    serve("w-review", "w-coder", "agent.value=architect")
+    expect(status_of("w-review")).to eq("started")
+  end
 end

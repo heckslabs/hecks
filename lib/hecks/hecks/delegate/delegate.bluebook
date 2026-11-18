@@ -1965,8 +1965,18 @@ Hecks.bluebook "Hecks" do
     # `claude`'s default. One look, not two: the reactions after a start stay within the depth limit.
     policy "StartWhenTheAgentIsListed" do
       on      "AgentRun.RepoLocated"
-      where   { listed != false }
+      where   { listed != false && (holder == "" || holder_status != "started" || holder_agent != "" || requester_agent != "") }
       ask     :start, with: { run: :run }
+    end
+
+    # A Work item has one live session. A run with no agent that serves work another started run with no
+    # agent already serves is declined before a session starts; a plan review or any other agent's
+    # run carries the item's slug beside its coder and is never held against it. The record is
+    # `requested` until now, so the decline starts nothing.
+    policy "RecordTheHeldWork" do
+      on      "AgentRun.RepoLocated"
+      where   { listed != false && holder != "" && holder_status == "started" && holder_agent == "" && requester_agent == "" }
+      trigger AgentRun::Decline, with: { refusal: "its work is already held by a started run" }
     end
 
     policy "RecordTheUnlistedAgent" do
