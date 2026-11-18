@@ -29,8 +29,8 @@ module Hecks
         # `push-due` work item once its title says the push is urgent.
         RED = "red-"
 
-        # The priorities a planned work item ranks by, highest first; none ranks last. Priority ranks
-        # ahead of the epic's tier, which orders only items of the same priority.
+        # The priorities a planned work item ranks by, highest first; none ranks last. Priority
+        # ranks ahead of the epic's tier, which orders only items of the same priority.
         TIERS = %w[now next later].freeze
 
         # @param item [Plan::Item] a work item
