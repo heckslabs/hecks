@@ -210,8 +210,15 @@ RSpec.describe Hecks::Adapters::Driving::Resident::PersistenceGuard do
       loaded(bound: %w[Work Epic])
       ledger_world(domain, File.join(@root, "ledger.db"))
       ledger_world(elsewhere, File.join(elsewhere, "other.db"))
-      allow(server).to receive(:require_hecks)
+      quiet_loads
       Dir.chdir(elsewhere) { server.send(:load_everything) }
+    end
+
+    # Leaves out what a load does besides loading: requiring Hecks, watching and noting the code.
+    def quiet_loads
+      allow(server).to receive(:require_hecks)
+      server.instance_variable_set(:@fingerprint, instance_double(Hecks::Adapters::Driving::Resident::Fingerprint, watch: nil))
+      allow(Hecks::Adapters::Driving::UsageCache).to receive(:code_fingerprint)
     end
 
     it "loads its domain in its checkout, not in the directory it was started from" do

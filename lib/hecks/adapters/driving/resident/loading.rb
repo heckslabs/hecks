@@ -88,7 +88,9 @@ module Hecks
           # Runs the resident's own loads in its checkout. A load reads the local files of the
           # working directory too ({Adapters::FolderOverlay#load_overlay}), and a resident starts in
           # its spawner's, so a load made there would serve that directory's databases to every
-          # later line. A root that is not a directory loads where it stands.
+          # later line. A root that is not a directory loads where it stands. The root is a real
+          # path ({Paths.root_for}), and a line names its directory and script absolutely, so the
+          # pool's threads read the same files while a load has moved the working directory.
           #
           # @return [Object] the block's value
           def at_root(&) = File.directory?(@root.to_s) ? Dir.chdir(@root, &) : yield
