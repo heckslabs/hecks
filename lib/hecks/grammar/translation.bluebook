@@ -127,7 +127,7 @@ Hecks.bluebook "Translation" do
     value_object "DestinationPath", String
 
     value_object "Reason" do
-      attribute :value, String
+      attribute :value, String, matches: :present
       invariant("a superseded edge says why") { !value.to_s.empty? }
     end
 

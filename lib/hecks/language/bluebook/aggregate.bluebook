@@ -40,7 +40,7 @@ Hecks.bluebook "Bluebook" do
     end
 
     value_object "Description" do
-      attribute :value, String
+      attribute :value, String, matches: :present
       invariant("a description says something") { !value.to_s.empty? }
     end
 
