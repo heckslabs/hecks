@@ -259,13 +259,10 @@ Hecks.bluebook "Hecks" do
       end
     end
 
-    # A branch's CI run under ci/<branch> and a never-merged draft: started by a landing (`Start`, keyed
-    # by its run) or asked by a coder before hand-off (`Request`, keyed by the branch). The push, the
-    # draft and the CI read are the port's (never main, never forced, never --no-verify); the verdict is
-    # the bluebook's, passed when no job failed, and an answer for another head than the record's is
-    # refused. A failed landed run answers the coder that cut the branch.
+    # The push, the draft and the CI read are the port's (never main, never forced, never --no-verify);
+    # the verdict is the bluebook's, passed when no job failed, for the record's own head only.
     aggregate "EarlyCi" do
-      description "One landed branch pushed as ci/<branch> with a draft pull request, and what CI said of it."
+      description "One branch pushed as ci/<branch> with a never-merged draft, by a landing or by its coder before hand-off, and what CI said of its head."
 
       attribute :run,       RunKey
       attribute :branch,    Word
