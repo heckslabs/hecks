@@ -897,11 +897,6 @@ Hecks.bluebook "Agents" do
   # A message is information: no policy acts on its body or its sender, which is the sender's own
   # word and proves nothing. A session hears its messages with `Operation.follow` on this aggregate;
   # one that is not following is still answered with `AgentRun.answer!`.
-  #
-  # Whether the recipient is a run with a live session is a fact of the AgentRun ledger, which lives
-  # in another domain and which a given cannot read, so the `Recipients` port is asked before the
-  # message counts as sent: a run that is there and started is sent to, anything else is refused by
-  # name and never reaches an inbox.
   aggregate "Message" do
     description "One message from a session to a run: addressed, sent as an event the run's session hears once the recipient is a run with a live session, then read; refused by name when it is not. It grants no approval and changes no permission; a reply is a message whose in_reply_to names the one it answers."
 
@@ -1013,6 +1008,8 @@ Hecks.bluebook "Agents" do
       order_by :message
     end
 
+    # Whether the recipient is a run with a live session is a fact of the AgentRun ledger, in
+    # another domain, which a given cannot read; so the port is asked before a message is sent.
     policy "CheckTheRecipient" do
       on      "Message.MessageAddressed"
       ask     :recipient, with: { message: :message, recipient: :recipient }
