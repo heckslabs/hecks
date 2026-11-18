@@ -93,7 +93,7 @@ RSpec.describe "the Tickets bluebook" do
   def report_failed_run(key, body = "gate red")
     allow(Open3).to receive(:capture3) { raise "GitHub must not be called: a run finding opens no issue" }
     before = @hecks.registry.reaction_log.size
-    @hecks.dispatch_flat("Tickets::Finding.ReportFailedRun", finding: key, body: body)
+    @hecks.dispatch_flat("Tickets::Finding.ReportFailedRun", finding: key, title: "A Codebase check failed", body: body)
     @hecks.registry.reaction_log.drop(before).map { |reaction| reaction[:policy] }
   end
 

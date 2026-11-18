@@ -53,22 +53,21 @@ module Hecks
           plain = ->(name) { held[name].is_a?(Hash) ? held[name][:value] : held[name] }
           only = plain.call(:only).to_s
           argv = [plain.call(:stage).to_s, *("only=#{only}" unless only.empty?)]
-          out = named_red { run(tree, argv) }
+          out = named_red(argv.first) { run(tree, argv) }
           { report: { value: out } }.merge(counts_of(out))
         end
 
-        # Runs the block, naming the cause on the failure of a red gate.
+        # Runs the block, naming the cause on the failure of a gate. A failure that names no red
+        # check is the stage's own fault, `gate-<stage>-fault`, so it is filed once per stage.
         #
+        # @param stage [String] the stage the gate runs
         # @yield the gate run
         # @return [String] what the block answers
-        # @raise [Red] when the block fails with a report naming red checks
-        def named_red
+        # @raise [Red] when the block fails
+        def named_red(stage)
           yield
         rescue ConsoleCapture::Failure => e
-          cause = cause_of(e.message)
-          raise e unless cause
-
-          raise Red.new(e.message, cause)
+          raise Red.new(e.message, cause_of(e.message) || "gate-#{stage}-fault")
         end
 
         # The cause a gate's printed report names.

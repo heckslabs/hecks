@@ -16,8 +16,8 @@ module PrunerRoleFile
 end
 
 # The pruner role file carries the rules that keep a session from being removed by mistake: the
-# pins in `~/.claude/jobs/pins.json`, the roles the board pins (read from the world's `agent_roles`
-# line, never a list of the role file's own), and the AgentRun ledger as the one reading of
+# pins in `~/.claude/jobs/pins.json`, the `PinnedRole` rows (the board's `agent_roles` line is not a
+# pin list), and the AgentRun ledger as the one reading of
 # "finished", since a session that is `done` between turns is idle, not finished. The report lists
 # every skipped session by id with the rule that kept it, the pinned ones first.
 RSpec.describe "the pruner role file" do
@@ -25,12 +25,12 @@ RSpec.describe "the pruner role file" do
 
   describe "its pinned roles" do
     it "reads them from the bluebook's PinnedRole rows, not a list of its own", :aggregate_failures do
-      expect(steps).to include("`PinnedRole` rows of the `Role` aggregate in `lib/hecks/agents/agents.bluebook`")
-      expect(steps).to include("A pinned role's session is never removed")
+      expect(steps).to include("`PinnedRole` row of the `Role` aggregate in `lib/hecks/agents/agents.bluebook`")
+      expect(steps).to include("take the roles from those rows")
     end
 
     it "keeps the owner's pinned sessions from the pins file until AgentRun carries the fact" do
-      expect(steps).to match(%r{until AgentRun carries a pinned fact.*~/\.claude/jobs/pins\.json}m)
+      expect(steps).to match(%r{~/\.claude/jobs/pins\.json.*until AgentRun carries a pinned fact}m)
     end
 
     it "declares the orchestrator as a pinned role in the bluebook" do
@@ -39,10 +39,19 @@ RSpec.describe "the pruner role file" do
   end
 
   describe "its skip rules" do
-    it "reads the roles the board pins from the world's agent_roles line", :aggregate_failures do
-      expect(steps).to include("`agent_roles` line in `lib/hecks/hecks/hecks.world`")
+    it "keeps a session only by its id in pins.json or a PinnedRole row", :aggregate_failures do
+      expect(steps).to include("kept only if its id is in `~/.claude/jobs/pins.json` or its role is a `PinnedRole` row")
       expect(steps).to include("never from a list of your own")
       expect(steps).to include("Never remove a session that holds a pinned role")
+    end
+
+    it "says the board's agent_roles line is not a pin list", :aggregate_failures do
+      expect(steps).to include("is the roles the board shows, not a pin list")
+      expect(steps).to include("a finished architect, reviewer, coder, planner or release_manager session is removed")
+    end
+
+    it "pins only the orchestrator" do
+      expect(pinned_roles).to eq(["orchestrator"])
     end
 
     it "keeps the orchestrator above all" do
