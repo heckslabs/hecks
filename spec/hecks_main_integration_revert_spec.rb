@@ -294,8 +294,35 @@ RSpec.describe "a red main reverting its one bad merge" do
     expect(landing_refused?).to be(true)
   end
 
-  it "refuses to board that revert, which is not a red-* Work item's fix tip" do
+  it "admits that revert for boarding and no other commit", :aggregate_failures do
     verify_with_the_culprit_on_origin
-    expect(boarding_error(git("rev-parse", "main").strip)).to include("only the tip of a red-* Work item's fix is boarded")
+    expect(event_names).to include("RedFlagRevertAdmitted")
+    expect(boarding_error(git("rev-parse", "main").strip)).to be_nil
+    expect(boarding_error(@bad)).to include("only the tip of a red-* Work item's fix is boarded")
+  end
+
+  it "lets a red-* fix that lands after the admitted revert board in its place", :aggregate_failures do
+    verify_with_the_culprit_on_origin
+    Hecks::Adapters::RedFlagGuard.new(File.join(repo, ".git")).landed("red-two", @bad)
+    expect(boarding_error(@bad)).to be_nil
+  end
+
+  it "tells the owner through the orchestrator when a hand revert parks the episode" do
+    hand_revert_then_verify
+    expect(event_names).to include("CoordinatorWoken")
+  end
+
+  # A tracked file is changed in the checkout before the verification, so the revert is refused.
+  def verify_over_a_dirty_checkout
+    stub_outside
+    landed = three_landings.last
+    File.write(File.join(repo, "one.rb"), "changed")
+    verify(landed)
+  end
+
+  it "tells the owner through the orchestrator when the revert is refused, and holds landings", :aggregate_failures do
+    verify_over_a_dirty_checkout
+    expect(event_names).to include("RevertRefused", "CoordinatorWoken")
+    expect(landing_refused?).to be(true)
   end
 end

@@ -154,7 +154,7 @@ Hecks.hecksagon "Hecks" do
   end
 
   Hecks::RedFlag.port "Flagging" do
-    %w[Hoist SignIn Lower Survey].each do |step|
+    %w[Hoist SignIn Lower Survey Pass].each do |step|
       asks step, to: RedFlag do
         attribute :run, RunKey
         answers "FlagAnswered"

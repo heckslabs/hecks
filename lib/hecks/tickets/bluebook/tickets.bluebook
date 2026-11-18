@@ -1325,8 +1325,9 @@ Hecks.bluebook "Tickets" do
     trigger Finding::ReportStoppedRun, with: { finding: :work, stage: "landing", body: :detail }
   end
 
-  # A reverted merge reopens its Work item, first in line; RedEpisode (deliver.bluebook) owns the
-  # `work` key (the branch less its -stepN or -rN) and the `finding`. An unknown key is refused by name.
+  # A reverted merge reopens its Work item, first in line, to redo the work: the revert itself is
+  # main's fix. RedEpisode (deliver.bluebook) owns the `work` key (the branch less its -stepN or -rN)
+  # and the `finding`. An unknown key is refused by name.
   policy "ReopenWorkWhenAnEpisodeReverts" do
     on      "RedEpisode.EpisodeReverting"
     root
