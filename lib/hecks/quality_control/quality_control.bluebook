@@ -1426,7 +1426,9 @@ Hecks.bluebook "QualityControl" do
 
     value_object "IssueUrl", String
 
-    value_object "RefusalText", String
+    value_object "RefusalText" do
+      attribute :value, String, matches: :present
+    end
 
     # Three tries, then a human. The cap is on the record because a policy carries no state.
     value_object "AttemptCount" do
@@ -2257,7 +2259,9 @@ Hecks.bluebook "QualityControl" do
 
     # Why a mint was refused, as the refusal the mint entry point names. A held mint says "needs owner
     # approval", which the approval policy reads.
-    value_object "MintRefusal", String
+    value_object "MintRefusal" do
+      attribute :value, String, matches: :present
+    end
 
     # The single entry point for a mint of a domain's next era. It is the only command that asks for a mint:
     # a boot never mints, and the mint names the commit its landing puts on main, so the ledger and main move

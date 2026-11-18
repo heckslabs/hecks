@@ -246,7 +246,7 @@
               "list": false,
               "default": null,
               "optional": false,
-              "pattern": null,
+              "pattern": "[^ \\t\\n\\r]",
               "admits": null,
               "relationship": null
             }

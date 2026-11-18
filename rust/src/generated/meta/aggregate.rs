@@ -148,6 +148,17 @@ impl crate::kernel::Fielded for Description {
 
 impl Description {
     pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
+        if !crate::kernel::pattern::matches_whole("[^ \\t\\n\\r]", &self.value) {
+            return Err(crate::kernel::Refusal::TypeMismatch(
+                crate::kernel::refusal_wording::TypeMismatchPatternMismatchArgs {
+                    r#type: "Description",
+                    field: "value",
+                    pattern: "[^ \\t\\n\\r]",
+                    offered: format!("{:?}", self.value).as_str(),
+                }
+                .render_args(),
+            ));
+        }
         {
             let ctx = crate::kernel::EvalContext {
                 args: &crate::kernel::NoFields,

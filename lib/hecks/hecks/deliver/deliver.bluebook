@@ -926,7 +926,9 @@ Hecks.bluebook "Hecks" do
         invariant("a count is not negative") { !value.negative? }
       end
 
-      value_object "Line", String
+      value_object "Line" do
+        attribute :value, String, matches: :present
+      end
 
       command "Record" do
         role "Operator"

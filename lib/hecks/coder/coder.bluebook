@@ -265,7 +265,9 @@ Hecks.bluebook "Coder" do
     value_object "TurnAgain", Boolean
 
     # What a held coder is told to do.
-    value_object "TurnRefusal", String
+    value_object "TurnRefusal" do
+      attribute :value, String, matches: :present
+    end
 
     lifecycle :status, default: "asked" do
       mark :failure, "held"
