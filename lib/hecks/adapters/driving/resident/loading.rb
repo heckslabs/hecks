@@ -82,8 +82,16 @@ module Hecks
             require_hecks
             Stores.load
             @cache = DescribedCache.new
-            ENVIRONMENTS.each { |name| load_domain(File.join(@root, DOMAIN), name) }
+            at_root { ENVIRONMENTS.each { |name| load_domain(File.join(@root, DOMAIN), name) } }
           end
+
+          # Runs the resident's own loads in its checkout. A load reads the local files of the
+          # working directory too ({Adapters::FolderOverlay#load_overlay}), and a resident starts in
+          # its spawner's, so a load made there would serve that directory's databases to every
+          # later line. A root that is not a directory loads where it stands.
+          #
+          # @return [Object] the block's value
+          def at_root(&) = File.directory?(@root.to_s) ? Dir.chdir(@root, &) : yield
 
           # @return [Array<String>] the variables a line must match the resident on
           def loaded_names = (LOADED_WITH | EnvTrace.names) - PER_LINE
@@ -150,7 +158,7 @@ module Hecks
           def learn
             return if @notes.empty?
 
-            EnvTrace.tracing { learn_one(*@notes.pop) until @notes.empty? }
+            EnvTrace.tracing { at_root { learn_one(*@notes.pop) until @notes.empty? } }
             @persistence_refusals = {}
             note_environment
             settle
