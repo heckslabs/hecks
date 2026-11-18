@@ -23,11 +23,20 @@ module Hecks
         root = SessionBuild.root_of(chdir)
         BuildLock.building(command) do |held|
           settings = held.merge(SessionBuild.environment(root: root, binary: binary)).merge(env)
-          Open3.capture2e(settings, *SessionBuild.command(command, root: root), chdir: chdir)
+          output, status = Open3.capture2e(settings, *SessionBuild.command(command, root: root), chdir: chdir)
+          [toolchain_note(output, status, root, settings), status]
         end
       end
 
       private
+
+      # Puts the toolchain failure, when that is why a build failed, ahead of what it printed.
+      def toolchain_note(output, status, root, settings)
+        return output if status.success?
+
+        note = Toolchain.failure(output, root: root, env: settings)
+        note ? "#{note}\n#{output}" : output
+      end
 
       # @return [Boolean] whether the program ended well
       def spawn_build(held, env, command, root, options)

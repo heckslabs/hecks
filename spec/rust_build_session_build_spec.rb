@@ -28,6 +28,23 @@ RSpec.describe Hecks::RustBuild::SessionBuild do
     FileUtils.remove_entry(root)
   end
 
+  def rustup_home
+    home = Dir.mktmpdir("cargo-home")
+    FileUtils.mkdir_p(File.join(home, "bin"))
+    FileUtils.touch(File.join(home, "bin", "cargo"))
+    File.chmod(0o755, File.join(home, "bin", "cargo"))
+    home
+  end
+
+  it "puts rustup's cargo first on the child's PATH whatever the caller's PATH is" do
+    home = rustup_home
+    base = { "CARGO_HOME" => home, "PATH" => "/opt/homebrew/bin:/usr/bin" }
+
+    expect(described_class.environment(root: root, base: base)["PATH"]).to start_with("#{home}/bin:/opt/homebrew")
+  ensure
+    FileUtils.rm_rf(home)
+  end
+
   it "reads the target directory from the world" do
     expect(described_class.environment(root: root, base: no_target)).to eq("CARGO_TARGET_DIR" => shared)
   end
