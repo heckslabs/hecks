@@ -235,9 +235,9 @@ Hecks.bluebook "Hecks" do
         emits SessionFailed
       end
 
-      # A finished run's session is removed when it ended `done` or `stopped`; a session still
-      # `working` or `blocked` on a person is kept, and so is one a person has taken over (the port
-      # says so).
+      # A finished run's session is removed when it ended `done` or `stopped`; a session
+      # ended `abandoned` (a helper nobody answered) goes too; one still `working` or `blocked` on a
+      # person is kept, and so is one a person has taken over (the port says so).
       #
       # A run the review kept (`Retain`) stays finished, and every reap sends `Tidy` for it. It is
       # refused here until its wait has passed, so a kept run is reviewed once per wait. `Release`
@@ -245,15 +245,15 @@ Hecks.bluebook "Hecks" do
       # never kept holds neither and is reviewed at once; `nil?` is false in a rule: use `== nil`.
       command "Tidy", from: "finished" do
         role "Operator"
-        goal "Remove the finished session of one run, unless it is still working, waiting on a person, or taken over"
+        goal "Remove the finished session of one run, unless it is still working, a coder waiting on a person, or taken over"
 
         reference_to AgentRun
         # `now:` is filled from the clock port; an explicit value wins.
         attribute :now, Instant
         needs :now
 
-        given("the session ended done or stopped: a working or blocked session is kept") do
-          condition.value == "done" || condition.value == "stopped"
+        given("the session ended done, stopped or abandoned: a working or blocked session is kept") do
+          condition.value == "done" || condition.value == "stopped" || condition.value == "abandoned"
         end
         given("a kept run is reviewed again once its wait has passed") do
           kept_at.value == nil || review_wait.value == nil || kept_at.value + review_wait.value <= now.value
@@ -462,7 +462,7 @@ Hecks.bluebook "Hecks" do
       end
 
       query "Tidyable" do
-        description "Every finished run, oldest key first; `Tidy` keeps those that did not end done, and refuses one the review kept until its wait has passed."
+        description "Every finished run, oldest key first; `Tidy` keeps those that did not end done, stopped or abandoned, and refuses one the review kept until its wait has passed."
         where(status: "finished")
         order_by :run
       end
@@ -2111,6 +2111,20 @@ Hecks.bluebook "Hecks" do
       trigger AgentRun::Finish, with: { condition: "stopped", detail: :report, checkout: :checkout }
     end
 
+    # A helper (not coder or orchestrator) blocked past `abandon_after_minutes` ends `abandoned`,
+    # its question kept as the detail, and is reaped; a coder, a pinned session or one being
+    # answered is left. It fires once: `Check` reads only a started run's job.
+    policy "AbandonTheUnansweredHelper" do
+      on      "AgentRun.JobRead"
+      root
+      where   do
+        state == "blocked" && agent != "coder" && agent != "orchestrator" && agent != "" && abandon_after > 0 &&
+          blocked_minutes >= abandon_after && pin_listed == false && resuming != true && reviewing != true &&
+          !run.start_with?("live-") && !run.start_with?("resume-")
+      end
+      trigger AgentRun::Finish, with: { condition: "abandoned", detail: :detail, checkout: :checkout }
+    end
+
     policy "RecordTheFailedSession" do
       on      "AgentRun.JobRead"
       root
@@ -2176,19 +2190,19 @@ Hecks.bluebook "Hecks" do
 
     policy "KeepWhenTheWorkIsStillQueued" do
       on      "AgentRun.SessionReviewed"
-      where   { listed != false && taken_over == false && work_open == true && no_product != true }
+      where   { listed != false && taken_over == false && work_open == true && no_product != true && ended_as != "abandoned" }
       trigger AgentRun::Retain, with: { refusal: "Work still queued", review_wait: 3600 }
     end
 
     policy "KeepWhenTheWorktreeHasUnmergedCommits" do
       on      "AgentRun.SessionReviewed"
-      where   { listed != false && taken_over == false && (work_open != true || no_product == true) && unmerged == true }
+      where   { listed != false && taken_over == false && (work_open != true || no_product == true || ended_as == "abandoned") && unmerged == true }
       trigger AgentRun::Retain, with: { refusal: "worktree has unmerged commits", review_wait: 3600 }
     end
 
     policy "KeepWhenTheWorktreeHasUncommittedFiles" do
       on      "AgentRun.SessionReviewed"
-      where   { listed != false && taken_over == false && (work_open != true || no_product == true) && unmerged != true && dirty == true }
+      where   { listed != false && taken_over == false && (work_open != true || no_product == true || ended_as == "abandoned") && unmerged != true && dirty == true }
       trigger AgentRun::Retain, with: { refusal: "worktree has uncommitted files", review_wait: 3600 }
     end
 
@@ -2201,19 +2215,19 @@ Hecks.bluebook "Hecks" do
     # next reap, and the refusal is in the journal as `StopRefused`.
     policy "StopTheKeptDoneSession" do
       on      "AgentRun.SessionReviewed"
-      where   { listed != false && taken_over == false && live == "done" && ((work_open == true && no_product != true) || unmerged == true || dirty == true) }
+      where   { listed != false && taken_over == false && live == "done" && ((work_open == true && no_product != true && ended_as != "abandoned") || unmerged == true || dirty == true) }
       ask     :stop_session, with: { run: :run }
     end
 
     policy "ClearTheScratchOfAFinishedRun" do
       on      "AgentRun.SessionReviewed"
-      where   { listed != false && taken_over == false && (work_open != true || no_product == true) && unmerged != true && dirty != true && worktree != "" }
+      where   { listed != false && taken_over == false && (work_open != true || no_product == true || ended_as == "abandoned") && unmerged != true && dirty != true && worktree != "" }
       ask     :clear_scratch, with: { run: :run }
     end
 
     policy "RemoveTheSessionWithNoWorktree" do
       on      "AgentRun.SessionReviewed"
-      where   { listed != false && taken_over == false && (work_open != true || no_product == true) && unmerged != true && dirty != true && worktree == "" }
+      where   { listed != false && taken_over == false && (work_open != true || no_product == true || ended_as == "abandoned") && unmerged != true && dirty != true && worktree == "" }
       ask     :remove, with: { run: :run }
     end
 
@@ -2376,7 +2390,7 @@ Hecks.bluebook "Hecks" do
 
     # A job reading `working` over a session that is not listed records nothing, so its run stays
     # started. The reading only filters: `Retire` looks again and keeps a young, listed or unreadable
-    # one. A blocked session may await an answer, so it is left; a trial run has its own policy.
+    # one. A blocked one is left (`AbandonTheUnansweredHelper` ends a helper's); a trial run has its own.
     policy "RetireTheRunWhoseSessionIsNotListed" do
       on      "AgentRun.JobRead"
       root
