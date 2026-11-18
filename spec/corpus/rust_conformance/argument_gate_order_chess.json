@@ -5,7 +5,7 @@
     {
       "verb": "Chess::Game.Start",
       "args": {
-        "colour": "loud"
+        "flavour": "loud"
       }
     },
     {
@@ -15,16 +15,16 @@
           "value": "king"
         },
         "color": {
-          "value": "white"
+          "value": "black"
         },
         "square": {
-          "file": 824,
-          "rank": 358
+          "file": 328,
+          "rank": 337
         },
         "label": {
-          "value": "alpha echo india"
+          "value": "golf"
         },
-        "rank": "third"
+        "rank": "loud"
       }
     },
     {
@@ -34,14 +34,14 @@
           "value": "not a declared member"
         },
         "color": {
-          "value": "white"
+          "value": "black"
         },
         "square": {
-          "file": 824,
-          "rank": 358
+          "file": 328,
+          "rank": 337
         },
         "label": {
-          "value": "juliet alpha india"
+          "value": "golf charlie"
         }
       }
     },
@@ -56,14 +56,14 @@
           "value": "king"
         },
         "color": {
-          "value": "white"
+          "value": "black"
         },
         "square": {
-          "file": 824,
-          "rank": 358
+          "file": 328,
+          "rank": 337
         },
         "label": {
-          "value": "india"
+          "value": "golf echo"
         }
       }
     },
@@ -71,19 +71,19 @@
       "verb": "Chess::Game.MovePiece",
       "args": {
         "destination": {
-          "file": 968,
-          "rank": 704
+          "file": 679,
+          "rank": 998
         },
         "by": {
           "value": "black"
         },
         "outcome": {
-          "value": "checkmate"
+          "value": "check"
         },
         "label": {
-          "value": "bravo"
+          "value": "charlie bravo delta"
         },
-        "note": "loud"
+        "note": "scribbled"
       }
     },
     {
@@ -91,16 +91,16 @@
       "args": {
         "destination": {
           "file": "not a integer",
-          "rank": 704
+          "rank": 998
         },
         "by": {
           "value": "black"
         },
         "outcome": {
-          "value": "checkmate"
+          "value": "check"
         },
         "label": {
-          "value": "hotel"
+          "value": "delta"
         }
       }
     },
@@ -112,17 +112,17 @@
           }
         },
         "destination": {
-          "file": 968,
-          "rank": 704
+          "file": 679,
+          "rank": 998
         },
         "by": {
           "value": "black"
         },
         "outcome": {
-          "value": "checkmate"
+          "value": "check"
         },
         "label": {
-          "value": "golf"
+          "value": "echo golf"
         }
       }
     },
@@ -133,9 +133,9 @@
           "value": "black"
         },
         "label": {
-          "value": "charlie"
+          "value": "alpha alpha juliet"
         },
-        "rank": "scribbled"
+        "rank": "third"
       }
     },
     {
@@ -145,7 +145,7 @@
           "value": "not a declared member"
         },
         "label": {
-          "value": "hotel golf india"
+          "value": "foxtrot echo"
         }
       }
     },
@@ -160,7 +160,7 @@
           "value": "black"
         },
         "label": {
-          "value": "india"
+          "value": "bravo india"
         }
       }
     },
@@ -168,9 +168,9 @@
       "verb": "Chess::Game.AdvanceTurn",
       "args": {
         "label": {
-          "value": "juliet juliet"
+          "value": "foxtrot"
         },
-        "rank": "third"
+        "flavour": "red"
       }
     },
     {
@@ -180,37 +180,37 @@
           "value": "not a declared member"
         },
         "label": {
-          "value": "hotel india"
-        }
-      }
-    },
-    {
-      "verb": "Chess::Game.DeclareCheck",
-      "args": {
-        "label": {
-          "value": "charlie foxtrot"
-        },
-        "colour": "red"
-      }
-    },
-    {
-      "verb": "Chess::Game.DeclareCheck",
-      "args": {
-        "by": {
-          "value": "not a declared member"
-        },
-        "label": {
           "value": "india"
         }
       }
     },
     {
+      "verb": "Chess::Game.DeclareCheck",
+      "args": {
+        "label": {
+          "value": "bravo"
+        },
+        "colour": "third"
+      }
+    },
+    {
+      "verb": "Chess::Game.DeclareCheck",
+      "args": {
+        "by": {
+          "value": "not a declared member"
+        },
+        "label": {
+          "value": "hotel juliet"
+        }
+      }
+    },
+    {
       "verb": "Chess::Game.DeclareCheckmate",
       "args": {
         "label": {
-          "value": "alpha"
+          "value": "bravo"
         },
-        "note": "third"
+        "note": "scribbled"
       }
     },
     {
@@ -220,7 +220,7 @@
           "value": "not a declared member"
         },
         "label": {
-          "value": "bravo charlie"
+          "value": "delta"
         }
       }
     },
@@ -228,9 +228,9 @@
       "verb": "Chess::Game.DeclareStalemate",
       "args": {
         "label": {
-          "value": "golf hotel"
+          "value": "india india"
         },
-        "note": "red"
+        "colour": "red"
       }
     },
     {
@@ -240,7 +240,7 @@
           "value": "not a declared member"
         },
         "label": {
-          "value": "bravo echo foxtrot"
+          "value": "echo alpha"
         }
       }
     },
@@ -248,9 +248,9 @@
       "verb": "Chess::Game.Resign",
       "args": {
         "label": {
-          "value": "foxtrot golf"
+          "value": "foxtrot bravo alpha"
         },
-        "rank": "red"
+        "colour": "third"
       }
     },
     {
@@ -260,47 +260,47 @@
           "value": "not a declared member"
         },
         "label": {
-          "value": "echo"
+          "value": "golf bravo foxtrot"
         }
       }
     },
     {
       "verb": "Chess::Game.OfferDraw",
       "args": {
-        "label": {
-          "value": "juliet"
-        },
-        "colour": "loud"
-      }
-    },
-    {
-      "verb": "Chess::Game.OfferDraw",
-      "args": {
-        "by": {
-          "value": "not a declared member"
-        },
         "label": {
           "value": "alpha"
-        }
-      }
-    },
-    {
-      "verb": "Chess::Game.AcceptDraw",
-      "args": {
-        "label": {
-          "value": "golf"
         },
         "flavour": "scribbled"
       }
     },
     {
+      "verb": "Chess::Game.OfferDraw",
+      "args": {
+        "by": {
+          "value": "not a declared member"
+        },
+        "label": {
+          "value": "golf"
+        }
+      }
+    },
+    {
+      "verb": "Chess::Game.AcceptDraw",
+      "args": {
+        "label": {
+          "value": "echo echo"
+        },
+        "note": "loud"
+      }
+    },
+    {
       "verb": "Chess::Game.AcceptDraw",
       "args": {
         "by": {
           "value": "not a declared member"
         },
         "label": {
-          "value": "juliet"
+          "value": "juliet foxtrot delta"
         }
       }
     },
@@ -308,9 +308,9 @@
       "verb": "Chess::Game.DeclineDraw",
       "args": {
         "label": {
-          "value": "delta foxtrot"
+          "value": "foxtrot"
         },
-        "colour": "loud"
+        "rank": "red"
       }
     },
     {
@@ -320,7 +320,7 @@
           "value": "not a declared member"
         },
         "label": {
-          "value": "echo golf juliet"
+          "value": "golf"
         }
       }
     },
@@ -328,22 +328,22 @@
       "verb": "Chess::Game.Piece.Move",
       "args": {
         "id": {
-          "value": "bravo"
+          "value": "golf"
         },
         "destination": {
-          "file": 10,
-          "rank": 59
+          "file": 11,
+          "rank": 104
         },
         "by": {
-          "value": "white"
+          "value": "black"
         },
         "outcome": {
           "value": "checkmate"
         },
         "label": {
-          "value": "echo"
+          "value": "delta charlie"
         },
-        "note": "third"
+        "colour": "third"
       }
     },
     {
@@ -354,11 +354,11 @@
           }
         },
         "destination": {
-          "file": 10,
-          "rank": 59
+          "file": 11,
+          "rank": 104
         },
         "by": {
-          "value": "white"
+          "value": "black"
         },
         "outcome": {
           "value": "checkmate"
@@ -372,15 +372,15 @@
       "verb": "Chess::Game.Piece.Capture",
       "args": {
         "id": {
-          "value": "delta"
+          "value": "india alpha"
         },
         "by": {
           "value": "white"
         },
         "label": {
-          "value": "delta"
+          "value": "foxtrot bravo charlie"
         },
-        "rank": "scribbled"
+        "note": "red"
       }
     },
     {
@@ -394,7 +394,7 @@
           "value": "white"
         },
         "label": {
-          "value": "golf delta india"
+          "value": "hotel india alpha"
         }
       }
     }
@@ -403,7 +403,7 @@
     "refusals": [
       {
         "verb": "Chess::Game.Start",
-        "error": "Start does not declare colour — it takes label",
+        "error": "Start does not declare flavour — it takes label",
         "kind": "UnknownArgument"
       },
       {
@@ -453,7 +453,7 @@
       },
       {
         "verb": "Chess::Game.AdvanceTurn",
-        "error": "AdvanceTurn does not declare rank — it takes turn",
+        "error": "AdvanceTurn does not declare flavour — it takes turn",
         "kind": "UnknownArgument"
       },
       {
@@ -483,7 +483,7 @@
       },
       {
         "verb": "Chess::Game.DeclareStalemate",
-        "error": "DeclareStalemate does not declare note — it takes by",
+        "error": "DeclareStalemate does not declare colour — it takes by",
         "kind": "UnknownArgument"
       },
       {
@@ -493,7 +493,7 @@
       },
       {
         "verb": "Chess::Game.Resign",
-        "error": "Resign does not declare rank — it takes by",
+        "error": "Resign does not declare colour — it takes by",
         "kind": "UnknownArgument"
       },
       {
@@ -503,7 +503,7 @@
       },
       {
         "verb": "Chess::Game.OfferDraw",
-        "error": "OfferDraw does not declare colour — it takes by",
+        "error": "OfferDraw does not declare flavour — it takes by",
         "kind": "UnknownArgument"
       },
       {
@@ -513,7 +513,7 @@
       },
       {
         "verb": "Chess::Game.AcceptDraw",
-        "error": "AcceptDraw does not declare flavour — it takes by",
+        "error": "AcceptDraw does not declare note — it takes by",
         "kind": "UnknownArgument"
       },
       {
@@ -523,7 +523,7 @@
       },
       {
         "verb": "Chess::Game.DeclineDraw",
-        "error": "DeclineDraw does not declare colour — it takes by",
+        "error": "DeclineDraw does not declare rank — it takes by",
         "kind": "UnknownArgument"
       },
       {
@@ -533,7 +533,7 @@
       },
       {
         "verb": "Chess::Game.Piece.Move",
-        "error": "Move does not declare note — it takes id, destination, by, outcome",
+        "error": "Move does not declare colour — it takes id, destination, by, outcome",
         "kind": "UnknownArgument"
       },
       {
@@ -543,7 +543,7 @@
       },
       {
         "verb": "Chess::Game.Piece.Capture",
-        "error": "Capture does not declare rank — it takes id, by",
+        "error": "Capture does not declare note — it takes id, by",
         "kind": "UnknownArgument"
       },
       {
