@@ -42,12 +42,16 @@ RSpec.describe "a resident started from an odd environment" do
     false
   end
 
+  # The names the resident says it was born under beyond a plain one. A spec's launchers hold the
+  # spec runner's switch (`spec_helper`), and a resident keeps that one from them.
+  def born_under = File.read(ResidentLaunch::PATHS.baseline(ResidentLaunch::ROOT)).split
+
   after { stop_resident }
 
   it "starts the same plain resident, which serves an ordinary caller", :aggregate_failures do
     launch_logged(odd)
     wait_for_resident
-    expect(File.read(ResidentLaunch::PATHS.baseline(ResidentLaunch::ROOT)).strip).to be_empty
+    expect(born_under - ["HECKS_WRITES_LOCAL"]).to be_empty
     launch_logged
     expect(last_outcome).to eq("served")
   end
