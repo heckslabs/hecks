@@ -25,8 +25,15 @@ module Hecks
         def arguments(spec, pairs, input: $stdin)
           options = declared_options(spec)
           source = StdinSource.new(input)
-          Shorthand.normalize(spec, pairs, options).filter_map { |pair| source.resolve(pair) }
-                   .each_with_object({}) { |pair, args| store(args, pair, options) }
+          args = resolved(Shorthand.normalize(spec, pairs, options), source)
+                 .each_with_object({}) { |pair, built| store(built, pair, options) }
+          Columns.check!(args, options)
+          args
+        end
+
+        # The words with each `@stdin:` pointer read, and the ones that read as nothing dropped.
+        def resolved(words, source)
+          words.filter_map { |pair| source.resolve(pair) }
         end
 
         # Every argument the command accepts, by path. Extra accepted arguments stay out of help,
@@ -124,5 +131,6 @@ module Hecks
   end
 end
 require_relative "cli/nesting"
+require_relative "cli/columns"
 require_relative "cli/shorthand"
 require_relative "cli/stdin_source"
