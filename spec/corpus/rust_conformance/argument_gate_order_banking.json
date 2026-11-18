@@ -6,13 +6,13 @@
       "verb": "Banking::Customer.Register",
       "args": {
         "name": {
-          "given": "india",
-          "family": "india hotel"
+          "given": "hotel",
+          "family": "charlie"
         },
         "email": {
-          "address": "foxtrot@charlie.example"
+          "address": "bravo@echo.example"
         },
-        "rank": "red"
+        "colour": "third"
       }
     },
     {
@@ -21,10 +21,10 @@
         "name": {
           "given": {
           },
-          "family": "india hotel"
+          "family": "charlie"
         },
         "email": {
-          "address": "foxtrot@charlie.example"
+          "address": "bravo@echo.example"
         }
       }
     },
@@ -37,11 +37,11 @@
           }
         },
         "name": {
-          "given": "india",
-          "family": "india hotel"
+          "given": "hotel",
+          "family": "charlie"
         },
         "email": {
-          "address": "foxtrot@charlie.example"
+          "address": "bravo@echo.example"
         }
       }
     },
@@ -49,591 +49,691 @@
       "verb": "Banking::Customer.Suspend",
       "args": {
         "reference": {
-          "value": "golf"
-        },
-        "rank": "loud"
-      }
-    },
-    {
-      "verb": "Banking::Customer.Suspend",
-      "role": "a role this caller does not hold",
-      "args": {
-        "standing": {
-          "value": {
-          }
-        },
-        "reference": {
-          "value": "india"
-        }
-      }
-    },
-    {
-      "verb": "Banking::Customer.Suspend",
-      "role": "a role this caller does not hold",
-      "args": {
-        "standing": {
-          "value": "echo"
-        },
-        "reference": {
-          "value": "foxtrot delta"
-        }
-      }
-    },
-    {
-      "verb": "Banking::Customer.Reinstate",
-      "role": "a role this caller does not hold",
-      "args": {
-        "reference": {
-          "value": "delta india bravo"
-        },
-        "note": "loud"
-      }
-    },
-    {
-      "verb": "Banking::Customer.Reinstate",
-      "role": "a role this caller does not hold",
-      "args": {
-        "reference": {
-          "value": "hotel"
-        }
-      }
-    },
-    {
-      "verb": "Banking::Customer.Close",
-      "role": "a role this caller does not hold",
-      "args": {
-        "reference": {
-          "value": "golf"
-        },
-        "flavour": "loud"
-      }
-    },
-    {
-      "verb": "Banking::Customer.Close",
-      "role": "a role this caller does not hold",
-      "args": {
-        "reference": {
-          "value": "charlie charlie hotel"
-        }
-      }
-    },
-    {
-      "verb": "Banking::Account.Open",
-      "args": {
-        "number": {
-          "value": "india alpha india"
-        },
-        "kind": {
-          "name": "savings"
-        },
-        "daily_limit": {
-          "cents": 554
-        },
-        "flavour": "red"
-      }
-    },
-    {
-      "verb": "Banking::Account.Open",
-      "args": {
-        "number": {
-          "value": {
-          }
-        },
-        "kind": {
-          "name": "savings"
-        },
-        "daily_limit": {
-          "cents": 554
-        }
-      }
-    },
-    {
-      "verb": "Banking::Account.Open",
-      "role": "a role this caller does not hold",
-      "args": {
-        "customer": "missing-22b2601c",
-        "number": {
-          "value": {
-          }
-        },
-        "kind": {
-          "name": "savings"
-        },
-        "daily_limit": {
-          "cents": 554
-        }
-      }
-    },
-    {
-      "verb": "Banking::Account.Open",
-      "role": "a role this caller does not hold",
-      "args": {
-        "customer": "no-such-customer",
-        "number": {
-          "value": "india alpha india"
-        },
-        "kind": {
-          "name": "savings"
-        },
-        "daily_limit": {
-          "cents": 554
-        }
-      }
-    },
-    {
-      "verb": "Banking::Account.Credit",
-      "args": {
-        "narrative": {
-          "text": "hotel juliet hotel"
-        },
-        "number": {
-          "value": "hotel"
-        },
-        "flavour": "loud"
-      }
-    },
-    {
-      "verb": "Banking::Account.Credit",
-      "args": {
-        "narrative": {
-          "text": {
-          }
-        },
-        "number": {
-          "value": "foxtrot alpha india"
-        }
-      }
-    },
-    {
-      "verb": "Banking::Account.Credit",
-      "role": "a role this caller does not hold",
-      "args": {
-        "amount": {
-          "cents": "not a integer",
-          "currency": "GBP"
-        },
-        "narrative": {
-          "text": "hotel juliet hotel"
-        },
-        "number": {
-          "value": "golf charlie juliet"
-        }
-      }
-    },
-    {
-      "verb": "Banking::Account.Credit",
-      "role": "a role this caller does not hold",
-      "args": {
-        "amount": {
-          "cents": 554,
-          "currency": "GBP"
-        },
-        "narrative": {
-          "text": "hotel juliet hotel"
-        },
-        "number": {
-          "value": "india"
-        }
-      }
-    },
-    {
-      "verb": "Banking::Account.Debit",
-      "args": {
-        "narrative": {
-          "text": "alpha"
-        },
-        "number": {
-          "value": "alpha foxtrot foxtrot"
-        },
-        "flavour": "third"
-      }
-    },
-    {
-      "verb": "Banking::Account.Debit",
-      "args": {
-        "narrative": {
-          "text": {
-          }
-        },
-        "number": {
-          "value": "juliet"
-        }
-      }
-    },
-    {
-      "verb": "Banking::Account.Debit",
-      "role": "a role this caller does not hold",
-      "args": {
-        "amount": {
-          "cents": "not a integer",
-          "currency": "JPY"
-        },
-        "narrative": {
-          "text": "alpha"
-        },
-        "number": {
-          "value": "hotel hotel juliet"
-        }
-      }
-    },
-    {
-      "verb": "Banking::Account.Debit",
-      "role": "a role this caller does not hold",
-      "args": {
-        "amount": {
-          "cents": 43,
-          "currency": "JPY"
-        },
-        "narrative": {
-          "text": "alpha"
-        },
-        "number": {
-          "value": "bravo golf"
-        }
-      }
-    },
-    {
-      "verb": "Banking::Account.FreezeAccount",
-      "role": "a role this caller does not hold",
-      "args": {
-        "number": {
-          "value": "echo foxtrot"
-        },
-        "rank": "loud"
-      }
-    },
-    {
-      "verb": "Banking::Account.FreezeAccount",
-      "role": "a role this caller does not hold",
-      "args": {
-        "number": {
-          "value": "foxtrot golf"
-        }
-      }
-    },
-    {
-      "verb": "Banking::Account.Unfreeze",
-      "role": "a role this caller does not hold",
-      "args": {
-        "number": {
-          "value": "india echo delta"
-        },
-        "colour": "red"
-      }
-    },
-    {
-      "verb": "Banking::Account.Unfreeze",
-      "role": "a role this caller does not hold",
-      "args": {
-        "number": {
-          "value": "india"
-        }
-      }
-    },
-    {
-      "verb": "Banking::Account.CloseAccount",
-      "role": "a role this caller does not hold",
-      "args": {
-        "number": {
-          "value": "delta alpha"
-        },
-        "flavour": "loud"
-      }
-    },
-    {
-      "verb": "Banking::Account.CloseAccount",
-      "role": "a role this caller does not hold",
-      "args": {
-        "number": {
-          "value": "echo"
-        }
-      }
-    },
-    {
-      "verb": "Banking::Account.ApplyFee",
-      "args": {
-        "narrative": {
-          "text": "echo golf"
-        },
-        "number": {
-          "value": "delta alpha"
-        },
-        "flavour": "scribbled"
-      }
-    },
-    {
-      "verb": "Banking::Account.ApplyFee",
-      "args": {
-        "narrative": {
-          "text": {
-          }
-        },
-        "number": {
-          "value": "juliet"
-        }
-      }
-    },
-    {
-      "verb": "Banking::Account.ApplyFee",
-      "role": "a role this caller does not hold",
-      "args": {
-        "amount": {
-          "cents": "not a integer",
-          "currency": "USD"
-        },
-        "narrative": {
-          "text": "echo golf"
-        },
-        "number": {
-          "value": "foxtrot delta"
-        }
-      }
-    },
-    {
-      "verb": "Banking::Account.ApplyFee",
-      "role": "a role this caller does not hold",
-      "args": {
-        "amount": {
-          "cents": 271,
-          "currency": "USD"
-        },
-        "narrative": {
-          "text": "echo golf"
-        },
-        "number": {
-          "value": "alpha juliet"
-        }
-      }
-    },
-    {
-      "verb": "Banking::Account.CorrectFee",
-      "args": {
-        "number": {
-          "value": "alpha"
-        },
-        "rank": "red"
-      }
-    },
-    {
-      "verb": "Banking::Account.CorrectFee",
-      "role": "a role this caller does not hold",
-      "args": {
-        "amount": {
-          "cents": "not a integer",
-          "currency": "GBP"
-        },
-        "number": {
-          "value": "juliet"
-        }
-      }
-    },
-    {
-      "verb": "Banking::Account.CorrectFee",
-      "role": "a role this caller does not hold",
-      "args": {
-        "amount": {
-          "cents": 555,
-          "currency": "GBP"
-        },
-        "number": {
-          "value": "charlie golf alpha"
-        }
-      }
-    },
-    {
-      "verb": "Banking::Account.AccrueInterest",
-      "args": {
-        "number": {
-          "value": "alpha golf alpha"
-        },
-        "flavour": "red"
-      }
-    },
-    {
-      "verb": "Banking::Account.AccrueInterest",
-      "role": "a role this caller does not hold",
-      "args": {
-        "amount": {
-          "cents": "not a integer",
-          "currency": "JPY"
-        },
-        "number": {
-          "value": "hotel bravo juliet"
-        }
-      }
-    },
-    {
-      "verb": "Banking::Account.AccrueInterest",
-      "role": "a role this caller does not hold",
-      "args": {
-        "amount": {
-          "cents": 437,
-          "currency": "JPY"
-        },
-        "number": {
-          "value": "alpha echo"
-        }
-      }
-    },
-    {
-      "verb": "Banking::Account.CorrectInterest",
-      "args": {
-        "number": {
-          "value": "charlie india"
-        },
-        "note": "third"
-      }
-    },
-    {
-      "verb": "Banking::Account.CorrectInterest",
-      "role": "a role this caller does not hold",
-      "args": {
-        "amount": {
-          "cents": "not a integer",
-          "currency": "EUR"
-        },
-        "number": {
-          "value": "golf delta india"
-        }
-      }
-    },
-    {
-      "verb": "Banking::Account.CorrectInterest",
-      "role": "a role this caller does not hold",
-      "args": {
-        "amount": {
-          "cents": 655,
-          "currency": "EUR"
-        },
-        "number": {
-          "value": "delta"
-        }
-      }
-    },
-    {
-      "verb": "Banking::Account.LedgerEntry.Amend",
-      "args": {
-        "sequence": {
-          "value": 851
-        },
-        "narrative": {
-          "text": "golf"
-        },
-        "number": {
-          "value": "alpha delta"
-        },
-        "colour": "red"
-      }
-    },
-    {
-      "verb": "Banking::Account.LedgerEntry.Amend",
-      "args": {
-        "sequence": {
-          "value": 437
-        },
-        "narrative": {
-          "text": {
-          }
-        },
-        "number": {
-          "value": "golf india charlie"
-        }
-      }
-    },
-    {
-      "verb": "Banking::Account.LedgerEntry.Amend",
-      "role": "a role this caller does not hold",
-      "args": {
-        "sequence": {
-          "value": 535
-        },
-        "adjustment": {
-          "cents": "not a integer",
-          "currency": "EUR"
-        },
-        "narrative": {
-          "text": "golf"
-        },
-        "number": {
-          "value": "alpha echo charlie"
-        }
-      }
-    },
-    {
-      "verb": "Banking::Account.LedgerEntry.Amend",
-      "role": "a role this caller does not hold",
-      "args": {
-        "sequence": {
-          "value": 522
-        },
-        "adjustment": {
-          "cents": 964,
-          "currency": "EUR"
-        },
-        "narrative": {
-          "text": "golf"
-        },
-        "number": {
-          "value": "echo"
-        }
-      }
-    },
-    {
-      "verb": "Banking::Account.LedgerEntry.Reverse",
-      "args": {
-        "sequence": {
-          "value": 150
-        },
-        "number": {
-          "value": "delta hotel charlie"
-        },
-        "rank": "third"
-      }
-    },
-    {
-      "verb": "Banking::Account.LedgerEntry.Reverse",
-      "role": "a role this caller does not hold",
-      "args": {
-        "sequence": {
-          "value": 724
-        },
-        "narrative": {
-          "text": {
-          }
-        },
-        "number": {
-          "value": "india hotel charlie"
-        }
-      }
-    },
-    {
-      "verb": "Banking::Account.LedgerEntry.Reverse",
-      "role": "a role this caller does not hold",
-      "args": {
-        "sequence": {
-          "value": 858
-        },
-        "narrative": {
-          "text": "bravo"
-        },
-        "number": {
-          "value": "bravo alpha foxtrot"
-        }
-      }
-    },
-    {
-      "verb": "Banking::OnboardingCase.Open",
-      "args": {
-        "reference": {
-          "value": "india"
-        },
-        "account_number": {
-          "value": "foxtrot charlie hotel"
+          "value": "bravo golf juliet"
         },
         "colour": "loud"
       }
     },
     {
+      "verb": "Banking::Customer.Suspend",
+      "role": "a role this caller does not hold",
+      "args": {
+        "standing": {
+          "value": {
+          }
+        },
+        "reference": {
+          "value": "bravo bravo"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Customer.Suspend",
+      "role": "a role this caller does not hold",
+      "args": {
+        "standing": {
+          "value": "hotel"
+        },
+        "reference": {
+          "value": "india"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Customer.Reinstate",
+      "role": "a role this caller does not hold",
+      "args": {
+        "reference": {
+          "value": "bravo hotel"
+        },
+        "flavour": "red"
+      }
+    },
+    {
+      "verb": "Banking::Customer.Reinstate",
+      "role": "a role this caller does not hold",
+      "args": {
+        "reference": {
+          "value": "delta"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Customer.Close",
+      "role": "a role this caller does not hold",
+      "args": {
+        "reference": {
+          "value": "hotel foxtrot"
+        },
+        "flavour": "third"
+      }
+    },
+    {
+      "verb": "Banking::Customer.Close",
+      "role": "a role this caller does not hold",
+      "args": {
+        "reference": {
+          "value": "foxtrot delta"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.Open",
+      "args": {
+        "number": {
+          "value": "hotel echo"
+        },
+        "kind": {
+          "name": "savings"
+        },
+        "daily_limit": {
+          "cents": 319
+        },
+        "flavour": "third"
+      }
+    },
+    {
+      "verb": "Banking::Account.Open",
+      "args": {
+        "number": {
+          "value": {
+          }
+        },
+        "kind": {
+          "name": "savings"
+        },
+        "daily_limit": {
+          "cents": 319
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.Open",
+      "role": "a role this caller does not hold",
+      "args": {
+        "customer": "missing-18c74c98",
+        "number": {
+          "value": {
+          }
+        },
+        "kind": {
+          "name": "savings"
+        },
+        "daily_limit": {
+          "cents": 319
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.Open",
+      "role": "a role this caller does not hold",
+      "args": {
+        "customer": "no-such-customer",
+        "number": {
+          "value": "hotel echo"
+        },
+        "kind": {
+          "name": "savings"
+        },
+        "daily_limit": {
+          "cents": 319
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.Credit",
+      "args": {
+        "narrative": {
+          "text": "juliet alpha"
+        },
+        "number": {
+          "value": "bravo"
+        },
+        "colour": "red"
+      }
+    },
+    {
+      "verb": "Banking::Account.Credit",
+      "args": {
+        "narrative": {
+          "text": {
+          }
+        },
+        "number": {
+          "value": "hotel bravo"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.Credit",
+      "role": "a role this caller does not hold",
+      "args": {
+        "amount": {
+          "cents": "not a integer",
+          "currency": "USD"
+        },
+        "narrative": {
+          "text": "juliet alpha"
+        },
+        "number": {
+          "value": "delta bravo"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.Credit",
+      "role": "a role this caller does not hold",
+      "args": {
+        "amount": {
+          "cents": 633,
+          "currency": "USD"
+        },
+        "narrative": {
+          "text": "juliet alpha"
+        },
+        "number": {
+          "value": "hotel"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.Debit",
+      "args": {
+        "narrative": {
+          "text": "bravo juliet hotel"
+        },
+        "number": {
+          "value": "charlie"
+        },
+        "colour": "red"
+      }
+    },
+    {
+      "verb": "Banking::Account.Debit",
+      "args": {
+        "narrative": {
+          "text": {
+          }
+        },
+        "number": {
+          "value": "charlie golf"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.Debit",
+      "role": "a role this caller does not hold",
+      "args": {
+        "amount": {
+          "cents": "not a integer",
+          "currency": "JPY"
+        },
+        "narrative": {
+          "text": "bravo juliet hotel"
+        },
+        "number": {
+          "value": "delta india"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.Debit",
+      "role": "a role this caller does not hold",
+      "args": {
+        "amount": {
+          "cents": 537,
+          "currency": "JPY"
+        },
+        "narrative": {
+          "text": "bravo juliet hotel"
+        },
+        "number": {
+          "value": "alpha golf echo"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.FreezeAccount",
+      "role": "a role this caller does not hold",
+      "args": {
+        "number": {
+          "value": "golf hotel echo"
+        },
+        "colour": "red"
+      }
+    },
+    {
+      "verb": "Banking::Account.FreezeAccount",
+      "role": "a role this caller does not hold",
+      "args": {
+        "number": {
+          "value": "alpha golf"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.Unfreeze",
+      "role": "a role this caller does not hold",
+      "args": {
+        "number": {
+          "value": "juliet juliet juliet"
+        },
+        "colour": "red"
+      }
+    },
+    {
+      "verb": "Banking::Account.Unfreeze",
+      "role": "a role this caller does not hold",
+      "args": {
+        "number": {
+          "value": "alpha foxtrot"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.CloseAccount",
+      "role": "a role this caller does not hold",
+      "args": {
+        "number": {
+          "value": "alpha echo bravo"
+        },
+        "note": "loud"
+      }
+    },
+    {
+      "verb": "Banking::Account.CloseAccount",
+      "role": "a role this caller does not hold",
+      "args": {
+        "number": {
+          "value": "golf juliet"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.ApplyFee",
+      "args": {
+        "narrative": {
+          "text": "delta"
+        },
+        "number": {
+          "value": "bravo"
+        },
+        "flavour": "loud"
+      }
+    },
+    {
+      "verb": "Banking::Account.ApplyFee",
+      "args": {
+        "narrative": {
+          "text": {
+          }
+        },
+        "number": {
+          "value": "foxtrot"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.ApplyFee",
+      "role": "a role this caller does not hold",
+      "args": {
+        "amount": {
+          "cents": "not a integer",
+          "currency": "GBP"
+        },
+        "narrative": {
+          "text": "delta"
+        },
+        "number": {
+          "value": "delta juliet"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.ApplyFee",
+      "role": "a role this caller does not hold",
+      "args": {
+        "amount": {
+          "cents": 20,
+          "currency": "GBP"
+        },
+        "narrative": {
+          "text": "delta"
+        },
+        "number": {
+          "value": "delta bravo bravo"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.CorrectFee",
+      "args": {
+        "number": {
+          "value": "golf echo charlie"
+        },
+        "note": "third"
+      }
+    },
+    {
+      "verb": "Banking::Account.CorrectFee",
+      "role": "a role this caller does not hold",
+      "args": {
+        "amount": {
+          "cents": "not a integer",
+          "currency": "GBP"
+        },
+        "number": {
+          "value": "bravo"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.CorrectFee",
+      "role": "a role this caller does not hold",
+      "args": {
+        "amount": {
+          "cents": 494,
+          "currency": "GBP"
+        },
+        "number": {
+          "value": "india foxtrot charlie"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.AccrueInterest",
+      "args": {
+        "number": {
+          "value": "golf alpha foxtrot"
+        },
+        "note": "loud"
+      }
+    },
+    {
+      "verb": "Banking::Account.AccrueInterest",
+      "role": "a role this caller does not hold",
+      "args": {
+        "amount": {
+          "cents": "not a integer",
+          "currency": "EUR"
+        },
+        "number": {
+          "value": "foxtrot bravo"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.AccrueInterest",
+      "role": "a role this caller does not hold",
+      "args": {
+        "amount": {
+          "cents": 35,
+          "currency": "EUR"
+        },
+        "number": {
+          "value": "delta india"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.CorrectInterest",
+      "args": {
+        "number": {
+          "value": "juliet echo india"
+        },
+        "colour": "third"
+      }
+    },
+    {
+      "verb": "Banking::Account.CorrectInterest",
+      "role": "a role this caller does not hold",
+      "args": {
+        "amount": {
+          "cents": "not a integer",
+          "currency": "GBP"
+        },
+        "number": {
+          "value": "charlie golf"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.CorrectInterest",
+      "role": "a role this caller does not hold",
+      "args": {
+        "amount": {
+          "cents": 515,
+          "currency": "GBP"
+        },
+        "number": {
+          "value": "echo"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.LedgerEntry.Amend",
+      "args": {
+        "sequence": {
+          "value": 642
+        },
+        "narrative": {
+          "text": "echo hotel"
+        },
+        "number": {
+          "value": "juliet alpha golf"
+        },
+        "rank": "loud"
+      }
+    },
+    {
+      "verb": "Banking::Account.LedgerEntry.Amend",
+      "args": {
+        "sequence": {
+          "value": 726
+        },
+        "narrative": {
+          "text": {
+          }
+        },
+        "number": {
+          "value": "charlie"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.LedgerEntry.Amend",
+      "role": "a role this caller does not hold",
+      "args": {
+        "sequence": {
+          "value": 110
+        },
+        "adjustment": {
+          "cents": "not a integer",
+          "currency": "USD"
+        },
+        "narrative": {
+          "text": "echo hotel"
+        },
+        "number": {
+          "value": "hotel alpha"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.LedgerEntry.Amend",
+      "role": "a role this caller does not hold",
+      "args": {
+        "sequence": {
+          "value": 189
+        },
+        "adjustment": {
+          "cents": 41,
+          "currency": "USD"
+        },
+        "narrative": {
+          "text": "echo hotel"
+        },
+        "number": {
+          "value": "foxtrot hotel"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.LedgerEntry.Reverse",
+      "args": {
+        "sequence": {
+          "value": 414
+        },
+        "number": {
+          "value": "bravo"
+        },
+        "note": "scribbled"
+      }
+    },
+    {
+      "verb": "Banking::Account.LedgerEntry.Reverse",
+      "role": "a role this caller does not hold",
+      "args": {
+        "sequence": {
+          "value": 640
+        },
+        "narrative": {
+          "text": {
+          }
+        },
+        "number": {
+          "value": "juliet bravo"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Account.LedgerEntry.Reverse",
+      "role": "a role this caller does not hold",
+      "args": {
+        "sequence": {
+          "value": 71
+        },
+        "narrative": {
+          "text": "alpha"
+        },
+        "number": {
+          "value": "india"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Hold.Place",
+      "args": {
+        "subject": {
+          "type": "bravo golf golf",
+          "id": "alpha charlie"
+        },
+        "reason": {
+          "value": "charlie echo"
+        },
+        "colour": "scribbled"
+      }
+    },
+    {
+      "verb": "Banking::Hold.Place",
+      "args": {
+        "subject": {
+          "type": {
+          },
+          "id": "alpha charlie"
+        },
+        "reason": {
+          "value": "charlie echo"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Hold.Place",
+      "role": "a role this caller does not hold",
+      "args": {
+        "reference": {
+          "value": {
+          }
+        },
+        "subject": {
+          "type": "bravo golf golf",
+          "id": "alpha charlie"
+        },
+        "reason": {
+          "value": "charlie echo"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Hold.Lift",
+      "role": "a role this caller does not hold",
+      "args": {
+        "reference": {
+          "value": "bravo bravo"
+        },
+        "flavour": "red"
+      }
+    },
+    {
+      "verb": "Banking::Hold.Lift",
+      "role": "a role this caller does not hold",
+      "args": {
+        "reference": {
+          "value": "delta"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Hold.EscalateAccountHold",
+      "role": "a role this caller does not hold",
+      "args": {
+        "reference": {
+          "value": "echo"
+        },
+        "colour": "red"
+      }
+    },
+    {
+      "verb": "Banking::Hold.EscalateAccountHold",
+      "role": "a role this caller does not hold",
+      "args": {
+        "reference": {
+          "value": "bravo foxtrot"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Hold.EscalateCardHold",
+      "role": "a role this caller does not hold",
+      "args": {
+        "reference": {
+          "value": "delta juliet foxtrot"
+        },
+        "flavour": "scribbled"
+      }
+    },
+    {
+      "verb": "Banking::Hold.EscalateCardHold",
+      "role": "a role this caller does not hold",
+      "args": {
+        "reference": {
+          "value": "hotel"
+        }
+      }
+    },
+    {
+      "verb": "Banking::OnboardingCase.Open",
+      "args": {
+        "reference": {
+          "value": "echo"
+        },
+        "account_number": {
+          "value": "echo"
+        },
+        "rank": "third"
+      }
+    },
+    {
       "verb": "Banking::OnboardingCase.Open",
       "args": {
         "reference": {
@@ -641,7 +741,7 @@
           }
         },
         "account_number": {
-          "value": "foxtrot charlie hotel"
+          "value": "echo"
         }
       }
     },
@@ -649,13 +749,13 @@
       "verb": "Banking::OnboardingCase.Open",
       "role": "a role this caller does not hold",
       "args": {
-        "customer": "missing-29424791",
+        "customer": "missing-c6736b54",
         "reference": {
           "value": {
           }
         },
         "account_number": {
-          "value": "foxtrot charlie hotel"
+          "value": "echo"
         }
       }
     },
@@ -665,40 +765,30 @@
       "args": {
         "customer": "no-such-customer",
         "reference": {
-          "value": "india"
+          "value": "echo"
         },
         "account_number": {
-          "value": "foxtrot charlie hotel"
-        }
-      }
-    },
-    {
-      "verb": "Banking::OnboardingCase.Clear",
-      "role": "a role this caller does not hold",
-      "args": {
-        "reference": {
-          "value": "alpha"
-        },
-        "flavour": "red"
-      }
-    },
-    {
-      "verb": "Banking::OnboardingCase.Clear",
-      "role": "a role this caller does not hold",
-      "args": {
-        "reference": {
           "value": "echo"
         }
       }
     },
     {
-      "verb": "Banking::OnboardingCase.Decline",
+      "verb": "Banking::OnboardingCase.Clear",
       "role": "a role this caller does not hold",
       "args": {
         "reference": {
-          "value": "juliet alpha"
+          "value": "charlie delta"
         },
-        "note": "scribbled"
+        "colour": "red"
+      }
+    },
+    {
+      "verb": "Banking::OnboardingCase.Clear",
+      "role": "a role this caller does not hold",
+      "args": {
+        "reference": {
+          "value": "charlie juliet india"
+        }
       }
     },
     {
@@ -706,7 +796,17 @@
       "role": "a role this caller does not hold",
       "args": {
         "reference": {
-          "value": "charlie alpha foxtrot"
+          "value": "hotel golf"
+        },
+        "rank": "loud"
+      }
+    },
+    {
+      "verb": "Banking::OnboardingCase.Decline",
+      "role": "a role this caller does not hold",
+      "args": {
+        "reference": {
+          "value": "juliet echo"
         }
       }
     },
@@ -714,12 +814,12 @@
       "verb": "Banking::ATMCard.Issue",
       "args": {
         "serial": {
-          "value": "charlie bravo hotel"
+          "value": "india hotel"
         },
         "daily_fee": {
-          "amount": 673.77
+          "amount": 650.32
         },
-        "rank": "red"
+        "colour": "loud"
       }
     },
     {
@@ -730,7 +830,7 @@
           }
         },
         "daily_fee": {
-          "amount": 673.77
+          "amount": 650.32
         }
       }
     },
@@ -738,13 +838,13 @@
       "verb": "Banking::ATMCard.Issue",
       "role": "a role this caller does not hold",
       "args": {
-        "account": "missing-bec7dfdd",
+        "account": "missing-2b38f5e7",
         "serial": {
           "value": {
           }
         },
         "daily_fee": {
-          "amount": 673.77
+          "amount": 650.32
         }
       }
     },
@@ -754,10 +854,10 @@
       "args": {
         "account": "no-such-account",
         "serial": {
-          "value": "charlie bravo hotel"
+          "value": "india hotel"
         },
         "daily_fee": {
-          "amount": 673.77
+          "amount": 650.32
         }
       }
     },
@@ -765,9 +865,9 @@
       "verb": "Banking::ATMCard.Rename",
       "args": {
         "serial": {
-          "value": "delta alpha"
+          "value": "india"
         },
-        "note": "loud"
+        "rank": "loud"
       }
     },
     {
@@ -779,7 +879,7 @@
           }
         },
         "serial": {
-          "value": "echo delta"
+          "value": "delta"
         }
       }
     },
@@ -788,10 +888,10 @@
       "role": "a role this caller does not hold",
       "args": {
         "nickname": {
-          "value": "alpha echo alpha"
+          "value": "delta"
         },
         "serial": {
-          "value": "delta hotel"
+          "value": "juliet echo juliet"
         }
       }
     },
@@ -799,12 +899,12 @@
       "verb": "Banking::ATMCard.Withdraw",
       "args": {
         "narrative": {
-          "text": "alpha foxtrot echo"
+          "text": "juliet juliet hotel"
         },
         "serial": {
-          "value": "echo juliet alpha"
+          "value": "juliet india hotel"
         },
-        "rank": "loud"
+        "colour": "loud"
       }
     },
     {
@@ -813,21 +913,6 @@
         "narrative": {
           "text": {
           }
-        },
-        "serial": {
-          "value": "hotel india"
-        }
-      }
-    },
-    {
-      "verb": "Banking::ATMCard.Withdraw",
-      "role": "a role this caller does not hold",
-      "args": {
-        "cents": {
-          "cents": "not a integer"
-        },
-        "narrative": {
-          "text": "alpha foxtrot echo"
         },
         "serial": {
           "value": "bravo delta"
@@ -839,13 +924,28 @@
       "role": "a role this caller does not hold",
       "args": {
         "cents": {
-          "cents": 976
+          "cents": "not a integer"
         },
         "narrative": {
-          "text": "alpha foxtrot echo"
+          "text": "juliet juliet hotel"
         },
         "serial": {
           "value": "delta"
+        }
+      }
+    },
+    {
+      "verb": "Banking::ATMCard.Withdraw",
+      "role": "a role this caller does not hold",
+      "args": {
+        "cents": {
+          "cents": 962
+        },
+        "narrative": {
+          "text": "juliet juliet hotel"
+        },
+        "serial": {
+          "value": "hotel echo alpha"
         }
       }
     },
@@ -854,9 +954,9 @@
       "role": "a role this caller does not hold",
       "args": {
         "serial": {
-          "value": "delta"
+          "value": "echo charlie"
         },
-        "flavour": "red"
+        "note": "red"
       }
     },
     {
@@ -864,7 +964,7 @@
       "role": "a role this caller does not hold",
       "args": {
         "serial": {
-          "value": "alpha"
+          "value": "bravo"
         }
       }
     },
@@ -873,9 +973,9 @@
       "role": "a role this caller does not hold",
       "args": {
         "serial": {
-          "value": "echo hotel"
+          "value": "echo bravo"
         },
-        "colour": "loud"
+        "colour": "red"
       }
     },
     {
@@ -883,7 +983,7 @@
       "role": "a role this caller does not hold",
       "args": {
         "serial": {
-          "value": "charlie foxtrot echo"
+          "value": "charlie juliet hotel"
         }
       }
     },
@@ -891,73 +991,123 @@
       "verb": "Banking::ATMCard.Withdrawal.Dispute",
       "args": {
         "sequence": {
-          "value": 993
+          "value": 979
         },
         "serial": {
-          "value": "echo"
-        },
-        "flavour": "red"
-      }
-    },
-    {
-      "verb": "Banking::ATMCard.Withdrawal.Dispute",
-      "role": "a role this caller does not hold",
-      "args": {
-        "sequence": {
-          "value": 485
-        },
-        "narrative": {
-          "text": {
-          }
-        },
-        "serial": {
-          "value": "india golf foxtrot"
-        }
-      }
-    },
-    {
-      "verb": "Banking::ATMCard.Withdrawal.Dispute",
-      "role": "a role this caller does not hold",
-      "args": {
-        "sequence": {
-          "value": 622
-        },
-        "narrative": {
-          "text": "hotel echo echo"
-        },
-        "serial": {
-          "value": "alpha"
-        }
-      }
-    },
-    {
-      "verb": "Banking::CardPayment.Authorize",
-      "args": {
-        "tags": {
-          "value": "india"
-        },
-        "account": "missing-d903db61",
-        "amount": {
-          "cents": 637
-        },
-        "merchant": {
           "value": "golf"
         },
         "flavour": "scribbled"
       }
     },
     {
+      "verb": "Banking::ATMCard.Withdrawal.Dispute",
+      "role": "a role this caller does not hold",
+      "args": {
+        "sequence": {
+          "value": 868
+        },
+        "narrative": {
+          "text": {
+          }
+        },
+        "serial": {
+          "value": "delta hotel alpha"
+        }
+      }
+    },
+    {
+      "verb": "Banking::ATMCard.Withdrawal.Dispute",
+      "role": "a role this caller does not hold",
+      "args": {
+        "sequence": {
+          "value": 910
+        },
+        "narrative": {
+          "text": "echo bravo"
+        },
+        "serial": {
+          "value": "echo"
+        }
+      }
+    },
+    {
+      "verb": "Banking::ATMCard.Withdrawal.Reimburse",
+      "role": "a role this caller does not hold",
+      "args": {
+        "sequence": {
+          "value": 695
+        },
+        "serial": {
+          "value": "golf"
+        },
+        "note": "third"
+      }
+    },
+    {
+      "verb": "Banking::ATMCard.Withdrawal.Reimburse",
+      "role": "a role this caller does not hold",
+      "args": {
+        "sequence": {
+          "value": 641
+        },
+        "serial": {
+          "value": "hotel"
+        }
+      }
+    },
+    {
+      "verb": "Banking::ATMCard.Withdrawal.RejectDispute",
+      "role": "a role this caller does not hold",
+      "args": {
+        "sequence": {
+          "value": 166
+        },
+        "serial": {
+          "value": "golf echo"
+        },
+        "note": "scribbled"
+      }
+    },
+    {
+      "verb": "Banking::ATMCard.Withdrawal.RejectDispute",
+      "role": "a role this caller does not hold",
+      "args": {
+        "sequence": {
+          "value": 868
+        },
+        "serial": {
+          "value": "charlie"
+        }
+      }
+    },
+    {
       "verb": "Banking::CardPayment.Authorize",
       "args": {
         "tags": {
-          "value": "india"
+          "value": "delta charlie charlie"
         },
-        "account": "missing-d903db61",
+        "account": "missing-4b683a65",
+        "amount": {
+          "cents": 948
+        },
+        "merchant": {
+          "value": "charlie golf juliet"
+        },
+        "note": "scribbled"
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Authorize",
+      "args": {
+        "tags": {
+          "value": "delta charlie charlie"
+        },
+        "account": "missing-4b683a65",
         "amount": {
           "cents": "not a integer"
         },
         "merchant": {
-          "value": "golf"
+          "value": "charlie golf juliet"
         }
       }
     },
@@ -969,14 +1119,14 @@
           }
         },
         "tags": {
-          "value": "india"
+          "value": "delta charlie charlie"
         },
         "account": "no-such-account",
         "amount": {
-          "cents": 637
+          "cents": 948
         },
         "merchant": {
-          "value": "golf"
+          "value": "charlie golf juliet"
         }
       }
     },
@@ -985,149 +1135,149 @@
       "role": "a role this caller does not hold",
       "args": {
         "authorisation": {
-          "value": "golf golf"
+          "value": "bravo foxtrot"
+        },
+        "flavour": "loud"
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Capture",
+      "role": "a role this caller does not hold",
+      "args": {
+        "authorisation": {
+          "value": "india india bravo"
+        }
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Void",
+      "role": "a role this caller does not hold",
+      "args": {
+        "authorisation": {
+          "value": "bravo"
         },
         "colour": "red"
       }
     },
     {
-      "verb": "Banking::CardPayment.Capture",
+      "verb": "Banking::CardPayment.Void",
       "role": "a role this caller does not hold",
       "args": {
         "authorisation": {
-          "value": "india"
+          "value": "echo"
         }
       }
     },
     {
-      "verb": "Banking::CardPayment.Void",
+      "verb": "Banking::CardPayment.Refund",
       "role": "a role this caller does not hold",
       "args": {
         "authorisation": {
-          "value": "india"
+          "value": "golf echo"
         },
-        "colour": "scribbled"
+        "rank": "scribbled"
       }
     },
     {
-      "verb": "Banking::CardPayment.Void",
+      "verb": "Banking::CardPayment.Refund",
       "role": "a role this caller does not hold",
       "args": {
+        "authorisation": {
+          "value": "foxtrot alpha"
+        }
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Reverse",
+      "role": "a role this caller does not hold",
+      "args": {
+        "authorisation": {
+          "value": "echo juliet"
+        },
+        "note": "loud"
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Reverse",
+      "role": "a role this caller does not hold",
+      "args": {
+        "authorisation": {
+          "value": "delta"
+        }
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Dispute",
+      "args": {
+        "authorisation": {
+          "value": "delta echo"
+        },
+        "rank": "red"
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Dispute",
+      "role": "a role this caller does not hold",
+      "args": {
+        "authorisation": {
+          "value": "alpha"
+        }
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Dispute",
+      "role": "a role this caller does not hold",
+      "args": {
+        "disputed_by": "no-such-customer",
+        "authorisation": {
+          "value": "alpha india juliet"
+        }
+      }
+    },
+    {
+      "verb": "Banking::CardPayment.Dispute",
+      "args": {
+        "disputed_by": "no-such-customer",
         "authorisation": {
           "value": "charlie"
         }
       }
     },
     {
-      "verb": "Banking::CardPayment.Refund",
+      "verb": "Banking::CardPayment.Chargeback",
       "role": "a role this caller does not hold",
       "args": {
         "authorisation": {
-          "value": "hotel"
+          "value": "india"
         },
-        "colour": "scribbled"
+        "colour": "third"
       }
     },
     {
-      "verb": "Banking::CardPayment.Refund",
+      "verb": "Banking::CardPayment.Chargeback",
       "role": "a role this caller does not hold",
       "args": {
         "authorisation": {
-          "value": "india golf juliet"
+          "value": "bravo charlie echo"
         }
       }
     },
     {
-      "verb": "Banking::CardPayment.Reverse",
+      "verb": "Banking::CardPayment.RejectDispute",
       "role": "a role this caller does not hold",
       "args": {
         "authorisation": {
-          "value": "juliet foxtrot delta"
-        },
-        "rank": "scribbled"
-      }
-    },
-    {
-      "verb": "Banking::CardPayment.Reverse",
-      "role": "a role this caller does not hold",
-      "args": {
-        "authorisation": {
-          "value": "delta india bravo"
-        }
-      }
-    },
-    {
-      "verb": "Banking::CardPayment.Dispute",
-      "args": {
-        "authorisation": {
-          "value": "foxtrot foxtrot"
+          "value": "charlie"
         },
         "note": "third"
       }
     },
     {
-      "verb": "Banking::CardPayment.Dispute",
-      "role": "a role this caller does not hold",
-      "args": {
-        "authorisation": {
-          "value": "echo echo"
-        }
-      }
-    },
-    {
-      "verb": "Banking::CardPayment.Dispute",
-      "role": "a role this caller does not hold",
-      "args": {
-        "disputed_by": "no-such-customer",
-        "authorisation": {
-          "value": "charlie echo"
-        }
-      }
-    },
-    {
-      "verb": "Banking::CardPayment.Dispute",
-      "args": {
-        "disputed_by": "no-such-customer",
-        "authorisation": {
-          "value": "hotel charlie"
-        }
-      }
-    },
-    {
-      "verb": "Banking::CardPayment.Chargeback",
-      "role": "a role this caller does not hold",
-      "args": {
-        "authorisation": {
-          "value": "foxtrot alpha juliet"
-        },
-        "flavour": "loud"
-      }
-    },
-    {
-      "verb": "Banking::CardPayment.Chargeback",
-      "role": "a role this caller does not hold",
-      "args": {
-        "authorisation": {
-          "value": "bravo juliet"
-        }
-      }
-    },
-    {
       "verb": "Banking::CardPayment.RejectDispute",
       "role": "a role this caller does not hold",
       "args": {
         "authorisation": {
-          "value": "hotel alpha foxtrot"
-        },
-        "flavour": "third"
-      }
-    },
-    {
-      "verb": "Banking::CardPayment.RejectDispute",
-      "role": "a role this caller does not hold",
-      "args": {
-        "authorisation": {
-          "value": "juliet"
+          "value": "golf charlie golf"
         }
       }
     },
@@ -1135,13 +1285,13 @@
       "verb": "Banking::SafeDepositBox.Rent",
       "args": {
         "box_number": {
-          "value": 365
+          "value": 358
         },
         "size": {
           "value": "medium"
         },
-        "customer": "missing-1b3ffdae",
-        "rank": "red"
+        "customer": "missing-1de1854f",
+        "note": "scribbled"
       }
     },
     {
@@ -1153,7 +1303,7 @@
         "size": {
           "value": "medium"
         },
-        "customer": "missing-1b3ffdae"
+        "customer": "missing-1de1854f"
       }
     },
     {
@@ -1165,12 +1315,12 @@
           }
         },
         "box_number": {
-          "value": 365
+          "value": 358
         },
         "size": {
           "value": "medium"
         },
-        "customer": "missing-1b3ffdae"
+        "customer": "missing-1de1854f"
       }
     },
     {
@@ -1178,10 +1328,10 @@
       "role": "a role this caller does not hold",
       "args": {
         "branch_code": {
-          "value": "charlie"
+          "value": "juliet charlie india"
         },
         "box_number": {
-          "value": 365
+          "value": 358
         },
         "size": {
           "value": "medium"
@@ -1193,7 +1343,7 @@
       "verb": "Banking::SafeDepositBox.Surrender",
       "role": "a role this caller does not hold",
       "args": {
-        "rank": "loud"
+        "rank": "red"
       }
     },
     {
@@ -1206,12 +1356,12 @@
       "verb": "Banking::SafeDepositBox.LogVisit",
       "args": {
         "sequence": {
-          "value": 956
+          "value": 832
         },
         "note": {
-          "text": "india echo"
+          "text": "delta alpha"
         },
-        "colour": "loud"
+        "rank": "third"
       }
     },
     {
@@ -1221,7 +1371,7 @@
           "value": "not a integer"
         },
         "note": {
-          "text": "india echo"
+          "text": "delta alpha"
         }
       }
     },
@@ -1234,10 +1384,10 @@
           }
         },
         "sequence": {
-          "value": 956
+          "value": 832
         },
         "note": {
-          "text": "india echo"
+          "text": "delta alpha"
         }
       }
     },
@@ -1246,20 +1396,20 @@
       "role": "a role this caller does not hold",
       "args": {
         "date": {
-          "value": "alpha hotel alpha"
+          "value": "juliet"
         },
         "sequence": {
-          "value": 956
+          "value": 832
         },
         "note": {
-          "text": "india echo"
+          "text": "delta alpha"
         }
       }
     },
     {
       "verb": "Banking::SafeDepositBox.IssueKey",
       "args": {
-        "colour": "loud"
+        "rank": "third"
       }
     },
     {
@@ -1277,14 +1427,14 @@
       "role": "a role this caller does not hold",
       "args": {
         "serial": {
-          "value": "bravo juliet"
+          "value": "charlie foxtrot"
         }
       }
     },
     {
       "verb": "Banking::SafeDepositBox.Visit.Annotate",
       "args": {
-        "flavour": "third"
+        "colour": "third"
       }
     },
     {
@@ -1302,7 +1452,7 @@
       "role": "a role this caller does not hold",
       "args": {
         "note": {
-          "text": "india bravo"
+          "text": "india bravo bravo"
         }
       }
     },
@@ -1310,9 +1460,9 @@
       "verb": "Banking::SafeDepositBox.KeyIssuance.Return",
       "args": {
         "serial": {
-          "value": "bravo golf echo"
+          "value": "hotel"
         },
-        "note": "third"
+        "flavour": "red"
       }
     },
     {
@@ -1330,7 +1480,7 @@
       "role": "a role this caller does not hold",
       "args": {
         "serial": {
-          "value": "india delta"
+          "value": "hotel charlie bravo"
         }
       }
     },
@@ -1338,21 +1488,21 @@
       "verb": "Banking::Statement.Generate",
       "args": {
         "opening_balance": {
-          "cents": 197
+          "cents": 607
         },
         "closing_balance": {
-          "cents": 295
+          "cents": 67
         },
         "generated_on": {
-          "value": "delta alpha charlie"
+          "value": "india"
         },
         "frequency": {
-          "cadence": "annual",
-          "retention_months": 240,
-          "paper_fee_cents": 500
+          "cadence": "monthly",
+          "retention_months": 84,
+          "paper_fee_cents": 0
         },
-        "account": "missing-72244291",
-        "note": "red"
+        "account": "missing-44fa48de",
+        "colour": "red"
       }
     },
     {
@@ -1362,17 +1512,17 @@
           "cents": "not a integer"
         },
         "closing_balance": {
-          "cents": 295
+          "cents": 67
         },
         "generated_on": {
-          "value": "delta alpha charlie"
+          "value": "india"
         },
         "frequency": {
-          "cadence": "annual",
-          "retention_months": 240,
-          "paper_fee_cents": 500
+          "cadence": "monthly",
+          "retention_months": 84,
+          "paper_fee_cents": 0
         },
-        "account": "missing-72244291"
+        "account": "missing-44fa48de"
       }
     },
     {
@@ -1384,20 +1534,20 @@
           }
         },
         "opening_balance": {
-          "cents": 197
+          "cents": 607
         },
         "closing_balance": {
-          "cents": 295
+          "cents": 67
         },
         "generated_on": {
-          "value": "delta alpha charlie"
+          "value": "india"
         },
         "frequency": {
-          "cadence": "annual",
-          "retention_months": 240,
-          "paper_fee_cents": 500
+          "cadence": "monthly",
+          "retention_months": 84,
+          "paper_fee_cents": 0
         },
-        "account": "missing-72244291"
+        "account": "missing-44fa48de"
       }
     },
     {
@@ -1405,21 +1555,21 @@
       "role": "a role this caller does not hold",
       "args": {
         "period": {
-          "value": "juliet"
+          "value": "charlie delta"
         },
         "opening_balance": {
-          "cents": 197
+          "cents": 607
         },
         "closing_balance": {
-          "cents": 295
+          "cents": 67
         },
         "generated_on": {
-          "value": "delta alpha charlie"
+          "value": "india"
         },
         "frequency": {
-          "cadence": "annual",
-          "retention_months": 240,
-          "paper_fee_cents": 500
+          "cadence": "monthly",
+          "retention_months": 84,
+          "paper_fee_cents": 0
         },
         "account": "no-such-account"
       }
@@ -1428,14 +1578,14 @@
       "verb": "Banking::Transfer.Request",
       "args": {
         "amount": {
-          "cents": 962
+          "cents": 978
         },
         "narrative": {
-          "text": "charlie"
+          "text": "foxtrot hotel bravo"
         },
-        "source": "missing-b9217981",
-        "destination": "missing-46409eac",
-        "colour": "red"
+        "source": "missing-b99de9c1",
+        "destination": "missing-6ea54fb2",
+        "colour": "loud"
       }
     },
     {
@@ -1445,10 +1595,10 @@
           "cents": "not a integer"
         },
         "narrative": {
-          "text": "charlie"
+          "text": "foxtrot hotel bravo"
         },
-        "source": "missing-b9217981",
-        "destination": "missing-46409eac"
+        "source": "missing-b99de9c1",
+        "destination": "missing-6ea54fb2"
       }
     },
     {
@@ -1460,13 +1610,13 @@
           }
         },
         "amount": {
-          "cents": 962
+          "cents": 978
         },
         "narrative": {
-          "text": "charlie"
+          "text": "foxtrot hotel bravo"
         },
-        "source": "missing-b9217981",
-        "destination": "missing-46409eac"
+        "source": "missing-b99de9c1",
+        "destination": "missing-6ea54fb2"
       }
     },
     {
@@ -1474,16 +1624,16 @@
       "role": "a role this caller does not hold",
       "args": {
         "reference": {
-          "value": "hotel india"
+          "value": "hotel bravo"
         },
         "amount": {
-          "cents": 962
+          "cents": 978
         },
         "narrative": {
-          "text": "charlie"
+          "text": "foxtrot hotel bravo"
         },
         "source": "no-such-account",
-        "destination": "missing-46409eac"
+        "destination": "missing-6ea54fb2"
       }
     },
     {
@@ -1491,9 +1641,9 @@
       "role": "a role this caller does not hold",
       "args": {
         "reference": {
-          "value": "india charlie golf"
+          "value": "india"
         },
-        "colour": "red"
+        "colour": "third"
       }
     },
     {
@@ -1501,56 +1651,46 @@
       "role": "a role this caller does not hold",
       "args": {
         "reference": {
-          "value": "foxtrot india"
+          "value": "delta juliet foxtrot"
         }
       }
     },
     {
       "verb": "Banking::Transfer.Settle",
-      "role": "a role this caller does not hold",
-      "args": {
-        "reference": {
-          "value": "hotel charlie"
-        },
-        "rank": "loud"
-      }
-    },
-    {
-      "verb": "Banking::Transfer.Settle",
-      "role": "a role this caller does not hold",
-      "args": {
-        "reference": {
-          "value": "echo juliet juliet"
-        }
-      }
-    },
-    {
-      "verb": "Banking::Transfer.Credited",
-      "role": "a role this caller does not hold",
-      "args": {
-        "reference": {
-          "value": "echo charlie echo"
-        },
-        "flavour": "scribbled"
-      }
-    },
-    {
-      "verb": "Banking::Transfer.Credited",
-      "role": "a role this caller does not hold",
-      "args": {
-        "reference": {
-          "value": "alpha bravo"
-        }
-      }
-    },
-    {
-      "verb": "Banking::Transfer.Reverse",
       "role": "a role this caller does not hold",
       "args": {
         "reference": {
           "value": "hotel"
         },
-        "note": "loud"
+        "rank": "red"
+      }
+    },
+    {
+      "verb": "Banking::Transfer.Settle",
+      "role": "a role this caller does not hold",
+      "args": {
+        "reference": {
+          "value": "foxtrot"
+        }
+      }
+    },
+    {
+      "verb": "Banking::Transfer.Credited",
+      "role": "a role this caller does not hold",
+      "args": {
+        "reference": {
+          "value": "foxtrot alpha charlie"
+        },
+        "colour": "third"
+      }
+    },
+    {
+      "verb": "Banking::Transfer.Credited",
+      "role": "a role this caller does not hold",
+      "args": {
+        "reference": {
+          "value": "delta foxtrot juliet"
+        }
       }
     },
     {
@@ -1558,7 +1698,17 @@
       "role": "a role this caller does not hold",
       "args": {
         "reference": {
-          "value": "charlie delta"
+          "value": "charlie"
+        },
+        "flavour": "scribbled"
+      }
+    },
+    {
+      "verb": "Banking::Transfer.Reverse",
+      "role": "a role this caller does not hold",
+      "args": {
+        "reference": {
+          "value": "charlie bravo"
         }
       }
     },
@@ -1567,9 +1717,9 @@
       "role": "a role this caller does not hold",
       "args": {
         "reference": {
-          "value": "hotel alpha foxtrot"
+          "value": "bravo"
         },
-        "note": "third"
+        "rank": "loud"
       }
     },
     {
@@ -1577,146 +1727,146 @@
       "role": "a role this caller does not hold",
       "args": {
         "reference": {
+          "value": "foxtrot"
+        }
+      }
+    },
+    {
+      "verb": "Banking::ExternalTransfer.Request",
+      "args": {
+        "account": "missing-108ba467",
+        "amount": {
+          "cents": 615
+        },
+        "beneficiary": {
+          "value": "juliet"
+        },
+        "direction": {
+          "value": "golf"
+        },
+        "flavour": "red"
+      }
+    },
+    {
+      "verb": "Banking::ExternalTransfer.Request",
+      "args": {
+        "account": "missing-108ba467",
+        "amount": {
+          "cents": "not a integer"
+        },
+        "beneficiary": {
+          "value": "juliet"
+        },
+        "direction": {
           "value": "golf"
         }
       }
     },
     {
       "verb": "Banking::ExternalTransfer.Request",
+      "role": "a role this caller does not hold",
       "args": {
-        "account": "missing-65cb5de0",
+        "end_to_end": {
+          "value": {
+          }
+        },
+        "account": "missing-108ba467",
         "amount": {
-          "cents": 167
+          "cents": 615
         },
         "beneficiary": {
-          "value": "bravo echo"
+          "value": "juliet"
         },
         "direction": {
-          "value": "alpha"
+          "value": "golf"
+        }
+      }
+    },
+    {
+      "verb": "Banking::ExternalTransfer.SendTransfer",
+      "role": "a role this caller does not hold",
+      "args": {
+        "end_to_end": {
+          "value": "hotel delta"
+        },
+        "rank": "red"
+      }
+    },
+    {
+      "verb": "Banking::ExternalTransfer.SendTransfer",
+      "role": "a role this caller does not hold",
+      "args": {
+        "end_to_end": {
+          "value": "india"
+        }
+      }
+    },
+    {
+      "verb": "Banking::ExternalTransfer.Recall",
+      "role": "a role this caller does not hold",
+      "args": {
+        "end_to_end": {
+          "value": "delta golf bravo"
+        },
+        "note": "scribbled"
+      }
+    },
+    {
+      "verb": "Banking::ExternalTransfer.Recall",
+      "role": "a role this caller does not hold",
+      "args": {
+        "end_to_end": {
+          "value": "charlie delta"
+        }
+      }
+    },
+    {
+      "verb": "Banking::ExternalTransfer.Return",
+      "role": "a role this caller does not hold",
+      "args": {
+        "end_to_end": {
+          "value": "hotel"
         },
         "rank": "third"
       }
     },
     {
-      "verb": "Banking::ExternalTransfer.Request",
+      "verb": "Banking::ExternalTransfer.Return",
+      "role": "a role this caller does not hold",
       "args": {
-        "account": "missing-65cb5de0",
+        "end_to_end": {
+          "value": "charlie foxtrot bravo"
+        }
+      }
+    },
+    {
+      "verb": "Banking::ScheduledPayment.Schedule",
+      "args": {
+        "account": "missing-23cde3f9",
         "amount": {
-          "cents": "not a integer"
+          "cents": 742
         },
-        "beneficiary": {
-          "value": "bravo echo"
+        "recipient": {
+          "value": "foxtrot juliet charlie"
         },
-        "direction": {
-          "value": "alpha"
-        }
-      }
-    },
-    {
-      "verb": "Banking::ExternalTransfer.Request",
-      "role": "a role this caller does not hold",
-      "args": {
-        "end_to_end": {
-          "value": {
-          }
-        },
-        "account": "missing-65cb5de0",
-        "amount": {
-          "cents": 167
-        },
-        "beneficiary": {
-          "value": "bravo echo"
-        },
-        "direction": {
-          "value": "alpha"
-        }
-      }
-    },
-    {
-      "verb": "Banking::ExternalTransfer.SendTransfer",
-      "role": "a role this caller does not hold",
-      "args": {
-        "end_to_end": {
-          "value": "delta"
-        },
-        "note": "loud"
-      }
-    },
-    {
-      "verb": "Banking::ExternalTransfer.SendTransfer",
-      "role": "a role this caller does not hold",
-      "args": {
-        "end_to_end": {
-          "value": "bravo india india"
-        }
-      }
-    },
-    {
-      "verb": "Banking::ExternalTransfer.Recall",
-      "role": "a role this caller does not hold",
-      "args": {
-        "end_to_end": {
-          "value": "india"
+        "due_on": {
+          "value": "delta foxtrot"
         },
         "rank": "loud"
       }
     },
     {
-      "verb": "Banking::ExternalTransfer.Recall",
-      "role": "a role this caller does not hold",
-      "args": {
-        "end_to_end": {
-          "value": "bravo delta india"
-        }
-      }
-    },
-    {
-      "verb": "Banking::ExternalTransfer.Return",
-      "role": "a role this caller does not hold",
-      "args": {
-        "end_to_end": {
-          "value": "delta golf"
-        },
-        "colour": "loud"
-      }
-    },
-    {
-      "verb": "Banking::ExternalTransfer.Return",
-      "role": "a role this caller does not hold",
-      "args": {
-        "end_to_end": {
-          "value": "bravo"
-        }
-      }
-    },
-    {
       "verb": "Banking::ScheduledPayment.Schedule",
       "args": {
-        "account": "missing-79e2879e",
-        "amount": {
-          "cents": 355
-        },
-        "recipient": {
-          "value": "charlie"
-        },
-        "due_on": {
-          "value": "juliet"
-        },
-        "flavour": "red"
-      }
-    },
-    {
-      "verb": "Banking::ScheduledPayment.Schedule",
-      "args": {
-        "account": "missing-79e2879e",
+        "account": "missing-23cde3f9",
         "amount": {
           "cents": "not a integer"
         },
         "recipient": {
-          "value": "charlie"
+          "value": "foxtrot juliet charlie"
         },
         "due_on": {
-          "value": "juliet"
+          "value": "delta foxtrot"
         }
       }
     },
@@ -1728,15 +1878,15 @@
           "value": {
           }
         },
-        "account": "missing-79e2879e",
+        "account": "missing-23cde3f9",
         "amount": {
-          "cents": 355
+          "cents": 742
         },
         "recipient": {
-          "value": "charlie"
+          "value": "foxtrot juliet charlie"
         },
         "due_on": {
-          "value": "juliet"
+          "value": "delta foxtrot"
         }
       }
     },
@@ -1745,17 +1895,17 @@
       "role": "a role this caller does not hold",
       "args": {
         "instruction": {
-          "value": "delta"
+          "value": "delta india golf"
         },
         "account": "no-such-account",
         "amount": {
-          "cents": 355
+          "cents": 742
         },
         "recipient": {
-          "value": "charlie"
+          "value": "foxtrot juliet charlie"
         },
         "due_on": {
-          "value": "juliet"
+          "value": "delta foxtrot"
         }
       }
     },
@@ -1764,36 +1914,36 @@
       "role": "a role this caller does not hold",
       "args": {
         "instruction": {
-          "value": "bravo"
+          "value": "delta hotel"
+        },
+        "rank": "third"
+      }
+    },
+    {
+      "verb": "Banking::ScheduledPayment.Execute",
+      "role": "a role this caller does not hold",
+      "args": {
+        "instruction": {
+          "value": "foxtrot bravo alpha"
+        }
+      }
+    },
+    {
+      "verb": "Banking::ScheduledPayment.Cancel",
+      "role": "a role this caller does not hold",
+      "args": {
+        "instruction": {
+          "value": "echo"
         },
         "flavour": "red"
       }
     },
     {
-      "verb": "Banking::ScheduledPayment.Execute",
-      "role": "a role this caller does not hold",
-      "args": {
-        "instruction": {
-          "value": "echo echo bravo"
-        }
-      }
-    },
-    {
       "verb": "Banking::ScheduledPayment.Cancel",
       "role": "a role this caller does not hold",
       "args": {
         "instruction": {
-          "value": "foxtrot alpha"
-        },
-        "colour": "loud"
-      }
-    },
-    {
-      "verb": "Banking::ScheduledPayment.Cancel",
-      "role": "a role this caller does not hold",
-      "args": {
-        "instruction": {
-          "value": "charlie"
+          "value": "bravo hotel hotel"
         }
       }
     },
@@ -1802,9 +1952,9 @@
       "role": "a role this caller does not hold",
       "args": {
         "instruction": {
-          "value": "delta"
+          "value": "foxtrot golf"
         },
-        "note": "loud"
+        "rank": "loud"
       }
     },
     {
@@ -1812,7 +1962,7 @@
       "role": "a role this caller does not hold",
       "args": {
         "instruction": {
-          "value": "alpha bravo"
+          "value": "juliet"
         }
       }
     },
@@ -1821,36 +1971,36 @@
       "role": "a role this caller does not hold",
       "args": {
         "instruction": {
-          "value": "golf bravo"
+          "value": "bravo"
+        },
+        "colour": "red"
+      }
+    },
+    {
+      "verb": "Banking::ScheduledPayment.Retry",
+      "role": "a role this caller does not hold",
+      "args": {
+        "instruction": {
+          "value": "echo delta delta"
+        }
+      }
+    },
+    {
+      "verb": "Banking::ScheduledPayment.Abandon",
+      "role": "a role this caller does not hold",
+      "args": {
+        "instruction": {
+          "value": "golf india"
         },
         "flavour": "loud"
       }
     },
     {
-      "verb": "Banking::ScheduledPayment.Retry",
-      "role": "a role this caller does not hold",
-      "args": {
-        "instruction": {
-          "value": "delta delta alpha"
-        }
-      }
-    },
-    {
       "verb": "Banking::ScheduledPayment.Abandon",
       "role": "a role this caller does not hold",
       "args": {
         "instruction": {
-          "value": "foxtrot india delta"
-        },
-        "flavour": "third"
-      }
-    },
-    {
-      "verb": "Banking::ScheduledPayment.Abandon",
-      "role": "a role this caller does not hold",
-      "args": {
-        "instruction": {
-          "value": "hotel"
+          "value": "echo bravo"
         }
       }
     }
@@ -1859,7 +2009,7 @@
     "refusals": [
       {
         "verb": "Banking::Customer.Register",
-        "error": "Register does not declare rank — it takes reference, name, email",
+        "error": "Register does not declare colour — it takes reference, name, email",
         "kind": "UnknownArgument"
       },
       {
@@ -1874,7 +2024,7 @@
       },
       {
         "verb": "Banking::Customer.Suspend",
-        "error": "Suspend does not declare rank — it takes standing",
+        "error": "Suspend does not declare colour — it takes standing",
         "kind": "UnknownArgument"
       },
       {
@@ -1889,7 +2039,7 @@
       },
       {
         "verb": "Banking::Customer.Reinstate",
-        "error": "Reinstate does not declare note — it takes none",
+        "error": "Reinstate does not declare flavour — it takes none",
         "kind": "UnknownArgument"
       },
       {
@@ -1929,7 +2079,7 @@
       },
       {
         "verb": "Banking::Account.Credit",
-        "error": "Credit does not declare flavour — it takes amount, narrative",
+        "error": "Credit does not declare colour — it takes amount, narrative",
         "kind": "UnknownArgument"
       },
       {
@@ -1949,7 +2099,7 @@
       },
       {
         "verb": "Banking::Account.Debit",
-        "error": "Debit does not declare flavour — it takes amount, narrative",
+        "error": "Debit does not declare colour — it takes amount, narrative",
         "kind": "UnknownArgument"
       },
       {
@@ -1969,7 +2119,7 @@
       },
       {
         "verb": "Banking::Account.FreezeAccount",
-        "error": "FreezeAccount does not declare rank — it takes none",
+        "error": "FreezeAccount does not declare colour — it takes none",
         "kind": "UnknownArgument"
       },
       {
@@ -1989,7 +2139,7 @@
       },
       {
         "verb": "Banking::Account.CloseAccount",
-        "error": "CloseAccount does not declare flavour — it takes none",
+        "error": "CloseAccount does not declare note — it takes none",
         "kind": "UnknownArgument"
       },
       {
@@ -2019,7 +2169,7 @@
       },
       {
         "verb": "Banking::Account.CorrectFee",
-        "error": "CorrectFee does not declare rank — it takes amount",
+        "error": "CorrectFee does not declare note — it takes amount",
         "kind": "UnknownArgument"
       },
       {
@@ -2034,7 +2184,7 @@
       },
       {
         "verb": "Banking::Account.AccrueInterest",
-        "error": "AccrueInterest does not declare flavour — it takes amount",
+        "error": "AccrueInterest does not declare note — it takes amount",
         "kind": "UnknownArgument"
       },
       {
@@ -2049,7 +2199,7 @@
       },
       {
         "verb": "Banking::Account.CorrectInterest",
-        "error": "CorrectInterest does not declare note — it takes amount",
+        "error": "CorrectInterest does not declare colour — it takes amount",
         "kind": "UnknownArgument"
       },
       {
@@ -2064,7 +2214,7 @@
       },
       {
         "verb": "Banking::Account.LedgerEntry.Amend",
-        "error": "Amend does not declare colour — it takes adjustment, narrative",
+        "error": "Amend does not declare rank — it takes adjustment, narrative",
         "kind": "UnknownArgument"
       },
       {
@@ -2084,7 +2234,7 @@
       },
       {
         "verb": "Banking::Account.LedgerEntry.Reverse",
-        "error": "Reverse does not declare rank — it takes narrative",
+        "error": "Reverse does not declare note — it takes narrative",
         "kind": "UnknownArgument"
       },
       {
@@ -2098,8 +2248,53 @@
         "kind": "Unauthorized"
       },
       {
+        "verb": "Banking::Hold.Place",
+        "error": "Place does not declare colour — it takes reference, subject, reason",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::Hold.Place",
+        "error": "Place was not given reference — it takes reference, subject, reason",
+        "kind": "AbsentArgument"
+      },
+      {
+        "verb": "Banking::Hold.Place",
+        "error": "HoldReference.value expects String, got {}",
+        "kind": "TypeMismatch"
+      },
+      {
+        "verb": "Banking::Hold.Lift",
+        "error": "Lift does not declare flavour — it takes none",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::Hold.Lift",
+        "error": "Lift refused — role: Teller, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::Hold.EscalateAccountHold",
+        "error": "EscalateAccountHold does not declare colour — it takes none",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::Hold.EscalateAccountHold",
+        "error": "EscalateAccountHold refused — role: System, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::Hold.EscalateCardHold",
+        "error": "EscalateCardHold does not declare flavour — it takes none",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::Hold.EscalateCardHold",
+        "error": "EscalateCardHold refused — role: System, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
         "verb": "Banking::OnboardingCase.Open",
-        "error": "Open does not declare colour — it takes customer, reference, account_number",
+        "error": "Open does not declare rank — it takes customer, reference, account_number",
         "kind": "UnknownArgument"
       },
       {
@@ -2119,7 +2314,7 @@
       },
       {
         "verb": "Banking::OnboardingCase.Clear",
-        "error": "Clear does not declare flavour — it takes none",
+        "error": "Clear does not declare colour — it takes none",
         "kind": "UnknownArgument"
       },
       {
@@ -2129,7 +2324,7 @@
       },
       {
         "verb": "Banking::OnboardingCase.Decline",
-        "error": "Decline does not declare note — it takes none",
+        "error": "Decline does not declare rank — it takes none",
         "kind": "UnknownArgument"
       },
       {
@@ -2139,7 +2334,7 @@
       },
       {
         "verb": "Banking::ATMCard.Issue",
-        "error": "Issue does not declare rank — it takes account, serial, daily_fee",
+        "error": "Issue does not declare colour — it takes account, serial, daily_fee",
         "kind": "UnknownArgument"
       },
       {
@@ -2159,7 +2354,7 @@
       },
       {
         "verb": "Banking::ATMCard.Rename",
-        "error": "Rename does not declare note — it takes nickname",
+        "error": "Rename does not declare rank — it takes nickname",
         "kind": "UnknownArgument"
       },
       {
@@ -2174,7 +2369,7 @@
       },
       {
         "verb": "Banking::ATMCard.Withdraw",
-        "error": "Withdraw does not declare rank — it takes cents, narrative",
+        "error": "Withdraw does not declare colour — it takes cents, narrative",
         "kind": "UnknownArgument"
       },
       {
@@ -2194,7 +2389,7 @@
       },
       {
         "verb": "Banking::ATMCard.Activate",
-        "error": "Activate does not declare flavour — it takes none",
+        "error": "Activate does not declare note — it takes none",
         "kind": "UnknownArgument"
       },
       {
@@ -2228,8 +2423,28 @@
         "kind": "Unauthorized"
       },
       {
+        "verb": "Banking::ATMCard.Withdrawal.Reimburse",
+        "error": "Reimburse does not declare note — it takes none",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::ATMCard.Withdrawal.Reimburse",
+        "error": "Reimburse refused — role: Teller, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
+        "verb": "Banking::ATMCard.Withdrawal.RejectDispute",
+        "error": "RejectDispute does not declare note — it takes none",
+        "kind": "UnknownArgument"
+      },
+      {
+        "verb": "Banking::ATMCard.Withdrawal.RejectDispute",
+        "error": "RejectDispute refused — role: Teller, and the caller stated a role this caller does not hold",
+        "kind": "Unauthorized"
+      },
+      {
         "verb": "Banking::CardPayment.Authorize",
-        "error": "Authorize does not declare flavour — it takes authorisation, tags, account, amount, merchant",
+        "error": "Authorize does not declare note — it takes authorisation, tags, account, amount, merchant",
         "kind": "UnknownArgument"
       },
       {
@@ -2244,7 +2459,7 @@
       },
       {
         "verb": "Banking::CardPayment.Capture",
-        "error": "Capture does not declare colour — it takes none",
+        "error": "Capture does not declare flavour — it takes none",
         "kind": "UnknownArgument"
       },
       {
@@ -2264,7 +2479,7 @@
       },
       {
         "verb": "Banking::CardPayment.Refund",
-        "error": "Refund does not declare colour — it takes none",
+        "error": "Refund does not declare rank — it takes none",
         "kind": "UnknownArgument"
       },
       {
@@ -2274,7 +2489,7 @@
       },
       {
         "verb": "Banking::CardPayment.Reverse",
-        "error": "Reverse does not declare rank — it takes none",
+        "error": "Reverse does not declare note — it takes none",
         "kind": "UnknownArgument"
       },
       {
@@ -2284,7 +2499,7 @@
       },
       {
         "verb": "Banking::CardPayment.Dispute",
-        "error": "Dispute does not declare note — it takes disputed_by",
+        "error": "Dispute does not declare rank — it takes disputed_by",
         "kind": "UnknownArgument"
       },
       {
@@ -2304,7 +2519,7 @@
       },
       {
         "verb": "Banking::CardPayment.Chargeback",
-        "error": "Chargeback does not declare flavour — it takes none",
+        "error": "Chargeback does not declare colour — it takes none",
         "kind": "UnknownArgument"
       },
       {
@@ -2314,7 +2529,7 @@
       },
       {
         "verb": "Banking::CardPayment.RejectDispute",
-        "error": "RejectDispute does not declare flavour — it takes none",
+        "error": "RejectDispute does not declare note — it takes none",
         "kind": "UnknownArgument"
       },
       {
@@ -2324,7 +2539,7 @@
       },
       {
         "verb": "Banking::SafeDepositBox.Rent",
-        "error": "Rent does not declare rank — it takes branch_code, box_number, size, customer",
+        "error": "Rent does not declare note — it takes branch_code, box_number, size, customer",
         "kind": "UnknownArgument"
       },
       {
@@ -2354,7 +2569,7 @@
       },
       {
         "verb": "Banking::SafeDepositBox.LogVisit",
-        "error": "LogVisit does not declare colour — it takes date, sequence, note",
+        "error": "LogVisit does not declare rank — it takes date, sequence, note",
         "kind": "UnknownArgument"
       },
       {
@@ -2374,7 +2589,7 @@
       },
       {
         "verb": "Banking::SafeDepositBox.IssueKey",
-        "error": "IssueKey does not declare colour — it takes serial",
+        "error": "IssueKey does not declare rank — it takes serial",
         "kind": "UnknownArgument"
       },
       {
@@ -2389,7 +2604,7 @@
       },
       {
         "verb": "Banking::SafeDepositBox.Visit.Annotate",
-        "error": "Annotate does not declare flavour — it takes note",
+        "error": "Annotate does not declare colour — it takes note",
         "kind": "UnknownArgument"
       },
       {
@@ -2404,7 +2619,7 @@
       },
       {
         "verb": "Banking::SafeDepositBox.KeyIssuance.Return",
-        "error": "Return does not declare note — it takes serial",
+        "error": "Return does not declare flavour — it takes serial",
         "kind": "UnknownArgument"
       },
       {
@@ -2419,7 +2634,7 @@
       },
       {
         "verb": "Banking::Statement.Generate",
-        "error": "Generate does not declare note — it takes period, opening_balance, closing_balance, generated_on, frequency, account",
+        "error": "Generate does not declare colour — it takes period, opening_balance, closing_balance, generated_on, frequency, account",
         "kind": "UnknownArgument"
       },
       {
@@ -2479,7 +2694,7 @@
       },
       {
         "verb": "Banking::Transfer.Credited",
-        "error": "Credited does not declare flavour — it takes none",
+        "error": "Credited does not declare colour — it takes none",
         "kind": "UnknownArgument"
       },
       {
@@ -2489,7 +2704,7 @@
       },
       {
         "verb": "Banking::Transfer.Reverse",
-        "error": "Reverse does not declare note — it takes none",
+        "error": "Reverse does not declare flavour — it takes none",
         "kind": "UnknownArgument"
       },
       {
@@ -2499,7 +2714,7 @@
       },
       {
         "verb": "Banking::Transfer.Reject",
-        "error": "Reject does not declare note — it takes none",
+        "error": "Reject does not declare rank — it takes none",
         "kind": "UnknownArgument"
       },
       {
@@ -2509,7 +2724,7 @@
       },
       {
         "verb": "Banking::ExternalTransfer.Request",
-        "error": "Request does not declare rank — it takes end_to_end, account, amount, beneficiary, direction",
+        "error": "Request does not declare flavour — it takes end_to_end, account, amount, beneficiary, direction",
         "kind": "UnknownArgument"
       },
       {
@@ -2524,7 +2739,7 @@
       },
       {
         "verb": "Banking::ExternalTransfer.SendTransfer",
-        "error": "SendTransfer does not declare note — it takes none",
+        "error": "SendTransfer does not declare rank — it takes none",
         "kind": "UnknownArgument"
       },
       {
@@ -2534,7 +2749,7 @@
       },
       {
         "verb": "Banking::ExternalTransfer.Recall",
-        "error": "Recall does not declare rank — it takes none",
+        "error": "Recall does not declare note — it takes none",
         "kind": "UnknownArgument"
       },
       {
@@ -2544,7 +2759,7 @@
       },
       {
         "verb": "Banking::ExternalTransfer.Return",
-        "error": "Return does not declare colour — it takes none",
+        "error": "Return does not declare rank — it takes none",
         "kind": "UnknownArgument"
       },
       {
@@ -2554,7 +2769,7 @@
       },
       {
         "verb": "Banking::ScheduledPayment.Schedule",
-        "error": "Schedule does not declare flavour — it takes instruction, account, amount, recipient, due_on",
+        "error": "Schedule does not declare rank — it takes instruction, account, amount, recipient, due_on",
         "kind": "UnknownArgument"
       },
       {
@@ -2574,7 +2789,7 @@
       },
       {
         "verb": "Banking::ScheduledPayment.Execute",
-        "error": "Execute does not declare flavour — it takes none",
+        "error": "Execute does not declare rank — it takes none",
         "kind": "UnknownArgument"
       },
       {
@@ -2584,7 +2799,7 @@
       },
       {
         "verb": "Banking::ScheduledPayment.Cancel",
-        "error": "Cancel does not declare colour — it takes none",
+        "error": "Cancel does not declare flavour — it takes none",
         "kind": "UnknownArgument"
       },
       {
@@ -2594,7 +2809,7 @@
       },
       {
         "verb": "Banking::ScheduledPayment.Fail",
-        "error": "Fail does not declare note — it takes none",
+        "error": "Fail does not declare rank — it takes none",
         "kind": "UnknownArgument"
       },
       {
@@ -2604,7 +2819,7 @@
       },
       {
         "verb": "Banking::ScheduledPayment.Retry",
-        "error": "Retry does not declare flavour — it takes none",
+        "error": "Retry does not declare colour — it takes none",
         "kind": "UnknownArgument"
       },
       {

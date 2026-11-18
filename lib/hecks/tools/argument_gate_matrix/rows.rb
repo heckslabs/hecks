@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "json"
+require "zlib"
 require_relative "../../tools"
 require_relative "violations"
 
@@ -92,24 +93,31 @@ module Hecks
           Violations::MISMATCHED_ROLE if [earlier, later].include?("refuse_role_mismatch")
         end
 
+        # Each command draws from a stream of its own, seeded by its verb, so a command added to a
+        # bluebook adds its rows and leaves every other command's rows as they were.
         def candidates(runtime, declaration)
           bluebook = runtime.bluebook(declaration)
-          random = SteadyRandom.new(20_260_918)
           bluebook.aggregates.flat_map do |aggregate|
-            aggregate_rows(aggregate, declaration, random) + entity_rows(aggregate, declaration, random)
+            aggregate_rows(aggregate, declaration) + entity_rows(aggregate, declaration)
           end
         end
 
-        def aggregate_rows(aggregate, declaration, random)
+        # @param verb [String] the command's qualified verb
+        # @return [SteadyRandom] the stream that command's rows draw from
+        def random_for(verb) = SteadyRandom.new(Zlib.crc32(verb))
+
+        def aggregate_rows(aggregate, declaration)
           aggregate.commands.flat_map do |command|
-            rows_for(command, aggregate, "#{declaration}::#{aggregate.hecks_name}.#{command.hecks_name}", "aggregate", random)
+            verb = "#{declaration}::#{aggregate.hecks_name}.#{command.hecks_name}"
+            rows_for(command, aggregate, verb, "aggregate", random_for(verb))
           end
         end
 
-        def entity_rows(aggregate, declaration, random)
+        def entity_rows(aggregate, declaration)
           aggregate.entities.flat_map do |entity|
             entity.commands.flat_map do |command|
               verb = "#{declaration}::#{aggregate.hecks_name}.#{entity.hecks_name}.#{command.hecks_name}"
+              random = random_for(verb)
               rows = rows_for(command, aggregate, verb, "entity", random)
               rows.each { |row| row[:args] = identity_args(entity, aggregate, random).merge(row[:args]) }
             end
