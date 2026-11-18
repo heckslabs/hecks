@@ -34614,7 +34614,7 @@
               ],
               [
                 "blocked",
-                "a bluebook's storage shape moved with no translation edge from the shape the ledger holds; the failure prints the edge to commit. A change that only adds is settled in one step with `hecks conformance_run.check_shape_ledger! --confirm --additive --wait`, which writes the empty edge and moves the ledger; a change that renames or reshapes data needs rules first."
+                "a bluebook's storage shape moved in a way that is not provably additive and no translation edge covers it. A change that only adds passes and commits nothing; a change that renames or reshapes data needs rules first. The ledger moves only at `release.mint`."
               ]
             ],
             [
