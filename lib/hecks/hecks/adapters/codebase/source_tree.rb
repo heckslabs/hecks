@@ -74,8 +74,19 @@ module Hecks
         family = family_for(operation)
         folder = working_tree(operation, held)
         allowed = Codebase::TestScope.new(@registry).admit(operation, held.except(:operation), folder)
-        done = family.call(operation, allowed, folder, shell: shell)
-        done.is_a?(Hash) ? done : { report: { value: done } }
+        reported(operation, family.call(operation, allowed, folder, shell: shell))
+      end
+
+      # A family's answer as the run records it. An answer with no `report:` is refused by name,
+      # since the run kind's guards read the report and a missing field is no blank they can test.
+      #
+      # @return [Hash{Symbol => Hash}] the answer, with its `report:`
+      # @raise [ConsoleCapture::Failure] when a Hash answer carries no report
+      def reported(operation, done)
+        return { report: { value: done } } unless done.is_a?(Hash)
+        return done if done.key?(:report)
+
+        raise ConsoleCapture::Failure, "#{operation} answered with no report: it said nothing about what it did"
       end
 
       # @return [Object] the shell the family runs commands through

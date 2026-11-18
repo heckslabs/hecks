@@ -55,7 +55,9 @@ Hecks.bluebook "Hecks" do
 
       value_object "Switch", Boolean
 
-      value_object "Report", String
+      value_object "Report" do
+        attribute :value, String, matches: :present
+      end
 
       value_object "CheckCount", String
 
@@ -205,7 +207,9 @@ Hecks.bluebook "Hecks" do
 
       value_object "Switch", Boolean
 
-      value_object "Report", String
+      value_object "Report" do
+        attribute :value, String, matches: :present
+      end
 
       # How many domains the report examined, counted from its headers so a reader need not.
       value_object "Checked" do
@@ -426,7 +430,9 @@ Hecks.bluebook "Hecks" do
 
       value_object "Switch", Boolean
 
-      value_object "Report", String
+      value_object "Report" do
+        attribute :value, String, matches: :present
+      end
 
       # Files or directories, comma separated.
       value_object "PathList" do
@@ -672,7 +678,9 @@ Hecks.bluebook "Hecks" do
 
       value_object "Switch", Boolean
 
-      value_object "Report", String
+      value_object "Report" do
+        attribute :value, String, matches: :present
+      end
 
       # Files or directories, comma separated; lib when none is named.
       value_object "PathList" do
@@ -864,7 +872,9 @@ Hecks.bluebook "Hecks" do
 
       value_object "Count", Integer
 
-      value_object "Finding", String
+      value_object "Finding" do
+        attribute :value, String, matches: :present
+      end
 
       lifecycle :status, default: "requested" do
         mark :failure, "unproven"

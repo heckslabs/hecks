@@ -140,7 +140,9 @@ Hecks.bluebook "Hecks" do
 
       value_object "Switch", Boolean
 
-      value_object "Report", String
+      value_object "Report" do
+        attribute :value, String, matches: :present
+      end
 
       # One word of a fact: a branch, a commit, whether a tag stands.
       value_object "Word" do
@@ -440,7 +442,9 @@ Hecks.bluebook "Hecks" do
 
       value_object "Switch", Boolean
 
-      value_object "Report", String
+      value_object "Report" do
+        attribute :value, String, matches: :present
+      end
 
       # A branch name, or a commit.
       value_object "Word" do
@@ -671,7 +675,9 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, matches: :not_empty
       end
 
-      value_object "Report", String
+      value_object "Report" do
+        attribute :value, String, matches: :present
+      end
 
       # An answer that is one document of text, exactly as the tool that produced it wrote it.
       value_object "Document" do
@@ -793,7 +799,9 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, matches: :not_empty
       end
 
-      value_object "Report", String
+      value_object "Report" do
+        attribute :value, String, matches: :present
+      end
 
       # An answer that is one document of text, exactly as the tool that produced it wrote it.
       value_object "Document" do
