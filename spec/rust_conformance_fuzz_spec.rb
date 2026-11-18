@@ -59,7 +59,7 @@ RSpec.describe "Rust conformance, over generated sequences (native binary)", :io
         binary = build_rust_for(feature)
         skip "rust/Cargo.toml has no #{feature} feature — run hecks project_rust for it first" unless binary
 
-        gaps = Hecks::Fuzzing::RustGapManifest.for_binary(binary)
+        gaps = Hecks::Fuzzing::RustGapManifest.for_binary(binary, rust_dir: FUZZ_RUST_DIR)
         divergences = []
 
         (1..SEEDS_PER_DOMAIN).each do |seed|
