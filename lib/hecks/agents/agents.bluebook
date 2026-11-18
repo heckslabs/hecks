@@ -492,7 +492,7 @@ Hecks.bluebook "Agents" do
       given("the verdict is one the architect gives") do
         verdict.value == "sound" || verdict.value == "changes" || verdict.value == "rethink"
       end
-      given("the review did not end without a verdict") { ended_at.nil? || ended_at.value == 0 }
+      given("the review did not end without a verdict") { ended_at.value == nil || ended_at.value == 0 }
 
       emits "PlanReviewed"
     end
@@ -529,8 +529,8 @@ Hecks.bluebook "Agents" do
       attribute :now,    Instant
       needs :now
 
-      given("the review has no verdict yet") { verdict.nil? || verdict.to_s.empty? }
-      given("the review has not ended already") { ended_at.nil? || ended_at.value == 0 }
+      given("the review has no verdict yet") { verdict.value == nil || verdict.to_s.empty? }
+      given("the review has not ended already") { ended_at.value == nil || ended_at.value == 0 }
 
       sets :ended_at, to: :now
 
@@ -553,9 +553,9 @@ Hecks.bluebook "Agents" do
       attribute :now,  Instant
       needs :now
 
-      given("the review has no verdict yet") { verdict.nil? || verdict.to_s.empty? }
-      given("the review has not ended already") { ended_at.nil? || ended_at.value == 0 }
-      given("the architect was not asked again yet") { asks.nil? || asks.value == 0 }
+      given("the review has no verdict yet") { verdict.value == nil || verdict.to_s.empty? }
+      given("the review has not ended already") { ended_at.value == nil || ended_at.value == 0 }
+      given("the architect was not asked again yet") { asks.value == nil || asks.value == 0 }
       given("the review's time limit has passed") { requested_at.value + limit.value <= now.value }
 
       sets :ended_at, to: :now
@@ -577,9 +577,9 @@ Hecks.bluebook "Agents" do
       attribute :now,    Instant
       needs :now
 
-      given("the review has no verdict yet") { verdict.nil? || verdict.to_s.empty? }
-      given("the review has not ended already") { ended_at.nil? || ended_at.value == 0 }
-      given("the architect was asked again already") { !asks.nil? && asks.value >= 1 }
+      given("the review has no verdict yet") { verdict.value == nil || verdict.to_s.empty? }
+      given("the review has not ended already") { ended_at.value == nil || ended_at.value == 0 }
+      given("the architect was asked again already") { asks.value != nil && asks.value >= 1 }
       given("the review's time limit has passed") { requested_at.value + limit.value <= now.value }
 
       sets :ended_at, to: :now
@@ -785,7 +785,7 @@ Hecks.bluebook "Agents" do
       attribute :answer, AnswerText, sets: true
       attribute :word,   VerdictWord, default: "", sets: true
 
-      given("the verdict has tries left") { tries.nil? || tries.value < 3 }
+      given("the verdict has tries left") { tries.value == nil || tries.value < 3 }
 
       sets :tries, increment: { value: 1 }
 
@@ -803,7 +803,7 @@ Hecks.bluebook "Agents" do
       attribute :work,   WorkKey, sets: true
       attribute :reason, ReasonText, sets: true
 
-      given("the verdict's tries are spent") { !tries.nil? && tries.value >= 3 }
+      given("the verdict's tries are spent") { tries.value != nil && tries.value >= 3 }
 
       emits "VerdictAbandoned"
     end
@@ -1661,7 +1661,7 @@ Hecks.bluebook "Agents" do
       attribute :now, Instant
       needs :now
 
-      given("the watch has not ended") { ended_at.nil? || ended_at.value == 0 }
+      given("the watch has not ended") { ended_at.value == nil || ended_at.value == 0 }
       given("attempts remain") { attempts.value < max_attempts.value }
       given("the window has passed") { opened_at.value + timeout_seconds.value <= now.value }
 
@@ -1680,7 +1680,7 @@ Hecks.bluebook "Agents" do
       attribute :now, Instant
       needs :now
 
-      given("the watch has not ended") { ended_at.nil? || ended_at.value == 0 }
+      given("the watch has not ended") { ended_at.value == nil || ended_at.value == 0 }
       given("no attempt remains") { attempts.value >= max_attempts.value }
       given("the window has passed") { opened_at.value + timeout_seconds.value <= now.value }
 

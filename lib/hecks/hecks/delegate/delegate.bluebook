@@ -2741,7 +2741,7 @@ Hecks.bluebook "Hecks" do
         reference_to ReapTurn
         attribute :ended, TurnKey
 
-        given("the reap that ended is the one that holds the turn") { !run.nil? && ended.value == run.value }
+        given("the reap that ended is the one that holds the turn") { run.value != nil && ended.value == run.value }
 
         sets :held, to: { value: 0 }
 
