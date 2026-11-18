@@ -71,6 +71,16 @@ module Hecks
         # @return [void]
         def check_all = @runner.call(["AgentRun.check_all!", "--wait"])
 
+        # Narrows an open work item's claim to the given area.
+        #
+        # @param key [String] the Work item
+        # @param area [Array<String>] the files it now holds
+        # @return [Boolean] whether the claim moved; a refusal leaves it as it was
+        def rescoped?(key, area)
+          argv = ["tickets", "Work.rescope!", "to=#{key}", *area.map { |word| "area.value=#{word}" }, "--wait"]
+          StepOutcome.new(@runner.call(argv)).ok?
+        end
+
         # Asks `AgentRun.Retire` to close the run named for a work item, which it does only when the
         # run's session is not listed by `claude agents`; a session still listed keeps its key.
         #

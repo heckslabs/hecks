@@ -44,12 +44,12 @@ module Hecks
         #   and `now:` (Time, optional), `cap:` (Integer), `load:` and `max_load:` (Float),
         #   `frozen:` (Array), `epic_wip:` (Integer, optional: most started items of one epic)
         #   `headroom:`, `stagger:`, `urgent_reserve:` (Integer, optional: room, per fill, red),
-        #   `paused:` (String, optional: why every work item waits, "skipped: paused by load")
-        #   and `budget:` (String, optional: why every item waits once the boots spent theirs)
-        #   with `rethinks:` (callable, optional: answers why a work item waits for a person),
+        #   `paused:` and `budget:` (String, optional: why every work item waits), `rethinks:`
+        #   (callable, optional: answers why a work item waits for a person),
         #   `waits:` (callable, optional: answers which unlanded work item an item waits on),
-        #   `exempt:` (callable, optional: answers whether a work item starts despite it) and
-        #   `root:` (String, optional: this repository's top level; this checkout by default)
+        #   `exempt:` (callable, optional: whether a work item starts despite it), `root:` (String,
+        #   optional: the repository's top level) and `effective:` (callable, optional: the area an
+        #   item holds now, by {EffectiveArea})
         def initialize(planned, started, **limits)
           @started = started
           @limits = limits
@@ -166,11 +166,14 @@ module Hecks
 
         def overlap_reason(item)
           holders.each do |other|
-            pair = AreaOverlap.first_overlap(item.area, other.area, root: root)
+            pair = AreaOverlap.first_overlap(held_area(item), held_area(other), root: root)
             return "skipped: #{pair[0]} overlaps #{other.key} at #{pair[1]}#{places(pair)}" if pair
           end
           nil
         end
+
+        # The ground an item holds now: what its branch changes once it has commits.
+        def held_area(item) = @limits[:effective]&.call(item) || item.area
 
         def root = @limits[:root] || REPOSITORY
 
