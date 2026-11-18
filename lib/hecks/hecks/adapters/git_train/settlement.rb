@@ -5,7 +5,6 @@ require_relative "reading"
 require_relative "branch_guard"
 require_relative "named_commit"
 require_relative "drift_checks"
-require_relative "train_env"
 
 module Hecks
   module Adapters
@@ -122,7 +121,7 @@ module Hecks
         # change that is not additive is refused by the settlement, and the refusal stops it.
         def settle_ledger
           ledger_untouched!
-          out, err, status = Open3.capture3(TrainEnv.for(@expected), *SETTLE, chdir: @checkout)
+          out, err, status = Open3.capture3(*SETTLE, chdir: @checkout)
           refusal = out.lines.find { |line| line.include?('"refusal": "') }
           raise ConsoleCapture::Failure, "the shape ledger was not settled: #{refusal.strip}" if refusal
           raise ConsoleCapture::Failure, "the shape ledger command failed: #{err.strip}" unless status.success?
