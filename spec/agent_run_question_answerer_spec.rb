@@ -3,8 +3,9 @@ require_relative "support/stand_in_claude"
 require_relative "support/wakes_coder_helpers"
 require_relative "support/question_answerer_helpers"
 
-# A coder blocked on a question for the orchestrator gets one orchestrator run that answers it, at
-# most two such runs at once; an owner's question starts none and is left for the owner.
+# A coder or a stall's fixer blocked on a question for the orchestrator gets one orchestrator run
+# that answers it, at most two such runs at once; an owner's question starts none and is left for
+# the owner, and an answerer's own block starts none.
 RSpec.describe "a coder blocked on a question" do
   include_context "with a stand-in claude"
   include WakesCoderHelpers
@@ -84,5 +85,22 @@ RSpec.describe "a coder blocked on a question" do
   it "treats a review wait as no question" do
     blocked_on("q-review", "[review] waiting on the architect for q-review")
     expect(answerers("q-review")).to be_empty
+  end
+
+  it "starts an answerer for a stall fixer's block with no marker" do
+    orchestrator_blocked_on("stall-q-fixer", "board fails to load in this checkout")
+    expect(answerers("stall-q-fixer").size).to eq(1)
+  end
+
+  it "starts no answerer when the answerer of a stall fixer blocks", :aggregate_failures do
+    answerer = answerer_of_fixer("stall-q-chain")
+    blocks(answerer, "the fixer's run is gone")
+    expect(answerer).not_to start_with("stall-")
+    expect(answerers(answerer)).to be_empty
+  end
+
+  it "leaves a stall fixer's owner question to the owner" do
+    orchestrator_blocked_on("stall-q-owner", "[owner] Tag and push 0.1.11?")
+    expect(answerers("stall-q-owner")).to be_empty
   end
 end

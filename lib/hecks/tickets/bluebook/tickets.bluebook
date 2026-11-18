@@ -1325,6 +1325,23 @@ Hecks.bluebook "Tickets" do
     trigger Finding::ReportStoppedRun, with: { finding: :work, stage: "landing", body: :detail }
   end
 
+  # A reverted merge reopens its Work item, first in line, to redo the work: the revert itself is
+  # main's fix. RedEpisode (deliver.bluebook) owns the `work` key (the branch less its -stepN or -rN)
+  # and the `finding`. An unknown key is refused by name.
+  policy "ReopenWorkWhenAnEpisodeReverts" do
+    on      "RedEpisode.EpisodeReverting"
+    root
+    where   { work.value.to_s != "" }
+    trigger Work::Reopen, with: { work: :work, title: "A red main reverted this work item's merge", detail: :finding }
+  end
+
+  policy "PrioritizeTheWorkAnEpisodeReverted" do
+    on      "RedEpisode.EpisodeReverting"
+    root
+    where   { work.value.to_s != "" }
+    trigger Work::Prioritize, with: { work: :work, priority: "now" }
+  end
+
   # A conformance or gate run that faults files its own finding.
   policy "ReportWhenConformanceFaulted" do
     on      "ConformanceRun.ConformanceFaulted"
