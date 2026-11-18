@@ -7,6 +7,10 @@
 // source of identity; the kernel asks over the callback only when it serves (`serve.rs`), where
 // no script is installed.
 //
+// The port is declared once, in `lib/hecks/ports/identity_generation.port` (`answers :uuid`);
+// `IdentityPort` is this host's side of it, as `needs::Clock` is of the clock, and the conformance
+// cases under `spec/corpus/rust_conformance/` hold the two engines to the same minted runs.
+//
 // Which commands require a `run` is read from the domain IR, the way this host reads the `needs`
 // and `defaults` tables; `KernelInput.tables_for` reads the same IR for the conformance binary,
 // and a test on each side pins both to the run-key fixture's one answer.
