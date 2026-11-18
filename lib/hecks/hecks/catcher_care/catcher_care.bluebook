@@ -18,7 +18,9 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, matches: :present
       end
 
-      value_object "CareNote", String
+      value_object "CareNote" do
+        attribute :value, String, matches: :present
+      end
 
       lifecycle :status, default: "requested" do
         mark :failure, "deferred", "refused"

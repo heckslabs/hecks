@@ -43,4 +43,17 @@ RSpec.describe "the blank result model check" do
     report = proc { value_object("Report") { attribute :value, String, matches: :present } }
     expect(blank_findings(report)).to be_empty
   end
+
+  it "passes a result type that is a closed set, which a blank is never one of" do
+    report = proc { value_object("Report") { attribute :value, String, one_of: %w[passed failed] } }
+    expect(blank_findings(report)).to be_empty
+  end
+
+  it "passes an aggregate that acknowledges a blank result as meaning what it says" do
+    report = proc do
+      value_object "Report", String
+      acknowledges :blank_result_type, "a draft's text may start empty"
+    end
+    expect(blank_findings(report)).to be_empty
+  end
 end
