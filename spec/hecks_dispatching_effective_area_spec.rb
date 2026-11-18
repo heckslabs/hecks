@@ -1,7 +1,6 @@
 require "spec_helper"
 require "tmpdir"
 require "hecks/hecks/adapters/dispatching"
-require "hecks/vendor/embryonaut_bluebooks/delivery/lib/adapters/git_landing/rivals"
 
 # A work item's area is the files its branch edits once it has commits, not the directory it was
 # planned with; two work items that edit one file still wait for each other.
