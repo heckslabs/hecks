@@ -1,8 +1,15 @@
 // The identity port (`identity_generation`): where a run key comes from when a reaction triggers a
 // creating command that requires a `run` and names none, as Ruby's
 // `ReactionInvocation::RunKeys.with_minted_run` mints it from the bound adapter. The kernel owns
-// no randomness, so the host answers: the ids it will hand out ride in the kernel's input
-// (`"identity"`), beside the table of commands that require a `run` (`"run_required"`).
+// no randomness and its WASI run has no callback to ask, so the host answers ahead of time, as it
+// stamps `occurred_at`: the ids it will hand out ride in the kernel's input (`"identity"`), beside
+// the table of commands that require a `run` (`"run_required"`). That script is the run's one
+// source of identity; the kernel asks over the callback only when it serves (`serve.rs`), where
+// no script is installed.
+//
+// Which commands require a `run` is read from the domain IR, the way this host reads the `needs`
+// and `defaults` tables; `KernelInput.tables_for` reads the same IR for the conformance binary,
+// and a test on each side pins both to the run-key fixture's one answer.
 
 use serde_json::{json, Value};
 
@@ -20,8 +27,10 @@ impl IdentityPort for ProcessIdentity {
     }
 }
 
-/// How many ids one kernel run is handed. A reaction chain that mints more finds the script spent
-/// and leaves the command to refuse its missing `run`, as Ruby does with no adapter bound.
+/// How many ids one kernel run is handed. When a run's reactions mint more, the script is spent:
+/// each later mint leaves the facts as they were, so the command refuses its missing `run`, as
+/// Ruby's `with_minted_run` does when the port answers nothing (the kernel test
+/// `a_spent_script_with_no_host_leaves_the_facts_unchanged` pins it).
 pub const POOL: usize = 32;
 
 /// The commands of the domain's aggregates that require a `run`, as the kernel's input
@@ -95,6 +104,17 @@ mod tests {
             {"name": "Other", "attributes": [{"name": "booking"}]}
         ]}]});
         assert_eq!(run_required_table(&ir), json!(["D::Check.Start"]));
+    }
+
+    const RUN_KEY_MINT_IR: &str = include_str!("../../../src/generated/run_key_mint_fixture/ir.json");
+
+    #[test]
+    fn the_fixture_ir_names_the_one_command_whose_run_a_reaction_mints() {
+        let ir: Value = serde_json::from_str(RUN_KEY_MINT_IR).unwrap_or_default();
+        assert_eq!(
+            run_required_table(&ir),
+            json!(["RunKeyMintFixture::Check.Start"])
+        );
     }
 
     #[test]

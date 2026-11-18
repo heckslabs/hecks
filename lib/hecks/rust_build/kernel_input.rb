@@ -14,14 +14,16 @@ module Hecks
     # the outside facts a command needs; and `"query_needs"`, the same for a query (kept apart: a
     # command and a query may share a qualified name). A harness that sends only `"steps"` would
     # leave the kernel refusing an argument Ruby fills, so every conformance caller builds its
-    # input here.
+    # input here. `"run_required"` lists the commands whose required `run` a reaction mints when it
+    # names none, and `"identity"`, when a fixture scripts it, the ids that mint hands out.
     module KernelInput
       module_function
 
       # @param domain_path [String] the domain's directory; its basename names the generated module
       # @param steps [Array<Hash>] the steps to run
       # @param identity [Array<String>, nil] the ids the `identity_generation` port hands out, in
-      #   order, to a reaction that mints a run key; the host's own port answers when omitted
+      #   order, to a reaction that mints a run key; with none the binary mints nothing and the
+      #   command refuses its missing `run`
       # @return [Hash{String => Object}] the input; each table is there only when it has an entry
       def build(domain_path, steps, identity: nil)
         input = { "steps" => steps }
@@ -68,6 +70,8 @@ module Hecks
                                     .map { |command| "#{prefix}.#{command["name"]}" }
       end
 
+      # @param command [Hash] a command of the IR
+      # @return [Boolean] whether it declares a `run` attribute that is not optional
       def requires_run?(command)
         Array(command["attributes"]).any? { |attribute| attribute["name"] == "run" && !attribute["optional"] }
       end

@@ -2,10 +2,12 @@ require "spec_helper"
 require "hecks/fuzzing"
 
 RSpec.describe Hecks::Fuzzing::ScriptedIdentity do
+  let(:port) { Hecks::Ports::IdentityGeneration }
+  let(:scripted) { Hecks::Runtime::Registry.new }
+  let(:other) { Hecks::Runtime::Registry.new }
+
   def mint_twice(ids)
-    Hecks::Ports::IdentityGeneration.standing_in(described_class.new(ids)) do
-      [Hecks::Ports::IdentityGeneration.uuid(nil), Hecks::Ports::IdentityGeneration.uuid(nil)]
-    end
+    port.standing_in(scripted, described_class.new(ids)) { [port.uuid(scripted), port.uuid(scripted)] }
   end
 
   it "answers the scripted ids in order through the identity port" do
@@ -16,9 +18,14 @@ RSpec.describe Hecks::Fuzzing::ScriptedIdentity do
     expect { mint_twice(%w[a]) }.to raise_error(Hecks::Runtime::WiringError, /no id left/)
   end
 
-  it "leaves the port to its adapter again after the block" do
+  it "leaves every other registry to its adapter while the block runs" do
+    port.standing_in(scripted, described_class.new(%w[a])) do
+      expect { port.uuid(other) }.to raise_error(Hecks::Runtime::WiringError, /no adapter implements/)
+    end
+  end
+
+  it "leaves the scripted registry to its adapter again after the block" do
     mint_twice(%w[a b])
-    expect { Hecks::Ports::IdentityGeneration.uuid(Hecks::Runtime::Registry.new) }
-      .to raise_error(Hecks::Runtime::WiringError, /no adapter implements/)
+    expect { port.uuid(scripted) }.to raise_error(Hecks::Runtime::WiringError, /no adapter implements/)
   end
 end
