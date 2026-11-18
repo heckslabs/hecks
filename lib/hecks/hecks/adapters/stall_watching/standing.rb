@@ -40,7 +40,8 @@ module Hecks
         # @param kind [Hash] a `StallKind` row
         # @param subject [String] the opening line's aggregate id
         # @param since [String] when the subject opened, so only a later line settles it
-        # @param branch [String, nil] the branch the opening line links, for `settled_on: "branch"`
+        # @param branch [String, nil] the branch the opening line links, for `settled_on: "branch"`;
+        #   `settled_on: "any"` settles on a line of any id
         # @return [String, nil] the first line after `since` that settled the subject, as
         #   "<aggregate> recorded <event>"; none when the kind names no settling or nothing settled
         def settled(kind, subject, since, branch)
@@ -61,11 +62,14 @@ module Hecks
           line["aggregate"] == kind[:settled_aggregate] && events.include?(line["event"]) && line["at"].to_s >= since.to_s
         end
 
-        # `settled_on: "branch"` matches any line that links the subject's branch; else the same id.
+        # `settled_on: "branch"` matches any line that links the subject's branch, `"any"` every
+        # line, and none the same id.
         def settles?(kind, line, subject, branch)
-          return line["id"].to_s == subject unless kind[:settled_on] == "branch"
-
-          !branch.nil? && line.dig("links", "branch") == branch
+          case kind[:settled_on]
+          when "any" then true
+          when "branch" then !branch.nil? && line.dig("links", "branch") == branch
+          else line["id"].to_s == subject
+          end
         end
 
         def ids(event) = @lines.select { |line| line["event"] == event }.to_set { |line| line["id"].to_s }
