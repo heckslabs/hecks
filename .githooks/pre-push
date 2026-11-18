@@ -103,20 +103,6 @@ fi
 # check on the pushed commit. hecks.fullGate runs the whole `pre_push` stage and, when green, writes the
 # attestation note that lets CI skip its checks.
 FULL_GATE=$(git config --type=bool --get hecks.fullGate 2>/dev/null)
-
-# A train made only of landed merges, whose tip the landing's quick gate passed, has had the quick
-# stage run on this very commit. The train marks such a push with `hecks.trainLanded=<commit>`; the
-# hook trusts the mark only when it names the commit carried and the landing's gate marker (in the
-# common git directory) names the same commit as green. Anything else runs the stage as before.
-TRAIN_LANDED=$(git config --get hecks.trainLanded 2>/dev/null)
-if [ "$FULL_GATE" != "true" ] && [ -n "$TRAIN_LANDED" ] && [ "$TRAIN_LANDED" = "$(git config --get hecks.trainCarry)" ]; then
-  GATE_MARKER="$(git rev-parse --path-format=absolute --git-common-dir)/hecks-local-main-gate.json"
-  if [ -f "$GATE_MARKER" ] && grep -q "\"sha\": *\"$TRAIN_LANDED\"" "$GATE_MARKER" && grep -q '"verdict": *"green"' "$GATE_MARKER"; then
-    printf '[pre-push] every commit this train carries was landed through the quick gate (%s) — not run again.\n\n' "$TRAIN_LANDED"
-    exit 0
-  fi
-fi
-
 if [ "$FULL_GATE" != "true" ]; then
   if ! bundle exec ruby -Ilib -e 'require "hecks/tools"; Hecks::Tools.script("gate", ARGV)' quick; then
     printf '\n[pre-push] BLOCKED. Fix it, or push with --no-verify and say why.\n\n'
