@@ -15,7 +15,8 @@ module Hecks
       class BoardRestart
         # The limits when the Hecks world declares no `board_restart` line.
         DEFAULTS = { rss_mb: 1024, age_hours: 24, refresh_seconds: 30, min_uptime_seconds: 600,
-                     loaded_refresh_seconds: 60, sentinel_seconds: 30, sentinel_misses: 4 }.freeze
+                     loaded_refresh_seconds: 60, sentinel_seconds: 30, sentinel_misses: 4,
+                     sentinel_cpu_share: 0.9, sentinel_cpu_asks: 20 }.freeze
         # The resident-memory line of `/proc/self/status`, in kilobytes.
         PROC_RSS = /VmRSS:\s+(\d+)/
 
@@ -25,7 +26,9 @@ module Hecks
         #   `loaded_refresh_seconds` (the read period while the machine is loaded),
         #   `sentinel_seconds` (the period of the outside watch, 0 for none) and `sentinel_misses`
         #   (unanswered asks in a row before that watch restarts the board; a boot takes about
-        #   20s, so the two together stay well above it)
+        #   20s, so the two together stay well above it), `sentinel_cpu_share` (the share of a core
+        #   above which an ask counts as hot, 0 for no bound) and `sentinel_cpu_asks` (hot asks in a
+        #   row before that watch restarts the board)
         def self.limits(registry)
           world = registry&.world("Hecks")
           declared = world ? world.for_verb("board_restart") : {}

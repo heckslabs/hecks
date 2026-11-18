@@ -18,6 +18,16 @@ RSpec.describe Hecks::Adapters::PipelineBoard::RestartNotes do
     expect(note).to match(/\Arestarted itself at \d\d:\d\d after 4 missed answers\z/)
   end
 
+  it "says a restart for a held core as one" do
+    described_class.record(misses: 20, reason: "cpu", path: path)
+    expect(described_class.reading(path: path)[:notes].last).to end_with("after 20 asks in a row holding most of a core")
+  end
+
+  it "reads a note with no reason as a stall's" do
+    File.write(path, JSON.generate([{ "at" => Time.now.utc.iso8601, "misses" => 4 }]))
+    expect(described_class.reading(path: path)[:notes].last).to end_with("after 4 missed answers")
+  end
+
   it "keeps only the newest notes" do
     (described_class::KEPT + 5).times { |count| described_class.record(misses: count, path: path) }
     expect(JSON.parse(File.read(path)).length).to eq(described_class::KEPT)

@@ -134,7 +134,8 @@ RSpec.describe "the semantics corpus" do
 
     def rust_answer(binary, fixture)
       domain_path = File.join(InMemoryDomain::ROOT, fixture.fetch("domain"))
-      stdout, status = Open3.capture2(binary, stdin_data: Hecks::RustBuild::KernelInput.json(domain_path, fixture.fetch("steps")))
+      input = Hecks::RustBuild::KernelInput.json(domain_path, fixture.fetch("steps"), identity: fixture["identity"])
+      stdout, status = Open3.capture2(binary, stdin_data: input)
       return [nil, "#{binary} exited #{status.exitstatus}:\n#{stdout}"] unless status.success?
 
       rust = JSON.parse(stdout)

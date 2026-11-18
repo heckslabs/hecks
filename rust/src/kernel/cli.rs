@@ -55,6 +55,9 @@ pub fn run(input: &str) -> String {
     super::needs::install_queries(parsed.get("query_needs"));
     // Optional `"defaults"`: each command's declared argument defaults, filled the same way.
     super::needs::install_defaults(parsed.get("defaults"));
+    // Optional `"run_required"` and `"identity"`: the commands that require a `run`, and the ids
+    // the identity port hands out for a reaction that names none.
+    super::run_keys::install(parsed.get("run_required"), parsed.get("identity"));
 
     let Some(steps) = parsed.get("steps").and_then(Json::as_array) else {
         return error_output("expected a top-level {\"steps\": [...]} object");

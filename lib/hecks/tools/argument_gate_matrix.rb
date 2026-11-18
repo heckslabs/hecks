@@ -8,6 +8,7 @@ require_relative "../tools"
 require_relative "argument_gate_matrix/violations"
 require_relative "argument_gate_matrix/rows"
 require_relative "argument_gate_matrix/dispatching"
+require_relative "argument_gate_matrix/fixtures"
 
 module Hecks
   module Tools
@@ -59,6 +60,7 @@ module Hecks
       extend Violations
       extend Rows
       extend Dispatching
+      extend Fixtures
 
       module_function
 
@@ -127,20 +129,6 @@ module Hecks
       def matrix_row(row)
         { "domain" => row[:domain], "verb" => row[:verb], "kind" => row[:kind], "pair" => row[:pair],
           "violates" => row[:violates], "role" => row[:role], "args" => row[:args], "expected" => row[:expected] }
-      end
-
-      def write_fixture(root, domain, rows)
-        path = File.join(root, "spec/corpus/rust_conformance/argument_gate_order_#{File.basename(domain)}.json")
-        fixture = { "domain" => domain, "note" => FIXTURE_NOTE, "steps" => rows.map { |row| fixture_step(row) } }
-        File.write(path, "#{JSON.pretty_generate(fixture)}\n")
-        puts "wrote #{path}"
-      end
-
-      def fixture_step(row)
-        step = { "verb" => row[:verb] }
-        step["role"] = row[:role] if row[:role]
-        step["args"] = row[:args]
-        step
       end
     end
   end

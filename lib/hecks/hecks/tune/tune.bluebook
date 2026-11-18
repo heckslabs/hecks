@@ -38,6 +38,12 @@ Hecks.bluebook "Hecks" do
 
         member world: "Tickets", setting: "work_limit.cap", kind: "integer", least: "1", most: "20",
                context: "Hecks / Delegate", says: "Work items that may be started at once"
+        member world: "Tickets", setting: "work_cap.moves", kind: "switch", least: "", most: "",
+               context: "Hecks / Delegate", says: "Whether the work cap moves with the machine, inside the least and the most"
+        member world: "Tickets", setting: "work_cap.least", kind: "integer", least: "1", most: "20",
+               context: "Hecks / Delegate", says: "The fewest Work items the moving cap may stand at"
+        member world: "Tickets", setting: "work_cap.most", kind: "integer", least: "1", most: "20",
+               context: "Hecks / Delegate", says: "The most Work items the moving cap may stand at"
         member world: "Tickets", setting: "work_limit.urgent_reserve", kind: "integer", least: "0", most: "5",
                context: "Hecks / Delegate", says: "Red Work items that may start past a full cap"
         member world: "Tickets", setting: "epic_wip_limit.limit", kind: "integer", least: "1", most: "20",
@@ -125,6 +131,264 @@ Hecks.bluebook "Hecks" do
     policy "RecordTheRefusedTurn" do
       on      "Dial.DialRefused"
       trigger Dial::Decline, with: { refusal: :refusal }
+    end
+
+    # Rises slowly and is cut quickly, as congestion control does. A reading counts by the states the
+    # `machine_marks` judged (their gap is the hysteresis); the bounds come with it from `work_cap`.
+    aggregate "WorkCap" do
+      description "The pipeline's one moving work cap: where it stands between the owner's bounds, and the runs of readings it moves on. It rises by one after five calm readings (about ten minutes at a reading every two) while no more than one train in three since the last move went red, is halved (not below the least) on memory low twice in a row or the load over its mark for five readings, and holds between. The fill reads `current` only while the Tickets world's `work_cap` line says `moves: true`; a lower cap stops new starts and never ends a running coder."
+
+      attribute :cap,          CapKey
+      attribute :current,      Level
+      attribute :least,        Level
+      attribute :most,         Level
+      attribute :calm_run,     Run
+      attribute :pressed_run,  Run
+      attribute :strained_run, Run
+      attribute :trains,       Run
+      attribute :red_trains,   Run
+      attribute :reason,       CapReason, optional: true
+      identified_by :cap
+
+      value_object "CapKey" do
+        attribute :value, String, matches: :present
+      end
+
+      # A number of work items that may be started at once.
+      value_object "Level" do
+        attribute :value, Integer, default: 4
+        invariant("a cap is not negative") { value >= 0 }
+      end
+
+      # Consecutive readings of one kind, or trains counted since the last move.
+      value_object "Run" do
+        attribute :value, Integer, default: 0
+      end
+
+      value_object "CapReason", String
+
+      command "Open" do
+        role "System"
+        goal "Open the one work cap of a store, standing at its default"
+
+        attribute :cap, CapKey, sets: true
+
+        emits WorkCapOpened
+      end
+
+      command "CountCalm" do
+        role "System"
+        goal "Count a reading with memory ok and the load below its mark: one more in the calm run"
+
+        reference_to WorkCap
+        attribute :least, Level, sets: true
+        attribute :most,  Level, sets: true
+
+        sets :calm_run,     increment: { value: 1 }
+        sets :pressed_run,  to: { value: 0 }
+        sets :strained_run, to: { value: 0 }
+
+        emits CalmReadingCounted
+      end
+
+      command "CountPressed" do
+        role "System"
+        goal "Count a reading with memory low: one more in the pressed run"
+
+        reference_to WorkCap
+        attribute :least, Level, sets: true
+        attribute :most,  Level, sets: true
+
+        sets :pressed_run,  increment: { value: 1 }
+        sets :calm_run,     to: { value: 0 }
+        sets :strained_run, to: { value: 0 }
+
+        emits PressedReadingCounted
+      end
+
+      command "CountStrained" do
+        role "System"
+        goal "Count a reading with memory ok and the load above its mark: one more in the strained run"
+
+        reference_to WorkCap
+        attribute :least, Level, sets: true
+        attribute :most,  Level, sets: true
+
+        sets :strained_run, increment: { value: 1 }
+        sets :calm_run,     to: { value: 0 }
+        sets :pressed_run,  to: { value: 0 }
+
+        emits StrainedReadingCounted
+      end
+
+      command "CountGreenTrain" do
+        role "System"
+        goal "Count a train whose pull request merged"
+
+        reference_to WorkCap
+
+        sets :trains, increment: { value: 1 }
+
+        emits GreenTrainCounted
+      end
+
+      command "CountRedTrain" do
+        role "System"
+        goal "Count a train whose pull request's CI failed on its first attempt"
+
+        reference_to WorkCap
+
+        sets :trains,     increment: { value: 1 }
+        sets :red_trains, increment: { value: 1 }
+
+        emits RedTrainCounted
+      end
+
+      command "Widen" do
+        role "System"
+        goal "Raise the cap by one: five calm readings in a row, under the most, with no more than one train in three red"
+
+        reference_to WorkCap
+
+        given("the machine stayed calm for five readings") { calm_run.value >= 5 }
+        given("the cap is under the most") { current.value < most.value }
+        given("no more than one train in three went red since the last move") { red_trains.value * 3 <= trains.value }
+
+        sets :current,    to: current.value + 1
+        sets :calm_run,   to: { value: 0 }
+        sets :trains,     to: { value: 0 }
+        sets :red_trains, to: { value: 0 }
+        sets :reason,     to: "raised: five calm readings"
+
+        emits WorkCapWidened
+      end
+
+      command "HalveForMemory" do
+        role "System"
+        goal "Cut the cap to half: memory low on two readings in a row"
+
+        reference_to WorkCap
+
+        given("memory was low on two readings in a row") { pressed_run.value >= 2 }
+        given("the cap is over the least") { current.value > least.value }
+
+        sets :current,     to: current.value / 2
+        sets :pressed_run, to: { value: 0 }
+        sets :trains,      to: { value: 0 }
+        sets :red_trains,  to: { value: 0 }
+        sets :reason,      to: "cut: memory low twice in a row"
+
+        emits WorkCapNarrowed
+      end
+
+      command "HalveForLoad" do
+        role "System"
+        goal "Cut the cap to half: the load over its mark for five readings"
+
+        reference_to WorkCap
+
+        given("the load stayed over its mark for five readings") { strained_run.value >= 5 }
+        given("the cap is over the least") { current.value > least.value }
+
+        sets :current,      to: current.value / 2
+        sets :strained_run, to: { value: 0 }
+        sets :trains,       to: { value: 0 }
+        sets :red_trains,   to: { value: 0 }
+        sets :reason,       to: "cut: load over its mark for five readings"
+
+        emits WorkCapNarrowed
+      end
+
+      command "Floor" do
+        role "System"
+        goal "Bring the cap up to the least: a cut or a new bound left it under"
+
+        reference_to WorkCap
+
+        given("the cap is under the least") { current.value < least.value }
+
+        sets :current, to: least.value
+
+        emits WorkCapFloored
+      end
+
+      command "Ceil" do
+        role "System"
+        goal "Bring the cap down to the most: a new bound left it over"
+
+        reference_to WorkCap
+
+        given("the cap is over the most") { current.value > most.value }
+
+        sets :current, to: most.value
+        sets :reason,  to: "held at the most"
+
+        emits WorkCapCeiled
+      end
+    end
+
+    policy "OpenTheWorkCapWhenTheMachineIsRead" do
+      on      "Machine.MachineSampled"
+      trigger WorkCap::Open, with: { cap: "pipeline" }
+    end
+
+    policy "CountTheCalmReading" do
+      on      "Machine.MachineSampled"
+      where   { memory_state == "ok" && load_state == "below" }
+      trigger WorkCap::CountCalm, with: { work_cap: "pipeline", least: :cap_least, most: :cap_most }
+    end
+
+    policy "CountThePressedReading" do
+      on      "Machine.MachineSampled"
+      where   { memory_state == "low" }
+      trigger WorkCap::CountPressed, with: { work_cap: "pipeline", least: :cap_least, most: :cap_most }
+    end
+
+    policy "CountTheStrainedReading" do
+      on      "Machine.MachineSampled"
+      where   { memory_state == "ok" && load_state == "above" }
+      trigger WorkCap::CountStrained, with: { work_cap: "pipeline", least: :cap_least, most: :cap_most }
+    end
+
+    policy "CountTheGreenTrain" do
+      on      "Integration.TrainMergeSeen"
+      trigger WorkCap::CountGreenTrain, with: { work_cap: "pipeline" }
+    end
+
+    policy "CountTheRedTrain" do
+      on      "TrainPr.TrainPrFailed"
+      where   { attempt == 1 }
+      trigger WorkCap::CountRedTrain, with: { work_cap: "pipeline" }
+    end
+
+    policy "WidenAfterCalm" do
+      on      "WorkCap.CalmReadingCounted"
+      trigger WorkCap::Widen, with: { work_cap: "pipeline" }
+    end
+
+    policy "HalveWhenPressed" do
+      on      "WorkCap.PressedReadingCounted"
+      trigger WorkCap::HalveForMemory, with: { work_cap: "pipeline" }
+    end
+
+    policy "HalveWhenStrained" do
+      on      "WorkCap.StrainedReadingCounted"
+      trigger WorkCap::HalveForLoad, with: { work_cap: "pipeline" }
+    end
+
+    policy "FloorAfterTheCut" do
+      on      "WorkCap.WorkCapNarrowed"
+      trigger WorkCap::Floor, with: { work_cap: "pipeline" }
+    end
+
+    policy "FloorOnTheBounds" do
+      on      "WorkCap.CalmReadingCounted"
+      trigger WorkCap::Floor, with: { work_cap: "pipeline" }
+    end
+
+    policy "CeilOnTheBounds" do
+      on      "WorkCap.CalmReadingCounted"
+      trigger WorkCap::Ceil, with: { work_cap: "pipeline" }
     end
   end
 end

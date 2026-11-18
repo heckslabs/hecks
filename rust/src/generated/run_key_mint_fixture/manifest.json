@@ -1,0 +1,30 @@
+[
+  {
+    "kind": "aggregate",
+    "id": "RunKeyMintFixture::Booking",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "RunKeyMintFixture::Booking.Place",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "aggregate",
+    "id": "RunKeyMintFixture::Check",
+    "generated": true
+  },
+  {
+    "kind": "command",
+    "id": "RunKeyMintFixture::Check.Start",
+    "generated": true,
+    "routed": true
+  },
+  {
+    "kind": "policy",
+    "id": "RunKeyMintFixture::StartCheckOnPlaced",
+    "generated": true,
+    "routed": true
+  }
+]

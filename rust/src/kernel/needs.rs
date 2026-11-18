@@ -46,10 +46,16 @@ pub fn set_asker(asker: Option<Asker>) {
 
 /// The host's answer to an unknown fact, when a callback is installed and the host has one.
 fn ask(need: &Need) -> Option<Json> {
+    ask_fact(&need.fact, &need.attribute_type)
+}
+
+/// The host's answer to the fact `fact` of attribute type `attribute_type`, when a callback is
+/// installed and the host has one.
+pub(super) fn ask_fact(fact: &str, attribute_type: &str) -> Option<Json> {
     ASKER.with(|a| {
         a.borrow_mut()
             .as_mut()
-            .and_then(|asker| asker(&need.fact, &need.attribute_type))
+            .and_then(|asker| asker(fact, attribute_type))
     })
 }
 

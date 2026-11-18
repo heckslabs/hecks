@@ -259,13 +259,10 @@ Hecks.bluebook "Hecks" do
       end
     end
 
-    # CI starts early: a landed coder branch is pushed as `ci/<branch>` with a draft pull request that is
-    # never merged, so CI runs while the next piece starts. The record holds the branch, the draft's number,
-    # and what CI said (passed or failed with the failing specs and the first error line). The push, the
-    # draft and the CI read are the ports' work (never main, never forced, never --no-verify); this
-    # aggregate only keeps their outcome and answers the coder that cut the branch.
+    # The push, the draft and the CI read are the port's (never main, never forced, never --no-verify);
+    # the verdict is the bluebook's, passed when no job failed, for the record's own head only.
     aggregate "EarlyCi" do
-      description "One landed branch pushed as ci/<branch> with a draft pull request, and what CI said of it."
+      description "One branch pushed as ci/<branch> with a never-merged draft, by a landing or by its coder before hand-off, and what CI said of its head."
 
       attribute :run,       RunKey
       attribute :branch,    Word
@@ -276,6 +273,9 @@ Hecks.bluebook "Hecks" do
       attribute :outcome,   Verdict, optional: true
       attribute :report,    Report, optional: true
       attribute :refusal,   Report, optional: true
+      attribute :sha,       Word,   optional: true
+      attribute :checkout,  Word,   optional: true
+      attribute :ci_run,    Word,   optional: true
       identified_by :run
 
       value_object "RunKey" do
@@ -297,11 +297,12 @@ Hecks.bluebook "Hecks" do
 
       lifecycle :status, default: "requested" do
         mark :failure, "declined"
-        transition "Open"    => "opened",   from: "requested"
-        transition "Observe" => "observed", from: "opened"
-        transition "Close"   => "closed",   from: %w[requested opened observed]
-        transition "Decline" => "declined", from: %w[requested opened]
-        mark :terminal, "closed", "declined"
+        transition "Open"    => "opened",    from: "requested"
+        transition "Observe" => "observed",  from: %w[requested opened]
+        transition "Close"   => "closed",    from: %w[requested opened observed]
+        transition "Decline" => "declined",  from: %w[requested opened]
+        transition "Retry"   => "requested", from: %w[observed declined]
+        mark :terminal, "closed"
       end
 
       command "Start" do
@@ -318,6 +319,40 @@ Hecks.bluebook "Hecks" do
         given("a branch other than main is pushed") { branch.value != "main" }
 
         emits EarlyCiStarted
+      end
+
+      command "Request" do
+        role "Coder"
+        goal "Ask CI to check a coder's branch at its head, pushed as ci/<branch>, before the coder hands it off"
+
+        attribute :run,      RunKey, sets: true
+        attribute :branch,   Word, sets: true
+        attribute :sha,      Word, sets: true
+        attribute :checkout, Word, sets: true
+        attribute :work,     Word, optional: true, sets: true
+        attribute :clean,    Switch
+
+        given("the record is keyed by its branch") { run.value == branch.value }
+        given("a coder's own branch, never main, stable or a train") do
+          branch.value != "main" && branch.value != "stable" &&
+            !branch.value.start_with?("train/") && !branch.value.start_with?("ci/")
+        end
+        given("the coder's tree is clean: nothing uncommitted or untracked") { clean.value == true }
+
+        emits EarlyCiRequested
+      end
+
+      command "Retry" do
+        role "Coder"
+        goal "Ask CI again for the branch at its new head, after a red run or a run that could not be read"
+
+        reference_to EarlyCi
+        attribute :sha,   Word, sets: true
+        attribute :clean, Switch
+
+        given("the coder's tree is clean: nothing uncommitted or untracked") { clean.value == true }
+
+        emits EarlyCiRetried
       end
 
       command "Open" do
@@ -337,6 +372,11 @@ Hecks.bluebook "Hecks" do
         reference_to EarlyCi
         attribute :outcome, Verdict, sets: true
         attribute :report,  Report, sets: true
+        attribute :number,  Word, optional: true, sets: true
+        attribute :ci_run,  Word, optional: true, sets: true
+        attribute :of_sha,  Word
+
+        given("CI answered for the record's own head") { sha.nil? || sha.value.to_s.empty? || of_sha.value == sha.value }
 
         emits EarlyCiObserved
       end
@@ -368,6 +408,37 @@ Hecks.bluebook "Hecks" do
       on      "Landing.BranchLanded"
       where   { branch.value != "main" }
       trigger EarlyCi::Start, with: { run: :run, branch: :branch }
+    end
+
+    # A coder's request is the port's to run: push ci/<branch>, open or reuse the draft, read its checks.
+    policy "AskCiWhenRequested" do
+      on      "EarlyCi.EarlyCiRequested"
+      ask     :branch_ci, with: { run: :run }
+    end
+
+    policy "AskCiWhenRetried" do
+      on      "EarlyCi.EarlyCiRetried"
+      ask     :branch_ci, with: { run: :run }
+    end
+
+    # No failing job is a pass: the verdict is drawn here, from the jobs the port names.
+    policy "RecordTheGreenRun" do
+      on      "EarlyCi.BranchCiAnswered"
+      where   { failing.nil? || failing.value.to_s.empty? }
+      trigger EarlyCi::Observe, with: { outcome: "passed", report: :report, number: :number, ci_run: :ci_run,
+                                        of_sha: :sha }
+    end
+
+    policy "RecordTheRedRun" do
+      on      "EarlyCi.BranchCiAnswered"
+      where   { !failing.nil? && !failing.value.to_s.empty? }
+      trigger EarlyCi::Observe, with: { outcome: "failed", report: :report, number: :number, ci_run: :ci_run,
+                                        of_sha: :sha }
+    end
+
+    policy "DeclineWhenCiCouldNotRun" do
+      on      "EarlyCi.BranchCiRefused"
+      trigger EarlyCi::Decline, with: { refusal: :refusal }
     end
 
     # The failing specs go back to the coder run that cut the branch, resuming it under the same session.

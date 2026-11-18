@@ -137,6 +137,8 @@ fn negotiate(hello: &Json, connection: &mut Connection) -> Json {
     needs::install(hello.get("needs"));
     needs::install_queries(hello.get("query_needs"));
     needs::install_defaults(hello.get("defaults"));
+    // The identity port is the host's to answer over the callback, so no script is installed.
+    super::run_keys::install(hello.get("run_required"), None);
     connection.callbacks = matches!(hello.get("callbacks"), Some(Json::Bool(true)));
     Json::obj(vec![
         ("ok", Json::Bool(true)),

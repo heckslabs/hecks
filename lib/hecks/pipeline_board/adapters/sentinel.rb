@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "sentinel/heat"
+
 module Hecks
   module Adapters
     module PipelineBoard
@@ -7,28 +9,34 @@ module Hecks
       # for the Ruby interpreter lock cannot restart itself, because every thread it could use to
       # notice is stuck too; this process asks the board's page for an answer every `every`
       # seconds, and after `misses` asks in a row with none it stops the board and starts it again
-      # as the command that started it. It ends when the board's pid stops being its parent.
+      # as the command that started it. A board that answers but holds a core (see {Heat}) is
+      # restarted the same way. It ends when the board's pid stops being its parent.
       class Sentinel
         # @param pid [Integer] the board's process id
         # @param every [Numeric] seconds between asks
         # @param misses [Integer] asks in a row without an answer that count as a stall
-        # @param host [#answered?, #stop, #restart, #pause, #parent_alive?] the outside: asks the
-        #   page, stops the board, starts it again, waits, and says whether the board still stands
-        def initialize(pid:, every:, misses:, host:)
+        # @param host [#answered?, #cpu_seconds, #clock, #stop, #restart, #pause, #parent_alive?]
+        #   the outside: asks the page, reads the board's CPU time and the clock, stops the board,
+        #   starts it again, waits, and says whether the board still stands
+        # @param heat [Heat] the bound on the board's CPU; none when not given
+        def initialize(pid:, every:, misses:, host:, heat: Heat.off)
           @pid = pid
           @every = every
           @misses = misses
           @host = host
+          @heat = heat
           @missed = 0
         end
 
         # Asks until the board is gone or has been restarted.
-        # @return [Symbol] `:gone` when the board ended on its own, `:restarted` after a stall
+        # @return [Symbol] `:gone` when the board ended on its own, `:restarted` after a stall or
+        #   a run of hot asks
         def run
           while @host.parent_alive?
             @host.pause(@every)
             return :gone unless @host.parent_alive?
-            return restarted if stalled?
+            return restarted(@missed, "stall") if stalled?
+            return restarted(@heat.count, "cpu") if hot?
           end
           :gone
         end
@@ -40,9 +48,11 @@ module Hecks
           @missed >= @misses
         end
 
-        def restarted
+        def hot? = @heat.on? && @heat.hot?(@host.cpu_seconds(@pid), @host.clock)
+
+        def restarted(asks, reason)
           @host.stop(@pid)
-          @host.restart(misses: @missed)
+          @host.restart(misses: asks, reason: reason)
           :restarted
         end
       end
