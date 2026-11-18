@@ -79,9 +79,15 @@ RSpec.describe "a resident's environment" do
       expect(resident::Baseline.atypical?(root)).to be(false)
     end
 
-    it "is plain when it also holds the spec runner's switch" do
+    it "is not plain when it holds the spec runner's switch, which boots it on Memory" do
       names = resident::Baseline.odd({ "HOME" => "/h", "HECKS_CACHE_DIR" => "/hc", "HECKS_WRITES_LOCAL" => "1" })
-      expect(names).to be_empty
+      expect(names).to eq(["HECKS_WRITES_LOCAL"])
+    end
+
+    it "is replaced by a plain launcher only on the third refusal on its environment", :aggregate_failures do
+      resident::Baseline.write(root, ["HECKS_WRITES_LOCAL"])
+      streaks = Array.new(3) { resident::Atypical.streak?(root, "env:HECKS_WRITES_LOCAL") }
+      expect(streaks).to eq([false, false, true])
     end
 
     it "is not plain when it holds more, and the file names the variables", :aggregate_failures do

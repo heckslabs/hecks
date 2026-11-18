@@ -59,8 +59,19 @@ module Hecks
         # @param worlds [Hash{String => Array<String>}] each world with its verb lines
         # @return [String] the path written
         def write(worlds)
-          File.write(@path, "#{HEAD}#{worlds.map { |world, lines| block(world, lines) }.join("\n")}")
+          put("#{HEAD}#{worlds.map { |world, lines| block(world, lines) }.join("\n")}")
           @path
+        end
+
+        # Writes the text beside the file and renames it into place; the temp file is removed
+        # when the write fails.
+        def put(text)
+          temp = "#{@path}.#{Process.pid}.tmp"
+          File.write(temp, text)
+          File.rename(temp, @path)
+        rescue SystemCallError
+          File.delete(temp) if temp && File.exist?(temp)
+          raise
         end
 
         # @return [String] one world's block, a line a verb
