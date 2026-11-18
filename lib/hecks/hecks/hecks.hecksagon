@@ -241,6 +241,7 @@ Hecks.hecksagon "Hecks" do
   Hecks::StallWatch.port "Watching" do
     answers_query "Unclosed"
     answers_query "Abandoned"
+    answers_query "Impediments"
   end
 
   Hecks::SendTrain.port "Alerts" do
