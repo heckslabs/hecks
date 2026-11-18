@@ -109,6 +109,20 @@ module Hecks
           tickets.take_while { |name| name != @name }.count { |name| alive?(name) }
         end
 
+        # Keeps a place just taken only if this ticket is still the head once the place is held.
+        # Taking a place does not look at the line, so a ticket that came ahead after `head?`
+        # looked would lose its turn; held first and looked at after, no ticket that stood ahead
+        # before the place was taken is passed.
+        #
+        # @param place [File, nil] a place this waiter has just locked
+        # @return [File, nil] the place, or nil once it is let go for a ticket ahead
+        def keep(place)
+          return place if place.nil? || head?
+
+          place.close
+          nil
+        end
+
         # Gives the ticket up.
         #
         # @return [void]

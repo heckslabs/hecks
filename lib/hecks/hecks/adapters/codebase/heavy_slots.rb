@@ -127,7 +127,7 @@ module Hecks
           started = @clock.call
           queue = (@wait = SlotWait.new(@base, @clock, started, GIVE_UP_AFTER)).join(@dir, job)
           loop do
-            place = queue.head? ? free_place : nil
+            place = queue.head? ? queue.keep(free_place) : nil
             return [place, waited(started)] if place || @unusable
 
             return [nil, gave_up(job)] if @wait.stalled?(queue)
