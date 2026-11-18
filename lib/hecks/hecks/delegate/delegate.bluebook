@@ -2416,10 +2416,8 @@ Hecks.bluebook "Hecks" do
                                            refusal: "the coder run already finished: restart the item with the review in its brief" }
     end
 
-    # A judged verdict is the judge's last word, so its run ends with it. A judge whose session went
-    # idle without its job reading done stays started otherwise: every sweep reads it again, judges
-    # the verdict again and sends it again to the coder. A judge run that has already ended, or a
-    # verdict judged with no run of its own, finds no started run and nothing fires.
+    # A judged verdict ends its judge's run: one left started is read at every sweep, judged afresh
+    # and sent to the coder again. A judge already ended, or a verdict with no run, fires nothing.
     policy "FinishTheJudgeWhoseVerdictIsJudged" do
       on       "Verdict.VerdictJudged"
       for_each "AgentRun.StartedOfRun"
