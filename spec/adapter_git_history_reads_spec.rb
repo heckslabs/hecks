@@ -30,6 +30,7 @@ module GitHistoryReads
     "git_train/reverting.rb"                  => "parent count of a merge decides how it is reverted: commit shape",
     "git_train/survey.rb"                     => "newest commit and ahead counts of each branch: ancestry",
     "git_worktrees.rb"                        => "commit counts between refs of a worktree: ancestry",
+    "github_branch_ci/baseline.rb"            => "merge-base finds the commit a coder's branch was cut from: ancestry",
     "github_pull_requests/train_sweep.rb"     => "whether a commit is in main: the squash lands after the push",
     "main_integration/boarded_check.rb"       => "whether a train commit is in the remote main: remote carriage",
     "main_integration/carried_check.rb"       => "whether origin/main carries a landed commit, squash too: remote",
