@@ -508,6 +508,14 @@ module Hecks
         {"name"=>"rspec_fuzzing", "attests"=>"yes"}.freeze,
         {"name"=>"release_consistency", "runs"=>"always"}.freeze
       ].freeze,
+      "RequiredTextName" => [
+        {"name"=>"report"}.freeze,
+        {"name"=>"refusal"}.freeze,
+        {"name"=>"summary"}.freeze,
+        {"name"=>"outcome"}.freeze,
+        {"name"=>"reason"}.freeze,
+        {"name"=>"text"}.freeze
+      ].freeze,
       "RetiredScript" => [
         {"script"=>"ir", "section"=>"Custodian", "aggregate"=>"Introspection", "verb"=>"ir"}.freeze,
         {"script"=>"shape", "section"=>"Custodian", "aggregate"=>"Introspection", "verb"=>"shape"}.freeze,

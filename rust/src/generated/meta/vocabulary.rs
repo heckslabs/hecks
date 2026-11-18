@@ -6988,6 +6988,127 @@ impl CargoReservedName {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RequiredTextName {
+    Report,
+    Refusal,
+    Summary,
+    Outcome,
+    Reason,
+    Text,
+}
+
+impl crate::kernel::Fielded for RequiredTextName {
+    fn field(&self, name: &str) -> Option<crate::kernel::Field<'_>> {
+        use crate::kernel::{Field, Value};
+        match name {
+            "value" => Some(Field::Value(Value::Str(match self {
+                Self::Report => "report".to_string(),
+                Self::Refusal => "refusal".to_string(),
+                Self::Summary => "summary".to_string(),
+                Self::Outcome => "outcome".to_string(),
+                Self::Reason => "reason".to_string(),
+                Self::Text => "text".to_string(),
+            }))),
+            _ => None,
+        }
+    }
+    fn as_scalar(&self) -> Option<crate::kernel::Value> {
+        match self.field("value") {
+            Some(crate::kernel::Field::Value(v)) => Some(v),
+            _ => None,
+        }
+    }
+}
+
+impl RequiredTextName {
+    pub fn to_json(&self) -> crate::kernel::Json {
+        let member = match self {
+            Self::Report => "report",
+            Self::Refusal => "refusal",
+            Self::Summary => "summary",
+            Self::Outcome => "outcome",
+            Self::Reason => "reason",
+            Self::Text => "text",
+        };
+        crate::kernel::Json::obj(vec![("name", crate::kernel::Json::str(member))])
+    }
+
+    pub fn from_json(v: &crate::kernel::Json) -> Result<Self, crate::kernel::Refusal> {
+        // A name the set does not declare refuses first, as `Value::FieldChecks#check_unknown_fields`
+        // does in `validate!`: before a missing field, and before membership.
+        let unknown = v.unknown_keys(&["name"]);
+        if !unknown.is_empty() {
+            let unknown: Vec<&str> = unknown.iter().map(String::as_str).collect();
+            return Err(crate::kernel::Refusal::UnknownArgument(
+                crate::kernel::refusal_wording::UnknownArgumentUnknownArgsArgs {
+                    command: "RequiredTextName",
+                    unknown: &unknown,
+                    declared: &["name"],
+                }
+                .render_args(),
+            ));
+        }
+        // A `one_of` closed set is admission-checked on the raw offered
+        // value, no shape check first — `Value::Admission#admit_member`
+        // runs on whatever `Value::Coercion#fields_for` auto-wrapped into
+        // the sole attribute's slot (a bare Array, a Bool, anything), never
+        // on a value already known to be a String. `v.dig` gives the same
+        // tolerant unwrap Ruby's own `fields_for` does: the wrapped
+        // `{"name": ...}` shape's inner value if `v` is an
+        // object, or `v` itself untouched if it isn't (matching
+        // `fields_for`'s single-field auto-wrap of a bare scalar/array/
+        // whatever). Only then is admission checked — a non-member value
+        // refuses `InvariantViolation`, matching Ruby's own refusal kind,
+        // never `TypeMismatch` for a shape a member set never declared.
+        //
+        // BUG#14 (qa/bluebook/quality_control.bluebook) — a missing field
+        // is not "a shape a member set never declared" the way a present-
+        // but-wrong value is; it is `Value::Coercion#check_required_fields`
+        // (runtime/value/coercion.rb) firing, and that check runs before
+        // `admit_member` in `validate!`'s own order. A caller-supplied
+        // `null` for a required command argument of this type is translated
+        // by `required_composite_argument_expr` (json_codec.rb, BUG#4) into
+        // an empty object — "build the value object from no fields at all",
+        // matching `Value::Coercion#nil_argument`'s own `build(value_object,
+        // {}, aggregate)` exactly — so `v.dig` above finding nothing is
+        // genuinely indistinguishable, at this point, from a Hash-shaped
+        // caller argument that simply never named the sole field's own key
+        // either way: both are that field's own absence, not a member
+        // mismatch.
+        // Without this explicit null check, that absence would still fall
+        // through to the admission match below, stringified as
+        // `Json::Null`'s own `ruby_to_s` (never a real member), so a
+        // required-but-omitted closed-set argument would misreport
+        // `InvariantViolation` where Ruby raises `TypeMismatch`
+        // ("{type}.{field} expects {expected}, got nil" — the same
+        // `numeric_field` wording `required_field_expr` already gives
+        // every other composite field's own missing-key case).
+        let candidate = v.dig("name").cloned().unwrap_or(crate::kernel::Json::Null);
+        if matches!(candidate, crate::kernel::Json::Null) {
+            return Err(crate::kernel::Refusal::TypeMismatch(
+                "RequiredTextName.name expects String, got nil".to_string(),
+            ));
+        }
+        match candidate.ruby_to_s().as_str() {
+            "report" => Ok(Self::Report),
+            "refusal" => Ok(Self::Refusal),
+            "summary" => Ok(Self::Summary),
+            "outcome" => Ok(Self::Outcome),
+            "reason" => Ok(Self::Reason),
+            "text" => Ok(Self::Text),
+            _ => Err(crate::kernel::Refusal::InvariantViolation(
+                crate::kernel::refusal_wording::InvariantViolationClosedSetMemberArgs {
+                    r#type: "RequiredTextName",
+                    admitted: &["report", "refusal", "summary", "outcome", "reason", "text"],
+                    offered: candidate.inspect().as_str(),
+                }
+                .render_args(),
+            )),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Vocabulary {
     pub name: Option<VocabularyName>,

@@ -11,6 +11,7 @@ require_relative "model_check/reaction_depth_checks"
 require_relative "model_check/reference_checks"
 require_relative "model_check/orphan_checks"
 require_relative "model_check/one_of_checks"
+require_relative "model_check/blank_result_checks"
 require_relative "model_check/aggregate_checks"
 require_relative "model_check/liveness_checks"
 require_relative "model_check/verbs"
@@ -47,6 +48,7 @@ module Hecks
       extend ReferenceChecks
       extend OrphanChecks
       extend OneOfChecks
+      extend BlankResultChecks
       extend AggregateChecks
       extend LivenessChecks
       extend Verbs
