@@ -1319,7 +1319,7 @@ Hecks.bluebook "Tickets" do
 
   policy "ReportWhenGateFaulted" do
     on      "GateRun.GateFaulted"
-    where   { cause.nil? || cause.value.to_s.empty? }
+    where   { cause.value == nil || cause.value.to_s.empty? }
     root
     trigger Finding::ReportFailedRun, with: { finding: :run, title: "A Codebase check failed", body: :refusal }
   end
@@ -1329,7 +1329,7 @@ Hecks.bluebook "Tickets" do
   # refusal text is not kept; the work item holds the first run's.
   policy "ReportWhenGateFaultedByCause" do
     on      "GateRun.GateFaulted"
-    where   { !cause.nil? && !cause.value.to_s.empty? }
+    where   { cause.value != nil && !cause.value.to_s.empty? }
     root
     trigger Finding::ReportFailedRun, with: { finding: :cause, title: :cause, body: :refusal }
   end
@@ -1339,7 +1339,7 @@ Hecks.bluebook "Tickets" do
   # undone refuses the reopen, and a cause with no work item yet refuses it by name.
   policy "ReopenWorkWhenGateFaultedAgain" do
     on      "GateRun.GateFaulted"
-    where   { !cause.nil? && !cause.value.to_s.empty? }
+    where   { cause.value != nil && !cause.value.to_s.empty? }
     root
     trigger Work::Reopen, with: { work: :cause, title: :cause, detail: :refusal }
   end
@@ -1362,7 +1362,7 @@ Hecks.bluebook "Tickets" do
   policy "ReportWhenImpactedSpecsOverran" do
     on      "ShallowCheck.ShallowCheckPassed"
     root
-    where   { !unrun.nil? && !unrun.value.to_s.empty? }
+    where   { unrun.value != nil && !unrun.value.to_s.empty? }
     trigger Finding::ReportUnrunSpecs, with: { finding: :run, body: :unrun }
   end
 
