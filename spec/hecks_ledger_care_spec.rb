@@ -48,7 +48,7 @@ RSpec.describe "the AgentRun ledger is compacted on a beat" do
   it "declares the line and the wait as a world row, 20000 entries and a few seconds" do
     world = File.read(File.expand_path("../lib/hecks/hecks/tickets.world", __dir__))
 
-    expect(world).to include('ledger_care "LedgerCare", entries: 20_000, wait_seconds: 3, outbox_hours: 24')
+    expect(world).to include('ledger_care "LedgerCare", entries: 20_000, wait_seconds: 3, outbox_hours: 1')
   end
 
   describe "the delivered outbox rows are purged on a beat" do
