@@ -22,7 +22,7 @@ module Hecks
         WAIT_SECONDS = 3
 
         # Hours a delivered outbox row is kept, when the world names none.
-        OUTBOX_HOURS = 24
+        OUTBOX_HOURS = 1
 
         module_function
 

@@ -108,10 +108,24 @@ RSpec.describe Hecks::Adapters::Codebase::HeavySlots do
     expect(note).to eq("waited 20 s while memory was low; waited 2 s for a heavy-job slot (1 of 1 taken)")
   end
 
-  it "is taken by a gate run, a run of several spec files and a comment check", :aggregate_failures do
+  it "marks the children of a job that gave up as held, with the worker count", :aggregate_failures do
+    before = ENV.fetch(described_class::HELD, nil)
+    seen = given_up_env
+
+    expect(seen.first).to eq(Process.pid.to_s)
+    expect(ENV.fetch(described_class::HELD, nil)).to eq(before)
+  end
+
+  # The marker and worker count a job that gave up waiting leaves for its children.
+  def given_up_env
+    taken(0)
+    clock = [0, 100_000, 100_000].each.method(:next).to_proc
+    slots(cap: 1, clock: clock, workers: 3).hold("gate") { ENV.values_at(described_class::HELD, described_class::WORKERS) }.first
+  end
+
+  it "is taken by a gate run and a run of several spec files, not by a comment check", :aggregate_failures do
     run_both_callers
 
-    expect(described_class).to have_received(:admitted).with(dir, "comment_check")
     expect(described_class).to have_received(:admitted).with(dir, "gate")
     expect(described_class).to have_received(:admitted).with(dir, "spec_batch")
   end
@@ -122,7 +136,6 @@ RSpec.describe Hecks::Adapters::Codebase::HeavySlots do
     tree = instance_double(Hecks::Adapters::Codebase::Tree, root: dir)
     Hecks::Adapters::Codebase::Gate.call("gate", { stage: "quick" }, tree)
     Hecks::Adapters::Codebase::BatchRuns.call("run_spec_files", { files: "spec/a_spec.rb" }, tree)
-    Hecks::Adapters::Codebase::Style.call("check_comments", { paths: "lib/x.rb" }, tree)
   end
 
   # The worker count a held job sees, and the one left after it, with +before+ set first.

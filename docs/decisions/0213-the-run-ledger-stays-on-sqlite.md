@@ -76,3 +76,40 @@ quiet window with the backup taken first.
 
 No persistence code, bluebook or hecksagon changes. The ledger stays on SQLite in WAL mode with a bounded
 log. The next step is to run the outbox purge and watch the logs.
+
+## Follow-up (readings of 2026-11-18T03Z): the purge worked; the retention was the size
+
+Asked for by the Work item `the-outbox-purge-leaves-200k-delivered-rows-and-ledger-locks-recur`.
+
+**Cause.** The purge was not broken. Delivered rows spanned exactly the world's `outbox_hours: 24`
+(oldest settled 2026-11-17T03:23Z at a reading of 2026-11-18T03:23Z), the delete covers every aggregate
+(`agent_run` alone held 206k of 218k delivered rows), and `OutboxPurged` recurred. The outbox takes
+10,000 to 30,000 delivered rows an hour, so a 24 hour retention holds about 200,000 rows at all times.
+
+**Change.** `outbox_hours` is 1 in `lib/hecks/hecks/tickets.world`, and the default in
+`LedgerKeeping::Ledger::OUTBOX_HOURS` matches it. A beat deletes the delivered rows settled more than an
+hour ago, so the outbox holds about one hour of inflow (10k to 30k rows). Only delivered rows are read by
+the purge; the one reader of delivered rows, the outbox fuzz property, reads its own run. The batch size
+is unchanged: no reading shows the batch length as the cause of a lock.
+
+| Reading (read-only) | Before the change, 2026-11-18T03:29Z | Still on the 24 hour train copy, 2026-11-18T03:41Z | After one beat | After one day |
+| --- | --- | --- | --- | --- |
+| `hecks_outbox` delivered rows | 218,391 | 220,865 | to be read | to be read |
+| `agent_run.db` bytes | 1.38 GB (1,384,271,872 bytes) | 1.40 GB (1,398,099,968 bytes) | to be read | to be read |
+| `database is locked` lines that day | 3 on 2026-11-17 | not recounted | to be read | to be read |
+
+**Why the change has not shown yet.** The 03:41Z reading finds delivered rows still spanning 24 hours
+(oldest settled 2026-11-17T03:39:52Z), and the last `OutboxPurged` reaction was at 03:39Z. The heartbeat
+beat (`dev.hecks.train-beat`) runs from `~/.claude/hecks-train`, whose `tickets.world` still says
+`outbox_hours: 24`: the change is on local `main` and the train copy takes it only when the train boards
+and the copy refreshes. No code is left to change.
+
+**When an after reading counts.** The first after reading is valid only when the beat that ran came from a
+train copy whose `tickets.world` says `outbox_hours: 1` (`grep outbox_hours ~/.claude/hecks-train/lib/hecks/hecks/tickets.world`).
+A reading taken before that repeats the 24 hour figures. These readings, and the lock count over the day
+after, are still to be taken and recorded here; the Work item stays open until they are, so that the
+revisit condition below can fire.
+
+**Revisit.** If `database is locked` recurs once the outbox stands near 20,000 rows, that meets this
+ADR's own revisit condition and the work items (a), (b) and (c) above become due. Locks seen while the
+outbox held 200,000 rows do not by themselves meet it.

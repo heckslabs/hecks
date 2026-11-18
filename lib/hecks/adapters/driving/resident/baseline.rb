@@ -14,9 +14,13 @@ module Hecks
         # It uses only the standard library: the client runs before anything else loads.
         module Baseline
           # The variables a plain resident has set among the ones it matches a line on: where the
-          # cache is, and the spec runner's switch that keeps a spec's resident writing where it
-          # stands (`SpawnEnv::KEEP`).
-          PLAIN = %w[HOME XDG_CACHE_HOME HECKS_CACHE_DIR HECKS_WRITES_LOCAL].freeze
+          # cache is. The spec runner's switch (`SWITCH`) is not among them: a resident born under
+          # it boots on Memory, so it is atypical and a launcher without it replaces it once
+          # {Atypical} has seen enough refusals.
+          PLAIN = %w[HOME XDG_CACHE_HOME HECKS_CACHE_DIR].freeze
+          # The spec runner's switch, which a resident keeps from the launcher that starts it
+          # (`SpawnEnv::KEEP`). A launcher that holds it would start the same resident again.
+          SWITCH = "HECKS_WRITES_LOCAL".freeze
 
           module_function
 
@@ -42,10 +46,15 @@ module Hecks
             nil
           end
 
-          # @return [Boolean] whether the checkout's resident was born under more than a plain
-          #   resident has, or has not said what it was born under (an older resident)
-          def atypical?(root)
-            !File.read(Paths.baseline(root)).strip.empty?
+          # @param root [String] the checkout the resident serves
+          # @param env [#[]] the environment of the launcher that asks
+          # @return [Boolean] whether the checkout's resident was born under more than a resident
+          #   this launcher starts would have, or has not said what it was born under (an older
+          #   resident). The spec runner's switch is not more to a launcher that holds it too.
+          def atypical?(root, env = ENV)
+            names = File.read(Paths.baseline(root)).split
+            names -= [SWITCH] unless env[SWITCH].to_s.empty?
+            !names.empty?
           rescue SystemCallError
             true
           end

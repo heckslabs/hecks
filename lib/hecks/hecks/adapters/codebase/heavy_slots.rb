@@ -7,6 +7,7 @@ require "hecks/rust_build/world_rows"
 require_relative "memory_wait"
 require_relative "slot_queue"
 require_relative "slot_text"
+require_relative "slot_wait"
 require_relative "spec_workers"
 
 module Hecks
@@ -22,8 +23,8 @@ module Hecks
       # Waiting never counts toward a job's own time bounds, and nothing running is stopped. A job
       # waits while memory is low first ({MemoryWait}); while it holds a place, its children's
       # workers are held to the world's `spec_workers` (`PARALLEL_PROCESSOR_COUNT`, which RuboCop
-      # reads, unless already set). A job does not wait in CI or when a parent holding a place
-      # started it (`HELD`); no switch skips the places.
+      # reads, unless already set). A job does not wait in CI or when `HELD` says a parent started
+      # it, or once it gave up; a rejoining waiter keeps its place ({SlotWait}).
       class HeavySlots
         # The Tickets world verb that carries the cap.
         VERB = "heavy_jobs"
@@ -37,8 +38,10 @@ module Hecks
         # The environment variable the parallel gem reads for its worker count.
         WORKERS = "PARALLEL_PROCESSOR_COUNT"
 
-        # Seconds a job waits before it gives up and runs anyway: the Rust build lock's figure, so
-        # a job never waits longer for a place than a build waits for its lock.
+        # Seconds a job waits on a stalled line before it gives up and runs anyway: the Rust build
+        # lock's figure. It guards against a line that has stopped (a place held by a hung job, a
+        # head that never takes its turn): the count of tickets ahead has not fallen for this long.
+        # A line that moves never ends a wait, so a waiter is never sent to the back by a clock.
         GIVE_UP_AFTER = RustBuild::BuildLock::GIVE_UP_AFTER
 
         # How often a waiting job looks at the places again.
@@ -105,13 +108,11 @@ module Hecks
           memory = @memory ? @memory.wait(job) : ""
           place, slot = acquire(job)
           note = [memory, slot].reject(&:empty?).join("; ")
-          return [yield, note] unless place
+          return [with_held(&), note] unless place
 
-          begin
-            [holding(place, job, &), note]
-          ensure
-            SlotText.release(place)
-          end
+          [holding(place, job, &), note]
+        ensure
+          SlotText.release(place) if place
         end
 
         private
@@ -124,12 +125,12 @@ module Hecks
         #   no place when the places cannot be opened or the wait gave up
         def acquire(job)
           started = @clock.call
-          queue = SlotQueue.new(@dir, priority: SlotQueue.priority_of(@base)).join
+          queue = (@wait = SlotWait.new(@base, @clock, started, GIVE_UP_AFTER)).join(@dir, job)
           loop do
             place = queue.head? ? free_place : nil
             return [place, waited(started)] if place || @unusable
 
-            return [nil, gave_up(job)] if @clock.call - started >= GIVE_UP_AFTER
+            return [nil, gave_up(job)] if @wait.stalled?(queue)
 
             wait_a_beat(job)
           end
@@ -160,6 +161,8 @@ module Hecks
           place.write("#{job} #{Process.pid}")
           place.flush
           with_held(&)
+        ensure
+          @wait.release
         end
 
         def with_held
@@ -184,7 +187,7 @@ module Hecks
         end
 
         def gave_up(job)
-          note = "no longer waiting for a heavy-job slot after #{GIVE_UP_AFTER} s; #{job} runs anyway"
+          note = "no longer waiting for a stalled heavy-job line after #{GIVE_UP_AFTER} s; #{job} runs anyway"
           @err.puts("hecks: #{note}")
           note
         end

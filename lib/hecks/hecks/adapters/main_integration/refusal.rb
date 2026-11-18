@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "bisecting"
+
 module Hecks
   module Adapters
     class MainIntegration
@@ -14,8 +16,8 @@ module Hecks
         # @param landed [String] the commit that failed verification
         # @param failures [Array<Failure>] the failed checks, in the order they ran
         # @param tail [Integer] how many lines each block holds
-        # @param first_bad [Hash, nil] the first merge whose own specs fail (`FirstBad`): `sha:`,
-        #   `subject:` and a `finding:` with `:spec` and `:example`
+        # @param first_bad [Hash, nil] the facts of the search for the first bad merge
+        #   (`Bisecting#facts`): `culprit`, `subject`, `spec`, `example`, `base_red`, or `reason`
         def initialize(landed, failures, tail, first_bad: nil)
           @landed = landed
           @failures = failures
@@ -29,11 +31,7 @@ module Hecks
         private
 
         def first_bad_line
-          return [] unless @first_bad
-
-          found = @first_bad.fetch(:finding, {})
-          parts = [("spec #{found[:spec]}" if found[:spec]), ("first failing example #{found[:example]}" if found[:example])]
-          ["first bad merge #{@first_bad[:sha][0, 10]} #{@first_bad[:subject]}#{parts.compact.map { |part| "; #{part}" }.join}"]
+          @first_bad ? [Bisecting.line(@first_bad)] : []
         end
 
         def headline

@@ -1,0 +1,120 @@
+Hecks.bluebook "Hecks" do
+  domain_module "CatcherCare" do
+    vision "The Catcher is drained and its sittings tallied on the clock's beat, once a window of the Tickets world has passed."
+
+    # A beat looks once at whether the Catcher's file has stood untouched for the Tickets world's
+    # `catcher_care` minutes; the `Resting` port measures the file and defers a recent one by name.
+    # The Catcher stays a standalone domain with its own store: this module only asks it to run.
+    aggregate "CatcherCare" do
+      description "One look, on a beat of the clock, at whether the Catcher is due a drain and a detection."
+
+      attribute :run,      CareKey
+      attribute :reason,   CareNote, optional: true
+      attribute :refusal,  CareNote, optional: true
+      attribute :outcome,  CareNote, optional: true
+      identified_by :run
+
+      value_object "CareKey" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "CareNote", String
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "deferred", "refused"
+        transition "Hear"    => "due",      from: "requested"
+        transition "Decline" => "deferred", from: "requested"
+        transition "Settle"  => "asked",    from: "due"
+        transition "Refuse"  => "refused",  from: "due"
+        mark :terminal, "deferred", "asked", "refused"
+      end
+
+      command "Look" do
+        role "System"
+        goal "Ask whether the Catcher has stood idle for the world's window"
+
+        attribute :run, CareKey, sets: true
+
+        emits CatcherCareRequested
+      end
+
+      command "Hear" do
+        role "System"
+        goal "Record why the Catcher is run now"
+
+        reference_to CatcherCare
+        attribute :reason, CareNote, sets: true
+
+        emits CatcherCareHeard
+      end
+
+      command "Decline" do
+        role "System"
+        goal "Record why the Catcher is left for the next beat"
+
+        reference_to CatcherCare
+        attribute :refusal, CareNote, sets: true
+
+        emits CatcherCareDeclined
+      end
+
+      command "Settle" do
+        role "System"
+        goal "Record that the drain and the detection were requested and answered, not how they ended"
+
+        reference_to CatcherCare
+        attribute :outcome, CareNote, sets: true
+
+        emits CatcherCareSettled
+      end
+
+      command "Refuse" do
+        role "System"
+        goal "Record why the Catcher could not be asked to run"
+
+        reference_to CatcherCare
+        attribute :refusal, CareNote, sets: true
+
+        emits CatcherCareRefused
+      end
+    end
+
+    # A root, like the ledger's look, so each beat's look begins its own chain.
+    policy "LookAfterTheCatcherOnHeartbeat" do
+      on      "Heartbeat.Beaten"
+      root
+      trigger CatcherCare::Look, with: { run: :beat }
+    end
+
+    policy "WeighTheCatcherWhenLooking" do
+      on      "CatcherCare.CatcherCareRequested"
+      ask     :rested, with: { run: :run }
+    end
+
+    policy "RecordWhyTheCatcherIsDue" do
+      on      "CatcherCare.CatcherCareDue"
+      trigger CatcherCare::Hear, with: { reason: :reason }
+    end
+
+    policy "RecordWhyTheCatcherWaits" do
+      on      "CatcherCare.CatcherCareDeferred"
+      trigger CatcherCare::Decline, with: { refusal: :refusal }
+    end
+
+    # The adapter only requests the Catcher's two commands; the Catcher chains their outcomes itself.
+    policy "RunTheCatcherWhenHeard" do
+      on      "CatcherCare.CatcherCareHeard"
+      ask     :run_catcher, with: { run: :run }
+    end
+
+    policy "RecordTheCatcherRun" do
+      on      "CatcherCare.CatcherCareRan"
+      trigger CatcherCare::Settle, with: { outcome: :outcome }
+    end
+
+    policy "RecordWhyTheCatcherWasNotRun" do
+      on      "CatcherCare.CatcherCareRunRefused"
+      trigger CatcherCare::Refuse, with: { refusal: :refusal }
+    end
+  end
+end

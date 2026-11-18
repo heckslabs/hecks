@@ -28,6 +28,17 @@ module Hecks
             [ok, (FailureLog.finding(output) unless ok)]
           end
         end
+
+        # @param commit [String] a commit that holds none of the merge, as the last verified one
+        # @param merge [Hash] `paths:` of a landing
+        # @return [Boolean] whether the specs the merge's paths touch are red at the commit: a spec
+        #   that is red there too is not the merge's doing
+        def red_at?(commit, merge)
+          @repository.clean_copy(commit) do |directory|
+            ok, = ImpactedCheck.new(directory, merge[:paths], commit, run: @impacted).call
+            !ok
+          end
+        end
       end
     end
   end

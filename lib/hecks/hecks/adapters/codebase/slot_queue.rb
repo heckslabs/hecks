@@ -1,21 +1,23 @@
 # frozen_string_literal: true
 
 require "fileutils"
+require_relative "slot_ticket"
 
 module Hecks
   module Adapters
     module Codebase
       # The line of jobs waiting for a heavy-job place: one ticket file per waiter, ordered by
-      # priority and then by arrival, so the place goes to the head of the line and no later job
-      # overtakes it.
+      # rank and then by arrival, so the place goes to the head of the line and no later job
+      # overtakes it. The rank is the priority (train, then urgent, then the rest).
       #
-      # A ticket's name is `<priority>-<arrival ns>-<pid>`, fixed width so names sort as written.
-      # The waiter holds a kernel `flock` on its ticket while it waits, so the ticket of a waiter
-      # that died is found by a lock that can be taken, and is removed: a dead head never blocks
-      # the line. A ticket is made under a hidden name, locked, and only then renamed into the
-      # line, so no other waiter ever sees a live ticket whose lock is not yet held. A steady
-      # stream of train gates or urgent jobs can keep ordinary jobs waiting; their give-up bounds
-      # that.
+      # A landing's job (a finished branch waiting to land, which a refusal costs an hour) ranks as
+      # an ordinary one until it has waited `landing_age` seconds (20 minutes) and then ahead of
+      # every ordinary job, newer or older, behind the train's and urgent ones ({SlotTicket}).
+      #
+      # A ticket's name is `<priority>-<arrival ns>-<pid>`. A waiter that rejoins keeps its first
+      # arrival ({SlotWait}), so the line is first come, first served across retries. The waiter
+      # holds a kernel `flock` on its ticket, so a dead waiter's ticket is found by a lock that can
+      # be taken and removed.
       class SlotQueue
         # The directory under the places' directory that holds the tickets.
         WAITING = "waiting"
@@ -29,6 +31,21 @@ module Hecks
         # Priority of every other job. A ticket's leading digit is its priority.
         ORDINARY = 2
 
+        # Priority of a landing's job: ordinary until it has aged, then ahead of ordinary jobs.
+        LANDING = 3
+
+        # Seconds a landing's job waits before it ranks ahead of ordinary jobs.
+        LANDING_AGE = 1200
+
+        # The environment variable that says a job belongs to a landing, set to `LANDING_VALUE`.
+        KIND_MARK = "HECKS_HEAVY_KIND"
+
+        # The value of `KIND_MARK` for a landing.
+        LANDING_VALUE = "landing"
+
+        # The heavy-job class of a landing's shallow check.
+        LANDING_JOB = "shallow_check"
+
         # The environment variable that names a job urgent, set to `URGENT_VALUE` by the caller that
         # carries a landing's urgency.
         URGENT_MARK = "HECKS_HEAVY_PRIORITY"
@@ -41,21 +58,28 @@ module Hecks
         TRAIN_MARK = "hecks.trainCarry"
 
         # @param base [#[]] the environment
+        # @param job [String, nil] the job's class
         # @return [Integer] `TRAIN` for a job started by the push train's push, `URGENT` for a job
-        #   marked urgent, else `ORDINARY`
-        def self.priority_of(base)
+        #   marked urgent, `LANDING` for a landing's job, else `ORDINARY`
+        def self.priority_of(base, job = nil)
           return TRAIN if base["GIT_CONFIG_PARAMETERS"].to_s.include?(TRAIN_MARK)
+          return URGENT if base[URGENT_MARK] == URGENT_VALUE
 
-          base[URGENT_MARK] == URGENT_VALUE ? URGENT : ORDINARY
+          base[KIND_MARK] == LANDING_VALUE || job == LANDING_JOB ? LANDING : ORDINARY
         end
+
+        # @return [Integer] the time in nanoseconds
+        def self.now = Process.clock_gettime(Process::CLOCK_REALTIME, :nanosecond)
 
         # @param dir [String] the directory the places live in
         # @param priority [Integer] the waiter's priority, lower goes first
         # @param arrival [#call] answers the arrival time in nanoseconds
-        def initialize(dir, priority: ORDINARY, arrival: -> { Process.clock_gettime(Process::CLOCK_REALTIME, :nanosecond) })
+        # @param landing_age [Numeric] seconds a landing's ticket waits before it ranks ahead
+        def initialize(dir, priority: ORDINARY, landing_age: LANDING_AGE, arrival: -> { SlotQueue.now })
           @dir = File.join(dir, WAITING)
           @priority = priority
           @arrival = arrival
+          @landing_age = landing_age
         end
 
         # Takes a ticket at the end of its priority's line. A line that cannot be opened leaves the
@@ -66,7 +90,7 @@ module Hecks
           FileUtils.mkdir_p(@dir)
           @file = File.new(File.join(@dir, ".#{Process.pid}-#{rand(1 << 32)}"), File::CREAT | File::RDWR, 0o600)
           @file.flock(File::LOCK_EX)
-          @name = format("%<priority>d-%<ns>020d-%<pid>010d", priority: @priority, ns: @arrival.call, pid: Process.pid)
+          @name = SlotTicket.name(@priority, @arrival.call, Process.pid)
           File.rename(@file.path, File.join(@dir, @name))
           self
         rescue SystemCallError
@@ -76,11 +100,13 @@ module Hecks
         end
 
         # @return [Boolean] whether no live ticket stands ahead of this one
-        def head?
-          return true unless @file
+        def head? = ahead.zero?
 
-          tickets.each { |name| return name == @name if name == @name || alive?(name) }
-          true
+        # @return [Integer] how many live tickets stand ahead of this one
+        def ahead
+          return 0 unless @file
+
+          tickets.take_while { |name| name != @name }.count { |name| alive?(name) }
         end
 
         # Gives the ticket up.
@@ -97,7 +123,11 @@ module Hecks
 
         private
 
-        def tickets = Dir.children(@dir).reject { |name| name.start_with?(".") }.sort
+        def tickets
+          now = SlotQueue.now
+          Dir.children(@dir).reject { |name| name.start_with?(".") }
+             .sort_by { |name| SlotTicket.key(name, now, @landing_age) }
+        end
 
         # Whether the ticket's waiter lives; a ticket whose lock can be taken is a dead waiter's and
         # is removed.

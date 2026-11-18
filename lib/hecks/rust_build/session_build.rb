@@ -3,6 +3,7 @@
 require "digest"
 require "fileutils"
 require_relative "build_policy"
+require_relative "toolchain"
 require_relative "world_rows"
 
 module Hecks
@@ -45,10 +46,12 @@ module Hecks
       # @param root [String] a hecks checkout
       # @param base [#[]] the environment the child would otherwise inherit
       # @param binary [Boolean] whether the build's binary is run or published afterwards
-      # @return [Hash{String => String}] the variables to add; none when the caller already named
-      #   a target directory, so `CARGO_TARGET_DIR` set by hand still wins
+      # @return [Hash{String => String}] the variables to add: `PATH` with rustup's `cargo` first,
+      #   the job cap, and the target directory, none of it when the caller already named a target
+      #   directory, so `CARGO_TARGET_DIR` set by hand still wins
       def environment(root: ROOT, base: ENV, binary: false)
-        BuildPolicy.environment(root: root, base: base).merge(target_environment(root, base, binary))
+        Toolchain.environment(base).merge(BuildPolicy.environment(root: root, base: base))
+                 .merge(target_environment(root, base, binary))
       end
 
       # @return [Hash{String => String}] the target directory part of `environment`
