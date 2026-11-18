@@ -20,6 +20,7 @@ pub mod read_model;
 pub mod reference_lookup;
 pub mod repository;
 pub mod routing;
+pub mod run_keys;
 pub mod serve;
 
 pub use dispatch::{

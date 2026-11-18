@@ -14,22 +14,28 @@ module Hecks
     # the outside facts a command needs; and `"query_needs"`, the same for a query (kept apart: a
     # command and a query may share a qualified name). A harness that sends only `"steps"` would
     # leave the kernel refusing an argument Ruby fills, so every conformance caller builds its
-    # input here.
+    # input here. `"run_required"` lists the commands whose required `run` a reaction mints when it
+    # names none, and `"identity"`, when a fixture scripts it, the ids that mint hands out.
     module KernelInput
       module_function
 
       # @param domain_path [String] the domain's directory; its basename names the generated module
       # @param steps [Array<Hash>] the steps to run
+      # @param identity [Array<String>, nil] the ids the `identity_generation` port hands out, in
+      #   order, to a reaction that mints a run key; with none the binary mints nothing and the
+      #   command refuses its missing `run`
       # @return [Hash{String => Object}] the input; each table is there only when it has an entry
-      def build(domain_path, steps)
+      def build(domain_path, steps, identity: nil)
         input = { "steps" => steps }
         tables_for(domain_path).each { |name, table| input[name] = table unless table.empty? }
+        input["identity"] = identity if identity
         input
       end
 
       # @param domain_path [String] the domain's directory
+      # @param identity [Array<String>, nil] see {build}
       # @return [String] the input as JSON, ready for the binary's stdin
-      def json(domain_path, steps) = JSON.generate(build(domain_path, steps))
+      def json(domain_path, steps, identity: nil) = JSON.generate(build(domain_path, steps, identity: identity))
 
       # Each command's declared defaults, entity commands included, read from the domain's
       # generated IR. An entity's commands sit under `Domain::Aggregate.Entity[.Entity].Command`.
@@ -43,11 +49,31 @@ module Hecks
       # @param domain_path [String] the domain's directory
       # @return [Hash{String => Hash}] each table, empty when the IR is absent or declares none
       def tables_for(domain_path)
-        tables = { "defaults" => {}, "needs" => {}, "query_needs" => {} }
+        tables = { "defaults" => {}, "needs" => {}, "query_needs" => {}, "run_required" => [] }
         ir = generated_ir(domain_path) or return tables
         domain = ir["name"].to_s
-        Array(ir["aggregates"]).each { |aggregate| collect(aggregate, "#{domain}::#{aggregate["name"]}", tables) }
+        Array(ir["aggregates"]).each do |aggregate|
+          collect(aggregate, "#{domain}::#{aggregate["name"]}", tables)
+          tables["run_required"].concat(run_required_of(aggregate, "#{domain}::#{aggregate["name"]}"))
+        end
         tables
+      end
+
+      # The verbs of an aggregate's own commands that take a required `run`: the ones a reaction
+      # mints a key for when it names none (an entity's commands are not minted for).
+      #
+      # @param aggregate [Hash] an aggregate of the IR
+      # @param prefix [String] its qualified name
+      # @return [Array<String>] `Domain::Aggregate.Command` for each
+      def run_required_of(aggregate, prefix)
+        Array(aggregate["commands"]).select { |command| requires_run?(command) }
+                                    .map { |command| "#{prefix}.#{command["name"]}" }
+      end
+
+      # @param command [Hash] a command of the IR
+      # @return [Boolean] whether it declares a `run` attribute that is not optional
+      def requires_run?(command)
+        Array(command["attributes"]).any? { |attribute| attribute["name"] == "run" && !attribute["optional"] }
       end
 
       # Adds what `node`'s commands and queries declare, then what each entity nested in it does,

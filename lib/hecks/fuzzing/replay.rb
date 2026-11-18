@@ -8,6 +8,8 @@ require_relative "replay/guard_check"
 require_relative "replay/role_check"
 require_relative "replay/mutation_trace"
 require_relative "replay/session"
+require_relative "scripted_identity"
+require_relative "../ports/identity_generation"
 
 module Hecks
   module Fuzzing
@@ -35,15 +37,31 @@ module Hecks
       # @param boot [Hash] `adapter:` the persistence adapter to boot the copy with (default
       #   `:memory`), `database:` the PostgresEra database name (required for `:postgres_era`)
       #   and `schema:`
+      # @param identity [Array<String>, nil] the ids the `identity_generation` port hands out, in
+      #   order; the bound adapter mints when omitted
       # @return [Hash] instances, events, refusals, reactions, sagas, queries, oracle traces
-      def call(domain_path, steps, self_consistency: false, **boot)
+      def call(domain_path, steps, self_consistency: false, identity: nil, **boot)
         # See isolated_boot.rb's own header: resets data/ and rebinds persistence to the
         # chosen adapter, since a Postgres-bound domain's real store lives outside the
         # copied directory and can't be reached by resetting data/ alone.
         IsolatedBoot.call(domain_path, **boot_options(boot)) do |copy|
           runtime = Hecks.boot(copy, environment: nil)
-          Session.new(runtime).play(steps).history(self_consistency: self_consistency)
+          with_identity(runtime.registry, identity) do
+            Session.new(runtime).play(steps).history(self_consistency: self_consistency)
+          end
         end
+      end
+
+      # Runs the block with the replay's own registry answering identity requests with `ids` in
+      # order, or with its bound adapter when none are scripted.
+      #
+      # @param registry [Runtime::Registry] the replay's fresh boot, the only registry scripted
+      # @param ids [Array<String>, nil] the scripted ids
+      # @return [Object] what the block answers
+      def with_identity(registry, ids, &)
+        return yield unless ids
+
+        Ports::IdentityGeneration.standing_in(registry, ScriptedIdentity.new(ids), &)
       end
 
       # The keywords for `IsolatedBoot.call`, with `adapter:` defaulting to `:memory`.

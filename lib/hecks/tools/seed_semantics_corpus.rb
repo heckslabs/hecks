@@ -76,7 +76,7 @@ module Hecks
       # @return [Hash{String => Array}] its `"expect"` block: refusals, instances, events, and
       #   with `full` the {CONFORMANCE_KEYS}
       def expectation_for(root, fixture, full: false)
-        result = Hecks::Fuzzing::Replay.call(File.join(root, fixture["domain"]), fixture["steps"])
+        result = Hecks::Fuzzing::Replay.call(File.join(root, fixture["domain"]), fixture["steps"], identity: fixture["identity"])
         expect = {
           "refusals"  => kind_names(result[:refusals]),
           "instances" => roundtrip(result[:instances]),

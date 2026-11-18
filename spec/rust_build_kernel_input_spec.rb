@@ -88,6 +88,11 @@ RSpec.describe Hecks::RustBuild::KernelInput do
     expect(described_class.build("examples/pizzas", steps)).to eq("steps" => steps)
   end
 
+  it "carries the identity script only when one is given", :aggregate_failures do
+    expect(described_class.build(domain, steps, identity: %w[run-1])["identity"]).to eq(%w[run-1])
+    expect(described_class.build(domain, steps)).not_to have_key("identity")
+  end
+
   it "adds no table for a domain with no generated IR" do
     expect(described_class.build("/no/such/domain", steps)).to eq("steps" => steps)
   end
@@ -102,6 +107,12 @@ RSpec.describe Hecks::RustBuild::KernelInput do
 
       expect(described_class.defaults_for(real)).to eq("LeaseClock::Lease.Reap" => { "grace" => { "value" => 0 } })
       expect(described_class.tables_for(real)["query_needs"].keys).to eq(["LeaseClock::Lease.Expired"])
+    end
+
+    it "names the one command whose run a reaction mints in the run-key fixture, as the host does" do
+      real = File.join(InMemoryDomain::ROOT, "spec/fixtures/rust_project/run_key_mint_fixture")
+
+      expect(described_class.tables_for(real)["run_required"]).to eq(["RunKeyMintFixture::Check.Start"])
     end
 
     it "reads the same nested paths from the generated nested_pieces IR" do
