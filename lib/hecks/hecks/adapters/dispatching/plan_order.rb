@@ -5,8 +5,8 @@ module Hecks
     class Dispatching
       # The order planned work items are listed in: a red one first, then a filed stall, then one
       # whose last yield a fill restarts first, then the rest. Inside a group the order is the
-      # priority, then the epic's tier, then the plan step, then the key. It is mixed into {WorkItems}, whose
-      # `find`, `red?` and `first_kinds` it uses.
+      # priority, then the epic's tier, then the plan step, then the key. It is mixed into
+      # {WorkItems}, whose `find`, `red?` and `first_kinds` it uses.
       module PlanOrder
         # The urgency of a planned work item whose last yield a fill restarts first.
         RESTARTED = 2
