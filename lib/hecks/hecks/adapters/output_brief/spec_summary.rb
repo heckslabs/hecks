@@ -1,10 +1,12 @@
 # frozen_string_literal: true
 
+require_relative "failure_errors"
+
 module Hecks
   module Adapters
     class OutputBrief
-      # The summary of what a spec run printed: where the full text is, the first failure, every
-      # failed example by its location, and the counts.
+      # The summary of what a spec run printed: where the full text is, the first failure, the first
+      # error line of every failed example, every failed example by its location, and the counts.
       #
       # It reads the text the test runner and `Codebase::SpecFiles::Report` print, and
       # `spec/adapters/driven/output_brief_spec.rb` pins it to a real run of both. Every
@@ -21,7 +23,7 @@ module Hecks
 
         # @param text [String] what the run printed
         # @param path [String] the file that holds all of it
-        # @param limits [Hash{Symbol => Integer}] `frames`, `block` and `head`
+        # @param limits [Hash{Symbol => Integer}] `frames`, `block`, `head` and `errors`
         def initialize(text, path, limits)
           @lines = text.lines.map(&:chomp)
           @path = path
@@ -30,7 +32,7 @@ module Hecks
 
         # @return [String] the summary, ending as the full text does: with the counts
         def to_s
-          ["full output: #{@path} (#{@lines.size} lines)", opening, failed, closing].compact.join("\n\n")
+          ["full output: #{@path} (#{@lines.size} lines)", opening, errors, failed, closing].compact.join("\n\n")
         end
 
         private
@@ -65,6 +67,8 @@ module Hecks
 
           [*lines.first(@limits[limit]), "(#{lines.size - @limits[limit]} more lines in the file)"].join("\n")
         end
+
+        def errors = FailureErrors.new(@lines, @limits[:errors]).to_s
 
         def failed
           listed = @lines.grep(FAILED).uniq

@@ -21,8 +21,9 @@ module Hecks
       # `lines` and `characters` are the most a text may hold and still be answered whole;
       # `frames` is how many backtrace lines the first failure keeps and `block` how many lines of
       # it in all; `head` is how many opening lines stand in for a failure block when the runner
-      # printed none; `kept_days` is how long a filed text is kept before a later filing removes it.
-      LIMITS = { lines: 40, characters: 4000, frames: 5, block: 30, head: 15, kept_days: 7 }.freeze
+      # printed none; `errors` is how many failed examples list their first error line; `kept_days`
+      # is how long a filed text is kept before a later filing removes it.
+      LIMITS = { lines: 40, characters: 4000, frames: 5, block: 30, head: 15, errors: 20, kept_days: 7 }.freeze
 
       # The variable that asks for every text in full when it is `full`.
       WHOLE = "HECKS_OUTPUT"
