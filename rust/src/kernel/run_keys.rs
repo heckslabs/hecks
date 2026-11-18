@@ -20,7 +20,7 @@ pub const IDENTITY_FACT: &str = "identity_generation";
 
 thread_local! {
     static REQUIRED: RefCell<HashSet<String>> = RefCell::new(HashSet::new());
-    static IDENTITY: RefCell<VecDeque<String>> = RefCell::new(VecDeque::new());
+    static IDENTITY: RefCell<VecDeque<String>> = const { RefCell::new(VecDeque::new()) };
 }
 
 /// Installs the commands that require a `run` and the ids the identity port will hand out (an
