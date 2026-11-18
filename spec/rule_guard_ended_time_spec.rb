@@ -3,18 +3,25 @@
 require "spec_helper"
 require_relative "support/missing_value_guards"
 
-# A guard that tests a missing value with `.value == nil` stops or lets through as intended.
-RSpec.describe "A guard on an ended time" do
+# A watch's guards test a missing end time with `.value == nil`: a watch that has not ended,
+# whose time is missing or zero, may lapse or give up, and an ended one may not.
+RSpec.describe "The Watcher guards on a missing end time" do
   include MissingValueGuards
 
-  let(:guard) { "ended_at.value == nil || ended_at.value == 0" }
+  let(:watcher) { MissingValueGuards.bluebook("lib/hecks/agents", "Agents").aggregate("Watcher") }
 
-  it "lets a missing or zero time through", :aggregate_failures do
-    expect(holds_for_missing?(guard, :ended_at)).to eq([true, true])
-    expect(holds?(guard, { ended_at: { value: 0 } })).to be(true)
+  def holds_for?(command, ended_at)
+    held = watcher.commands.find { |each| each.hecks_name == command }
+    holds?(given_of(held, "ended_at"), { ended_at: ended_at })
   end
 
-  it "stops a time that is set" do
-    expect(holds?(guard, { ended_at: { value: 9 } })).to be(false)
+  it "lets a watch whose end time is missing or zero through", :aggregate_failures do
+    expect(%w[Lapse GiveUp].map { |command| holds_for?(command, nil) }).to eq([true, true])
+    expect(%w[Lapse GiveUp].map { |command| holds_for?(command, { value: nil }) }).to eq([true, true])
+    expect(holds_for?("Lapse", { value: 0 })).to be(true)
+  end
+
+  it "stops a watch that has ended" do
+    expect(%w[Lapse GiveUp].map { |command| holds_for?(command, { value: 9 }) }).to eq([false, false])
   end
 end
