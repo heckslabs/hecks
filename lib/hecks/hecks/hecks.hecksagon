@@ -1456,10 +1456,12 @@ Hecks.hecksagon "Delivery" do
     end
   end
 
-  # Only a conflict or a red gate is a coder's to fix; Tickets plans the item again.
+  # Every refusal but a transient one is a coder's to fix; Tickets plans the item again with the
+  # refusal as its reason. "landing in flight" (another landing of the branch runs) and "queue busy: "
+  # (the landing job retries) are transient, so the item stays done for them.
   translates "FindWorkWhenTheJobsLandingIsRefused" do
     on      Landing::CarryRefused
-    where   { refusal.value.include?("conflict: ") || refusal.value.include?("gate red: ") }
+    where   { !refusal.value.include?("landing in flight") && !refusal.value.include?("queue busy: ") }
     ask     :find_refused_work, with: { run: :run, refusal: :refusal }
   end
 
