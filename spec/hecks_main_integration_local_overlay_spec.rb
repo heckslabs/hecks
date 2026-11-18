@@ -45,6 +45,19 @@ RSpec.describe Hecks::Adapters::MainIntegration::LocalOverlay do
     expect(File.read(file)).to eq(described_class.new(root, @rows, "main").text)
   end
 
+  it "renames a finished file into place, so no reader sees an empty overlay", :aggregate_failures do
+    allow(File).to receive(:rename).and_call_original
+    described_class.new(root, @rows, "main").write
+    expect(File).to have_received(:rename).with(/\.\d+\.tmp\z/, file)
+    expect(Dir[File.join(File.dirname(file), "*.tmp")]).to be_empty
+  end
+
+  it "leaves no temporary file when the rename fails", :aggregate_failures do
+    allow(File).to receive(:rename).and_raise(Errno::EACCES)
+    expect { described_class.new(root, @rows, "main").write }.to raise_error(Errno::EACCES)
+    expect(Dir[File.join(File.dirname(file), "*.tmp")]).to be_empty
+  end
+
   it "replaces an overlay that lags the list" do
     FileUtils.mkdir_p(File.dirname(file))
     File.write(file, "Hecks.hecksagon \"Hecks\" do\nend\n")
