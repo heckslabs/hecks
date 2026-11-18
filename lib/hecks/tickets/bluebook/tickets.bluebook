@@ -117,8 +117,9 @@ Hecks.bluebook "Tickets" do
       attribute :finding, FindingKey, sets: true
       attribute :body,   Body, sets: true
 
+      attribute :title,  Title, sets: true
+
       sets :fingerprint, to: "run"
-      sets :title,  to: "A Codebase check failed"
       sets :source, to: "qa_loop"
 
       emits "RunFindingReported"
@@ -1183,7 +1184,7 @@ Hecks.bluebook "Tickets" do
   # is planned twice; a finished cause that fails again is reopened by ReopenWorkWhenGateFaultedAgain.
   policy "PlanWorkWhenRunFindingReported" do
     on      "Finding.RunFindingReported"
-    trigger Work::Plan, with: { work: :finding, title: "A Codebase check failed", detail: :body }
+    trigger Work::Plan, with: { work: :finding, title: :title, detail: :body }
   end
 
   policy "LabelIssueWhenTriaged" do
@@ -1272,14 +1273,14 @@ Hecks.bluebook "Tickets" do
   policy "ReportWhenConformanceFaulted" do
     on      "ConformanceRun.ConformanceFaulted"
     root
-    trigger Finding::ReportFailedRun, with: { finding: :run, body: :refusal }
+    trigger Finding::ReportFailedRun, with: { finding: :run, title: "A Codebase check failed", body: :refusal }
   end
 
   policy "ReportWhenGateFaulted" do
     on      "GateRun.GateFaulted"
     where   { cause.nil? || cause.value.to_s.empty? }
     root
-    trigger Finding::ReportFailedRun, with: { finding: :run, body: :refusal }
+    trigger Finding::ReportFailedRun, with: { finding: :run, title: "A Codebase check failed", body: :refusal }
   end
 
   # A gate red on named checks files one finding and work item per cause (`gate-quick-comment_style`):
@@ -1289,7 +1290,7 @@ Hecks.bluebook "Tickets" do
     on      "GateRun.GateFaulted"
     where   { !cause.nil? && !cause.value.to_s.empty? }
     root
-    trigger Finding::ReportFailedRun, with: { finding: :cause, body: :refusal }
+    trigger Finding::ReportFailedRun, with: { finding: :cause, title: :cause, body: :refusal }
   end
 
   # A cause whose work item was finished or dropped and failed again is planned again with the new
@@ -1299,7 +1300,7 @@ Hecks.bluebook "Tickets" do
     on      "GateRun.GateFaulted"
     where   { !cause.nil? && !cause.value.to_s.empty? }
     root
-    trigger Work::Reopen, with: { work: :cause, title: "A Codebase check failed", detail: :refusal }
+    trigger Work::Reopen, with: { work: :cause, title: :cause, detail: :refusal }
   end
 
   # An integration run parked in needs_human (MainIntegration), or a shipment parked there
