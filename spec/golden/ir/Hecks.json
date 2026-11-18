@@ -624,6 +624,24 @@
               ],
               [
                 "aggregate",
+                "WorkCap"
+              ],
+              [
+                "checkout",
+                "both"
+              ],
+              [
+                "reason",
+                "each beat counts its reading into the runs the moving cap stands on, and the fill reads it, in processes of their own"
+              ]
+            ],
+            [
+              [
+                "domain",
+                "Hecks"
+              ],
+              [
+                "aggregate",
                 "Roll"
               ],
               [
