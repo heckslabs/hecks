@@ -259,17 +259,11 @@ Hecks.bluebook "Hecks" do
       end
     end
 
-    # CI starts early: a landed coder branch is pushed as `ci/<branch>` with a draft pull request that is
-    # never merged, so CI runs while the next piece starts. The record holds the branch, the draft's number,
-    # and what CI said (passed or failed with the failing specs and the first error line). The push, the
-    # draft and the CI read are the ports' work (never main, never forced, never --no-verify); this
-    # aggregate only keeps their outcome and answers the coder that cut the branch.
-    #
-    # A coder asks for the same run before it hands off (`Request`, keyed by its branch): the port
-    # pushes the branch's head as `ci/<branch>`, opens or reuses the draft, waits a bounded time for its
-    # checks and answers the jobs that failed. CI's verdict is the bluebook's: no failing job is
-    # `passed`. A late answer for an earlier head is refused, so a record's verdict is its own head's.
-    # A record a landing started (`Start`, keyed by the landing run) and one a coder requested are apart.
+    # A branch's CI run under ci/<branch> and a never-merged draft: started by a landing (`Start`, keyed
+    # by its run) or asked by a coder before hand-off (`Request`, keyed by the branch). The push, the
+    # draft and the CI read are the port's (never main, never forced, never --no-verify); the verdict is
+    # the bluebook's, passed when no job failed, and an answer for another head than the record's is
+    # refused. A failed landed run answers the coder that cut the branch.
     aggregate "EarlyCi" do
       description "One landed branch pushed as ci/<branch> with a draft pull request, and what CI said of it."
 
