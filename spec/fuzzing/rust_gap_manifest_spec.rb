@@ -86,6 +86,38 @@ RSpec.describe Hecks::Fuzzing::RustGapManifest, :aggregate_failures do
     it "refuses a path that isn't a pinned binary rather than guess a manifest" do
       expect { described_class.for_binary("/usr/bin/true") }.to raise_error(ArgumentError, /pinned conformance binary/)
     end
+
+    # A worktree's build pins its binary in a slot below the shared cargo target, outside the crate.
+    it "reads the named crate's manifest off a binary pinned where the crate's build chose" do
+      write_module(root, "shop", [gap("query", "Shop::Order.LineItem.Recent", "entity_query")])
+      slot = pin_slot_outside_crate
+      gaps = described_class.for_binary(File.join(slot, "debug/rust-shop"), rust_dir: root)
+
+      expect([gaps.rust_dir, gaps.feature]).to eq([root, "shop"])
+      expect(gaps.not_generated("Shop::Order.LineItem.Recent")).to include("construct" => "entity_query")
+    end
+
+    it "refuses a binary under a directory the crate's build does not pin in" do
+      pin_slot_outside_crate
+      elsewhere = File.join(root, "elsewhere/debug/rust-shop")
+
+      expect { described_class.for_binary(elsewhere, rust_dir: root) }.to raise_error(ArgumentError, /not a pinned/)
+    end
+  end
+
+  # Points the crate's build at a target directory outside it, as a worktree's session slot is.
+  def pin_slot_outside_crate
+    slot = File.join(root, "cargo-target", "slot")
+    allow(Hecks::RustBuild::NativeBuild).to receive(:target_dir).with(root).and_return(slot)
+    slot
+  end
+
+  describe ".for_binary, from the workspace a caller names" do
+    it "still reads a binary under the crate's own target/" do
+      gaps = described_class.for_binary(File.join(root, "target/debug/rust-shop"), rust_dir: root)
+
+      expect([gaps.rust_dir, gaps.feature]).to eq([root, "shop"])
+    end
   end
 
   describe "#not_generated" do

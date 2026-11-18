@@ -1,5 +1,6 @@
 require "json"
 require "hecks/naming"
+require_relative "rust_gap_manifest/pinned_binary"
 
 module Hecks
   module Fuzzing
@@ -14,23 +15,18 @@ module Hecks
     class RustGapManifest
       # Commands change state, so dropping their refusal would make the comparison dishonest.
       TOLERABLE_KINDS = %w[query read_model].freeze
-      PINNED_BINARY = %r{\A(?<rust_dir>.+)/target/debug/rust-(?<feature>[a-z0-9_]+)\z}
-
       attr_reader :rust_dir, :feature, :entries
 
-      # Builds the manifest reader for the pinned conformance binary at `binary`.
+      # Builds the manifest reader for the pinned conformance binary at `binary`: one under the
+      # workspace's `target/` or under the directory its build chose (`PinnedBinary`).
       #
-      # @param binary [String] path to a pinned binary, `<rust_dir>/target/debug/rust-<feature>`
+      # @param binary [String] path to a pinned binary, `<target>/debug/rust-<feature>`
+      # @param rust_dir [String, nil] the workspace the binary was built from, when known
       # @return [Fuzzing::RustGapManifest] the manifest reader for that binary's feature
-      # @raise [ArgumentError] if `binary` does not match the pinned-binary path shape
-      def self.for_binary(binary)
-        match = PINNED_BINARY.match(File.expand_path(binary.to_s))
-        unless match
-          raise ArgumentError, "#{binary.inspect} is not a pinned conformance binary " \
-                               "(<rust_dir>/target/debug/rust-<feature>) — cannot tell which manifest describes it"
-        end
-
-        new(rust_dir: match[:rust_dir], feature: match[:feature])
+      # @raise [ArgumentError] if `binary` is not pinned in a target directory of the workspace
+      def self.for_binary(binary, rust_dir: nil)
+        workspace, feature = PinnedBinary.resolve(binary, rust_dir: rust_dir)
+        new(rust_dir: workspace, feature: feature)
       end
 
       # Every committed manifest entry under `rust_dir`, each tagged with its generated module.
