@@ -22,8 +22,6 @@ module Hecks
     class PipelineJournal
       include PipelineBoard::Chain
 
-      PROMOTION_EVENTS = %w[PromotionRecommended PromotionSettled].freeze
-
       # The event a stopped run's finding is filed with.
       STOPPED = "StoppedRunReported"
 
@@ -135,17 +133,6 @@ module Hecks
         { text: PipelineBoard::Turns.block(turns, run.is_a?(Hash) ? run[:value] : run) }
       end
 
-      # The promotion events, from the persisted stores and the whole event log, so a recommendation
-      # raised in another process is seen here. Memory keeps none across processes.
-      #
-      # @return [Array<Hash>] `PromotionRecommended` and `PromotionSettled` rows, newest first
-      def promotions
-        logged = @tap.named(PROMOTION_EVENTS)
-        stored = PROMOTION_EVENTS.flat_map { |event| stored_named(event) }
-        found = (logged + stored).uniq { |row| [row[:name], row[:id], row[:at]] }
-        found.sort_by { |row| row[:at].to_s }.reverse
-      end
-
       # @param event [String] a bare event name, such as `WorkFinished`
       # @param count [Integer] how many of the newest to read
       # @return [Array<Hash>] the newest events of that name in the journal stores, newest first
@@ -161,7 +148,7 @@ module Hecks
       # the log serves them all.
       def indexed_names
         PipelineBoard::Cycles.event_names + PipelineBoard::DailyHealth.event_names +
-          PROMOTION_EVENTS + [STOPPED, PipelineBoard::Turns::EVENT]
+          [STOPPED, PipelineBoard::Turns::EVENT]
       end
 
       def count_of(limit)
