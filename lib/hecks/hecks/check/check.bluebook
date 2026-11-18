@@ -294,7 +294,6 @@ Hecks.bluebook "Hecks" do
       description "One check that the engines, the reference docs and the argument gates agree with the language."
 
       attribute :confirm,   Switch, optional: true
-      attribute :additive,  Switch, optional: true
 
       command "CheckEngineAgreement" do
         role "Maintainer"
@@ -320,12 +319,10 @@ Hecks.bluebook "Hecks" do
 
       command "CheckShapeLedger" do
         role "Maintainer"
-        goal "Check that no bluebook's storage shape moved without a translation edge, and rewrite the ledger when confirmed"
+        goal "Check that no bluebook's storage shape moved in a way that is neither additive nor covered by a translation edge, and rewrite the ledger when confirmed"
 
         attribute :run,      RunKey, sets: true
         attribute :confirm,  Switch, optional: true, sets: true
-        # With `confirm`: write the empty edge for a shape that moved with none, for a change that only adds.
-        attribute :additive, Switch, optional: true, sets: true
 
         sets :operation, to: "check_shape_ledger"
 

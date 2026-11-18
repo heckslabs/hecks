@@ -22,12 +22,14 @@ RSpec.describe Hecks::Adapters::MainVerification, "#check" do
     git("push", "-q", "origin", "main")
     described_class.runner = ->(argv, chdir:) { [true, chdir && argv.last && ""] }
     described_class.impacted = method(:fake_impacted)
+    described_class.specs = method(:fake_probe)
     described_class.log_directory = File.join(dir, "logs")
   end
 
   after do
     described_class.runner = nil
     described_class.impacted = nil
+    described_class.specs = nil
     described_class.log_directory = nil
     FileUtils.remove_entry(dir)
   end
@@ -55,6 +57,12 @@ RSpec.describe Hecks::Adapters::MainVerification, "#check" do
     raise Hecks::Adapters::ConsoleCapture::Failure, red if changed.include?("bad.txt")
 
     outcome_class.new(changed, [], 1, 1)
+  end
+
+  # The probe of the search runs the failing spec in a clean copy of a merge: red from the merge
+  # that adds the bad file onward, green before it and at the last verified commit.
+  def fake_probe(directory, _files)
+    raise Hecks::Adapters::ConsoleCapture::Failure, red if File.exist?(File.join(directory, "bad.txt"))
   end
 
   def switch(state) = Hecks::Adapters::GitShallowCheck::Switch.new(File.join(repo, ".git")).set(state)

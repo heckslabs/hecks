@@ -92,23 +92,29 @@ hour ago, so the outbox holds about one hour of inflow (10k to 30k rows). Only d
 the purge; the one reader of delivered rows, the outbox fuzz property, reads its own run. The batch size
 is unchanged: no reading shows the batch length as the cause of a lock.
 
-| Reading (read-only) | Before the change, 2026-11-18T03:29Z | Still on the 24 hour train copy, 2026-11-18T03:41Z | After one beat | After one day |
+| Reading (read-only) | Before the change, 2026-11-18T03:29Z | Still on the 24 hour train copy, 2026-11-18T03:41Z | After one beat, 2026-11-18T05:13Z | After one day |
 | --- | --- | --- | --- | --- |
-| `hecks_outbox` delivered rows | 218,391 | 220,865 | to be read | to be read |
-| `agent_run.db` bytes | 1.38 GB (1,384,271,872 bytes) | 1.40 GB (1,398,099,968 bytes) | to be read | to be read |
-| `database is locked` lines that day | 3 on 2026-11-17 | not recounted | to be read | to be read |
+| `hecks_outbox` delivered rows | 218,391 | 220,865 | 29,972 (oldest settled 04:07:28Z) | to be read |
+| `agent_run.db` bytes | 1.38 GB (1,384,271,872 bytes) | 1.40 GB (1,398,099,968 bytes) | 827 MB (827,498,496 bytes) | to be read |
+| `database is locked` lines that day | 3 on 2026-11-17 | not recounted | 1 in `board.log` (see below) | to be read |
 
-**Why the change has not shown yet.** The 03:41Z reading finds delivered rows still spanning 24 hours
-(oldest settled 2026-11-17T03:39:52Z), and the last `OutboxPurged` reaction was at 03:39Z. The heartbeat
-beat (`dev.hecks.train-beat`) runs from `~/.claude/hecks-train`, whose `tickets.world` still says
-`outbox_hours: 24`: the change is on local `main` and the train copy takes it only when the train boards
-and the copy refreshes. No code is left to change.
+**What the after reading shows.** Delivered rows now span about one hour, so the one hour retention is
+what deleted them. The file fell by about 570 MB because the purge's `OutboxPurged` reaction is followed
+by `LedgerFile.Reclaim` (the `ReclaimAfterThePurge` policy in `ledger_care.bluebook`): deleting rows frees
+pages and the vacuum gives them back, so the purge and the vacuum together account for the drop. The
+failed (563) and refused (8,328) rows stay by design; only delivered rows are purged.
 
-**When an after reading counts.** The first after reading is valid only when the beat that ran came from a
-train copy whose `tickets.world` says `outbox_hours: 1` (`grep outbox_hours ~/.claude/hecks-train/lib/hecks/hecks/tickets.world`).
-A reading taken before that repeats the 24 hour figures. These readings, and the lock count over the day
-after, are still to be taken and recorded here; the Work item stays open until they are, so that the
-revisit condition below can fire.
+**Which copy purged.** `grep outbox_hours ~/.claude/hecks-train/lib/hecks/hecks/tickets.world` still
+prints `outbox_hours: 24` at the 05:13Z reading, so the purge that produced the one hour span did not run
+from the train copy; it ran from a checkout that carries the change. The train copy takes the change at
+its next boarding and refresh. Until then a beat from the train copy would keep 24 hours again, so the
+one day reading counts only once that grep prints `outbox_hours: 1`.
+
+**The lock line.** `board.log` holds one `cannot open Hecks: database is locked` line (line 44657 of
+73,968). It carries no timestamp, so it cannot be placed before or after the first one hour beat, and it
+may be one of the three of 2026-11-17 already counted. It is not counted as a lock after the purge. The
+lock count over the day after the train copy runs with `outbox_hours: 1` is the one reading still to be
+taken; the Work item stays open for it so that the revisit condition below can fire.
 
 **Revisit.** If `database is locked` recurs once the outbox stands near 20,000 rows, that meets this
 ADR's own revisit condition and the work items (a), (b) and (c) above become due. Locks seen while the

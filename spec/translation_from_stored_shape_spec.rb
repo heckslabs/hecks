@@ -49,7 +49,7 @@ RSpec.describe "a translation decided from the held era's stored shape" do
   def decide(current, translations: [])
     manager::MintDecision.decide(held: [manager::MintDecision.held_for_decision(era)], bluebook: current,
                                  watermark: 0, rows: [],
-                                 edge_source: { translations: translations, recorded: [[label(held), label(current)]] })
+                                 edge_source: { translations: translations })
   end
 
   def coverage_refusal(held_side)

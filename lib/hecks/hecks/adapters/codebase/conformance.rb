@@ -63,13 +63,12 @@ module Hecks
           report
         end
 
-        # @param held [Hash] the record's fields; `confirm` rewrites the ledger, and `additive`
-        #   with it writes the empty edge for a shape that moved with none
+        # @param held [Hash] the record's fields; `confirm` rewrites the ledger
         # @param tree [Tree] the checkout
         # @return [String] the clean verdict, or what was written
         # @raise [ConsoleCapture::Failure] with each bluebook whose shape moved without an edge
         def shape_ledger(held, tree)
-          return judge_shape_ledger(held, tree) if on?(held[:confirm]) || on?(held[:additive])
+          return judge_shape_ledger(held, tree) if on?(held[:confirm])
 
           Tools::GateMemo::Standalone.guard(tree.root, "shape_ledger") { judge_shape_ledger(held, tree) }
         end
@@ -77,7 +76,7 @@ module Hecks
         # @return [String] the ledger's verdict, or what it wrote
         # @raise [ConsoleCapture::Failure] with each bluebook whose shape moved without an edge
         def judge_shape_ledger(held, tree)
-          ShapeLedger.check(tree.path("lib/hecks/hecks"), confirm: on?(held[:confirm]), additive: on?(held[:additive]))
+          ShapeLedger.check(tree.path("lib/hecks/hecks"), confirm: on?(held[:confirm]))
         rescue ShapeLedger::Failure => e
           raise ConsoleCapture::Failure, e.message
         end

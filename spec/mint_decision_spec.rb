@@ -76,26 +76,13 @@ module MintDecisionSupport
 
   def registry = Struct.new(:translations).new([])
 
-  # The verdict for one held era against one current bluebook, with the recorded moves given.
-  def decide(held_text, current_text, recorded: [])
+  # The verdict for one held era against one current bluebook.
+  def decide(held_text, current_text)
     Decision.decide(held: [held_era(held_text)], bluebook: declared(current_text),
-                    edge_source: { translations: [], recorded: recorded }, watermark: 1, rows: [])
+                    edge_source: { translations: [] }, watermark: 1, rows: [])
   end
 
-  def recorded_to(current_text) = [["aaaaaa", label_of(current_text)]]
-
-  # Writes the implicit move the shape ledger records for `current_text` into `directory`.
-  def record_implicit(directory, current_text)
-    moves = { "Ledger" => [{ "from" => "aaaaaa", "to" => label_of(current_text) }] }
-    File.write(File.join(directory, Hecks::ShapeLedger::IMPLICIT_FILE), JSON.generate(moves))
-  end
-
-  def with_recorded(current_text)
-    Dir.mktmpdir do |dir|
-      record_implicit(dir, current_text)
-      yield dir
-    end
-  end
+  def with_directory(&) = Dir.mktmpdir(&)
 
   # The edge the minter's resolution settles on for the same change, or the refusal it raises.
   def resolve_for(held_text, current_text, directory: nil)
@@ -114,7 +101,7 @@ module MintDecisionSupport
     Object.new.extend(Manager, Manager::HeldRevision, Manager::Minter, Manager::CoverageCheck).mint!(context)
   end
 
-  def rename_verdict = decide(ledger_text, renamed_current, recorded: recorded_to(renamed_current))
+  def rename_verdict = decide(ledger_text, renamed_current)
 
   def expect_scaffold_refusal(directory)
     expect { resolve_for(ledger_text, renamed_current, directory: directory) }
@@ -129,46 +116,40 @@ end
 RSpec.describe "the mint decision the rehearsal and the mint share" do
   include MintDecisionSupport
 
-  it "would mint an additive move that a recorded implicit move names", :aggregate_failures do
-    verdict = decide(ledger_text, optional_current, recorded: recorded_to(optional_current))
+  it "would mint an additive move, with nothing recorded for it", :aggregate_failures do
+    verdict = decide(ledger_text, optional_current)
 
     expect([verdict.verdict, verdict.source, verdict.edge.to]).to eq(["would_mint", "implicit", label_of(optional_current)])
   end
 
-  it "needs an edge for an additive move no record names", :aggregate_failures do
-    verdict = decide(ledger_text, optional_current)
-
-    expect([verdict.verdict, verdict.reason, verdict.edge]).to eq(["needs_edge", :unrecorded, nil])
-  end
-
   it "needs an edge for a rename without a rule, and carries the diff", :aggregate_failures do
-    verdict = decide(ledger_text, renamed_current, recorded: recorded_to(renamed_current))
+    verdict = decide(ledger_text, renamed_current)
 
     expect([verdict.verdict, verdict.reason, verdict.diff[:aggregates].empty?]).to eq(["needs_edge", :non_qualifying, false])
   end
 
-  it "refuses a non-qualifying implicit move the same way on both paths", :aggregate_failures do
+  it "refuses a non-qualifying move the same way on both paths", :aggregate_failures do
     expect(rename_verdict.reason).to eq(:non_qualifying)
-    with_recorded(renamed_current) { |dir| expect_scaffold_refusal(dir) }
+    with_directory { |dir| expect_scaffold_refusal(dir) }
   end
 
   it "gives the rehearsal and the mint the same edge for one additive change", :aggregate_failures do
-    with_recorded(optional_current) do |dir|
-      rehearsal = decide(ledger_text, optional_current, recorded: MintDecisionSupport::Decision.recorded_moves("Ledger", dir))
+    with_directory do |dir|
+      rehearsal = decide(ledger_text, optional_current)
       expect([rehearsal.verdict, rehearsal.edge.class]).to eq(["would_mint", minted_class(dir)])
     end
   end
 
   it "writes nothing: the directory holds the same files and bytes after a decision", :aggregate_failures do
-    with_recorded(optional_current) do |dir|
+    with_directory do |dir|
       before = snapshot(dir)
-      decide(ledger_text, optional_current, recorded: MintDecisionSupport::Decision.recorded_moves("Ledger", dir))
+      decide(ledger_text, optional_current)
       expect(snapshot(dir)).to eq(before)
     end
   end
 
   it "refuses a watermark that moved between the decision and the write, by name" do
-    with_recorded(optional_current) do |dir|
+    with_directory do |dir|
       expect { mint_over(MintDecisionSupport::MovingLineage.new(held_era(ledger_text).merge(hash: "aaaaaa")), optional_current, dir) }
         .to raise_error(Hecks::Runtime::WiringError, /the ledger watermark moved from 1 to 2 since the rehearsal/)
     end

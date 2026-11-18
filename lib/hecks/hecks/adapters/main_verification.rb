@@ -44,6 +44,11 @@ module Hecks
         #   shallow check is off: given the changed paths and the commit they were read against,
         #   it answers a `GitShallowCheck::ImpactedRun::Outcome`; the real run when nil
         attr_accessor :impacted
+
+        # @return [#call, nil] stands in for the spec run of one search probe: given a clean copy's
+        #   directory and the failing spec files, it returns, or raises `ConsoleCapture::Failure`
+        #   when one is red; the launcher run ({MainIntegration::SpecProbe}) when nil
+        attr_accessor :specs
       end
 
       # @param aggregate [Object, nil] unused
@@ -164,7 +169,8 @@ module Hecks
       end
 
       def searched(repository, landed, since)
-        MainIntegration::Bisecting.search(repository, landed, since, impacted: self.class.impacted)
+        failing = MainIntegration::FailureLog.new(self.class.log_directory || LOG_DIRECTORY).specs_for(landed)
+        MainIntegration::Bisecting.search(repository, landed, since, failing: failing, runner: self.class.specs)
       end
 
       def superseded(landed, head)

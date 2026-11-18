@@ -66,8 +66,12 @@ RSpec.describe "the mint plan agreeing with the mint", :io do
     expect([plan, minted]).to match(["would_refuse", /2 translation edges/])
   end
 
-  it "agrees on a change with no edge", :aggregate_failures do
-    plan, minted = agreement(added, edge: false)
+  it "agrees on a change that only adds with no edge" do
+    expect(agreement(added, edge: false)).to eq(%w[would_mint minted])
+  end
+
+  it "agrees on a change that does not only add with no edge", :aggregate_failures do
+    plan, minted = agreement(source(type: "String"), edge: false)
     expect([plan, minted]).to match(["would_refuse", /no translation edge covers it/])
   end
 

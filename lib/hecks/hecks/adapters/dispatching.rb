@@ -27,6 +27,7 @@ require_relative "dispatching/rethinks"
 require_relative "dispatching/launching"
 require_relative "dispatching/shedding"
 require_relative "dispatching/narrowing"
+require_relative "dispatching/held_ground"
 require_relative "dispatching/package_roots"
 
 module Hecks

@@ -30,7 +30,7 @@ module Hecks
         registry = held.registry
         latest, watermark = latest_era(held)
         verdict = PostgresEra::LineageManager::MintDecision.decide_latest(
-          latest, bluebook: held.bluebook, translations: registry.translations, directory: ledger, watermark: watermark
+          latest, bluebook: held.bluebook, translations: registry.translations, watermark: watermark
         )
         { watermark: watermark, held: held_bluebook(latest), current: held.bluebook, verdict: verdict }
           .merge(edge_facts(held, ledger, latest[:label]))
@@ -155,7 +155,6 @@ module Hecks
       def additive_reason(facts)
         case facts[:verdict].reason
         when :non_qualifying then "the shape change is not additive"
-        when :unrecorded then "the move from #{facts[:from]} to #{facts[:to]} is not recorded"
         end
       end
 
