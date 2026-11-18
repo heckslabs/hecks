@@ -119,3 +119,20 @@ taken; the Work item stays open for it so that the revisit condition below can f
 **Revisit.** If `database is locked` recurs once the outbox stands near 20,000 rows, that meets this
 ADR's own revisit condition and the work items (a), (b) and (c) above become due. Locks seen while the
 outbox held 200,000 rows do not by themselves meet it.
+
+### Reading of 2026-11-18T10:37Z (read-only): the train copy still keeps 24 hours
+
+| Reading | 2026-11-18T10:37Z |
+| --- | --- |
+| `hecks_outbox` delivered rows | 61,007 (oldest settled 07:40:40Z, about 3 hours); 36,787 of them settled more than an hour before the reading |
+| `agent_run.db` bytes | 468 MB (467,574,784 bytes); the write-ahead file is 0 bytes |
+| Train copy `tickets.world` | still `outbox_hours: 24`; it has not been boarded with the change |
+| `database is locked` in `board.log` | the same one line, 44657 (the file grew from 73,968 to 74,072 lines); not a second lock |
+| `database is locked` in `integration-listener.log` | 1, line 5981 of 22,929 (`cannot open Hecks`, no timestamp); first counted here |
+
+The 3 hour span does not confirm the one hour retention: 36,787 delivered rows are older than an hour, so
+the beat that purges now is not the one hour copy. The 05:13Z span of one hour came from a checkout that
+carries the change; the train copy purges at 24 hours, and that retention is bounded by the train's last
+purge, not by this change. The file's fall from 827 MB to 468 MB while the outbox grew is not explained by
+a reading taken here (no vacuum event was read); it is left unexplained. The one day reading still waits
+for the train copy to print `outbox_hours: 1`, and the Work item stays open for it.
