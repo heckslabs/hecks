@@ -9,8 +9,7 @@ require_relative "main_integration/cargo_target"
 require_relative "main_integration/failure_log"
 require_relative "main_integration/refusal"
 require_relative "main_integration/last_verified"
-require_relative "main_integration/first_bad"
-require_relative "main_integration/merge_probe"
+require_relative "main_integration/bisecting"
 require_relative "git_shallow_check/switch"
 
 module Hecks
@@ -60,7 +59,7 @@ module Hecks
       # @raise [ConsoleCapture::Failure] naming every check that failed
       def check(**held)
         landed = plain(held[:landed]).to_s
-        repository = MainIntegration::Repository.new(plain(held[:checkout]) || Dir.pwd)
+        repository = repository_of(held)
         head = repository.main
         return superseded(landed, head) unless head == landed
 
@@ -71,7 +70,23 @@ module Hecks
         answer("verified", "#{landed[0, 10]} verified: #{passed.join(", ")}#{remember(repository, landed)}")
       end
 
+      # The facts about the first bad merge of a failed verification's range, as the domain's rule
+      # about reverting reads them. The search runs outside any copy, one probe at a time.
+      #
+      # @param held [Hash] the `Integration` record: `landed` and `checkout`
+      # @return [Hash{Symbol => Hash}] each fact as a value: `base`, `culprit`, `branch`, `subject`,
+      #   `spec`, `example`, `base_red`, `already_reverted`, `local` and `reason`
+      def bisect(**held)
+        landed = plain(held[:landed]).to_s
+        repository = repository_of(held)
+        since, _changed, off = range_of(repository, landed)
+        facts = searched(repository, landed, since) if off
+        MainIntegration::Bisecting.answer(facts, since)
+      end
+
       private
+
+      def repository_of(held) = MainIntegration::Repository.new(plain(held[:checkout]) || Dir.pwd)
 
       # Records the commit as the last verified one in the git directory. A marker that cannot be
       # written never fails a verification that passed; the report says so.
@@ -141,19 +156,15 @@ module Hecks
       end
 
       # Raised after the copy is released, so the search for the first bad merge never holds the
-      # copy's turn. It runs only while the shallow check is off, and its failure never hides
-      # the refusal.
+      # copy's turn. It runs for every failed verification while the shallow check is off, so the
+      # refusal names the first bad merge; a search that cannot run is said, never hidden.
       def refuse!(repository, landed, since, off)
-        bad = first_bad(repository, landed, since) if off
-        raise ConsoleCapture::Failure, MainIntegration::Refusal.new(landed, @failures, TAIL, first_bad: bad).to_s
+        found = searched(repository, landed, since) if off
+        raise ConsoleCapture::Failure, MainIntegration::Refusal.new(landed, @failures, TAIL, first_bad: found).to_s
       end
 
-      def first_bad(repository, landed, since)
-        merges = repository.merges(since, landed)
-        probe = MainIntegration::MergeProbe.new(repository, impacted: self.class.impacted)
-        MainIntegration::FirstBad.new(merges, probe: probe, current: -> { repository.main == landed }).call
-      rescue ConsoleCapture::Failure
-        nil
+      def searched(repository, landed, since)
+        MainIntegration::Bisecting.search(repository, landed, since, impacted: self.class.impacted)
       end
 
       def superseded(landed, head)

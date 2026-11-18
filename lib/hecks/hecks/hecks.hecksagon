@@ -123,6 +123,14 @@ Hecks.hecksagon "Hecks" do
       answers "ObserveAnswered"
       refuses "ObserveRefused"
     end
+
+    asks "Revert", to: SendTrain do
+      attribute :run, RunKey
+      attribute :checkout, Word
+      attribute :local, Switch
+      answers "RevertAnswered"
+      refuses "RevertRefused"
+    end
   end
 
   # Where a boarding's outcome is recorded: the boarded checkout's own launcher records it in that
@@ -342,10 +350,23 @@ Hecks.hecksagon "Hecks" do
     asks "Check", to: Integration do
       attribute :run, RunKey
       attribute :landed, Word
+      attribute :checkout, Word
       # Carried onto the answer, so the rule that records a refusal knows a retry from a first try.
       attribute :retried, Switch
+      # Carried onto the answer too: whether the commit is the revert of a landing that stayed local.
+      attribute :revert, Switch
       answers "VerifyAnswered"
       refuses "VerifyRefused"
+    end
+
+    # The facts about a failed verification's first bad merge, read after its copy is released; the
+    # bluebook decides what to do with them.
+    asks "Bisect", to: Integration do
+      attribute :run, RunKey
+      attribute :landed, Word
+      attribute :checkout, Word
+      answers "BisectAnswered"
+      refuses "BisectRefused"
     end
   end
 
