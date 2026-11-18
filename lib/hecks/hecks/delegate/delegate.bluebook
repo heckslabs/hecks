@@ -1969,10 +1969,8 @@ Hecks.bluebook "Hecks" do
       ask     :start, with: { run: :run }
     end
 
-    # A Work item has one live session. A run with no agent that serves work another started run with no
-    # agent already serves is declined before a session starts; a plan review or any other agent's
-    # run carries the item's slug beside its coder and is never held against it. The record is
-    # `requested` until now, so the decline starts nothing.
+    # A Work item has one live session: a run with no agent on work another started run with no
+    # agent serves is declined before a session starts. A review's run is never held against its coder.
     policy "RecordTheHeldWork" do
       on      "AgentRun.RepoLocated"
       where   { listed != false && holder != "" && holder_status == "started" && holder_agent == "" && requester_agent == "" }
