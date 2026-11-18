@@ -8,7 +8,7 @@ RSpec.describe "FindWorkWhenTheJobsLandingIsRefused" do
   let(:filter) do
     block = source[/translates "FindWorkWhenTheJobsLandingIsRefused" do.*?where\s+(\{.*?\n?\s*\})\n\s+ask/m, 1]
     eval(<<~RUBY, binding, __FILE__, __LINE__ + 1)
-      # proc { refusal.value.include?("conflict: ") || ... }
+      # proc { !refusal.value.include?("landing in flight") && ... }
       proc #{block}
     RUBY
   end
@@ -18,12 +18,12 @@ RSpec.describe "FindWorkWhenTheJobsLandingIsRefused" do
     held.instance_exec(&filter)
   end
 
-  it "plans the item again for a rebase conflict, a red gate and red impacted specs", :aggregate_failures do
-    ["conflict: rebasing b onto main", "gate red: the quick gate failed", "impacted specs red: failing spec: a_spec.rb:90"]
-      .each { |text| expect(reacts?(text)).to be(true), text }
+  it "plans the item again for a conflict, a red gate, red impacted specs and a red main", :aggregate_failures do
+    ["conflict: rebasing b onto main", "gate red: the quick gate failed", "impacted specs red: failing spec: a_spec.rb:90",
+     "main is red: flag 12"].each { |text| expect(reacts?(text)).to be(true), text }
   end
 
-  it "leaves a red main and a held lock to a person", :aggregate_failures do
-    ["main is red: flag 12", "locked: another landing holds the line"].each { |text| expect(reacts?(text)).to be(false), text }
+  it "leaves a transient refusal alone: another landing in flight, a busy queue", :aggregate_failures do
+    ["landing in flight: b", "queue busy: the line is held"].each { |text| expect(reacts?(text)).to be(false), text }
   end
 end
