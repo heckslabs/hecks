@@ -84,6 +84,7 @@ RSpec.describe Hecks::Adapters::Driving::Resident::PersistenceGuard do
     let(:server) { Hecks::Adapters::Driving::Resident::Server.new("/checkout", "/checkout/exe/hecks") }
 
     before do
+      server.instance_variable_set(:@persistence_declared, [])
       server.instance_variable_set(:@persistence_refusals, { nil => "persistence:Tickets::Work" })
       allow(server).to receive(:retire)
     end
@@ -229,11 +230,18 @@ RSpec.describe Hecks::Adapters::Driving::Resident::PersistenceGuard do
       end
     end
 
+    # Loads the domain under `staging` with only Work bound, then puts back the local hecksagon
+    # that binds Work and Epic, which the guard reads at each line.
+    def staging_loaded_with_work_only
+      local_binds(%w[Work])
+      server.instance_variable_get(:@cache).load(domain, "staging")
+      local_binds(%w[Work Epic])
+    end
+
     it "refuses an environment's line once the resident has loaded that environment too", :aggregate_failures do
       loaded(bound: %w[Work], declared: %w[Work Epic])
       expect(server.send(:unpersisted, "HECKS_ENVIRONMENT" => "staging")).to be_nil
-      local_binds(%w[Work])
-      server.instance_variable_get(:@cache).load(domain, "staging")
+      staging_loaded_with_work_only
       expect(server.send(:unpersisted, "HECKS_ENVIRONMENT" => "staging")).to eq("persistence:Ledger::Epic")
     end
   end
