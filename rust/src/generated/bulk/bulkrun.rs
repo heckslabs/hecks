@@ -591,6 +591,17 @@ impl crate::kernel::Fielded for Report {
 
 impl Report {
     pub fn check_invariants(&self) -> Result<(), crate::kernel::Refusal> {
+        if !crate::kernel::pattern::matches_whole("[^ \\t\\n\\r]", &self.value) {
+            return Err(crate::kernel::Refusal::TypeMismatch(
+                crate::kernel::refusal_wording::TypeMismatchPatternMismatchArgs {
+                    r#type: "Report",
+                    field: "value",
+                    pattern: "[^ \\t\\n\\r]",
+                    offered: format!("{:?}", self.value).as_str(),
+                }
+                .render_args(),
+            ));
+        }
         Ok(())
     }
 }

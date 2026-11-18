@@ -176,7 +176,9 @@ Hecks.bluebook "Site" do
       attribute :value, String, pattern: '^https?://[^ \t\n\r]+$'
     end
 
-    value_object "Report", String
+    value_object "Report" do
+      attribute :value, String, matches: :present
+    end
 
     lifecycle :status, default: "requested" do
       mark :failure, "faulted"
