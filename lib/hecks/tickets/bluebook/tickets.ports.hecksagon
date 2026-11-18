@@ -74,6 +74,11 @@ Hecks.hecksagon "Tickets" do
     answers_query "PriorityReport"
   end
 
+  # One work item read whole, with the claims that overlap it, read and never written.
+  Tickets::Work.port "WorkShow" do
+    answers_query "Show"
+  end
+
   # The standup: the tap's finished work items, the next of the same ordering and one reading of the
   # machine, read and never written.
   Tickets::Work.port "Standup" do
