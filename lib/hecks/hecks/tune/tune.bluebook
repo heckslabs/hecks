@@ -2,8 +2,9 @@ Hecks.bluebook "Hecks" do
   domain_module "Tune" do
     vision "Turn one of this machine's operating settings from a command, so the owner changes a cap without editing a file."
 
-    # A `Turnable` row: `setting` is `verb.key` as the world file writes it, `kind` is `integer`, `number`
-    # or `switch`, `least` and `most` bound it (empty for a switch), `context` is where the board shows it.
+    # A `Turnable` row: `setting` is `verb.key` as the world file writes it, `kind` is `integer`, `number`,
+    # `switch` or `choice`, `least` and `most` bound it (empty for a switch; for a choice `least` lists
+    # the words it takes, joined by `|`, and `means` says in one sentence each what they mean, joined by `|`), `context` is where the board shows it.
     aggregate "Dial" do
       description "One turn of a machine-local setting, turned or refused. A turn writes the value to this checkout's gitignored turned.local.world, which loads after every other local world, so the next process reads it. The Turnable rows are the whole list: a setting with no row cannot be turned, and a value outside its row's bounds is refused by name."
       created_by "Dial.turn!"
@@ -33,6 +34,7 @@ Hecks.bluebook "Hecks" do
         attribute :most,    String
         attribute :context, String
         attribute :says,    String
+        attribute :means,   String, optional: true
 
         member world: "Tickets", setting: "work_limit.cap", kind: "integer", least: "1", most: "20",
                context: "Hecks / Delegate", says: "Work items that may be started at once"
@@ -64,6 +66,11 @@ Hecks.bluebook "Hecks" do
                context: "Hecks / Test", says: "Processes one check of a landed run's verification may start at once"
         member world: "Tickets", setting: "main_verification.nice", kind: "integer", least: "0", most: "19",
                context: "Hecks / Test", says: "The nice increment a landed run's verification commands run under"
+        member world: "Tickets", setting: "main_verification.verifies", kind: "choice", least: "impacted|quick|off", most: "",
+               context: "Hecks / Test", says: "What a landed commit is verified with on this machine after the merge",
+               means: "impacted: the quick gate and the specs the landings touch, and a failure is searched for its first bad merge.|" \
+                      "quick: the quick gate only, with no impacted specs, no search and no red episode.|" \
+                      "off: nothing is run here, no last-verified marker is written, and CI is the only check."
       end
 
       lifecycle :status, default: "requested" do
