@@ -1,8 +1,8 @@
 require "spec_helper"
 
-# The reviewer's judgment of a failing spec, the release manager's recommendation, and the rule that
-# no role issues an owner decision. Booted in Memory, one registry per example.
-RSpec.describe "the Agents reviewer, recommendation and owner-only rule" do
+# The reviewer's judgment of a failing spec, and the rule that no role issues an owner decision.
+# Booted in Memory, one registry per example.
+RSpec.describe "the Agents reviewer and owner-only rule" do
   def agents_root = File.join(InMemoryDomain::ROOT, "lib/hecks/agents")
 
   def boot_agents
@@ -52,21 +52,8 @@ RSpec.describe "the Agents reviewer, recommendation and owner-only rule" do
     expect(fired).to include(a_string_ending_with("HandedToPerson"))
   end
 
-  it "records a promotion recommendation without promoting" do
-    expect do
-      Hecks::Agents::PromotionRecommendation.recommend!(change: { value: "w-green" }, reasons: { value: "green" },
-                                                        repo: { value: "." })
-    end.not_to raise_error
-  end
-
-  it "refuses a promotion recommendation without a repo, by name" do
-    expect do
-      Hecks::Agents::PromotionRecommendation.recommend!(change: { value: "w-green" }, reasons: { value: "green" })
-    end.to raise_error(StandardError, /repo/)
-  end
-
   it "refuses a role issuing an owner decision, by name" do
-    role = Hecks::Agents::Role.declare!(name: { value: "release_manager" }, kind: { value: "release_manager" })
+    role = Hecks::Agents::Role.declare!(name: { value: "reviewer" }, kind: { value: "reviewer" })
     expect { role.issue!(command: { value: "promote" }) }
       .to raise_error(Hecks::Runtime::GivenNotMet, /not an owner decision/)
   end
