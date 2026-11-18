@@ -94,6 +94,13 @@ RSpec.describe Hecks::RustBuild::Prune do
       expect(File.directory?(slot)).to be(false)
     end
 
+    it "removes a slot whose recorded owner is gone, though it was built in within the day" do
+      slot = make_slot("fresh-gone-0123abcd", owner: File.join(dir, "no-such-tree"), days: 0)
+      prune
+
+      expect(File.directory?(slot)).to be(false)
+    end
+
     it "keeps a slot something changed in within the last day" do
       slot = make_slot("busy-0123abcd", days: 0)
       prune
