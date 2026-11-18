@@ -30,10 +30,10 @@ module Hecks
         # @param run [String] the look that asks, each row's `id`
         # @return [Array<Hash>] one `Sighting` row per opening line no closing line followed,
         #   opened within its kind's window, not filed yet, whose run has not ended and whose
-        #   subject has not settled
+        #   subject has not settled; a row with `files: "no"` is left out
         def rows(lines, run)
           standing = Standing.new(lines)
-          pending(lines, standing).reject { |entry| handled?(standing, *entry) }
+          pending(lines, standing).reject { |entry| entry.first[:files] == "no" || handled?(standing, *entry) }
                                   .map { |kind, subject, at, _| sighting(kind, subject, at, run) }
                                   .select { |row| row[:waited] < row[:forgets] }
         end
@@ -53,7 +53,22 @@ module Hecks
           end
         end
 
+        # @return [Array<Hash>] one `Sighting` row per opening line no closing line followed, whose
+        #   run has not ended and whose subject has not settled, filed or not, each naming the stall
+        #   it was filed as (`filed`) and its row's `folds`; {Impediments} keeps those past their
+        #   minutes and folds them
+        def open_lines(lines, run)
+          standing = Standing.new(lines)
+          pending(lines, standing).reject { |kind, subject, at, branch| gone(standing, kind, subject, at, branch) }
+                                  .map { |kind, subject, at, _| impediment(standing, kind, subject, at, run) }
+        end
+
         private
+
+        def impediment(standing, kind, subject, at, run)
+          stall = key(kind, subject)
+          sighting(kind, subject, at, run).merge(filed: standing.filed?(stall) ? stall : "", folds: kind[:folds].to_s)
+        end
 
         def pending(lines, standing, closed: false)
           @kinds.flat_map do |kind|
@@ -115,7 +130,7 @@ module Hecks
           waited = waited(at)
           { id: run, stall: key(kind, subject), stall_kind: kind[:kind], subject: subject,
             opened_at: at.to_s, waited: waited, minutes: kind[:minutes], forgets: kind[:forgets],
-            fixer: kind[:fixer], title: title(kind, subject), detail: detail(kind, subject, at, waited) }
+            fixer: kind[:fixer], title: title(kind, subject), detail: detail(kind, subject, at, waited), filed: "", count: 1 }
         end
 
         def title(kind, subject) = "#{kind[:kind]} stalled: #{kind[:aggregate]} #{subject}"
