@@ -3,14 +3,11 @@ require "hecks/hecks/adapters/work_holder"
 
 # What a dispatch is told about another run on the same work: facts only, so the bluebook decides.
 RSpec.describe Hecks::Adapters::WorkHolder do
-  Repository = Struct.new(:all)
-  Aggregate = Struct.new(:hecks_name)
-  Book = Struct.new(:aggregates)
-
+  # Plain locals, not constants: a constant assigned here lands on Object for every later spec.
   let(:records) { [] }
   let(:registry) do
-    book = Book.new([Aggregate.new("AgentRun")])
-    repository = Repository.new(records)
+    book = Struct.new(:aggregates).new([Struct.new(:hecks_name).new("AgentRun")])
+    repository = Struct.new(:all).new(records)
     Struct.new(:book, :repository) do
       def bluebook(_domain) = book
 
