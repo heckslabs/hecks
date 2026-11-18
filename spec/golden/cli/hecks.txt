@@ -56,7 +56,7 @@ commands:
     One check that the engines, the reference docs and the argument gates agree with the language.
     check_engine_agreement!       Check that the query engines route every comparator through the one shared implementation
     measure_doc_coverage!         Check that every live word of the language has prose and a running example in the reference
-    check_shape_ledger!           Check that no bluebook's storage shape moved without a translation edge, and rewrite the ledger when confirmed
+    check_shape_ledger!           Check that no bluebook's storage shape moved in a way that is neither additive nor covered by a translation edge, and rewrite the ledger when confirmed
     check_command_names!          Check that every launcher name a workflow, hook, gate row, spec or guide invokes is one the launcher accepts
     check_workflow_pagination!    Check that no workflow counts or waits on the items of a GitHub list call that returns only its first page
     argument_gate_matrix!         Generate the argument-gate ordering matrix; rewrite it and its fixtures only when confirmed
@@ -202,6 +202,7 @@ commands:
     write_translation!            Write the one translation edge that leads the latest held era to the current shape
     reconcile!                    Write the translation edges that lead every domain's latest held era to its current shape
     mint_held!                    Mint the Hecks domain's next era when its shape moved, before the push train writes
+    release_mint!                 Mint a domain's next era once for a release, and move the shape ledger to the released shapes
   RehearsalRun:
     One rehearsal of a domain's next era against a copy of its data: what a mint would do, and what it would refuse.
     request!                      Rehearse a domain's next era against the copy of its data its world names, say whether a mint would go through, and print the whole outcome

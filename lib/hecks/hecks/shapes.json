@@ -1,3 +1,158 @@
 {
-  "Governance": "55c0fa41764b913a14a3e757e2fdf165cfce417698cf58ae5061375d3e594b0c"
+  "Governance": {
+    "hash": "55c0fa41764b913a14a3e757e2fdf165cfce417698cf58ae5061375d3e594b0c",
+    "projection": {
+      "name": "Governance",
+      "aggregates": [
+        {
+          "name": "RoleAssignment",
+          "identity": [
+            "actor_id.value",
+            "role_name.value",
+            "starts_at.value"
+          ],
+          "lifecycle_field": null,
+          "attributes": [
+            {
+              "name": "actor_id",
+              "list": false,
+              "type": {
+                "type": "IdentityId",
+                "members": [
+                  {
+                    "name": "value",
+                    "list": false,
+                    "type": "String"
+                  }
+                ]
+              }
+            },
+            {
+              "name": "ends_at",
+              "list": false,
+              "type": {
+                "type": "Timestamp",
+                "members": [
+                  {
+                    "name": "value",
+                    "list": false,
+                    "type": "String"
+                  }
+                ]
+              }
+            },
+            {
+              "name": "role_name",
+              "list": false,
+              "type": {
+                "type": "RoleName",
+                "members": [
+                  {
+                    "name": "value",
+                    "list": false,
+                    "type": "String"
+                  }
+                ]
+              }
+            },
+            {
+              "name": "scope",
+              "list": false,
+              "type": {
+                "type": "Scope",
+                "members": [
+                  {
+                    "name": "value",
+                    "list": false,
+                    "type": "String"
+                  }
+                ]
+              }
+            },
+            {
+              "name": "starts_at",
+              "list": false,
+              "type": {
+                "type": "Timestamp",
+                "members": [
+                  {
+                    "name": "value",
+                    "list": false,
+                    "type": "String"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "RoleTransition",
+          "identity": [
+            "from_role.value",
+            "to_role.value",
+            "starts_at.value"
+          ],
+          "lifecycle_field": null,
+          "attributes": [
+            {
+              "name": "ends_at",
+              "list": false,
+              "type": {
+                "type": "Timestamp",
+                "members": [
+                  {
+                    "name": "value",
+                    "list": false,
+                    "type": "String"
+                  }
+                ]
+              }
+            },
+            {
+              "name": "from_role",
+              "list": false,
+              "type": {
+                "type": "RoleName",
+                "members": [
+                  {
+                    "name": "value",
+                    "list": false,
+                    "type": "String"
+                  }
+                ]
+              }
+            },
+            {
+              "name": "starts_at",
+              "list": false,
+              "type": {
+                "type": "Timestamp",
+                "members": [
+                  {
+                    "name": "value",
+                    "list": false,
+                    "type": "String"
+                  }
+                ]
+              }
+            },
+            {
+              "name": "to_role",
+              "list": false,
+              "type": {
+                "type": "RoleName",
+                "members": [
+                  {
+                    "name": "value",
+                    "list": false,
+                    "type": "String"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
 }

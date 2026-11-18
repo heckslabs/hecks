@@ -5,17 +5,18 @@ require_relative "shape_ledger/kept"
 require_relative "shape_ledger/scope"
 require_relative "shape_ledger/status"
 require_relative "shape_ledger/edge_hygiene"
+require_relative "shape_ledger/classify"
 
 module Hecks
-  # The committed record of each bluebook's storage shape, held against the shapes the bluebooks
-  # have now, so a shape cannot change without the translation edge that carries a database across.
+  # The committed record of each bluebook's storage shape as of its last release mint, held against
+  # the shapes the bluebooks have now. It reads nothing but the loaded bluebooks, the ledger and the
+  # committed edges, so the gate needs no database.
   #
-  # A database that holds an era refuses a newer shape no edge leads to. The check that catches
-  # that at a boot only runs against a real database, which specs and gates do not use, so this one
-  # reads nothing but the loaded bluebooks and the committed edges: it needs no database.
+  # Each entry holds the shape's hash and projection. A shape that moved passes when it only adds
+  # (`Classify.additive?`) or a committed edge covers it, and commits nothing; any other move fails
+  # by name. `release.mint` (`SchemaRevision.ReleaseMint`) is the one writer of the ledger.
   #
-  # It holds only a bluebook whose committed persistence is an era adapter, or a framework member
-  # that clients persist (see `Scope`); tooling is Memory and needs no entry.
+  # It holds only era-adapter bluebooks and framework members that clients persist (see `Scope`).
   #
   # @example
   #   ShapeLedger.check("lib/hecks/hecks")  # => "1 bluebook shapes, each ..."
@@ -23,15 +24,11 @@ module Hecks
     # The ledger file, beside the bluebooks it records.
     FILE = "shapes.json".freeze
 
-    # The record beside the ledger of each implicit move: a shape change that carried no edge file
-    # and was settled with `--confirm --additive`. Each bluebook maps to its `{from, to}` moves.
-    IMPLICIT_FILE = "implicit_moves.json".freeze
-
     # The length of the label a translation edge names a shape by.
     LABEL = 6
 
     # What a problem line tells the reader to do.
-    REWRITE = "rewrite the ledger with `hecks conformance_run.check_shape_ledger! --confirm --wait`".freeze
+    REWRITE = "release.mint rewrites the ledger (`hecks schema_revision.release_mint! --confirm --wait`)".freeze
 
     # Raised with every problem found, or when the ledger cannot be rewritten.
     class Failure < StandardError; end
@@ -41,23 +38,31 @@ module Hecks
     # Compares the ledger with the shapes of the bluebooks under a directory.
     #
     # @param directory [String] the domain directory whose bluebooks the ledger records
-    # @param confirm [Boolean] rewrite the ledger when every moved shape has an edge
-    # @param additive [Boolean] with `confirm`, move the ledger for each shape that moved with no
-    #   edge, on the operator's word that the change only adds. No edge file is written: the boot
-    #   and the mint treat such a move as an implicit empty edge, and the mint refuses any change
-    #   the scaffold does not find to be additive
+    # @param confirm [Boolean] rewrite the ledger with the shapes the bluebooks have now, once every
+    #   move is one the check passes
     # @return [String] the clean verdict, or what was written
     # @raise [Failure] with each problem
-    def check(directory, confirm: false, additive: false)
+    def check(directory, confirm: false)
       registry = Scope.committed_registry(directory)
       path = File.join(directory, FILE)
       shapes, ledger, skipped = Scope.view(registry, path)
-      moves = implicit_moves(implicit_path(path))
-      edges = with_implicit(edges_of(registry), moves)
-      return rewrite(path, ledger, shapes, edges, additive) if confirm
+      judge = Classify.judge(registry, projections(path))
+      edges = edges_of(registry)
+      return rewrite(path, registry, shapes, problems(ledger, shapes, edges, judge)) if confirm
 
-      verdict(ledger, shapes, edges) + Scope.note(skipped) +
-        EdgeHygiene.report(directory, ledger: ledger, shapes: shapes, moves: moves)
+      verdict(problems(ledger, shapes, edges, judge), shapes) + Scope.note(skipped) +
+        EdgeHygiene.report(directory, ledger: ledger, shapes: shapes)
+    end
+
+    # @param directory [String] the domain directory whose bluebooks the ledger records
+    # @return [Array<String>] one line per bluebook whose shape moved in a way nothing covers, as
+    #   `check` refuses it; empty when a release mint may go ahead
+    def refusals(directory)
+      registry = Scope.committed_registry(directory)
+      path = File.join(directory, FILE)
+      shapes, ledger, = Scope.view(registry, path)
+      found = problems(ledger, shapes, edges_of(registry), Classify.judge(registry, projections(path)))
+      found.reject { |line| line.include?(REWRITE) }
     end
 
     # @param registry [Runtime::Registry] the loaded bluebooks
@@ -73,18 +78,6 @@ module Hecks
     end
 
     def pairs(edges) = edges.map { |edge| [edge.from, edge.to] }
-
-    # @return [Hash{String => Array<Array(String, String)>}] `edges` with each recorded implicit
-    #   move added as an edge: the boot and the mint read a recorded move as an empty edge
-    def with_implicit(edges, record)
-      record.each_with_object(edges.dup) do |(name, moves), merged|
-        merged[name] = merged.fetch(name, []) + pairs_of(moves)
-      end
-    end
-
-    # @param moves [Array<Hash>] recorded `{"from" => ..., "to" => ...}` moves
-    # @return [Array<Array(String, String)>] the moves as `[from, to]`
-    def pairs_of(moves) = moves.map { |move| [move["from"], move["to"]] }
 
     def label(hash) = hash.to_s[0, LABEL]
 
@@ -102,94 +95,63 @@ module Hecks
       fresh
     end
 
-    def verdict(ledger, shapes, edges)
-      problems = problems(ledger, shapes, edges)
+    def verdict(problems, shapes)
       raise Failure, problems.join("\n") unless problems.empty?
 
-      "#{shapes.size} bluebook shapes, each the one the ledger holds"
+      "#{shapes.size} bluebook shapes, each the one the ledger holds or only added to"
     end
 
-    # @return [Array<String>] one line per bluebook whose shape disagrees with the ledger
-    def problems(ledger, shapes, edges)
-      moved = shapes.filter_map { |name, now| problem(name, ledger[name], now, edges.fetch(name, [])) }
+    # @return [Array<String>] one line per bluebook whose shape moved in a way nothing covers
+    def problems(ledger, shapes, edges, judge)
+      moved = shapes.filter_map { |name, now| problem(name, ledger[name], now, edges.fetch(name, []), judge) }
       moved + (ledger.keys - shapes.keys).map { |name| "#{name}: in the ledger but no longer loaded; #{REWRITE}" }
     end
 
-    def problem(name, held, now, edges)
-      return "#{name}: not in the ledger (shape #{label(now)}); #{REWRITE}" unless held
-      return nil if label(held) == label(now)
+    def problem(name, held, now, edges, judge)
+      return nil if held.nil? || label(held) == label(now)
+      return nil if reachable?(label(held), label(now), edges) || judge.additive?(name)
 
-      change = "#{name}: the shape moved #{label(held)} -> #{label(now)}"
-      return "#{change}, and an edge covers it; #{REWRITE}" if reachable?(label(held), label(now), edges)
-
-      "#{change} with no translation edge from #{label(held)}; #{edge_advice(name, label(held), label(now))}"
+      "#{name}: the shape moved #{label(held)} -> #{label(now)} in a way that is not provably additive and " \
+        "no translation edge covers it; #{edge_advice(name)}"
     end
 
-    # What to commit: the empty edge covers a change that only adds, and a change that renames or
-    # reshapes data needs the rules the scaffold writes from the database that holds the eras.
-    def edge_advice(name, from, now)
-      "#{name} moved with no edge. A change that only adds needs no edge file: settle it in one step " \
-        "with `hecks conformance_run.check_shape_ledger! --confirm --additive --wait`, which the boot and " \
-        "the mint treat as an implicit empty edge from #{from} to #{now}. Data that is renamed or reshaped " \
-        "needs rules: `hecks schema_revision.scaffold_translation domain.value=<directory>` writes them, reading " \
-        "the eras from the database the domain's own world names."
+    # What to commit: a rule that names the change, since a change that renames or reshapes data
+    # cannot be carried by a diff, and the scaffold writes the rules from the database that holds
+    # the eras.
+    def edge_advice(name)
+      "write the rules for #{name}: `hecks schema_revision.scaffold_translation domain.value=<directory>` " \
+        "reads the eras from the database the domain's own world names. A change that only adds needs nothing."
     end
 
-    def rewrite(path, ledger, shapes, edges, additive)
-      implicit = additive ? uncovered_moves(ledger, shapes, edges) : []
-      uncovered = additive ? [] : problems(ledger, shapes, edges).reject { |line| line.include?(REWRITE) }
+    def rewrite(path, registry, shapes, problems)
+      uncovered = problems.reject { |line| line.include?(REWRITE) }
       raise Failure, uncovered.join("\n") unless uncovered.empty?
 
-      File.write(path, "#{JSON.pretty_generate(shapes.sort.to_h)}\n")
-      record_implicit(implicit_path(path), implicit)
-      "wrote #{shapes.size} bluebook shapes to #{path}#{implicit_note(implicit)}"
+      File.write(path, "#{JSON.pretty_generate(entries_of(registry, shapes))}\n")
+      "wrote #{shapes.size} bluebook shapes to #{path}"
     end
 
-    # Appends each implicit move to the record, once: a move the record already holds is skipped.
-    #
-    # @param path [String] the record file beside the ledger
-    # @param moves [Array<Array(String, String, String)>] `[bluebook, from, to]` for each move
-    # @return [void]
-    def record_implicit(path, moves)
-      return if moves.empty?
-
-      record = implicit_moves(path)
-      moves.each { |name, from, now| append_move(record, name, { "from" => from, "to" => now }) }
-      File.write(path, "#{JSON.pretty_generate(record.sort.to_h)}\n")
-    end
-
-    def append_move(record, name, move)
-      entries = record.fetch(name, [])
-      record[name] = entries.include?(move) ? entries : entries + [move]
-    end
-
-    def implicit_path(path) = File.join(File.dirname(path), IMPLICIT_FILE)
-
-    def implicit_note(moves)
-      return "" if moves.empty?
-
-      named = moves.map { |name, from, now| "#{name} #{from} -> #{now}" }
-      " and #{moves.size} implicit move(s), no edge file: #{named.join(", ")}"
-    end
-
-    # @return [Array<Array(String, String, String)>] `[bluebook, from, to]` for each shape that
-    #   moved
-    #   with no chain of edges leading to it
-    def uncovered_moves(ledger, shapes, edges)
-      shapes.filter_map do |name, now|
-        held = ledger[name]
-        next unless held && label(held) != label(now)
-        next if reachable?(label(held), label(now), edges.fetch(name, []))
-
-        [name, label(held), label(now)]
+    # @return [Hash{String => Hash}] each bluebook's `hash` and `projection`, by name
+    def entries_of(registry, shapes)
+      shapes.sort.to_h do |name, hash|
+        [name, { "hash" => hash, "projection" => Runtime::StorageShape.project(registry.bluebooks.fetch(name)) }]
       end
     end
 
-    # @return [Hash{String => String}] the ledger, empty when there is none yet
-    def read(path) = File.exist?(path) ? JSON.parse(File.read(path)) : {}
+    # @return [Hash{String => String}] each held shape's hash by name, empty when there is no ledger
+    def read(path) = entries(path).transform_values { |entry| entry.is_a?(Hash) ? entry["hash"] : entry }
 
-    # @param path [String] the implicit-move record
-    # @return [Hash{String => Array<Hash>}] each bluebook's recorded moves, empty when there is none
-    def implicit_moves(path) = File.exist?(path) ? JSON.parse(File.read(path)) : {}
+    # @return [Hash{String => Hash, nil}] each held shape's projection by name; nil for an entry
+    #   that holds only a hash, or whose projection does not hash to the entry's hash
+    def projections(path) = entries(path).transform_values { |entry| proven_projection(entry) }
+
+    def proven_projection(entry)
+      return unless entry.is_a?(Hash) && entry["projection"]
+
+      entry["projection"] if Classify.hash_of(entry["projection"]) == entry["hash"]
+    end
+
+    # @return [Hash] the ledger as committed, empty when there is none yet
+    def entries(path) = File.exist?(path) ? JSON.parse(File.read(path)) : {}
   end
 end

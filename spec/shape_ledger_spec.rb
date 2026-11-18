@@ -2,9 +2,9 @@ require "spec_helper"
 require "tmpdir"
 require "hecks/shape_ledger"
 
-# The ledger holds each bluebook's storage shape; a shape that moves needs a translation edge from
-# the
-# shape the ledger holds, and only then may the ledger move.
+# The ledger holds each bluebook's storage shape and projection as of the last release mint. A shape
+# that moves passes when it only adds or a translation edge covers it, commits nothing, and fails by
+# name otherwise.
 RSpec.describe Hecks::ShapeLedger do
   let(:directory) { Dir.mktmpdir("shape-ledger") }
 
@@ -32,7 +32,7 @@ RSpec.describe Hecks::ShapeLedger do
     File.write(File.join(directory, "shop.hecksagon"), %(Hecks.hecksagon "Shop" do\n  persisted_by "#{persisted_by}"\nend\n))
   end
 
-  def ledgered = JSON.parse(File.read(File.join(directory, "shapes.json"))).fetch("Shop")
+  def ledgered = JSON.parse(File.read(File.join(directory, "shapes.json"))).fetch("Shop").fetch("hash")
 
   def current = described_class.shapes_of(Hecks.describe(directory).registry).fetch("Shop")
 
@@ -48,61 +48,81 @@ RSpec.describe Hecks::ShapeLedger do
     write_bluebook("attribute :price, Price")
   end
 
+  def moved_additively
+    write_bluebook
+    described_class.check(directory, confirm: true)
+    write_bluebook("attribute :price, Price, optional: true")
+  end
+
+  def ledger_bytes = File.read(File.join(directory, "shapes.json"))
+
   after { FileUtils.remove_entry(directory) }
 
   it "has nothing to say about a ledger written from the shapes it describes" do
     write_bluebook
     described_class.check(directory, confirm: true)
 
-    expect(described_class.check(directory)).to eq("1 bluebook shapes, each the one the ledger holds")
+    expect(described_class.check(directory)).to start_with("1 bluebook shapes, each the one the ledger holds")
   end
 
-  it "asks for a ledger when there is none" do
+  it "holds each shape's hash and projection" do
+    write_bluebook
+    described_class.check(directory, confirm: true)
+
+    expect(JSON.parse(ledger_bytes).fetch("Shop").keys).to eq(%w[hash projection])
+  end
+
+  it "passes a bluebook the ledger does not hold yet, since nothing it holds can be lost" do
     write_bluebook
 
-    expect { described_class.check(directory) }.to raise_error(described_class::Failure, /Shop: not in the ledger/)
+    expect(described_class.check(directory)).to start_with("1 bluebook shapes")
   end
 
-  it "refuses a shape that moved with no translation edge from the ledgered one" do
+  it "refuses a shape that moved in a way that is not additive and no edge covers" do
     moved_without_an_edge
 
-    expect { described_class.check(directory) }.to raise_error(described_class::Failure, /no translation edge from/)
+    expect { described_class.check(directory) }.to raise_error(described_class::Failure, /not provably additive/)
   end
 
-  it "prints the edge to commit when a shape moved with none", :aggregate_failures do
+  it "names how to write the rules when a shape moved with none" do
     moved_without_an_edge
 
-    expect { described_class.check(directory) }
-      .to raise_error(described_class::Failure, /--confirm --additive/)
+    expect { described_class.check(directory) }.to raise_error(described_class::Failure, /scaffold_translation/)
   end
 
   it "refuses to rewrite the ledger over a shape no edge covers" do
     moved_without_an_edge
 
-    expect { described_class.check(directory, confirm: true) }.to raise_error(described_class::Failure, /no translation edge/)
+    expect { described_class.check(directory, confirm: true) }.to raise_error(described_class::Failure, /not provably additive/)
   end
 
-  it "asks for the ledger to be rewritten once an edge covers the move", :aggregate_failures do
+  it "passes a move an edge covers, and rewrites the ledger only when confirmed", :aggregate_failures do
     moved_without_an_edge
     write_edge(described_class.label(ledgered), described_class.label(current))
 
-    expect { described_class.check(directory) }.to raise_error(described_class::Failure, /an edge covers it/)
+    expect(described_class.check(directory)).to start_with("1 bluebook shapes")
     expect(described_class.check(directory, confirm: true)).to start_with("wrote 1 bluebook shapes")
   end
 
-  it "settles a move that only adds in one step: moves the ledger and writes no edge file", :aggregate_failures do
-    moved_without_an_edge
-    now = described_class.label(current)
+  it "passes a move that only adds and commits nothing: no ledger rewrite, no edge file", :aggregate_failures do
+    moved_additively
+    before = ledger_bytes
 
-    expect(described_class.check(directory, confirm: true, additive: true)).to include("1 implicit move(s)")
-    expect(File.exist?(File.join(directory, "translations", "2-#{now}.bluebook"))).to be(false)
+    expect(described_class.check(directory)).to start_with("1 bluebook shapes")
+    expect(ledger_bytes).to eq(before)
   end
 
-  it "has nothing left to say once an additive move is settled" do
-    moved_without_an_edge
-    described_class.check(directory, confirm: true, additive: true)
+  it "reads a held entry whose projection does not hash to its hash as not additive" do
+    moved_additively
+    File.write(File.join(directory, "shapes.json"), JSON.generate("Shop" => { "hash" => "a" * 64, "projection" => {} }))
 
-    expect(described_class.check(directory)).to eq("1 bluebook shapes, each the one the ledger holds")
+    expect { described_class.check(directory) }.to raise_error(described_class::Failure, /not provably additive/)
+  end
+
+  it "lists the refusals a release mint is held to" do
+    moved_without_an_edge
+
+    expect(described_class.refusals(directory).first).to include("Shop: the shape moved")
   end
 
   it "follows a chain of edges across more than one move" do

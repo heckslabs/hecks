@@ -57,14 +57,13 @@ module ImplicitEdgeSupport
     Hecks::Translation::Scaffold.diff(declared(held_text), declared(current_text))
   end
 
-  # The implicit edge the shared decision takes, with the move the shape ledger records.
+  # The implicit edge the shared decision takes.
   def implicit_for(held_text, current_text)
     decision = Hecks::Adapters::PostgresEra::LineageManager::MintDecision
     bluebook = declared(current_text)
-    recorded = [["aaaaaa", decision.label_of(bluebook)]]
     held = stored_era(held_text).merge(declaration: declared(held_text))
     verdict = decision.decide(held: [held], bluebook: bluebook, watermark: 1, rows: [],
-                              edge_source: { translations: [], recorded: recorded })
+                              edge_source: { translations: [] })
     verdict.edge if verdict.verdict == "would_mint"
   end
 
@@ -81,13 +80,6 @@ module ImplicitEdgeSupport
   # An era as the lineage answers it: the stored projection of the text it was minted from.
   def stored_era(held_text)
     { ordinal: 1, label: "aaaaaa", held_text: held_text, projection: Hecks::Runtime::StorageShape.project(declared(held_text)) }
-  end
-
-  # Writes the implicit move the shape ledger records for `current_text`, from the held label.
-  def record_implicit(directory, current_text)
-    label = Hecks::Runtime::StorageShape.mint_hash(declared(current_text))[0, Hecks::Runtime::StorageShape::LABEL_LENGTH]
-    moves = { "Ledger" => [{ "from" => "aaaaaa", "to" => label }] }
-    File.write(File.join(directory, Hecks::ShapeLedger::IMPLICIT_FILE), JSON.generate(moves))
   end
 
   # An object carrying every part of the lineage manager a minter path calls.
@@ -157,10 +149,7 @@ RSpec.describe "an implicit translation edge" do
   it "resolves a change that only adds to an implicit edge" do
     current = ledger_text(extra: ImplicitEdgeSupport::OPTIONAL_MEMO)
 
-    Dir.mktmpdir do |dir|
-      record_implicit(dir, current)
-      expect(resolve_edge(held_text, current, directory: dir)).to be_a(Hecks::Translation::ImplicitEdge)
-    end
+    expect(resolve_edge(held_text, current)).to be_a(Hecks::Translation::ImplicitEdge)
   end
 
   it "still fails the audit when the audit finds a violation" do

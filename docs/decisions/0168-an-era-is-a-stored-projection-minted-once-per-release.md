@@ -112,8 +112,21 @@ Read from the repository on 2026-11-01.
 - A QA quiesce marker makes a mint window quiet (`468b0ff49`).
 - The shape ledger holds only bluebooks whose committed persistence is an era adapter, and framework members; tooling is Memory and needs no ledger entry.
 
-**In flight.** The commit-time block (point 4) has no code on `main`; it is the next step. The
-commands above are listed in `CLAUDE.md` ("Landings, era inspection and the QA dispatcher").
+**Built on 2026-11-17.** Point 4's commit-time block and `release.mint`.
 
-**Decided, not built.** Point 4's commit-time block and `release.mint`: one mint per release, the
-single edge computed from the held era to the release's shape.
+- Each `shapes.json` entry holds the shape's hash and its projection as of the last release mint, so
+  the gate reads the held shape from the one file it already has and needs no database. A projection
+  that does not hash to its entry's hash is not read, so nothing it holds is proved additive.
+- The `shape_ledger` check (`ShapeLedger.check`, in the quick gate) classifies each moved bluebook
+  through `ShapeLedger::Classify`, the `Translation::ImplicitEdge.qualifies?` rule the mint decision
+  uses. A change that only adds passes and commits nothing; one a committed edge covers passes; any
+  other fails by name. `--additive` and `implicit_moves.json` are retired, so no per-hop pair is
+  recorded and no chain of hops can form.
+- `SchemaRevision.ReleaseMint` (`schema_revision.release_mint! domain.value=<dir> --confirm`, answered
+  by `JournalStore::ReleaseMint` on the port's `MintRelease`) refuses an uncovered change by name,
+  mints the next era once through `HeldMint`, and is the only writer of the ledger. A domain on a store
+  with no eras mints nothing and still has its ledger moved. An owner runs it; no session does.
+
+**Still open.** The held era a client's database holds is the authority at mint time; the ledger's
+projection is the committed copy the gate reads, seeded from a shape whose hash it matches. Retiring
+the hop-based edges already committed under `translations/` is not scheduled.

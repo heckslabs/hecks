@@ -250,6 +250,22 @@ Hecks.bluebook "Hecks" do
         emits HeldMintRequested
       end
 
+      # The one mint per release (ADR 0168): the domain's next era from the held era's stored projection
+      # to the current shape, and the shape ledger moved to the shapes released. It refuses by name a
+      # shape that moved in a way that is neither provably additive nor covered by a translation edge.
+      command "ReleaseMint" do
+        role "Operator"
+        goal "Mint a domain's next era once for a release, and move the shape ledger to the released shapes"
+
+        attribute :domain,  DomainPath, sets: true
+        attribute :run,     RunKey, sets: true
+        attribute :confirm, Switch, optional: true, sets: true
+
+        given("the release mint is confirmed") { confirm.value == true }
+
+        emits ReleaseMintRequested
+      end
+
       # The facts the journal store reported, held against the change that was asked for.
       command "Permit" do
         role "System"
@@ -506,6 +522,12 @@ Hecks.bluebook "Hecks" do
     policy "MintWhenHeldRequested" do
       on      "SchemaRevision.HeldMintRequested"
       ask     :mint, with: { run: :run }
+    end
+
+    # The release mint is answered by the journal store, as the held mint is.
+    policy "MintWhenReleaseRequested" do
+      on      "SchemaRevision.ReleaseMintRequested"
+      ask     :mint_release, with: { run: :run }
     end
 
     policy "PermitWhenExamined" do
