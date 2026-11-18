@@ -101,7 +101,8 @@ module Hecks
       end
 
       # Whether the jobs directory's `pins.json` (a JSON array of job ids, the eight-character
-      # prefix of a session's id) names the session.
+      # prefix of a session's id) names the session. An unreadable file reads as a pin: the fact is
+      # conservative, so a doubt keeps a session, and what a pin means stays the bluebook's.
       #
       # @param session [String] the session's id
       # @return [Boolean] true when it names the session or the pins cannot be read; false when
