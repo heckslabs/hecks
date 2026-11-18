@@ -75,4 +75,19 @@ RSpec.describe Hecks::Adapters::Driving::Resident::PersistenceGuard do
       expect(Hecks::Adapters::Driving::Resident::Atypical.env?("persistence:Tickets::Work")).to be(false)
     end
   end
+
+  describe "the launcher that meets the refusal" do
+    let(:client) { Hecks::Adapters::Driving::Resident::Client }
+
+    before do
+      allow(client).to receive_messages(ask: [nil, "persistence:Tickets::Work"], spawn_resident: "started")
+      allow(Hecks::Adapters::Driving::Resident::Stuck).to receive(:after)
+    end
+
+    it "boots the line on its own, so it runs on the ledger, and starts a new resident", :aggregate_failures do
+      outcome = client.attempt("/checkout", "/checkout/exe/hecks")
+      expect(outcome).to eq(Hecks::Adapters::Driving::Resident::Outcome.refused("persistence:Tickets::Work"))
+      expect(client).to have_received(:spawn_resident).once
+    end
+  end
 end
