@@ -1107,6 +1107,14 @@ Hecks.bluebook "Tickets" do
       returns Document
     end
 
+    # One work item read whole, never written: the adapter prints its status, claimant, area and the
+    # started work items whose claimed area meets it.
+    query "Show" do
+      description "One work item as JSON: its status, claimed_by, area and the started work items whose claimed area overlaps it. Read-only."
+      attribute :work, String
+      returns Document
+    end
+
     # The work item itself, so a policy reading an event of it can reach its epic.
     query "EpicOf" do
       description "The one work item, whose epic a policy reads."
