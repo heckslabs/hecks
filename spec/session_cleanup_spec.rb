@@ -26,7 +26,8 @@ RSpec.describe "SessionCleanup through the Cleaning port" do
   def ledger
     { "aaaa-clean" => %w[finished done], "bbbb-dirty" => %w[finished done], "cccc-ahead" => %w[finished done],
       "dddd-gone" => %w[finished done], "eeee-none" => %w[finished done], "ffff-work" => %w[started],
-      "gggg-wait" => %w[started], "iiii-halt" => %w[finished stopped], "zzzz-lost" => %w[finished done] }
+      "gggg-wait" => %w[started], "iiii-halt" => %w[finished stopped], "zzzz-lost" => %w[finished done],
+      "jjjj-asked" => %w[finished done], "kkkk-dirty" => %w[finished done] }
   end
 
   # What the fleet's listing must say: the safe sessions and each kept one's reason.
@@ -120,5 +121,14 @@ RSpec.describe "SessionCleanup through the Cleaning port" do
     list({ id: "zzzz", sessionId: "zzzz-lost", name: "lost", kind: "background", state: "done" })
 
     expect(launch("session_cleanup.removable")).to include("zzzz  run r-zzzz lost  kept: a person spoke in it")
+  end
+
+  it "removes a blocked session of a finished run when its worktree is clean, and keeps a dirty one", :aggregate_failures do
+    asked = session("jjjj-asked", "blocked", worktree("asked")).merge(detail: "[confirm] retry?")
+    list(asked, session("kkkk-dirty", "blocked", worktree("asked-dirty", :dirty)))
+    out = launch("session_cleanup.remove_safe!", "run.value=s3", "--confirm", "--wait")
+
+    expect(removed).to eq(["jjjj"])
+    expect(out).to include("blocked, unanswered: [confirm] retry?", "kept  kkkk")
   end
 end
