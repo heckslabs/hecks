@@ -3,6 +3,7 @@
 require "hecks/runtime/event_feed"
 require "hecks/adapters/driven/system_clock"
 require_relative "stall_watching/sightings"
+require_relative "stall_watching/impediments"
 require_relative "stall_watching/slot_evidence"
 require_relative "machine_sampling/process_classes"
 
@@ -48,6 +49,16 @@ module Hecks
         return [] unless path
 
         Sightings.new(kinds, SystemClock.now).abandoned(lines(path), plain(run).to_s)
+      end
+
+      # @param run [Hash, String] the look that asks, as its key or the key's value
+      # @return [Array<Hash>] one `Sighting` row per impediment, oldest first, with `filed` and
+      #   `count`; none when the world declares no tap
+      def impediments(run:)
+        path = tap_path
+        return [] unless path
+
+        Impediments.new(Sightings.new(kinds, SystemClock.now).open_lines(lines(path), plain(run).to_s)).rows
       end
 
       private
