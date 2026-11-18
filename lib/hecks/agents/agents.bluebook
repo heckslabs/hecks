@@ -403,6 +403,7 @@ Hecks.bluebook "Agents" do
     attribute :requested_at, Instant, optional: true
     attribute :limit, TimeLimit, optional: true
     attribute :ended_at, Instant, optional: true
+    attribute :reminded_at, Instant, optional: true
     attribute :asks, AskCount, optional: true
     attribute :role, RoleRef, optional: true
     attribute :repo, RepoPath, optional: true
@@ -559,8 +560,31 @@ Hecks.bluebook "Agents" do
       given("the review's time limit has passed") { requested_at.value + limit.value <= now.value }
 
       sets :ended_at, to: :now
+      sets :reminded_at, to: :now
 
       emits "PlanReviewReasked"
+    end
+
+    # A coder's wait can begin after its review ended (`RemindTheCoderWhoWaitsAfterTheEnd`): the
+    # refusal was told to a coder not yet waiting, so it is told once more. A review asked again is
+    # marked reminded when it ends, for its second review is open.
+    command "Remind" do
+      role "System"
+      goal "Record that the coder began waiting on a review that had already ended with no verdict"
+
+      reference_to PlanReview
+      attribute :work, WorkKey, sets: true
+      attribute :now,  Instant
+      needs :now
+
+      given("the review has no verdict yet") { verdict.nil? || verdict.to_s.empty? }
+      given("the review ended already") { !ended_at.nil? && ended_at.value > 0 }
+      given("the review ended just now") { ended_at.value + 60 >= now.value }
+      given("the coder was not reminded already") { reminded_at.nil? || reminded_at.value == 0 }
+
+      sets :reminded_at, to: :now
+
+      emits "ReviewReminded"
     end
 
     # No verdict came within the review's time limit: the architect's run ended without one, or
@@ -663,11 +687,38 @@ Hecks.bluebook "Agents" do
       trigger PlanReview::Record, with: { run: :run, work: :work, verdict: :verdict, findings: :findings }
     end
 
+    # A coder began waiting on a Work item: each review of it that ended just before is reminded.
+    # One that ended earlier, was asked again, or holds a verdict refuses by its given.
+    policy "RemindTheCoderWhoWaitsAfterTheEnd" do
+      on       "AgentRun.ReviewAwaited"
+      root
+      for_each "PlanReview.OfWork"
+      trigger  PlanReview::Remind, with: { plan_review: :plan_review, work: :work }
+    end
+
+    # The verdict of the review is sent to the coder again, with what to do about it.
+    policy "TellTheRemindedCoder" do
+      on      "PlanReview.ReviewReminded"
+      trigger Verdict::Remind,
+              with: { verdict: :run, answer: "Your plan review ended with no verdict: no architect ran. If you have " \
+                      "not already, create your worktree first (exe/hecks LinkedTree.add! branch.value=<work item>), " \
+                      "then file the plan again with PlanReview.request! and repo.value=<that worktree>; or build " \
+                      "your plan as written and say in your report that it was not reviewed. Read PlanReview.reviews " \
+                      "for the reason." }
+    end
+
     # The review a run keys, so a policy reacting to the run's event reads the Work item off its row.
     query "OfRun" do
       description "The review keyed by one run, with its Work item and the reason it was never started."
       attribute :run, RunKey
       where(run: :run)
+    end
+
+    # Every review of a Work item, read by the coder's run, which is keyed by the Work item.
+    query "OfWork" do
+      description "The reviews of one Work item, each with its run and the moment it ended."
+      attribute :run, WorkKey
+      where(work: :run)
     end
 
     # A review asked for before reviews carried a time is not listed: it has no limit to pass.
@@ -741,7 +792,8 @@ Hecks.bluebook "Agents" do
       transition "Unresume" => "unresumed", from: "judged"
       transition "Redeliver" => "judged", from: "unresumed"
       transition "Abandon" => "undeliverable", from: "unresumed"
-      mark :terminal, "delivered", "undeliverable"
+      transition "Remind" => "unresumed", from: %w[judged delivered]
+      mark :terminal, "undeliverable"
     end
 
     command "Judge" do
@@ -806,6 +858,18 @@ Hecks.bluebook "Agents" do
       given("the verdict's tries are spent") { !tries.nil? && tries.value >= 3 }
 
       emits "VerdictAbandoned"
+    end
+
+    # A verdict judged or delivered to a coder that was not yet waiting is kept to be sent again with the
+    # words the reminder gives; the sweep's redelivery then sends it (`RedeliverTheUnresumedVerdict`).
+    command "Remind", from: %w[judged delivered] do
+      role "System"
+      goal "Keep a delivered verdict to be sent again, as a reminder to the coder"
+
+      reference_to Verdict
+      attribute :answer, AnswerText, sets: true
+
+      emits "VerdictReminded"
     end
 
     command "Deliver", from: "judged" do
