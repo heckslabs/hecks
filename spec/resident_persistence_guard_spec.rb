@@ -199,12 +199,89 @@ RSpec.describe Hecks::Adapters::Driving::Resident::PersistenceGuard do
       expect(server.send(:unpersisted, {})).to eq("persistence:unreadable:WiringError")
     end
 
+    # A world that keeps the ledger in the named database, as another project's local world does.
+    def ledger_world(dir, database)
+      text = %(Hecks.world "Ledger" do\n  persisted_by("SqlitePersistence") do\n    database "#{database}"\n  end\nend\n)
+      File.write(File.join(dir, "ledger.local.world"), text)
+    end
+
+    # Starts the resident's load from a directory whose local hecksagon keeps Work in Memory.
+    def loaded_from_elsewhere(elsewhere)
+      loaded(bound: %w[Work Epic])
+      ledger_world(domain, File.join(@root, "ledger.db"))
+      File.write(File.join(elsewhere, "ledger.local.hecksagon"), %(Hecks.hecksagon "Ledger" do\n  Ledger::Work.persisted_by("Memory")\nend\n))
+      quiet_loads
+      Dir.chdir(elsewhere) { server.send(:load_everything) }
+    end
+
+    # Leaves out what a load does besides loading: requiring Hecks, watching and noting the code.
+    def quiet_loads
+      allow(server).to receive(:require_hecks)
+      server.instance_variable_set(:@fingerprint, instance_double(Hecks::Adapters::Driving::Resident::Fingerprint, watch: nil))
+      allow(Hecks::Adapters::Driving::UsageCache).to receive(:code_fingerprint)
+    end
+
+    it "loads its domain in its checkout, not in the directory it was started from" do
+      Dir.mktmpdir("hrpg-elsewhere") do |elsewhere|
+        loaded_from_elsewhere(elsewhere)
+        rows = guard.rows_of(server.instance_variable_get(:@cache).fetch(domain, nil).registry).to_h { |row| row.first(2) }
+        expect(rows["store Ledger::Work"]).to eq("SqliteAt #{File.join(@root, "ledger.db")}")
+      end
+    end
+
     it "refuses an environment's line once the resident has loaded that environment too", :aggregate_failures do
       loaded(bound: %w[Work], declared: %w[Work Epic])
       expect(server.send(:unpersisted, "HECKS_ENVIRONMENT" => "staging")).to be_nil
       local_binds(%w[Work])
       server.instance_variable_get(:@cache).load(domain, "staging")
       expect(server.send(:unpersisted, "HECKS_ENVIRONMENT" => "staging")).to eq("persistence:Ledger::Epic")
+    end
+  end
+
+  # A launcher run from a directory that keeps local files of its own (another project's
+  # `*.local.world` naming its own Tickets database) reads them; the resident loaded its domain in
+  # its checkout without them, so it hands that line back to be booted where it stands.
+  describe "a line from a directory that keeps local files" do
+    def with_dirs
+      Dir.mktmpdir("hrpg-cwd") do |base|
+        dirs = %w[root other plain].to_h { |name| [name, File.join(base, name)] }
+        dirs["domain"] = File.join(dirs["root"], Hecks::Adapters::Driving::Resident::Loading::DOMAIN)
+        dirs.each_value { |dir| FileUtils.mkdir_p(dir) }
+        %w[other domain].each { |name| File.write(File.join(dirs[name], "x.local.world"), "") }
+        yield dirs
+      end
+    end
+
+    it "refuses a directory that keeps one, and serves a plain one, the root and the domain", :aggregate_failures do
+      with_dirs do |dirs|
+        expect(guard.foreign_overlay(dirs["other"], dirs["root"])).to eq("overlay:cwd")
+        expect(%w[plain root domain].map { |name| guard.foreign_overlay(dirs[name], dirs["root"]) }).to eq([nil] * 3)
+      end
+    end
+
+    it "refuses, for a worktree's resident, the main checkout's domain directory, which a cold launcher reads" do
+      with_dirs do |dirs|
+        expect(guard.foreign_overlay(dirs["domain"], dirs["plain"])).to eq("overlay:cwd")
+      end
+    end
+
+    it "serves a line that names no directory, or one that is gone", :aggregate_failures do
+      expect(guard.foreign_overlay("", "/checkout")).to be_nil
+      expect(guard.foreign_overlay("/no/such/hrpg", "/checkout")).to be_nil
+    end
+
+    def server_at(root)
+      Hecks::Adapters::Driving::Resident::Server.new(root, "/s").tap do |server|
+        allow(server).to receive_messages(same_script?: true, differing: nil, retire: nil)
+      end
+    end
+
+    it "is refused by the resident without retiring it", :aggregate_failures do
+      with_dirs do |dirs|
+        server = server_at(dirs["root"])
+        expect(server.send(:unservable, { cwd: dirs["other"], env: {} })).to eq("overlay:cwd")
+        expect(server).not_to have_received(:retire)
+      end
     end
   end
 
