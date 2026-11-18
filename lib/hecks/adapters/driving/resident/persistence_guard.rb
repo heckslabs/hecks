@@ -23,6 +23,8 @@ module Hecks
           SQLITE = "SqliteAt ".freeze
           # The front of a store row's name.
           ROW = "store ".freeze
+          # The refusal of a line whose working directory keeps local files ({foreign_overlay}).
+          OVERLAY_REFUSAL = "overlay:cwd".freeze
           # The last part of a class's name, after the modules around it.
           LAST_NAME = /\w+\z/
 
@@ -67,6 +69,38 @@ module Hecks
           # @return [Boolean] whether the line is meant to run on Memory
           def exempt?(env)
             !env["HECKS_WRITES_LOCAL"].to_s.empty? || %w[memory test].include?(env["HECKS_ENVIRONMENT"].to_s.strip)
+          end
+
+          # The refusal of a line whose working directory keeps local files of its own. A cold
+          # launcher reads them ({Adapters::FolderOverlay#load_overlay}); the resident loaded its
+          # domain in its checkout without them, so it never serves such a line, by design, and the
+          # launcher boots it where it stands. The domain's own directory and the checkout's root
+          # are what the resident loaded, so a line there is served.
+          #
+          # @param cwd [String] the line's working directory
+          # @param root [String] the resident's checkout
+          # @return [String, nil] `overlay:cwd`, or nil when the line may be served, names no
+          #   directory, or its directory cannot be read
+          def foreign_overlay(cwd, root)
+            return if cwd.empty? || [root, File.join(root, Loading::DOMAIN)].any? { |own| same_directory?(cwd, own) }
+
+            OVERLAY_REFUSAL unless local_files(cwd).empty?
+          rescue SystemCallError
+            nil
+          end
+
+          # @param directory [String] a directory
+          # @return [Array<String>] the local files a load would read there
+          def local_files(directory)
+            require "hecks/adapters/driven/folder_overlay"
+            Adapters::FolderOverlay::LOCAL_FILES.flat_map { |pattern| Dir.glob(File.join(directory, pattern)) }
+          end
+
+          # @return [Boolean] whether two paths name one directory
+          def same_directory?(one, other)
+            File.realpath(one) == File.realpath(other)
+          rescue SystemCallError
+            false
           end
 
           # @return [String] the refusal reason for an aggregate, short enough for one reply line

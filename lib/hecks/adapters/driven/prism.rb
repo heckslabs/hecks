@@ -7,10 +7,17 @@ module Hecks
     # Extracts a `given`/`ensures`/invariant block's own source text via
     # `prism`, canonicalised into readable, comparable text (era diffing, docs).
     module Prism
-      # Not frozen — a real cache, keyed by file path and mutated by
-      # #tree_for below (`TREES[file] ||= ...`) and #forget/#forget_all.
-      # False positive for Style/MutableConstant.
+      # Not frozen — a real cache, keyed by file path and mutated by #tree_for below and
+      # #forget/#forget_all. A tree parsed from disk holds while its file's stamp in `STAMPS`
+      # does. False positive for Style/MutableConstant.
       TREES = {}
+
+      # The stamp (modification time, size, inode) each file had when `TREES` parsed it from disk.
+      # A file whose stamp moved, as a checkout moving under a long-lived process moves it, is
+      # parsed again. A tree set with no stamp (`Codemod::Shadow`'s staged text) is kept until
+      # forgotten. **Limit:** a block defined from the file's earlier text is looked up by its
+      # line in the new tree, so a caller asks for a block's source while that file still holds it.
+      STAMPS = {}
 
       # The first block node starting on each line, per parsed tree (by identity), built by one
       # walk of the tree the first time a block in its file is looked up. Dropped with its tree
@@ -77,15 +84,35 @@ module Hecks
         index
       end
 
-      # Parses a file with `prism`, caching the result for the life of the process.
+      # Parses a file with `prism`, caching the result while the file's stamp holds.
       #
       # @param file [String] the file path to parse and cache under
       # @return [Prism::ProgramNode] the parsed syntax tree's root node
       def tree_for(file)
+        LOCK.synchronize do
+          forget(file) if STAMPS.key?(file) && STAMPS[file] != stamp(file)
+          TREES[file] || parse(file)
+        end
+      end
+
+      # Parses a file from disk and caches its tree with the stamp taken before the read, so a
+      # write that lands during the read leaves a stamp the next lookup sees as moved.
+      #
+      # @param file [String] the file path to parse and cache under
+      # @return [Prism::ProgramNode] the parsed syntax tree's root node
+      def parse(file)
+        STAMPS[file] = stamp(file)
         # ::Prism.parse_file reads the file at the C-extension level, bypassing
         # Ruby's File/IO layer — invisible to tools that virtualize the filesystem
         # there (e.g. tebako's memfs). Read through File.read first so they intercept it.
-        LOCK.synchronize { TREES[file] ||= ::Prism.parse(File.read(file)).value }
+        TREES[file] = ::Prism.parse(File.read(file)).value
+      end
+
+      # @param file [String] the file path to stat
+      # @return [Array(Time, Integer, Integer)] the file's modification time, size and inode
+      def stamp(file)
+        stat = File.stat(file)
+        [stat.mtime, stat.size, stat.ino]
       end
 
       # Drops one file from the process-wide parse cache, for a caller (`Hecks::Codemod`)
@@ -96,6 +123,7 @@ module Hecks
       #   nothing was cached for `file`
       def forget(file)
         LOCK.synchronize do
+          STAMPS.delete(file)
           tree = TREES.delete(file)
           BLOCKS_BY_LINE.delete(tree)
           tree
@@ -108,6 +136,7 @@ module Hecks
       def forget_all
         LOCK.synchronize do
           BLOCKS_BY_LINE.clear
+          STAMPS.clear
           TREES.clear
         end
       end

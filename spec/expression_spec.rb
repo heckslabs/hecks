@@ -639,7 +639,7 @@ RSpec.describe "the expression sublanguage" do
     end
   end
 
-  # `Prism::TREES` caches parsed ASTs per path for the process; `forget`/`forget_all`
+  # `Prism::TREES` caches parsed ASTs per path while the file's stamp holds; `forget`/`forget_all`
   # invalidate it for code that reloads an edited file.
   describe "cache invalidation" do
     around do |example|
@@ -652,12 +652,11 @@ RSpec.describe "the expression sublanguage" do
 
     let(:prism) { Hecks::Adapters::Prism }
 
-    it "forget re-parses a specific file's tree on the next read, not before", :aggregate_failures do
+    it "re-parses a file once a rewrite moved its stamp, and after forget", :aggregate_failures do
       first = prism.tree_for(@tmp_file)
-      File.write(@tmp_file, "2")
-      expect(prism.tree_for(@tmp_file)).to equal(first), "still cached — a rewrite alone must not invalidate it"
-      prism.forget(@tmp_file)
-      expect(prism.tree_for(@tmp_file)).not_to equal(first)
+      File.write(@tmp_file, "22")
+      expect(prism.tree_for(@tmp_file)).not_to equal(first), "a rewrite that moved the stamp parses the file again"
+      expect { prism.forget(@tmp_file) }.to(change { prism.tree_for(@tmp_file).object_id })
     end
 
     it "forget_all clears every cached tree, not just one path" do
