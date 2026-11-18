@@ -168,16 +168,19 @@ Hecks.bluebook "Hecks" do
                      "already pushed the commit (BranchPushed), report that and stop. Otherwise fix the cause the " \
                      "refusal names and board again (SendTrain.board! --confirm); never use --no-verify or HECKS_OWNER_PUSH."
         # A queued boarding whose pull request has not merged in 45 minutes: its checks are slow or stuck.
-        # A merge, a failed-checks verdict (`train-checks-failed` takes over) or a pull request closed
-        # unmerged (`BoardingClosed`: settled, nothing left to watch) closes it.
+        # Failed checks close it (`train-checks-failed` takes over); a merge or a pull request closed
+        # unmerged settles the boarding, so a filed stall is abandoned and its Work item dropped.
         member kind: "train-unmerged", aggregate: "Hecks::SendTrain", state: "queued", opens: "BoardingQueued",
                closes: "BranchPushed,TrainChecksFailed,PushFaulted,BoardingClosed", minutes: 45, forgets: 1440, fixer: "orchestrator",
+               settled_aggregate: "Hecks::SendTrain", settled_by: "BranchPushed,BoardingClosed",
                move: "Read the train pull request with SendTrain.watch! to=<boarding> (gh pr view <pr> --json mergeStateStatus,statusCheckRollup): " \
                      "BLOCKED on pending checks is only slow, so leave it; CLEAN without a merge means auto-merge " \
                      "is off, so turn it on (gh pr merge <pr> --auto). The launchd beat records a merge GitHub made: start none, and read when it last ran from the mtime of ~/.claude/hecks-dev/train-beat.log."
         # A queued boarding's required checks ended red; its pull request stays open and a merge closes it.
+        # A merge or a close settles the boarding, so a filed stall is abandoned and its Work item dropped.
         member kind: "train-checks-failed", aggregate: "Hecks::SendTrain", state: "red", opens: "TrainChecksFailed",
                closes: "BranchPushed,BoardingClosed", minutes: 0, forgets: 1440, fixer: "orchestrator",
+               settled_aggregate: "Hecks::SendTrain", settled_by: "BranchPushed,BoardingClosed",
                move: "The report names the failed jobs: read them (gh run view --log-failed). A flaky job is rerun " \
                      "once (gh run rerun --failed); a real failure is Work.plan! as a red-* work item with the " \
                      "failed jobs as its detail."
