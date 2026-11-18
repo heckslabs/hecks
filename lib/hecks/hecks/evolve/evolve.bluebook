@@ -605,7 +605,9 @@ Hecks.bluebook "Hecks" do
 
       value_object "Switch", Boolean
 
-      value_object "Report", String
+      value_object "Report" do
+        attribute :value, String, matches: :present
+      end
 
       # The name of a tool under lib/hecks/tools, such as move_disables.
       value_object "ScriptName" do

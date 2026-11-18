@@ -37,7 +37,9 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, matches: :present
       end
 
-      value_object "Report", String
+      value_object "Report" do
+        attribute :value, String, matches: :present
+      end
 
       value_object "KeptAggregate" do
         attribute :domain,    String
