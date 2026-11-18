@@ -1,6 +1,8 @@
 require "spec_helper"
 require "tmpdir"
 require "hecks/adapters/driving/resident/server"
+require "hecks/adapters/driving/resident/atypical"
+require "hecks/adapters/driving/resident/client"
 
 # A resident that resolved an aggregate to Memory which the checkout's local hecksagon binds to
 # SQLite answers success and writes nothing the ledger holds; it refuses by name instead.
