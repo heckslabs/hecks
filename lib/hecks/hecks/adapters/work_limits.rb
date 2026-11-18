@@ -3,6 +3,7 @@
 require_relative "started_work"
 require_relative "console_capture"
 require_relative "work_slots"
+require_relative "moving_cap"
 require_relative "dispatching/work_items"
 
 module Hecks
@@ -29,11 +30,18 @@ module Hecks
         @registry = registry
       end
 
-      # The cap on started work items a registry's Tickets world declares.
+      # The cap on started work items: the moving cap's place while the owner has it move
+      # ({MovingCap}), else the one the registry's Tickets world declares.
+      #
+      # @param registry [Runtime::Registry, nil]
+      # @return [Integer] the moving cap, else the declared cap, else {DEFAULT_CAP}
+      def self.cap(registry) = MovingCap.current(registry) || fixed_cap(registry)
+
+      # The fixed cap on started work items a registry's Tickets world declares.
       #
       # @param registry [Runtime::Registry, nil]
       # @return [Integer] the declared cap, else {DEFAULT_CAP}
-      def self.cap(registry)
+      def self.fixed_cap(registry)
         declared = registry&.world("Tickets")&.for_verb(VERB)
         declared && !declared[:cap].nil? ? Integer(declared[:cap]) : DEFAULT_CAP
       end

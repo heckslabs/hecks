@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "hecks/hecks/adapters/dial_turning"
+require "hecks/hecks/adapters/moving_cap"
 
 module Hecks
   module Adapters
@@ -16,8 +17,12 @@ module Hecks
         def settings_page = File.read(PATH)
 
         # @return [Hash] `dials:` each setting a turn may set, with its `value` now, whether a turn
-        #   set it (`turned`), its `kind`, its bounds, the `context` it governs and what it `says`
-        def settings = { dials: DialTurning::Standing.rows(@wiring.registry) }
+        #   set it (`turned`), its `kind`, its bounds, the `context` it governs and what it `says`;
+        #   `cap:` where the moving work cap stands ({MovingCap.standing}), nil while it is fixed
+        def settings
+          registry = @wiring.registry
+          { dials: DialTurning::Standing.rows(registry), cap: MovingCap.standing(registry) }
+        end
       end
     end
 
