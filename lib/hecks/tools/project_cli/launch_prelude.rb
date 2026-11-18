@@ -25,22 +25,19 @@ module Hecks
         # The shebang of every other launcher, which has no probe and so needs the gems at once.
         PLAIN_SHEBANG = "#!/usr/bin/env ruby".freeze
 
-        # The lines that cache the Ruby a launcher compiles and the load path it searches, under the
-        # hecks cache directory, when the bootsnap gem is at hand. A launcher without the gem, or
-        # whose cache directory does not last between processes (the temp-directory fallback would
-        # give every boot a cold cache nobody deletes), boots as it would without them. A resident
+        # The lines that cache the Ruby a launcher compiles and the load path it searches, in the
+        # project's own directory of the hecks cache ({Hecks::BootCache}), when the bootsnap gem
+        # is at hand. A launcher without the gem, or whose cache directory does not last between
+        # processes (the temp-directory fallback would give every boot a cold cache nobody
+        # deletes), boots as it would without them. A resident
         # sets the cache up once for the children it forks, so they skip it.
         COMPILED_RUBY_CACHE = <<~RUBY.freeze
 
           # The Ruby this boot compiles and the load path it searches are kept between boots.
           begin
             unless defined?(Bootsnap)
-              require "bootsnap"
-              require "hecks/cache_dir"
-              if Hecks::CacheDir.stable?
-                Bootsnap.setup(cache_dir: Hecks::CacheDir.path("bootsnap"), development_mode: true,
-                               load_path_cache: true, compile_cache_iseq: true, compile_cache_yaml: false)
-              end
+              require "hecks/boot_cache"
+              Hecks::BootCache.setup(File.expand_path("..", __dir__))
             end
           rescue ScriptError, StandardError
             nil
