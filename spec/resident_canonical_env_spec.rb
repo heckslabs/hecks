@@ -86,8 +86,21 @@ RSpec.describe "a resident's environment" do
 
     it "is replaced by a plain launcher only on the third refusal on its environment", :aggregate_failures do
       resident::Baseline.write(root, ["HECKS_WRITES_LOCAL"])
-      streaks = Array.new(3) { resident::Atypical.streak?(root, "env:HECKS_WRITES_LOCAL") }
+      streaks = Array.new(3) { resident::Atypical.streak?(root, "env:HECKS_WRITES_LOCAL", {}) }
       expect(streaks).to eq([false, false, true])
+    end
+
+    it "is kept by a launcher that holds the switch too, however often it refuses", :aggregate_failures do
+      resident::Baseline.write(root, ["HECKS_WRITES_LOCAL"])
+      held = { "HECKS_WRITES_LOCAL" => "1" }
+      streaks = Array.new(4) { resident::Atypical.streak?(root, "env:HECKS_ENGINE", held) }
+      expect(streaks).to all(be(false))
+      expect(resident::Baseline.atypical?(root, {})).to be(true)
+    end
+
+    it "is replaced by a launcher that holds the switch when it was born under more than that" do
+      resident::Baseline.write(root, %w[BUNDLE_GEMFILE HECKS_WRITES_LOCAL])
+      expect(resident::Baseline.atypical?(root, { "HECKS_WRITES_LOCAL" => "1" })).to be(true)
     end
 
     it "is not plain when it holds more, and the file names the variables", :aggregate_failures do
