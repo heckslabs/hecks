@@ -41,6 +41,16 @@ RSpec.describe Hecks::Adapters::Codebase::SlotQueue do
     expect(run_waiters([{ name: :live }])).to eq([:live])
   end
 
+  # A place file, as a waiter holds one it has just locked.
+  def place = File.new(File.join(dir, "slot-0.lock"), File::CREAT | File::RDWR)
+
+  it "lets a place it took go when a ticket ahead joined after it looked at the line" do
+    ordinary = described_class.new(dir).join
+    train = described_class.new(dir, priority: described_class::TRAIN).join
+    taken = place
+    expect([ordinary.keep(taken), taken.closed?, train.keep(place)]).to match([nil, true, an_instance_of(File)])
+  end
+
   it "leaves no ticket behind once every waiter has run", :aggregate_failures do
     run_waiters([{ name: :a }, { name: :b }])
     expect(Dir.children(File.join(dir, "waiting"))).to eq([])
