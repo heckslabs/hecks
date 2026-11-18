@@ -81,7 +81,10 @@ Hecks.world "Tickets" do
   # moves, one launcher boot every `seconds` rolls the queue, backing off along `steps`, for `minutes`.
   idles "Idler", seconds: 300, minutes: 120
   rust_build "RustBuild", jobs: 4, nice: 15
-  main_verification "MainVerification", workers: 2, nice: 10
+  # `verifies`, read once the shallow check is off: `impacted` (quick gate, impacted specs, a search for
+  # the first bad merge), `quick` (quick gate only, no search, no marker) or `off` (nothing runs here).
+  # `quick` and `off` start no red episode (`MainIntegration::LocalMode`).
+  main_verification "MainVerification", workers: 2, nice: 10, verifies: "impacted"
   # `heavy_jobs` caps how many heavy jobs (a gate run, a run of several spec files) run at once on
   # the machine, in every checkout: the next one waits, saying so and in its report, until one ends
   # (`Codebase::HeavySlots`; the Rust build lock above already holds compiles to one at a time).

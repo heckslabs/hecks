@@ -1,4 +1,5 @@
 require "hecks/adapters/driving/resident/crowd"
+require "hecks/adapters/driving/resident/persistence_guard"
 
 module Hecks
   module Adapters
@@ -36,14 +37,31 @@ module Hecks
             # First registered, so last run: after every handler a line registers, a child ends.
             at_exit { Worker.leave if defined?(::Hecks::Adapters::Driving::Resident::CHILD) }
             @start_env = ENV.to_h
-            @fingerprint = Fingerprint.new(@root)
-            @fingerprint.mark!
+            @fingerprint = Fingerprint.new(@root).tap(&:mark!)
             EnvTrace.tracing { load_everything }
             note_environment
             @settings = settings
             Crowd.remember(@settings[:max_residents])
             Paths.remember("ready_wait_ms", @settings[:ready_wait_ms])
             @crowded = standing >= @settings[:max_residents]
+            @persistence_gap = persistence_gap
+          end
+
+          # @return [String, nil] the first aggregate the checkout's local hecksagon binds to SQLite
+          #   that the loaded Hecks domain resolved to Memory ({PersistenceGuard}); a resident
+          #   with one refuses the lines it would serve from it
+          def persistence_gap
+            domain = File.join(@root, DOMAIN)
+            declared = PersistenceGuard.declared(domain)
+            registry = declared.empty? ? nil : @cache.fetch(domain, ENVIRONMENTS.first)&.registry
+            registry && PersistenceGuard.gap(declared, rows_of(registry))
+          rescue StandardError
+            nil
+          end
+
+          def rows_of(registry)
+            require "hecks/hecks/adapters/settings_reading"
+            Hecks::Adapters::SettingsReading.new.registry_stores(registry)
           end
 
           def load_everything
