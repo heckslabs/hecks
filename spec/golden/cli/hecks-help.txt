@@ -83,7 +83,7 @@ commands:
     One brief handed to a background Claude session: started and tracked, or refused with the reason.
     dispatch!                     Hand one brief to a background Claude session working in a directory
     check!                        Read the state a started session's job is in, and record it when it changed
-    tidy!                         Remove the finished session of one run, unless it is still working, waiting on a person, or taken over
+    tidy!                         Remove the finished session of one run, unless it is still working, a coder waiting on a person, or taken over
     release!                      Review a kept run at the next reap, without waiting for its retry time
     answer!                       Answer a session that has not ended: deliver to a working one, resume an idle one
     retire!                       Close a started run whose session is gone, so the ledger stops listing it as started
@@ -413,7 +413,7 @@ queries (nothing here changes anything):
   StallWatch:
     One look at the event tap for opening events whose closing event has not come.
     unclosed                The opening lines of every stall kind whose closing line has not come, within the kind's window, with how long each has waited.
-    abandoned               The filed stalls whose run has ended or whose subject has settled and which no look has closed yet, each with the ending or settling line as its reason.
+    abandoned               The filed stalls, opened within their kind's window, whose run has ended or whose subject has settled since they opened and which no look has closed yet, each with the ending or settling line as its reason; a filed stall whose line has closed is one too.
   TestSuiteRun:
     One piece of work on the test suite: a listing, a baseline, a run or a fixture rewrite.
     shard_specs             The spec files one group of a runtime-balanced split runs.

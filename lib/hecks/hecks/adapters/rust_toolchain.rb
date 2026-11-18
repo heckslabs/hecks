@@ -6,6 +6,7 @@ require_relative "rust_workspace"
 require_relative "process_pool"
 require "hecks/rust_build"
 require "hecks/rust_build/prune"
+require "hecks/boot_cache/sweep"
 
 module Hecks
   module Adapters
@@ -134,15 +135,18 @@ module Hecks
         child(:coverage, ["--check-allowlist"])
       end
 
-      # Frees disk Rust builds hold: the `target/` of worktrees that are gone or merged, then the
-      # shared cache's stale artifacts. Runs in this process; it needs no toolchain.
+      # Frees disk Rust builds and boots hold: the `target/` of worktrees that are gone or merged,
+      # the shared cache's stale artifacts, and the compiled-Ruby caches of checkouts that are gone
+      # or grew past the cap ({BootCache::Sweep}). Runs in this process; it needs no toolchain.
       #
       # @param held [Hash] the `Build` record: `days` (14 when absent) and `dry_run`
-      # @return [Hash{Symbol => Hash}] `output:` the megabytes freed, or that would be
+      # @return [Hash{Symbol => Hash}] `output:` the megabytes freed, or that would be, by cache
       def prune(**held)
         dry = plain(held[:dry_run]) == true
-        freed = RustBuild::Prune.run(days: plain(held[:days]) || RustBuild::Prune::DAYS, dry_run: dry)
-        { output: { value: "#{dry ? "would free" : "freed"} #{freed / 1_048_576} MB" } }
+        rust = RustBuild::Prune.run(days: plain(held[:days]) || RustBuild::Prune::DAYS, dry_run: dry)
+        boot = BootCache::Sweep.run(dry_run: dry)
+        said = "#{dry ? "would free" : "freed"} #{rust / 1_048_576} MB of Rust builds"
+        { output: { value: "#{said} and #{boot / 1_048_576} MB of compiled Ruby" } }
       end
 
       # Builds the `hecks-parse` binary the parser specs run, in `rust/parser`.

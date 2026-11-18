@@ -220,4 +220,57 @@ RSpec.describe "the Tickets Epic" do
     expect(retitle(" ")).to include("an epic has a title")
     expect(title_of).to eq("Epic e1")
   end
+
+  def draft(*numbers) = numbers.each { |number| cli("adr.draft!", "adr.value=#{number}", "title.value=Decision #{number}") }
+
+  def decide(decision, key = "e1") = cli("epic.decide!", "to=#{key}", "decision=#{decision}")
+
+  def decision_of(key = "e1") = plain(stored("Epic").find { |row| plain(row.epic) == key }.decision)
+
+  def decided_epic
+    draft("0163", "0188")
+    epic
+    decide("0163")
+  end
+
+  it "names the decision an already opened epic carries out" do
+    decided_epic
+
+    expect(decision_of).to eq("0163")
+  end
+
+  it "replaces an epic's decision" do
+    decided_epic
+    decide("0188")
+
+    expect(decision_of).to eq("0188")
+  end
+
+  it "keeps the epic's title and outcome when it names a decision", :aggregate_failures do
+    decided_epic
+
+    expect(title_of).to eq("Epic e1")
+    expect(plain(stored("Epic").first.outcome)).to eq("It is carried out")
+  end
+
+  it "names a decision on a complete epic", :aggregate_failures do
+    draft("0163")
+    complete_epic
+    decide("0163")
+    expect([status_of, decision_of]).to eq(%w[complete 0163])
+  end
+
+  it "refuses a blank decision and keeps the one the epic has", :aggregate_failures do
+    decided_epic
+
+    expect(decide(" ")).to include("no Adr with adr")
+    expect(decision_of).to eq("0163")
+  end
+
+  it "refuses a decision no Adr has and keeps the one the epic has", :aggregate_failures do
+    decided_epic
+
+    expect(decide("9999")).to include("no Adr with adr \"9999\"")
+    expect(decision_of).to eq("0163")
+  end
 end

@@ -11,9 +11,10 @@ module Hecks
   module Adapters
     # The `BranchCi` port's adapter for `EarlyCi.Request` and `Retry`: pushes a coder branch's head
     # as `ci/<branch>`, opens a draft pull request from it against main or reuses the open one,
-    # waits a bounded time for the CI run of that head and answers the jobs that failed. It reads
-    # GitHub over REST only. It never pushes main or a train, never forces and never skips the
-    # hook; the pass or fail is the bluebook's, drawn from the jobs this answers.
+    # waits a bounded time for the CI run of that head and answers the jobs that failed, and which
+    # of them failed on the run of the branch's base too. It reads GitHub over REST only. It never
+    # pushes main or a train, never forces and never skips the hook; the pass or fail is the
+    # bluebook's, drawn from the jobs this answers.
     class GithubBranchCi
       # How long one request waits for the run, in minutes, under a coder's ten-minute call.
       MINUTES = 8
@@ -39,7 +40,8 @@ module Hecks
 
       # @param held [Hash] the `EarlyCi` record: `branch`, `sha` and `checkout`
       # @return [Hash{Symbol => Hash}] `sha`, `number`, `ci_run`, `failing` (the failed jobs'
-      #   names, empty when none failed) and `report`
+      #   names, empty when none failed), `inherited` (those of them that failed on the branch's
+      #   base too) and `report`
       # @raise [ConsoleCapture::Failure] when the push is refused, GitHub cannot be read, or the run
       #   has not ended within the wait
       def branch_ci(**held)

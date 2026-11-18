@@ -25,12 +25,14 @@ module Hecks
 
         # @param kind [Hash] a `StallKind` row
         # @param subject [String] the opening line's aggregate id, which is also the run's id
+        # @param since [String] when the subject opened, so an earlier attempt's ending under the
+        #   same run key does not count
         # @return [String, nil] the first event that ended the subject's run; none when the kind
         #   names no ending or the run goes on
-        def ending(kind, subject)
+        def ending(kind, subject, since)
           events = kind[:ends].to_s.split(",").map(&:strip)
           found = @lines.find do |line|
-            line["aggregate"] == kind[:ends_aggregate] && line["id"].to_s == subject && events.include?(line["event"])
+            ends?(kind, line, subject, events) && line["at"].to_s >= since.to_s
           end
           found && found["event"]
         end
@@ -50,6 +52,10 @@ module Hecks
         end
 
         private
+
+        def ends?(kind, line, subject, events)
+          line["aggregate"] == kind[:ends_aggregate] && line["id"].to_s == subject && events.include?(line["event"])
+        end
 
         def settling?(kind, line, events, since)
           line["aggregate"] == kind[:settled_aggregate] && events.include?(line["event"]) && line["at"].to_s >= since.to_s
