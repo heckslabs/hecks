@@ -4,7 +4,7 @@ require "spec_helper"
 require "hecks/hecks/adapters/claude_cleaning"
 
 # The rule that makes a listed session a candidate for removal: a finished-done run's session is
-# one when the listing says `done`, or says `working` while its status is `idle` (the turn is over).
+# one when the listing says `done`, `blocked`, or `working` while its status is `idle` (the turn is over).
 RSpec.describe Hecks::Adapters::ClaudeCleaning::CandidateRule do
   subject(:rule) { described_class.new(runs: runs, transcript: transcript) }
 
@@ -25,8 +25,14 @@ RSpec.describe Hecks::Adapters::ClaudeCleaning::CandidateRule do
     expect(rule.why_not(entry("working", "busy"), "r1")).to eq("listed working, not done")
   end
 
-  it "keeps a done run's session listed blocked even when idle" do
-    expect(rule.why_not(entry("blocked", "idle"), "r1")).to eq("listed blocked, not done")
+  it "makes a done run's session listed blocked a candidate, its question being unanswerable" do
+    expect(rule.why_not(entry("blocked", "idle"), "r1")).to be_nil
+  end
+
+  it "keeps a blocked session whose run is still started" do
+    rule = described_class.new(runs: { "r2" => { status: "started", condition: "" } }, transcript: transcript)
+
+    expect(rule.why_not(entry("blocked"), "r2")).to eq("its run r2 is started, not finished done")
   end
 
   it "keeps a session no run holds, and names the rule" do

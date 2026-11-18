@@ -6,8 +6,10 @@ module Hecks
       # The rule that makes a listed session a candidate for removal: the AgentRun ledger holds a
       # dispatched run for it, that run is `finished` with condition `done`, the listing says `done`
       # and no person spoke in it. Anything else is kept, whatever `claude agents` lists, so the
-      # owner's sessions, a blocked one, one a person stopped and the pruner's own (its run is still
-      # `started` while it works) are never candidates.
+      # owner's sessions, one a person stopped and the pruner's own (its run is still `started`
+      # while it works) are never candidates. A session listed `blocked` is a candidate only once
+      # its run is finished: `AgentRun.Answer` moves a run only from `started`, so the question
+      # it waits on cannot be answered.
       class CandidateRule
         # The run status and condition that make a run's session a candidate.
         ENDED = { status: "finished", condition: "done" }.freeze
@@ -32,15 +34,16 @@ module Hecks
           spoken(entry)
         end
 
-        # A session has ended when the listing says `done`, or says `working` while its turn is over
-        # (status `idle`): a coder that finished its Work and waits on nobody. A `busy` or `blocked`
-        # session has not ended.
+        # A session has ended when the listing says `done`, says `working` while its turn is over
+        # (status `idle`), or says `blocked`: {#why_not} asks this only of a session whose run is
+        # finished, so a blocked one waits on a question no `Answer` can reach. A `busy` session has
+        # not ended.
         #
         # @param entry [Hash] one session of the `claude agents` listing
         # @return [Boolean]
         def ended?(entry)
           state = entry["state"].to_s
-          state == "done" || (state == "working" && entry["status"].to_s == "idle")
+          %w[done blocked].include?(state) || (state == "working" && entry["status"].to_s == "idle")
         end
 
         # @param entry [Hash] one session of the `claude agents` listing
