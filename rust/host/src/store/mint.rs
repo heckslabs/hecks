@@ -254,6 +254,11 @@ async fn ensure_partition<C: GenericClient>(
     Ok(())
 }
 
+/// The six `hecks_tr_*` jsonb functions, word for word the Ruby adapter's
+/// `Lineage::TransformSql`. A function that calls a sibling keeps the search
+/// path it was installed under (`SET search_path FROM CURRENT`): Postgres 17
+/// and later build a materialized view under `pg_catalog, pg_temp`, and
+/// `pg_restore` refreshes one under an empty path.
 async fn install_transforms<C: GenericClient>(client: &C) -> anyhow::Result<()> {
     const FUNCTIONS: &[&str] = &[
         r"CREATE OR REPLACE FUNCTION hecks_tr_extract(state jsonb, path text[], OUT remaining jsonb, OUT value jsonb, OUT present boolean)
@@ -305,7 +310,7 @@ LANGUAGE sql IMMUTABLE AS $fn$
     ELSE state END
 $fn$",
         r"CREATE OR REPLACE FUNCTION hecks_tr_move(state jsonb, from_path text[], to_path text[], rule_label text) RETURNS jsonb
-LANGUAGE plpgsql IMMUTABLE AS $fn$
+LANGUAGE plpgsql IMMUTABLE SET search_path FROM CURRENT AS $fn$
 DECLARE extracted record;
 BEGIN
   SELECT * INTO extracted FROM hecks_tr_extract(state, from_path);
@@ -313,7 +318,7 @@ BEGIN
   RETURN hecks_tr_insert(extracted.remaining, to_path, extracted.value, rule_label);
 END $fn$",
         r"CREATE OR REPLACE FUNCTION hecks_tr_convert(state jsonb, from_path text[], to_path text[], pairs jsonb, from_label text, rule_label text) RETURNS jsonb
-LANGUAGE plpgsql IMMUTABLE AS $fn$
+LANGUAGE plpgsql IMMUTABLE SET search_path FROM CURRENT AS $fn$
 DECLARE extracted record; pair jsonb;
 BEGIN
   SELECT * INTO extracted FROM hecks_tr_extract(state, from_path);
@@ -327,7 +332,7 @@ BEGIN
     from_label, extracted.value, extracted.value;
 END $fn$",
         r"CREATE OR REPLACE FUNCTION hecks_tr_drop(state jsonb, path text[]) RETURNS jsonb
-LANGUAGE plpgsql IMMUTABLE AS $fn$
+LANGUAGE plpgsql IMMUTABLE SET search_path FROM CURRENT AS $fn$
 DECLARE extracted record;
 BEGIN
   SELECT * INTO extracted FROM hecks_tr_extract(state, path);
@@ -2362,6 +2367,47 @@ mod tests {
             inlined_5 > 10 * fenced_5,
             "unfenced 5 edges: {inlined_5} plan lines; fenced: {fenced_5}"
         );
+    }
+
+    /// Regression: Postgres 17 and later build a materialized view under a
+    /// restricted search path (`pg_catalog, pg_temp`), where `hecks_tr_drop`,
+    /// `hecks_tr_move` and `hecks_tr_convert` could not find the sibling they
+    /// call unqualified, so a mint died on `function hecks_tr_extract(jsonb,
+    /// text[]) does not exist`. The path is restricted by hand here, so the
+    /// test holds on every server version.
+    #[tokio::test]
+    async fn a_transform_finds_its_sibling_under_the_search_path_a_materialized_view_is_built_with()
+    {
+        let client = own_scratch_db("hecks_host_transform_search_path").await;
+        install_transforms(&client)
+            .await
+            .expect("install_transforms");
+        client
+            .batch_execute("SET search_path = pg_catalog, pg_temp")
+            .await
+            .expect("restrict the search path");
+
+        for (call, expected) in [
+            (
+                "public.hecks_tr_drop('{\"keep\": 1, \"gone\": 2}'::jsonb, ARRAY['gone'])",
+                serde_json::json!({"keep": 1}),
+            ),
+            (
+                "public.hecks_tr_move('{\"old\": 1}'::jsonb, ARRAY['old'], ARRAY['new'], 'move old')",
+                serde_json::json!({"new": 1}),
+            ),
+            (
+                "public.hecks_tr_convert('{\"old\": \"x\"}'::jsonb, ARRAY['old'], ARRAY['new'], \
+                 '[[\"x\", \"y\"]]'::jsonb, 'old', 'convert old')",
+                serde_json::json!({"new": "y"}),
+            ),
+        ] {
+            let row = client
+                .query_one(&format!("SELECT {call}"), &[])
+                .await
+                .unwrap_or_else(|error| panic!("{call}: {error:?}"));
+            assert_eq!(row.get::<_, Value>(0), expected, "{call}");
+        }
     }
 
     /// Materializing each edge's CTE must not change one row of any chain: five
