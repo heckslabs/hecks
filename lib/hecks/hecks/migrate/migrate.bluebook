@@ -832,9 +832,7 @@ Hecks.bluebook "Hecks" do
         end
       end
 
-      value_object "Report" do
-        attribute :value, String, matches: :present
-      end
+      value_object "Report", String
 
       # Only the first rows are held, so a domain with a million stale rows is a report, not a
       # flood; the total says how many there were.

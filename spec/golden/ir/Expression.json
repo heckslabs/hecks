@@ -2567,7 +2567,7 @@
               "list": false,
               "name": "value",
               "optional": false,
-              "pattern": "[^ \\t\\n\\r]",
+              "pattern": null,
               "relationship": null,
               "type": "String"
             }
