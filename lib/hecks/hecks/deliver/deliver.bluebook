@@ -674,12 +674,15 @@ Hecks.bluebook "Hecks" do
         emits BranchPushed
       end
 
-      # Asks the train whether a queued boarding's pull request has merged. Nothing changes while it is open.
+      # Asks the train whether a queued boarding's pull request has merged. Nothing changes while it is
+      # open. A boarding that pushed, closed or never queued has no pull request left to watch.
       command "Watch" do
         role "Operator"
         goal "Look at each queued boarding's pull request, and record any that merged or ended with failed checks"
 
         reference_to SendTrain
+
+        given("only a queued or red boarding has a pull request to watch") { status == "queued" || status == "red" }
 
         emits ObserveRequested
       end
