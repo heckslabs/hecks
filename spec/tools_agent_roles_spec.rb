@@ -122,11 +122,11 @@ RSpec.describe Hecks::Tools::AgentRoles do
       expect(rows.map { |real| real[:role] }).to match_array(names)
     end
 
-    it "tell the coder to run the quick gate, then the landing's impacted set, before it commits", :aggregate_failures do
+    it "tell the coder to run the quick gate, then the landing's impacted set, once its work is committed", :aggregate_failures do
       steps = rows.find { |real| real[:role] == "coder" }[:steps]
 
       expect(steps.index("gate_run.gate! stage=quick")).to be < steps.index("run_impacted_specs! cap.value=200")
-      expect(steps.index("run_impacted_specs! cap.value=200")).to be < steps.index("Commit on your branch")
+      expect(steps.index("Commit on your branch")).to be < steps.index("gate_run.gate! stage=quick")
     end
 
     it "hand a coder's red gate or red spec back as blocked, never as submitted" do
