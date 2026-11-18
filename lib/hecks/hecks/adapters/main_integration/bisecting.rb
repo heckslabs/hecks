@@ -68,8 +68,8 @@ module Hecks
         # @param landed [String] the commit that failed verification
         # @param since [String] the last verified commit, or `origin/main`, the range starts after
         # @return [Hash{Symbol => Object}] `base`, `culprit`, `subject`, `branch`, `work`,
-        #   `finding`, `spec`, `example`, `base_red`, `already_reverted`, `local`, `searched` and `reason`; the merge's
-        #   keys are "" when none failed
+        #   `finding`, `spec`, `example`, `base_red`, `already_reverted`, `local`, `searched` and
+        #   `reason`; the merge's keys are "" when none failed
         def facts(landed, since) = @search.call(landed, since)
       end
     end

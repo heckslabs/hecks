@@ -8,9 +8,9 @@ require_relative "red_flag_survey"
 
 module Hecks
   module Adapters
-    # The `Flagging` port's adapter for `RedFlag`: raises, notes, checks in to and lowers the red
-    # flag of a repository, reads its status, and surveys the latest CI run of main to raise or
-    # lower it. The flag is `RedFlagMarker`'s file; nothing else is touched.
+    # The `Flagging` port's adapter for `RedFlag`: raises, notes, checks in to, admits a revert to
+    # and lowers the red flag of a repository, reads its status, and surveys the latest CI run of
+    # main to raise or lower it. The flag is `RedFlagMarker`'s file; nothing else is touched.
     class RedFlagging
       # The CI run id in a report such as `abc: CI run 12 failure; failed jobs: a, b`.
       RUN_ID = /run (\d+)/
@@ -49,6 +49,19 @@ module Hecks
       def lower(**held)
         flag = marker(held).clear!
         flag ? answer("cleared", flag, {}) : { outcome: { value: "idle" }, output: { value: "no red flag was standing" } }
+      end
+
+      # Records a revert as the commit the push train may board while the flag stands.
+      #
+      # @param held [Hash] the `RedFlag` record: `commit` (the revert), `checkout`
+      # @return [Hash{Symbol => Hash}] `outcome:` (`admitted`), the flag and the revert as `commit`
+      # @raise [ConsoleCapture::Failure] when no flag stands
+      def pass(**held)
+        tip = plain(held[:commit]).to_s
+        flag = marker(held).fixed!(tip: tip, branch: "revert")
+        raise ConsoleCapture::Failure, "no red flag stands: the revert #{tip[0, 10]} is not admitted" unless flag
+
+        answer("admitted", flag, {}).merge(commit: { value: tip })
       end
 
       # Reads the latest completed CI run of main and raises or lowers the flag to match it.

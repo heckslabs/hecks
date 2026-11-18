@@ -46,9 +46,10 @@ Hecks.bluebook "Hecks" do
         transition "Note"    => "noted",      from: "requested"
         transition "Welcome" => "checked_in", from: "requested"
         transition "Lift"    => "cleared",    from: "requested"
+        transition "Accept"  => "admitted",   from: "requested"
         transition "Settle"  => "idle",       from: "requested"
         transition "Decline" => "refused",    from: "requested"
-        mark :terminal, "raised", "noted", "checked_in", "cleared", "idle", "refused"
+        mark :terminal, "raised", "noted", "checked_in", "cleared", "admitted", "idle", "refused"
       end
 
       command "Raise" do
@@ -95,6 +96,19 @@ Hecks.bluebook "Hecks" do
         attribute :checkout, Word, optional: true, sets: true
 
         emits SyncRequested
+      end
+
+      # A revert the red episode made of a merge that already reached `origin/main` is the fix:
+      # the flag records it as the one commit the push train may board.
+      command "Admit" do
+        role "System"
+        goal "Let the push train board a revert of a pushed merge while the red flag stands"
+
+        attribute :run,      RunKey, sets: true
+        attribute :commit,   Word, sets: true
+        attribute :checkout, Word, optional: true, sets: true
+
+        emits RevertAdmissionRequested
       end
 
       command "Record" do
@@ -147,6 +161,17 @@ Hecks.bluebook "Hecks" do
         emits RedFlagCleared
       end
 
+      command "Accept" do
+        role "System"
+        goal "Record the revert the flag lets the push train board"
+
+        reference_to RedFlag
+        attribute :flag,   Word, sets: true
+        attribute :commit, Word, sets: true
+
+        emits RedFlagRevertAdmitted
+      end
+
       command "Settle" do
         role "System"
         goal "Record that there was nothing to change: no flag stood to lower, or CI is still running"
@@ -194,6 +219,12 @@ Hecks.bluebook "Hecks" do
       ask     :survey, with: { run: :run }
     end
 
+    # With no flag standing the adapter refuses by name, so a revert that cannot board is said.
+    policy "PassWhenAdmitted" do
+      on      "RedFlag.RevertAdmissionRequested"
+      ask     :pass, with: { run: :run }
+    end
+
     policy "RecordTheRaisedFlag" do
       on      "RedFlag.FlagAnswered"
       where   { outcome.value == "raised" }
@@ -216,6 +247,12 @@ Hecks.bluebook "Hecks" do
       on      "RedFlag.FlagAnswered"
       where   { outcome.value == "cleared" }
       trigger RedFlag::Lift, with: { flag: :flag, commit: :commit }
+    end
+
+    policy "RecordTheAdmittedRevert" do
+      on      "RedFlag.FlagAnswered"
+      where   { outcome.value == "admitted" }
+      trigger RedFlag::Accept, with: { flag: :flag, commit: :commit }
     end
 
     policy "RecordTheUnchangedFlag" do

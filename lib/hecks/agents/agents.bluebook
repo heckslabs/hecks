@@ -1298,6 +1298,20 @@ Hecks.bluebook "Agents" do
                                          brief: "A cause of a red main matches no known lesson. Record it as a lesson and see that one coder holds the cause, under your standing rule all-hands-on-red." }
     end
 
+    # A red episode that parks, or whose revert is refused, leaves main red with the flag up and no
+    # revert made: the owner hears it through the orchestrator. The episode's run keys the wake.
+    policy "WakeWhenAnEpisodeParks" do
+      on      "RedEpisode.EpisodeParked"
+      trigger Escalation::Raise, with: { escalation: :run, event: "EpisodeParked", rule: "all-hands-on-red", role: "orchestrator", repo: ".",
+                                         brief: "A red main's episode parked: its range already holds a revert, so nothing was reverted and the red flag stands. Report it to the owner with the culprit and spec on the event, under your standing rule all-hands-on-red." }
+    end
+
+    policy "WakeWhenARevertIsRefused" do
+      on      "SendTrain.RevertRefused"
+      trigger Escalation::Raise, with: { escalation: :run, event: "RevertRefused", rule: "all-hands-on-red", role: "orchestrator", repo: ".",
+                                         brief: "A red main's revert was refused (a dirty or off-main checkout, or a failed git revert), so the red flag stands with no revert. Report the refusal on the event to the owner, under your standing rule all-hands-on-red." }
+    end
+
     policy "WakeWhenABatchHoldsARelease" do
       on      "Incident.IncidentOpened"
       where   { releases.value > 0 }

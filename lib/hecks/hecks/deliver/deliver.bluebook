@@ -1713,8 +1713,8 @@ Hecks.bluebook "Hecks" do
     end
 
     # Landings stop first: the flag is the one owner of "main is red", and `Landing` and the push
-    # train refuse by name while it stands. A revert that never left local main is verified at once
-    # and lowers the flag; one that reached `origin/main` leaves the flag to the owner and CI.
+    # train refuse by name while it stands. A local revert is verified at once and lowers the flag;
+    # one of a pushed merge is admitted for boarding and leaves the flag to CI.
     policy "RaiseTheFlagWhenReverting" do
       on      "RedEpisode.EpisodeReverting"
       root
@@ -1729,12 +1729,20 @@ Hecks.bluebook "Hecks" do
       trigger RedFlag::Raise, with: { run: :run, commit: :culprit, detail: :subject, checkout: :checkout }
     end
 
-    # A culprit already on `origin/main` is reverted locally and the flag stays up: the train boards
-    # only a red-* fix tip, so that revert ships through the Work item the episode reopens (Tickets).
+    # A culprit already on `origin/main` is reverted locally and the flag stays up until CI is green
+    # on the revert: `AdmitTheRevertOfAPushedMerge` lets the train board that revert and no other
+    # commit. The Work item the episode reopens (Tickets) redoes the reverted work; it is not the fix.
     policy "RevertTheCulprit" do
       on      "RedEpisode.EpisodeReverting"
       root
       trigger SendTrain::Unland, with: { run: :run, culprit: :culprit, checkout: :checkout, local: :local }
+    end
+
+    policy "AdmitTheRevertOfAPushedMerge" do
+      on      "SendTrain.LandingReverted"
+      root
+      where   { local.value == false }
+      trigger RedFlag::Admit, with: { run: :reverted, commit: :reverted, checkout: :checkout }
     end
 
     policy "VerifyTheRevert" do
