@@ -126,4 +126,16 @@ RSpec.describe Hecks::Adapters::RedFlagging do
   it "shows no flag row while main is not flagged" do
     expect(Hecks::Adapters::PipelineBoard::Strip.flag(nil, Time.now)).to eq([])
   end
+
+  it "admits a revert as the commit the push train may board", :aggregate_failures do
+    flagging.hoist(commit: "aaaaaaaaaaaa")
+    answer = flagging.pass(commit: "cccccccccccc")
+    expect(outcome(answer)).to eq("admitted")
+    expect(answer.dig(:commit, :value)).to eq("cccccccccccc")
+  end
+
+  it "refuses by name to admit a revert when no flag stands" do
+    expect { flagging.pass(commit: "cccccccccccc") }
+      .to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /no red flag stands: the revert cccccccccc is not admitted/)
+  end
 end
