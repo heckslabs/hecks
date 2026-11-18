@@ -110,12 +110,18 @@ module Hecks
       #   a stopped-listed coder's `dirty:` and `unmerged:`; and `listed:` the status and `live:`
       #   the state `claude agents` lists the session with.
       #   A job that reads ended (`done`, `stopped`) is read against a fresh listing, so `live:`
-      #   is not stale news; the state itself stays the job's own
+      #   is not stale news; the state itself stays the job's own. And the {#blocked_facts}
       # @raise [ConsoleCapture::Failure] when the job's state cannot be read
       def read_job(**held)
         job = @jobs.state(plain(held[:session]))
-        { state: job["state"].to_s, detail: job["detail"].to_s }
+        { state: job["state"].to_s, detail: job["detail"].to_s, **blocked_facts(job, held) }
           .merge(architect_facts(job, held), reviewer_facts(job, held), run_facts(held), session_facts(job, held))
+      end
+
+      # @return [Hash{Symbol => Object}] {ClaudeJobs#waiting}'s `blocked_minutes:` and
+      #   `pin_listed:`, and {SessionReaping#abandon_after}
+      def blocked_facts(job, held)
+        @jobs.waiting(job, plain(held[:session]), @clock.call).merge(abandon_after: @reaping.abandon_after)
       end
 
       # @return [Hash{Symbol => Object}] what {CoderJobFacts} reads of the job and its checkout, and
