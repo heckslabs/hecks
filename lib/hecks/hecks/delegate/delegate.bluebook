@@ -473,6 +473,14 @@ Hecks.bluebook "Hecks" do
         order_by :run
       end
 
+      # The one run under a key while it is started, so a reaction that ends it fires nothing for a
+      # run that has already ended or was never dispatched.
+      query "StartedOfRun" do
+        description "The run under one key, when it is started."
+        attribute :run, RunKey
+        where(status: "started", run: :run)
+      end
+
       query "Declined" do
         description "Every run that no session was started for, with the reason."
         where(status: "refused")
@@ -2406,6 +2414,16 @@ Hecks.bluebook "Hecks" do
       on      "Verdict.VerdictJudged"
       trigger AgentRun::Unreached, with: { run: :work, verdict: :run,
                                            refusal: "the coder run already finished: restart the item with the review in its brief" }
+    end
+
+    # A judged verdict is the judge's last word, so its run ends with it. A judge whose session went
+    # idle without its job reading done stays started otherwise: every sweep reads it again, judges
+    # the verdict again and sends it again to the coder. A judge run that has already ended, or a
+    # verdict judged with no run of its own, finds no started run and nothing fires.
+    policy "FinishTheJudgeWhoseVerdictIsJudged" do
+      on       "Verdict.VerdictJudged"
+      for_each "AgentRun.StartedOfRun"
+      trigger  AgentRun::Finish, with: { agent_run: :agent_run, condition: "done", detail: :answer, checkout: "" }
     end
 
     # The Work item's coder run is marked as waiting on a review the moment it is requested, before any
