@@ -898,7 +898,7 @@ Hecks.bluebook "Agents" do
   # word and proves nothing. A session hears its messages with `Operation.follow` on this aggregate;
   # one that is not following is still answered with `AgentRun.answer!`.
   aggregate "Message" do
-    description "One message from a session to a run: sent as an event the run's session hears, then read. It grants no approval and changes no permission; a reply is a message whose in_reply_to names the one it answers."
+    description "One message from a session to a run: addressed, sent as an event the run's session hears once the recipient is a run with a live session, then read; refused by name when it is not. It grants no approval and changes no permission; a reply is a message whose in_reply_to names the one it answers."
 
     identified_by :message
 
@@ -909,6 +909,7 @@ Hecks.bluebook "Agents" do
     attribute :body, BodyText
     attribute :in_reply_to, MessageRef, optional: true
     attribute :reader, ReaderName, optional: true
+    attribute :refusal, RefusalText, optional: true
 
     value_object "MessageKey" do
       attribute :value, String, matches: :present
@@ -940,9 +941,19 @@ Hecks.bluebook "Agents" do
       attribute :value, String, matches: :present
     end
 
-    lifecycle :status, default: "sent" do
+    # Why the message was not sent: the recipient is no run with a live session, said by name.
+    value_object "RefusalText" do
+      attribute :value, String, matches: :present
+    end
+
+    lifecycle :status, default: "addressed" do
+      mark :failure, "refused"
+      transition "Deliver" => "sent", from: "addressed"
+      transition "Decline" => "refused", from: "addressed"
       transition "Read" => "read", from: "sent"
-      mark :terminal, "read"
+      # A sent message waits for its session to read it, which may never come; nothing times it.
+      mark :rests, "sent"
+      mark :terminal, "read", "refused"
     end
 
     command "Send" do
@@ -958,7 +969,26 @@ Hecks.bluebook "Agents" do
 
       given("the message says something") { !body.value.to_s.strip.empty? }
 
+      emits "MessageAddressed"
+    end
+
+    command "Deliver", from: "addressed" do
+      role "System"
+      goal "Send an addressed message once its recipient is a run with a live session"
+
+      reference_to Message
+
       emits "MessageSent"
+    end
+
+    command "Decline", from: "addressed" do
+      role "System"
+      goal "Refuse an addressed message by name: its recipient is no run with a live session"
+
+      reference_to Message
+      attribute :refusal, RefusalText, sets: true
+
+      emits "MessageRefused"
     end
 
     command "Read", from: "sent" do
@@ -976,6 +1006,23 @@ Hecks.bluebook "Agents" do
       attribute :recipient, RunKey
       where(status: "sent", recipient: :recipient)
       order_by :message
+    end
+
+    # Whether the recipient is a run with a live session is a fact of the AgentRun ledger, in
+    # another domain, which a given cannot read; so the port is asked before a message is sent.
+    policy "CheckTheRecipient" do
+      on      "Message.MessageAddressed"
+      ask     :recipient, with: { message: :message, recipient: :recipient }
+    end
+
+    policy "SendToTheRun" do
+      on      "Message.RecipientFound"
+      trigger Message::Deliver, with: { message: :message }
+    end
+
+    policy "RefuseTheRecipient" do
+      on      "Message.RecipientMissing"
+      trigger Message::Decline, with: { message: :message, refusal: :refusal }
     end
   end
 
