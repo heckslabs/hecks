@@ -43,12 +43,13 @@ module Hecks
           commandless.reject { |aggregate| Acknowledgements.held?(aggregate, :no_command_surface) }
         end
 
-        # Every finding about an aggregate's size and its command surface.
+        # Every finding about an aggregate's size, its command surface and its blank-able results.
         #
         # @param bluebook [Bluebook::Declaration] the assembled bluebook to check
         # @return [Array<Finding>] the size and command-surface findings, in that order
         def aggregate_findings(bluebook)
-          [*large_aggregate_findings(bluebook), *no_command_surface_findings(bluebook)]
+          [*large_aggregate_findings(bluebook), *no_command_surface_findings(bluebook),
+           *blank_result_findings(bluebook)]
         end
 
         # @return [Finding, nil] the warning for an aggregate heavier than `limit`

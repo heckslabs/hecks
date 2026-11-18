@@ -1750,7 +1750,7 @@ Text that must be a commit id.
 
 #### Mint refusal
 
-Text.
+Text that must not be blank.
 
 #### Mint verdict
 
@@ -3163,7 +3163,7 @@ Text.
 
 #### Refusal text
 
-Text.
+Text that must not be blank.
 
 #### Ticket body
 

@@ -1446,5 +1446,11 @@ Hecks.bluebook "Bluebook" do
                          "features", "package", "lib", "bin", "dependencies", "dev-dependencies",
                          "build-dependencies", "workspace"]
     end
+
+    # Command attribute names that say what a command did; their types must hold a presence rule.
+    # The declared set: a new name joins it when a new blank result is found.
+    value_object "RequiredTextName" do
+      attribute :name, String, one_of: ["report", "refusal", "summary", "outcome", "reason", "text"]
+    end
   end
 end
