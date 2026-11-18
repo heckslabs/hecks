@@ -2113,7 +2113,8 @@ Hecks.bluebook "Hecks" do
 
     # A helper (a role but coder or orchestrator) blocked past the world's `abandon_after_minutes`
     # ends `abandoned`, its question kept as the detail, and the reap removes its session. A coder
-    # waits; a pinned session (`pin_listed`) or one an answer is on its way to is left.
+    # waits; a pinned session (`pin_listed`) or one an answer is on its way to is left. It fires
+    # once: `Check` reads only a started run's job, so a finished run's kept session is not read.
     policy "AbandonTheUnansweredHelper" do
       on      "AgentRun.JobRead"
       root
