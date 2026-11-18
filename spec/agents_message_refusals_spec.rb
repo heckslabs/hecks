@@ -5,7 +5,7 @@ require_relative "support/agents_message_helpers"
 RSpec.describe "the Agents message refusals" do
   include AgentsMessageHelpers
 
-  before { AgentsMemoryBoot.call }
+  before { boot_messages }
 
   it "refuses a second read by the status" do
     read = send_message.read!(reader: { value: "run-a" })
