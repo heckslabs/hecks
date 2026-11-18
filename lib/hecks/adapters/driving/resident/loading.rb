@@ -112,11 +112,8 @@ module Hecks
 
           # The compiled-Ruby cache a cold launcher sets up, so a forked child need not.
           def compile_cache
-            require "bootsnap"
-            return unless Hecks::CacheDir.stable?
-
-            Bootsnap.setup(cache_dir: Hecks::CacheDir.path("bootsnap"), development_mode: true,
-                           load_path_cache: true, compile_cache_iseq: true, compile_cache_yaml: false)
+            require "hecks/boot_cache"
+            Hecks::BootCache.setup(@root)
           rescue ScriptError, StandardError
             nil
           end
