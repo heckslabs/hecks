@@ -33,6 +33,12 @@ RSpec.describe "a failed gate run, filed by its cause" do
     expect(undone("cause-run-1")).to be_empty
   end
 
+  it "titles the work item by its cause" do
+    red_gate("cause-run-6", %w[rubocop])
+
+    expect(undone("gate-quick-rubocop").map { |row| row["title"] }).to eq(["gate-quick-rubocop"])
+  end
+
   it "plans a work item of its own for a different cause" do
     red_gate("cause-run-3", %w[shape_ledger])
 
