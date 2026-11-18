@@ -205,11 +205,11 @@ RSpec.describe Hecks::Adapters::Driving::Resident::PersistenceGuard do
       File.write(File.join(dir, "ledger.local.world"), text)
     end
 
-    # Starts the resident's load from a directory whose local world names another database.
+    # Starts the resident's load from a directory whose local hecksagon keeps Work in Memory.
     def loaded_from_elsewhere(elsewhere)
       loaded(bound: %w[Work Epic])
       ledger_world(domain, File.join(@root, "ledger.db"))
-      ledger_world(elsewhere, File.join(elsewhere, "other.db"))
+      File.write(File.join(elsewhere, "ledger.local.hecksagon"), %(Hecks.hecksagon "Ledger" do\n  Ledger::Work.persisted_by("Memory")\nend\n))
       quiet_loads
       Dir.chdir(elsewhere) { server.send(:load_everything) }
     end
