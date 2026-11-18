@@ -76,3 +76,31 @@ quiet window with the backup taken first.
 
 No persistence code, bluebook or hecksagon changes. The ledger stays on SQLite in WAL mode with a bounded
 log. The next step is to run the outbox purge and watch the logs.
+
+## Follow-up 2026-11-18: the purge worked; the retention was the size
+
+Asked for by the Work item `the-outbox-purge-leaves-200k-delivered-rows-and-ledger-locks-recur`.
+
+**Cause.** The purge was not broken. Delivered rows spanned exactly the world's `outbox_hours: 24`
+(oldest settled 2026-11-17T03:23Z at a reading of 2026-11-18T03:23Z), the delete covers every aggregate
+(`agent_run` alone held 206k of 218k delivered rows), and `OutboxPurged` recurred. The outbox takes
+10,000 to 30,000 delivered rows an hour, so a 24 hour retention holds about 200,000 rows at all times.
+
+**Change.** `outbox_hours` is 1 in `lib/hecks/hecks/tickets.world`, and the default in
+`LedgerKeeping::Ledger::OUTBOX_HOURS` matches it. A beat deletes the delivered rows settled more than an
+hour ago, so the outbox holds about one hour of inflow (10k to 30k rows). Only delivered rows are read by
+the purge; the one reader of delivered rows, the outbox fuzz property, reads its own run. The batch size
+is unchanged: no reading shows the batch length as the cause of a lock.
+
+| Reading (read-only) | Before the change, 2026-11-18 03:29Z | After one beat | After one day |
+| --- | --- | --- | --- |
+| `hecks_outbox` delivered rows | 218,391 | to be read | to be read |
+| `agent_run.db` bytes | 1.38 GB (1,384,271,872 bytes) | to be read | to be read |
+| `database is locked` lines that day | 3 on 2026-11-17 | to be read | to be read |
+
+The after readings are taken once the landing is carried by a running beat; they are not in this file
+because a coder writes no live ledger and the change had not run when this was written.
+
+**Revisit.** If `database is locked` recurs once the outbox stands near 20,000 rows, that meets this
+ADR's own revisit condition and the work items (a), (b) and (c) above become due. Locks seen while the
+outbox held 200,000 rows do not by themselves meet it.
