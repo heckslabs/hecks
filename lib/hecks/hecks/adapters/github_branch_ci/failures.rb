@@ -16,6 +16,9 @@ module Hecks
         # An example RSpec names as failed, such as `rspec ./spec/a_spec.rb:12`.
         EXAMPLE = %r{rspec (\./spec/\S+)}
 
+        # Jobs read per page: GitHub answers a page of 100 jobs of a rerun run with a 502.
+        PAGE = 30
+
         # @param github [GhCall] the calls to GitHub
         def initialize(github)
           @github = github
@@ -34,7 +37,7 @@ module Hecks
         private
 
         def failed_jobs(run_id)
-          pages = @github.api("actions/runs/#{run_id}/jobs?per_page=100", "--paginate", "--slurp")
+          pages = @github.api("actions/runs/#{run_id}/jobs?per_page=#{PAGE}", "--paginate", "--slurp")
           jobs = Array(pages).flat_map { |page| page.fetch("jobs", []) }
           jobs.reject { |job| Hecks::CheckConclusion.clean?(job["conclusion"]) }
         end
