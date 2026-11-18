@@ -95,7 +95,9 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, matches: :present
       end
 
-      value_object "Text", String
+      value_object "Text" do
+        attribute :value, String, matches: :present
+      end
 
       value_object "Tries", Integer
 

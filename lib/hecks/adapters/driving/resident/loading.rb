@@ -44,24 +44,38 @@ module Hecks
             Crowd.remember(@settings[:max_residents])
             Paths.remember("ready_wait_ms", @settings[:ready_wait_ms])
             @crowded = standing >= @settings[:max_residents]
-            @persistence_gap = persistence_gap
+            guard_persistence
           end
 
-          # @return [String, nil] the first aggregate the checkout's local hecksagon binds to SQLite
-          #   that the loaded Hecks domain resolved to Memory ({PersistenceGuard}); a resident
-          #   with one refuses the lines it would serve from it
-          def persistence_gap
-            domain = File.join(@root, DOMAIN)
-            declared = PersistenceGuard.declared(domain)
-            registry = declared.empty? ? nil : @cache.fetch(domain, ENVIRONMENTS.first)&.registry
-            registry && PersistenceGuard.gap(declared, rows_of(registry))
-          rescue StandardError
-            nil
+          # Reads what the local hecksagons bind to SQLite and judges the domain loaded with no
+          # environment named, before the first line.
+          def guard_persistence
+            @persistence_declared = PersistenceGuard.declared(File.join(@root, DOMAIN))
+            persistence_refusal(ENVIRONMENTS.first)
           end
 
-          def rows_of(registry)
-            require "hecks/hecks/adapters/settings_reading"
-            Hecks::Adapters::SettingsReading.new.registry_stores(registry)
+          # Judges the Hecks domain loaded under an environment once, and again after {learn}
+          # loads more. An environment the resident has not loaded has no gap: its line's child
+          # loads the domain from the files as they are.
+          #
+          # @param environment [String, nil] the line's `HECKS_ENVIRONMENT`
+          # @return [String, nil] the refusal that names the first aggregate the checkout's local
+          #   hecksagon binds to SQLite that the loaded domain does not keep there, or says its
+          #   stores could not be read ({PersistenceGuard}); nil when the line may be served
+          def persistence_refusal(environment)
+            key = PersistenceGuard.environment(environment)
+            refusals = (@persistence_refusals ||= {})
+            return refusals[key] if refusals.key?(key)
+
+            described = held_domain(key)
+            refusals[key] = PersistenceGuard.refusal(described, @persistence_declared) if described
+          end
+
+          # @return [Hecks::Runtime::Loader::Described, nil] the loaded domain the guard judges
+          def held_domain(environment)
+            return if Array(@persistence_declared).empty? || @cache.nil?
+
+            @cache.fetch(File.join(@root, DOMAIN), environment)
           end
 
           def load_everything
@@ -140,6 +154,7 @@ module Hecks
             return if @notes.empty?
 
             EnvTrace.tracing { learn_one(*@notes.pop) until @notes.empty? }
+            @persistence_refusals = {}
             note_environment
             settle
           end
@@ -155,7 +170,7 @@ module Hecks
           end
 
           def learn_one(kind, path, environment = nil)
-            return load_domain(path, environment.to_s.empty? ? nil : environment) if kind == "D"
+            return load_domain(path, PersistenceGuard.environment(environment)) if kind == "D"
 
             require path if path.start_with?(File.join(@root, "lib/"))
           rescue LoadError, StandardError

@@ -73,7 +73,9 @@ Hecks.bluebook "Hecks" do
       # The ledger watermark a mint was asked at: the newest held era's ordinal.
       value_object "Watermark", Integer
 
-      value_object "Report", String
+      value_object "Report" do
+        attribute :value, String, matches: :present
+      end
 
       lifecycle :status, default: "requested" do
         mark :failure, "refused"

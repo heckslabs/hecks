@@ -1,5 +1,6 @@
 require "spec_helper"
 require "tmpdir"
+require "fileutils"
 require "hecks/adapters/driving/resident/server"
 require "hecks/adapters/driving/resident/atypical"
 require "hecks/adapters/driving/resident/client"
@@ -41,6 +42,30 @@ RSpec.describe Hecks::Adapters::Driving::Resident::PersistenceGuard do
     it "finds none for an aggregate on Memory that nothing declares on SQLite" do
       expect(guard.gap([], rows("Memory"))).to be_nil
     end
+
+    it "finds a declared aggregate the registry wrote no row for, beside one it keeps in SQLite" do
+      expect(guard.gap(%w[Tickets::Work Tickets::Epic], rows("SqliteAt /x.db"))).to eq("Tickets::Epic")
+    end
+
+    it "finds none when the aggregate has no row of its own and its bluebook is kept in SQLite" do
+      expect(guard.gap(["Tickets::Epic"], [["store Tickets", "SqliteAt /x.db", "hecksagon"]])).to be_nil
+    end
+
+    it "finds an aggregate the registry keeps in another database than the SQLite declared" do
+      expect(guard.gap(["Tickets::Work"], rows("Postgres hecks"))).to eq("Tickets::Work")
+    end
+  end
+
+  describe "the environment a line is served from" do
+    it "keys an unset or empty environment as none, and keeps a named one", :aggregate_failures do
+      expect(guard.environment(nil)).to be_nil
+      expect(guard.environment("")).to be_nil
+      expect(guard.environment("local")).to eq("local")
+    end
+
+    it "names an unreadable registry by its error's class, so the refusal stays one line" do
+      expect(guard.unreadable(Hecks::Runtime::WiringError.new("x"))).to eq("persistence:unreadable:WiringError")
+    end
   end
 
   describe "the lines meant to run on Memory" do
@@ -59,7 +84,7 @@ RSpec.describe Hecks::Adapters::Driving::Resident::PersistenceGuard do
     let(:server) { Hecks::Adapters::Driving::Resident::Server.new("/checkout", "/checkout/exe/hecks") }
 
     before do
-      server.instance_variable_set(:@persistence_gap, "Tickets::Work")
+      server.instance_variable_set(:@persistence_refusals, { nil => "persistence:Tickets::Work" })
       allow(server).to receive(:retire)
     end
 
@@ -90,6 +115,103 @@ RSpec.describe Hecks::Adapters::Driving::Resident::PersistenceGuard do
       outcome = client.attempt("/checkout", "/checkout/exe/hecks")
       expect(outcome).to eq(Hecks::Adapters::Driving::Resident::Outcome.refused("persistence:Tickets::Work"))
       expect(client).to have_received(:spawn_resident).once
+    end
+  end
+
+  # The Hecks domain of a checkout, loaded the way a resident loads it after a merge: through its
+  # own cache, with the local hecksagon the checkout keeps. `Ledger` stands for Tickets.
+  describe "a resident over a loaded domain" do
+    let(:server) { Hecks::Adapters::Driving::Resident::Server.new(@root, File.join(@root, "exe/hecks")) }
+
+    # The specs' declaration cache knows a scratch domain by its contents alone and would hand a
+    # load the registry an earlier example loaded with other local files, so it is off here.
+    around do |example|
+      held = ENV.fetch("HECKS_NO_DECLARATION_CACHE", nil)
+      ENV["HECKS_NO_DECLARATION_CACHE"] = "1"
+      Dir.mktmpdir("hrpg-root") do |root|
+        @root = root
+        example.run
+      end
+    ensure
+      ENV["HECKS_NO_DECLARATION_CACHE"] = held
+    end
+
+    before { allow(server).to receive(:retire) }
+
+    def aggregate(name)
+      %(  aggregate "#{name}" do\n    identified_by :name\n    attribute :name, #{name}Name\n) +
+        %(    value_object "#{name}Name" do\n      attribute :value, String\n    end\n) +
+        %(    command "Open#{name}" do\n      attribute :name, #{name}Name\n      sets :name\n) +
+        %(      emits "#{name}Opened"\n    end\n  end\n)
+    end
+
+    def local_binds(names)
+      lines = names.map { |name| %(  Ledger::#{name}.persisted_by("SqlitePersistence")\n) }
+      File.write(File.join(domain, "ledger.local.hecksagon"), %(Hecks.hecksagon "Ledger" do\n#{lines.join}end\n))
+    end
+
+    def domain
+      File.join(@root, Hecks::Adapters::Driving::Resident::Loading::DOMAIN).tap { |dir| FileUtils.mkdir_p(dir) }
+    end
+
+    # Loads the domain into the resident's cache, then lets the guard read the local files as
+    # they stand afterwards, as `prepare` does.
+    def loaded(bound:, declared: bound, committed: false)
+      bluebook = %(Hecks.bluebook "Ledger" do\n#{aggregate("Work")}#{aggregate("Epic")}end\n)
+      File.write(File.join(domain, "ledger.bluebook"), bluebook)
+      local_binds(bound)
+      server.instance_variable_set(:@cache, cache_of(committed))
+      local_binds(declared)
+      server.instance_variable_set(:@persistence_declared, guard.declared(domain, {}))
+    end
+
+    def cache_of(committed)
+      cache = Hecks::Adapters::Driving::Resident::DescribedCache.new
+      committed ? Hecks::Adapters::FolderOverlay.committed_only { cache.load(domain, nil) } : cache.load(domain, nil)
+      cache
+    end
+
+    it "serves a line when the loaded domain keeps every declared aggregate in SQLite", :aggregate_failures do
+      loaded(bound: %w[Work Epic])
+      expect(server.send(:unpersisted, {})).to be_nil
+      expect(server).not_to have_received(:retire)
+    end
+
+    it "refuses by the Epic's name when the load bound only Work, and retires", :aggregate_failures do
+      loaded(bound: %w[Work], declared: %w[Work Epic])
+      expect(server.send(:unpersisted, {})).to eq("persistence:Ledger::Epic")
+      expect(server).to have_received(:retire).once
+    end
+
+    it "refuses when the load read none of the local files" do
+      loaded(bound: %w[Work Epic], committed: true)
+      expect(server.send(:unpersisted, {})).to eq("persistence:Ledger::Work")
+    end
+
+    it "serves a line for an environment the resident has not loaded, whose child loads it cold" do
+      loaded(bound: %w[Work], declared: %w[Work Epic])
+      expect(server.send(:unpersisted, "HECKS_ENVIRONMENT" => "staging")).to be_nil
+    end
+
+    it "refuses, by the error's class, a loaded domain whose stores cannot be read" do
+      loaded(bound: %w[Work Epic])
+      allow(guard).to receive(:rows_of).and_raise(Hecks::Runtime::WiringError, "two defaults")
+      expect(server.send(:unpersisted, {})).to eq("persistence:unreadable:WiringError")
+    end
+
+    it "refuses an environment's line once the resident has loaded that environment too", :aggregate_failures do
+      loaded(bound: %w[Work], declared: %w[Work Epic])
+      expect(server.send(:unpersisted, "HECKS_ENVIRONMENT" => "staging")).to be_nil
+      local_binds(%w[Work])
+      server.instance_variable_get(:@cache).load(domain, "staging")
+      expect(server.send(:unpersisted, "HECKS_ENVIRONMENT" => "staging")).to eq("persistence:Ledger::Epic")
+    end
+  end
+
+  describe "a declared file that cannot be read" do
+    it "declares nothing, unlike a registry that cannot be read, which refuses" do
+      allow(Dir).to receive(:glob).and_raise(Errno::EACCES)
+      expect(guard.declared("/checkout/lib/hecks/hecks", {})).to eq([])
     end
   end
 end
