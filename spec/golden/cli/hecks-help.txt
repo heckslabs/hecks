@@ -413,6 +413,7 @@ queries (nothing here changes anything):
   StallWatch:
     One look at the event tap for opening events whose closing event has not come.
     unclosed                The opening lines of every stall kind whose closing line has not come, within the kind's window, with how long each has waited.
+    impediments             Every opening line of every stall kind still open past its kind's minutes and within its window, filed or not: its run not ended, its subject not settled, its closing line not come.
     abandoned               The filed stalls, opened within their kind's window, whose run has ended or whose subject has settled since they opened and which no look has closed yet, each with the ending or settling line as its reason; a filed stall whose line has closed is one too.
   TestSuiteRun:
     One piece of work on the test suite: a listing, a baseline, a run or a fixture rewrite.
