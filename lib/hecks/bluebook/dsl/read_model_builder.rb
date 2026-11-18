@@ -1,5 +1,6 @@
 require_relative "word_gate"
 require_relative "read_model_builder/sealing"
+require_relative "read_model_builder/reduction_tally"
 module Hecks
   module Bluebook
     module DSL
@@ -10,6 +11,7 @@ module Hecks
 
         include QuerySpecification::Common::DSL
         include WordGate
+        include ReductionTally
         include Sealing
 
         # @param name [String] the read model's own name, as written after `read_model`
@@ -154,7 +156,8 @@ module Hecks
         # @raise [Bluebook::DSL::Malformed] if neither `reference_to` nor any `include` is
         #   declared, if `where`/`order_by`/`limit`/`offset`/`group_by` or a reduction name an
         #   `on:` that isn't a many-side include or are left untargeted with more than one
-        #   many-side head, if more than one reduction is declared, or if `cursor` is declared
+        #   many-side head, if more than one reduction is declared (two of one kind included),
+        #   or if `cursor` is declared
         def build
           if !@reference_target && Array(@includes).empty?
             raise Malformed,
