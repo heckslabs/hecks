@@ -82,7 +82,9 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, pattern: '^(ruby|rust)$'
       end
 
-      value_object "Report", String
+      value_object "Report" do
+        attribute :value, String, matches: :present
+      end
 
       lifecycle :status, default: "requested" do
         mark :failure, "faulted"

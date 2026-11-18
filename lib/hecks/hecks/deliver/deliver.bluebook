@@ -86,7 +86,9 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, matches: :present
       end
 
-      value_object "Report", String
+      value_object "Report" do
+        attribute :value, String, matches: :present
+      end
 
       lifecycle :status, default: "requested" do
         mark :failure, "declined"
@@ -153,7 +155,9 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, matches: :present
       end
 
-      value_object "Report", String
+      value_object "Report" do
+        attribute :value, String, matches: :present
+      end
 
       lifecycle :status, default: "requested" do
         mark :failure, "refused"
@@ -293,7 +297,9 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, pattern: '\A(passed|failed)\z'
       end
 
-      value_object "Report", String
+      value_object "Report" do
+        attribute :value, String, matches: :present
+      end
 
       lifecycle :status, default: "requested" do
         mark :failure, "declined"
@@ -536,7 +542,9 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, matches: :present
       end
 
-      value_object "Report", String
+      value_object "Report" do
+        attribute :value, String, matches: :present
+      end
 
       value_object "Switch", Boolean
 
@@ -1123,7 +1131,9 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, matches: :present
       end
 
-      value_object "Report", String
+      value_object "Report" do
+        attribute :value, String, matches: :present
+      end
 
       value_object "Switch", Boolean
 
@@ -1612,7 +1622,9 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, matches: :present
       end
 
-      value_object "Report", String
+      value_object "Report" do
+        attribute :value, String, matches: :present
+      end
 
       value_object "Switch", Boolean
 
@@ -1752,7 +1764,9 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, matches: :present
       end
 
-      value_object "Report", String
+      value_object "Report" do
+        attribute :value, String, matches: :present
+      end
 
       # Which attempt of a CI run failed: 1 is the first.
       value_object "Tries", Integer
@@ -1894,7 +1908,9 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, matches: :present
       end
 
-      value_object "Report", String
+      value_object "Report" do
+        attribute :value, String, matches: :present
+      end
 
       # Minutes.
       value_object "Count", Integer
@@ -1962,7 +1978,9 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, matches: :present
       end
 
-      value_object "Report", String
+      value_object "Report" do
+        attribute :value, String, matches: :present
+      end
 
       value_object "Switch", Boolean
 
@@ -2066,7 +2084,9 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, matches: :present
       end
 
-      value_object "Report", String
+      value_object "Report" do
+        attribute :value, String, matches: :present
+      end
 
       value_object "Document" do
         attribute :text, String
@@ -2308,7 +2328,9 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, matches: :present
       end
 
-      value_object "Report", String
+      value_object "Report" do
+        attribute :value, String, matches: :present
+      end
 
       value_object "Document" do
         attribute :text, String
@@ -2378,7 +2400,9 @@ Hecks.bluebook "Hecks" do
         attribute :value, String, matches: :present
       end
 
-      value_object "Report", String
+      value_object "Report" do
+        attribute :value, String, matches: :present
+      end
 
       lifecycle :status, default: "requested" do
         mark :failure, "refused"

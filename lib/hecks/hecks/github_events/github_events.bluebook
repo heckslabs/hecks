@@ -28,7 +28,9 @@ Hecks.bluebook "Hecks" do
       end
 
       # Why a listener ended or was refused.
-      value_object "Reason", String
+      value_object "Reason" do
+        attribute :value, String, matches: :present
+      end
 
       lifecycle :status, default: "requested" do
         mark :failure, "refused"
@@ -104,7 +106,9 @@ Hecks.bluebook "Hecks" do
         invariant("a stamp is not negative") { !value.negative? }
       end
 
-      value_object "Text", String
+      value_object "Text" do
+        attribute :value, String, matches: :present
+      end
 
       value_object "Number", Integer
 

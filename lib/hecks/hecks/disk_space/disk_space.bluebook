@@ -221,7 +221,9 @@ Hecks.bluebook "Hecks" do
 
       value_object "Switch", Boolean
 
-      value_object "Report", String
+      value_object "Report" do
+        attribute :value, String, matches: :present
+      end
 
       # The command that frees one kind of owner in one state. `auto` is the level from which relief
       # may run it unasked; `never` is a command that only runs when asked. Only a rule whose
@@ -313,7 +315,9 @@ Hecks.bluebook "Hecks" do
 
       value_object "Switch", Boolean
 
-      value_object "Report", String
+      value_object "Report" do
+        attribute :value, String, matches: :present
+      end
 
       # One kind of cache. `pattern` is the path pattern an adapter matches, `rebuilt_by` what makes
       # it again and `rebuild_cost` what the next build costs once it is gone.
