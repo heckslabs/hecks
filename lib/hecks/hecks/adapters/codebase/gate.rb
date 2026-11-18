@@ -11,8 +11,9 @@ module Hecks
       #
       # It runs `Hecks::Tools::Gate` in this process. The tool starts the stage's checks together,
       # each as its own process, and answers 1 when any is red; the refusal is what the red checks
-      # printed, so `--wait` and the journal both say which check failed. A run takes a heavy-job
-      # place first ({HeavySlots}), so the gates and spec batches of many sessions queue.
+      # printed, so `--wait` and the journal both say which check failed. A run of any stage but
+      # the quick one takes a heavy-job place first ({HeavySlots}), so the long gates and the spec
+      # batches of many sessions queue.
       module Gate
         # Every operation this family carries out.
         OPERATIONS = %w[gate].freeze
@@ -84,12 +85,32 @@ module Hecks
         # @return [Array<String>] the check names, in name order
         def check_names(list) = list.strip.split(CHECK_SEPARATOR).sort
 
-        # Runs the gate tool once a heavy-job place is free.
+        # The stages that take no heavy-job place: the quick stage runs in seconds, and a
+        # landing's gate queued behind coders' spec batches holds a one-line fix for minutes.
+        UNQUEUED_STAGES = %w[quick].freeze
+
+        # Runs the gate tool: the quick stage at once, any other once a heavy-job place is free.
         #
         # @param tree [Tree] the checkout
         # @param argv [Array<String>] the stage and its `only=` filter
         # @return [String] what the gate printed, after the line naming any wait for a place
-        def run(tree, argv) = HeavySlots.admitted(tree.root, "gate") { RubyChild.new(tree).answer("gate", *argv).strip }
+        def run(tree, argv)
+          answer = -> { RubyChild.new(tree).answer("gate", *argv).strip }
+          return unqueued(&answer) if UNQUEUED_STAGES.include?(argv.first)
+
+          HeavySlots.admitted(tree.root, "gate", &answer)
+        end
+
+        # Runs a gate that takes no place, marking its checks held so none of them queues.
+        #
+        # @return [Object] what the block returned
+        def unqueued
+          before = ENV.fetch(HeavySlots::HELD, nil)
+          ENV[HeavySlots::HELD] = Process.pid.to_s
+          yield
+        ensure
+          ENV[HeavySlots::HELD] = before
+        end
 
         # The counts the gate tool prints for the verdict; a run that printed none claims zero.
         COUNTS_LINE = /^gate-counts expected=(\d+) recorded=(\d+)$/
