@@ -1,4 +1,5 @@
 require_relative "../runtime/errors"
+require_relative "../ports/identity_generation"
 
 module Hecks
   module Fuzzing
@@ -8,6 +9,19 @@ module Hecks
     # that mints a run key mints the same one in every engine. When the list is spent the port
     # answers nothing, as a registry with no identity adapter bound does.
     class ScriptedIdentity
+      # A stand-in for `Runtime::AdapterLookup.standing_in` that answers the identity port with
+      # `ids` and asks `others` for every other port.
+      #
+      # @param ids [Array<String>] the ids to hand out, in order
+      # @param others [#call] answers `(port_name, asked)` for every port but the identity port
+      # @return [Proc] the stand-in
+      def self.over(ids, others)
+        scripted = new(ids)
+        lambda do |port_name, asked|
+          port_name.to_s == Ports::IdentityGeneration::NAME ? scripted : others.call(port_name, asked)
+        end
+      end
+
       # @param ids [Array<String>] the ids to hand out, in order
       def initialize(ids)
         @ids = ids.dup

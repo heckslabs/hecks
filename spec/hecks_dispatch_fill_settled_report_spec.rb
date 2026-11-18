@@ -23,10 +23,13 @@ RSpec.describe "a confirmed filling, settled through the launcher" do
     Hecks::Adapters::Dispatching.new(settings: { load: -> { 1.0 }, cpus: 8, work_items: items, runner: runner })
   end
 
+  # The identity port keeps a real adapter, so the launcher still mints the filling's run key.
+  def minting(port) = (Hecks::Adapters::SecureRandomIdentity if port == Hecks::Ports::IdentityGeneration::NAME)
+
   def settled(*words)
     runtime = Hecks.boot(DOMAIN_DIR, environment: "memory", install_driving: false)
     argv = ["Dispatch.fill!", "repo.value=/repo", *words]
-    Hecks::Runtime::AdapterLookup.standing_in(->(_port, _asked) { stand_in }) do
+    Hecks::Runtime::AdapterLookup.standing_in(->(port, _asked) { minting(port) || stand_in }) do
       Hecks::Adapters::Driving::CliRunner.call(runtime: runtime, argv: argv, program: "hecks")
     end
   end

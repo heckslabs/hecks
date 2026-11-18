@@ -9,7 +9,6 @@ require_relative "replay/role_check"
 require_relative "replay/mutation_trace"
 require_relative "replay/session"
 require_relative "scripted_identity"
-require_relative "../ports/identity_generation"
 
 module Hecks
   module Fuzzing
@@ -46,22 +45,21 @@ module Hecks
         # copied directory and can't be reached by resetting data/ alone.
         IsolatedBoot.call(domain_path, **boot_options(boot)) do |copy|
           runtime = Hecks.boot(copy, environment: nil)
-          with_identity(runtime.registry, identity) do
+          with_identity(identity) do
             Session.new(runtime).play(steps).history(self_consistency: self_consistency)
           end
         end
       end
 
-      # Runs the block with the replay's own registry answering identity requests with `ids` in
-      # order, or with its bound adapter when none are scripted.
+      # Runs the block with the identity port answered by `ids` in order, and every other port by
+      # the stand-in already in place (the `OutsideWorld` that `IsolatedBoot` installs).
       #
-      # @param registry [Runtime::Registry] the replay's fresh boot, the only registry scripted
-      # @param ids [Array<String>, nil] the scripted ids
+      # @param ids [Array<String>, nil] the scripted ids; with none the stand-ins stay as they are
       # @return [Object] what the block answers
-      def with_identity(registry, ids, &)
+      def with_identity(ids, &)
         return yield unless ids
 
-        Ports::IdentityGeneration.standing_in(registry, ScriptedIdentity.new(ids), &)
+        Runtime::AdapterLookup.standing_in(ScriptedIdentity.over(ids, OutsideWorld), &)
       end
 
       # The keywords for `IsolatedBoot.call`, with `adapter:` defaulting to `:memory`.

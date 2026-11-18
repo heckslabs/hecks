@@ -31,11 +31,14 @@ RSpec.describe "a filling held to one work item, read through the launcher" do
                                                  work_items: work_items(started) })
   end
 
+  # The identity port keeps a real adapter, so the launcher still mints the filling's run key.
+  def minting(port) = (Hecks::Adapters::SecureRandomIdentity if port == Hecks::Ports::IdentityGeneration::NAME)
+
   # The settled record a command line answers, without `--wait`.
   def fill(*words, started: 3, cap: 8)
     runtime = boot_hecks_in_memory
     adapter = stand_in(started: started, cap: cap)
-    text, = Hecks::Runtime::AdapterLookup.standing_in(->(_port, _asked) { adapter }) do
+    text, = Hecks::Runtime::AdapterLookup.standing_in(->(port, _asked) { minting(port) || adapter }) do
       Hecks::Adapters::Driving::CliRunner.call(runtime: runtime, argv: ["Dispatch.fill!", "repo.value=/repo", *words])
     end
     JSON.parse(text).fetch("state")
