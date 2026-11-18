@@ -36,6 +36,7 @@ module Hecks
         # @raise [ArgumentError] when the text is not of the row's kind, or is outside its bounds
         def value(row, text)
           return switch(row, text) if row[:kind] == "switch"
+          return choice(row, text) if row[:kind] == "choice"
 
           number = number_of(row, text)
           return number if number.between?(Float(row[:least]), Float(row[:most]))
@@ -47,6 +48,14 @@ module Hecks
           row[:kind] == "integer" ? Integer(text.to_s, 10) : Float(text.to_s)
         rescue ArgumentError, TypeError
           raise ArgumentError, "#{row[:setting]} takes a #{row[:kind]}, not #{text.inspect}"
+        end
+
+        # A choice is turned to one of the words its row's `least` lists, joined by `|`.
+        def choice(row, text)
+          words = row[:least].to_s.split("|")
+          return text.to_s if words.include?(text.to_s)
+
+          raise ArgumentError, "#{row[:setting]} is turned to #{words.join(", ")}, not #{text.inspect}"
         end
 
         def switch(row, text)

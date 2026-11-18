@@ -133,6 +133,25 @@ RSpec.describe Hecks::Adapters::DialTurning do
     end
   end
 
+  it "turns a choice to one of its words and refuses another", :aggregate_failures do
+    row = { setting: "s.k", kind: "choice", least: "impacted|quick|off" }
+    expect(described_class::Turnables.value(row, "quick")).to eq("quick")
+    expect { described_class::Turnables.value(row, "some") }.to raise_error(ArgumentError, /impacted, quick, off, not "some"/)
+  end
+
+  # Turns the verification setting to a word and answers its row as the board reads it.
+  def verification_row_after_turning_to(word)
+    worlds["main_verification"] = { adapter: "MainVerification", workers: 2, verifies: "impacted" }
+    Dir.mktmpdir do |folder|
+      turning(folder).set(setting: "main_verification.verifies", becomes: word)
+      described_class::Standing.rows(registry, directory: folder).find { |r| r[:setting] == "main_verification.verifies" }
+    end
+  end
+
+  it "reads a turned word back over the one a process booted with" do
+    expect(verification_row_after_turning_to("off")).to include(value: "off", turned: true, kind: "choice")
+  end
+
   it "turns a switch on or off" do
     expect(described_class::Turnables.value({ setting: "s.k", kind: "switch" }, "off")).to be(false)
   end

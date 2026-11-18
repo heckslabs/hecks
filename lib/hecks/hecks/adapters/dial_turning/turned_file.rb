@@ -12,8 +12,8 @@ module Hecks
         # The line that opens a world's block, and a verb's line inside one.
         WORLD = /\AHecks\.world "([^"]+)" do/
         VERB = /\A  (\w+) "/
-        # A `key: value` pair of a verb's line whose value is a number or a switch.
-        PAIR = /(\w+): (-?\d+(?:\.\d+)?|true|false)(?=,|\s*\z)/
+        # A `key: value` pair of a verb's line whose value is a number, a switch or a plain word.
+        PAIR = /(\w+): (-?\d+(?:\.\d+)?|true|false|"\w+")(?=,|\s*\z)/
         PLAIN = { "true" => true, "false" => false }.freeze
         HEAD = "# Written by `hecks Dial.turn!` (the board's settings): each line is a setting turned from a\n" \
                "# command, and stands over the same line of any other world file here. Delete a line, or the\n" \
@@ -39,7 +39,7 @@ module Hecks
         end
 
         # @return [Hash{Array(String, String) => Hash{String => Object}}] each world and verb the
-        #   file holds, with the numbers and switches its line sets
+        #   file holds, with the numbers, switches and words its line sets
         def values
           return {} unless File.exist?(@path)
 
@@ -50,11 +50,15 @@ module Hecks
           end
         end
 
-        # @return [Hash{String => Object}] the `key: value` pairs of a verb's line that are a number
-        #   or a switch
+        # @return [Hash{String => Object}] the `key: value` pairs of a verb's line that are
+        #   a number, a switch or a word
         def pairs(line) = line.scan(PAIR).to_h { |key, value| [key, PLAIN.fetch(value) { number(value) }] }
 
-        def number(text) = text.include?(".") ? Float(text) : Integer(text, 10)
+        def number(text)
+          return text.delete('"') if text.start_with?('"')
+
+          text.include?(".") ? Float(text) : Integer(text, 10)
+        end
 
         # @param worlds [Hash{String => Array<String>}] each world with its verb lines
         # @return [String] the path written
