@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "json"
+require "time"
 require_relative "console_capture"
 
 module Hecks
@@ -17,6 +18,9 @@ module Hecks
 
       # Seconds a woken session is given to stop reading `stopped`.
       WAKE_PATIENCE = 10
+
+      # The file in the jobs directory that names the sessions a person pinned.
+      PINS = "pins.json"
 
       # @param settings [Hash] an adapter's settings: `jobs:` the jobs directory and
       #   `wake_patience:` the seconds a woken session is given, both optional
@@ -72,6 +76,45 @@ module Hecks
         deadline = Time.now + @wake_patience
         sleep(@pause) while stopped?(session) && Time.now < deadline
         resumed
+      end
+
+      # @param job [Hash{String => Object}] the job's state file, parsed
+      # @param session [String] the session's id
+      # @param now [Time] the time to count to
+      # @return [Hash{Symbol => Object}] `blocked_minutes:` ({#blocked_minutes}) and `pin_listed:`
+      #   ({#pinned?})
+      def waiting(job, session, now) = { blocked_minutes: blocked_minutes(job, now), pin_listed: pinned?(session) }
+
+      # Whole minutes since the job's state file was last written (`updatedAt`), for a job that
+      # reads blocked. The stamp stands for when the block began: anything that rewrites the file
+      # while the job is blocked starts the count again, so a helper is ended later, never sooner.
+      #
+      # @param job [Hash{String => Object}] the job's state file, parsed
+      # @param now [Time] the time to count to
+      # @return [Integer] those minutes; 0 for a job not blocked or a stamp that cannot be read
+      def blocked_minutes(job, now)
+        return 0 unless job["state"].to_s == "blocked"
+
+        ((now - Time.iso8601(job["updatedAt"].to_s)) / 60).floor
+      rescue ArgumentError
+        0
+      end
+
+      # Whether the jobs directory's `pins.json` (a JSON array of job ids, the eight-character
+      # prefix of a session's id) names the session. An unreadable file reads as a pin: the fact is
+      # conservative, so a doubt keeps a session, and what a pin means stays the bluebook's.
+      #
+      # @param session [String] the session's id
+      # @return [Boolean] true when it names the session or the pins cannot be read; false when
+      #   there is no pins file
+      def pinned?(session)
+        path = File.join(@directory, PINS)
+        return false unless File.file?(path)
+
+        ids = Array(JSON.parse(File.read(path))).map(&:to_s)
+        ids.include?(session.to_s) || ids.include?(session.to_s[0, 8])
+      rescue JSON::ParserError, SystemCallError
+        true
       end
 
       private
