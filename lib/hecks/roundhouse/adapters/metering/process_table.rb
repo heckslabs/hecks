@@ -7,7 +7,8 @@ module Hecks
       # tree, so a session is metered with every process it started: its MCP servers, its shells,
       # its specs. It only parses the text it is handed.
       class ProcessTable
-        # One process: its parent, its resident memory in KB, its CPU percent and its command line.
+        # One process: its parent, its resident memory in kilobytes, its CPU percent and its
+        # command line.
         Row = Struct.new(:pid, :ppid, :rss_kb, :cpu, :command, keyword_init: true)
 
         # What a session's tree adds up to.
@@ -23,7 +24,7 @@ module Hecks
 
         # @param text [String] the `ps` output
         def initialize(text)
-          @rows = text.to_s.each_line.filter_map { |line| row(line.chomp) }.to_h { |row| [row.pid, row] }
+          @rows = parsed(text).to_h { |row| [row.pid, row] }
           @children = @rows.values.group_by(&:ppid)
         end
 
@@ -55,6 +56,9 @@ module Hecks
           end
           found
         end
+
+        # Every line of the `ps` text that reads as a process.
+        def parsed(text) = text.to_s.each_line.filter_map { |line| row(line.chomp) }
 
         def row(line)
           match = LINE.match(line)

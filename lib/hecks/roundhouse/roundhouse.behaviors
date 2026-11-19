@@ -155,4 +155,19 @@ Hecks.behaviors "Roundhouse" do
           gb_hours: { value: 6 }, reclaimed: { value: 14 }, curtailed: { value: 0 }, headroom: { value: 9000 }
     expect refused: "productive sessions are no more than all sessions"
   end
+
+  # ---- One bus: Signalbox decides and Roundhouse carries it out ----
+
+  # Roundhouse attaches Signalbox, so an admission reaches StartWhatSignalboxAdmitted. The session
+  # is a record here: no port of Roundhouse starts or stops a process (ADR 0222, phase 2).
+  test "one bus: the session Signalbox admits is started under its admission" do
+    tests "Signalbox::Admission.Admit"
+    input admission: { value: "reviewer-of-signalbox" }, role: { value: "helper" }, tier: { value: "normal" },
+          owner: { value: "signalbox-five-laws-adr" }, purpose: { value: "review the branch" }, ends_when: { value: "the verdict is given" },
+          draw: { value: 300 }, fuse: { value: 1024 }, fuse_minutes: { value: 30 }, asked_by: { value: "orchestrator" },
+          switch: { value: "on" }, met: { value: "no" }, band: { value: "normal" }, headroom: { value: 9000 }, age: { value: 30 },
+          stale_after: { value: 120 }, started: { value: 0 }, ramp: { value: 1 }, coders: { value: 3 }, helpers: { value: 2 },
+          share: { value: 100 }, outranked: { value: 0 }, seats: { value: 1 }, unused_servers: { value: 0 }, curtailed: { value: 0 }
+    expect emits: %w[SessionAdmitted SessionStarted]
+  end
 end

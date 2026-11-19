@@ -314,4 +314,13 @@ Hecks.bluebook "Roundhouse" do
     on      "Breaker.BreakerShed"
     trigger Session::Rest, with: { session: :shed }
   end
+
+  # A pressure beat Signalbox cleared is the machine's reading: Roundhouse records it.
+  policy "TakeTheClearedBeatsReading" do
+    on      "Beat.BeatPublished"
+    trigger Reading::Take, with: {
+      reading: :beat, machine: { value: "this-machine" }, capacity: :capacity, drawn: :used,
+      reserve: :reserve, headroom: :headroom
+    }
+  end
 end
