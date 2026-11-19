@@ -58,6 +58,11 @@ RSpec.describe "the architect's change review" do
     expect(running(git("rev-parse", "#{sha}^{tree}").strip)).not_to be_nil
   end
 
+  it "starts the architect with the commit as its brief, so it names no command it cannot run" do
+    sha = branch_changing("lib/x/x.bluebook").tap { |tip| consider(tip) }
+    expect(running(git("rev-parse", "#{sha}^{tree}").strip)["brief"].to_s).to eq(sha)
+  end
+
   it "leaves the commit's own key to the reviewer's run" do
     sha = branch_changing("lib/x/x.bluebook").tap { |tip| consider(tip) }
     expect(running(sha)).to be_nil
