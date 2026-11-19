@@ -35,4 +35,11 @@ RSpec.describe "The PlanReview guards on a missing verdict, end time and ask cou
     expect(holds_on_missing("Lapse", "asks.value != nil", :asks)).to eq([false, false])
     expect(holds?(guard("Lapse", "asks.value != nil"), { asks: { value: 1 } })).to be(true)
   end
+
+  it "reminds a coder only after the review ended, and only once", :aggregate_failures do
+    expect(holds_on_missing("Remind", "ended_at.value != nil", :ended_at)).to eq([false, false])
+    expect(holds?(guard("Remind", "ended_at.value != nil"), { ended_at: { value: 9 } })).to be(true)
+    expect(holds_on_missing("Remind", "reminded_at", :reminded_at)).to eq([true, true])
+    expect(holds?(guard("Remind", "reminded_at"), { reminded_at: { value: 9 } })).to be(false)
+  end
 end

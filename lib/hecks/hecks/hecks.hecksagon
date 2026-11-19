@@ -19,6 +19,9 @@ Hecks.hecksagon "Hecks" do
   subscribe "Agents.CoordinatorWoken"
   # A woken pruner starts a session through AgentRun (see StartThePrunerWhenWoken in the delegate bluebook).
   subscribe "Agents.PrunerWoken"
+  # A change review that asks the architect starts its session (StartTheArchitectOnChangeReview in the
+  # deliver bluebook).
+  subscribe "Agents.ChangeReviewRequested"
   # A judged verdict answers the coder waiting on its Work item (AnswerTheWaitingCoder in the delegate
   # bluebook); the outcome comes back as a delivered or an undeliverable verdict.
   subscribe "Agents.VerdictJudged"
@@ -154,7 +157,7 @@ Hecks.hecksagon "Hecks" do
   end
 
   Hecks::RedFlag.port "Flagging" do
-    %w[Hoist SignIn Lower Survey].each do |step|
+    %w[Hoist SignIn Lower Survey Pass].each do |step|
       asks step, to: RedFlag do
         attribute :run, RunKey
         answers "FlagAnswered"
@@ -241,6 +244,7 @@ Hecks.hecksagon "Hecks" do
   Hecks::StallWatch.port "Watching" do
     answers_query "Unclosed"
     answers_query "Abandoned"
+    answers_query "Impediments"
   end
 
   Hecks::SendTrain.port "Alerts" do
@@ -294,6 +298,12 @@ Hecks.hecksagon "Hecks" do
       attribute :run, RunKey
       answers "BranchCiAnswered"
       refuses "BranchCiRefused"
+    end
+
+    asks "BranchCiClose", to: EarlyCi do
+      attribute :run, RunKey
+      answers "BranchCiClosed"
+      refuses "BranchCiCloseRefused"
     end
   end
 
@@ -411,6 +421,21 @@ Hecks.hecksagon "Hecks" do
       attribute :step, Report
       answers "RestartAnswered"
       refuses "RestartRefused"
+    end
+    # Reruns the one failed job of a CI run whose failure the bluebook judged unrelated to the change.
+    asks "RestartJob", to: TrainPr do
+      attribute :key, Key
+      attribute :ci_run, Word
+      attribute :job, Word
+      attribute :pr, Word
+      attribute :examples, Report
+      attribute :work, Word
+      attribute :title, Word
+      attribute :failure, Report
+      attribute :cause, Word
+      attribute :step, Report
+      answers "RestartJobAnswered"
+      refuses "RestartJobRefused"
     end
   end
 
@@ -666,7 +691,8 @@ Hecks.hecksagon "Hecks" do
       refuses "ReapRefused"
     end
 
-    # Removes the sessions no run holds (done or stopped, older than `session_keep`, no worktree)
+    # Removes the sessions no run holds (done or stopped, no worktree, unpinned, older than
+    # `remove_done_after_minutes` for a pipeline helper or `session_keep` for the owner's)
     # and reports the whole reap. A reap ends under its own events, which free its turn.
     asks "SweepPlain", to: SessionCleanup do
       attribute :run, CleanupName
@@ -1422,6 +1448,33 @@ Hecks.hecksagon "Agents" do
   subscribe "Hecks.SweepRequested"
   subscribe "Coder.WorkSubmitted"
   subscribe "Pipeline.PassageVerified"
+  subscribe "Tickets.AdrDrafted"
+  subscribe "Tickets.AdrAccepted"
+  subscribe "Tickets.AdrSuperseded"
+
+  # The coder hands in a branch: the architect's change review takes its commit, reads the paths
+  # it changed and asks the architect when a bluebook, hecksagon or decision file is among them.
+  translates "ConsiderTheChangeWhenWorkIsSubmitted" do
+    on Submission::WorkSubmitted
+    trigger ChangeReview::Consider, with: { review: :sha, work: :branch, checkout: :checkout }
+  end
+
+  # A decision recorded as a Tickets event asks the architect without a file path. A decision is
+  # reviewed once, keyed by its number: a later event on a reviewed decision is refused by name.
+  translates "AskTheArchitectWhenADecisionIsDrafted" do
+    on Adr::AdrDrafted
+    trigger ChangeReview::AskOnDecision, with: { review: :adr, adr: :adr }
+  end
+
+  translates "AskTheArchitectWhenADecisionIsAccepted" do
+    on Adr::AdrAccepted
+    trigger ChangeReview::AskOnDecision, with: { review: :adr, adr: :adr }
+  end
+
+  translates "AskTheArchitectWhenADecisionIsSuperseded" do
+    on Adr::AdrSuperseded
+    trigger ChangeReview::AskOnDecision, with: { review: :adr, adr: :adr }
+  end
 
   # The coder hands in a branch: the reviewer is asked to judge it. The branch is named for the Work item,
   # the review is keyed by the commit, and the session works in the coder's checkout, which the event names.
@@ -1454,7 +1507,7 @@ Hecks.hecksagon "Agents" do
   # on the read that judges its verdict, and one no request made is recorded by `Record`.
   translates "RecordTheArchitectsVerdict" do
     on AgentRun::JobRead
-    where { verdict != "" && (previous != state || (listed == "idle" && previous != "done")) }
+    where { work != "" && verdict != "" && (previous != state || (listed == "idle" && previous != "done")) }
     trigger PlanReview::Answer, with: { run: :run, verdict: :verdict, findings: :findings }
   end
 

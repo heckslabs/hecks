@@ -9,8 +9,9 @@ require_relative "plan_flow_html"
 module Hecks
   module Adapters
     module PipelineBoard
-      # The planning page's tile as HTML: the overview that is read at a glance, then the epics as
-      # closed rows under the lane they sit in (most urgent lane first), then the items in no epic.
+      # The planning page's tile as HTML: the overview that is read at a glance, then Running now
+      # (one open panel holding every running item), then the epics as closed rows under the lane
+      # they sit in (most urgent lane first), then the items in no epic. Each item is drawn once.
       # Filters on the page hide rows by their `data-` attributes, so a redraw keeps them.
       module PlanHtml
         # The heading each lane of epics is drawn under.
@@ -25,10 +26,43 @@ module Hecks
           return TileHtml.unknown(reading) if reading.key?(:unknown)
 
           top = "#{PlanOverview.draw(reading)}#{PlanFlowHtml.draw(reading[:flow])}"
-          "#{top}#{lanes(reading[:epics])}#{no_epic(reading[:no_epic])}"
+          "#{top}#{running(reading)}#{lanes(reading[:epics])}#{no_epic(reading[:no_epic])}"
         end
 
-        def lanes(epics) = epics.group_by { |epic| epic[:lane] }.map { |name, list| lane(name, list) }.join
+        # @param reading [Hash] see {PlanReading.build}
+        # @return [String] the Running now panel, drawn open: every running item with its epic,
+        #   its session and how long it has run, or a line saying nothing is running
+        def running(reading)
+          rows = reading[:strip][:running]
+          pills = "<span class=\"counts\">#{plural(rows.size, "item")} running</span>"
+          panel("running", LANES["running"], pills, rows.map { |row| row[:title] }, run_rows(rows, reading[:epics]))
+        end
+
+        def run_rows(rows, epics)
+          titles = epics.to_h { |epic| [epic[:epic].to_s, epic[:title]] }
+          body = rows.map { |row| run_row(row, titles) }.join
+          "<div class=\"items run\">#{body.empty? ? "<p class=\"quiet\">nothing is running</p>" : body}</div>"
+        end
+
+        # A running item under the name of the epic it belongs to.
+        def run_row(row, titles)
+          epic = row[:epic].to_s.empty? ? "no epic" : titles.fetch(row[:epic].to_s, row[:epic])
+          "<div class=\"run-row\"><span class=\"in-epic\">#{esc(epic)}</span>#{PlanItem.draw(row)}</div>"
+        end
+
+        def lanes(epics)
+          placed = epics.map { |epic| unrun(epic) }.group_by { |epic| epic[:lane] }
+          placed.sort_by { |name, _| LANES.keys.index(name) || LANES.size }.map { |name, list| lane(name, list) }.join
+        end
+
+        # An epic as its lane draws it: its running items are in Running now, so it lists the rest
+        # and sits in the most urgent lane among them, `now` when every open item runs.
+        def unrun(epic)
+          rest = epic[:items].reject { |row| row[:session] }
+          return epic if rest.size == epic[:items].size
+
+          epic.merge(items: rest, lane: rest.empty? ? "now" : PlanOrder.lane(rest))
+        end
 
         # How many names a shut lane's header lists before it counts the rest.
         PEEK = 3
@@ -49,6 +83,8 @@ module Hecks
         end
 
         def no_epic(data)
+          rest = Array(data[:items]).reject { |row| row[:session] }
+          data = data.merge(items: rest, count: rest.size)
           drawn = PlanEpic.loose(data)
           return "" if drawn.empty?
 
@@ -56,8 +92,11 @@ module Hecks
           panel("none", "No epic", pills, Array(data[:items]).map { |row| row[:title] }, drawn)
         end
 
+        # Running now is short, so it is drawn open; the page keeps it so until the owner shuts it.
+        OPEN = " id=\"running\" data-drawn=\"open\" open"
+
         def panel(name, title, pills, names, rows)
-          "<details class=\"lane\" data-lane=\"#{esc(name)}\"><summary><h2>#{esc(title)}</h2>" \
+          "<details class=\"lane\" data-lane=\"#{esc(name)}\"#{OPEN if name == "running"}><summary><h2>#{esc(title)}</h2>" \
             "<span class=\"sum\">#{pills}#{peek(names)}</span></summary>#{rows}</details>"
         end
 

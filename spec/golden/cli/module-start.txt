@@ -1,32 +1,32 @@
-start — Begin a domain or a project.
+start —
 
   hecks <Aggregate.command>! [name=value …]    do something
   hecks <Aggregate.query> [name=value …]       read something
 
 commands:
-  Launch.project_cli!    Write a command-line launcher beside each domain of this project
-  Launch.init!           Write the stub files of a new domain
-  Launch.project_rails!  Write the controllers and routes a Rails app drives its domain through
-  Launch.interview!      Hold an interview with a subject matter expert and draft a first domain from it
+  Launch.project_cli!
+  Launch.init!
+  Launch.project_rails!
+  Launch.interview!
 
 queries (nothing here changes anything):
 
 bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
-  delivery         Take finished work onto local main.
-  deploy           Generate, check and compare deploy recipes, project OIDC manifests and provision tenants.
-  governance       Organizational authority is explicit, reviewable, and historically explainable.
-  tenancy          Which tenants exist, which realm and storage each one owns, and whether each is currently…
-  site             Declare a site's routes once and project them into the TypeScript its pages, navigation and CMS…
-  tickets          Track what Hecks needs, decide it, ship it, and drive GitHub from the record.
-  composer         Write a bluebook in an editor and watch the domain draw itself, with an agent that can change…
-  quality_control  A user should never be made to feel stupid by something that took what they said and quietly…
-  bluebook         The bluebook language, declared in itself.
+  delivery
+  deploy
+  governance
+  tenancy
+  site
+  tickets
+  composer
+  quality_control
+  bluebook
   hecksagon
   world
-  adapter          The .adapter language, declared in itself.
-  port             The .port language, declared in itself.
+  adapter
+  port
   translation
-  expression       The subset of regular Ruby a predicate is allowed to be — small enough that every target can…
+  expression
 
   hecks <command> --help       what one command wants, and every way it refuses
   hecks --all                  also list the internal commands and queries

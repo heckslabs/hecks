@@ -5,7 +5,7 @@ require_relative "support/agents_message_helpers"
 RSpec.describe "the Agents messages" do
   include AgentsMessageHelpers
 
-  before { AgentsMemoryBoot.call }
+  before { boot_messages }
 
   it "records a sent message as unread" do
     expect(send_message.status).to eq("sent")

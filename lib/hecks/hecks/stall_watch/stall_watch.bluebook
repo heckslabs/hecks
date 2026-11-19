@@ -45,22 +45,50 @@ Hecks.bluebook "Hecks" do
         # it to. A row that times something else, as agent-run-blocked times a session's
         # condition, names none.
         attribute :state,          String
-        # A later `settled_by` line on `settled_aggregate` (same id, or `settled_on: "branch"`) settles
-        # the subject: it is not filed, and a filed one is abandoned. A yield never settles a run:
-        # the fixer's own move yields it.
+        # A later `settled_by` line on `settled_aggregate` (same id, `settled_on: "branch"`, or any
+        # id with `settled_on: "any"`) settles the subject: it is not filed, and a filed one is
+        # abandoned. A yield never settles a run: the fixer's own move yields it.
         attribute :settled_aggregate, String
         attribute :settled_by,        String
         attribute :settled_on,        String
+        # Whether a line past its minutes is filed as a stall: empty (the default) files it, "no"
+        # only lists it among the impediments, for a source another handler already acts on.
+        attribute :files,             String
+        # "kind" lists every open line of the row as one impediment, the oldest line's, with how
+        # many lines it stands for; empty lists one per subject.
+        attribute :folds,             String
+        # Rows of one `shares` group file one stall per subject: the first declared past its minutes
+        # files, and no sibling files while it stands filed and open, so its fixer owns the subject.
+        # The Watching adapter applies the rule.
+        attribute :shares,            String
+        # The most stalls a `shares` group holds open at once (filed, not abandoned, their work item
+        # not settled): past it a ready line waits for a look after one settles. Empty or 0 is no cap.
+        attribute :cap,               Integer
+        # A run started to answer a question: an `answers_by` line on `answers_aggregate` names the
+        # run that asks, and the answering run's own line links it as its `work`. Its block is never
+        # filed, so a helper's block starts no helper; the asking run's own stall still files.
+        attribute :answers_aggregate, String
+        attribute :answers_by,        String
+        # The aggregate whose lines carry a run's work item. A run whose own lines link no work and
+        # that no such line names is labelled unnamed in its detail, so it can be told and reaped.
+        attribute :named_aggregate,   String
 
         member kind: "plan-review", not_about: "stall-", aggregate: "Agents::PlanReview", opens: "PlanReviewRequested",
                closes: "PlanReviewed,PlanReviewRecorded,ReviewUnstarted", minutes: 20, forgets: 1440, fixer: "orchestrator",
                ends_aggregate: "Hecks::AgentRun", ends: "SessionFinished,SessionFailed,AgentRunRetired,AgentTrialRunRetired",
                move: "Read the architect's closing report, record its verdict with PlanReview.answer! " \
                      "(PlanReview.record! when no request row exists), then AgentRun.answer! the waiting coder."
+        # A rerun does not close the line; an exhaust does, and any later merge settles it (`TrainPr`
+        # records no pass), even an unrelated one. A failed rerun exhausts under a new key, so this
+        # line still files and its move stops.
         member kind: "train-pr-red", aggregate: "Hecks::TrainPr", opens: "TrainPrFailed",
-               closes: "TrainPrRerun,TrainPrExhausted", minutes: 10, forgets: 1440, fixer: "orchestrator",
-               move: "Read the failed PR's CI (gh pr view), rerun its failed jobs once (gh run rerun --failed), " \
-                     "and if it fails again Work.plan! red-train-<pr> (category red, priority now) with the failure as its detail."
+               closes: "TrainPrExhausted", minutes: 30, forgets: 1440, fixer: "orchestrator",
+               settled_aggregate: "Hecks::SendTrain", settled_by: "BranchPushed", settled_on: "any",
+               move: "The failed jobs were rerun already; read the PR (gh pr view <pr> --json state,statusCheckRollup). " \
+                     "If a later attempt was exhausted (a red-train-<pr> work item exists), report that and stop. A PR " \
+                     "closed unmerged or red again is Work.plan! red-train-<pr> (category red, priority now) naming the " \
+                     "failed specs; when an undone red-train work item already names the same specs from an earlier PR, " \
+                     "add this PR to its detail instead: consecutive PRs failing the same specs are one cause."
         # A queued train pull request asks for a chain of ticks keyed by the boarded commit
         # (`TickWhenQueued`); a chain that never beats within 3 minutes has no live worker. A healthy
         # chain's first beat comes about half a minute after it is asked for. Every verdict on the
@@ -80,12 +108,19 @@ Hecks.bluebook "Hecks" do
                move: "Read githubstatus.com for GitHub Actions, and the PR's checks with SendTrain.watch! to=<boarding> (gh pr view <pr> --json statusCheckRollup). " \
                      "The pipeline closes and reopens it once after 20 minutes (TrainPrReopen); if CI still has not " \
                      "started once Actions is up, read when the launchd beat last ran from the mtime of ~/.claude/hecks-dev/train-beat.log (start no beat), then close and reopen it by hand (gh pr close, gh pr reopen, gh pr merge --auto --squash)."
-        member kind: "agent-run-start", not_about: "stall-", aggregate: "Hecks::AgentRun", state: "requested", opens: "AgentRunRequested",
+        # The four AgentRun rows end on the run's last lines: `closes` clears a line before it is
+        # filed, and `ends` abandons a filed stall whose run was tidied or retired after it opened,
+        # even when a closing line came first, so its Work item is not started on a run that is gone.
+        member kind: "agent-run-start", shares: "agent-run", cap: 3, answers_aggregate: "Hecks::Question", answers_by: "QuestionSeated",
+               named_aggregate: "Tickets::Work", not_about: "stall-", aggregate: "Hecks::AgentRun", state: "requested", opens: "AgentRunRequested",
+               ends_aggregate: "Hecks::AgentRun", ends: "AgentRunTidied,AgentRunRetired,AgentTrialRunRetired",
                settled_aggregate: "Tickets::Work", settled_by: "WorkFinished,WorkDropped,WorkLapsed",
                closes: "AgentRunStarted,AgentRunDeclined", minutes: 10, forgets: 1440, fixer: "orchestrator",
                move: "Work.yield! the run's Work item (AgentRun.running names it) with the reason, " \
                      "so the fill restarts it once."
-        member kind: "agent-run-session", not_about: "stall-", aggregate: "Hecks::AgentRun", state: "started", opens: "AgentRunStarted",
+        member kind: "agent-run-session", shares: "agent-run", cap: 3, answers_aggregate: "Hecks::Question", answers_by: "QuestionSeated",
+               named_aggregate: "Tickets::Work", not_about: "stall-", aggregate: "Hecks::AgentRun", state: "started", opens: "AgentRunStarted",
+               ends_aggregate: "Hecks::AgentRun", ends: "AgentRunTidied,AgentRunRetired,AgentTrialRunRetired",
                settled_aggregate: "Tickets::Work", settled_by: "WorkFinished,WorkDropped,WorkLapsed",
                closes: "SessionFinished,SessionFailed,AgentRunRetired,AgentTrialRunRetired", minutes: 240,
                forgets: 1440, fixer: "orchestrator",
@@ -94,14 +129,18 @@ Hecks.bluebook "Hecks" do
         # A verdict's resume was refused while the coder waits on it. Each sweep sends it again up to
         # three times and then finishes the run, which closes this line, so a line open for ten minutes
         # means the sweep or its retry chain is broken: the dead run still holds its Work item's area.
-        member kind: "agent-run-unresumed", not_about: "stall-", aggregate: "Hecks::AgentRun", opens: "AgentRunUnresumed",
+        member kind: "agent-run-unresumed", shares: "agent-run", cap: 3, answers_aggregate: "Hecks::Question", answers_by: "QuestionSeated",
+               named_aggregate: "Tickets::Work", not_about: "stall-", aggregate: "Hecks::AgentRun", opens: "AgentRunUnresumed",
+               ends_aggregate: "Hecks::AgentRun", ends: "AgentRunTidied,AgentRunRetired,AgentTrialRunRetired",
                settled_aggregate: "Tickets::Work", settled_by: "WorkFinished,WorkDropped,WorkLapsed",
                closes: "AgentRunAnswered,SessionFinished,SessionFailed,AgentRunRetired,AgentTrialRunRetired",
                minutes: 10, forgets: 1440, fixer: "orchestrator",
                move: "The sweep already sends the verdict again and then ends the run, so a stall here means the " \
                      "sweep or its retry chain is broken: report that as the finding. AgentRun.check! the run, then " \
                      "Work.yield! the run's Work item (AgentRun.running names it) with the reason, so its area claim is freed."
-        member kind: "agent-run-blocked", not_about: "stall-", aggregate: "Hecks::AgentRun", opens: "SessionBlocked",
+        member kind: "agent-run-blocked", shares: "agent-run", cap: 3, answers_aggregate: "Hecks::Question", answers_by: "QuestionSeated",
+               named_aggregate: "Tickets::Work", not_about: "stall-", aggregate: "Hecks::AgentRun", opens: "SessionBlocked",
+               ends_aggregate: "Hecks::AgentRun", ends: "AgentRunTidied,AgentRunRetired,AgentTrialRunRetired",
                settled_aggregate: "Tickets::Work", settled_by: "WorkFinished,WorkDropped,WorkLapsed",
                closes: "AnswerRequested,AgentRunAnswered,SessionWorking,SessionFinished,SessionFailed,AgentRunRetired,AgentTrialRunRetired",
                minutes: 15, forgets: 1440, fixer: "orchestrator",
@@ -110,6 +149,41 @@ Hecks.bluebook "Hecks" do
                      "the Work item's area or an architect verdict (a wrong area: Work.rescope!, then answer); " \
                      "otherwise Work.plan! a work item titled 'needs an answer: <run>' with the question text as its detail " \
                      "(the orchestrator holds Work.*; it needs no other permission). Never ask the owner."
+        # A session that failed whose Work item nothing has moved since: not started, yielded,
+        # released, refused, finished, dropped or lapsed. Dispatch.Settle moves most of them.
+        member kind: "agent-run-failed", not_about: "stall-", aggregate: "Hecks::AgentRun", opens: "SessionFailed",
+               ends_aggregate: "Hecks::AgentRun", ends: "AgentRunTidied,AgentRunRetired,AgentTrialRunRetired",
+               settled_aggregate: "Tickets::Work",
+               settled_by: "WorkStarted,WorkYielded,WorkReleased,WorkRefused,WorkFinished,WorkDropped,WorkLapsed",
+               closes: "AgentRunStarted,AgentRunRetired,AgentTrialRunRetired", minutes: 0, forgets: 1440,
+               fixer: "orchestrator", files: "no",
+               move: "Read the run's last report (AgentRun.check!), then Work.yield! its Work item with the " \
+                     "failure as the reason, so the fill starts it again."
+        # Main held for a boarding ten minutes on and not released. One marker holds main, so any
+        # later release settles it; a hold nobody lifts expires at the world's boarding_hold window
+        # (20 minutes), after which it is history.
+        member kind: "held-lock", aggregate: "Hecks::BoardingHold", opens: "BoardingHoldSettled",
+               settled_aggregate: "Hecks::BoardingRelease", settled_by: "BoardingReleaseSettled", settled_on: "any",
+               minutes: 10, forgets: 20, fixer: "orchestrator", files: "no",
+               move: "Read send_train.status and the train's log: a rehearsal still running is only slow, so leave it. " \
+                     "With none, the hold expires at the boarding_hold window by itself; Work.plan! a work item naming " \
+                     "the hold's run and what took it, so the cause is fixed."
+        # A failed Codebase run's finding (`Finding.ReportFailedRun`, one per cause or per run that
+        # named none) whose Work item is undone. The tap carries no cause, so the row folds every
+        # open one into one impediment; ReportWhenGateFaulted already plans each Work item.
+        member kind: "codebase-check-failed", aggregate: "Tickets::Finding", opens: "RunFindingReported",
+               closes: "FindingResolved,FindingDismissed", settled_aggregate: "Tickets::Work",
+               settled_by: "WorkFinished,WorkDropped,WorkLapsed", minutes: 0, forgets: 10080,
+               fixer: "orchestrator", files: "no", folds: "kind",
+               move: "Read the open findings titled 'A Codebase check failed' (Work.undone): a cause a later green " \
+                     "gate cleared is Work.drop!ped with that run as the reason; the rest are one red-* work item."
+        # A boarding begun ten minutes ago and not pushed, refused or superseded. `Board` moves no
+        # state, so the row times the boarding and names none. The subject is the boarding's run,
+        # so another run's push never closes it and a new boarding files again.
+        member kind: "stale-boarding", aggregate: "Hecks::Integration", opens: "MainBoardingStarted",
+               closes: "MainPushed,MainPushRefused,IntegrationSuperseded", minutes: 10, forgets: 1440, fixer: "orchestrator",
+               move: "Read the boarding (exe/hecks send_train.status, Integration.advance! confirm=true) and the train's " \
+                     "log; a held lock or a dead push is reported as the cause, and the boarding is boarded again once."
         # A volume at high past half an hour is a stall for the pruner, once per volume, ever: the
         # DiskSpace `Volume` it opens on rises once.
         member kind: "disk", aggregate: "Hecks::Volume", state: "high", opens: "VolumeRose", closes: "VolumeEased",
@@ -161,16 +235,19 @@ Hecks.bluebook "Hecks" do
                      "already pushed the commit (BranchPushed), report that and stop. Otherwise fix the cause the " \
                      "refusal names and board again (SendTrain.board! --confirm); never use --no-verify or HECKS_OWNER_PUSH."
         # A queued boarding whose pull request has not merged in 45 minutes: its checks are slow or stuck.
-        # A merge, a failed-checks verdict (`train-checks-failed` takes over) or a pull request closed
-        # unmerged (`BoardingClosed`: settled, nothing left to watch) closes it.
+        # Failed checks close it (`train-checks-failed` takes over); a merge or a pull request closed
+        # unmerged settles the boarding, so a filed stall is abandoned and its Work item dropped.
         member kind: "train-unmerged", aggregate: "Hecks::SendTrain", state: "queued", opens: "BoardingQueued",
                closes: "BranchPushed,TrainChecksFailed,PushFaulted,BoardingClosed", minutes: 45, forgets: 1440, fixer: "orchestrator",
+               settled_aggregate: "Hecks::SendTrain", settled_by: "BranchPushed,BoardingClosed",
                move: "Read the train pull request with SendTrain.watch! to=<boarding> (gh pr view <pr> --json mergeStateStatus,statusCheckRollup): " \
                      "BLOCKED on pending checks is only slow, so leave it; CLEAN without a merge means auto-merge " \
                      "is off, so turn it on (gh pr merge <pr> --auto). The launchd beat records a merge GitHub made: start none, and read when it last ran from the mtime of ~/.claude/hecks-dev/train-beat.log."
         # A queued boarding's required checks ended red; its pull request stays open and a merge closes it.
+        # A merge or a close settles the boarding, so a filed stall is abandoned and its Work item dropped.
         member kind: "train-checks-failed", aggregate: "Hecks::SendTrain", state: "red", opens: "TrainChecksFailed",
                closes: "BranchPushed,BoardingClosed", minutes: 0, forgets: 1440, fixer: "orchestrator",
+               settled_aggregate: "Hecks::SendTrain", settled_by: "BranchPushed,BoardingClosed",
                move: "The report names the failed jobs: read them (gh run view --log-failed). A flaky job is rerun " \
                      "once (gh run rerun --failed); a real failure is Work.plan! as a red-* work item with the " \
                      "failed jobs as its detail."
@@ -190,6 +267,10 @@ Hecks.bluebook "Hecks" do
         attribute :fixer,      String
         attribute :title,      String
         attribute :detail,     String
+        # The stall key a look filed for the line, empty when none was; and, for an impediment,
+        # how many lines it stands for (one unless its row folds).
+        attribute :filed,      String
+        attribute :count,      Integer
       end
 
       command "Detect" do
@@ -201,9 +282,9 @@ Hecks.bluebook "Hecks" do
         emits StallDetectRequested
       end
 
-      # A filed stall whose run (named by the kind's `ends` events, on the same id) has ended, or
-      # whose subject has settled (its `settled_by` lines): no fixer is needed, so it is closed with
-      # the reason.
+      # A filed stall, its line closed or not, whose run ended (the kind's `ends` lines on the same
+      # id) or whose subject settled (its `settled_by` lines) since it opened: no fixer is needed,
+      # so it is closed with the reason.
       value_object "Abandoned" do
         attribute :id,      String
         attribute :stall,   String
@@ -212,13 +293,21 @@ Hecks.bluebook "Hecks" do
       end
 
       query "Unclosed" do
-        description "The opening lines of every stall kind whose closing line has not come, within the kind's window, with how long each has waited. A line the tap shows filed already, whose run has ended or whose subject has settled, is left out: it is handled once and a later look emits nothing for it. Read-only: it reads the tap and boots nothing."
+        description "The opening lines of every stall kind whose closing line has not come, within the kind's window, with how long each has waited. A line the tap shows filed already, whose run has ended or whose subject has settled since it opened, is left out: it is handled once and a later look emits nothing for it. Read-only: it reads the tap and boots nothing."
+        attribute :run, String
+        returns list_of(Sighting)
+      end
+
+      # The impediments: what holds work up now, oldest first. `subject` is the source record,
+      # `waited` its age in minutes, `fixer` its owner and `detail` the help it needs.
+      query "Impediments" do
+        description "Every opening line of every stall kind still open past its kind's minutes and within its window, filed or not: its run not ended, its subject not settled, its closing line not come. One per subject, or one per kind for a row that folds, with how many lines it stands for; oldest first. Read-only: it reads the tap and boots nothing."
         attribute :run, String
         returns list_of(Sighting)
       end
 
       query "Abandoned" do
-        description "The filed stalls whose run has ended or whose subject has settled and which no look has closed yet, each with the ending or settling line as its reason. Read-only: it reads the tap and boots nothing."
+        description "The filed stalls, opened within their kind's window, whose run has ended or whose subject has settled since they opened and which no look has closed yet, each with the ending or settling line as its reason; a filed stall whose line has closed is one too. Read-only: it reads the tap and boots nothing."
         attribute :run, String
         returns list_of(Abandoned)
       end
@@ -333,6 +422,19 @@ Hecks.bluebook "Hecks" do
       on       "StallWatch.StallDetectRequested"
       for_each "StallWatch.Abandoned"
       trigger  Stall::Abandon, with: { watch: :id, stall: :stall, reason: :reason }
+    end
+
+    # An abandoned stall asks its session, the run its wake started under the stall's key, to end
+    # its turn; nothing is stopped, and a stall with no started run refuses as `Answer` does. A root,
+    # since the abandon already sits several reactions deep.
+    policy "EndTheStallSessionWhenAbandoned" do
+      on      "Stall.StallAbandoned"
+      root
+      trigger AgentRun::Answer,
+              with: { run: :stall,
+                      answer: "The stall you were started for has settled or its run has ended, so the stall " \
+                              "watch abandoned it and its work item is dropped. Make no move for it: commit " \
+                              "nothing, start nothing, and end your turn now." }
     end
   end
 end

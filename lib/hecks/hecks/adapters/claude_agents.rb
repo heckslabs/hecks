@@ -19,6 +19,7 @@ require_relative "claude_agent_list"
 require_relative "claude_session_listing"
 require_relative "session_caller"
 require_relative "dispatching/settings"
+require_relative "dispatching/credential_setting"
 require_relative "session_lookup"
 require_relative "work_holder"
 require_relative "session_line"
@@ -88,7 +89,7 @@ module Hecks
         repo = plain(held[:repo])
         raise ConsoleCapture::Failure, "#{repo} is not a directory" unless File.directory?(repo.to_s)
 
-        { report: { value: "#{repo} is a directory" }, **agent_listing(repo, plain(held[:agent])), **@holder.call(held) }
+        { report: { value: "#{repo} is a directory" }, **@agents.listing(repo, plain(held[:agent])), **@holder.call(held) }
       end
 
       # Starts a background session in the directory, with the brief as its first prompt.
@@ -110,12 +111,18 @@ module Hecks
       #   a stopped-listed coder's `dirty:` and `unmerged:`; and `listed:` the status and `live:`
       #   the state `claude agents` lists the session with.
       #   A job that reads ended (`done`, `stopped`) is read against a fresh listing, so `live:`
-      #   is not stale news; the state itself stays the job's own
+      #   is not stale news; the state itself stays the job's own. And the {#blocked_facts}
       # @raise [ConsoleCapture::Failure] when the job's state cannot be read
       def read_job(**held)
         job = @jobs.state(plain(held[:session]))
-        { state: job["state"].to_s, detail: job["detail"].to_s }
+        { state: job["state"].to_s, detail: job["detail"].to_s, **blocked_facts(job, held) }
           .merge(architect_facts(job, held), reviewer_facts(job, held), run_facts(held), session_facts(job, held))
+      end
+
+      # @return [Hash{Symbol => Object}] {ClaudeJobs#waiting}'s `blocked_minutes:` and
+      #   `pin_listed:`, and {SessionReaping#abandon_after}
+      def blocked_facts(job, held)
+        @jobs.waiting(job, plain(held[:session]), @clock.call).merge(abandon_after: @reaping.abandon_after)
       end
 
       # @return [Hash{Symbol => Object}] what {CoderJobFacts} reads of the job and its checkout, and
@@ -207,28 +214,17 @@ module Hecks
       #   settings; the rest of the session environment is not forwarded there
       def caller_only(held) = SessionCaller.environment({}, held)
 
-      def agent_listing(repo, agent)
-        return { listed: true, note: "no agent named: the session runs the default agent" } unless agent
-
-        names = @agents.names(repo)
-        { listed: names.include?(agent), note: unavailable(agent, repo, names) }
-      end
-
-      def unavailable(agent, repo, names)
-        main = Dispatching::Checkout.main(repo)
-        where = main == repo ? repo : "#{repo} or the main checkout #{main}"
-        "agent #{agent} is not available in #{where}; available: #{names.join(", ")}"
-      end
-
       def listed(id) = @listing.find(id) || raise(ConsoleCapture::Failure, "no session #{id} is listed")
 
-      # What reads the registry's runs: the sessions to reap and the run that holds a work item.
+      # What reads the registry: the sessions to reap, the run that holds a work item, and the roles
+      # whose sessions start without credentials.
       def registered(registry)
         @reaping = SessionReaping.new(registry: registry)
         @holder = WorkHolder.new(registry)
+        @credentials = Dispatching::CredentialSetting.new(registry)
       end
 
-      def session_line = SessionLine.new(command: @command, nice: niceness, hooks: @hooks)
+      def session_line = SessionLine.new(command: @command, nice: niceness, hooks: @hooks, credentials: @credentials)
 
       # The id a start printed, or why there is none.
       def session_id(result)

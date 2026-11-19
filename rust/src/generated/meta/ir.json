@@ -7511,6 +7511,16 @@
           "relationship": null
         },
         {
+          "name": "policy_only",
+          "type": "CommandText",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
           "name": "from",
           "type": "CommandText",
           "list": false,
@@ -8433,6 +8443,36 @@
               [
                 "calls",
                 "mints_era_impl"
+              ]
+            ],
+            [
+              [
+                "word",
+                "policy_only"
+              ],
+              [
+                "context",
+                "Command"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "policy_only"
+              ],
+              [
+                "calls",
+                "policy_only_impl"
               ]
             ],
             [
@@ -10439,6 +10479,16 @@
               "relationship": null
             },
             {
+              "name": "policy_only",
+              "type": "CommandText",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
               "name": "from",
               "type": "CommandText",
               "list": false,
@@ -10539,6 +10589,15 @@
               "source": {
                 "kind": "argument",
                 "name": "mints_era"
+              }
+            },
+            {
+              "target": "policy_only",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "policy_only"
               }
             },
             {
@@ -14752,6 +14811,16 @@
           "relationship": null
         },
         {
+          "name": "acts_as",
+          "type": "PolicyText",
+          "list": false,
+          "default": null,
+          "optional": true,
+          "pattern": null,
+          "admits": null,
+          "relationship": null
+        },
+        {
           "name": "where",
           "type": "PolicyText",
           "list": false,
@@ -15219,6 +15288,36 @@
                 "calls",
                 "root_impl"
               ]
+            ],
+            [
+              [
+                "word",
+                "acts_as"
+              ],
+              [
+                "context",
+                "Policy"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "acts_as"
+              ],
+              [
+                "calls",
+                "acts_as_impl"
+              ]
             ]
           ]
         },
@@ -15624,6 +15723,36 @@
             [
               [
                 "keyword",
+                "acts_as"
+              ],
+              [
+                "context",
+                "Policy"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "acts_as"
+              ]
+            ],
+            [
+              [
+                "keyword",
                 "trigger"
               ],
               [
@@ -15790,6 +15919,16 @@
               "relationship": null
             },
             {
+              "name": "acts_as",
+              "type": "PolicyText",
+              "list": false,
+              "default": null,
+              "optional": true,
+              "pattern": null,
+              "admits": null,
+              "relationship": null
+            },
+            {
               "name": "where",
               "type": "PolicyText",
               "list": false,
@@ -15909,6 +16048,15 @@
               "source": {
                 "kind": "argument",
                 "name": "root"
+              }
+            },
+            {
+              "target": "acts_as",
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "acts_as"
               }
             },
             {
@@ -29376,6 +29524,20 @@
               ],
               [
                 "site",
+                "role_unstated"
+              ],
+              [
+                "template",
+                "{command} refused — role: {role}, and the caller stated no role"
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "Unauthorized"
+              ],
+              [
+                "site",
                 "cross_tenant_reference"
               ],
               [
@@ -33526,6 +33688,74 @@
               [
                 "argument",
                 "caller_role"
+              ],
+              [
+                "shape",
+                "scalar"
+              ],
+              [
+                "quoting",
+                "none"
+              ],
+              [
+                "separator",
+                ""
+              ],
+              [
+                "sorted",
+                "false"
+              ],
+              [
+                "when_empty",
+                ""
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "Unauthorized"
+              ],
+              [
+                "site",
+                "role_unstated"
+              ],
+              [
+                "argument",
+                "command"
+              ],
+              [
+                "shape",
+                "scalar"
+              ],
+              [
+                "quoting",
+                "none"
+              ],
+              [
+                "separator",
+                ""
+              ],
+              [
+                "sorted",
+                "false"
+              ],
+              [
+                "when_empty",
+                ""
+              ]
+            ],
+            [
+              [
+                "refusal",
+                "Unauthorized"
+              ],
+              [
+                "site",
+                "role_unstated"
+              ],
+              [
+                "argument",
+                "role"
               ],
               [
                 "shape",

@@ -4,7 +4,9 @@ module Hecks
   module Adapters
     class StallWatching
       # The opening lines of one `StallKind` row that no closing line has closed, read as the row's
-      # `closed_by` says. The adapter only interprets the row; the row decides.
+      # `closed_by` says. The adapter only interprets the row; the row decides. A closing line
+      # closes only the opening lines before it, so an id that opens again after a close stands
+      # open from its reopening line.
       #
       # - `id` (or none): a closing line closes the opening lines of the same aggregate id.
       # - `any`: a closing line on the kind's aggregate closes every opening line before it,
@@ -14,43 +16,70 @@ module Hecks
       # A row's `only_about` prefix limits which opening lines count; closing lines of any id close.
       class Openings
         # @param kind [Hash] a `StallKind` row
-        # @param lines [Array<Hash>] tap lines in sequence order
-        def initialize(kind, lines)
+        # @param lines [Array<Hash>] tap lines in sequence order; the order is read, never re-sorted
+        # @param closed [Boolean] whether a subject a closing line closed stands as well, from the
+        #   opening line of its latest stretch: a filed stall whose line closed keeps its subject
+        def initialize(kind, lines, closed: false)
           @kind = kind
+          @closed = closed
           @mine = lines.select { |line| line["kind"] == "event" && line["aggregate"] == kind[:aggregate] }
           @closes = kind[:closes].to_s.split(",").map(&:strip)
         end
 
-        # @return [Hash{String => String}] each open subject with when it first opened
+        # @return [Hash{String => String}] each open subject with when it opened after its last
+        #   close; with `closed: true` each subject that opened, from its latest stretch's start
         def unclosed
-          open = @kind[:closed_by] == "any" ? since_last_close : by_id
-          open.reject { |subject, _| subject.empty? }
+          standing.transform_values { |line| line["at"] }.reject { |subject, _| subject.empty? }
         end
 
         # @param subject [String] an opening line's aggregate id
-        # @return [String, nil] the branch the subject's opening line links, none when it links none
+        # @return [String, nil] the branch the subject's standing opening line links, none when it
+        #   links none or the subject stands closed
         def branch(subject)
-          line = @mine.find { |entry| entry["event"] == @kind[:opens] && entry["id"].to_s == subject }
-          line&.dig("links", "branch")
+          standing[subject]&.dig("links", "branch")
         end
 
         private
 
+        # Each open subject with the opening line it stands open from.
+        def standing
+          @standing ||= if @closed then latest_stretches
+                        elsif @kind[:closed_by] == "any" then since_last_close
+                        else by_id
+                        end
+        end
+
+        # Every subject that opened, with the first opening line after its last close before it.
+        def latest_stretches
+          shut = Set.new
+          @mine.each_with_object({}) do |line, opened|
+            id = line["id"].to_s
+            if closing?(line) then shut << id
+            elsif opening?(line) && (shut.delete?(id) || !opened.key?(id)) then opened[id] = line
+            end
+          end
+        end
+
+        # Read in order: a closing line drops its id's opening, an opening line stands if none does.
         def by_id
-          closed = @mine.select { |line| @closes.include?(line["event"]) }.map { |line| line["id"].to_s }
-          opened(@mine).except(*closed)
+          @mine.each_with_object({}) do |line, open|
+            id = line["id"].to_s
+            if closing?(line) then open.delete(id)
+            elsif opening?(line) then open[id] ||= line
+            end
+          end
         end
 
         def since_last_close
-          last = @mine.rindex { |line| @closes.include?(line["event"]) }
-          opened(last ? @mine.drop(last + 1) : @mine).first(1).to_h
+          last = @mine.rindex { |line| closing?(line) }
+          tail = last ? @mine.drop(last + 1) : @mine
+          tail.select { |line| opening?(line) }.first(1).to_h { |line| [line["id"].to_s, line] }
         end
 
-        # The first time each subject recorded the opening event.
-        def opened(lines)
-          lines.select { |line| line["event"] == @kind[:opens] }
-               .select { |line| line["id"].to_s.start_with?(@kind[:only_about].to_s) }
-               .each_with_object({}) { |line, first| first[line["id"].to_s] ||= line["at"] }
+        def closing?(line) = @closes.include?(line["event"])
+
+        def opening?(line)
+          line["event"] == @kind[:opens] && line["id"].to_s.start_with?(@kind[:only_about].to_s)
         end
       end
     end

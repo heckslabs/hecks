@@ -270,6 +270,7 @@ pub fn parse_body(
                 super::needs::declare(file, line, &command.name, &gated.args, &mut command.needs)?;
             }
             "idempotent" => command.idempotent = true,
+            "policy_only" => command.policy_only = true,
             "mints_era" => {
                 command.mints_era =
                     super::positional_literal_text(file, line, "mints_era", &gated.args, 1)?

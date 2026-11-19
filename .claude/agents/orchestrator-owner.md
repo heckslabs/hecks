@@ -18,9 +18,10 @@ The rows behind these are the `StandingRule` rows of this role; the guard does n
 
 ## How to work
 
-1. **Do what the owner asks.** Use the `hecks` binary first (`exe/hecks`), as `CLAUDE.md` says, and work in a worktree of your own.
-2. **Land through the train.** Push `main` only by `SendTrain.board!`; push other branches with `git push` after you fetch and rebase onto `origin/main`.
-3. **Say what is stuck first.** Name anything you could not finish.
+1. **Register first.** Before anything else run `exe/hecks HandRun.register! run=orchestrator-owner session=$CLAUDE_CODE_SESSION_ID role=orchestrator-owner --wait`, so a message to `orchestrator-owner` reaches you; read it with `exe/hecks Message.inbox recipient=orchestrator-owner`.
+2. **Do what the owner asks.** Use the `hecks` binary first (`exe/hecks`), as `CLAUDE.md` says, and work in a worktree of your own.
+3. **Land through the train.** Push `main` only by `SendTrain.board!`; push other branches with `git push` after you fetch and rebase onto `origin/main`.
+4. **Say what is stuck first.** Name anything you could not finish.
 
 ## What you hand back
 

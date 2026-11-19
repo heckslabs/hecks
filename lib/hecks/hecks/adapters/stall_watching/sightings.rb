@@ -4,6 +4,8 @@ require "digest"
 require "time"
 require_relative "standing"
 require_relative "openings"
+require_relative "shared_subjects"
+require_relative "run_names"
 
 module Hecks
   module Adapters
@@ -30,31 +32,60 @@ module Hecks
         # @param run [String] the look that asks, each row's `id`
         # @return [Array<Hash>] one `Sighting` row per opening line no closing line followed,
         #   opened within its kind's window, not filed yet, whose run has not ended and whose
-        #   subject has not settled
+        #   subject has not settled; a row with `files: "no"` is left out, so is a run started to
+        #   answer a question ({RunNames#answerer?}), and so is a row whose `shares` group already
+        #   holds its subject or its `cap` of open stalls ({SharedSubjects})
         def rows(lines, run)
           standing = Standing.new(lines)
-          pending(lines, standing).reject { |entry| handled?(standing, *entry) }
-                                  .map { |kind, subject, at, _| sighting(kind, subject, at, run) }
-                                  .select { |row| row[:waited] < row[:forgets] }
+          @names = RunNames.new(lines)
+          entries = pending(lines, standing)
+          SharedSubjects.new(entries, standing, method(:key), lines).keep(fileable(entries, standing, run))
         end
 
-        # @return [Array<Hash>] one `Abandoned` row per stall the tap shows filed and still
-        #   unclosed whose run has ended or whose subject has settled, not abandoned already, with
-        #   the ending or settling line as its reason
+        # @return [Array<Hash>] one `Abandoned` row per stall the tap shows filed, opened within its
+        #   kind's window, whose run has ended or whose subject has settled since it opened, not
+        #   abandoned already, with the ending or settling line as its reason. A filed stall whose
+        #   line has closed since is one of them: its closing line never closes its Work item.
         def abandoned(lines, run)
           standing = Standing.new(lines)
-          pending(lines, standing).filter_map do |kind, subject, at, branch|
+          pending(lines, standing, closed: true).filter_map do |kind, subject, at, branch|
             stall = key(kind, subject)
+            next unless standing.filed?(stall) && !standing.abandoned?(stall) && recent?(kind, at)
+
             gone = gone(standing, kind, subject, at, branch)
-            reason(run, kind, subject, gone) if gone && standing.filed?(stall) && !standing.abandoned?(stall)
+            reason(run, kind, subject, gone) if gone
           end
+        end
+
+        # @return [Array<Hash>] one `Sighting` row per opening line no closing line followed, whose
+        #   run has not ended and whose subject has not settled, filed or not, each naming the stall
+        #   it was filed as (`filed`) and its row's `folds`; {Impediments} keeps those past their
+        #   minutes and folds them
+        def open_lines(lines, run)
+          standing = Standing.new(lines)
+          @names = RunNames.new(lines)
+          pending(lines, standing).reject { |kind, subject, at, branch| gone(standing, kind, subject, at, branch) }
+                                  .map { |kind, subject, at, _| impediment(standing, kind, subject, at, run) }
         end
 
         private
 
-        def pending(lines, standing)
+        # The open lines a look may offer to `File`: filed by their row, not handled, not a run
+        # started to answer a question, in the window.
+        def fileable(entries, standing, run)
+          entries.reject { |entry| entry.first[:files] == "no" || handled?(standing, *entry) || answerer?(*entry) }
+                 .map { |kind, subject, at, _| sighting(kind, subject, at, run) }
+                 .select { |row| row[:waited] < row[:forgets] }
+        end
+
+        def impediment(standing, kind, subject, at, run)
+          stall = key(kind, subject)
+          sighting(kind, subject, at, run).merge(filed: standing.filed?(stall) ? stall : "", folds: kind[:folds].to_s)
+        end
+
+        def pending(lines, standing, closed: false)
           @kinds.flat_map do |kind|
-            openings = Openings.new(kind, lines)
+            openings = Openings.new(kind, lines, closed: closed)
             open = openings.unclosed.reject { |subject, _| about?(kind, subject, openings.branch(subject)) }
             one_per_branch(kind, open, openings, standing).map { |subject, at| [kind, subject, at, openings.branch(subject)] }
           end
@@ -86,6 +117,8 @@ module Hecks
           "#{full[0, KEY_LIMIT - 17]}-#{Digest::SHA256.hexdigest(full)[0, 16]}"
         end
 
+        def answerer?(kind, subject, *) = @names&.answerer?(kind, subject)
+
         # Filed already, its run ended or its subject settled: a look emits nothing more for it.
         def handled?(standing, kind, subject, at, branch)
           standing.filed?(key(kind, subject)) || gone(standing, kind, subject, at, branch)
@@ -93,7 +126,7 @@ module Hecks
 
         # Why no fixer is needed: the run's ending event, or the line that settled the subject.
         def gone(standing, kind, subject, at, branch)
-          ended = standing.ending(kind, subject)
+          ended = standing.ending(kind, subject, at)
           ended ? "its run recorded #{ended}" : standing.settled(kind, subject, at, branch)&.then { "it settled: #{_1}" }
         end
 
@@ -102,18 +135,30 @@ module Hecks
             reason: "#{kind[:aggregate]} #{subject} can no longer be answered: #{gone}" }
         end
 
+        # Whether an opening line is younger than its kind's window, so a look never drops the Work
+        # item of a stall that is history.
+        def recent?(kind, at) = waited(at) < kind[:forgets].to_i
+
+        def waited(at) = [(@now - Time.iso8601(at.to_s).to_i) / 60, 0].max
+
         def sighting(kind, subject, at, run)
-          waited = [(@now - Time.iso8601(at.to_s).to_i) / 60, 0].max
+          waited = waited(at)
           { id: run, stall: key(kind, subject), stall_kind: kind[:kind], subject: subject,
             opened_at: at.to_s, waited: waited, minutes: kind[:minutes], forgets: kind[:forgets],
-            fixer: kind[:fixer], title: title(kind, subject), detail: detail(kind, subject, at, waited) }
+            fixer: kind[:fixer], title: title(kind, subject), detail: detail(kind, subject, at, waited), filed: "", count: 1 }
         end
 
         def title(kind, subject) = "#{kind[:kind]} stalled: #{kind[:aggregate]} #{subject}"
 
         def detail(kind, subject, at, waited)
           "#{kind[:aggregate]} #{subject} recorded #{kind[:opens]} at #{at} and no #{kind[:closes]} after " \
-            "#{waited} minutes (#{kind[:minutes]} allowed). Fixer: #{kind[:fixer]}. #{seen(kind, waited)}#{move(kind)}"
+            "#{waited} minutes (#{kind[:minutes]} allowed). Fixer: #{kind[:fixer]}. " \
+            "#{unnamed(kind, subject)}#{seen(kind, waited)}#{move(kind)}"
+        end
+
+        # The label of a run the tap ties to no work item, so a run nobody named is seen as one.
+        def unnamed(kind, subject)
+          @names&.unnamed?(kind, subject) ? "Unnamed run: no works_as or work item recorded. " : ""
         end
 
         # What the kind's `evidence` read says now, for a line past its minutes; empty otherwise.

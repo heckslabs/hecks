@@ -57,16 +57,19 @@ report names the tip sha.
 before every push, and again if the pre-push gate ran long enough for `main` to
 move. Many sessions push to `main`; a stale push is rejected or buries their work.
 
-**Pull `main` first, before you cut a branch.** `LinkedTree.pull_main!` fetches `origin` and brings local `main`
-up to date: a fast-forward when it is behind, a rebase of its unpushed commits when both moved; it never
-forces or discards, and refuses by name (`cannot pull main: the checkout has uncommitted changes`) a dirty or
-mid-rebase checkout. `LinkedTree.add!` runs it before cutting the branch and `landing.finish!` before its
-rebase; `landing.land!` refuses a branch behind `origin/main`. A harness-made worktree (`EnterWorktree`)
-is cut from `origin/main`, not local `main`: check `git merge-base --is-ancestor origin/main HEAD` and rebase.
+**Pull `main` first, before you cut a branch.** `LinkedTree.add!` runs `LinkedTree.pull_main!` (a
+fast-forward, or a rebase of local `main`'s unpushed commits; it never forces or discards and refuses a
+dirty checkout by name) before it cuts the branch. A harness-made worktree (`EnterWorktree`) is cut from
+`origin/main`, not local `main`: check `git merge-base --is-ancestor origin/main HEAD` and rebase.
 
-Push `main` by boarding the train (`send_train.board! --confirm`), other branches with `git push`. The pre-push hook (`.githooks/pre-push`: rspec, fuzzing,
-model_check, rubocop, CI attestation) runs on every push, so do not bypass it.
-A red main stands a **red flag** (`RedFlag`, `lib/hecks/hecks/redflag/redflag.bluebook`): a CI run of main that completes red raises it (`Integration.CiFailed`, or `exe/hecks RedFlag.sync! run.value=<id>`), and one that completes green lowers it. While it stands, `Landing` and `SendTrain` refuse by name (`main is red: flag <id>`) everything except the fix of a red-* Work item (exe/hecks tickets Work.undone lists them): a branch named for the Work item lands and its tip is the one commit the train boards. A session listens with `exe/hecks Operation.follow domain.value=Hecks aggregate.value=RedFlag from_now=true wait=600` (RedFlagRaised, RedFlagRunNoted, RedFlagCheckedIn, RedFlagCleared), says it helps with `exe/hecks RedFlag.check_in! run.value=<id> session.value=<name> taking.value=<Work item or cause>`, and resumes on RedFlagCleared; `exe/hecks RedFlag.status` prints the flag, the red time and who is helping. Everything else lands locally with landing.land! once the flag is down.
+**Push `main` only by boarding the train** (`send_train.board! --confirm`), other branches with
+`git push`. The pre-push hook (`.githooks/pre-push`) runs on every push and refuses a plain push of
+`main`; never bypass it. Agents never use `--no-verify` and never set `HECKS_OWNER_PUSH`, which is
+the owner's alone. Do not open a pull request for `main` by hand.
+
+**A red `main` stands a red flag.** While it stands, `Landing` and `SendTrain` refuse by name
+(`main is red: flag <id>`) everything except the fix of a red-* Work item; `exe/hecks RedFlag.status`
+says whether one stands. How to listen, check in and resume: `docs/agents/landing-and-dispatch.md`.
 
 ## Briefing a session
 
@@ -78,67 +81,45 @@ a change outside the area, and report what was stuck first.
 
 ## Running specs
 
-Run a spec file through the launcher, which is the sanctioned path (see "Use the
-hecks binary" below):
+Run specs through the launcher, never `bundle exec rspec` or a wrapper script around it:
 
 ```sh
 exe/hecks test_suite_run.run_spec_example! \
   file.value=spec/doc_banners_spec.rb "example.value= " --wait
+exe/hecks test_suite_run.run_spec_files! "files.value=spec/a_spec.rb spec/b_spec.rb" --wait
+exe/hecks test_suite_run.run_impacted_specs! --wait
 ```
 
-`example.value` filters on the full example description; a single space matches
-every example. The report ends with the example and failure counts. Hecks runs in Memory
-unless a local hecksagon opts it into PostgresEra (ADR 0136), so the run needs no database and no
-environment variable. Memory changes some behavior: two guide examples that retry a payment
-(`commands.md`, `policies-and-process-managers.md`) fail under it.
+`example.value` filters on the full example description; a single space matches every example.
+`run_spec_files!` costs one boot for many files; `isolation.value=shared` runs them in one process,
+`process` (the default) gives each its own. `run_impacted_specs!` runs the specs your branch's
+changes map to (`cap.value=`, `dry.value=true`). Specs run in Memory and need no database.
 
-**A spec never touches the owner's live state.** The Memory overlay switches the runtime's event tap
-off, spec_helper points a child's tap at the run's own temporary file (`HECKS_EVENT_TAP`), and
-`spec/support/live_state_guard.rb` fails by name a spec that opens the live tap
-(`~/.claude/hecks-dev/events.jsonl`), reaches the checkout's own red flag (`.git/hecks-red-flag.json`)
-or moves it during an example; `spec/support/live_ledger_guard.rb` does the same for the ticket and
-agent-run databases. A spec that needs a repository, a flag or a tap builds its own under a temporary
-directory and names it (`checkout:`, a world with a temporary `event_log` path).
+- **The full spec suite runs only in CI.** `run_suite!` is refused locally; run the quick gate and
+  named specs. The landing runs the quick gate and the impacted specs again and refuses on red.
+- **A spec never touches the owner's live state.** `spec/support/live_state_guard.rb` and
+  `live_ledger_guard.rb` fail a spec that reaches the live event tap, red flag or ledgers; a spec
+  that needs a repository, a flag or a tap builds its own under a temporary directory.
 
-Several files cost one launcher boot, not one each:
-`exe/hecks test_suite_run.run_spec_files! "files.value=spec/a_spec.rb spec/b_spec.rb" --wait` reports each
-file's counts and a total, and fails naming the files that failed. `isolation.value=process` (the default)
-gives each file a new process; `isolation.value=shared` runs all in one, fastest, and may expose order
-dependence. `exe/hecks test_suite_run.run_impacted_specs! --wait` runs the specs the push rehearsal's
-map names for your branch against local `main` (`base.value=`, `cap.value=`, `dry.value=true` lists
-them without running).
+## Comments, RuboCop and generated output
 
-**The full spec suite runs only in CI** (the Vocabulary `rspec` check is `runs_in: "ci"`). Locally run the
-quick gate and named specs: `run_suite!` is refused by name, and `run_spec_files!` and `run_impacted_specs!`
-run every file they are given, with no cap per call; CI is detected from the environment.
+Comments in this repository's Ruby (`lib/`, `spec/`, `examples/`) match `docs/COMMENT_STYLE_GUIDE.md`:
+no all-caps lead-ins (use `**bold**`), no design history ("used to", "previously", PR numbers),
+YARD tags on public methods, a class comment says what it is, lines under 100 characters. Check with
+`exe/hecks style_run.check_comments! paths=<path> --wait`.
 
-**Verify before you land, and the landing verifies again.** Run the specs you touched and the quick gate
-before you submit. The landing runs the quick gate and the specs your change impacts, and refuses on red
-(`LandingRefused`); the full suite still runs only in CI. Nothing here tells a session to skip tests
-before landing.
+RuboCop runs at its defaults (`docs/decisions/0091-rubocop-defaults-with-deliberate-overrides.md`)
+over the whole repository, specs too, and one offense blocks the push. A method is at most 10 lines
+(ABC 17, cyclomatic 7, 5 parameters), a class at most 100 lines: extract helpers, never
+`# rubocop:disable` or a raised limit. A spec example is at most 5 lines with one expectation
+(`:aggregate_failures` for more), at most 5 `let`s per group, `have_received` over a bare message
+expectation. Double quotes everywhere, table-aligned hashes, 130 columns. Run
+`bundle exec rubocop <files>` (`-a` fixes style, not metrics).
 
-A session isolated in a git worktree has had `bundle exec` with the spec runner
-refused with "too complex to verify that it stays inside the worktree", while
-`cargo test`, `bundle exec ruby`, `git` and `gh` ran. A commit message and a
-script body that merely named the runner or git were refused too, so the guard
-may be matching on the command text. Use the launcher form above, not a wrapper
-script around the refused command.
-
-Comments you write in this repository's Ruby (`lib/`, `spec/`,
-`examples/`) must match `docs/COMMENT_STYLE_GUIDE.md`. In particular:
-
-- No all-caps lead-ins for emphasis — use `**bold**` instead
-  (`docs/COMMENT_STYLE_GUIDE.md` section 5).
-- No design history in comments ("used to", "previously", "before this
-  change", PR numbers) — state the system as it is now and keep the
-  reason (section 4).
-- Public methods carry YARD tags (section 1); a class or module
-  comment says what it is, not what it contains (section 2).
-- Comment lines stay under 100 characters (section 6).
-
-Check a tree with `exe/hecks style_run.check_comments! paths=<path> --wait` before
-calling comment work done. The pre-push gate's `comment_style` check covers `lib/hecks` and `spec`,
-so a violation is caught before a push, whichever agent wrote the comment.
+**Never hand-edit generated output.** A file with a `# Generated ... do not edit` or
+`// GENERATED by ...` banner, and a golden fixture (`spec/fixtures/*_golden/`), comes from a
+generator: fix the generator or its source and regenerate. After a bluebook or generator change run
+`exe/hecks regeneration_run.regenerate_corpus! --confirm --wait`, then `--check`.
 
 ## Use the hecks binary
 
@@ -161,302 +142,23 @@ current list of what this repo can do.
   If none exists, add the command to the bluebook rather than a script.
 - Add `--wait` when you need the result before the next step.
 
-## The push train runs in Memory
+## Releases are the owner's
 
-The push train (`~/.claude/hecks-train`, a detached checkout) runs in Memory like every other tooling
-domain: it needs no database, no local files and no mint. What must outlive a process comes from git:
-the line is a lock in the repository's git directory, and a commit the remote already holds is
-answered `carried`. Its mint step reports `Memory holds no eras, no mint needed`.
+A version bump ships only with a `Release-Approved-By: <name>` line in its commit message. Write it
+only when the owner has said to release; never bump a version or cut a release on your own, and
+never push to `stable`, which is only promoted. Releases and deploys come from `stable`, never `main`.
 
-- Dev work needs no environment variable: Hecks is in Memory unless a local hecksagon's root
-  `persisted_by "PostgresEra"` opts it in (the attached bluebooks inherit it). Do not add local
-  files to a development checkout, and none by hand to the train's copy. The one exception is the
-  train's generated, gitignored `hecks.local.hecksagon`, which `Train#write_overlay` writes at each
-  boarding from the `KeptAggregate` rows of `lib/hecks/hecks/hecks.bluebook`: the clock chain's
-  ticks are separate processes and need the Ticker kept, and a hand copy fell behind. The same rows
-  write the main checkout's overlay (`exe/hecks LocalOverlay.write! root.value=<checkout>
-  copy.value=main`), and a write to a kept aggregate that a checkout with a local overlay binds to
-  Memory is refused by the aggregate's name.
-  A linked worktree that keeps no local file of its own loads the main checkout's
-  (`WorktreeBorrow`, `lib/hecks/adapters/driven/worktree_borrow.rb`), so its commands use the same dev
-  databases under `~/.claude/hecks-dev`. A lent bind to an aggregate the worktree's own code does not declare is
-  left out and said once, not refused; rebase onto `main` to keep it too. Nothing is lent to the spec runner (`HECKS_WRITES_LOCAL`, which
-  spec_helper sets) or a `memory`/`test` environment, to a worktree with its own local file (the train),
-  or from a main checkout whose local world turns on `mint_eras` or `disposable_ledger`.
-  `exe/hecks workspace.where` names the borrowed checkout.
-  `exe/hecks config domain.value=<dir>` prints each setting, its value and which source supplied it.
-- The shape ledger (`lib/hecks/hecks/shapes.json`) holds only bluebooks whose committed persistence
-  (local overlays left out) is an era adapter, and framework members such as Governance that clients
-  persist. Tooling is Memory by its committed world and needs no ledger entry, edge or `--confirm`.
-  Each entry holds the shape's hash and projection as of the last release mint. A shape change that only
-  adds passes the quick gate and commits nothing; any other change needs a translation edge under the
-  bluebook's `translations/`, and `exe/hecks conformance_run.check_shape_ledger! --wait` (no database)
-  names the bluebook that has none. The ledger moves only at `exe/hecks schema_revision.release_mint!
-  domain.value=<dir> --confirm`, the one mint per release (ADR 0168), which an owner runs.
-  Renamed or reshaped data needs rules: `exe/hecks schema_revision.scaffold_translation domain.value=<dir>`
-  writes them from the database the domain's own world names, and `schema_revision.audit_translation` checks them.
-- Whether a copy may migrate its database is the `mint_eras` setting in its world
-  (`persisted_by("PostgresEra") do ... mint_eras true end`, also from an overlay); `hecks config`
-  reports it. An unset world refuses (`EraResolver::MINT_BY_DEFAULT` is `false`).
-- A tooling ledger may opt out of eras with `disposable_ledger true` in the same block
-  (`LineageManager::DisposableLedger`): an additive shape change is applied in place, any other
-  moves the aggregate's rows to a dated archive table (listed in `hecks_ledger_archives`) and starts
-  it empty, and a boot never refuses as unminted or superseded. Never declare it for client data.
-- A boot over a store that holds eras reads a shape no era holds only when an edge or a provably
-  additive move covers it; a breaking move no edge covers refuses by name (`no translation edge
-  covers it`), writing nothing, and the quick gate's shape ledger check refuses it at commit time.
-- After a push, the launcher's refresh moves its checkout only when it is detached and has no
-  changed or untracked file; the report names the file that stops it.
+## Read on demand
 
-## Minting an era of the QA ledger: quiet QA first
+Each of these holds detail only some sessions need. Read the one that matches your work first.
 
-The QA loop writes to the ledger all the time, so its watermark moves between a rehearsal and the mint.
-A mint window starts with `exe/hecks qa_quiesce.hold! reason.value="..." --wait` and ends with
-`exe/hecks qa_quiesce.release! --wait`; `qa_quiesce.status` reports the owner, reason and age. While the
-marker (`~/.claude/hecks-dev/quiesce`, stale after two hours) is fresh every `sweep.tick` step prints
-`quiesced: skipped <step>` and the tick exits 0. Name yourself with `owner.value=` (or
-`HECKS_QUIESCE_OWNER`); another owner's marker is not removed without `force.value=true`. The mint does
-not require the flag.
-
-## Landings, era inspection and the QA dispatcher
-
-Each command's `--help` says what it takes; this names where they live. **Landing and the queue:**
-`Landing.submit!` hands a branch to a landing job of its own and returns at once: the job runs `Landing.carry!`
-(a finish that keeps the worktree) from the main checkout, logs to `.git/hecks-landings/<branch>.log`, reports
-`BranchLanded` or `LandingRefused`, and a conflict or a red gate plans the finished Work item again with the
-reason. A coder's `coder Submission.submit!` starts it.
-`landing.finish!` (rebase onto local `main`, quick gate, land, tidy) and `landing.land!` take no lock and wait
-for no other landing: each moves `main` by a compare-and-swap, only if it still points where the landing
-started. A finish that finds `main` moved rebases and runs the gate again, so only a judged commit lands; after
-five lost tries it is refused (`main moved 5 times while <branch> was landing`) and a landing job runs it again.
-Only `landing.train!` still takes a place in the old line, whose limits are the world's `landing "Queue"`
-(`hecks.world`). `push_rehearsal.rehearse!` runs the stages of its scope (`RehearsalScope` rows in the Vocabulary
-bluebook: `quick`, the default and the push gate, and opt-in `deep` which adds the specs the changes touch) on local `main` and `push_rehearsal.due` says whether a push is due
-(`rehearse/rehearse.bluebook`); `test_suite_run.run_spec_files!` and `run_impacted_specs!` run named or
-impacted specs through the launcher. Branch worktrees through `LinkedTree.add!`, which pulls `main` first.
-**Era inspection:** `schema_revision.boot_resolution`, `schema_revision.mint_plan` (every guard a mint runs, read-only),
-`schema_revision.event_trace`, `schema_revision.sqlite_status` and `schema_revision.projection_audit` read without writing; `SchemaRevision.RenameDomain`
-(`schema_revision.rename_domain!`) moves a renamed domain's history. The world words are `disposable_ledger`,
-`stored_as` (the table an aggregate's rows keep after a rename), `formerly` (a domain's former name) and
-`minting` (the command an unminted boot may write). **QA and dispatch:** `qa_quiesce.hold!`, `release!`
-and `status` quiet QA for a mint; `Dispatch.Fill` starts sessions for planned Work items and
-`Dispatch.Settle` finishes the rows of sessions that ended (`delegate/delegate.bluebook`). **Stalls:**
-each beat runs `StallWatch.detect!` (`stall_watch/stall_watch.bluebook`), whose `StallKind` rows name an
-opening event, its closing events, the minutes allowed and the fixer; each stall found is filed once
-as the Work item `stall-<kind>-<subject>`, which the fill starts after red; a landed
-branch finishes the Work item of the same name (or the same name without a leading `qa/`). The Tickets
-world's `work_limit`, `frozen_shapes` and `session_environment` bound and equip those sessions. The
-checks `command_names` and `workflow_pagination` (in the quick gate and CI) keep the names in docs, workflows and guides
-resolvable and lists paged; the spec suite holds the meta-domain covered.
-
-## RuboCop is strict: it runs at its defaults
-
-`.rubocop.yml` overrides only what `docs/decisions/0091-rubocop-defaults-with-deliberate-overrides.md`
-lists, so every other cop runs at the RuboCop default, new cops included. The pre-push gate and CI
-run it over the whole repository, specs too, and one offense blocks the push. Write code that
-passes the first time:
-
-- **Metrics are on.** A method is at most 10 lines, with ABC size 17, cyclomatic complexity 7 and
-  at most 5 parameters; a class or module is at most 100 lines. Do not write one long method and
-  a `# rubocop:disable`: extract named helpers or a collaborator class, because the extraction is
-  usually the better design. Raising a limit in `.rubocop.yml` needs an ADR 0091 entry; do not do it
-  to land a change.
-- **Specs are held to it as well.** An example is at most 5 lines and holds one expectation, so a
-  multi-step example is tagged `:aggregate_failures` (see `spec/hecks_codebase_adr_rows_spec.rb`)
-  and its setup goes into a helper method; at most 5 `let`s per group (a plain method is not
-  counted); prefer `receive` and `have_received` over a bare expectation on a message
-  (`RSpec/MessageSpies`).
-- **Style is set, not chosen.** Double quotes everywhere, including inside interpolation
-  (`"#{lane["name"]}"`, never `'name'`), table-aligned hashes, and 130 columns for code.
-- **Check before you push:** `bundle exec rubocop <files>` while you work, `bundle exec rubocop`
-  for the whole tree, and `bundle exec rubocop -a <files>` for the offenses it can fix itself (it
-  fixes style, not metrics). Run it in a clean checkout before you call work done: a `.gitignore`
-  entry can hide a file in your tree that a fresh clone will not have.
-
-## Two lanes: `main` takes pushes, `stable` is promoted
-
-The branches are data: the `Lane` rows of the Vocabulary bluebook
-(`lib/hecks/language/bluebook/vocabulary.bluebook`), with the checks a
-commit must pass as `RequiredCheck` rows beside them.
-
-- **Work reaches `main` through a pull request.** Agents land work with
-  `hecks landing.land! --confirm` (fast-forward or merge commit, never squashed) and then
-  `hecks send_train.board! --confirm`, which opens the PR (branch `train/main-<sha>`, auto-merge on)
-  for GitHub to merge once its required checks pass. Do not open a PR for `main` by hand, and do not
-  push `main` directly. A push of a feature branch runs the gate's `quick` stage: shape ledger,
-  RuboCop (which also reads every changed Ruby file for syntax errors), comment style, secret output,
-  adapter words, command names, workflow pagination.
-  Feature branches are different: the train only lands `main`. To queue an open feature PR,
-  mark it ready and run `gh pr merge <number> --auto` once its checks are green; GitHub's merge
-  queue then merges it. Check `gh pr view <number> --json mergeStateStatus` first: CLEAN means
-  ready, and BLOCKED with pending checks means wait.
-  `hecks gate_run.gate! stage=quick --wait` runs it by hand and is worth running before every
-  commit. Everything slower (fuzzing, the engine and model checks, command names, workflow
-  pagination, the spec suite, the push-chain specs) runs after the push, in CI and the nightly run,
-  and blocks promotion to `stable`, never the push; a red one files a Work item. `hecks send_train.board!
-  --confirm full_gate.value=true` runs the whole `pre_push` stage when you ask for it. Never
-  force-push `main`, and never use `--admin`.
-  **The push is isolated.** `send_train.board!` pushes the boarded commit, by its id, from a throwaway detached
-  worktree at that commit, so the pre-push hook and the quick gate check exactly what goes out and landings onto
-  local `main` meanwhile are never held and never touch the push; commits that land during it stay local and are
-  named in the report. Pushes serialize on the train's one lock; a remote that moved is fetched and retried, and a
-  commit not built on it is refused by name ("board again"). **A plain `git push` of `main` is refused by the pre-push hook:** the train's own
-  push carries `-c hecks.trainCarry=<commit>`, which the hook reads, so any agent pushes `main` by boarding the train. The owner's
-  one-off override is `HECKS_OWNER_PUSH=<reason>` (ADR 0132): the hook prints the reason, an empty value does not count, and
-  agents never set it or use `--no-verify`. Branch and tag pushes are untouched.
-  Push small: a rehearsed push per landed slice, or at least per day, is the norm. A rehearsal
-  (`push_rehearsal.rehearse!`; `scope.value=quick` for a landing's) runs the quick stage against local
-  `main` and pushes nothing; a deep one (`scope.value=deep`, opt-in) adds the specs the push's changed
-  files touch (`impacted_spec_limit`, two at a time, `impacted_spec_width`; a file that fails is run again
-  alone and one that then passes is reported as flaky under parallel load, not failed; a spec already
-  red on `origin/main` is reported, not failed). Its result is the `PushRehearsal` record, and
-  `hecks push_rehearsal.due` says how far `main` is ahead of `origin/main`, how old the oldest
-  unpushed commit is and how the last quick rehearsal ended. Nothing pushes by itself.
-  The size that counts as too big is the QualityControl world's `push_nudge` setting (`commits`, `hours`,
-  `urgent_commits`): past it the line and the train's report say `PUSH NOW`, and neither ever refuses a push.
-- **Red `main` is read on GitHub.** The `CI` run's status and failure email are the signal; no local
-  watch repeats it. The dispatch fill plans `red-*` rows (filed by people and CI jobs) first and starts
-  one before other planned work. A red `main` blocks promotion to `stable`, never a push.
-- **`stable` is only ever promoted.** CI runs the full job set on every push
-  to `main`; when every `RequiredCheck` passed on a commit, `promote.yml`
-  fast-forwards `stable` onto it through
-  `exe/hecks promotion_run.promote! lane=stable --confirm --wait`, onto the newest
-  commit of `main` that every required check passed on (named `commit=<sha>` it
-  judges exactly that commit and no other). Never push
-  to `stable` yourself: its ruleset takes only a commit every required check
-  already passed, and refuses deleting or rewinding it. Rehearse a move
-  without `--confirm`: it names the
-  move and makes none, and it says which check is red or still running.
-- **What `stable` guarantees.** `main` is integrated state, `stable` is certified
-  state, and a commit is certified by the check runs of that exact sha, never by
-  "`main` was green about then". Every commit reachable from `stable` was moved
-  there by a fast-forward of a commit that every `RequiredCheck` had passed on
-  (the ruleset refuses anything else, and refuses rewinding or deleting it). A
-  promotion is not tied to the push that started it, so a dropped, late, or
-  out-of-order run changes nothing, and a certified commit is never stranded
-  behind a red or still-running one. `edge` is brought up to `stable`'s head on
-  every confirmed run, even one that finds `stable` already there, and its own
-  ruleset (`.github/rulesets/tag-edge.json`) refuses deleting it or pointing it
-  at an older commit; moving it forward is allowed.
-- **A late `stable` files a finding.** `lane-watch.yml` runs every hour and asks
-  `exe/hecks promotion_run.watch! lane=stable`; when `stable` has stood behind
-  `main` for longer than its `Lane` row's `alert_after` hours (4), the run fails
-  and files one GitHub issue a day, saying which required check is red or still
-  running. Fix `main` forward or revert on it; the issue is yours to close. A failed
-  watch also dispatches `promote.yml`, so a dropped promotion is retried within the
-  hour (`gh workflow run promote.yml` does the same by hand).
-- **Releases, `edge` and deploys come from `stable`, never `main`.** Commit
-  the version bump (`lib/hecks/version.rb`, `CHANGELOG.md`, the README
-  lines, `packages/hecks-client`) to `main`, wait for `stable` to contain
-  it, then publish from a clean `stable`. `release.yml` enforces it: it runs
-  after Promote, releases the commit on `stable` that set the version, and
-  refuses any commit `stable` does not contain, a by-hand run included.
-- **A release is the owner's decision.** A bump that lands on `main` ships
-  only if the commit that set the version has a `Release-Approved-By: <name>`
-  line in its message (the `release_trailer` of the `stable` `Lane` row;
-  `lib/hecks/release/approval.rb` decides). Without it `release.yml` releases
-  nothing after a promotion, and refuses a by-hand run before it tags or
-  pushes; `publishing_run.publish!` refuses it too. Write the line only when
-  the user has said to release; never add it on your own, and never bump the
-  version for a fix that can ride `edge` (the tag at `stable`'s head, which a
-  client can pin as "latest certified"). An existing tag counts as approved,
-  so `gh workflow run release.yml -f tag=vX.Y.Z` still finishes a half-cut
-  release; the owner may approve a bump already on `stable` with `-f
-  approved_by=<name>`. Name the pending release while changes accumulate
-  by writing `## [Unreleased] - planned X.Y.Z` on the CHANGELOG heading
-  (`spec/changelog_planned_release_spec.rb` pins the shape); naming it does not
-  approve it.
-- **A red `main` blocks promotion, not pushes.** Fix forward or revert on
-  `main`; `stable` does not move until a commit is green. Do not
-  cherry-pick onto `stable` unless the user says production is down.
-- **Change a lane or a required check by editing its row**, then run
-  `exe/hecks regeneration_run.project_lanes! --wait` to rewrite
-  `.github/rulesets/` and `.github/workflows/promote.yml`. Applying the
-  rulesets to GitHub is a separate, confirmed step
-  (`regeneration_run.project_lanes! --live --confirm`); never hand-edit the
-  generated files.
-
-## Keep CI under three minutes
-
-CI on `main` ran in about 160s with every job run for real; by 2026-10-23 it took
-10 minutes or more. Nothing was skipped wrongly: work had landed in jobs where it
-runs cold. Before adding a spec or a step, check where it runs:
-
-- **A spec that runs `cargo` goes in a Rust job that holds that crate's cache**, never
-  in a Postgres io shard (`IO_PARALLEL_EXCLUDE_PATTERN` in
-  `.github/workflows/ci-postgres-io-parallel.yml`). A shard has no Rust cache, so one
-  `cargo build` there costs minutes. A host harness spec belongs in
-  `rspec_rust_host_lineage`, and a `cargo test` of the host in `rspec_rust_host_cargo`,
-  whose `target-test` build is warm.
-- **`rust/src/generated` is committed; no job regenerates it.** The `generated-rust`
-  action only checks the tree is in the checkout (its `domains:` input has no effect).
-  `checks_codegen_drift` is the one job that sets `regenerate: "true"`, rewrites the whole
-  tree and diffs it with the committed one; without that rewrite its `git diff` compares
-  the tree with itself, and a stale module goes through green. After you change a bluebook
-  or the generator, run `exe/hecks regeneration_run.regenerate_corpus! --confirm --wait` and
-  commit what it changed; a conflict in the tree is settled by regenerating, never by
-  editing. The Vocabulary rows are part of the `meta` module's IR, so changing a gate row
-  moves it too. A spec that reads the whole tree is tagged `:generated_all`: the shards run
-  `--tag ~generated_all`, and the drift job runs it.
-- **Two jobs that share a cargo cache name must build the same thing, from the same
-  directory, with the same flags.** The first job to save an entry wins, and an entry is
-  never replaced under its key, so a second job whose build differs (a `--manifest-path`
-  build from the repo root skips `rust/host/.cargo/config.toml`; `cargo test -p x --lib`
-  resolves features differently from `cargo test --workspace`) rebuilds every dependency on
-  every run. The warm job in `cache-warm.yml` must build each form its consumers build. The
-  key (`.github/actions/cargo-cache`) hashes the crate's manifest, path dependencies and the
-  toolchain pin; the saved target leaves out `debug/incremental` and the `rust-*` binaries.
-- **Split a job that sets the run's length into matrix legs, each its own gate check**:
-  the fuzz sweeps run as `shard=I/N` legs (`fuzz_<I>_of_<N>` in the Vocabulary gate rows,
-  `fuzz_shards` listing the split) and still report as `checks_fuzz` and
-  `checks_fuzz_sqlite`, which are red when any leg is. The cost table
-  `spec/fuzzing/fuzz_runtime_baseline.log` must come from CI sweeps, not a laptop: a laptop's
-  disk prices banking and deploy in other proportions than a runner's and the legs split
-  worse. A file that parallel_tests cannot split (one spec file) sets a shard's length, so
-  split the file.
-- **The rspec and Postgres io shards are balanced per run, not from a committed baseline.** A
-  `shard_plan` job (`postgres_io_shard_plan` in the Postgres workflow) runs the CiSpeed bluebook's
-  `ShardPlan.Request` through `Operation.run!`: it reads the per-file timings the shard legs uploaded
-  as artifacts on the newest recent successful `ci.yml` run that kept them (any branch: a push of an attested tree
-  skips the shards and keeps none, so that is usually the pull-request run that tested the tree; a file the
-  run never timed is priced at the median), splits the files once with the shared
-  `Hecks::Tools::ShardPlanner` (longest processing time first) and publishes the plan; every leg
-  reads that plan. When no timing can be read (no previous run, expired artifacts, an API error)
-  the `PlanBySizeWhenTimingsUnavailable` policy plans by file size and the run does not fail. The
-  plan job's summary and the `shard-plan-trace-*` artifact list each event and the policy that
-  reacted. When you add io spec files run `test_suite_run.write_io_parallel_spec_list!`; a file with
-  no timing is priced at the median. The specs that need `rust/parser` stay
-  in `IO_PARALLEL_EXCLUDE_PATTERN`, or the Postgres shards skip them and the skip backstop
-  fails; the file-list check runs only on pull requests, so a stale list shows on a PR first.
-- **A fast green on `main` may be a skipped green.** A push of an attested tree skips the
-  heavy jobs. `nightly-main.yml` runs all of `ci.yml` once a day with attestation ignored
-  (`check-attestation` answers "not attested" for it) and opens one issue a day naming the
-  failed jobs; read its latest run, not a push run, to know whether the suites pass.
-- **Look at the job times after your push** (`gh run view <id> --json jobs`). A job
-  that grew by a minute is the regression; say so rather than leave it.
-- **Measure the right run.** The wall is `run_started_at` to `updated_at` of the attempt
-  (`gh api repos/<owner>/<repo>/actions/runs/<id>/attempts/<n>`). Take attempt 1 of a run on
-  a tree no earlier run had: a rerun, or a run on a tree already attested (the PR's own tree
-  after a squash merge; any rerun after the pre-push hook's note lands), skips the heavy jobs
-  and reads fast. A change to a cache key, to `rust/src` or to `ci-rust-io.yml` makes the next
-  run cold once. `main`'s runs and the cache-warm job share the runner pool, so a busy pool
-  adds queueing; a single cache download can also stall, so one slow job is not a regression
-  until it repeats.
-
-## Never hand-edit generated output
-
-- A file starting with a `# Generated ... do not edit` (Ruby) or
-  `// GENERATED by ...` (Rust) banner is produced by a script. Fix the
-  generator or its source, then re-run the generator — never edit the
-  output directly, even to shorten a comment.
-- The same holds for a golden/pinned test fixture (for example
-  `spec/fixtures/*_golden/`): it is compared byte-for-byte against a
-  generator's own output, and the generator that produces it is
-  usually left untouched by a comment-only pass. Editing the fixture
-  on its own makes it drift from what the generator actually emits and
-  fails the spec that pins it. If a golden fixture's content is wrong,
-  fix the generator (or its heredoc-embedded template text) and
-  regenerate; never edit the committed fixture by hand.
-- `exe/hecks regeneration_run.regenerate_corpus! --check` (and the other regen scripts
-  `.github/workflows/ci-checks.yml`'s `checks_codegen_drift` job runs)
-  catch drift between a generator and its committed output.
+- `docs/agents/landing-and-dispatch.md`: landing a branch, the red flag, era inspection, QA and
+  dispatch, stalls.
+- `docs/agents/lanes-and-releases.md`: the push train, rehearsals, `main` and `stable`, promotion,
+  `edge`, releases, changing a lane or a required check.
+- `docs/agents/persistence-and-eras.md`: Memory and local overlays, worktree borrowing, the shape
+  ledger, translation edges, `mint_eras`, `disposable_ledger`, quieting QA for a mint.
+- `docs/agents/ci-speed.md`: keeping CI under three minutes, where a spec or job runs, caches,
+  shards, measuring a run.
+- `docs/agents/specs-and-style.md`: the spec runner, the live-state guards, comment style, RuboCop
+  and generated output, in full.

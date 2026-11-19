@@ -13,8 +13,8 @@ module Hecks
       # domain's rule. It runs outside any verification's copy, one probe after another.
       class Bisecting
         # What the merge's keys hold when no merge failed. `searched` is false until a search ran.
-        NONE = { culprit: "", subject: "", branch: "", spec: "", example: "", base_red: false, local: false,
-                 searched: false }.freeze
+        NONE = { culprit: "", subject: "", branch: "", work: "", finding: "", spec: "", example: "", base_red: false,
+                 local: false, searched: false }.freeze
 
         class << self
           # @return [Hash{String => Hash}] the facts of each search, by commit, so a refusal and the
@@ -67,9 +67,9 @@ module Hecks
 
         # @param landed [String] the commit that failed verification
         # @param since [String] the last verified commit, or `origin/main`, the range starts after
-        # @return [Hash{Symbol => Object}] `base`, `culprit`, `subject`, `branch`, `spec`,
-        #   `example`, `base_red`, `already_reverted`, `local`, `searched` and `reason`; the merge's
-        #   keys are "" when none failed
+        # @return [Hash{Symbol => Object}] `base`, `culprit`, `subject`, `branch`, `work`,
+        #   `finding`, `spec`, `example`, `base_red`, `already_reverted`, `local`, `searched` and
+        #   `reason`; the merge's keys are "" when none failed
         def facts(landed, since) = @search.call(landed, since)
       end
     end

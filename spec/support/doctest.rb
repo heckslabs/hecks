@@ -1,6 +1,7 @@
 require "tempfile"
 require "prism"
 require_relative "postgres_probe"
+require_relative "doctest_scope"
 
 # Executable documentation: a guide's fenced examples run against the real runtime.
 # A guide that lies goes red in CI.
@@ -142,7 +143,7 @@ module Doctest
     def call
       shared = shared_binding
       waves.each do |declarations, usages|
-        @runtime = boot(declarations) unless declarations.empty?
+        boot_wave(declarations) unless declarations.empty?
         usages.each { |block| eval(transform(block), shared, @guide.path, block.line) }
       end
       true
@@ -153,14 +154,21 @@ module Doctest
     private
 
     # The binding every usage block runs in: it answers `runtime` and holds the claim checker.
+    # Its constants resolve through a `Doctest::Scope` (support/doctest_scope.rb) before Object.
     def shared_binding
       @runtime = nil
+      @scope = Scope.new
       reader = -> { @runtime }
       host = Object.new
       host.define_singleton_method(:runtime) { reader.call }
-      shared = host.instance_eval { binding }
+      shared = @scope.binding_for(host)
       shared.local_variable_set(:__dt__, Checker.new(@guide.path))
       shared
+    end
+
+    def boot_wave(declarations)
+      @runtime = boot(declarations)
+      @scope.admit(@runtime)
     end
 
     def waves

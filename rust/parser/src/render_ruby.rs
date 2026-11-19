@@ -93,6 +93,9 @@ fn policy_text(out: &mut String, policy: &ir::Policy) -> Result<(), String> {
     if policy.root {
         out.push_str("    root\n");
     }
+    if let Some(role) = &policy.acts_as {
+        out.push_str(&format!("    acts_as {}\n", string(role)));
+    }
     out.push_str("  end\n");
     Ok(())
 }
@@ -311,6 +314,9 @@ fn command_text(out: &mut String, command: &ir::Command) -> Result<(), String> {
     }
     if let Some(goal) = &command.goal {
         out.push_str(&format!("      goal {}\n", string(goal)));
+    }
+    if command.policy_only {
+        out.push_str("      policy_only\n");
     }
     if let Some(reference) = &command.references {
         out.push_str(&format!("      reference_to {reference}\n"));

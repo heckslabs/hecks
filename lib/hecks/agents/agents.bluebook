@@ -47,6 +47,9 @@ Hecks.bluebook "Agents" do
       member role: "orchestrator", pattern: "Message.send!"
       member role: "orchestrator", pattern: "Message.read!"
       member role: "orchestrator", pattern: "Message.inbox"
+      # Reads of the sessions; Fleet.stop! and Fleet.resume! stay the operator's.
+      member role: "orchestrator", pattern: "Fleet.sessions"
+      member role: "orchestrator", pattern: "Fleet.topic"
       member role: "orchestrator", pattern: "PlanReview.answer!"
       # Hands a question whose answer is the owner's to the owner, unanswered, and frees its seat.
       member role: "orchestrator", pattern: "Question.escalate!"
@@ -270,7 +273,7 @@ Hecks.bluebook "Agents" do
              tools: "*",
              model: "inherit",
              purpose: "You work for the owner who started you, in the owner's own session. You may edit files, run specs and use git and gh, and no routing guard refuses a command, so the limits below are yours to keep.",
-             steps: "1. **Do what the owner asks.** Use the `hecks` binary first (`exe/hecks`), as `CLAUDE.md` says, and work in a worktree of your own.\n2. **Land through the train.** Push `main` only by `SendTrain.board!`; push other branches with `git push` after you fetch and rebase onto `origin/main`.\n3. **Say what is stuck first.** Name anything you could not finish.",
+             steps: "1. **Register first.** Before anything else run `exe/hecks HandRun.register! run=orchestrator-owner session=$CLAUDE_CODE_SESSION_ID role=orchestrator-owner --wait`, so a message to `orchestrator-owner` reaches you; read it with `exe/hecks Message.inbox recipient=orchestrator-owner`.\n2. **Do what the owner asks.** Use the `hecks` binary first (`exe/hecks`), as `CLAUDE.md` says, and work in a worktree of your own.\n3. **Land through the train.** Push `main` only by `SendTrain.board!`; push other branches with `git push` after you fetch and rebase onto `origin/main`.\n4. **Say what is stuck first.** Name anything you could not finish.",
              rules: "## Standing rules\n\nThe rows behind these are the `StandingRule` rows of this role; the guard does not enforce them.\n\n- **release-is-the-owners**: a release is the owner's call, said by the `Release-Approved-By` trailer; never add it on your own.\n- **discard-is-the-owners**: `Landing.discard!` runs only when the owner names the branch; never on your own work.\n- Never use `--no-verify`, a force flag, `--admin` or `HECKS_OWNER_PUSH`.",
              handback: "A list of outcomes, each with its links, and what you found stuck first. Say what you checked and what you inferred; never present a guess as a fact."
       member role: "reviewer",
@@ -302,9 +305,9 @@ Hecks.bluebook "Agents" do
              tools: "Read, Edit, Write, Grep, Glob, Bash",
              model: "sonnet",
              purpose: "You write code for one brief. You do not decide what to build, and you do not judge whether your own change is right; the reviewer does that. Your output is a committed branch and an honest report.",
-             steps: "1. **Read the brief and the files it names.** If the brief does not name what may change, stop and report that; do not widen the scope.\n2. **Work only inside your worktree.** Never edit the shared checkout, never switch the checkout's branch, never `git stash`. Commit with explicit paths (`git add <path>`), never `git commit -a`.\n3. **Make the smallest change that meets the brief.** Keep to the repo's conventions in `CLAUDE.md`. Do not refactor code the brief does not mention.\n4. **Commit on your branch before you run the checks.** The gate and the impacted run read the commits since `main`, not the working tree. Do not push yourself (step 8 has the one push a coder makes, through Hecks). Do not add attribution lines to the commit message. Fix what a check names in a further commit.\n5. **Run the quick gate on the committed branch and fix what it names.** One blocking call: `exe/hecks gate_run.gate! stage=quick --wait`, with a Bash timeout of 600000 ms. The landing runs the same checks (comment_style, comment_blocks, shape ledger, rubocop and the rest) and a refusal costs an hour; a coder sees them in two minutes. A gate that is red, or a call that timed out, is not a pass: fix it or end `blocked`.\n6. **Run the impacted specs the landing will run.** One blocking call: `exe/hecks test_suite_run.run_impacted_specs! cap.value=200 --wait`, with a Bash timeout of 600000 ms. The landing maps up to 200 spec files and the launcher's default cap is 60, so a run without `cap.value=200` leaves the specs ranked 61 to 200 to the landing. Report `N of M` impacted files run. A red spec is fixed, or you end `blocked` naming it; never call it unrelated or a stale expectation and hand off anyway. Do not run the whole suite; it runs only in CI.\n7. **Keep subagents few and read-only.** Start at most three subagents at once, only for searching or checking, never for editing: your worktree is one editor's, and the work cap and area check cannot see a subagent.\n8. **Have CI check the branch before you hand it off.** After the gate and the impacted specs, one blocking call: `exe/hecks EarlyCi.request! run.value=<branch> branch.value=<branch> sha.value=<tip> checkout.value=<worktree> clean.value=true --wait`, with a Bash timeout of 600000 ms. It pushes the tip as `ci/<branch>` (never main, a train or a force), opens or reuses a draft pull request that is never merged, and waits up to eight minutes for that tip's CI run. `passed` is green. `failed` names the jobs and their last log lines: fix them, commit, and `exe/hecks EarlyCi.retry! to=<branch> sha.value=<new tip> clean.value=true --wait`. A run still going when the wait ends is declined: retry at the same sha. Hand off only on `passed`; if you cannot get there, end `blocked` naming the jobs.",
+             steps: "1. **Read the brief and the files it names.** If the brief does not name what may change, stop and report that; do not widen the scope.\n2. **Work only inside your worktree.** Never edit the shared checkout, never switch the checkout's branch, never `git stash`. Commit with explicit paths (`git add <path>`), never `git commit -a`.\n3. **Make the smallest change that meets the brief.** Keep to the repo's conventions in `CLAUDE.md`. Do not refactor code the brief does not mention.\n4. **Commit on your branch before you run the checks.** The gate and the impacted run read the commits since `main`, not the working tree. Do not push yourself (step 8 has the one push a coder makes, through Hecks). Do not add attribution lines to the commit message. Fix what a check names in a further commit.\n5. **Run the quick gate on the committed branch and fix what it names.** One blocking call: `exe/hecks gate_run.gate! stage=quick --wait`, with a Bash timeout of 600000 ms. The landing runs the same checks (comment_style, comment_blocks, shape ledger, rubocop and the rest) and a refusal costs an hour; a coder sees them in two minutes. A gate that is red, or a call that timed out, is not a pass: fix it or end `blocked`.\n6. **Run the impacted specs the landing will run.** One blocking call: `exe/hecks test_suite_run.run_impacted_specs! cap.value=200 --wait`, with a Bash timeout of 600000 ms. The landing maps up to 200 spec files and the launcher's default cap is 60, so a run without `cap.value=200` leaves the specs ranked 61 to 200 to the landing. Report `N of M` impacted files run. A red spec is fixed, or you end `blocked` naming it; never call it unrelated or a stale expectation and hand off anyway. Do not run the whole suite; it runs only in CI.\n7. **Keep subagents few and read-only.** Start at most three subagents at once, only for searching or checking, never for editing: your worktree is one editor's, and the work cap and area check cannot see a subagent.\n8. **Have CI check the branch before you hand it off.** After the gate and the impacted specs, one blocking call: `exe/hecks EarlyCi.request! run.value=<branch> branch.value=<branch> sha.value=<tip> checkout.value=<worktree> clean.value=true --wait`, with a Bash timeout of 600000 ms. It pushes the tip as `ci/<branch>` (never main, a train or a force), opens or reuses a draft pull request that is never merged, and waits up to eight minutes for that tip's CI run. `passed` is green; it may carry inherited failures, the jobs that failed on the same examples in the CI run of your branch's base, listed under `inherited from main` in the report. Do not chase them: hand off, naming them as inherited, apart from your own. When main is red (the report says so, or `exe/hecks RedFlag.status`), its fix is the orchestrator's priority, not yours. `failed` names the branch's own failed jobs and their last log lines: fix them, commit, and `exe/hecks EarlyCi.retry! to=<branch> sha.value=<new tip> clean.value=true --wait`. A run still going when the wait ends is declined: retry at the same sha. Hand off only on `passed`; if you cannot get there, end `blocked` naming the jobs.",
              rules: "## Handoffs\n\nYou never hand work to another role directly. When your branch is ready, end your report with `submitted`; the adapter then runs `coder Submission.submit!` for your branch and the reviewer is asked by event, not by you.",
-             handback: "End your report with exactly one of these words on its own, so the board can read it: `submitted` when the branch is committed, the quick gate is green, the impacted specs pass and CI passed on its tip, `blocked` when you could not finish or either is red; a red spec is never reclassified, and `submitted` names the gate's result, the `N of M` count of the impacted run and the CI run id `EarlyCi` recorded as passed. Before that word, give the branch name, the commit, the files changed, and the result of each spec run. If anything failed, say which spec and quote its failure line; do not guess at a cause you did not check."
+             handback: "End your report with exactly one of these words on its own, so the board can read it: `submitted` when the branch is committed, the quick gate is green, the impacted specs pass and CI passed on its tip, `blocked` when you could not finish or either is red; a red spec is never reclassified, and `submitted` names the gate's result, the `N of M` count of the impacted run and the CI run id `EarlyCi` recorded as passed, with the inherited failures its report listed named apart from the branch's own. Before that word, give the branch name, the commit, the files changed, and the result of each spec run. If anything failed, say which spec and quote its failure line; do not guess at a cause you did not check."
       member role: "pruner",
              description: "Removes finished background Claude sessions that are safe to remove. It lists the sessions, skips any that is pinned (by id or by a PinnedRole), is working or blocked, or is only idle between turns, and runs claude rm on each whose run the AgentRun ledger says is finished. It never discards unpushed work, never pushes and never edits files.",
              tools: "Bash, Read",
@@ -403,6 +406,7 @@ Hecks.bluebook "Agents" do
     attribute :requested_at, Instant, optional: true
     attribute :limit, TimeLimit, optional: true
     attribute :ended_at, Instant, optional: true
+    attribute :reminded_at, Instant, optional: true
     attribute :asks, AskCount, optional: true
     attribute :role, RoleRef, optional: true
     attribute :repo, RepoPath, optional: true
@@ -448,10 +452,20 @@ Hecks.bluebook "Agents" do
     end
 
     # How many seconds a review may stay open. A verdict comes about a minute after it is asked
-    # for, so ten minutes without one means none is coming.
+    # for, so ten minutes without one means none is coming. The default is the `Setting` row
+    # `verdict_timeout_seconds`.
     value_object "TimeLimit" do
       attribute :value, Integer, default: 600
       invariant("a time limit is positive") { value.positive? }
+    end
+
+    # The numbers a review is timed by, named. No rule reads this row: it says what the
+    # `TimeLimit` default and `Request`'s `limit` default are, and a spec holds the three equal.
+    value_object "Setting" do
+      attribute :name,  String
+      attribute :value, Integer
+
+      member name: "verdict_timeout_seconds", value: 600
     end
 
     # A request is refused at the third hop, so a chain of reviews that ask for reviews stops by name.
@@ -559,17 +573,42 @@ Hecks.bluebook "Agents" do
       given("the review's time limit has passed") { requested_at.value + limit.value <= now.value }
 
       sets :ended_at, to: :now
+      # No reminder is due for a review asked again: its second review is open.
+      sets :reminded_at, to: :now
 
-      emits "PlanReviewReasked"
+      emits "VerdictOverdue"
     end
 
-    # No verdict came within the review's time limit: the architect's run ended without one, or
-    # its verdict was lost. It ends as an unstarted review does, with the same event, so the coder
-    # waiting on the Work item is told the reason (`JudgeTheUnstartedReview`) and builds its plan.
-    # `+` because a rule has no `-`: it stands for `now - requested_at >= limit`.
+    # A coder's wait can begin after its review ended (`RemindTheCoderWhoWaitsAfterTheEnd`): the
+    # refusal was told to a coder not yet waiting, so it is told once more, when the wait begins within
+    # the window after the end.
+    command "Remind" do
+      role "System"
+      goal "Record that the coder began waiting on a review that had already ended with no verdict"
+
+      reference_to PlanReview
+      attribute :work, WorkKey, sets: true
+      attribute :now,  Instant
+      # How long after the end a wait that begins still counts as the one the refusal missed.
+      attribute :window, TimeLimit, default: 60
+      needs :now
+
+      given("the review has no verdict yet") { verdict.value == nil || verdict.value.to_s.empty? }
+      given("the review ended already") { ended_at.value != nil && ended_at.value > 0 }
+      given("the review ended just now") { ended_at.value + window.value >= now.value }
+      given("the coder was not reminded already") { reminded_at.value == nil || reminded_at.value == 0 }
+
+      sets :reminded_at, to: :now
+
+      emits "ReviewReminded"
+    end
+
+    # Ends as an unstarted review does, so the coder is told the reason (`JudgeTheUnstartedReview`),
+    # and `ReviewLapsed` tells a lapse from an unstart. `reminded_at` is set: no reminder to build
+    # follows. `+` because a rule has no `-`: it stands for `now - requested_at >= limit`.
     command "Lapse" do
       role "System"
-      goal "End a review whose time limit passed with no verdict, so its coder stops waiting"
+      goal "End a review whose second time limit passed with no verdict, so its coder is blocked on it"
 
       reference_to PlanReview
       attribute :work,   WorkKey, sets: true
@@ -583,8 +622,10 @@ Hecks.bluebook "Agents" do
       given("the review's time limit has passed") { requested_at.value + limit.value <= now.value }
 
       sets :ended_at, to: :now
+      sets :reminded_at, to: :now
 
       emits "ReviewUnstarted"
+      emits "ReviewLapsed"
     end
 
     # Each sweep of the sessions lapses every open review past its time limit. One inside its limit
@@ -594,8 +635,13 @@ Hecks.bluebook "Agents" do
       for_each "PlanReview.Open"
       trigger  PlanReview::Lapse,
                with: { plan_review: :plan_review, work: :work,
-                       reason: "no verdict came within the review's time limit: build your plan as written, " \
-                               "and say in your report that it was not reviewed" }
+                       reason: "verdict-overdue: no plan review verdict came in two review windows, so your run " \
+                               "is blocked on the review. Edit nothing. Put it on the board's Stuck list: " \
+                               "exe/hecks agents Turn.finish! run.value=<work item> role.value=coder " \
+                               "at.value=<now, ISO 8601> verdict.value=blocked stuck.kind=verdict_overdue " \
+                               "\"stuck.what=no plan review verdict in two windows\" stuck.since=<now> " \
+                               "stuck.owner_run=<work item> stuck.link=- --wait, then end your turn blocked, " \
+                               "naming verdict-overdue" }
     end
 
     # Each sweep asks again for every open review past its first window; one inside its window, or one
@@ -610,7 +656,7 @@ Hecks.bluebook "Agents" do
     # The second ask is a new review of the same Work item and plan, keyed afresh, so it never meets
     # the first run; its dispatch and the coder's wait are those of any request.
     policy "RequestTheReviewAgain" do
-      on      "PlanReview.PlanReviewReasked"
+      on      "PlanReview.VerdictOverdue"
       trigger PlanReview::Request, with: { work: :work, hops: :hops, role: :role, repo: :repo, plan: :plan, asks: 1 }
     end
 
@@ -656,11 +702,32 @@ Hecks.bluebook "Agents" do
                                             reason: "the architect's session is gone and gave no verdict" }
     end
 
+    # A run with no Work item is a change review's, recorded by `RecordTheChangeVerdict` instead.
     policy "RecordTheVerdictWhenNoReviewWasAsked" do
       on      "AgentRun.JobRead"
       root
-      where   { agent == "architect" && verdict != "" && (previous != state || (listed == "idle" && previous != "done")) }
+      where   { agent == "architect" && work != "" && verdict != "" && (previous != state || (listed == "idle" && previous != "done")) }
       trigger PlanReview::Record, with: { run: :run, work: :work, verdict: :verdict, findings: :findings }
+    end
+
+    # A coder began waiting on a Work item: each review of it that ended just before is reminded.
+    # One that ended earlier, was asked again, or holds a verdict refuses by its given.
+    policy "RemindTheCoderWhoWaitsAfterTheEnd" do
+      on       "AgentRun.ReviewAwaited"
+      root
+      for_each "PlanReview.OfWork"
+      trigger  PlanReview::Remind, with: { plan_review: :plan_review, work: :work }
+    end
+
+    # The verdict of the review is sent to the coder again, with what to do about it.
+    policy "TellTheRemindedCoder" do
+      on      "PlanReview.ReviewReminded"
+      trigger Verdict::Remind,
+              with: { verdict: :run, answer: "Your plan review ended with no verdict: no architect ran. If you have " \
+                      "not already, create your worktree first (exe/hecks LinkedTree.add! branch.value=<work item>), " \
+                      "then file the plan again with PlanReview.request! and repo.value=<that worktree>; or build " \
+                      "your plan as written and say in your report that it was not reviewed. Read PlanReview.reviews " \
+                      "for the reason." }
     end
 
     # The review a run keys, so a policy reacting to the run's event reads the Work item off its row.
@@ -668,6 +735,13 @@ Hecks.bluebook "Agents" do
       description "The review keyed by one run, with its Work item and the reason it was never started."
       attribute :run, RunKey
       where(run: :run)
+    end
+
+    # Every review of a Work item, read by the coder's run, which is keyed by the Work item.
+    query "OfWork" do
+      description "The reviews of one Work item, each with its run and the moment it ended."
+      attribute :run, WorkKey
+      where(work: :run)
     end
 
     # A review asked for before reviews carried a time is not listed: it has no limit to pass.
@@ -691,6 +765,282 @@ Hecks.bluebook "Agents" do
     include PlanReview
     group_by :verdict
     count
+  end
+
+  # Asked after the edit, where `PlanReview` is asked before it; the reviewer judges behavior at the
+  # landing and this judges design. A decision event asks too, so retiring the decision files removes
+  # only the path clause. Anything but sound goes to the coder on the Verdict route.
+  aggregate "ChangeReview" do
+    description "One architect review of a submitted change's design: asked when the branch changed a bluebook, hecksagon or decision file, or a decision was recorded; passed otherwise; unread when git could not read it; cleared when sound, or sent back to the coder."
+
+    identified_by :review
+
+    acknowledges :key_by_value, "the Work item's slug, which lives in the Tickets store, not in a Routing record, so a reference would refuse every change review of a branch no routing was asked for", of: :work
+    acknowledges :key_by_value, "the architect's AgentRun key, the commit's tree, which no PlanReview holds: a plan review's run and a change review's never meet", of: :run
+
+    attribute :review,   ReviewKey
+    attribute :run,      RunKey, optional: true
+    attribute :work,     WorkKey, optional: true
+    attribute :checkout, CheckoutPath, optional: true
+    attribute :paths,    ChangedPathList, optional: true
+    attribute :tree,     TreeRef, optional: true
+    attribute :adr,      DecisionRef, optional: true
+    attribute :verdict,  Verdict, optional: true
+    attribute :findings, FindingsText, optional: true
+    attribute :reason,   ReasonText, optional: true
+
+    # The submitted commit for a submission; the decision's number for a decision, which is
+    # reviewed once, on the first event that names it.
+    value_object "ReviewKey" do
+      attribute :value, String, matches: :present
+    end
+
+    # The key of the architect's run: the commit's tree for a submission, so it never meets the
+    # reviewer's run, keyed by the commit; the decision's number for a decision.
+    value_object "RunKey" do
+      attribute :value, String, matches: :present
+    end
+
+    # The Work item the submitted branch is named for; none for a decision.
+    value_object "WorkKey", String
+
+    # The directory the architect reads: the coder's checkout, or `.` for a decision.
+    value_object "CheckoutPath", String
+
+    # The paths the branch changed against main, each between bars (`|a.bluebook|b.rb|`), as the
+    # `SubmittedPaths` port answers them: so a given matches a path whole, by its start or its end.
+    value_object "ChangedPathList", String
+
+    # The submitted commit's tree, as git names it.
+    value_object "TreeRef", String
+
+    # The decision record a Tickets event named.
+    value_object "DecisionRef", String
+
+    value_object "Verdict", String
+
+    # The architect's closing text: the findings behind the verdict.
+    value_object "FindingsText", String
+
+    # Why the changed paths could not be read, as the port refused.
+    value_object "ReasonText" do
+      attribute :value, String, matches: :present
+    end
+
+    lifecycle :status, default: "considered" do
+      mark :failure, "unread"
+      transition "Request"         => "asked",     from: "considered"
+      transition "RequestDecision" => "asked",     from: "considered"
+      transition "Pass"            => "unasked",   from: "considered"
+      transition "Unread"          => "unread",    from: "considered"
+      transition "Answer"          => "asked",     from: "asked"
+      transition "Clear"           => "cleared",   from: "asked"
+      transition "SendBack"        => "sent_back", from: "asked"
+      mark :terminal, "unasked", "unread", "cleared", "sent_back"
+      # An asked review waits for the architect's verdict; a verdict that never comes is the
+      # verdict-timeout sweep's to time, as it is for a plan review's. A considered review is
+      # carried out in the same dispatch, by the paths read or the decision's request.
+      mark :rests, "asked", "considered"
+    end
+
+    command "Consider" do
+      role "System"
+      goal "Take a submitted branch's commit into a change review, before its changed paths are read"
+
+      attribute :review,   ReviewKey, sets: true
+      attribute :work,     WorkKey, sets: true
+      attribute :checkout, CheckoutPath, sets: true
+
+      emits "SubmissionConsidered"
+    end
+
+    command "AskOnDecision" do
+      role "System"
+      goal "Take a decision the Tickets store recorded into a change review"
+
+      attribute :review,   ReviewKey, sets: true
+      attribute :adr,      DecisionRef, sets: true
+      attribute :checkout, CheckoutPath, default: ".", sets: true
+
+      emits "DecisionConsidered"
+    end
+
+    # Both requests emit one event, so they take the same fields: the architect's run key and the
+    # checkout it reads. Which change asks is the rule on `PathsRead` below.
+    command "Request" do
+      role "System"
+      goal "Ask the architect to review a submitted change that touches a bluebook, hecksagon or decision file"
+
+      reference_to ChangeReview
+      attribute :run,      RunKey, sets: true
+      attribute :paths,    ChangedPathList, optional: true, sets: true
+      attribute :checkout, CheckoutPath, optional: true
+
+      emits "ChangeReviewRequested"
+    end
+
+    command "RequestDecision" do
+      role "System"
+      goal "Ask the architect to review a decision the Tickets store recorded"
+
+      reference_to ChangeReview
+      attribute :run,      RunKey, sets: true
+      attribute :paths,    ChangedPathList, optional: true, sets: true
+      attribute :checkout, CheckoutPath, optional: true
+
+      emits "ChangeReviewRequested"
+    end
+
+    command "Pass" do
+      role "System"
+      goal "Record that a submitted change touches no bluebook, hecksagon or decision file, so no architect is asked"
+
+      reference_to ChangeReview
+      attribute :paths, ChangedPathList, sets: true
+
+      emits "ChangeReviewNotNeeded"
+    end
+
+    # Git could not read the commit, so neither can the architect: the review ends with the reason,
+    # never passed.
+    command "Unread" do
+      role "System"
+      goal "Record that a submitted change's paths could not be read, with git's reason"
+
+      reference_to ChangeReview
+      attribute :reason, ReasonText, sets: true
+
+      emits "ChangeUnread"
+    end
+
+    command "Answer" do
+      role "System"
+      goal "Record the architect's verdict on a change's design"
+
+      reference_to ChangeReview
+      attribute :verdict,  Verdict, sets: true
+      attribute :findings, FindingsText, optional: true, sets: true
+
+      given("the verdict is one the architect gives") do
+        verdict.value == "sound" || verdict.value == "changes" || verdict.value == "rethink"
+      end
+
+      emits "ChangeReviewed"
+    end
+
+    command "Clear" do
+      role "System"
+      goal "Clear a change whose design the architect judged sound"
+
+      reference_to ChangeReview
+
+      given("the architect judged the change sound") { verdict.value == "sound" }
+
+      emits "ChangeCleared"
+    end
+
+    command "SendBack" do
+      role "System"
+      goal "Send a change the architect did not judge sound back to its coder, with the findings"
+
+      reference_to ChangeReview
+      # Read off the review's row and carried on the event, for the verdict the coder is sent.
+      attribute :run,      RunKey, optional: true
+      attribute :work,     WorkKey, optional: true
+      attribute :findings, FindingsText, optional: true
+
+      given("the architect did not judge the change sound") { verdict.value != "sound" }
+
+      emits "ChangeSentBack"
+    end
+
+    query "Reviews" do
+      description "Every change review, by key: its Work item or decision, the paths read, the architect's run, and the verdict once it has answered."
+      order_by :review
+    end
+
+    # The review one event names, so a policy reads its Work item and findings off the row.
+    query "OfReview" do
+      description "The change review keyed by one review key, with its Work item and the architect's findings."
+      attribute :review, ReviewKey
+      where(review: :review)
+    end
+
+    # The reviews an architect run answers: one, or more when a tree was submitted twice.
+    query "OfRun" do
+      description "The change reviews the architect's run answers, by its run key."
+      attribute :run, RunKey
+      where(run: :run)
+    end
+
+    query "OfWork" do
+      description "The change reviews of one Work item, each keyed by the commit submitted."
+      attribute :work, WorkKey
+      where(work: :work)
+    end
+
+    # Which paths a branch changed is a fact of its git checkout, which a given cannot read.
+    policy "ReadTheSubmittedPaths" do
+      on      "ChangeReview.SubmissionConsidered"
+      ask     :submitted_paths, with: { review: :review, checkout: :checkout }
+    end
+
+    # The rule that asks the architect: the change touches a bluebook, a hecksagon or a decision
+    # file. Each policy takes one side of it, so neither command is refused for the other's paths.
+    # Retiring the decision files removes only the `docs/decisions/` clause.
+    policy "AskTheArchitectWhenTheDesignChanged" do
+      on      "ChangeReview.PathsRead"
+      where   { paths.value.include?(".bluebook|") || paths.value.include?(".hecksagon|") || paths.value.include?("|docs/decisions/") }
+      trigger ChangeReview::Request, with: { review: :review, run: :tree, paths: :paths, checkout: :checkout }
+    end
+
+    policy "PassTheChangeThatTouchesNoDesign" do
+      on      "ChangeReview.PathsRead"
+      where   { !paths.value.include?(".bluebook|") && !paths.value.include?(".hecksagon|") && !paths.value.include?("|docs/decisions/") }
+      trigger ChangeReview::Pass, with: { review: :review, paths: :paths }
+    end
+
+    policy "RecordTheUnreadChange" do
+      on      "ChangeReview.PathsUnread"
+      trigger ChangeReview::Unread, with: { review: :review, reason: :refusal }
+    end
+
+    policy "AskTheArchitectOnTheDecision" do
+      on      "ChangeReview.DecisionConsidered"
+      trigger ChangeReview::RequestDecision, with: { review: :review, run: :review, checkout: :checkout }
+    end
+
+    # The architect's run for a change review is dispatched with no Work item, which tells its job
+    # read apart from a plan review's; a run no change review names finds no row.
+    policy "RecordTheChangeVerdict" do
+      on       "AgentRun.JobRead"
+      root
+      where    { agent == "architect" && work == "" && verdict != "" && (previous != state || (listed == "idle" && previous != "done")) }
+      for_each "ChangeReview.OfRun"
+      trigger  ChangeReview::Answer, with: { review: :review, verdict: :verdict, findings: :findings }
+    end
+
+    policy "ClearTheSoundChange" do
+      on      "ChangeReview.ChangeReviewed"
+      where   { verdict.value == "sound" }
+      trigger ChangeReview::Clear, with: { review: :review }
+    end
+
+    policy "SendBackTheUnsoundChange" do
+      on       "ChangeReview.ChangeReviewed"
+      where    { verdict.value != "sound" }
+      for_each "ChangeReview.OfReview"
+      trigger  ChangeReview::SendBack, with: { review: :review, run: :run, work: :work, findings: :findings }
+    end
+
+    # The findings go to the coder as a verdict keyed by the architect's run: a waiting coder is
+    # answered in place, a finished one recorded unreached. A decision names no coder, so its
+    # findings stay on its `Reviews` row, for the orchestrator to read.
+    policy "TellTheCoderTheChangeWasSentBack" do
+      on      "ChangeReview.ChangeSentBack"
+      where   { work.to_s != "" }
+      trigger Verdict::Judge, with: { run: :run, work: :work, role: "architect", answer: :findings }
+    end
   end
 
   # A judge's verdict on its way to the coder waiting on it. The verdict is a command on the change,
@@ -741,7 +1091,10 @@ Hecks.bluebook "Agents" do
       transition "Unresume" => "unresumed", from: "judged"
       transition "Redeliver" => "judged", from: "unresumed"
       transition "Abandon" => "undeliverable", from: "unresumed"
-      mark :terminal, "delivered", "undeliverable"
+      transition "Remind" => "unresumed", from: %w[judged delivered]
+      mark :terminal, "undeliverable"
+      # A delivered verdict rests: nothing waits on it, and only a reminder sends it again.
+      mark :rests, "delivered"
     end
 
     command "Judge" do
@@ -808,6 +1161,20 @@ Hecks.bluebook "Agents" do
       emits "VerdictAbandoned"
     end
 
+    # A verdict judged or delivered to a coder that was not yet waiting is kept to be sent again with the
+    # words the reminder gives; the sweep's redelivery then sends it (`RedeliverTheUnresumedVerdict`).
+    # Its tries start again, so tries an earlier redelivery spent do not abandon the reminder.
+    command "Remind", from: %w[judged delivered] do
+      role "System"
+      goal "Keep a delivered verdict to be sent again, as a reminder to the coder"
+
+      reference_to Verdict
+      attribute :answer, AnswerText, sets: true
+      attribute :tries,  TryCount, default: 0, sets: true
+
+      emits "VerdictReminded"
+    end
+
     command "Deliver", from: "judged" do
       role "System"
       goal "Record that the coder's run was answered with the verdict"
@@ -870,11 +1237,12 @@ Hecks.bluebook "Agents" do
                                          reason: "the coder's session refused the verdict on every try" }
     end
 
-    # The architect's closing text is its findings; the verdict word leads them.
+    # The architect's closing text is its findings; the verdict word leads them. A run with no Work
+    # item is a change review's, which sends its verdict on only when it is not sound.
     policy "JudgeTheArchitectsVerdict" do
       on      "AgentRun.JobRead"
       root
-      where   { agent == "architect" && verdict != "" && (previous != state || (listed == "idle" && previous != "done")) }
+      where   { agent == "architect" && work != "" && verdict != "" && (previous != state || (listed == "idle" && previous != "done")) }
       trigger Verdict::Judge, with: { run: :run, work: :work, role: "architect", answer: :findings, word: :verdict }
     end
 
@@ -898,7 +1266,7 @@ Hecks.bluebook "Agents" do
   # word and proves nothing. A session hears its messages with `Operation.follow` on this aggregate;
   # one that is not following is still answered with `AgentRun.answer!`.
   aggregate "Message" do
-    description "One message from a session to a run: sent as an event the run's session hears, then read. It grants no approval and changes no permission; a reply is a message whose in_reply_to names the one it answers."
+    description "One message from a session to a run: addressed, sent as an event the run's session hears once the recipient is a run with a live session, then read; refused by name when it is not. It grants no approval and changes no permission; a reply is a message whose in_reply_to names the one it answers."
 
     identified_by :message
 
@@ -909,6 +1277,7 @@ Hecks.bluebook "Agents" do
     attribute :body, BodyText
     attribute :in_reply_to, MessageRef, optional: true
     attribute :reader, ReaderName, optional: true
+    attribute :refusal, RefusalText, optional: true
 
     value_object "MessageKey" do
       attribute :value, String, matches: :present
@@ -940,9 +1309,19 @@ Hecks.bluebook "Agents" do
       attribute :value, String, matches: :present
     end
 
-    lifecycle :status, default: "sent" do
+    # Why the message was not sent: the recipient is no run with a live session, said by name.
+    value_object "RefusalText" do
+      attribute :value, String, matches: :present
+    end
+
+    lifecycle :status, default: "addressed" do
+      mark :failure, "refused"
+      transition "Deliver" => "sent", from: "addressed"
+      transition "Decline" => "refused", from: "addressed"
       transition "Read" => "read", from: "sent"
-      mark :terminal, "read"
+      # A sent message waits for its session to read it, which may never come; nothing times it.
+      mark :rests, "sent"
+      mark :terminal, "read", "refused"
     end
 
     command "Send" do
@@ -958,7 +1337,26 @@ Hecks.bluebook "Agents" do
 
       given("the message says something") { !body.value.to_s.strip.empty? }
 
+      emits "MessageAddressed"
+    end
+
+    command "Deliver", from: "addressed" do
+      role "System"
+      goal "Send an addressed message once its recipient is a run with a live session"
+
+      reference_to Message
+
       emits "MessageSent"
+    end
+
+    command "Decline", from: "addressed" do
+      role "System"
+      goal "Refuse an addressed message by name: its recipient is no run with a live session"
+
+      reference_to Message
+      attribute :refusal, RefusalText, sets: true
+
+      emits "MessageRefused"
     end
 
     command "Read", from: "sent" do
@@ -976,6 +1374,88 @@ Hecks.bluebook "Agents" do
       attribute :recipient, RunKey
       where(status: "sent", recipient: :recipient)
       order_by :message
+    end
+
+    # Whether the recipient is a run with a live session is a fact of the AgentRun ledger, in
+    # another domain, which a given cannot read; so the port is asked before a message is sent.
+    policy "CheckTheRecipient" do
+      on      "Message.MessageAddressed"
+      ask     :recipient, with: { message: :message, recipient: :recipient }
+    end
+
+    policy "SendToTheRun" do
+      on      "Message.RecipientFound"
+      trigger Message::Deliver, with: { message: :message }
+    end
+
+    policy "RefuseTheRecipient" do
+      on      "Message.RecipientMissing"
+      trigger Message::Decline, with: { message: :message, refusal: :refusal }
+    end
+  end
+
+  # The `Recipients` port finds a hand run while `claude agents` lists its session; an AgentRun
+  # with the same key is found first. A stopgap until AgentRun registers such a session itself.
+  aggregate "HandRun" do
+    description "A session the owner started by hand, which has no AgentRun, registered under a run key so a message to that key reaches it like a dispatched run's."
+
+    identified_by :run
+
+    attribute :run, RunKey
+    attribute :session, SessionId
+    attribute :role, RunRole
+
+    # The key messages are addressed to, as `Message.send! to=<run>` names it.
+    value_object "RunKey" do
+      attribute :value, String, matches: :present
+    end
+
+    # The session's own id, `$CLAUDE_CODE_SESSION_ID` in the session's shell.
+    value_object "SessionId" do
+      attribute :value, String, matches: :present
+    end
+
+    # The role the session plays, such as `orchestrator-owner`.
+    value_object "RunRole" do
+      attribute :value, String, pattern: '\A[A-Za-z0-9][A-Za-z0-9._-]*\z'
+    end
+
+    # A recorded registration is a finished fact that frees its key: registering again replaces
+    # it, the earlier one kept as `<run>~<n>`, so a message reaches the newest session.
+    lifecycle :status, default: "registering" do
+      transition "Record" => "registered", from: "registering"
+      mark :terminal, "registered"
+      mark :reusable, "registered"
+    end
+
+    command "Register" do
+      role "Operator"
+      goal "Register the current hand-started session under a run key, so messages to that key reach it"
+
+      attribute :run,     RunKey, sets: true
+      attribute :session, SessionId, sets: true
+      attribute :role,    RunRole, sets: true
+
+      emits "HandRunRequested"
+    end
+
+    command "Record", from: "registering" do
+      role "System"
+      goal "Record a registration, which frees its key for the next one"
+
+      reference_to HandRun
+
+      emits "HandRunRegistered"
+    end
+
+    policy "RecordTheRegistration" do
+      on      "HandRun.HandRunRequested"
+      trigger HandRun::Record, with: { run: :run }
+    end
+
+    query "Registered" do
+      description "Every hand-started session registration, with its run key, session and role; a replaced one is keyed `<run>~<n>`."
+      order_by :run
     end
   end
 
@@ -1103,14 +1583,16 @@ Hecks.bluebook "Agents" do
     end
   end
 
-  # The orchestrator. Routing is a rule first: a Work item with no conflict is routed at once and no
-  # agent is asked. Only a conflicting item asks for advice, and that ask carries the hop limit.
+  # The orchestrator. Routing is a rule first: a Work item with no conflict is routed at once. The
+  # check takes measured facts, never a verdict; the two policies below are the rule, and one passes.
   aggregate "Routing" do
-    description "One Work item's routing: checked for a conflict, routed by rule when there is none, and sent for advice when there is."
+    description "One Work item's routing: checked for a conflict from the areas it spans and the started items it overlaps (Tickets Work.Show), routed by rule when there is none, and sent for advice, under the hop limit, when there is."
 
     identified_by :work
 
     attribute :work, WorkKey
+    attribute :areas, AreaCount, optional: true
+    attribute :overlaps, OverlapCount, optional: true
     attribute :conflict, Conflict, optional: true
     attribute :hops, HopCount, optional: true
 
@@ -1119,6 +1601,13 @@ Hecks.bluebook "Agents" do
       invariant("a routing names its Work item") { !value.to_s.empty? }
     end
 
+    # How many areas the Work item's claim spans; more than one is a conflict.
+    value_object "AreaCount", Integer
+
+    # How many started work items' claimed areas meet this one's; any is a conflict.
+    value_object "OverlapCount", Integer
+
+    # "yes" when the check found a conflict, "no" when it found none, set by the step that followed.
     value_object "Conflict", String
 
     value_object "HopCount", Integer
@@ -1133,13 +1622,14 @@ Hecks.bluebook "Agents" do
     # What the orchestrator is asked: the Work item and the conflict, in words.
     value_object "BriefText", String
 
-    # `conflict` is "yes" when the item spans several areas or overlaps another session's.
+    # The facts a conflict is read from: the areas the item spans and the started items it overlaps.
     command "Check" do
       role "System"
       goal "Check one Work item for a conflict before routing it"
 
       attribute :work, WorkKey, sets: true
-      attribute :conflict, Conflict, sets: true
+      attribute :areas, AreaCount, sets: true
+      attribute :overlaps, OverlapCount, sets: true
       attribute :hops, HopCount, sets: true
       # The key the orchestrator's run takes when the check finds a conflict: without it no session could start.
       attribute :advice, AdviceKey
@@ -1157,7 +1647,7 @@ Hecks.bluebook "Agents" do
       goal "Route a Work item that has no conflict, by rule"
 
       reference_to Routing
-      attribute :conflict, Conflict
+      attribute :conflict, Conflict, default: "no", sets: true
       attribute :hops, HopCount
 
       emits "WorkRouted"
@@ -1168,7 +1658,10 @@ Hecks.bluebook "Agents" do
       goal "Ask the orchestrator role for advice on a Work item that conflicts"
 
       reference_to Routing
-      attribute :conflict, Conflict
+      attribute :conflict, Conflict, default: "yes", sets: true
+      # The facts the conflict was found from, so the advice request says why it was asked.
+      attribute :areas, AreaCount
+      attribute :overlaps, OverlapCount
       attribute :hops, HopCount
       attribute :advice, AdviceKey, optional: true
       attribute :role, RoleRef, optional: true
@@ -1178,15 +1671,17 @@ Hecks.bluebook "Agents" do
       emits "DispatchAdviceRequested"
     end
 
+    # A Work item that spans one area and meets no started item's claim is routed by rule.
     policy "RouteWhenNoConflict" do
       on      "Routing.WorkChecked"
-      where   { conflict.value == "no" }
-      trigger Routing::Route, with: { conflict: :conflict, hops: :hops }
+      where   { areas.value <= 1 && overlaps.value == 0 }
+      trigger Routing::Route, with: { hops: :hops }
     end
 
+    # One that spans several areas, or meets a started item's claim, asks the orchestrator.
     policy "AskAdviceWhenConflict" do
       on      "Routing.WorkChecked"
-      where   { conflict.value == "yes" }
+      where   { areas.value > 1 || overlaps.value > 0 }
       trigger Routing::AskAdvice, with: {}
     end
   end
@@ -1249,6 +1744,20 @@ Hecks.bluebook "Agents" do
       on      "Cause.CauseGapReported"
       trigger Escalation::Raise, with: { escalation: :cause, event: "CauseGapReported", rule: "all-hands-on-red", role: "orchestrator", repo: ".",
                                          brief: "A cause of a red main matches no known lesson. Record it as a lesson and see that one coder holds the cause, under your standing rule all-hands-on-red." }
+    end
+
+    # A red episode that parks, or whose revert is refused, leaves main red with the flag up and no
+    # revert made: the owner hears it through the orchestrator. The episode's run keys the wake.
+    policy "WakeWhenAnEpisodeParks" do
+      on      "RedEpisode.EpisodeParked"
+      trigger Escalation::Raise, with: { escalation: :run, event: "EpisodeParked", rule: "all-hands-on-red", role: "orchestrator", repo: ".",
+                                         brief: "A red main's episode parked: its range already holds a revert, so nothing was reverted and the red flag stands. Report it to the owner with the culprit and spec on the event, under your standing rule all-hands-on-red." }
+    end
+
+    policy "WakeWhenARevertIsRefused" do
+      on      "SendTrain.RevertRefused"
+      trigger Escalation::Raise, with: { escalation: :run, event: "RevertRefused", rule: "all-hands-on-red", role: "orchestrator", repo: ".",
+                                         brief: "A red main's revert was refused (a dirty or off-main checkout, or a failed git revert), so the red flag stands with no revert. Report the refusal on the event to the owner, under your standing rule all-hands-on-red." }
     end
 
     policy "WakeWhenABatchHoldsARelease" do
@@ -1805,6 +2314,174 @@ Hecks.bluebook "Agents" do
     policy "RecordTheDeclinedSweep" do
       on      "Sweep.SweepRefused"
       trigger Sweep::Decline, with: { refusal: :refusal }
+    end
+  end
+
+  # The AgentRun ledger is read, never written: a stopped run is finished `stopped` by the next
+  # `AgentRun.check_all!`. A role never stops a session, so no RoutingRule row names Stop or Resume.
+  aggregate "Fleet" do
+    description "One steering of a background Claude session: stopped, or resumed under a name, or refused with the reason; and the reads that list the sessions with their runs and find one by topic."
+
+    identified_by :session
+
+    attribute :session, FleetSession
+    attribute :name,    FleetName,    optional: true
+    attribute :report,  FleetSummary, optional: true
+    attribute :refusal, FleetSummary, optional: true
+    attribute :run,     FleetRun,     optional: true
+
+    value_object "FleetSession" do
+      attribute :value, String, matches: :present
+    end
+
+    # The name a resumed session is listed under. It starts with a letter or digit, so it cannot be
+    # taken for a flag of the command it is passed to.
+    value_object "FleetName" do
+      attribute :value, String, pattern: '\A[A-Za-z0-9][A-Za-z0-9._-]*\z'
+    end
+
+    value_object "FleetSummary" do
+      attribute :value, String, matches: :present
+    end
+    value_object "FleetTopic", String
+
+    # The key of the AgentRun that holds the session, empty when none does, so a policy of the
+    # Hecks domain can follow a stop or a resume without reading the report.
+    value_object "FleetRun", String
+
+    value_object "FleetDocument" do
+      attribute :text, String
+    end
+
+    lifecycle :status, default: "requested" do
+      mark :failure, "refused"
+      # A stop `claude` carried out is `ended`: the session ended, and the steering did not fail.
+      transition "RecordStop"   => "ended", from: "requested"
+      transition "RecordResume" => "resumed", from: "requested"
+      transition "Decline"      => "refused", from: "requested"
+      mark :terminal, "ended", "resumed", "refused"
+      # A steering that ended frees the session's key, so the same session is stopped or resumed again.
+      mark :reusable, "ended", "resumed", "refused"
+    end
+
+    command "Stop" do
+      role "Operator"
+      goal "Stop a background session (claude stop) that no pinned role holds"
+
+      attribute :session, FleetSession, sets: true
+
+      emits "FleetStopRequested"
+    end
+
+    command "Resume" do
+      role "Operator"
+      goal "Resume a session that is not working under the given name (claude --bg --resume <id> -n <name>)"
+
+      attribute :session, FleetSession, sets: true
+      attribute :name,    FleetName,    sets: true
+
+      emits "FleetResumeRequested"
+    end
+
+    command "RecordStop" do
+      role "System"
+      goal "Record that the session was stopped, and the run that holds it"
+
+      reference_to Fleet
+      attribute :report, FleetSummary, sets: true
+      attribute :run,    FleetRun,     sets: true
+
+      emits "FleetStopped"
+    end
+
+    command "RecordResume" do
+      role "System"
+      goal "Record that the session was resumed under its name, and the run that holds it"
+
+      reference_to Fleet
+      attribute :report, FleetSummary, sets: true
+      attribute :run,    FleetRun,     sets: true
+
+      emits "FleetResumed"
+    end
+
+    command "Decline" do
+      role "System"
+      goal "Record why the session was not stopped or resumed"
+
+      reference_to Fleet
+      attribute :refusal, FleetSummary, sets: true
+
+      emits "FleetRefused"
+    end
+
+    query "Sessions" do
+      description "Every background session claude lists, one line each: id, name, state, status and the AgentRun that holds it (run, status, condition) or none. Reads only; refused where no AgentRun ledger is booted."
+      returns FleetDocument
+    end
+
+    query "Topic" do
+      description "The listed sessions whose transcript mentions the topic (any case), newest first, each with its name, state, run and the first line that matches. Reads only; refused where no AgentRun ledger is booted."
+      attribute :topic, FleetTopic
+      returns FleetDocument
+    end
+
+    # The port reads the facts first (whether the session is listed, the run that holds it,
+    # whether a pinned role names it, whether it is working); the policies below judge them and
+    # either ask the port to run `claude` or refuse by name.
+    policy "ExamineBeforeStopping" do
+      on      "Fleet.FleetStopRequested"
+      ask     :examine_stop, with: { session: :session }
+    end
+
+    policy "RefuseToStopAPinnedRole" do
+      on      "Fleet.StopExamined"
+      where   { pinned == true }
+      trigger Fleet::Decline, with: { refusal: :note }
+    end
+
+    policy "StopTheFreeSession" do
+      on      "Fleet.StopExamined"
+      where   { pinned != true }
+      ask     :halt, with: { session: :session }
+    end
+
+    policy "ExamineBeforeResuming" do
+      on      "Fleet.FleetResumeRequested"
+      ask     :examine_resume, with: { session: :session, name: :name }
+    end
+
+    policy "RefuseToResumeAWorkingSession" do
+      on      "Fleet.ResumeExamined"
+      where   { working == true }
+      trigger Fleet::Decline, with: { refusal: :note }
+    end
+
+    policy "ResumeTheIdleSession" do
+      on      "Fleet.ResumeExamined"
+      where   { working != true }
+      ask     :revive, with: { session: :session, name: :name }
+    end
+
+    policy "RecordTheStop" do
+      on      "Fleet.SessionHalted"
+      trigger Fleet::RecordStop, with: { report: :report, run: :run }
+    end
+
+    policy "RecordTheResume" do
+      on      "Fleet.SessionRevived"
+      trigger Fleet::RecordResume, with: { report: :report, run: :run }
+    end
+
+    # A session the port could not read or `claude` refused is declined with the reason.
+    policy "RecordTheRefusedStop" do
+      on      "Fleet.SessionHaltRefused"
+      trigger Fleet::Decline, with: { refusal: :refusal }
+    end
+
+    policy "RecordTheRefusedResume" do
+      on      "Fleet.SessionReviveRefused"
+      trigger Fleet::Decline, with: { refusal: :refusal }
     end
   end
 end

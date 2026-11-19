@@ -11,9 +11,10 @@ RSpec.describe "The EarlyCi rules on a missing failing list and head" do
 
   let(:hecks) { MissingValueGuards.bluebook("lib/hecks/hecks", "Hecks") }
 
-  def recorded(failing)
-    %w[RecordTheGreenRun RecordTheRedRun]
-      .map { |name| fires?(hecks.policies.find { |held| held.hecks_name == name }, { failing: failing }) }
+  def recorded(failing, inherited = nil)
+    %w[RecordTheGreenRun RecordTheRedRun].map do |name|
+      fires?(hecks.policies.find { |held| held.hecks_name == name }, { failing: failing, inherited: inherited })
+    end
   end
 
   def answers?(sha, of_sha)
@@ -27,6 +28,11 @@ RSpec.describe "The EarlyCi rules on a missing failing list and head" do
 
   it "records a run with a failing job as red" do
     expect(recorded({ value: "rspec_1" })).to eq([false, true])
+  end
+
+  it "records a run whose only failing jobs a red main failed too as green, and others as red", :aggregate_failures do
+    expect(recorded({ value: "rspec_1" }, { value: "rspec_1" })).to eq([true, false])
+    expect(MissingValueGuards::MISSING.map { |none| recorded({ value: "rspec_1" }, none) }).to eq([[false, true]] * 2)
   end
 
   it "takes an answer for a record with no head, or for its own head only", :aggregate_failures do

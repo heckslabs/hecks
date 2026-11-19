@@ -22,4 +22,63 @@ Hecks.hecksagon "Agents" do
 
     answers_query "Leftovers"
   end
+
+  # Whether a message's recipient is a run with a live session. Bound by adapters/recipient_check,
+  # which reads the AgentRun ledger and the session listing and refuses, by name, a recipient that
+  # is neither.
+  Agents::Message.port "Recipients" do
+    asks "Recipient", to: Message do
+      attribute :message,   MessageKey
+      attribute :recipient, RunKey
+      answers "RecipientFound"
+      refuses "RecipientMissing"
+    end
+  end
+
+  # Which paths a submitted branch changed against main, read in its checkout. Bound by
+  # adapters/submitted_paths, which only reads git; the bluebook decides what the paths ask for.
+  Agents::ChangeReview.port "SubmittedPaths" do
+    asks "SubmittedPaths", to: ChangeReview do
+      attribute :review,   ReviewKey
+      attribute :checkout, CheckoutPath
+      answers "PathsRead"
+      refuses "PathsUnread"
+    end
+  end
+
+  # The sessions claude lists, joined to the AgentRun ledger (adapters/fleet_control). The examines
+  # read the facts Fleet's policies judge; the adapter refuses only a session not listed, a boot
+  # with no ledger, and a command `claude` refused.
+  Agents::Fleet.port "Fleet" do
+    # Whether a pinned role holds the session, the run that holds it, and that in words.
+    asks "ExamineStop", to: Fleet do
+      attribute :session, FleetSession
+      answers "StopExamined"
+      refuses "SessionHaltRefused"
+    end
+
+    # Whether the session is working, the run that holds it, and that in words; the name is kept.
+    asks "ExamineResume", to: Fleet do
+      attribute :session, FleetSession
+      attribute :name,    FleetName
+      answers "ResumeExamined"
+      refuses "SessionReviveRefused"
+    end
+
+    asks "Halt", to: Fleet do
+      attribute :session, FleetSession
+      answers "SessionHalted"
+      refuses "SessionHaltRefused"
+    end
+
+    asks "Revive", to: Fleet do
+      attribute :session, FleetSession
+      attribute :name,    FleetName
+      answers "SessionRevived"
+      refuses "SessionReviveRefused"
+    end
+
+    answers_query "Sessions"
+    answers_query "Topic"
+  end
 end

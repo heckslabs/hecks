@@ -7,6 +7,7 @@ require_relative "source_file"
 require_relative "declarations"
 require_relative "baseline"
 require_relative "dictionary"
+require_relative "findings"
 
 module Hecks
   module Tools
@@ -21,11 +22,14 @@ module Hecks
         # @param paths [Array<String>] files or directories
         # @param only [Array<String>, nil] categories to keep
         # @param baseline [Hash{String => Hash{String => Integer}}] the long blocks to tolerate
-        def initialize(paths, only: nil, baseline: Baseline.load)
+        # @param cache [FileCache, FileCache::None] where each file's facts come from; the default
+        #   keeps none and parses every file
+        def initialize(paths, only: nil, baseline: Baseline.load, cache: FileCache::None)
           @declarations = declaration_files(paths)
           @files = paths.flat_map { |p| File.directory?(p) ? ruby_files(p) : [p] }.sort.uniq - @declarations
           @only = only
           @baseline = baseline
+          @cache = cache
         end
 
         # Every block over its cap in these files (`MAX_BLOCK` lines in Ruby,
@@ -61,14 +65,13 @@ module Hecks
           end
         end
 
-        # Every violation across the whole file set, computed once.
+        # Every violation across the whole file set, computed once. A file whose text the cache
+        # has seen is not parsed again.
         #
         # @return [Array<Violation>]
         def violations
           @violations ||= begin
-            sources = @files.map { |path| SourceFile.new(path) }
-            found = sources.flat_map { |source| source.violations(only: @only, baseline: @baseline) } +
-                    undocumented_types(sources) + declaration_violations
+            found = Findings.new(@files, cache: @cache, baseline: @baseline).violations + declaration_violations
             @only ? found.select { |v| @only.include?(v.category) } : found
           end
         end
@@ -149,20 +152,6 @@ module Hecks
             category, worst = list.group_by(&:category).max_by { |_, group| group.size }
             "  #{list.size.to_s.rjust(6)}  #{file}  (mostly #{category}: #{worst.size})"
           end
-        end
-
-        # A type reopened across files counts as documented if any opening is.
-        def undocumented_types(sources)
-          openings = sources.flat_map { |s| s.types.reject(&:namespace_only).map { |t| [s, t] } }
-          openings.group_by { |_, type| type.fqn }.filter_map { |fqn, group| undocumented_opening(fqn, group) }
-        end
-
-        def undocumented_opening(fqn, group)
-          return unless CommentStyle.public_surface.include?(fqn.to_s.split("::").last)
-          return if group.any? { |source, type| source.documented?(type) }
-
-          source, type = group.first
-          Violation.new(source.path, type.line, "undocumented_class", fqn)
         end
       end
     end

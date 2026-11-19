@@ -264,7 +264,8 @@ Hecks.bluebook "Hecks" do
     end
 
     # The push, the draft and the CI read are the port's (never main, never forced, never --no-verify);
-    # the verdict is the bluebook's, passed when no job failed, for the record's own head only.
+    # the verdict is the bluebook's, passed when no job of the branch's own failed (a job that failed on
+    # the run of the branch's base too is inherited, reported apart), for the record's own head only.
     aggregate "EarlyCi" do
       description "One branch pushed as ci/<branch> with a never-merged draft, by a landing or by its coder before hand-off, and what CI said of its head."
 
@@ -305,7 +306,8 @@ Hecks.bluebook "Hecks" do
         mark :failure, "declined"
         transition "Open"    => "opened",    from: "requested"
         transition "Observe" => "observed",  from: %w[requested opened]
-        transition "Close"   => "closed",    from: %w[requested opened observed]
+        transition "Withdraw" => "closing",  from: %w[requested opened observed declined closing]
+        transition "Close"   => "closed",    from: "closing"
         transition "Decline" => "declined",  from: %w[requested opened]
         transition "Retry"   => "requested", from: %w[observed declined]
         mark :terminal, "closed"
@@ -387,11 +389,23 @@ Hecks.bluebook "Hecks" do
         emits EarlyCiObserved
       end
 
-      command "Close" do
+      # A close the port refused leaves the record closing, never declined, so a coder cannot retry a
+      # landed branch; a second Withdraw asks the port again.
+      command "Withdraw" do
         role "System"
-        goal "Record that the push train carried the commits, so the draft is closed and ci/<branch> deleted"
+        goal "Ask the port to close the draft and delete ci/<branch>, because the branch landed"
 
         reference_to EarlyCi
+
+        emits EarlyCiWithdrawn
+      end
+
+      command "Close" do
+        role "System"
+        goal "Record that the port closed the draft and deleted ci/<branch>; nothing was merged"
+
+        reference_to EarlyCi
+        attribute :report, Report, sets: true
 
         emits EarlyCiClosed
       end
@@ -416,6 +430,24 @@ Hecks.bluebook "Hecks" do
       trigger EarlyCi::Start, with: { run: :run, branch: :branch }
     end
 
+    # A landed branch's draft is closed and ci/<branch> deleted. The record is keyed by the branch; a
+    # branch no coder asked CI for has none, and the trigger is refused as not found.
+    policy "WithdrawEarlyCiWhenBranchLanded" do
+      on      "Landing.BranchLanded"
+      where   { branch.value != "main" }
+      trigger EarlyCi::Withdraw, with: { early_ci: :branch }
+    end
+
+    policy "CloseCiWhenWithdrawn" do
+      on      "EarlyCi.EarlyCiWithdrawn"
+      ask     :branch_ci_close, with: { run: :run }
+    end
+
+    policy "RecordTheClose" do
+      on      "EarlyCi.BranchCiClosed"
+      trigger EarlyCi::Close, with: { report: :report }
+    end
+
     # A coder's request is the port's to run: push ci/<branch>, open or reuse the draft, read its checks.
     policy "AskCiWhenRequested" do
       on      "EarlyCi.EarlyCiRequested"
@@ -427,17 +459,19 @@ Hecks.bluebook "Hecks" do
       ask     :branch_ci, with: { run: :run }
     end
 
-    # No failing job is a pass: the verdict is drawn here, from the jobs the port names.
+    # No failing job of the branch's own is a pass, drawn here from the jobs the port names: `inherited`
+    # lists, in `failing`'s order, the jobs whose every failed example failed on the branch's base too,
+    # so when the two are the same only a red main failed and the coder hands off, naming them.
     policy "RecordTheGreenRun" do
       on      "EarlyCi.BranchCiAnswered"
-      where   { failing.value == nil || failing.value.to_s.empty? }
+      where   { failing.value == nil || failing.value.to_s.empty? || (inherited.value != nil && inherited.value == failing.value) }
       trigger EarlyCi::Observe, with: { outcome: "passed", report: :report, number: :number, ci_run: :ci_run,
                                         of_sha: :sha }
     end
 
     policy "RecordTheRedRun" do
       on      "EarlyCi.BranchCiAnswered"
-      where   { failing.value != nil && !failing.value.to_s.empty? }
+      where   { failing.value != nil && !failing.value.to_s.empty? && (inherited.value == nil || inherited.value != failing.value) }
       trigger EarlyCi::Observe, with: { outcome: "failed", report: :report, number: :number, ci_run: :ci_run,
                                         of_sha: :sha }
     end
@@ -671,12 +705,15 @@ Hecks.bluebook "Hecks" do
         emits BranchPushed
       end
 
-      # Asks the train whether a queued boarding's pull request has merged. Nothing changes while it is open.
+      # Asks the train whether a queued boarding's pull request has merged. Nothing changes while it is
+      # open. A boarding that pushed, closed or never queued has no pull request left to watch.
       command "Watch" do
         role "Operator"
         goal "Look at each queued boarding's pull request, and record any that merged or ended with failed checks"
 
         reference_to SendTrain
+
+        given("only a queued or red boarding has a pull request to watch") { status == "queued" || status == "red" }
 
         emits ObserveRequested
       end
@@ -1092,6 +1129,13 @@ Hecks.bluebook "Hecks" do
       attribute :title,       Report, optional: true
       attribute :cause,       Report, optional: true
       attribute :step,        Report, optional: true
+      # How many jobs of the attempt failed, the one failed job's id when only one did, the failing
+      # examples (`spec/x_spec.rb:12`), and whether the failing specs touch the files the pull request
+      # changed: `yes`, `no`, or `unknown` when its files could not be read.
+      attribute :failed_jobs, Tries, optional: true
+      attribute :job,         Report, optional: true
+      attribute :examples,    Report, optional: true
+      attribute :related,     Report, optional: true
       # What the search for a failed verification's first bad merge reports, as facts: the last
       # verified commit, the first merge whose own specs fail, and whether a revert already stands.
       # A fact the search could not read is empty.
@@ -1508,7 +1552,8 @@ Hecks.bluebook "Hecks" do
       root
       where   { culprit.value != "" && base_red.value == false && already_reverted.value == false }
       trigger RedEpisode::Revert, with: { run: :run, base: :base, culprit: :culprit, branch: :branch, subject: :subject,
-                                          spec: :spec, example: :example, local: :local, checkout: :checkout }
+                                          spec: :spec, example: :example, local: :local, checkout: :checkout,
+                                          work: :work, finding: :finding }
     end
 
     policy "ParkWhenTheEpisodeAlreadyReverted" do
@@ -1516,7 +1561,7 @@ Hecks.bluebook "Hecks" do
       root
       where   { culprit.value != "" && already_reverted.value == true }
       trigger RedEpisode::Park, with: { run: :run, base: :base, culprit: :culprit, branch: :branch, subject: :subject,
-                                        spec: :spec, example: :example }
+                                        spec: :spec, example: :example, checkout: :checkout }
     end
 
     # Nothing is reverted when the specs are red at the last verified commit too, or when no search
@@ -1598,7 +1643,8 @@ Hecks.bluebook "Hecks" do
       on      "Integration.ObserveAnswered"
       where   { outcome.value == "pr_failed" }
       trigger TrainPr::Record, with: { key: :failure_key, landed: :landed, pr: :pr, ci_run: :ci_run, attempt: :attempt,
-                                       specs: :specs, work: :work_key, title: :title, cause: :cause, step: :step, failure: :report }
+                                       specs: :specs, work: :work_key, title: :title, cause: :cause, step: :step, failure: :report,
+                                       failed_jobs: :failed_jobs, job: :job, examples: :examples, related: :related }
     end
 
     # One record per red run: the merge is being reverted, the episode is parked because a revert
@@ -1618,6 +1664,8 @@ Hecks.bluebook "Hecks" do
       attribute :checkout, Report, optional: true
       attribute :landed,   Report, optional: true
       attribute :local,    Switch, optional: true
+      attribute :work,     Report, optional: true
+      attribute :finding,  Report, optional: true
       identified_by :run
 
       value_object "RunKey" do
@@ -1650,6 +1698,8 @@ Hecks.bluebook "Hecks" do
         attribute :example,  Report, optional: true, sets: true
         attribute :checkout, Report, optional: true, sets: true
         attribute :local,    Switch, optional: true, sets: true
+        attribute :work,     Report, optional: true, sets: true
+        attribute :finding,  Report, optional: true, sets: true
 
         emits EpisodeReverting
       end
@@ -1665,6 +1715,7 @@ Hecks.bluebook "Hecks" do
         attribute :subject, Report, optional: true, sets: true
         attribute :spec,    Report, optional: true, sets: true
         attribute :example, Report, optional: true, sets: true
+        attribute :checkout, Report, optional: true, sets: true
 
         emits EpisodeParked
       end
@@ -1704,18 +1755,36 @@ Hecks.bluebook "Hecks" do
     end
 
     # Landings stop first: the flag is the one owner of "main is red", and `Landing` and the push
-    # train refuse by name while it stands. A revert that never left local main is verified at once
-    # and lowers the flag; one that reached `origin/main` leaves the flag to the owner and CI.
+    # train refuse by name while it stands. A local revert is verified at once and lowers the flag;
+    # one of a pushed merge is admitted for boarding and leaves the flag to CI.
     policy "RaiseTheFlagWhenReverting" do
       on      "RedEpisode.EpisodeReverting"
       root
       trigger RedFlag::Raise, with: { run: :run, commit: :culprit, detail: :subject, checkout: :checkout }
     end
 
+    # A park from a revert made by hand raises no flag of its own, so landings would go on over a
+    # red main: the park holds them too. `RedEpisode` owns the `checkout` fact, as for a revert.
+    policy "RaiseTheFlagWhenParked" do
+      on      "RedEpisode.EpisodeParked"
+      root
+      trigger RedFlag::Raise, with: { run: :run, commit: :culprit, detail: :subject, checkout: :checkout }
+    end
+
+    # A culprit already on `origin/main` is reverted locally and the flag stays up until CI is green
+    # on the revert: `AdmitTheRevertOfAPushedMerge` lets the train board that revert and no other
+    # commit. The Work item the episode reopens (Tickets) redoes the reverted work; it is not the fix.
     policy "RevertTheCulprit" do
       on      "RedEpisode.EpisodeReverting"
       root
       trigger SendTrain::Unland, with: { run: :run, culprit: :culprit, checkout: :checkout, local: :local }
+    end
+
+    policy "AdmitTheRevertOfAPushedMerge" do
+      on      "SendTrain.LandingReverted"
+      root
+      where   { local.value == false }
+      trigger RedFlag::Admit, with: { run: :reverted, commit: :reverted, checkout: :checkout }
     end
 
     policy "VerifyTheRevert" do
@@ -1732,11 +1801,10 @@ Hecks.bluebook "Hecks" do
     end
 
     # One failed attempt of a train pull request's CI, recorded once under its key
-    # (`<commit>-<run>-<attempt>`), so a second wake for the same failure is refused as already
-    # recorded. The adapter reports facts (attempt, spec files, failed jobs and their first lines);
-    # the policies below decide: a first failure is rerun once, a failure naming a known-flaky spec
-    # is rerun twice, a later one is exhausted and planned as the red-train Work item
-    # (tickets.bluebook).
+    # (`<commit>-<run>-<attempt>`), so a second wake for the same failure is refused. The adapter
+    # reports facts (failed jobs, specs, examples, and whether they touch the change); the policies
+    # below decide: one unrelated failed job is rerun once by itself, any other spec failure is red
+    # at once as the red-train Work item (tickets.bluebook), a setup failure is rerun twice.
     aggregate "TrainPr" do
       description "One failed attempt of a train pull request's CI: what failed, and whether it was rerun or given to a coder."
 
@@ -1751,6 +1819,10 @@ Hecks.bluebook "Hecks" do
       attribute :cause,   Word,   optional: true
       attribute :step,    Report, optional: true
       attribute :failure, Report, optional: true
+      attribute :failed_jobs, Tries, optional: true
+      attribute :job,      Word,   optional: true
+      attribute :examples, Report, optional: true
+      attribute :related,  Word,   optional: true
       attribute :report,  Report, optional: true
       attribute :detail,  Report, optional: true
       attribute :refusal, Report, optional: true
@@ -1768,15 +1840,6 @@ Hecks.bluebook "Hecks" do
 
       # Which attempt of a CI run failed: 1 is the first.
       value_object "Tries", Integer
-
-      # The spec files known to fail on load and pass when run again; a failure naming one is rerun
-      # twice, not once. The policies `RerunTheKnownFlakySpec` and `ExhaustTheFailedTrainPr` name the same files.
-      value_object "KnownFlakySpec" do
-        attribute :spec,   String
-        attribute :reruns, Integer
-
-        member spec: "spec/bounded_capture_spec.rb", reruns: 2
-      end
 
       lifecycle :status, default: "requested" do
         mark :failure, "exhausted"
@@ -1800,6 +1863,10 @@ Hecks.bluebook "Hecks" do
         attribute :cause,   Word, sets: true
         attribute :step,    Report, optional: true, sets: true
         attribute :failure, Report, sets: true
+        attribute :failed_jobs, Tries, optional: true, sets: true
+        attribute :job,      Word,   optional: true, sets: true
+        attribute :examples, Report, optional: true, sets: true
+        attribute :related,  Word,   optional: true, sets: true
 
         emits TrainPrFailed
       end
@@ -1830,21 +1897,28 @@ Hecks.bluebook "Hecks" do
       end
     end
 
-    policy "RerunTheFailedTrainPr" do
+    # A setup failure has no spec to blame: its failed jobs are rerun, twice at most.
+    policy "RerunTheFailedSetup" do
       on      "TrainPr.TrainPrFailed"
-      where   { (cause.value == "spec" && attempt.value < 2) || (cause.value == "setup" && attempt.value < 3) }
+      where   { cause.value == "setup" && attempt.value < 3 }
       ask     :restart, with: { key: :key, ci_run: :ci_run, pr: :pr, work: :work, title: :title, cause: :cause, step: :step, failure: :failure }
     end
 
-    policy "RerunTheKnownFlakySpec" do
+    # A first spec failure of exactly one job, whose failing specs touch none of the files the pull
+    # request changed, is likely flaky: that job alone is rerun, once. Its examples ride the rerun.
+    policy "RerunTheOneUnrelatedJob" do
       on      "TrainPr.TrainPrFailed"
-      where   { cause.value == "spec" && attempt.value == 2 && specs.value.include?("spec/bounded_capture_spec.rb") }
-      ask     :restart, with: { key: :key, ci_run: :ci_run, pr: :pr, work: :work, title: :title, cause: :cause, step: :step, failure: :failure }
+      where   { cause.value == "spec" && attempt.value == 1 && failed_jobs.value == 1 && related.value == "no" }
+      ask     :restart_job, with: { key: :key, ci_run: :ci_run, job: :job, pr: :pr, examples: :examples, work: :work,
+                                    title: :title, cause: :cause, step: :step, failure: :failure }
     end
 
+    # Every spec failure the rerun policy does not take is red at once: a related one, one of unknown
+    # relation, one of two or more jobs, and the rerun's own failure. Its `where` is the exact
+    # complement of `RerunTheOneUnrelatedJob`'s among spec failures.
     policy "ExhaustTheFailedTrainPr" do
       on      "TrainPr.TrainPrFailed"
-      where   { attempt.value >= 3 || (cause.value == "spec" && attempt.value == 2 && !specs.value.include?("spec/bounded_capture_spec.rb")) }
+      where   { attempt.value >= 3 || (cause.value == "spec" && !(attempt.value == 1 && failed_jobs.value == 1 && related.value == "no")) }
       trigger TrainPr::Exhaust, with: { landed: :landed, detail: :failure, work: :work, title: :title, cause: :cause, step: :step }
     end
 
@@ -1855,6 +1929,16 @@ Hecks.bluebook "Hecks" do
 
     policy "ExhaustTheRefusedRerun" do
       on      "TrainPr.RestartRefused"
+      trigger TrainPr::Exhaust, with: { detail: :failure, work: :work, title: :title, cause: :cause, step: :step }
+    end
+
+    policy "RecordTheJobRerun" do
+      on      "TrainPr.RestartJobAnswered"
+      trigger TrainPr::Rerun, with: { report: :report }
+    end
+
+    policy "ExhaustTheRefusedJobRerun" do
+      on      "TrainPr.RestartJobRefused"
       trigger TrainPr::Exhaust, with: { detail: :failure, work: :work, title: :title, cause: :cause, step: :step }
     end
 
@@ -2494,6 +2578,147 @@ Hecks.bluebook "Hecks" do
     policy "RecordTheRefusedRelease" do
       on      "BoardingRelease.ReleaseRefused"
       trigger BoardingRelease::Decline, with: { refusal: :refusal }
+    end
+
+    # Keyed by the tip: a verdict for another commit finds no review, and a second wait for the same
+    # tip is refused, since main moving does not by itself ask for a new review.
+    aggregate "LandingReview" do
+      description "One landing's wait, after its gates, for the reviewer's verdict on its tip: cleared when clean; otherwise refused by name when enforced, or landed anyway when shadowed."
+
+      attribute :tip,      TipKey
+      attribute :run,      Word,   optional: true
+      attribute :checkout, Word,   optional: true
+      attribute :branch,   Word,   optional: true
+      attribute :brief,    Report, optional: true
+      attribute :confirm,  Switch, optional: true
+      attribute :mode,     Word,   optional: true
+      attribute :verdict,  Word,   optional: true
+      identified_by :tip
+
+      # The tip commit the landing waits on: the review's key.
+      value_object "TipKey" do
+        attribute :value, String, matches: :present
+      end
+
+      # A branch, a directory, a run key, a mode or a verdict.
+      value_object "Word" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Report", String
+
+      value_object "Switch", Boolean
+
+      lifecycle :status, default: "awaiting_review" do
+        mark :failure, "refused"
+        transition "Judge"  => "awaiting_review", from: "awaiting_review"
+        transition "Clear"  => "cleared",         from: "awaiting_review"
+        transition "Refuse" => "refused",         from: "awaiting_review"
+        transition "Shadow" => "shadowed",        from: "awaiting_review"
+        mark :terminal, "cleared", "refused", "shadowed"
+      end
+
+      command "Await" do
+        role "System"
+        goal "Record that a landing's gates passed and it waits for the reviewer's verdict on its tip"
+
+        attribute :tip,      TipKey, sets: true
+        attribute :run,      Word,   sets: true
+        attribute :checkout, Word,   sets: true
+        attribute :branch,   Word,   sets: true
+        attribute :brief,    Report, sets: true
+        attribute :confirm,  Switch, sets: true
+        attribute :mode,     Word,   default: "enforce", sets: true
+
+        given("a landing review is enforced or shadowed") { mode.value == "enforce" || mode.value == "shadow" }
+
+        emits LandingReviewAwaited
+      end
+
+      command "Judge" do
+        role "System"
+        goal "Record the reviewer's verdict on the tip a landing waits on"
+
+        reference_to LandingReview
+        attribute :verdict, Word, sets: true
+
+        emits LandingReviewJudged
+      end
+
+      command "Clear" do
+        role "System"
+        goal "Let a landing whose tip the reviewer judged clean go on to merge"
+
+        reference_to LandingReview
+
+        given("the reviewer judged the tip clean") { verdict.value == "clean" }
+
+        emits LandingReviewCleared
+      end
+
+      command "Refuse" do
+        role "System"
+        goal "End an enforced landing whose tip the reviewer did not judge clean, naming the verdict"
+
+        reference_to LandingReview
+
+        given("the landing review is enforced") { mode.value == "enforce" }
+        given("the reviewer did not judge the tip clean") { verdict.value != "clean" }
+
+        emits LandingReviewRefused
+      end
+
+      command "Shadow" do
+        role "System"
+        goal "Record a verdict other than clean on a shadowed landing and let it merge anyway"
+
+        reference_to LandingReview
+
+        given("the landing review is shadowed") { mode.value == "shadow" }
+        given("the reviewer did not judge the tip clean") { verdict.value != "clean" }
+
+        emits LandingReviewShadowed
+      end
+
+      query "LandingReviews" do
+        description "Every landing's wait for review, by tip: its mode, the verdict once judged, and whether it was cleared, refused or shadowed."
+        order_by :tip
+      end
+    end
+
+    # A verdict other than clean asks both Refuse and Shadow: the record's mode is not on the event,
+    # so each command's own given reads it and the one that does not match the mode refuses.
+    policy "ClearTheLandingWhenTheReviewIsClean" do
+      on      "LandingReview.LandingReviewJudged"
+      where   { verdict.value == "clean" }
+      trigger LandingReview::Clear, with: { tip: :tip }
+    end
+
+    policy "RefuseTheLandingWhenTheReviewIsNotClean" do
+      on      "LandingReview.LandingReviewJudged"
+      where   { verdict.value != "clean" }
+      trigger LandingReview::Refuse, with: { tip: :tip }
+    end
+
+    policy "LandTheShadowedLandingAnyway" do
+      on      "LandingReview.LandingReviewJudged"
+      where   { verdict.value != "clean" }
+      trigger LandingReview::Shadow, with: { tip: :tip }
+    end
+
+    # A change review that asks the architect starts its session as a run keyed by the review's run,
+    # with no Work item; a root, since counted from the submission its start is past the depth limit.
+    policy "StartTheArchitectOnChangeReview" do
+      on      "ChangeReview.ChangeReviewRequested"
+      root
+      trigger AgentRun::Dispatch,
+              with: { run: :run, repo: :checkout, agent: "architect",
+                      brief: "Review the design of a submitted change: read your review with exe/hecks agents " \
+                             "ChangeReview.reviews (the row whose run is your run key). For a branch, judge its " \
+                             "bluebook, hecksagon and decision-file changes against main (git diff " \
+                             "main...<review>); for a decision, judge the decision record it names. Close with " \
+                             "Verdict: sound, Verdict: sound with changes or Verdict: rethink, and your findings: " \
+                             "anything but sound goes back to the coder as written." }
     end
   end
 end

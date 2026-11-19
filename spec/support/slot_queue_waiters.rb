@@ -29,8 +29,12 @@ module SlotQueueWaiters
     Thread.new { slots.hold("gate") { order << waiter[:name] } }
   end
 
+  # Waits until `count` tickets have their final names: a ticket is first a dot file, which the
+  # line does not see, and is renamed once its priority and arrival are set.
   def await_ticket(count)
     waiting = File.join(dir, "waiting")
-    ThreadParking.wait_for { Dir.exist?(waiting) && Dir.children(waiting).size >= count }
+    ThreadParking.wait_for do
+      Dir.exist?(waiting) && Dir.children(waiting).count { |name| !name.start_with?(".") } >= count
+    end
   end
 end

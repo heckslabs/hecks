@@ -28,13 +28,19 @@ RSpec.describe "A rule that tests a value with nil?" do
     expect(lines.grep(/\.nil\?/)).to be_empty
   end
 
+  it "is let through in frozen era text, which a shape ledger entry cannot rewrite" do
+    shadowed = Hecks::Bluebook::MetaValidator.while_shadow_parsing { refuse("tries.nil?") }
+    expect(shadowed).to be_a(Hash)
+  end
+
   it "lets the == nil test through" do
     expect(refuse("tries == nil || tries.value < 3")).to be_a(Hash)
   end
 
-  it "answers the == nil test true for a missing value and false for a present one", :aggregate_failures do
-    evaluator = Hecks::Bluebook::Expression::Evaluator
-    expect(evaluator.call("tries == nil", { tries: nil })).to be(true)
-    expect(evaluator.call("tries == nil", { tries: { value: 1 } })).to be(false)
+  # The Rust evaluator answers the same three cases (`a_missing_value_equals_nil_as_ruby_answers`).
+  it "answers .value == nil true for a missing or empty value and false for a set one" do
+    answers = [{ x: nil }, { x: { value: nil } }, { x: { value: 3 } }]
+              .map { |state| Hecks::Bluebook::Expression::Evaluator.call("x.value == nil", state) }
+    expect(answers).to eq([true, true, false])
   end
 end
