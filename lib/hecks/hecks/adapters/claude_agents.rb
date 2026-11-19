@@ -120,9 +120,15 @@ module Hecks
       end
 
       # @return [Hash{Symbol => Object}] {ClaudeJobs#waiting}'s `blocked_minutes:` and
-      #   `pin_listed:`, and {SessionReaping#abandon_after}
+      #   `pin_listed:`, {SessionReaping#abandon_after} and {#time_facts}
       def blocked_facts(job, held)
-        @jobs.waiting(job, plain(held[:session]), @clock.call).merge(abandon_after: @reaping.abandon_after)
+        @jobs.waiting(job, plain(held[:session]), @clock.call).merge(abandon_after: @reaping.abandon_after, **time_facts(held))
+      end
+
+      # @return [Hash{Symbol => Integer}] `running_minutes:` since the run's session started
+      #   ({ClaudeJobs#running_minutes}) and `answer_after:` ({SessionReaping#answer_after})
+      def time_facts(held)
+        { running_minutes: @jobs.running_minutes(plain(held[:started_at]), @clock.call), answer_after: @reaping.answer_after }
       end
 
       # @return [Hash{Symbol => Object}] what {CoderJobFacts} reads of the job and its checkout, and
@@ -164,12 +170,14 @@ module Hecks
       end
 
       # @return [Hash{Symbol => String}] the run the job belongs to: its key, the Work item it
-      #   serves (empty for a run that serves none), its last known condition, whether an answer
-      #   is on its way to it (`resuming`), whether a plan review it asked for is open
-      #   (`reviewing`), and its directory with a trailing slash
+      #   serves (empty for a run that serves none), the part it works as (`answerer`, empty when
+      #   none), its last known condition, whether an answer is on its way to it (`resuming`),
+      #   whether a plan review it asked for is open (`reviewing`), and its directory with a
+      #   trailing slash
       def run_facts(held)
         { previous: plain(held[:condition]).to_s, checkout: File.join(plain(held[:repo]).to_s, ""),
-          run: plain(held[:run]).to_s, work: plain(held[:work]).to_s, **waiting_facts(held) }
+          run: plain(held[:run]).to_s, work: plain(held[:work]).to_s, works_as: plain(held[:works_as]).to_s,
+          **waiting_facts(held) }
       end
 
       # @return [Hash{Symbol => Boolean}] `resuming:` and `reviewing:`, each true only when the run

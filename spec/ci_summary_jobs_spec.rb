@@ -164,7 +164,7 @@ RSpec.describe ".github/workflows/ci.yml required-check wrappers" do
   it "never cancels the run of a push to main" do
     cancel = YAML.load_file(CI_YML).dig("concurrency", "cancel-in-progress").to_s
 
-    expect(cancel).to eq("${{ github.event_name == 'pull_request' }}")
+    expect(cancel).to eq("${{ github.event_name == 'pull_request' && !startsWith(github.head_ref, 'train/') }}")
   end
 
   # Promotion waits for each RequiredCheck by name; a name no job of ci.yml carries would report
