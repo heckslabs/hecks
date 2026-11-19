@@ -11,12 +11,14 @@ module Hecks
     # delivery of an answer to a working one, and the resume of an idle or gone one. Which of them
     # an answer takes is the bluebook's `AnswerTheSessionWhereItIs` rule.
     module ClaudeAnswering
-      # Says where the run's session is before it is answered (see {SessionPresence}).
+      # Says where the run's session is before it is answered (see {SessionPresence}), and which
+      # other live session holds the run's pinned role ({PinnedRoleHolders}).
       #
-      # @param held [Hash] the `AgentRun` record: `session`
-      # @return [Hash{Symbol => Object}] `listed:`, `status:`, `state:` and `note:`
+      # @param held [Hash] the `AgentRun` record: `session`, `agent` and `works_as`
+      # @return [Hash{Symbol => Object}] `listed:`, `status:`, `state:`, `note:`, `pinned_role:`,
+      #   `role_holder:` and `role_note:`
       # @raise [ConsoleCapture::Failure] when the sessions cannot be listed
-      def present(**held) = @presence.call(plain(held[:session]))
+      def present(**held) = @presence.call(plain(held[:session])).merge(@holder.roles.call(held))
 
       # Leaves the answer in a working session's inbox, which its hooks hand to the model; the
       # session is not stopped.
