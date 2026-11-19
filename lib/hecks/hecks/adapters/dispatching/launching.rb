@@ -2,6 +2,7 @@
 
 require_relative "headroom"
 require_relative "headroom_reads"
+require_relative "shared_sections"
 
 module Hecks
   module Adapters
@@ -78,10 +79,15 @@ module Hecks
 
         # A line for each other work item, started or chosen before this one, that holds an area.
         def holding(plan, index)
-          (work_items.started + plan.chosen.first(index)).reject { |other| other.area.empty? }.map { |other| held_line(other) }
+          item = plan.chosen[index]
+          others = (work_items.started + plan.chosen.first(index)).reject { |other| other.area.empty? }
+          others.map { |other| held_line(item, other) }
         end
 
-        def held_line(item) = "#{item.key}: #{item.title} (#{item.area.join(", ")})"
+        # The other work item's line, ending in a notice of each bluebook it shares by sections.
+        def held_line(item, other)
+          "#{other.key}: #{other.title} (#{other.area.join(", ")})#{SharedSections.notice(item.area, other.area)}"
+        end
       end
     end
   end

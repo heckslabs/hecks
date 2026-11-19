@@ -1,4 +1,5 @@
-# Binds the `Tickets` port to `PipelineTickets`, which answers `OpenWork` with the Work items that are not done.
+# Binds the `Tickets` port to `PipelineTickets`: `OpenWork`, the Work items not done, and
+# `ProjectWork`, another project's, read by its helper `ProjectStore`, not a second adapter.
 # Required by name, not relative, so a copy of this directory shares the one implementation loaded.
 require "hecks/pipeline_board/adapters/pipeline_tickets"
 

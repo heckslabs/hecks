@@ -162,6 +162,7 @@ header.top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 20p
   <header class="top">
     <h1>Plan</h1>
     <!--nav-->
+    <!--projects-->
     <span class="note" id="live">stream: connecting</span>
   </header>
   <section id="plan"><!--tile:plan--></section>
@@ -186,6 +187,10 @@ header.top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 20p
 const $ = (id) => document.getElementById(id);
 const FIELDS = { "f-priority": "priority", "f-status": "status", "f-area": "area" };
 const READ_ONLY = $("shown").textContent;
+// Another project's plan is drawn once from its own store and only read: no stream redraws it, and
+// it offers no step that would change the board's own project.
+const FOREIGN = document.querySelector("main").dataset.foreign === "true";
+$("project").addEventListener("change", (event) => { location.href = event.target.selectedOptions[0].dataset.href; });
 
 // The epics the owner opened or closed by hand, kept across redraws and visits.
 const chosen = (() => { try { return JSON.parse(localStorage.getItem("plan-open") || "{}"); } catch (e) { return {}; } })();
@@ -339,6 +344,7 @@ let selecting = false;
 // Every open item can be dragged, and so can an epic's row; while selecting, each open item has its tick box. The
 // tile is redrawn by the server, so this runs after each redraw.
 function decorate() {
+  if (FOREIGN) { $("select").hidden = true; $("live").textContent = "read from " + document.querySelector("main").dataset.project + "'s own store"; return; }
   for (const item of openItems($("plan"))) {
     item.draggable = true;
     let box = item.querySelector("input.pick");
@@ -452,7 +458,8 @@ function redraw(html) {
 $("f-text").addEventListener("input", apply);
 Object.keys(FIELDS).forEach((id) => $(id).addEventListener("change", apply));
 drawn();
-if (window.boardStream) boardStream({
+if (FOREIGN) { /* drawn once; another project's store is not followed */ }
+else if (window.boardStream) boardStream({
   open: () => { $("live").textContent = "stream: live"; },
   error: () => { $("live").textContent = "stream: reconnecting"; },
   pause: () => { $("live").textContent = "stream: paused"; },
