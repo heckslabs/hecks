@@ -5,6 +5,7 @@ require "time"
 require_relative "standing"
 require_relative "openings"
 require_relative "shared_subjects"
+require_relative "run_names"
 
 module Hecks
   module Adapters
@@ -31,12 +32,14 @@ module Hecks
         # @param run [String] the look that asks, each row's `id`
         # @return [Array<Hash>] one `Sighting` row per opening line no closing line followed,
         #   opened within its kind's window, not filed yet, whose run has not ended and whose
-        #   subject has not settled; a row with `files: "no"` is left out, and so is a row whose
-        #   `shares` group already holds its subject ({SharedSubjects})
+        #   subject has not settled; a row with `files: "no"` is left out, so is a run started to
+        #   answer a question ({RunNames#answerer?}), and so is a row whose `shares` group already
+        #   holds its subject or its `cap` of open stalls ({SharedSubjects})
         def rows(lines, run)
           standing = Standing.new(lines)
+          @names = RunNames.new(lines)
           entries = pending(lines, standing)
-          SharedSubjects.new(entries, standing, method(:key)).keep(fileable(entries, standing, run))
+          SharedSubjects.new(entries, standing, method(:key), lines).keep(fileable(entries, standing, run))
         end
 
         # @return [Array<Hash>] one `Abandoned` row per stall the tap shows filed, opened within its
@@ -60,15 +63,17 @@ module Hecks
         #   minutes and folds them
         def open_lines(lines, run)
           standing = Standing.new(lines)
+          @names = RunNames.new(lines)
           pending(lines, standing).reject { |kind, subject, at, branch| gone(standing, kind, subject, at, branch) }
                                   .map { |kind, subject, at, _| impediment(standing, kind, subject, at, run) }
         end
 
         private
 
-        # The open lines a look may offer to `File`: filed by their row, not handled, in the window.
+        # The open lines a look may offer to `File`: filed by their row, not handled, not a run
+        # started to answer a question, in the window.
         def fileable(entries, standing, run)
-          entries.reject { |entry| entry.first[:files] == "no" || handled?(standing, *entry) }
+          entries.reject { |entry| entry.first[:files] == "no" || handled?(standing, *entry) || answerer?(*entry) }
                  .map { |kind, subject, at, _| sighting(kind, subject, at, run) }
                  .select { |row| row[:waited] < row[:forgets] }
         end
@@ -112,6 +117,8 @@ module Hecks
           "#{full[0, KEY_LIMIT - 17]}-#{Digest::SHA256.hexdigest(full)[0, 16]}"
         end
 
+        def answerer?(kind, subject, *) = @names&.answerer?(kind, subject)
+
         # Filed already, its run ended or its subject settled: a look emits nothing more for it.
         def handled?(standing, kind, subject, at, branch)
           standing.filed?(key(kind, subject)) || gone(standing, kind, subject, at, branch)
@@ -145,7 +152,13 @@ module Hecks
 
         def detail(kind, subject, at, waited)
           "#{kind[:aggregate]} #{subject} recorded #{kind[:opens]} at #{at} and no #{kind[:closes]} after " \
-            "#{waited} minutes (#{kind[:minutes]} allowed). Fixer: #{kind[:fixer]}. #{seen(kind, waited)}#{move(kind)}"
+            "#{waited} minutes (#{kind[:minutes]} allowed). Fixer: #{kind[:fixer]}. " \
+            "#{unnamed(kind, subject)}#{seen(kind, waited)}#{move(kind)}"
+        end
+
+        # The label of a run the tap ties to no work item, so a run nobody named is seen as one.
+        def unnamed(kind, subject)
+          @names&.unnamed?(kind, subject) ? "Unnamed run: no works_as or work item recorded. " : ""
         end
 
         # What the kind's `evidence` read says now, for a line past its minutes; empty otherwise.
