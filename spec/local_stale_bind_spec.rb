@@ -10,7 +10,7 @@ RSpec.describe "a stale bind in a local hecksagon" do
 
   after { FileUtils.remove_entry(dir) }
 
-  BLUEBOOK = <<~BLUEBOOK.freeze
+  def shelf_bluebook = <<~BLUEBOOK
     Hecks.bluebook "Shelf" do
       vision "one kept thing, to prove a stale local bind is left out"
       core
@@ -30,7 +30,7 @@ RSpec.describe "a stale bind in a local hecksagon" do
     end
   BLUEBOOK
 
-  STALE = <<~HECKSAGON.freeze
+  def stale_hecksagon = <<~HECKSAGON
     Hecks.hecksagon "Shelf" do
       Shelf::Retired.persisted_by("Memory")
     end
@@ -43,9 +43,9 @@ RSpec.describe "a stale bind in a local hecksagon" do
 
   # Writes the Shelf domain with the stale bind in the file named, and the plain one elsewhere.
   def shelf(stale_in:)
-    write("shelf.bluebook", BLUEBOOK)
+    write("shelf.bluebook", shelf_bluebook)
     write("shelf.hecksagon", "Hecks.hecksagon \"Shelf\" do\n  Shelf::Book.persisted_by(\"Memory\")\nend\n")
-    write(stale_in, STALE)
+    write(stale_in, stale_hecksagon)
   end
 
   def boot(environment: nil) = Hecks.boot(dir, environment: environment, install_driving: false)
