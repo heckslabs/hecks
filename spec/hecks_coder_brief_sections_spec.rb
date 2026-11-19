@@ -87,7 +87,15 @@ RSpec.describe "the Coder brief's standing sections" do
   end
 
   it "fixes the report format" do
-    expect(section(:report)).to include("file:line", "spec counts", "shape-ledger", "sha")
+    expect(section(:report)).to include("file:line", "spec counts", "sha")
+  end
+
+  # The 2026-11-13 coder reports answered these two clauses with lines that said nothing:
+  # "shape ledger: no action" and "no Known-traps kind applies".
+  it "asks for no line that a report can only fill with a ritual", :aggregate_failures do
+    report = section(:report)
+    expect(report).not_to include("shape-ledger action", "say so when none does")
+    expect(report).to include("otherwise describe the cause in one line")
   end
 
   it "holds the coordination instruction in the bluebook" do

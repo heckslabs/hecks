@@ -7,7 +7,8 @@ module WakesCoderHelpers
       original.call(**context, settings: { jobs: File.join(scratch, "jobs"), settle: 0 }).tap do |agents|
         allow(agents).to(receive(:resume)) do |**held|
           log << held
-          { resumed_at: { value: Time.now.utc.iso8601 }, session: { value: "stand-in-session" } }
+          woke = { value: "stand-in-session" }
+          { resumed_at: { value: Time.now.utc.iso8601 }, held: woke, session: woke }
         end
       end
     end)

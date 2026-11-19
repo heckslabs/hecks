@@ -34,7 +34,7 @@ RSpec.describe "AgentRun: a stop its own answer caused" do
     raise Hecks::Adapters::ConsoleCapture::Failure, "claude resume refused" unless wakes
 
     job("working")
-    { resumed_at: { value: "2026-11-10T22:11:46Z" }, session: { value: "stand-in-session" } }
+    { resumed_at: { value: "2026-11-10T22:11:46Z" }, held: { value: "stand-in-session" }, session: { value: "stand-in-session" } }
   end
 
   def answer(run, wakes: true)

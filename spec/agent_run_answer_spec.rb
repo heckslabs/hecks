@@ -178,4 +178,23 @@ RSpec.describe "AgentRun.Answer through the Agents port" do
 
     expect(state).to include("session" => "copy-session-1")
   end
+
+  # The events an answer raised, by name, read from the command's own report.
+  def raised(run, text) = JSON.parse(answer(run, text)).fetch("events", [])
+
+  it "records ResumedAsFork, keeping the session the run held, when the resume started a copy", :aggregate_failures do
+    File.write(File.join(scratch, "copy"), "yes")
+    started_run("a-fork", "blocked")
+
+    expect(raised("a-fork", "go on")).to include("ResumedAsFork")
+    expect(check("a-fork")).to include("forked_from" => "stand-in-session", "session" => "copy-session-1")
+  end
+
+  it "records ResumedInPlace, and no fork, when the resume woke the run's own session", :aggregate_failures do
+    started_run("a-wake", "blocked")
+    events = raised("a-wake", "go on")
+
+    expect(events).to include("ResumedInPlace")
+    expect(events).not_to include("ResumedAsFork")
+  end
 end

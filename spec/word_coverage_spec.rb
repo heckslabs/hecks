@@ -206,7 +206,17 @@ RSpec.describe "every live DSL word, used somewhere real" do
                                            "`unresolved` is a deliberate failure marker (TranslationAggregateBuilder#" \
                                            "unresolved always raises Malformed) — a real declaration exists only to be " \
                                            "refused, the same structural-impossibility shape `inspect_query (Query)` above " \
-                                           "already is, never to succeed and land in a corpus record."
+                                           "already is, never to succeed and land in a corpus record.",
+    "policy_only (Command)"             =>
+                                           "nothing reads it until the dispatch check (Work item role-refuse-unstated) does, " \
+                                           "and its first real users are miette_tools' internal commands, outside this " \
+                                           "checkout (ADR 0216); hecks' own commands take it from the shadow report " \
+                                           "(role-migrate-hecks). Exercised by spec/role_unstated_vocabulary_spec.rb.",
+    "acts_as (Policy)"                  =>
+                                           "the same as policy_only: the role a reaction runs as is read by the dispatch " \
+                                           "check still to come, and hecks' own reactions take it in role-migrate-hecks. " \
+                                           "Exercised by spec/role_unstated_vocabulary_spec.rb and " \
+                                           "spec/model_check_acts_as_spec.rb."
   }.freeze
 
   UNNAMED_WORDS_WHY = <<~WHY.freeze

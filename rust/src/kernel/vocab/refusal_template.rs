@@ -48,6 +48,7 @@ pub enum RefusalSite {
     InvariantViolationGroupByCollision,
     UnauthorizedTenantRequired,
     UnauthorizedRoleMismatch,
+    UnauthorizedRoleUnstated,
     UnauthorizedCrossTenantReference,
     AttributeAbsentAbsentRead,
     ProjectionAbsentAbsentRead,
@@ -99,6 +100,7 @@ impl RefusalSite {
         Self::InvariantViolationGroupByCollision,
         Self::UnauthorizedTenantRequired,
         Self::UnauthorizedRoleMismatch,
+        Self::UnauthorizedRoleUnstated,
         Self::UnauthorizedCrossTenantReference,
         Self::AttributeAbsentAbsentRead,
         Self::ProjectionAbsentAbsentRead,
@@ -150,6 +152,7 @@ impl RefusalSite {
             Self::InvariantViolationGroupByCollision => "InvariantViolation",
             Self::UnauthorizedTenantRequired => "Unauthorized",
             Self::UnauthorizedRoleMismatch => "Unauthorized",
+            Self::UnauthorizedRoleUnstated => "Unauthorized",
             Self::UnauthorizedCrossTenantReference => "Unauthorized",
             Self::AttributeAbsentAbsentRead => "AttributeAbsent",
             Self::ProjectionAbsentAbsentRead => "ProjectionAbsent",
@@ -202,6 +205,7 @@ impl RefusalSite {
             Self::InvariantViolationGroupByCollision => "group_by_collision",
             Self::UnauthorizedTenantRequired => "tenant_required",
             Self::UnauthorizedRoleMismatch => "role_mismatch",
+            Self::UnauthorizedRoleUnstated => "role_unstated",
             Self::UnauthorizedCrossTenantReference => "cross_tenant_reference",
             Self::AttributeAbsentAbsentRead => "absent_read",
             Self::ProjectionAbsentAbsentRead => "absent_read",
@@ -254,6 +258,7 @@ impl RefusalSite {
             Self::InvariantViolationGroupByCollision => "{read_model} groups by {fields}, but rows {ids} share {key} — a group_by leaf holds one row; add a field that tells them apart",
             Self::UnauthorizedTenantRequired => "{query} declares authorize with tenant: {field} — pass {field}: to name which {field} this ask is scoped to",
             Self::UnauthorizedRoleMismatch => "{command} refused — role: {role}, and the caller stated {caller_role}",
+            Self::UnauthorizedRoleUnstated => "{command} refused — role: {role}, and the caller stated no role",
             Self::UnauthorizedCrossTenantReference => "{aggregate} {field} is {tenant}, but {attribute} names a {target} whose own {target_field} is {other} — a cross-tenant reference",
             Self::AttributeAbsentAbsentRead => "{aggregate} {field} is absent on this record — declared, not optional, and added since it was written. Backfill it in a translation (backfill :{field}, default: ...), or declare it optional: true",
             Self::ProjectionAbsentAbsentRead => "{aggregate} {field} is not yet projected on this record — declared via projects :{field}, but no rebuild sweep has populated it. Run the sweep, or read {reference}.{remote_field} directly if this rule cannot wait",
@@ -1215,6 +1220,23 @@ impl UnauthorizedRoleMismatchArgs<'_> {
     }
 }
 
+/// `RefusalSite::UnauthorizedRoleUnstated`'s arguments — `RefusalWording.render_site("Unauthorized", "role_unstated", ...)`.
+#[derive(Debug, Clone, Copy)]
+pub struct UnauthorizedRoleUnstatedArgs<'a> {
+    /// scalar
+    pub command: &'a str,
+    /// scalar
+    pub role: &'a str,
+}
+
+impl UnauthorizedRoleUnstatedArgs<'_> {
+    /// The site's wording, every argument formatted by its declared row.
+    pub fn render_args(&self) -> String {
+        RefusalSite::UnauthorizedRoleUnstated
+            .render(&[("command", self.command), ("role", self.role)])
+    }
+}
+
 /// `RefusalSite::UnauthorizedCrossTenantReference`'s arguments — `RefusalWording.render_site("Unauthorized", "cross_tenant_reference", ...)`.
 #[derive(Debug, Clone, Copy)]
 pub struct UnauthorizedCrossTenantReferenceArgs<'a> {
@@ -1779,6 +1801,14 @@ mod tests {
             }
             .render_args(),
             "command \"x\" refused — role: role \"x\", and the caller stated caller_role \"x\""
+        );
+        assert_eq!(
+            UnauthorizedRoleUnstatedArgs {
+                command: "command \"x\"",
+                role: "role \"x\""
+            }
+            .render_args(),
+            "command \"x\" refused — role: role \"x\", and the caller stated no role"
         );
         assert_eq!(
             UnauthorizedCrossTenantReferenceArgs { aggregate: "aggregate \"x\"", field: "field \"x\"", tenant: "tenant \"x\"", attribute: "attribute \"x\"", target: "target \"x\"", target_field: "target_field \"x\"", other: "other \"x\"" }.render_args(),

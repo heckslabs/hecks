@@ -47,7 +47,7 @@ module Hecks
         end
 
         def reaction_flat(verb, saga_correlation, dispatch_key, args)
-          Caller.without do
+          Caller.without(reacting: true) do
             dispatch_flat(verb, args.merge(saga_correlation: saga_correlation, dispatch_key: dispatch_key))
           end
         end

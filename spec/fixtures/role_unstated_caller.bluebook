@@ -1,0 +1,43 @@
+# Small fixture that exercises `policy_only` and `acts_as` end to end (ADR 0216): a command only a
+# policy reaction may dispatch, and the role that reaction dispatches it as.
+Hecks.bluebook "RoleUnstatedCaller" do
+  vision "A plant waters itself when it wilts, and nobody waters it by hand."
+  core
+
+  aggregate "Plant" do
+    description "A plant whose watering only its own reaction may start."
+
+    identified_by :tag
+
+    attribute :tag, Tag
+
+    value_object "Tag" do
+      attribute :value, String
+    end
+
+    command "Wilt" do
+      role "Gardener"
+      goal "Say a plant has wilted"
+
+      attribute :tag, Tag, sets: true
+
+      emits "PlantWilted"
+    end
+
+    command "Water" do
+      role "System"
+      goal "Water a wilted plant"
+      policy_only
+
+      reference_to Plant
+
+      emits "PlantWatered"
+    end
+  end
+
+  policy "WaterWhenWilted" do
+    on "PlantWilted"
+    acts_as "System"
+    trigger Plant::Water, with: { plant: :tag }
+  end
+end
