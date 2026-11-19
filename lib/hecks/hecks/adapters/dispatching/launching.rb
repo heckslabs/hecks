@@ -2,6 +2,7 @@
 
 require_relative "headroom"
 require_relative "headroom_reads"
+require_relative "admission_reads"
 require_relative "shared_sections"
 
 module Hecks
@@ -11,6 +12,7 @@ module Hecks
       # the work items, machine and launcher of the {Dispatching} that includes it.
       module Launching
         include HeadroomReads
+        include AdmissionReads
 
         private
 
