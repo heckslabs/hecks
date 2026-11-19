@@ -2714,10 +2714,9 @@ Hecks.bluebook "Hecks" do
       trigger LandingReview::Shadow, with: { tip: :tip }
     end
 
-    # A change review that asks the architect starts its session as a run keyed by the review's run,
-    # with no Work item; a root, since counted from the submission its start is past the depth limit.
-    # The brief is the review's key, the commit or the decision's number: the architect's role file
-    # says how to read each through its door, so the brief names no command it cannot run.
+    # The architect's run is keyed by the review's run, with no Work item, and a root: counted from
+    # the submission its start is past the depth limit. Its brief is the review's key; its role file
+    # says how to read that through its door.
     policy "StartTheArchitectOnChangeReview" do
       on      "ChangeReview.ChangeReviewRequested"
       root
