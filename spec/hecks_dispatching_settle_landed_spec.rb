@@ -20,7 +20,7 @@ RSpec.describe Hecks::Adapters::Dispatching::Settler do
     lines = settle("a" => "bd4ff9f938bf0b38b8cb2ee53f0ba577a454265f")
 
     expect(lines).to eq(["finished a: landed as bd4ff9f93, finishing instead"])
-    expect(launcher).to have_received(:finish).with("a")
+    expect(launcher).to have_received(:finish).with("a", landing: "bd4ff9f938bf0b38b8cb2ee53f0ba577a454265f")
   end
 
   it "neither yields it nor files it as unlanded", :aggregate_failures do
@@ -42,7 +42,7 @@ RSpec.describe Hecks::Adapters::Dispatching::Settler do
     it "finishes the work item too" do
       settle("a" => "bd4ff9f93")
 
-      expect(launcher).to have_received(:finish).with("a")
+      expect(launcher).to have_received(:finish).with("a", landing: "bd4ff9f93")
     end
   end
 end

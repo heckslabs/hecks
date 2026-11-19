@@ -101,7 +101,7 @@ module Hecks
         # item is never filed again, because the tap holds its stall key (`Standing#filed?`).
         def finish_stall(key) = "#{@launcher.finish(key, no_change: STALL_MOVE)}: a stall item whose session ended done"
 
-        def finish_landed(key, sha) = "#{@launcher.finish(key)}: landed as #{sha[0, 9]}, finishing instead"
+        def finish_landed(key, sha) = "#{@launcher.finish(key, landing: sha)}: landed as #{sha[0, 9]}, finishing instead"
 
         def yield_ended(key, condition)
           return finish_stall(key) if condition == "done" && @stall&.call(key)
