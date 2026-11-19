@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "pressure_limits"
+
 module Hecks
   module Adapters
     class Dispatching
@@ -11,10 +13,13 @@ module Hecks
 
         # The sessions the load has room for, from the stand-in `loads:` or the recent Machine
         # readings. Absent when no reading is recorded, so the cap and the load limit alone apply.
+        # While Signalbox's signal drives the fill, its limits ({PressureLimits}) stand over these
+        # and over the pause and the load limit they follow in a filling's limits.
         def headroom_limit(gauge)
           loads = @standins[:loads] || Headroom.loads(@registry)
           estimate = headroom_for(gauge, loads)
-          { headroom: estimate.room, per_session: estimate.per_session.round(1) }
+          { headroom: estimate.room, per_session: estimate.per_session.round(1),
+            **PressureLimits.of(@registry, signal: @standins[:pressure]) }
         end
 
         def headroom_for(gauge, loads)
@@ -32,7 +37,7 @@ module Hecks
         # cost. With no reading there is no room to state and no cost to claim: `headroom unread`.
         def headroom_clause(plan)
           clause = "headroom #{plan.headroom || "unread"} of cap #{machine.cap}"
-          plan.headroom ? "#{clause} (#{plan.per_session} load per session)" : clause
+          plan.headroom && plan.per_session ? "#{clause} (#{plan.per_session} load per session)" : clause
         end
       end
     end

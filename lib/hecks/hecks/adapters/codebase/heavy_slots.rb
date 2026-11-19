@@ -9,6 +9,7 @@ require_relative "slot_queue"
 require_relative "slot_text"
 require_relative "slot_wait"
 require_relative "spec_workers"
+require "hecks/signalbox/adapters/pressure_signal"
 
 module Hecks
   module Adapters
@@ -47,9 +48,18 @@ module Hecks
         # How often a waiting job looks at the places again.
         POLL = 0.5
 
+        # While the owner has `signalbox_pressure` drive it and Signalbox's signal is current, the
+        # places are the gates the signal's headroom fits, at least one and at most the world's cap.
+        #
+        # @param root [String] a hecks checkout
+        # @param signal [Hash, nil] Signalbox's current signal while it drives the places
+        # @return [Integer] the cap its Tickets world's `heavy_jobs` line sets, else `DEFAULT_CAP`;
+        #   the gates the signal fits inside it while the signal drives
+        def self.cap_of(root, signal: PressureSignal.at_root(root)) = PressureSignal.places(signal, declared_cap(root))
+
         # @param root [String] a hecks checkout
         # @return [Integer] the cap its Tickets world's `heavy_jobs` line sets, else `DEFAULT_CAP`
-        def self.cap_of(root) = Integer(RustBuild::WorldRows.row(root, VERB)[:cap] || DEFAULT_CAP)
+        def self.declared_cap(root) = Integer(RustBuild::WorldRows.row(root, VERB)[:cap] || DEFAULT_CAP)
 
         # Runs a job of a checkout in a place and names any wait at the top of its report.
         #
