@@ -50,7 +50,7 @@ module Hecks
 
       # The files around a domain's bluebook: its world bound to the adapter, the memory overlay for
       # an adapter that needs a server, and a `.gitignore` for one that keeps data. `hecks init`
-      # writes them beside a stub, and an interview draft beside the bluebook it renders (ADR 0088).
+      # writes them beside a stub (ADR 0088).
       #
       # @param name [String] the domain's name
       # @param adapter [String, nil] an adapter named in `ADAPTERS`; the default when nil
