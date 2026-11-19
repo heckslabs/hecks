@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "json"
+require_relative "keep_window"
 
 module Hecks
   module Adapters
@@ -28,17 +29,15 @@ module Hecks
         #   @return [Array<Array(String, String)>] each session kept by name, with the reason
         Result = Struct.new(:removed, :kept)
 
-        # @param keep_hours [Numeric] how long a finished session stays listed
+        # @param window [KeepWindow] how long a finished session stays listed, and what pins it
         # @param now [#call] answers the time
         # @param transcript [ClaudeTranscript] says where a session worked and when it last wrote
         # @param remove [#call] takes a session's short id and returns nil, or why it was refused
-        # @param pinned [Array<String>] the roles whose session is never removed
-        def initialize(keep_hours:, now:, transcript:, remove:, pinned: [])
-          @keep = keep_hours.to_f * 3600
+        def initialize(window:, now:, transcript:, remove:)
+          @window = window
           @now = now
           @transcript = transcript
           @remove = remove
-          @pinned = pinned
         end
 
         # @param entries [Array<Hash>] the sessions of the `claude agents` listing
@@ -64,21 +63,21 @@ module Hecks
         # @return [String, nil] why the session is kept, nil when it goes
         def reason(entry)
           return "working or blocked on the owner" unless ENDED.include?(entry["state"].to_s)
-          return "pinned role" if @pinned.any? { |role| entry["name"].to_s.start_with?(role) }
 
-          held(entry["sessionId"].to_s)
+          @window.pin(entry) || held(entry)
         end
 
-        def held(full)
+        def held(entry)
+          full = entry["sessionId"].to_s
           path = @transcript.worktree(full).to_s
           return "worktree #{path} still stands" if !path.empty? && File.directory?(path)
 
-          old?(full) ? nil : RECENT
+          old?(full, @window.seconds(entry)) ? nil : RECENT
         rescue SystemCallError, JSON::ParserError
           "transcript cannot be read"
         end
 
-        def old?(full) = @now.call - @transcript.modified_at(full) > @keep
+        def old?(full, keep) = @now.call - @transcript.modified_at(full) > keep
       end
     end
   end

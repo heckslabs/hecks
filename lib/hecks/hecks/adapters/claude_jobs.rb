@@ -3,6 +3,7 @@
 require "json"
 require "time"
 require_relative "console_capture"
+require_relative "session_caller"
 
 module Hecks
   module Adapters
@@ -115,6 +116,20 @@ module Hecks
         ids.include?(session.to_s) || ids.include?(session.to_s[0, 8])
       rescue JSON::ParserError, SystemCallError
         true
+      end
+
+      # The caller name the pipeline gave a session it launched ({SessionCaller}): the
+      # `HECKS_CALLER` of the `env` in the `--settings` the job keeps among its `respawnFlags`,
+      # such as `release_manager:p-walk`. A session a person started by hand carries none.
+      #
+      # @param session [String] the session's id, which names its job's directory
+      # @return [String] that name; empty when the job names none or cannot be read
+      def launched_by(session)
+        flags = Array(state(session)["respawnFlags"])
+        at = flags.index("--settings")
+        at ? JSON.parse(flags[at + 1].to_s).dig("env", SessionCaller::VARIABLE).to_s : ""
+      rescue ConsoleCapture::Failure, JSON::ParserError, TypeError
+        ""
       end
 
       private
