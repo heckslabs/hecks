@@ -2591,10 +2591,9 @@ Hecks.bluebook "Hecks" do
                             "end of your turn." }
     end
 
-    # A submission review starts the reviewer's session as a run keyed by the submitted commit, the
-    # key RecordTheReviewersJudgment reads its SubmissionReview by. The brief names the branch.
-    # Its parent is the coder run, keyed by the Work item, so `:work` is a run key here. A review
-    # that names no Work item starts its run with no parent: an empty key would refuse the start.
+    # A submission review starts the reviewer's run keyed by its commit, which
+    # RecordTheReviewersJudgment reads. Its parent is the coder run, keyed by the Work item;
+    # a review naming none starts with no parent, since an empty key would refuse the start.
     policy "StartTheReviewerOnReviewRequest" do
       on      "SubmissionReview.SubmissionReviewRequested"
       where   { work != "" }
