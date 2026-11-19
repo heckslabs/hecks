@@ -1,0 +1,158 @@
+Hecks.behaviors "Roundhouse" do
+  vision "Every example is one law or one incident of 2026-11-18 and 2026-11-19: given a session or a reading, when Roundhouse acts, then what it records."
+
+  # Given is each test's setup; When is the command; Then is the expectation. Roundhouse decides
+  # nothing: each session here was admitted by Signalbox, whose admission key it carries.
+  loads "roundhouse.bluebook", "roundhouse.hecksagon"
+
+  # ---- Law 5: every session closes its circuit ----
+
+  test "law 5: a session starts with its admission, labels and fuse" do
+    tests "Start", on: "Session"
+    input session: { value: "coder-signalbox" }, admission: { value: "coder-signalbox" }, role: { value: "coder" },
+          owner: { value: "signalbox-five-laws-adr" }, purpose: { value: "write the ADR" }, ends_when: { value: "the branch lands" },
+          fuse: { value: 4096 }, fuse_minutes: { value: 240 }
+    expect emits: ["SessionStarted"], status: "running"
+  end
+
+  # Incident: about 20 handrun-* and orchestrator-seat-* sessions were started with no admission.
+  test "Roundhouse never starts a session on its own" do
+    tests "Start", on: "Session"
+    input session: { value: "handrun-orchestrator-3" }, admission: { value: "" }, role: { value: "orchestrator" },
+          owner: { value: "liveness-keepalive" }, purpose: { value: "keep the seat alive" }, ends_when: { value: "the owner stops it" },
+          fuse: { value: 1024 }, fuse_minutes: { value: 1440 }
+    expect refused: "a session starts only under an admission"
+  end
+
+  test "an unlabeled session is never started" do
+    tests "Start", on: "Session"
+    input session: { value: "exe-hecks" }, admission: { value: "exe-hecks" }, role: { value: "helper" },
+          owner: { value: "" }, purpose: { value: "run a command" }, ends_when: { value: "the command returns" },
+          fuse: { value: 1024 }, fuse_minutes: { value: 30 }
+    expect refused: "a session names its owner, its purpose and its end condition"
+  end
+
+  test "a session with no fuse is never started" do
+    tests "Start", on: "Session"
+    input session: { value: "coder-unfused" }, admission: { value: "coder-unfused" }, role: { value: "coder" },
+          owner: { value: "signalbox-five-laws-adr" }, purpose: { value: "write the ADR" }, ends_when: { value: "the branch lands" },
+          fuse: { value: 0 }, fuse_minutes: { value: 240 }
+    expect refused: "a session's fuse has a memory and a time rating"
+  end
+
+  # ---- Protection, the smallest breaker: each session's own fuse ----
+
+  test "a session that draws past its memory rating blows its own fuse" do
+    tests "Meter", on: "Session"
+    setup "Roundhouse::Session.Start", session: { value: "coder-2" }, admission: { value: "coder-2" }, role: { value: "coder" },
+          owner: { value: "pipeline-board-tiles" }, purpose: { value: "add a tile" }, ends_when: { value: "the branch lands" },
+          fuse: { value: 4096 }, fuse_minutes: { value: 240 }
+    input session: "coder-2", drawn: { value: 5200 }, minutes: { value: 40 }, rated: { value: 4096 }, rated_minutes: { value: 240 }
+    expect emits: %w[SessionMetered SessionFuseBlown], status: "blown"
+  end
+
+  # Incident: phantom load, about 40 sessions showing as working for 7 items. A helper that runs
+  # past its time rating blows its fuse instead of holding memory for nothing.
+  test "phantom load: a helper past its time rating blows its fuse" do
+    tests "Meter", on: "Session"
+    setup "Roundhouse::Session.Start", session: { value: "stall-check-12" }, admission: { value: "stall-check-12" },
+          role: { value: "helper" }, owner: { value: "orchestrator" }, purpose: { value: "check a quiet coder" },
+          ends_when: { value: "the check reports" }, fuse: { value: 1024 }, fuse_minutes: { value: 30 }
+    input session: "stall-check-12", drawn: { value: 280 }, minutes: { value: 190 }, rated: { value: 1024 }, rated_minutes: { value: 30 }
+    expect emits: %w[SessionMetered SessionFuseBlown], status: "blown"
+  end
+
+  test "a session within its fuse is only metered" do
+    tests "Meter", on: "Session"
+    setup "Roundhouse::Session.Start", session: { value: "coder-3" }, admission: { value: "coder-3" }, role: { value: "coder" },
+          owner: { value: "pipeline-board-tiles" }, purpose: { value: "add a tile" }, ends_when: { value: "the branch lands" },
+          fuse: { value: 4096 }, fuse_minutes: { value: 240 }
+    input session: "coder-3", drawn: { value: 1500 }, minutes: { value: 40 }, rated: { value: 4096 }, rated_minutes: { value: 240 }
+    expect emits: ["SessionMetered"], status: "running"
+  end
+
+  test "a meter reading that names another fuse is refused" do
+    tests "Meter", on: "Session"
+    setup "Roundhouse::Session.Start", session: { value: "coder-4" }, admission: { value: "coder-4" }, role: { value: "coder" },
+          owner: { value: "pipeline-board-tiles" }, purpose: { value: "add a tile" }, ends_when: { value: "the branch lands" },
+          fuse: { value: 4096 }, fuse_minutes: { value: 240 }
+    input session: "coder-4", drawn: { value: 5200 }, minutes: { value: 40 }, rated: { value: 8192 }, rated_minutes: { value: 240 }
+    expect refused: "a meter reading names the session's own fuse"
+  end
+
+  # ---- Law 3, carried out: rest and resume ----
+
+  test "a rested coder resumes under a new admission" do
+    tests "Resume", on: "Session"
+    setup "Roundhouse::Session.Start", session: { value: "coder-5" }, admission: { value: "coder-5" }, role: { value: "coder" },
+          owner: { value: "pipeline-board-tiles" }, purpose: { value: "add a tile" }, ends_when: { value: "the branch lands" },
+          fuse: { value: 4096 }, fuse_minutes: { value: 240 }
+    setup "Roundhouse::Session.Rest", session: "coder-5"
+    input session: "coder-5", admission: { value: "coder-5-again" }
+    expect emits: ["SessionResumed"], status: "running"
+  end
+
+  # ---- Reaping: the draw returns, the work is kept ----
+
+  test "a finished session with nothing unsaved is reaped" do
+    tests "Reap", on: "Session"
+    setup "Roundhouse::Session.Start", session: { value: "reviewer-1" }, admission: { value: "reviewer-1" }, role: { value: "helper" },
+          owner: { value: "signalbox-five-laws-adr" }, purpose: { value: "review the branch" }, ends_when: { value: "the verdict is given" },
+          fuse: { value: 1024 }, fuse_minutes: { value: 30 }
+    setup "Roundhouse::Session.Finish", session: "reviewer-1"
+    input session: "reviewer-1", unsaved: { value: 0 }
+    expect emits: ["SessionReaped"], status: "reaped"
+  end
+
+  test "a session with unsaved work is never reaped" do
+    tests "Reap", on: "Session"
+    setup "Roundhouse::Session.Start", session: { value: "coder-6" }, admission: { value: "coder-6" }, role: { value: "coder" },
+          owner: { value: "pipeline-board-tiles" }, purpose: { value: "add a tile" }, ends_when: { value: "the branch lands" },
+          fuse: { value: 4096 }, fuse_minutes: { value: 240 }
+    setup "Roundhouse::Session.Finish", session: "coder-6"
+    input session: "coder-6", unsaved: { value: 4 }
+    expect refused: "a session with unsaved work is never reaped"
+  end
+
+  # ---- Law 2's input: the reading ----
+
+  # Incident: the helper storm. 22 GB drawn of 36, with 8 GB kept for the person, leaves 6 GB.
+  test "the helper storm's reading leaves 6 GB of headroom" do
+    tests "Take", on: "Reading"
+    input reading: { value: "m3-pro-2026-11-18T21:40" }, machine: { value: "m3-pro" }, capacity: { value: 36864 },
+          drawn: { value: 22528 }, reserve: { value: 8192 }, headroom: { value: 6144 }
+    expect emits: ["MachineRead"]
+  end
+
+  test "a reading whose headroom does not add up is refused" do
+    tests "Take", on: "Reading"
+    input reading: { value: "m3-pro-2026-11-18T21:41" }, machine: { value: "m3-pro" }, capacity: { value: 36864 },
+          drawn: { value: 22528 }, reserve: { value: 8192 }, headroom: { value: 14336 }
+    expect refused: "headroom is the capacity less the draw less the person's reserve"
+  end
+
+  # ---- The meter ----
+
+  # Phantom load as the meter shows it: 7 productive sessions of 40 is a power factor under 0.2.
+  test "the meter records the power factor of a window" do
+    tests "Close", on: "Tally"
+    input tally: { value: "2026-11-19T11" }, sessions: { value: 40 }, productive: { value: 7 }, landings: { value: 2 },
+          gb_hours: { value: 22 }, reclaimed: { value: 0 }, curtailed: { value: 0 }, headroom: { value: 1024 }
+    expect emits: ["TallyClosed"]
+  end
+
+  # Incident: 90 minutes of landings bounced on shared files; the meter counts them as curtailed.
+  test "the meter records curtailment: finished work refused at landing" do
+    tests "Close", on: "Tally"
+    input tally: { value: "2026-11-18T13" }, sessions: { value: 9 }, productive: { value: 5 }, landings: { value: 0 },
+          gb_hours: { value: 9 }, reclaimed: { value: 0 }, curtailed: { value: 6 }, headroom: { value: 7000 }
+    expect emits: ["TallyClosed"]
+  end
+
+  test "a window never counts more productive sessions than sessions" do
+    tests "Close", on: "Tally"
+    input tally: { value: "2026-11-19T12" }, sessions: { value: 7 }, productive: { value: 9 }, landings: { value: 2 },
+          gb_hours: { value: 6 }, reclaimed: { value: 14 }, curtailed: { value: 0 }, headroom: { value: 9000 }
+    expect refused: "productive sessions are no more than all sessions"
+  end
+end

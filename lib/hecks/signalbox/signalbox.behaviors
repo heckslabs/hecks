@@ -1,0 +1,375 @@
+Hecks.behaviors "Signalbox" do
+  vision "Every example is one law or one incident of 2026-11-18 and 2026-11-19: given the machine as it stood, when a session asks, then what Signalbox decides."
+
+  # Given is each test's setup and the readings in its input; When is the command; Then is the
+  # expectation. The machine is the owner's M3 Pro: 36 GB, of which 28 GB is the pipeline's supply.
+  loads "signalbox.bluebook", "signalbox.hecksagon"
+
+  # ---- Law 1: conservation ----
+
+  # Incident: the helper storm. A blocked helper's stall check started an answerer, which blocked.
+  test "law 1: a helper does not start a helper" do
+    tests "Admit", on: "Admission"
+    input admission: { value: "answerer-of-stall-check-7" }, role: { value: "helper" }, tier: { value: "normal" },
+          owner: { value: "stall-check-7" }, purpose: { value: "answer a blocked helper" }, ends_when: { value: "the question is answered" },
+          draw: { value: 300 }, fuse: { value: 1024 }, fuse_minutes: { value: 30 }, asked_by: { value: "helper" },
+          switch: { value: "on" }, met: { value: "no" }, band: { value: "normal" }, headroom: { value: 9000 }, age: { value: 30 },
+          stale_after: { value: 120 }, started: { value: 0 }, ramp: { value: 1 }, coders: { value: 3 }, helpers: { value: 1 },
+          share: { value: 100 }, outranked: { value: 0 }, seats: { value: 1 }, unused_servers: { value: 0 }, curtailed: { value: 0 }
+    expect refused: "a helper does not start a helper"
+  end
+
+  # Incident: the helper storm, 80 sessions holding about 22 GB with 3 coders doing the work.
+  test "the helper storm stops at the helpers' share of the coders" do
+    tests "Admit", on: "Admission"
+    input admission: { value: "stall-check-81" }, role: { value: "helper" }, tier: { value: "normal" },
+          owner: { value: "orchestrator" }, purpose: { value: "check a quiet coder" }, ends_when: { value: "the check reports" },
+          draw: { value: 300 }, fuse: { value: 1024 }, fuse_minutes: { value: 30 }, asked_by: { value: "orchestrator" },
+          switch: { value: "on" }, met: { value: "no" }, band: { value: "normal" }, headroom: { value: 9000 }, age: { value: 30 },
+          stale_after: { value: 120 }, started: { value: 0 }, ramp: { value: 1 }, coders: { value: 3 }, helpers: { value: 3 },
+          share: { value: 100 }, outranked: { value: 0 }, seats: { value: 1 }, unused_servers: { value: 0 }, curtailed: { value: 0 }
+    expect refused: "helpers stay within their share of the coders"
+  end
+
+  test "a helper within the share is admitted, labeled and fused" do
+    tests "Admit", on: "Admission"
+    input admission: { value: "reviewer-of-signalbox" }, role: { value: "helper" }, tier: { value: "normal" },
+          owner: { value: "signalbox-five-laws-adr" }, purpose: { value: "review the branch" }, ends_when: { value: "the verdict is given" },
+          draw: { value: 300 }, fuse: { value: 1024 }, fuse_minutes: { value: 30 }, asked_by: { value: "orchestrator" },
+          switch: { value: "on" }, met: { value: "no" }, band: { value: "normal" }, headroom: { value: 9000 }, age: { value: 30 },
+          stale_after: { value: 120 }, started: { value: 0 }, ramp: { value: 1 }, coders: { value: 3 }, helpers: { value: 2 },
+          share: { value: 100 }, outranked: { value: 0 }, seats: { value: 1 }, unused_servers: { value: 0 }, curtailed: { value: 0 }
+    expect emits: ["SessionAdmitted"], status: "admitted"
+  end
+
+  # ---- Law 2: one pressure signal ----
+
+  test "law 2: headroom under the target puts the machine in the tight band" do
+    tests "Read", on: "Pressure"
+    setup "Signalbox::Pressure.Open", pressure: { value: "m3-pro" }, capacity: { value: 28672 }
+    input pressure: "m3-pro", headroom: { value: 5000 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 },
+          age: { value: 30 }, stale_after: { value: 120 }
+    expect emits: %w[PressureRead PressureTightened], band: "tight"
+  end
+
+  test "headroom under the floor puts the machine in the short band" do
+    tests "Read", on: "Pressure"
+    setup "Signalbox::Pressure.Open", pressure: { value: "m3-pro" }, capacity: { value: 28672 }
+    input pressure: "m3-pro", headroom: { value: 1200 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 },
+          age: { value: 30 }, stale_after: { value: 120 }
+    expect emits: %w[PressureRead PressureFellShort], band: "short"
+  end
+
+  test "a stale reading is not published" do
+    tests "Read", on: "Pressure"
+    setup "Signalbox::Pressure.Open", pressure: { value: "m3-pro" }, capacity: { value: 28672 }
+    input pressure: "m3-pro", headroom: { value: 9000 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 },
+          age: { value: 600 }, stale_after: { value: 120 }
+    expect refused: "a reading is published only while it is current"
+  end
+
+  # Incident: the cap flipped 4, 5, 6, 7 as each reading crossed one mark. A reading just past the
+  # target keeps the tight band; only one past the target by the gap eases it.
+  test "the cap does not flip: a reading just past the target holds the tight band" do
+    tests "Read", on: "Pressure"
+    setup "Signalbox::Pressure.Open", pressure: { value: "m3-pro" }, capacity: { value: 28672 }
+    setup "Signalbox::Pressure.Read", pressure: "m3-pro", headroom: { value: 5000 }, target: { value: 6144 }, floor: { value: 3072 },
+          gap: { value: 2048 }, age: { value: 30 }, stale_after: { value: 120 }
+    input pressure: "m3-pro", headroom: { value: 6500 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 },
+          age: { value: 30 }, stale_after: { value: 120 }
+    expect emits: ["PressureRead"], band: "tight"
+  end
+
+  test "a reading past the target by the gap eases the band" do
+    tests "Read", on: "Pressure"
+    setup "Signalbox::Pressure.Open", pressure: { value: "m3-pro" }, capacity: { value: 28672 }
+    setup "Signalbox::Pressure.Read", pressure: "m3-pro", headroom: { value: 5000 }, target: { value: 6144 }, floor: { value: 3072 },
+          gap: { value: 2048 }, age: { value: 30 }, stale_after: { value: 120 }
+    input pressure: "m3-pro", headroom: { value: 8500 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 },
+          age: { value: 30 }, stale_after: { value: 120 }
+    expect emits: %w[PressureRead PressureEased], band: "normal"
+  end
+
+  # ---- Law 3: local response ----
+
+  test "law 3: in normal pressure every session runs" do
+    tests "Ask", on: "Response"
+    input response: { value: "helper-4-at-0930" }, session: { value: "helper-4" }, role: { value: "helper" },
+          tier: { value: "normal" }, band: { value: "normal" }
+    expect emits: %w[ResponseAsked ResponseRan], status: "running"
+  end
+
+  test "an urgent coder keeps running when pressure is short" do
+    tests "Ask", on: "Response"
+    input response: { value: "red-fix-at-0930" }, session: { value: "red-fix" }, role: { value: "coder" },
+          tier: { value: "urgent" }, band: { value: "short" }
+    expect emits: %w[ResponseAsked ResponseRan], status: "running"
+  end
+
+  test "a lower-tier coder defers its heavy steps when pressure is tight" do
+    tests "Ask", on: "Response"
+    input response: { value: "coder-2-at-0930" }, session: { value: "coder-2" }, role: { value: "coder" },
+          tier: { value: "low" }, band: { value: "tight" }
+    expect emits: %w[ResponseAsked ResponseDeferred], status: "deferring"
+  end
+
+  test "a helper finishes and leaves when pressure is tight" do
+    tests "Ask", on: "Response"
+    input response: { value: "helper-4-at-0931" }, session: { value: "helper-4" }, role: { value: "helper" },
+          tier: { value: "normal" }, band: { value: "tight" }
+    expect emits: %w[ResponseAsked ResponseLeft], status: "leaving"
+  end
+
+  test "a gate waits its turn when pressure is short" do
+    tests "Ask", on: "Response"
+    input response: { value: "quick-gate-at-0931" }, session: { value: "quick-gate" }, role: { value: "gate" },
+          tier: { value: "normal" }, band: { value: "short" }
+    expect emits: %w[ResponseAsked ResponseWaited], status: "waiting"
+  end
+
+  # ---- Law 4: admission by headroom ----
+
+  test "law 4: a session whose expected draw does not fit the headroom waits" do
+    tests "Admit", on: "Admission"
+    input admission: { value: "coder-5" }, role: { value: "coder" }, tier: { value: "normal" },
+          owner: { value: "roundhouse-meters-every-session" }, purpose: { value: "build the meter" }, ends_when: { value: "the branch lands" },
+          draw: { value: 1536 }, fuse: { value: 4096 }, fuse_minutes: { value: 240 }, asked_by: { value: "orchestrator" },
+          switch: { value: "on" }, met: { value: "no" }, band: { value: "tight" }, headroom: { value: 900 }, age: { value: 30 },
+          stale_after: { value: 120 }, started: { value: 0 }, ramp: { value: 1 }, coders: { value: 3 }, helpers: { value: 0 },
+          share: { value: 100 }, outranked: { value: 0 }, seats: { value: 1 }, unused_servers: { value: 0 }, curtailed: { value: 0 }
+    expect refused: "a session's expected draw fits the headroom"
+  end
+
+  # Boots and quick gates were started in bursts; peaks, not averages, tripped the machine.
+  test "at most the ramp step starts in one ramp window" do
+    tests "Admit", on: "Admission"
+    input admission: { value: "coder-6" }, role: { value: "coder" }, tier: { value: "normal" },
+          owner: { value: "quick-gates-and-boots-are-staggered" }, purpose: { value: "stagger the boots" }, ends_when: { value: "the branch lands" },
+          draw: { value: 1536 }, fuse: { value: 4096 }, fuse_minutes: { value: 240 }, asked_by: { value: "orchestrator" },
+          switch: { value: "on" }, met: { value: "no" }, band: { value: "normal" }, headroom: { value: 12000 }, age: { value: 30 },
+          stale_after: { value: 120 }, started: { value: 1 }, ramp: { value: 1 }, coders: { value: 3 }, helpers: { value: 0 },
+          share: { value: 100 }, outranked: { value: 0 }, seats: { value: 1 }, unused_servers: { value: 0 }, curtailed: { value: 0 }
+    expect refused: "at most the ramp step starts in one ramp window"
+  end
+
+  test "merit order: a job outranked by a waiting one of more value per unit of compute waits" do
+    tests "Admit", on: "Admission"
+    input admission: { value: "coder-7" }, role: { value: "coder" }, tier: { value: "low" },
+          owner: { value: "hosting-capacity-is-read-from-the-meter" }, purpose: { value: "read capacity" }, ends_when: { value: "the branch lands" },
+          draw: { value: 1536 }, fuse: { value: 4096 }, fuse_minutes: { value: 240 }, asked_by: { value: "orchestrator" },
+          switch: { value: "on" }, met: { value: "no" }, band: { value: "normal" }, headroom: { value: 12000 }, age: { value: 30 },
+          stale_after: { value: 120 }, started: { value: 0 }, ramp: { value: 1 }, coders: { value: 3 }, helpers: { value: 0 },
+          share: { value: 100 }, outranked: { value: 1 }, seats: { value: 1 }, unused_servers: { value: 0 }, curtailed: { value: 0 }
+    expect refused: "the waiting job with the most value per unit of compute goes first"
+  end
+
+  test "only an urgent coder is admitted while pressure is short" do
+    tests "Admit", on: "Admission"
+    input admission: { value: "coder-8" }, role: { value: "coder" }, tier: { value: "normal" },
+          owner: { value: "the-board-shows-the-compute-meter" }, purpose: { value: "show the meter" }, ends_when: { value: "the branch lands" },
+          draw: { value: 1536 }, fuse: { value: 4096 }, fuse_minutes: { value: 240 }, asked_by: { value: "orchestrator" },
+          switch: { value: "on" }, met: { value: "no" }, band: { value: "short" }, headroom: { value: 2000 }, age: { value: 30 },
+          stale_after: { value: 120 }, started: { value: 0 }, ramp: { value: 1 }, coders: { value: 3 }, helpers: { value: 0 },
+          share: { value: 100 }, outranked: { value: 0 }, seats: { value: 1 }, unused_servers: { value: 0 }, curtailed: { value: 0 }
+    expect refused: "only an urgent coder is admitted while pressure is short"
+  end
+
+  # ---- Law 5: every session closes its circuit ----
+
+  test "law 5: a session with no end condition is not admitted" do
+    tests "Admit", on: "Admission"
+    input admission: { value: "handrun-exe-hecks" }, role: { value: "helper" }, tier: { value: "normal" },
+          owner: { value: "orchestrator" }, purpose: { value: "run a command" }, ends_when: { value: "" },
+          draw: { value: 300 }, fuse: { value: 1024 }, fuse_minutes: { value: 30 }, asked_by: { value: "orchestrator" },
+          switch: { value: "on" }, met: { value: "no" }, band: { value: "normal" }, headroom: { value: 9000 }, age: { value: 30 },
+          stale_after: { value: 120 }, started: { value: 0 }, ramp: { value: 1 }, coders: { value: 3 }, helpers: { value: 0 },
+          share: { value: 100 }, outranked: { value: 0 }, seats: { value: 1 }, unused_servers: { value: 0 }, curtailed: { value: 0 }
+    expect refused: "a session names its owner, its purpose and its end condition"
+  end
+
+  test "a session's fuse is rated above its expected draw" do
+    tests "Admit", on: "Admission"
+    input admission: { value: "coder-9" }, role: { value: "coder" }, tier: { value: "normal" },
+          owner: { value: "signalbox-admits-by-headroom" }, purpose: { value: "admit by headroom" }, ends_when: { value: "the branch lands" },
+          draw: { value: 1536 }, fuse: { value: 1024 }, fuse_minutes: { value: 240 }, asked_by: { value: "orchestrator" },
+          switch: { value: "on" }, met: { value: "no" }, band: { value: "normal" }, headroom: { value: 12000 }, age: { value: 30 },
+          stale_after: { value: 120 }, started: { value: 0 }, ramp: { value: 1 }, coders: { value: 3 }, helpers: { value: 0 },
+          share: { value: 100 }, outranked: { value: 0 }, seats: { value: 1 }, unused_servers: { value: 0 }, curtailed: { value: 0 }
+    expect refused: "a session's fuse is rated above its expected draw"
+  end
+
+  # Incident: helpers started for a red main kept starting after main turned green.
+  test "a red-main helper is not started once main is green" do
+    tests "Admit", on: "Admission"
+    input admission: { value: "red-wake-helper" }, role: { value: "helper" }, tier: { value: "urgent" },
+          owner: { value: "red-flag-41562200680" }, purpose: { value: "diagnose the red main" }, ends_when: { value: "main is green" },
+          draw: { value: 300 }, fuse: { value: 1024 }, fuse_minutes: { value: 30 }, asked_by: { value: "orchestrator" },
+          switch: { value: "on" }, met: { value: "yes" }, band: { value: "normal" }, headroom: { value: 9000 }, age: { value: 30 },
+          stale_after: { value: 120 }, started: { value: 0 }, ramp: { value: 1 }, coders: { value: 3 }, helpers: { value: 0 },
+          share: { value: 100 }, outranked: { value: 0 }, seats: { value: 1 }, unused_servers: { value: 0 }, curtailed: { value: 0 }
+    expect refused: "a session is not started for a purpose already met"
+  end
+
+  # Incident: 76 MCP servers, two per session, for roles that use neither.
+  test "a coder that asks for MCP servers its role does not use is not admitted" do
+    tests "Admit", on: "Admission"
+    input admission: { value: "coder-10" }, role: { value: "coder" }, tier: { value: "normal" },
+          owner: { value: "a-session-starts-only-the-mcp-servers-its-role-uses" }, purpose: { value: "trim the servers" },
+          ends_when: { value: "the branch lands" }, draw: { value: 1536 }, fuse: { value: 4096 }, fuse_minutes: { value: 240 },
+          asked_by: { value: "orchestrator" }, switch: { value: "on" }, met: { value: "no" }, band: { value: "normal" },
+          headroom: { value: 12000 }, age: { value: 30 }, stale_after: { value: 120 }, started: { value: 0 }, ramp: { value: 1 },
+          coders: { value: 3 }, helpers: { value: 0 }, share: { value: 100 }, outranked: { value: 0 }, seats: { value: 1 },
+          unused_servers: { value: 2 }, curtailed: { value: 0 }
+    expect refused: "a session starts only the MCP servers its role uses"
+  end
+
+  # Incident: about 20 copies of the orchestrator seat stood at once on 2026-11-19 by 11:15.
+  test "a second orchestrator seat is refused while one is live" do
+    tests "Admit", on: "Admission"
+    input admission: { value: "orchestrator-seat-2" }, role: { value: "orchestrator" }, tier: { value: "urgent" },
+          owner: { value: "owner" }, purpose: { value: "the standing seat" }, ends_when: { value: "the owner stops it" },
+          draw: { value: 400 }, fuse: { value: 1024 }, fuse_minutes: { value: 1440 }, asked_by: { value: "liveness-check" },
+          switch: { value: "on" }, met: { value: "no" }, band: { value: "normal" }, headroom: { value: 9000 }, age: { value: 30 },
+          stale_after: { value: 120 }, started: { value: 0 }, ramp: { value: 1 }, coders: { value: 3 }, helpers: { value: 0 },
+          share: { value: 100 }, outranked: { value: 0 }, seats: { value: 1 }, unused_servers: { value: 0 }, curtailed: { value: 0 }
+    expect refused: "one orchestrator seat at most"
+  end
+
+  # ---- Congestion: 90 minutes of landings bounced on shared files ----
+
+  test "no coder starts in an area whose finished work is refused at landing" do
+    tests "Admit", on: "Admission"
+    input admission: { value: "coder-11" }, role: { value: "coder" }, tier: { value: "normal" },
+          owner: { value: "pipeline-board-tiles" }, purpose: { value: "add a tile" }, ends_when: { value: "the branch lands" },
+          draw: { value: 1536 }, fuse: { value: 4096 }, fuse_minutes: { value: 240 }, asked_by: { value: "orchestrator" },
+          switch: { value: "on" }, met: { value: "no" }, band: { value: "normal" }, headroom: { value: 12000 }, age: { value: 30 },
+          stale_after: { value: 120 }, started: { value: 0 }, ramp: { value: 1 }, coders: { value: 3 }, helpers: { value: 0 },
+          share: { value: 100 }, outranked: { value: 0 }, seats: { value: 1 }, unused_servers: { value: 0 }, curtailed: { value: 3 }
+    expect refused: "no coder starts in an area whose finished work is refused at landing"
+  end
+
+  test "an urgent fix starts even where landings are refused" do
+    tests "Admit", on: "Admission"
+    input admission: { value: "red-fix-shard" }, role: { value: "coder" }, tier: { value: "urgent" },
+          owner: { value: "red-ci-shard" }, purpose: { value: "fix the red shard" }, ends_when: { value: "main is green" },
+          draw: { value: 1536 }, fuse: { value: 4096 }, fuse_minutes: { value: 240 }, asked_by: { value: "orchestrator" },
+          switch: { value: "on" }, met: { value: "no" }, band: { value: "short" }, headroom: { value: 2000 }, age: { value: 30 },
+          stale_after: { value: 120 }, started: { value: 0 }, ramp: { value: 1 }, coders: { value: 3 }, helpers: { value: 0 },
+          share: { value: 100 }, outranked: { value: 0 }, seats: { value: 1 }, unused_servers: { value: 0 }, curtailed: { value: 3 }
+    expect emits: ["SessionAdmitted"], status: "admitted"
+  end
+
+  # ---- The owner's switch, anti-islanding and black start ----
+
+  test "nothing is admitted while the owner's switch is off" do
+    tests "Admit", on: "Admission"
+    input admission: { value: "coder-12" }, role: { value: "coder" }, tier: { value: "urgent" },
+          owner: { value: "red-ci-shard" }, purpose: { value: "fix the red shard" }, ends_when: { value: "main is green" },
+          draw: { value: 1536 }, fuse: { value: 4096 }, fuse_minutes: { value: 240 }, asked_by: { value: "orchestrator" },
+          switch: { value: "off" }, met: { value: "no" }, band: { value: "normal" }, headroom: { value: 12000 }, age: { value: 30 },
+          stale_after: { value: 120 }, started: { value: 0 }, ramp: { value: 1 }, coders: { value: 3 }, helpers: { value: 0 },
+          share: { value: 100 }, outranked: { value: 0 }, seats: { value: 1 }, unused_servers: { value: 0 }, curtailed: { value: 0 }
+    expect refused: "nothing is admitted while the owner's switch is off"
+  end
+
+  test "the signal goes dark when its reading is stale" do
+    tests "Darken", on: "Pressure"
+    setup "Signalbox::Pressure.Open", pressure: { value: "m3-pro" }, capacity: { value: 28672 }
+    input pressure: "m3-pro", age: { value: 900 }, stale_after: { value: 120 }
+    expect emits: ["PressureDarkened"], band: "dark"
+  end
+
+  test "black start: only the repair seat is admitted while the signal is dark" do
+    tests "Admit", on: "Admission"
+    input admission: { value: "coder-13" }, role: { value: "coder" }, tier: { value: "urgent" },
+          owner: { value: "red-ci-shard" }, purpose: { value: "fix the red shard" }, ends_when: { value: "main is green" },
+          draw: { value: 1536 }, fuse: { value: 4096 }, fuse_minutes: { value: 240 }, asked_by: { value: "orchestrator" },
+          switch: { value: "on" }, met: { value: "no" }, band: { value: "dark" }, headroom: { value: 12000 }, age: { value: 30 },
+          stale_after: { value: 120 }, started: { value: 0 }, ramp: { value: 1 }, coders: { value: 3 }, helpers: { value: 0 },
+          share: { value: 100 }, outranked: { value: 0 }, seats: { value: 1 }, unused_servers: { value: 0 }, curtailed: { value: 0 }
+    expect refused: "only the repair seat is admitted while the signal is dark"
+  end
+
+  test "black start: the repair seat boots from a stale view in the dark" do
+    tests "Admit", on: "Admission"
+    input admission: { value: "repair-overlay" }, role: { value: "repair" }, tier: { value: "urgent" },
+          owner: { value: "owner" }, purpose: { value: "repair the local overlay" }, ends_when: { value: "the signal is current" },
+          draw: { value: 400 }, fuse: { value: 1024 }, fuse_minutes: { value: 60 }, asked_by: { value: "owner" },
+          switch: { value: "on" }, met: { value: "no" }, band: { value: "dark" }, headroom: { value: 12000 }, age: { value: 900 },
+          stale_after: { value: 120 }, started: { value: 0 }, ramp: { value: 1 }, coders: { value: 0 }, helpers: { value: 0 },
+          share: { value: 100 }, outranked: { value: 0 }, seats: { value: 1 }, unused_servers: { value: 0 }, curtailed: { value: 0 }
+    expect emits: ["SessionAdmitted"], status: "admitted"
+  end
+
+  # Incident: the train copy stood at 98290fc2c (2026-11-18 14:22), lacked the local files, and
+  # wrote a retired binding back into the main overlay.
+  test "a copy behind main is refused clearance to act on shared state" do
+    tests "Grant", on: "Clearance"
+    input clearance: { value: "train-beat-0900" }, part: { value: "train-beat" }, head: { value: "98290fc2c" },
+          main: { value: "73d901367" }, missing: { value: 0 }, age: { value: 30 }, stale_after: { value: 120 }
+    expect refused: "a part acts on shared state only from the head of main"
+  end
+
+  test "a copy that lacks the main checkout's local files is refused clearance" do
+    tests "Grant", on: "Clearance"
+    input clearance: { value: "train-beat-0901" }, part: { value: "train-beat" }, head: { value: "73d901367" },
+          main: { value: "73d901367" }, missing: { value: 3 }, age: { value: 30 }, stale_after: { value: 120 }
+    expect refused: "a part acts only with every local file the main checkout has"
+  end
+
+  test "a current copy is cleared" do
+    tests "Grant", on: "Clearance"
+    input clearance: { value: "train-beat-0902" }, part: { value: "train-beat" }, head: { value: "73d901367" },
+          main: { value: "73d901367" }, missing: { value: 0 }, age: { value: 30 }, stale_after: { value: 120 }
+    expect emits: ["ClearanceGranted"]
+  end
+
+  # ---- Protection: the smallest breaker first ----
+
+  # Incident: the boot fuse tripped at 24.16 of 24 hours (1450 of 1440 boot minutes) while the
+  # helpers that spent it were still running: the largest breaker acted first.
+  test "the machine fuse waits while a smaller breaker can still act" do
+    tests "Trip", on: "Breaker"
+    setup "Signalbox::Breaker.Install", breaker: { value: "machine-fuse" }, level: { value: "machine" }, rating: { value: 1440 }
+    input breaker: "machine-fuse", load: { value: 1450 }, smaller_ready: { value: 2 }
+    expect refused: "a larger breaker waits while a smaller one can still act"
+  end
+
+  test "the helper share trips first, past its rating" do
+    tests "Trip", on: "Breaker"
+    setup "Signalbox::Breaker.Install", breaker: { value: "helper-share" }, level: { value: "helpers" }, rating: { value: 3 }
+    input breaker: "helper-share", load: { value: 80 }, smaller_ready: { value: 0 }
+    expect emits: ["BreakerTripped"], state: "open"
+  end
+
+  test "a breaker under its rating does not trip" do
+    tests "Trip", on: "Breaker"
+    setup "Signalbox::Breaker.Install", breaker: { value: "helper-share" }, level: { value: "helpers" }, rating: { value: 3 }
+    input breaker: "helper-share", load: { value: 2 }, smaller_ready: { value: 0 }
+    expect refused: "a breaker trips only past its rating"
+  end
+
+  test "shedding rests the lowest-merit coder" do
+    tests "Shed", on: "Breaker"
+    setup "Signalbox::Breaker.Install", breaker: { value: "shedding" }, level: { value: "shedding" }, rating: { value: 4 }
+    setup "Signalbox::Breaker.Trip", breaker: "shedding", load: { value: 6 }, smaller_ready: { value: 0 }
+    input breaker: "shedding", shed: { value: "coder-7" }, tier: { value: "low" }, lower_ranked: { value: 0 }
+    expect emits: ["BreakerShed"], state: "open"
+  end
+
+  test "an urgent coder is never shed" do
+    tests "Shed", on: "Breaker"
+    setup "Signalbox::Breaker.Install", breaker: { value: "shedding" }, level: { value: "shedding" }, rating: { value: 4 }
+    setup "Signalbox::Breaker.Trip", breaker: "shedding", load: { value: 6 }, smaller_ready: { value: 0 }
+    input breaker: "shedding", shed: { value: "red-fix" }, tier: { value: "urgent" }, lower_ranked: { value: 0 }
+    expect refused: "an urgent coder is never shed"
+  end
+
+  test "a breaker resets only once the load is under its rating by the gap" do
+    tests "Reset", on: "Breaker"
+    setup "Signalbox::Breaker.Install", breaker: { value: "helper-share" }, level: { value: "helpers" }, rating: { value: 3 }
+    setup "Signalbox::Breaker.Trip", breaker: "helper-share", load: { value: 80 }, smaller_ready: { value: 0 }
+    input breaker: "helper-share", load: { value: 3 }, gap: { value: 1 }
+    expect refused: "a breaker resets only once the load is under its rating by the gap"
+  end
+end

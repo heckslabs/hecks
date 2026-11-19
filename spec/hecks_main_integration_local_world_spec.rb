@@ -2,13 +2,18 @@ require "spec_helper"
 require "tmpdir"
 require "hecks/hecks/adapters/main_integration/local_world"
 
-# The push train's copy reads the owner's local world, so a wake session started there sees the
-# owner's stores. Every checkout here is a temporary directory; no live world is read.
+# The push train's copy reads the owner's local files, so a wake session or a beat started there
+# sees the owner's stores. Every checkout here is a temporary directory; no live world is read.
 RSpec.describe Hecks::Adapters::MainIntegration::LocalWorld do
   let(:main) { Dir.mktmpdir("owner") }
   let(:train) { Dir.mktmpdir("train") }
   let(:source) { File.join(main, described_class::PATH) }
   let(:link) { File.join(train, described_class::PATH) }
+  let(:overlay) { Hecks::Adapters::WorktreeOverlay }
+
+  # Overlay files the owner keeps beside its main world, the copy's own hecksagon among them.
+  OTHERS = %w[lib/hecks/hecks/pipeline.local.hecksagon lib/hecks/hecks/turned.local.world
+              lib/hecks/hecks/hecks.local.hecksagon environments/local.world].freeze
 
   after { [main, train].each { |dir| FileUtils.remove_entry(dir) } }
 
@@ -39,6 +44,14 @@ RSpec.describe Hecks::Adapters::MainIntegration::LocalWorld do
     sync
     expect(sync).to eq("train world current")
     expect(File.readlink(link)).to eq(source)
+  end
+
+  it "links every overlay file the owner keeps but the copy's own hecksagon", :aggregate_failures do
+    world
+    OTHERS.each { |rel| FileUtils.mkdir_p(File.dirname(File.join(main, rel))) && File.write(File.join(main, rel), "#\n") }
+    sync
+    expect(overlay.overlay_files(train)).to eq(overlay.overlay_files(main) - [described_class::OWN])
+    expect(File.exist?(File.join(train, described_class::OWN))).to be(false)
   end
 
   it "does nothing when the owner has no world" do
