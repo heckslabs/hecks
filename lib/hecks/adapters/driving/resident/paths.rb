@@ -70,6 +70,9 @@ module Hecks
           # @return [String] the file a launcher leaves when a resident was too busy to answer it
           def busy(root) = "#{stem(root)}.busy"
 
+          # @return [String] the mark the resident touches each time it takes a caller off its queue
+          def taken(root) = "#{stem(root)}.taken"
+
           # @return [String] the file the resident writes the names of the variables it was born
           #   under beyond a plain resident's (empty for a plain one)
           def baseline(root) = "#{stem(root)}.baseline"
