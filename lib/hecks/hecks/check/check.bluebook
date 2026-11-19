@@ -298,6 +298,13 @@ Hecks.bluebook "Hecks" do
       description "One check that the engines, the reference docs and the argument gates agree with the language."
 
       attribute :confirm,   Switch, optional: true
+      # The domain a role shadow report reads; the other checks read this checkout.
+      attribute :domain,    DomainDirectory, optional: true
+
+      # A domain directory, anywhere on disk.
+      value_object "DomainDirectory" do
+        attribute :value, String, matches: :not_empty
+      end
 
       command "CheckEngineAgreement" do
         role "Maintainer"
@@ -366,6 +373,18 @@ Hecks.bluebook "Hecks" do
 
         emits ArgumentGateMatrixRequested
       end
+
+      command "ReportRoleShadow" do
+        role "Maintainer"
+        goal "List each role-gated command and each policy or saga reaction to one in a domain, which a caller that states no role would be refused once refusal is on"
+
+        attribute :run,    RunKey, sets: true
+        attribute :domain, DomainDirectory, sets: true
+
+        sets :operation, to: "report_role_shadow"
+
+        emits ReportRoleShadowRequested
+      end
     end
 
     policy "ExamineWhenCheckEngineAgreementRequested" do
@@ -395,6 +414,11 @@ Hecks.bluebook "Hecks" do
 
     policy "ExamineWhenArgumentGateMatrixRequested" do
       on      "ConformanceRun.ArgumentGateMatrixRequested"
+      ask     :examine, with: { run: :run }
+    end
+
+    policy "ExamineWhenReportRoleShadowRequested" do
+      on      "ConformanceRun.ReportRoleShadowRequested"
       ask     :examine, with: { run: :run }
     end
 
