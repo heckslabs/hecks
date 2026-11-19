@@ -74,7 +74,10 @@ module Hecks
           end
         end
 
+        # Another project's plan has no train of the board's to show: its card says so.
         def landing(train)
+          return card("Landing now", ["not read for this project"]) unless train
+
           card("Landing now", ["#{esc(train[:count])} #{esc(train[:state])} <span class=\"facts\">#{esc(train[:detail])}</span>"])
         end
 
