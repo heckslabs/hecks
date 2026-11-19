@@ -36,9 +36,25 @@ Hecks.hecksagon "Agents" do
   end
 
   # The background sessions as claude lists them, joined to the AgentRun ledger. Bound by
-  # adapters/fleet_control, which refuses by name a pinned role's session, one not listed, a working
-  # one, and every read where no ledger is booted.
+  # adapters/fleet_control. The examines read the facts the Fleet policies judge and change nothing;
+  # the adapter refuses only what it cannot read (a session not listed, a boot with no ledger) and a
+  # command `claude` refused.
   Agents::Fleet.port "Fleet" do
+    # Whether a pinned role holds the session, the run that holds it, and that in words.
+    asks "ExamineStop", to: Fleet do
+      attribute :session, FleetSession
+      answers "StopExamined"
+      refuses "SessionHaltRefused"
+    end
+
+    # Whether the session is working, the run that holds it, and that in words; the name is kept.
+    asks "ExamineResume", to: Fleet do
+      attribute :session, FleetSession
+      attribute :name,    FleetName
+      answers "ResumeExamined"
+      refuses "SessionReviveRefused"
+    end
+
     asks "Halt", to: Fleet do
       attribute :session, FleetSession
       answers "SessionHalted"
