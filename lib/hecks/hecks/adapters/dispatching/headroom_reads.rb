@@ -24,7 +24,7 @@ module Hecks
         # Where the compared load came from and the sampler's newest reading beside it.
         def load_reading_clause
           sampled = (@standins[:loads] || Headroom.loads(@registry, count: 1)).last
-          LoadReading.new(uptime: machine.load, sampled: sampled, at: ran_at).clause
+          LoadReading.new(load: machine.load, sampled: sampled, at: ran_at, source: machine.load_source).clause
         end
 
         # `headroom 2 of cap 7 (1.6 load per session)`: the sessions the load has room for (an

@@ -1,5 +1,5 @@
-# Binds the `Metering` port to `Metering`, which answers `Sessions` and `Machine` from `claude agents
-# --json`, `ps`, `sysctl` and `vm_stat`. It only reads.
+# Binds the `Metering` port to `Metering`, which answers `Sessions`, `Machine` and `Load` from
+# `claude agents --json`, `ps`, `sysctl` and `vm_stat`. It only reads.
 # Required by name, not relative, so a copy of this directory shares the one implementation loaded.
 require "hecks/roundhouse/adapters/metering"
 

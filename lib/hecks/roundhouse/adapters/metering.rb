@@ -45,6 +45,22 @@ module Hecks
       # @return [Hash{Symbol => String}] `text:` the machine facts as JSON
       def machine = { text: JSON.generate(machine_facts) }
 
+      # The `Load` query.
+      #
+      # @return [Hash{Symbol => String}] `text:` the load facts as JSON
+      def load = { text: JSON.generate(load_facts) }
+
+      # The machine's 1-minute load and the cores it is read against, read without the session
+      # rows, so a reader of load alone lists no session and reads no process table.
+      #
+      # @return [Hash] `load` (hundredths; nil when the load could not be read, never a calm 0),
+      #   `cores` (performance cores) and `taken_at`
+      def load_facts
+        reads = @machine.call
+        gauge = MachineGauge.new(reads)
+        { load: reads[:loadavg].to_s.strip.empty? ? nil : gauge.load, cores: gauge.cores, taken_at: stamp(@now.call) }
+      end
+
       # @return [Array<Hash>] each live session: `id`, `session`, `name`, `kind`, `state`, `status`,
       #   `role`, `works_as`, `item`, `run`, `memory_mb`, `cpu`, `processes`, `mcp_servers`,
       #   `started_at`, `last_activity`, `age_minutes` and `idle_minutes`

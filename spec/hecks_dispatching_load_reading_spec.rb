@@ -35,6 +35,12 @@ RSpec.describe Hecks::Adapters::Dispatching::LoadReading do
     expect(header(uptime: 3.0, loads: [])).to include("sampler reading none recorded")
   end
 
+  it "names Roundhouse's meter as the source once the metering switch is on" do
+    clause = described_class.new(load: 7.0, sampled: 6.8, at: "22:11:04Z", source: "roundhouse").clause
+
+    expect(clause).to eq("load source: roundhouse 7.0 at 22:11:04Z; sampler 6.8")
+  end
+
   it "does not let a low sampler reading clear a load over the limit" do
     expect(report(uptime: 14.0, loads: [4.6])).to include("skipped: load 14.0 > 10.0: nothing starts")
   end
