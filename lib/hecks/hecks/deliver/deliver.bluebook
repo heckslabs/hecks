@@ -1950,6 +1950,15 @@ Hecks.bluebook "Hecks" do
       trigger ReviewRequest::Sweep, with: { run: :beat }
     end
 
+    # A boarding queued as a pull request sweeps at once, keyed by the boarding's own run, so a red
+    # train pull request its new one carries is closed now rather than on the next beat. The sweep
+    # reads GitHub after the new pull request is open; a refused sweep leaves the boarding queued.
+    policy "SweepTrainPullRequestsWhenQueued" do
+      on      "SendTrain.BoardingQueued"
+      root
+      trigger ReviewRequest::Sweep, with: { run: :run }
+    end
+
     policy "SweepWhenAsked" do
       on      "ReviewRequest.PullRequestSweepRequested"
       ask     :tidy, with: { run: :run }
@@ -2143,6 +2152,7 @@ Hecks.bluebook "Hecks" do
       attribute :url,     Word,   optional: true
       attribute :title,   Title,  optional: true
       attribute :body,    Body,   optional: true
+      attribute :comment, Comment, optional: true
       attribute :report,  Report, optional: true
       attribute :refusal, Report, optional: true
       identified_by :run
@@ -2163,6 +2173,11 @@ Hecks.bluebook "Hecks" do
 
       # A pull request's body: Markdown, possibly many lines.
       value_object "Body" do
+        attribute :value, String, matches: :present
+      end
+
+      # The comment left on a pull request as it is closed: why it was closed, as Markdown.
+      value_object "Comment" do
         attribute :value, String, matches: :present
       end
 
@@ -2196,7 +2211,7 @@ Hecks.bluebook "Hecks" do
 
       command "Swept" do
         role "System"
-        goal "Record which train pull requests a sweep closed"
+        goal "Record which pull requests were closed and why, by a sweep or by one Close"
 
         reference_to ReviewRequest
         attribute :report, Report, sets: true
@@ -2244,6 +2259,20 @@ Hecks.bluebook "Hecks" do
         given("edits the pull request on GitHub needs --confirm; without it this only reports") { confirm.value == true }
 
         emits "PullRequestEditRequested"
+      end
+
+      command "Close" do
+        role "Operator"
+        goal "Close an open pull request by its number, leaving a comment that says why; never merge or delete its branch"
+
+        attribute :run,     RunKey, sets: true
+        attribute :number,  Word, sets: true
+        attribute :comment, Comment, sets: true
+        attribute :confirm, Switch, optional: true, sets: true
+
+        given("closes the pull request on GitHub needs --confirm; without it this only reports") { confirm.value == true }
+
+        emits "PullRequestCloseRequested"
       end
 
       command "Record" do
@@ -2376,6 +2405,21 @@ Hecks.bluebook "Hecks" do
 
     policy "RecordTheRefusedEdit" do
       on      "ReviewRequest.AmendRefused"
+      trigger ReviewRequest::Refuse, with: { refusal: :refusal }
+    end
+
+    policy "ShutWhenCloseRequested" do
+      on      "ReviewRequest.PullRequestCloseRequested"
+      ask     :shut, with: { run: :run }
+    end
+
+    policy "RecordTheShutPullRequest" do
+      on      "ReviewRequest.ShutAnswered"
+      trigger ReviewRequest::Swept, with: { report: :report }
+    end
+
+    policy "RecordTheRefusedShut" do
+      on      "ReviewRequest.ShutRefused"
       trigger ReviewRequest::Refuse, with: { refusal: :refusal }
     end
 
