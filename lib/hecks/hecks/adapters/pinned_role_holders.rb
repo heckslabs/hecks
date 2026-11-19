@@ -54,9 +54,28 @@ module Hecks
         other ? held_by(role, other) : NONE.merge(pinned_role: role)
       end
 
+      # @param held [Hash] an `AgentRun` record: `agent` and `works_as`
+      # @return [String] the run's role when a `PinnedRole` row names it, else empty
+      def pinned_role(held) = Array(@pinned.call).map(&:to_s).include?(role_of(held)) ? role_of(held) : ""
+
+      # The live sessions of every pinned role, for a sweep; how many make a finding is the
+      # bluebook's.
+      #
+      # @return [Hash{Symbol => Object}] `live_ids:` one `role: id id` line per role with a live
+      #   session, and `most:` the largest count of live sessions any one role has
+      # @raise [ConsoleCapture::Failure] when the sessions cannot be listed
+      def census
+        live = live_ids.reject { |_, ids| ids.empty? }
+        { live_ids: live.map { |role, ids| "#{role}: #{ids.join(" ")}" }.join("\n"), most: live.values.map(&:size).max || 0 }
+      end
+
+      # @param entry [Hash] a session as `claude agents` lists it
+      # @return [Boolean] whether it is live: listed `busy`, or `working` or `blocked`
+      def self.live?(entry) = entry["status"].to_s == "busy" || LIVE_STATES.include?(entry["state"].to_s)
+
       private
 
-      def pinned_role(held) = Array(@pinned.call).map(&:to_s).include?(role_of(held)) ? role_of(held) : ""
+      def live_ids = Array(@pinned.call).map(&:to_s).to_h { |role| [role, holders(role).map { |entry| entry["id"].to_s }] }
 
       def role_of(record) = value(record, :works_as).then { |part| part.empty? ? value(record, :agent) : part }
 
@@ -70,7 +89,7 @@ module Hecks
         started.select { |run| role_of(run) == role }.map { |run| value(run, :session) }
       end
 
-      def live?(entry) = entry["status"].to_s == "busy" || LIVE_STATES.include?(entry["state"].to_s)
+      def live?(entry) = self.class.live?(entry)
 
       def named?(entry, role) = entry["name"].to_s.match?(/\A#{Regexp.escape(role)}(?:\z|[\s:_-]+(?![A-Za-z]))/i)
 
