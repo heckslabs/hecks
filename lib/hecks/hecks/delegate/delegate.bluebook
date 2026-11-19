@@ -2012,8 +2012,20 @@ Hecks.bluebook "Hecks" do
     # `claude`'s default. One look, not two: the reactions after a start stay within the depth limit.
     policy "StartWhenTheAgentIsListed" do
       on      "AgentRun.RepoLocated"
-      where   { listed != false && (holder == "" || holder_status != "started" || holder_agent != "" || requester_agent != "") }
+      where   { listed != false && (holder == "" || holder_status != "started" || holder_agent != "" || requester_agent != "") && role_holder == "" }
       ask     :start, with: { run: :run }
+    end
+
+    # A pinned role (a `PinnedRole` row of the Agents bluebook's `Role`) has at most one live
+    # session: a run of the role is declined before a session starts while another live session
+    # holds it, bound to a started run of the role or listed under its name, and the refusal
+    # names that session. Only the owner stops the extra session. `Begin` records a session
+    # already started and is not guarded, so two dispatches located at the same moment can both
+    # start: the rule is checked at each dispatch and answer, not held under a lock.
+    policy "RecordTheHeldRole" do
+      on      "AgentRun.RepoLocated"
+      where   { listed != false && role_holder != "" && (holder == "" || holder_status != "started" || holder_agent != "" || requester_agent != "") }
+      trigger AgentRun::Decline, with: { refusal: :role_note }
     end
 
     # A Work item has one live session: a run with no agent on work another started run with no
@@ -2308,15 +2320,31 @@ Hecks.bluebook "Hecks" do
     policy "DeliverToTheWorkingSession" do
       on      "AgentRun.SessionPresent"
       root
-      where   { listed == true && status == "busy" }
+      where   { listed == true && status == "busy" && role_holder == "" }
       ask     :deliver, with: { run: :run, answer: :answer, step: :step, verdict: :verdict }
     end
 
     policy "ResumeTheIdleSession" do
       on      "AgentRun.SessionPresent"
       root
-      where   { listed != true || status != "busy" }
+      where   { (listed != true || status != "busy") && role_holder == "" }
       ask     :resume, with: { run: :run, answer: :answer, step: :step, verdict: :verdict }
+    end
+
+    # A pinned role's run is not answered while another live session holds the role: an answer
+    # would wake a second session of it. A fork an answer's resume started (`ResumedAsFork`) leaves
+    # the old session live too, so every later answer is refused, by name, until the owner stops
+    # one. A verdict is kept waiting and sent again (`Unresumed`), as a refused resume is.
+    policy "RefuseTheAnswerOfAHeldRole" do
+      on      "AgentRun.SessionPresent"
+      where   { role_holder != "" && verdict == "" }
+      trigger AgentRun::Unanswered, with: { refusal: :role_note, verdict: :verdict }
+    end
+
+    policy "RefuseTheVerdictOfAHeldRole" do
+      on      "AgentRun.SessionPresent"
+      where   { role_holder != "" && verdict != "" }
+      trigger AgentRun::Unresumed, with: { refusal: :role_note, verdict: :verdict }
     end
 
     # Queued is answered: the inbox is read at the session's next tool call or turn end. A session
