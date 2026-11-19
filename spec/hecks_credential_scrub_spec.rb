@@ -43,11 +43,11 @@ RSpec.describe Hecks::Adapters::CredentialScrub do
     end
 
     it "scrubs a role the world does not keep" do
-      expect(setting({ scrub: true, keep: %w[orchestrator] }).scrub?("coder")).to be(true)
+      expect(setting({ scrub: true, keep: %w[lead] }).scrub?("coder")).to be(true)
     end
 
     it "keeps a role the world keeps" do
-      expect(setting({ scrub: true, keep: %w[orchestrator] }).scrub?("orchestrator")).to be(false)
+      expect(setting({ scrub: true, keep: %w[lead] }).scrub?("lead")).to be(false)
     end
 
     it "names a run with no agent the default" do

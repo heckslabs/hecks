@@ -14,7 +14,7 @@ RSpec.describe "StallWatch" do
     rows = watching.unclosed(run: { value: "look-1" })
 
     expect(rows.map { |row| row[:stall] }).to eq(%w[stall-plan-review-late stall-plan-review-young])
-    expect(rows.first).to include(id: "look-1", waited: 30, minutes: 20, fixer: "orchestrator")
+    expect(rows.first).to include(id: "look-1", waited: 30, minutes: 20, fixer: "lead")
   end
 
   it "files a stall past its minutes as one Stall and one work item of the same key", :aggregate_failures do
@@ -118,7 +118,7 @@ RSpec.describe "StallWatch" do
       end
     end
 
-    it "names only commands the orchestrator may run", :aggregate_failures do
+    it "names only commands the Lead may run", :aggregate_failures do
       write_opening("agent-run-session")
       detect("look-1")
 

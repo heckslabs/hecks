@@ -19,7 +19,7 @@ module EscalationBoot
 
   def raise_for(key)
     Hecks::Agents::Escalation.raise!(escalation: { value: key }, event: { value: "StallFiled" },
-                                     rule: { value: "rely-on-events" }, role: { value: "orchestrator" },
+                                     rule: { value: "rely-on-events" }, role: { value: "lead" },
                                      repo: { value: "." }, brief: { value: "look" })
   end
 

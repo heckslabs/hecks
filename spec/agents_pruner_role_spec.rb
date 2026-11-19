@@ -33,8 +33,8 @@ RSpec.describe "the pruner role file" do
       expect(steps).to match(%r{~/\.claude/jobs/pins\.json.*until AgentRun carries a pinned fact}m)
     end
 
-    it "declares the orchestrator as a pinned role in the bluebook" do
-      expect(pinned_roles).to include("orchestrator")
+    it "declares the Lead as a pinned role in the bluebook" do
+      expect(pinned_roles).to include("lead")
     end
   end
 
@@ -50,12 +50,12 @@ RSpec.describe "the pruner role file" do
       expect(steps).to include("a finished architect, reviewer, coder or planner session is removed")
     end
 
-    it "pins only the orchestrator" do
-      expect(pinned_roles).to eq(["orchestrator"])
+    it "pins only the Lead" do
+      expect(pinned_roles).to eq(["lead"])
     end
 
-    it "keeps the orchestrator above all" do
-      expect(steps).to include("the orchestrator above all")
+    it "keeps the Lead above all" do
+      expect(steps).to include("the Lead above all")
     end
 
     it "reads finished from the AgentRun ledger, not from the session list", :aggregate_failures do

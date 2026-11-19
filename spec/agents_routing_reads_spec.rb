@@ -1,8 +1,8 @@
 require "spec_helper"
 require_relative "support/routing_reads_helper"
 
-# The read-only verbs the orchestrator needs to route without a shell.
-RSpec.describe "the orchestrator routing reads" do
+# The read-only verbs the Lead needs to route without a shell.
+RSpec.describe "the Lead routing reads" do
   include RoutingReadsHelper
 
   [

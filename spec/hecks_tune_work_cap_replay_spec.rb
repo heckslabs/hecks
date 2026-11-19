@@ -4,7 +4,7 @@ require_relative "support/machine_beats"
 # A replay of 2026-11-17: the states the machine's 620 kept readings left that day (one line each:
 # the epoch second, memory ok or low, load below or above), beaten through the Hecks domain in
 # Memory with the default bounds 2 and 10, and the moves the work cap would have made. That day the
-# orchestrator moved the cap by hand on 30-minute passes; the replay climbs to 10 by 01:07, is cut
+# Lead moved the cap by hand on 30-minute passes; the replay climbs to 10 by 01:07, is cut
 # to 2 by 02:15 when memory ran low, climbs again, and is cut twice in the evening's pressure.
 RSpec.describe "the work cap over 2026-11-17's readings", :aggregate_failures do
   include MachineBeats

@@ -8,8 +8,8 @@ require_relative "support/pipeline_board_world"
 
 # The stand-in ledger and jobs directory of a run that forked from `old-1` to `copy-2`.
 module ForkedRunReadings
-  FORKED = { run: "orchestrator", session: "copy-2", forked_from: "old-1", brief: "watch", status: "started",
-             agent: "orchestrator", condition: "working" }.freeze
+  FORKED = { run: "lead", session: "copy-2", forked_from: "old-1", brief: "watch", status: "started",
+             agent: "lead", condition: "working" }.freeze
 
   def ledger
     store = instance_double(Hecks::Adapters::PipelineBoard::LiveStore, records: nil)
@@ -40,17 +40,17 @@ RSpec.describe "The board's reading of a forked run" do
 
   it "keys the run by its current session, and the session it held as superseded by it", :aggregate_failures do
     runs = ledger
-    expect(runs["copy-2"]).to include(run: "orchestrator", agent: "orchestrator")
+    expect(runs["copy-2"]).to include(run: "lead", agent: "lead")
     expect(runs["copy-2"]).not_to have_key(:superseded_by)
-    expect(runs["old-1"]).to include(run: "orchestrator", superseded_by: "copy-2")
+    expect(runs["old-1"]).to include(run: "lead", superseded_by: "copy-2")
   end
 
   it "keeps the held session the run's, so it is not shown as a session no run owns" do
-    expect(rows.find { |row| row[:id] == "old-1" }).to include(run: "orchestrator", superseded_by: "copy-2")
+    expect(rows.find { |row| row[:id] == "old-1" }).to include(run: "lead", superseded_by: "copy-2")
   end
 
   it "counts the run on its role's card once, by its current session", :aggregate_failures do
-    card = Hecks::Adapters::PipelineBoard::AgentRoles.of(rows, %w[orchestrator]).first
+    card = Hecks::Adapters::PipelineBoard::AgentRoles.of(rows, %w[lead]).first
     expect(card[:working].map { |s| s[:id] }).to eq(["copy-2"])
     expect(card[:completed]).to be_empty
   end

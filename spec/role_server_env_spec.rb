@@ -49,37 +49,37 @@ RSpec.describe Hecks::Adapters::RoleServerEnv do
 
     def lines(role) = guard.server_env(role: { value: role })[:text].lines.map(&:chomp)
 
-    it "restricts the orchestrator to the commands of its rows the Hecks domain has", :aggregate_failures do
-      expect(lines("orchestrator")).to include("HECKS_SERVER_TOOLS=commands", "HECKS_SERVER_DOMAINS=lib/hecks/hecks")
-      expect(lines("orchestrator").last).to include("agent_run.check_all", "send_train.board")
+    it "restricts the Lead to the commands of its rows the Hecks domain has", :aggregate_failures do
+      expect(lines("lead")).to include("HECKS_SERVER_TOOLS=commands", "HECKS_SERVER_DOMAINS=lib/hecks/hecks")
+      expect(lines("lead").last).to include("agent_run.check_all", "send_train.board")
     end
 
     it "leaves a role with no rows unrestricted" do
       expect(lines("coder")).to eq([])
     end
 
-    it "plans the orchestrator as a role with rows, and the coder as one with none", :aggregate_failures do
-      expect(guard.server_plan("orchestrator")).to include(rows: true)
+    it "plans the Lead as a role with rows, and the coder as one with none", :aggregate_failures do
+      expect(guard.server_plan("lead")).to include(rows: true)
       expect(guard.server_plan("coder")).to eq(rows: false, variables: {}, commands: [], unserved: [])
     end
 
     it "lists every role with rows and the commands its rows name, for the server's cache", :aggregate_failures do
-      expect(guard.server_table.keys).to include("orchestrator")
-      expect(guard.server_table.fetch("orchestrator")).to include("agent_run.check_all", "send_train.board")
+      expect(guard.server_table.keys).to include("lead")
+      expect(guard.server_table.fetch("lead")).to include("agent_run.check_all", "send_train.board")
     end
 
     it "writes that table where a role's server reads it, when the query is asked" do
       with_cache_root do
-        guard.server_env(role: { value: "orchestrator" })
-        expect(Hecks::RoleServerCache.lookup(File.expand_path("..", __dir__), "orchestrator")).to include("agent_run.check_all")
+        guard.server_env(role: { value: "lead" })
+        expect(Hecks::RoleServerCache.lookup(File.expand_path("..", __dir__), "lead")).to include("agent_run.check_all")
       end
     end
 
     it "does not write a table made of stand-in rows" do
       stand_in = Hecks::Adapters::RoutingGuard.new(settings: { rows: ->(_table) { [] } })
       with_cache_root do
-        stand_in.server_env(role: { value: "orchestrator" })
-        expect(Hecks::RoleServerCache.lookup(File.expand_path("..", __dir__), "orchestrator")).to eq(:miss)
+        stand_in.server_env(role: { value: "lead" })
+        expect(Hecks::RoleServerCache.lookup(File.expand_path("..", __dir__), "lead")).to eq(:miss)
       end
     end
 
@@ -96,14 +96,14 @@ RSpec.describe Hecks::Adapters::RoleServerEnv do
     end
 
     it "reads the rows and the commands from the checkout it is given", :aggregate_failures do
-      plan = Hecks::Adapters::RoutingGuard.new(checkout: File.expand_path("..", __dir__)).server_plan("orchestrator")
-      expect(plan[:variables]).to eq(guard.server_plan("orchestrator")[:variables])
+      plan = Hecks::Adapters::RoutingGuard.new(checkout: File.expand_path("..", __dir__)).server_plan("lead")
+      expect(plan[:variables]).to eq(guard.server_plan("lead")[:variables])
       expect(plan[:unserved]).to include("Work.*")
     end
 
     it "refuses a checkout that has no Agents bluebook, so a caller can fall back" do
       missing = Hecks::Adapters::RoutingGuard.new(checkout: Dir.mktmpdir("no-checkout"))
-      expect { missing.server_plan("orchestrator") }.to raise_error(StandardError)
+      expect { missing.server_plan("lead") }.to raise_error(StandardError)
     end
   end
 end

@@ -7,7 +7,7 @@ module CloseOrderLooks
   NOW = Time.utc(2026, 11, 16, 12, 0, 0)
   KIND = { kind: "agent-run-blocked", not_about: "stall-", aggregate: "Hecks::AgentRun", opens: "SessionBlocked",
            closes: "AnswerRequested,AgentRunAnswered,SessionWorking,SessionFinished", minutes: 15, forgets: 1440,
-           fixer: "orchestrator", move: "look" }.freeze
+           fixer: "lead", move: "look" }.freeze
 
   def run_line(event, minutes_ago, branch = nil)
     line = { "kind" => "event", "at" => (NOW - (minutes_ago * 60)).iso8601, "aggregate" => "Hecks::AgentRun",

@@ -12,8 +12,8 @@ RSpec.describe "the agents page comms diagram" do
     expect(ends.select { |pair| pair.include?("you") }).to eq([%w[you pipeline]])
   end
 
-  it "draws no orchestrator or release manager node" do
-    expect(nodes & %w[orchestrator release_manager]).to be_empty
+  it "draws no Lead or release manager node" do
+    expect(nodes & %w[lead release_manager]).to be_empty
   end
 
   it "keeps no you edge in EDGES except PassageReleased" do

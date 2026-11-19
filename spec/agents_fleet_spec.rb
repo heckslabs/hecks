@@ -44,7 +44,7 @@ RSpec.describe "the Agents fleet of sessions" do
 
   it "refuses to stop the session of a pinned role, by name", :aggregate_failures do
     refused = steer(:stop!, "bbbb2222")
-    expect(refused.refusal.value).to include("holds the pinned role orchestrator")
+    expect(refused.refusal.value).to include("holds the pinned role lead")
     expect(shell.commands).to be_empty
   end
 

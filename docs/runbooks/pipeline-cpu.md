@@ -77,7 +77,7 @@ before raising the number. A refusal never stops a `red-*` item.
 The usage log (`~/.cache/hecks/usage.jsonl`) has one JSON line per launcher run: `typed`, `resolved`, `status`, `ms`
 (the command), `date`, `at`, `boot_ms` (process start to the command), `cold` (a bluebook had to be judged; never
 true for a line a resident served), `caller` (`HECKS_CALLER`, else `CLAUDE_SESSION_ID`; sessions are named
-`role:run`, the board `board`, the guard hook `hook:orchestrator_guard`) and `resident` (how the line met the
+`role:run`, the board `board`, the guard hook `hook:lead_guard`) and `resident` (how the line met the
 resident: `served`, `none`, `started`, `bypass`, `unstable` or `refused:<reason>`, with reasons `stale`, `env`,
 `changed`, `script`, `busy`, `dropped`, `unsafe`, `path`, `crowded` and `protocol`). `exe/hecks usage` sums the outcomes, the
 share served, the refusal reasons and the last hour's boots per caller. The event tap is `~/.claude/hecks-dev/events.jsonl`, one line per
@@ -148,7 +148,7 @@ Shared caches and records, which every checkout and worktree reads, and how each
   that names `{main}` unfilled).
 - **Residents cost memory.** About 330 MB each, at most 8, one per checkout in use.
 - **The reaper's `KEPT` list is by hand.** A new long-running verb needs adding to it.
-- **The orchestrator cannot reach MCP tools.** Its `tools: Bash` frontmatter hides them (tested live, 2026-11-09: the
+- **The Lead cannot reach MCP tools.** Its `tools: Bash` frontmatter hides them (tested live, 2026-11-09: the
   session's tools were `["Bash"]` with both servers connected), so its restricted server matters only if
   `mcp__hecks-mcp__*` is added to that list. A resumed session no longer loses the restriction, because the server
   reads it from the environment, but this has been shown for a fresh session with an inline agent, not for a resumed one.

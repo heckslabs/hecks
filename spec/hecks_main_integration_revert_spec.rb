@@ -310,7 +310,7 @@ RSpec.describe "a red main reverting its one bad merge" do
     expect(boarding_error(@bad)).to be_nil
   end
 
-  it "tells the owner through the orchestrator when a hand revert parks the episode" do
+  it "tells the owner through the Lead when a hand revert parks the episode" do
     hand_revert_then_verify
     expect(event_names).to include("CoordinatorWoken")
   end
@@ -323,7 +323,7 @@ RSpec.describe "a red main reverting its one bad merge" do
     verify(landed)
   end
 
-  it "tells the owner through the orchestrator when the revert is refused, and holds landings", :aggregate_failures do
+  it "tells the owner through the Lead when the revert is refused, and holds landings", :aggregate_failures do
     verify_over_a_dirty_checkout
     expect(event_names).to include("RevertRefused", "CoordinatorWoken")
     expect(landing_refused?).to be(true)

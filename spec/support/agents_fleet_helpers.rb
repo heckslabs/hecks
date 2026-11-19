@@ -36,13 +36,13 @@ module AgentsFleetHelpers
 
   def listing
     [{ "id" => "aaaa1111", "sessionId" => "aaaa1111-full", "name" => "coder-one", "state" => "done", "status" => "idle" },
-     { "id" => "bbbb2222", "sessionId" => "bbbb2222-full", "name" => "orchestrator", "state" => "working", "status" => "busy" },
+     { "id" => "bbbb2222", "sessionId" => "bbbb2222-full", "name" => "lead", "state" => "working", "status" => "busy" },
      { "id" => "cccc3333", "sessionId" => "cccc3333-full", "name" => "plain", "state" => "stopped", "status" => "idle" }]
   end
 
   def ledger
     { runs: { "fix-it" => { status: "started", condition: "working" } }, sessions: { "aaaa1111-full" => "fix-it" },
-      pinned: ["orchestrator"] }
+      pinned: ["lead"] }
   end
 
   def shell = (@shell ||= RecordingShell.new(listing))

@@ -7,7 +7,7 @@ require "hecks/hecks/adapters/stall_watching"
 module OnePerLandingLooks
   NOW = Time.utc(2026, 11, 16, 12, 0, 0)
   KIND = { kind: "landing-carry", not_about: "stall-", aggregate: "Delivery::Landing", opens: "CarryRequested",
-           closes: "BranchLanded,LandingRefused", minutes: 30, forgets: 1440, fixer: "orchestrator", move: "look" }.freeze
+           closes: "BranchLanded,LandingRefused", minutes: 30, forgets: 1440, fixer: "lead", move: "look" }.freeze
 
   def carry(run, minutes_ago, branch = "work-a", event = "CarryRequested")
     { "kind" => "event", "at" => (NOW - (minutes_ago * 60)).iso8601, "aggregate" => "Delivery::Landing", "id" => run,

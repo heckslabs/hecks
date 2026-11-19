@@ -112,8 +112,8 @@ RSpec.describe Hecks::Tools::AgentRoles do
       expect(hushed { run_list("--check") }).to eq(1)
     end
 
-    it "names the orchestrator as the one guarded role of the checkout" do
-      expect(Hecks::Tools::AgentRoles::Rows.guarded(InMemoryDomain::ROOT)).to eq(%w[orchestrator])
+    it "names the Lead as the one guarded role of the checkout" do
+      expect(Hecks::Tools::AgentRoles::Rows.guarded(InMemoryDomain::ROOT)).to eq(%w[lead])
     end
   end
 
@@ -138,7 +138,7 @@ RSpec.describe Hecks::Tools::AgentRoles do
     end
 
     it "leave out the architect, whose file holds frontmatter a row cannot say" do
-      names = %w[coder orchestrator orchestrator-owner planner pruner reviewer]
+      names = %w[coder lead lead-owner planner pruner reviewer]
       expect(rows.map { |real| real[:role] }).to match_array(names)
     end
 

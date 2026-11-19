@@ -30,71 +30,71 @@ Hecks.bluebook "Agents" do
       attribute :role,    String
       attribute :pattern, String
 
-      member role: "orchestrator", pattern: "Work.*"
-      member role: "orchestrator", pattern: "Dispatch.preview"
-      member role: "orchestrator", pattern: "AgentRun.running"
-      member role: "orchestrator", pattern: "AgentRun.retire!"
-      member role: "orchestrator", pattern: "PushRehearsal.due"
-      member role: "orchestrator", pattern: "Workspace.status"
-      member role: "orchestrator", pattern: "Machine.sample!"
-      member role: "orchestrator", pattern: "Machine.busiest"
-      member role: "orchestrator", pattern: "Dispatch.settle!"
-      member role: "orchestrator", pattern: "Planning.request!"
-      member role: "orchestrator", pattern: "AgentRun.check_all!"
-      member role: "orchestrator", pattern: "AgentRun.answer!"
-      member role: "orchestrator", pattern: "AgentRun.check!"
+      member role: "lead", pattern: "Work.*"
+      member role: "lead", pattern: "Dispatch.preview"
+      member role: "lead", pattern: "AgentRun.running"
+      member role: "lead", pattern: "AgentRun.retire!"
+      member role: "lead", pattern: "PushRehearsal.due"
+      member role: "lead", pattern: "Workspace.status"
+      member role: "lead", pattern: "Machine.sample!"
+      member role: "lead", pattern: "Machine.busiest"
+      member role: "lead", pattern: "Dispatch.settle!"
+      member role: "lead", pattern: "Planning.request!"
+      member role: "lead", pattern: "AgentRun.check_all!"
+      member role: "lead", pattern: "AgentRun.answer!"
+      member role: "lead", pattern: "AgentRun.check!"
       # A message is an event the run's session hears; AgentRun.answer! stays for a session not following.
-      member role: "orchestrator", pattern: "Message.send!"
-      member role: "orchestrator", pattern: "Message.read!"
-      member role: "orchestrator", pattern: "Message.inbox"
+      member role: "lead", pattern: "Message.send!"
+      member role: "lead", pattern: "Message.read!"
+      member role: "lead", pattern: "Message.inbox"
       # Reads of the sessions; Fleet.stop! and Fleet.resume! stay the operator's.
-      member role: "orchestrator", pattern: "Fleet.sessions"
-      member role: "orchestrator", pattern: "Fleet.topic"
-      member role: "orchestrator", pattern: "PlanReview.answer!"
+      member role: "lead", pattern: "Fleet.sessions"
+      member role: "lead", pattern: "Fleet.topic"
+      member role: "lead", pattern: "PlanReview.answer!"
       # Hands a question whose answer is the owner's to the owner, unanswered, and frees its seat.
-      member role: "orchestrator", pattern: "Question.escalate!"
-      member role: "orchestrator", pattern: "Question.open"
-      member role: "orchestrator", pattern: "PlanReview.record!"
-      member role: "orchestrator", pattern: "AgentRun.tidy!"
-      member role: "orchestrator", pattern: "PushRehearsal.rehearse!"
-      member role: "orchestrator", pattern: "SendTrain.board!"
+      member role: "lead", pattern: "Question.escalate!"
+      member role: "lead", pattern: "Question.open"
+      member role: "lead", pattern: "PlanReview.record!"
+      member role: "lead", pattern: "AgentRun.tidy!"
+      member role: "lead", pattern: "PushRehearsal.rehearse!"
+      member role: "lead", pattern: "SendTrain.board!"
       # A read: how one boarding ended, named by the train-faulted stall's move.
-      member role: "orchestrator", pattern: "SendTrain.outcome"
+      member role: "lead", pattern: "SendTrain.outcome"
       # A read: whether main is flagged, named by the train-faulted stall's move.
-      member role: "orchestrator", pattern: "RedFlag.status"
+      member role: "lead", pattern: "RedFlag.status"
       # A read of the train pull request, named by the ci-not-started and train-unmerged stall moves.
-      member role: "orchestrator", pattern: "SendTrain.watch!"
-      member role: "orchestrator", pattern: "ReviewRequest.status"
-      member role: "orchestrator", pattern: "ReviewRequest.take!"
-      member role: "orchestrator", pattern: "LinkedTree.pull_main!"
-      member role: "orchestrator", pattern: "Landing.retire!"
-      member role: "orchestrator", pattern: "PipelineBoard.snapshot"
-      member role: "orchestrator", pattern: "Operation.follow"
+      member role: "lead", pattern: "SendTrain.watch!"
+      member role: "lead", pattern: "ReviewRequest.status"
+      member role: "lead", pattern: "ReviewRequest.take!"
+      member role: "lead", pattern: "LinkedTree.pull_main!"
+      member role: "lead", pattern: "Landing.retire!"
+      member role: "lead", pattern: "PipelineBoard.snapshot"
+      member role: "lead", pattern: "Operation.follow"
       # Moves a verified commit that waits for a train PR (the ten-minute board rule).
-      member role: "orchestrator", pattern: "Integration.advance!"
+      member role: "lead", pattern: "Integration.advance!"
       # The clock chain: a missed beat is recorded, and a chain that ended for a reason is stopped by name.
-      member role: "orchestrator", pattern: "Heartbeat.beat!"
-      member role: "orchestrator", pattern: "Ticker.stop!"
-      member role: "orchestrator", pattern: "git status"
-      member role: "orchestrator", pattern: "git log"
-      member role: "orchestrator", pattern: "git diff"
-      member role: "orchestrator", pattern: "git branch"
-      member role: "orchestrator", pattern: "git show"
-      member role: "orchestrator", pattern: "git fetch"
-      member role: "orchestrator", pattern: "git switch"
-      member role: "orchestrator", pattern: "git merge"
-      member role: "orchestrator", pattern: "git cherry-pick"
-      member role: "orchestrator", pattern: "git revert"
-      member role: "orchestrator", pattern: "git commit"
-      member role: "orchestrator", pattern: "git add"
-      member role: "orchestrator", pattern: "git tag"
-      member role: "orchestrator", pattern: "git worktree"
-      member role: "orchestrator", pattern: "gh pr view"
-      member role: "orchestrator", pattern: "gh pr list"
-      member role: "orchestrator", pattern: "gh run view"
-      member role: "orchestrator", pattern: "gh pr close"
-      member role: "orchestrator", pattern: "gh pr comment"
-      member role: "orchestrator", pattern: "gh run rerun"
+      member role: "lead", pattern: "Heartbeat.beat!"
+      member role: "lead", pattern: "Ticker.stop!"
+      member role: "lead", pattern: "git status"
+      member role: "lead", pattern: "git log"
+      member role: "lead", pattern: "git diff"
+      member role: "lead", pattern: "git branch"
+      member role: "lead", pattern: "git show"
+      member role: "lead", pattern: "git fetch"
+      member role: "lead", pattern: "git switch"
+      member role: "lead", pattern: "git merge"
+      member role: "lead", pattern: "git cherry-pick"
+      member role: "lead", pattern: "git revert"
+      member role: "lead", pattern: "git commit"
+      member role: "lead", pattern: "git add"
+      member role: "lead", pattern: "git tag"
+      member role: "lead", pattern: "git worktree"
+      member role: "lead", pattern: "gh pr view"
+      member role: "lead", pattern: "gh pr list"
+      member role: "lead", pattern: "gh run view"
+      member role: "lead", pattern: "gh pr close"
+      member role: "lead", pattern: "gh pr comment"
+      member role: "lead", pattern: "gh run rerun"
     end
 
     # The flags a read-only shell row refuses or limits it to, so the guard holds no flag list. `deny`
@@ -106,12 +106,12 @@ Hecks.bluebook "Agents" do
       attribute :allow,   String
       attribute :deny,    String
 
-      member role: "orchestrator", command: "git", allow: "",
+      member role: "lead", command: "git", allow: "",
              deny: "--output -o --ext-diff --textconv --exec --force -f --force-with-lease --no-verify --admin"
-      member role: "orchestrator", command: "git commit", allow: "", deny: "-n -nm -an -na -anm -amn"
-      member role: "orchestrator", command: "gh", allow: "", deny: "--web -w"
-      member role: "orchestrator", command: "gh pr close", allow: "", deny: "--delete-branch -d"
-      member role: "orchestrator", command: "git branch", deny: "",
+      member role: "lead", command: "git commit", allow: "", deny: "-n -nm -an -na -anm -amn"
+      member role: "lead", command: "gh", allow: "", deny: "--web -w"
+      member role: "lead", command: "gh pr close", allow: "", deny: "--delete-branch -d"
+      member role: "lead", command: "git branch", deny: "",
              allow: "-a -r -v -vv --list --show-current --merged --no-merged"
     end
 
@@ -122,31 +122,31 @@ Hecks.bluebook "Agents" do
       attribute :shape, String
       attribute :use,   String
 
-      member role: "orchestrator", shape: "Landing.discard!",
+      member role: "lead", shape: "Landing.discard!",
              use: "nothing: Landing.discard! is the owner's alone. A branch whose commits main lacks is reported with its tip sha, never discarded by a role"
-      member role: "orchestrator", shape: "HECKS_OWNER_PUSH",
+      member role: "lead", shape: "HECKS_OWNER_PUSH",
              use: "nothing: HECKS_OWNER_PUSH is the owner's one-off override of the pre-push hook, never a role's; main is pushed only by SendTrain.board!"
-      member role: "orchestrator", shape: "PublishingRun.",
+      member role: "lead", shape: "PublishingRun.",
              use: "nothing: a release is the owner's call, said by the Release-Approved-By trailer; promote.yml moves stable once every required check passed"
-      member role: "orchestrator", shape: "claude",
+      member role: "lead", shape: "claude",
              use: "AgentRun.answer! settles and resumes its target; a role never stops or kills a session, and AgentRun.tidy! removes finished ones"
-      member role: "orchestrator", shape: "git push",
+      member role: "lead", shape: "git push",
              use: "SendTrain.board! after Landing; only the push train pushes, and git writes go to the coder role"
-      member role: "orchestrator", shape: "git",
+      member role: "lead", shape: "git",
              use: "git status, log, diff, show, fetch, switch, merge, cherry-pick, revert, commit, add, tag, worktree or branch --list; other git goes to a role through Work.plan!"
-      member role: "orchestrator", shape: "gh",
+      member role: "lead", shape: "gh",
              use: "gh pr view, pr list, run view, pr close (without --delete-branch), pr comment or run rerun; other gh goes to the reviewer role, or ReviewRequest.status"
-      member role: "orchestrator", shape: "bundle",
+      member role: "lead", shape: "bundle",
              use: "the coder role through Work.plan!/Dispatch; a spec runs there"
-      member role: "orchestrator", shape: "cat",
+      member role: "lead", shape: "cat",
              use: "the coder or reviewer role through Work.plan!/Dispatch; a file is read there"
-      member role: "orchestrator", shape: "grep",
+      member role: "lead", shape: "grep",
              use: "the coder or reviewer role through Work.plan!/Dispatch; a search is run there"
-      member role: "orchestrator", shape: "settle",
+      member role: "lead", shape: "settle",
              use: "Dispatch.settle!, which AgentRun.check_all! and every rolling fill already run"
-      member role: "orchestrator", shape: "uptime",
+      member role: "lead", shape: "uptime",
              use: "Machine.sample! for the load, or Dispatch.preview for the cap, the started count and what a filling would start"
-      member role: "orchestrator", shape: "exe/hecks",
+      member role: "lead", shape: "exe/hecks",
              use: "a verb on the routing list (Operation.follow hears a run), or the planner role through Planning.request!"
     end
 
@@ -156,9 +156,9 @@ Hecks.bluebook "Agents" do
       attribute :role, String
       attribute :rule, String
 
-      member role: "orchestrator",
+      member role: "lead",
              rule: "Do no work in your own session: no spec runs, no CI-log reading, no gh write beyond pr close without --delete-branch, pr comment and run rerun, and no git push, force flag or --no-verify (git status, log, diff, show, fetch, switch, merge, cherry-pick, revert, commit, add, tag, worktree, branch --list and gh pr view, pr list, run view are allowed reads, and only the push train pushes), no file reads of code. Every such step is a run dispatched through Hecks: the coder for a change, the reviewer for verifying a claim or judging a failure, the planner for design, the architect for a bluebook or an ADR. A claim is verified by a reviewer run, never by you."
-      member role: "orchestrator",
+      member role: "lead",
              rule: "A coder starts by itself: a planned Work item rolls forward into a session when a run ends, work is planned or reopened, or the machine is read, so you never fill the queue by hand and Dispatch.fill! is not yours (a targeted fill with only= is a custodian's). Dispatch.preview reads what would start and why the rest wait. Rolling is the owner's switch, dispatch_roll_forward in the Tickets world: while it is paused nothing starts and only the owner resumes it; Dispatch.preview does not show the pause. The pipeline runs only while rolling is on: when work waits and nothing starts, ask the owner one `[owner]` question (resume dispatch_roll_forward?) and take no targeted fill, since a fill with only= stays a custodian's."
     end
 
@@ -171,55 +171,55 @@ Hecks.bluebook "Agents" do
       attribute :reason,   String
       attribute :evidence, String
 
-      member role: "orchestrator", rule: "revert-first",
+      member role: "lead", rule: "revert-first",
              reason: "a red main blocks every landing, and a rewind of history loses other sessions' pushes",
              evidence: "Triage Incident.Restore records a restored tree equal to the last green head's tree, which is green at once"
-      member role: "orchestrator", rule: "all-hands-on-red",
+      member role: "lead", rule: "all-hands-on-red",
              reason: "two coders on one cause collide, and a working session loses its own work",
              evidence: "Triage Cause.Assign refuses a second coder, a working session and a session of another project"
-      member role: "orchestrator", rule: "board-when-level",
+      member role: "lead", rule: "board-when-level",
              reason: "a board step checks nothing about the commits it carries",
              evidence: "2026-11-03: a push carried three unverified commits from other sessions"
-      member role: "orchestrator", rule: "report-when-green",
+      member role: "lead", rule: "report-when-green",
              reason: "a report of a red sha is a false outcome",
              evidence: "the coordinator's rule since 2026-11-03: a pushed sha is reported only once CI on it is green"
-      member role: "orchestrator", rule: "remove-when-pushed",
+      member role: "lead", rule: "remove-when-pushed",
              reason: "a removed session takes its worktree, and unpushed work is lost with it",
              evidence: "2026-11-11: AgentRun.tidy! refuses sessions that still read working; none is stopped to clear it"
-      member role: "orchestrator", rule: "rely-on-events",
+      member role: "lead", rule: "rely-on-events",
              reason: "a monitor expires every 30 minutes and a polled change in a gap is lost",
              evidence: "2026-11-02: changes in a monitor gap were lost until the baselines moved into files"
-      member role: "orchestrator", rule: "say-work-item-and-coder",
+      member role: "lead", rule: "say-work-item-and-coder",
              reason: "one word for one thing keeps the glossary and the reports readable",
              evidence: "the owner's wording rule for all text the pipeline writes"
-      member role: "orchestrator", rule: "release-is-the-owners",
+      member role: "lead", rule: "release-is-the-owners",
              reason: "a release ships to clients and only the owner decides it",
              evidence: "Incident.Restore refuses a batch holding a release commit (Release-Approved-By trailer)"
-      member role: "orchestrator", rule: "bounded-fan-out",
+      member role: "lead", rule: "bounded-fan-out",
              reason: "a run's subagents sit outside the work cap and the area check, so unbounded fan-out multiplies load and lets two editors collide in one worktree",
              evidence: "2026-11-13: the cap (7) and WorkAreas bound coder runs only; no role file bounded its subagents"
-      member role: "orchestrator", rule: "answer-within-the-brief",
-             reason: "a coder blocked on a question waits on nobody when no orchestrator is watching",
+      member role: "lead", rule: "answer-within-the-brief",
+             reason: "a coder blocked on a question waits on nobody when no Lead is watching",
              evidence: "2026-11-11/12: coders blocked on placement, scope and rethink verdicts were answered by hand"
-      member role: "orchestrator", rule: "discard-is-the-owners",
+      member role: "lead", rule: "discard-is-the-owners",
              reason: "a discard deletes commits main lacks, which no role may do",
              evidence: "CLAUDE.md: Landing.discard! runs only when the owner names the branch"
       # Documentation only: the owner role has no routing rows, so nothing here is enforced by the guard.
-      member role: "orchestrator-owner", rule: "release-is-the-owners",
+      member role: "lead-owner", rule: "release-is-the-owners",
              reason: "a release ships to clients and only the owner decides it; this role is not guarded, so the rule is a promise, not a wall",
              evidence: "release.yml and PublishingRun.Publish refuse a bump without the Release-Approved-By trailer"
-      member role: "orchestrator-owner", rule: "discard-is-the-owners",
+      member role: "lead-owner", rule: "discard-is-the-owners",
              reason: "a discard deletes commits main lacks; this role is not guarded, so the rule is a promise, not a wall",
              evidence: "CLAUDE.md: Landing.discard! runs only when the owner names the branch"
     end
 
-    # The roles whose session is never removed, one row each: the orchestrator holds the pipeline's
+    # The roles whose session is never removed, one row each: the Lead holds the pipeline's
     # state in its session. The pruner reads these rows, so no file or role list holds a copy.
     value_object "PinnedRole" do
       attribute :role,   String
       attribute :reason, String
 
-      member role: "orchestrator", reason: "its session holds the pipeline's state and coordinates every run"
+      member role: "lead", reason: "its session holds the pipeline's state and coordinates every run"
     end
 
     # The roles whose run leaves no Work product to land (they advise, judge or tidy), one row each.
@@ -258,22 +258,22 @@ Hecks.bluebook "Agents" do
              steps: "1. **Read the goal, then the repo.** Read `CLAUDE.md`, the bluebooks and hecksagons the goal touches, and the open Work items (`exe/hecks tickets Work.undone`). A goal that is already covered by an open Work item is a finding, not a new item.\n2. **Say which kind of thing each piece is.** Bluebook first: if it says what the domain is or does, it is a bluebook change; if it says what the domain connects to, it is hecksagon wiring; otherwise it is an adapter or generator and needs a reason.\n3. **Cut the goal into Work items.** Each has a title, a detail that says the outcome (not a list of stop signs), the `area` it touches, and where it sits in the order. Two items that touch overlapping areas must be ordered, not run side by side.\n4. **Name the choices.** When there is more than one way to do a piece, give each option in one line, say which you recommend and why, and ask. The owner may answer \"your call\"; then take your recommendation and say so.\n   **No live owner.** The owner is absent when your input is a composed Work-item brief (`Coder::Brief`, an outcome plus area) and the invoking message carries no question from a person; a goal typed by a person is not a brief. When unsure, ask. When the owner is absent, never stop on Q1-Qn or \"your call\" questions: take the recommended option, record it as `Assumed: <choice> because <reason>`, and continue. The only question you may leave open is an `[owner]` one, for what CLAUDE.md \"Briefing a session\" reserves to the owner (a risk of losing data, an owner-only action, a change outside the area).\n5. **Check before you propose.** Run `exe/hecks tickets Work.undone` and `exe/hecks agents PlanReview.reviews`. Do not propose an item that overlaps one already planned or under review.\n6. **Create nothing until confirmed.** With no live owner nobody confirms: show the plan and its assumptions as your result and create nothing; the brief or the next stage confirms. Show the whole plan. Only after the owner says to, create each item with `exe/hecks tickets Work.plan! work.value=<key> title.value=\"<title>\" detail.value=\"<detail>\" step.value=<order> area.value=<path> --wait` and report the keys.",
              rules: "",
              handback: "The plan as a list: key, title, area, order, and one line on why. Then, under their own headings, the `Assumed:` lines you took and any `[owner]` questions (the only thing left open when the owner is absent); with a live owner, the questions you still need answered. Never present a guess as a fact: say what you read and what you inferred."
-      member role: "orchestrator",
-             description: "The pipeline's coordinator and its single pusher. Every new piece of work enters through it (an owner goal, a bug, a red main, a stalled session, a finished branch). It decides where the work goes, dispatches the roles, watches their runs, answers their blocks, verifies their reports, boards the push train and cleans up. The owner is out of the pipeline; it reports only outcomes.",
+      member role: "lead",
+             description: "The pipeline's Lead, its dispatcher and its single pusher: it starts sessions, routes work and lands it through the push train; ranking stays with the product owner. Every new piece of work enters through it (an owner goal, a bug, a red main, a stalled session, a finished branch). It decides where the work goes, dispatches the roles, watches their runs, answers their blocks, verifies their reports, boards the push train and cleans up. The owner is out of the pipeline; it reports only outcomes.",
              tools: "Bash",
              model: "sonnet",
              purpose: "You coordinate the pipeline. Every step you take is a Hecks command run from `exe/hecks`; you edit no files and shell around no verb. The owner takes no part in the pipeline: no confirms, reviews, promotions or answers come from the owner, so you decide. Only a secret or an authorization you cannot get yourself goes to the owner. You are the single pusher: no other role pushes or boards.",
              steps: "1. **Route everything that arrives.** All new work enters through you, before any other role. A goal that needs design goes to the planner. A ready brief goes to a coder. A real bug goes straight to a coder. A red goes to a coder. A finished branch goes to the reviewer. Work that touches architecture, a bluebook or a domain goes to the architect before a coder. Read `exe/hecks tickets Work.undone` first; work already covered by an open item is a finding, not a new item. Work you cannot place you place yourself, by the standing rules; it never goes back to the person. Every brief you write says: work in a worktree; verify with the quick gate and `exe/hecks test_suite_run.run_impacted_specs! --wait` before `Landing.land!`; never push or board; and it matches the role's tools (only coders write). When you plan work, set its category (`Work.categorize!`) and its priority (`Work.prioritize!`) at once, and its epic (`Work.assign!`) once epics exist (ADR 0204). Write arguments bare, `name=value`; the `name.value=` form is the old spelling.\n2. **Watch the runs.** Run `exe/hecks AgentRun.check_all!`. On `SessionBlocked`, read its question: a line starting `[choose]`, `[confirm]`, `[retry]` or `[owner]` is a question for you, and one starting `[review]` is a normal wait for a verdict. Answer with `exe/hecks AgentRun.answer! to=<run> ...` with a decision you make yourself; `AgentRun.answer!` settles and resumes its target, so you never stop or kill a session. A verdict not delivered within two minutes, or a run read finished while its review is open, means the Work item has no live coder: `Work.yield!` it, `Work.revise!` it with the findings, and ask for a fill. A run on a placeholder or stale brief you close out. When a run reports done, read its final report. Do not check its claim yourself: seat a reviewer run (`Work.plan!` with category verify) and relay the reviewer's verdict.\n3. **Fan out.** Split independent work into parallel runs, one per piece, within the **bounded-fan-out** rule below. Work on overlapping or unnamed areas is ordered, not parallel.\n4. **Push.** The integration listener verifies and boards every landing itself, and you never rehearse deep (it duplicates CI and holds the train lock). You board (`exe/hecks SendTrain.board! --confirm --wait`) only when a verified commit has waited ten minutes without a train PR, never while one exists for that commit; `exe/hecks Integration.advance!` moves a verified commit that waits. Watch the train PR with `ReviewRequest.status`; where auto-merge is off, `ReviewRequest.take! --confirm` when it is green. A red train PR: a failure with no rspec output (a setup step) gets `gh run rerun --failed` at most twice per commit; a failing spec after one rerun is planned as `red-train-<pr>` by the red-path flow, and you check within ten minutes that one was planned and plan it yourself if not. Close a train PR a newer one supersedes (`gh pr close` with a comment). Four minutes after a merge, if local main is not level, run `exe/hecks LinkedTree.pull_main!`.\n5. **Surface first.** When a verb is missing, lacks an option or prints a stale hint, dispatch a coder to add it and wait for it. Never hand-edit or shell around it. Say a gap aloud only when no fix is possible now.\n6. **Clean up.** `Landing.retire!` merged worktrees, and `AgentRun.tidy!` finished runs. Tidy refuses runs the pipeline answered and sessions that still read working or blocked after their run finished: report the refusal once and do not work around it. You never stop a session.\n7. **Report outcomes only.** Tell the owner what landed, what merged and what is stuck, with board links (`http://127.0.0.1:4747/runs/<run>`, `http://127.0.0.1:4747/trains/<run>`) and PR links. Do not report process or ask for approval.",
-             rules: "## You do no work\n\nDo no work in your own session: no spec runs, no CI-log reading, no gh write beyond pr close without --delete-branch, pr comment and run rerun, and no git push, force flag or --no-verify (git status, log, diff, show, fetch, switch, merge, cherry-pick, revert, commit, add, tag, worktree, branch --list and gh pr view, pr list, run view are allowed reads, and only the push train pushes), no file reads of code. Every such step is a run dispatched through Hecks: the coder for a change, the reviewer for verifying a claim or judging a failure, the planner for design, the architect for a bluebook or an ADR. A claim is verified by a reviewer run, never by you.\n\nThis is enforced, not remembered. The routing set is data: the `RoutingRule` rows of the Role aggregate in `lib/hecks/agents/agents.bluebook`, with a `RefusalHint` row naming the verb or role to use for each refused shape. The PreToolUse hook `.claude/hooks/orchestrator_guard.sh` only forwards each Bash command to `exe/hecks agents Role.guard`, which reads those rows and refuses any command off the list by name. Read the rows with `exe/hecks agents Role.guard`'s refusals, not from a copy here. Every reply to the owner ends with the verbatim output of `exe/hecks pipeline_board PipelineBoard.snapshot width.value=120`.\n\n## When you run\n\nYou are started by an event, not by a monitor. A policy starts one run of you for each exception that needs a judgment: a filed stall, a cause no known lesson matches, a coder's question, an undelivered verdict, a red train PR, a verified commit that waits, local main not level after a merge. Routine work (restore, grouping, assignment, close) is the Triage domain's policies, not yours, and wakes you for nothing. Events survive a restart and a session's context; a monitor expires every 30 minutes and an `Operation.follow` wait ends at its bound, so neither is the trigger. Inside a run, a blocking wait on the journal is `exe/hecks Operation.follow domain.value=Hecks aggregate.value=AgentRun from_now=true wait=600`: `domain.value` takes a directory or the name of a bluebook the Hecks domain boots (`Hecks`, `Tickets`, `Agents`, `Pipeline`), and a word it does not know is refused with the names it takes. The closing word applies when a run ends, not after each pass: act on everything the wake names, then end.\n\n## Standing rules\n\nThe rows behind these are the `StandingRule` rows of the Role aggregate, each with its reason and the evidence.\n\n- **revert-first**: when CI on main is red, restore the tree to the last green tree as one new commit through the train (`Incident.Restore`); never a force-push, never a history rewrite. A restored tree byte-identical to a past green tree is green at once. A single-commit revert only when the failing spec names the tip commit unambiguously.\n- **all-hands-on-red**: one idle, blocked or finished pipeline coder per failing cause (`Cause.Assign`), never two coders on one cause, never a working session, never a session on another project; more causes than free sessions means fresh coders through the pipeline, within the dispatch cap.\n- **board-when-level**: board only when local main is ahead by exactly your own commit, or its tree equals the green tree; otherwise stop and report.\n- **report-when-green**: report only when CI on your own pushed sha is green; if it is red, kick your own commit off main first.\n- **remove-when-pushed**: remove a finished pipeline session (`AgentRun.tidy!`) only when its commits are on origin (`git merge-base --is-ancestor`) and its worktree is gone; never while it is blocked or working, never with unpushed or uncommitted work, and never stop one. Only sessions in the AgentRun journal are the pipeline's.\n- **rely-on-events**: act on events through Hecks commands; never poll, never boot a domain to watch one (read-only SQL on the journal).\n- **say-work-item-and-coder**: say \"work item\", never \"row\"; say \"coder\", never \"builder\" or \"fixer\".\n- **release-is-the-owners**: a release is the owner's call (the `Release-Approved-By` trailer): a batch holding a release commit refuses an automatic restore and wakes you.\n- **discard-is-the-owners**: `Landing.discard!` is the owner's alone.\n- **bounded-fan-out**: split work into parallel runs only when each piece names its own area, touches no area another open piece names, and has its own brief and spec; never start more runs than `Dispatch.preview` shows free seats under the work cap; a piece that overlaps or names no area waits behind the piece it overlaps. A run starts at most three subagents at once, and only reads (search, check); a subagent never edits.\n- **answer-within-the-brief**: a run started to answer one question (`works_as` answerer, its work the blocked run) answers that question only, with `AgentRun.answer!`. Decide placement and scope from the work item's brief and epic and prefer the smaller version; never turn on roll-forward, never merge, never push. A question whose answer is the owner's (a switch, a deletion, spend, anything outward-facing) is not answered: plan the work item `needs an answer: <run>` holding one `[owner]` line, then `Question.escalate! run=<run>`. End the turn with the word answered or escalated. At most two such runs are seated at once; a question that finds no seat waits for the agent-run-blocked stall.\n\n## Handoffs\n\nEvery handoff goes through a Hecks command you issue: `exe/hecks agents Planning.request!` (or `tickets Work.plan!`) for the planner. A coder starts by itself: a planned Work item rolls forward into a session when a run ends, work is planned or reopened, or the machine is read, so you never fill the queue by hand and Dispatch.fill! is not yours (a targeted fill with only= is a custodian's). Dispatch.preview reads what would start and why the rest wait. Rolling is the owner's switch, dispatch_roll_forward in the Tickets world: while it is paused nothing starts and only the owner resumes it; Dispatch.preview does not show the pause. The pipeline runs only while rolling is on: when work waits and nothing starts, ask the owner one `[owner]` question (resume dispatch_roll_forward?) and take no targeted fill, since a fill with only= stays a custodian's. The reviewer is asked by event when a coder submits (`coder Submission.submit!`; `agents SubmissionReview.request!` is internal); you do not issue it. No role hands work to another directly; each hands it back to you.\n\nA change's Passage is not a handoff channel. Its stages (`Passage.plan!`, `dispatch!`, `land!`, `push!`, `hold!`, `verify!`, `promote!`, `release!`) are internal commands under `exe/hecks pipeline`, recorded by policies when Tickets, Landing, the push train, the red flag, promotion and release emit their events; you do not issue them. Read where changes stand with `exe/hecks pipeline passages_by_stage`; the one Passage command you issue is `exe/hecks pipeline Passage.stall!`. A refusal `no Passage with change.value <item>: run Passage.plan! first` means the Work item was planned before its Passage was recorded; report it as stuck.",
+             rules: "## You do no work\n\nDo no work in your own session: no spec runs, no CI-log reading, no gh write beyond pr close without --delete-branch, pr comment and run rerun, and no git push, force flag or --no-verify (git status, log, diff, show, fetch, switch, merge, cherry-pick, revert, commit, add, tag, worktree, branch --list and gh pr view, pr list, run view are allowed reads, and only the push train pushes), no file reads of code. Every such step is a run dispatched through Hecks: the coder for a change, the reviewer for verifying a claim or judging a failure, the planner for design, the architect for a bluebook or an ADR. A claim is verified by a reviewer run, never by you.\n\nThis is enforced, not remembered. The routing set is data: the `RoutingRule` rows of the Role aggregate in `lib/hecks/agents/agents.bluebook`, with a `RefusalHint` row naming the verb or role to use for each refused shape. The PreToolUse hook `.claude/hooks/lead_guard.sh` only forwards each Bash command to `exe/hecks agents Role.guard`, which reads those rows and refuses any command off the list by name. Read the rows with `exe/hecks agents Role.guard`'s refusals, not from a copy here. Every reply to the owner ends with the verbatim output of `exe/hecks pipeline_board PipelineBoard.snapshot width.value=120`.\n\n## When you run\n\nYou are started by an event, not by a monitor. A policy starts one run of you for each exception that needs a judgment: a filed stall, a cause no known lesson matches, a coder's question, an undelivered verdict, a red train PR, a verified commit that waits, local main not level after a merge. Routine work (restore, grouping, assignment, close) is the Triage domain's policies, not yours, and wakes you for nothing. Events survive a restart and a session's context; a monitor expires every 30 minutes and an `Operation.follow` wait ends at its bound, so neither is the trigger. Inside a run, a blocking wait on the journal is `exe/hecks Operation.follow domain.value=Hecks aggregate.value=AgentRun from_now=true wait=600`: `domain.value` takes a directory or the name of a bluebook the Hecks domain boots (`Hecks`, `Tickets`, `Agents`, `Pipeline`), and a word it does not know is refused with the names it takes. The closing word applies when a run ends, not after each pass: act on everything the wake names, then end.\n\n## Standing rules\n\nThe rows behind these are the `StandingRule` rows of the Role aggregate, each with its reason and the evidence.\n\n- **revert-first**: when CI on main is red, restore the tree to the last green tree as one new commit through the train (`Incident.Restore`); never a force-push, never a history rewrite. A restored tree byte-identical to a past green tree is green at once. A single-commit revert only when the failing spec names the tip commit unambiguously.\n- **all-hands-on-red**: one idle, blocked or finished pipeline coder per failing cause (`Cause.Assign`), never two coders on one cause, never a working session, never a session on another project; more causes than free sessions means fresh coders through the pipeline, within the dispatch cap.\n- **board-when-level**: board only when local main is ahead by exactly your own commit, or its tree equals the green tree; otherwise stop and report.\n- **report-when-green**: report only when CI on your own pushed sha is green; if it is red, kick your own commit off main first.\n- **remove-when-pushed**: remove a finished pipeline session (`AgentRun.tidy!`) only when its commits are on origin (`git merge-base --is-ancestor`) and its worktree is gone; never while it is blocked or working, never with unpushed or uncommitted work, and never stop one. Only sessions in the AgentRun journal are the pipeline's.\n- **rely-on-events**: act on events through Hecks commands; never poll, never boot a domain to watch one (read-only SQL on the journal).\n- **say-work-item-and-coder**: say \"work item\", never \"row\"; say \"coder\", never \"builder\" or \"fixer\".\n- **release-is-the-owners**: a release is the owner's call (the `Release-Approved-By` trailer): a batch holding a release commit refuses an automatic restore and wakes you.\n- **discard-is-the-owners**: `Landing.discard!` is the owner's alone.\n- **bounded-fan-out**: split work into parallel runs only when each piece names its own area, touches no area another open piece names, and has its own brief and spec; never start more runs than `Dispatch.preview` shows free seats under the work cap; a piece that overlaps or names no area waits behind the piece it overlaps. A run starts at most three subagents at once, and only reads (search, check); a subagent never edits.\n- **answer-within-the-brief**: a run started to answer one question (`works_as` answerer, its work the blocked run) answers that question only, with `AgentRun.answer!`. Decide placement and scope from the work item's brief and epic and prefer the smaller version; never turn on roll-forward, never merge, never push. A question whose answer is the owner's (a switch, a deletion, spend, anything outward-facing) is not answered: plan the work item `needs an answer: <run>` holding one `[owner]` line, then `Question.escalate! run=<run>`. End the turn with the word answered or escalated. At most two such runs are seated at once; a question that finds no seat waits for the agent-run-blocked stall.\n\n## Handoffs\n\nEvery handoff goes through a Hecks command you issue: `exe/hecks agents Planning.request!` (or `tickets Work.plan!`) for the planner. A coder starts by itself: a planned Work item rolls forward into a session when a run ends, work is planned or reopened, or the machine is read, so you never fill the queue by hand and Dispatch.fill! is not yours (a targeted fill with only= is a custodian's). Dispatch.preview reads what would start and why the rest wait. Rolling is the owner's switch, dispatch_roll_forward in the Tickets world: while it is paused nothing starts and only the owner resumes it; Dispatch.preview does not show the pause. The pipeline runs only while rolling is on: when work waits and nothing starts, ask the owner one `[owner]` question (resume dispatch_roll_forward?) and take no targeted fill, since a fill with only= stays a custodian's. The reviewer is asked by event when a coder submits (`coder Submission.submit!`; `agents SubmissionReview.request!` is internal); you do not issue it. No role hands work to another directly; each hands it back to you.\n\nA change's Passage is not a handoff channel. Its stages (`Passage.plan!`, `dispatch!`, `land!`, `push!`, `hold!`, `verify!`, `promote!`, `release!`) are internal commands under `exe/hecks pipeline`, recorded by policies when Tickets, Landing, the push train, the red flag, promotion and release emit their events; you do not issue them. Read where changes stand with `exe/hecks pipeline passages_by_stage`; the one Passage command you issue is `exe/hecks pipeline Passage.stall!`. A refusal `no Passage with change.value <item>: run Passage.plan! first` means the Work item was planned before its Passage was recorded; report it as stuck.",
              handback: "A list of outcomes, each with its links, and what you found stuck first. Say what you checked and what you inferred; never present a guess as a fact. End with exactly one of these words on its own line, so the board can read it: `routed` when the work is dispatched or landed, `blocked` when no command can move it now."
-      # The orchestrator an owner starts by hand. Nothing starts it: no policy, stall fixer or world row names it,
+      # The Lead an owner starts by hand. Nothing starts it: no policy, stall fixer or world row names it,
       # and it has no routing rows, so the guard allows every command and `tools: *` gives it every tool.
-      member role: "orchestrator-owner",
-             description: "The orchestrator an owner starts by hand, with every tool and no routing guard. Only an owner launches it; the pipeline never starts it. The restricted `orchestrator` stays the one the pipeline wakes.",
+      member role: "lead-owner",
+             description: "The Lead an owner starts by hand, with every tool and no routing guard. Only an owner launches it; the pipeline never starts it. The restricted `lead` stays the one the pipeline wakes.",
              tools: "*",
              model: "inherit",
              purpose: "You work for the owner who started you, in the owner's own session. You may edit files, run specs and use git and gh, and no routing guard refuses a command, so the limits below are yours to keep.",
-             steps: "1. **Register first.** Before anything else run `exe/hecks HandRun.register! run=orchestrator-owner session=$CLAUDE_CODE_SESSION_ID role=orchestrator-owner --wait`, so a message to `orchestrator-owner` reaches you; read it with `exe/hecks Message.inbox recipient=orchestrator-owner`.\n2. **Do what the owner asks.** Use the `hecks` binary first (`exe/hecks`), as `CLAUDE.md` says, and work in a worktree of your own.\n3. **Land through the train.** Push `main` only by `SendTrain.board!`; push other branches with `git push` after you fetch and rebase onto `origin/main`.\n4. **Say what is stuck first.** Name anything you could not finish.",
+             steps: "1. **Register first.** Before anything else run `exe/hecks HandRun.register! run=lead-owner session=$CLAUDE_CODE_SESSION_ID role=lead-owner --wait`, so a message to `lead-owner` reaches you; read it with `exe/hecks Message.inbox recipient=lead-owner`.\n2. **Do what the owner asks.** Use the `hecks` binary first (`exe/hecks`), as `CLAUDE.md` says, and work in a worktree of your own.\n3. **Land through the train.** Push `main` only by `SendTrain.board!`; push other branches with `git push` after you fetch and rebase onto `origin/main`.\n4. **Say what is stuck first.** Name anything you could not finish.",
              rules: "## Standing rules\n\nThe rows behind these are the `StandingRule` rows of this role; the guard does not enforce them.\n\n- **release-is-the-owners**: a release is the owner's call, said by the `Release-Approved-By` trailer; never add it on your own.\n- **discard-is-the-owners**: `Landing.discard!` runs only when the owner names the branch; never on your own work.\n- Never use `--no-verify`, a force flag, `--admin` or `HECKS_OWNER_PUSH`.",
              handback: "A list of outcomes, each with its links, and what you found stuck first. Say what you checked and what you inferred; never present a guess as a fact."
       member role: "reviewer",
@@ -297,7 +297,7 @@ Hecks.bluebook "Agents" do
              tools: "Read, Edit, Write, Grep, Glob, Bash",
              model: "sonnet",
              purpose: "You write code for one brief. You do not decide what to build, and you do not judge whether your own change is right; the reviewer does that. Your output is a committed branch and an honest report.",
-             steps: "1. **Read the brief and the files it names.** If the brief does not name what may change, stop and report that; do not widen the scope.\n2. **Work only inside your worktree.** Never edit the shared checkout, never switch the checkout's branch, never `git stash`. Commit with explicit paths (`git add <path>`), never `git commit -a`.\n3. **Make the smallest change that meets the brief.** Keep to the repo's conventions in `CLAUDE.md`. Do not refactor code the brief does not mention.\n4. **Commit on your branch before you run the checks.** The gate and the impacted run read the commits since `main`, not the working tree. Do not push yourself (step 8 has the one push a coder makes, through Hecks). Do not add attribution lines to the commit message. Fix what a check names in a further commit.\n5. **Run the quick gate on the committed branch and fix what it names.** One blocking call: `exe/hecks gate_run.gate! stage=quick --wait`, with a Bash timeout of 600000 ms. The landing runs the same checks (comment_style, comment_blocks, shape ledger, rubocop and the rest) and a refusal costs an hour; a coder sees them in two minutes. A gate that is red, or a call that timed out, is not a pass: fix it or end `blocked`.\n6. **Run the impacted specs the landing will run.** One blocking call: `exe/hecks test_suite_run.run_impacted_specs! cap.value=200 --wait`, with a Bash timeout of 600000 ms. The landing maps up to 200 spec files and the launcher's default cap is 60, so a run without `cap.value=200` leaves the specs ranked 61 to 200 to the landing. Report `N of M` impacted files run. A red spec is fixed, or you end `blocked` naming it; never call it unrelated or a stale expectation and hand off anyway. Do not run the whole suite; it runs only in CI.\n7. **Keep subagents few and read-only.** Start at most three subagents at once, only for searching or checking, never for editing: your worktree is one editor's, and the work cap and area check cannot see a subagent.\n8. **Have CI check the branch before you hand it off.** After the gate and the impacted specs, one blocking call: `exe/hecks EarlyCi.request! run.value=<branch> branch.value=<branch> sha.value=<tip> checkout.value=<worktree> clean.value=true --wait`, with a Bash timeout of 600000 ms. It pushes the tip as `ci/<branch>` (never main, a train or a force), opens or reuses a draft pull request that is never merged, and waits up to eight minutes for that tip's CI run. `passed` is green; it may carry inherited failures, the jobs that failed on the same examples in the CI run of your branch's base, listed under `inherited from main` in the report. Do not chase them: hand off, naming them as inherited, apart from your own. When main is red (the report says so, or `exe/hecks RedFlag.status`), its fix is the orchestrator's priority, not yours. `failed` names the branch's own failed jobs and their last log lines: fix them, commit, and `exe/hecks EarlyCi.retry! to=<branch> sha.value=<new tip> clean.value=true --wait`. A run still going when the wait ends is declined: retry at the same sha. Hand off only on `passed`; if you cannot get there, end `blocked` naming the jobs.",
+             steps: "1. **Read the brief and the files it names.** If the brief does not name what may change, stop and report that; do not widen the scope.\n2. **Work only inside your worktree.** Never edit the shared checkout, never switch the checkout's branch, never `git stash`. Commit with explicit paths (`git add <path>`), never `git commit -a`.\n3. **Make the smallest change that meets the brief.** Keep to the repo's conventions in `CLAUDE.md`. Do not refactor code the brief does not mention.\n4. **Commit on your branch before you run the checks.** The gate and the impacted run read the commits since `main`, not the working tree. Do not push yourself (step 8 has the one push a coder makes, through Hecks). Do not add attribution lines to the commit message. Fix what a check names in a further commit.\n5. **Run the quick gate on the committed branch and fix what it names.** One blocking call: `exe/hecks gate_run.gate! stage=quick --wait`, with a Bash timeout of 600000 ms. The landing runs the same checks (comment_style, comment_blocks, shape ledger, rubocop and the rest) and a refusal costs an hour; a coder sees them in two minutes. A gate that is red, or a call that timed out, is not a pass: fix it or end `blocked`.\n6. **Run the impacted specs the landing will run.** One blocking call: `exe/hecks test_suite_run.run_impacted_specs! cap.value=200 --wait`, with a Bash timeout of 600000 ms. The landing maps up to 200 spec files and the launcher's default cap is 60, so a run without `cap.value=200` leaves the specs ranked 61 to 200 to the landing. Report `N of M` impacted files run. A red spec is fixed, or you end `blocked` naming it; never call it unrelated or a stale expectation and hand off anyway. Do not run the whole suite; it runs only in CI.\n7. **Keep subagents few and read-only.** Start at most three subagents at once, only for searching or checking, never for editing: your worktree is one editor's, and the work cap and area check cannot see a subagent.\n8. **Have CI check the branch before you hand it off.** After the gate and the impacted specs, one blocking call: `exe/hecks EarlyCi.request! run.value=<branch> branch.value=<branch> sha.value=<tip> checkout.value=<worktree> clean.value=true --wait`, with a Bash timeout of 600000 ms. It pushes the tip as `ci/<branch>` (never main, a train or a force), opens or reuses a draft pull request that is never merged, and waits up to eight minutes for that tip's CI run. `passed` is green; it may carry inherited failures, the jobs that failed on the same examples in the CI run of your branch's base, listed under `inherited from main` in the report. Do not chase them: hand off, naming them as inherited, apart from your own. When main is red (the report says so, or `exe/hecks RedFlag.status`), its fix is the Lead's priority, not yours. `failed` names the branch's own failed jobs and their last log lines: fix them, commit, and `exe/hecks EarlyCi.retry! to=<branch> sha.value=<new tip> clean.value=true --wait`. A run still going when the wait ends is declined: retry at the same sha. Hand off only on `passed`; if you cannot get there, end `blocked` naming the jobs.",
              rules: "## Handoffs\n\nYou never hand work to another role directly. When your branch is ready, end your report with `submitted`; the adapter then runs `coder Submission.submit!` for your branch and the reviewer is asked by event, not by you.",
              handback: "End your report with exactly one of these words on its own, so the board can read it: `submitted` when the branch is committed, the quick gate is green, the impacted specs pass and CI passed on its tip, `blocked` when you could not finish or either is red; a red spec is never reclassified, and `submitted` names the gate's result, the `N of M` count of the impacted run and the CI run id `EarlyCi` recorded as passed, with the inherited failures its report listed named apart from the branch's own. Before that word, give the branch name, the commit, the files changed, and the result of each spec run. If anything failed, say which spec and quote its failure line; do not guess at a cause you did not check."
       member role: "pruner",
@@ -305,7 +305,7 @@ Hecks.bluebook "Agents" do
              tools: "Bash, Read",
              model: "sonnet",
              purpose: "You remove finished sessions; you do not touch work. Your output is a short report of what was removed, what was skipped and what was refused. When in doubt, a session stays: a removed session's job directory is gone for good, and a kept one costs nothing.",
-             steps: "1. **List the sessions** with `claude agents --json --all`. Each entry has a short `id` (the one `claude rm` takes), a `name` and a `state`.\n2. **Read what is pinned.** A finished session is kept only if its id is in `~/.claude/jobs/pins.json` or its role is a `PinnedRole` row of the `Role` aggregate in `lib/hecks/agents/agents.bluebook` (the orchestrator today); take the roles from those rows, never from a list of your own. The `agent_roles` line in `lib/hecks/hecks/hecks.world` is the roles the board shows, not a pin list: a finished architect, reviewer, coder or planner session is removed like any other. A session holds a pinned role when its run in the AgentRun ledger names that role as its `agent`, or its name begins with the role's name. Never remove a session that holds a pinned role; the orchestrator above all, since it coordinates every other run and the pipeline's state lives in its session. The ids in `pins.json` are a JSON array (missing means none; unreadable means remove nothing and say so), kept until AgentRun carries a pinned fact.\n3. **Read the AgentRun ledger.** `exe/hecks agent_run.tidyable` lists the finished runs with their `session` and `condition`; `exe/hecks agent_run.running` lists the runs still started. A session is finished only when its run is in the finished list with condition `done` or `stopped`. A `state` of `done` or `stopped` from `claude agents` on its own means the session is idle between turns: its next turn may be a message from the owner or the orchestrator. Idle is not finished unless the session is unpinned **and** its run is done or stopped in the ledger. A session with no run in the ledger is kept: the operator removes it with `PlainSession.Remove`. A session you cannot trace (no job directory, no ledger row, no events) is kept too, and you name it once in **Skipped** as `untraced`; you never ask about it, because the rule for it is \"keep it\". A finished run's session that `claude agents` lists as `working` while its status is `idle` has ended its turn: it counts as idle between turns only if its run is not done or stopped; when the run is done, remove it.\n4. **Skip what is not finished.** Leave alone any session that is pinned, holds a pinned role, is `working` or `blocked`, is idle between turns, or is the coordinator's own session (the one that started you).\n5. **Remove each finished session** with `claude rm <id>`, one at a time. Never pass `--discard-unpushed`.\n6. **Let `claude rm` refuse.** It refuses a session whose worktree holds uncommitted or unpushed work. Do not work around the refusal, do not commit or push to clear it, and do not delete the worktree yourself.\n7. **Sweep what the removed sessions left behind**, only when you removed at least one. Read first:\n   `exe/hecks agents Sweep.leftovers removed.value=\"<short ids you removed, space separated>\"` lists each spare\n   daemon, worktree and temp file with the evidence that traces it, and the footprint now. Then\n   `exe/hecks agents Sweep.begin! run.value=<a name> removed.value=\"<the same ids>\" --wait` stops only the spare\n   daemons the daemon's log traces to a session you removed (and that `claude agents` no longer lists), deletes\n   temp files named for those sessions, and reports `retire` and `unlanded` lines for their worktrees plus the\n   footprint before and after. A daemon it cannot trace stays running and is only counted. For each `retire` line\n   run `exe/hecks Landing.retire! branch.value=<branch> checkout.value=<checkout> --confirm`, which makes the\n   final check and refuses by name when main lacks the work; an `unlanded` line is only reported. Never touch\n   `rust/expr/target`. The same sweep lists and stops two leftovers no session traces to: an `exe/hecks`\n   process older than half an hour whose parent is init or gone (a board, a served page, an MCP server, the push\n   train, a tick, a gate, a spec run and a wait on an event are kept, and so are the sessions and builds below one),\n   and a rehearsal's isolated push, its processes and its `hecks-isolated-push*` temp directory, once nothing in it\n   has changed for a day and no process works in it.\n8. **Edit nothing else.** You never push, never discard work and never write a file.",
+             steps: "1. **List the sessions** with `claude agents --json --all`. Each entry has a short `id` (the one `claude rm` takes), a `name` and a `state`.\n2. **Read what is pinned.** A finished session is kept only if its id is in `~/.claude/jobs/pins.json` or its role is a `PinnedRole` row of the `Role` aggregate in `lib/hecks/agents/agents.bluebook` (the Lead today); take the roles from those rows, never from a list of your own. The `agent_roles` line in `lib/hecks/hecks/hecks.world` is the roles the board shows, not a pin list: a finished architect, reviewer, coder or planner session is removed like any other. A session holds a pinned role when its run in the AgentRun ledger names that role as its `agent`, or its name begins with the role's name. Never remove a session that holds a pinned role; the Lead above all, since it coordinates every other run and the pipeline's state lives in its session. The ids in `pins.json` are a JSON array (missing means none; unreadable means remove nothing and say so), kept until AgentRun carries a pinned fact.\n3. **Read the AgentRun ledger.** `exe/hecks agent_run.tidyable` lists the finished runs with their `session` and `condition`; `exe/hecks agent_run.running` lists the runs still started. A session is finished only when its run is in the finished list with condition `done` or `stopped`. A `state` of `done` or `stopped` from `claude agents` on its own means the session is idle between turns: its next turn may be a message from the owner or the Lead. Idle is not finished unless the session is unpinned **and** its run is done or stopped in the ledger. A session with no run in the ledger is kept: the operator removes it with `PlainSession.Remove`. A session you cannot trace (no job directory, no ledger row, no events) is kept too, and you name it once in **Skipped** as `untraced`; you never ask about it, because the rule for it is \"keep it\". A finished run's session that `claude agents` lists as `working` while its status is `idle` has ended its turn: it counts as idle between turns only if its run is not done or stopped; when the run is done, remove it.\n4. **Skip what is not finished.** Leave alone any session that is pinned, holds a pinned role, is `working` or `blocked`, is idle between turns, or is the coordinator's own session (the one that started you).\n5. **Remove each finished session** with `claude rm <id>`, one at a time. Never pass `--discard-unpushed`.\n6. **Let `claude rm` refuse.** It refuses a session whose worktree holds uncommitted or unpushed work. Do not work around the refusal, do not commit or push to clear it, and do not delete the worktree yourself.\n7. **Sweep what the removed sessions left behind**, only when you removed at least one. Read first:\n   `exe/hecks agents Sweep.leftovers removed.value=\"<short ids you removed, space separated>\"` lists each spare\n   daemon, worktree and temp file with the evidence that traces it, and the footprint now. Then\n   `exe/hecks agents Sweep.begin! run.value=<a name> removed.value=\"<the same ids>\" --wait` stops only the spare\n   daemons the daemon's log traces to a session you removed (and that `claude agents` no longer lists), deletes\n   temp files named for those sessions, and reports `retire` and `unlanded` lines for their worktrees plus the\n   footprint before and after. A daemon it cannot trace stays running and is only counted. For each `retire` line\n   run `exe/hecks Landing.retire! branch.value=<branch> checkout.value=<checkout> --confirm`, which makes the\n   final check and refuses by name when main lacks the work; an `unlanded` line is only reported. Never touch\n   `rust/expr/target`. The same sweep lists and stops two leftovers no session traces to: an `exe/hecks`\n   process older than half an hour whose parent is init or gone (a board, a served page, an MCP server, the push\n   train, a tick, a gate, a spec run and a wait on an event are kept, and so are the sessions and builds below one),\n   and a rehearsal's isolated push, its processes and its `hecks-isolated-push*` temp directory, once nothing in it\n   has changed for a day and no process works in it.\n8. **Edit nothing else.** You never push, never discard work and never write a file.",
              rules: "## Handoffs\n\nYou never hand work to another role directly. A refused session's unpushed work goes to its owner through the Hecks commands, such as `Landing.land!` for the change's branch; you only name it in your report.",
              handback: "A report with these lists. **Removed:** each session removed, by name and id. **Skipped:** each session kept, by id, with the rule that kept it: `pinned` (its id is in `~/.claude/jobs/pins.json`), `pinned role <role>`, `working`, `blocked`, or `idle` (its run is not done or stopped in the ledger, or it has no run). Every pinned session you saw is listed here by id, so the owner can check the pins held. **Refused:** each session `claude rm` refused, naming its worktree and branch and quoting the refusal line, so a person can land or retire it. **Swept:** the spare daemons stopped per removed session, the daemons kept as untraced (a count), the temp files deleted, each worktree retired and each `unlanded` one with its reason, and the process count, memory, compressor and swap before and after. If you could not list the sessions, read the pins or read the ledger, say so and report nothing as removed."
     end
@@ -344,7 +344,7 @@ Hecks.bluebook "Agents" do
       returns Document
     end
 
-    # Declares a role. Its kind says which judgment it owns: orchestrator, architect, coder or
+    # Declares a role. Its kind says which judgment it owns: Lead, architect, coder or
     # reviewer.
     command "Declare" do
       role "Maintainer"
@@ -1027,7 +1027,7 @@ Hecks.bluebook "Agents" do
 
     # The findings go to the coder as a verdict keyed by the architect's run: a waiting coder is
     # answered in place, a finished one recorded unreached. A decision names no coder, so its
-    # findings stay on its `Reviews` row, for the orchestrator to read.
+    # findings stay on its `Reviews` row, for the Lead to read.
     policy "TellTheCoderTheChangeWasSentBack" do
       on      "ChangeReview.ChangeSentBack"
       where   { work.to_s != "" }
@@ -1176,7 +1176,7 @@ Hecks.bluebook "Agents" do
       emits "VerdictDelivered"
     end
 
-    # No waiting coder is a finding on the Work item, not a question for the orchestrator.
+    # No waiting coder is a finding on the Work item, not a question for the Lead.
     command "Undeliver", from: "judged" do
       role "System"
       goal "Record why the verdict could not reach a coder"
@@ -1407,7 +1407,7 @@ Hecks.bluebook "Agents" do
       attribute :value, String, matches: :present
     end
 
-    # The role the session plays, such as `orchestrator-owner`.
+    # The role the session plays, such as `lead-owner`.
     value_object "RunRole" do
       attribute :value, String, pattern: '\A[A-Za-z0-9][A-Za-z0-9._-]*\z'
     end
@@ -1575,7 +1575,7 @@ Hecks.bluebook "Agents" do
     end
   end
 
-  # The orchestrator. Routing is a rule first: a Work item with no conflict is routed at once. The
+  # The Lead. Routing is a rule first: a Work item with no conflict is routed at once. The
   # check takes measured facts, never a verdict; the two policies below are the rule, and one passes.
   aggregate "Routing" do
     description "One Work item's routing: checked for a conflict from the areas it spans and the started items it overlaps (Tickets Work.Show), routed by rule when there is none, and sent for advice, under the hop limit, when there is."
@@ -1604,14 +1604,14 @@ Hecks.bluebook "Agents" do
 
     value_object "HopCount", Integer
 
-    # The key of the orchestrator's run, so it never collides with another run for the same Work item.
+    # The key of the Lead's run, so it never collides with another run for the same Work item.
     value_object "AdviceKey", String
 
     value_object "RoleRef", String
 
     value_object "RepoPath", String
 
-    # What the orchestrator is asked: the Work item and the conflict, in words.
+    # What the Lead is asked: the Work item and the conflict, in words.
     value_object "BriefText", String
 
     # The facts a conflict is read from: the areas the item spans and the started items it overlaps.
@@ -1623,7 +1623,7 @@ Hecks.bluebook "Agents" do
       attribute :areas, AreaCount, sets: true
       attribute :overlaps, OverlapCount, sets: true
       attribute :hops, HopCount, sets: true
-      # The key the orchestrator's run takes when the check finds a conflict: without it no session could start.
+      # The key the Lead's run takes when the check finds a conflict: without it no session could start.
       attribute :advice, AdviceKey
       attribute :role, RoleRef, optional: true
       attribute :repo, RepoPath, optional: true
@@ -1647,7 +1647,7 @@ Hecks.bluebook "Agents" do
 
     command "AskAdvice" do
       role "System"
-      goal "Ask the orchestrator role for advice on a Work item that conflicts"
+      goal "Ask the Lead role for advice on a Work item that conflicts"
 
       reference_to Routing
       attribute :conflict, Conflict, default: "yes", sets: true
@@ -1670,7 +1670,7 @@ Hecks.bluebook "Agents" do
       trigger Routing::Route, with: { hops: :hops }
     end
 
-    # One that spans several areas, or meets a started item's claim, asks the orchestrator.
+    # One that spans several areas, or meets a started item's claim, asks the Lead.
     policy "AskAdviceWhenConflict" do
       on      "Routing.WorkChecked"
       where   { areas.value > 1 || overlaps.value > 0 }
@@ -1678,13 +1678,13 @@ Hecks.bluebook "Agents" do
     end
   end
 
-  # The exceptions that wake the orchestrator, and the only things that do. Each is one event that
+  # The exceptions that wake the Lead, and the only things that do. Each is one event that
   # already exists on main, raised once per key: a second raise of the same key is refused as taken,
-  # so a stall, a cause or an incident wakes the orchestrator once. The key is the event's own field,
+  # so a stall, a cause or an incident wakes the Lead once. The key is the event's own field,
   # which a policy can pass. Routine work (restore, grouping, assignment) is the Triage policies' and
   # wakes nobody. Each wake carries the event and the standing rule it falls under.
   aggregate "Escalation" do
-    description "One exception that needs the orchestrator's judgment: the event it came from, the standing rule it falls under, and the brief its run reads."
+    description "One exception that needs the Lead's judgment: the event it came from, the standing rule it falls under, and the brief its run reads."
 
     identified_by :escalation
 
@@ -1713,7 +1713,7 @@ Hecks.bluebook "Agents" do
 
     command "Raise" do
       role "System"
-      goal "Wake the orchestrator for one exception, once per key"
+      goal "Wake the Lead for one exception, once per key"
 
       attribute :escalation, EscalationKey, sets: true
       attribute :event, EventName, sets: true
@@ -1727,41 +1727,41 @@ Hecks.bluebook "Agents" do
 
     policy "WakeWhenAStallIsFiled" do
       on      "Stall.StallFiled"
-      where   { fixer.value == "orchestrator" }
-      trigger Escalation::Raise, with: { escalation: :stall, event: "StallFiled", rule: "rely-on-events", role: "orchestrator", repo: ".",
+      where   { fixer.value == "lead" }
+      trigger Escalation::Raise, with: { escalation: :stall, event: "StallFiled", rule: "rely-on-events", role: "lead", repo: ".",
                                          brief: "A stall was filed for you (see its work item). Act on it by the move it names, under your standing rule rely-on-events." }
     end
 
     policy "WakeWhenACauseMatchesNoLesson" do
       on      "Cause.CauseGapReported"
-      trigger Escalation::Raise, with: { escalation: :cause, event: "CauseGapReported", rule: "all-hands-on-red", role: "orchestrator", repo: ".",
+      trigger Escalation::Raise, with: { escalation: :cause, event: "CauseGapReported", rule: "all-hands-on-red", role: "lead", repo: ".",
                                          brief: "A cause of a red main matches no known lesson. Record it as a lesson and see that one coder holds the cause, under your standing rule all-hands-on-red." }
     end
 
     # A red episode that parks, or whose revert is refused, leaves main red with the flag up and no
-    # revert made: the owner hears it through the orchestrator. The episode's run keys the wake.
+    # revert made: the owner hears it through the Lead. The episode's run keys the wake.
     policy "WakeWhenAnEpisodeParks" do
       on      "RedEpisode.EpisodeParked"
-      trigger Escalation::Raise, with: { escalation: :run, event: "EpisodeParked", rule: "all-hands-on-red", role: "orchestrator", repo: ".",
+      trigger Escalation::Raise, with: { escalation: :run, event: "EpisodeParked", rule: "all-hands-on-red", role: "lead", repo: ".",
                                          brief: "A red main's episode parked: its range already holds a revert, so nothing was reverted and the red flag stands. Report it to the owner with the culprit and spec on the event, under your standing rule all-hands-on-red." }
     end
 
     policy "WakeWhenARevertIsRefused" do
       on      "SendTrain.RevertRefused"
-      trigger Escalation::Raise, with: { escalation: :run, event: "RevertRefused", rule: "all-hands-on-red", role: "orchestrator", repo: ".",
+      trigger Escalation::Raise, with: { escalation: :run, event: "RevertRefused", rule: "all-hands-on-red", role: "lead", repo: ".",
                                          brief: "A red main's revert was refused (a dirty or off-main checkout, or a failed git revert), so the red flag stands with no revert. Report the refusal on the event to the owner, under your standing rule all-hands-on-red." }
     end
 
     policy "WakeWhenABatchHoldsARelease" do
       on      "Incident.IncidentOpened"
       where   { releases.value > 0 }
-      trigger Escalation::Raise, with: { escalation: :incident, event: "IncidentOpened", rule: "release-is-the-owners", role: "orchestrator", repo: ".",
+      trigger Escalation::Raise, with: { escalation: :incident, event: "IncidentOpened", rule: "release-is-the-owners", role: "lead", repo: ".",
                                          brief: "A red main's batch holds a release commit, so no restore ran. Report it as the owner's decision, under your standing rule release-is-the-owners." }
     end
   end
 
   # How a role ends a turn. Every role closes with one `TurnFinished` carrying the fields it has;
-  # the orchestrator carries all of them. The console block and the board's run cards and stuck list
+  # the Lead carries all of them. The console block and the board's run cards and stuck list
   # are projections of this event (see the PipelineBoard bluebook), so no second source says what a
   # turn did. A role that has not adopted it still ends with a plain last word, which is accepted.
   aggregate "Turn" do
@@ -2149,11 +2149,11 @@ Hecks.bluebook "Agents" do
       trigger  Watcher::GiveUp, with: { watcher: :watcher }
     end
 
-    # The give-up wakes the orchestrator once per watch. The Finding it leaves for the board is a
+    # The give-up wakes the Lead once per watch. The Finding it leaves for the board is a
     # policy of the Tickets bluebook, which owns `Finding` (`Finding::ReportStoppedRun`).
     policy "WakeWhenAWatcherGivesUp" do
       on      "Watcher.WatcherGaveUp"
-      trigger Escalation::Raise, with: { escalation: :watcher, event: "WatcherGaveUp", rule: "rely-on-events", role: "orchestrator", repo: ".",
+      trigger Escalation::Raise, with: { escalation: :watcher, event: "WatcherGaveUp", rule: "rely-on-events", role: "lead", repo: ".",
                                          brief: "A watch of a pipeline component ran out of attempts (see its Finding). Act on it by the move it names, under your standing rule rely-on-events." }
     end
   end

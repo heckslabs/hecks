@@ -1,12 +1,12 @@
 require "spec_helper"
 require_relative "support/stand_in_claude"
 
-# A conflicting Work item asks the orchestrator for advice, and that event starts its session
+# A conflicting Work item asks the Lead for advice, and that event starts its session
 # through AgentRun. The check is handed facts (the areas the item spans, the started items it
 # overlaps) and the bluebook's rule finds the conflict. A stand-in `claude` starts the session, so
 # no real one runs: the spec shows the advice request becomes a run under a minted key, its brief
-# naming the Work item, and a check with no conflict starts no orchestrator.
-RSpec.describe "an advice request starting the orchestrator's session" do
+# naming the Work item, and a check with no conflict starts no Lead.
+RSpec.describe "an advice request starting the Lead's session" do
   include_context "with a stand-in claude"
 
   before(:all) do
@@ -17,7 +17,7 @@ RSpec.describe "an advice request starting the orchestrator's session" do
 
   def check(work, overlaps, hops: 1, areas: 1)
     launch("agents", "Routing.check!", "work.value=#{work}", "areas.value=#{areas}", "overlaps.value=#{overlaps}",
-           "hops.value=#{hops}", "advice.value=advice-#{work}", "role.value=orchestrator", "repo.value=#{scratch}",
+           "hops.value=#{hops}", "advice.value=advice-#{work}", "role.value=lead", "repo.value=#{scratch}",
            "brief.value=Work item #{work} conflicts", "--wait").first.to_s
   end
 
@@ -26,16 +26,16 @@ RSpec.describe "an advice request starting the orchestrator's session" do
   def runs = @hecks.registry.repository("Hecks", @hecks.registry.bluebook("Hecks").aggregate("AgentRun"))
 
   def advised(work)
-    runs.all.select { |run| run[:agent]&.value == "orchestrator" && run[:brief]&.value.to_s.include?("#{work} ") }
+    runs.all.select { |run| run[:agent]&.value == "lead" && run[:brief]&.value.to_s.include?("#{work} ") }
   end
 
-  it "starts the orchestrator's run for an overlapping Work item, under a minted key", :aggregate_failures do
+  it "starts the Lead's run for an overlapping Work item, under a minted key", :aggregate_failures do
     check("w-conflict", 1)
     expect(advised("w-conflict").size).to eq(1)
     expect(runs.find("advice-w-conflict")).to be_nil
   end
 
-  it "starts the orchestrator's run for a Work item that spans several areas" do
+  it "starts the Lead's run for a Work item that spans several areas" do
     check("w-wide", 0, areas: 2)
     expect(advised("w-wide").size).to eq(1)
   end
@@ -47,7 +47,7 @@ RSpec.describe "an advice request starting the orchestrator's session" do
 
   it "refuses a check that names no advice key, by name", :aggregate_failures do
     refused = launch("agents", "Routing.check!", "work.value=w-keyless", "areas.value=2", "overlaps.value=0",
-                     "hops.value=1", "role.value=orchestrator", "repo.value=#{scratch}", "brief.value=x", "--wait").first.to_s
+                     "hops.value=1", "role.value=lead", "repo.value=#{scratch}", "brief.value=x", "--wait").first.to_s
     expect(refused).to include("advice")
     expect(running).not_to include("w-keyless")
   end

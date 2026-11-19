@@ -21,7 +21,7 @@ module StallSettledLooks
     with_tap do
       dispatch("Hecks::Stall.File", watch: "look-0", stall: { value: "stall-load-stall-x" }, kind: { value: "load" },
                                     subject: { value: "stall-x" }, opened_at: { value: "t" }, waited: { value: 9 },
-                                    minutes: { value: 5 }, forgets: { value: 60 }, fixer: { value: "orchestrator" },
+                                    minutes: { value: 5 }, forgets: { value: 60 }, fixer: { value: "lead" },
                                     title: { value: "t" }, detail: { value: "d" })
     end
   end

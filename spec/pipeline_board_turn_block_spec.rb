@@ -16,7 +16,7 @@ RSpec.describe "the console block of a TurnFinished" do
 
   it "is headed with the role and time", :aggregate_failures do
     block = journal_over(full_turn).turn_block[:text].lines.map(&:chomp)
-    expect(block.first).to eq("--- turn finished: orchestrator @ 2026-11-08T00:41Z ---")
+    expect(block.first).to eq("--- turn finished: Lead @ 2026-11-08T00:41Z ---")
     expect(block).to include("verdict   routed", "landed    399811d02 recognise a squash-carried train")
   end
 
