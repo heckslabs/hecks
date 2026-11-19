@@ -22,6 +22,15 @@ module Hecks
       # @return [String] the command's declared name
       def command_hecks_name = command.hecks_name
 
+      # The command's fully qualified verb, `Domain::Aggregate.Command`, or
+      # `Domain::Aggregate.Entity.Command` in a context that names an entity.
+      #
+      # @return [String] the verb
+      def command_verb
+        entity = respond_to?(:entity_name) ? entity_name : nil
+        "#{domain}::#{[aggregate_hecks_name, entity, command_hecks_name].compact.join(".")}"
+      end
+
       # @return [Array] the command's ensures clauses
       def command_ensures = command.ensures
 
