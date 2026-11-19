@@ -5,6 +5,7 @@ require "hecks/rust_build/world_rows"
 require_relative "../machine_sampling/marks"
 require_relative "../machine_sampling/readings"
 require_relative "../machine_sampling/states"
+require "hecks/signalbox/adapters/pressure_signal"
 
 module Hecks
   module Adapters
@@ -17,7 +18,8 @@ module Hecks
       # world's `heavy_jobs` line, and holds no place while it waits, so a job held for memory
       # blocks no other. After the world's `memory_give_up_seconds` (else {GIVE_UP_AFTER}) it gives
       # up and the job runs, saying so on stderr and at the top of the job's report; either way the
-      # note carries the reading that held it.
+      # note carries the reading that held it. While the owner has `signalbox_pressure` drive it and
+      # Signalbox's signal is current, the job waits while the signal is in the short band instead.
       class MemoryWait
         # The Tickets world verb whose line carries the poll interval.
         VERB = "heavy_jobs"
@@ -41,7 +43,8 @@ module Hecks
         # @return [MemoryWait] the wait that reads this machine
         def self.of(root)
           declared = RustBuild::WorldRows.row(root, MachineSampling::Marks::VERB)
-          new(marks: MachineSampling::Marks.laid_over(declared), poll: poll_of(root), give_up: give_up_of(root))
+          new(marks: MachineSampling::Marks.laid_over(declared), poll: poll_of(root), give_up: give_up_of(root),
+              pressure: -> { PressureSignal.at_root(root) })
         end
 
         # @param marks [Hash{Symbol => Float}] see {MachineSampling::Marks}
@@ -51,7 +54,8 @@ module Hecks
         # @param err [#puts] where the waiting note goes
         # @param timing [Hash] `give_up:` is the seconds to wait before the job runs anyway,
         #   `GIVE_UP_AFTER` when absent; `clock:` answers the time in seconds and `pause:`
-        #   sleeps the given seconds; the monotonic clock and `sleep` when absent
+        #   sleeps the given seconds; the monotonic clock and `sleep` when absent; `pressure:`
+        #   answers Signalbox's current signal, nil while it does not drive (never, when absent)
         def initialize(marks:, poll:, readings: MachineSampling::Readings.new, err: $stderr, **timing)
           @marks = marks
           @poll = poll
@@ -60,6 +64,7 @@ module Hecks
           @give_up = timing.fetch(:give_up, GIVE_UP_AFTER)
           @clock = timing.fetch(:clock) { -> { Process.clock_gettime(Process::CLOCK_MONOTONIC) } }
           @pause = timing.fetch(:pause) { ->(seconds) { sleep(seconds) } }
+          @pressure = timing.fetch(:pressure) { -> {} }
         end
 
         # Waits while memory is low.
@@ -82,11 +87,20 @@ module Hecks
         # Whether memory is low now, judged from the state the last look left, so a reading in the
         # gap between the marks keeps a wait going until memory has recovered.
         def low?
+          signal = @pressure.call
+          return signalled_low?(signal) if signal
+
           before = @state ? { memory: @state } : {}
           reading = @readings.call
           @state = MachineSampling::States.new(reading, @marks, before).to_h[:memory_state]
           @held = reading if @state == "low"
           @state == "low"
+        end
+
+        # The short band holds the job while the signal drives; its words are the note's reading.
+        def signalled_low?(signal)
+          @said = PressureSignal.said(signal)
+          PressureSignal.short?(signal)
         end
 
         def waited(started)
@@ -97,6 +111,8 @@ module Hecks
         # The reading that held the job, against the marks it was judged by; a gauge the machine
         # did not answer prints `unread`, never a gap.
         def held_by
+          return @said if @said
+
           r = @held || {}
           "swap #{figure(r[:swap_used_mb], 0)} MB over #{@marks[:swap_used_mb].round}, " \
             "compressor #{figure(r[:compressor_gb], 1)} GB over #{@marks[:compressor_gb]}, " \
