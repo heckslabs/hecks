@@ -2707,9 +2707,10 @@ Hecks.bluebook "Hecks" do
     end
 
     # A change review that asks the architect starts its session as a run keyed by the review's run,
-    # with no Work item, so its verdict is read as a change review's and never as a plan review's.
+    # with no Work item; a root, since counted from the submission its start is past the depth limit.
     policy "StartTheArchitectOnChangeReview" do
       on      "ChangeReview.ChangeReviewRequested"
+      root
       trigger AgentRun::Dispatch,
               with: { run: :run, repo: :checkout, agent: "architect",
                       brief: "Review the design of a submitted change: read your review with exe/hecks agents " \
