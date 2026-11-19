@@ -3,6 +3,7 @@
 require "json"
 require_relative "architect_verdict"
 require_relative "session_hooks"
+require_relative "credential_scrub"
 
 module Hecks
   module Adapters
@@ -17,19 +18,25 @@ module Hecks
       # @param command [String] the command that starts sessions
       # @param nice [Array<String>] the niceness prefix, empty for none
       # @param hooks [SessionHooks] says the hooks a run's session carries
-      def initialize(command:, nice:, hooks: SessionHooks.new(launcher: nil))
+      # @param credentials [#scrub?] says whether a role's session starts without credentials
+      #   ({Dispatching::CredentialSetting}); none is scrubbed by default
+      def initialize(command:, nice:, hooks: SessionHooks.new(launcher: nil), credentials: KEPT)
         @command = command
         @nice = nice
         @hooks = hooks
+        @credentials = credentials
       end
+
+      # Keeps every session's credentials.
+      KEPT = Object.new.tap { |kept| kept.define_singleton_method(:scrub?) { |_agent| false } }.freeze
 
       # @param held [Hash] the `AgentRun` record: `repo`, `brief`, and `agent` when named
       # @param environment [Hash{String => String}] what the session's own commands should see
       # @return [Array<String>] the argument list
       def arguments(held, environment = {})
         agent = plain(held[:agent])
-        [*@nice, @command, *(agent ? ["--agent", agent] : []), *settings(environment, plain(held[:run])), "--bg", "--",
-         briefed(plain(held[:brief]), agent)]
+        [*@nice, @command, *(agent ? ["--agent", agent] : []), *settings(environment, plain(held[:run]), agent), "--bg",
+         "--", briefed(plain(held[:brief]), agent)]
       end
 
       private
@@ -37,12 +44,15 @@ module Hecks
       # A background session does not take the environment of the process that starts it, so the
       # variables its commands read (today the caller name) go in the settings `env` block, which
       # Claude Code applies to every command the session runs. The `hooks` block makes the session
-      # announce its own end (see {SessionHooks}).
+      # announce its own end (see {SessionHooks}). A role the world scrubs also carries
+      # {CredentialScrub}'s variables and deny rules.
       # @return [Array<String>] the `--settings` flag and its JSON, or nothing for no env or hooks
-      def settings(environment, run)
-        block = { "env" => environment, "hooks" => @hooks.for(run) }.reject { |_, value| value.empty? }
+      def settings(environment, run, agent)
+        block = scrubbed({ "env" => environment, "hooks" => @hooks.for(run) }, agent).reject { |_, value| value.empty? }
         block.empty? ? [] : ["--settings", JSON.generate(block)]
       end
+
+      def scrubbed(block, agent) = @credentials.scrub?(agent) ? CredentialScrub.onto(block) : block
 
       # @return [String] the brief, with the verdict format added for the architect
       def briefed(brief, agent) = agent == "architect" ? "#{brief}#{ArchitectVerdict::REQUEST}" : brief.to_s
