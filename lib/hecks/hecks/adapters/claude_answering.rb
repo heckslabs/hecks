@@ -38,14 +38,15 @@ module Hecks
       #   answer comes with the session's next step (it leads the prompt), and `agent` when the run
       #   has a role, which the resume passes as `--agent` so its MCP server narrows itself again
       # @return [Hash{Symbol => Object}] `resumed_at:` an ISO 8601 string; `session:` the id the
-      #   run follows, its own unless the CLI started a copy; and `note:` what the CLI said of that
-      #   copy, when it did
+      #   run follows, its own unless the CLI started a copy; `note:` what the CLI said of that
+      #   copy, when it did; and `pinned_role:` the run's pinned role, empty when it has none
       # @raise [ConsoleCapture::Failure] when the session is not listed or the command refuses
       def resume(**held)
         id = plain(held[:session])
-        @jobs.woken(ClaudeResumption.new(@command, @shell, nice: niceness)
-                                    .call(id, listed(id), prompt(held), env: named(held), chdir: plain(held[:repo]),
-                                                                        agent: plain(held[:agent])))
+        started = ClaudeResumption.new(@command, @shell, nice: niceness)
+                                  .call(id, listed(id), prompt(held), env: named(held), chdir: plain(held[:repo]),
+                                                                      agent: plain(held[:agent]))
+        @jobs.woken(started).merge(pinned_role: @holder.pinned_role(held))
       end
 
       private
