@@ -3,7 +3,8 @@
 module Hecks
   module Adapters
     module InProcessOperations
-      # The domain a follow names: a directory, or a bluebook that the Hecks domain boots.
+      # The domain a follow names: a directory, or a bluebook that the Hecks domain boots. A follow
+      # that names none follows the Hecks domain, the one the query belongs to.
       #
       # A word that holds a path separator is a directory. A bare word is first a bluebook name of
       # the Hecks domain (`Hecks`, `Tickets`, `agents`, `quality_control`), which boots that
@@ -12,7 +13,7 @@ module Hecks
       # a name needs anyway, so a refusal costs no boot a follow would not have made.
       module DomainNames
         # The Hecks domain's directory, the one the launcher boots, in a checkout or a gem.
-        HOME = File.expand_path("../..", __dir__)
+        HECKS_DOMAIN = File.expand_path("../..", __dir__)
 
         private
 
@@ -20,15 +21,21 @@ module Hecks
         #
         # @raise [Runtime::NotFound] when the word is no bluebook name and no directory
         def followed_registry(domain)
+          return hecks_registry if plain(domain).nil?
+
           word = plain(domain).to_s
           return boot(domain).registry if path_word?(word)
 
-          home = boot(HOME).registry
+          home = hecks_registry
           return home if names_a_bluebook?(home, word)
           return boot(word).registry if Dir.exist?(word)
 
           raise Runtime::NotFound, unknown_domain(word, home)
         end
+
+        # The booted Hecks domain: what a follow naming no domain reads, and where a name is
+        # looked up.
+        def hecks_registry = boot(HECKS_DOMAIN).registry
 
         # An empty word (the enclosing domain) or one holding a path separator is a directory.
         def path_word?(word) = word.empty? || word.include?(File::SEPARATOR)

@@ -29,6 +29,15 @@ RSpec.describe "the full spec suite runs only in CI", :aggregate_failures do
 
   def failure = Hecks::Adapters::ConsoleCapture::Failure
 
+  def rehearsal_cap = codebase::ImpactedSpecs::DEFAULT_CAP
+
+  # Stands in for the impacted run, so the arguments it is called with can be read.
+  def stub_impacted
+    instance_double(codebase::ImpactedSpecs, call: "mapped").tap do |impacted|
+      allow(codebase::ImpactedSpecs).to receive(:new).and_return(impacted)
+    end
+  end
+
   def codebase = Hecks::Adapters::Codebase
 
   def rows(name) = Hecks::Vocabulary.rows(name)
@@ -167,6 +176,13 @@ RSpec.describe "the full spec suite runs only in CI", :aggregate_failures do
       perform("run_impacted_specs")
 
       expect(impacted).to have_received(:call).with(hash_including(cap: limit))
+    end
+
+    it "caps a run in CI that names none at the rehearsal's cap, compared with origin/main" do
+      ENV["CI"] = "true"
+      impacted = stub_impacted
+      perform("run_impacted_specs")
+      expect(impacted).to have_received(:call).with(hash_including(cap: rehearsal_cap, base: "origin/main"))
     end
   end
 
