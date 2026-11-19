@@ -15,7 +15,7 @@ RSpec.describe Hecks::Adapters::Dispatching::Settler do
     stale = run("finished", "stopped")
     allow(items).to receive(:runs).and_return(stale, stale, run("started", "working"))
 
-    expect(described_class.new(items, launcher).call).to eq([])
+    expect(described_class.new(items, launcher).call).to eq(["left a: its session is still working"])
     expect(launcher).not_to have_received(:yield_back)
   end
 end

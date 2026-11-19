@@ -66,10 +66,10 @@ RSpec.describe Hecks::Adapters::Dispatching do
     context "when the session is still running" do
       let(:runs) { { "a" => { status: "started", condition: "" } } }
 
-      it "asks the session and settles nothing", :aggregate_failures do
+      it "asks the session and says the work item was left because its session is not done", :aggregate_failures do
         lines = described_class::Settler.new(work_items, launcher).call
 
-        expect(lines).to eq([])
+        expect(lines).to eq(["left a: its session has not said how it is yet"])
         expect(launcher).to have_received(:check_all)
       end
     end
