@@ -512,14 +512,10 @@ Hecks.bluebook "Hecks" do
         where(status: "started", run: :run)
       end
 
-      # A run's standing is one of four, read from its lifecycle `status` and, while it is
-      # started, the `condition` its last check recorded: `working` and `blocked` are started runs,
-      # `ended` a finished or tidied one, `gone` one retired because its session is gone. A reader
-      # that shows a run's state takes it from these, never from `condition` alone: an ended run
-      # keeps the condition it ended with, and a run retired before `Retired` recorded `gone`
-      # keeps the one it was last checked in.
+      # A run's standing (working, blocked, ended, gone) is read from these four, never from
+      # `condition` alone: an ended run keeps the condition it ended with.
       query "Working" do
-        description "Every started run whose session is not waiting on a person, oldest key first."
+        description "Every started run whose session is not waiting on a person, oldest key first; its standing is working."
         where(status: "started", condition: { ne: "blocked" })
         order_by :run
       end
