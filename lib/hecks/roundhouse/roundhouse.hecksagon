@@ -1,14 +1,13 @@
 # The Roundhouse bluebook, bound so it boots standing alone (a behaviors or model_check boot of this
-# directory). It persists in Memory and is wired into nothing yet (ADR 0222, phase 1).
+# directory). It persists in Memory. The ports it shares with every attaching hecksagon are in
+# roundhouse.ports.hecksagon.
 Hecks.hecksagon "Roundhouse" do
   attaches "Governance"
   persisted_by "Memory"
 
-  # Signalbox's decisions, which Roundhouse carries out. Signalbox is not attached in phase 1.
-  subscribe "Signalbox.SessionAdmitted"
-  subscribe "Signalbox.ResponseDeferred"
-  subscribe "Signalbox.ResponseLeft"
-  subscribe "Signalbox.BreakerShed"
+  # Signalbox decides and Roundhouse carries it out, on one bus: attaching Signalbox puts its events
+  # (an admission, a deferral, a send-home, a shed) on the bus Roundhouse's policies hear.
+  attaches "Signalbox"
 end
 
 # The anti-corruption layer for Governance, which the bluebook's roles are checked against.
