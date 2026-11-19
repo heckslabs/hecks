@@ -25,6 +25,7 @@ Hecks.context_map "Hecks" do
   context "Agents"
   context "Triage"
   context "Delivery"
+  context "Signalbox"
 
   # Deploy's `Tenant` is a validated request; Tenancy's `Tenant` is a fact. Tenancy's hecksagon
   # translates Deploy's `TenantProvisioned` into its own `Register`, so Deploy's model never reaches it.

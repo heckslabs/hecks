@@ -3,6 +3,7 @@
 require_relative "../area_overlap"
 require_relative "parking"
 require_relative "../work_slots"
+require_relative "pressure_limits"
 
 module Hecks
   module Adapters
@@ -115,11 +116,12 @@ module Hecks
           @limits[:paused] || budget_reason(item) || overloaded(@limits[:max_load]) || capped(item)
         end
 
-        # An expedited item passes the boot budget, a pause by load and the load limit (ADR 0224):
-        # memory low, a load over the CPU count, or another expedited item still holds it.
+        # An expedited item passes the boot budget, a pause by load or by the short band, and the
+        # load limit (ADR 0224): memory low, a load over the CPU count, or another expedited item
+        # still holds it.
         def expedite_stop(item)
           pause = @limits[:paused]
-          held = pause unless pause == LOAD_PAUSE
+          held = pause unless pause == LOAD_PAUSE || PressureLimits.pause?(pause)
           held || overloaded(@limits.fetch(:cpus, @limits[:max_load])) || expedite_held(item)
         end
 

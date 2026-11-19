@@ -57,6 +57,10 @@ Hecks.world "Tickets" do
   # Tap, 24 runs: verifying 14 min median, 31.5 max; CI is read every 2. `merged` times like `ci_running`.
   integration_bound "Integration", verifying: 60, boarding: 30, pushed: 45, ci_running: 90,
                                    reverifying: 60, merged: 90
+  # `signalbox_pressure` (ADR 0222, phase 3b): while `drives` is true the load guards, the moving
+  # cap and the heavy-jobs gate read Signalbox's posted pressure signal instead of their own
+  # readings, each keeping its own while the signal is dark. Off until the owner turns it.
+  signalbox_pressure "Signalbox", drives: false
   dispatch_max_load "Dispatch", limit: 10.0
   # `roundhouse: true` moves every Delegate reader of load from `uptime` to Roundhouse's `Load`
   # query (ADR 0222, metering); off, each Machine reading keeps it beside as `metered_load`.
