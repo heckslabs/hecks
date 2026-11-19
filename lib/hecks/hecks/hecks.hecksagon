@@ -413,6 +413,21 @@ Hecks.hecksagon "Hecks" do
       answers "RestartAnswered"
       refuses "RestartRefused"
     end
+    # Reruns the one failed job of a CI run whose failure the bluebook judged unrelated to the change.
+    asks "RestartJob", to: TrainPr do
+      attribute :key, Key
+      attribute :ci_run, Word
+      attribute :job, Word
+      attribute :pr, Word
+      attribute :examples, Report
+      attribute :work, Word
+      attribute :title, Word
+      attribute :failure, Report
+      attribute :cause, Word
+      attribute :step, Report
+      answers "RestartJobAnswered"
+      refuses "RestartJobRefused"
+    end
   end
 
   # Closes and reopens a train pull request whose CI never started, leaving the marker comment that
