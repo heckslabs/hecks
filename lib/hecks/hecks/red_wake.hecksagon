@@ -1,13 +1,7 @@
-# The port RedWake declares, beside hecks.hecksagon: same-name blocks merge, and the LoadOrder
-# reads every bluebook before any hecksagon, so the Hecks bluebook is there when this loads. It is
-# not a `<name>.ports.hecksagon`: that suffix is read only for a member bluebook, not the Hecks
-# directory, whose loader takes every `*.hecksagon`.
-#
-# A wake of the orchestrator for a red main is weighed against main's red flag: whether the flag
-# stands, its id and the run a session for it takes, and whether this is the main checkout.
+# RedWake's port, beside hecks.hecksagon: same-name blocks merge, and every bluebook loads first.
+# A plain name, not `.ports.hecksagon`: the Hecks directory reads every `*.hecksagon`.
 Hecks.hecksagon "Hecks" do
-  # The same port as RedFlag's, so one adapter answers both: a port's asks reach only its own
-  # aggregate.
+  # RedFlag's port too, so one adapter answers both: a port's asks reach only its own aggregate.
   Hecks::RedWake.port "Flagging" do
     asks "Weigh", to: RedWake do
       attribute :escalation, WakeKey
