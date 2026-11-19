@@ -6,7 +6,8 @@ module Hecks
       # The planning page, answered by the board's web adapter at `/plan`. The page is drawn from
       # the plan tile once and held for {FRESH_SECONDS}; a request after that is answered with the
       # held page at once while one background draw makes the next, so a request never waits on the
-      # readers or on the lock a journal redraw holds. Only the first request draws in line.
+      # readers or on the lock a journal redraw holds. Only the first request draws in line. The
+      # page is the board's own project's, chosen in the project chooser ({ProjectPlans}).
       module PlanPage
         # The page file, which holds a `<!--tile:plan-->` mark where the plan tile is drawn.
         PATH = File.expand_path("plan.html", __dir__)
@@ -25,7 +26,8 @@ module Hecks
         private
 
         def draw_plan_page
-          html = @pushed.page(File.read(PATH))
+          chooser = ProjectPlans.chooser(ProjectPlans.own)
+          html = @pushed.page(File.read(PATH)).sub(ProjectPlans::CHOOSER) { chooser }
           @plan_held = { html: html, at: monotonic }
           html
         end
