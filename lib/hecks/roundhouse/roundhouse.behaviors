@@ -3,7 +3,7 @@ Hecks.behaviors "Roundhouse" do
 
   # Given is each test's setup; When is the command; Then is the expectation. Roundhouse decides
   # nothing: each session here was admitted by Signalbox, whose admission key it carries.
-  loads "roundhouse.bluebook", "roundhouse.hecksagon"
+  loads "roundhouse.bluebook", "roundhouse.hecksagon", "roundhouse.ports.hecksagon"
 
   # ---- Law 5: every session closes its circuit ----
 
