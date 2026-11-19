@@ -89,7 +89,9 @@ module Hecks
       private
 
       def started
-        StartedWork.items(@registry).map { |item| Dispatching::Plan::Item.new(key: item[:key], title: item[:title].to_s) }
+        StartedWork.items(@registry).map do |item|
+          Dispatching::Plan::Item.new(key: item[:key], title: item[:title].to_s, priority: item[:priority].to_s)
+        end
       end
 
       def over?(item, others, limit)

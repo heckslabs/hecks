@@ -872,7 +872,7 @@ Hecks.bluebook "Tickets" do
 
     # How soon an item is wanted. Unset means nobody has said.
     value_object "Priority" do
-      attribute :value, String, one_of: %w[now next later]
+      attribute :value, String, one_of: %w[expedite now next later]
     end
 
     lifecycle :status, default: "planned" do
@@ -1007,8 +1007,25 @@ Hecks.bluebook "Tickets" do
       attribute :priority, Priority, sets: true
 
       given("a done or dropped work item takes no priority") { status != "done" && status != "dropped" }
+      given("expedite is the orchestrator's: Work.expedite!") { priority.value != "expedite" }
 
       emits "WorkPrioritized"
+    end
+
+    # Priority `expedite`, above `now`: started after a red fix, in the one place outside the cap,
+    # past the epic limit and boot budget, held by load only above the CPU count (ADR 0224).
+    command "Expedite" do
+      role "Orchestrator"
+      goal "Put one open work item ahead of the queue, so it starts without anyone changing the cap; its claim, step and area stay"
+
+      reference_to Work
+      # Declared as Prioritize declares it, so WorkExpedited says the priority it set.
+      attribute :priority, Priority, optional: true, sets: true, default: { value: "expedite" }
+
+      given("a done or dropped work item is not expedited") { status != "done" && status != "dropped" }
+      given("Work.expedite! sets expedite and no other priority") { priority.value == "expedite" }
+
+      emits "WorkExpedited"
     end
 
     # An open work item is given its place in the plan: within one priority Dispatch starts the lowest step
