@@ -951,10 +951,19 @@ pub fn emit_command(
             command,
             value_objects_by_name,
         );
-        let create_block = format!(
-            "crate::kernel::Hydrate::Create {{\n        id: __hydrate_id,\n        build: Box::new(|| {record} {{\n{}\n        }}),\n        state_independent: {state_independent},\n    }}",
-            record_fields.join("\n")
-        );
+        // A `creates_or_acts` command acts on the record it finds and builds one only when
+        // nothing answers to it, so it has no existence check to defer.
+        let create_block = if creates_or_acts(command) {
+            format!(
+                "crate::kernel::Hydrate::CreateOrAct {{\n        id: __hydrate_id,\n        build: Box::new(|| {record} {{\n{}\n        }}),\n    }}",
+                record_fields.join("\n")
+            )
+        } else {
+            format!(
+                "crate::kernel::Hydrate::Create {{\n        id: __hydrate_id,\n        build: Box::new(|| {record} {{\n{}\n        }}),\n        state_independent: {state_independent},\n    }}",
+                record_fields.join("\n")
+            )
+        };
 
         // A route on a creating command is checked against its derived identity (`TypeMismatch`)
         // only when `complete_state_creation` holds; otherwise it forces find-or-`NotFound`.
@@ -1806,4 +1815,9 @@ pub fn emit_nested_entity_command(
         nested_dispatch_fn,
     ]
     .join("\n\n")
+}
+
+/// Whether a creating command acts on the record its identity already names (`creates_or_acts`).
+fn creates_or_acts(command: &Json) -> bool {
+    command.get("creates_or_acts").is_some_and(Json::as_bool)
 }

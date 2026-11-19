@@ -3045,6 +3045,14 @@ RSpec.describe "the DSL surface" do
       expect(build_command("CmdOpen") { goal "feed people" }.policy_only?).to be(false)
     end
 
+    it "creates_or_acts says the command acts on the record its identity already names" do
+      expect(build_command("CmdCreatesOrActs") { creates_or_acts }.creates_or_acts?).to be(true)
+    end
+
+    it "only creates unless it says creates_or_acts" do
+      expect(build_command("CmdOnlyCreates") { goal "feed people" }.creates_or_acts?).to be(false)
+    end
+
     it "is not idempotent unless it says so" do
       expect(build_command("CmdPlain") { goal "feed people" }.idempotent?).to be(false)
     end

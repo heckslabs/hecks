@@ -12,15 +12,39 @@ Hecks.behaviors "Interviews" do
     expect emits: ["ExchangeRecorded"], status: "open"
   end
 
-  # Appending a later turn waits on a command that creates or acts; until then a second Record
-  # on the same interview is refused as a duplicate.
-  test "Record refuses an interview that is already open" do
+  test "Record opens then appends" do
     tests "Record", on: "Interview"
     setup "Interviews::Interview.Record", reference: { value: "INT-2" }, subject: { value: "tools" },
           keeping: { value: "committed" }, speaker: { value: "owner" }, answer: { value: "Behind ports." }
-    input reference: { value: "INT-2" }, subject: { value: "tools" }, keeping: { value: "committed" },
-          speaker: { value: "agent" }, answer: { value: "Agreed." }
-    expect refused: "already"
+    input reference: { value: "INT-2" }, speaker: { value: "agent" }, answer: { value: "Agreed." }
+    expect emits: ["ExchangeRecorded"], status: "open"
+  end
+
+  test "Record refuses an opening turn with no subject" do
+    tests "Record", on: "Interview"
+    input reference: { value: "INT-15" }, keeping: { value: "committed" }, speaker: { value: "owner" },
+          answer: { value: "Behind ports." }
+    expect refused: "an interview opens with its subject and how it is kept"
+  end
+
+  test "Record refuses a turn on a concluded interview" do
+    tests "Record", on: "Interview"
+    setup "Interviews::Interview.Record", reference: { value: "INT-16" }, subject: { value: "tools" },
+          keeping: { value: "committed" }, speaker: { value: "owner" }, answer: { value: "Behind ports." }
+    setup "Interviews::Interview.Conclude", interview: "INT-16"
+    input reference: { value: "INT-16" }, speaker: { value: "agent" }, answer: { value: "One more thing." }
+    expect refused: "turns are recorded only while the interview is open"
+  end
+
+  test "ProposePoint cites an exchange a later turn appended" do
+    tests "ProposePoint", on: "Interview"
+    setup "Interviews::Interview.Record", reference: { value: "INT-17" }, subject: { value: "tools" },
+          keeping: { value: "committed" }, speaker: { value: "owner" }, answer: { value: "Behind ports." }
+    setup "Interviews::Interview.Record", reference: { value: "INT-17" }, speaker: { value: "agent" },
+          answer: { value: "Agreed." }
+    input interview: "INT-17", number: { value: 1 }, kind: { value: "decision" },
+          statement: { value: "Tools dissolve behind ports" }, source: { value: 2 }
+    expect emits: %w[PointProposed OpenPointCounted], open_points: { value: 1 }
   end
 
   test "Record refuses a keeping that is neither committed nor local" do
@@ -115,8 +139,8 @@ Hecks.behaviors "Interviews" do
     expect refused: "every point is accepted, rejected or superseded before the interview ends"
   end
 
-  # The no-exchange refusal cannot be reached while Record opens an interview with its first
-  # exchange; the given stands for when a later command can open one empty.
+  # The no-exchange refusal cannot be reached: every Record, opening or later, appends an
+  # exchange. The given stands for when a command can open an interview empty.
   test "Conclude ends an interview whose every point is settled" do
     tests "Conclude", on: "Interview"
     setup "Interviews::Interview.Record", reference: { value: "INT-12" }, subject: { value: "tools" },
