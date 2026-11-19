@@ -11,7 +11,12 @@ module AgentsMessageHelpers
   def live_run = { status: "started", session: "5e55" }
 
   # Boots the Agents bluebook with the `Recipients` port bound.
-  def boot_messages = AgentsMemoryBoot.call(extra: PORTS)
+  def boot_messages = (@agents_runtime = AgentsMemoryBoot.call(extra: PORTS))
+
+  # Registers a hand-started session through the booted Agents bluebook.
+  def register_hand(run: "owner-orchestrator", session: "134d89bd-full", role: "orchestrator-owner")
+    Hecks::Agents::HandRun.register!(run: { value: run }, session: { value: session }, role: { value: role })
+  end
 
   # The runs the stand-in ledger holds, by key; every recipient the examples name is live.
   def recipients = { "run-a" => live_run, "run-b" => live_run, "orchestrator" => live_run }
@@ -19,8 +24,14 @@ module AgentsMessageHelpers
   # The session ids the stand-in listing shows.
   def listed_sessions = []
 
+  # The hand runs the stand-in reads, by key; none unless an example names some. An example that
+  # registers through `HandRun.register!` reads the booted rows by leaving this nil.
+  def hand_runs = nil
+
   def send_message(key: "m1", to: "run-a", kind: "answer", body: "use the smaller version", reply: "")
-    check = Hecks::Adapters::RecipientCheck.new(runs: -> { recipients }, listed: ->(id) { listed_sessions.include?(id) })
+    check = Hecks::Adapters::RecipientCheck.new(registry: @agents_runtime&.registry, runs: -> { recipients },
+                                                listed: ->(id) { listed_sessions.include?(id) },
+                                                hand_runs: hand_runs && -> { hand_runs })
     Hecks::Runtime::AdapterLookup.standing_in(->(_port, _asked) { check }) do
       Hecks::Agents::Message.send!(message: { value: key }, recipient: { value: to }, sender: { value: "orchestrator" },
                                    kind: { value: kind }, body: { value: body }, in_reply_to: { value: reply })
