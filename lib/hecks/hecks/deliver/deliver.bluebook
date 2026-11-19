@@ -1950,6 +1950,14 @@ Hecks.bluebook "Hecks" do
       trigger ReviewRequest::Sweep, with: { run: :beat }
     end
 
+    # A queued boarding has opened its train pull request, so a red, older one it carries is moot
+    # at once: the boarding asks the sweep the beat asks, keyed by its own run, a step sooner.
+    policy "SweepTrainPullRequestsWhenQueued" do
+      on      "SendTrain.BoardingQueued"
+      root
+      trigger ReviewRequest::Sweep, with: { run: :run }
+    end
+
     policy "SweepWhenAsked" do
       on      "ReviewRequest.PullRequestSweepRequested"
       ask     :tidy, with: { run: :run }
