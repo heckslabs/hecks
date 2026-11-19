@@ -98,14 +98,23 @@ module Hecks
         # The beat's lock: held by the job's shell for as long as its beat runs, so the next tick,
         # finding it held, ends at once instead of starting a second beat on top of a slow one. The
         # file is made first, because the lock does not create it; a killed shell frees the lock.
-        def lock = File.join(@home, ".claude", "hecks-dev", "train-beat.lock")
+        def lock = dev_file("train-beat.lock")
+
+        # Where a tick that found the lock held says it was skipped, so a beat that outruns its
+        # interval is seen and never stacked.
+        def overrun = dev_file("train-beat.overrun.log")
+
+        def dev_file(name) = File.join(@home, ".claude", "hecks-dev", name)
 
         def script
-          log = File.join(@home, ".claude", "hecks-dev", "train-beat.log")
           "cd #{@root} || exit 1\n" \
             "mkdir -p \"#{File.dirname(lock)}\" && : >> \"#{lock}\"\n" \
-            "zmodload zsh/system && zsystem flock -t 0 \"#{lock}\" 2>/dev/null || exit 0\n" \
-            "exe/hecks Heartbeat.Beat! beat=launchd-$(date +%s) --wait > \"#{log}\" 2>&1"
+            "zmodload zsh/system && zsystem flock -t 0 \"#{lock}\" 2>/dev/null || #{skipped}\n" \
+            "exe/hecks Heartbeat.Beat! beat=launchd-$(date +%s) --wait > \"#{dev_file("train-beat.log")}\" 2>&1"
+        end
+
+        def skipped
+          "{ echo \"$(date -u +%FT%TZ) beat skipped: the beat before it still runs\" >> \"#{overrun}\"; exit 0; }"
         end
 
         def domain = "gui/#{Process.uid}"
