@@ -33,6 +33,9 @@ module Hecks
       # The environment loads last, so `memory` still wins over a local database. A linked
       # worktree that keeps no local file reads the domain's own from the main checkout instead
       # (WorktreeBorrow), marked as lent; the working directory's files are read where they stand.
+      # Every local read is marked (see Bluebook::Lent), so a stale bind there to an aggregate the
+      # bluebook retired is left out and said instead of stopping the domain opening; the named
+      # environment's overlay is committed and stays unmarked.
       #
       # @param directory [String] the directory holding the `environments/` folder
       # @param environment [String, nil] the environment name; nil loads no named overlay
@@ -42,12 +45,21 @@ module Hecks
 
         WorktreeOverlay.warn_once(directory)
         own = WorktreeBorrow.directory(directory, env: overlay_env) || directory
-        Bluebook::Lent.during(own != directory) do
+        load_own(own, lent: own != directory)
+        Bluebook::Lent.during(:local) { load_each(Dir.pwd, LOCAL_FILES) } unless Dir.pwd == own
+        load_each(directory, overlay_files(environment)) if environment && environment != LOCAL_OVERLAY
+      end
+
+      # Loads the copy's own overlay and local files, marked as lent when another checkout's.
+      #
+      # @param own [String] the directory whose local files are read
+      # @param lent [Boolean] whether that directory is another checkout's
+      # @return [void]
+      def load_own(own, lent:)
+        Bluebook::Lent.during(lent ? :lent : :local) do
           load_each(own, overlay_files(LOCAL_OVERLAY))
           load_each(own, LOCAL_FILES)
         end
-        load_each(Dir.pwd, LOCAL_FILES) unless Dir.pwd == own
-        load_each(directory, overlay_files(environment)) if environment && environment != LOCAL_OVERLAY
       end
 
       # @return [#[]] the variables the worktree borrow reads: the process environment

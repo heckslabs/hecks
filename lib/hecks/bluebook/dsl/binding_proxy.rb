@@ -48,11 +48,11 @@ module Hecks
           return AttributePath.new(@fqn, [verb.to_s]) if args.empty? && kwargs.empty? && !block
 
           @collector << Bind.new(
-            aggregate: @fqn,
-            verb:      verb.to_s,
-            adapter:   args.first.to_s,
-            role:      kwargs[:role]&.to_s,
-            lent:      Lent.now?
+            aggregate:  @fqn,
+            verb:       verb.to_s,
+            adapter:    args.first.to_s,
+            role:       kwargs[:role]&.to_s,
+            provenance: Lent.provenance
           )
           block&.call
           self
