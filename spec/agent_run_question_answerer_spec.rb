@@ -5,7 +5,7 @@ require_relative "support/question_answerer_helpers"
 
 # A coder or a stall's fixer blocked on a question for the orchestrator gets one orchestrator run
 # that answers it, at most two such runs at once; an owner's question starts none and is left for
-# the owner, and an answerer's own block starts none.
+# the owner, and an answerer's own block starts none: the answerer ends, its question escalated.
 RSpec.describe "a coder blocked on a question" do
   include_context "with a stand-in claude"
   include WakesCoderHelpers
@@ -51,6 +51,24 @@ RSpec.describe "a coder blocked on a question" do
     blocked_on("q-ends", "[choose] A or B?")
     answerer_closes(answerers("q-ends").first["run"], "Told it to take A. answered")
     expect(answerers("q-ends")).to be_empty
+  end
+
+  it "ends an answerer that cannot answer at its block, with its reason", :aggregate_failures do
+    answerer = answerer_blocks("q-cannot", "cannot answer: the ledger names no branch")
+    expect(answerers("q-cannot")).to be_empty
+    expect(ended(answerer)).to include(condition: { value: "abandoned" },
+                                       detail:    { value: "cannot answer: the ledger names no branch" })
+  end
+
+  it "escalates the question a blocked answerer served and frees its seat", :aggregate_failures do
+    answerer_blocks("q-surfaced", "cannot answer: the owner's call")
+    expect(open_questions).not_to include("q-surfaced")
+    expect(desk["seated"]).to eq(0)
+  end
+
+  it "leaves an answerer started whose first read is the shared block" do
+    blocked_on("q-working", "[choose] A or B?")
+    expect(answerers("q-working").size).to eq(1)
   end
 
   it "records the end of a run that asked no question with nothing refused" do
