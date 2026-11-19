@@ -1,37 +1,16 @@
 require "spec_helper"
-require "open3"
-require "rbconfig"
-require "tmpdir"
 require "fileutils"
+require_relative "support/cli_help_launcher"
+require_relative "support/cli_help_mask"
 
 # The launcher's help, pinned as a reviewed diff: bare `hecks`, `hecks --help`, and each
-# module's listing. A layout change shows up as a failing example naming the first line that
-# moved. Regenerate with SNAPSHOT=rewrite only after reading the diff.
+# module's listing, with every description masked (`CliHelpMask`). The golden holds the names,
+# headings and layout, so a branch that rewords a command leaves it untouched; what each line
+# says is checked against the bluebooks by `spec/cli_help_descriptions_spec.rb`. A layout or
+# name change shows up as a failing example naming the first line that moved. Regenerate with
+# SNAPSHOT=rewrite only after reading the diff.
 RSpec.describe "exe/hecks help snapshots", :io do
   def golden_dir = File.expand_path("golden/cli", __dir__)
-  def exe = File.expand_path("../exe/hecks", __dir__)
-
-  def fixed_env
-    { "HECKS_USAGE" => "off", "LC_ALL" => "C.UTF-8", "HECKS_ENVIRONMENT" => nil,
-      "PGHOST" => "127.0.0.1", "PGPORT" => "1", "PGPASSWORD" => nil }
-  end
-
-  snapshots = {
-    "hecks" => [],
-    "hecks-help" => ["--help"],
-    "module-build" => ["build"], "module-check" => ["check"], "module-delegate" => ["delegate"],
-    "module-deliver" => ["deliver"], "module-evolve" => ["evolve"], "module-find" => ["find"],
-    "module-migrate" => ["migrate"], "module-operate" => ["operate"], "module-release" => ["release"],
-    "module-serve" => ["serve"], "module-start" => ["start"], "module-test" => ["test"]
-  }
-
-  def launcher_output(argv)
-    Dir.mktmpdir do |cache|
-      env = fixed_env.merge("HECKS_CACHE_DIR" => cache)
-      out, _err, _status = Open3.capture3(env, RbConfig.ruby, exe, *argv)
-      out
-    end
-  end
 
   def golden_path(name) = File.join(golden_dir, "#{name}.txt")
 
@@ -40,26 +19,26 @@ RSpec.describe "exe/hecks help snapshots", :io do
     File.write(golden_path(name), actual)
   end
 
-  def first_difference(expected, actual)
-    e = expected.lines
-    a = actual.lines
-    line = (0...[e.size, a.size].max).find { |i| e[i] != a[i] }
-    return nil unless line
+  def first_difference(expected, actual) = CliHelpMask.first_difference(expected, actual)
 
-    "line #{line + 1}: expected #{e[line].inspect}, got #{a[line].inspect}"
-  end
-
-  snapshots.each do |name, argv|
+  CliHelpLauncher::SNAPSHOTS.each do |name, argv|
     it "matches the #{name} snapshot" do
-      actual = launcher_output(argv)
+      actual = CliHelpMask.mask(CliHelpLauncher.output(argv))
       record(name, actual) if ENV["SNAPSHOT"] == "rewrite"
       expect(first_difference(File.read(golden_path(name)), actual)).to be_nil
     end
   end
 
+  it "matches its golden when a branch rewords a command description", :aggregate_failures do
+    help = CliHelpLauncher.output(["build"])
+    reworded = help.sub(/^(    project_rust!\s+).*$/) { "#{Regexp.last_match(1)}Write a domain's Rust, said again" }
+    expect(reworded).not_to eq(help)
+    expect(first_difference(File.read(golden_path("module-build")), CliHelpMask.mask(reworded))).to be_nil
+  end
+
   it "names the first line that moved" do
     expected = File.read(golden_path("module-deliver"))
-    changed = expected.sub("deliver — ", "delivers — ")
+    changed = expected.sub("deliver —", "delivers —")
     expect(first_difference(expected, changed)).to include("line 1:")
   end
 

@@ -59,6 +59,7 @@ spec/bench_spec.rb
 spec/categories/era_read_through_spec.rb
 spec/categories/write_atomicity_spec.rb
 spec/check_era_spec.rb
+spec/cli_help_descriptions_spec.rb
 spec/cli_help_snapshot_spec.rb
 spec/cli_session_spec.rb
 spec/deploy_bluebook_spec.rb
