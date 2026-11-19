@@ -3,6 +3,7 @@ require "fileutils"
 require "json"
 require "open3"
 require "tmpdir"
+require_relative "support/hecks_launcher_stub"
 require_relative "support/rest_pull_view"
 
 # A pushed run whose commit rode a train named for a later commit is judged by that train's pull
@@ -48,7 +49,9 @@ RSpec.describe "an advance judges a run by the train that carried it and boards 
   def open_repository
     git("init", "--bare", "-b", "main", File.join(dir, "origin.git"), chdir: dir)
     git("clone", "-q", File.join(dir, "origin.git"), repo, chdir: dir)
-    git("commit", "--allow-empty", "-m", "start")
+    HecksLauncherStub.place(repo)
+    git("add", ".")
+    git("commit", "-q", "-m", "start")
     git("push", "-q", "origin", "main")
   end
 

@@ -3,6 +3,7 @@ require "fileutils"
 require "json"
 require "open3"
 require "tmpdir"
+require_relative "support/hecks_launcher_stub"
 require_relative "support/rest_pull_view"
 
 # Main is integrated by the MainIntegration saga: a landing onto main starts a run, and each
@@ -25,11 +26,12 @@ RSpec.describe "integrating main through the MainIntegration saga" do
     @hecks.registry.saga_log.clear
     @depths = []
     stub_outside
+    Hecks::Adapters::GithubBranchCi.runner = ->(*, **) { [false, "gh is offline in this spec"] }
     Hecks::Adapters::MainIntegration::CodeWatch.fingerprint = steady_code
   end
 
   after do
-    [Hecks::Adapters::MainVerification, Hecks::Adapters::MainBoarding, Hecks::Adapters::CiRuns].each { |a| a.runner = nil }
+    stubbed_adapters.each { |adapter| adapter.runner = nil }
     Hecks::Adapters::MainBoarding.train_root = nil
     Hecks::Adapters::MainVerification.log_directory = nil
     Hecks::Adapters::MainIntegration::CodeWatch.fingerprint = nil
@@ -49,7 +51,9 @@ RSpec.describe "integrating main through the MainIntegration saga" do
   def open_repository
     git("init", "--bare", "-b", "main", File.join(dir, "origin.git"), chdir: dir)
     git("clone", "-q", File.join(dir, "origin.git"), repo, chdir: dir)
-    git("commit", "--allow-empty", "-m", "start")
+    HecksLauncherStub.place(repo)
+    git("add", ".")
+    git("commit", "-q", "-m", "start")
     git("push", "-q", "origin", "main")
   end
 
@@ -123,6 +127,13 @@ RSpec.describe "integrating main through the MainIntegration saga" do
     Hecks::Adapters::MainBoarding.runner = method(:train)
     Hecks::Adapters::MainBoarding.train_root = dir
     Hecks::Adapters::CiRuns.runner = ->(argv, **) { github(argv, conclusion, jobs) }
+  end
+
+  # The adapters whose command runner a spec stands in for; a landing's ci/ close is one, so no
+  # example reaches GitHub, as none can in CI.
+  def stubbed_adapters
+    [Hecks::Adapters::MainVerification, Hecks::Adapters::MainBoarding, Hecks::Adapters::CiRuns,
+     Hecks::Adapters::GithubBranchCi]
   end
 
   def train(argv, chdir:)
