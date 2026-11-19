@@ -72,8 +72,8 @@ RSpec.describe "the Coder brief's standing sections" do
     expect(review.gsub("{main}/exe/hecks", "")).not_to include("exe/hecks agents PlanReview")
   end
 
-  it "listens for the red flag through the main checkout too" do
-    expect(section(:restraints)).to include("{main}/exe/hecks Operation.follow domain.value={main}/lib/hecks/hecks")
+  it "listens for the red flag through the main checkout too, naming no domain path" do
+    expect(section(:restraints)).to include("{main}/exe/hecks Operation.follow aggregate.value=RedFlag")
   end
 
   it "names the spec path, stash and the comment check" do
