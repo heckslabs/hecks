@@ -1,11 +1,13 @@
 require "spec_helper"
 require "hecks/hecks/adapters/delivery_library"
 Hecks::Adapters::DeliveryLibrary.require("git_landing")
+require "hecks/hecks/adapters/landing/landing_ahead"
 require "tmpdir"
 require "open3"
 
-# A landing tidies up after itself, and refuses a branch that changes ground another started Work
-# item holds. Every example builds its own throwaway repository; the real repository is never read.
+# A landing tidies up after itself, and lands ahead of another started work item that holds ground
+# the branch changes, naming it. Every example builds its own throwaway repository; the real
+# repository is never read.
 RSpec.describe Hecks::Adapters::GitLanding do
   let(:dir) { Dir.mktmpdir("hecks-landing-spec") }
   let(:repo) { File.join(dir, "main") }
@@ -90,12 +92,11 @@ RSpec.describe Hecks::Adapters::GitLanding do
     expect(report).to include("kept work/a", "not on main")
   end
 
-  it "refuses a branch that changes files another started work item holds, naming both", :aggregate_failures do
+  it "lands a branch that changes files another started work item holds, naming both" do
     build_repo("lib/hecks/tickets/a.rb")
     holds("work/other", "lib/hecks/tickets")
 
-    expect { land }.to raise_error(Hecks::Adapters::ConsoleCapture::Failure, %r{lib/hecks/tickets/a.rb.*work/other})
-    expect(File.exist?(tree)).to be(true)
+    expect(report).to match(%r{onto main.*landed ahead of a started work item: .*lib/hecks/tickets/a.rb.*work/other})
   end
 
   it "lands a branch whose changes are outside every other work item's area" do

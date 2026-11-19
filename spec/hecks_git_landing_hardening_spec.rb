@@ -1,6 +1,7 @@
 require "spec_helper"
 require "hecks/hecks/adapters/delivery_library"
 Hecks::Adapters::DeliveryLibrary.require("git_landing")
+require "hecks/hecks/adapters/shell"
 require "tmpdir"
 require "open3"
 
@@ -305,12 +306,16 @@ RSpec.describe Hecks::Adapters::GitLanding do
   describe "the rival check" do
     def holds(*area) = allow(Hecks::Adapters::StartedWork).to receive(:items).and_return([{ key: "other", area: area }])
 
-    it "sees the old path of a rename", :aggregate_failures do
+    def rivals_git
+      shell = Hecks::Adapters::Shell.new
+      Object.new.tap { |git| git.define_singleton_method(:capture) { |*argv, **opts| shell.capture("git", *argv, **opts) } }
+    end
+
+    it "sees the old path of a rename" do
       rename_in_tree
       holds("lib/old name.rb")
 
-      expect { land }.to raise_error(failure, %r{lib/old name\.rb})
-      expect(branch?("work/a")).to be(true)
+      expect(described_class::Rivals.new(rivals_git, repo, nil).refusal("work/a", "main")).to include("lib/old name.rb")
     end
   end
 end
