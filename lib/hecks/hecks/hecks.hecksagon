@@ -640,6 +640,10 @@ Hecks.hecksagon "Hecks" do
   # size, the load average and the test lane's queue, judged against the Tickets world's `machine_marks`.
   # It answers each gauge's state and the state it stood in before; a reading within a minute of the last
   # one is refused. `Busiest` reads the process table: each class, its CPU and the session above it.
+  # `MachineSampled` also carries `metered_load`, the load Roundhouse's `Metering` port answers to
+  # its `Load` query, and `source`: with the Tickets world's `metering.roundhouse` switch on, the
+  # metered load is the one judged and recorded (ADR 0222, phase 3, metering). The fill's load reads
+  # the same query through the same switch.
   Hecks::Machine.port "Sampling" do
     asks "Read", to: Machine do
       attribute :run, MachineKey

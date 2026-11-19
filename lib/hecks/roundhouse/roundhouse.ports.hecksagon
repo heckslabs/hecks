@@ -9,5 +9,7 @@ Hecks.hecksagon "Roundhouse" do
   Roundhouse::Reading.port "Metering" do
     answers_query "Sessions"
     answers_query "Machine"
+    # Delegate's load, once its `metering.roundhouse` switch is on (Hecks' `Sampling` and the fill).
+    answers_query "Load"
   end
 end
