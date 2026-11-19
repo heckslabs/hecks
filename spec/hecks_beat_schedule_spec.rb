@@ -26,8 +26,16 @@ RSpec.describe Hecks::Adapters::MainIntegration::BeatSchedule do
     lines = CGI.unescapeHTML(schedule.plist[%r{<string>(cd .*?)</string>}m, 1]).lines.map(&:strip)
 
     expect(lines[1]).to match(%r{\Amkdir -p ".*/hecks-dev" && : >> ".*/train-beat\.lock"\z})
-    expect(lines[2]).to match(%r{\Azmodload zsh/system && zsystem flock -t 0 ".*/train-beat\.lock" 2>/dev/null \|\| exit 0\z})
+    expect(lines[2]).to match(%r{\Azmodload zsh/system && zsystem flock -t 0 ".*/train-beat\.lock" 2>/dev/null \|\| \{.*\}\z})
     expect(lines[3]).to start_with("exe/hecks Heartbeat.Beat!")
+  end
+
+  # A tick that finds the lock held writes why it was skipped, so a beat that outruns its interval
+  # is seen; the line is the report, and the skipped tick still starts no beat.
+  it "reports a tick skipped while the beat before it still runs" do
+    lines = CGI.unescapeHTML(schedule.plist[%r{<string>(cd .*?)</string>}m, 1]).lines.map(&:strip)
+
+    expect(lines[2]).to include("beat skipped: the beat before it still runs", "#{home}/.claude/hecks-dev/train-beat.overrun.log")
   end
 
   it "writes nothing unconfirmed, and says what it would write", :aggregate_failures do
