@@ -2548,5 +2548,131 @@ Hecks.bluebook "Hecks" do
       on      "BoardingRelease.ReleaseRefused"
       trigger BoardingRelease::Decline, with: { refusal: :refusal }
     end
+
+    # Keyed by the tip: a verdict for another commit finds no review, and a second wait for the same
+    # tip is refused, since main moving does not by itself ask for a new review.
+    aggregate "LandingReview" do
+      description "One landing's wait, after its gates, for the reviewer's verdict on its tip: cleared when clean; otherwise refused by name when enforced, or landed anyway when shadowed."
+
+      attribute :tip,      TipKey
+      attribute :run,      Word,   optional: true
+      attribute :checkout, Word,   optional: true
+      attribute :branch,   Word,   optional: true
+      attribute :brief,    Report, optional: true
+      attribute :confirm,  Switch, optional: true
+      attribute :mode,     Word,   optional: true
+      attribute :verdict,  Word,   optional: true
+      identified_by :tip
+
+      # The tip commit the landing waits on: the review's key.
+      value_object "TipKey" do
+        attribute :value, String, matches: :present
+      end
+
+      # A branch, a directory, a run key, a mode or a verdict.
+      value_object "Word" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "Report", String
+
+      value_object "Switch", Boolean
+
+      lifecycle :status, default: "awaiting_review" do
+        mark :failure, "refused"
+        transition "Judge"  => "awaiting_review", from: "awaiting_review"
+        transition "Clear"  => "cleared",         from: "awaiting_review"
+        transition "Refuse" => "refused",         from: "awaiting_review"
+        transition "Shadow" => "shadowed",        from: "awaiting_review"
+        mark :terminal, "cleared", "refused", "shadowed"
+      end
+
+      command "Await" do
+        role "System"
+        goal "Record that a landing's gates passed and it waits for the reviewer's verdict on its tip"
+
+        attribute :tip,      TipKey, sets: true
+        attribute :run,      Word,   sets: true
+        attribute :checkout, Word,   sets: true
+        attribute :branch,   Word,   sets: true
+        attribute :brief,    Report, sets: true
+        attribute :confirm,  Switch, sets: true
+        attribute :mode,     Word,   default: "enforce", sets: true
+
+        given("a landing review is enforced or shadowed") { mode.value == "enforce" || mode.value == "shadow" }
+
+        emits LandingReviewAwaited
+      end
+
+      command "Judge" do
+        role "System"
+        goal "Record the reviewer's verdict on the tip a landing waits on"
+
+        reference_to LandingReview
+        attribute :verdict, Word, sets: true
+
+        emits LandingReviewJudged
+      end
+
+      command "Clear" do
+        role "System"
+        goal "Let a landing whose tip the reviewer judged clean go on to merge"
+
+        reference_to LandingReview
+
+        given("the reviewer judged the tip clean") { verdict.value == "clean" }
+
+        emits LandingReviewCleared
+      end
+
+      command "Refuse" do
+        role "System"
+        goal "End an enforced landing whose tip the reviewer did not judge clean, naming the verdict"
+
+        reference_to LandingReview
+
+        given("the landing review is enforced") { mode.value == "enforce" }
+        given("the reviewer did not judge the tip clean") { verdict.value != "clean" }
+
+        emits LandingReviewRefused
+      end
+
+      command "Shadow" do
+        role "System"
+        goal "Record a verdict other than clean on a shadowed landing and let it merge anyway"
+
+        reference_to LandingReview
+
+        given("the landing review is shadowed") { mode.value == "shadow" }
+        given("the reviewer did not judge the tip clean") { verdict.value != "clean" }
+
+        emits LandingReviewShadowed
+      end
+
+      query "LandingReviews" do
+        description "Every landing's wait for review, by tip: its mode, the verdict once judged, and whether it was cleared, refused or shadowed."
+        order_by :tip
+      end
+    end
+
+    # A verdict other than clean asks both Refuse and Shadow: the record's mode is not on the event,
+    # so each command's own given reads it and the one that does not match the mode refuses.
+    policy "ClearTheLandingWhenTheReviewIsClean" do
+      on      "LandingReview.LandingReviewJudged"
+      where   { verdict.value == "clean" }
+      trigger LandingReview::Clear, with: { tip: :tip }
+    end
+
+    policy "RefuseTheLandingWhenTheReviewIsNotClean" do
+      on      "LandingReview.LandingReviewJudged"
+      where   { verdict.value != "clean" }
+      trigger LandingReview::Refuse, with: { tip: :tip }
+    end
+
+    policy "LandTheShadowedLandingAnyway" do
+      on      "LandingReview.LandingReviewJudged"
+      where   { verdict.value != "clean" }
+      trigger LandingReview::Shadow, with: { tip: :tip }
+    end
   end
 end
