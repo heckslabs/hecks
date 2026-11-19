@@ -72,6 +72,10 @@ pub fn parse_body(
             }
             // A bare word with no arguments: the reaction runs at reaction depth zero.
             "root" => policy.root = true,
+            // `acts_as "System"`: the role the reaction dispatches its trigger as (ADR 0216).
+            "acts_as" => {
+                policy.acts_as = Some(acts_as_role(file, gated.line.number, name, &gated.args)?);
+            }
             // Same extraction as `parse::command`'s `given`/`ensures`; `where` has no description.
             "where" => {
                 let raw = super::source_body_text(file, lines, pos, &gated.call.opener)?;
@@ -97,4 +101,22 @@ pub fn parse_body(
             }
         }
     }
+}
+
+/// The role an `acts_as` names; an empty one is refused, as `PolicyBuilder#acts_as_impl` refuses it.
+fn acts_as_role(
+    file: &str,
+    line: usize,
+    name: &str,
+    args: &super::ArgumentGateResult,
+) -> ParseResult<String> {
+    let role = super::positional_literal_text(file, line, "acts_as", args, 1)?;
+    if role.trim().is_empty() {
+        return Err(Diagnostic::new(
+            file,
+            line,
+            format!("{name} declares acts_as with no role — name the role its reaction runs as"),
+        ));
+    }
+    Ok(role)
 }

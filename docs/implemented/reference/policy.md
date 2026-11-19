@@ -109,6 +109,8 @@ Hecks.bluebook "PolicyReference" do
     where    { severity.level >= 3 }
     for_each "RefCard.ForHolder"
     root
+    # The role the reaction sends `Block` as; Governance, attached below, grants it.
+    acts_as  "System"
     # THE ROW, AND NOTHING ELSE. `Block` takes only which card; the
     # alert's own `ref`/`holder`/`severity` are none of its business,
     # and without this projection they would ride along and be refused.
@@ -138,6 +140,7 @@ Hecks.hecksagon("Compliance") do
 end
 
 Hecks.hecksagon("PolicyReference") do
+  attaches "Governance"
   PolicyReference::RefCard.persisted_by("Memory")
   PolicyReference::RefAlert.persisted_by("Memory")
   PolicyReference::RefJob.persisted_by("Memory")
@@ -461,4 +464,30 @@ are ordinary:
 policies = runtime.registry.bluebook("PolicyReference").policies
 policies.select(&:root).map(&:name)  # => ["BlockCardsOnSevereAlert"]
 ```
+
+## acts_as
+
+<!-- generated:begin word=acts_as -->
+`acts_as acts_as` — fills `acts_as`
+
+| argument | kind | required | fills |
+|---|---|---|---|
+| positional 1 | text | true | acts_as |
+<!-- generated:end -->
+
+Names the role a reaction dispatches its trigger as. A policy runs with no caller of its own, so
+without it a role-gated trigger would have no role to be checked against; `acts_as "System"` says
+which one it runs under, and the domain's Governance must grant that role (ADR 0216). It takes one
+role name, and an empty one is refused as the bluebook is built. A policy without it states no
+role, and its IR carries no `acts_as` key.
+
+`BlockCardsOnSevereAlert` acts as `System`; the other policies on this page state no role:
+
+```ruby
+policies = runtime.registry.bluebook("PolicyReference").policies
+policies.select(&:acts_as).map { |policy| [policy.name, policy.acts_as] }  # => [["BlockCardsOnSevereAlert", "System"]]
+```
+
+Model check reports `ungoverned_acts_as` for a policy that says `acts_as` in a domain whose
+hecksagon attaches no authorization provider, since nothing there could grant the role.
 
