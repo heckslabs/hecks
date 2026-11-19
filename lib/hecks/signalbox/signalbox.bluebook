@@ -335,10 +335,12 @@ Hecks.bluebook "Signalbox" do
       attribute :value, String, matches: :present
     end
 
+    # `person` is a job a person runs by hand: the person's own use, never the pipeline's load.
     value_object "Role" do
       attribute :value, String
-      invariant("a role is coder, helper, gate, orchestrator or repair") do
-        value == "coder" || value == "helper" || value == "gate" || value == "orchestrator" || value == "repair"
+      invariant("a role is coder, helper, gate, orchestrator, repair or person") do
+        value == "coder" || value == "helper" || value == "gate" || value == "orchestrator" || value == "repair" ||
+          value == "person"
       end
     end
 
@@ -1049,11 +1051,14 @@ Hecks.bluebook "Signalbox" do
     trigger Response::Run, with: { response: :response, session: :session }
   end
 
+  # An urgent gate (a red fix's landing, the push train) runs as an urgent coder does, and a
+  # person's own job is the person's use, which the reserve already keeps out of the headroom.
   policy "UrgentCodersAndSeatsKeepRunning" do
     on      "Response.ResponseAsked"
     where   do
       band.value != "normal" &&
-        ((role.value == "coder" && tier.value == "urgent") || role.value == "orchestrator" || role.value == "repair")
+        (((role.value == "coder" || role.value == "gate") && tier.value == "urgent") ||
+          role.value == "orchestrator" || role.value == "repair" || role.value == "person")
     end
     trigger Response::Run, with: { response: :response, session: :session }
   end
@@ -1072,7 +1077,7 @@ Hecks.bluebook "Signalbox" do
 
   policy "GatesWaitTheirTurn" do
     on      "Response.ResponseAsked"
-    where   { band.value != "normal" && role.value == "gate" }
+    where   { band.value != "normal" && role.value == "gate" && tier.value != "urgent" }
     trigger Response::Wait, with: { response: :response, session: :session }
   end
 
