@@ -401,10 +401,8 @@ Hecks.bluebook "Hecks" do
         emits ResumedAsFork
       end
 
-      # Moves a started run to a named live session that no other started run holds, as when a
-      # pinned role's run maps to one session and the role works in another. The session is looked
-      # at first (`BindTheRunToTheLiveSession` below); the session the run held is kept as
-      # `forked_from`, so the board's role chip reads the run's current session.
+      # The session is looked at first (`BindTheRunToTheLiveSession` below). The session the run
+      # held is kept as `forked_from`, so the board's role chip reads the run's current session.
       command "Rebind", from: "started" do
         role "Operator"
         goal "Move a started run to a named live session that no other started run holds"
@@ -2214,10 +2212,9 @@ Hecks.bluebook "Hecks" do
       trigger  AgentRun::Check, with: { agent_run: :agent_run }
     end
 
-    # A pinned role (Agents `PinnedRole`) has at most one live session. Each sweep counts the live
-    # sessions of every pinned role; the port reports each role's live ids (`live_ids`, one
-    # `role: id id` line per role with a live session) and the most any role holds (`most`), and
-    # a role with two is a finding of the sweep, named in `check_all!`'s events.
+    # A pinned role (Agents `PinnedRole`) has at most one live session: each sweep reads every
+    # pinned role's live ids (`live_ids`) and the most any role holds (`most`), and a role with two
+    # is a finding, named in `check_all!`'s events.
     policy "CountThePinnedRolesSessions" do
       on      "SessionSweep.SweepRequested"
       ask     :check_roles, with: { run: :run }
@@ -2508,10 +2505,9 @@ Hecks.bluebook "Hecks" do
       trigger AgentRun::Fork, with: { forked_from: :held, session: :session, pinned_role: :pinned_role }
     end
 
-    # A fork of a pinned role's run supersedes the session it held: the run follows the copy, and
-    # the old one is stopped (`claude stop`, never a kill), so the role keeps one live session. It
-    # is a root, since a fork sits deep in an answer's chain. A stop that is refused leaves the old
-    # session live, and the held-role guards refuse the run's answers by name until it ends.
+    # A fork of a pinned role's run stops the session it superseded (`claude stop`, never a kill).
+    # A root, since a fork sits deep in an answer's chain. A refused stop leaves the old session
+    # live, and the held-role guards refuse the run's answers by name until it ends.
     policy "StopTheSupersededSession" do
       on      "AgentRun.ResumedAsFork"
       root
