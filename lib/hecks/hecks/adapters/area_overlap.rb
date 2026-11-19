@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "pathname"
+require "hecks/hecks/adapters/landing/section_area"
 
 module Hecks
   module Adapters
@@ -13,6 +14,8 @@ module Hecks
     # where the filesystem folds it). Then they overlap unless a segment proves them apart: a
     # prefix holds everything beneath it, the empty area is the whole repository, `**` stands for
     # any depth, and a glob without a `/` matches at any depth. A file holds nothing beneath it.
+    # Two words that name different sections of a bluebook (`x.bluebook#A`, `x.bluebook#B`, see
+    # {Landing::SectionArea}) are apart; a word with no sections claims every section of its path.
     module AreaOverlap
       # Characters that make a segment a glob.
       WILDCARD = /[*?\[{]/
@@ -39,9 +42,11 @@ module Hecks
       # @param file [Boolean] whether `other` is known to be a file, which holds nothing beneath it
       # @return [Boolean]
       def overlap?(one, other, root: nil, file: false)
+        return false if Landing::SectionArea.apart?(one, other)
+
         folded = fold_case?(root)
-        left = segments(one, root, folded)
-        right = segments(other, root, folded)
+        left = segments(Landing::SectionArea.path(one), root, folded)
+        right = segments(Landing::SectionArea.path(other), root, folded)
         return true if left.nil? || right.nil?
 
         file ? meet?(left, right, leaf: true) : meet?(left, right)
