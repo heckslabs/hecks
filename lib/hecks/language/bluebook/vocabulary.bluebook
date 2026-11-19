@@ -359,6 +359,10 @@ Hecks.bluebook "Bluebook" do
                        "{field} this ask is scoped to"
       member refusal: "Unauthorized", site: "role_mismatch",
              template: "{command} refused — role: {role}, and the caller stated {caller_role}"
+      # ADR 0216: a role-gated command whose caller states no role. The runtime check is shadow-only
+      # (the Rust host's `Shadow`); the Storehouse door refuses with this wording today.
+      member refusal: "Unauthorized", site: "role_unstated",
+             template: "{command} refused — role: {role}, and the caller stated no role"
       member refusal: "Unauthorized", site: "cross_tenant_reference",
              template: "{aggregate} {field} is {tenant}, but {attribute} names a {target} whose own " \
                        "{target_field} is {other} — a cross-tenant reference"
@@ -638,6 +642,10 @@ Hecks.bluebook "Bluebook" do
       member refusal: "Unauthorized", site: "role_mismatch", argument: "role",
              shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
       member refusal: "Unauthorized", site: "role_mismatch", argument: "caller_role",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "Unauthorized", site: "role_unstated", argument: "command",
+             shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
+      member refusal: "Unauthorized", site: "role_unstated", argument: "role",
              shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""
       member refusal: "Unauthorized", site: "cross_tenant_reference", argument: "aggregate",
              shape: "scalar", quoting: "none", separator: "", sorted: "false", when_empty: ""

@@ -10,12 +10,15 @@ module Hecks
       # `saga_log` and
       # `reaction_log` (ported byte-for-byte to rust/src/kernel/orchestrate.rs, per
       # spec/rust_conformance_spec.rb), they carry the raw dispatch-binding inputs
-      # Properties.dispatch_binding_fidelity re-derives.
+      # Properties.dispatch_binding_fidelity re-derives. `unstated_caller_log` is Ruby-only too:
+      # each role-gated command dispatched with no caller bound, counted once per command and
+      # origin, so it stays bounded in a long-running process (ADR 0216, shadow).
       RuntimeState = Struct.new(:event_log, :reaction_log, :reaction_events, :saga_log,
-                                :saga_dispatch_log, :policy_dispatch_log, :cross_domain_log, :saga_instances) do
+                                :saga_dispatch_log, :policy_dispatch_log, :cross_domain_log, :saga_instances,
+                                :unstated_caller_log) do
         # @return [RuntimeState] every log empty and no saga instances
         def self.fresh
-          new(EventLog.new, [], {}.compare_by_identity, [], [], [], [], Hash.new { |hash, key| hash[key] = {} })
+          new(EventLog.new, [], {}.compare_by_identity, [], [], [], [], Hash.new { |hash, key| hash[key] = {} }, {})
         end
 
         # Empties every log and drops every saga instance.
