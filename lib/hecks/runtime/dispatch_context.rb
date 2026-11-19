@@ -1,3 +1,5 @@
+require_relative "role_shadow"
+
 module Hecks
   module Runtime
     # What a dispatch step asks its context for, answered from the record, command and
@@ -28,7 +30,7 @@ module Hecks
       # @return [String] the verb
       def command_verb
         entity = respond_to?(:entity_name) ? entity_name : nil
-        "#{domain}::#{[aggregate_hecks_name, entity, command_hecks_name].compact.join(".")}"
+        RoleShadow.verb_for(domain, aggregate_hecks_name, entity, command_hecks_name)
       end
 
       # @return [Array] the command's ensures clauses

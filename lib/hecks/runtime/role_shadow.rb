@@ -10,10 +10,10 @@ module Hecks
     # The Ruby runtime's shadow of the role rule the Rust host enforces: what a command declaring a
     # role would do with a caller that states none, once refusal is on.
     #
-    # Ruby refuses no unstated caller in any mode. Under `shadow` a role-gated command dispatched
-    # with no caller writes one `would_refuse_role` line to stderr in the Rust host's wording and
-    # runs as before: the line means a host in `enforce` would refuse it. A reaction gets the
-    # host-internal shape with `origin: "reaction"`; a preview or dry run logs nothing.
+    # Ruby refuses no unstated caller in any mode. Under `shadow` the first count of a key by
+    # `CommandRules::UnstatedCaller`, which owns the record, writes one `would_refuse_role` line to
+    # stderr in the Rust host's wording: a host in `enforce` would refuse that dispatch. A reaction
+    # gets the host-internal shape with `origin: "reaction"`; a preview or dry run logs nothing.
     #
     # The mode is installed at boot from the host wiring variable `HECKS_ROLE_ENFORCEMENT` (ADR
     # 0132, read by `Assembly`): `shadow` and `enforce` both mean shadow, since Ruby does not refuse
@@ -46,6 +46,14 @@ module Hecks
 
       # @return [Symbol] the installed mode, `:off` before any boot
       def mode = SETTINGS.mode
+
+      # The one spelling of a fully qualified verb, shared by the shadow line and the report.
+      #
+      # @param domain [String] the command's domain
+      # @param names [Array<String, nil>] the aggregate, entity and command names; nils are skipped
+      # @return [String] `Domain::Aggregate.Command`, `Domain::Aggregate.Entity.Command`, or
+      #   `Domain::Command` when no aggregate is known
+      def verb_for(domain, *names) = "#{domain}::#{names.compact.join(".")}"
 
       # Writes the `would_refuse_role` line for a role-gated command dispatched with no caller, when
       # the mode is shadow and the dispatch is not a validating run.
