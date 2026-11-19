@@ -10,13 +10,13 @@ RSpec.describe "a lapsed plan review waking the coder waiting for it" do
   it "ends the overdue review with the reason", :aggregate_failures do
     lapsed_by_a_sweep("l-one")
     expect(review_of("l-one")["verdict"]).to be_nil
-    expect(review_of("l-one")["reason"].to_s).to include("time limit")
+    expect(review_of("l-one")["reason"].to_s).to include("two review windows")
   end
 
-  it "answers the coder run with the reason, telling it to build", :aggregate_failures do
+  it "answers the coder run with the reason, telling it its run is blocked", :aggregate_failures do
     lapsed_by_a_sweep("l-two")
     expect(runs_woken).to eq(["l-two"])
-    expect(woken.first[:answer].to_s).to include("build your plan")
+    expect(woken.first[:answer].to_s).to include("is blocked on the review", "stuck.kind=verdict_overdue")
   end
 
   it "leaves a review inside its limit open", :aggregate_failures do
