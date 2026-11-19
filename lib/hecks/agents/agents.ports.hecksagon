@@ -34,4 +34,26 @@ Hecks.hecksagon "Agents" do
       refuses "RecipientMissing"
     end
   end
+
+  # The background sessions as claude lists them, joined to the AgentRun ledger. Bound by
+  # adapters/fleet_control, which reads the listing, the transcripts and the ledger, runs
+  # `claude stop` and `claude --bg --resume <id> -n <name>`, and refuses by name a pinned role's
+  # session, one not listed, a working one, and every read where no ledger is booted.
+  Agents::Fleet.port "Fleet" do
+    asks "Halt", to: Fleet do
+      attribute :session, FleetSession
+      answers "SessionHalted"
+      refuses "SessionHaltRefused"
+    end
+
+    asks "Revive", to: Fleet do
+      attribute :session, FleetSession
+      attribute :name,    FleetName
+      answers "SessionRevived"
+      refuses "SessionReviveRefused"
+    end
+
+    answers_query "Sessions"
+    answers_query "Topic"
+  end
 end
