@@ -8,15 +8,18 @@ require "hecks/hecks/adapters/git_rehearsal"
 # origin/main last moved, the unpushed commits by subject and age, and the last train. A disposable
 # bare remote, a clone that pushes to it and one that falls behind; the clock is injected.
 RSpec.describe Hecks::Adapters::GitRehearsal::Due, :io do
-  IDENT = { "GIT_AUTHOR_NAME" => "A", "GIT_AUTHOR_EMAIL" => "a@x.test", "GIT_COMMITTER_NAME" => "A",
-            "GIT_COMMITTER_EMAIL" => "a@x.test" }.freeze
   let(:scratch) { Dir.mktmpdir("hecks-due") }
   let(:work) { File.join(scratch, "work") }
   let(:now) { Time.at(1_800_000_000) }
   let(:clock) { instance_double(Time.singleton_class, now: now) }
 
+  def ident
+    { "GIT_AUTHOR_NAME" => "A", "GIT_AUTHOR_EMAIL" => "a@x.test", "GIT_COMMITTER_NAME" => "A",
+      "GIT_COMMITTER_EMAIL" => "a@x.test" }
+  end
+
   def git(*args, dir: work, env: {})
-    out, err, status = Open3.capture3(IDENT.merge(env), "git", *args, chdir: dir)
+    out, err, status = Open3.capture3(ident.merge(env), "git", *args, chdir: dir)
     raise "git #{args.join(" ")}: #{err}" unless status.success?
 
     out.strip
