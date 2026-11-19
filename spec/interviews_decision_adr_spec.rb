@@ -80,6 +80,11 @@ RSpec.describe "an accepted decision Point drafting a decision record" do
     expect(drafts).to be_empty
   end
 
+  it "refuses accepting a decision Point under a malformed record number" do
+    expect { settle(1, "decision", decided_by: "owner", record: "94") }
+      .to raise_error(Hecks::Runtime::TypeMismatch, /RecordNumber.value must match/)
+  end
+
   it "keeps who decided a delegated Point and who delegated it" do
     settle(1, "decision", decided_by: "architect", delegated_by: "owner", record: "9303")
     expect(first_point.values_at(:decided_by, :delegated_by)).to eq([{ value: "architect" }, { value: "owner" }])
