@@ -598,8 +598,11 @@ Hecks.bluebook "Coder" do
                                               "then submit again." }
   end
 
+  # Each accept is a root: the reviewer's start that `WorkSubmitted` asks for sits past the
+  # reaction depth limit when counted from the job read that submitted.
   policy "AcceptTheSubmissionWhenNothingIsUnread" do
     on      "Submission.SubmitterMeasured"
+    root
     where   { inbox != true && resuming != true }
     trigger Submission::Accept, with: { branch: :branch, sha: :sha, checkout: :checkout }
   end
@@ -607,6 +610,7 @@ Hecks.bluebook "Coder" do
   # A branch no started coder run is named for, such as a hand submission, has no reader to wait on.
   policy "AcceptTheSubmissionThatCannotBeMeasured" do
     on      "Submission.SubmitterUnmeasured"
+    root
     trigger Submission::Accept, with: { branch: :branch, sha: :sha, checkout: :checkout }
   end
 end
