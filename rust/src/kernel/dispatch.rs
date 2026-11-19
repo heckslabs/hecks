@@ -134,6 +134,12 @@ pub enum Hydrate<'a, T> {
     },
     /// An acting command: the identity already names a record.
     Act { id: String },
+    /// A `creates_or_acts` command: the record the identity names is acted on as `Act` would,
+    /// and `build` makes a fresh one, as `Create` does, only when nothing answers to it.
+    CreateOrAct {
+        id: String,
+        build: Box<dyn FnOnce() -> T + 'a>,
+    },
 }
 
 // reason: the generated callers own `transition`/`payload` and pass them by value.
@@ -284,6 +290,27 @@ where
     Ok((record, events))
 }
 
+/// A blank identity names nothing: a creating hydration refuses it before any lookup rather
+/// than mint a record keyed by "".
+fn refuse_blank_creation_id(
+    id: &str,
+    command_name: &'static str,
+    aggregate_name: &'static str,
+    identity_reading: &'static str,
+) -> Result<(), Refusal> {
+    if id.is_empty() {
+        return Err(Refusal::NotFound(
+            NotFoundCreatingNoIdentityArgs {
+                command: command_name,
+                aggregate: aggregate_name,
+                identity: identity_reading,
+            }
+            .render_args(),
+        ));
+    }
+    Ok(())
+}
+
 /// `hydrate` — how this dispatch obtains its starting record (see
 /// `Hydrate`'s own comment for the branch it takes).
 fn hydrate_record<T, R>(
@@ -304,18 +331,7 @@ where
             build,
             state_independent,
         } => {
-            // A blank identity names nothing; refuse before any lookup rather than mint a
-            // record keyed by "".
-            if id.is_empty() {
-                return Err(Refusal::NotFound(
-                    NotFoundCreatingNoIdentityArgs {
-                        command: command_name,
-                        aggregate: aggregate_name,
-                        identity: identity_reading,
-                    }
-                    .render_args(),
-                ));
-            }
+            refuse_blank_creation_id(&id, command_name, aggregate_name, identity_reading)?;
             // State-independent creates defer this check to `Save`.
             if state_independent {
                 *defer_existence_check = true;
@@ -331,6 +347,11 @@ where
                 ));
             }
             Ok((id, build()))
+        }
+        Hydrate::CreateOrAct { id, build } => {
+            refuse_blank_creation_id(&id, command_name, aggregate_name, identity_reading)?;
+            let record = repo.find(&id).unwrap_or_else(build);
+            Ok((id, record))
         }
         Hydrate::Act { id } => {
             // Shared with `dispatch_entity`'s parent lookup: both raise `record_missing`.

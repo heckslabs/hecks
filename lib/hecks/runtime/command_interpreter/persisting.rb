@@ -37,7 +37,7 @@ module Hecks
         # an occupied identity under ATOMIC_PUT — `hydrate_complete_state`
         # deliberately defers this exact check to here, unless it read the occupant already.
         def check_dry_run_creates_duplicate(ctx)
-          return if reads_occupant?(ctx) || !ctx.command.creates?
+          return if reads_occupant?(ctx) || !ctx.command.creates? || creates_or_acts?(ctx.command)
           return unless ctx.repository.find(ctx.instance_id)
 
           raise_already_exists(ctx.command, ctx.aggregate, ctx.instance_id)
@@ -50,8 +50,7 @@ module Hecks
             # `repository.find` before every atomic_put would be exactly the
             # read this strategy exists to skip. An ended occupant, archived by now, is
             # replaced: hydration read it and found it reusable.
-            insert_only = ctx.command.creates? && ctx.archiving.nil?
-            ctx.repository.atomic_put(ctx.instance, insert_only: insert_only, mints_era: mints_era?(ctx))
+            ctx.repository.atomic_put(ctx.instance, insert_only: insert_only?(ctx), mints_era: mints_era?(ctx))
           else
             # `expected_version:` is nil for a brand-new record or a
             # non-CAS repository, either of which falls through to a
@@ -59,6 +58,12 @@ module Hecks
             # reaches the journal entry only when this command declares it.
             ctx.repository.save(ctx.instance, expected_version: ctx.instance_version, mints_era: mints_era?(ctx))
           end
+        end
+
+        # Whether the atomic write must find no record there. A `creates_or_acts` command may act
+        # on the record it found, so it never inserts only.
+        def insert_only?(ctx)
+          ctx.command.creates? && ctx.archiving.nil? && !creates_or_acts?(ctx.command)
         end
 
         # The one-write allowance this command's record holds through an unminted boot: the

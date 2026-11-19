@@ -603,6 +603,18 @@ pub static KEYWORDS: &[KeywordRow] = &[
         disambiguator: "",
     },
     KeywordRow {
+        word: "creates_or_acts",
+        context: "Command",
+        body: "none",
+        inner: "",
+        opens: "",
+        fills: "creates_or_acts",
+        status: "admitted",
+        was: "",
+        resolves_via: "",
+        disambiguator: "",
+    },
+    KeywordRow {
         word: "reference_to",
         context: "Command",
         body: "none",

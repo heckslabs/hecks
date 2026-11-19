@@ -132,6 +132,19 @@ pub struct Command {
     // A bare `policy_only` word: only a policy reaction may dispatch the command (ADR 0216).
     // Emitted only when declared.
     pub policy_only: bool,
+    // What a creating command does when its identity already names a record: refuse it as taken,
+    // or act on it (a bare `creates_or_acts` word). Emitted only when it acts.
+    pub on_occupied: OnOccupied,
+}
+
+/// What a creating command does when the identity it derives already names a record.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum OnOccupied {
+    /// Refuse the identity as taken (`AlreadyExists`), as every creating command does by default.
+    #[default]
+    Refuse,
+    /// Act on the record it names: the command says `creates_or_acts`.
+    Act,
 }
 
 #[derive(Debug, Clone, Default)]
