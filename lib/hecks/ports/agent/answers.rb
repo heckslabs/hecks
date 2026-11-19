@@ -99,8 +99,7 @@ module Hecks
 
         # Reads a proposal row's verb, refusing one that is not fully qualified.
         #
-        # Only the shape is checked; whether the verb fits the fact is
-        # `Interview::Session#offer`'s call.
+        # Only the shape is checked; whether the verb fits the domain is the caller's call.
         #
         # @param row [Hash{String => Object}] one proposal row of the adapter's answer
         # @return [String] the row's `"verb"`, shaped `Bluebook::Aggregate.Command`
