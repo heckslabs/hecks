@@ -1461,8 +1461,6 @@ Hecks.hecksagon "Agents" do
   subscribe "Tickets.AdrAccepted"
   subscribe "Tickets.AdrSuperseded"
 
-  # The coder hands in a branch: the reviewer is asked to judge it. The branch is named for the Work item,
-  # the review is keyed by the commit, and the session works in the coder's checkout, which the event names.
   # The coder hands in a branch: the architect's change review takes its commit, reads the paths
   # it changed and asks the architect when a bluebook, hecksagon or decision file is among them.
   translates "ConsiderTheChangeWhenWorkIsSubmitted" do
@@ -1487,6 +1485,8 @@ Hecks.hecksagon "Agents" do
     trigger ChangeReview::AskOnDecision, with: { review: :adr, adr: :adr }
   end
 
+  # The coder hands in a branch: the reviewer is asked to judge it. The branch is named for the Work item,
+  # the review is keyed by the commit, and the session works in the coder's checkout, which the event names.
   translates "AskTheReviewerWhenWorkIsSubmitted" do
     on Submission::WorkSubmitted
     trigger SubmissionReview::Request, with: { submission: :sha, work: :branch, brief: :branch, hops: 1,
@@ -1513,8 +1513,7 @@ Hecks.hecksagon "Agents" do
   # The architect's session closes with its verdict, or says it and goes idle; the run's key is the
   # review's, so it names the review it answers. It reads the job as `RecordTheVerdictWhenNoReviewWasAsked`
   # and `JudgeTheArchitectsVerdict` in the Agents bluebook do, so a review that exists is answered
-  # on the read that judges its verdict, and one no request made is recorded by `Record`. A run with
-  # no Work item is a change review's (`RecordTheChangeVerdict`).
+  # on the read that judges its verdict, and one no request made is recorded by `Record`.
   translates "RecordTheArchitectsVerdict" do
     on AgentRun::JobRead
     where { work != "" && verdict != "" && (previous != state || (listed == "idle" && previous != "done")) }
