@@ -12,8 +12,12 @@ RSpec.describe "AgentRun keeps one live session per pinned role" do
     #!/bin/sh
     here=$(dirname "$0")
     if [ "$1" = "agents" ]; then cat "$here/sessions.json"; exit 0; fi
-    if [ "$1" = "stop" ]; then exit 0; fi
-    if [ "$2" = "--resume" ]; then printf '%s\\n' "$@" > "$here/resume.args"; echo "backgrounded · own-session"; exit 0; fi
+    if [ "$1" = "stop" ]; then [ -f "$here/resume.args" ] && echo "$2" >> "$here/stopped"; [ -f "$here/stop-fails" ] && exit 1; exit 0; fi
+    if [ "$2" = "--resume" ]; then
+      printf '%s\\n' "$@" > "$here/resume.args"
+      if [ -f "$here/copy" ]; then echo "note: started a copy as copy-1" >&2; echo "backgrounded · copy-1"; else echo "backgrounded · own-session"; fi
+      exit 0
+    fi
     echo "backgrounded · own-session"
   SH
 
@@ -47,8 +51,21 @@ RSpec.describe "AgentRun keeps one live session per pinned role" do
   def listing(*sessions)
     entries = sessions.map { |id, name, state| { id: id, sessionId: "#{id}-full", name: name, state: state } }
     File.write(File.join(scratch, "sessions.json"), JSON.generate(entries))
-    FileUtils.mkdir_p(File.join(scratch, "jobs", "own-session"))
-    File.write(File.join(scratch, "jobs", "own-session", "state.json"), JSON.generate(state: "blocked"))
+    %w[own-session copy-1].each do |id|
+      FileUtils.mkdir_p(File.join(scratch, "jobs", id))
+      File.write(File.join(scratch, "jobs", id, "state.json"), JSON.generate(state: "blocked"))
+    end
+  end
+
+  # The sessions stopped after a resume, not the stop a resume makes of a blocked session first.
+  def stopped = File.exist?(File.join(scratch, "stopped")) ? File.read(File.join(scratch, "stopped")).split : []
+
+  # A started run whose next answer's resume starts a copy, `copy-1`, of its own session.
+  def forking(run, role)
+    listing
+    dispatch(run, role)
+    listing(["own-session", "orchestrator", "blocked"])
+    File.write(File.join(scratch, "copy"), "yes")
   end
 
   def dispatch(run, role)
@@ -101,5 +118,28 @@ RSpec.describe "AgentRun keeps one live session per pinned role" do
 
     expect(answer("p-cleared")).to include("answered_at")
     expect(File.read(File.join(scratch, "resume.args"))).to include("[pipeline answer] go on")
+  end
+
+  it "stops the session an orchestrator run held once a fork's resume left it for a copy" do
+    forking("p-fork", "orchestrator")
+    answer("p-fork")
+
+    expect(stopped).to eq(["own-session"])
+  end
+
+  it "leaves the session a coder run held when its resume forks, since no PinnedRole row names it" do
+    forking("p-coder-fork", "coder")
+    answer("p-coder-fork")
+
+    expect(stopped).to be_empty
+  end
+
+  it "keeps refusing the forked run's answers by name while a refused stop left the old session live" do
+    forking("p-stuck", "orchestrator")
+    File.write(File.join(scratch, "stop-fails"), "yes")
+    answer("p-stuck")
+    listing(["copy-1", "orchestrator 2", "blocked"], ["own-session", "orchestrator", "working"])
+
+    expect(answer("p-stuck")).to include("already has a live session own-session")
   end
 end

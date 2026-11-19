@@ -41,6 +41,15 @@ module Hecks
         aggregate ? @registry.repository("Hecks", aggregate).all : []
       end
 
+      # @param held [Hash] an `AgentRun` record: `agent` and `works_as`
+      # @return [String] the run's pinned role, empty when it has none or no roles were given
+      def pinned_role(held) = @roles ? @roles.pinned_role(held) : ""
+
+      # @return [Hash{Symbol => Object}] the {PinnedRoleHolders#census}, or no live sessions when
+      #   no roles were given
+      # @raise [ConsoleCapture::Failure] when the sessions cannot be listed
+      def census = @roles ? @roles.census : { live_ids: "", most: 0 }
+
       private
 
       def role_facts(held) = @roles ? @roles.call(held) : {}

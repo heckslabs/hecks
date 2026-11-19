@@ -51,4 +51,14 @@ RSpec.describe Hecks::Adapters::PinnedRoleHolders do
 
     expect(holders(entries).call(orchestrator("own"))).to eq(described_class::NONE.merge(pinned_role: "orchestrator"))
   end
+
+  it "counts each pinned role's live sessions for a sweep, leaving out an idle one" do
+    entries = [entry("a", "ORCHESTRATOR", "working"), entry("b", "orchestrator 2", "blocked"), entry("c", "orchestrator", "done")]
+
+    expect(holders(entries).census).to eq(live_ids: "orchestrator: a b", most: 2)
+  end
+
+  it "reports no live session when no pinned role has one" do
+    expect(holders([entry("a", "coder", "working")]).census).to eq(live_ids: "", most: 0)
+  end
 end
