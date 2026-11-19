@@ -21,6 +21,7 @@ require_relative "session_caller"
 require_relative "dispatching/settings"
 require_relative "session_lookup"
 require_relative "work_holder"
+require_relative "pinned_role_holders"
 require_relative "session_line"
 require_relative "session_hooks"
 require_relative "claude_answering"
@@ -82,7 +83,8 @@ module Hecks
       # @param held [Hash] the `AgentRun` record: `repo`, and `agent` when one is named
       # @return [Hash{Symbol => Object}] `report:` that the directory is there, `listed:` whether
       #   the agent is listed, `note:` that in words, naming the agents that are, and the
-      #   {WorkHolder}'s facts about another run on the same work
+      #   {WorkHolder}'s facts about another run on the same work and another live session of the
+      #   run's pinned role
       # @raise [ConsoleCapture::Failure] when it is not a directory, or `claude` names no agents
       def locate(**held)
         repo = plain(held[:repo])
@@ -228,10 +230,11 @@ module Hecks
 
       def listed(id) = @listing.find(id) || raise(ConsoleCapture::Failure, "no session #{id} is listed")
 
-      # What reads the registry's runs: the sessions to reap and the run that holds a work item.
+      # What reads the registry's runs: the sessions to reap, and the run that holds a work item or
+      # the live session that holds a pinned role.
       def registered(registry)
         @reaping = SessionReaping.new(registry: registry)
-        @holder = WorkHolder.new(registry)
+        @holder = WorkHolder.new(registry, roles: PinnedRoleHolders.booted(registry, @listing))
       end
 
       def session_line = SessionLine.new(command: @command, nice: niceness, hooks: @hooks)
