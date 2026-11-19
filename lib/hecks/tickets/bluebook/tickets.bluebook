@@ -8,9 +8,8 @@
 # A Finding is the record. A gap, a parity divergence, a QA finding and an idea are kinds of it, not
 # separate aggregates. Hecks owns the finding's state; GitHub is driven from it through the
 # GitHubIssues port, which a hecksagon binds (nothing here reads GitHub back). A finding exists whether
-# or not GitHub answers: each lifecycle event asks the port, and a refused ask is recorded on the
-# finding as a sync failure that a later run retries. A finding a failed run filed opens no issue:
-# it is a work item, and no policy asks GitHub to open one for it.
+# or not GitHub answers: a refused ask is recorded on it as a sync failure a later run retries. A
+# finding a failed run filed opens no issue: it is a work item, and no policy asks GitHub for one.
 #
 # An Adr is a decision record with its own lifecycle, linked to the finding it settles. A Work is a work item:
 # one step of the plan a decision carries, and it stays inside Hecks.
