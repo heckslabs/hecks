@@ -1033,10 +1033,9 @@ Hecks.bluebook "Agents" do
       trigger  ChangeReview::SendBack, with: { review: :review, run: :run, work: :work, findings: :findings }
     end
 
-    # The findings go to the coder of the Work item as a verdict keyed by the architect's run, as
-    # written: a waiting coder is answered in place, and a finished one is recorded unreached, a
-    # finding the orchestrator hears. A decision names no Work item and no coder: its findings stay
-    # on its `Reviews` row, for the orchestrator to read.
+    # The findings go to the coder as a verdict keyed by the architect's run: a waiting coder is
+    # answered in place, a finished one recorded unreached. A decision names no coder, so its
+    # findings stay on its `Reviews` row, for the orchestrator to read.
     policy "TellTheCoderTheChangeWasSentBack" do
       on      "ChangeReview.ChangeSentBack"
       where   { work.to_s != "" }
