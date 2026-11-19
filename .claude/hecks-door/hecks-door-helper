@@ -10,6 +10,11 @@ set -euo pipefail
 : "${HECKS_CHECKOUT:?set HECKS_CHECKOUT to the agent checkout}"
 CHECKOUT_REAL="$(cd "$HECKS_CHECKOUT" && pwd -P)"
 [ -x "$CHECKOUT_REAL/exe/hecks" ] || { echo "hecks-door: no exe/hecks in $CHECKOUT_REAL" >&2; exit 78; }
+# The server gets its checkout as HECKS_STOREHOUSE_ROOT and its working directory. HECKS_CHECKOUT
+# means "the session's checkout for reads" to every launcher the server starts: inherited, it fills
+# checkout: into the main checkout's `hecks config`, which the worktree write guard reads, and a
+# door in a linked worktree is refused before it answers.
+unset HECKS_CHECKOUT
 
 # Tier 0 and Tier 1 commands, by their qualified names (the launcher qualifies them by aggregate).
 DEFAULT_COMMANDS="style_run.check_comments,style_run.check_comments_unchanged,model_check_run.model_check,\
