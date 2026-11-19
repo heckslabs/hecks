@@ -1,0 +1,13 @@
+# The ports Roundhouse declares, for every hecksagon that attaches the bluebook. Each names the
+# question it asks of the outside and never says how it is answered; an adapter binds each.
+Hecks.hecksagon "Roundhouse" do
+  attaches "Governance"
+
+  # The machine and its live sessions, read with `claude agents --json`, `ps`, `sysctl` and
+  # `vm_stat`. It only reads: no session is started, stopped or reaped through it (ADR 0222,
+  # phase 2, the shadow).
+  Roundhouse::Reading.port "Metering" do
+    answers_query "Sessions"
+    answers_query "Machine"
+  end
+end

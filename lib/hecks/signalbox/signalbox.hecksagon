@@ -1,5 +1,6 @@
-# The Signalbox bluebook, bound so it boots standing alone (a behaviors or model_check boot of this
-# directory). It persists in Memory and is wired into nothing yet (ADR 0222, phase 1).
+# The Signalbox bluebook, bound so it boots standing alone; its ports are in signalbox.ports.hecksagon.
+# It persists in Memory: the shadow counts only once the main checkout that beats keeps its
+# rulings with a machine-local signalbox.local.hecksagon (ADR 0136).
 Hecks.hecksagon "Signalbox" do
   attaches "Governance"
   persisted_by "Memory"
