@@ -44,8 +44,8 @@ jobs:
   # connects with tokio_postgres, which ignores PG* env vars, while the spec
   # connects through the `pg` gem, which honors them.
   # `cargo test` dispatches against banking.wasm and checkout_fixture.wasm, read at run time only
-  # (rust/dist is gitignored). They are built here, beside the cargo job's cache restore and test
-  # compile, and handed over as an artifact the cargo job polls for. The dev profile: the tests
+  # (rust/dist is gitignored). They are built here and handed over as artifacts the cargo job
+  # downloads once, after every leg has uploaded. The dev profile: the tests
   # only run the modules, and it compiles in half the time. rust/host runs them through the
   # wasmtime crate, so the wasmtime CLI is not installed.
   build_host_wasm:
@@ -101,10 +101,14 @@ jobs:
 
     permissions:
       contents: read
-      actions: read
 
-    needs: ci_attestation_rust_host
-    if: always() && (needs.ci_attestation_rust_host.result != 'success' || needs.ci_attestation_rust_host.outputs.attested != 'true')
+    # After the wasm legs, not beside them: a job running beside the uploads can only poll for
+    # them, and every open pull request's polls share one API budget, which they ran out of.
+    # A failed leg skips this job and fails the reusable workflow, so rspec_rust_host stays red.
+    needs: [ci_attestation_rust_host, build_host_wasm]
+    if: >-
+      always() && needs.build_host_wasm.result == 'success' &&
+      (needs.ci_attestation_rust_host.result != 'success' || needs.ci_attestation_rust_host.outputs.attested != 'true')
 
     env:
       PGHOST: localhost
@@ -142,30 +146,22 @@ jobs:
       - name: Create a superuser role for the runner user
         run: sudo -u postgres psql -c "CREATE ROLE \"$(whoami)\" SUPERUSER LOGIN"
 
-      # The tests read the wasm modules at run time only, so compile them first, while
-      # build_host_wasm builds the modules. `bundle exec` lets the Ruby mint fixtures (spawned as
-      # plain `ruby`) load `pg`.
+      # `bundle exec` lets the Ruby mint fixtures (spawned as plain `ruby`) load `pg`.
       - name: "Compile the tests"
         run: cd rust/host && bundle exec cargo test --workspace --no-run
 
-      # Fetches each module by name, since the job that builds them runs beside this one. The download
-      # is the retried unit: a separate count of the artifacts can read a listing that download-artifact
-      # does not, and then it took 1 of 3 in the second the others were created. One deadline covers all
-      # three, so a leg that never uploads fails the step at 600s, not at the job's timeout.
+      # One read of the run's own artifacts, every leg already uploaded: no API polling.
       - name: Download the wasm modules
-        env:
-          GH_TOKEN: ${{ github.token }}
+        uses: actions/download-artifact@v4
+        with:
+          pattern: host-wasm-*
+          merge-multiple: true
+          path: rust/dist
+
+      # Each leg writes its own module name, so merging them overwrites nothing; check the two the
+      # tests read arrived.
+      - name: Check the wasm modules arrived
         run: |
-          deadline=$((SECONDS + 600))
-          for module in banking checkout_fixture pluginned; do
-            until gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "host-wasm-$module" --dir rust/dist; do
-              if [ "$SECONDS" -ge "$deadline" ]; then
-                echo "host-wasm-$module was not downloadable within 600s" >&2
-                exit 1
-              fi
-              sleep 2
-            done
-          done
           for wasm in banking checkout_fixture; do
             [ -f "rust/dist/$wasm.wasm" ] || { echo "rust/dist/$wasm.wasm is missing after the download" >&2; exit 1; }
           done
