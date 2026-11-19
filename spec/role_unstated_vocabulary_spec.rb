@@ -7,14 +7,14 @@ require "json"
 # a caller who states no role is treated. The Rust parser's reading of the same fixture is held to
 # this IR byte for byte by spec/parser_parity_spec.rb, which compares every fixture bluebook.
 RSpec.describe "policy_only and acts_as" do
-  FIXTURE = File.join(InMemoryDomain::ROOT, "spec/fixtures/role_unstated_caller.bluebook")
+  ROLE_UNSTATED_FIXTURE = File.join(InMemoryDomain::ROOT, "spec/fixtures/role_unstated_caller.bluebook")
 
   # The fixture's IR as the exporter writes it, read back as JSON.
   def ruby_ir
     registry = Hecks::Runtime::Registry.new
     Hecks.with_registry(registry) do
       MemoryPorts.load!
-      Kernel.load(FIXTURE)
+      Kernel.load(ROLE_UNSTATED_FIXTURE)
     end
     JSON.parse(JSON.generate(Hecks::Projector::Exporter.call(registry).fetch("RoleUnstatedCaller")))
   end
