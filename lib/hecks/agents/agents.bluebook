@@ -213,13 +213,9 @@ Hecks.bluebook "Agents" do
              evidence: "CLAUDE.md: Landing.discard! runs only when the owner names the branch"
     end
 
-    # The roles whose session is never removed and that have at most one live session. The Hecks
-    # domain keeps that rule: a run of the role is declined at dispatch (`RecordTheHeldRole`) and
-    # its answers refused by name while another live session holds the role, a fork's resume stops
-    # the session it superseded (`StopTheSupersededSession`), `AgentRun.Rebind` moves a run to a
-    # named live session, and `check_all!` reports a role with two (`ReportTheDoubledRole`). The
-    # orchestrator holds the pipeline's state in its session. The pruner reads these rows, so no
-    # file or role list holds a copy.
+    # The roles whose session is never removed and that have at most one live session (the Hecks
+    # domain's `RecordTheHeldRole`, `StopTheSupersededSession`, `AgentRun.Rebind` and
+    # `ReportTheDoubledRole`). The pruner reads these rows, so no file or role list holds a copy.
     value_object "PinnedRole" do
       attribute :role,   String
       attribute :reason, String
