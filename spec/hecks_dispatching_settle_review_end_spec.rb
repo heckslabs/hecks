@@ -58,7 +58,7 @@ RSpec.describe Hecks::Adapters::Dispatching::Settler, "#call" do
     restarted_coder
     review_ends
 
-    expect(settle).to eq([])
+    expect(settle).to match([/\Aleft #{key}: /])
     expect(launcher).not_to have_received(:yield_back)
   end
 
@@ -67,7 +67,7 @@ RSpec.describe Hecks::Adapters::Dispatching::Settler, "#call" do
     review_ends
     launch("agent_run.answered!", "to=#{key}", "answered_at.value=#{Time.now.utc.iso8601}", "session.value=stand-in-session")
 
-    expect(settle).to eq([])
+    expect(settle).to match([/\Aleft #{key}: /])
     expect(Hecks::Adapters::Dispatching::WorkItems.new(registry).started.map(&:key)).to eq([key])
   end
 end
