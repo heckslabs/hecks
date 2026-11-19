@@ -35,10 +35,7 @@ RSpec.describe "the orchestrator's one seat" do
 
   # The stand-in holds one session for every run, so it works again before the refill is read.
   it "starts the seat again once its session has stopped" do
-    job_reads("stopped")
-    fresh_sweep("beat-2")
-    job_reads("working")
-    fresh_sweep("beat-3")
+    fresh_stop_and_refill
     expect(live_seats.map { |row| row["parent"] }).to contain_exactly(satisfy { |parent| parent != "beat-1" })
   end
 
