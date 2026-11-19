@@ -2,6 +2,7 @@
 
 require_relative "../area_overlap"
 require_relative "../shell"
+require "hecks/hecks/adapters/landing/section_area"
 
 module Hecks
   module Adapters
@@ -12,7 +13,9 @@ module Hecks
       # A planned area is a guess made before any edit. A branch with commits says what the work
       # item really edits, so those files, plus any file the plan named, are its claim and the
       # directory is let go. Files edited but not yet committed are not seen until a commit holds
-      # them; a landing's clash check reads the same committed diff, so the two agree.
+      # them; a landing's clash check reads the same committed diff, so the two agree. A file the
+      # plan named by its sections (`x.bluebook#Coder`) stays claimed by those sections when the
+      # branch changes it, so two items holding different sections of one bluebook stay apart.
       class EffectiveArea
         # @param planned [Array<String>] the area the work item was planned or last rescoped with
         # @param changed [Array<String>] the files its branch changes against main
@@ -21,12 +24,18 @@ module Hecks
         def self.choose(planned, changed)
           return planned if changed.empty?
 
-          (planned.select { |word| file?(word) } + changed).uniq
+          named = planned.select { |word| file?(word) }
+          sectioned = named.select { |word| Landing::SectionArea.sectioned?(word) }
+          held = sectioned.map { |word| Landing::SectionArea.path(word) }
+          (named + changed.reject { |file| held.include?(file) }).uniq
         end
 
-        # @param word [String] an area word
+        # @param word [String] an area word, which may name sections of its file
         # @return [Boolean] whether it names one file: no glob, and a name with an extension
-        def self.file?(word) = !word.match?(AreaOverlap::WILDCARD) && !File.extname(word).empty?
+        def self.file?(word)
+          path = Landing::SectionArea.path(word)
+          !path.match?(AreaOverlap::WILDCARD) && !File.extname(path).empty?
+        end
 
         # @param repo [String] the checkout whose branches are read
         # @param onto [String] the branch a work item's changes are measured from
