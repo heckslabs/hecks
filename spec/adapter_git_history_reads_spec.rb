@@ -22,6 +22,8 @@ module GitHistoryReads
     "git_main_pull/boarding.rb"               => "subjects in the range of main being pulled: ancestry and order",
     "git_refs.rb"                             => "ancestry, first-parent order and commit times: the ledger has no parentage",
     "git_rehearsal/due.rb"                    => "how far main is ahead of its tracking branch and since when",
+    "git_rehearsal/due/remote.rb"             => "how far main is behind its tracking branch and that branch's tip",
+    "git_rehearsal/due/unpushed.rb"           => "the unpushed commits' subjects and times: the commits are git",
     "git_rehearsal/record.rb"                 => "orders rehearsal records by ancestry, else commit time",
     "git_train.rb"                            => "commits a boarding carries beyond the remote: the push has not happened",
     "git_train/carriage.rb"                   => "what the remote carries after a push and what waits behind it",
