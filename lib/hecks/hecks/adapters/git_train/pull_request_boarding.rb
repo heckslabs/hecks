@@ -6,6 +6,7 @@ require_relative "bench"
 require_relative "named_commit"
 require_relative "merge_when_green"
 require_relative "rate_limit_retry"
+require_relative "stack"
 require_relative "../gh_rest"
 
 module Hecks
@@ -120,9 +121,10 @@ module Hecks
 
         def board(boarded)
           branch = self.class.branch_for(boarded)
-          Bench.new(@git, @checkout, branch: branch, remote: @remote, config: @config).push(boarded, tracking)
-          url = open_pr(branch, boarded)
-          return queued(boarded, branch, url) if enable_auto_merge(branch)
+          placing = Stack.new(@git, @checkout, runner: @runner, pause: @pause).place(boarded, tracking)
+          Bench.new(@git, @checkout, branch: branch, remote: @remote, config: @config).push(boarded, tracking, base: placing.base)
+          url = open_pr(branch, boarded, placing)
+          return queued(boarded, branch, url, placing) if enable_auto_merge(branch)
 
           waited(boarded, branch, url)
         end
@@ -148,12 +150,12 @@ module Hecks
           raise ConsoleCapture::Failure, "main moved since boarding (boarded #{short(boarded)}, now #{short(now)}): board again"
         end
 
-        # Opens the PR, or finds the one a retried boarding already opened.
-        def open_pr(branch, boarded)
+        # Opens the PR, or finds the one a retried boarding already opened. A stacked PR is still
+        # into main, and its body names the train beneath it.
+        def open_pr(branch, boarded, placing)
           ok, output = patient.call(
-            ["gh", "pr", "create", "--base", "main", "--head", branch,
-             "--title", "Train: main at #{short(boarded)}",
-             "--body", "Boarded by the push train. Merges once the required checks pass."],
+            ["gh", "pr", "create", "--base", "main", "--head", branch, "--title", "Train: main at #{short(boarded)}",
+             "--body", body(placing)],
             chdir: @checkout
           )
           return url_from(output) if ok
@@ -169,6 +171,11 @@ module Hecks
         def open_refusal(branch, output)
           note = RateLimitRetry.limited?(output) ? " (rate limit; #{branch} stays pushed, board again to adopt it)" : ""
           "could not open a PR for #{branch}#{note}: #{output.to_s.strip}"
+        end
+
+        def body(placing)
+          said = "Boarded by the push train. Merges once the required checks pass."
+          placing.beneath ? "#{said} Stacked on ##{placing.beneath[:number]}, which merges first." : said
         end
 
         # `gh pr create` prints the PR's URL as its last line.
@@ -213,9 +220,10 @@ module Hecks
           answer.merge(checkout: { value: @checkout }, boarded: { value: boarded })
         end
 
-        def queued(boarded, branch, url)
+        def queued(boarded, branch, url, placing)
+          said = ["queued #{short(boarded)} as #{url} on #{branch}", placing.said, "auto-merge on, merges when checks pass"]
           { outcome: { value: "queued" }, checkout: { value: @checkout }, boarded: { value: boarded },
-            report: { value: "queued #{short(boarded)} as #{url} on #{branch}; auto-merge on, merges when checks pass" } }
+            report: { value: said.reject(&:empty?).join("; ") } }
         end
 
         def carried(boarded)
