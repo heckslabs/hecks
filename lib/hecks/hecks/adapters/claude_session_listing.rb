@@ -90,6 +90,10 @@ module Hecks
         { listed: status(id), live: state(id) }
       end
 
+      # @return [Array<Hash>] every session the listing holds, the kept listing while it is fresh
+      # @raise [ConsoleCapture::Failure] when the sessions cannot be listed
+      def entries = kept || read
+
       # Forgets the kept listing, so the next question reads a fresh one. A caller that has just
       # removed or stopped a session calls it, since the kept listing still shows that session.
       #
