@@ -149,10 +149,9 @@ Hecks.bluebook "Interviews" do
       mark :terminal, "concluded"
     end
 
-    # Opens the interview with its first exchange, and appends each later turn to it (ADR 0194,
-    # decision 5). The subject and keeping are the opening turn's: a later turn leaves them out,
-    # and one that states them is not read, since only a creating turn assigns them and a rule
-    # cannot compare an argument with the stored field it is named like.
+    # Opens the interview and appends each later turn (ADR 0194, decision 5). Subject and keeping
+    # are the opening turn's: a later turn leaves them out, and one that states them is not read,
+    # since a rule cannot compare an argument with the stored field it is named like.
     command "Record" do
       role "Maintainer"
       goal "Keep a turn of the conversation: who spoke, what was asked and what was said"
