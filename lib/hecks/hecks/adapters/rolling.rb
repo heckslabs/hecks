@@ -21,16 +21,24 @@ module Hecks
       #
       # @param held [Hash] the `RollSwitch` record: `paused`, and the `run` that asks
       # @return [Hash{Symbol => String, Integer}] `state:` "on" or "off", `standing:` 1 while a
-      #   pause is recorded and 0 otherwise
+      #   pause is recorded and 0 otherwise, and `roll:` the key of the roll this read may start:
+      #   the asking run and the time of the read, so each event that asks starts its own roll
       def read(**held)
         paused = held[:paused]
-        { state: @world.roll_forward? ? "on" : "off", standing: (paused.is_a?(Hash) ? paused[:value] : paused).to_i }
+        { state: @world.roll_forward? ? "on" : "off", standing: (paused.is_a?(Hash) ? paused[:value] : paused).to_i,
+          roll: { value: roll_key(held) } }
       end
 
       # @param held [Hash] the `Roll` record
       # @return [Hash{Symbol => Hash}] `report:` what the filling started and what waits
       # @raise [ConsoleCapture::Failure] when rolling is paused or nothing changed
       def roll(**held) = @dispatching.roll(**held)
+
+      private
+
+      def roll_key(held) = "#{plain(held[:run])}@#{Time.now.utc.strftime("%Y-%m-%dT%H:%M:%S.%9NZ")}"
+
+      def plain(argument) = argument.is_a?(Hash) ? argument[:value] : argument
     end
   end
 end
