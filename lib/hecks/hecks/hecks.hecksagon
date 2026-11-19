@@ -925,14 +925,6 @@ Hecks.hecksagon "Hecks" do
     end
   end
 
-  Hecks::Launch.port "Terminal" do
-    asks "Converse", to: Launch do
-      attribute :run, LaunchKey
-      answers "LaunchAnswered"
-      refuses "LaunchRefused"
-    end
-  end
-
   Hecks::Build.port "RustToolchain" do
     asks "Generate", to: Build do
       attribute :run, BuildKey
