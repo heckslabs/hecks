@@ -1,6 +1,7 @@
 require "spec_helper"
+require_relative "../lib/hecks/hecks/adapters/reviewer_judgment"
 
-# The reviewer's judgment of a failing spec, the release manager's recommendation, and the rule that
+# The reviewer's judgment of a submission, the release manager's recommendation, and the rule that
 # no role issues an owner decision. Booted in Memory, one registry per example.
 RSpec.describe "the Agents reviewer, recommendation and owner-only rule" do
   def agents_root = File.join(InMemoryDomain::ROOT, "lib/hecks/agents")
@@ -36,8 +37,9 @@ RSpec.describe "the Agents reviewer, recommendation and owner-only rule" do
     expect { request(3) }.to raise_error(Hecks::Runtime::GivenNotMet, /under the hop limit/)
   end
 
-  it "records a judgment the reviewer gives" do
-    expect { request(1).judge!(judgment: { value: "stale_expectation" }) }.not_to raise_error
+  it "records every closing word the reviewer's reader reads" do
+    words = Hecks::Adapters::ReviewerJudgment::WORDS
+    expect { words.each { |word| request(1, "c-#{word}").judge!(judgment: { value: word }) } }.not_to raise_error
   end
 
   it "refuses a judgment the reviewer does not give, by name" do

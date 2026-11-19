@@ -200,7 +200,7 @@ svg.focusing .edge.lit, svg.focusing .node.lit { opacity: 1; }
       <g class="edge" data-edge="coder-reviewer" data-ends="coder reviewer" data-tip="Coder → Reviewer&#10;WorkSubmitted → SubmissionReviewRequested&#10;policy AskTheReviewerWhenWorkIsSubmitted">
         <path class="line" d="M620 288 H757" marker-end="url(#a-ink)"/><path class="flow" d="M620 288 H757"/><path class="hit" d="M620 288 H757"/>
         <text x="688" y="279" text-anchor="middle">WorkSubmitted</text></g>
-      <g class="edge" data-edge="reviewer-coder" data-ends="reviewer coder" data-tip="Reviewer → Coder&#10;SpecFailureJudged → VerdictJudged&#10;A real bug or a stale expectation: the judgment goes back to a coder.">
+      <g class="edge" data-edge="reviewer-coder" data-ends="reviewer coder" data-tip="Reviewer → Coder&#10;SpecFailureJudged → VerdictJudged&#10;Clean, a real bug, a stale expectation or a missing behavior: the judgment goes back to a coder.">
         <path class="line" d="M760 314 H623" marker-end="url(#a-ink)"/><path class="flow" d="M760 314 H623"/><path class="hit" d="M760 314 H623"/>
         <text x="688" y="332" text-anchor="middle">SpecFailureJudged</text></g>
       <g class="edge" data-edge="coder-pipeline" data-ends="coder pipeline" data-tip="Coder → Pipeline&#10;WorkSubmitted → Landing.Submit → BranchLanded&#10;A submitted branch lands on local main by itself.">

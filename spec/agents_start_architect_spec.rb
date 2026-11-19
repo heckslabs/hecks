@@ -104,7 +104,7 @@ RSpec.describe "a plan review request starting the architect's session" do
 
   it "records the reviewer's judgment, and hands a real bug to a person", :aggregate_failures do
     submit("w-bug", "abc9002")
-    close_job("The failing spec is a real_bug: the code is wrong.")
+    close_job("The failing spec is a real bug: the code is wrong.\nreal_bug")
     launch("agent_run.check!", "to=abc9002", "--wait")
     expect(launch("agents", "SubmissionReview.reviews").first.to_s).to include("abc9002", "real_bug")
     expect(reactions("RealBugGoesToAPerson").last[:delivered]).to be(true)

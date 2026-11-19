@@ -388,10 +388,22 @@ RSpec.describe Hecks::Adapters::ClaudeAgents do
       expect(read(agent: { value: "architect" })).to include(verdict: "rethink", findings: "Verdict: rethink")
     end
 
-    it "reads the reviewer's judgment off the closed job, and no verdict" do
-      job("done", "judged", { result: "One failure is a stale expectation." })
+    it "reads the reviewer's judgment off the closed job's last line, and no verdict" do
+      job("done", "judged", { result: "One failure is a stale expectation.\nstale_expectation" })
 
       expect(read(agent: { value: "reviewer" })).to include(judgment: "stale_expectation", verdict: "")
+    end
+
+    it "reads a clean or a missing behavior closing line, in backticks or not" do
+      job("done", "judged", { result: "Behaviors run b-1 passed.\n`missing_behavior`" })
+
+      expect(read(agent: { value: "reviewer" })).to include(judgment: "missing_behavior")
+    end
+
+    it "reads no judgment from a word that is not alone on the last line" do
+      job("done", "judged", { result: "clean\nmodel_check is clean" })
+
+      expect(read(agent: { value: "reviewer" })).to include(judgment: "")
     end
 
     it "reports no verdict or judgment for any other agent" do
