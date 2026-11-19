@@ -2627,10 +2627,158 @@ Hecks.bluebook "Hecks" do
     end
 
     # An exception the orchestrator must judge starts its session as a run keyed by the escalation:
-    # a stall's key is its Work item, which the stall fixer's run is keyed by.
+    # a stall's key is its Work item, which the stall fixer's run is keyed by. A wake under the
+    # standing rule all-hands-on-red is weighed against main's red flag first (`RedWake`).
     policy "StartTheCoordinatorWhenWoken" do
       on      "Escalation.CoordinatorWoken"
+      where   { rule != "all-hands-on-red" }
       trigger AgentRun::Dispatch, with: { run: :escalation, repo: :repo, brief: :brief, agent: :role }
+    end
+
+    # A linked worktree keeps its runs in Memory, so a session it started would be reaped by
+    # nothing; declined there, the shared flag is the one signal left. One run stands per flag.
+    aggregate "RedWake" do
+      description "One wake of the orchestrator for a red main, which starts a session only while main's red flag stands and only from the main checkout, under the run red-wake-<flag>, playing red-wake for its episode."
+
+      attribute :escalation, WakeKey
+      attribute :kind,       WakeWord
+      attribute :repo,       WakeWord
+      attribute :flag,       WakeWord, optional: true
+      attribute :run,        WakeWord, optional: true
+      identified_by :escalation
+
+      value_object "WakeKey" do
+        attribute :value, String, matches: :present
+      end
+
+      value_object "WakeWord" do
+        attribute :value, String, matches: :present
+      end
+
+      lifecycle :status, default: "requested" do
+        mark :failure, "declined"
+        transition "Start"   => "started",  from: "requested"
+        transition "Decline" => "declined", from: "requested"
+        mark :terminal, "started", "declined"
+      end
+
+      command "Hear" do
+        role "System"
+        goal "Hear a wake of the orchestrator for a red main, to weigh it against the red flag"
+
+        attribute :escalation, WakeKey, sets: true
+        attribute :kind,       WakeWord, sets: true
+        attribute :repo,       WakeWord, sets: true
+
+        emits RedWakeHeard
+      end
+
+      command "Start" do
+        role "System"
+        goal "Record that main's red flag stands and the wake's session starts under the flag's run"
+
+        reference_to RedWake
+        attribute :flag,    WakeWord, sets: true
+        attribute :run,     WakeWord, sets: true
+        attribute :kind,    WakeWord
+        attribute :repo,    WakeWord
+        attribute :episode, WakeWord
+
+        emits RedWakeStarted
+      end
+
+      command "Decline" do
+        role "System"
+        goal "Record why no session starts for the wake: main is green, or this is not the main checkout"
+
+        reference_to RedWake
+        attribute :refusal, WakeWord
+
+        emits RedWakeDeclined
+      end
+    end
+
+    policy "HearTheRedWake" do
+      on      "Escalation.CoordinatorWoken"
+      where   { rule == "all-hands-on-red" }
+      trigger RedWake::Hear, with: { escalation: :escalation, kind: :event, repo: :repo }
+    end
+
+    policy "WeighTheRedWake" do
+      on      "RedWake.RedWakeHeard"
+      ask     :weigh, with: { escalation: :escalation, kind: :kind, repo: :repo }
+    end
+
+    policy "StartTheRedWakeWhileMainIsRed" do
+      on      "RedWake.RedWakeWeighed"
+      where   { standing == true && main_checkout == true }
+      trigger RedWake::Start, with: { flag: :flag, run: :run, kind: :kind, repo: :repo, episode: :escalation }
+    end
+
+    policy "DeclineTheRedWakeWhileMainIsGreen" do
+      on      "RedWake.RedWakeWeighed"
+      where   { standing != true && main_checkout == true }
+      trigger RedWake::Decline, with: { refusal: "main is not flagged: no red-main session starts" }
+    end
+
+    policy "DeclineTheRedWakeOutsideTheMainCheckout" do
+      on      "RedWake.RedWakeWeighed"
+      where   { main_checkout != true }
+      trigger RedWake::Decline, with: { refusal: "not the main checkout: a red-main session starts only where its run is recorded" }
+    end
+
+    policy "DeclineTheUnweighedRedWake" do
+      on      "RedWake.RedWakeUnweighed"
+      trigger RedWake::Decline, with: { refusal: :refusal }
+    end
+
+    # Each brief asks for a report and an end: the session never waits blocked on an answer. Each
+    # is a root: the session starts deeper than the reaction cap counts from the wake.
+    policy "StartTheParkedEpisodeReport" do
+      on      "RedWake.RedWakeStarted"
+      root
+      where   { kind == "EpisodeParked" }
+      trigger AgentRun::Dispatch,
+              with: { run: :run, repo: :repo, agent: "orchestrator", works_as: "red-wake", work: :episode,
+                      brief: "A red main's episode parked: its range already holds a revert, so nothing was " \
+                             "reverted and the red flag stands (RedFlag.status). Report the culprit and spec " \
+                             "on the episode to the owner, under your standing rule all-hands-on-red, then end " \
+                             "your turn. Never wait for an answer: a question for the owner goes in the report." }
+    end
+
+    policy "StartTheRefusedRevertReport" do
+      on      "RedWake.RedWakeStarted"
+      root
+      where   { kind == "RevertRefused" }
+      trigger AgentRun::Dispatch,
+              with: { run: :run, repo: :repo, agent: "orchestrator", works_as: "red-wake", work: :episode,
+                      brief: "A red main's revert was refused (a dirty or off-main checkout, or a failed git " \
+                             "revert), so the red flag stands with no revert (RedFlag.status). Report the " \
+                             "refusal to the owner, under your standing rule all-hands-on-red, then end your " \
+                             "turn. Never wait for an answer: a question for the owner goes in the report." }
+    end
+
+    policy "StartTheUnmatchedCauseReport" do
+      on      "RedWake.RedWakeStarted"
+      root
+      where   { kind != "EpisodeParked" && kind != "RevertRefused" }
+      trigger AgentRun::Dispatch,
+              with: { run: :run, repo: :repo, agent: "orchestrator", works_as: "red-wake", work: :episode,
+                      brief: "A cause of a red main matches no known lesson while the red flag stands " \
+                             "(RedFlag.status). Record it as a lesson and see that one coder holds the cause, " \
+                             "under your standing rule all-hands-on-red, then end your turn. Never wait for an " \
+                             "answer: a question for the owner goes in the report." }
+    end
+
+    # A red-main session reports and ends; one read blocked is ended at once, its question kept as
+    # the detail, so the reap of a finished helper removes it. A pinned one or one being answered stays.
+    policy "FinishTheBlockedRedWake" do
+      on      "AgentRun.JobRead"
+      root
+      where   do
+        state == "blocked" && run.start_with?("red-wake-") && pin_listed == false && resuming != true
+      end
+      trigger AgentRun::Finish, with: { condition: "abandoned", detail: :detail, checkout: :checkout }
     end
 
     # A session the board started by hand has no run to tidy, so it is removed on its own. The
