@@ -61,6 +61,10 @@ RSpec.describe Hecks::Adapters::Dispatching::Checkout, :io do
     expect(described_class.holding("feature", primary)).to eq(linked)
   end
 
+  it "answers a directory git names no repository for with that directory itself" do
+    Dir.mktmpdir { |outside| expect(described_class.main(outside)).to eq(outside) }
+  end
+
   it "resolves a branch no worktree holds to the primary checkout" do
     expect(described_class.holding("absent", linked)).to eq(primary)
   end
