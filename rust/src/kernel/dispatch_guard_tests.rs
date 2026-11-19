@@ -778,10 +778,20 @@ fn dispatch_entity_over_a_missing_parent_is_not_found() {
 fn a_create_or_act_dispatch_builds_the_record_when_nothing_answers_to_its_identity() {
     let mut run = fresh();
 
-    let (record, _) =
-        run_dispatch(&mut run, create_or_act("a1"), &[], None, &[], &no_invariants()).unwrap();
+    let (record, _) = run_dispatch(
+        &mut run,
+        create_or_act("a1"),
+        &[],
+        None,
+        &[],
+        &no_invariants(),
+    )
+    .unwrap();
 
-    assert_eq!((record.balance, run.repo.find("a1").unwrap().balance), (15, 15));
+    assert_eq!(
+        (record.balance, run.repo.find("a1").unwrap().balance),
+        (15, 15)
+    );
 }
 
 #[test]
@@ -790,18 +800,35 @@ fn a_create_or_act_dispatch_acts_on_the_record_its_identity_already_names() {
     run.repo.save("a1", acct());
     run_dispatch(&mut run, act("a1"), &[], None, &[], &no_invariants()).unwrap();
 
-    let (record, _) =
-        run_dispatch(&mut run, create_or_act("a1"), &[], None, &[], &no_invariants()).unwrap();
+    let (record, _) = run_dispatch(
+        &mut run,
+        create_or_act("a1"),
+        &[],
+        None,
+        &[],
+        &no_invariants(),
+    )
+    .unwrap();
 
-    assert_eq!((record.balance, run.repo.find("a1").unwrap().balance), (20, 20));
+    assert_eq!(
+        (record.balance, run.repo.find("a1").unwrap().balance),
+        (20, 20)
+    );
 }
 
 #[test]
 fn a_create_or_act_dispatch_with_a_blank_identity_is_not_found() {
     let mut run = fresh();
 
-    let refusal =
-        run_dispatch(&mut run, create_or_act(""), &[], None, &[], &no_invariants()).unwrap_err();
+    let refusal = run_dispatch(
+        &mut run,
+        create_or_act(""),
+        &[],
+        None,
+        &[],
+        &no_invariants(),
+    )
+    .unwrap_err();
 
     assert_eq!(refusal.kind(), "NotFound");
 }
