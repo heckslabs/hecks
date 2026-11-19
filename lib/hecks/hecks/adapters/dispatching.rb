@@ -6,6 +6,7 @@ require_relative "dispatching/work_items"
 require_relative "dispatching/plan"
 require_relative "dispatching/headroom"
 require_relative "dispatching/headroom_reads"
+require_relative "dispatching/admission_reads"
 require_relative "dispatching/load_reading"
 require_relative "dispatching/dependencies"
 require_relative "dispatching/launcher"
@@ -208,7 +209,7 @@ module Hecks
       end
 
       def header(plan, tally = "this fill would start #{plan.chosen.size}")
-        "#{load_line}; started #{work_items.started.size} of cap #{machine.cap}; #{headroom_clause(plan)}; " \
+        "#{load_line}; #{cap_clause}; #{headroom_clause(plan)}; " \
           "#{tally}; #{load_reading_clause}; frozen: #{frozen_line}; at #{ran_at}"
       end
 

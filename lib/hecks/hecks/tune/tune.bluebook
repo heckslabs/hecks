@@ -54,6 +54,8 @@ Hecks.bluebook "Hecks" do
                context: "Hecks / Delegate", says: "Whether the fill starts work by itself when a place frees"
         member world: "Tickets", setting: "signalbox_pressure.drives", kind: "switch", least: "", most: "",
                context: "Hecks / Delegate", says: "Whether the load guards, the moving cap and the heavy-jobs gate read Signalbox's pressure signal"
+        member world: "Tickets", setting: "admission.signalbox", kind: "switch", least: "", most: "",
+               context: "Hecks / Delegate", says: "Whether Signalbox admits each coder by headroom in place of the work cap and the red reserve"
         member world: "Tickets", setting: "dispatch_max_load.limit", kind: "number", least: "2", most: "40",
                context: "Hecks / Delegate", says: "The load above which the fill starts no session"
         member world: "Tickets", setting: "metering.roundhouse", kind: "switch", least: "", most: "",

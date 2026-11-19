@@ -4,6 +4,7 @@ require_relative "../area_overlap"
 require_relative "parking"
 require_relative "../work_slots"
 require_relative "pressure_limits"
+require_relative "plan_admission"
 
 module Hecks
   module Adapters
@@ -18,6 +19,8 @@ module Hecks
       # it. A fill with free places starts as many startable work items as it has places: the load
       # limit is the machine's one stop, and the headroom estimate is reported, never held to.
       class Plan
+        include PlanAdmission
+
         # A work item, as {WorkItems} reads it.
         # `yield_kind`, `retry_at` and `yield_count` are what its last yield recorded ({Parking}).
         Item = Struct.new(:key, :title, :detail, :area, :yield_kind, :retry_at, :yield_count, :priority,
@@ -46,16 +49,16 @@ module Hecks
 
         # @param planned [Array<Item>] the planned work items, in plan order
         # @param started [Array<Item>] the started work items
-        # @param limits [Hash] `runs:` (callable: AgentRun states by run key) and `now:` (Time),
-        #   `cap:` (Integer), `load:` and `max_load:` (Float), `frozen:` (Array), `epic_wip:`
-        #   (Integer: most started items of one epic), `headroom:` and `per_session:` (the estimate
-        #   reported), `urgent_reserve:` (red), `cpus:` (the load an expedited item may start
-        #   under), `paused:` and `budget:` (String: why every work item waits), `rethinks:`
-        #   (callable: why a work item waits for a person), `waits:` (callable: the unlanded work
-        #   item an item waits on), `exempt:` (callable: whether a work item
-        #   starts despite it), `stall:` (callable: whether a key is a filed stall's item), `root:`
-        #   (String: the repository's top level) and `effective:` (callable: the area an item holds
-        #   now, by {EffectiveArea}); all but `cap:`, `load:`, `max_load:` and `frozen:` optional
+        # @param limits [Hash] `runs:` (callable: AgentRun states by run key), `now:` (Time), `cap:`
+        #   (Integer), `load:` and `max_load:` (Float), `frozen:` (Array), `epic_wip:` (most started
+        #   items of one epic), `headroom:` and `per_session:` (the estimate reported),
+        #   `urgent_reserve:` (red), `cpus:` (the load an expedited item may start under), `paused:`
+        #   and `budget:` (String: why every work item waits), `rethinks:` (callable: why an item
+        #   waits for a person), `waits:` (callable: the unlanded item it waits on), `admit:`
+        #   ({PlanAdmission}), `exempt:` (callable: whether an item starts despite it), `stall:`
+        #   (callable: whether a key is a filed stall's), `root:` (the repository's top level) and
+        #   `effective:` (callable: its area now, by {EffectiveArea}); all optional but `cap:`,
+        #   `load:`, `max_load:` and `frozen:`
         def initialize(planned, started, **limits)
           @started = started
           @limits = limits
@@ -151,6 +154,8 @@ module Hecks
         # The cap and the red reserve are held by {WorkSlots}, the rule the `WorkLimits` port
         # applies to a start, so a chosen item is never yielded straight back.
         def capped(item)
+          return admission_reason(item) if @limits[:admit]
+
           reserve = @limits[:urgent_reserve] || WorkSlots::DEFAULT_RESERVE
           return unless no_free_place? || WorkSlots.full?(item, holders, cap: @limits[:cap], reserve: reserve)
 
