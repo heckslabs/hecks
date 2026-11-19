@@ -52,7 +52,8 @@ module ChangeReviewHelpers
   def commit(path)
     full = File.join(scratch, path)
     FileUtils.mkdir_p(File.dirname(full))
-    File.write(full, "#{path}\n")
+    # The scratch path makes each example's tree its own, so no two share an architect's run key.
+    File.write(full, "#{path} #{scratch}\n")
     git("add", path)
     git("-c", "user.name=spec", "-c", "user.email=spec@example.invalid", "commit", "-q", "-m", path)
   end
