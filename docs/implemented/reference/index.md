@@ -9,9 +9,9 @@ survives regeneration.
 - [Lifecycle](lifecycle.md) — 2 words
 - [File](file.md) — 7 words
 - [Bluebook](bluebook.md) — 13 words
-- [Command](command.md) — 17 words
+- [Command](command.md) — 18 words
 - [Entity](entity.md) — 13 words
-- [Policy](policy.md) — 7 words
+- [Policy](policy.md) — 8 words
 - [ProcessManager](process_manager.md) — 5 words
 - [Handler](handler.md) — 1 word
 - [Dispatch](dispatch.md) — 1 word

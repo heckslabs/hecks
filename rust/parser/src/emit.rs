@@ -349,6 +349,10 @@ fn command_json(c: &ir::Command) -> JsonValue {
         fields.push(("audience".to_string(), JsonValue::strings(&c.audience)));
     }
     fields.extend(command_json_rest(c));
+    // Only a command marked `policy_only` says so, so every other command emits as it always did.
+    if c.policy_only {
+        fields.push(("policy_only".to_string(), JsonValue::Bool(true)));
+    }
     JsonValue::Object(fields)
 }
 
@@ -906,7 +910,18 @@ fn trigger_or_ask_entry(p: &ir::Policy) -> (String, JsonValue) {
 
 /// `Policy#to_h`: attribute declaration order from reaction.bluebook, then `where_ast` last.
 fn policy_json(p: &ir::Policy) -> JsonValue {
-    JsonValue::Object(vec![
+    let mut fields = policy_head_json(p);
+    // Only a reaction that declares `acts_as` says so, so every other policy emits as it always did.
+    if let Some(role) = &p.acts_as {
+        fields.push(("acts_as".to_string(), JsonValue::str(role.clone())));
+    }
+    fields.extend(policy_tail_json(p));
+    JsonValue::Object(fields)
+}
+
+/// The fields of `Policy#to_h` up to and including `root`.
+fn policy_head_json(p: &ir::Policy) -> Vec<(String, JsonValue)> {
+    vec![
         ("name".to_string(), JsonValue::str(p.name.clone())),
         (
             "on_event".to_string(),
@@ -922,6 +937,12 @@ fn policy_json(p: &ir::Policy) -> JsonValue {
             JsonValue::Bool(p.expect_undelivered),
         ),
         ("root".to_string(), JsonValue::Bool(p.root)),
+    ]
+}
+
+/// The fields of `Policy#to_h` after `root` and `acts_as`.
+fn policy_tail_json(p: &ir::Policy) -> Vec<(String, JsonValue)> {
+    vec![
         (
             "where".to_string(),
             JsonValue::opt_str(p.where_clause.as_ref()),
@@ -949,7 +970,7 @@ fn policy_json(p: &ir::Policy) -> JsonValue {
                 _ => JsonValue::Null,
             },
         ),
-    ])
+    ]
 }
 
 /// `IR::DomainPort#to_h` / `IR::PortOperation#to_h`.
