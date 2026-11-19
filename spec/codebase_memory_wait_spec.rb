@@ -51,6 +51,17 @@ RSpec.describe Hecks::Adapters::Codebase::MemoryWait do
     expect(committed { described_class.poll_of(File.expand_path("..", __dir__)) }).to eq(10.0)
   end
 
+  it "waits while Signalbox's signal drives it and is short, naming the signal" do
+    signals = [{ band: "short" }, { band: "tight", coders_fit: 1, gates_fit: 1 }]
+    expect(wait_with([pressed], pressure: -> { signals.shift }).wait("gate")).to start_with(
+      "waited 10 s while memory was low (pressure tight (Signalbox): 1 coders fit, 1 gates fit)"
+    )
+  end
+
+  it "does not wait on the machine's own marks while Signalbox's signal drives it and is not short" do
+    expect(wait_with([pressed], pressure: -> { { band: "tight" } }).wait("gate")).to eq("")
+  end
+
   def committed(&) = Hecks::Adapters::FolderOverlay.committed_only(&)
 
   # A reading as the Sampling port answers it, with only the memory gauges set.
@@ -61,9 +72,9 @@ RSpec.describe Hecks::Adapters::Codebase::MemoryWait do
   def pressed = reading(swap: 5000.0, compressor: 2.0, free: 1.0)
 
   # A wait whose readings come from the list, one per look, on a clock that the pauses move.
-  def wait_with(readings)
+  def wait_with(readings, pressure: -> {})
     now = [0.0]
     described_class.new(marks: marks, poll: 10.0, readings: -> { readings.shift || readings.last }, err: err,
-                        give_up: 120.0, clock: -> { now[0] }, pause: ->(seconds) { now[0] += seconds })
+                        give_up: 120.0, clock: -> { now[0] }, pause: ->(seconds) { now[0] += seconds }, pressure: pressure)
   end
 end
