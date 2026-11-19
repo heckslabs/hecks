@@ -685,12 +685,12 @@ RSpec.describe "the DSL surface" do
         expect_refusal(:bluebook, "Watched", /Echo's where uses "count\.between\?\(1, 9\)"/, &ranged_policy)
       end
 
-      it "does not refuse a bare .nil?, which real bluebooks already declare and which loads" do
+      it "refuses a bare .nil?, which is false for a missing value, and names == nil" do
         expect do
           build_command("Nilable") do
             given("the tag is assigned") { !status.nil? }
           end
-        end.not_to raise_error
+        end.to raise_error(Malformed, /uses "status\.nil\?".*Write `status == nil` instead/)
       end
 
       it "leaves the supported spellings alone" do
