@@ -5,6 +5,7 @@ require_relative "../git_main_pull"
 require "hecks/hecks/adapters/shell"
 require_relative "bound_gate"
 require_relative "bound_shallow_check"
+require "hecks/hecks/landing/rebase_settling"
 
 module Hecks
   module Adapters
@@ -13,7 +14,8 @@ module Hecks
       # branch onto local `main`, and run the quick gate in the branch's worktree.
       #
       # Each step refuses by name at the first failure, with the reason, and leaves the branch as it
-      # was: a rebase that conflicts is aborted. The landing itself and the tidy after it are
+      # was: a rebase that conflicts is aborted, unless every conflict is in a bluebook and merges
+      # by declaration ({Landing::RebaseSettling}). The landing itself and the tidy after it are
       # {GitLanding#merge}'s.
       class Finisher
         include GitWorktrees
@@ -77,11 +79,13 @@ module Hecks
         end
 
         def rebase
-          result = @git.capture(*replay_identity(@checkout), "rebase", *rebase_range, chdir: @checkout)
+          identity = replay_identity(@checkout)
+          result = @git.capture(*identity, "rebase", *rebase_range, chdir: @checkout)
+          result, why = Landing::RebaseSettling.new(@git, @checkout, identity).settle(result)
           return if result.ok?
 
-          raise ConsoleCapture::Failure,
-                "conflict: rebasing #{@branch} onto #{@onto} #{abandon_rebase(@checkout, result)}; nothing changed"
+          said = [abandon_rebase(@checkout, result), why].compact.join("; ")
+          raise ConsoleCapture::Failure, "conflict: rebasing #{@branch} onto #{@onto} #{said}; nothing changed"
         end
 
         # What the rebase replays: when the branch was cut from a commit that `onto` carried by

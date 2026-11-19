@@ -3,6 +3,7 @@
 require "tmpdir"
 require "hecks/hecks/adapters/git_worktrees"
 require_relative "swap"
+require "hecks/hecks/landing/conflict_settling"
 
 module Hecks
   module Adapters
@@ -12,9 +13,10 @@ module Hecks
       # first-parent commit that can be reverted or bisected alone, then the target is moved to it
       # by a compare-and-swap ({Swap}).
       #
-      # It never forces anything, never pushes, and never settles a conflict: a merge that conflicts
-      # is aborted and refused, naming the paths in conflict, with every branch as it was. When the
-      # target moved while it built, it raises {Swap::Lost} with nothing changed.
+      # It never forces anything and never pushes. A merge that conflicts only in bluebooks is
+      # settled by declaration ({Landing::ConflictSettling}); any other is aborted and refused,
+      # naming the paths in conflict and why they were not settled, with every branch as it was.
+      # When the target moved while it built, it raises {Swap::Lost} with nothing changed.
       class Merger
         include GitWorktrees
 
@@ -75,9 +77,24 @@ module Hecks
           result = @git.capture(*identity(dir), "merge", "--no-ff", "-m", "Merge branch '#{@branch}'", @branch, chdir: dir)
           return if result.ok?
 
-          conflicts = @git.capture("diff", "--name-only", "--diff-filter=U", chdir: dir).out.split
+          conflicts = Landing::ConflictSettling.new(@git, dir).conflicted
+          why = settle(dir)
+          return unless why
+
           @git.capture("merge", "--abort", chdir: dir)
-          raise ConsoleCapture::Failure, "merging #{@branch} into #{@onto} conflicts in #{conflicts.join(", ")}; nothing changed"
+          raise ConsoleCapture::Failure, "merging #{@branch} into #{@onto} conflicts in #{conflicts.join(", ")} " \
+                                         "(#{why}); nothing changed"
+        end
+
+        # Settles a conflicted merge by declaration and commits it.
+        #
+        # @return [String, nil] why it was not settled; nil when the merge commit was made
+        def settle(dir)
+          why = Landing::ConflictSettling.new(@git, dir).refusal
+          return why if why
+
+          committed = @git.capture(*identity(dir), "commit", "--no-edit", chdir: dir)
+          committed.ok? ? nil : "the settled merge did not commit: #{committed.err.strip}"
         end
 
         # A merge commit needs an author. The configured one is used; when a machine has none (a

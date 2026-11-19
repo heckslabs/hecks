@@ -2,6 +2,7 @@
 
 require_relative "bound_gate"
 require "hecks/hecks/adapters/git_worktrees"
+require "hecks/hecks/landing/rebase_settling"
 
 module Hecks
   module Adapters
@@ -89,11 +90,11 @@ module Hecks
           tree = worktree_on(branch)
           return unless tree
 
-          result = @git.capture("rebase", @onto, chdir: tree.path)
+          result, why = Landing::RebaseSettling.new(@git, tree.path).settle(@git.capture("rebase", @onto, chdir: tree.path))
           return if result.ok?
 
           @git.capture("rebase", "--abort", chdir: tree.path)
-          raise ConsoleCapture::Failure, "#{branch} does not rebase onto #{@onto}: #{Train.tail(result.out, 2)}"
+          raise ConsoleCapture::Failure, "#{branch} does not rebase onto #{@onto}: #{why || Train.tail(result.out, 2)}"
         end
       end
     end
