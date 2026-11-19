@@ -48,6 +48,11 @@ RSpec.describe Hecks::Adapters::WorkShow do
     expect(shown([item("e", "planned", [])] + items.first(1), "e")["overlap"]).to eq([])
   end
 
+  it "names a started work item that shares a bluebook with it by other sections" do
+    sharing = [item("b", "started", ["s.bluebook#B"]), item("c", "planned", ["s.bluebook#C"])]
+    expect(shown(sharing, "c")["shares"]).to eq([{ "with" => "b", "path" => "s.bluebook", "theirs" => ["B"] }])
+  end
+
   it "refuses a key no work item has" do
     expect { show(items, "nope") }.to raise_error(Hecks::Adapters::ConsoleCapture::Failure, "no work item nope")
   end
