@@ -19,9 +19,11 @@ module ConcludedRecordSpec
   # References that are not one plain file name.
   UNSAFE = ["a/../b", "/etc/x", ".hidden", "", "a\\b", "a\u0000b"].freeze
 
-  # @return [Array<Hash>] an outside expert's interview, and one whose keeping is missing or unknown
+  # @return [Array<Hash>] an outside expert's interview, and one whose keeping is missing, unknown
+  #   or a value object the caller did not unwrap
   def self.local_interviews
-    [interview(keeping: "local"), interview.except(:keeping), interview(keeping: "Committed")]
+    [interview(keeping: "local"), interview.except(:keeping), interview(keeping: "Committed"),
+     interview(keeping: { value: "committed" })]
   end
 
   # @param reference [String] an interview reference
@@ -62,7 +64,7 @@ RSpec.describe Hecks::Interviews::ConcludedRecord do
     expect(record).to include("### Exchange 2\n\n**Question:** Behind ports?\n\n**architect:** Yes, few of them.")
   end
 
-  it "has no record for an outside expert's interview, nor one whose keeping is missing or unknown" do
+  it "has no record for an outside expert's interview, nor one whose keeping is missing, unknown or wrapped" do
     records = ConcludedRecordSpec.local_interviews.map { |local| described_class.files(root: root, interview: local) }
     expect(records).to all(eq({}))
   end

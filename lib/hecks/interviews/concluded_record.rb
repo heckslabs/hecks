@@ -10,7 +10,9 @@ module Hecks
     # the caller writes it and commits it with the ADR the interview produced. An interview is a
     # Hash in the shape of the Interviews bluebook's Interview: `:reference`, `:subject`,
     # `:keeping`, `:exchanges` (each `:speaker`, `:answer`, `:question`) and `:points` (each
-    # `:number`, `:kind`, `:statement`, `:source`, `:supersedes`, `:status`). Only an interview
+    # `:number`, `:kind`, `:statement`, `:source`, `:supersedes`, `:status`), each a plain value:
+    # the caller unwraps a value object (`keeping: "committed"`, not `{ value: "committed" }`),
+    # since a wrapped keeping is not `committed` and has no record. Only an interview
     # whose keeping is `committed` has a record; any other keeping, or none, is an outside expert's
     # and has no path, so a client's details never reach `docs/`.
     module ConcludedRecord
