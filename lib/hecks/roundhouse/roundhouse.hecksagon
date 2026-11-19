@@ -14,3 +14,10 @@ end
 Hecks.hecksagon "Governance" do
   persisted_by "Memory"
 end
+
+# Signalbox, the context Roundhouse attaches: it decides, and its events reach Roundhouse's policies
+# on the one bus. It persists in Memory.
+Hecks.hecksagon "Signalbox" do
+  attaches "Governance"
+  persisted_by "Memory"
+end

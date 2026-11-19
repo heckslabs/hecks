@@ -28,9 +28,7 @@ module Hecks
         # @return [Integer] the memory in use in MB: active, wired and compressed pages
         def used_mb
           text = @reads[:vm_stat].to_s
-          size = text[PAGE_SIZE, 1].to_i
-          pages = text.each_line.filter_map { |line| PAGES.match(line.strip) }.to_h { |match| [match[1], match[2].to_i] }
-          (USED.sum { |name| pages.fetch(name, 0) } * size.to_f / BYTES_PER_MB).round
+          (USED.sum { |name| pages(text).fetch(name, 0) } * text[PAGE_SIZE, 1].to_f / BYTES_PER_MB).round
         end
 
         # @return [Integer] the 1-minute load in hundredths
@@ -38,6 +36,13 @@ module Hecks
 
         # @return [Integer] the performance cores the load is read against
         def cores = @reads[:perf_cores].to_i
+
+        private
+
+        # Each `vm_stat` line's page count, by the line's name.
+        def pages(text)
+          @pages ||= text.each_line.filter_map { |line| PAGES.match(line.strip) }.to_h { |match| [match[1], match[2].to_i] }
+        end
       end
     end
   end
