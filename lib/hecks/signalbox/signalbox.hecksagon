@@ -1,0 +1,11 @@
+# The Signalbox bluebook, bound so it boots standing alone (a behaviors or model_check boot of this
+# directory). It persists in Memory and is wired into nothing yet (ADR 0222, phase 1).
+Hecks.hecksagon "Signalbox" do
+  attaches "Governance"
+  persisted_by "Memory"
+end
+
+# The anti-corruption layer for Governance, which the bluebook's roles are checked against.
+Hecks.hecksagon "Governance" do
+  persisted_by "Memory"
+end
