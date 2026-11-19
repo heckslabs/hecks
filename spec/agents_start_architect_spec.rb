@@ -88,8 +88,9 @@ RSpec.describe "a plan review request starting the architect's session" do
 
   it "answers the requested review in the Agents domain before the coder is judged the verdict", :aggregate_failures do
     names = review_and_check("w-stored", "Verdict: rethink. Start over.")
-    expect(reactions("AnswerTheRequestedReview").last[:delivered]).to be(true)
+    expect(reactions("RecordTheArchitectsVerdict").last[:delivered]).to be(true)
     expect(names.index("PlanReviewed")).to be < names.index("VerdictJudged")
+    expect(names.count("VerdictJudged")).to eq(1)
     expect(verdict_of("w-stored")).not_to be_nil
   end
 

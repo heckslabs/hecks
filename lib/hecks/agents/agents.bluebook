@@ -742,14 +742,6 @@ Hecks.bluebook "Agents" do
       trigger PlanReview::Record, with: { run: :run, work: :work, verdict: :verdict, findings: :findings }
     end
 
-    # The same read answers a review a request made, in the store that holds its row: of this and
-    # `RecordTheVerdictWhenNoReviewWasAsked` one takes and the other refuses.
-    policy "AnswerTheRequestedReview" do
-      on      "AgentRun.JobRead"
-      root
-      where   { agent == "architect" && work != "" && verdict != "" && (previous != state || (listed == "idle" && previous != "done")) }
-      trigger PlanReview::Answer, with: { run: :run, verdict: :verdict, findings: :findings }
-    end
 
     # An answered review reads its own row back, so what goes on to the coder is what the row holds.
     policy "ForwardTheAnsweredReview" do
