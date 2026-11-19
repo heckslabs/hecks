@@ -3,6 +3,7 @@ require "fileutils"
 require "open3"
 require "tmpdir"
 require "hecks/hecks/adapters/main_verification"
+require_relative "support/hecks_launcher_stub"
 
 # An advance stops verifying a commit `origin/main` already carries: it answers `superseded`
 # without a check, and one `origin/main` does not carry is still verified. The repositories are
@@ -15,6 +16,7 @@ RSpec.describe Hecks::Adapters::MainVerification, "#check" do
     git("init", "-q", "--bare", "-b", "main", File.join(dir, "remote.git"), chdir: dir)
     git("clone", "-q", File.join(dir, "remote.git"), repo, chdir: dir)
     git("checkout", "-q", "-B", "main")
+    HecksLauncherStub.place(repo)
     commit(repo, "README")
     git("push", "-q", "origin", "main")
     checks = instance_double(Hecks::Adapters::MainIntegration::Checks, all: [["one", %w[one]], ["two", %w[two]]])

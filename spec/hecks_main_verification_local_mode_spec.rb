@@ -3,6 +3,7 @@ require "fileutils"
 require "open3"
 require "tmpdir"
 require "hecks/hecks/adapters/main_verification"
+require_relative "support/hecks_launcher_stub"
 
 # What a landed commit is verified with, as the Tickets world's `main_verification` line says in
 # `verifies`: `impacted` as before, `quick` the quick gate only, `off` nothing. The repository is a
@@ -17,6 +18,7 @@ RSpec.describe Hecks::Adapters::MainVerification, "#check and #bisect by local m
     git("init", "-q", "--bare", "-b", "main", File.join(dir, "remote.git"), chdir: dir)
     git("clone", "-q", File.join(dir, "remote.git"), repo, chdir: dir)
     git("checkout", "-q", "-B", "main")
+    HecksLauncherStub.place(repo)
     commit("README")
     git("push", "-q", "origin", "main")
     described_class.runner = method(:fake_run)
