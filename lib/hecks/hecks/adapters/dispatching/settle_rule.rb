@@ -18,12 +18,12 @@ module Hecks
         # @param repo [String, nil] the checkout whose landed commits are read
         # @param sessions [#quiet?, nil] a stand-in for the `claude` session listing, for a spec
         # @return [Hash{Symbol => Object}] the {Settler}'s `landed:`, `gone:`, `sessions:`,
-        #   `orphans:` and `stall:` rule
+        #   `orphans:` and `stall:` rule; `stall:` is left out for a stand-in that cannot answer it
         def of(items, machine, repo:, sessions: nil)
           { landed: LandedSince.new(items, repo: repo), gone: machine,
             sessions: sessions || ClaudeSessions.listing(machine),
             orphans: OrphanedWork.new(items, min_age: machine.run_gone_minutes * 60),
-            stall: ->(key) { items.stall_item?(key) } }
+            stall: (->(key) { items.stall_item?(key) } if items.respond_to?(:stall_item?)) }
         end
       end
     end
