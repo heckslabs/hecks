@@ -444,6 +444,21 @@ Hecks.bluebook "Hecks" do
         emits AgentRunUnreached
       end
 
+      # A verdict came for a coder run that is neither started nor finished: its session was
+      # tidied or retired, or it was never started. `Answer` takes only a started run and
+      # `Unreached` only a finished one, so this is the record of the refusal, with its reason; a
+      # requested run is left alone, since it starts next and its verdict waits judged for it.
+      command "RefuseAnswer", from: %w[tidied retired refused] do
+        role "System"
+        goal "Record that a verdict came for a coder run whose session is gone or was never started"
+
+        reference_to AgentRun
+        attribute :verdict, VerdictKey
+        attribute :refusal, Report
+
+        emits AnswerRefused
+      end
+
       # Closes a run still recorded started whose session is gone: `claude agents` no longer lists
       # it, so no check can read it and the ledger would list it as started for ever. A session
       # still listed is kept: a finished one is tidied, a live one answered, and a plain session is
@@ -2498,6 +2513,30 @@ Hecks.bluebook "Hecks" do
       on      "Verdict.VerdictJudged"
       trigger AgentRun::Unreached, with: { run: :work, verdict: :run,
                                            refusal: "the coder run already finished: restart the item with the review in its brief" }
+    end
+
+    # A verdict sent again finds the coder run as a judged one does: one finished since is recorded
+    # unreached, so a redelivery is not refused without a record.
+    policy "RefuseTheRedeliveredVerdictOfAFinishedCoder" do
+      on      "Verdict.VerdictRedelivered"
+      trigger AgentRun::Unreached, with: { run: :work, verdict: :run,
+                                           refusal: "the coder run already finished: restart the item with the review in its brief" }
+    end
+
+    # A verdict for a coder run that is not started and not finished (tidied, retired or declined)
+    # is recorded refused, with the reason, so it is not lost to the tap: `AnswerRefused` settles
+    # the verdict undeliverable (Agents translation `RecordTheVerdictOfAnEndedRun`) and opens the
+    # `agent-run-answer-refused` stall. A started run refuses it by lifecycle while `Answer` delivers.
+    policy "RefuseTheVerdictOfAnEndedCoder" do
+      on      "Verdict.VerdictJudged"
+      trigger AgentRun::RefuseAnswer, with: { run: :work, verdict: :run,
+                                              refusal: "the coder run is not started: restart the item with the review in its brief" }
+    end
+
+    policy "RefuseTheRedeliveredVerdictOfAnEndedCoder" do
+      on      "Verdict.VerdictRedelivered"
+      trigger AgentRun::RefuseAnswer, with: { run: :work, verdict: :run,
+                                              refusal: "the coder run is not started: restart the item with the review in its brief" }
     end
 
     # A judged verdict ends its judge's run: one left started is read at every sweep, judged afresh
