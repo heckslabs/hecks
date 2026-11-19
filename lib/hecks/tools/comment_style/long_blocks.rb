@@ -8,6 +8,23 @@ module Hecks
       # The `long_block` category: runs of full-line comments longer than `MAX_BLOCK`, held
       # against the baseline.
       module LongBlocks
+        # A block fails when it has no baseline entry, or has grown past the length recorded there.
+        #
+        # @param path [String] the file the blocks are in
+        # @param blocks [Array<Block>] its blocks over `MAX_BLOCK` lines
+        # @param baseline [Hash{String => Hash{String => Integer}}] the blocks already held
+        # @return [Array<Violation>] one per block the baseline does not hold at its length
+        def self.refused(path, blocks, baseline)
+          held = baseline.fetch(path.delete_prefix("./"), {})
+          blocks.filter_map do |block|
+            allowed = held[block.key]
+            next if allowed && block.lines <= allowed
+
+            detail = allowed ? "baselined at #{allowed}" : "over #{MAX_BLOCK}"
+            Violation.new(path, block.line, "long_block", "#{block.lines} lines, #{detail}: #{block.key}")
+          end
+        end
+
         # Finds every run of consecutive full-line comments longer than `MAX_BLOCK`.
         #
         # @return [Array<Block>]
@@ -34,16 +51,8 @@ module Hecks
           seen[text] == 1 ? text : "#{text} ##{seen[text]}"
         end
 
-        # A block fails when it has no baseline entry, or has grown past the length recorded there.
         def long_block_violations(baseline)
-          held = baseline.fetch(path.delete_prefix("./"), {})
-          long_blocks.filter_map do |block|
-            allowed = held[block.key]
-            next if allowed && block.lines <= allowed
-
-            detail = allowed ? "baselined at #{allowed}" : "over #{MAX_BLOCK}"
-            Violation.new(path, block.line, "long_block", "#{block.lines} lines, #{detail}: #{block.key}")
-          end
+          LongBlocks.refused(path, long_blocks, baseline)
         end
       end
     end
