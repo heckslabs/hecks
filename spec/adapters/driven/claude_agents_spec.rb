@@ -196,6 +196,10 @@ RSpec.describe Hecks::Adapters::ClaudeAgents do
       expect(resume(answer: { value: "go on" })).to include(session: { value: "abc123" })
     end
 
+    it "answers the id the run held, so the bluebook can tell a copy from a wake in place" do
+      expect(resume(answer: { value: "go on" })).to include(held: { value: "abc123" })
+    end
+
     it "names the run's role with --agent, ahead of the session id, so its MCP server narrows again" do
       resume(answer: { value: "go on" }, agent: { value: "orchestrator" })
       expect(asked).to eq(["--agent", "orchestrator", "--bg", "--resume", "abc123-0000-full", "--", "[pipeline answer] go on"])

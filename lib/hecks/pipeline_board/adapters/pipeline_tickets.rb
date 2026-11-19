@@ -72,11 +72,12 @@ module Hecks
       end
 
       # @return [Hash{String => Hash}] each AgentRun's session id with its `work_item` (named on the
-      #   first line of its brief) and `status`
+      #   first line of its brief) and `status`; the session a run held before an answer's resume
+      #   started a copy (`forked_from`) is listed too, `superseded_by` the session it follows now
       def runs
         return @runs_held[:value] if @runs_held && Time.now - @runs_held[:at] < RUNS_TTL
 
-        @runs_held = { at: Time.now, value: run_records.to_h { |run| [field(run, :session).to_s, run_item(run)] } }
+        @runs_held = { at: Time.now, value: run_records.flat_map { |run| sessions_of(run) }.to_h }
         @runs_held[:value]
       end
 
@@ -145,6 +146,15 @@ module Hecks
         { epic: key, title: field(record, :title).to_s, outcome: field(record, :outcome).to_s,
           tier: field(record, :tier).to_s, decision: field(record, :decision).to_s }
           .merge(PipelineBoard::ClosedWork.of(mine, method(:field)))
+      end
+
+      # The run under its current session and, when it forked, under the session it held before.
+      # The current session is listed last, so it wins should the two ids be one.
+      def sessions_of(run)
+        current = field(run, :session).to_s
+        forked = field(run, :forked_from).to_s
+        held = forked.empty? ? [] : [[forked, run_item(run).merge(superseded_by: current)]]
+        held + [[current, run_item(run)]]
       end
 
       def run_item(run)
