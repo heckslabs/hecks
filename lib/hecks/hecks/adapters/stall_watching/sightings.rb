@@ -4,6 +4,7 @@ require "digest"
 require "time"
 require_relative "standing"
 require_relative "openings"
+require_relative "shared_subjects"
 
 module Hecks
   module Adapters
@@ -30,12 +31,12 @@ module Hecks
         # @param run [String] the look that asks, each row's `id`
         # @return [Array<Hash>] one `Sighting` row per opening line no closing line followed,
         #   opened within its kind's window, not filed yet, whose run has not ended and whose
-        #   subject has not settled; a row with `files: "no"` is left out
+        #   subject has not settled; a row with `files: "no"` is left out, and so is a row whose
+        #   `shares` group already holds its subject ({SharedSubjects})
         def rows(lines, run)
           standing = Standing.new(lines)
-          pending(lines, standing).reject { |entry| entry.first[:files] == "no" || handled?(standing, *entry) }
-                                  .map { |kind, subject, at, _| sighting(kind, subject, at, run) }
-                                  .select { |row| row[:waited] < row[:forgets] }
+          entries = pending(lines, standing)
+          SharedSubjects.new(entries, standing, method(:key)).keep(fileable(entries, standing, run))
         end
 
         # @return [Array<Hash>] one `Abandoned` row per stall the tap shows filed, opened within its
@@ -64,6 +65,13 @@ module Hecks
         end
 
         private
+
+        # The open lines a look may offer to `File`: filed by their row, not handled, in the window.
+        def fileable(entries, standing, run)
+          entries.reject { |entry| entry.first[:files] == "no" || handled?(standing, *entry) }
+                 .map { |kind, subject, at, _| sighting(kind, subject, at, run) }
+                 .select { |row| row[:waited] < row[:forgets] }
+        end
 
         def impediment(standing, kind, subject, at, run)
           stall = key(kind, subject)

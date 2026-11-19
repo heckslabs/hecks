@@ -57,6 +57,10 @@ Hecks.bluebook "Hecks" do
         # "kind" lists every open line of the row as one impediment, the oldest line's, with how
         # many lines it stands for; empty lists one per subject.
         attribute :folds,             String
+        # Rows of one `shares` group file one stall per subject: the first declared past its minutes
+        # files, and no sibling files while it stands filed and open, so its fixer owns the subject.
+        # The Watching adapter applies the rule.
+        attribute :shares,            String
 
         member kind: "plan-review", not_about: "stall-", aggregate: "Agents::PlanReview", opens: "PlanReviewRequested",
                closes: "PlanReviewed,PlanReviewRecorded,ReviewUnstarted", minutes: 20, forgets: 1440, fixer: "orchestrator",
@@ -89,13 +93,13 @@ Hecks.bluebook "Hecks" do
         # The four AgentRun rows end on the run's last lines: `closes` clears a line before it is
         # filed, and `ends` abandons a filed stall whose run was tidied or retired after it opened,
         # even when a closing line came first, so its Work item is not started on a run that is gone.
-        member kind: "agent-run-start", not_about: "stall-", aggregate: "Hecks::AgentRun", state: "requested", opens: "AgentRunRequested",
+        member kind: "agent-run-start", shares: "agent-run", not_about: "stall-", aggregate: "Hecks::AgentRun", state: "requested", opens: "AgentRunRequested",
                ends_aggregate: "Hecks::AgentRun", ends: "AgentRunTidied,AgentRunRetired,AgentTrialRunRetired",
                settled_aggregate: "Tickets::Work", settled_by: "WorkFinished,WorkDropped,WorkLapsed",
                closes: "AgentRunStarted,AgentRunDeclined", minutes: 10, forgets: 1440, fixer: "orchestrator",
                move: "Work.yield! the run's Work item (AgentRun.running names it) with the reason, " \
                      "so the fill restarts it once."
-        member kind: "agent-run-session", not_about: "stall-", aggregate: "Hecks::AgentRun", state: "started", opens: "AgentRunStarted",
+        member kind: "agent-run-session", shares: "agent-run", not_about: "stall-", aggregate: "Hecks::AgentRun", state: "started", opens: "AgentRunStarted",
                ends_aggregate: "Hecks::AgentRun", ends: "AgentRunTidied,AgentRunRetired,AgentTrialRunRetired",
                settled_aggregate: "Tickets::Work", settled_by: "WorkFinished,WorkDropped,WorkLapsed",
                closes: "SessionFinished,SessionFailed,AgentRunRetired,AgentTrialRunRetired", minutes: 240,
@@ -105,7 +109,7 @@ Hecks.bluebook "Hecks" do
         # A verdict's resume was refused while the coder waits on it. Each sweep sends it again up to
         # three times and then finishes the run, which closes this line, so a line open for ten minutes
         # means the sweep or its retry chain is broken: the dead run still holds its Work item's area.
-        member kind: "agent-run-unresumed", not_about: "stall-", aggregate: "Hecks::AgentRun", opens: "AgentRunUnresumed",
+        member kind: "agent-run-unresumed", shares: "agent-run", not_about: "stall-", aggregate: "Hecks::AgentRun", opens: "AgentRunUnresumed",
                ends_aggregate: "Hecks::AgentRun", ends: "AgentRunTidied,AgentRunRetired,AgentTrialRunRetired",
                settled_aggregate: "Tickets::Work", settled_by: "WorkFinished,WorkDropped,WorkLapsed",
                closes: "AgentRunAnswered,SessionFinished,SessionFailed,AgentRunRetired,AgentTrialRunRetired",
@@ -113,7 +117,7 @@ Hecks.bluebook "Hecks" do
                move: "The sweep already sends the verdict again and then ends the run, so a stall here means the " \
                      "sweep or its retry chain is broken: report that as the finding. AgentRun.check! the run, then " \
                      "Work.yield! the run's Work item (AgentRun.running names it) with the reason, so its area claim is freed."
-        member kind: "agent-run-blocked", not_about: "stall-", aggregate: "Hecks::AgentRun", opens: "SessionBlocked",
+        member kind: "agent-run-blocked", shares: "agent-run", not_about: "stall-", aggregate: "Hecks::AgentRun", opens: "SessionBlocked",
                ends_aggregate: "Hecks::AgentRun", ends: "AgentRunTidied,AgentRunRetired,AgentTrialRunRetired",
                settled_aggregate: "Tickets::Work", settled_by: "WorkFinished,WorkDropped,WorkLapsed",
                closes: "AnswerRequested,AgentRunAnswered,SessionWorking,SessionFinished,SessionFailed,AgentRunRetired,AgentTrialRunRetired",
@@ -396,6 +400,19 @@ Hecks.bluebook "Hecks" do
       on       "StallWatch.StallDetectRequested"
       for_each "StallWatch.Abandoned"
       trigger  Stall::Abandon, with: { watch: :id, stall: :stall, reason: :reason }
+    end
+
+    # An abandoned stall asks its session, the run its wake started under the stall's key, to end
+    # its turn; nothing is stopped, and a stall with no started run refuses as `Answer` does. A root,
+    # since the abandon already sits several reactions deep.
+    policy "EndTheStallSessionWhenAbandoned" do
+      on      "Stall.StallAbandoned"
+      root
+      trigger AgentRun::Answer,
+              with: { run: :stall,
+                      answer: "The stall you were started for has settled or its run has ended, so the stall " \
+                              "watch abandoned it and its work item is dropped. Make no move for it: commit " \
+                              "nothing, start nothing, and end your turn now." }
     end
   end
 end
