@@ -37,7 +37,23 @@ RSpec.describe "a launcher through its resident" do
   it "keeps the resident standing across lines, one process serving them all", :aggregate_failures do
     pid = start_resident
     3.times { launch("RedFlag.status") }
-    expect(resident_pid).to eq(pid)
+    expect(resident_pid).to eq(pid), -> { why_ended(pid) }
+    expect(File.socket?(ResidentLaunch::PATHS.socket(ResidentLaunch::ROOT))).to be(true)
+  end
+
+  # Runs the block while every launcher gives the resident no time at all for its first word, as a
+  # loaded runner leaves a resident too slow for the world's wait, then puts the world's wait back.
+  def too_slow_to_answer
+    ResidentLaunch::PATHS.remember("ready_wait_ms", 0)
+    yield
+  ensure
+    ResidentLaunch::PATHS.remember("ready_wait_ms", 400)
+  end
+
+  it "keeps a resident standing that is too slow to answer in time but keeps taking callers", :aggregate_failures do
+    pid = start_resident
+    too_slow_to_answer { 3.times { launch("RedFlag.status") } }
+    expect(resident_pid).to eq(pid), -> { why_ended(pid) }
     expect(File.socket?(ResidentLaunch::PATHS.socket(ResidentLaunch::ROOT))).to be(true)
   end
 

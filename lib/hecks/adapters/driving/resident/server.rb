@@ -141,7 +141,7 @@ module Hecks
             @retired = true
             @server.close unless @server.closed?
             FileUtils.rm_f([Paths.socket(@root), Paths.pid(@root), Paths.version(@root), Paths.baseline(@root),
-                            Paths.envs(@root)])
+                            Paths.envs(@root), Paths.taken(@root)])
             @lock&.flock(File::LOCK_UN)
           end
 
