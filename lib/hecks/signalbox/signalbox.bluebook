@@ -21,6 +21,13 @@ Hecks.bluebook "Signalbox" do
     attribute :target,   Megabytes, optional: true
     attribute :floor,    Megabytes, optional: true
     attribute :gap,      Megabytes, optional: true
+    # The second input (decided 2026-11-19): the 1-minute load in hundredths, the performance cores
+    # it is read against, and the load marks in percent of those cores.
+    attribute :load,       Hundredths, optional: true
+    attribute :cores,      Count, optional: true
+    attribute :load_tight, Percent, optional: true
+    attribute :load_short, Percent, optional: true
+    attribute :load_gap,   Percent, optional: true
 
     value_object "Key" do
       attribute :value, String, matches: :present
@@ -41,6 +48,21 @@ Hecks.bluebook "Signalbox" do
       invariant("a duration is not negative") { !value.negative? }
     end
 
+    value_object "Hundredths" do
+      attribute :value, Integer, default: 0
+      invariant("a load is not negative") { !value.negative? }
+    end
+
+    value_object "Count" do
+      attribute :value, Integer, default: 0
+      invariant("a count is not negative") { !value.negative? }
+    end
+
+    value_object "Percent" do
+      attribute :value, Integer, default: 0
+      invariant("a mark is not negative") { !value.negative? }
+    end
+
     lifecycle :band, default: "normal" do
       mark :rests, "normal", "tight", "short", "dark"
       transition "Tighten" => "tight",  from: %w[normal tight short dark]
@@ -59,16 +81,22 @@ Hecks.bluebook "Signalbox" do
       emits PressureOpened
     end
 
-    # A reading names the marks it is judged against, so every part reads the same signal.
+    # A reading names the marks it is judged against, so every part reads the same signal. The load
+    # and its marks are the second input; a reading that leaves them out is judged on memory alone.
     command "Read" do
       role "System"
-      goal "Publish one current reading of headroom against the target, the floor and the gap"
+      goal "Publish one current reading of headroom and load against their marks"
 
       reference_to Pressure
       attribute :headroom,    Signed, sets: true
       attribute :target,      Megabytes, sets: true
       attribute :floor,       Megabytes, sets: true
       attribute :gap,         Megabytes, sets: true
+      attribute :load,        Hundredths, default: { value: 0 }, sets: true
+      attribute :cores,       Count, default: { value: 0 }, sets: true
+      attribute :load_tight,  Percent, default: { value: 0 }, sets: true
+      attribute :load_short,  Percent, default: { value: 0 }, sets: true
+      attribute :load_gap,    Percent, default: { value: 0 }, sets: true
       attribute :age,         Seconds
       attribute :stale_after, Seconds
 
@@ -372,7 +400,7 @@ Hecks.bluebook "Signalbox" do
   end
 
   # Protection coordination: a session's fuse (rank 1), the helpers' share (2), shedding (3) and the
-  # whole-machine fuse (4). A breaker trips past its rating, once no smaller one can act.
+  # whole-machine fuses (4): the boot budget and the daily model usage budget. A breaker trips past its rating, once no smaller one can act.
   aggregate "Breaker" do
     description "One breaker in the protection order: its level, its rating, whether it has tripped, and the session it shed."
     created_by "Breaker.install!"
@@ -394,12 +422,14 @@ Hecks.bluebook "Signalbox" do
 
     value_object "Level" do
       attribute :value, String
-      invariant("a breaker is a fuse, the helper share, shedding or the machine fuse") do
-        value == "fuse" || value == "helpers" || value == "shedding" || value == "machine"
+      # `model` is the daily model usage fuse (ADR 0220's spend bound), beside the machine fuse.
+      invariant("a breaker is a fuse, the helper share, shedding, the machine fuse or the model fuse") do
+        value == "fuse" || value == "helpers" || value == "shedding" || value == "machine" || value == "model"
       end
     end
 
-    # What a breaker is rated in: megabytes, helpers, sessions or boot minutes, by its level.
+    # What a breaker is rated in: megabytes, helpers, sessions, boot minutes or model usage, by its
+    # level.
     value_object "Amount" do
       attribute :value, Integer, default: 0
       invariant("a rating is not negative") { !value.negative? }
@@ -529,22 +559,130 @@ Hecks.bluebook "Signalbox" do
     end
   end
 
+  # Shadow (ADR 0222, phase 2): each time Delegate fills, sheds or reaps, what Signalbox would have
+  # decided on the same subject, beside what Delegate did. It records; nothing acts on a ruling.
+  aggregate "Ruling" do
+    description "Signalbox's ruling on one subject of a Delegate fill, shed or reap, beside Delegate's own decision."
+    created_by "Ruling.record!"
+
+    identified_by :ruling
+
+    attribute :ruling,   Key
+    attribute :function, Function
+    attribute :subject,  Word
+    attribute :delegate, Note
+    attribute :decision, Word
+    attribute :law,      Note
+    attribute :band,     Band
+    attribute :headroom, Signed
+    attribute :agrees,   Answer
+    attribute :also,     Note, optional: true
+
+    value_object "Key" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Word" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Note" do
+      attribute :value, String, matches: :present
+    end
+
+    value_object "Function" do
+      attribute :value, String
+      invariant("a ruling is on a fill, a shed or a reap") { value == "fill" || value == "shed" || value == "reap" }
+    end
+
+    value_object "Band" do
+      attribute :value, String
+      invariant("a band is normal, tight, short or dark") do
+        value == "normal" || value == "tight" || value == "short" || value == "dark"
+      end
+    end
+
+    value_object "Signed" do
+      attribute :value, Integer, default: 0
+    end
+
+    value_object "Answer" do
+      attribute :value, String
+      invariant("a ruling agrees with Delegate or it does not") { value == "yes" || value == "no" }
+    end
+
+    query "Shadowed" do
+      description "Every ruling, Delegate's decision beside Signalbox's, by function and subject."
+      order_by :ruling
+    end
+
+    query "Disagreements" do
+      description "The rulings where Signalbox would have decided otherwise than Delegate did."
+      where(agrees: "no")
+      order_by :ruling
+    end
+
+    # `also` names the next law that would refuse, when the deciding law is one a start's settings
+    # fix rather than the machine's state (the MCP servers a session starts).
+    command "Record" do
+      role "System"
+      goal "Record what Signalbox would have decided on one subject of a Delegate fill, shed or reap"
+
+      attribute :ruling,   Key, sets: true
+      attribute :function, Function, sets: true
+      attribute :subject,  Word, sets: true
+      attribute :delegate, Note, sets: true
+      attribute :decision, Word, sets: true
+      attribute :law,      Note, sets: true
+      attribute :band,     Band, sets: true
+      attribute :headroom, Signed, sets: true
+      attribute :agrees,   Answer, sets: true
+      attribute :also,     Note, optional: true, sets: true
+
+      emits RulingRecorded
+    end
+
+    command "Revise" do
+      role "System"
+      goal "Revise a standing ruling when Delegate or Signalbox decides otherwise on a later pass"
+
+      reference_to Ruling
+      attribute :delegate, Note, sets: true
+      attribute :decision, Word, sets: true
+      attribute :law,      Note, sets: true
+      attribute :band,     Band, sets: true
+      attribute :headroom, Signed, sets: true
+      attribute :agrees,   Answer, sets: true
+      attribute :also,     Note, optional: true, sets: true
+
+      emits RulingRevised
+    end
+  end
+
+  # The band is the worse of the memory band and the load band (decided 2026-11-19). The load is in
+  # hundredths and its marks in percent of the performance cores, so `cores * mark` is in hundredths.
   policy "TripWhenHeadroomFallsUnderTheFloor" do
     on      "Pressure.PressureRead"
-    where   { headroom.value < floor.value }
+    where   { headroom.value < floor.value || load.value > cores.value * load_short.value }
     trigger Pressure::Trip, with: { pressure: :pressure }
   end
 
   policy "TightenWhenHeadroomFallsUnderTheTarget" do
     on      "Pressure.PressureRead"
-    where   { headroom.value >= floor.value && headroom.value < target.value }
+    where   do
+      headroom.value >= floor.value && load.value <= cores.value * load_short.value &&
+        (headroom.value < target.value || load.value > cores.value * load_tight.value)
+    end
     trigger Pressure::Tighten, with: { pressure: :pressure }
   end
 
-  # Between the target and the target plus the gap no policy answers, so the band holds: hysteresis.
+  # Between a mark and the mark past it by the gap no policy answers, so the band holds: hysteresis.
+  # Memory and load must both be past their marks by their gaps for the band to ease.
   policy "EaseOnlyPastTheTargetByTheGap" do
     on      "Pressure.PressureRead"
-    where   { headroom.value >= target.value + gap.value }
+    where   do
+      headroom.value >= target.value + gap.value && load.value <= cores.value * (load_tight.value - load_gap.value)
+    end
     trigger Pressure::Ease, with: { pressure: :pressure }
   end
 
