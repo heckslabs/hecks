@@ -67,6 +67,9 @@ queries (nothing here changes anything):
   BoardingHold:
     …
     status
+  LandingReview:
+    …
+    landing_reviews
 
 bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
   delivery

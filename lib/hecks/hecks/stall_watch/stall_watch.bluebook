@@ -67,10 +67,17 @@ Hecks.bluebook "Hecks" do
                ends_aggregate: "Hecks::AgentRun", ends: "SessionFinished,SessionFailed,AgentRunRetired,AgentTrialRunRetired",
                move: "Read the architect's closing report, record its verdict with PlanReview.answer! " \
                      "(PlanReview.record! when no request row exists), then AgentRun.answer! the waiting coder."
+        # A rerun does not close the line; an exhaust does, and any later merge settles it (`TrainPr`
+        # records no pass), even an unrelated one. A failed rerun exhausts under a new key, so this
+        # line still files and its move stops.
         member kind: "train-pr-red", aggregate: "Hecks::TrainPr", opens: "TrainPrFailed",
-               closes: "TrainPrRerun,TrainPrExhausted", minutes: 10, forgets: 1440, fixer: "orchestrator",
-               move: "Read the failed PR's CI (gh pr view), rerun its failed jobs once (gh run rerun --failed), " \
-                     "and if it fails again Work.plan! red-train-<pr> (category red, priority now) with the failure as its detail."
+               closes: "TrainPrExhausted", minutes: 30, forgets: 1440, fixer: "orchestrator",
+               settled_aggregate: "Hecks::SendTrain", settled_by: "BranchPushed", settled_on: "any",
+               move: "The failed jobs were rerun already; read the PR (gh pr view <pr> --json state,statusCheckRollup). " \
+                     "If a later attempt was exhausted (a red-train-<pr> work item exists), report that and stop. A PR " \
+                     "closed unmerged or red again is Work.plan! red-train-<pr> (category red, priority now) naming the " \
+                     "failed specs; when an undone red-train work item already names the same specs from an earlier PR, " \
+                     "add this PR to its detail instead: consecutive PRs failing the same specs are one cause."
         # A queued train pull request asks for a chain of ticks keyed by the boarded commit
         # (`TickWhenQueued`); a chain that never beats within 3 minutes has no live worker. A healthy
         # chain's first beat comes about half a minute after it is asked for. Every verdict on the
