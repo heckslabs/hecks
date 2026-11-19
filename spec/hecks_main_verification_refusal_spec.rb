@@ -3,6 +3,7 @@ require "fileutils"
 require "open3"
 require "tmpdir"
 require "hecks/hecks/adapters/main_verification"
+require_relative "support/hecks_launcher_stub"
 
 # A verification that fails refuses naming each failed check and keeping the last lines of what
 # each printed, so the run parked in needs_human says why. The repository is a throwaway one and
@@ -12,7 +13,9 @@ RSpec.describe Hecks::Adapters::MainVerification do
 
   before do
     git("init", "-q", "-b", "main", dir)
-    git("commit", "-q", "--allow-empty", "-m", "start")
+    HecksLauncherStub.place(dir)
+    git("add", ".")
+    git("commit", "-q", "-m", "start")
     checks = instance_double(Hecks::Adapters::MainIntegration::Checks, all: CHECKS)
     allow(Hecks::Adapters::MainIntegration::Checks).to receive(:new).and_return(checks)
     described_class.runner = method(:fake_run)

@@ -4,6 +4,7 @@ require "json"
 require "open3"
 require "securerandom"
 require "tmpdir"
+require_relative "support/hecks_launcher_stub"
 require_relative "support/rest_pull_view"
 
 # A verified tip waits behind the open train pull request ahead of it. When that pull request merges
@@ -48,7 +49,9 @@ RSpec.describe "a verdict on the train pull request ahead boards the tip held be
   def open_repository
     git("init", "--bare", "-b", "main", File.join(dir, "origin.git"), chdir: dir)
     git("clone", "-q", File.join(dir, "origin.git"), repo, chdir: dir)
-    git("commit", "--allow-empty", "-m", "start")
+    HecksLauncherStub.place(repo)
+    git("add", ".")
+    git("commit", "-q", "-m", "start")
     git("push", "-q", "origin", "main")
   end
 
