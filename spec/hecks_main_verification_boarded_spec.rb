@@ -3,6 +3,7 @@ require "fileutils"
 require "open3"
 require "tmpdir"
 require "hecks/hecks/adapters/main_verification"
+require_relative "support/hecks_launcher_stub"
 
 # A verification runs the quick gate and nothing else, and it settles when a train pull request
 # holds the commit, whoever boarded it: superseded, with no further check. The repositories are
@@ -17,6 +18,7 @@ RSpec.describe Hecks::Adapters::MainVerification, "#check on a boarded commit" d
     git("init", "-q", "--bare", "-b", "main", File.join(dir, "remote.git"), chdir: dir)
     git("clone", "-q", File.join(dir, "remote.git"), repo, chdir: dir)
     git("checkout", "-q", "-B", "main")
+    HecksLauncherStub.place(repo)
     commit("README")
     git("push", "-q", "origin", "main")
     described_class.runner = method(:fake_run)
