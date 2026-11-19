@@ -1512,6 +1512,13 @@ Hecks.hecksagon "Agents" do
     on AgentRun::AgentRunUnreached
     trigger Verdict::Undeliver, with: { run: :verdict, reason: :refusal }
   end
+
+  # The verdict came for a coder run whose session is gone or was never started: it is settled
+  # undeliverable with the refusal, so the sweep does not send it again.
+  translates "RecordTheVerdictOfAnEndedRun" do
+    on AgentRun::AnswerRefused
+    trigger Verdict::Undeliver, with: { run: :verdict, reason: :refusal }
+  end
 end
 
 # A coder's session closes with its report, and the adapter reads the branch, commit and cleanliness of
