@@ -4,7 +4,8 @@
 naming discussion of that morning. The owner locks this record before any rename starts: names are
 decided before they are built. Nothing here is renamed yet. Builds on
 [0205](0205-the-pipeline-is-its-own-project-switchyard-on-a-pinned-hecks.md), which names the
-pipeline project Switchyard.
+pipeline project Switchyard, and on [0222](0222-signalbox-runs-on-five-laws.md), which builds
+Signalbox and Roundhouse under these proposed names.
 
 ## Context
 
@@ -62,34 +63,11 @@ context share the name, and the delivery context is the narrower sense.
    compute into landings as efficiently as it can without starving the person using the machine.
    It directs Roundhouse, which runs the sessions.
 
-4. **The Delegate bluebook splits into Signalbox and Roundhouse.** Every one of its 19 aggregates has
-   exactly one destination:
-
-   | Aggregate      | Goes to    | Note                          |
-   |----------------|------------|-------------------------------|
-   | AgentRun       | Roundhouse |                               |
-   | SessionSweep   | Roundhouse |                               |
-   | Dispatch       | Signalbox  |                               |
-   | Roll           | Signalbox  |                               |
-   | RollSwitch     | Signalbox  | proposed, owner to confirm    |
-   | MergeWindow    | Switchyard | proposed, owner to confirm    |
-   | Heartbeat      | Signalbox  |                               |
-   | Ticker         | Signalbox  |                               |
-   | Idler          | Signalbox  |                               |
-   | Wake           | Signalbox  |                               |
-   | Machine        | Signalbox  |                               |
-   | Overload       | Signalbox  |                               |
-   | Shed           | Signalbox  |                               |
-   | RedWake        | Signalbox  |                               |
-   | PlainSession   | Roundhouse |                               |
-   | SessionCleanup | Roundhouse |                               |
-   | ReapTurn       | Roundhouse |                               |
-   | Question       | Roundhouse |                               |
-   | AnswerDesk     | Roundhouse |                               |
-
-   RollSwitch turns the roll on and off, which is allocation, so it goes with Roll. MergeWindow
-   bounds when merges happen, which is delivery, so it goes to Switchyard rather than either half
-   of the split. The owner was not asked about either one in the discussion.
+4. **Delegate gives way to Signalbox and Roundhouse.** Which of Delegate's 19 aggregates goes where,
+   and which are deleted, is decided by
+   [0222](0222-signalbox-runs-on-five-laws.md), whose table gives each one a home. This record names
+   the two contexts and does not place aggregates. Under 0222, MergeWindow becomes Signalbox's
+   `Response` rather than a Switchyard part: gates wait their turn under pressure, which is load.
 
 5. **The parties you talk to are characters.** Miette is kept. Discovery, the interview product,
    is kept and stays a plain word.
@@ -120,15 +98,15 @@ context share the name, and the delivery context is the narrower sense.
   names and the agent prompts change together, with a check that fails on any leftover old name.
   A half-renamed tree is worse than either name.
 - **Splitting Delegate also helps landing.** With Signalbox and Roundhouse in separate files, a
-  change to the cap no longer clashes with a change to session cleanup.
+  change to the cap no longer clashes with a change to session cleanup. 0222 does the split;
+  this record only names its parts.
 
 ## Open items
 
 1. **File extensions.** Do `.hecksagon`, `.world` and `.behaviors` become `.wiring`, `.settings`
    and `.examples` in the same wave? This touches the Ruby and Rust parsers, the generators and the
    corpus. It could be its own later record, with this one locking the words only.
-2. **RollSwitch and MergeWindow.** Confirm the destinations in decision 4.
-3. **The leftover-name check.** Its design (a spec, a gate stage, or both) is a follow-up work item,
+2. **The leftover-name check.** Its design (a spec, a gate stage, or both) is a follow-up work item,
    filed when the owner locks this record.
-4. **The Rails integration's new name.** hecks-rails is a suggestion.
-5. **The trademark check.** Who runs it, and before which first public use.
+3. **The Rails integration's new name.** hecks-rails is a suggestion.
+4. **The trademark check.** Who runs it, and before which first public use.
