@@ -1,9 +1,10 @@
 require "spec_helper"
 require_relative "support/stand_in_claude"
 
-# The roles hand work to each other through pipeline events: a coder's submission asks the reviewer,
-# and a verified passage makes the release manager recommend promotion. Each reaction is seen in the
-# reaction log, and what it made is read back through the roles' queries.
+# The roles hand work to each other through pipeline events: a coder's submission asks the reviewer.
+# A verified passage asks no one: promote.yml moves stable once every required check passed, so no
+# recommendation waits on the owner. Each reaction is seen in the reaction log, and what it made is
+# read back through the roles' queries.
 RSpec.describe "the agents handing work to each other" do
   include_context "with a stand-in claude"
 
@@ -32,16 +33,9 @@ RSpec.describe "the agents handing work to each other" do
     launch("pipeline", "Passage.verify!", "to=#{change}", "--wait")
   end
 
-  it "lists a recommendation as open until the owner settles it", :aggregate_failures do
-    verify_passage("w-settle")
-    expect(launch("agents", "PromotionRecommendation.open").first.to_s).to include("w-settle")
-    launch("agents", "PromotionRecommendation.settle!", "to=w-settle", "--wait")
-    expect(launch("agents", "PromotionRecommendation.open").first.to_s).not_to include("w-settle")
-  end
-
-  it "recommends promotion once a passage is verified", :aggregate_failures do
+  it "asks no one to recommend a promotion once a passage is verified", :aggregate_failures do
     verify_passage("w-pass")
-    expect(reaction("RecommendPromotionWhenVerified").last[:delivered]).to be(true)
-    expect(launch("agents", "PromotionRecommendation.recommendations").first.to_s).to include("w-pass")
+    expect(reaction("RecommendPromotionWhenVerified")).to be_empty
+    expect(launch("agents", "PromotionRecommendation.open").join).to include("no such")
   end
 end

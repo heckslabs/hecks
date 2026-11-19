@@ -67,11 +67,11 @@ RSpec.describe "AgentRun: a helper blocked with no answer" do
     expect(removed).to include("stand-in-session")
   end
 
-  it "removes an abandoned release manager's session though its Work is still queued" do
+  it "removes an abandoned planner's session though its Work is still queued" do
     work_still_queued
     quiet_transcript
-    blocked_run("ab-release", "release_manager", 40)
-    expect(status_of("ab-release")).to include(status: "tidied")
+    blocked_run("ab-planner", "planner", 40)
+    expect(status_of("ab-planner")).to include(status: "tidied")
   end
 
   it "leaves a reviewer blocked under the time started" do

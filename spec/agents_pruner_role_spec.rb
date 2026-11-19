@@ -47,7 +47,7 @@ RSpec.describe "the pruner role file" do
 
     it "says the board's agent_roles line is not a pin list", :aggregate_failures do
       expect(steps).to include("is the roles the board shows, not a pin list")
-      expect(steps).to include("a finished architect, reviewer, coder, planner or release_manager session is removed")
+      expect(steps).to include("a finished architect, reviewer, coder or planner session is removed")
     end
 
     it "pins only the orchestrator" do
