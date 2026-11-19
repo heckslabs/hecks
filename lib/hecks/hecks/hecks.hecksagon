@@ -168,18 +168,6 @@ Hecks.hecksagon "Hecks" do
     answers_query "Status"
   end
 
-  # A wake of the orchestrator for a red main is weighed against the same marker: whether the
-  # flag stands, its id and the run a session for it takes, and whether this is the main checkout.
-  Hecks::RedWake.port "Flagging" do
-    asks "Weigh", to: RedWake do
-      attribute :escalation, WakeKey
-      attribute :kind, WakeWord
-      attribute :repo, WakeWord
-      answers "RedWakeWeighed"
-      refuses "RedWakeUnweighed"
-    end
-  end
-
   Hecks::BoardingHold.port "Holding" do
     asks "Mark", to: BoardingHold do
       attribute :run, RunKey

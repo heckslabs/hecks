@@ -2660,6 +2660,8 @@ Hecks.bluebook "Hecks" do
         transition "Start"   => "started",  from: "requested"
         transition "Decline" => "declined", from: "requested"
         mark :terminal, "started", "declined"
+        # Weighed in the same dispatch it is heard in: the ask answers or refuses at once.
+        mark :rests, "requested"
       end
 
       command "Hear" do
