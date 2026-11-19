@@ -7504,6 +7504,16 @@
           "admits": null,
           "default": null,
           "list": false,
+          "name": "policy_only",
+          "optional": true,
+          "pattern": null,
+          "relationship": null,
+          "type": "CommandText"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
           "name": "from",
           "optional": true,
           "pattern": null,
@@ -7599,6 +7609,16 @@
               "default": null,
               "list": false,
               "name": "mints_era",
+              "optional": true,
+              "pattern": null,
+              "relationship": null,
+              "type": "CommandText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
+              "name": "policy_only",
               "optional": true,
               "pattern": null,
               "relationship": null,
@@ -7710,6 +7730,15 @@
                 "name": "mints_era"
               },
               "target": "mints_era"
+            },
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "policy_only"
+              },
+              "target": "policy_only"
             },
             {
               "op": "set",
@@ -9585,6 +9614,36 @@
               [
                 "calls",
                 "mints_era_impl"
+              ]
+            ],
+            [
+              [
+                "word",
+                "policy_only"
+              ],
+              [
+                "context",
+                "Command"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "policy_only"
+              ],
+              [
+                "calls",
+                "policy_only_impl"
               ]
             ],
             [
@@ -14745,6 +14804,16 @@
           "admits": null,
           "default": null,
           "list": false,
+          "name": "acts_as",
+          "optional": true,
+          "pattern": null,
+          "relationship": null,
+          "type": "PolicyText"
+        },
+        {
+          "admits": null,
+          "default": null,
+          "list": false,
           "name": "where",
           "optional": true,
           "pattern": null,
@@ -14879,6 +14948,16 @@
               "admits": null,
               "default": null,
               "list": false,
+              "name": "acts_as",
+              "optional": true,
+              "pattern": null,
+              "relationship": null,
+              "type": "PolicyText"
+            },
+            {
+              "admits": null,
+              "default": null,
+              "list": false,
               "name": "where",
               "optional": true,
               "pattern": null,
@@ -15000,6 +15079,15 @@
                 "name": "root"
               },
               "target": "root"
+            },
+            {
+              "op": "set",
+              "sign": "",
+              "source": {
+                "kind": "argument",
+                "name": "acts_as"
+              },
+              "target": "acts_as"
             },
             {
               "op": "set",
@@ -15574,6 +15662,36 @@
                 "calls",
                 "root_impl"
               ]
+            ],
+            [
+              [
+                "word",
+                "acts_as"
+              ],
+              [
+                "context",
+                "Policy"
+              ],
+              [
+                "body",
+                "none"
+              ],
+              [
+                "inner",
+                ""
+              ],
+              [
+                "opens",
+                ""
+              ],
+              [
+                "fills",
+                "acts_as"
+              ],
+              [
+                "calls",
+                "acts_as_impl"
+              ]
             ]
           ],
           "name": "KeywordSeed"
@@ -15974,6 +16092,36 @@
               [
                 "fills",
                 "for_each"
+              ]
+            ],
+            [
+              [
+                "keyword",
+                "acts_as"
+              ],
+              [
+                "context",
+                "Policy"
+              ],
+              [
+                "at",
+                "1"
+              ],
+              [
+                "named",
+                ""
+              ],
+              [
+                "kind",
+                "text"
+              ],
+              [
+                "required",
+                "true"
+              ],
+              [
+                "fills",
+                "acts_as"
               ]
             ],
             [
