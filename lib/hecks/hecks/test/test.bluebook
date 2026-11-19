@@ -153,14 +153,15 @@ Hecks.bluebook "Hecks" do
         emits RunSpecFilesRequested
       end
 
-      # The specs the push rehearsal's map names for this branch's changes (against local main unless a base is
-      # named), run as the rehearsal runs them: capped, leaving out specs that need cargo, gh or the network.
+      # The specs the push rehearsal's map names for this branch's changes (against origin/main unless a base is
+      # named, so a worktree standing on main still compares with what is pushed), run as the rehearsal runs them:
+      # capped at the world's spec_files_limit locally, leaving out specs that need cargo, gh or the network.
       command "RunImpactedSpecs" do
         role "Maintainer"
         goal "Map the branch's changed files to the specs they touch and run them, or list them when dry"
 
-        attribute :base,        FilePath, default: "main", sets: true
-        attribute :cap,         Count, default: 60, sets: true
+        attribute :base,        FilePath, default: "origin/main", sets: true
+        attribute :cap,         Count, optional: true, sets: true
         attribute :dry,         Switch, optional: true, sets: true
         attribute :isolation,   Isolation, default: "process", sets: true
         attribute :example,     ExampleText, optional: true, sets: true
