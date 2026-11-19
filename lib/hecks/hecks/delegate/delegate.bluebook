@@ -2151,7 +2151,10 @@ Hecks.bluebook "Hecks" do
     policy "RecordTheEndedSession" do
       on      "AgentRun.JobRead"
       root
-      where   { (state == "done" || (state == "stopped" && resuming != true)) && reviewing != true && previous != state }
+      where   do
+        ((state == "done" && run != "orchestrator-seat") || (state == "stopped" && resuming != true)) &&
+          reviewing != true && previous != state
+      end
       trigger AgentRun::Finish, with: { condition: :state, detail: :detail, checkout: :checkout }
     end
 
@@ -2631,8 +2634,20 @@ Hecks.bluebook "Hecks" do
     # standing rule all-hands-on-red is weighed against main's red flag first (`RedWake`).
     policy "StartTheCoordinatorWhenWoken" do
       on      "Escalation.CoordinatorWoken"
-      where   { rule != "all-hands-on-red" }
+      where   { rule != "all-hands-on-red" && event != "StandingCoordinatorStarted" }
       trigger AgentRun::Dispatch, with: { run: :escalation, repo: :repo, brief: :brief, agent: :role }
+    end
+
+    # The seat is one run under its own key, its sweep the parent: a started run keeps its key, so
+    # a second start is refused from any process until it ends (`RecordTheEndedSession` keeps an
+    # idle seat read `done`, which a message resumes). A root, past a sweep's reaction cap.
+    policy "StartTheStandingSeatWhenWoken" do
+      on      "Escalation.CoordinatorWoken"
+      root
+      where   { rule != "all-hands-on-red" && event == "StandingCoordinatorStarted" }
+      trigger AgentRun::Dispatch,
+              with: { run: "orchestrator-seat", parent: :escalation, repo: :repo, brief: :brief, agent: :role,
+                      works_as: "orchestrator-seat" }
     end
 
     # A linked worktree keeps its runs in Memory, so a session it started would be reaped by
