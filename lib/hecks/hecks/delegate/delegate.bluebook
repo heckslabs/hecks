@@ -2519,46 +2519,46 @@ Hecks.bluebook "Hecks" do
                             "end of your turn." }
     end
 
-    # A submission review starts the reviewer's session under a minted key, as each role's run below
-    # is: a key taken from the commit or request would meet another run started for it. The brief
-    # names the branch; the SubmissionReview, keyed by the commit, keeps the judgment.
+    # A submission review starts the reviewer's session as a run keyed by the submitted commit, the
+    # key RecordTheReviewersJudgment reads its SubmissionReview by. The brief names the branch.
     policy "StartTheReviewerOnReviewRequest" do
       on      "SubmissionReview.SubmissionReviewRequested"
-      trigger AgentRun::Dispatch, with: { repo: :repo, brief: :brief, agent: :role }
+      trigger AgentRun::Dispatch, with: { run: :submission, repo: :repo, brief: :brief, agent: :role }
     end
 
-    # A recommended promotion starts the release manager's session, with a brief to recommend
-    # promote, revert or fix forward. It only recommends: promoting stays the owner's confirmed
-    # command on the board.
+    # A recommended promotion starts the release manager's session under a minted key, so it never
+    # meets the reviewer's run for the same commit. It only recommends promote, revert or fix
+    # forward: promoting stays the owner's confirmed command on the board.
     policy "StartTheReleaseManagerOnRecommendation" do
       on      "PromotionRecommendation.PromotionRecommended"
       trigger AgentRun::Dispatch, with: { repo: :repo, brief: :brief, agent: :role }
     end
 
-    # A planning request starts the planner's session, with the goal as its brief. The planner drafts
-    # a plan and asks; it creates Work items only once the owner says so.
+    # A planning request starts the planner's session under a minted key, with the goal as its brief.
+    # The planner drafts a plan and asks; it creates Work items only once the owner says so.
     policy "StartThePlannerOnPlanningRequest" do
       on      "Planning.PlanningRequested"
       trigger AgentRun::Dispatch, with: { repo: :repo, brief: :goal, agent: :role }
     end
 
-    # A woken pruner starts its session as a run of the `pruner` agent.
+    # A woken pruner starts its session as a run of the `pruner` agent, under a minted key.
     policy "StartThePrunerWhenWoken" do
       on      "Pruning.PrunerWoken"
       trigger AgentRun::Dispatch, with: { repo: :repo, brief: :brief, agent: :role }
     end
 
-    # A conflicting Work item asks the orchestrator for advice: its session starts with a brief that
-    # names the Work item and the conflict.
+    # A conflicting Work item asks the orchestrator for advice: its session starts under a minted key,
+    # with a brief that names the Work item and the conflict.
     policy "StartTheOrchestratorOnAdviceRequest" do
       on      "Routing.DispatchAdviceRequested"
       trigger AgentRun::Dispatch, with: { repo: :repo, brief: :brief, agent: :role }
     end
 
-    # An exception the orchestrator must judge starts its session, with the escalation as its brief.
+    # An exception the orchestrator must judge starts its session as a run keyed by the escalation:
+    # a stall's key is its Work item, which the stall fixer's run is keyed by.
     policy "StartTheCoordinatorWhenWoken" do
       on      "Escalation.CoordinatorWoken"
-      trigger AgentRun::Dispatch, with: { repo: :repo, brief: :brief, agent: :role }
+      trigger AgentRun::Dispatch, with: { run: :escalation, repo: :repo, brief: :brief, agent: :role }
     end
 
     # A session the board started by hand has no run to tidy, so it is removed on its own. The
