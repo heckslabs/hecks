@@ -3,7 +3,13 @@
 # Role.guard query and relays its verdict. It decides nothing: the routing rows live in
 # lib/hecks/agents/agents.bluebook, and a role with no rows is allowed by the query. A refusal exits
 # 2, which hands the reason (the verb or role to use instead) back to the agent. A session with no
-# role, or a Hecks that could not run, warns and never blocks.
+# role (the owner's) is never blocked.
+#
+# When Hecks cannot answer (the launcher fails, gives no verdict, or takes longer than the limit), a
+# role listed in .claude/hooks/guarded_roles (projected from the RoutingRule rows) is refused with the
+# reason, except for exactly `exe/hecks agents Role.guard` and `git status`, so a session can always
+# read why and repair the guard. A missing list counts every role as guarded; a role not listed is
+# warned and let through, as a role with no rows would be.
 set -u
 
 export PATH="$HOME/.rbenv/shims:/opt/homebrew/bin:/usr/local/bin:$PATH"
@@ -14,10 +20,29 @@ command="$(printf '%s' "$input" | jq -r '.tool_input.command // empty')"
 agent="$(printf '%s' "$input" | jq -r '.agent_id // empty')"
 [ -n "$role" ] && [ -n "$command" ] || exit 0
 
-cd "${CLAUDE_PROJECT_DIR:-$(pwd)}" || exit 0
-out="$(HECKS_CALLER=hook:orchestrator_guard exe/hecks agents Role.guard"role.value=$role" "command.value=$command" "agent.value=$agent" 2>&1)" && exit 0
+dir="${CLAUDE_PROJECT_DIR:-$(pwd)}"
+guarded="$dir/.claude/hooks/guarded_roles"
+limit="${HECKS_GUARD_LIMIT:-30}"
+
+unanswered() {
+  if [ -r "$guarded" ] && ! grep -qxF -- "$role" "$guarded"; then
+    echo "orchestrator_guard: Hecks could not answer ($1); $role is not guarded, so not blocking" >&2
+    exit 0
+  fi
+  case "$command" in "exe/hecks agents Role.guard" | "git status") exit 0 ;; esac
+  echo "orchestrator_guard: Role.guard could not answer for $role ($1), so only" \
+    "\`exe/hecks agents Role.guard\` and \`git status\` run until it does: run the first to see the" \
+    "error, repair the guard, or ask the owner. Refused: $command" >&2
+  exit 2
+}
+
+cd "$dir" 2>/dev/null || unanswered "cannot enter $dir"
+out="$(HECKS_CALLER=hook:orchestrator_guard perl -e 'alarm shift; exec @ARGV or exit 127' "$limit" \
+  exe/hecks agents Role.guard "role.value=$role" "command.value=$command" "agent.value=$agent" 2>&1)"
+status=$?
+[ "$status" -eq 0 ] && exit 0
 
 reason="$(printf '%s\n' "$out" | grep -m1 'routes only')"
-[ -n "$reason" ] || { echo "orchestrator_guard: Hecks could not answer; not blocking" >&2; exit 0; }
-printf '%s\n' "$reason" >&2
-exit 2
+[ -n "$reason" ] && { printf '%s\n' "$reason" >&2; exit 2; }
+[ "$status" -eq 142 ] && unanswered "no answer in ${limit}s"
+unanswered "$(printf '%s\n' "$out" | grep -v '^\[hecks\]' | grep -v '^[[:space:]]*from ' | grep -m1 . | cut -c1-200)"
