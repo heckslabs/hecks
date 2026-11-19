@@ -192,10 +192,10 @@ module Hecks
       end
 
       # The pinned agents panel: each role with its live sessions and last event, whether pruning
-      # is paused, and the open plan reviews and promotion recommendations.
+      # is paused, and the open plan reviews.
       def agents(data)
         { roles: PipelineBoard::AgentRoles.of(data[:sessions], @roles, data[:events]), pruning: PipelineBoard::PruningStanding.of(@seats),
-          reviews: PipelineBoard::AgentRoles.review_lines(guard { @tickets.runs }), recommendations: PipelineBoard::AgentRoles.recommendations(data[:promotions]) }
+          reviews: PipelineBoard::AgentRoles.review_lines(guard { @tickets.runs }) }
       end
 
       def sections

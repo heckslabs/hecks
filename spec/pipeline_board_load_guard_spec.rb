@@ -25,7 +25,7 @@ RSpec.describe Hecks::Adapters::PipelineBoard::LoadGuard do
   def stand(load) = described_class.shared = guard(load)
 
   def stand_ins
-    quiet = instance_double(Hecks::Adapters::PipelineJournal, recent: [], named: [], landed_times: {}, promotions: [],
+    quiet = instance_double(Hecks::Adapters::PipelineJournal, recent: [], named: [], landed_times: {},
                                                                 cycle_events: [], stopped_times: {}, health_events: [])
     { journal: quiet, tickets: Hecks::Adapters::PipelineTickets.new(settings: { work_items: work_items, landings: [] }),
       boots: Hecks::Adapters::PipelineBoots.new(settings: { entries: ->(_date) { [] } }) }

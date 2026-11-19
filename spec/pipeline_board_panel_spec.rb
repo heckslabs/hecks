@@ -69,8 +69,8 @@ RSpec.describe Hecks::Adapters::PipelineBoard::Panel do
     expect(lines(limit: 2)).to include(a_string_matching(/\+1 more planned/))
   end
 
-  it "says what the reviews and the recommendations are" do
-    expect(lines.join("\n")).to include("review alpha: sound", "review bravo: no verdict yet", "promotion recommended: 36f689057")
+  it "says what the reviews are" do
+    expect(lines.join("\n")).to include("review alpha: sound", "review bravo: no verdict yet")
   end
 
   it "writes no colour unless asked" do

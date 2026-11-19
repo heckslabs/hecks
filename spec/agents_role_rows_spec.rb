@@ -53,7 +53,7 @@ RSpec.describe "the Role aggregate's RoleFile rows" do
     expect(rows.keys).to match_array(world_roles)
   end
 
-  %w[planner orchestrator architect coder reviewer release_manager pruner].each do |name|
+  %w[planner orchestrator architect coder reviewer pruner].each do |name|
     it "holds the head of #{name} word for word" do
       expect(rows.fetch(name).slice(:description, :tools, :model, :purpose)).to eq(head_of(slices(name)))
     end

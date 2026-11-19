@@ -392,7 +392,6 @@ Hecks.bluebook "PipelineBoard" do
       member action: "pause_pruning",  needs: "",                 confirm: "no",  program: "exe/hecks", argv: "agents Pruning.pause! to=pruner --wait"
       member action: "hold_pruning",   needs: "",                 confirm: "no",  program: "exe/hecks", argv: "agents Pruning.hold! role.value=pruner --wait"
       member action: "resume_pruning", needs: "",                 confirm: "no",  program: "exe/hecks", argv: "agents Pruning.resume! to=pruner --wait"
-      member action: "settle",     needs: "target",               confirm: "no",  program: "exe/hecks", argv: "agents PromotionRecommendation.settle! to={target} --wait"
       member action: "prioritize", needs: "target text",          confirm: "no",  program: "exe/hecks", argv: "tickets Work.prioritize! to={target} priority.value={text} --wait"
       member action: "assign",     needs: "target text",          confirm: "no",  program: "exe/hecks", argv: "tickets Work.assign! to={target} epic={text} --wait"
       member action: "turn",       needs: "target text",          confirm: "yes", program: "exe/hecks", argv: "Dial.turn! setting.value={target} becomes.value={text} --wait"
