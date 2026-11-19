@@ -9,7 +9,8 @@ module Hecks
       #
       # The idle load is the quiet quarter of the readings; each started session is taken to cost
       # what the recent median stands over it, divided among them. The estimate also counts load
-      # that is not a session's, so it is an estimate that throttles a fill and never refuses one.
+      # that is not a session's, so a fill's report states it and no work item is held to it: the
+      # load limit alone stops a fill.
       class Headroom
         # Readings the estimate looks at.
         WINDOW = 48

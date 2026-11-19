@@ -13,7 +13,9 @@ module Hecks
       # A planned work item waits when a work item it depends on has not landed ({Dependencies}),
       # when its last yield parked it ({Parking}), when it sits in a frozen area, when its area
       # overlaps a started work item's or an earlier chosen work item's (by {AreaOverlap}), or when
-      # the machine is loaded or the cap is reached, which also hold back every work item after it.
+      # the load is over its limit or the cap is reached, which also hold back every work item after
+      # it. A fill with free places starts as many startable work items as it has places: the load
+      # limit is the machine's one stop, and the headroom estimate is reported, never held to.
       class Plan
         # A work item, as {WorkItems} reads it.
         # `yield_kind`, `retry_at` and `yield_count` are what its last yield recorded ({Parking}).
@@ -25,9 +27,6 @@ module Hecks
 
         # What a name is compared without, so `quality_control` and `QualityControl` meet.
         NOT_ALNUM = /[^a-z0-9]/
-
-        # The most work items one fill starts, whatever the machine has room for.
-        STAGGER = 2
 
         # A work item left waiting, and the reason.
         Skip = Struct.new(:key, :reason)
@@ -43,7 +42,7 @@ module Hecks
         # @param limits [Hash] `runs:` (callable answering the AgentRun states by run key, optional)
         #   and `now:` (Time, optional), `cap:` (Integer), `load:` and `max_load:` (Float),
         #   `frozen:` (Array), `epic_wip:` (Integer, optional: most started items of one epic)
-        #   `headroom:`, `stagger:`, `urgent_reserve:` (Integer, optional: room, per fill, red),
+        #   `headroom:`, `per_session:` (optional: the estimate reported), `urgent_reserve:` (red),
         #   `paused:` and `budget:` (String, optional: why every work item waits), `rethinks:`
         #   (callable, optional: answers why a work item waits for a person),
         #   `waits:` (callable, optional: answers which unlanded work item an item waits on),
@@ -63,7 +62,8 @@ module Hecks
         #   edited
         def holders = @started + @chosen
 
-        # @return [Integer, nil] the sessions the load had room for, nil when no reading said
+        # @return [Integer, nil] the sessions the load had room for, an estimate the report states
+        #   and the plan does not hold to; nil when no reading said
         def headroom = @limits[:headroom]
 
         # @return [Float, nil] the load one session is taken to cost, nil when no limit says
@@ -105,20 +105,8 @@ module Hecks
 
         def stop_reason(item) = @limits[:paused] || budget_reason(item) || overloaded || capped(item)
 
-        # What the item's own place holds it: its area, its epic, the room the machine has.
-        def limit_reason(item) = frozen_reason(item) || epic_reason(item) || headroom_reason(item) || overlap_reason(item)
-
-        # The load is under its limit, yet the machine has room for only so many more sessions at
-        # the load each costs, so a fill starts at most that many and at most `stagger:` of them.
-        # The wait ends when the load falls, so it reads as a load wait (see `held_by_machine?`).
-        # The fix of a red main is not held; no `headroom:` means no reading and no limit.
-        def headroom_reason(item)
-          room = @limits[:headroom]
-          return if room.nil? || @limits[:exempt]&.call(item)
-          return if @chosen.size < [room, @limits.fetch(:stagger, STAGGER)].min
-
-          "skipped: load headroom #{room} (estimate), #{@chosen.size} chosen by this fill"
-        end
+        # What the item's own place holds it: its area or its epic.
+        def limit_reason(item) = frozen_reason(item) || epic_reason(item) || overlap_reason(item)
 
         # A spent boot budget holds back every work item but the ones `exempt:` names, so the fix
         # of a red main still starts.
