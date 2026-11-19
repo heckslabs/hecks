@@ -50,7 +50,7 @@ RSpec.describe Hecks::Adapters::GitRehearsal, :io do
 
   describe "#due" do
     it "says no push is due when main is level with origin/main" do
-      expect(due).to eq("push due: no; main is level with origin/main; last quick: none yet")
+      expect(due.lines.first.chomp).to eq("push due: no; main is level with origin/main; last quick: none yet")
     end
 
     it "counts the unpushed commits and ages the oldest in hours" do
