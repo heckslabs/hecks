@@ -160,6 +160,14 @@ RSpec.describe "the fuzzer's declared properties, against the language's own gra
                                            "shape no era holds yet; spec/adapters/driven/postgres_era/" \
                                            "mints_era_write_spec.rb holds it. The fuzzer runs in Memory, which has no " \
                                            "eras, so no fuzzed sequence can reach what the flag changes",
+    "Command#policy_only"               => "marks a command only a policy reaction may dispatch (ADR 0216); nothing " \
+                                           "reads it until the dispatch check of role-refuse-unstated does, so no fuzzed " \
+                                           "sequence can reach what it changes. spec/role_unstated_vocabulary_spec.rb and " \
+                                           "spec/parser_parity_spec.rb hold its declaration and parse",
+    "Policy#acts_as"                    => "the role a reaction dispatches its trigger as (ADR 0216); nothing reads it " \
+                                           "until the dispatch check of role-refuse-unstated does. spec/" \
+                                           "role_unstated_vocabulary_spec.rb, spec/model_check_acts_as_spec.rb and " \
+                                           "spec/parser_parity_spec.rb hold its declaration, check and parse",
     "ProcessManager#resumes"            => "the command that resumes each stage of a process manager, read by the saga " \
                                            "recovery path; spec/dsl_spec.rb and spec/syntax_conformance_spec.rb hold its " \
                                            "declaration and parse. The crash-recovery specs drive the resume path itself"
