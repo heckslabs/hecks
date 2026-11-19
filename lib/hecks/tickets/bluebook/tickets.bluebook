@@ -767,8 +767,9 @@ Hecks.bluebook "Tickets" do
       attribute :value, String, matches: :present
     end
 
-    # A path prefix or glob a claim covers. Two areas overlap by `Hecks::Adapters::AreaOverlap`;
-    # a work item with no area claims nothing.
+    # A path prefix or glob a claim covers, or a bluebook's declarations (`x.bluebook#Coder,Brief`).
+    # Areas overlap by `Hecks::Adapters::AreaOverlap`, which keeps different declarations of one
+    # bluebook apart; a work item with no area claims nothing.
     value_object "Word" do
       attribute :value, String, matches: :present
     end
