@@ -115,7 +115,7 @@ module Hecks
           @limits[:paused] || budget_reason(item) || overloaded(@limits[:max_load]) || capped(item)
         end
 
-        # An expedited item passes the boot budget, a pause by load and the load limit (ADR 0222):
+        # An expedited item passes the boot budget, a pause by load and the load limit (ADR 0224):
         # memory low, a load over the CPU count, or another expedited item still holds it.
         def expedite_stop(item)
           pause = @limits[:paused]
