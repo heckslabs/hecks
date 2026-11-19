@@ -58,8 +58,22 @@ RSpec.describe "the Agents fleet of sessions" do
     expect(shell.commands.first).to eq(command: %w[claude --bg --resume cccc3333-full -n plain-two], chdir: "/work/plain")
   end
 
-  it "refuses to resume a working session" do
+  it "refuses to resume a working session, running no command", :aggregate_failures do
     expect(steer(:resume!, "bbbb2222", name: { value: "again" }).refusal.value).to include("is working")
+    expect(shell.commands).to be_empty
+  end
+
+  it "examines a session to stop by its facts, judging nothing" do
+    expect(fleet.examine_stop(session: { value: "bbbb2222" })).to include(pinned: true, run: { value: "" })
+  end
+
+  it "examines a session to resume by its facts, keeping its name" do
+    facts = fleet.examine_resume(session: { value: "aaaa1111" }, name: { value: "next" })
+    expect(facts).to include(working: false, run: { value: "fix-it" }, name: { value: "next" })
+  end
+
+  it "refuses to examine a session claude does not list" do
+    expect { fleet.examine_stop(session: "dddd4444") }.to raise_error(Hecks::Adapters::ConsoleCapture::Failure, /not listed/)
   end
 
   it "refuses a name that could be read as a flag" do
