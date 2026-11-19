@@ -1,0 +1,106 @@
+# frozen_string_literal: true
+
+require "spec_helper"
+require "json"
+require "hecks/roundhouse/adapters/metering"
+
+# Roundhouse's per-session meter (ADR 0222, phase 2): each live Claude session's role, Work item,
+# memory (its whole process tree, its MCP servers counted), CPU and last activity, read from
+# `claude agents --json` and `ps`. Every outside read is a stand-in here.
+RSpec.describe Hecks::Adapters::Metering do
+  let(:now) { Time.utc(2026, 11, 19, 18, 0, 0) }
+
+  # pid, ppid, resident memory in kilobytes, %cpu, command
+  let(:ps) do
+    <<~PS
+      100     1  512000  12.5 claude --agent coder
+      101   100  204800   3.0 ruby -I lib -e require 'hecks/tools/mcp'; Hecks::Tools::Mcp.call(ARGV) --
+      102   100  102400   1.5 ruby -I lib -e require 'hecks/tools/serve_query_ir_mcp'; Hecks::Tools::ServeQueryIrMcp.call(ARGV) --
+      103   101   10240   0.5 git status
+      200     1  307200   0.5 claude
+      300     1  409600   2.0 claude
+      400     1 1048576  40.0 /Applications/Safari.app/Contents/MacOS/Safari
+    PS
+  end
+
+  let(:listing) do
+    started = (now.to_i - 3600) * 1000
+    [
+      { "id" => "aaaa1111", "sessionId" => "aaaa1111-full", "pid" => 100, "name" => "signalbox-phase-2-shadow",
+        "kind" => "background", "state" => "working", "status" => "busy", "startedAt" => started,
+        "cwd" => "/repo/.claude/worktrees/signalbox-phase-2-shadow" },
+      { "id" => "bbbb2222", "sessionId" => "bbbb2222-full", "pid" => 200, "name" => "orchestrator-seat-2",
+        "kind" => "background", "state" => "working", "status" => "idle", "startedAt" => started, "cwd" => "/repo" },
+      { "sessionId" => "cccc3333-full", "pid" => 300, "name" => "miette2-c3", "kind" => "interactive",
+        "status" => "idle", "startedAt" => started, "cwd" => "/elsewhere" },
+      { "id" => "dddd4444", "sessionId" => "dddd4444-full", "name" => "finished-long-ago", "kind" => "background",
+        "state" => "done", "startedAt" => started, "cwd" => "/repo" }
+    ]
+  end
+
+  let(:metering) do
+    run = { run: "signalbox-phase-2-shadow", agent: "coder", works_as: "", work: "signalbox-phase-2-shadow" }
+    runs = { "aaaa1111-full" => run }
+    machine_reads = {
+      memsize: 38_654_705_664, perf_cores: 6, loadavg: "{ 33.97 35.28 28.52 }",
+      vm_stat: "Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages active:   759487.\n" \
+               "Pages wired down:   320011.\nPages occupied by compressor:   230127.\n"
+    }
+    described_class.new(settings: { listing: -> { listing }, processes: -> { ps }, runs: -> { runs },
+                                    machine: -> { machine_reads }, now: -> { now },
+                                    activity: ->(entry) { entry["sessionId"] == "aaaa1111-full" ? now - 120 : nil } })
+  end
+
+  let(:rows) { metering.rows.to_h { |row| [row[:session], row] } }
+
+  it "meters only the live sessions: a listed session with no process draws nothing" do
+    expect(rows.keys).to contain_exactly("aaaa1111-full", "bbbb2222-full", "cccc3333-full")
+  end
+
+  it "counts a session's whole process tree, its MCP servers and their children", :aggregate_failures do
+    coder = rows.fetch("aaaa1111-full")
+
+    expect(coder[:memory_mb]).to eq(810)
+    expect(coder[:cpu]).to eq(17.5)
+    expect(coder[:mcp_servers]).to eq(2)
+    expect(coder[:processes]).to eq(4)
+  end
+
+  it "names a dispatched session's role and Work item from its run", :aggregate_failures do
+    coder = rows.fetch("aaaa1111-full")
+
+    expect(coder[:role]).to eq("coder")
+    expect(coder[:works_as]).to eq("coder")
+    expect(coder[:item]).to eq("signalbox-phase-2-shadow")
+  end
+
+  it "takes an unrun session's role from its name, and a person's own session as the person's" do
+    expect(rows.transform_values { |row| row[:role] }).to eq(
+      "aaaa1111-full" => "coder", "bbbb2222-full" => "orchestrator", "cccc3333-full" => "person"
+    )
+  end
+
+  it "says when a session last did something and how long it has stood", :aggregate_failures do
+    coder = rows.fetch("aaaa1111-full")
+
+    expect(coder[:last_activity]).to eq("2026-11-19T17:58:00Z")
+    expect(coder[:idle_minutes]).to eq(2)
+    expect(coder[:age_minutes]).to eq(60)
+    expect(rows.fetch("bbbb2222-full")[:idle_minutes]).to eq(60)
+  end
+
+  it "answers the Sessions query as a JSON document" do
+    sessions = JSON.parse(metering.sessions.fetch(:text))
+
+    expect(sessions.map { |row| row["session"] }).to include("aaaa1111-full")
+  end
+
+  it "reads the machine: capacity, everything used, the sessions' draw, the load and the performance cores" do
+    expect(metering.machine_facts).to include(capacity_mb: 36_864, used_mb: 20_463, drawn_mb: 1110,
+                                              person_mb: 400, load: 3397, cores: 6, sessions: 3)
+  end
+
+  it "answers the Machine query as a JSON document" do
+    expect(JSON.parse(metering.machine.fetch(:text))).to include("capacity_mb" => 36_864)
+  end
+end
