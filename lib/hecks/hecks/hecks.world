@@ -71,7 +71,9 @@ Hecks.world "Hecks" do
   # touched). `session_keep`: hours a session no run holds is kept once done or stopped; removing one only drops
   # it from `claude agents`. `abandon_after_minutes`: how long a helper may stay blocked with no answer before its
   # run ends `abandoned` and is reaped (`AbandonTheUnansweredHelper`); without it no helper is ended.
-  reaping "Sessions", worktree_scratch: ["tmp", ".ruby-lsp", "rust/*/target", "rust/target", "target"], session_keep: 24, abandon_after_minutes: 30
+  # `remove_done_after_minutes`: how long a done or stopped helper session the pipeline launched and no run holds
+  # stays listed before it is removed; the owner's sessions keep `session_keep`, and without it so do helpers.
+  reaping "Sessions", worktree_scratch: ["tmp", ".ruby-lsp", "rust/*/target", "rust/target", "target"], session_keep: 24, abandon_after_minutes: 30, remove_done_after_minutes: 30
   # How long an outbox row may stand claimed before a boot settles it as failed (abandoned, not redelivered)
   # and names it once. A claim that old was left by a process that died; nothing else releases it, so without a
   # bound the same rows were named on every boot. Ten minutes is the longest a reaction is expected to run.
