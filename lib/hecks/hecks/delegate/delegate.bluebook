@@ -2519,12 +2519,9 @@ Hecks.bluebook "Hecks" do
                             "end of your turn." }
     end
 
-    # The runs these policies start name no key: the reaction mints one from the identity port, so
-    # no two runs share a key, and the run's `agent` says whose session it is. A key taken from the
-    # commit or the request would meet another run started for the same commit or request.
-    #
-    # A submission review starts the reviewer's session, with a brief that names the branch. The
-    # SubmissionReview, keyed by the submitted commit, keeps the judgment.
+    # A submission review starts the reviewer's session under a minted key, as each role's run below
+    # is: a key taken from the commit or request would meet another run started for it. The brief
+    # names the branch; the SubmissionReview, keyed by the commit, keeps the judgment.
     policy "StartTheReviewerOnReviewRequest" do
       on      "SubmissionReview.SubmissionReviewRequested"
       trigger AgentRun::Dispatch, with: { repo: :repo, brief: :brief, agent: :role }
