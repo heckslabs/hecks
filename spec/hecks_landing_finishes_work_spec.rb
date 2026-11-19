@@ -89,7 +89,7 @@ RSpec.describe "a landing followed by its Work item" do
   it "leaves a row that is already done alone, with no refused reaction" do
     key = "done#{SecureRandom.hex(3)}"
     plan(key)
-    launch("tickets", "work.finish!", "to=#{key}", "--wait")
+    launch("tickets", "work.finish!", "to=#{key}", "no_change.value=a verify", "--wait")
 
     expect { land(key) }.not_to output(/reaction .* was refused/).to_stderr
   end

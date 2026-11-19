@@ -29,20 +29,27 @@ Hecks.behaviors "Tickets" do
     expect status: "started"
   end
 
-  test "Finish closes a started work item as done" do
-    tests "Finish", on: "Work"
+  test "Close closes a started work item as done with its landing on main" do
+    tests "Close", on: "Work"
     setup  "Tickets::Work.Plan", work: { value: "w5" }, title: { value: "Declare the run kind" }
     setup  "Tickets::Work.Start", work: { value: "w5" },
            claimed_by: { value: "session-1" }, claimed_at: { value: "2026-11-01T00:00:00Z" }
-    input  work: { value: "w5" }
-    expect status: "done"
+    input  work: { value: "w5" }, landing: { value: "d5211d977" }
+    expect status: "done", landing: { value: "d5211d977" }
   end
 
-  test "Finish closes a planned work item that was never started" do
-    tests "Finish", on: "Work"
-    setup  "Tickets::Work.Plan", work: { value: "w6" }, title: { value: "A one-line change" }
-    input  work: { value: "w6" }
-    expect status: "done"
+  test "Close closes a planned work item that lands no change, with the reason" do
+    tests "Close", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "w6" }, title: { value: "Verify the gate" }
+    input  work: { value: "w6" }, no_change: { value: "a verify" }
+    expect status: "done", no_change: { value: "a verify" }
+  end
+
+  test "Close refuses a work item with neither a landing nor a no-change reason" do
+    tests "Close", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "w6b" }, title: { value: "A one-line change" }
+    input  work: { value: "w6b" }
+    expect refused: "a work item is done only with a landing on main or a no-change reason"
   end
 
   test "Drop sets a work item aside with the reason" do
@@ -62,7 +69,7 @@ Hecks.behaviors "Tickets" do
   test "Start refuses a work item that is already done" do
     tests "Start", on: "Work"
     setup  "Tickets::Work.Plan", work: { value: "w9" }, title: { value: "Finished early" }
-    setup  "Tickets::Work.Finish", work: { value: "w9" }
+    setup  "Tickets::Work.Close", work: { value: "w9" }, no_change: { value: "a verify" }
     input  work: { value: "w9" },
            claimed_by: { value: "session-1" }, claimed_at: { value: "2026-11-01T00:00:00Z" }
     expect refused: "done"
@@ -90,7 +97,7 @@ Hecks.behaviors "Tickets" do
   test "Revise refuses a done work item" do
     tests "Revise", on: "Work"
     setup  "Tickets::Work.Plan", work: { value: "w13" }, title: { value: "Finished" }
-    setup  "Tickets::Work.Finish", work: { value: "w13" }
+    setup  "Tickets::Work.Close", work: { value: "w13" }, no_change: { value: "a verify" }
     input  work: { value: "w13" }, title: { value: "Finished" }, detail: { value: "d" }
     expect refused: "done"
   end
@@ -175,7 +182,7 @@ Hecks.behaviors "Tickets" do
   test "Assign refuses a finished work item" do
     tests "Assign", on: "Work"
     setup  "Tickets::Work.Plan", work: { value: "w12" }, title: { value: "Done already" }
-    setup  "Tickets::Work.Finish", work: { value: "w12" }
+    setup  "Tickets::Work.Close", work: { value: "w12" }, no_change: { value: "a verify" }
     setup  "Tickets::Epic.Open", epic: { value: "e1" }, title: { value: "An epic" }, outcome: { value: "Something is true" }
     input  work: { value: "w12" }, epic: "e1"
     expect refused: "a done work item joins no epic"

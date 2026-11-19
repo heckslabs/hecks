@@ -64,7 +64,7 @@ RSpec.describe "Work revise" do
 
   it "refuses to revise a done item, naming its state" do
     started_item
-    cli_text("work.finish!", "to=w/a")
+    cli_text("work.finish!", "to=w/a", "no_change.value=a verify")
 
     expect(revise).to include("done")
   end

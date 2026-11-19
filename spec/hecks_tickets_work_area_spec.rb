@@ -84,7 +84,7 @@ RSpec.describe "Work area claims" do
 
   it "frees the area when the holder finishes" do
     start("area/j", "lib/y")
-    cli("work.finish!", "to=area/j")
+    cli("work.finish!", "to=area/j", "no_change.value=a verify")
 
     expect(start("area/k", "lib/y")["status"]).to eq("started")
   end
