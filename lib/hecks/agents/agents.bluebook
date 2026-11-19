@@ -1378,7 +1378,8 @@ Hecks.bluebook "Agents" do
   end
 
   # A report with no `Result:` line (a bare `stopped`, `rspec unchecked`) is `unstated`, never
-  # done. A run that closes again after a resume states its result anew: the last close is its result.
+  # done, and so is one naming two codes. A run that closes again after a resume states its result
+  # anew: the last close overwrites the code, and the event log keeps the earlier ones.
   aggregate "RunResult" do
     description "One coder run's result as its closing report states it: verified, unverified or blocked, or unstated when the report names no result code."
 
@@ -1466,35 +1467,48 @@ Hecks.bluebook "Agents" do
       trigger RunResult::Hear, with: { run: :run, closing: :report }
     end
 
-    # `Result: unverified` does not hold `Result: verified`, so the three codes never meet.
+    # Exactly one code names the result: `Result: unverified` does not hold `Result: verified`, and a
+    # closing naming two codes (one quoting the instruction line) states none.
     policy "StateAVerifiedRun" do
       on      "RunResult.ClosingHeard"
-      where   { !closing.nil? && closing.value.to_s.include?("Result: verified") }
+      where   do
+        !closing.nil? && closing.value.to_s.include?("Result: verified") &&
+          !closing.value.to_s.include?("Result: unverified") && !closing.value.to_s.include?("Result: blocked")
+      end
       trigger RunResult::State, with: { run: :run, code: "verified" }
     end
 
     policy "StateAnUnverifiedRun" do
       on      "RunResult.ClosingHeard"
-      where   { !closing.nil? && closing.value.to_s.include?("Result: unverified") }
+      where   do
+        !closing.nil? && closing.value.to_s.include?("Result: unverified") &&
+          !closing.value.to_s.include?("Result: verified") && !closing.value.to_s.include?("Result: blocked")
+      end
       trigger RunResult::State, with: { run: :run, code: "unverified" }
     end
 
     policy "StateABlockedRun" do
       on      "RunResult.ClosingHeard"
-      where   { !closing.nil? && closing.value.to_s.include?("Result: blocked") }
+      where   do
+        !closing.nil? && closing.value.to_s.include?("Result: blocked") &&
+          !closing.value.to_s.include?("Result: verified") && !closing.value.to_s.include?("Result: unverified")
+      end
       trigger RunResult::State, with: { run: :run, code: "blocked" }
     end
 
-    # A closing word alone (`stopped`, `blocked`, `submitted`) states no result code.
+    # A closing word alone (`stopped`, `blocked`, `submitted`), or two codes at once, states no result.
     policy "StateAnUnstatedRun" do
       on      "RunResult.ClosingHeard"
       where   do
         closing.nil? ||
           (!closing.value.to_s.include?("Result: verified") && !closing.value.to_s.include?("Result: unverified") &&
-            !closing.value.to_s.include?("Result: blocked"))
+            !closing.value.to_s.include?("Result: blocked")) ||
+          (closing.value.to_s.include?("Result: verified") && closing.value.to_s.include?("Result: unverified")) ||
+          (closing.value.to_s.include?("Result: verified") && closing.value.to_s.include?("Result: blocked")) ||
+          (closing.value.to_s.include?("Result: unverified") && closing.value.to_s.include?("Result: blocked"))
       end
       trigger RunResult::State, with: { run: :run, code: "unstated",
-                                        reason: "the report states no result code: a bare closing word is not a result" }
+                                        reason: "the report states no one result code: a bare closing word is not a result" }
     end
   end
 
