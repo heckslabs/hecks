@@ -267,7 +267,6 @@ commands:
     project_cli!
     init!
     project_rails!
-    interview!
   TestSuiteRun:
     …
     run_spec_example!

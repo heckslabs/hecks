@@ -7,7 +7,6 @@ commands:
   Launch.project_cli!
   Launch.init!
   Launch.project_rails!
-  Launch.interview!
 
 queries (nothing here changes anything):
 
