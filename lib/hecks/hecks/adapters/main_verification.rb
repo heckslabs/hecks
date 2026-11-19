@@ -16,13 +16,13 @@ module Hecks
     # The `MainVerifying` port's adapter for `Integration.Verify`: checks a landed commit in a
     # clean detached copy of it, holding no local Hecks files, by running every check `Checks`
     # names there: the quick gate, all the listener promises before a push (CI on the train pull
-    # request is the full check). A commit other than the head of local main is answered
-    # `superseded` without a check, as is one `origin/main` carries (contained, or squash-merged
-    # by a train) or an open train pull request holds, whoever boarded it (`BoardedCheck`): judged
-    # after one fetch, before every check and after the last. A check that fails refuses the
-    # verification: the first line names every failing check, and a block for each keeps the last
-    # `TAIL` lines it printed. The copy's crates build into the Cargo targets every verification
-    # of their toolchain shares (`CargoTarget`), so a second one reuses compiled dependencies.
+    # request is the full check). These commits are answered `superseded` without a check: one
+    # holding no hecks launcher (a project on the hecks gem landed it), one other than the head of
+    # local main, one `origin/main` carries (contained, or squash-merged by a train) or an open
+    # train pull request holds (`BoardedCheck`), judged before every check and after the last.
+    # A failing check refuses the verification: the first line names every failing check, and a
+    # block for each keeps its last `TAIL` lines. The copy's crates build into the shared Cargo
+    # targets of their toolchain (`CargoTarget`), so a second verification reuses them.
     class MainVerification
       # How many of a failing check's last output lines a refusal keeps.
       TAIL = 60
@@ -64,6 +64,8 @@ module Hecks
       def check(**held)
         landed = plain(held[:landed]).to_s
         repository = repository_of(held)
+        return foreign(landed, repository) unless repository.launcher?(landed)
+
         head = repository.main
         return superseded(landed, head) unless head == landed
 
@@ -171,6 +173,11 @@ module Hecks
 
       def superseded(landed, head)
         answer("superseded", "#{landed[0, 10]} is not the head of main (#{head[0, 10]}); the run for the head carries it")
+      end
+
+      def foreign(landed, repository)
+        answer("superseded", "#{landed[0, 10]} landed in #{repository.checkout}, which holds no " \
+                             "#{CheckoutGate::LAUNCHER}: main integration is hecks's own; no check run")
       end
 
       def answer(outcome, report) = { outcome: { value: outcome }, report: { value: report } }
