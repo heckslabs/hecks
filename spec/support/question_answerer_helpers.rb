@@ -30,6 +30,28 @@ module QuestionAnswererHelpers
     launch("agent_run.check!", "to=#{run}", "--wait")
   end
 
+  # The answerer started for a coder's question blocks: it cannot answer.
+  #
+  # @return [String] the answerer's run key
+  def answerer_blocks(work, question)
+    blocked_on(work, "[choose] A or B?")
+    answerers(work).first["run"].tap { |run| blocks(run, question) }
+  end
+
+  # The answerer is still working when a check reads it past the world's ten minutes.
+  def answerer_overdue(run)
+    File.write(File.join(scratch, "jobs", "stand-in-session", "state.json"), JSON.generate(state: "working"))
+    later = Time.now.utc + (11 * 60)
+    allow(Time).to receive(:now).and_return(later)
+    launch("agent_run.check!", "to=#{run}", "--wait")
+  end
+
+  # @return [Hash] the run's record, its value objects materialized
+  def ended(run)
+    runs = @hecks.registry.repository("Hecks", @hecks.registry.bluebook("Hecks").aggregate("AgentRun"))
+    Hecks::Runtime::Value.materialize(runs.find(run).state)
+  end
+
   def answerers(work = nil)
     rows = JSON.parse(launch("agent_run.running").first.to_s[/\[.*\]/m] || "[]")
     rows.select { |row| row["works_as"] == "answerer" && (work.nil? || row["work"] == work) }

@@ -3129,7 +3129,52 @@ Hecks.bluebook "Hecks" do
                                "answer-within-the-brief, or escalate it when the answer is the owner's. " \
                                "Never answer for the owner a push, promote, release, plan confirmation, " \
                                "secret, account or login: escalate those. " \
+                               "When the ledger, the code and the standing rules do not answer it, never wait " \
+                               "and never ask: Work.plan! one work item titled 'needs an answer: <run>' with the " \
+                               "question as its detail, Question.escalate! it, and end at once with " \
+                               "'cannot answer: <why>. escalated'. " \
                                "End your turn with the word answered or escalated." }
+      end
+
+      # A blocked answerer cannot answer, and a clear no is an answer: it ends `abandoned` at its
+      # first blocked read after its start was read, its question kept as the detail, so it never
+      # holds a session or a seat while it waits.
+      policy "EndTheAnswererThatCannotAnswer" do
+        on      "AgentRun.JobRead"
+        root
+        where   { state == "blocked" && previous != "" && works_as == "answerer" && resuming != true }
+        trigger AgentRun::Finish, with: { condition: "abandoned", detail: :detail, checkout: :checkout }
+      end
+
+      # The question a blocked answerer served goes to the owner once: escalated, which frees its
+      # seat. A question already closed or escalated refuses, and nothing else changes.
+      policy "EscalateTheQuestionOfABlockedAnswerer" do
+        on      "AgentRun.JobRead"
+        root
+        where   { state == "blocked" && previous != "" && works_as == "answerer" && resuming != true }
+        trigger Question::Escalate, with: { run: :work }
+      end
+
+      # An answerer working past the reaping line's `answer_after_minutes` is out of time: it ends
+      # `abandoned`, and its question goes to the owner once, as a blocked answerer's does.
+      policy "EndTheOverdueAnswerer" do
+        on      "AgentRun.JobRead"
+        root
+        where   do
+          state == "working" && works_as == "answerer" && answer_after > 0 && running_minutes >= answer_after &&
+            resuming != true
+        end
+        trigger AgentRun::Finish, with: { condition: "abandoned", detail: "cannot answer: out of time", checkout: :checkout }
+      end
+
+      policy "EscalateTheQuestionOfAnOverdueAnswerer" do
+        on      "AgentRun.JobRead"
+        root
+        where   do
+          state == "working" && works_as == "answerer" && answer_after > 0 && running_minutes >= answer_after &&
+            resuming != true
+        end
+        trigger Question::Escalate, with: { run: :work }
       end
 
       # Every run's answer, end and failure looks its question up: a run that asked none finds no
