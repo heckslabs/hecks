@@ -1,0 +1,7 @@
+# Binds the `SubmittedPaths` port to `SubmittedPaths`, which reads the paths a submitted branch changed against main.
+# Required by name, not relative, so a copy of this directory shares the one implementation loaded.
+require "hecks/agents/adapters/submitted_paths"
+
+Hecks.adapter "SubmittedPaths" do
+  port "SubmittedPaths"
+end
