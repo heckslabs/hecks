@@ -90,6 +90,51 @@ Hecks.behaviors "Signalbox" do
     expect emits: %w[PressureRead PressureEased], band: "normal"
   end
 
+  # Decided 2026-11-19: CPU is the second pressure input. The 1-minute load is read in hundredths
+  # against the performance cores (6 on the M3 Pro), with marks in percent of them: tight past 150
+  # (a load of 9), short past 300 (a load of 18). The band is the worse of the two.
+  test "the load band: a load of 32 on six performance cores is short even with memory to spare" do
+    tests "Read", on: "Pressure"
+    setup "Signalbox::Pressure.Open", pressure: { value: "m3-pro" }, capacity: { value: 28672 }
+    input pressure: "m3-pro", headroom: { value: 12000 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 },
+          age: { value: 30 }, stale_after: { value: 120 }, load: { value: 3200 }, cores: { value: 6 },
+          load_tight: { value: 150 }, load_short: { value: 300 }, load_gap: { value: 25 }
+    expect emits: %w[PressureRead PressureFellShort], band: "short"
+  end
+
+  test "the band is the worse of the two: a load past the tight mark tightens a machine with memory to spare" do
+    tests "Read", on: "Pressure"
+    setup "Signalbox::Pressure.Open", pressure: { value: "m3-pro" }, capacity: { value: 28672 }
+    input pressure: "m3-pro", headroom: { value: 12000 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 },
+          age: { value: 30 }, stale_after: { value: 120 }, load: { value: 1200 }, cores: { value: 6 },
+          load_tight: { value: 150 }, load_short: { value: 300 }, load_gap: { value: 25 }
+    expect emits: %w[PressureRead PressureTightened], band: "tight"
+  end
+
+  test "memory past its gap does not ease a band the load still holds" do
+    tests "Read", on: "Pressure"
+    setup "Signalbox::Pressure.Open", pressure: { value: "m3-pro" }, capacity: { value: 28672 }
+    setup "Signalbox::Pressure.Read", pressure: "m3-pro", headroom: { value: 12000 }, target: { value: 6144 }, floor: { value: 3072 },
+          gap: { value: 2048 }, age: { value: 30 }, stale_after: { value: 120 }, load: { value: 1200 }, cores: { value: 6 },
+          load_tight: { value: 150 }, load_short: { value: 300 }, load_gap: { value: 25 }
+    input pressure: "m3-pro", headroom: { value: 12000 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 },
+          age: { value: 30 }, stale_after: { value: 120 }, load: { value: 840 }, cores: { value: 6 },
+          load_tight: { value: 150 }, load_short: { value: 300 }, load_gap: { value: 25 }
+    expect emits: ["PressureRead"], band: "tight"
+  end
+
+  test "a load under its tight mark by the gap, with memory past its own, eases the band" do
+    tests "Read", on: "Pressure"
+    setup "Signalbox::Pressure.Open", pressure: { value: "m3-pro" }, capacity: { value: 28672 }
+    setup "Signalbox::Pressure.Read", pressure: "m3-pro", headroom: { value: 12000 }, target: { value: 6144 }, floor: { value: 3072 },
+          gap: { value: 2048 }, age: { value: 30 }, stale_after: { value: 120 }, load: { value: 1200 }, cores: { value: 6 },
+          load_tight: { value: 150 }, load_short: { value: 300 }, load_gap: { value: 25 }
+    input pressure: "m3-pro", headroom: { value: 12000 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 },
+          age: { value: 30 }, stale_after: { value: 120 }, load: { value: 700 }, cores: { value: 6 },
+          load_tight: { value: 150 }, load_short: { value: 300 }, load_gap: { value: 25 }
+    expect emits: %w[PressureRead PressureEased], band: "normal"
+  end
+
   # ---- Law 3: local response ----
 
   test "law 3: in normal pressure every session runs" do
@@ -371,5 +416,59 @@ Hecks.behaviors "Signalbox" do
     setup "Signalbox::Breaker.Trip", breaker: "helper-share", load: { value: 80 }, smaller_ready: { value: 0 }
     input breaker: "helper-share", load: { value: 3 }, gap: { value: 1 }
     expect refused: "a breaker resets only once the load is under its rating by the gap"
+  end
+
+  # Decided 2026-11-19: model usage is a daily fuse beside the boot budget, not part of headroom.
+  test "the model usage fuse is installed beside the machine fuse" do
+    tests "Install", on: "Breaker"
+    input breaker: { value: "model-fuse" }, level: { value: "model" }, rating: { value: 100 }
+    expect emits: ["BreakerInstalled"], state: "closed"
+  end
+
+  test "the model usage fuse waits while a smaller breaker can still act" do
+    tests "Trip", on: "Breaker"
+    setup "Signalbox::Breaker.Install", breaker: { value: "model-fuse" }, level: { value: "model" }, rating: { value: 100 }
+    input breaker: "model-fuse", load: { value: 104 }, smaller_ready: { value: 1 }
+    expect refused: "a larger breaker waits while a smaller one can still act"
+  end
+
+  # ---- Shadow (phase 2): what Signalbox would have decided, beside what Delegate did ----
+
+  # Each time Delegate fills, sheds or reaps, Signalbox records its own ruling on the same subject
+  # and acts on nothing. One ruling stands per function and subject, revised when either side changes.
+  test "shadow: a ruling records Signalbox's refusal beside Delegate's start" do
+    tests "Record", on: "Ruling"
+    input ruling: { value: "fill:pipeline-board-tiles" }, function: { value: "fill" }, subject: { value: "pipeline-board-tiles" },
+          delegate: { value: "start" }, decision: { value: "refuse" },
+          law: { value: "a session's expected draw fits the headroom" }, band: { value: "tight" }, headroom: { value: 900 },
+          agrees: { value: "no" }
+    expect emits: ["RulingRecorded"], agrees: "no"
+  end
+
+  test "shadow: a ruling Delegate and Signalbox agree on" do
+    tests "Record", on: "Ruling"
+    input ruling: { value: "shed:shedding" }, function: { value: "shed" }, subject: { value: "shedding" },
+          delegate: { value: "none" }, decision: { value: "none" }, law: { value: "the shedding breaker is under its rating" },
+          band: { value: "normal" }, headroom: { value: 9000 }, agrees: { value: "yes" }
+    expect emits: ["RulingRecorded"], agrees: "yes"
+  end
+
+  test "shadow: a ruling names its function" do
+    tests "Record", on: "Ruling"
+    input ruling: { value: "start:coder-1" }, function: { value: "start" }, subject: { value: "coder-1" },
+          delegate: { value: "start" }, decision: { value: "admit" }, law: { value: "every law holds" },
+          band: { value: "normal" }, headroom: { value: 9000 }, agrees: { value: "yes" }
+    expect refused: "a ruling is on a fill, a shed or a reap"
+  end
+
+  test "shadow: a ruling is revised when the next pass decides otherwise" do
+    tests "Revise", on: "Ruling"
+    setup "Signalbox::Ruling.Record", ruling: { value: "reap:4c1d2e3f" }, function: { value: "reap" }, subject: { value: "4c1d2e3f" },
+          delegate: { value: "keep: its run has not finished" }, decision: { value: "keep" }, law: { value: "its fuse holds" },
+          band: { value: "normal" }, headroom: { value: 9000 }, agrees: { value: "yes" }
+    input ruling: "reap:4c1d2e3f", delegate: { value: "keep: its run has not finished" }, decision: { value: "reap" },
+          law: { value: "a session past its time rating blows its own fuse" }, band: { value: "tight" }, headroom: { value: 5000 },
+          agrees: { value: "no" }
+    expect emits: ["RulingRevised"], decision: "reap", agrees: "no"
   end
 end
