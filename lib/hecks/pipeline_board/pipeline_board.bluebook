@@ -252,10 +252,9 @@ Hecks.bluebook "PipelineBoard" do
       member name: "integration_runs_shown",  value: 8
     end
 
-    # A project that keeps a board of its own: its name, and its checkout, a directory beside the
-    # Hecks checkout. Where the project's Tickets store is kept is named only by that checkout's
-    # own local world, which the board reads and never boots. The row with no checkout is the
-    # board's own project, the one `/plan` shows; `/plan/<name>` shows another's.
+    # A project that keeps a board: its name and its checkout beside Hecks, whose local world
+    # names its Tickets store (read, never booted). The row with no checkout is the board's own
+    # project, shown at `/plan`; `/plan/<name>` shows another's.
     value_object "ProjectBoard" do
       attribute :name,     String
       attribute :checkout, String
