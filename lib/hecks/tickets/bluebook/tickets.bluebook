@@ -396,6 +396,8 @@ Hecks.bluebook "Tickets" do
     attribute :tier,    EpicTier, optional: true
     attribute :measure,  MeasureName, optional: true
     attribute :evidence, Evidence, optional: true
+    attribute :hand_ranked_at, RankedAt, optional: true
+    attribute :hold,     HandHold, optional: true
     reference_to Adr, as: :decision, optional: true
     identified_by :epic
 
@@ -421,6 +423,45 @@ Hecks.bluebook "Tickets" do
       attribute :value, Integer
 
       invariant("an epic tier is from 1 to 9") { value >= 1 && value <= 9 }
+    end
+
+    # When the owner last ranked the epic by hand, in seconds since the epoch; 0 when nobody has.
+    # A number, since a rule compares only numbers.
+    value_object "RankedAt" do
+      attribute :value, Integer, default: 0
+
+      invariant("a ranking time is not before the epoch") { !value.negative? }
+    end
+
+    # How long the owner's hand rank holds against the product owner, in seconds: 1209600 is 14
+    # days. It is kept on the epic, so the product owner cannot shorten it; 0 holds nothing.
+    value_object "HandHold" do
+      attribute :value, Integer, default: 1_209_600
+
+      invariant("a hold is not negative") { !value.negative? }
+    end
+
+    # The owner's charter, one row per line: `place` 1 first, `theme` names it, `covers` says which
+    # epics fall under it (an epic under none ranks last). The owner edits these rows, and the product
+    # owner reads them (`Epic.charter`) to rank each open epic with `Epic.rerank!`.
+    value_object "CharterLine" do
+      attribute :place,  Integer
+      attribute :theme,  String
+      attribute :covers, String
+
+      member place: 1, theme: "stability and memory",
+             covers: "main stays green, runs and landings do not hang or lose work, and the machine's load and memory stay bounded"
+      member place: 2, theme: "hands-off train",
+             covers: "landed work boards, passes CI, merges and is released with no hand from the owner or the coordinator"
+      member place: 3, theme: "the board",
+             covers: "the pipeline board: what it shows, what it answers and how light it is"
+      member place: 4, theme: "new features",
+             covers: "everything else: language, docs, examples and new products"
+    end
+
+    # What a query answered from outside the domain returns: its lines.
+    value_object "CharterDocument" do
+      attribute :text, String
     end
 
     # How many work items name the epic, or how many of them are still planned or started.
@@ -603,15 +644,22 @@ Hecks.bluebook "Tickets" do
       emits "EpicRetitled"
     end
 
-    # Sets the tier only; the title, outcome, decision and status stay as they were.
+    # The owner's hand: sets the tier and stamps when, so `Rerank` leaves it alone for `hold`
+    # seconds. The title, outcome, decision and status stay as they were. `now` is filled from the
+    # clock port; an explicit value wins.
     command "Rank" do
       role "Maintainer"
-      goal "Say how soon an epic is wanted, from 1 (soonest) to 9"
+      goal "Say by hand how soon an epic is wanted, from 1 (soonest) to 9; the product owner leaves it for hold seconds (14 days)"
 
       reference_to Epic
       attribute :tier, EpicTier, sets: true
+      attribute :hold, HandHold, default: 1_209_600, sets: true
+      attribute :now,  RankedAt
+      needs :now
 
       given("an epic tier is from 1 to 9") { tier.value >= 1 && tier.value <= 9 }
+
+      sets :hand_ranked_at, to: :now
 
       emits "EpicRanked"
     end
@@ -631,11 +679,35 @@ Hecks.bluebook "Tickets" do
       emits "EpicDecided"
     end
 
+    # The product owner's rank, apart from `Rank` so the command says who ranked; it never stamps a
+    # hand rank. The sublanguage has `+` and no `-`, so `hand_ranked_at + hold <= now` stands for
+    # `now - hand_ranked_at >= hold`.
+    command "Rerank" do
+      role "System"
+      goal "Rank an epic from the charter, from 1 (soonest) to 9; refused while a tier the owner set by hand is held"
+
+      reference_to Epic
+      attribute :tier, EpicTier, sets: true
+      attribute :now,  RankedAt
+      needs :now
+
+      given("an epic tier is from 1 to 9") { tier.value >= 1 && tier.value <= 9 }
+      given("a tier the owner set by hand is held") { hand_ranked_at.value + hold.value <= now.value }
+
+      emits "EpicReranked"
+    end
+
     # The board's epic list: every epic, lowest tier first (one sort key, so epics of a tier keep the
     # order the store holds them in).
     query "Ranked" do
       description "Every epic with its tier, lowest tier first."
       order_by :tier
+    end
+
+    # The charter's rows as lines, answered by the Charter port from the loaded bluebook.
+    query "Charter" do
+      description "The owner's charter, first line first: what each line covers, which the product owner ranks the epics from."
+      returns CharterDocument
     end
   end
 
