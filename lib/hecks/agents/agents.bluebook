@@ -1943,11 +1943,8 @@ Hecks.bluebook "Agents" do
     end
   end
 
-  # The background Claude sessions as an operator steers them: listed with the run that holds each,
-  # found by what their transcripts say, stopped, and resumed under a name. The `Fleet` port looks
-  # and acts and the AgentRun ledger is read, never written: a stopped run's session is finished
-  # `stopped` by the next `AgentRun.check_all!`. A role never stops a session, so no RoutingRule
-  # row names Stop or Resume; the pinned roles' sessions are refused by their `PinnedRole` rows.
+  # The AgentRun ledger is read, never written: a stopped run is finished `stopped` by the next
+  # `AgentRun.check_all!`. A role never stops a session, so no RoutingRule row names Stop or Resume.
   aggregate "Fleet" do
     description "One steering of a background Claude session: stopped, or resumed under a name, or refused with the reason; and the reads that list the sessions with their runs and find one by topic."
 
@@ -1957,6 +1954,7 @@ Hecks.bluebook "Agents" do
     attribute :name,    FleetName,    optional: true
     attribute :report,  FleetSummary, optional: true
     attribute :refusal, FleetSummary, optional: true
+    attribute :run,     FleetRun,     optional: true
 
     value_object "FleetSession" do
       attribute :value, String, matches: :present
@@ -1973,15 +1971,19 @@ Hecks.bluebook "Agents" do
     end
     value_object "FleetTopic", String
 
+    # The key of the AgentRun that holds the session, empty when none does, so a policy of the
+    # Hecks domain can follow a stop or a resume without reading the report.
+    value_object "FleetRun", String
+
     value_object "FleetDocument" do
       attribute :text, String
     end
 
     lifecycle :status, default: "requested" do
       mark :failure, "refused"
-      transition "Halted"  => "stopped", from: "requested"
-      transition "Revived" => "resumed", from: "requested"
-      transition "Refuse"  => "refused", from: "requested"
+      transition "RecordStop"   => "stopped", from: "requested"
+      transition "RecordResume" => "resumed", from: "requested"
+      transition "Decline"      => "refused", from: "requested"
       mark :terminal, "stopped", "resumed", "refused"
       # A steering that ended frees the session's key, so the same session is stopped or resumed again.
       mark :reusable, "stopped", "resumed", "refused"
@@ -1989,7 +1991,7 @@ Hecks.bluebook "Agents" do
 
     command "Stop" do
       role "Operator"
-      goal "Stop a background session (claude stop); refused for a pinned role's session and one not listed"
+      goal "Stop a background session (claude stop); refused for a session a PinnedRole row names and one not listed"
 
       attribute :session, FleetSession, sets: true
 
@@ -2006,27 +2008,29 @@ Hecks.bluebook "Agents" do
       emits "FleetResumeRequested"
     end
 
-    command "Halted" do
+    command "RecordStop" do
       role "System"
       goal "Record that the session was stopped, and the run that holds it"
 
       reference_to Fleet
       attribute :report, FleetSummary, sets: true
+      attribute :run,    FleetRun,     sets: true
 
       emits "FleetStopped"
     end
 
-    command "Revived" do
+    command "RecordResume" do
       role "System"
       goal "Record that the session was resumed under its name, and the run that holds it"
 
       reference_to Fleet
       attribute :report, FleetSummary, sets: true
+      attribute :run,    FleetRun,     sets: true
 
       emits "FleetResumed"
     end
 
-    command "Refuse" do
+    command "Decline" do
       role "System"
       goal "Record why the session was not stopped or resumed"
 
@@ -2059,22 +2063,22 @@ Hecks.bluebook "Agents" do
 
     policy "RecordTheStop" do
       on      "Fleet.SessionHalted"
-      trigger Fleet::Halted, with: { report: :report }
+      trigger Fleet::RecordStop, with: { report: :report, run: :run }
     end
 
     policy "RecordTheResume" do
       on      "Fleet.SessionRevived"
-      trigger Fleet::Revived, with: { report: :report }
+      trigger Fleet::RecordResume, with: { report: :report, run: :run }
     end
 
     policy "RecordTheRefusedStop" do
       on      "Fleet.SessionHaltRefused"
-      trigger Fleet::Refuse, with: { refusal: :refusal }
+      trigger Fleet::Decline, with: { refusal: :refusal }
     end
 
     policy "RecordTheRefusedResume" do
       on      "Fleet.SessionReviveRefused"
-      trigger Fleet::Refuse, with: { refusal: :refusal }
+      trigger Fleet::Decline, with: { refusal: :refusal }
     end
   end
 end
