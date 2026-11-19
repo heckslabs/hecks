@@ -1,6 +1,7 @@
 require_relative "../caller"
 require_relative "../errors"
 require_relative "../refusal_wording"
+require_relative "../role_shadow"
 require_relative "../../ports/authorization"
 
 module Hecks
@@ -13,20 +14,22 @@ module Hecks
       module Authorization
         # Refuses the command when the ambient caller (`Caller.current`) lacks its declared role.
         #
-        # Opt-in on both sides: no caller bound, or no role declared, means no check.
+        # Opt-in on both sides: no caller bound, or no role declared, means no check; a role-gated
+        # command with no caller is only noted (`RoleShadow`).
         #
         # @param command [Bluebook::Command] the command about to run
         # @param domain [String] name of the command's domain, whose provider answers the check
+        # @param verb [String, nil] the command's fully qualified verb, for the shadow line
         # @return [nil] when unchecked or authorized
         # @raise [Runtime::Unauthorized] if the caller holds no grant of the role (identified
         #   caller) or its role string differs (unidentified caller)
         # @raise [Runtime::WiringError] if zero or several adapters implement the port
-        def refuse_role_mismatch(command, domain)
-          caller = Caller.current
-          return unless caller
-
+        def refuse_role_mismatch(command, domain, verb: nil)
           roles = command.role_set
           return if roles.empty?
+
+          caller = Caller.current
+          return RoleShadow.note(command, verb || "#{domain}::#{command.hecks_name}") unless caller
 
           return if roles.any? { |role| role_held?(caller, role, domain) }
 

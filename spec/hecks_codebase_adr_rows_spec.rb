@@ -74,6 +74,9 @@ RSpec.describe "the Codebase rows of the ADR table" do
     AdrRow.new(script: "check_workflow_pagination", verbs: %w[check_workflow_pagination],
                note: "no bin script: it refuses a workflow that counts or waits on a GitHub list call " \
                      "returning only its first page"),
+    AdrRow.new(script: "report_role_shadow", verbs: %w[report_role_shadow],
+               note: "no bin script: it lists, for a domain directory, each role-gated command and each " \
+                     "reaction to one that a caller stating no role would be refused, and never refuses"),
     AdrRow.new(script: "clear_caches", verbs: %w[clear_caches],
                note: "no bin script: it deletes the syntax-boot and verdict caches, which turning them off " \
                      "with HECKS_SYNTAX_BOOT_CACHE=off or HECKS_VERDICT_CACHE=off used to rule out"),
