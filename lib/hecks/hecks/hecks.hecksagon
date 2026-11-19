@@ -462,10 +462,10 @@ Hecks.hecksagon "Hecks" do
       refuses "OpenRefused"
     end
 
-    asks "Squash", to: ReviewRequest do
+    asks "Merge", to: ReviewRequest do
       attribute :run, RunKey
-      answers "SquashAnswered"
-      refuses "SquashRefused"
+      answers "MergeAnswered"
+      refuses "MergeRefused"
     end
 
     asks "Amend", to: ReviewRequest do
@@ -1583,8 +1583,8 @@ Hecks.hecksagon "Delivery" do
     trigger Landing::Submit, with: { run: :sha, checkout: :checkout, branch: :branch, confirm: true }
   end
 
-  # GitHub merges the train's pull request as a squash local main does not share, so main is
-  # pulled once per landed commit. Each pull is a root: the Observe chain is already at the bound.
+  # GitHub merges the train's pull request in a merge commit local main does not hold yet, so
+  # main is pulled once per landed commit. Each pull is a root: the Observe chain is already at the bound.
   translates "PullMainWhenMerged" do
     on      Integration::TrainMergeSeen
     root

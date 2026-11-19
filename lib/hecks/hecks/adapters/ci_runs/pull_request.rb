@@ -11,7 +11,7 @@ module Hecks
   module Adapters
     class CiRuns
       # The train's pull request for a boarded commit, read through `gh api`. A boarding that went
-      # to main as a pull request is squash-merged by GitHub into a commit of its own, so CI is
+      # to main as a pull request is merged by GitHub in a merge commit of its own, so CI is
       # judged on that commit, not on the local one. The pull request is found by its branch, which
       # the boarded commit names, or else by the commit: a commit boarded beneath a later one rides
       # the train named for that later commit. The reads are REST, whose budget is apart from

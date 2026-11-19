@@ -3,9 +3,12 @@
 module Hecks
   module Adapters
     module GitMainPull
-      # Which boarded commits the squash-merged trains in a range carried. A train PR lands on
-      # `origin/main` as one commit titled "Train: main at <sha>"; the title names the boarded
-      # commit, and the claim holds only when that commit holds exactly the squash commit's tree.
+      # Which boarded commits the squash-merged trains in a range carried. A squashed train PR
+      # landed on `origin/main` as one commit titled "Train: main at <sha>"; the title names the
+      # boarded commit, and the claim holds only when that commit holds exactly the squash
+      # commit's tree. Trains now merge as merge commits (ADR 0210), so only squashes already in
+      # history match; the vendored delivery package (`GitMainPull::Carried`, `GitLanding::Carried`)
+      # is its one includer until that package drops the squash path upstream.
       #
       # The answer is not filtered by reachability, by design: a `pull_main` that rebased local
       # `main` past a carried train leaves the boarded commit off `main`, so the tree is the only

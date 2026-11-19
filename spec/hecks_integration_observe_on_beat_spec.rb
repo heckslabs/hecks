@@ -74,8 +74,8 @@ RSpec.describe "noticing a train pull request's verdict on the clock's beat" do
     git("rev-parse", "HEAD", chdir: where)
   end
 
-  # Local main boards one commit and the run stands pushed; GitHub squashes it into a new commit
-  # on origin/main, so local main stands ahead by one and behind by one once the request merges.
+  # Local main boards one commit and the run stands pushed; GitHub merges it in a merge commit on
+  # origin/main that keeps the boarded sha, so local main stands behind by one once it merges.
   def boarded_run(state: "pushed")
     boarded = commit(repo, "boarded.txt", "boarded")
     @hecks.registry.saga_instances["MainIntegration"][boarded] = { state: state, memory: { checkout: repo } }
@@ -83,9 +83,8 @@ RSpec.describe "noticing a train pull request's verdict on the clock's beat" do
   end
 
   def merge_pull_request
-    File.write(File.join(other, "boarded.txt"), "boarded")
-    git("add", ".", chdir: other)
-    git("commit", "-q", "-m", "Train: main at boarded (#12)", chdir: other)
+    git("fetch", "-q", repo, "main", chdir: other)
+    git("merge", "-q", "--no-ff", "-m", "Merge pull request #12 from train/main-boarded", "FETCH_HEAD", chdir: other)
     git("push", "-q", "origin", "main", chdir: other)
     @pull = { number: 12, state: "MERGED", mergeCommit: { oid: git("rev-parse", "HEAD", chdir: other) } }
   end

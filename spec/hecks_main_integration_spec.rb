@@ -185,7 +185,7 @@ RSpec.describe "integrating main through the MainIntegration saga" do
     expect(@ci_commits).to all(eq("f" * 40))
   end
 
-  it "ends a squash-merged run in red when CI on the merge commit fails" do
+  it "ends a merged run in red when CI on the merge commit fails" do
     stub_outside(conclusion: "failure", jobs: FAILED_JOBS)
     @pull = merged_as("e" * 40)
     landed = land

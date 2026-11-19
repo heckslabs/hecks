@@ -822,7 +822,7 @@ Hecks.bluebook "Hecks" do
     end
 
     # A repository that disallows auto-merge has the train wait for the PR's required checks and
-    # squash-merge it when green (an answer of `pushed`, recorded above). A required check that
+    # merge it when green (an answer of `pushed`, recorded above). A required check that
     # failed is a fault whose refusal names the failed checks; the PR stays open and no admin
     # override is used.
     policy "RecordTheFailedChecks" do
@@ -2133,7 +2133,7 @@ Hecks.bluebook "Hecks" do
     end
 
     aggregate "ReviewRequest" do
-      description "One pull request opened or squash-merged on GitHub, and what GitHub answered."
+      description "One pull request opened or merged on GitHub, and what GitHub answered."
 
       attribute :run,     RunKey
       attribute :confirm, Switch, optional: true
@@ -2220,13 +2220,13 @@ Hecks.bluebook "Hecks" do
 
       command "Take" do
         role "Operator"
-        goal "Squash-merge an open pull request by its number; never with an admin override"
+        goal "Merge an open pull request by its number, in a merge commit; never with an admin override"
 
         attribute :run,    RunKey, sets: true
         attribute :number, Word, sets: true
         attribute :confirm, Switch, optional: true, sets: true
 
-        given("squash-merges the pull request on GitHub needs --confirm; without it this only reports") { confirm.value == true }
+        given("merges the pull request on GitHub needs --confirm; without it this only reports") { confirm.value == true }
 
         emits "PullRequestMergeRequested"
       end
@@ -2260,7 +2260,7 @@ Hecks.bluebook "Hecks" do
 
       command "Confirm" do
         role "System"
-        goal "Record that GitHub squash-merged a pull request"
+        goal "Record that GitHub merged a pull request"
 
         reference_to ReviewRequest
         attribute :number, Word, sets: true
@@ -2340,13 +2340,13 @@ Hecks.bluebook "Hecks" do
       trigger ReviewRequest::Refuse, with: { refusal: :refusal }
     end
 
-    policy "SquashWhenMergeRequested" do
+    policy "MergeWhenRequested" do
       on      "ReviewRequest.PullRequestMergeRequested"
-      ask     :squash, with: { run: :run }
+      ask     :merge, with: { run: :run }
     end
 
     policy "RecordTheMergedPullRequest" do
-      on      "ReviewRequest.SquashAnswered"
+      on      "ReviewRequest.MergeAnswered"
       where   { outcome.value == "merged" }
       trigger ReviewRequest::Confirm, with: { number: :number, report: :report }
     end
@@ -2354,13 +2354,13 @@ Hecks.bluebook "Hecks" do
     # GitHub accepted the merge into its queue or auto-merge without making it; the aggregate says
     # so and does not claim `merged`. `ReviewRequest.status` reads the actual merge later.
     policy "RecordTheQueuedPullRequest" do
-      on      "ReviewRequest.SquashAnswered"
+      on      "ReviewRequest.MergeAnswered"
       where   { outcome.value == "queued" }
       trigger ReviewRequest::Queue, with: { number: :number, report: :report }
     end
 
     policy "RecordTheRefusedMerge" do
-      on      "ReviewRequest.SquashRefused"
+      on      "ReviewRequest.MergeRefused"
       trigger ReviewRequest::Refuse, with: { refusal: :refusal }
     end
 
