@@ -37,7 +37,12 @@ Hecks.bluebook "Hecks" do
       attribute :shedding,  Shedding,  optional: true
       attribute :kept_at,   Instant,   optional: true
       attribute :review_wait, Wait,    optional: true
+      # The run whose reaction dispatched this one, so a fan-out's depth can be read; empty when no
+      # run dispatched it (a Work item's coder, a hand dispatch, a planner). It is a run key, never
+      # a Work item: `work` stays the Work item a run serves.
+      attribute :parent,    RunKey,    optional: true
       identified_by :run
+      acknowledges :key_by_value, "the key of the run that dispatched this one, which a hand-started session has none of, so a reference would refuse every review a hand-started coder asks for", of: :parent
 
       value_object "RunKey" do
         attribute :value, String, matches: :present
@@ -149,6 +154,7 @@ Hecks.bluebook "Hecks" do
         attribute :agent, AgentName, optional: true, sets: true
         attribute :works_as, Part, optional: true, sets: true
         attribute :work,  WorkSlug, optional: true, sets: true
+        attribute :parent, RunKey, optional: true, sets: true
 
         given("a brief says something") { !brief.value.to_s.strip.empty? }
 
@@ -496,7 +502,7 @@ Hecks.bluebook "Hecks" do
       end
 
       query "Running" do
-        description "Every run whose session was started and is not known to have ended, oldest key first."
+        description "Every run whose session was started and is not known to have ended, oldest key first, each with the run that dispatched it (`parent`) when one did."
         where(status: "started")
         order_by :run
       end
@@ -2458,7 +2464,7 @@ Hecks.bluebook "Hecks" do
     # an earlier review of it. The run names the Work item it reviews, and the plan is its brief.
     policy "StartTheRoleOnReviewRequest" do
       on      "PlanReview.PlanReviewRequested"
-      trigger AgentRun::Dispatch, with: { run: :run, work: :work, repo: :repo, brief: :plan, agent: :role }
+      trigger AgentRun::Dispatch, with: { run: :run, work: :work, parent: :work, repo: :repo, brief: :plan, agent: :role }
     end
 
     # A verdict judged for a coder run that already finished cannot be delivered (`Answer` takes a
@@ -2526,7 +2532,7 @@ Hecks.bluebook "Hecks" do
     # never collides with the architect's run for the same Work item. The brief names the branch.
     policy "StartTheReviewerOnReviewRequest" do
       on      "SubmissionReview.SubmissionReviewRequested"
-      trigger AgentRun::Dispatch, with: { run: :submission, repo: :repo, brief: :brief, agent: :role }
+      trigger AgentRun::Dispatch, with: { run: :submission, parent: :work, repo: :repo, brief: :brief, agent: :role }
     end
 
     # A recommended promotion starts the release manager's session as a run keyed by the change, with
@@ -3061,13 +3067,13 @@ Hecks.bluebook "Hecks" do
         trigger Question::Seat, with: { run: :run }
       end
 
-      # The answerer is an orchestrator run, its key minted, its `work` the run it answers. It is a
+      # The answerer is an orchestrator run, its key minted, its `work` and its parent the run it answers. It is a
       # root: its start sits deeper than the reaction cap counts from the job reading.
       policy "StartTheAnswererWhenSeated" do
         on      "Question.QuestionSeated"
         root
         trigger AgentRun::Dispatch,
-                with: { repo: ".", agent: "orchestrator", works_as: "answerer", work: :run,
+                with: { repo: ".", agent: "orchestrator", works_as: "answerer", work: :run, parent: :run,
                         brief: "A run is blocked on a question for you: your run's work names it " \
                                "(AgentRun.running). Answer it with AgentRun.answer! under your standing rule " \
                                "answer-within-the-brief, or escalate it when the answer is the owner's. " \
