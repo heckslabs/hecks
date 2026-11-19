@@ -30,8 +30,12 @@ module Hecks
         RED = "red-"
 
         # The priorities a planned work item ranks by, highest first; none ranks last. Priority
-        # ranks ahead of the epic's tier, which orders only items of the same priority.
-        TIERS = %w[now next later].freeze
+        # ranks ahead of the epic's tier, which orders only items of the same priority. It is the
+        # Tickets bluebook's `Priority` list, in the same order.
+        TIERS = %w[expedite now next later].freeze
+
+        # The priority `Work.expedite!` sets: the lane outside the cap (ADR 0224).
+        EXPEDITE = "expedite"
 
         # @param item [Plan::Item] a work item
         # @return [Boolean] whether it says main is red: a `red-` key, or the `push-due` work item
@@ -40,7 +44,18 @@ module Hecks
           item.key.start_with?(RED) || (item.key == "push-due" && item.title.start_with?(PushSize::URGENT))
         end
 
-        # @return [Array<Plan::Item>] the planned work items: a red one first, then one whose last
+        # @param item [Plan::Item] a work item
+        # @return [Boolean] whether it is expedited and not red: priority `expedite`, which takes
+        #   the one place outside the cap; a red one keeps the red rules
+        def self.expedited?(item) = !red?(item) && item.priority.to_s == EXPEDITE
+
+        # @param item [Plan::Item] a work item
+        # @return [Boolean] whether it is red or expedited, so the boot budget and the epic limit
+        #   do not hold it
+        def self.urgent?(item) = red?(item) || expedited?(item)
+
+        # @return [Array<Plan::Item>] the planned work items: a red one first, then an expedited
+        #   one, then one whose last
         #   yield a fill restarts first (a `load` yield, by priority alone), then one of priority
         #   `now` that is not a filed stall, then a filed stall, then by the tier of the work item's
         #   epic (1 to 9, lowest first, none last), then by priority (`now`, `next`, `later`,
@@ -114,6 +129,8 @@ module Hecks
         end
 
         def red?(item) = self.class.red?(item)
+
+        def expedited?(item) = self.class.expedited?(item)
 
         def rolls?(item, stalls) = urgency(item, stalls) <= STALLED || TIERS.include?(item.priority)
 

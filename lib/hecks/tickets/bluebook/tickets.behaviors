@@ -87,6 +87,28 @@ Hecks.behaviors "Tickets" do
            priority: { value: "now" }, step: { value: 2 }
   end
 
+  test "Expedite puts an open work item ahead of the queue" do
+    tests "Expedite", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "w30" }, title: { value: "Hot" }
+    input  work: { value: "w30" }
+    expect status: "planned", priority: { value: "expedite" }
+  end
+
+  test "Expedite refuses a done work item" do
+    tests "Expedite", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "w31" }, title: { value: "Over" }
+    setup  "Tickets::Work.Close", work: { value: "w31" }, no_change: { value: "a verify" }
+    input  work: { value: "w31" }
+    expect refused: "a done or dropped work item is not expedited"
+  end
+
+  test "Prioritize leaves expedite to Expedite" do
+    tests "Prioritize", on: "Work"
+    setup  "Tickets::Work.Plan", work: { value: "w32" }, title: { value: "Hot" }
+    input  work: { value: "w32" }, priority: { value: "expedite" }
+    expect refused: "expedite is the orchestrator's: Work.expedite!"
+  end
+
   test "Revise replaces the title of a planned work item" do
     tests "Revise", on: "Work"
     setup  "Tickets::Work.Plan", work: { value: "w12" }, title: { value: "Old" }
