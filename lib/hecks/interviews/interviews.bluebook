@@ -73,6 +73,12 @@ Hecks.bluebook "Interviews" do
       attribute :value, String, matches: :not_empty
     end
 
+    # The number a decision Point's draft record is opened as, four digits as docs/decisions numbers
+    # them: the holder names it on accepting, since the participants know the record they write.
+    value_object "RecordNumber" do
+      attribute :value, String, matches: :present
+    end
+
     value_object "Tally" do
       attribute :value, Integer, default: 0
       invariant("a tally is not negative") { !value.negative? }
@@ -90,6 +96,11 @@ Hecks.bluebook "Interviews" do
       attribute :statement,  Statement
       attribute :source,     Source
       attribute :supersedes, PointNumber, optional: true
+      # Who settled the point, and who handed it to them ("your call"), kept as said: a record of the
+      # decision, not a gate on it. An owner decision stays refused to an agent role by Agents' Issue.
+      attribute :decided_by,   Speaker, optional: true
+      attribute :delegated_by, Speaker, optional: true
+      attribute :record,       RecordNumber, optional: true
 
       lifecycle :status, default: "proposed" do
         transition "Accept"    => "accepted",   from: "proposed"
@@ -109,6 +120,10 @@ Hecks.bluebook "Interviews" do
         attribute :number,    PointNumber
         attribute :kind,      Kind,      sets: true
         attribute :statement, Statement, sets: true
+        attribute :decided_by,   Speaker, optional: true, sets: true
+        attribute :delegated_by, Speaker, optional: true, sets: true
+        # A decision Point names the record it is drafted as; Tickets drafts it on PointAccepted.
+        attribute :record,       RecordNumber, optional: true, sets: true
 
         emits "PointAccepted"
       end
