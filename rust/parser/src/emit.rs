@@ -353,7 +353,7 @@ fn command_json(c: &ir::Command) -> JsonValue {
     if c.policy_only {
         fields.push(("policy_only".to_string(), JsonValue::Bool(true)));
     }
-    if c.creates_or_acts {
+    if c.on_occupied == ir::OnOccupied::Act {
         fields.push(("creates_or_acts".to_string(), JsonValue::Bool(true)));
     }
     JsonValue::Object(fields)
