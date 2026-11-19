@@ -38,6 +38,10 @@ RSpec.describe "the Agents fleet of sessions" do
     expect(shell.commands.first[:command]).to eq(%w[claude stop aaaa1111])
   end
 
+  it "records the run that holds the stopped session" do
+    expect(steer(:stop!, "aaaa1111").run.value).to eq("fix-it")
+  end
+
   it "refuses to stop the session of a pinned role, by name", :aggregate_failures do
     refused = steer(:stop!, "bbbb2222")
     expect(refused.refusal.value).to include("holds the pinned role orchestrator")
