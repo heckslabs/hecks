@@ -194,7 +194,7 @@ Hecks.bluebook "Signalbox" do
       invariant("a count is not negative") { !value.negative? }
     end
 
-    # An admission rests until Roundhouse reports its session ended; the session's own fuse bounds it.
+    # An admission rests until Roundhouse reports its session ended; its own fuse bounds it.
     lifecycle :status, default: "admitted" do
       mark :rests, "admitted"
       mark :terminal, "closed"
@@ -372,7 +372,7 @@ Hecks.bluebook "Signalbox" do
   end
 
   # Protection coordination: a session's fuse (rank 1), the helpers' share (2), shedding (3) and the
-  # whole-machine fuse (4). A breaker trips only past its rating and only once no smaller one can act.
+  # whole-machine fuse (4). A breaker trips past its rating, once no smaller one can act.
   aggregate "Breaker" do
     description "One breaker in the protection order: its level, its rating, whether it has tripped, and the session it shed."
     created_by "Breaker.install!"
