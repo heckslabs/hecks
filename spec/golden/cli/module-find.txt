@@ -1,40 +1,40 @@
-find — Read the code: search the checkout's text, read a file, outline what it declares, find where a name is declared. Read the record: search work items, findings and decisions by their words.
+find —
 
   hecks <Aggregate.command>! [name=value …]    do something
   hecks <Aggregate.query> [name=value …]       read something
 
 everyday:
-  Codebase.search  The lines of the checkout's text files that match a pattern, as…
+  Codebase.search
 
 commands:
 
 queries (nothing here changes anything):
   Codebase:
-    A read of the checkout's text files, answered without changing anything.
-    search       The lines of the checkout's text files that match a pattern, as path:line: text.
-    read_source  The numbered lines of one file of the checkout, whole or from one line to another.
-    outline      What a file declares, by line: each construct of a bluebook, each definition of Ruby.
-    declaration  Where a named construct is declared across the corpus, as path:from-to, with its text on request.
+    …
+    search
+    read_source
+    outline
+    declaration
   Index:
-    A full-text index over the records the repository keeps (work items, findings, decisions), answered without a model and without changing them.
-    find         The best matches for some words among work items, findings and decisions, as kind, id and a one-line snippet, ten at most; a kind narrows it to one sort of record.
+    …
+    find
 
 bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
-  delivery         Take finished work onto local main.
-  deploy           Generate, check and compare deploy recipes, project OIDC manifests and provision tenants.
-  governance       Organizational authority is explicit, reviewable, and historically explainable.
-  tenancy          Which tenants exist, which realm and storage each one owns, and whether each is currently…
-  site             Declare a site's routes once and project them into the TypeScript its pages, navigation and CMS…
-  tickets          Track what Hecks needs, decide it, ship it, and drive GitHub from the record.
-  composer         Write a bluebook in an editor and watch the domain draw itself, with an agent that can change…
-  quality_control  A user should never be made to feel stupid by something that took what they said and quietly…
-  bluebook         The bluebook language, declared in itself.
+  delivery
+  deploy
+  governance
+  tenancy
+  site
+  tickets
+  composer
+  quality_control
+  bluebook
   hecksagon
   world
-  adapter          The .adapter language, declared in itself.
-  port             The .port language, declared in itself.
+  adapter
+  port
   translation
-  expression       The subset of regular Ruby a predicate is allowed to be — small enough that every target can…
+  expression
 
   hecks <command> --help       what one command wants, and every way it refuses
   hecks --maintainer           also list the commands and queries for working on hecks itself

@@ -1,69 +1,69 @@
-delegate — Hand work to a background session.
+delegate —
 
   hecks <Aggregate.command>! [name=value …]    do something
   hecks <Aggregate.query> [name=value …]       read something
 
 commands:
   AgentRun:
-    One brief handed to a background Claude session: started and tracked, or refused with the reason.
-    dispatch!     Hand one brief to a background Claude session working in a directory
-    check!        Read the state a started session's job is in, and record it when it changed
-    tidy!         Remove the finished session of one run, unless it is still working, a coder waiting on a person, or taken over
-    release!      Review a kept run at the next reap, without waiting for its retry time
-    answer!       Answer a session that has not ended: deliver to a working one, resume an idle one
-    retire!       Close a started run whose session is gone, so the ledger stops listing it as started
+    …
+    dispatch!
+    check!
+    tidy!
+    release!
+    answer!
+    retire!
   SessionSweep:
-    One check of every started run's session: each change of state is recorded on its run.
-    check_all!    Check every run whose session was started and is not known to have ended (also: agent_run.check_all!)
+    …
+    check_all!
   Dispatch:
-    One filling of the Work queue: the planned Work items that start a session now, and why each other waits.
-    fill!         Choose the planned Work items that start a session now and, with confirm, start them; without it, say what would start
-    settle!       Check the started sessions and finish the Work item of each that is done, or yield the Work item of one that stopped
+    …
+    fill!
+    settle!
   MergeWindow:
-    One merge window: opened to let a train merge without competing work, closed when it has merged or by hand.
-    open!         Open a merge window: pause the fill and quiet the pipeline until the window closes
-    close!        Close the merge window so the fill runs again
+    …
+    open!
+    close!
   PlainSession:
-    A Claude session started outside a dispatched run, which the operator may remove once it is finished.
-    remove!       Remove a finished session that waits on nobody
-    retire!       Retire a session bound to no run, so the fleet does not settle and re-claim it
+    …
+    remove!
+    retire!
   SessionCleanup:
-    One cleanup of the Claude sessions: only the session of a dispatched run that finished done, with no person in it and nothing unsaved in its worktree, is removed; every other session is kept with the reason.
-    remove_safe!  Remove the sessions of dispatched runs that finished done and are safe to remove, and report each one kept with the reason; refused without confirm
+    …
+    remove_safe!
   Question:
-    One question a blocked run asks the orchestrator: asked, seated with an orchestrator run that answers it, then closed when the run is answered or escalated as the owner's.
-    escalate!     Hand a seated question to the owner, unanswered, and free its seat
+    …
+    escalate!
 
 queries (nothing here changes anything):
   Dispatch:
-    One filling of the Work queue: the planned Work items that start a session now, and why each other waits.
-    preview    What a filling would start now and why each other waits, read without filling: the same report as `Fill`, with no record and no start.
+    …
+    preview
   Machine:
-    One reading of the machine, and the crossings of a mark that it heard.
-    busiest    Which process classes use the CPU and whose child they are: each class's count, summed CPU percentage and the background session whose shell owns it, busiest first.
+    …
+    busiest
   SessionCleanup:
-    One cleanup of the Claude sessions: only the session of a dispatched run that finished done, with no person in it and nothing unsaved in its worktree, is removed; every other session is kept with the reason.
-    removable  Every Claude session with whether it is safe to remove and, when not, why: no dispatched run holds it, its run is not finished done, it is not listed done, a person spoke in it, or its own worktree has uncommitted files or commits origin lacks.
+    …
+    removable
   AnswerDesk:
-    The seats of the orchestrator runs that answer questions, at most two taken at once.
-    desks      The desk and how many of its seats are taken.
+    …
+    desks
 
 bluebooks (`hecks <bluebook>` lists a bluebook's own commands and queries):
-  delivery         Take finished work onto local main.
-  deploy           Generate, check and compare deploy recipes, project OIDC manifests and provision tenants.
-  governance       Organizational authority is explicit, reviewable, and historically explainable.
-  tenancy          Which tenants exist, which realm and storage each one owns, and whether each is currently…
-  site             Declare a site's routes once and project them into the TypeScript its pages, navigation and CMS…
-  tickets          Track what Hecks needs, decide it, ship it, and drive GitHub from the record.
-  composer         Write a bluebook in an editor and watch the domain draw itself, with an agent that can change…
-  quality_control  A user should never be made to feel stupid by something that took what they said and quietly…
-  bluebook         The bluebook language, declared in itself.
+  delivery
+  deploy
+  governance
+  tenancy
+  site
+  tickets
+  composer
+  quality_control
+  bluebook
   hecksagon
   world
-  adapter          The .adapter language, declared in itself.
-  port             The .port language, declared in itself.
+  adapter
+  port
   translation
-  expression       The subset of regular Ruby a predicate is allowed to be — small enough that every target can…
+  expression
 
   hecks <command> --help       what one command wants, and every way it refuses
   hecks --all                  also list the internal commands and queries
