@@ -3155,6 +3155,28 @@ Hecks.bluebook "Hecks" do
         trigger Question::Escalate, with: { run: :work }
       end
 
+      # An answerer still working past the world's `answer_after_minutes` is out of time: it ends
+      # `abandoned`, and its question goes to the owner once, as a blocked answerer's does.
+      policy "EndTheOverdueAnswerer" do
+        on      "AgentRun.JobRead"
+        root
+        where   do
+          state == "working" && works_as == "answerer" && answer_after > 0 && running_minutes >= answer_after &&
+            resuming != true
+        end
+        trigger AgentRun::Finish, with: { condition: "abandoned", detail: "cannot answer: out of time", checkout: :checkout }
+      end
+
+      policy "EscalateTheQuestionOfAnOverdueAnswerer" do
+        on      "AgentRun.JobRead"
+        root
+        where   do
+          state == "working" && works_as == "answerer" && answer_after > 0 && running_minutes >= answer_after &&
+            resuming != true
+        end
+        trigger Question::Escalate, with: { run: :work }
+      end
+
       # Every run's answer, end and failure looks its question up: a run that asked none finds no
       # row, so nothing fires and nothing is refused; a seated question is closed, an asked one dropped.
       policy "CloseTheAnsweredQuestion" do

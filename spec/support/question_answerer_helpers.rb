@@ -38,6 +38,14 @@ module QuestionAnswererHelpers
     answerers(work).first["run"].tap { |run| blocks(run, question) }
   end
 
+  # The answerer is still working when a check reads it past the world's ten minutes.
+  def answerer_overdue(run)
+    File.write(File.join(scratch, "jobs", "stand-in-session", "state.json"), JSON.generate(state: "working"))
+    later = Time.now.utc + (11 * 60)
+    allow(Time).to receive(:now).and_return(later)
+    launch("agent_run.check!", "to=#{run}", "--wait")
+  end
+
   # @return [Hash] the run's record, its value objects materialized
   def ended(run)
     runs = @hecks.registry.repository("Hecks", @hecks.registry.bluebook("Hecks").aggregate("AgentRun"))

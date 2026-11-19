@@ -5,7 +5,8 @@ require_relative "support/question_answerer_helpers"
 
 # A coder or a stall's fixer blocked on a question for the orchestrator gets one orchestrator run
 # that answers it, at most two such runs at once; an owner's question starts none and is left for
-# the owner, and an answerer's own block starts none: the answerer ends, its question escalated.
+# the owner, and an answerer's own block starts none: the answerer ends, its question escalated,
+# as it does when it works past its time.
 RSpec.describe "a coder blocked on a question" do
   include_context "with a stand-in claude"
   include WakesCoderHelpers
@@ -63,6 +64,21 @@ RSpec.describe "a coder blocked on a question" do
   it "escalates the question a blocked answerer served and frees its seat", :aggregate_failures do
     answerer_blocks("q-surfaced", "cannot answer: the owner's call")
     expect(open_questions).not_to include("q-surfaced")
+    expect(desk["seated"]).to eq(0)
+  end
+
+  it "ends an answerer out of time and escalates its question", :aggregate_failures do
+    blocked_on("q-late", "[choose] A or B?")
+    answerer_overdue(run = answerers("q-late").first["run"])
+    expect(ended(run)).to include(condition: { value: "abandoned" }, detail: { value: "cannot answer: out of time" })
+    expect(open_questions).not_to include("q-late")
+  end
+
+  it "ends an answerer out of time whose question was already answered, its seat freed once", :aggregate_failures do
+    blocked_on("q-late-answered", "[choose] A or B?")
+    run = answerers("q-late-answered").first["run"]
+    answer("q-late-answered") && answerer_overdue(run)
+    expect(ended(run)).to include(condition: { value: "abandoned" })
     expect(desk["seated"]).to eq(0)
   end
 
