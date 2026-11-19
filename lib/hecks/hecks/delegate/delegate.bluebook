@@ -2503,6 +2503,7 @@ Hecks.bluebook "Hecks" do
 
     # A plan review asked for by event starts the named role's session as a run keyed by the review,
     # so it never collides with the Work item's own run or an earlier review of it. The run names the Work item it reviews, and the plan is its brief.
+    # Its parent is the coder run, which is keyed by the Work item, so `:work` is a run key here.
     policy "StartTheRoleOnReviewRequest" do
       on      "PlanReview.PlanReviewRequested"
       trigger AgentRun::Dispatch, with: { run: :run, work: :work, parent: :work, repo: :repo, brief: :plan, agent: :role }
@@ -2592,9 +2593,18 @@ Hecks.bluebook "Hecks" do
 
     # A submission review starts the reviewer's session as a run keyed by the submitted commit, the
     # key RecordTheReviewersJudgment reads its SubmissionReview by. The brief names the branch.
+    # Its parent is the coder run, keyed by the Work item, so `:work` is a run key here. A review
+    # that names no Work item starts its run with no parent: an empty key would refuse the start.
     policy "StartTheReviewerOnReviewRequest" do
       on      "SubmissionReview.SubmissionReviewRequested"
+      where   { work != "" }
       trigger AgentRun::Dispatch, with: { run: :submission, parent: :work, repo: :repo, brief: :brief, agent: :role }
+    end
+
+    policy "StartTheReviewerOfAnUnnamedWorkItem" do
+      on      "SubmissionReview.SubmissionReviewRequested"
+      where   { work == "" }
+      trigger AgentRun::Dispatch, with: { run: :submission, repo: :repo, brief: :brief, agent: :role }
     end
 
     # A planning request starts the planner's session under a minted key, with the goal as its brief.
