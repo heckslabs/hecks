@@ -9,7 +9,8 @@ RSpec.describe "the terms of the tooling's language", :repo_scan do
     lib/hecks/hecks/**/* lib/hecks/tickets/**/* lib/hecks/coder/**/* lib/hecks/pipeline/**/*
     lib/hecks/pipeline_board/**/* lib/hecks/quality_control/**/* lib/hecks/language/**/* spec/**/*.rb
     spec/golden/cli/*.txt
-    CLAUDE.md .claude/skills/**/*.md .github/workflows/*.yml qa/bluebook/* qa/glossary/**/* qa/settings.yml
+    CLAUDE.md docs/agents/**/*.md .claude/skills/**/*.md .github/workflows/*.yml qa/bluebook/* qa/glossary/**/*
+    qa/settings.yml
   ].freeze
 
   def root = InMemoryDomain::ROOT
