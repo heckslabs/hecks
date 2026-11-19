@@ -1440,7 +1440,7 @@ Hecks.bluebook "Tickets" do
   # this drafts only in a Memory boot; a drafted number is refused, so a replay drafts nothing twice.
   policy "DraftAdrWhenDecisionAccepted" do
     on      "Interview.PointAccepted"
-    where   { kind.value == "decision" }
+    where   { kind.value == "decision" && record.to_s != "" }
     trigger Adr::Draft, with: { adr: :record, title: :statement, interview: :reference, point: :number }
   end
 
