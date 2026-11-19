@@ -23,8 +23,15 @@ module Hecks
           { landed: LandedSince.new(items, repo: repo), gone: machine,
             sessions: sessions || ClaudeSessions.listing(machine),
             orphans: OrphanedWork.new(items, min_age: machine.run_gone_minutes * 60),
-            stall: (->(key) { items.stall_item?(key) } if items.respond_to?(:stall_item?)) }
+            stall: stall(items) }
         end
+
+        # The rule the settle and the fill both read for a filed stall's item.
+        #
+        # @param items [WorkItems] the filling's work items
+        # @return [Proc, nil] whether a key is a filed stall's item; nil for a stand-in that cannot
+        #   answer it
+        def stall(items) = (->(key) { items.stall_item?(key) } if items.respond_to?(:stall_item?))
       end
     end
   end

@@ -40,19 +40,19 @@ module Hecks
           item.key.start_with?(RED) || (item.key == "push-due" && item.title.start_with?(PushSize::URGENT))
         end
 
-        # @return [Array<Plan::Item>] the planned work items: a red one first, then a filed stall,
-        #   then one whose last yield a fill restarts first (a `load` yield, by priority alone),
-        #   then by the tier of the work item's epic (1 to 9, lowest first, none last), then by
-        #   priority (`now`, `next`, `later`, none), then in plan order (lowest step first,
-        #   no step last, ties by key)
+        # @return [Array<Plan::Item>] the planned work items: a red one first, then one whose last
+        #   yield a fill restarts first (a `load` yield, by priority alone), then one of priority
+        #   `now` that is not a filed stall, then a filed stall, then by the tier of the work item's
+        #   epic (1 to 9, lowest first, none last), then by priority (`now`, `next`, `later`,
+        #   none), then in plan order (lowest step first, no step last, ties by key)
         def planned
           stalls = urgent_marks
           having("planned").sort_by.with_index { |entry, index| order(entry, index, stalls) }.map(&:last)
         end
 
         # @return [Array<Plan::Item>] the planned work items a roll may start, in the same order: a
-        #   red one, a filed stall, one a `load` yield sent back, or one the owner marked by giving
-        #   it a priority. An unmarked item waits for a manual fill.
+        #   red one, one a `load` yield sent back, a priority-now one, a filed stall, or one the
+        #   owner marked by giving it a priority. An unmarked item waits for a manual fill.
         def rollable
           stalls = urgent_marks
           planned.select { |item| rolls?(item, stalls) }
@@ -115,7 +115,7 @@ module Hecks
 
         def red?(item) = self.class.red?(item)
 
-        def rolls?(item, stalls) = urgency(item, stalls) <= RESTARTED || TIERS.include?(item.priority)
+        def rolls?(item, stalls) = urgency(item, stalls) <= STALLED || TIERS.include?(item.priority)
 
         def having(status)
           work = find("Tickets", "Work")
