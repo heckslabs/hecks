@@ -66,11 +66,11 @@ Hecks.world "Hecks" do
   landing "Queue", stale_minutes: 30, wait_minutes: 40
   # How long a hold on local main for a boarding lasts before it expires on its own, so main is never held longer.
   boarding_hold "Window", max_minutes: 20
-  # What the mechanical cleanup of finished sessions removes. `worktree_scratch`: paths in a worktree whose ignored
-  # contents are cleared before it is retired (tracked, untracked and unignored files are never touched).
-  # `session_keep`: hours the owner's done or stopped session no run holds is kept; `remove_done_after_minutes`:
-  # minutes one the pipeline launched is. `abandon_after_minutes`: how long a helper may stay blocked unanswered
-  # before its run ends `abandoned` and is reaped (`AbandonTheUnansweredHelper`); without it no helper is ended.
+  # What the mechanical cleanup of finished sessions removes. `worktree_scratch` lists the paths, relative to a
+  # worktree, whose ignored contents are cleared before it is retired (tracked, untracked and unignored files are never
+  # touched). `session_keep`: hours a session no run holds is kept once done or stopped; removing one only drops
+  # it from `claude agents`. `abandon_after_minutes`: how long a helper may stay blocked with no answer before its
+  # run ends `abandoned` and is reaped (`AbandonTheUnansweredHelper`); without it no helper is ended.
   reaping "Sessions", worktree_scratch: ["tmp", ".ruby-lsp", "rust/*/target", "rust/target", "target"], session_keep: 24, abandon_after_minutes: 30, remove_done_after_minutes: 30
   # How long an outbox row may stand claimed before a boot settles it as failed (abandoned, not redelivered)
   # and names it once. A claim that old was left by a process that died; nothing else releases it, so without a
