@@ -33,12 +33,21 @@ RSpec.describe "the Agents message recipient" do
     expect(refusal_for("5e55")).to eq("5e55 is the session of run run-a; send to the run")
   end
 
+  def recorded = @agents_runtime.events.map { |event| event.respond_to?(:name) ? event.name : event[:name] }.map(&:to_s)
+
   it "refuses an id that is no run and no session" do
-    expect(refusal_for("nobody")).to eq("no run or session has that id: nobody")
+    expect(refusal_for("nobody")).to eq("no run has that id: nobody, and no session has it either")
   end
 
-  it "sends to a run with a live session" do
+  it "records no MessageSent for a recipient that is no known run", :aggregate_failures do
+    expect(send_message(to: "nobody").status).to eq("refused")
+    expect(recorded).to include("MessageRefused")
+    expect(recorded).not_to include("MessageSent")
+  end
+
+  it "sends to a run with a live session", :aggregate_failures do
     expect(send_message(to: "run-a").status).to eq("sent")
+    expect(recorded).to include("MessageSent")
   end
 
   it "refuses in a boot that holds no AgentRun ledger" do

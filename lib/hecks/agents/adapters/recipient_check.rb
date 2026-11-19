@@ -87,7 +87,7 @@ module Hecks
         return Unaddressable.new("session-of-run", "#{id} is the session of run #{holder}; send to the run") if holder
         return Unaddressable.new("no-run", "no run has that id; the session #{id} has no AgentRun") if listed?(id)
 
-        Unaddressable.new("unknown", "no run or session has that id: #{id}")
+        Unaddressable.new("unknown", "no run has that id: #{id}, and no session has it either")
       end
 
       def hand_unlisted(id)
