@@ -150,7 +150,7 @@ Hecks.bluebook "Hecks" do
         goal "Hand one brief to a background Claude session working in a directory"
 
         attribute :run,   RunKey, sets: true
-        attribute :repo,  Path, sets: true
+        attribute :repo,  Path, optional: true, sets: true
         attribute :brief, Brief, sets: true
         attribute :agent, AgentName, optional: true, sets: true
         attribute :works_as, Part, optional: true, sets: true
