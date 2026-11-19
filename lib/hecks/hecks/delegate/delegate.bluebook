@@ -21,6 +21,9 @@ Hecks.bluebook "Hecks" do
       attribute :agent,     AgentName, optional: true
       attribute :works_as,  Part,      optional: true
       attribute :session,   SessionId, optional: true
+      # The session the run held before an answer's resume started a copy (`Fork`); empty while
+      # every resume woke the session in place.
+      attribute :forked_from, SessionId, optional: true
       attribute :started_at, Moment,   optional: true
       attribute :condition, Condition, optional: true
       attribute :refusal,   Report,    optional: true
@@ -371,6 +374,31 @@ Hecks.bluebook "Hecks" do
         attribute :reviewing,   Reviewing, default: false, sets: true
 
         emits AgentRunAnswered
+      end
+
+      # An answer's resume started a copy of the session, so the run now follows the copy
+      # (`Answered` re-points it). The session it held is kept as `forked_from`, and
+      # `ResumedAsFork` names both.
+      command "Fork" do
+        role "System"
+        goal "Record that an answer's resume started a copy, naming the session the run held and the copy"
+
+        reference_to AgentRun
+        attribute :forked_from, SessionId, sets: true
+        attribute :session,     SessionId
+
+        emits ResumedAsFork
+      end
+
+      # An answer's resume woke the session the run held, under its own id.
+      command "ResumeInPlace" do
+        role "System"
+        goal "Record that an answer's resume woke the run's own session in place"
+
+        reference_to AgentRun
+        attribute :session, SessionId
+
+        emits ResumedInPlace
       end
 
       command "Unanswered" do
@@ -2301,6 +2329,20 @@ Hecks.bluebook "Hecks" do
     policy "RecordTheAnswer" do
       on      "AgentRun.AgentResumed"
       trigger AgentRun::Answered, with: { answered_at: :resumed_at, session: :session, verdict: :verdict }
+    end
+
+    # The resume answers the id the run `held` and the id the session now runs under; whether
+    # they differ is the fork, judged here, never in the adapter.
+    policy "RecordTheForkedResume" do
+      on      "AgentRun.AgentResumed"
+      where   { held != session }
+      trigger AgentRun::Fork, with: { forked_from: :held, session: :session }
+    end
+
+    policy "RecordTheResumeInPlace" do
+      on      "AgentRun.AgentResumed"
+      where   { held == session }
+      trigger AgentRun::ResumeInPlace, with: { session: :session }
     end
 
     policy "RecordTheRefusedAnswer" do

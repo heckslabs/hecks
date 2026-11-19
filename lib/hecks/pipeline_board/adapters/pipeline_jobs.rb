@@ -114,10 +114,11 @@ module Hecks
 
       def ended_of(status, edges) = %w[busy blocked].include?(status) ? nil : edges.last
 
-      # The AgentRun behind a session: its work item, run key and repo, empty when none is known.
+      # The AgentRun behind a session: its work item, run key and repo, empty when none is known,
+      # and `superseded_by` the session the run follows now, for one the run held before it forked.
       def ran_of(ran)
         { work_item: ran[:work_item].to_s, run: ran[:run].to_s, repo: ran[:repo].to_s, agent: ran[:agent].to_s,
-          works_as: ran[:works_as].to_s }
+          works_as: ran[:works_as].to_s, superseded_by: ran[:superseded_by].to_s }
       end
 
       # The name the job recorded, else its run key, else the id.
