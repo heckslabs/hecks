@@ -841,6 +841,89 @@ Hecks.bluebook "Agents" do
       attribute :value, String, matches: :present
     end
 
+    # One row per class of changed path: its tier, the globs that name it, and the proof a verify_only
+    # path must show (`none`, `regenerated`: the same bytes on regeneration, or `pure_rename`: git's
+    # rename at 100%). The rename row names no glob; it classes both ends of every pure rename.
+    value_object "ReviewTier" do
+      attribute :kind,   String
+      attribute :tier,   String
+      attribute :paths,  String
+      attribute :proof,  String
+      attribute :reason, String
+
+      member kind: "rust_host", tier: "full", paths: "rust/host/**/*", proof: "none",
+             reason: "the host runs every bluebook; a change there changes what every domain does"
+      member kind: "framework", tier: "full", paths: "lib/hecks/framework/**/* **/*governance* **/*identity*", proof: "none",
+             reason: "Governance, Identity, Privacy and Compliance decide grants, roles and what a person may see"
+      member kind: "adapters", tier: "full", paths: "lib/hecks/adapters/**/* lib/**/adapters/**/* **/*.adapter **/*.port",
+             proof: "none",
+             reason: "an adapter is where a domain touches the outside: storage, the clock, the network"
+      member kind: "money", tier: "full", paths: "**/*billing*/**/* **/*payment*/**/* **/*invoice*/**/* **/*money*/**/*",
+             proof: "none",
+             reason: "a change on a money path can move or lose a client's money"
+      member kind: "semantics", tier: "full", paths: "**/*.bluebook **/*.hecksagon **/*.behaviors **/*.world",
+             proof: "none",
+             reason: "a bluebook or hecksagon says what a domain is and what it is wired to"
+      member kind: "spec_list", tier: "verify_only", paths: ".github/*spec_files*.txt", proof: "none",
+             reason: "a spec list names which specs a job runs; the gates show it still runs them"
+      member kind: "golden", tier: "verify_only", paths: "spec/fixtures/*_golden/**/*", proof: "regenerated",
+             reason: "a golden fixture is a generator's output; equal bytes on regeneration are the whole proof"
+      member kind: "docs", tier: "verify_only", paths: "docs/**/* **/*.md", proof: "none",
+             reason: "prose changes no behavior"
+      member kind: "rename", tier: "verify_only", paths: "", proof: "pure_rename",
+             reason: "a pure rename keeps every byte; the gates show nothing still names the old path"
+    end
+
+    # A word that makes a path security-shaped, one row each: a path one of whose words (split at
+    # `/`, `.`, `_` and `-`) is the row's word, whole, is class `security` and `full`, whatever other
+    # row names it. A word is matched whole, so `keyboard` is not `key`.
+    value_object "SecurityWord" do
+      attribute :word,   String
+      attribute :reason, String
+
+      member word: "grant",       reason: "a grant decides what a role may do"
+      member word: "grants",      reason: "a grant decides what a role may do"
+      member word: "role",        reason: "a role decides which commands a session may issue"
+      member word: "roles",       reason: "a role decides which commands a session may issue"
+      member word: "token",       reason: "a token is a credential"
+      member word: "secret",      reason: "a secret must never leak"
+      member word: "secrets",     reason: "a secret must never leak"
+      member word: "signature",   reason: "a signature proves who sent something"
+      member word: "auth",        reason: "authentication decides who is asking"
+      member word: "authz",       reason: "authorization decides what the asker may do"
+      member word: "credential",  reason: "a credential is a key to an account"
+      member word: "credentials", reason: "a credential is a key to an account"
+      member word: "password",    reason: "a password is a credential"
+      member word: "key",         reason: "a key unlocks something"
+      member word: "keys",        reason: "a key unlocks something"
+      member word: "oidc",        reason: "OIDC is how a person signs in"
+    end
+
+    # The domain of a changed path, first matching row wins: `owner` is the nearest directory above it
+    # holding a bluebook (a `bluebook/` folder names its parent), or `every` when there is none;
+    # `every` is each domain with a `.behaviors` file, for a path no one domain owns.
+    value_object "DomainPath" do
+      attribute :paths,   String
+      attribute :maps_to, String
+      attribute :reason,  String
+
+      member paths: "rust/**/*", maps_to: "every",
+             reason: "the Rust host and kernel run every bluebook"
+      member paths: "lib/hecks/runtime/**/* lib/hecks/adapters/**/*", maps_to: "every",
+             reason: "the Ruby runtime and the shared adapters run every bluebook"
+      member paths: "lib/**/* examples/**/*", maps_to: "owner",
+             reason: "a domain's bluebook, hecksagon, adapters and code sit under its directory"
+    end
+
+    # Whether the landing's generated check found regenerating gives the same bytes: `same`, or
+    # anything else (blank when the check did not run), which proves nothing.
+    value_object "ProofState", String
+
+    # The answer of a `Tier` or `Domains` query: one line each.
+    value_object "TierDocument" do
+      attribute :text, String
+    end
+
     lifecycle :status, default: "considered" do
       mark :failure, "unread"
       transition "Request"         => "asked",     from: "considered"
@@ -991,6 +1074,24 @@ Hecks.bluebook "Agents" do
       description "The change reviews of one Work item, each keyed by the commit submitted."
       attribute :work, WorkKey
       where(work: :work)
+    end
+
+    # The rule is the description and the rows above; the adapter only matches their globs and words
+    # to the paths git read. A path any full row names is full, so a rename into a full directory is.
+    query "Tier" do
+      description "The review tier of a submitted commit: full or verify_only on the first line, then each changed path with its tier and class. A path with a SecurityWord is full; a path no ReviewTier row names is unnamed and full; a verify_only path whose proof is not shown is full; a path any full row names is full; one full path, or an empty diff, makes the commit full."
+      attribute :review,      ReviewKey
+      attribute :checkout,    CheckoutPath
+      attribute :regenerated, ProofState, optional: true
+      returns TierDocument
+    end
+
+    # The domains a reviewer runs the behaviors of, read from the `DomainPath` rows.
+    query "Domains" do
+      description "The domains a submitted commit touches, one directory per line: the owner of each bluebook, hecksagon, adapter or code path, and every domain with a .behaviors file for a host, kernel or shared path."
+      attribute :review,   ReviewKey
+      attribute :checkout, CheckoutPath
+      returns TierDocument
     end
 
     # Which paths a branch changed is a fact of its git checkout, which a given cannot read.
