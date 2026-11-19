@@ -138,15 +138,31 @@ Hecks.behaviors "Tickets" do
   test "Rank sets the tier and keeps the title" do
     tests "Rank", on: "Epic"
     setup "Tickets::Epic.Open", epic: { value: "e1" }, title: { value: "Old" }, outcome: { value: "Something is true" }
-    input epic: "e1", tier: { value: 3 }
-    expect tier: { value: 3 }, title: { value: "Old" }
+    input epic: "e1", tier: { value: 3 }, hold: { value: 60 }, now: { value: 1000 }
+    expect tier: { value: 3 }, title: { value: "Old" }, hand_ranked_at: { value: 1000 }, hold: { value: 60 }
   end
 
   test "Rank refuses a tier above 9" do
     tests "Rank", on: "Epic"
     setup "Tickets::Epic.Open", epic: { value: "e1" }, title: { value: "Old" }, outcome: { value: "Something is true" }
-    input epic: "e1", tier: { value: 10 }
+    input epic: "e1", tier: { value: 10 }, hold: { value: 60 }, now: { value: 1000 }
     expect refused: "an epic tier is from 1 to 9"
+  end
+
+  test "Rerank refuses while the owner's hand rank is held" do
+    tests "Rerank", on: "Epic"
+    setup "Tickets::Epic.Open", epic: { value: "e1" }, title: { value: "Old" }, outcome: { value: "Something is true" }
+    setup "Tickets::Epic.Rank", epic: "e1", tier: { value: 2 }, hold: { value: 60 }, now: { value: 1000 }
+    input epic: "e1", tier: { value: 7 }, now: { value: 1059 }
+    expect refused: "a tier the owner set by hand is held"
+  end
+
+  test "Rerank sets the tier once the hold has passed" do
+    tests "Rerank", on: "Epic"
+    setup "Tickets::Epic.Open", epic: { value: "e1" }, title: { value: "Old" }, outcome: { value: "Something is true" }
+    setup "Tickets::Epic.Rank", epic: "e1", tier: { value: 2 }, hold: { value: 60 }, now: { value: 1000 }
+    input epic: "e1", tier: { value: 7 }, now: { value: 1060 }
+    expect tier: { value: 7 }, hand_ranked_at: { value: 1000 }
   end
 
   test "Retitle refuses an empty title" do
