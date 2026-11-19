@@ -11,10 +11,11 @@ module Hecks
 
         # The sessions the load has room for, from the stand-in `loads:` or the recent Machine
         # readings. Absent when no reading is recorded, so the cap and the load limit alone apply.
+        # With the `admission.signalbox` switch on it also carries `admit:` ({AdmissionReads}).
         def headroom_limit(gauge)
           loads = @standins[:loads] || Headroom.loads(@registry)
           estimate = headroom_for(gauge, loads)
-          { headroom: estimate.room, per_session: estimate.per_session.round(1) }
+          { headroom: estimate.room, per_session: estimate.per_session.round(1), **admission_limit }
         end
 
         def headroom_for(gauge, loads)

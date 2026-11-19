@@ -52,6 +52,8 @@ Hecks.bluebook "Hecks" do
                context: "Hecks / Delegate", says: "Work items of one epic that may be started at once"
         member world: "Tickets", setting: "dispatch_roll_forward.roll_forward", kind: "switch", least: "", most: "",
                context: "Hecks / Delegate", says: "Whether the fill starts work by itself when a place frees"
+        member world: "Tickets", setting: "admission.signalbox", kind: "switch", least: "", most: "",
+               context: "Hecks / Delegate", says: "Whether Signalbox admits each coder by headroom in place of the work cap and the red reserve"
         member world: "Tickets", setting: "dispatch_max_load.limit", kind: "number", least: "2", most: "40",
                context: "Hecks / Delegate", says: "The load above which the fill starts no session"
         member world: "Tickets", setting: "machine_marks.load_high", kind: "number", least: "2", most: "40",

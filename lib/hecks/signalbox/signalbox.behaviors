@@ -219,6 +219,44 @@ Hecks.behaviors "Signalbox" do
     expect refused: "only an urgent coder is admitted while pressure is short"
   end
 
+  # Incident: the cap flipped 4, 5, 6, 7. A coder admitted at the floor is shed by the next dip
+  # under it, so admission keeps the gap above the floor that shedding trips at: hysteresis.
+  test "hysteresis: a lower-tier coder that would leave less than the gap above the floor waits" do
+    tests "Admit", on: "Admission"
+    input admission: { value: "coder-gap-1" }, role: { value: "coder" }, tier: { value: "normal" },
+          owner: { value: "signalbox-admits-by-headroom" }, purpose: { value: "admit by headroom" }, ends_when: { value: "the branch lands" },
+          draw: { value: 1536 }, fuse: { value: 4096 }, fuse_minutes: { value: 240 }, asked_by: { value: "delegate" },
+          switch: { value: "on" }, met: { value: "no" }, band: { value: "tight" }, headroom: { value: 5500 }, age: { value: 0 },
+          stale_after: { value: 120 }, started: { value: 0 }, ramp: { value: 1 }, coders: { value: 2 }, helpers: { value: 0 },
+          share: { value: 100 }, outranked: { value: 0 }, seats: { value: 0 }, unused_servers: { value: 0 }, curtailed: { value: 0 },
+          floor: { value: 3072 }, gap: { value: 2048 }
+    expect refused: "a lower-tier session leaves the gap above the floor after its draw"
+  end
+
+  test "a lower-tier coder that leaves the gap above the floor is admitted in the tight band" do
+    tests "Admit", on: "Admission"
+    input admission: { value: "coder-gap-2" }, role: { value: "coder" }, tier: { value: "normal" },
+          owner: { value: "signalbox-admits-by-headroom" }, purpose: { value: "admit by headroom" }, ends_when: { value: "the branch lands" },
+          draw: { value: 1536 }, fuse: { value: 4096 }, fuse_minutes: { value: 240 }, asked_by: { value: "delegate" },
+          switch: { value: "on" }, met: { value: "no" }, band: { value: "tight" }, headroom: { value: 7000 }, age: { value: 0 },
+          stale_after: { value: 120 }, started: { value: 0 }, ramp: { value: 1 }, coders: { value: 2 }, helpers: { value: 0 },
+          share: { value: 100 }, outranked: { value: 0 }, seats: { value: 0 }, unused_servers: { value: 0 }, curtailed: { value: 0 },
+          floor: { value: 3072 }, gap: { value: 2048 }
+    expect emits: ["SessionAdmitted"], status: "admitted"
+  end
+
+  test "an urgent coder whose draw fits is admitted without the gap" do
+    tests "Admit", on: "Admission"
+    input admission: { value: "red-fix-gap" }, role: { value: "coder" }, tier: { value: "urgent" },
+          owner: { value: "signalbox-admits-by-headroom" }, purpose: { value: "admit by headroom" }, ends_when: { value: "the branch lands" },
+          draw: { value: 1536 }, fuse: { value: 4096 }, fuse_minutes: { value: 240 }, asked_by: { value: "delegate" },
+          switch: { value: "on" }, met: { value: "no" }, band: { value: "tight" }, headroom: { value: 2000 }, age: { value: 0 },
+          stale_after: { value: 120 }, started: { value: 0 }, ramp: { value: 1 }, coders: { value: 2 }, helpers: { value: 0 },
+          share: { value: 100 }, outranked: { value: 0 }, seats: { value: 0 }, unused_servers: { value: 0 }, curtailed: { value: 0 },
+          floor: { value: 3072 }, gap: { value: 2048 }
+    expect emits: ["SessionAdmitted"], status: "admitted"
+  end
+
   # ---- Law 5: every session closes its circuit ----
 
   test "law 5: a session with no end condition is not admitted" do
