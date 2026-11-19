@@ -4,17 +4,19 @@ require_relative "console_capture"
 require_relative "main_integration/command_runner"
 require_relative "github_branch_ci/gh_call"
 require_relative "github_branch_ci/draft"
+require_relative "github_branch_ci/closing"
 require_relative "github_branch_ci/run_wait"
 require_relative "github_branch_ci/verdict"
 
 module Hecks
   module Adapters
-    # The `BranchCi` port's adapter for `EarlyCi.Request` and `Retry`: pushes a coder branch's head
-    # as `ci/<branch>`, opens a draft pull request from it against main or reuses the open one,
-    # waits a bounded time for the CI run of that head and answers the jobs that failed, and which
-    # of them failed on the run of the branch's base too. It reads GitHub over REST only. It never
-    # pushes main or a train, never forces and never skips the hook; the pass or fail is the
-    # bluebook's, drawn from the jobs this answers.
+    # The `BranchCi` port's adapter for `EarlyCi.Request`, `Retry` and `Withdraw`: pushes a coder
+    # branch's head as `ci/<branch>`, opens a draft pull request from it against main or reuses the
+    # open one, waits a bounded time for the CI run of that head and answers the jobs that failed,
+    # and which of them failed on the run of the branch's base too. It reads GitHub over REST only.
+    # It never pushes main or a train, never forces and never skips the hook; the pass or fail is
+    # the bluebook's, drawn from the jobs this answers. A withdrawn branch's draft is closed, never
+    # merged, and `ci/<branch>` deleted.
     class GithubBranchCi
       # How long one request waits for the run, in minutes, under a coder's ten-minute call.
       MINUTES = 8
@@ -47,6 +49,15 @@ module Hecks
       def branch_ci(**held)
         branch, sha, checkout = %i[branch sha checkout].map { |key| plain(held[key]).to_s }
         checked(GhCall.new(runner, checkout), branch, sha)
+      end
+
+      # @param held [Hash] the `EarlyCi` record: `branch` and `checkout`
+      # @return [Hash{Symbol => String}] `number`, the draft closed (empty when none was open), and
+      #   `report`
+      # @raise [ConsoleCapture::Failure] when GitHub refuses the close or the delete
+      def branch_ci_close(**held)
+        branch, checkout = %i[branch checkout].map { |key| plain(held[key]).to_s }
+        Closing.new(GhCall.new(runner, checkout.empty? ? Dir.pwd : checkout)).close("#{PREFIX}#{branch}")
       end
 
       private
