@@ -31,6 +31,16 @@ Hecks.hecksagon "Tickets" do
     end
   end
 
+# Whether a landing of a work item's branch is on main, which reads the Landing records and git
+# as a bluebook rule cannot. The answer names the landed commit, and closes the work item.
+Tickets::Work.port "WorkLandings" do
+  asks "CheckLanding", to: Work do
+    attribute :work, WorkKey
+    answers "LandingOnMain"
+    refuses "NoLandingOnMain"
+  end
+end
+
   # The cap on started work items, which reads the other work items, as a bluebook rule cannot. The
   # cap is the world's `work_limit` setting.
   Tickets::Work.port "WorkLimits" do

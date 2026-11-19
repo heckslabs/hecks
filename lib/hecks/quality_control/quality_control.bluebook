@@ -2495,7 +2495,7 @@ Hecks.bluebook "QualityControl" do
   # One spec file that is red on main, keyed `red-<spec path slug>`. A red run reports each failing
   # spec file; the first report opens the row and a later one only updates what it knew, so a spec
   # red for days is one row, and `since` is the day it first went red. A settled run that no longer
-  # fails the file clears it. Tickets mirrors it as a Work item for QA (`PlanWorkWhenSpecWentRed`, `FinishWorkWhenSpecWentGreen`).
+  # fails the file clears it. Tickets mirrors it as a Work item for QA (`PlanWorkWhenSpecWentRed`, `CloseWorkWhenSpecWentGreen`).
   aggregate "RedSpec" do
     description "One spec file that is red on main: how many examples fail, the first failure, the run that saw it last, and the day it first went red."
 
@@ -3228,7 +3228,7 @@ Hecks.bluebook "QualityControl" do
   # push is due and keeps ONE Work item, `push-due`, for QA: filed when the push is due beyond the
   # world's thresholds, updated while it stays due, finished when it no longer is. The check reads
   # refs git already holds (`PushRehearsal.Due`); it never fetches, pushes or merges. Tickets turns the
-  # answer into the Work item (`PlanWorkWhenPushDue`, `ReviseWorkWhenPushStillDue`, `FinishWorkWhenPushSettled`).
+  # answer into the Work item (`PlanWorkWhenPushDue`, `ReviseWorkWhenPushStillDue`, `CloseWorkWhenPushSettled`).
   aggregate "PushNudge" do
     description "One check of whether a push of local main is due: whether it is, whether the push-due Work item is already open, and the numbers."
 

@@ -1544,6 +1544,7 @@ Hecks.hecksagon "Delivery" do
   Delivery::Landing.port "LandedWork" do
     asks "FindLandedWork", to: Landing do
       attribute :branch, Word
+      attribute :landed, Word
       answers "LandedWorkFound"
       refuses "NoLandedWork"
     end
@@ -1567,7 +1568,7 @@ Hecks.hecksagon "Delivery" do
 
   translates "FindWorkWhenBranchLanded" do
     on      Landing::BranchLanded
-    ask     :find_landed_work, with: { branch: :branch }
+    ask     :find_landed_work, with: { branch: :branch, landed: :landed }
   end
 
   subscribe "Coder.WorkSubmitted"

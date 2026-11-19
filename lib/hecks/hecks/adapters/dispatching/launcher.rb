@@ -89,11 +89,15 @@ module Hecks
         #   the reason of an earlier refused retire after a later one succeeds
         def retire(key) = StepOutcome.new(@runner.call(retire_argv(key)), reaches: "retired", decided_by_status: true)
 
+        # Asks for the Work item to be done. Without a reason the Tickets bluebook closes it only
+        # when a landing of its branch is on main, and the refusal names the item otherwise.
+        #
         # @param key [String] the Work item to record as done
+        # @param no_change [String, nil] why it lands nothing, when it lands nothing
         # @return [String] the line that says so, with what a later reaction refused, or why the
         #   finish was not recorded when it was not
-        def finish(key)
-          outcome = StepOutcome.new(@runner.call(["tickets", "Work.finish!", "to=#{key}", "--wait"]), reaches: "done")
+        def finish(key, no_change: nil)
+          outcome = StepOutcome.new(@runner.call(finish_argv(key, no_change)), reaches: "done")
           return "finished #{key} (the finish was not recorded: #{outcome.reason})" unless outcome.ok?
 
           outcome.note.empty? ? "finished #{key}" : "finished #{key} (then refused: #{outcome.note})"
@@ -127,6 +131,11 @@ module Hecks
         end
 
         private
+
+        # The `Work.finish!` line, with the no-change reason when there is one.
+        def finish_argv(key, no_change)
+          ["tickets", "Work.finish!", "to=#{key}", *("no_change.value=#{no_change}" if no_change), "--wait"]
+        end
 
         # The `Work.yield!` line: the reason, and the kind that says when to try the item again.
         def yield_argv(key, reason, kind, count)
