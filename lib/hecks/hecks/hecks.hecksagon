@@ -1544,7 +1544,8 @@ Hecks.hecksagon "Delivery" do
   Delivery::Landing.port "LandedWork" do
     asks "FindLandedWork", to: Landing do
       attribute :branch, Word
-      attribute :landed, Word
+      # The commit the branch landed as, which closes the work item; none closes nothing.
+      attribute :landed, Word, optional: true
       answers "LandedWorkFound"
       refuses "NoLandedWork"
     end
