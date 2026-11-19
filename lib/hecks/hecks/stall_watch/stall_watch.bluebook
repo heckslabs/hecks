@@ -61,6 +61,17 @@ Hecks.bluebook "Hecks" do
         # files, and no sibling files while it stands filed and open, so its fixer owns the subject.
         # The Watching adapter applies the rule.
         attribute :shares,            String
+        # The most stalls a `shares` group holds open at once (filed, not abandoned, their work item
+        # not settled): past it a ready line waits for a look after one settles. Empty or 0 is no cap.
+        attribute :cap,               Integer
+        # A run started to answer a question: an `answers_by` line on `answers_aggregate` names the
+        # run that asks, and the answering run's own line links it as its `work`. Its block is never
+        # filed, so a helper's block starts no helper; the asking run's own stall still files.
+        attribute :answers_aggregate, String
+        attribute :answers_by,        String
+        # The aggregate whose lines carry a run's work item. A run whose own lines link no work and
+        # that no such line names is labelled unnamed in its detail, so it can be told and reaped.
+        attribute :named_aggregate,   String
 
         member kind: "plan-review", not_about: "stall-", aggregate: "Agents::PlanReview", opens: "PlanReviewRequested",
                closes: "PlanReviewed,PlanReviewRecorded,ReviewUnstarted", minutes: 20, forgets: 1440, fixer: "orchestrator",
@@ -100,13 +111,15 @@ Hecks.bluebook "Hecks" do
         # The four AgentRun rows end on the run's last lines: `closes` clears a line before it is
         # filed, and `ends` abandons a filed stall whose run was tidied or retired after it opened,
         # even when a closing line came first, so its Work item is not started on a run that is gone.
-        member kind: "agent-run-start", shares: "agent-run", not_about: "stall-", aggregate: "Hecks::AgentRun", state: "requested", opens: "AgentRunRequested",
+        member kind: "agent-run-start", shares: "agent-run", cap: 3, answers_aggregate: "Hecks::Question", answers_by: "QuestionSeated",
+               named_aggregate: "Tickets::Work", not_about: "stall-", aggregate: "Hecks::AgentRun", state: "requested", opens: "AgentRunRequested",
                ends_aggregate: "Hecks::AgentRun", ends: "AgentRunTidied,AgentRunRetired,AgentTrialRunRetired",
                settled_aggregate: "Tickets::Work", settled_by: "WorkFinished,WorkDropped,WorkLapsed",
                closes: "AgentRunStarted,AgentRunDeclined", minutes: 10, forgets: 1440, fixer: "orchestrator",
                move: "Work.yield! the run's Work item (AgentRun.running names it) with the reason, " \
                      "so the fill restarts it once."
-        member kind: "agent-run-session", shares: "agent-run", not_about: "stall-", aggregate: "Hecks::AgentRun", state: "started", opens: "AgentRunStarted",
+        member kind: "agent-run-session", shares: "agent-run", cap: 3, answers_aggregate: "Hecks::Question", answers_by: "QuestionSeated",
+               named_aggregate: "Tickets::Work", not_about: "stall-", aggregate: "Hecks::AgentRun", state: "started", opens: "AgentRunStarted",
                ends_aggregate: "Hecks::AgentRun", ends: "AgentRunTidied,AgentRunRetired,AgentTrialRunRetired",
                settled_aggregate: "Tickets::Work", settled_by: "WorkFinished,WorkDropped,WorkLapsed",
                closes: "SessionFinished,SessionFailed,AgentRunRetired,AgentTrialRunRetired", minutes: 240,
@@ -116,7 +129,8 @@ Hecks.bluebook "Hecks" do
         # A verdict's resume was refused while the coder waits on it. Each sweep sends it again up to
         # three times and then finishes the run, which closes this line, so a line open for ten minutes
         # means the sweep or its retry chain is broken: the dead run still holds its Work item's area.
-        member kind: "agent-run-unresumed", shares: "agent-run", not_about: "stall-", aggregate: "Hecks::AgentRun", opens: "AgentRunUnresumed",
+        member kind: "agent-run-unresumed", shares: "agent-run", cap: 3, answers_aggregate: "Hecks::Question", answers_by: "QuestionSeated",
+               named_aggregate: "Tickets::Work", not_about: "stall-", aggregate: "Hecks::AgentRun", opens: "AgentRunUnresumed",
                ends_aggregate: "Hecks::AgentRun", ends: "AgentRunTidied,AgentRunRetired,AgentTrialRunRetired",
                settled_aggregate: "Tickets::Work", settled_by: "WorkFinished,WorkDropped,WorkLapsed",
                closes: "AgentRunAnswered,SessionFinished,SessionFailed,AgentRunRetired,AgentTrialRunRetired",
@@ -124,7 +138,8 @@ Hecks.bluebook "Hecks" do
                move: "The sweep already sends the verdict again and then ends the run, so a stall here means the " \
                      "sweep or its retry chain is broken: report that as the finding. AgentRun.check! the run, then " \
                      "Work.yield! the run's Work item (AgentRun.running names it) with the reason, so its area claim is freed."
-        member kind: "agent-run-blocked", shares: "agent-run", not_about: "stall-", aggregate: "Hecks::AgentRun", opens: "SessionBlocked",
+        member kind: "agent-run-blocked", shares: "agent-run", cap: 3, answers_aggregate: "Hecks::Question", answers_by: "QuestionSeated",
+               named_aggregate: "Tickets::Work", not_about: "stall-", aggregate: "Hecks::AgentRun", opens: "SessionBlocked",
                ends_aggregate: "Hecks::AgentRun", ends: "AgentRunTidied,AgentRunRetired,AgentTrialRunRetired",
                settled_aggregate: "Tickets::Work", settled_by: "WorkFinished,WorkDropped,WorkLapsed",
                closes: "AnswerRequested,AgentRunAnswered,SessionWorking,SessionFinished,SessionFailed,AgentRunRetired,AgentTrialRunRetired",
