@@ -32,7 +32,7 @@ module Hecks
         def main(argv, root: Baseline::ROOT)
           options, paths = parse_arguments(argv)
           baseline_path = Baseline.path_in(root)
-          run = Run.new(paths, only: options[:only], baseline: Baseline.load(baseline_path))
+          run = Run.new(paths, only: options[:only], baseline: Baseline.load(baseline_path), cache: cache_for(options))
           case options[:mode]
           when :fix then puts("rewrote #{run.fix!} files") || 0
           when :write_baseline then write_baseline(run, baseline_path)
@@ -61,6 +61,15 @@ module Hecks
           changed.each { |path| puts "#{path}: code changed, not just comments" }
           puts "code unchanged" if changed.empty?
           changed.empty? ? 0 : 1
+        end
+
+        # The cache a run in this mode reads: a report or a check keeps each file's facts, and a
+        # mode that rewrites or compares files parses them all.
+        #
+        # @param options [Hash] the parsed options
+        # @return [FileCache, FileCache::None]
+        def cache_for(options)
+          %i[report check].include?(options[:mode]) ? FileCache.default : FileCache::None
         end
 
         private
