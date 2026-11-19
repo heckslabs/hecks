@@ -66,6 +66,9 @@ module Hecks
         # `mints_era` is held as text like `idempotent`, and emitted as a boolean.
         def mints_era?(row) = text(row[:mints_era]).to_s == "true"
 
+        # `policy_only` is held as text like `idempotent`, and emitted as a boolean.
+        def policy_only?(row) = text(row[:policy_only]).to_s == "true"
+
         # Kept as raw text, not decoded: this feeds `Assembly::Marks#where_clause`,
         # which decodes it via `read` — decoding here first would strip a kwarg
         # reference's colon, indistinguishable after from a same-named literal.
