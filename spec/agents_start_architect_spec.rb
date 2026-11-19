@@ -97,6 +97,8 @@ RSpec.describe "a plan review request starting the architect's session" do
 
   def reactions(policy) = @hecks.registry.reaction_log.select { |r| r[:policy] == policy }
 
+  def runs = @hecks.registry.repository("Hecks", @hecks.registry.bluebook("Hecks").aggregate("AgentRun"))
+
   it "starts the reviewer's run for a submission, keyed by its commit" do
     submit("w-rev", "abc9001")
     expect(launch("agent_run.running").first.to_s).to include("abc9001")
@@ -110,10 +112,14 @@ RSpec.describe "a plan review request starting the architect's session" do
     expect(reactions("RealBugGoesToAPerson").last[:delivered]).to be(true)
   end
 
-  it "starts the planner's run for a planning request, keyed by the request" do
+  def planner_runs = runs.all.select { |run| run[:agent]&.value == "planner" }
+
+  it "starts the planner's run for a planning request, under a minted key", :aggregate_failures do
+    before = planner_runs.size
     launch("agents", "Planning.request!", "plan.value=p-1", "goal.value=plan the agents panel", "role.value=planner",
            "repo.value=#{scratch}", "--wait")
-    expect(launch("agent_run.running").first.to_s).to include("p-1")
+    expect(planner_runs.size).to eq(before + 1)
+    expect(runs.find("p-1")).to be_nil
   end
 
   it "refuses a planning request that says nothing, and starts no run", :aggregate_failures do

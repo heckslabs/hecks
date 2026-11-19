@@ -2,7 +2,7 @@ require "spec_helper"
 require_relative "support/stand_in_claude"
 
 # A recommended promotion starts the release manager's session through AgentRun. A stand-in
-# `claude` starts nothing real: the spec shows the recommendation becomes a run keyed by the change.
+# `claude` starts nothing real: the spec shows the recommendation becomes a run under a minted key.
 RSpec.describe "a promotion recommendation starting the release manager's session" do
   include_context "with a stand-in claude"
 
@@ -17,14 +17,21 @@ RSpec.describe "a promotion recommendation starting the release manager's sessio
            "role.value=release_manager", "repo.value=#{scratch}", "brief.value=#{brief}", "--wait")
   end
 
-  it "starts a run keyed by the change" do
+  def runs = @hecks.registry.repository("Hecks", @hecks.registry.bluebook("Hecks").aggregate("AgentRun"))
+
+  def manager_runs = runs.all.select { |run| run[:agent]&.value == "release_manager" }
+
+  it "starts a release manager's run under a minted key, not the change", :aggregate_failures do
+    before = manager_runs.size
     recommend("w-release")
-    expect(launch("agent_run.running").first.to_s).to include("w-release")
+    expect(manager_runs.size).to eq(before + 1)
+    expect(runs.find("w-release")).to be_nil
   end
 
   it "starts no run when the brief says nothing" do
+    before = manager_runs.size
     recommend("w-silent", brief: " ")
-    expect(launch("agent_run.running").first.to_s).not_to include("w-silent")
+    expect(manager_runs.size).to eq(before)
   end
 
   it "never promotes: the recommendation stays open for the owner" do
