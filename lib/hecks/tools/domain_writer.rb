@@ -2,7 +2,7 @@ require "fileutils"
 
 module Hecks
   module Tools
-    # Writes the files `hecks init` and `hecks interview` produce, never replacing one (ADR 0087).
+    # Writes the files `hecks init` produces, never replacing one (ADR 0087).
     #
     # Every target is checked before the first is written, so a refusal leaves nothing half-written.
     module DomainWriter
