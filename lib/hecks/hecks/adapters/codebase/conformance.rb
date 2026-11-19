@@ -3,6 +3,7 @@
 require_relative "tree"
 require_relative "ruby_child"
 require_relative "launcher_text"
+require_relative "role_shadow_reading"
 require "hecks/engine_agreement"
 require "hecks/doc/reference"
 require "hecks/shape_ledger"
@@ -14,6 +15,9 @@ module Hecks
       # What Codebase's `ConformanceRun` asks of the working tree: the checks on the language
       # itself.
       #
+      # The role shadow report reads the domain directory the record names, which may be outside
+      # this checkout, and lists without refusing (`RoleShadowReading`).
+      #
       # The query-engine check and the reference-docs check read the tree in this process, with the
       # code the verbs run elsewhere, and write nothing. The argument-gate matrix boots several
       # throwaway domains and replays them, so it runs in a child process; without `confirm` the
@@ -21,7 +25,7 @@ module Hecks
       module Conformance
         # Every operation this family carries out.
         OPERATIONS = %w[check_engine_agreement measure_doc_coverage check_shape_ledger check_command_names
-                        check_workflow_pagination argument_gate_matrix].freeze
+                        check_workflow_pagination report_role_shadow argument_gate_matrix].freeze
 
         module_function
 
@@ -39,6 +43,7 @@ module Hecks
           when "check_shape_ledger" then shape_ledger(held, tree)
           when "check_command_names" then LauncherText.command_names(tree)
           when "check_workflow_pagination" then LauncherText.workflow_pagination(tree)
+          when "report_role_shadow" then RoleShadowReading.call(held)
           else gate_matrix(held, tree)
           end
         end

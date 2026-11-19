@@ -57,6 +57,22 @@ module Hecks
         Thread.current[:hecks_caller_origin] = previous_origin
       end
 
+      # Runs a reaction: clears the caller as `without` does and marks the thread as reacting, so a
+      # reaction is told apart from an outside dispatch that states no caller (`RoleShadow`).
+      #
+      # @yield the reaction's dispatch
+      # @return [Object] the block's result
+      def reaction(&)
+        previous = Thread.current[:hecks_reacting]
+        Thread.current[:hecks_reacting] = true
+        without(&)
+      ensure
+        Thread.current[:hecks_reacting] = previous
+      end
+
+      # @return [Boolean] whether this thread is inside a reaction `reaction` started
+      def reacting? = Thread.current[:hecks_reacting] == true
+
       # The caller a reaction cascade on this thread began under: the one `without` cleared at
       # its outermost level. A bulk run's rows are dispatched under it (ADR 0125), so a row
       # carries its requester's authority and not the system's.

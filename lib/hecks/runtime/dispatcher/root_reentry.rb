@@ -8,7 +8,7 @@ module Hecks
       module RootReentry
         # Dispatches a reaction's command one level deeper in the cascade, as the system.
         #
-        # The ambient caller is cleared (Runtime::Caller.without) so the triggering caller's role
+        # The ambient caller is cleared (Runtime::Caller.reaction) so the triggering caller's role
         # neither satisfies nor blocks the reaction. Depth lives in `Thread.current`, not an ivar or
         # Mutex: the dispatcher is shared across threads. The reacting interpreter checks the limit.
         #
@@ -47,7 +47,7 @@ module Hecks
         end
 
         def reaction_flat(verb, saga_correlation, dispatch_key, args)
-          Caller.without do
+          Caller.reaction do
             dispatch_flat(verb, args.merge(saga_correlation: saga_correlation, dispatch_key: dispatch_key))
           end
         end
