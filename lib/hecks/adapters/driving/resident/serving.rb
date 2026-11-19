@@ -104,9 +104,28 @@ module Hecks
           def unpersisted(env)
             return if PersistenceGuard.exempt?(env)
 
+            reread_declared
             refusal = persistence_refusal(env["HECKS_ENVIRONMENT"])
             retire if refusal
             refusal
+          end
+
+          # Reads the local hecksagons again before a line is judged. The resident's fingerprint
+          # does not list a borrowed main checkout's files ({WorktreeBorrow}), so a bind written
+          # there after the load (`LocalOverlay.write!` adding a kept aggregate) would otherwise
+          # leave the loaded registry and the list it is judged against both behind, and the line
+          # would be served from Memory. When the list differs from the one the resident judged
+          # with, it takes the new one and judges again, so such a line is refused by the
+          # aggregate's name. Only added binds are caught: a bind removed after the load, or a
+          # local world that names another database, leaves the resident serving SQLite unrefused.
+          #
+          # @return [void]
+          def reread_declared
+            now = PersistenceGuard.declared(File.join(@root, Loading::DOMAIN))
+            return if now == @persistence_declared
+
+            @persistence_declared = now
+            @persistence_refusals = {}
           end
 
           # @return [String, nil] the names of the first variables the line differs on from what
