@@ -534,9 +534,9 @@ Hecks.bluebook "Hecks" do
       trigger ShallowCheck::Refuse, with: { refusal: :refusal }
     end
 
-    # The copy of Hecks that runs the train follows what it pushed, so the next boarding and the
-    # records it keeps run the code that landed, not the code that was there when it was set up.
-    # It reacts to the recorded push and takes the pushed commit from it.
+    # The push train's copy follows what was pushed or merged, whichever process recorded it, so
+    # the clock's beats and the next boarding run the code that landed, never older code. It
+    # reacts to the recorded push and takes the pushed commit from it.
     policy "KeepTheLauncherCurrent" do
       on      "SendTrain.BranchPushed"
       ask     :refresh, with: { run: :run, pushed: :pushed }
@@ -1948,6 +1948,14 @@ Hecks.bluebook "Hecks" do
       on      "Heartbeat.Beaten"
       root
       trigger ReviewRequest::Sweep, with: { run: :beat }
+    end
+
+    # A queued boarding has opened its train pull request, so a red, older one it carries is moot
+    # at once: the boarding asks the sweep the beat asks, keyed by its own run, a step sooner.
+    policy "SweepTrainPullRequestsWhenQueued" do
+      on      "SendTrain.BoardingQueued"
+      root
+      trigger ReviewRequest::Sweep, with: { run: :run }
     end
 
     policy "SweepWhenAsked" do
