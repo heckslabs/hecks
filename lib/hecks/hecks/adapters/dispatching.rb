@@ -158,7 +158,7 @@ module Hecks
         gauge = machine
         { cap: gauge.cap, urgent_reserve: gauge.urgent_reserve, load: gauge.load, max_load: gauge.max_load, frozen: gauge.frozen,
           epic_wip: gauge.epic_wip_limit, paused: gauge.paused, budget: gauge.boot_stop,
-          exempt: WorkItems.method(:red?), **headroom_limit(gauge), **cached_reads(gauge) }
+          exempt: WorkItems.method(:red?), stall: SettleRule.stall(work_items), **headroom_limit(gauge), **cached_reads(gauge) }
       end
 
       # The runs and the architect's reviews, each read once for the plan: the plan asks for them
