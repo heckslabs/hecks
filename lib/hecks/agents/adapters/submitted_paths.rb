@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 require "open3"
+require_relative "submitted_paths/review_tiering"
+require_relative "submitted_paths/domain_owners"
 
 module Hecks
   module Adapters
@@ -10,14 +12,20 @@ module Hecks
     # It runs `git diff --name-only main...<commit>` and `git rev-parse <commit>^{tree}` with an
     # argument list, never a shell, and judges nothing: which paths ask for the architect is the
     # bluebook's given. Each path is answered between bars (`|a.bluebook|b.rb|`), so a given
-    # matches a path whole.
+    # matches a path whole. It answers the `Tier` and `Domains` queries from one more read of the
+    # diff, `--name-status -M100%`, so a pure rename shows both its ends; `ReviewTiering` and
+    # `DomainOwners` match the paths to the aggregate's rows.
     class SubmittedPaths
       # The checkout or the commit could not be read; the message is git's own.
       class Unread < StandardError; end
 
+      BLUEBOOK_DIR = File.expand_path("..", __dir__)
+
       # @param git [#call, nil] stand-in: takes the argv, answers `[stdout, stderr, status]`
-      def initialize(git: nil)
+      # @param rows [#call, nil] stand-in: takes a value object's name, answers its rows
+      def initialize(git: nil, rows: nil)
         @git = git || ->(argv) { Open3.capture3(*argv) }
+        @rows = rows || method(:bluebook_rows)
       end
 
       # @param review [Hash, String] the submitted commit
@@ -32,6 +40,26 @@ module Hecks
         { paths: { value: barred(listing) }, tree: { value: read(commit, dir, "rev-parse", "#{commit}^{tree}").strip } }
       end
 
+      # @param review [Hash, String] the submitted commit
+      # @param checkout [Hash, String] the directory it was submitted from
+      # @param regenerated [Hash, String, nil] `same` when the landing's generated check passed
+      # @return [Hash{Symbol => String}] `text:` the tier, then each path with its tier and class
+      # @raise [Unread] naming why git could not read the paths
+      def tier(review:, checkout:, regenerated: nil, **)
+        tiering = ReviewTiering.new(tiers: @rows.call("ReviewTier"), words: @rows.call("SecurityWord"))
+        { text: tiering.answer(changes(plain(review), plain(checkout)), plain(regenerated)) }
+      end
+
+      # @param review [Hash, String] the submitted commit
+      # @param checkout [Hash, String] the directory it was submitted from
+      # @return [Hash{Symbol => String}] `text:` one domain directory per line
+      # @raise [Unread] naming why git could not read the paths
+      def domains(review:, checkout:, **)
+        dir = plain(checkout)
+        owners = DomainOwners.new(rows: @rows.call("DomainPath"), root: dir)
+        { text: owners.answer(changes(plain(review), dir).map(&:first)) }
+      end
+
       private
 
       def read(commit, dir, *args)
@@ -41,11 +69,28 @@ module Hecks
         out
       end
 
+      # Each changed path, and whether it is an end of a rename git found at 100%.
+      def changes(commit, dir)
+        read(commit, dir, "diff", "--name-status", "-M100%", "main...#{commit}").lines.flat_map do |line|
+          status, *paths = line.chomp.split("\t")
+          paths.map { |path| [path, status.to_s.start_with?("R100")] }
+        end
+      end
+
       # Each path of git's listing between bars: `|a.bluebook|b.rb|`.
       def barred(listing)
         paths = listing.lines.map(&:strip).reject(&:empty?)
         "|#{paths.join("|")}|"
       end
+
+      def bluebook_rows(table)
+        aggregate = agents_bluebook.aggregates.find { |candidate| candidate.hecks_name == "ChangeReview" }
+        aggregate.value_objects.find { |object| object.hecks_name == table }.members
+      end
+
+      def agents_bluebook = described.bluebooks.fetch("Agents")
+
+      def described = Hecks.describe(BLUEBOOK_DIR).registry
 
       def plain(argument) = argument.is_a?(Hash) ? argument[:value].to_s : argument.to_s
     end
