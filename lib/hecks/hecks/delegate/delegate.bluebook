@@ -2147,8 +2147,7 @@ Hecks.bluebook "Hecks" do
     # Resuming an idle session with an answer stops it and wakes it again, and the stop runs the
     # session's own check. A job read `stopped` while the run's answer is on its way (`resuming`, which the
     # reading carries beside `previous`) is that stop, so it ends nothing; the next check reads the
-    # woken session, or the stopped one once the answer was refused. The orchestrator's standing seat
-    # read `done` is idle, not ended: it keeps the seat and a message resumes it.
+    # woken session, or the stopped one once the answer was refused.
     policy "RecordTheEndedSession" do
       on      "AgentRun.JobRead"
       root
@@ -2639,10 +2638,9 @@ Hecks.bluebook "Hecks" do
       trigger AgentRun::Dispatch, with: { run: :escalation, repo: :repo, brief: :brief, agent: :role }
     end
 
-    # The standing seat's start is one run under the seat's own key, whichever sweep woke it: a
-    # started run keeps its key, so a second start is refused by name while the seat's session is
-    # working, blocked or idle, from any process, and the key frees only once that run has ended.
-    # The sweep that woke it is its parent. A root: the start sits past the reaction cap of a sweep.
+    # The seat is one run under its own key, its sweep the parent: a started run keeps its key, so
+    # a second start is refused from any process until it ends (`RecordTheEndedSession` keeps an
+    # idle seat read `done`, which a message resumes). A root, past a sweep's reaction cap.
     policy "StartTheStandingSeatWhenWoken" do
       on      "Escalation.CoordinatorWoken"
       root
