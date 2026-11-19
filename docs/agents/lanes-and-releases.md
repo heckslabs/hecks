@@ -43,7 +43,10 @@ commit must pass as `RequiredCheck` rows beside them.
   alone and one that then passes is reported as flaky under parallel load, not failed; a spec already
   red on `origin/main` is reported, not failed). Its result is the `PushRehearsal` record, and
   `hecks push_rehearsal.due` says how far `main` is ahead of `origin/main`, how old the oldest
-  unpushed commit is and how the last quick rehearsal ended. Nothing pushes by itself.
+  unpushed commit is and how the last quick rehearsal ended, then how far `main` is behind and
+  when `origin/main` last moved, each unpushed commit's subject and age (ten at most), and the last
+  train, the tip of `origin/main`. It fetches nothing, so fetch first for a fresh answer. Nothing
+  pushes by itself.
   The size that counts as too big is the QualityControl world's `push_nudge` setting (`commits`, `hours`,
   `urgent_commits`): past it the line and the train's report say `PUSH NOW`, and neither ever refuses a push.
 - **Red `main` is read on GitHub.** The `CI` run's status and failure email are the signal; no local
