@@ -49,7 +49,7 @@ module Hecks
 
           found = text_violations + (test_file? ? [] : structure_violations) + long_block_violations(baseline)
           found = found.select { |v| only.include?(v.category) } if only
-          found.sort_by { |v| [v.line, v.category] }
+          found.sort_by { |v| [v.line, v.category, v.message] }
         end
 
         # Rewrites the mechanical categories; raises rather than write a change that alters code.
