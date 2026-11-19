@@ -9,7 +9,8 @@ RSpec.describe "a coder's turn ending" do
   let(:hecks) { boot_hecks_in_memory }
 
   # What the port measures of a coder that said done and handed nothing in.
-  BARE = { role: "coder", held: true, landed: false, reviewing: false, again: false, question: "", word: "done" }.freeze
+  BARE = { role: "coder", held: true, landed: false, reviewing: false, again: false, question: "", word: "done",
+           inbox: false, resuming: false, pending: false }.freeze
 
   def measuring(**facts)
     port = instance_double(Hecks::Adapters::TurnFacts, measure_turn: BARE.merge(facts))
@@ -76,6 +77,30 @@ RSpec.describe "a coder's turn ending" do
 
   it "ends a turn that ends again after it was held" do
     expect(events(again: true)).to include("TurnEnded")
+  end
+
+  it "holds a coder whose answer waits unread in its inbox, though it says submitted" do
+    expect(events(word: "submitted", held: false, inbox: true)).to include("TurnHeld")
+  end
+
+  it "holds a coder whose answer is on its way" do
+    expect(events(question: "[owner] may I go on?", resuming: true)).to include("TurnHeld")
+  end
+
+  it "holds a coder waiting on a review whose verdict is judged and undelivered" do
+    expect(events(reviewing: true, question: "[review] is the plan sound?", pending: true)).to include("TurnHeld")
+  end
+
+  it "tells the coder with an unread answer to read it" do
+    expect(reason(landed: true, pending: true)).to include("An answer or a verdict to you is unread")
+  end
+
+  it "ends a turn that ends again after it was held for an unread answer" do
+    expect(events(again: true, pending: true)).to include("TurnEnded")
+  end
+
+  it "ends the turn of a run that is not a coder's with an unread answer" do
+    expect(events(role: "architect", inbox: true)).to include("TurnEnded")
   end
 
   it "ends a turn the port cannot measure" do
