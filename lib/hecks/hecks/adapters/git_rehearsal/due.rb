@@ -4,18 +4,26 @@ require_relative "../push_size"
 require "hecks/runtime/asking"
 require_relative "reading"
 require_relative "record"
+require_relative "due/remote"
+require_relative "due/unpushed"
 
 module Hecks
   module Adapters
     class GitRehearsal
       # Whether a push is due, read from refs git already holds: how many commits local `main` is
       # ahead of `origin/main`, how old the oldest of them is, and how the last quick rehearsal
-      # ended.
+      # ended; then how far `main` is behind, the unpushed commits by subject and age, and the
+      # last train `origin/main` carried.
       class Due
         include Reading
 
         # Seconds in an hour.
         HOUR = 3600.0
+
+        # @param clock [#now] the clock the age is read from
+        # @param stamp [String, Integer] a commit or reflog time in epoch seconds
+        # @return [String] the hours since `stamp`, to one decimal
+        def self.hours(clock, stamp) = format("%.1f", (clock.now.to_i - stamp.to_i) / HOUR)
 
         # @param git [Git] the adapter every git call goes through
         # @param checkout [String] the repository's top level
@@ -31,18 +39,24 @@ module Hecks
           @tracking = "#{place.fetch(:remote, "origin")}/#{@branch}"
         end
 
-        # @return [String] one line:
-        #   whether a push is due, the count, the age, the last rehearsal
+        # @return [String] the verdict line (whether a push is due, the count, the age, the last
+        #   rehearsal), then the behind line, the unpushed commits and the last train, one per line
         # @raise [ConsoleCapture::Failure] when there is no such branch or remote-tracking branch
         def report
+          remote = Remote.new(@git, @checkout, clock: @clock, branch: @branch, tracking: @tracking)
+          unpushed = Unpushed.new(@git, @checkout, range: "#{@tracking}..#{@branch}", clock: @clock)
+          [verdict, *remote.lines, *unpushed.lines].join("\n")
+        end
+
+        private
+
+        def verdict
           ahead = read("rev-list", "--count", "#{@tracking}..#{@branch}").to_i
           return "push due: no; #{@branch} is level with #{@tracking}; #{last_rehearsal}" if ahead.zero?
 
           "push due: yes; #{ahead} commit(s) ahead of #{@tracking}; oldest unpushed #{age} hours old; " \
             "#{size(ahead)}#{last_rehearsal}#{gate_note}"
         end
-
-        private
 
         # The size sentence and its separator once past the threshold, else nothing.
         def size(ahead)
@@ -52,7 +66,7 @@ module Hecks
 
         def age
           oldest = read("log", "--reverse", "--format=%ct", "#{@tracking}..#{@branch}").lines.first.to_i
-          format("%.1f", (@clock.now.to_i - oldest) / HOUR)
+          self.class.hours(@clock, oldest)
         end
 
         def last_rehearsal = last_of("quick")
