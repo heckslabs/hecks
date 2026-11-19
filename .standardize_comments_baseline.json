@@ -41,7 +41,7 @@
     "No verdict came within the review's time limit: the architect's run ended withou": 4,
     "The `HECKS_SERVER_*` variables that start a role's MCP server restricted to the ": 7,
     "The architect's review of a plan, asked by event instead of by prose. Each revie": 8,
-    "The exceptions that wake the Lead, and the only things that do. Each is ": 5,
+    "The exceptions that wake the Lead, and the only things that do. Each is one even": 5,
     "The pruner removes finished sessions. The bluebook gives: a pruner is woken only": 12,
     "What each role's agent file says, one row per role, lifted word for word from `.": 5,
     "Whether a role may run one Bash command itself. A role with routing rows runs on": 4
@@ -172,7 +172,7 @@
     "The fill that follows a reading. It runs after the reading is recorded, so it se": 8,
     "The machine's load, heard instead of asked. Each beat of the clock takes one rea": 8,
     "The mechanical cleanup. Every finished run is tidied in its own order (`AgentRun": 5,
-    "The seats of the Lead runs that answer questions: at most two at once, s": 5,
+    "The seats of the Lead runs that answer questions: at most two at once, so a burs": 5,
     "Whether a plan review the run asked for is open. A coder that asked for one ende": 8
   },
   "lib/hecks/hecks/deliver/deliver.bluebook": {
