@@ -5,6 +5,7 @@ require_relative "impacted_specs"
 require_relative "run_options"
 require_relative "test_runner"
 require_relative "heavy_slots"
+require_relative "trials"
 
 module Hecks
   module Adapters
@@ -47,10 +48,14 @@ module Hecks
         # @return [String] each file's counts and the total
         def spec_files(args, tree)
           HeavySlots.admitted(tree.root, JOB) do
-            SpecFiles.new(tree).run(files: args[:files], example: args[:example], isolation: args[:isolation] || "process",
-                                    env: RunOptions.spec_env(args), tags: args[:tags])
+            files(tree).run(files: args[:files], example: args[:example], isolation: args[:isolation] || "process",
+                            env: RunOptions.spec_env(args), tags: args[:tags])
           end
         end
+
+        # @param tree [Tree] the checkout
+        # @return [SpecFiles] runs spec files and records each one's result in the trial log
+        def files(tree) = SpecFiles.new(tree, trials: Trials.new)
 
         # @param args [Hash] `base` (`main` when absent), `cap`, `dry`, `isolation`, `example`
         #   and the run's variables
@@ -58,10 +63,16 @@ module Hecks
         # @return [String] the mapping and, unless dry, how each spec file ended
         def impacted(args, tree)
           HeavySlots.admitted(tree.root, JOB) do
-            ImpactedSpecs.new(tree).call(base: args[:base] || "main", cap: args[:cap] || ImpactedSpecs::DEFAULT_CAP,
-                                         dry: args[:dry] == true, isolation: args[:isolation] || "process",
-                                         example: args[:example], env: RunOptions.spec_env(args), tags: args[:tags])
+            ImpactedSpecs.new(tree, files: files(tree)).call(**impacted_options(args))
           end
+        end
+
+        # @param args [Hash] the `TestSuiteRun` record's plain fields
+        # @return [Hash] what `ImpactedSpecs#call` takes, each absent field at its default
+        def impacted_options(args)
+          { base: args[:base] || "main", cap: args[:cap] || ImpactedSpecs::DEFAULT_CAP, dry: args[:dry] == true,
+            isolation: args[:isolation] || "process", example: args[:example], env: RunOptions.spec_env(args),
+            tags: args[:tags] }
         end
       end
     end

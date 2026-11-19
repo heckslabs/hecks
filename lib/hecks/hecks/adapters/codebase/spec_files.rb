@@ -29,9 +29,12 @@ module Hecks
 
         # @param tree [Tree] the checkout whose specs are run
         # @param runner [TestRunner] runs the test runner on arguments
-        def initialize(tree, runner: TestRunner.new(tree))
+        # @param trials [Trials, nil] records each file's result and adds the pass^k lines; none
+        #   when nil
+        def initialize(tree, runner: TestRunner.new(tree), trials: nil)
           @tree = tree
           @runner = runner
+          @trials = trials
         end
 
         # @param files [String, Array<String>] spec files, relative to the checkout or absolute; a
@@ -45,13 +48,16 @@ module Hecks
         def run(files:, example: nil, isolation: "process", env: {}, tags: nil)
           names = Array(files).flat_map { |name| name.to_s.split }.uniq
           check(names, isolation)
-          report = isolate(isolation, names, filters(example, tags), env)
+          report = tried(isolate(isolation, names, filters(example, tags), env))
           raise ConsoleCapture::Failure, report.to_s if report.failed?
 
           report.to_s
         end
 
         private
+
+        # The report with the run's pass^k lines, after recording how each file ended.
+        def tried(report) = @trials ? report.noted(@trials.record("spec", report.results)) : report
 
         # A single space matches every example, and a named example overrides the tag exclusions
         # (`:io`, `:process`, `:fuzzing`) as a one-file run does, so an absent filter is that space.

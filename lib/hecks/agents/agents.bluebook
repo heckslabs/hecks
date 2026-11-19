@@ -452,10 +452,20 @@ Hecks.bluebook "Agents" do
     end
 
     # How many seconds a review may stay open. A verdict comes about a minute after it is asked
-    # for, so ten minutes without one means none is coming.
+    # for, so ten minutes without one means none is coming. The default is the `Setting` row
+    # `verdict_timeout_seconds`.
     value_object "TimeLimit" do
       attribute :value, Integer, default: 600
       invariant("a time limit is positive") { value.positive? }
+    end
+
+    # The numbers a review is timed by, named. No rule reads this row: it says what the
+    # `TimeLimit` default and `Request`'s `limit` default are, and a spec holds the three equal.
+    value_object "Setting" do
+      attribute :name,  String
+      attribute :value, Integer
+
+      member name: "verdict_timeout_seconds", value: 600
     end
 
     # A request is refused at the third hop, so a chain of reviews that ask for reviews stops by name.
@@ -566,7 +576,7 @@ Hecks.bluebook "Agents" do
       # No reminder is due for a review asked again: its second review is open.
       sets :reminded_at, to: :now
 
-      emits "PlanReviewReasked"
+      emits "VerdictOverdue"
     end
 
     # A coder's wait can begin after its review ended (`RemindTheCoderWhoWaitsAfterTheEnd`): the
@@ -593,13 +603,12 @@ Hecks.bluebook "Agents" do
       emits "ReviewReminded"
     end
 
-    # No verdict came within the review's time limit: the architect's run ended without one, or
-    # its verdict was lost. It ends as an unstarted review does, with the same event, so the coder
-    # waiting on the Work item is told the reason (`JudgeTheUnstartedReview`) and builds its plan.
-    # `+` because a rule has no `-`: it stands for `now - requested_at >= limit`.
+    # Ends as an unstarted review does, so the coder is told the reason (`JudgeTheUnstartedReview`),
+    # and `ReviewLapsed` tells a lapse from an unstart. `reminded_at` is set: no reminder to build
+    # follows. `+` because a rule has no `-`: it stands for `now - requested_at >= limit`.
     command "Lapse" do
       role "System"
-      goal "End a review whose time limit passed with no verdict, so its coder stops waiting"
+      goal "End a review whose second time limit passed with no verdict, so its coder is blocked on it"
 
       reference_to PlanReview
       attribute :work,   WorkKey, sets: true
@@ -613,8 +622,10 @@ Hecks.bluebook "Agents" do
       given("the review's time limit has passed") { requested_at.value + limit.value <= now.value }
 
       sets :ended_at, to: :now
+      sets :reminded_at, to: :now
 
       emits "ReviewUnstarted"
+      emits "ReviewLapsed"
     end
 
     # Each sweep of the sessions lapses every open review past its time limit. One inside its limit
@@ -624,8 +635,13 @@ Hecks.bluebook "Agents" do
       for_each "PlanReview.Open"
       trigger  PlanReview::Lapse,
                with: { plan_review: :plan_review, work: :work,
-                       reason: "no verdict came within the review's time limit: build your plan as written, " \
-                               "and say in your report that it was not reviewed" }
+                       reason: "verdict-overdue: no plan review verdict came in two review windows, so your run " \
+                               "is blocked on the review. Edit nothing. Put it on the board's Stuck list: " \
+                               "exe/hecks agents Turn.finish! run.value=<work item> role.value=coder " \
+                               "at.value=<now, ISO 8601> verdict.value=blocked stuck.kind=verdict_overdue " \
+                               "\"stuck.what=no plan review verdict in two windows\" stuck.since=<now> " \
+                               "stuck.owner_run=<work item> stuck.link=- --wait, then end your turn blocked, " \
+                               "naming verdict-overdue" }
     end
 
     # Each sweep asks again for every open review past its first window; one inside its window, or one
@@ -640,7 +656,7 @@ Hecks.bluebook "Agents" do
     # The second ask is a new review of the same Work item and plan, keyed afresh, so it never meets
     # the first run; its dispatch and the coder's wait are those of any request.
     policy "RequestTheReviewAgain" do
-      on      "PlanReview.PlanReviewReasked"
+      on      "PlanReview.VerdictOverdue"
       trigger PlanReview::Request, with: { work: :work, hops: :hops, role: :role, repo: :repo, plan: :plan, asks: 1 }
     end
 
