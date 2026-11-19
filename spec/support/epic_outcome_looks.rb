@@ -37,7 +37,7 @@ module EpicOutcomeLooks
     finish(*keys)
   end
 
-  def finish(*keys) = keys.each { |key| cli("work.finish!", "to=#{key}") }
+  def finish(*keys) = keys.each { |key| cli("work.finish!", "to=#{key}", "no_change.value=a verify") }
 
   # An epic whose one member closed while the load had risen at each of the minutes given.
   def missed_epic(*minutes_ago)

@@ -103,7 +103,7 @@ RSpec.describe "Work category and priority" do
 
   it "refuses to categorize a done item" do
     plan("work/a")
-    run_cli("work.finish!", "to=work/a")
+    run_cli("work.finish!", "to=work/a", "no_change.value=a verify")
 
     expect(categorize("work/a", "coder")).to include("a done or dropped work item takes no category")
   end
@@ -134,7 +134,7 @@ RSpec.describe "Work category and priority" do
   it "keeps a done item out of the tier list" do
     plan("work/a")
     prioritize("work/a", "now")
-    run_cli("work.finish!", "to=work/a")
+    run_cli("work.finish!", "to=work/a", "no_change.value=a verify")
 
     expect(run_cli("work.undone_in_tier", "tier=now")).to be_empty
   end

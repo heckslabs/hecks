@@ -20,7 +20,7 @@ RSpec.describe Hecks::Adapters::Dispatching::Settler do
   it "finishes a stall item whose session ended done, and yields nothing", :aggregate_failures do
     settle(stall_item, "done")
 
-    expect(launcher).to have_received(:finish).with(stall_item.key)
+    expect(launcher).to have_received(:finish).with(stall_item.key, no_change: described_class::STALL_MOVE)
     expect(launcher).not_to have_received(:yield_back)
   end
 

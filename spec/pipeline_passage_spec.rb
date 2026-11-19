@@ -28,7 +28,7 @@ RSpec.describe "Pipeline passages" do
 
   def yield_row(work) = run("tickets", "Work.yield!", "to=#{work}", "reason.value=area overlaps")
 
-  def finish(work) = run("tickets", "Work.finish!", "to=#{work}")
+  def finish(work) = run("tickets", "Work.finish!", "to=#{work}", "no_change.value=a verify")
 
   def reopen(work) = run("tickets", "Work.reopen!", "to=#{work}", "title.value=Reopened #{work}")
 
