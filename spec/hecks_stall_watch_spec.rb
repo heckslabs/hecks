@@ -133,11 +133,11 @@ RSpec.describe "StallWatch" do
     expect(registry.event_log.map(&:name)).to include("StallDetectRequested")
   end
 
-  it "starts a filed stall after a red work item and before every other one" do
+  it "starts a filed stall after a red and a priority-now work item and before every other one" do
     %w[stall-train-events now-item].each { |work| plan(work, "now") }
-    %w[stall-plan-review-late red-spec].each { |work| plan(work) }
+    %w[stall-plan-review-late red-spec later-item].each { |work| plan(work) }
 
     expect(Hecks::Adapters::Dispatching::WorkItems.new(registry).planned.map(&:key))
-      .to eq(%w[red-spec stall-plan-review-late now-item stall-train-events])
+      .to eq(%w[red-spec now-item stall-train-events stall-plan-review-late later-item])
   end
 end
