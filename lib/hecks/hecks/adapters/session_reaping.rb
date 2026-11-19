@@ -78,6 +78,10 @@ module Hecks
       #   run is ended (`abandon_after_minutes`), 0 when it sets none
       def abandon_after = settings[:abandon_after_minutes].to_i
 
+      # @return [Integer] the minutes the world's `reaping` line gives an answerer before its run is
+      #   ended (`answer_after_minutes`), 0 when it sets none
+      def answer_after = settings[:answer_after_minutes].to_i
+
       # @return [Integer] the minutes the world's `reaping` line keeps a done or stopped helper
       #   session the pipeline launched and no run holds (`remove_done_after_minutes`), 0 when it
       #   sets none

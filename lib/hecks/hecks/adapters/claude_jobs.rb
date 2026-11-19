@@ -101,6 +101,18 @@ module Hecks
         0
       end
 
+      # Whole minutes since the run's session was started, for a run that may hold its session only
+      # so long (an answerer).
+      #
+      # @param started_at [String, nil] when the session was started, ISO 8601
+      # @param now [Time] the time to count to
+      # @return [Integer] those minutes; 0 for a start that is missing or cannot be read
+      def running_minutes(started_at, now)
+        ((now - Time.iso8601(started_at.to_s)) / 60).floor
+      rescue ArgumentError
+        0
+      end
+
       # Whether the jobs directory's `pins.json` (a JSON array of job ids, the eight-character
       # prefix of a session's id) names the session. An unreadable file reads as a pin: the fact is
       # conservative, so a doubt keeps a session, and what a pin means stays the bluebook's.
