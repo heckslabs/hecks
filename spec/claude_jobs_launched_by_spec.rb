@@ -7,7 +7,7 @@ require "hecks/hecks/adapters/claude_jobs"
 # Writes one job's `state.json`, its `respawnFlags` shaped as a dispatched release manager's are:
 # `--agent`, then `--settings` with the caller in `env` beside the inbox hooks, then `--model`.
 module LaunchedByJobs
-  FLAGS = ["--agent", "release_manager", "--settings", nil, "--model", "claude-sonnet-5-5"].freeze
+  FLAGS = ["--agent", "reviewer", "--settings", nil, "--model", "claude-sonnet-5-5"].freeze
 
   def job(text)
     FileUtils.mkdir_p(File.join(dir, "723f5fc0"))
@@ -18,7 +18,7 @@ module LaunchedByJobs
     JSON.generate(state: "done", respawnFlags: FLAGS.map { |flag| flag || settings })
   end
 
-  def dispatched = JSON.generate(env: { HECKS_CALLER: "release_manager:p-walk" }, hooks: { Stop: [] })
+  def dispatched = JSON.generate(env: { HECKS_CALLER: "reviewer:p-walk" }, hooks: { Stop: [] })
 end
 
 # The caller name the pipeline gives a session it launches, read from the job in a temporary
@@ -33,7 +33,7 @@ RSpec.describe Hecks::Adapters::ClaudeJobs, "#launched_by" do
 
   it "reads the caller name a dispatched session's settings carry" do
     job(flags(dispatched))
-    expect(jobs.launched_by("723f5fc0")).to eq("release_manager:p-walk")
+    expect(jobs.launched_by("723f5fc0")).to eq("reviewer:p-walk")
   end
 
   it "reads none for a session started by hand, whose job keeps no settings" do

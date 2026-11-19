@@ -61,10 +61,10 @@ module Hecks
             rows.empty? ? [["none planned", "ok"]] : rows
           end
 
-          # @return [Array<Array(String, String)>] the roles with their live sessions, the open plan
-          #   reviews and the promotions recommended
+          # @return [Array<Array(String, String)>] the roles with their live sessions and the open
+          #   plan reviews
           def agents
-            [*roles, *reviews, *recommendations]
+            [*roles, *reviews]
           end
 
           private
@@ -113,13 +113,6 @@ module Hecks
           end
 
           def verdict(review) = review[:verdict].to_s.empty? ? "no verdict yet" : review[:verdict]
-
-          def recommendations
-            found = @state[:recommendations]
-            return [unknown(found)] unless found.is_a?(Array)
-
-            found.map { |row| ["promotion recommended: #{row[:change]}", "attention"] }
-          end
         end
       end
     end

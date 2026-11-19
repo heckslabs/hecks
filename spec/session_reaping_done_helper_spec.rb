@@ -7,8 +7,8 @@ require "support/reaping_fleet"
 # the fixed clock, and a job in `~/.claude/jobs` whose `respawnFlags` carry the caller the pipeline
 # gave it (none for the owner's), all listed done by the stand-in `claude`.
 module DoneHelperFleet
-  SESSIONS = { "h-old" => ["release_manager:p-walk", 45], "h-new" => ["release_manager:p-two", 10],
-               "owner" => [nil, 45], "pinned" => ["release_manager:p-pin", 45],
+  SESSIONS = { "h-old" => ["reviewer:p-walk", 45], "h-new" => ["reviewer:p-two", 10],
+               "owner" => [nil, 45], "pinned" => ["reviewer:p-pin", 45],
                "orch" => ["orchestrator:stall-x", 45], "broken" => [:unreadable, 45] }.freeze
 
   def jobs_dir = File.join(scratch, ".claude", "jobs")
@@ -59,7 +59,7 @@ RSpec.describe "SessionCleanup.Reap of done helper sessions" do
 
   it "keeps a done helper whose run is still started" do
     launch("agent_run.dispatch!", "run.value=r-live", "repo.value=#{scratch}", "brief.value=go", "--wait")
-    helper_fleet([helper("stand-in-session", "release_manager:r-live", 45)])
+    helper_fleet([helper("stand-in-session", "reviewer:r-live", 45)])
     reap
     expect(gone).not_to include("stand-in-session")
   end
