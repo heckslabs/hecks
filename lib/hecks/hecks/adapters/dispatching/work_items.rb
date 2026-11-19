@@ -54,6 +54,12 @@ module Hecks
         #   do not hold it
         def self.urgent?(item) = red?(item) || expedited?(item)
 
+        # @param item [Plan::Item] a work item
+        # @return [String] the tier Signalbox admits it at: `urgent` for a red, expedited or
+        #   priority-`now` item, which may start in every band and need not leave the gap; else
+        #   `normal`
+        def self.tier(item) = urgent?(item) || item.priority.to_s == "now" ? "urgent" : "normal"
+
         # @return [Array<Plan::Item>] the planned work items: a red one first, then an expedited
         #   one, then one whose last
         #   yield a fill restarts first (a `load` yield, by priority alone), then one of priority
