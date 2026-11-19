@@ -52,6 +52,11 @@ RSpec.describe "the Agents reviewer and owner-only rule" do
     expect(fired).to include(a_string_ending_with("HandedToPerson"))
   end
 
+  it "ends a review whose branch landed before it ran, handing nothing to a person" do
+    request(1, "w-landed").judge!(judgment: { value: "landed" })
+    expect(fired).not_to include(a_string_ending_with("HandedToPerson"))
+  end
+
   it "refuses a role issuing an owner decision, by name" do
     role = Hecks::Agents::Role.declare!(name: { value: "reviewer" }, kind: { value: "reviewer" })
     expect { role.issue!(command: { value: "promote" }) }

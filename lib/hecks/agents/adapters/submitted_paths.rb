@@ -7,7 +7,8 @@ require_relative "submitted_paths/domain_owners"
 module Hecks
   module Adapters
     # The `SubmittedPaths` port's adapter for `ChangeReview`: reads the paths a submitted commit
-    # changed against main, and the commit's tree, in the checkout it was submitted from.
+    # changed against main, and the commit's tree, in the checkout it was submitted from; and the
+    # diff of its design files, from the primary checkout, for the architect.
     #
     # It runs `git diff --name-only main...<commit>` and `git rev-parse <commit>^{tree}` with an
     # argument list, never a shell, and judges nothing: which paths ask for the architect is the
@@ -20,6 +21,9 @@ module Hecks
       class Unread < StandardError; end
 
       BLUEBOOK_DIR = File.expand_path("..", __dir__)
+
+      # Git's pathspecs for what a change review judges: the design files and the decision records.
+      DESIGN = %w[*.bluebook *.hecksagon *.behaviors *.world docs/decisions/].freeze
 
       # @param git [#call, nil] stand-in: takes the argv, answers `[stdout, stderr, status]`
       # @param rows [#call, nil] stand-in: takes a value object's name, answers its rows
@@ -60,7 +64,22 @@ module Hecks
         { text: owners.answer(changes(plain(review), dir).map(&:first)) }
       end
 
+      # @param review [Hash, String] the submitted commit
+      # @return [Hash{Symbol => String}] `text:` git's diff of the commit's design files against
+      #   main
+      # @raise [Unread] naming why git could not read the commit
+      def diff(review:, **)
+        commit = plain(review)
+        { text: read(commit, primary, "diff", "main...#{commit}", "--", *DESIGN) }
+      end
+
       private
+
+      # The primary checkout: the parent of the repository's common git directory, which every
+      # linked worktree shares and which outlives them.
+      def primary
+        File.dirname(read("main", BLUEBOOK_DIR, "rev-parse", "--path-format=absolute", "--git-common-dir").strip)
+      end
 
       def read(commit, dir, *args)
         out, err, status = @git.call(["git", "-C", dir, *args])
