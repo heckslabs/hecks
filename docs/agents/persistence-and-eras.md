@@ -19,6 +19,11 @@ answered `carried`. Its mint step reports `Memory holds no eras, no mint needed`
   write the main checkout's overlay (`exe/hecks LocalOverlay.write! root.value=<checkout>
   copy.value=main`), and a write to a kept aggregate that a checkout with a local overlay binds to
   Memory is refused by the aggregate's name.
+  The train's copy follows `main`: every recorded push or merged train pull request
+  (`SendTrain.BranchPushed`, policy `KeepTheLauncherCurrent`) moves it to the pushed commit, never
+  backwards, from whichever process recorded it (`GitLauncher`). Every other overlay file of the owner's
+  checkout (each `*.local.world`, each `*.local.hecksagon`, `environments/local.*`) is linked into it,
+  so the clock's beats (`dev.hecks.train-beat`) run current code over the owner's stores.
   A linked worktree that keeps no local file of its own loads the main checkout's
   (`WorktreeBorrow`, `lib/hecks/adapters/driven/worktree_borrow.rb`), so its commands use the same dev
   databases under `~/.claude/hecks-dev`. A lent bind to an aggregate the worktree's own code does not declare is
