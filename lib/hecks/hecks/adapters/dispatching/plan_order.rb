@@ -11,6 +11,11 @@ module Hecks
         # The urgency of a planned work item whose last yield a fill restarts first.
         RESTARTED = 2
 
+        # @param key [String] a work item's key
+        # @return [Boolean] whether it is a filed stall's item: its key starts `stall-<kind>-` for a
+        #   kind the StallWatch bluebook's `StallKind` rows declare
+        def stall_item?(key) = stall_prefixes.any? { |prefix| key.to_s.start_with?(prefix) }
+
         private
 
         # An item restarted first ranks by its priority alone, whatever its epic's tier: the tier is
