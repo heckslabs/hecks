@@ -35219,11 +35219,11 @@
               ],
               [
                 "argv",
-                ""
+                "bundle exec rspec spec/agents_role_rows_spec.rb --tag world_list"
               ],
               [
                 "script",
-                "bundle exec rspec spec/agents_role_rows_spec.rb -e \"loads one row for each role the world pins\"\n"
+                ""
               ],
               [
                 "blocked",
