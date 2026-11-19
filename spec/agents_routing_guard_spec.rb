@@ -75,6 +75,24 @@ RSpec.describe "the orchestrator routing guard" do
     def allowed?(verb) = verdict("exe/hecks #{verb}") == { text: "allowed" }
   end
 
+  # The standing seat runs its brief's commands as written, so each passes the guard whole.
+  describe "the standing seat's brief" do
+    let(:brief) do
+      Hecks.describe(File.join(root, "lib/hecks/agents")).registry.bluebooks.fetch("Agents").policies
+           .find { |policy| policy.name == "WakeTheStandingCoordinator" }.with_spec.to_h.transform_keys(&:to_s)["brief"]
+    end
+
+    def commands = brief.scan(%r{`(exe/hecks [^`]+)`}).flatten
+
+    it "names its first step, the registration" do
+      expect(commands.first).to start_with("exe/hecks HandRun.register! run=orchestrator")
+    end
+
+    it "names only commands the orchestrator is allowed to run" do
+      expect(commands.reject { |command| verdict(command) == { text: "allowed" } }).to be_empty
+    end
+  end
+
   describe "a command on the list" do
     it "allows a launcher call of a listed verb" do
       expect(verdict("exe/hecks AgentRun.check_all!")).to eq(text: "allowed")
