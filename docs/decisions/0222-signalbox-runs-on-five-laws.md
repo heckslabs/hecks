@@ -107,6 +107,9 @@ The bluebooks are `lib/hecks/signalbox/signalbox.bluebook` (Pressure, Admission,
 Clearance) and `lib/hecks/roundhouse/roundhouse.bluebook` (Session, Reading, Tally), each with its
 behaviors written first from the incidents above, and the starting settings in
 `lib/hecks/signalbox/signalbox.world`. Each boots alone from its directory, as Triage does.
+Roundhouse's policies on Signalbox's events (start what was admitted, rest what was deferred or
+shed, finish what was sent home) are the whole contract between the two; they fire once both share
+a bus, so the two are model-checked together.
 
 ### Where each Delegate aggregate goes
 
@@ -129,7 +132,7 @@ behaviors written first from the incidents above, and the starting settings in
 | Shed | Signalbox `Breaker` | Shedding is the third breaker, lowest merit first, never an urgent coder |
 | RedWake | Signalbox `Admission` | A red fix is an urgent coder: admitted in every band, past congestion |
 | MergeWindow | Signalbox `Response` | Gates wait their turn under pressure; no window is held open |
-| Question | Roundhouse `Session` | A question goes to the one standing seat's inbox; it starts no session |
+| Question | Roundhouse (phase 2) | A question goes to the one standing seat's inbox; it starts no session |
 | AnswerDesk | deleted | One seat at most; questions queue to it |
 
 ### What it replaces
