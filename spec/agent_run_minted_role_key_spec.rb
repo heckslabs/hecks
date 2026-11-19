@@ -20,7 +20,7 @@ RSpec.describe "AgentRun keys minted for a role's run" do
            "hops.value=1", "role.value=reviewer", "repo.value=#{scratch}", "brief.value=judge w-minted", "--wait")
   end
 
-  def reviewer_runs = runs.all.select { |run| run[:agent] == "reviewer" }
+  def reviewer_runs = runs.all.select { |run| run[:agent]&.value == "reviewer" }
 
   it "keys the reviewer's run by a minted key, not the submitted commit", :aggregate_failures do
     review("c0ffee1")
