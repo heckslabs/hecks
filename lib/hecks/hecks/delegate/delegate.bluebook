@@ -970,6 +970,15 @@ Hecks.bluebook "Hecks" do
       trigger Heartbeat::Decline, with: { refusal: :refusal }
     end
 
+    # Each clock beat begins Signalbox's pressure beat, which publishes the one pressure signal
+    # (ADR 0222, phase 3b). A root, so the pressure beat's chain is its own and a fault in it never
+    # holds the clock's other beats.
+    policy "SignalThePressureOnTheBeat" do
+      on   "Heartbeat.Beaten"
+      root
+      ask  :signal, with: { beat: :beat }
+    end
+
     # A queued train pull request needs the clock beaten until it merges, and nothing else beats it.
     # One chain of ticks starts per boarded commit (a second start under the key is refused), and
     # each tick is a short dispatch of its own that beats `Heartbeat`, so no dispatch is held open.

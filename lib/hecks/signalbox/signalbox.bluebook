@@ -28,6 +28,10 @@ Hecks.bluebook "Signalbox" do
     attribute :load_tight, Percent, optional: true
     attribute :load_short, Percent, optional: true
     attribute :load_gap,   Percent, optional: true
+    # The published signal's room (phase 3b): how many coders and how many gates the headroom fits,
+    # as the beat reckoned them; none while the band is short.
+    attribute :coders_fit, Signed, optional: true
+    attribute :gates_fit,  Signed, optional: true
 
     value_object "Key" do
       attribute :value, String, matches: :present
@@ -97,6 +101,8 @@ Hecks.bluebook "Signalbox" do
       attribute :load_tight,  Percent, default: { value: 0 }, sets: true
       attribute :load_short,  Percent, default: { value: 0 }, sets: true
       attribute :load_gap,    Percent, default: { value: 0 }, sets: true
+      attribute :coders_fit,  Signed, default: { value: 0 }, sets: true
+      attribute :gates_fit,   Signed, default: { value: 0 }, sets: true
       attribute :age,         Seconds
       attribute :stale_after, Seconds
 
@@ -119,6 +125,9 @@ Hecks.bluebook "Signalbox" do
       goal "Put the machine in the short band: headroom is under the floor"
 
       reference_to Pressure
+
+      sets :coders_fit, to: { value: 0 }
+      sets :gates_fit,  to: { value: 0 }
 
       emits PressureFellShort
     end
@@ -586,6 +595,9 @@ Hecks.bluebook "Signalbox" do
     attribute :load_short,    Count, optional: true
     attribute :load_gap,      Count, optional: true
     attribute :coder_draw,    Megabytes, optional: true
+    attribute :gate_draw,     Megabytes, optional: true
+    attribute :coders_fit,    Signed, optional: true
+    attribute :gates_fit,     Signed, optional: true
     attribute :fill_ruling,   Word, optional: true
     attribute :fill_subject,  Word, optional: true
     attribute :fill_delegate, Word, optional: true
@@ -675,13 +687,18 @@ Hecks.bluebook "Signalbox" do
       attribute :load_short,    Count, sets: true
       attribute :load_gap,      Count, sets: true
       attribute :coder_draw,    Megabytes, sets: true
+      attribute :gate_draw,     Megabytes, sets: true
       attribute :fill_ruling,   Word, sets: true
       attribute :fill_subject,  Word, sets: true
       attribute :fill_delegate, Word, sets: true
       attribute :shed_ruling,   Word, sets: true
       attribute :shed_subject,  Word, sets: true
       attribute :shed_delegate, Word, sets: true
-      sets :headroom, to: capacity - used - reserve
+      given("a beat names a coder's and a gate's expected draw") { coder_draw.value.positive? && gate_draw.value.positive? }
+
+      sets :headroom,   to: capacity - used - reserve
+      sets :coders_fit, to: (capacity.value - used.value - reserve.value) / coder_draw.value
+      sets :gates_fit,  to: (capacity.value - used.value - reserve.value) / gate_draw.value
 
       emits BeatRecorded
     end
@@ -720,6 +737,9 @@ Hecks.bluebook "Signalbox" do
       attribute :load_short,    Count
       attribute :load_gap,      Count
       attribute :coder_draw,    Megabytes
+      attribute :gate_draw,     Megabytes
+      attribute :coders_fit,    Signed
+      attribute :gates_fit,     Signed
       attribute :fill_ruling,   Word
       attribute :fill_subject,  Word
       attribute :fill_delegate, Word
@@ -920,7 +940,7 @@ Hecks.bluebook "Signalbox" do
       beat: :beat, head: :head, main: :main, missing: :missing, capacity: :capacity, used: :used,
       reserve: :reserve, load: :load, cores: :cores, age: :age, stale_after: :stale_after, target: :target,
       floor: :floor, gap: :gap, load_tight: :load_tight, load_short: :load_short, load_gap: :load_gap,
-      coder_draw: :coder_draw, fill_ruling: :fill_ruling, fill_subject: :fill_subject,
+      coder_draw: :coder_draw, gate_draw: :gate_draw, fill_ruling: :fill_ruling, fill_subject: :fill_subject,
       fill_delegate: :fill_delegate, shed_ruling: :shed_ruling, shed_subject: :shed_subject,
       shed_delegate: :shed_delegate
     }
@@ -950,8 +970,8 @@ Hecks.bluebook "Signalbox" do
       beat: :beat, head: :head, main: :main, missing: :missing, capacity: :capacity, used: :used,
       reserve: :reserve, headroom: :headroom, load: :load, cores: :cores, age: :age,
       stale_after: :stale_after, target: :target, floor: :floor, gap: :gap, load_tight: :load_tight,
-      load_short: :load_short, load_gap: :load_gap, coder_draw: :coder_draw, fill_ruling: :fill_ruling,
-      fill_subject: :fill_subject, fill_delegate: :fill_delegate, shed_ruling: :shed_ruling,
+      load_short: :load_short, load_gap: :load_gap, coder_draw: :coder_draw, gate_draw: :gate_draw,
+      coders_fit: :coders_fit, gates_fit: :gates_fit, fill_ruling: :fill_ruling, fill_subject: :fill_subject, fill_delegate: :fill_delegate, shed_ruling: :shed_ruling,
       shed_subject: :shed_subject, shed_delegate: :shed_delegate
     }
   end
@@ -965,8 +985,8 @@ Hecks.bluebook "Signalbox" do
     on      "Beat.BeatPublished"
     trigger Pressure::Read, with: {
       pressure: :beat, headroom: :headroom, target: :target, floor: :floor, gap: :gap, load: :load,
-      cores: :cores, load_tight: :load_tight, load_short: :load_short, load_gap: :load_gap, age: :age,
-      stale_after: :stale_after
+      cores: :cores, load_tight: :load_tight, load_short: :load_short, load_gap: :load_gap,
+      coders_fit: :coders_fit, gates_fit: :gates_fit, age: :age, stale_after: :stale_after
     }
   end
 
@@ -1005,6 +1025,13 @@ Hecks.bluebook "Signalbox" do
       headroom.value >= target.value + gap.value && load.value <= cores.value * (load_tight.value - load_gap.value)
     end
     trigger Pressure::Ease, with: { pressure: :pressure }
+  end
+
+  # Law 2, published (phase 3b): once the band policies above have settled the reading, it is
+  # posted as the machine's one signal. Declared after them, so it runs last of the reading's policies.
+  policy "PostTheSettledPressure" do
+    on  "Pressure.PressureRead"
+    ask :post, with: { pressure: :pressure }
   end
 
   policy "EverySessionRunsInNormalPressure" do

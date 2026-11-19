@@ -13,4 +13,14 @@ Hecks.hecksagon "Signalbox" do
       refuses "BeatUnlooked"
     end
   end
+
+  # The one pressure signal, published (ADR 0222 law 2, phase 3b): the machine's settled Pressure is
+  # posted where every process can read it. It writes only; the readers judge nothing but its age.
+  Signalbox::Pressure.port "PressurePosting" do
+    asks "Post", to: Pressure do
+      attribute :pressure, Key
+      answers "PressurePosted"
+      refuses "PressureUnposted"
+    end
+  end
 end

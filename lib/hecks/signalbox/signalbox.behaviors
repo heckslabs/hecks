@@ -49,7 +49,7 @@ Hecks.behaviors "Signalbox" do
     setup "Signalbox::Pressure.Open", pressure: { value: "m3-pro" }, capacity: { value: 28672 }
     input pressure: "m3-pro", headroom: { value: 5000 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 },
           age: { value: 30 }, stale_after: { value: 120 }
-    expect emits: %w[PressureRead PressureTightened], band: "tight"
+    expect emits: %w[PressureRead PressureTightened PressurePosted], band: "tight"
   end
 
   test "headroom under the floor puts the machine in the short band" do
@@ -57,7 +57,27 @@ Hecks.behaviors "Signalbox" do
     setup "Signalbox::Pressure.Open", pressure: { value: "m3-pro" }, capacity: { value: 28672 }
     input pressure: "m3-pro", headroom: { value: 1200 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 },
           age: { value: 30 }, stale_after: { value: 120 }
-    expect emits: %w[PressureRead PressureFellShort], band: "short"
+    expect emits: %w[PressureRead PressureFellShort PressurePosted], band: "short"
+  end
+
+  # Phase 3b: the settled reading is posted as the machine's one signal, with the room it leaves.
+  test "law 2, published: a tight reading is posted with the coders and gates its headroom fits" do
+    tests "Read", on: "Pressure"
+    setup "Signalbox::Pressure.Open", pressure: { value: "m3-pro" }, capacity: { value: 28672 }
+    input pressure: "m3-pro", headroom: { value: 5000 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 },
+          coders_fit: { value: 3 }, gates_fit: { value: 1 }, age: { value: 30 }, stale_after: { value: 120 }
+    expect emits: %w[PressureRead PressureTightened PressurePosted], coders_fit: 3
+  end
+
+  # The short band admits nothing, and says so on every reading while it holds, not only the first.
+  test "law 2, published: a second reading while short still posts no room for a coder" do
+    tests "Read", on: "Pressure"
+    setup "Signalbox::Pressure.Open", pressure: { value: "m3-pro" }, capacity: { value: 28672 }
+    setup "Signalbox::Pressure.Read", pressure: "m3-pro", headroom: { value: 1200 }, target: { value: 6144 }, floor: { value: 3072 },
+          gap: { value: 2048 }, coders_fit: { value: 0 }, age: { value: 30 }, stale_after: { value: 120 }
+    input pressure: "m3-pro", headroom: { value: 2000 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 },
+          coders_fit: { value: 1 }, gates_fit: { value: 1 }, age: { value: 30 }, stale_after: { value: 120 }
+    expect emits: %w[PressureRead PressureFellShort PressurePosted], band: "short", coders_fit: 0
   end
 
   test "a stale reading is not published" do
@@ -77,7 +97,7 @@ Hecks.behaviors "Signalbox" do
           gap: { value: 2048 }, age: { value: 30 }, stale_after: { value: 120 }
     input pressure: "m3-pro", headroom: { value: 6500 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 },
           age: { value: 30 }, stale_after: { value: 120 }
-    expect emits: ["PressureRead"], band: "tight"
+    expect emits: %w[PressureRead PressurePosted], band: "tight"
   end
 
   test "a reading past the target by the gap eases the band" do
@@ -87,7 +107,7 @@ Hecks.behaviors "Signalbox" do
           gap: { value: 2048 }, age: { value: 30 }, stale_after: { value: 120 }
     input pressure: "m3-pro", headroom: { value: 8500 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 },
           age: { value: 30 }, stale_after: { value: 120 }
-    expect emits: %w[PressureRead PressureEased], band: "normal"
+    expect emits: %w[PressureRead PressureEased PressurePosted], band: "normal"
   end
 
   # Decided 2026-11-19: CPU is the second pressure input. The 1-minute load is read in hundredths
@@ -99,7 +119,7 @@ Hecks.behaviors "Signalbox" do
     input pressure: "m3-pro", headroom: { value: 12000 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 },
           age: { value: 30 }, stale_after: { value: 120 }, load: { value: 3200 }, cores: { value: 6 },
           load_tight: { value: 150 }, load_short: { value: 300 }, load_gap: { value: 25 }
-    expect emits: %w[PressureRead PressureFellShort], band: "short"
+    expect emits: %w[PressureRead PressureFellShort PressurePosted], band: "short"
   end
 
   test "the band is the worse of the two: a load past the tight mark tightens a machine with memory to spare" do
@@ -108,7 +128,7 @@ Hecks.behaviors "Signalbox" do
     input pressure: "m3-pro", headroom: { value: 12000 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 },
           age: { value: 30 }, stale_after: { value: 120 }, load: { value: 1200 }, cores: { value: 6 },
           load_tight: { value: 150 }, load_short: { value: 300 }, load_gap: { value: 25 }
-    expect emits: %w[PressureRead PressureTightened], band: "tight"
+    expect emits: %w[PressureRead PressureTightened PressurePosted], band: "tight"
   end
 
   test "memory past its gap does not ease a band the load still holds" do
@@ -120,7 +140,7 @@ Hecks.behaviors "Signalbox" do
     input pressure: "m3-pro", headroom: { value: 12000 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 },
           age: { value: 30 }, stale_after: { value: 120 }, load: { value: 840 }, cores: { value: 6 },
           load_tight: { value: 150 }, load_short: { value: 300 }, load_gap: { value: 25 }
-    expect emits: ["PressureRead"], band: "tight"
+    expect emits: %w[PressureRead PressurePosted], band: "tight"
   end
 
   test "a load under its tight mark by the gap, with memory past its own, eases the band" do
@@ -132,7 +152,7 @@ Hecks.behaviors "Signalbox" do
     input pressure: "m3-pro", headroom: { value: 12000 }, target: { value: 6144 }, floor: { value: 3072 }, gap: { value: 2048 },
           age: { value: 30 }, stale_after: { value: 120 }, load: { value: 700 }, cores: { value: 6 },
           load_tight: { value: 150 }, load_short: { value: 300 }, load_gap: { value: 25 }
-    expect emits: %w[PressureRead PressureEased], band: "normal"
+    expect emits: %w[PressureRead PressureEased PressurePosted], band: "normal"
   end
 
   # ---- Law 3: local response ----
@@ -523,14 +543,14 @@ Hecks.behaviors "Signalbox" do
     tests "Begin", on: "Beat"
     input beat: { value: "beat-quiet" }
     expect emits: %w[BeatBegun BeatLooked BeatRecorded ClearanceGranted BeatPublished PressureOpened PressureRead
-                     PressureEased DelegateHeard RulingRecorded RulingRecorded]
+                     PressureEased PressurePosted DelegateHeard RulingRecorded RulingRecorded]
   end
 
   test "the beat: the helper storm's look puts the machine in the short band" do
     tests "Begin", on: "Beat"
     input beat: { value: "beat-storm" }
     expect emits: %w[BeatBegun BeatLooked BeatRecorded ClearanceGranted BeatPublished PressureOpened PressureRead PressureFellShort
-                     DelegateHeard RulingRecorded RulingRecorded]
+                     PressurePosted DelegateHeard RulingRecorded RulingRecorded]
   end
 
   test "the beat: a look from a copy behind main is not cleared, so nothing is published" do
@@ -549,5 +569,12 @@ Hecks.behaviors "Signalbox" do
     tests "Begin", on: "Beat"
     input beat: { value: "beat-quiet" }
     expect headroom: 8209
+  end
+
+  # 8,209 MB of headroom fits five coders of 1,536 MB and three gates of 2,560 MB.
+  test "the beat: the headroom's room is reckoned in coders and gates by their expected draws" do
+    tests "Begin", on: "Beat"
+    input beat: { value: "beat-quiet" }
+    expect coders_fit: 5, gates_fit: 3
   end
 end
