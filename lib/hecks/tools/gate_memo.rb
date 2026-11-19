@@ -80,7 +80,9 @@ module Hecks
         "codegen_drift"       => CODEGEN,
         "rust_fmt"            => RUST,
         "command_names"       => SOURCE + %w[.claude/settings.json],
-        "workflow_pagination" => LIBRARY + %w[.github/**/*]
+        "workflow_pagination" => LIBRARY + %w[.github/**/*],
+        "role_files"          => LIBRARY + %w[.claude/agents/**/*],
+        "role_world_list"     => LIBRARY + SPEC + %w[spec/agents_role_rows_spec.rb .claude/agents/**/*]
       }.freeze
 
       # The sha of each file this process has hashed, by path, modification time, size and inode, so
