@@ -28,12 +28,15 @@ module ShedLooks
       @starts = 0
     end
 
+    # No other session holds a pinned role, as the real adapter answers.
+    ROLES = { pinned_role: "", role_holder: "", role_note: "" }.freeze
+
     # The agent is listed, and no other run holds the work: the facts the real adapter answers.
-    def locate(**) = { listed: true, holder: "", holder_status: "", holder_agent: "", requester_agent: "" }
+    def locate(**) = { listed: true, holder: "", holder_status: "", holder_agent: "", requester_agent: "", **ROLES }
 
     def start(**) = { session: "s-#{@starts += 1}", started_at: format("2026-11-14T10:%02d:00Z", @starts) }
 
-    def present(**) = { listed: true, status: "busy", state: "working", note: "" }
+    def present(**) = { listed: true, status: "busy", state: "working", note: "", **ROLES }
 
     def deliver(**held) = (@delivered << held) && { queued_at: "2026-11-14T11:00:00Z", session: "s" }
 
