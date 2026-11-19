@@ -42,6 +42,6 @@ RSpec.describe "the Agents plan review" do
 
   it "refuses a verdict the architect does not give, by name" do
     expect { request(1).answer!(verdict: { value: "maybe" }) }
-      .to raise_error(Hecks::Runtime::GivenNotMet, /verdict is one the architect gives/)
+      .to raise_error(Hecks::Runtime::GivenNotMet, /verdict is sound, changes or rethink/)
   end
 end
