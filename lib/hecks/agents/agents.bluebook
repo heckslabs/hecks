@@ -751,13 +751,9 @@ Hecks.bluebook "Agents" do
     count
   end
 
-  # The architect's review of a submitted change's design, asked after the edit where `PlanReview`
-  # is asked before it. A submission whose branch changed a bluebook, a hecksagon or a decision file
-  # is asked about; one that changed none is passed. A decision recorded as an event in the Tickets
-  # store (drafted, accepted, superseded) is asked about too, so retiring the decision files removes
-  # only the path clause. The reviewer judges behavior and evidence at the landing; this review
-  # judges design, and neither replaces the other. A verdict other than sound goes back to the coder
-  # of the Work item on the Verdict route, whether that coder still waits or has finished.
+  # Asked after the edit, where `PlanReview` is asked before it; the reviewer judges behavior at the
+  # landing and this judges design. A decision event asks too, so retiring the decision files removes
+  # only the path clause. Anything but sound goes to the coder on the Verdict route.
   aggregate "ChangeReview" do
     description "One architect review of a submitted change's design: asked when the branch changed a bluebook, hecksagon or decision file, or a decision was recorded; passed otherwise; cleared when sound, or sent back to the coder."
 
