@@ -20,7 +20,7 @@ module Hecks
       # One question; `because` is the reasoning shown to the human.
       Question = Struct.new(:text, :because, keyword_init: true)
 
-      # `arguments` are `{name:, field:, value:}` rows, as `bin/interview propose --arg` takes.
+      # `arguments` are `{name:, field:, value:}` rows, one per command argument.
       Proposal = Struct.new(:verb, :arguments, :rationale, keyword_init: true)
 
       # Kinds are closed: an open kind is an open prompt, and an open prompt drifts.
@@ -119,7 +119,7 @@ module Hecks
       # @param implementations [Array] the adapters bound to this port
       # @return [String] the error message
       def wiring_refusal(implementations)
-        return "no adapter implements the #{NAME} port — nothing can conduct an interview" if implementations.empty?
+        return "no adapter implements the #{NAME} port — nothing can answer" if implementations.empty?
 
         names = implementations.map(&:name).sort.join(", ")
         "#{implementations.size} adapters implement the #{NAME} port (#{names}) — the runtime will not choose for you"
